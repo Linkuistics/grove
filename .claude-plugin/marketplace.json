@@ -1,0 +1,14 @@
+{
+  "name": "linkuistics-standards",
+  "owner": {
+    "name": "Antony Blakey",
+    "email": "antony.blakey@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "coding-standards",
+      "source": "./plugins/coding-standards",
+      "description": "Coding standards as lazily-loaded skills: universal principles, per-language style guides (Rust, Python, Elixir, Bash, Swift, TypeScript), and LLM-friendly CLI design guidance."
+    }
+  ]
+}

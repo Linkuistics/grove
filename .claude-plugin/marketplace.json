@@ -1,14 +1,14 @@
 {
-  "name": "linkuistics-standards",
+  "name": "linkuistics",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
   },
   "plugins": [
     {
-      "name": "coding-standards",
-      "source": "./plugins/coding-standards",
-      "description": "Coding standards as lazily-loaded skills: universal principles, per-language style guides (Rust, Python, Elixir, Bash, Swift, TypeScript), and LLM-friendly CLI design guidance."
+      "name": "linkuistics",
+      "source": "./plugins/linkuistics",
+      "description": "Linkuistics skills: coding standards (universal principles, per-language style guides, CLI design) and grove, a methodology for hierarchical, self-extending workstreams."
     }
   ]
 }

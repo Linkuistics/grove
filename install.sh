@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Install the coding-standards skills into non-Claude-Code agent harnesses by
+# Install the linkuistics skills into non-Claude-Code agent harnesses by
 # symlinking each skill directory into that harness's personal skills folder.
 #
 # Claude Code does NOT need this script. Install there via the marketplace:
-#   /plugin marketplace add Linkuistics/coding-standards
-#   /plugin install coding-standards@linkuistics-standards
+#   /plugin marketplace add Linkuistics/skills
+#   /plugin install linkuistics@linkuistics
 #
 # For the harnesses below, the SKILL.md format is shared but there is no
 # package manager, so symlinks are the install mechanism. Because the targets
@@ -16,7 +16,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-skills_dir="${repo_root}/plugins/coding-standards/skills"
+skills_dir="${repo_root}/plugins/linkuistics/skills"
 
 if [[ ! -d "${skills_dir}" ]]; then
   echo "error: skills directory not found at ${skills_dir}" >&2

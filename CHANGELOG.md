@@ -15,6 +15,9 @@
 - Made grove's heritage explicit up front in `docs/grove.md` and the README's
   `## grove` section: bundling of Matt Pocock's `grill-with-docs` conventions
   and DDD's Ubiquitous Language and bounded-context concepts.
+- Made grove's single-worktree-per-grove convention explicit in `SKILL.md`
+  (loop preamble) and `docs/grove.md` (the "Git worktrees" subsection now
+  reads as directive rather than descriptive).
 - Initial release. Coding standards packaged as agent skills:
   - `coding-style` — universal principles (auto-loads on any file).
   - `coding-style-{rust,python,elixir,bash,swift,typescript}` — per-language

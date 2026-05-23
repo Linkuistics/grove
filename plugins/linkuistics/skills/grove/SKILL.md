@@ -64,7 +64,7 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 ## The loop
 
-One task is one session.
+One task is one session. All sessions of one grove run in the **same git worktree** — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
 
 **Pick.** From the grove root, depth-first in numeric-prefix order, skipping
 `done/`: descend into directories; the first `.md` leaf reached is the next

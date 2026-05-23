@@ -71,9 +71,11 @@ Commit the materialised `.claude/skills/grove/` as part of the target repo — t
 
 Run the same command again at a new ref. The diff is plain files — review and commit. By discipline, record the version bump in an ADR (`docs/adr/`) so the update decision is traceable.
 
-### Git worktrees
+### Git worktrees — one per grove
 
-Git worktrees of a repo all share the same committed `.claude/skills/grove/` — which is correct. A worktree is the same project at the same methodology version; worktrees give parallel session isolation within a project without methodology divergence.
+All sessions of a single grove run in the **same git worktree**. The grove's state lives in the working tree (the task-tree shape — what `ls` shows) plus git history; a single, continuous worktree is what makes that visible session-to-session. Don't create a new worktree per task or per session.
+
+Git worktrees come into play for a different reason: **running different groves in parallel** in the same repo. Worktrees of a repo all share the same committed `.claude/skills/grove/` — correct: it's the same project at the same methodology version. So a worktree per concurrent grove gives parallel isolation without methodology divergence; just don't fragment a *single* grove across worktrees.
 
 ### One-off and exploratory use
 

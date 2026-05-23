@@ -1,17 +1,22 @@
 # skills
 
-Antony Blakey's coding standards, packaged as agent **skills** so they load
-lazily — only when relevant to the file or task at hand — across Claude Code,
-Codex, and other agents that support the [`SKILL.md`](https://agentskills.io)
-open standard.
+This repository ships two things: **grove** — a methodology skill for long, multi-session workstreams — and a suite of **coding-style skills** for common languages and tools. Both are packaged as agent skills for Claude Code, Codex, and other agents that support the [`SKILL.md`](https://agentskills.io) open standard, via a Claude Code plugin marketplace (`.claude-plugin/marketplace.json`) and the skill source under `plugins/linkuistics/skills/`.
 
-This repository is two things at once:
+## grove
 
-- a **Claude Code plugin marketplace** (`.claude-plugin/marketplace.json`), and
-- the **canonical source** for the skill directories under
-  `plugins/linkuistics/skills/`.
+LLM-driven work that spans many sessions and many months can't be planned exhaustively upfront — some steps are themselves planning steps whose output is more steps. Each session starts fresh with no memory of prior sessions, so without a forcing function the project's vocabulary drifts: session 1 coins a term; session 7 reinvents it under a different name. Grove solves both: a git-tracked tree of task files (one task per session) that grows lazily as understanding deepens, anchored by a living glossary read every session. See [docs/grove.md](docs/grove.md) for the full problem/solution treatment.
 
-## What's here
+Grove is consumed by **materialisation**, not plugin installation — each project pins its own grove version by committing the files into its git history. To materialise grove into a target repo:
+
+```
+scripts/materialise-grove.sh <target-repo> [<ref>]
+```
+
+See [docs/grove.md](docs/grove.md) for install, update, and usage prompts.
+
+## Coding-style skills
+
+Antony Blakey's coding standards, packaged as agent **skills** so they load lazily — only when relevant to the file or task at hand — across Claude Code, Codex, and other agents that support the [`SKILL.md`](https://agentskills.io) open standard.
 
 | Skill | Loads when | Notes |
 |-------|-----------|-------|
@@ -23,12 +28,8 @@ This repository is two things at once:
 | `coding-style-swift` | `*.swift` | |
 | `coding-style-typescript` | `*.ts`, `*.tsx` | |
 | `cli-tool-design` | by description | checklist in `SKILL.md`, audit detail in `references/` |
-| `grove` | by description; materialised per repo | methodology for long, multi-session workstreams — see `skills/grove/SKILL.md` |
 
-Each skill's one-line `description` is the only standing context cost; the body
-loads on demand. In Claude Code the `paths:` frontmatter makes language skills
-auto-load deterministically by file type. Other harnesses ignore `paths:` and
-fall back to the `description`.
+Each skill's one-line `description` is the only standing context cost; the body loads on demand. In Claude Code the `paths:` frontmatter makes language skills auto-load deterministically by file type. Other harnesses ignore `paths:` and fall back to the `description`.
 
 ## Install — Claude Code
 
@@ -62,18 +63,6 @@ version bump required.
 If you later want controlled releases instead, add a `version` field to
 `plugin.json` and bump it per [semver](https://semver.org) — Claude Code will
 then only ship updates when that field changes.
-
-## grove — materialised, not installed
-
-`grove` is a workstream methodology. Unlike the coding-style skills, a project
-consuming it for serious work does not install the plugin — it **materialises**
-grove into its own repo so the methodology version is pinned by the project's
-own git history:
-
-    scripts/materialise-grove.sh <path-to-consuming-repo> [<ref>]
-
-This copies `grove/` into the consuming repo's `.claude/skills/grove/` and
-writes a `VERSION.md` provenance stamp. Updating is the same command again.
 
 ## Editing a skill
 

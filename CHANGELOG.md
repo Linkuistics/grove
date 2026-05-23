@@ -9,6 +9,9 @@
   `mattpocock/skills` (MIT); upstream licence in `grove/LICENSES/`.
 - Added `scripts/materialise-grove.sh` — copies grove into a consuming repo
   and stamps `VERSION.md`.
+- Added `docs/grove.md` — problem, solution, install/update guidance, and example
+  prompts. Restructured `README.md` to lead with grove as a top-level section
+  alongside the coding-style skills.
 - Initial release. Coding standards packaged as agent skills:
   - `coding-style` — universal principles (auto-loads on any file).
   - `coding-style-{rust,python,elixir,bash,swift,typescript}` — per-language

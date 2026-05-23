@@ -18,6 +18,9 @@
 - Made grove's single-worktree-per-grove convention explicit in `SKILL.md`
   (loop preamble) and `docs/grove.md` (the "Git worktrees" subsection now
   reads as directive rather than descriptive).
+- Made grove name the session: SKILL.md now instructs the LLM to suggest
+  `/rename <project>: <grove-name> grove` on the first turn of grove
+  activity, once per session.
 - Initial release. Coding standards packaged as agent skills:
   - `coding-style` — universal principles (auto-loads on any file).
   - `coding-style-{rust,python,elixir,bash,swift,typescript}` — per-language

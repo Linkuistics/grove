@@ -66,6 +66,8 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 One task is one session. All sessions of one grove run in the **same git worktree** — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
 
+Each session is named for its grove. On the first turn, before executing, suggest the user run `/rename <repo-basename>: <grove-name> grove` — once per session, then move on. The skill already knows both names: `<grove-name>` from the path of the leaf being worked (`groves/<grove-name>/…`), `<repo-basename>` from the cwd / `git rev-parse --show-toplevel`.
+
 **Pick.** From the grove root, depth-first in numeric-prefix order, skipping
 `done/`: descend into directories; the first `.md` leaf reached is the next
 task.

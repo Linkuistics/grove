@@ -85,6 +85,8 @@ If you do not need a pin — a single short workstream, an experiment — instal
 
 The prompts below are starting points, not rigid scripts. grove is designed around constraint 5: it guides, it does not gate. You can adapt any prompt, skip a step, or do a task by hand. These cover the common scenarios in rough order from first-time setup to ongoing use.
 
+Sessions are named for their grove. On the first turn of grove activity, the skill suggests `/rename <project-basename>: <grove-name> grove` — hit enter (or tab-complete and enter) to apply. The skill drops the suggestion after the first turn so it doesn't nag.
+
 ### Start a new grove
 
 The grove doesn't exist yet — you want to bootstrap it with a root brief and an initial decomposition.

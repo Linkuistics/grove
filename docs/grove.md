@@ -18,7 +18,7 @@ A grove is one workstream as a **git-tracked tree of task files** at `groves/<na
 
 One task = one session = one focused commit. Planning tasks, which may grow the tree rather than produce code, are first-class — not an awkward edge case but a named kind with a defined procedure.
 
-Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (grills the design using `grilling.md` — bundled from Matt's `grill-with-docs` — sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
+Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (**opens with a grilling session** — using `grilling.md`, the procedure bundled from Matt's `grill-with-docs` — to interrogate the design one question at a time, then through the grilling sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
 
 The **Ubiquitous Language** — DDD's term for the project's shared domain vocabulary — lives in `CONTEXT.md` at the repo root: a terse glossary of domain terms, aliases-to-avoid, and nothing else. It is read at the start of every session and appended *inline* whenever a term is resolved during a session. This is the forcing function against terminology drift: the glossary is always live, always current, and always the first thing a session reads.
 
@@ -108,7 +108,7 @@ Do the next task in groves/<name>/. Follow grove's loop: pick → bootstrap → 
 You already know the next leaf is a planning task and you want to make that explicit — planning tasks may grow the tree rather than produce code, so setting expectations about scope matters.
 
 ```
-The next leaf in groves/<name>/ is a planning task. Grill the design, update CONTEXT.md inline as terms resolve, raise an ADR only if the decision meets all three of ADR-FORMAT.md's criteria (hard to reverse, surprising, a real trade-off), and grow the tree if the work is bigger than one focused session.
+The next leaf in groves/<name>/ is a planning task. Open with a grilling session per grilling.md: interview me one question at a time, with your recommended answer attached to each, walking down the design tree. Through the grilling, update CONTEXT.md inline as terms resolve, raise an ADR only if the decision meets all three of ADR-FORMAT.md's criteria (hard to reverse, surprising, a real trade-off), and grow the tree if the work is bigger than one focused session.
 ```
 
 ### Run a work task explicitly

@@ -79,9 +79,12 @@ session's entire mandate — read nothing else by reflex.
 
 **Execute.** The task file states its kind (`TASK-FORMAT.md`):
 - A **work task** produces code, docs, or tests.
-- A **planning task** grills (`grilling.md`), updates `CONTEXT.md` *inline* as
-  terms resolve, raises ADRs *sparingly* (`ADR-FORMAT.md`), MAY write a PRD at a
-  genuine agreement point, and **grows the tree**.
+- A **planning task** opens with a **grilling session** (`grilling.md`):
+  interview the user one question at a time, propose a recommended answer for
+  each, walk down the design tree until shared understanding is reached.
+  Through that grilling, update `CONTEXT.md` *inline* as terms resolve, raise
+  ADRs *sparingly* (`ADR-FORMAT.md`), MAY write a PRD at a genuine agreement
+  point, and **grow the tree**.
 
 **Decompose.** When a leaf is too big for one focused session, a planning task
 replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`

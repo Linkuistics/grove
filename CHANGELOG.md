@@ -21,6 +21,10 @@
 - Made grove name the session: SKILL.md now instructs the LLM to suggest
   `/rename <project>: <grove-name> grove` on the first turn of grove
   activity, once per session.
+- Elevated grilling in `SKILL.md`: a planning task now **opens** with a
+  grilling session via `grilling.md`, rather than listing "grills" as one of
+  several planning-task activities. Matched in `docs/grove.md` section 2 and
+  the "Run a planning task explicitly" prompt.
 - Initial release. Coding standards packaged as agent skills:
   - `coding-style` — universal principles (auto-loads on any file).
   - `coding-style-{rust,python,elixir,bash,swift,typescript}` — per-language

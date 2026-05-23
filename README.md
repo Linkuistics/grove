@@ -4,9 +4,9 @@ This repository ships two things: **grove** — a methodology skill for long, mu
 
 ## grove
 
-LLM-driven work that spans many sessions and many months can't be planned exhaustively upfront — some steps are themselves planning steps whose output is more steps. Each session starts fresh with no memory of prior sessions, so without a forcing function the project's vocabulary drifts: session 1 coins a term; session 7 reinvents it under a different name. Grove solves both: a git-tracked tree of task files (one task per session) that grows lazily as understanding deepens, anchored by a living glossary read every session. See [docs/grove.md](docs/grove.md) for the full problem/solution treatment.
+LLM-driven work that spans many sessions and many months can't be planned exhaustively upfront — some steps are themselves planning steps whose output is more steps. Each session starts fresh with no memory of prior sessions, so without a forcing function the project's vocabulary drifts: session 1 coins a term; session 7 reinvents it under a different name. grove solves both: a git-tracked tree of task files (one task per session) that grows lazily as understanding deepens, anchored by a living glossary read every session. It builds on Matt Pocock's `grill-with-docs` (bundled) and Domain-Driven Design's Ubiquitous Language and bounded-context partitioning — neither invented here. See [docs/grove.md](docs/grove.md) for the full problem/solution treatment.
 
-Grove is consumed by **materialisation**, not plugin installation — each project pins its own grove version by committing the files into its git history. To materialise grove into a target repo:
+grove is consumed by **materialisation**, not plugin installation — each project pins its own grove version by committing the files into its git history. To materialise grove into a target repo:
 
 ```
 scripts/materialise-grove.sh <target-repo> [<ref>]

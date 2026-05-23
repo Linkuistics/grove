@@ -12,6 +12,9 @@
 - Added `docs/grove.md` — problem, solution, install/update guidance, and example
   prompts. Restructured `README.md` to lead with grove as a top-level section
   alongside the coding-style skills.
+- Made grove's heritage explicit up front in `docs/grove.md` and the README's
+  `## grove` section: bundling of Matt Pocock's `grill-with-docs` conventions
+  and DDD's Ubiquitous Language and bounded-context concepts.
 - Initial release. Coding standards packaged as agent skills:
   - `coding-style` — universal principles (auto-loads on any file).
   - `coding-style-{rust,python,elixir,bash,swift,typescript}` — per-language

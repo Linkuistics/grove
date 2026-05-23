@@ -1,6 +1,6 @@
 # grove
 
-grove is a skill for driving long, multi-session workstreams as a git-tracked tree of task files — one task per session, where planning tasks grow the tree as understanding deepens and completed branches retire to an archive. This document covers why it exists, how it works, how to install and update it, and a set of starting-point prompts.
+grove is a skill for driving long, multi-session workstreams as a git-tracked tree of task files — one task per session, where planning tasks grow the tree as understanding deepens and completed branches retire to an archive. It builds on two established ideas, not de-novo invention: Matt Pocock's [`grill-with-docs`](https://github.com/mattpocock/skills) — whose grilling procedure and `CONTEXT.md` / `ADR-FORMAT.md` conventions grove bundles wholesale — and Domain-Driven Design's **Ubiquitous Language** and **bounded contexts**. This document covers why it exists, how it works, how to install and update it, and a set of starting-point prompts.
 
 ## The problem grove solves
 
@@ -18,9 +18,11 @@ A grove is one workstream as a **git-tracked tree of task files** at `groves/<na
 
 One task = one session = one focused commit. Planning tasks, which may grow the tree rather than produce code, are first-class — not an awkward edge case but a named kind with a defined procedure.
 
-Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (grills the design, sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
+Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (grills the design using `grilling.md` — bundled from Matt's `grill-with-docs` — sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
 
-The **Ubiquitous Language** lives in `CONTEXT.md` at the repo root — a terse glossary of domain terms, aliases-to-avoid, and nothing else. It is read at the start of every session and appended *inline* whenever a term is resolved during a session. This is the forcing function against terminology drift: the glossary is always live, always current, and always the first thing a session reads.
+The **Ubiquitous Language** — DDD's term for the project's shared domain vocabulary — lives in `CONTEXT.md` at the repo root: a terse glossary of domain terms, aliases-to-avoid, and nothing else. It is read at the start of every session and appended *inline* whenever a term is resolved during a session. This is the forcing function against terminology drift: the glossary is always live, always current, and always the first thing a session reads.
+
+When a project splits into multiple **bounded contexts** — DDD's term for distinct domain partitions, each with its own vocabulary — each gets its own `CONTEXT.md`, linked by a root `CONTEXT-MAP.md`. A bounded context (a *domain* partition) is orthogonal to a task-tree node (a *process* partition): the glossary is per-bounded-context; a node carries a `BRIEF.md`, not a glossary. The two axes don't compete.
 
 Artifacts are **lazy and optional**. An ADR is raised only when a decision is hard to reverse, surprising, or a real trade-off — not because a step demands one. A PRD is written only at a genuine human-facing agreement point. A brief is created only when a node is needed. Nothing is produced speculatively.
 

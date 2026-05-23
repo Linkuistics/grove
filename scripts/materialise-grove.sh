@@ -17,7 +17,7 @@ die() { echo "materialise-grove: $*" >&2; exit 1; }
 target="${1:-}"
 ref="${2:-HEAD}"
 [[ -n "$target" ]] || die "usage: materialise-grove.sh <target-repo> [<ref>]"
-[[ -d "$target/.git" ]] || die "not a git repo: $target"
+[[ -e "$target/.git" ]] || die "not a git repo: $target"
 
 # The Linkuistics/skills clone this script lives in.
 src_repo="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"

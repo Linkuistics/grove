@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkuistics",
-  "description": "Linkuistics skills — coding standards (universal principles, per-language style guides, CLI design) and grove, a methodology for hierarchical, self-extending workstreams.",
+  "description": "Linkuistics coding-standards skills — universal principles, per-language style guides, CLI design.",
   "author": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -16,9 +16,6 @@
     "typescript",
     "swift",
     "bash",
-    "cli-design",
-    "grove",
-    "workstream",
-    "methodology"
+    "cli-design"
   ]
 }

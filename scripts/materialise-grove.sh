@@ -21,7 +21,7 @@ ref="${2:-HEAD}"
 
 # The Linkuistics/skills clone this script lives in.
 src_repo="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"
-grove_path="plugins/linkuistics/skills/grove"
+grove_path="grove"
 
 git -C "$src_repo" rev-parse -q --verify "${ref}^{commit}" >/dev/null \
   || die "unknown ref in $src_repo: $ref"
@@ -32,12 +32,11 @@ skills_sha="$(git -C "$src_repo" rev-parse --short "$ref")"
 dest="$target/.claude/skills/grove"
 
 # Extract grove/ at the chosen ref straight into the target — no working-tree
-# churn in the source clone. strip-components=4 drops the four leading path
-# components plugins/linkuistics/skills/grove.
+# churn in the source clone. strip-components=1 drops the leading `grove/`.
 rm -rf "$dest"
 mkdir -p "$dest"
 git -C "$src_repo" archive "$ref" -- "$grove_path" \
-  | tar -x -C "$dest" --strip-components=4
+  | tar -x -C "$dest" --strip-components=1
 
 # The mattpocock/skills source commit is recorded in the bundled file headers
 # (single source of truth — see Task 5).

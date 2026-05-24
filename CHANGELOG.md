@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Moved the grove skill out of the `linkuistics` plugin tree
+  (`plugins/linkuistics/skills/grove/` → `grove/`) so installing the plugin
+  no longer ships a global grove. Grove is materialisation-only — a global
+  installed copy would conflict with the per-project pinned copy and
+  re-introduce the version-drift problem grove exists to prevent. Updated
+  `scripts/materialise-grove.sh`, its test, `README.md`, and `docs/grove.md`.
 - Renamed the repo to `Linkuistics/skills` and the plugin to `linkuistics`
   (namespace `linkuistics:`); added an Apache-2.0 licence.
 - Added the `grove` skill — a methodology for hierarchical, self-extending,

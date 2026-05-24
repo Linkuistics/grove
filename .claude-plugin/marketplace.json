@@ -8,7 +8,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics skills: coding standards (universal principles, per-language style guides, CLI design) and grove, a methodology for hierarchical, self-extending workstreams."
+      "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI design."
     }
   ]
 }

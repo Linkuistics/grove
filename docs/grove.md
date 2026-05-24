@@ -28,9 +28,9 @@ Artifacts are **lazy and optional**. An ADR is raised only when a decision is ha
 
 Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the skill and `groves/` is still a legible folder of notes.
 
-grove operates under **seven constraints** — the non-negotiable rules that keep it from becoming brittle machinery. They are not restated here; see [`plugins/linkuistics/skills/grove/SKILL.md`](../plugins/linkuistics/skills/grove/SKILL.md) for the list and their rationale (or `.claude/skills/grove/SKILL.md` in a materialised project).
+grove operates under **seven constraints** — the non-negotiable rules that keep it from becoming brittle machinery. They are not restated here; see [`grove/SKILL.md`](../grove/SKILL.md) for the list and their rationale (or `.claude/skills/grove/SKILL.md` in a materialised project).
 
-The loop in one sentence: pick the first live leaf depth-first → bootstrap by reading → execute → commit → retire the node if its last leaf is done, then repeat. [`SKILL.md`](../plugins/linkuistics/skills/grove/SKILL.md) has the full mermaid diagram.
+The loop in one sentence: pick the first live leaf depth-first → bootstrap by reading → execute → commit → retire the node if its last leaf is done, then repeat. [`SKILL.md`](../grove/SKILL.md) has the full mermaid diagram.
 
 ## Installing grove in a project, and when and how to update it
 
@@ -79,7 +79,7 @@ Git worktrees come into play for a different reason: **running different groves 
 
 ### One-off and exploratory use
 
-If you do not need a pin — a single short workstream, an experiment — install the `linkuistics` plugin in Claude Code and use `linkuistics:grove` directly. Latest, global, unpinned. Fine for a one-off; not the right choice for serious long-lived projects.
+There is no global, plugin-installed grove — it was removed precisely because a globally-installed grove would conflict with the per-project materialised copy and re-introduce the drift problem grove exists to prevent. Even for a single short workstream, materialise grove into the target repo. The cost is one script invocation and one commit; the benefit is that the experiment is still reproducible weeks later. If the work truly does not warrant a commit, run it freeform without grove at all — that is a more honest choice than a global, unpinned grove.
 
 ## How to use it
 

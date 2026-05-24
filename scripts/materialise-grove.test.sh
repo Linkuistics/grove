@@ -26,7 +26,7 @@ done
 grep -q 'Linkuistics/skills@'  "$dest/VERSION.md" || fail "VERSION.md missing grove source sha"
 grep -q 'mattpocock/skills@'   "$dest/VERSION.md" || fail "VERSION.md missing mattpocock sha"
 
-diff -q "$src_repo/plugins/linkuistics/skills/grove/SKILL.md" "$dest/SKILL.md" >/dev/null \
+diff -q "$src_repo/grove/SKILL.md" "$dest/SKILL.md" >/dev/null \
   || fail "materialised SKILL.md differs from source"
 
 # Re-running (the update path) must succeed and stay clean.

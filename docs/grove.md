@@ -73,9 +73,27 @@ Run the same command again at a new ref. The diff is plain files — review and 
 
 ### Git worktrees — one per grove
 
-All sessions of a single grove run in the **same git worktree**. The grove's state lives in the working tree (the task-tree shape — what `ls` shows) plus git history; a single, continuous worktree is what makes that visible session-to-session. Don't create a new worktree per task or per session.
+All sessions of a single grove run in the **same git worktree**, by convention at `<repo>/worktrees/<grove-name>-grove/` on the branch `<grove-name>-grove`. The grove's state lives in the working tree (the task-tree shape — what `ls` shows) plus git history; a single, continuous worktree is what makes that visible session-to-session. Don't create a new worktree per task or per session.
 
 Git worktrees come into play for a different reason: **running different groves in parallel** in the same repo. Worktrees of a repo all share the same committed `.claude/skills/grove/` — correct: it's the same project at the same methodology version. So a worktree per concurrent grove gives parallel isolation without methodology divergence; just don't fragment a *single* grove across worktrees.
+
+### Helper scripts: `grove-start` and `grove-next`
+
+Two optional shell helpers, bundled with the materialised skill at `.claude/skills/grove/grove-start` and `.claude/skills/grove/grove-next`, collapse the per-session restart ritual (`/clear` → `/rename` → kickoff prompt) into a single shell command:
+
+- `grove-start <name>` — creates the worktree at `<repo>/worktrees/<name>-grove/` on a new branch `<name>-grove`, then launches a pre-named `claude` session that opens grove's "start a new grove" flow.
+- `grove-next <name>` — `cd`s into the existing worktree and launches a pre-named `claude` session that opens grove's continue-the-loop flow.
+
+Both find the main checkout via `git rev-parse --git-common-dir`, so they can be invoked from anywhere inside the repo (including from another worktree). The session name they set — `<repo>: <name> grove` — is the same pattern grove suggests via `/rename`, so the in-session rename suggestion only fires when the helpers weren't used.
+
+Add a shell alias if you want even less typing, e.g. in `~/.zshrc`:
+
+```bash
+alias gs='.claude/skills/grove/grove-start'
+alias gn='.claude/skills/grove/grove-next'
+```
+
+The helpers are optional. Grove itself doesn't require them — every prompt below still works if you launch `claude` by hand.
 
 ### One-off and exploratory use
 
@@ -89,7 +107,13 @@ Sessions are named for their grove. On the first turn of grove activity, the ski
 
 ### Start a new grove
 
-The grove doesn't exist yet — you want to bootstrap it with a root brief and an initial decomposition.
+The grove doesn't exist yet — you want to bootstrap it with a root brief and an initial decomposition. With the helper:
+
+```
+.claude/skills/grove/grove-start <workstream-name>
+```
+
+The script creates the worktree and launches a pre-named session that runs the bootstrap flow. To start without the helper, launch `claude` yourself and use:
 
 ```
 I want to start a new grove for <workstream-name> in this repo. Goal: <one-sentence goal>. Grill me on it first (use grove's bundled grilling procedure), sharpening any new terminology into CONTEXT.md inline as terms resolve. Then propose the root groves/<workstream-name>/BRIEF.md (per BRIEF-FORMAT.md) and a small initial decomposition — first one or two leaves only. Don't over-plan; planning tasks will grow the rest.
@@ -97,7 +121,13 @@ I want to start a new grove for <workstream-name> in this repo. Goal: <one-sente
 
 ### Continue a grove
 
-The grove exists with at least one live leaf — you want the next session's worth of work done.
+The grove exists with at least one live leaf — you want the next session's worth of work done. With the helper:
+
+```
+.claude/skills/grove/grove-next <name>
+```
+
+To continue without the helper, from inside the grove's worktree:
 
 ```
 Do the next task in groves/<name>/. Follow grove's loop: pick → bootstrap → execute → commit → judge retirement.

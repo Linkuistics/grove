@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Added `grove-start` and `grove-next` shell launchers, bundled with the
+  grove skill and materialised alongside it. They collapse the per-session
+  restart ritual (`/clear` → `/rename` → kickoff prompt) into a single
+  command: `grove-start <name>` creates the worktree at
+  `<repo>/worktrees/<name>-grove/` on branch `<name>-grove` and launches a
+  pre-named bootstrap session; `grove-next <name>` cd's into the worktree
+  and launches a pre-named continuation session. Both work from anywhere
+  inside the repo (any worktree) via `git rev-parse --git-common-dir`.
+  Updated SKILL.md, docs/grove.md, and the materialise test to match.
 - Moved the grove skill out of the `linkuistics` plugin tree
   (`plugins/linkuistics/skills/grove/` → `grove/`) so installing the plugin
   no longer ships a global grove. Grove is materialisation-only — a global

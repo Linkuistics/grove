@@ -64,9 +64,11 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 ## The loop
 
-One task is one session. All sessions of one grove run in the **same git worktree** — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
+One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/worktrees/<grove-name>-grove/` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
 
-Each session is named for its grove. On the first turn, before executing, suggest the user run `/rename <repo-basename>: <grove-name> grove` — once per session, then move on. The skill already knows both names: `<grove-name>` from the path of the leaf being worked (`groves/<grove-name>/…`), `<repo-basename>` from the cwd / `git rev-parse --show-toplevel`.
+Sessions are typically launched by the bundled helpers `grove-start <name>` (new grove — creates the worktree, branches off the default branch, opens a bootstrap session) and `grove-next <name>` (continues an existing grove in its worktree). Both pre-name the session `<repo>: <grove> grove`, so the rename ritual is unnecessary in the common case.
+
+If a session was started without the helpers and the session name doesn't already match `<repo>: <grove-name> grove`, suggest `/rename <repo-basename>: <grove-name> grove` once per session and move on. The skill already knows both names: `<grove-name>` from the path of the leaf being worked (`groves/<grove-name>/…`), `<repo-basename>` from the cwd / `git rev-parse --show-toplevel`.
 
 **Pick.** From the grove root, depth-first in numeric-prefix order, skipping
 `done/`: descend into directories; the first `.md` leaf reached is the next
@@ -136,5 +138,8 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
+- `grove-start`, `grove-next` — shell launchers for new and continuing
+  sessions; create/use `<repo>/worktrees/<grove>-grove/` and start a
+  pre-named claude session. Optional ergonomic helpers, not required.
 - `VERSION.md` — which grove version this is and how to update it (present only
   in a materialised copy; written by the materialise script).

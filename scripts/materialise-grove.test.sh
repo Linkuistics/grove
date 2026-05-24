@@ -23,6 +23,11 @@ for f in SKILL.md BRIEF-FORMAT.md TASK-FORMAT.md CONTEXT-FORMAT.md \
 done
 [[ -f "$dest/LICENSES/mattpocock-skills.LICENSE" ]] || fail "missing bundled LICENSE"
 
+for s in grove-start grove-next; do
+  [[ -f "$dest/$s" ]] || fail "missing $s"
+  [[ -x "$dest/$s" ]] || fail "$s not executable in materialised footprint"
+done
+
 grep -q 'Linkuistics/skills@'  "$dest/VERSION.md" || fail "VERSION.md missing grove source sha"
 grep -q 'mattpocock/skills@'   "$dest/VERSION.md" || fail "VERSION.md missing mattpocock sha"
 

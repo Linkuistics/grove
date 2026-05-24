@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# grove-next — launch the next session of an existing grove in its worktree.
+#
+#   grove-next <grove-name>
+#
+# Run from anywhere inside the repo (main checkout or another worktree).
+# Expects the grove's worktree at <main-repo>/worktrees/<grove-name>-grove/
+# (created by grove-start).
+set -euo pipefail
+
+die() { echo "grove-next: $*" >&2; exit 1; }
+
+grove="${1:-}"
+[[ -n "$grove" ]] || die "usage: grove-next <grove-name>"
+
+git rev-parse --git-common-dir >/dev/null 2>&1 || die "not in a git repo"
+main_repo="$(cd "$(dirname "$(git rev-parse --git-common-dir)")" && pwd)"
+repo_name="$(basename "$main_repo")"
+worktree="$main_repo/worktrees/${grove}-grove"
+
+[[ -d "$worktree" ]] || die "no worktree for grove '$grove' at $worktree (run grove-start $grove first)"
+[[ -d "$worktree/groves/$grove" ]] || die "no grove tree at $worktree/groves/$grove (use grove-start to bootstrap)"
+
+cd "$worktree"
+exec claude -n "${repo_name}: ${grove} grove" \
+  "Do the next task in groves/${grove}/. Follow grove's loop: pick → bootstrap → execute → commit → judge retirement."

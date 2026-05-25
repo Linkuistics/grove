@@ -1,5 +1,20 @@
 use anyhow::{anyhow, Result};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+
+/// Whether a verb wants one harness or all detected ones.
+///
+/// - `Multi` is for file-system verbs (`install`, `update`, `init`): operating
+///   on every detected harness is the intent (e.g. `grove install` in a repo
+///   with both `.claude/` and `.codex/` installs into both).
+/// - `Single` is for session-launching verbs (`start`, `continue`, ...): one
+///   grove session runs in one harness, so an ambiguous repo without
+///   `--harness` is an error rather than a silent dual-launch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectMode {
+    Multi,
+    Single,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Harness {
@@ -53,13 +68,23 @@ pub fn detect_in_repo(repo: &Path) -> Vec<&'static Harness> {
 }
 
 /// Resolve the harnesses for a verb:
-/// - If `explicit` is non-empty, look each up by name.
+/// - If `explicit` is non-empty, look each up by name (deduplicating repeats).
 /// - Else, fall back to `detect_in_repo`.
 /// - If neither yields anything: error.
-pub fn select(repo: &Path, explicit: &[String]) -> Result<Vec<&'static Harness>> {
+/// - If `mode` is `Single` and more than one harness is detected (with no
+///   `explicit` override), error and ask the user to disambiguate.
+pub fn select(
+    repo: &Path,
+    explicit: &[String],
+    mode: SelectMode,
+) -> Result<Vec<&'static Harness>> {
     if !explicit.is_empty() {
         let mut out = Vec::new();
+        let mut seen = HashSet::new();
         for name in explicit {
+            if !seen.insert(name.as_str()) {
+                continue;
+            }
             let h = by_name(name)
                 .ok_or_else(|| anyhow!("unknown harness: {name}. Known: claude, codex"))?;
             out.push(h);
@@ -68,11 +93,15 @@ pub fn select(repo: &Path, explicit: &[String]) -> Result<Vec<&'static Harness>>
     }
 
     let detected = detect_in_repo(repo);
-    if detected.is_empty() {
-        anyhow::bail!(
+    match (mode, detected.len()) {
+        (_, 0) => anyhow::bail!(
             "no harness session detected in {}; run the harness at least once in this repo or pass --harness explicitly",
             repo.display()
-        );
+        ),
+        (SelectMode::Single, n) if n > 1 => anyhow::bail!(
+            "multiple harnesses detected in {} — pass --harness explicitly",
+            repo.display()
+        ),
+        _ => Ok(detected),
     }
-    Ok(detected)
 }

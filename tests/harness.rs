@@ -1,5 +1,7 @@
-use grove::harness::{by_name, HARNESSES};
+use grove::harness::{by_name, detect_in_repo, select};
+use std::fs;
 use std::path::Path;
+use tempfile::TempDir;
 
 #[test]
 fn registry_contains_claude_and_codex() {
@@ -14,10 +16,6 @@ fn install_path_is_under_project_dir() {
     let path = h.install_path(Path::new("/tmp/repo"));
     assert_eq!(path, Path::new("/tmp/repo/.claude/skills/grove"));
 }
-
-use grove::harness::detect_in_repo;
-use std::fs;
-use tempfile::TempDir;
 
 #[test]
 fn detect_finds_claude_when_only_claude_present() {
@@ -44,8 +42,6 @@ fn detect_finds_none_in_empty_repo() {
     let tmp = TempDir::new().unwrap();
     assert!(detect_in_repo(tmp.path()).is_empty());
 }
-
-use grove::harness::select;
 
 #[test]
 fn select_explicit_overrides_detection() {

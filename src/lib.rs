@@ -5,4 +5,5 @@ pub mod harness;
 pub mod install;
 pub mod repo;
 pub mod uninstall;
+pub mod version;
 pub mod version_md;

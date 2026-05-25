@@ -44,3 +44,29 @@ fn detect_finds_none_in_empty_repo() {
     let tmp = TempDir::new().unwrap();
     assert!(detect_in_repo(tmp.path()).is_empty());
 }
+
+use grove::harness::select;
+
+#[test]
+fn select_explicit_overrides_detection() {
+    let tmp = TempDir::new().unwrap();
+    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
+
+    let selected = select(tmp.path(), &["codex".to_string()]).unwrap();
+    assert_eq!(selected.len(), 1);
+    assert_eq!(selected[0].name, "codex");
+}
+
+#[test]
+fn select_errors_on_unknown_harness() {
+    let tmp = TempDir::new().unwrap();
+    let err = select(tmp.path(), &["lemur".to_string()]).unwrap_err();
+    assert!(err.to_string().contains("unknown harness"));
+}
+
+#[test]
+fn select_errors_when_no_harness_detectable() {
+    let tmp = TempDir::new().unwrap();
+    let err = select(tmp.path(), &[]).unwrap_err();
+    assert!(err.to_string().contains("no harness session detected"));
+}

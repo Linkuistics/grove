@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,4 +50,29 @@ pub fn detect_in_repo(repo: &Path) -> Vec<&'static Harness> {
         .iter()
         .filter(|h| h.project_dir_path(repo).is_dir())
         .collect()
+}
+
+/// Resolve the harnesses for a verb:
+/// - If `explicit` is non-empty, look each up by name.
+/// - Else, fall back to `detect_in_repo`.
+/// - If neither yields anything: error.
+pub fn select(repo: &Path, explicit: &[String]) -> Result<Vec<&'static Harness>> {
+    if !explicit.is_empty() {
+        let mut out = Vec::new();
+        for name in explicit {
+            let h = by_name(name)
+                .ok_or_else(|| anyhow!("unknown harness: {name}. Known: claude, codex"))?;
+            out.push(h);
+        }
+        return Ok(out);
+    }
+
+    let detected = detect_in_repo(repo);
+    if detected.is_empty() {
+        anyhow::bail!(
+            "no harness session detected in {}; run the harness at least once in this repo or pass --harness explicitly",
+            repo.display()
+        );
+    }
+    Ok(detected)
 }

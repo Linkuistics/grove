@@ -113,7 +113,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Uninstall(args) => crate::uninstall::run(&args),
         Command::Init(_) => anyhow::bail!("not yet implemented"),
         Command::Version => crate::version::run(),
-        Command::Status(_) => anyhow::bail!("not yet implemented"),
+        Command::Status(args) => crate::status::run(&args),
         Command::List(_) => anyhow::bail!("not yet implemented"),
         Command::Start(_) => anyhow::bail!("not yet implemented"),
         Command::Continue(_) => anyhow::bail!("not yet implemented"),

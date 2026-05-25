@@ -22,7 +22,7 @@ pub fn start(args: &StartArgs) -> Result<()> {
     )?;
     harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
 
-    let prompt = load_prompt(&worktree, harness, "start")?;
+    let prompt = load_prompt(&repo_path, harness, "start")?;
     let prompt = substitute(&prompt, &[("NAME", &args.name)]);
 
     if args.no_launch {
@@ -62,7 +62,7 @@ fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
         );
     }
 
-    let prompt = load_prompt(&worktree, harness, verb)?;
+    let prompt = load_prompt(&repo_path, harness, verb)?;
     let prompt = substitute(&prompt, &[("NAME", &args.name)]);
 
     if args.no_launch {
@@ -93,7 +93,7 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         );
     }
 
-    let prompt = load_prompt(&worktree, harness, "retire")?;
+    let prompt = load_prompt(&repo_path, harness, "retire")?;
     let prompt = substitute(&prompt, &[("NAME", name), ("NODE_PATH", node_path)]);
 
     if args.no_launch {
@@ -103,12 +103,9 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
     exec_harness(harness, &repo_path, &worktree, name, &prompt)
 }
 
-fn load_prompt(worktree: &Path, harness: &Harness, verb: &str) -> Result<String> {
-    // The prompts live in the materialised content inside the main repo,
-    // not the worktree. Resolve the main repo via the worktree's git-common-dir.
-    let main_repo = repo::resolve(Some(worktree))?;
+fn load_prompt(main_repo: &Path, harness: &Harness, verb: &str) -> Result<String> {
     let prompt_path = harness
-        .install_path(&main_repo)
+        .install_path(main_repo)
         .join("prompts")
         .join(format!("{}.md", verb));
     fs::read_to_string(&prompt_path)

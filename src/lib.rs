@@ -3,6 +3,7 @@ pub mod extract;
 pub mod fetch;
 pub mod harness;
 pub mod install;
+pub mod list;
 pub mod repo;
 pub mod status;
 pub mod uninstall;

@@ -114,7 +114,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Init(_) => anyhow::bail!("not yet implemented"),
         Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
-        Command::List(_) => anyhow::bail!("not yet implemented"),
+        Command::List(args) => crate::list::run(&args),
         Command::Start(_) => anyhow::bail!("not yet implemented"),
         Command::Continue(_) => anyhow::bail!("not yet implemented"),
         Command::Takeover(_) => anyhow::bail!("not yet implemented"),

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- grove moved to its own repo (`Linkuistics/grove`) and is now distributed via
+  `brew tap Linkuistics/taps && brew install grove`. The `grove/` directory and
+  `scripts/materialise-grove.sh` were removed from this repo; `docs/grove.md`
+  now points readers to the new repo.
 - Added `grove-start` and `grove-next` shell launchers, bundled with the
   grove skill and materialised alongside it. They collapse the per-session
   restart ritual (`/clear` → `/rename` → kickoff prompt) into a single

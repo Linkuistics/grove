@@ -13,7 +13,6 @@ jobs:
       matrix:
         include:
           - { os: macos-14,      target: aarch64-apple-darwin,    name: grove-darwin-arm64 }
-          - { os: macos-13,      target: x86_64-apple-darwin,     name: grove-darwin-x86_64 }
           - { os: ubuntu-22.04,  target: x86_64-unknown-linux-gnu, name: grove-linux-x86_64 }
           - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu, name: grove-linux-arm64 }
     steps:

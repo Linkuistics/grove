@@ -42,3 +42,11 @@ impl Harness {
         repo.join(self.project_dir)
     }
 }
+
+/// Return the harnesses that have a project directory in `repo`.
+pub fn detect_in_repo(repo: &Path) -> Vec<&'static Harness> {
+    HARNESSES
+        .iter()
+        .filter(|h| h.project_dir_path(repo).is_dir())
+        .collect()
+}

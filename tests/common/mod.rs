@@ -21,3 +21,20 @@ pub fn fixture_tarball(tag: &str, files: &[(&str, &[u8])]) -> Vec<u8> {
     }
     gz.finish().unwrap()
 }
+
+use grove::fetch::Fetcher;
+
+#[allow(dead_code)]
+pub struct StubFetcher {
+    pub latest: String,
+    pub tarball: Vec<u8>,
+}
+
+impl Fetcher for StubFetcher {
+    fn latest_version(&self) -> anyhow::Result<String> {
+        Ok(self.latest.clone())
+    }
+    fn fetch_tarball(&self, _tag: &str) -> anyhow::Result<Vec<u8>> {
+        Ok(self.tarball.clone())
+    }
+}

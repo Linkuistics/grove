@@ -115,10 +115,10 @@ pub fn run() -> anyhow::Result<()> {
         Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
         Command::List(args) => crate::list::run(&args),
-        Command::Start(_) => anyhow::bail!("not yet implemented"),
-        Command::Continue(_) => anyhow::bail!("not yet implemented"),
-        Command::Takeover(_) => anyhow::bail!("not yet implemented"),
-        Command::Retire(_) => anyhow::bail!("not yet implemented"),
-        Command::Finish(_) => anyhow::bail!("not yet implemented"),
+        Command::Start(args)    => crate::launch::start(&args),
+        Command::Continue(args) => crate::launch::continue_grove(&args),
+        Command::Takeover(args) => crate::launch::takeover(&args),
+        Command::Retire(args)   => crate::launch::retire(&args),
+        Command::Finish(args)   => crate::launch::finish(&args),
     }
 }

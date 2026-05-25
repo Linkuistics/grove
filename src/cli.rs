@@ -50,6 +50,7 @@ pub struct InstallArgs {
 
 #[derive(Parser)]
 pub struct UninstallArgs {
+    /// Target repo (defaults to cwd's git root).
     pub repo: Option<PathBuf>,
     #[arg(long = "harness")]
     pub harnesses: Vec<String>,
@@ -60,6 +61,7 @@ pub struct UninstallArgs {
 
 #[derive(Parser)]
 pub struct InitArgs {
+    /// Target repo (defaults to cwd's git root).
     pub repo: Option<PathBuf>,
     #[arg(long = "harness")]
     pub harnesses: Vec<String>,
@@ -67,6 +69,7 @@ pub struct InitArgs {
 
 #[derive(Parser)]
 pub struct RepoArgs {
+    /// Target repo (defaults to cwd's git root).
     pub repo: Option<PathBuf>,
 }
 
@@ -105,11 +108,17 @@ pub struct RetireArgs {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install(_) | Command::Update(_) | Command::Uninstall(_)
-        | Command::Init(_) | Command::Version | Command::Status(_)
-        | Command::List(_) | Command::Start(_) | Command::Continue(_)
-        | Command::Takeover(_) | Command::Retire(_) | Command::Finish(_) => {
-            anyhow::bail!("not yet implemented")
-        }
+        Command::Install(_) => anyhow::bail!("not yet implemented"),
+        Command::Update(_) => anyhow::bail!("not yet implemented"),
+        Command::Uninstall(_) => anyhow::bail!("not yet implemented"),
+        Command::Init(_) => anyhow::bail!("not yet implemented"),
+        Command::Version => anyhow::bail!("not yet implemented"),
+        Command::Status(_) => anyhow::bail!("not yet implemented"),
+        Command::List(_) => anyhow::bail!("not yet implemented"),
+        Command::Start(_) => anyhow::bail!("not yet implemented"),
+        Command::Continue(_) => anyhow::bail!("not yet implemented"),
+        Command::Takeover(_) => anyhow::bail!("not yet implemented"),
+        Command::Retire(_) => anyhow::bail!("not yet implemented"),
+        Command::Finish(_) => anyhow::bail!("not yet implemented"),
     }
 }

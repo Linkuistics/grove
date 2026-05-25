@@ -111,7 +111,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
         Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
         Command::Uninstall(args) => crate::uninstall::run(&args),
-        Command::Init(_) => anyhow::bail!("not yet implemented"),
+        Command::Init(args) => crate::init::run(&args),
         Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
         Command::List(args) => crate::list::run(&args),

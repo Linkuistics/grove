@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # grove-start — create a worktree for a new grove and launch a bootstrap session.
 #
-#   grove-start <grove-name> [<start-point>]
+#   grove-start <name> [<start-point>]
 #
-#   <grove-name>   the grove's slug; used for the worktree dir
-#                  (worktrees/<grove-name>-grove/), the branch
-#                  (<grove-name>-grove), and the session name.
+#   <name>   the grove's slug; used for the worktree dir
+#                  (worktrees/<name>-grove/), the branch
+#                  (<name>-grove), and the session name.
 #   <start-point>  commit/branch the new worktree branches off
 #                  (default: origin's HEAD branch, else `main`).
 #
@@ -17,7 +17,7 @@ die() { echo "grove-start: $*" >&2; exit 1; }
 
 grove="${1:-}"
 start="${2:-}"
-[[ -n "$grove" ]] || die "usage: grove-start <grove-name> [<start-point>]"
+[[ -n "$grove" ]] || die "usage: grove-start <name> [<start-point>]"
 [[ "$grove" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
   || die "grove name must be kebab-case (lowercase, digits, hyphens): $grove"
 

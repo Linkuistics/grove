@@ -1,0 +1,1 @@
+Take over the {{NAME}} grove. Don't pick a task yet — first orient: read CONTEXT.md, the root BRIEF.md, and skim the most-recently-touched files (git log --since='1 week ago' -- groves/{{NAME}}/). Tell me where the grove stands: what's done, what's open, what the next task would be, and any open questions in the briefs.

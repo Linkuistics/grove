@@ -11,6 +11,10 @@ rust-version = "1.74"
 name = "grove"
 path = "src/main.rs"
 
+[lib]
+name = "grove"
+path = "src/lib.rs"
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }

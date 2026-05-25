@@ -1,0 +1,52 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { os: macos-14,      target: aarch64-apple-darwin,    name: grove-darwin-arm64 }
+          - { os: macos-13,      target: x86_64-apple-darwin,     name: grove-darwin-x86_64 }
+          - { os: ubuntu-22.04,  target: x86_64-unknown-linux-gnu, name: grove-linux-x86_64 }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu, name: grove-linux-arm64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }}
+      - name: package
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/grove dist/grove
+          tar -C dist -czf ${{ matrix.name }}.tar.gz grove
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: collect
+        run: |
+          mkdir release
+          find dist -name '*.tar.gz' -exec cp {} release/ \;
+          (cd release && sha256sum *.tar.gz > SHA256SUMS)
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

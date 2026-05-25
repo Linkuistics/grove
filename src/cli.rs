@@ -108,8 +108,8 @@ pub struct RetireArgs {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install(_) => anyhow::bail!("not yet implemented"),
-        Command::Update(_) => anyhow::bail!("not yet implemented"),
+        Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
+        Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
         Command::Uninstall(_) => anyhow::bail!("not yet implemented"),
         Command::Init(_) => anyhow::bail!("not yet implemented"),
         Command::Version => anyhow::bail!("not yet implemented"),

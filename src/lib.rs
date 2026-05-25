@@ -2,6 +2,7 @@ pub mod cli;
 pub mod extract;
 pub mod fetch;
 pub mod harness;
+pub mod harness_stamp;
 pub mod init;
 pub mod install;
 pub mod list;

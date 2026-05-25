@@ -40,3 +40,60 @@ fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
         Ok(cwd.join(common))
     }
 }
+
+/// Create a worktree at `<repo>/worktrees/<name>-grove/` on a new branch
+/// `<name>-grove`, branching from `start_point` (or origin's HEAD).
+pub fn create_grove_worktree(
+    repo: &Path,
+    name: &str,
+    start_point: Option<&str>,
+) -> Result<PathBuf> {
+    let worktree = repo.join("worktrees").join(format!("{}-grove", name));
+    if worktree.exists() {
+        anyhow::bail!("worktree already exists: {}", worktree.display());
+    }
+    let branch = format!("{}-grove", name);
+    let start = match start_point {
+        Some(s) => s.to_string(),
+        None => default_start_point(repo)?,
+    };
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .arg("worktree")
+        .arg("add")
+        .arg(&worktree)
+        .arg("-b")
+        .arg(&branch)
+        .arg(&start)
+        .status()
+        .context("running git worktree add")?;
+    if !status.success() {
+        anyhow::bail!("git worktree add failed");
+    }
+    Ok(worktree)
+}
+
+fn default_start_point(repo: &Path) -> Result<String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .arg("symbolic-ref")
+        .arg("--short")
+        .arg("refs/remotes/origin/HEAD")
+        .output()
+        .context("running git symbolic-ref")?;
+    if out.status.success() {
+        let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Some(short) = s.strip_prefix("origin/") {
+            return Ok(short.to_string());
+        }
+        return Ok(s);
+    }
+    Ok("main".to_string())
+}
+
+/// Path of an existing grove worktree.
+pub fn grove_worktree(repo: &Path, name: &str) -> PathBuf {
+    repo.join("worktrees").join(format!("{}-grove", name))
+}

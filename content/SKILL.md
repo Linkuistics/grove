@@ -66,7 +66,7 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/worktrees/<name>-grove/` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
 
-Sessions are typically launched by the bundled helpers `grove-start <name>` (new grove — creates the worktree, branches off the default branch, opens a bootstrap session) and `grove-next <name>` (continues an existing grove in its worktree). Both pre-name the session `<repo>: <name> grove`, so the rename ritual is unnecessary in the common case.
+Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove start <name>` for a new grove (creates the worktree, branches off the default branch, opens a bootstrap session) and `grove continue <name>` to resume. Both pre-name the harness session, so the rename ritual is unnecessary in the common case.
 
 If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the path of the leaf being worked (`groves/<name>/…`), `<repo-basename>` from the cwd / `git rev-parse --show-toplevel`.
 
@@ -138,8 +138,6 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
-- `grove-start`, `grove-next` — shell launchers for new and continuing
-  sessions; create/use `<repo>/worktrees/<name>-grove/` and start a
-  pre-named claude session. Optional ergonomic helpers, not required.
+- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`, `finish.md`).
 - `VERSION.md` — which grove version this is and how to update it (present only
   in a materialised copy; written by the materialise script).

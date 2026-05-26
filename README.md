@@ -17,7 +17,6 @@ brew install grove
 grove install [<repo>]            # materialise grove into <repo> (create-only)
 grove update  [<repo>]            # refresh an existing install
 grove uninstall [<repo>]          # remove grove (refuses if live groves exist; --force to override)
-grove init [<repo>]               # first-time setup: install + CONTEXT.md + docs/adr/
 grove version                     # CLI version + installed content version per harness
 grove status [<repo>]             # installed versions + per-grove summary in <repo>
 grove list [<repo>]               # grove names in <repo>, one per line (scriptable)

@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 /// Whether a verb wants one harness or all detected ones.
 ///
-/// - `Multi` is for file-system verbs (`install`, `update`, `init`): operating
-///   on every detected harness is the intent (e.g. `grove install` in a repo
-///   with both `.claude/` and `.codex/` installs into both).
+/// - `Multi` is for file-system verbs (`install`, `update`, `uninstall`):
+///   operating on every detected harness is the intent (e.g. `grove install` in
+///   a repo with both `.claude/` and `.codex/` installs into both).
 /// - `Single` is for session-launching verbs (`start`, `continue`, ...): one
 ///   grove session runs in one harness, so an ambiguous repo without
 ///   `--harness` is an error rather than a silent dual-launch.

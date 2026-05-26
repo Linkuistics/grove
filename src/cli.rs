@@ -16,8 +16,6 @@ pub enum Command {
     Update(InstallArgs),
     /// Remove grove from <repo>.
     Uninstall(UninstallArgs),
-    /// First-time project setup: install + CONTEXT.md + docs/adr/.
-    Init(InitArgs),
     /// Show CLI and installed grove version.
     Version,
     /// Show grove install + grove tree state in <repo>.
@@ -57,14 +55,6 @@ pub struct UninstallArgs {
     /// Remove even if live groves exist.
     #[arg(long)]
     pub force: bool,
-}
-
-#[derive(Parser)]
-pub struct InitArgs {
-    /// Target repo (defaults to cwd's git root).
-    pub repo: Option<PathBuf>,
-    #[arg(long = "harness")]
-    pub harnesses: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -111,7 +101,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
         Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
         Command::Uninstall(args) => crate::uninstall::run(&args),
-        Command::Init(args) => crate::init::run(&args),
         Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
         Command::List(args) => crate::list::run(&args),

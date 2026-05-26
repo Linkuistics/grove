@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.1
+
+- Relicense from MIT to Apache-2.0 (matches sibling Linkuistics projects); add the missing LICENSE file at repo root.
+- Add `docs/grove.md` — project-level intro covering the methodology rationale and the CLI's workstream verbs.
+
 ## v1.0.0
 
 - Initial public release of the grove CLI.

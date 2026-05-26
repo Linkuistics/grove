@@ -37,6 +37,16 @@ $ grove continue add-rate-limiting
 
 The harness opens in the worktree with grove's continue prompt. It picks the first live leaf depth-first — `010-spike-token-bucket.md` — reads `CONTEXT.md`, the root `BRIEF.md`, and the leaf itself, and gets to work. The session produces a small experimental implementation under `src/`, commits it as one focused commit, and retires the leaf by moving it into `.grove/done/`.
 
+### `grove continue` is just a launcher — three equivalent ways to drive a task
+
+The CLI does one thing: exec a fresh harness session in the worktree, pre-named `<repo>: <name> grove`, with `prompts/continue.md` (a one-line "Do the next task in .grove/…") as the first prompt. The methodology is in the prompt, not the binary. That means there are three equivalent ways to drive the next task once a grove is running:
+
+- **`grove continue add-rate-limiting`** — what we just ran. Always a fresh session, always pre-named, always fed the continue prompt. The canonical move.
+- **Keep going in an open session.** If a session is already running in the worktree (often the one `grove start` opened, or one from a prior `grove continue` you never closed), the next task is just the same continue prompt again — paste it, or say "do the next task in `.grove/`" in your own words. No new exec is needed; the harness history carries forward and the session keeps its name. The trade-off is context bleed: the prior task's working memory is still in the session, which is occasionally useful and occasionally noise.
+- **`/clear` then re-prompt.** In an existing harness session, `/clear` (Claude Code) wipes the context window to give you the fresh-session benefit without spawning a new one. Paste the continue prompt afterward. *Gotcha:* `/clear` also clears the session name — the `<repo>: <name> grove` label is gone until you re-set it with `/rename`. Sessions still show up identifiably in `grove continue` invocations, just not in the one you `/clear`-ed.
+
+The rest of this walkthrough writes `grove continue add-rate-limiting` for clarity, but read it as "run the continue prompt by whichever of the three routes suits you."
+
 ```
 $ tree .grove
 .grove

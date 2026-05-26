@@ -1,0 +1,32 @@
+class Grove < Formula
+  desc "Hierarchical, self-extending workstream tool for AI agents"
+  homepage "https://github.com/Linkuistics/grove"
+  version "@VERSION@"
+  license "MIT"
+
+  on_macos do
+    on_arm do
+      url "https://github.com/Linkuistics/grove/releases/download/v@VERSION@/grove-v@VERSION@-aarch64-apple-darwin.tar.xz"
+      sha256 "@SHA_AARCH64_APPLE_DARWIN@"
+    end
+  end
+
+  on_linux do
+    on_arm do
+      url "https://github.com/Linkuistics/grove/releases/download/v@VERSION@/grove-v@VERSION@-aarch64-unknown-linux-gnu.tar.xz"
+      sha256 "@SHA_AARCH64_UNKNOWN_LINUX_GNU@"
+    end
+    on_intel do
+      url "https://github.com/Linkuistics/grove/releases/download/v@VERSION@/grove-v@VERSION@-x86_64-unknown-linux-gnu.tar.xz"
+      sha256 "@SHA_X86_64_UNKNOWN_LINUX_GNU@"
+    end
+  end
+
+  def install
+    bin.install "grove"
+  end
+
+  test do
+    assert_match "grove cli @VERSION@", shell_output("#{bin}/grove version")
+  end
+end

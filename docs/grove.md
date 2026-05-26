@@ -88,6 +88,8 @@ Each verb takes optional `--harness <name>` (auto-detected by default) and `--no
 
 The exec'd session is pre-named `<repo>: <name> grove` and the worktree carries a `.harness` stamp only when needed to disambiguate in multi-harness repos.
 
+For end-to-end walkthroughs of each verb in context, see [`workflows/`](workflows/).
+
 ### What each verb tells the harness
 
 The CLI doesn't gate or enforce — it composes a prompt and execs the harness in the worktree. The prompts are in `content/prompts/*.md` in this repo and live in `.<harness>/skills/grove/prompts/` after materialisation:

@@ -70,9 +70,9 @@ All file-system verbs auto-detect the harness from the repo's `.claude/` and `.c
 
 ## Driving a grove
 
-grove's workstream verbs each create or operate on a per-grove git worktree, then exec the harness in that worktree with a baked-in kickoff prompt. The convention is one worktree per grove, at `<repo>/worktrees/<name>-grove/` on branch `<name>-grove`. All sessions of a single grove share that worktree — the grove's state (the task-tree shape, the commits) lives in it continuously.
+A grove lives in three places — the CLI binary (Homebrew, used from anywhere); the materialised methodology at `<repo>/.<harness>/skills/grove/`, committed as part of the repo and serving as the version pin; and the grove itself, which is a **git worktree** at `<repo>/worktrees/<name>-grove/` on branch `<name>-grove`. The task tree — the `groves/<name>/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/worktrees/<name>-grove/groves/<name>/`, committed to the `<name>-grove` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
 
-Different groves of the same repo run in separate worktrees in parallel. Worktrees of a repo all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version.
+Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. `grove finish` merges the `<name>-grove` branch into the default branch — at which point `groves/<name>/done/` (the archived task tree) lands on `main` as the durable record of what was done. The live task tree only ever exists on its own grove branch; `main` only ever sees the retired form.
 
 ```
 grove start <name>                # new grove: create worktree + launch harness on the start prompt

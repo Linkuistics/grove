@@ -15,3 +15,16 @@ End-to-end, per-verb walks through grove's main flows: each shows the command(s)
 Every walkthrough drives the same fictional repo, `acme/orders-api`, and `start.md` through `finish.md` follow one fictional grove, `add-rate-limiting`, end to end. Pinning the demo target here means readers can move between walkthroughs without re-orienting.
 
 Terms used across these pages — *install scope*, *path-scoped commit*, *lifecycle walkthrough* — are defined in [`../../CONTEXT.md`](../../CONTEXT.md).
+
+## What's not here
+
+The walkthroughs cover the five flows above. The remaining CLI verbs — `uninstall`, `status`, `list`, `version` — are documented in [`../../README.md`](../../README.md) and `grove --help`; they don't have lifecycle stories of their own. `grove takeover` and `grove retire` *are* walked through, but as subsections of [`multi-step.md`](multi-step.md), because they live inside the inner-loop flow rather than constituting a flow of their own.
+
+## House style (for editors and new walkthrough authors)
+
+The five pages share a deliberate shape so they read consistently:
+
+- **Hybrid prose + fenced blocks.** Short paragraph of intent → fenced command → *optionally* a small "what changed" block. The panel earns its place only where the change is the point of the step.
+- **Evidence is mixed.** `tree -L N <path>` for tree shape, `git status` for clean/dirty state, `git log --oneline -N` for commit history. No mermaid, no before/after ASCII trees.
+- **Claude Code primary; Codex as a short callout at the foot of each page.** Never a parallel rewrite of the page.
+- **Verification is prose-only** for now. If output drift across CLI releases becomes a real problem, add a sibling snapshot-test scaffold — but do not pre-build one.

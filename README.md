@@ -22,6 +22,8 @@ grove status [<repo>]             # installed versions + per-grove summary in <r
 grove list [<repo>]               # grove names in <repo>, one per line (scriptable)
 ```
 
+`grove install` and `grove update` create a single path-scoped git commit covering the installed paths (default messages: `Install grove v<ver>` / `Update grove to v<ver>`). They refuse to proceed if the install-scope paths already have staged changes, but leave unrelated dirty state elsewhere untouched. Pass `--no-commit` to stage and commit yourself, or `--message <text>` (`-m`) to override the message.
+
 **Drive a grove workstream:**
 
 ```

@@ -45,6 +45,8 @@ fn init_repo_with_grove_installed() -> TempDir {
             repo: Some(tmp.path().to_path_buf()),
             harnesses: vec![],
             version: Some("v0.1.0".into()),
+            no_commit: true,
+            message: None,
         },
         Mode::Install,
         &fetcher,

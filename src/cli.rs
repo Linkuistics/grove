@@ -44,6 +44,12 @@ pub struct InstallArgs {
     /// Content version tag (default: latest).
     #[arg(long)]
     pub version: Option<String>,
+    /// Skip the auto-commit; leaves the materialised files unstaged.
+    #[arg(long = "no-commit")]
+    pub no_commit: bool,
+    /// Override the default commit message.
+    #[arg(long = "message", short = 'm')]
+    pub message: Option<String>,
 }
 
 #[derive(Parser)]

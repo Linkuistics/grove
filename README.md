@@ -1,6 +1,6 @@
 # grove
 
-Hierarchical, self-extending workstream tool for AI agents. See `content/SKILL.md` for the methodology; this README covers the CLI.
+Hierarchical, self-extending workstream tool for AI agents. See [`docs/grove.md`](docs/grove.md) for what grove is and why, [`content/SKILL.md`](content/SKILL.md) for the methodology agents read at runtime; this README covers the CLI.
 
 ## Install
 

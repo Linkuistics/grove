@@ -117,15 +117,17 @@ b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
 
 Two things to notice. First, `.grove/done/` mirrors the live tree's shape — retired leaves keep their `<node>/<leaf>` relative paths, so a future reader can see *where* each completed leaf belonged. Second, `020-design-token-bucket/` now contains only its `BRIEF.md` — the node's last live leaf is gone. The grove is at the cusp of node-level retirement.
 
-## A node-level retirement is a manual move
+## A node-level retirement is asked, not assumed
 
-When `020-design-token-bucket/`'s last live leaf retired, the *judge retirement* step at the end of session 3 noticed but did not act. Node-level retirement is a separate, deliberate move that the user issues — grove guides, it does not gate:
+When `020-design-token-bucket/`'s last live leaf retired, the *judge retirement* step at the end of session 3 walked the parent chain, noticed the node was empty, and **asked the user** before retiring it — a confirmation gives them a moment to add a follow-up leaf if the node is not actually done. In this walkthrough, the user said *not yet* and ended the session. Node-level retirement is deliberate, not automatic — grove guides, it does not gate.
+
+To retire the node later — or whenever a prior session forgot to ask — the user runs `grove retire`:
 
 ```
 $ grove retire add-rate-limiting/020-design-token-bucket
 ```
 
-`grove retire` launches a focused harness session in the worktree with a prompt that does exactly two things: promote anything still relevant from the node's `BRIEF.md` upward (to the parent brief, an ADR, or the glossary), then `mv` the subtree into `done/` preserving its relative path. One focused commit.
+`grove retire` launches a focused harness session in the worktree with a prompt that does exactly two things: promote anything still relevant from the node's `BRIEF.md` upward (to the parent brief, an ADR, or the glossary), then `mv` the subtree into `done/` preserving its relative path. One focused commit. (Inside a regular `grove continue` session, the same prompt path runs implicitly when the user confirms the asked retirement, and the same cascade continues up the parent chain.)
 
 ```
 $ tree .grove

@@ -41,18 +41,18 @@ fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
     }
 }
 
-/// Create a worktree at `<repo>/worktrees/<name>-grove/` on a new branch
-/// `<name>-grove`, branching from `start_point` (or origin's HEAD).
+/// Create a worktree at `<repo>/.grove-worktrees/<name>/` on a new branch
+/// `<name>`, branching from `start_point` (or origin's HEAD).
 pub fn create_grove_worktree(
     repo: &Path,
     name: &str,
     start_point: Option<&str>,
 ) -> Result<PathBuf> {
-    let worktree = repo.join("worktrees").join(format!("{}-grove", name));
+    let worktree = repo.join(".grove-worktrees").join(name);
     if worktree.exists() {
         anyhow::bail!("worktree already exists: {}", worktree.display());
     }
-    let branch = format!("{}-grove", name);
+    let branch = name.to_string();
     let start = match start_point {
         Some(s) => s.to_string(),
         None => default_start_point(repo)?,
@@ -95,5 +95,10 @@ fn default_start_point(repo: &Path) -> Result<String> {
 
 /// Path of an existing grove worktree.
 pub fn grove_worktree(repo: &Path, name: &str) -> PathBuf {
-    repo.join("worktrees").join(format!("{}-grove", name))
+    repo.join(".grove-worktrees").join(name)
+}
+
+/// Directory holding all per-grove worktrees.
+pub fn grove_worktrees_dir(repo: &Path) -> PathBuf {
+    repo.join(".grove-worktrees")
 }

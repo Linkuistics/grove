@@ -3,14 +3,14 @@ use anyhow::Result;
 use std::fs;
 use std::path::Path;
 
-/// Path of the stamp inside a grove tree: `<repo>/groves/<name>/.harness`.
+/// Path of the harness stamp for a grove: `<repo>/.grove-stamps/<name>`.
 pub fn path(repo: &Path, name: &str) -> std::path::PathBuf {
-    repo.join("groves").join(name).join(".harness")
+    repo.join(".grove-stamps").join(name)
 }
 
 /// Resolve which harness to use for a launcher verb:
 /// 1. If `explicit` is Some, look it up.
-/// 2. Else read groves/<name>/.harness if present.
+/// 2. Else read .grove-stamps/<name> if present.
 /// 3. Else, repo scan: if exactly one harness, use it.
 /// 4. Else (both or none): error with guidance.
 pub fn resolve_for_launch(
@@ -44,7 +44,7 @@ pub fn resolve_for_launch(
     }
 }
 
-/// Write `<repo>/groves/<name>/.harness` only when needed for disambiguation
+/// Write `<repo>/.grove-stamps/<name>` only when needed for disambiguation
 /// (multi-harness repo). In a single-harness repo, no-op.
 pub fn maybe_stamp(
     repo: &Path,

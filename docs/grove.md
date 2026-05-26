@@ -16,7 +16,7 @@ grove is the alternative that avoids both traps.
 
 ## How grove solves it
 
-A grove is one workstream as a **git-tracked tree of task files** at `groves/<name>/`. Nodes are directories; leaves are `.md` task files with numeric prefixes. The tree's shape — what `ls` shows — is the only state. Git is the history. No phase file, no session log, no status tracker.
+A grove is one workstream as a **git-tracked tree of task files** at `.grove/` (inside the grove's own worktree). Nodes are directories; leaves are `.md` task files with numeric prefixes. The tree's shape — what `ls` shows — is the only state. Git is the history. No phase file, no session log, no status tracker.
 
 One task = one session = one focused commit. Planning tasks, which may grow the tree rather than produce code, are first-class — not an awkward edge case but a named kind with a defined procedure.
 
@@ -28,7 +28,7 @@ When a project splits into multiple **bounded contexts** — DDD's term for dist
 
 Artifacts are **lazy and optional**. An ADR is raised only when a decision is hard to reverse, surprising, or a real trade-off — not because a step demands one. A PRD is written only at a genuine human-facing agreement point. A brief is created only when a node is needed. Nothing is produced speculatively.
 
-Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the materialised skill and `groves/` is still a legible folder of notes.
+Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the materialised skill and `.grove/` is still a legible folder of notes.
 
 grove operates under **seven constraints** — the non-negotiable rules that keep it from becoming brittle machinery. They are not restated here; see [`content/SKILL.md`](../content/SKILL.md) for the list and their rationale.
 
@@ -70,9 +70,11 @@ All file-system verbs auto-detect the harness from the repo's `.claude/` and `.c
 
 ## Driving a grove
 
-A grove lives in three places — the CLI binary (Homebrew, used from anywhere); the materialised methodology at `<repo>/.<harness>/skills/grove/`, committed as part of the repo and serving as the version pin; and the grove itself, which is a **git worktree** at `<repo>/worktrees/<name>-grove/` on branch `<name>-grove`. The task tree — the `groves/<name>/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/worktrees/<name>-grove/groves/<name>/`, committed to the `<name>-grove` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
+A grove lives in three places — the CLI binary (Homebrew, used from anywhere); the materialised methodology at `<repo>/.<harness>/skills/grove/`, committed as part of the repo and serving as the version pin; and the grove itself, which is a **git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>`. The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/.grove-worktrees/<name>/.grove/`, committed to the `<name>` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
 
-Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. `grove finish` merges the `<name>-grove` branch into the default branch — at which point `groves/<name>/done/` (the archived task tree) lands on `main` as the durable record of what was done. The live task tree only ever exists on its own grove branch; `main` only ever sees the retired form.
+Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. `grove finish` first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
+
+If a multi-harness repo (both `.claude/` and `.codex/`) launches a grove, the CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` so later verbs know which harness this grove is bound to. Single-harness repos skip the stamp entirely.
 
 ```
 grove start <name>                # new grove: create worktree + launch harness on the start prompt

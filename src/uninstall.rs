@@ -24,8 +24,8 @@ fn uninstall_one(repo_path: &Path, harness: &Harness, force: bool) -> Result<()>
 
     if !force && has_live_groves(repo_path)? {
         anyhow::bail!(
-            "live groves exist in {}/groves/ — pass --force to uninstall anyway",
-            repo_path.display()
+            "live groves exist in {} — pass --force to uninstall anyway",
+            repo::grove_worktrees_dir(repo_path).display()
         );
     }
 
@@ -35,42 +35,16 @@ fn uninstall_one(repo_path: &Path, harness: &Harness, force: bool) -> Result<()>
     Ok(())
 }
 
-/// A grove is "live" if `groves/<name>/` contains at least one `.md` leaf
-/// outside any `done/` directory.
+/// A grove is "live" iff its worktree exists in `.grove-worktrees/`.
 fn has_live_groves(repo_path: &Path) -> Result<bool> {
-    let groves = repo_path.join("groves");
-    if !groves.is_dir() {
+    let dir = repo::grove_worktrees_dir(repo_path);
+    if !dir.is_dir() {
         return Ok(false);
     }
-    for entry in fs::read_dir(&groves).with_context(|| format!("reading {}", groves.display()))? {
+    for entry in fs::read_dir(&dir).with_context(|| format!("reading {}", dir.display()))? {
         let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-        if entry.file_name() != "done" {
-            if has_live_leaf(&entry.path())? {
-                return Ok(true);
-            }
-        }
-    }
-    Ok(false)
-}
-
-fn has_live_leaf(grove_dir: &Path) -> Result<bool> {
-    for entry in fs::read_dir(grove_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        let file_name = entry.file_name();
-        if file_name == "done" {
-            continue;
-        }
-        if path.is_file() && path.extension().map(|e| e == "md").unwrap_or(false) {
+        if entry.file_type()?.is_dir() {
             return Ok(true);
-        }
-        if path.is_dir() {
-            if has_live_leaf(&path)? {
-                return Ok(true);
-            }
         }
     }
     Ok(false)

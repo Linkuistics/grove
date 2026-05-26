@@ -1,6 +1,6 @@
 ---
 name: grove
-description: Use when driving a long, multi-session workstream that cannot be planned exhaustively upfront — work spanning many sessions and months where some steps are themselves planning steps — or when picking up or continuing a task tree under groves/.
+description: Use when driving a long, multi-session workstream that cannot be planned exhaustively upfront — work spanning many sessions and months where some steps are themselves planning steps — or when picking up or continuing a task tree under .grove/.
 ---
 
 # grove — hierarchical, self-extending workstreams
@@ -12,7 +12,7 @@ is the only state; git is the history.
 
 ```mermaid
 flowchart TD
-  subgraph tree["A grove — groves/&lt;name&gt;/"]
+  subgraph tree["A grove — .grove/ inside its worktree"]
     direction TB
     root["BRIEF.md (root)"]
     n1["010-design/ — BRIEF.md + leaves"]
@@ -57,18 +57,18 @@ These seven rules are non-negotiable; everything below is subordinate to them.
    created only when it earns its place, never because a step demands it.
 5. **grove guides, it does not gate.** grove never refuses to proceed. A task
    may be done by hand, reordered, or skipped.
-6. **Walk-away-able.** Delete this skill and `groves/` is still a legible
+6. **Walk-away-able.** Delete this skill and `.grove/` is still a legible
    folder of notes; every durable output is standard, team-readable markdown.
 7. **One page of rules.** If the loop below does not fit on a page, it is too
    complex — cut until it does.
 
 ## The loop
 
-One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/worktrees/<name>-grove/` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove.
+One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove. The grove's task tree lives at `.grove/` inside that worktree.
 
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove start <name>` for a new grove (creates the worktree, branches off the default branch, opens a bootstrap session) and `grove continue <name>` to resume. Both pre-name the harness session, so the rename ritual is unnecessary in the common case.
 
-If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the path of the leaf being worked (`groves/<name>/…`), `<repo-basename>` from the cwd / `git rev-parse --show-toplevel`.
+If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
 
 **Pick.** From the grove root, depth-first in numeric-prefix order, skipping
 `done/`: descend into directories; the first `.md` leaf reached is the next
@@ -96,8 +96,15 @@ replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
 
 **Retire.** When a node's last live leaf completes, promote anything still
 relevant from its `BRIEF.md` upward — to the parent brief, an ADR, or the
-glossary — then `mv` the node into `groves/<name>/done/`, preserving its
-relative path. Archived, never deleted.
+glossary — then `mv` the node into `.grove/done/`, preserving its
+relative path. Archived in-grove, never deleted while the grove is live.
+
+**Finish.** When the whole grove is done — every leaf retired into `done/` —
+promote anything from the briefs that should outlive the grove (ADRs, docs,
+glossary entries), then **delete `.grove/` in one focused commit** before
+merging the branch to the default branch. The default branch never carries
+any grove's local state; its history of completed groves lives in git's
+commit graph, not in retained directories.
 
 ## Artifacts
 
@@ -110,7 +117,7 @@ standard artifact that outlives grove (constraint 6).
 | ADRs | `docs/adr/NNNN-*.md` | atomic decisions: hard to reverse, surprising, or a real trade-off |
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
-| Task tree | `groves/<name>/` | the process: the self-extending decomposition of work |
+| Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,

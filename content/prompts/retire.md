@@ -1,1 +1,1 @@
-The groves/{{NAME}}/{{NODE_PATH}}/ node's last live leaf is done. Promote anything still relevant from its BRIEF.md upward (to the parent brief, an ADR, or the glossary), then mv the node into groves/{{NAME}}/done/, preserving its relative path. One focused commit.
+The .grove/{{NODE_PATH}}/ node's last live leaf is done. Promote anything still relevant from its BRIEF.md upward (to the parent brief, an ADR, or the glossary), then mv the node into .grove/done/, preserving its relative path. One focused commit.

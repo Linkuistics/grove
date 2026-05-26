@@ -1,5 +1,6 @@
 use crate::cli::RepoArgs;
 use crate::harness::HARNESSES;
+use crate::harness_stamp;
 use crate::repo;
 use crate::version_md;
 use anyhow::Result;
@@ -43,40 +44,36 @@ pub fn run(args: &RepoArgs) -> Result<()> {
 }
 
 fn print_grove_summary(repo_path: &Path) -> Result<()> {
-    let groves = repo_path.join("groves");
-    if !groves.is_dir() {
-        println!("\nno groves/ directory yet.");
+    let dir = repo::grove_worktrees_dir(repo_path);
+    if !dir.is_dir() {
+        println!("\nno groves yet.");
         return Ok(());
     }
     println!("\ngroves:");
-    for entry in fs::read_dir(&groves)? {
+    let mut names: Vec<String> = Vec::new();
+    for entry in fs::read_dir(&dir)? {
         let entry = entry?;
         if !entry.file_type()?.is_dir() {
             continue;
         }
-        let name = entry.file_name();
-        let name_str = name.to_string_lossy();
-        if name_str == "done" {
-            continue;
-        }
-        let (live, done) = count_md_leaves(&entry.path(), false)?;
-        let worktree = repo_path
-            .join("worktrees")
-            .join(format!("{}-grove", name_str))
-            .is_dir();
-        let harness_stamp = fs::read_to_string(entry.path().join(".harness"))
+        names.push(entry.file_name().to_string_lossy().into_owned());
+    }
+    names.sort();
+    for name in names {
+        let worktree = dir.join(&name);
+        let task_tree = worktree.join(".grove");
+        let (live, done) = if task_tree.is_dir() {
+            count_md_leaves(&task_tree, false)?
+        } else {
+            (0, 0)
+        };
+        let stamp = fs::read_to_string(harness_stamp::path(repo_path, &name))
             .ok()
             .map(|s| s.trim().to_string());
-        let stamp_str = harness_stamp
-            .map(|h| format!(", .harness={}", h))
-            .unwrap_or_default();
+        let stamp_str = stamp.map(|h| format!(", harness={}", h)).unwrap_or_default();
         println!(
-            "  {} → {} live, {} done, worktree={}{}",
-            name_str,
-            live,
-            done,
-            if worktree { "yes" } else { "no" },
-            stamp_str
+            "  {} → {} live, {} done{}",
+            name, live, done, stamp_str
         );
     }
     Ok(())

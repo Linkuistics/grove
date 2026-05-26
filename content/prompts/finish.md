@@ -1,1 +1,6 @@
-The {{NAME}} grove is fully done — all leaves retired into done/. Wrap it up per this project's merge convention: review the branch, merge to the default branch (PR, fast-forward, or squash as the project prefers), remove the worktree, delete the branch. If anything from {{NAME}}'s briefs deserves to outlive the grove (an ADR, a doc, a glossary entry), promote it before the merge.
+The {{NAME}} grove is fully done — all leaves retired into .grove/done/. Wrap it up in this order:
+
+1. Promote anything from .grove/'s briefs that should outlive the grove (an ADR, a doc, a glossary entry).
+2. Delete the .grove/ directory in one focused commit ("chore: remove grove scaffolding"). main only ever sees promoted artifacts, never any grove's local state.
+3. Merge the branch into the default branch per this project's convention (PR, fast-forward, or squash as preferred).
+4. Remove the worktree and delete the branch.

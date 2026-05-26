@@ -31,9 +31,7 @@ fn uninstall_removes_grove_dir() {
 #[test]
 fn uninstall_refuses_when_live_groves_exist() {
     let repo = init_repo();
-    let grove_path = repo.path().join("groves/auth");
-    fs::create_dir_all(&grove_path).unwrap();
-    fs::write(grove_path.join("001-bootstrap.md"), "task").unwrap();
+    fs::create_dir_all(repo.path().join(".grove-worktrees/auth")).unwrap();
 
     let err = run(&UninstallArgs {
         repo: Some(repo.path().to_path_buf()),
@@ -48,8 +46,7 @@ fn uninstall_refuses_when_live_groves_exist() {
 #[test]
 fn uninstall_force_overrides_live_groves_check() {
     let repo = init_repo();
-    fs::create_dir_all(repo.path().join("groves/auth")).unwrap();
-    fs::write(repo.path().join("groves/auth/001.md"), "task").unwrap();
+    fs::create_dir_all(repo.path().join(".grove-worktrees/auth")).unwrap();
 
     run(&UninstallArgs {
         repo: Some(repo.path().to_path_buf()),

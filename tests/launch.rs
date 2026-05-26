@@ -66,7 +66,7 @@ fn start_creates_worktree_in_no_launch_mode() {
     })
     .unwrap();
 
-    assert!(repo.path().join("worktrees/auth-grove").is_dir());
+    assert!(repo.path().join(".grove-worktrees/auth").is_dir());
 }
 
 #[test]

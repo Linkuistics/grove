@@ -3,7 +3,7 @@ name = "grove"
 version = "1.0.0"
 edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 rust-version = "1.74"
 

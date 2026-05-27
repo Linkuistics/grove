@@ -1,0 +1,35 @@
+# Seeds and parallel-grove handoffs live in per-grove inbox files on a dedicated `grove-inboxes` branch
+
+A grove session that notices an observation belonging to a *different* grove — future, currently running, or already finished — needs somewhere to put it that the addressed grove will see, without blocking, without bespoke project-management tooling, and without losing the observation if all grove tooling is later removed. We adopt a single shape that covers all three lifecycle states.
+
+An **inbox** is a markdown file at `inboxes/<name>.md` on a dedicated `grove-inboxes` branch, materialised in each repo as a sibling worktree at `<repo>/.grove-inboxes/`. A **seed** is an inbox whose addressed grove has no current worktree — same file, same path; only the lifecycle state differs. **Capture** is an append to that file via a `grove` CLI verb. **Drain** is the receiving grove's bootstrap-time triage of its own inbox. All reads and writes go through `grove` subcommands; the LLM never touches the branch's git plumbing directly.
+
+## Status
+accepted
+
+## Why one shape for unborn, running, and finished groves
+A seed and a running grove's inbox are the same artifact in different lifecycle states. `grove start <name>` against a pre-existing seed does nothing special to the seed file — the new worktree just opens, and the seed file becomes the running grove's inbox at the same path. There is no migration step, no consumption step, no `germinate` verb. The same logic that drains a long-running grove's inbox at `grove continue` drains a seed's accumulated contents at the brand-new grove's first `grove start`. Collapsing these states into one code path keeps the surface area small and removes a category of bugs (lifecycle-transition races) entirely.
+
+## Why a dedicated branch, not the default branch
+A grove's working state lives inside its own worktree. Pushing seed writes to the default branch would mean every "I noticed a bug in `repo Y`'s future Racket-bindings work" causes a default-branch commit, polluting that branch's history with cross-grove coordination noise that has nothing to do with the project's released code. It would also serialise all capture through the default branch's review/CI gates, defeating the point of mid-flow capture. A dedicated branch keeps the default branch about the project and the coordination branch about coordination, with no overlap.
+
+## Why a branch, not a per-grove worktree inbox
+The most superficially obvious shape is "each grove's worktree carries its own `inbox/` directory." It fails the **deferred-future** case immediately: there is no worktree for a grove that does not exist yet, so there is nowhere to write. It also fails the **parallel-grove handoff** case: writing into another worktree from outside is awkward, and the receiving grove would need to be told about the write rather than finding it at the canonical location it already knows. The shared-channel branch model addresses all three lifecycle states uniformly: writers always know the path, readers always know the path, and the path is independent of whether the addressed grove currently has a worktree.
+
+## Why a git branch, not a gitignored filesystem directory
+A gitignored `~/.grove/inboxes/` or `<repo>/.local-inboxes/` would solve the worktree-coupling problem and stay invisible to `git log`. It would also lose every property that makes the convention reliable: no history of what was captured or drained, no way to back up or sync to another machine, no audit trail for "did this observation make it into anyone's grove," no recovery if the file is mis-edited. The shared-channel artifact is precisely the kind of thing version control was designed for; opting out of it would be a regression dressed as simplicity.
+
+## Why a branch in the same repo, not a separate inboxes repo
+A `grove-inboxes.git` per repo would carry the same content as the `grove-inboxes` branch does today, but at the cost of a second clone, a second remote, a second auth setup, and a second `cd` to inspect anything. The walk-away-ability constraint (SKILL.md constraint 6) is also strictly weaker: deleting grove tooling leaves the user with the original repo and an unrelated orphan repo whose connection to the original is implicit. The branch lives inside the same repo's `.git/objects`, so `git log grove-inboxes -- inboxes/<name>.md` from any worktree of that repo just works.
+
+## Why walk-away-ability ruled out the obvious bug-tracker options
+SKILL.md constraint 6 — "delete this skill and `.grove/` is still a legible folder of notes" — extends naturally to: delete the `grove` CLI and `inboxes/<name>.md` is still a plain markdown file on a plain git branch. That single requirement is decisive against every paradigm that stores items in opaque objects: git-bug (refs/bugs/* JSON blobs), Fossil tickets (per-project SQLite BLOBs), Taskwarrior (local DB), Radicle COBs (CRDT-as-git-objects), git-appraise (git notes JSON). Each of these solves real problems we have — multi-writer merge, history, distribution — but every one of them becomes unreadable without its tool. Plain markdown files on a regular git branch do not.
+
+## Why CLI-mediated, not raw git for the LLM
+Three operations need to be correct every time: writing an append-only entry (not overwriting), routing a write to the right repo's branch, and clearing the file atomically after drain so committed-empty is the post-drain state. Each of these is doable by hand but easy to get wrong under time pressure or context loss across sessions. The CLI wraps them so the LLM's exposed surface is `grove inbox <name>` for capture and the implicit drain at `grove start` / `grove continue` for consumption — no checkout, no fetch, no merge, no resetting the worktree's branch. Wrong-shape git operations against the `grove-inboxes` worktree become a CLI bug to fix once, rather than a recurring failure mode across every session.
+
+## Why drain is a bootstrap step, not a separate verb
+Drain has to happen *before* the session decides what work to do, because an inbox entry might be the most important thing in front of the receiving grove. Making it a bootstrap step rather than an explicit `grove drain` invocation removes the failure mode where the LLM forgets to check. It also matches what a session bootstrap already is — read the briefs, read the glossary, read the cited ADRs — by simply adding "read and triage the inbox" to that same opening sequence.
+
+## Why the branch is reserved more broadly, even though inboxes are the only occupant today
+Per-grove inboxes are the first thing we need a shared cross-grove coordination surface for, but they are unlikely to be the last. Anything that "belongs to no single grove but to the collection of groves operating against this repo" has the same set of requirements: shared, branch-versioned, CLI-mediated, walk-away-legible. Reserving the branch for that broader role now — rather than naming it `grove-inboxes-only` — costs nothing today and saves a rename later. We deliberately do not specify what those future occupants are; that is a decision for the planning task that introduces them.

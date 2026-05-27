@@ -76,8 +76,15 @@ task.
 
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
-`BRIEF.md` chain root→leaf; the task file. That assembled context is the
-session's entire mandate — read nothing else by reflex.
+`BRIEF.md` chain root→leaf; the task file. Then **drain the inbox**: read
+`<repo>/.grove-inboxes/inboxes/<name>.md` and triage each pending
+observation — incorporate it into the current task, defer it to a later
+leaf, or reject it as out-of-scope (and possibly seed a different grove via
+`grove inbox <other-name>`). Drain runs at every `grove start` and `grove
+continue`; the CLI handles the post-triage commit and the LLM never touches
+the inbox branch directly. That assembled context — read material plus
+drained inbox — is the session's entire mandate; read nothing else by
+reflex.
 
 **Execute.** The task file states its kind (`TASK-FORMAT.md`):
 - A **work task** produces code, docs, or tests.
@@ -124,6 +131,7 @@ standard artifact that outlives grove (constraint 6).
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
+| `grove-inboxes` branch | `<repo>/.grove-inboxes/inboxes/<name>.md` | cross-grove inbox files; capture observations to another grove via `grove inbox <name>`, drained on every bootstrap (ADRs `0002-grove-inboxes-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`) |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
@@ -136,6 +144,15 @@ else — terse definitions, aliases-to-avoid, no implementation detail
 **Briefs vs. the glossary.** A bounded context is a *domain* partition; a
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
 is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
+
+**Inboxes and capture.** When during any task you notice an observation
+belonging to a *different* grove — future, currently running, or already
+finished — append it via `grove inbox <name>` and keep going. Same-repo and
+cross-repo writes use the same gesture; the LLM never edits the
+`grove-inboxes` branch directly. The grove project's own repo carries a
+worked example: its `CONTEXT.md` records the canonical `Inbox`, `Seed`,
+`Drain`, and `grove-inboxes branch` entries that any repo adopting the
+convention should copy or paraphrase into its own glossary.
 
 ## PRDs
 

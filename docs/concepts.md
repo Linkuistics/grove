@@ -37,3 +37,35 @@ The methodology grove leans on borrows vocabulary from older traditions — **Do
 **References.**
 - Evans, *Domain-Driven Design* (2003), Part IV (Strategic Design) — the original definition.
 - Vernon, *Implementing Domain-Driven Design* (2013), Chapter 2 — practical guidance on identifying boundaries.
+
+## Context Map
+
+**Definition.** A context map is the explicit description of how a project's bounded contexts relate — which contexts share types, which emit events that another consumes, which depend on which. Without it, the boundaries are theoretical; with it, integration choices are visible.
+
+**How grove uses it.** When a repo has more than one bounded context, grove materialises the context map as `CONTEXT-MAP.md` at the repo root. It lists the contexts (each linking to its own `CONTEXT.md`) and the relationships between them — shared types, event flows, dependencies. Most repos don't need one; a single bounded context at the root is the default. When present, the map is read on session bootstrap to locate the relevant `CONTEXT.md`.
+
+**References.**
+- Evans, *Domain-Driven Design* (2003), Part IV, Chapter 14.
+- Vernon, *Implementing Domain-Driven Design* (2013), Chapter 3 — practical context-mapping patterns.
+
+## ADR
+
+**Definition.** An Architecture Decision Record (ADR) is a short document that captures one architecturally-significant decision: its context, the choice made, the alternatives considered, and the consequences. It exists so a future reader can reconstruct *why* the code looks the way it does without having to interview the original team.
+
+**How grove uses it.** ADRs live in `docs/adr/` as `NNNN-slug.md`, one decision per file, numbered sequentially. Planning sessions offer them **sparingly** — only when the decision is (1) hard to reverse, (2) surprising without context, and (3) the result of a real trade-off. If any of the three is missing, no ADR. Briefs cite the ADRs a leaf-executing session must read; the brief chain root→leaf is the curated path into the project's ADR set.
+
+**References.**
+- Michael Nygard, ["Documenting Architecture Decisions"](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) (2011) — the original convention.
+- [MADR](https://adr.github.io/madr/) — a widely-used template if you want more structure.
+- [`../content/ADR-FORMAT.md`](../content/ADR-FORMAT.md) — grove's preferred shape.
+
+## PRD
+
+**Definition.** A Product Requirements Document (PRD) is a human-facing artifact capturing *what* a product or feature is meant to do and *why*, written for cross-functional alignment — product, engineering, design, and stakeholders all reading the same page. Unlike an ADR, it is forward-looking; unlike a spec, it answers "what should this be?" before "how shall we build it?"
+
+**How grove uses it.** PRDs live in `docs/prd/`, written by a planning task only at a **genuine human-facing agreement point** — never speculatively. The typical grove flow at such a point is *grill → PRD (review & agree) → decompose → execute*: the PRD is where the human signs off on the plan's shape before further decomposition turns it into work tasks. PRDs are committed and never retired — they remain the readable record of what was agreed.
+
+**References.**
+- No single canonical source; the practice is shaped more by use than by a defining text.
+- Marty Cagan, *Inspired: How to Create Tech Products Customers Love* (Wiley, 2nd ed., 2017) — framing for product-discovery artifacts.
+- [Atlassian's PRD template](https://www.atlassian.com/agile/product-management/requirements) — a representative concrete shape.

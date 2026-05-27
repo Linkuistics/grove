@@ -2,6 +2,7 @@ use crate::cli::InstallArgs;
 use crate::extract::extract_content;
 use crate::fetch::{Fetcher, GithubFetcher};
 use crate::harness::{self, Harness, SelectMode};
+use crate::inboxes;
 use crate::repo;
 use crate::version_md;
 use anyhow::{Context, Result};
@@ -83,6 +84,11 @@ pub fn run_with_fetcher(
             args.message.as_deref(),
         )?;
     }
+
+    // Materialise the grove-inboxes branch + worktree alongside the install.
+    // Idempotent; safe on both Install and Update. Lives on its own branch,
+    // so it doesn't add to the install-scope commit above.
+    inboxes::materialise(&repo_path)?;
 
     if mode == Mode::Update {
         eprintln!(

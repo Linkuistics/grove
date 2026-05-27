@@ -285,6 +285,20 @@ fn commit_failure_leaves_materialisation_in_place() {
 }
 
 #[test]
+fn install_materialises_inbox_worktree_and_branch() {
+    let repo = init_repo_with(true, false);
+    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+
+    // The inbox worktree exists at the canonical path.
+    assert!(repo.path().join(".grove-inboxes/inboxes").is_dir());
+
+    // The grove-inboxes branch exists locally.
+    let out = git(repo.path(), &["branch", "--list", "grove-inboxes"]);
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(s.contains("grove-inboxes"), "expected grove-inboxes branch: {s}");
+}
+
+#[test]
 fn noop_update_does_not_create_empty_commit() {
     let repo = init_repo_with(true, false);
     // First install creates one commit.

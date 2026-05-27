@@ -120,6 +120,7 @@ fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
     out
 }
 
+
 fn exec_harness(
     harness: &Harness,
     repo_path: &Path,

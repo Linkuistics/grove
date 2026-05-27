@@ -3,6 +3,7 @@ pub mod extract;
 pub mod fetch;
 pub mod harness;
 pub mod harness_stamp;
+pub mod inboxes;
 pub mod install;
 pub mod launch;
 pub mod list;

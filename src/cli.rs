@@ -32,6 +32,52 @@ pub enum Command {
     Retire(RetireArgs),
     /// Wrap up a fully-done grove (merge, cleanup).
     Finish(NameArgs),
+    /// Capture observations to or drain a grove's inbox on the `grove-inboxes` branch.
+    Inbox(InboxArgs),
+}
+
+#[derive(Parser)]
+pub struct InboxArgs {
+    #[command(subcommand)]
+    pub command: InboxCommand,
+}
+
+#[derive(Subcommand)]
+pub enum InboxCommand {
+    /// Append an observation to the inbox of `<name>`.
+    Add(InboxAddArgs),
+    /// Clear the inbox of `<name>` and commit the cleared file.
+    Drain(InboxDrainArgs),
+    /// Print the inbox of `<name>` to stdout (diagnostic).
+    Show(InboxShowArgs),
+}
+
+#[derive(Parser)]
+pub struct InboxAddArgs {
+    /// Name of the addressed grove (existing, future, or finished).
+    pub name: String,
+    /// Observation text. If omitted, read from stdin.
+    pub observation: Option<String>,
+    /// Target repo (defaults to cwd's git root). Cross-repo: supply a path
+    /// to another repo whose `.grove-inboxes/` worktree is materialised.
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct InboxDrainArgs {
+    /// Name of the grove whose inbox to clear.
+    pub name: String,
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct InboxShowArgs {
+    /// Name of the grove whose inbox to print.
+    pub name: String,
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -115,5 +161,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args)   => crate::launch::retire(&args),
         Command::Finish(args)   => crate::launch::finish(&args),
+        Command::Inbox(args)    => crate::inboxes::run(&args),
     }
 }

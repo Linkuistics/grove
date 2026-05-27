@@ -13,6 +13,9 @@ A commit constructed via explicit `git add <paths>` and `git commit -- <paths>` 
 **Lifecycle walkthrough**:
 A per-verb prose document under `docs/workflows/` that shows the command(s) for one grove flow (install, update, start, multi-step, finish), explains what happens, and shows what changed in the repo or worktree at each step. Distinct from the CLI reference in `README.md` (which lists flags) and from the methodology doc `docs/grove.md` (which is "what grove is and why"). Avoid the aliases *tutorial*, *guide*, and *runbook* in this codebase.
 
+**Seed (future-grove seed)**:
+A named, growing collection of observations gathered during an in-progress grove that, taken together, motivate a *future* grove. Each observation is appended incrementally as it surfaces during execution — not batched at the end. The seed's name is the working title of the hypothesised future grove (e.g. `racket-bugs-discovered-while-implementing-chez`); it may later be renamed, narrowed, or folded into a catchall seed. A seed is distinct from a brief note (in-scope context for the current node, retired with it), from an ADR (a decision, not an observation), and from a TODO comment in code (local to one file, not a workstream candidate). Avoid the alias *issue* — it collides with GitHub Issues and with bug-tracker connotations.
+
 ## Flagged ambiguities
 
 **"grove"** is overloaded across this codebase. It can mean:

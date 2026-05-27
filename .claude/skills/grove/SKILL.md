@@ -30,13 +30,13 @@ flowchart TD
     plan["Planning — grill; glossary inline; ADRs sparingly; maybe a PRD; grow the tree"]
     work["Work — produce code / docs / tests"]
     commit["Commit — one task = one focused commit"]
-    retire{"node's last live leaf?"}
-    ret["Promote context up; mv subtree to done/"]
+    retire{"parent chain — any node now empty?"}
+    ret["Ask user; promote context up; mv subtree to done/"]
     pick --> boot --> exec
     exec -->|planning| plan --> commit
     exec -->|work| work --> commit
     commit --> retire
-    retire -->|yes| ret --> pick
+    retire -->|yes| ret --> retire
     retire -->|no| pick
   end
 ```
@@ -94,10 +94,16 @@ replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
 
 **Commit.** One task = one focused commit.
 
-**Retire.** When a node's last live leaf completes, promote anything still
-relevant from its `BRIEF.md` upward — to the parent brief, an ADR, or the
-glossary — then `mv` the node into `.grove/done/`, preserving its
-relative path. Archived in-grove, never deleted while the grove is live.
+**Retire.** After committing the task, `mv` the just-finished leaf into
+`.grove/done/`, preserving its relative path — mechanical bookkeeping, no need
+to ask. Then walk the parent chain: if a node now has no live leaves left,
+**ask the user before retiring it** — the confirmation gives them a moment to
+add a follow-up leaf if the node is not actually done. On confirmation, promote
+anything still relevant from the node's `BRIEF.md` upward — to the parent
+brief, an ADR, or the glossary — then `mv` the whole node into `.grove/done/`,
+preserving its path. That retirement may empty the next ancestor; re-check,
+ask again, recurse, until a node still has live leaves or you reach the grove
+root. Archived in-grove, never deleted while the grove is live.
 
 **Finish.** When the whole grove is done — every leaf retired into `done/` —
 promote anything from the briefs that should outlive the grove (ADRs, docs,

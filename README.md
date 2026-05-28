@@ -29,6 +29,7 @@ grove list [<repo>]               # grove names in <repo>, one per line (scripta
 ```
 grove start <name>                # new grove: create worktree + launch harness
 grove continue <name>             # resume: pick the next leaf, run the loop
+grove do <name>                   # start or continue — use when you don't remember which
 grove takeover <name>             # orient on an unfamiliar grove without picking a task
 grove retire <name>/<node-path>   # promote brief upward, mv node into done/
 grove finish <name>               # grove is done: merge + cleanup per project convention

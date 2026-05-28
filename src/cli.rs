@@ -26,6 +26,12 @@ pub enum Command {
     Start(StartArgs),
     /// Continue an existing grove.
     Continue(NameArgs),
+    /// Start or continue a grove — use this when you don't remember which.
+    ///
+    /// Inspects the grove's state and dispatches: no grove by that name →
+    /// `start`; live worktree → `continue`; branch exists but worktree gone
+    /// (orphaned or finished) → re-attach the worktree and `continue`.
+    Do(NameArgs),
     /// Orient on an unfamiliar grove without picking a task.
     Takeover(NameArgs),
     /// Retire a done node (promote brief, mv into done/).
@@ -268,6 +274,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::List(args) => crate::list::run(&args),
         Command::Start(args)    => crate::launch::start(&args),
         Command::Continue(args) => crate::launch::continue_grove(&args),
+        Command::Do(args)       => crate::launch::do_grove(&args),
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args)   => crate::launch::retire(&args),
         Command::Finish(args)   => crate::launch::finish(&args),

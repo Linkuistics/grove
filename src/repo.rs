@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+
 /// Resolve the repo path: if `arg` is Some, use it; otherwise use cwd's git root.
 pub fn resolve(arg: Option<&Path>) -> Result<PathBuf> {
     if let Some(p) = arg {
@@ -118,4 +119,41 @@ pub fn grove_worktree(repo: &Path, name: &str) -> PathBuf {
 /// Directory holding all per-grove worktrees.
 pub fn grove_worktrees_dir(repo: &Path) -> PathBuf {
     repo.join(".grove-worktrees")
+}
+
+/// Whether a local branch `<branch>` exists in `repo`.
+pub fn branch_exists(repo: &Path, branch: &str) -> Result<bool> {
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .arg("show-ref")
+        .arg("--verify")
+        .arg("--quiet")
+        .arg(format!("refs/heads/{}", branch))
+        .status()
+        .context("running git show-ref")?;
+    Ok(status.success())
+}
+
+/// Re-attach a worktree at `<repo>/.grove-worktrees/<name>/` to the
+/// existing branch `<name>`. Used by `grove do` to recover an orphaned
+/// grove (branch present, worktree deleted).
+pub fn attach_grove_worktree(repo: &Path, name: &str) -> Result<PathBuf> {
+    let worktree = repo.join(".grove-worktrees").join(name);
+    if worktree.exists() {
+        anyhow::bail!("worktree already exists: {}", worktree.display());
+    }
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .arg("worktree")
+        .arg("add")
+        .arg(&worktree)
+        .arg(name)
+        .status()
+        .context("running git worktree add")?;
+    if !status.success() {
+        anyhow::bail!("git worktree add failed");
+    }
+    Ok(worktree)
 }

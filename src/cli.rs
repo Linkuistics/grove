@@ -34,6 +34,77 @@ pub enum Command {
     Finish(NameArgs),
     /// Capture observations to or drain a grove's inbox on the `grove-inboxes` branch.
     Inbox(InboxArgs),
+    /// Manage the `grove-inboxes` meta branch (remote, sync).
+    Meta(MetaArgs),
+}
+
+#[derive(Parser)]
+pub struct MetaArgs {
+    #[command(subcommand)]
+    pub command: MetaCommand,
+}
+
+#[derive(Subcommand)]
+pub enum MetaCommand {
+    /// Configure the optional upstream remote for the meta branch.
+    Remote(MetaRemoteArgs),
+    /// Push pending commits and pull latest on the meta branch.
+    #[command(long_about = "\
+Push pending commits to the meta-branch remote and pull the latest. \
+Best-effort: stdout is silent on success/no-op, stderr is informative \
+on action or failure. Exits non-zero only on conflict (non-ff after \
+fetch, or push rejected after fetch+retry); network and offline failures \
+are warned-and-continued so cron does not see a failure for transient \
+issues.\n\
+\n\
+Representative cron line (adjust the path to suit your setup):\n\
+\n\
+    */15 * * * * cd /path/to/your/repo && grove meta sync\
+")]
+    Sync(MetaSyncArgs),
+}
+
+#[derive(Parser)]
+pub struct MetaRemoteArgs {
+    #[command(subcommand)]
+    pub command: MetaRemoteCommand,
+}
+
+#[derive(Subcommand)]
+pub enum MetaRemoteCommand {
+    /// Configure an upstream remote and set tracking on the meta branch.
+    Add(MetaRemoteAddArgs),
+    /// Clear upstream tracking on the meta branch. Local commits stand.
+    Remove(MetaRemoteRemoveArgs),
+    /// Print the configured remote(s) and upstream tracking state.
+    List(MetaRemoteListArgs),
+}
+
+#[derive(Parser)]
+pub struct MetaRemoteAddArgs {
+    /// Remote URL (e.g. `git@github.com:user/repo.git`). If the worktree's
+    /// `origin` already points at this URL, it is reused as-is.
+    pub url: String,
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct MetaRemoteRemoveArgs {
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct MetaRemoteListArgs {
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct MetaSyncArgs {
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -189,5 +260,6 @@ pub fn run() -> anyhow::Result<()> {
         Command::Retire(args)   => crate::launch::retire(&args),
         Command::Finish(args)   => crate::launch::finish(&args),
         Command::Inbox(args)    => crate::inboxes::run(&args),
+        Command::Meta(args)     => crate::meta::run(&args),
     }
 }

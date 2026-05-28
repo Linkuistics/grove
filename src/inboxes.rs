@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BRANCH: &str = "grove-inboxes";
+pub(crate) const BRANCH: &str = "grove-inboxes";
 const WORKTREE_DIR: &str = ".grove-inboxes";
 const INBOXES_SUBDIR: &str = "inboxes";
 const GITKEEP: &str = ".gitkeep";
@@ -149,7 +149,7 @@ pub fn drain_enumerate(repo: &Path, name: &str) -> Result<Vec<PathBuf>> {
 
     migrate_legacy_if_present(&wt, name)?;
 
-    fetch_before_drain(&wt)?;
+    fetch_and_ff(&wt)?;
 
     let dir = inbox_dir(repo, name);
     if !dir.is_dir() {
@@ -299,8 +299,10 @@ fn canonical_parent_plus_file(p: &Path) -> Result<PathBuf> {
 
 /// Fetch `grove-inboxes` from its upstream (if any) and fast-forward the
 /// local worktree. Per ADR-0005: warn-and-continue on fetch failure,
-/// refuse on non-ff. No-op when no upstream is configured.
-fn fetch_before_drain(worktree: &Path) -> Result<()> {
+/// refuse on non-ff. No-op when no upstream is configured. Shared by the
+/// drain bootstrap path and the `grove meta sync` pull leg — both want
+/// identical soft-network/hard-conflict semantics.
+pub(crate) fn fetch_and_ff(worktree: &Path) -> Result<()> {
     if !has_upstream(worktree, BRANCH) {
         return Ok(());
     }
@@ -482,7 +484,7 @@ fn read_body(args: &InboxAddArgs) -> Result<String> {
 // ---------------------------------------------------------------------------
 // helpers
 
-fn require_worktree(repo: &Path) -> Result<PathBuf> {
+pub(crate) fn require_worktree(repo: &Path) -> Result<PathBuf> {
     let wt = worktree_dir(repo);
     if !wt.is_dir() {
         anyhow::bail!(
@@ -826,13 +828,13 @@ fn push_best_effort(worktree: &Path) {
 }
 
 #[derive(Debug)]
-enum PushError {
+pub(crate) enum PushError {
     NonFastForward,
     Network(String),
     Other(String),
 }
 
-fn has_upstream(worktree: &Path, branch: &str) -> bool {
+pub(crate) fn has_upstream(worktree: &Path, branch: &str) -> bool {
     let out = Command::new("git")
         .arg("-C")
         .arg(worktree)
@@ -843,7 +845,7 @@ fn has_upstream(worktree: &Path, branch: &str) -> bool {
     matches!(out, Ok(o) if o.status.success() && !o.stdout.is_empty())
 }
 
-fn try_push(worktree: &Path) -> std::result::Result<(), PushError> {
+pub(crate) fn try_push(worktree: &Path) -> std::result::Result<(), PushError> {
     let out = Command::new("git")
         .arg("-C")
         .arg(worktree)
@@ -881,7 +883,7 @@ fn looks_like_network_failure(stderr: &str) -> bool {
     needles.iter().any(|n| stderr.contains(n))
 }
 
-fn ff_pull(worktree: &Path) -> Result<()> {
+pub(crate) fn ff_pull(worktree: &Path) -> Result<()> {
     let out = Command::new("git")
         .arg("-C")
         .arg(worktree)
@@ -974,6 +976,49 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
     let y = if m <= 2 { y + 1 } else { y };
     (y, m, d)
+}
+
+/// Sync-flavoured push for `grove meta sync`. Pushes once; on non-ff,
+/// fetch-and-replays then retries push once; on persistent non-ff returns
+/// Err so the cron job exits non-zero. Network failures are warned-and-
+/// swallowed (the local commit stands and the next sync will retry).
+///
+/// Distinct from `push_best_effort` (capture path) which never returns Err
+/// because losing a push on a capture write is acceptable; for sync, an
+/// unresolvable conflict is the *whole point* of the verb's signal to the
+/// operator.
+pub(crate) fn sync_push(worktree: &Path) -> Result<()> {
+    match try_push(worktree) {
+        Ok(()) => Ok(()),
+        Err(PushError::Network(msg)) => {
+            eprintln!(
+                "warning: {} push failed ({}); will retry next sync.",
+                BRANCH,
+                msg.trim()
+            );
+            Ok(())
+        }
+        Err(PushError::NonFastForward) => {
+            ff_pull(worktree).context("ff-merge during push retry")?;
+            match try_push(worktree) {
+                Ok(()) => Ok(()),
+                Err(PushError::Network(msg)) => {
+                    eprintln!(
+                        "warning: {} push failed after ff-merge retry ({}); will retry next sync.",
+                        BRANCH,
+                        msg.trim()
+                    );
+                    Ok(())
+                }
+                Err(e) => anyhow::bail!(
+                    "{} push rejected after fetch+ff+retry: {:?}",
+                    BRANCH,
+                    e
+                ),
+            }
+        }
+        Err(PushError::Other(msg)) => anyhow::bail!("git push failed: {}", msg.trim()),
+    }
 }
 
 #[cfg(test)]

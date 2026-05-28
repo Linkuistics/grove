@@ -102,6 +102,20 @@ The CLI doesn't gate or enforce — it composes a prompt and execs the harness i
 
 You can edit those prompts in a materialised repo to taste — grove guides, it does not gate. Anything you can do via a verb you can also do by launching the harness by hand inside the worktree and giving it a free-form prompt.
 
+### Steering a planning session
+
+A planning session opens with a grilling — the LLM asks one question at a time, walks down a design tree, and sharpens vocabulary as it goes. The user's job is not to anticipate the agenda but to **redirect it as concerns surface**. Most planning sessions of any depth end up touching subjects neither party started with: a name that lies about its scope, a sync semantics that was silently assumed, a class of failure modes that prior tools have already mapped. These concerns rarely arrive in the order the LLM is grilling them, and they should not wait — the cost of capturing a foundational concern mid-session is one renumber; the cost of capturing it later is a migration.
+
+The pattern the methodology is built around: **new concerns are captured as leaves at the moment they surface**. The planning task that was originally `050-x` may end up renumbered to `070-x` (or further) as foundational concerns are inserted ahead of it, while still being the leaf that gets picked when its turn comes. The numeric prefixes carry the *resolved* dependency order, not the order in which concerns came up. The parent `BRIEF.md`'s notes section records why each insertion happened; that is the durable audit trail, and it is the place future readers go to understand the shape.
+
+Three directions worth giving explicitly during planning:
+
+- **Interrupt when the grilling is asking the wrong question.** The LLM cannot see what you can — if the line of questioning is missing a concern you have spotted, surface it directly. "Before we keep going on X, I want us to look at Y" is enough. The grilling absorbs interrupts gracefully; the planning leaf shifts to accommodate.
+- **Make foundational asks when they occur to you, not at the end.** A concern that reshapes the surrounding subtree (a rename, a shape change, a sync model that was assumed) is cheap to act on while the briefs are still wet ink. Waiting until the planning session has otherwise concluded means the concern either becomes a migration or gets lost. The session can absorb several such asks in succession; the cost is mechanical bookkeeping the LLM handles.
+- **Say "pause and consolidate" when the renumbers start stacking.** The renumber cost is the visible signal that the session is absorbing rather than executing. After a few rounds it is more productive to commit the current shape and pick up the next actual task than to keep extending the planning brief. "Pause and consolidate" is a recognised direction: the LLM stops adding leaves, ensures the tree is in coherent state, and produces a summary you can act on next.
+
+The mechanical bookkeeping — renumbering files, updating headers, hunting cross-references, growing the parent brief — belongs to the LLM, not the user. Judgement calls (what the new concern is, what to name it, where in the order it should sit) belong to the user. The healthy planning session is one where the user makes a small number of substantive judgements and the LLM converts each into the right tree shape; the unhealthy planning session is one where the user is mentally tracking the numbering. If you notice yourself doing the latter, that is a signal to pause.
+
 ### One-off and exploratory use
 
 There is no global, ambient grove — a globally-installed skill would conflict with the per-project materialised copy and re-introduce the drift problem grove exists to prevent. Even for a single short workstream, run `grove install` in the target repo. The cost is one command and one commit; the benefit is that the experiment is still reproducible weeks later. If the work truly does not warrant a commit, run it freeform without grove at all — that is a more honest choice than a globally-unpinned grove.

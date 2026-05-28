@@ -23,7 +23,6 @@ pub fn start(args: &StartArgs) -> Result<()> {
     harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
 
     let prompt = load_prompt(&repo_path, harness, "start")?;
-    let prompt = substitute(&prompt, &[("NAME", &args.name)]);
 
     if args.no_launch {
         eprintln!("grove: worktree ready at {} (no-launch)", worktree.display());
@@ -63,7 +62,6 @@ fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
     }
 
     let prompt = load_prompt(&repo_path, harness, verb)?;
-    let prompt = substitute(&prompt, &[("NAME", &args.name)]);
 
     if args.no_launch {
         eprintln!("grove: would exec {} (no-launch)", harness.exec_bin);
@@ -94,7 +92,7 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
     }
 
     let prompt = load_prompt(&repo_path, harness, "retire")?;
-    let prompt = substitute(&prompt, &[("NAME", name), ("NODE_PATH", node_path)]);
+    let prompt = substitute(&prompt, &[("NODE_PATH", node_path)]);
 
     if args.no_launch {
         eprintln!("grove: would exec {} for retire (no-launch)", harness.exec_bin);

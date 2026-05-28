@@ -45,6 +45,8 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
+    /// Launch the read-only TUI navigator over this repo's groves.
+    Tui(RepoArgs),
 }
 
 #[derive(Parser)]
@@ -282,5 +284,6 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args)     => crate::meta::run(&args),
+        Command::Tui(args)      => crate::tui::run(&args),
     }
 }

@@ -55,9 +55,20 @@ pub enum InboxCommand {
 #[derive(Parser)]
 pub struct InboxAddArgs {
     /// Name of the addressed grove (existing, future, or finished).
-    pub name: String,
-    /// Observation text. If omitted, read from stdin.
-    pub observation: Option<String>,
+    #[arg(long = "to")]
+    pub to: String,
+    /// Override the mechanically-derived slug component of the entry filename.
+    #[arg(long = "slug")]
+    pub slug: Option<String>,
+    /// Observation body as an inline string.
+    #[arg(long = "body", conflicts_with_all = ["body_file", "body_stdin"])]
+    pub body: Option<String>,
+    /// Observation body read from a file at the given path.
+    #[arg(long = "body-file", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<PathBuf>,
+    /// Read the observation body from stdin (single-shot, no prompt).
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
     /// Target repo (defaults to cwd's git root). Cross-repo: supply a path
     /// to another repo whose `.grove-inboxes/` worktree is materialised.
     #[arg(long = "repo")]

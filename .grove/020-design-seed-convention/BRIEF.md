@@ -89,14 +89,19 @@ unblocked.
   ADR-0004 (shape) and ADR-0005 (sync) and the post-mortem research
   doc's "Findings adopted" section. Children: `010-cli-shape-and-capture.md`,
   `020-cli-drain-as-verb-and-bootstrap-fetch.md`,
-  `030-cli-meta-remote-and-sync.md` (work).
+  `030-cli-meta-remote-and-sync.md` (work — all three retired
+  2026-05-28; node itself retired in the same session as 030).
 - `070-grove-meta-rename-and-init.md` — rename the branch from
   `grove-inboxes` to `grove-meta` (worktree at `<repo>/.grove-meta/`)
   across CLI, ADRs, SKILL, prompts, and docs; add explicit
   `grove meta init` verb (idempotent), invoked internally by
   `install`/`update` and externally for pre-feature repos or
-  worktree repair. Scope may grow to include shape change pending
-  060's outcome (work).
+  worktree repair. The shape-change-coupling hedge from before 060
+  landed is now resolved: ADR-0004's directory-of-files shape has
+  shipped, so 070 sweeps the rename across the already-current shape
+  (no shape change to bundle). The `grove meta` parent subcommand
+  also already exists (introduced by 060/030 for `remote` and
+  `sync`); 070 adds `init` as a sibling variant (work).
 - `080-audit-llm-cli-boundaries.md` — planning task: audit
   `content/SKILL.md` and `content/prompts/*.md` for deterministic
   prose-coded steps that should be promoted to CLI verbs the LLM
@@ -194,3 +199,13 @@ unblocked.
   bundled reference file `content/driving.md` captures the
   field-guide habits (commissioning research, grilling moves,
   WDYT/pushback discipline) so future groves repeat the pattern.
+- **060 fully retired (2026-05-28).** All three children
+  (010-cli-shape-and-capture, 020-cli-drain-as-verb-and-bootstrap-fetch,
+  030-cli-meta-remote-and-sync) shipped and retired in the same
+  session as the node itself. The `grove inbox add|drain|show` and
+  `grove meta remote add|remove|list` / `grove meta sync` verbs now
+  exist; capture writes per-observation files, drain is a two-phase
+  CLI verb, and multi-machine users can opt into remote tracking
+  with `grove meta remote add <url>` + cron `grove meta sync`. Leaf
+  070 inherits a working `grove meta` parent subcommand and only
+  needs to add `init` (plus the branch rename sweep).

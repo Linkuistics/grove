@@ -51,11 +51,13 @@ Check the outcome of 050 before starting work here.
   the rejected alternative is recorded in the entry.
 - The existing inbox verbs stay where they are: `grove inbox add`,
   `grove inbox drain`, `grove inbox show`. They write to/read from the
-  renamed branch but their own surface does not change. The new
-  `grove meta` noun is a separate verb cluster; today it has exactly
-  one verb (`init`), with room for `grove meta path` /
-  `grove meta status` later if a real need surfaces (do not add them
-  speculatively).
+  renamed branch but their own surface does not change. The
+  `grove meta` noun is a separate verb cluster. As of leaf 060/030
+  retiring, it already has `grove meta remote add|remove|list` and
+  `grove meta sync`; this leaf adds `grove meta init` as a sibling
+  verb under the same parent (the clap subcommand parent is already in
+  place — just register the new variant). Resist adding `grove meta
+  path` / `grove meta status` etc. speculatively.
 
 ## Done when
 
@@ -119,12 +121,12 @@ Check the outcome of 050 before starting work here.
   has an `inboxes/` subdirectory today; other subdirectories may
   appear later." Do not pre-create `locks/`, `settings/`, etc.; lazy
   and optional (SKILL.md constraint 4).
-- **Verb namespace.** `grove meta` is a noun-verb cluster
-  (`grove meta init` today, possibly more later). `grove inbox` stays
-  its own noun cluster (the two are different things at the same
-  level of abstraction — inboxes are a *content type* living inside
-  meta, but the verb namespaces are sibling, not nested, to keep the
-  common verbs short).
+- **Verb namespace.** `grove meta` is a noun-verb cluster. After leaf
+  060/030 it holds `remote add|remove|list` and `sync`; this leaf adds
+  `init`. `grove inbox` stays its own noun cluster (the two are
+  different things at the same level of abstraction — inboxes are a
+  *content type* living inside meta, but the verb namespaces are
+  sibling, not nested, to keep the common verbs short).
 - **`grove finish` is unaffected.** No code touches inbox/meta state
   at finish; the inbox file just becomes a seed again if anything is
   appended later. ADR 0002's "Why drain is a bootstrap step" still

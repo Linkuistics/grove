@@ -1,33 +1,38 @@
-// The `grove tui` subcommand: a read-only, sync, master/detail navigator
-// over one repo's groves (leaf
-// `020-design-seed-convention/090-tui-server/020-tui-shell-read-only.md`).
+// The `grove tui` subcommand: a sync master/detail navigator over one
+// repo's groves. Leaves 020 (read-only shell) and 030 (writes +
+// fs-watch) under `020-design-seed-convention/090-tui-server/`.
 //
 // Architecture:
-//   - All state derives from a single `RepoView` snapshot scanned at
-//     startup. Refresh on `r`; fs-watch refresh and the `c` capture
-//     shell-out land in leaf 030 — explicitly out of scope here.
-//   - `App` owns the snapshot plus screen/selection state. Rendering is
-//     a pure function of `App` + the screen rect, which keeps the
-//     `TestBackend` snapshot test honest.
+//   - All state derives from a `RepoView` snapshot. The snapshot is
+//     re-scanned on `r`, on every fs-watch quiescence (`notify` events
+//     coalesced by a 200ms debounce), and after every shell-out so the
+//     round trip from capture → inbox count update is visible without
+//     manual refresh.
+//   - `App` owns the snapshot, screen/selection state, and the capture
+//     modal. Rendering is a pure function of `App` + the screen rect,
+//     which keeps the `TestBackend` snapshot test honest.
 //   - The Ratatui event loop is the standard sync poll/read pattern
-//     (see ratatui 0.29 docs). No tokio, no notify yet.
+//     (see ratatui 0.29 docs). The shell-out from `c` suspends the
+//     alternate-screen / raw-mode terminal via `ratatui::restore()` and
+//     resumes it with a fresh `ratatui::init()` — no bespoke
+//     alt-screen toggling.
 //
-// Walk-away-ability (SKILL.md constraint 6) is preserved by never
-// writing — every keystroke either selects, scrolls, opens help, or
-// quits. The future `c` keybind in leaf 030 will shell out to
-// `grove inbox add` rather than touching grove state directly.
+// Walk-away-ability (SKILL.md constraint 6) is preserved by routing
+// every write through the `grove-llm inbox-add` verb. The TUI never
+// edits grove state directly.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
 
-use ratatui::backend::Backend;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::{Frame, Terminal};
+use ratatui::{DefaultTerminal, Frame};
 
 use crate::cli::RepoArgs;
 use crate::repo;
@@ -35,14 +40,17 @@ use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
 };
 
+const DEBOUNCE: Duration = Duration::from_millis(200);
+
 pub fn run(args: &RepoArgs) -> Result<()> {
     let repo = repo::resolve(args.repo.as_deref())?;
     let view = RepoView::scan(&repo)?;
     let preselect = current_grove_name(&repo);
-    let app = App::new(repo, view, preselect);
+    let mut app = App::new(repo.clone(), view, preselect);
+    let mut watch = WatchSet::new(&repo);
 
     let mut terminal = ratatui::init();
-    let outcome = event_loop(&mut terminal, app);
+    let outcome = live_event_loop(&mut terminal, &mut app, &mut watch);
     ratatui::restore();
     outcome
 }
@@ -60,6 +68,39 @@ pub struct App {
     filter: FilterState,
     show_help: bool,
     status: Option<String>,
+    capture: CaptureModal,
+    /// A keystroke (Ctrl-E / Enter in body / submit) decides *that* an
+    /// external action should run; the live loop then suspends the
+    /// terminal and runs it. Splitting these phases keeps `handle_key`
+    /// pure enough to test without a real terminal.
+    pending_action: Option<PendingAction>,
+}
+
+/// Capture modal — opened by `c`, drives the two-step
+/// target/body workflow. The modal is intentionally tiny: a multi-line
+/// editor is the wrong tool for a one-line observation, and anything
+/// longer should drop to `$EDITOR` via Ctrl-E.
+#[derive(Default, Clone)]
+pub struct CaptureModal {
+    open: bool,
+    field: CaptureField,
+    target: String,
+    body: String,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+enum CaptureField {
+    #[default]
+    Target,
+    Body,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PendingAction {
+    /// Submit `app.capture` via `grove-llm inbox-add`.
+    Submit,
+    /// Drop into `$EDITOR` (or `vi` fallback) to edit `app.capture.body`.
+    EditBody,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,10 +167,13 @@ impl App {
             filter: FilterState::default(),
             show_help: false,
             status: None,
+            capture: CaptureModal::default(),
+            pending_action: None,
         }
     }
 
-    fn refresh(&mut self) -> Result<()> {
+    /// Rescan the repo without touching the status line. Used by fs-watch.
+    fn refresh_silent(&mut self) -> Result<()> {
         // Preserve which grove the user was looking at across the rescan.
         let current_grove = match self.screen {
             Screen::GroveDetail => self.detail.as_ref().map(|d| d.grove.clone()),
@@ -139,7 +183,6 @@ impl App {
                 .map(|g| g.name.clone()),
         };
         self.view = RepoView::scan(&self.repo)?;
-        self.filter.text.clear();
         // Reselect by name if possible; otherwise fall back to first row.
         let groves = self.view.groves();
         let idx = current_grove
@@ -156,14 +199,20 @@ impl App {
             if !still_there {
                 self.screen = Screen::GroveList;
                 self.detail = None;
-            } else {
-                // Reset detail nav — tree shape may have changed.
-                if let Some(d) = self.detail.as_mut() {
-                    d.tree.select(Some(0));
-                    d.right_scroll = 0;
-                }
             }
+            // Tree shape may have changed; let the selection clamp on
+            // next render via the existing bounds check in
+            // `render_grove_detail` rather than resetting to 0 here.
         }
+        Ok(())
+    }
+
+    /// Rescan the repo and signal "refreshed" in the status line.
+    /// Triggered by `r`. Clears any in-progress filter to make the
+    /// rescan's selection deterministic for the user.
+    fn refresh(&mut self) -> Result<()> {
+        self.filter.text.clear();
+        self.refresh_silent()?;
         self.status = Some("refreshed".into());
         Ok(())
     }
@@ -179,23 +228,261 @@ impl App {
 }
 
 // ---------------------------------------------------------------------------
-// Event loop
+// Filesystem watcher
+//
+// `notify` runs its watcher thread; events arrive on an `mpsc` channel
+// that the sync event loop polls each tick. We don't act on individual
+// events — any event marks the snapshot "dirty" and starts a 200ms
+// debounce window. After that window elapses with no new events, we
+// rescan once. A `git checkout` that touches dozens of files therefore
+// produces one rescan, not dozens.
+//
+// Best-effort: if `notify` cannot initialise (e.g. an exotic platform),
+// or a watched directory does not yet exist, we proceed without
+// fs-watch. `r` still works.
 
-fn event_loop<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
-    loop {
-        terminal.draw(|f| render(f, &app))?;
-        if !event::poll(Duration::from_millis(200))? {
-            continue;
+/// Watcher + receiver bundle, kept alive for the duration of the event
+/// loop. Dropping `WatchSet` stops the watcher thread cleanly — the
+/// brief's "exits cleanly on `q`, no leaked threads" constraint.
+pub struct WatchSet {
+    _watcher: Option<RecommendedWatcher>,
+    rx: Option<mpsc::Receiver<notify::Result<notify::Event>>>,
+    /// When set, an event arrived at this instant and we are inside the
+    /// debounce window. `None` means the snapshot is settled.
+    dirty_since: Option<Instant>,
+}
+
+impl WatchSet {
+    pub fn new(repo: &Path) -> Self {
+        let (tx, rx) = mpsc::channel();
+        let mut watcher = match notify::recommended_watcher(move |res| {
+            let _ = tx.send(res);
+        }) {
+            Ok(w) => w,
+            Err(_) => {
+                return Self { _watcher: None, rx: None, dirty_since: None };
+            }
+        };
+        // Watch the two roots that hold grove state. Recursive picks up
+        // new groves, new leaves, and new observation files without
+        // re-registering watchers.
+        for dir in [
+            repo.join(".grove-worktrees"),
+            repo.join(".grove-meta").join("inboxes"),
+        ] {
+            if dir.is_dir() {
+                let _ = watcher.watch(&dir, RecursiveMode::Recursive);
+            }
         }
-        match event::read()? {
-            Event::Key(k) if k.kind == KeyEventKind::Press => {
-                if handle_key(&mut app, k.code, k.modifiers)? {
+        Self { _watcher: Some(watcher), rx: Some(rx), dirty_since: None }
+    }
+
+    /// Drain pending events from the channel; mark dirty if any arrived.
+    fn drain(&mut self) {
+        let Some(rx) = self.rx.as_ref() else { return };
+        let mut any = false;
+        while let Ok(_ev) = rx.try_recv() {
+            any = true;
+        }
+        if any {
+            self.dirty_since = Some(Instant::now());
+        }
+    }
+
+    /// True when an event has arrived and the debounce window has elapsed.
+    fn settled(&self) -> bool {
+        match self.dirty_since {
+            Some(t) => t.elapsed() >= DEBOUNCE,
+            None => false,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.dirty_since = None;
+    }
+
+    /// Poll timeout for `event::poll`. While dirty, shorten so we notice
+    /// the debounce settling promptly without idling for 200ms.
+    fn poll_timeout(&self) -> Duration {
+        match self.dirty_since {
+            Some(t) => DEBOUNCE
+                .saturating_sub(t.elapsed())
+                .max(Duration::from_millis(10)),
+            None => Duration::from_millis(200),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Live event loop (with fs-watch and shell-out)
+
+fn live_event_loop(
+    terminal: &mut DefaultTerminal,
+    app: &mut App,
+    watch: &mut WatchSet,
+) -> Result<()> {
+    loop {
+        terminal.draw(|f| render(f, app))?;
+
+        watch.drain();
+        if watch.settled() {
+            if let Err(e) = app.refresh_silent() {
+                app.status = Some(format!("rescan failed: {}", e));
+            }
+            watch.clear();
+        }
+
+        if event::poll(watch.poll_timeout())? {
+            if let Event::Key(k) = event::read()? {
+                if k.kind == KeyEventKind::Press
+                    && handle_key(app, k.code, k.modifiers)?
+                {
                     return Ok(());
                 }
             }
-            _ => {}
+        }
+
+        if let Some(action) = app.pending_action.take() {
+            process_pending_action(terminal, app, action);
+            // The shell-out wrote (or read) the filesystem; the watcher
+            // will fire, debounce, and trigger a rescan on the next
+            // settled tick. No manual refresh needed here.
         }
     }
+}
+
+/// Suspend the alt-screen / raw-mode TUI, run `f`, then re-init.
+///
+/// Uses `ratatui::restore()` / `ratatui::init()` rather than bespoke
+/// alt-screen toggling, per ratatui 0.29 guidance.
+fn suspended<F, R>(terminal: &mut DefaultTerminal, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    ratatui::restore();
+    let r = f();
+    *terminal = ratatui::init();
+    let _ = terminal.clear();
+    r
+}
+
+fn process_pending_action(
+    terminal: &mut DefaultTerminal,
+    app: &mut App,
+    action: PendingAction,
+) {
+    match action {
+        PendingAction::Submit => {
+            let target = app.capture.target.clone();
+            let body = app.capture.body.clone();
+            let outcome = suspended(terminal, || shell_capture(&target, &body));
+            match outcome {
+                Ok(()) => {
+                    app.status = Some(format!("captured to {}", target));
+                    app.capture = CaptureModal::default();
+                }
+                Err(e) => {
+                    // Per the leaf: "No retry on capture failure in v1.
+                    // Surface stderr and let the user re-press c."
+                    app.status = Some(format!("capture failed: {}", short_err(&e)));
+                    app.capture = CaptureModal::default();
+                }
+            }
+        }
+        PendingAction::EditBody => {
+            let body = app.capture.body.clone();
+            let outcome = suspended(terminal, || shell_editor(&body));
+            match outcome {
+                Ok(new_body) => {
+                    app.capture.body = new_body;
+                    app.capture.field = CaptureField::Body;
+                }
+                Err(e) => {
+                    app.status = Some(format!("editor failed: {}", short_err(&e)));
+                }
+            }
+        }
+    }
+}
+
+fn short_err(e: &anyhow::Error) -> String {
+    // `{:#}` collapses the anyhow chain into "top: cause: root", which
+    // is what the status line needs — a single-line summary that names
+    // the actual failure (e.g. "running grove-llm inbox-add: No such
+    // file or directory") rather than just the topmost wrapper.
+    format!("{:#}", e)
+}
+
+// ---------------------------------------------------------------------------
+// Shell helpers
+
+/// Locate the sibling `grove-llm` binary next to the running `grove`
+/// executable. Falls back to PATH lookup. This handles both
+/// `target/debug/` during development and `/usr/local/bin/` after
+/// `brew install`, without assuming PATH ordering.
+fn find_grove_llm() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let bin = if cfg!(windows) { "grove-llm.exe" } else { "grove-llm" };
+            let sibling = parent.join(bin);
+            if sibling.is_file() {
+                return sibling;
+            }
+        }
+    }
+    PathBuf::from("grove-llm")
+}
+
+fn shell_capture(target: &str, body: &str) -> Result<()> {
+    if target.trim().is_empty() {
+        anyhow::bail!("target grove name is empty");
+    }
+    if body.trim().is_empty() {
+        anyhow::bail!("body is empty");
+    }
+    let tf = tempfile::Builder::new()
+        .prefix("grove-capture-")
+        .suffix(".md")
+        .tempfile()
+        .context("creating body tempfile")?;
+    std::fs::write(tf.path(), body)
+        .with_context(|| format!("writing body to {}", tf.path().display()))?;
+    let status = std::process::Command::new(find_grove_llm())
+        .arg("inbox-add")
+        .arg(format!("--to={}", target.trim()))
+        .arg("--body-file")
+        .arg(tf.path())
+        .status()
+        .context("running grove-llm inbox-add")?;
+    if !status.success() {
+        anyhow::bail!(
+            "grove-llm inbox-add exited with status {:?}",
+            status.code()
+        );
+    }
+    Ok(())
+}
+
+fn shell_editor(initial: &str) -> Result<String> {
+    let editor = std::env::var("EDITOR")
+        .or_else(|_| std::env::var("VISUAL"))
+        .unwrap_or_else(|_| "vi".into());
+    let tf = tempfile::Builder::new()
+        .prefix("grove-capture-")
+        .suffix(".md")
+        .tempfile()
+        .context("creating editor tempfile")?;
+    std::fs::write(tf.path(), initial)
+        .with_context(|| format!("seeding editor tempfile {}", tf.path().display()))?;
+    let status = std::process::Command::new(&editor)
+        .arg(tf.path())
+        .status()
+        .with_context(|| format!("running editor `{}`", editor))?;
+    if !status.success() {
+        anyhow::bail!("editor `{}` exited with status {:?}", editor, status.code());
+    }
+    std::fs::read_to_string(tf.path())
+        .with_context(|| format!("reading edited body back from {}", tf.path().display()))
 }
 
 /// Returns true when the app should exit.
@@ -203,6 +490,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
     // Help overlay: any key dismisses.
     if app.show_help {
         app.show_help = false;
+        return Ok(false);
+    }
+
+    // Capture modal swallows almost everything; only Ctrl-C still quits.
+    if app.capture.open {
+        handle_capture_key(app, code, mods);
         return Ok(false);
     }
 
@@ -242,6 +535,9 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         }
         (_, KeyCode::Char('r')) => {
             app.refresh()?;
+        }
+        (_, KeyCode::Char('c')) => {
+            open_capture_modal(app);
         }
         (Screen::GroveList, KeyCode::Char('q')) => return Ok(true),
         (Screen::GroveList, KeyCode::Down | KeyCode::Char('j')) => {
@@ -311,6 +607,89 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
     Ok(false)
 }
 
+fn open_capture_modal(app: &mut App) {
+    // Pre-fill target from context: on detail, the current grove (jump
+    // straight to body); on list, the currently-selected grove if any
+    // (let the user edit it, since list-screen capture often means
+    // capturing to a *different* grove).
+    let (target, field) = match app.screen {
+        Screen::GroveDetail => match app.detail.as_ref() {
+            Some(d) => (d.grove.clone(), CaptureField::Body),
+            None => (String::new(), CaptureField::Target),
+        },
+        Screen::GroveList => {
+            let pre = app
+                .filtered_groves()
+                .get(app.list.selected().unwrap_or(0))
+                .map(|g| g.name.clone())
+                .unwrap_or_default();
+            (pre, CaptureField::Target)
+        }
+    };
+    app.capture = CaptureModal {
+        open: true,
+        field,
+        target,
+        body: String::new(),
+    };
+}
+
+fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
+    // Ctrl-C closes the modal rather than quitting the app — the outer
+    // handler already short-circuits Ctrl-C to quit *before* we get
+    // here, but only when the modal is closed. Inside the modal, the
+    // outer handler returned early so the user's Ctrl-C lands here.
+    if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
+        app.capture = CaptureModal::default();
+        return;
+    }
+    match code {
+        KeyCode::Esc => {
+            app.capture = CaptureModal::default();
+        }
+        KeyCode::Tab => {
+            app.capture.field = match app.capture.field {
+                CaptureField::Target => CaptureField::Body,
+                CaptureField::Body => CaptureField::Target,
+            };
+        }
+        KeyCode::Char('e') if mods.contains(KeyModifiers::CONTROL) => {
+            // Drop to $EDITOR with the current body. Live loop picks
+            // this up after the key handler returns.
+            app.pending_action = Some(PendingAction::EditBody);
+        }
+        KeyCode::Enter => match app.capture.field {
+            CaptureField::Target => {
+                if !app.capture.target.trim().is_empty() {
+                    app.capture.field = CaptureField::Body;
+                }
+            }
+            CaptureField::Body => {
+                if !app.capture.target.trim().is_empty()
+                    && !app.capture.body.trim().is_empty()
+                {
+                    app.pending_action = Some(PendingAction::Submit);
+                }
+            }
+        },
+        KeyCode::Backspace => match app.capture.field {
+            CaptureField::Target => {
+                app.capture.target.pop();
+            }
+            CaptureField::Body => {
+                app.capture.body.pop();
+            }
+        },
+        KeyCode::Char(c) if !mods.contains(KeyModifiers::CONTROL) => {
+            match app.capture.field {
+                CaptureField::Target => app.capture.target.push(c),
+                CaptureField::Body => app.capture.body.push(c),
+            }
+        }
+        _ => {}
+    }
+}
+
 fn move_selection(state: &mut ListState, len: isize, delta: isize) {
     if len <= 0 {
         state.select(None);
@@ -339,9 +718,68 @@ pub fn render(f: &mut Frame, app: &App) {
     }
     render_footer(f, footer, app);
 
+    if app.capture.open {
+        render_capture_modal(f, area, &app.capture);
+    }
     if app.show_help {
         render_help_overlay(f, area);
     }
+}
+
+fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
+    let popup = centered_rect(70, 50, area);
+    f.render_widget(Clear, popup);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("capture — grove inbox add");
+
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let [target_area, body_area, hint_area] = Layout::vertical([
+        Constraint::Length(3),
+        Constraint::Min(3),
+        Constraint::Length(1),
+    ])
+    .areas(inner);
+
+    let target_focus = matches!(modal.field, CaptureField::Target);
+    let body_focus = matches!(modal.field, CaptureField::Body);
+
+    let target_text = if target_focus {
+        format!("{}_", modal.target)
+    } else {
+        modal.target.clone()
+    };
+    let target_style = if target_focus {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
+    let target_para = Paragraph::new(target_text)
+        .style(target_style)
+        .block(Block::default().borders(Borders::ALL).title("target grove"));
+    f.render_widget(target_para, target_area);
+
+    let body_text = if body_focus {
+        format!("{}_", modal.body)
+    } else {
+        modal.body.clone()
+    };
+    let body_style = if body_focus {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default()
+    };
+    let body_para = Paragraph::new(body_text)
+        .style(body_style)
+        .wrap(Wrap { trim: false })
+        .block(Block::default().borders(Borders::ALL).title("observation body"));
+    f.render_widget(body_para, body_area);
+
+    let hint = "Tab=switch  Enter=next/submit  Ctrl-E=edit in $EDITOR  Esc=cancel";
+    f.render_widget(Paragraph::new(hint), hint_area);
 }
 
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
@@ -534,8 +972,8 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::raw("  Enter=apply  Esc=cancel"));
     } else {
         let hint = match app.screen {
-            Screen::GroveList => "Enter=open  j/k=move  /=filter  r=refresh  ?=help  q=quit",
-            Screen::GroveDetail => "Tab=cycle  j/k=move  PgUp/PgDn=scroll  /=filter  r=refresh  Esc=back  ?=help",
+            Screen::GroveList => "Enter=open  j/k=move  /=filter  c=capture  r=refresh  ?=help  q=quit",
+            Screen::GroveDetail => "Tab=cycle  j/k=move  PgUp/PgDn=scroll  /=filter  c=capture  r=refresh  Esc=back  ?=help",
         };
         spans.push(Span::raw(hint));
         if !app.filter.text.is_empty() {
@@ -566,7 +1004,10 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("  PgUp / PgDn   scroll right pane"),
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
-        Line::from("  r             rescan the repo"),
+        Line::from("  c             capture an observation to a grove's inbox"),
+        Line::from("                  Tab=switch field, Ctrl-E=edit in $EDITOR,"),
+        Line::from("                  Enter on body=submit, Esc=cancel"),
+        Line::from("  r             rescan the repo (also: fs-watch auto-refreshes)"),
         Line::from("  ?             toggle this help"),
         Line::from("  Ctrl-C        force quit"),
         Line::from(""),
@@ -702,6 +1143,7 @@ fn current_grove_name(repo: &Path) -> Option<String> {
 mod tests {
     use super::*;
     use ratatui::backend::TestBackend;
+    use ratatui::Terminal;
     use std::fs;
     use tempfile::TempDir;
 
@@ -850,5 +1292,200 @@ mod tests {
         let mut app = App::new(tmp.path().to_path_buf(), view, None);
         let quit = handle_key(&mut app, KeyCode::Char('q'), KeyModifiers::NONE).unwrap();
         assert!(quit);
+    }
+
+    // -----------------------------------------------------------------
+    // Capture modal
+
+    fn type_str(app: &mut App, s: &str) {
+        for c in s.chars() {
+            handle_key(app, KeyCode::Char(c), KeyModifiers::NONE).unwrap();
+        }
+    }
+
+    #[test]
+    fn c_on_list_opens_modal_with_selected_as_target() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        // Preselect alpha; pressing `c` should pre-fill target with the
+        // selected grove and start on the target field so the user can
+        // edit it (capture to a *different* grove is the common case from
+        // the list screen).
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert!(app.capture.open);
+        assert_eq!(app.capture.target, "alpha");
+        assert_eq!(app.capture.field, CaptureField::Target);
+    }
+
+    #[test]
+    fn c_on_detail_jumps_to_body_with_grove_prefilled() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert!(app.capture.open);
+        assert_eq!(app.capture.target, "alpha");
+        // On detail, capturing-to-current-grove is the common case; jump
+        // straight to body to save a Tab.
+        assert_eq!(app.capture.field, CaptureField::Body);
+    }
+
+    #[test]
+    fn typing_fills_active_field_and_enter_advances() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+        // Open from list (no preselect) → starts on Target field, empty.
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        // Clear whatever preselect put there.
+        for _ in 0..app.capture.target.len() {
+            handle_key(&mut app, KeyCode::Backspace, KeyModifiers::NONE).unwrap();
+        }
+        assert_eq!(app.capture.target, "");
+        type_str(&mut app, "newgrove");
+        assert_eq!(app.capture.target, "newgrove");
+        // Enter on target advances to body.
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Body);
+        type_str(&mut app, "noticed a thing");
+        assert_eq!(app.capture.body, "noticed a thing");
+    }
+
+    #[test]
+    fn enter_on_empty_target_does_not_advance() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        for _ in 0..app.capture.target.len() {
+            handle_key(&mut app, KeyCode::Backspace, KeyModifiers::NONE).unwrap();
+        }
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Target);
+    }
+
+    #[test]
+    fn enter_on_body_with_both_fields_requests_submit() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        // Detail jumps to body field, target=alpha.
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "first observation");
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.pending_action, Some(PendingAction::Submit));
+        // Submitting does *not* close the modal in the key handler;
+        // the live loop will close it after the shell-out finishes.
+        assert!(app.capture.open);
+    }
+
+    #[test]
+    fn enter_on_body_with_empty_body_does_not_submit() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.pending_action, None);
+    }
+
+    #[test]
+    fn ctrl_e_in_body_requests_editor() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, Some(PendingAction::EditBody));
+    }
+
+    #[test]
+    fn tab_toggles_field() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Body);
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Target);
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Body);
+    }
+
+    #[test]
+    fn esc_closes_modal() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "abc");
+        handle_key(&mut app, KeyCode::Esc, KeyModifiers::NONE).unwrap();
+        assert!(!app.capture.open);
+        assert_eq!(app.capture.body, "");
+    }
+
+    #[test]
+    fn capture_modal_renders_with_target_and_body() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "hello");
+        let out = render_to_buffer(&app, 100, 24);
+        assert!(out.contains("capture"), "modal title missing:\n{}", out);
+        assert!(out.contains("target grove"), "target field label missing:\n{}", out);
+        assert!(out.contains("alpha"), "target value missing:\n{}", out);
+        assert!(out.contains("hello"), "body value missing:\n{}", out);
+        assert!(out.contains("Ctrl-E"), "modal hint missing:\n{}", out);
+    }
+
+    #[test]
+    fn footer_shows_c_hint() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let app = App::new(tmp.path().to_path_buf(), view, None);
+        let out = render_to_buffer(&app, 100, 12);
+        assert!(out.contains("c=capture"), "list footer missing c=capture:\n{}", out);
+    }
+
+    // -----------------------------------------------------------------
+    // Filesystem watcher debounce predicate
+
+    #[test]
+    fn watchset_settled_only_after_debounce() {
+        // Construct without spawning a real watcher; just exercise the
+        // debounce predicate, which is the public-facing
+        // contract the event loop depends on.
+        let mut w = WatchSet { _watcher: None, rx: None, dirty_since: None };
+        assert!(!w.settled());
+
+        w.dirty_since = Some(Instant::now());
+        assert!(!w.settled(), "fresh dirty mark must not be settled");
+
+        w.dirty_since = Some(Instant::now() - Duration::from_millis(250));
+        assert!(w.settled(), "older-than-debounce mark must be settled");
+
+        w.clear();
+        assert!(!w.settled());
+    }
+
+    #[test]
+    fn watchset_poll_timeout_shortens_when_dirty() {
+        let mut w = WatchSet { _watcher: None, rx: None, dirty_since: None };
+        assert_eq!(w.poll_timeout(), Duration::from_millis(200));
+
+        w.dirty_since = Some(Instant::now());
+        // Within the window, the timeout is some positive value below
+        // 200ms — clamped to at least 10ms so we don't busy-spin.
+        let t = w.poll_timeout();
+        assert!(t <= Duration::from_millis(200));
+        assert!(t >= Duration::from_millis(10));
     }
 }

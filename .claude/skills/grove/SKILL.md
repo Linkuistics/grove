@@ -80,7 +80,11 @@ not when running it.
 
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
-`BRIEF.md` chain root→leaf; the task file. Then **drain the inbox** by
+`BRIEF.md` chain root→leaf, enumerated by `grove-llm brief-chain` — the verb
+walks ancestors of the picked leaf up to the grove root and prints one
+absolute `BRIEF.md` path per line, root→leaf (a missing `BRIEF.md` at any
+level is skipped silently — some nodes do not yet carry a brief); the task
+file. Then **drain the inbox** by
 running `grove-llm inbox-drain --for=<name>` — this fetches the latest state
 (when a remote is configured) and prints one absolute path per pending
 observation. Read each, triage as **incorporate** (use it in this task),

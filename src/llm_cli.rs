@@ -7,6 +7,7 @@
 // verb the LLM might call — important for bootstrap-recovery if a session
 // drops context (parent BRIEF Q3 of leaf 080).
 
+use crate::brief_chain;
 use crate::cli::{InboxAddArgs, InboxDrainArgs};
 use crate::inboxes;
 use crate::pick;
@@ -14,6 +15,7 @@ use crate::repo;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::io::Read;
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(
@@ -43,6 +45,16 @@ pub enum Command {
     /// `done/`. Empty stdout (and a diagnostic on stderr) when the grove has
     /// no live leaves.
     Pick,
+    /// Print the BRIEF.md chain for a leaf, root→leaf, one absolute path per
+    /// line. Walks ancestor directories from the leaf up to the grove root,
+    /// collecting any BRIEF.md found at each level. With no argument the
+    /// chain is computed for `pick`'s next leaf. A missing BRIEF.md at any
+    /// level is skipped silently.
+    BriefChain {
+        /// Optional leaf path. Absolute, or relative to the grove root
+        /// (`.grove/`). If absent, uses `pick`'s next live leaf.
+        leaf_path: Option<PathBuf>,
+    },
 }
 
 pub fn run() -> Result<()> {
@@ -51,6 +63,7 @@ pub fn run() -> Result<()> {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
         Command::Pick => cmd_pick(),
+        Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
     }
 }
 
@@ -108,6 +121,31 @@ fn cmd_pick() -> Result<()> {
                 .unwrap_or_else(|| worktree.display().to_string());
             eprintln!("grove {}: no live leaves; this grove is done", label);
         }
+    }
+    Ok(())
+}
+
+fn cmd_brief_chain(leaf_path: Option<&std::path::Path>) -> Result<()> {
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::git_toplevel(&cwd)?;
+    let grove_root = worktree.join(".grove");
+    let leaf: PathBuf = match leaf_path {
+        Some(p) => p.to_path_buf(),
+        None => match pick::next_leaf(&grove_root)? {
+            Some(p) => p,
+            None => {
+                let label = worktree
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| worktree.display().to_string());
+                eprintln!("grove {}: no live leaves; this grove is done", label);
+                return Ok(());
+            }
+        },
+    };
+    let chain = brief_chain::chain_for(&grove_root, &leaf)?;
+    for p in &chain {
+        println!("{}", p.display());
     }
     Ok(())
 }

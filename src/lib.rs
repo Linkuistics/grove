@@ -1,3 +1,4 @@
+pub mod brief_chain;
 pub mod cli;
 pub mod extract;
 pub mod fetch;

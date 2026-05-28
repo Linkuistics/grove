@@ -83,12 +83,13 @@ unblocked.
   `docs/research/in-repo-issue-tracker-postmortems.md` with a
   per-system section and a synthesis section answering specific
   questions each downstream planning leaf needs (work).
-- `060-sync-semantics-and-inbox-shape.md` — planning task: grill the
-  remote-sync semantics of the `grove-meta` branch (default state is
-  *no remote*; explicit opt-in CLI verb configures one) and
-  reconsider the inbox storage shape (single file vs directory of
-  observation files) in light of multi-writer ff-push requirements
-  (planning).
+- `060-sync-semantics-and-inbox-shape/` — was a planning leaf;
+  decomposed into a node holding the agreed sync/shape decisions
+  (`BRIEF.md`) plus three child work leaves. Decisions landed in
+  ADR-0004 (shape) and ADR-0005 (sync) and the post-mortem research
+  doc's "Findings adopted" section. Children: `010-cli-shape-and-capture.md`,
+  `020-cli-drain-as-verb-and-bootstrap-fetch.md`,
+  `030-cli-meta-remote-and-sync.md` (work).
 - `070-grove-meta-rename-and-init.md` — rename the branch from
   `grove-inboxes` to `grove-meta` (worktree at `<repo>/.grove-meta/`)
   across CLI, ADRs, SKILL, prompts, and docs; add explicit
@@ -176,10 +177,20 @@ unblocked.
     TUI grilling. Each subsequent leaf shifted up by ten: sync to
     `060`, rename to `070`, audit to `080`, TUI to `090`.
 - **The pause point.** This subtree has now absorbed every concern
-  surfaced in the planning conversation that produced it. The next
-  pick is the research leaf (050). Subsequent additions, if any,
-  should be deferred to a follow-up planning session (or captured
-  as seeds) rather than continuing to extend this brief — the
-  rolling-renumber overhead is what the audit leaf's featured CLI
+  surfaced in the planning conversation that produced it. Subsequent
+  additions, if any, should be deferred to a follow-up planning session
+  (or captured as seeds) rather than continuing to extend this brief —
+  the rolling-renumber overhead is what the audit leaf's featured CLI
   candidate exists to address; doing more by-hand renumbers before
   that candidate is implemented would be self-defeating.
+- **060 outcome (2026-05-28).** The 060 planning leaf was grilled and
+  decomposed in-place into `060-sync-semantics-and-inbox-shape/`
+  (BRIEF + three child work leaves). The agreed model is recorded
+  in ADR-0004 (shape — directory-of-observation-files) and ADR-0005
+  (sync — local-first, opt-in remote, fetch-before-drain,
+  push-best-effort with one auto-retry). The post-mortem research
+  doc (`docs/research/in-repo-issue-tracker-postmortems.md`) gained
+  a "Findings adopted" section pointing forward at the ADRs. A new
+  bundled reference file `content/driving.md` captures the
+  field-guide habits (commissioning research, grilling moves,
+  WDYT/pushback discipline) so future groves repeat the pattern.

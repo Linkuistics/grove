@@ -25,6 +25,54 @@ Each system section ends with a *takeaway for grove* pointing at the leaf(es)
 its lesson informs. The final **Synthesis** section answers the
 leaf-specific questions in one place.
 
+## Findings adopted
+
+This survey was commissioned by planning leaf
+`050-research-in-repo-issue-trackers.md` (now retired) as a deliberate
+de-risking step for the four downstream planning leaves listed above.
+Each finding's eventual landing is recorded here so a reader of the
+survey can follow which evidence chain became a binding decision.
+
+- **Inbox shape — directory of one-file-per-observation, not a single
+  appended-to file.** Landed in **ADR-0004
+  `docs/adr/0004-inbox-as-directory-of-observation-files.md`**. Evidence
+  chain: the CHANGELOG.md / Changesets / towncrier / changie / git-cliff /
+  GitLab / logchange convergence (this survey's "CHANGELOG.md /
+  RELEASE_NOTES.md" section), reinforced by bugs-everywhere and artemis
+  as walk-away-clean precedents for the same shape applied to
+  issue-style records.
+- **`grove-meta` sync semantics: local-first, opt-in remote,
+  fetch-before-drain, push-best-effort-with-one-retry.** Landed in
+  **ADR-0005 `docs/adr/0005-grove-meta-sync-semantics.md`**. Evidence
+  chain: git-bug #1221 (own-maintainer admission they forget to sync),
+  git-appraise's forge-invisibility ("HN: I just write reviews to
+  myself"), Radicle's `rad sync --fetch` shorthand, and the Sapling/jj
+  MetaLog "treat local state as a cache, refuse to commit on merge
+  failure" pattern.
+- **CLI verb shape `grove meta remote add|remove|list` with auto upstream
+  tracking.** Landed in **ADR-0005**, driven by ticgit's orphan-branch
+  invisibility (refs sit outside the default refspec; `git pull` doesn't
+  bring them).
+- **Worktree materialisation at `<repo>/.grove-meta/` is a primary
+  feature, not a convenience.** Already in **ADR-0002**, validated here
+  against git-bug's `refs/bugs/*` opacity, git-appraise's
+  `refs/notes/*` forge-invisibility, and Radicle COBs's walk-away-zero.
+- **Drain stays mandatory at bootstrap, not optional.** Already in
+  **ADR-0002** ("Why drain is a bootstrap step, not a separate verb"),
+  validated here against the universal TODO-comment rot pattern.
+- **`grove inbox add` is a single non-interactive gesture, not a wizard.**
+  Pending implementation in the children of leaf 060 (per the binding
+  principle "workflow lives in CLI verbs, not LLM prose"). Evidence
+  chain: ditz's interactive-capture friction (Zwinkau's "constantly
+  nagging me with questions").
+
+Outstanding findings yet to land in an ADR: the LLM/CLI boundary audit
+(leaf 080 — the binding principle has been recorded but the full
+inventory is leaf 080's deliverable), and the TUI scope question (leaf
+090, which gets the "TUI does not save adoption; ship one only if it
+makes the day-to-day triage gesture materially faster" guidance to walk
+in with).
+
 ---
 
 ## git-bug

@@ -93,7 +93,9 @@ reflex.
   each, walk down the design tree until shared understanding is reached.
   Through that grilling, update `CONTEXT.md` *inline* as terms resolve, raise
   ADRs *sparingly* (`ADR-FORMAT.md`), MAY write a PRD at a genuine agreement
-  point, and **grow the tree**.
+  point, and **grow the tree**. See `driving.md` for the field-guide habits
+  that make grilling and research-leaf commissioning productive (WDYT,
+  pushback, running decision log, citation discipline).
 
 **Decompose.** When a leaf is too big for one focused session, a planning task
 replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
@@ -168,6 +170,7 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
+- `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`, `finish.md`).
 - `VERSION.md` — which grove version this is and how to update it (present only
   in a materialised copy; written by the materialise script).

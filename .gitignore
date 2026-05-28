@@ -1,1 +1,7 @@
 /target
+
+# Sibling git worktrees attached to this repo: the grove-meta worktree
+# (cross-grove inbox state) and active grove worktrees. Each lives on
+# its own branch and must not appear as untracked in main's tree.
+/.grove-meta
+/.grove-worktrees

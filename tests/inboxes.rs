@@ -348,52 +348,155 @@ fn empty_observation_is_rejected() {
 }
 
 #[test]
-fn drain_clears_observation_files_keeps_gitkeep() {
+fn drain_enumerate_returns_observation_paths_in_chronological_order() {
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
     inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
     inboxes::capture(repo.path(), "g", "beta", None).unwrap();
+    inboxes::capture(repo.path(), "g", "gamma", None).unwrap();
+
+    let paths = inboxes::drain_enumerate(repo.path(), "g").unwrap();
+    assert_eq!(paths.len(), 3, "expected 3 pending observations, got {paths:?}");
+    assert!(paths.iter().all(|p| p.is_absolute()), "paths must be absolute: {paths:?}");
+
+    // Filenames sort lexicographically — the UTC-iso8601 prefix gives
+    // chronological order.
+    let mut sorted = paths.clone();
+    sorted.sort();
+    assert_eq!(paths, sorted, "enumerate output must already be sorted");
+
+    // Skips .gitkeep automatically.
+    let names: Vec<String> = paths
+        .iter()
+        .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+        .collect();
+    assert!(!names.iter().any(|n| n == ".gitkeep"), "got .gitkeep in: {names:?}");
+}
+
+#[test]
+fn drain_enumerate_on_missing_inbox_returns_empty_no_commit() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+
+    let paths = inboxes::drain_enumerate(repo.path(), "never-existed").unwrap();
+    assert!(paths.is_empty());
+    // Enumerate must not create the inbox dir — capture is the creation path.
+    assert!(!repo.path().join(".grove-inboxes/inboxes/never-existed").exists());
+
+    // Only the initial empty-tree commit on the branch.
+    assert_eq!(rev_count(repo.path(), "grove-inboxes"), 1);
+}
+
+#[test]
+fn drain_finalize_deletes_listed_paths_and_commits_with_disposition_counts() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+    inboxes::capture(repo.path(), "g", "beta", None).unwrap();
+    inboxes::capture(repo.path(), "g", "gamma", None).unwrap();
+
+    let paths = inboxes::drain_enumerate(repo.path(), "g").unwrap();
+    assert_eq!(paths.len(), 3);
+
+    // Triage: alpha incorporated, beta deferred, gamma rejected.
+    inboxes::drain_finalize(
+        repo.path(),
+        "g",
+        &[paths[0].clone()],
+        &[paths[1].clone()],
+        &[paths[2].clone()],
+    )
+    .unwrap();
 
     let dir = repo.path().join(".grove-inboxes/inboxes/g");
-    assert_eq!(list_obs(&dir).len(), 2);
-
-    inboxes::drain(repo.path(), "g").unwrap();
-
     assert!(dir.is_dir(), "inbox dir should persist after drain");
     assert!(dir.join(".gitkeep").is_file(), ".gitkeep should survive drain");
     assert!(list_obs(&dir).is_empty(), "observation files should be gone after drain");
 
     let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
     let s = String::from_utf8_lossy(&log.stdout);
-    assert!(s.contains("inbox: drain g"), "log: {s}");
+    assert!(
+        s.contains("drain g: 1 incorporated, 1 deferred, 1 rejected"),
+        "log: {s}"
+    );
 }
 
 #[test]
-fn drain_on_missing_or_empty_inbox_is_noop() {
+fn drain_finalize_partial_disposition_only_deletes_named_paths() {
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+    inboxes::capture(repo.path(), "g", "beta", None).unwrap();
 
-    // Missing dir.
-    inboxes::drain(repo.path(), "never-existed").unwrap();
-    assert!(!repo.path().join(".grove-inboxes/inboxes/never-existed").exists());
+    let paths = inboxes::drain_enumerate(repo.path(), "g").unwrap();
 
-    // Empty dir (no observation files, only .gitkeep).
-    let dir = repo.path().join(".grove-inboxes/inboxes/empty");
-    fs::create_dir_all(&dir).unwrap();
-    fs::write(dir.join(".gitkeep"), b"").unwrap();
-    let _ = git(
-        &repo.path().join(".grove-inboxes"),
-        &["add", "inboxes/empty/.gitkeep"],
+    // Only "alpha" is incorporated; "beta" is left in the inbox (e.g. a
+    // concurrent add that the session chose not to triage this round).
+    inboxes::drain_finalize(
+        repo.path(),
+        "g",
+        &[paths[0].clone()],
+        &[],
+        &[],
+    )
+    .unwrap();
+
+    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    let remaining = list_obs(&dir);
+    assert_eq!(remaining.len(), 1, "expected beta still present: {remaining:?}");
+    assert_eq!(remaining[0], paths[1]);
+
+    let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let s = String::from_utf8_lossy(&log.stdout);
+    assert!(
+        s.contains("drain g: 1 incorporated, 0 deferred, 0 rejected"),
+        "log: {s}"
     );
-    let _ = git(
-        &repo.path().join(".grove-inboxes"),
-        &["commit", "-m", "seed empty inbox dir"],
+}
+
+#[test]
+fn drain_finalize_rejects_paths_outside_inbox() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+
+    let outside = repo.path().join("README");
+    let err = inboxes::drain_finalize(
+        repo.path(),
+        "g",
+        std::slice::from_ref(&outside),
+        &[],
+        &[],
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("not inside the inbox directory"),
+        "got: {msg}"
     );
 
-    inboxes::drain(repo.path(), "empty").unwrap();
-    // No new commit beyond the initial + seed-empty.
-    let n = rev_count(repo.path(), "grove-inboxes");
-    assert_eq!(n, 2, "drain on empty inbox must not commit, got {n} commits");
+    // Inbox state is unchanged — no deletion happened before the rejection.
+    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    assert_eq!(list_obs(&dir).len(), 1, "drain must be all-or-nothing");
+}
+
+#[test]
+fn drain_finalize_rejects_dispositionless_calls() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    let err = inboxes::drain_finalize(repo.path(), "g", &[], &[], &[]).unwrap_err();
+    assert!(err.to_string().contains("no paths in any disposition"), "got: {err}");
+}
+
+#[test]
+fn drain_finalize_rejects_gitkeep() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+
+    let gitkeep = repo.path().join(".grove-inboxes/inboxes/g/.gitkeep");
+    let err = inboxes::drain_finalize(repo.path(), "g", &[gitkeep], &[], &[]).unwrap_err();
+    assert!(err.to_string().contains(".gitkeep cannot be drained"), "got: {err}");
 }
 
 fn rev_count(repo: &Path, refspec: &str) -> usize {

@@ -46,7 +46,10 @@ pub struct InboxArgs {
 pub enum InboxCommand {
     /// Append an observation to the inbox of `<name>`.
     Add(InboxAddArgs),
-    /// Clear the inbox of `<name>` and commit the cleared file.
+    /// Drain the inbox of `<name>`: enumerate pending observations, or
+    /// finalize by deleting+committing the LLM's triaged paths. Two-phase:
+    /// no disposition flags = enumerate (print absolute paths); any
+    /// `--incorporated`/`--deferred`/`--rejected` paths = finalize.
     Drain(InboxDrainArgs),
     /// Print the inbox of `<name>` to stdout (diagnostic).
     Show(InboxShowArgs),
@@ -77,8 +80,21 @@ pub struct InboxAddArgs {
 
 #[derive(Parser)]
 pub struct InboxDrainArgs {
-    /// Name of the grove whose inbox to clear.
-    pub name: String,
+    /// Name of the grove whose inbox to drain.
+    #[arg(long = "for")]
+    pub for_grove: String,
+    /// Finalize: path of an observation that was incorporated into the
+    /// current task. Repeatable.
+    #[arg(long = "incorporated")]
+    pub incorporated: Vec<PathBuf>,
+    /// Finalize: path of an observation that was deferred (e.g. captured as
+    /// a follow-up leaf or re-seeded). Repeatable.
+    #[arg(long = "deferred")]
+    pub deferred: Vec<PathBuf>,
+    /// Finalize: path of an observation that was rejected as out-of-scope.
+    /// Repeatable.
+    #[arg(long = "rejected")]
+    pub rejected: Vec<PathBuf>,
     #[arg(long = "repo")]
     pub repo: Option<PathBuf>,
 }

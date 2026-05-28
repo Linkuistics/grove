@@ -128,44 +128,243 @@ pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option
     Ok(())
 }
 
-/// Clear the inbox for `name` by deleting all observation files (the
-/// `.gitkeep` survives so the directory persists). Commits the deletions in
-/// one commit. No-op if the directory does not exist or holds no
-/// observations.
+/// Phase 1 of drain: fetch the latest `grove-inboxes` state (if a remote is
+/// configured) and enumerate the pending observation files for `name`.
 ///
-/// NOTE: leaf 020 of the sync/inbox-shape subtree replaces this body with
-/// the proper triage workflow (per-observation decide-and-delete with a
-/// disposition-count commit message and the fetch-before-drain bootstrap
-/// wiring). This minimal implementation keeps the CLI surface valid in the
-/// interim under the new directory shape.
-pub fn drain(repo: &Path, name: &str) -> Result<()> {
+/// Returns the absolute paths of observation files in lexicographic
+/// (chronological) order. The `.gitkeep` placeholder and any non-`.md`
+/// files are excluded. If the inbox directory does not yet exist for
+/// `name`, returns an empty Vec — the directory will be created on the
+/// next capture.
+///
+/// Fetch policy (ADR-0005): when an upstream is configured for
+/// `grove-inboxes`, `git fetch` runs and then a `git merge --ff-only` is
+/// attempted. Fetch failures (offline, auth) print a warning to stderr and
+/// the function continues with local state. A non-ff against unpushed
+/// local commits is fatal — drain refuses-and-instructs rather than
+/// auto-merging. When no upstream is configured, the fetch step is a
+/// silent no-op.
+pub fn drain_enumerate(repo: &Path, name: &str) -> Result<Vec<PathBuf>> {
     let wt = require_worktree(repo)?;
 
     migrate_legacy_if_present(&wt, name)?;
 
+    fetch_before_drain(&wt)?;
+
     let dir = inbox_dir(repo, name);
     if !dir.is_dir() {
-        return Ok(());
+        return Ok(Vec::new());
     }
-    let entries = list_observations(&dir)?;
-    if entries.is_empty() {
-        return Ok(());
-    }
-    for entry in &entries {
-        std::fs::remove_file(entry)
-            .with_context(|| format!("removing {}", entry.display()))?;
+    list_observations(&dir)
+}
+
+/// Phase 2 of drain: delete the LLM's triaged observation files and commit
+/// with a disposition-counts message.
+///
+/// All paths in `incorporated`, `deferred`, and `rejected` must lie inside
+/// `inboxes/<name>/` on the `grove-inboxes` worktree; any path outside is
+/// rejected before any deletion happens. The total triage count must be
+/// at least one — a no-op finalize call is a programming error and bails
+/// rather than producing an empty commit.
+///
+/// The single commit message follows ADR-0004's session-granularity rule:
+/// `drain <name>: N incorporated, M deferred, K rejected`. Push policy is
+/// the same best-effort-with-one-auto-retry path used by capture
+/// (ADR-0005).
+pub fn drain_finalize(
+    repo: &Path,
+    name: &str,
+    incorporated: &[PathBuf],
+    deferred: &[PathBuf],
+    rejected: &[PathBuf],
+) -> Result<()> {
+    let wt = require_worktree(repo)?;
+    let dir = inbox_dir(repo, name);
+
+    let total = incorporated.len() + deferred.len() + rejected.len();
+    if total == 0 {
+        anyhow::bail!(
+            "drain finalize for {}: no paths in any disposition (programming error \
+             — call enumerate instead, or omit the finalize call when no \
+             observations were pending)",
+            name
+        );
     }
 
-    let rel_paths: Vec<String> = entries
-        .iter()
-        .filter_map(|p| p.strip_prefix(&wt).ok())
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .collect();
-    with_index_lock_retry(|| {
-        stage_and_commit(&wt, &rel_paths, &format!("inbox: drain {}", name))
-    })?;
+    let mut rel_paths: Vec<String> = Vec::with_capacity(total);
+    for group in [incorporated, deferred, rejected] {
+        for p in group {
+            let rel = validate_path_inside_inbox(&wt, &dir, p)?;
+            rel_paths.push(rel);
+        }
+    }
+
+    for rel in &rel_paths {
+        let abs = wt.join(rel);
+        if abs.exists() {
+            std::fs::remove_file(&abs)
+                .with_context(|| format!("removing {}", abs.display()))?;
+        }
+    }
+
+    let message = format!(
+        "drain {}: {} incorporated, {} deferred, {} rejected",
+        name,
+        incorporated.len(),
+        deferred.len(),
+        rejected.len()
+    );
+    with_index_lock_retry(|| stage_and_commit(&wt, &rel_paths, &message))?;
     push_best_effort(&wt);
     Ok(())
+}
+
+/// Validate that `candidate` (as supplied by the LLM, possibly absolute or
+/// relative to cwd) names a file inside `inbox_dir`. Returns the
+/// `inboxes/<name>/<entry>.md` path relative to `worktree`, suitable for
+/// `git add`/`git commit -- <paths>`.
+///
+/// Rejects: paths that don't canonicalise into the inbox dir, paths
+/// pointing at `.gitkeep`, and paths whose filename doesn't end in `.md`.
+/// We tolerate non-existent files because the caller may have already
+/// removed them in a partial earlier run — but we still verify the
+/// (notional) parent matches `inbox_dir`.
+fn validate_path_inside_inbox(worktree: &Path, inbox_dir: &Path, candidate: &Path) -> Result<String> {
+    let abs = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        std::env::current_dir().context("getting cwd")?.join(candidate)
+    };
+
+    let canon_abs = canonical_parent_plus_file(&abs)?;
+    let canon_inbox = inbox_dir
+        .canonicalize()
+        .or_else(|_| canonical_parent_plus_file(inbox_dir).map(|p| p.parent().unwrap().to_path_buf()))
+        .with_context(|| format!("resolving inbox dir {}", inbox_dir.display()))?;
+
+    let parent = canon_abs
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("path has no parent: {}", candidate.display()))?;
+    if parent != canon_inbox {
+        anyhow::bail!(
+            "path {} is not inside the inbox directory {}",
+            candidate.display(),
+            inbox_dir.display()
+        );
+    }
+
+    let filename = canon_abs
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("path has no filename: {}", candidate.display()))?;
+    if filename == GITKEEP {
+        anyhow::bail!(".gitkeep cannot be drained: {}", candidate.display());
+    }
+    if !filename.ends_with(".md") {
+        anyhow::bail!(
+            "drain only operates on .md observation files (got {})",
+            candidate.display()
+        );
+    }
+
+    let rel = canon_abs
+        .strip_prefix(worktree.canonicalize().with_context(|| {
+            format!("canonicalising worktree {}", worktree.display())
+        })?)
+        .with_context(|| {
+            format!(
+                "path {} is not inside the inbox worktree {}",
+                canon_abs.display(),
+                worktree.display()
+            )
+        })?;
+    Ok(rel.to_string_lossy().replace('\\', "/"))
+}
+
+/// Resolve a path's parent to its canonical form even if the file itself no
+/// longer exists. We do this so a previously-removed observation file can
+/// still pass the inside-inbox check.
+fn canonical_parent_plus_file(p: &Path) -> Result<PathBuf> {
+    let parent = p
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("path has no parent: {}", p.display()))?;
+    let filename = p
+        .file_name()
+        .ok_or_else(|| anyhow::anyhow!("path has no filename: {}", p.display()))?;
+    let canon_parent = parent
+        .canonicalize()
+        .with_context(|| format!("canonicalising {}", parent.display()))?;
+    Ok(canon_parent.join(filename))
+}
+
+/// Fetch `grove-inboxes` from its upstream (if any) and fast-forward the
+/// local worktree. Per ADR-0005: warn-and-continue on fetch failure,
+/// refuse on non-ff. No-op when no upstream is configured.
+fn fetch_before_drain(worktree: &Path) -> Result<()> {
+    if !has_upstream(worktree, BRANCH) {
+        return Ok(());
+    }
+
+    let fetch_out = Command::new("git")
+        .arg("-C")
+        .arg(worktree)
+        .arg("fetch")
+        .output();
+    let fetch_out = match fetch_out {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!(
+                "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+                e
+            );
+            return Ok(());
+        }
+    };
+    if !fetch_out.status.success() {
+        let stderr = String::from_utf8_lossy(&fetch_out.stderr);
+        if looks_like_network_failure(&stderr) {
+            eprintln!(
+                "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+                stderr.trim()
+            );
+            return Ok(());
+        }
+        eprintln!(
+            "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+            stderr.trim()
+        );
+        return Ok(());
+    }
+
+    let merge_out = Command::new("git")
+        .arg("-C")
+        .arg(worktree)
+        .arg("merge")
+        .arg("--ff-only")
+        .arg("@{u}")
+        .output()
+        .context("running git merge --ff-only @{u}")?;
+    if merge_out.status.success() {
+        return Ok(());
+    }
+    let stderr = String::from_utf8_lossy(&merge_out.stderr);
+    if stderr.contains("Already up to date") {
+        return Ok(());
+    }
+    if stderr.contains("not possible to fast-forward")
+        || stderr.contains("Not possible to fast-forward")
+        || stderr.contains("Refusing to merge unrelated histories")
+        || stderr.contains("non-fast-forward")
+    {
+        anyhow::bail!(
+            "grove-inboxes has diverged from its upstream — local commits and remote \
+             commits both exist. Resolve by inspecting `cd {} && git log @{{u}}.. && \
+             git log ..@{{u}}` and either pushing local first (if remote has no new \
+             entries) or rebasing onto upstream.",
+            worktree.display()
+        );
+    }
+    anyhow::bail!("git merge --ff-only failed: {}", stderr.trim());
 }
 
 /// Read the inbox content for `name` in `repo`: concatenates every
@@ -226,7 +425,35 @@ fn cmd_add(args: &InboxAddArgs) -> Result<()> {
 
 fn cmd_drain(args: &InboxDrainArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
-    drain(&repo_path, &args.name)
+    let name = &args.for_grove;
+    let has_dispositions =
+        !args.incorporated.is_empty() || !args.deferred.is_empty() || !args.rejected.is_empty();
+
+    if has_dispositions {
+        return drain_finalize(
+            &repo_path,
+            name,
+            &args.incorporated,
+            &args.deferred,
+            &args.rejected,
+        );
+    }
+
+    let paths = drain_enumerate(&repo_path, name)?;
+    for p in &paths {
+        println!("{}", p.display());
+    }
+    if paths.is_empty() {
+        eprintln!("inbox {}: no pending observations", name);
+    } else {
+        eprintln!(
+            "inbox {}: {} pending observation{}",
+            name,
+            paths.len(),
+            if paths.len() == 1 { "" } else { "s" }
+        );
+    }
+    Ok(())
 }
 
 fn cmd_show(args: &InboxShowArgs) -> Result<()> {

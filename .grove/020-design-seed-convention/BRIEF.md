@@ -60,13 +60,18 @@ verb, and a planning leaf for the TUI navigator.
 
 ## Decomposition
 
-Six leaves, ordered to minimise blocking — ADRs first because they
+Eight leaves, ordered to minimise blocking — ADRs first because they
 record decisions the rest depends on; SKILL/glossary next because the
 methodology must reflect the new bootstrap step before tooling is wired
-to it; CLI implementation fourth; the branch rename + explicit
-`grove meta init` verb fifth (settled during the planning that produced
-the 060 leaf — see Notes); TUI planning last because its grilling
-shouldn't gate the rest.
+to it; CLI implementation fourth; remote-sync semantics + inbox shape
+fifth (gates the rename's ADR rewrite because shape may change); the
+branch rename + explicit `grove meta init` verb sixth; the prose-vs-CLI
+audit seventh (independent of rename, comes after to keep the rename
+unblocked); TUI planning last because its grilling shouldn't gate the
+rest. Three of the leaves below (050, 070, 080) are planning tasks
+whose grilling sessions may grow the tree further; the audit and TUI
+leaves in particular are scoped to produce either a sibling work leaf
+or a decomposing subtree, not pre-baked work.
 
 - `010-adr-inbox-model.md` — ADR for the inbox model + shared branch
   architecture (work, retired).
@@ -77,17 +82,27 @@ shouldn't gate the rest.
 - `040-cli-implement-inbox.md` — `grove install` materialises the
   branch and worktree; `grove start`/`continue` drain; new
   `grove inbox` verb for capture (work, retired).
-- `050-grove-meta-rename-and-init.md` — rename the branch from
+- `050-sync-semantics-and-inbox-shape.md` — planning task: grill the
+  remote-sync semantics of the `grove-meta` branch (default state is
+  *no remote*; explicit opt-in CLI verb configures one) and
+  reconsider the inbox storage shape (single file vs directory of
+  observation files) in light of multi-writer ff-push requirements
+  (planning).
+- `060-grove-meta-rename-and-init.md` — rename the branch from
   `grove-inboxes` to `grove-meta` (worktree at `<repo>/.grove-meta/`)
   across CLI, ADRs, SKILL, prompts, and docs; add explicit
   `grove meta init` verb (idempotent), invoked internally by
   `install`/`update` and externally for pre-feature repos or
-  worktree repair (work).
-- `060-tui-server.md` — planning task: grill TUI scope (initial target
-  is medium — per-repo, filesystem-watch; multi-repo evolution is a
-  later seed candidate) and decompose. Originally numbered `050`;
-  renumbered when the rename leaf was inserted ahead of it so the
-  TUI is designed against the final branch name (planning).
+  worktree repair. Scope may grow to include shape change pending
+  050's outcome (work).
+- `070-audit-llm-cli-boundaries.md` — planning task: audit
+  `content/SKILL.md` and `content/prompts/*.md` for deterministic
+  prose-coded steps that should be promoted to CLI verbs the LLM
+  invokes; output a classified inventory and placement
+  recommendations for each promotion (planning).
+- `080-tui-server.md` — planning task: grill TUI scope (initial
+  target is medium — per-repo, filesystem-watch; multi-repo
+  evolution is a later seed candidate) and decompose (planning).
 
 ## Pointers
 
@@ -118,13 +133,28 @@ shouldn't gate the rest.
 - **No standalone convention doc**: the two ADRs + glossary entries +
   SKILL.md update together *are* the convention. Adding a separate
   `docs/seeds.md` would duplicate without earning its keep.
-- **Why the rename came in mid-subtree (leaf 050)**: while planning the
-  TUI grilling (the originally-`050` leaf), it became clear that the
-  branch `grove-inboxes` lied about a scope ADR 0002 already declared
-  ("reserved more broadly for cross-grove coordination data"). The
-  branch had not yet shipped in any released version, so a clean
-  rename with no migration code was possible. Doing it before the TUI
-  is grilled means the TUI is designed against the final names. The
-  same leaf adds the explicit `grove meta init` verb because the
-  rename touches the same code and ADR — they belong in one focused
-  edit.
+- **Why the leaves are numbered the way they are**: the subtree grew
+  during a single planning session that surfaced three foundational
+  concerns the original decomposition did not cover. Each was
+  captured as a leaf when it surfaced; the numeric prefixes carry
+  the resolved order, not the order of capture.
+  - The TUI leaf was originally numbered `050`.
+  - When the rename concern surfaced (the branch `grove-inboxes` lied
+    about the scope ADR 0002 already declared, and the branch had
+    not yet shipped, so a clean rename with no migration code was
+    possible), a rename + `grove meta init` leaf was inserted ahead
+    of TUI. TUI moved to `060`. The rename leaf bundled the init
+    verb because both touch the same code and ADR — one focused edit.
+  - When the multi-machine sync concern surfaced (today's CLI does
+    no fetch/push on `grove-meta`; multi-writer state is silently
+    broken), a planning leaf for sync semantics + inbox shape was
+    inserted ahead of the rename. Shape may change (single file vs
+    directory of observation files for ff-conflict-less pushes); if
+    so, the rename's ADR rewrite covers the shape change too. Rename
+    moved to `060`, TUI moved to `080`.
+  - When the prose-vs-CLI audit concern surfaced (deterministic
+    LLM-driven steps in `SKILL.md` and the launcher prompts should
+    be CLI verbs), a planning leaf was inserted between the rename
+    and the TUI. It does not gate the rename — the rename's scope
+    does not intersect the audit's reclassifications — so audit
+    landed at `070` rather than ahead of `060`.

@@ -1,4 +1,4 @@
-# 050-grove-meta-rename-and-init
+# 060-grove-meta-rename-and-init
 
 **Kind:** work
 
@@ -13,9 +13,9 @@ needs no extra step. Existing installs that pre-date this feature, or
 repos whose worktree has been deleted, are repaired by running
 `grove meta init`.
 
-## Why this came first
+## Why this came before the TUI
 
-The TUI planning leaf (now `060-tui-server.md`) was about to start
+The TUI planning leaf (now `080-tui-server.md`) was about to start
 grilling against the durable state defined by the surrounding ADRs.
 That state's *identity* — the branch's name — is in flux: ADR 0002
 already reserves the branch "more broadly for cross-grove coordination
@@ -23,6 +23,13 @@ data," but its name lies about that scope. Renaming after the TUI
 references the old name would be a migration; renaming now is a single
 focused edit. Done before the TUI is grilled so the TUI is designed
 against the final names.
+
+The sync-and-shape planning leaf (`050-sync-semantics-and-inbox-shape.md`)
+was inserted ahead of this leaf in a later planning session. If that
+leaf concludes the inbox storage shape changes (e.g. directory-of-files
+instead of single file), this leaf's references to `inboxes/<name>.md`
+and the ADR 0002 rewrite must reflect the new shape in the same commit.
+Check the outcome of 050 before starting work here.
 
 ## Context
 

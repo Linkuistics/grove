@@ -32,13 +32,25 @@ pub enum Command {
     Retire(RetireArgs),
     /// Wrap up a fully-done grove (merge, cleanup).
     Finish(NameArgs),
-    /// Print a grove's inbox to stdout (diagnostic).
+    /// Inspect a grove's inbox on the `grove-meta` branch (diagnostic).
     ///
     /// The corresponding capture and drain verbs are LLM-driven and live on
     /// `grove-llm` (per ADR-0006): `grove-llm inbox-add`, `grove-llm inbox-drain`.
-    InboxShow(InboxShowArgs),
+    Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
+}
+
+#[derive(Parser)]
+pub struct InboxArgs {
+    #[command(subcommand)]
+    pub command: InboxCommand,
+}
+
+#[derive(Subcommand)]
+pub enum InboxCommand {
+    /// Print the inbox of `<name>` to stdout (diagnostic).
+    Show(InboxShowArgs),
 }
 
 #[derive(Parser)]
@@ -259,7 +271,9 @@ pub fn run() -> anyhow::Result<()> {
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args)   => crate::launch::retire(&args),
         Command::Finish(args)   => crate::launch::finish(&args),
-        Command::InboxShow(args) => crate::inboxes::cmd_show(&args),
+        Command::Inbox(args)    => match args.command {
+            InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
+        },
         Command::Meta(args)     => crate::meta::run(&args),
     }
 }

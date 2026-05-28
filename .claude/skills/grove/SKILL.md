@@ -158,7 +158,7 @@ finished — capture it via `grove-llm inbox-add --to=<name> --body=...`
 cross-repo writes use the same gesture; the LLM never edits the
 `grove-meta` branch directly. `grove-llm` is the LLM-driven sibling
 binary that ships alongside `grove` (ADR-0006); the human `grove`
-binary still exposes `grove inbox-show <name>` as a diagnostic. The
+binary still exposes `grove inbox show <name>` as a diagnostic. The
 grove project's own repo carries a worked example: its `CONTEXT.md`
 records the canonical `Inbox`, `Seed`, `Drain`, and `grove-meta branch`
 entries that any repo adopting the convention should copy or paraphrase

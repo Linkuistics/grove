@@ -53,8 +53,9 @@ fn grove_help_no_longer_lists_inbox_add_or_drain() {
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(!s.contains("inbox-add"), "grove --help leaked inbox-add: {s}");
     assert!(!s.contains("inbox-drain"), "grove --help leaked inbox-drain: {s}");
-    // Diagnostic inbox-show stays.
-    assert!(s.contains("inbox-show"), "grove --help should still list inbox-show: {s}");
+    // The diagnostic verb stays on the human surface as a nested noun-verb
+    // cluster (`grove inbox show`), not flattened.
+    assert!(s.contains(" inbox "), "grove --help should still list the `inbox` cluster: {s}");
 }
 
 #[test]

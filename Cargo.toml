@@ -11,6 +11,13 @@ rust-version = "1.74"
 name = "grove"
 path = "src/main.rs"
 
+# Second binary: the verbs the LLM driving a grove invokes mid-session.
+# Audience-split per ADR-0006 — the human's `grove --help` shows none of
+# these. Shares all internal logic with `grove` via the [lib] below.
+[[bin]]
+name = "grove-llm"
+path = "src/bin/grove-llm.rs"
+
 [lib]
 name = "grove"
 path = "src/lib.rs"

@@ -4,11 +4,10 @@
 // shape rationale and ADR-0005 for the sync semantics this module
 // implements at the capture side.
 
-use crate::cli::{InboxAddArgs, InboxArgs, InboxCommand, InboxDrainArgs, InboxShowArgs};
+use crate::cli::InboxShowArgs;
 use crate::repo;
 use anyhow::{Context, Result};
 use sha2::{Digest, Sha256};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -410,75 +409,14 @@ pub fn read(repo: &Path, name: &str) -> Result<String> {
     Ok(out)
 }
 
-/// Dispatcher for the `grove inbox <verb>` CLI surface.
-pub fn run(args: &InboxArgs) -> Result<()> {
-    match &args.command {
-        InboxCommand::Add(a) => cmd_add(a),
-        InboxCommand::Drain(a) => cmd_drain(a),
-        InboxCommand::Show(a) => cmd_show(a),
-    }
-}
-
-fn cmd_add(args: &InboxAddArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    let observation = read_body(args)?;
-    capture(&repo_path, &args.to, &observation, args.slug.as_deref())
-}
-
-fn cmd_drain(args: &InboxDrainArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    let name = &args.for_grove;
-    let has_dispositions =
-        !args.incorporated.is_empty() || !args.deferred.is_empty() || !args.rejected.is_empty();
-
-    if has_dispositions {
-        return drain_finalize(
-            &repo_path,
-            name,
-            &args.incorporated,
-            &args.deferred,
-            &args.rejected,
-        );
-    }
-
-    let paths = drain_enumerate(&repo_path, name)?;
-    for p in &paths {
-        println!("{}", p.display());
-    }
-    if paths.is_empty() {
-        eprintln!("inbox {}: no pending observations", name);
-    } else {
-        eprintln!(
-            "inbox {}: {} pending observation{}",
-            name,
-            paths.len(),
-            if paths.len() == 1 { "" } else { "s" }
-        );
-    }
-    Ok(())
-}
-
-fn cmd_show(args: &InboxShowArgs) -> Result<()> {
+/// Dispatcher for `grove inbox-show <name>` — prints the named grove's
+/// inbox to stdout. The capture and drain verbs live on `grove-llm` per
+/// ADR-0006.
+pub fn cmd_show(args: &InboxShowArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
     let body = read(&repo_path, &args.name)?;
     print!("{}", body);
     Ok(())
-}
-
-fn read_body(args: &InboxAddArgs) -> Result<String> {
-    if let Some(b) = &args.body {
-        return Ok(b.clone());
-    }
-    if let Some(p) = &args.body_file {
-        return std::fs::read_to_string(p)
-            .with_context(|| format!("reading body file {}", p.display()));
-    }
-    if args.body_stdin {
-        let mut s = String::new();
-        std::io::stdin().read_to_string(&mut s).context("reading body from stdin")?;
-        return Ok(s);
-    }
-    anyhow::bail!("provide observation via --body, --body-file, or --body-stdin");
 }
 
 // ---------------------------------------------------------------------------

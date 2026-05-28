@@ -77,13 +77,13 @@ task.
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
 `BRIEF.md` chain root→leaf; the task file. Then **drain the inbox** by
-running `grove inbox drain --for=<name>` — this fetches the latest state
+running `grove-llm inbox-drain --for=<name>` — this fetches the latest state
 (when a remote is configured) and prints one absolute path per pending
 observation. Read each, triage as **incorporate** (use it in this task),
 **defer** (write a follow-up leaf, or re-capture to another grove via
-`grove inbox add --to=<other-name>`), or **reject** (out of scope).
-Finalize with `grove inbox drain --for=<name> --incorporated=<path>...
---deferred=<path>... --rejected=<path>...`: the CLI deletes the triaged
+`grove-llm inbox-add --to=<other-name>`), or **reject** (out of scope).
+Finalize with `grove-llm inbox-drain --for=<name>
+--incorporated=<path>... --deferred=<path>... --rejected=<path>...`: the CLI deletes the triaged
 files in one commit named with the disposition counts and pushes when
 configured. Drain runs at every `grove start` and `grove continue`; the
 LLM never touches the inbox branch directly. That assembled context —
@@ -137,7 +137,7 @@ standard artifact that outlives grove (constraint 6).
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
-| `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove inbox add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`). Materialised by `grove install` / `grove update`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
+| `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove-llm inbox-add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`, `0006-grove-llm-binary-separation.md`). Materialised by `grove install` / `grove update`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
@@ -153,13 +153,16 @@ is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
 
 **Inboxes and capture.** When during any task you notice an observation
 belonging to a *different* grove — future, currently running, or already
-finished — capture it via `grove inbox add --to=<name> --body=...` (or
-`--body-file=` / `--body-stdin`) and keep going. Same-repo and cross-repo
-writes use the same gesture; the LLM never edits the `grove-meta`
-branch directly. The grove project's own repo carries a
-worked example: its `CONTEXT.md` records the canonical `Inbox`, `Seed`,
-`Drain`, and `grove-meta branch` entries that any repo adopting the
-convention should copy or paraphrase into its own glossary.
+finished — capture it via `grove-llm inbox-add --to=<name> --body=...`
+(or `--body-file=` / `--body-stdin`) and keep going. Same-repo and
+cross-repo writes use the same gesture; the LLM never edits the
+`grove-meta` branch directly. `grove-llm` is the LLM-driven sibling
+binary that ships alongside `grove` (ADR-0006); the human `grove`
+binary still exposes `grove inbox-show <name>` as a diagnostic. The
+grove project's own repo carries a worked example: its `CONTEXT.md`
+records the canonical `Inbox`, `Seed`, `Drain`, and `grove-meta branch`
+entries that any repo adopting the convention should copy or paraphrase
+into its own glossary.
 
 ## PRDs
 

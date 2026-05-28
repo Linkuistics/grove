@@ -32,8 +32,11 @@ pub enum Command {
     Retire(RetireArgs),
     /// Wrap up a fully-done grove (merge, cleanup).
     Finish(NameArgs),
-    /// Capture observations to or drain a grove's inbox on the `grove-meta` branch.
-    Inbox(InboxArgs),
+    /// Print a grove's inbox to stdout (diagnostic).
+    ///
+    /// The corresponding capture and drain verbs are LLM-driven and live on
+    /// `grove-llm` (per ADR-0006): `grove-llm inbox-add`, `grove-llm inbox-drain`.
+    InboxShow(InboxShowArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
 }
@@ -119,25 +122,10 @@ pub struct MetaSyncArgs {
     pub repo: Option<PathBuf>,
 }
 
-#[derive(Parser)]
-pub struct InboxArgs {
-    #[command(subcommand)]
-    pub command: InboxCommand,
-}
-
-#[derive(Subcommand)]
-pub enum InboxCommand {
-    /// Append an observation to the inbox of `<name>`.
-    Add(InboxAddArgs),
-    /// Drain the inbox of `<name>`: enumerate pending observations, or
-    /// finalize by deleting+committing the LLM's triaged paths. Two-phase:
-    /// no disposition flags = enumerate (print absolute paths); any
-    /// `--incorporated`/`--deferred`/`--rejected` paths = finalize.
-    Drain(InboxDrainArgs),
-    /// Print the inbox of `<name>` to stdout (diagnostic).
-    Show(InboxShowArgs),
-}
-
+// `InboxAddArgs` and `InboxDrainArgs` are defined here (not under
+// `llm_cli`) because clap derive needs the `Parser` types to be reachable
+// from both binaries' command enums; the LLM-driven dispatch lives in
+// `crate::llm_cli`.
 #[derive(Parser)]
 pub struct InboxAddArgs {
     /// Name of the addressed grove (existing, future, or finished).
@@ -271,7 +259,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args)   => crate::launch::retire(&args),
         Command::Finish(args)   => crate::launch::finish(&args),
-        Command::Inbox(args)    => crate::inboxes::run(&args),
+        Command::InboxShow(args) => crate::inboxes::cmd_show(&args),
         Command::Meta(args)     => crate::meta::run(&args),
     }
 }

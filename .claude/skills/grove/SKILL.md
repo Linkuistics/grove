@@ -76,8 +76,19 @@ task.
 
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
-`BRIEF.md` chain root→leaf; the task file. That assembled context is the
-session's entire mandate — read nothing else by reflex.
+`BRIEF.md` chain root→leaf; the task file. Then **drain the inbox** by
+running `grove-llm inbox-drain --for=<name>` — this fetches the latest state
+(when a remote is configured) and prints one absolute path per pending
+observation. Read each, triage as **incorporate** (use it in this task),
+**defer** (write a follow-up leaf, or re-capture to another grove via
+`grove-llm inbox-add --to=<other-name>`), or **reject** (out of scope).
+Finalize with `grove-llm inbox-drain --for=<name>
+--incorporated=<path>... --deferred=<path>... --rejected=<path>...`: the CLI deletes the triaged
+files in one commit named with the disposition counts and pushes when
+configured. Drain runs at every `grove start` and `grove continue`; the
+LLM never touches the inbox branch directly. That assembled context —
+read material plus drained inbox — is the session's entire mandate; read
+nothing else by reflex.
 
 **Execute.** The task file states its kind (`TASK-FORMAT.md`):
 - A **work task** produces code, docs, or tests.
@@ -86,7 +97,9 @@ session's entire mandate — read nothing else by reflex.
   each, walk down the design tree until shared understanding is reached.
   Through that grilling, update `CONTEXT.md` *inline* as terms resolve, raise
   ADRs *sparingly* (`ADR-FORMAT.md`), MAY write a PRD at a genuine agreement
-  point, and **grow the tree**.
+  point, and **grow the tree**. See `driving.md` for the field-guide habits
+  that make grilling and research-leaf commissioning productive (WDYT,
+  pushback, running decision log, citation discipline).
 
 **Decompose.** When a leaf is too big for one focused session, a planning task
 replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
@@ -124,6 +137,7 @@ standard artifact that outlives grove (constraint 6).
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
+| `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove-llm inbox-add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`, `0006-grove-llm-binary-separation.md`). Materialised by `grove install` / `grove update`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
@@ -136,6 +150,19 @@ else — terse definitions, aliases-to-avoid, no implementation detail
 **Briefs vs. the glossary.** A bounded context is a *domain* partition; a
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
 is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
+
+**Inboxes and capture.** When during any task you notice an observation
+belonging to a *different* grove — future, currently running, or already
+finished — capture it via `grove-llm inbox-add --to=<name> --body=...`
+(or `--body-file=` / `--body-stdin`) and keep going. Same-repo and
+cross-repo writes use the same gesture; the LLM never edits the
+`grove-meta` branch directly. `grove-llm` is the LLM-driven sibling
+binary that ships alongside `grove` (ADR-0006); the human `grove`
+binary still exposes `grove inbox-show <name>` as a diagnostic. The
+grove project's own repo carries a worked example: its `CONTEXT.md`
+records the canonical `Inbox`, `Seed`, `Drain`, and `grove-meta branch`
+entries that any repo adopting the convention should copy or paraphrase
+into its own glossary.
 
 ## PRDs
 
@@ -151,6 +178,7 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
+- `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`, `finish.md`).
 - `VERSION.md` — which grove version this is and how to update it (present only
   in a materialised copy; written by the materialise script).

@@ -23,10 +23,11 @@ class Grove < Formula
   end
 
   def install
-    bin.install "grove"
+    bin.install "grove", "grove-llm"
   end
 
   test do
     assert_match "grove cli @VERSION@", shell_output("#{bin}/grove version")
+    assert_match "grove-llm @VERSION@", shell_output("#{bin}/grove-llm --version")
   end
 end

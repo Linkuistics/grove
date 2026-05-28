@@ -137,7 +137,7 @@ standard artifact that outlives grove (constraint 6).
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
-| `grove-inboxes` branch | `<repo>/.grove-inboxes/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove inbox add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-inboxes-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`) |
+| `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove inbox add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`). Materialised by `grove install` / `grove update`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
@@ -155,10 +155,10 @@ is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
 belonging to a *different* grove — future, currently running, or already
 finished — capture it via `grove inbox add --to=<name> --body=...` (or
 `--body-file=` / `--body-stdin`) and keep going. Same-repo and cross-repo
-writes use the same gesture; the LLM never edits the `grove-inboxes`
+writes use the same gesture; the LLM never edits the `grove-meta`
 branch directly. The grove project's own repo carries a
 worked example: its `CONTEXT.md` records the canonical `Inbox`, `Seed`,
-`Drain`, and `grove-inboxes branch` entries that any repo adopting the
+`Drain`, and `grove-meta branch` entries that any repo adopting the
 convention should copy or paraphrase into its own glossary.
 
 ## PRDs

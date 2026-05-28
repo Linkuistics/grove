@@ -32,9 +32,9 @@ pub enum Command {
     Retire(RetireArgs),
     /// Wrap up a fully-done grove (merge, cleanup).
     Finish(NameArgs),
-    /// Capture observations to or drain a grove's inbox on the `grove-inboxes` branch.
+    /// Capture observations to or drain a grove's inbox on the `grove-meta` branch.
     Inbox(InboxArgs),
-    /// Manage the `grove-inboxes` meta branch (remote, sync).
+    /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
 }
 
@@ -46,6 +46,12 @@ pub struct MetaArgs {
 
 #[derive(Subcommand)]
 pub enum MetaCommand {
+    /// Create the `grove-meta` branch and attach its worktree at
+    /// `<repo>/.grove-meta/`. Idempotent: a no-op when both are already in
+    /// place (prints the materialised state). Invoked internally by
+    /// `grove install` / `grove update`; invoke explicitly for repos that
+    /// pre-date the feature or whose worktree has been removed.
+    Init(MetaInitArgs),
     /// Configure the optional upstream remote for the meta branch.
     Remote(MetaRemoteArgs),
     /// Push pending commits and pull latest on the meta branch.
@@ -62,6 +68,12 @@ Representative cron line (adjust the path to suit your setup):\n\
     */15 * * * * cd /path/to/your/repo && grove meta sync\
 ")]
     Sync(MetaSyncArgs),
+}
+
+#[derive(Parser)]
+pub struct MetaInitArgs {
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -144,7 +156,7 @@ pub struct InboxAddArgs {
     #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
     pub body_stdin: bool,
     /// Target repo (defaults to cwd's git root). Cross-repo: supply a path
-    /// to another repo whose `.grove-inboxes/` worktree is materialised.
+    /// to another repo whose `.grove-meta/` worktree is materialised.
     #[arg(long = "repo")]
     pub repo: Option<PathBuf>,
 }

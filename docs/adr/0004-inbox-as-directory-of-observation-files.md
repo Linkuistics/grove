@@ -3,7 +3,7 @@
 An [[Inbox]] is the directory `inboxes/<name>/` on the `grove-meta` branch, containing one markdown file per observation named `<UTC-iso8601-seconds>Z-<slug>-<content-hash-8>.md`. Capture writes a new file; drain deletes triaged files in one session-commit; the directory's existence (preserved by a `.gitkeep`) remains the "this grove is known" signal. This supersedes the single-file-per-grove shape (`inboxes/<name>.md`) described in ADR-0002.
 
 ## Status
-accepted (supersedes the inbox-shape portion of ADR-0002 `0002-grove-inboxes-branch-and-inbox-model.md`)
+accepted (supersedes the inbox-shape portion of ADR-0002 `0002-grove-meta-branch-and-inbox-model.md`)
 
 ## Why this shape, in one paragraph
 Under the single-file shape, two writers (parallel groves on one machine, or one grove on two machines) appending to `inboxes/<name>.md` produce a non-ff push on the second writer and a merge-conflict-prone reconcile. The directory-of-files shape places every capture on a disjoint filesystem path, so the same two writers produce two unrelated commits that fast-forward cleanly when either machine pulls. The convergence in the broader industry is decisive on this point — see the rationale section below.
@@ -40,7 +40,7 @@ The middle path keeps `inboxes/<name>.md` as a single file but requires `grove i
 Delete the `grove` CLI: `inboxes/<name>/` is still a directory of plain markdown files on a plain git branch. `find inboxes -name '*.md' | xargs cat` produces every observation ever captured; `git log inboxes/<name>/` shows the full per-observation history with author/date/message. The `<content-hash-8>` suffix is decorative — a reader can ignore it. The `.gitkeep` is a known git convention. No part of the shape requires `grove` to be installed to read.
 
 ## Consequences for adjacent decisions
-- ADR-0002's storage-shape claim (`<repo>/.grove-inboxes/inboxes/<name>.md`) is superseded by this ADR's claim (`<repo>/.grove-meta/inboxes/<name>/<entry>.md`). ADR-0002's other arguments — why a branch and not a refs/* namespace, why CLI-mediated, why drain at bootstrap, why dedicated branch reserved broadly — are unchanged and remain authoritative.
+- ADR-0002's storage-shape claim (one file per grove, originally written as `inboxes/<name>.md`) is superseded by this ADR's claim (`<repo>/.grove-meta/inboxes/<name>/<entry>.md`). ADR-0002's other arguments — why a branch and not a refs/* namespace, why CLI-mediated, why drain at bootstrap, why dedicated branch reserved broadly — are unchanged and remain authoritative.
 - ADR-0003's cross-repo rule still applies: a cross-repo write to grove `Y` in repo B is a write to the appropriate file under `<repo-B>/.grove-meta/inboxes/Y/` — same gesture, new directory shape.
 - The `Inbox`, `Seed`, and `Drain` glossary entries in `CONTEXT.md` are updated inline to reflect the new shape.
 

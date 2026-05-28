@@ -1,5 +1,5 @@
 // Inbox shape and capture: directory-of-observation-files on the
-// `grove-inboxes` branch. See ADR-0004
+// `grove-meta` branch. See ADR-0004
 // (`docs/adr/0004-inbox-as-directory-of-observation-files.md`) for the
 // shape rationale and ADR-0005 for the sync semantics this module
 // implements at the capture side.
@@ -13,18 +13,18 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub(crate) const BRANCH: &str = "grove-inboxes";
-const WORKTREE_DIR: &str = ".grove-inboxes";
+pub(crate) const BRANCH: &str = "grove-meta";
+const WORKTREE_DIR: &str = ".grove-meta";
 const INBOXES_SUBDIR: &str = "inboxes";
 const GITKEEP: &str = ".gitkeep";
 
-/// `<repo>/.grove-inboxes/` — the dedicated worktree on the `grove-inboxes`
+/// `<repo>/.grove-meta/` — the dedicated worktree on the `grove-meta`
 /// branch that holds inbox files.
 pub fn worktree_dir(repo: &Path) -> PathBuf {
     repo.join(WORKTREE_DIR)
 }
 
-/// `<repo>/.grove-inboxes/inboxes/<name>/` — the per-grove inbox directory.
+/// `<repo>/.grove-meta/inboxes/<name>/` — the per-grove inbox directory.
 pub fn inbox_dir(repo: &Path, name: &str) -> PathBuf {
     worktree_dir(repo).join(INBOXES_SUBDIR).join(name)
 }
@@ -35,7 +35,7 @@ fn legacy_inbox_file(repo: &Path, name: &str) -> PathBuf {
     worktree_dir(repo).join(INBOXES_SUBDIR).join(format!("{}.md", name))
 }
 
-/// Materialise the `grove-inboxes` branch and the `.grove-inboxes/` worktree
+/// Materialise the `grove-meta` branch and the `.grove-meta/` worktree
 /// in `repo`. Idempotent: returns Ok if already materialised.
 ///
 /// The branch starts from an empty tree commit (no shared history with the
@@ -59,9 +59,9 @@ pub fn materialise(repo: &Path) -> Result<()> {
         .arg(&wt)
         .arg(BRANCH)
         .status()
-        .context("running git worktree add for grove-inboxes")?;
+        .context("running git worktree add for grove-meta")?;
     if !status.success() {
-        anyhow::bail!("git worktree add failed for grove-inboxes");
+        anyhow::bail!("git worktree add failed for grove-meta");
     }
 
     ensure_inboxes_subdir(&wt)?;
@@ -72,7 +72,7 @@ pub fn materialise(repo: &Path) -> Result<()> {
 ///
 /// Writes one new file at
 /// `inboxes/<name>/<UTC-iso8601-seconds>Z-<slug>-<content-hash-8>.md` on the
-/// `grove-inboxes` branch and commits it. Idempotent on content hash: if a
+/// `grove-meta` branch and commits it. Idempotent on content hash: if a
 /// file with the same content-hash already exists in the target directory,
 /// no new file is written and "already captured at <path>" is printed to
 /// stderr (returns Ok).
@@ -80,7 +80,7 @@ pub fn materialise(repo: &Path) -> Result<()> {
 /// If a legacy single-file inbox (`inboxes/<name>.md`) is present, it is
 /// migrated into the directory shape in a dedicated commit first.
 ///
-/// Push policy (per ADR-0005): if the `grove-inboxes` branch has an upstream
+/// Push policy (per ADR-0005): if the `grove-meta` branch has an upstream
 /// configured, push best-effort after commit, with one auto-fetch + replay
 /// retry on non-ff. On non-network failure the push error is reported but
 /// the local commit stands.
@@ -128,7 +128,7 @@ pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option
     Ok(())
 }
 
-/// Phase 1 of drain: fetch the latest `grove-inboxes` state (if a remote is
+/// Phase 1 of drain: fetch the latest `grove-meta` state (if a remote is
 /// configured) and enumerate the pending observation files for `name`.
 ///
 /// Returns the absolute paths of observation files in lexicographic
@@ -138,7 +138,7 @@ pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option
 /// next capture.
 ///
 /// Fetch policy (ADR-0005): when an upstream is configured for
-/// `grove-inboxes`, `git fetch` runs and then a `git merge --ff-only` is
+/// `grove-meta`, `git fetch` runs and then a `git merge --ff-only` is
 /// attempted. Fetch failures (offline, auth) print a warning to stderr and
 /// the function continues with local state. A non-ff against unpushed
 /// local commits is fatal — drain refuses-and-instructs rather than
@@ -162,7 +162,7 @@ pub fn drain_enumerate(repo: &Path, name: &str) -> Result<Vec<PathBuf>> {
 /// with a disposition-counts message.
 ///
 /// All paths in `incorporated`, `deferred`, and `rejected` must lie inside
-/// `inboxes/<name>/` on the `grove-inboxes` worktree; any path outside is
+/// `inboxes/<name>/` on the `grove-meta` worktree; any path outside is
 /// rejected before any deletion happens. The total triage count must be
 /// at least one — a no-op finalize call is a programming error and bails
 /// rather than producing an empty commit.
@@ -297,7 +297,7 @@ fn canonical_parent_plus_file(p: &Path) -> Result<PathBuf> {
     Ok(canon_parent.join(filename))
 }
 
-/// Fetch `grove-inboxes` from its upstream (if any) and fast-forward the
+/// Fetch `grove-meta` from its upstream (if any) and fast-forward the
 /// local worktree. Per ADR-0005: warn-and-continue on fetch failure,
 /// refuse on non-ff. No-op when no upstream is configured. Shared by the
 /// drain bootstrap path and the `grove meta sync` pull leg — both want
@@ -316,7 +316,7 @@ pub(crate) fn fetch_and_ff(worktree: &Path) -> Result<()> {
         Ok(o) => o,
         Err(e) => {
             eprintln!(
-                "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+                "warning: grove-meta fetch failed ({}); continuing with local state.",
                 e
             );
             return Ok(());
@@ -326,13 +326,13 @@ pub(crate) fn fetch_and_ff(worktree: &Path) -> Result<()> {
         let stderr = String::from_utf8_lossy(&fetch_out.stderr);
         if looks_like_network_failure(&stderr) {
             eprintln!(
-                "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+                "warning: grove-meta fetch failed ({}); continuing with local state.",
                 stderr.trim()
             );
             return Ok(());
         }
         eprintln!(
-            "warning: grove-inboxes fetch failed ({}); continuing with local state.",
+            "warning: grove-meta fetch failed ({}); continuing with local state.",
             stderr.trim()
         );
         return Ok(());
@@ -359,7 +359,7 @@ pub(crate) fn fetch_and_ff(worktree: &Path) -> Result<()> {
         || stderr.contains("non-fast-forward")
     {
         anyhow::bail!(
-            "grove-inboxes has diverged from its upstream — local commits and remote \
+            "grove-meta has diverged from its upstream — local commits and remote \
              commits both exist. Resolve by inspecting `cd {} && git log @{{u}}.. && \
              git log ..@{{u}}` and either pushing local first (if remote has no new \
              entries) or rebasing onto upstream.",
@@ -488,7 +488,7 @@ pub(crate) fn require_worktree(repo: &Path) -> Result<PathBuf> {
     let wt = worktree_dir(repo);
     if !wt.is_dir() {
         anyhow::bail!(
-            "grove-inboxes worktree not present at {} — run `grove install` (or `grove update`) first",
+            "grove-meta worktree not present at {} — run `grove install` (or `grove update`) first",
             wt.display()
         );
     }
@@ -651,7 +651,7 @@ fn create_empty_branch(repo: &Path, branch: &str) -> Result<()> {
     let empty_tree = empty_tree.trim();
     let commit = git_capture(
         repo,
-        &["commit-tree", empty_tree, "-m", "init grove-inboxes"],
+        &["commit-tree", empty_tree, "-m", "init grove-meta"],
     )?;
     let commit = commit.trim();
 
@@ -662,7 +662,7 @@ fn create_empty_branch(repo: &Path, branch: &str) -> Result<()> {
         .arg(branch)
         .arg(commit)
         .status()
-        .context("creating grove-inboxes branch")?;
+        .context("creating grove-meta branch")?;
     if !status.success() {
         anyhow::bail!("git branch failed for {}", branch);
     }
@@ -780,7 +780,7 @@ fn is_index_lock_error(err: &anyhow::Error) -> bool {
     s.contains("index.lock") || s.contains("Another git process")
 }
 
-/// Push the `grove-inboxes` branch to its upstream if one is configured.
+/// Push the `grove-meta` branch to its upstream if one is configured.
 /// Returns silently in all cases — the local commit stands either way. On
 /// non-ff: fetch + ff-merge + retry push *once*; if it still fails, print
 /// remediation to stderr but do not return an error from the capture path.
@@ -795,7 +795,7 @@ fn push_best_effort(worktree: &Path) {
             // textually conflict; safe to auto-retry once.
             if let Err(e) = ff_pull(worktree) {
                 eprintln!(
-                    "warning: grove-inboxes push rejected as non-ff and ff-merge failed: {} \
+                    "warning: grove-meta push rejected as non-ff and ff-merge failed: {} \
                      — commit is local; run `grove meta sync` to resolve.",
                     e
                 );
@@ -804,7 +804,7 @@ fn push_best_effort(worktree: &Path) {
             match try_push(worktree) {
                 Ok(()) => {}
                 Err(e) => eprintln!(
-                    "warning: grove-inboxes push failed after auto-retry ({:?}); commit is local. \
+                    "warning: grove-meta push failed after auto-retry ({:?}); commit is local. \
                      Run `grove meta sync` to publish.",
                     e
                 ),
@@ -812,14 +812,14 @@ fn push_best_effort(worktree: &Path) {
         }
         Err(PushError::Network(msg)) => {
             eprintln!(
-                "warning: grove-inboxes push failed ({}); commit is local. \
+                "warning: grove-meta push failed ({}); commit is local. \
                  Run `grove meta sync` to publish when network is available.",
                 msg.trim()
             );
         }
         Err(PushError::Other(msg)) => {
             eprintln!(
-                "warning: grove-inboxes push failed ({}); commit is local. \
+                "warning: grove-meta push failed ({}); commit is local. \
                  Run `grove meta sync` to publish.",
                 msg.trim()
             );

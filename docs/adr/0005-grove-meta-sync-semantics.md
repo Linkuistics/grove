@@ -3,7 +3,7 @@
 The `grove-meta` branch is **local-only by default** — `grove install` and `grove meta init` materialise the branch and worktree without configuring an upstream. Multi-machine users opt in explicitly via `grove meta remote add <url>` (which sets upstream tracking). When a remote is configured, every `grove start` / `grove continue` fetch + ff-merges before drain, and every `grove inbox add` / `grove inbox drain` pushes best-effort after commit (with one auto-retry on non-ff, safe under the directory-of-files shape). When no remote is configured, all of the above is a no-op. Intra-machine concurrency is serialised by git's own index lock with a bounded CLI retry.
 
 ## Status
-accepted (extends ADR-0002 `0002-grove-inboxes-branch-and-inbox-model.md`, which was silent on sync)
+accepted (extends ADR-0002 `0002-grove-meta-branch-and-inbox-model.md`, which was silent on sync)
 
 ## Why local-first, not auto-remote
 The single-machine user is the common case. Materialising a branch and worktree at install time is a local-only operation; adding a remote-fetch step would introduce a network dependency to a workflow that is fundamentally about local capture-and-drain. The remote is a coordination convenience for multi-machine and multi-author use; it is not the source of truth. Treating the local `grove-meta` worktree as authoritative — with the remote as a sync target when one happens to be configured — preserves a working experience offline, on a fresh laptop, or in any of the network-degraded states the user already lives with.

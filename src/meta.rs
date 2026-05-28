@@ -4,8 +4,8 @@
 // semantics this module implements.
 
 use crate::cli::{
-    MetaArgs, MetaCommand, MetaRemoteAddArgs, MetaRemoteCommand, MetaRemoteListArgs,
-    MetaRemoteRemoveArgs, MetaSyncArgs,
+    MetaArgs, MetaCommand, MetaInitArgs, MetaRemoteAddArgs, MetaRemoteCommand,
+    MetaRemoteListArgs, MetaRemoteRemoveArgs, MetaSyncArgs,
 };
 use crate::inboxes;
 use crate::repo;
@@ -18,6 +18,7 @@ const REMOTE_NAME: &str = "origin";
 /// Dispatcher for `grove meta <verb>`.
 pub fn run(args: &MetaArgs) -> Result<()> {
     match &args.command {
+        MetaCommand::Init(a) => cmd_init(a),
         MetaCommand::Remote(r) => match &r.command {
             MetaRemoteCommand::Add(a) => cmd_remote_add(a),
             MetaRemoteCommand::Remove(a) => cmd_remote_remove(a),
@@ -25,6 +26,26 @@ pub fn run(args: &MetaArgs) -> Result<()> {
         },
         MetaCommand::Sync(a) => cmd_sync(a),
     }
+}
+
+fn cmd_init(args: &MetaInitArgs) -> Result<()> {
+    let repo_path = repo::resolve(args.repo.as_deref())?;
+    init(&repo_path)
+}
+
+/// Materialise the `grove-meta` branch and the `<repo>/.grove-meta/`
+/// worktree. Idempotent: a no-op when both are already in place. Prints a
+/// one-line summary of the materialised state to stdout in all cases so the
+/// verb is useful for "is this repo set up?" diagnostics.
+///
+/// Used by `grove install` / `grove update` via the same code path
+/// (`inboxes::materialise`), and exposed as an explicit verb for repos that
+/// pre-date the feature or whose worktree has been removed.
+pub fn init(repo: &Path) -> Result<()> {
+    inboxes::materialise(repo)?;
+    let wt = inboxes::worktree_dir(repo);
+    println!("grove-meta: branch={} worktree={}", inboxes::BRANCH, wt.display());
+    Ok(())
 }
 
 fn cmd_remote_add(args: &MetaRemoteAddArgs) -> Result<()> {

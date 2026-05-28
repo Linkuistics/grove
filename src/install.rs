@@ -85,7 +85,7 @@ pub fn run_with_fetcher(
         )?;
     }
 
-    // Materialise the grove-inboxes branch + worktree alongside the install.
+    // Materialise the grove-meta branch + worktree alongside the install.
     // Idempotent; safe on both Install and Update. Lives on its own branch,
     // so it doesn't add to the install-scope commit above.
     inboxes::materialise(&repo_path)?;

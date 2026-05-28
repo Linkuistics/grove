@@ -290,12 +290,12 @@ fn install_materialises_inbox_worktree_and_branch() {
     run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
 
     // The inbox worktree exists at the canonical path.
-    assert!(repo.path().join(".grove-inboxes/inboxes").is_dir());
+    assert!(repo.path().join(".grove-meta/inboxes").is_dir());
 
-    // The grove-inboxes branch exists locally.
-    let out = git(repo.path(), &["branch", "--list", "grove-inboxes"]);
+    // The grove-meta branch exists locally.
+    let out = git(repo.path(), &["branch", "--list", "grove-meta"]);
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("grove-inboxes"), "expected grove-inboxes branch: {s}");
+    assert!(s.contains("grove-meta"), "expected grove-meta branch: {s}");
 }
 
 #[test]

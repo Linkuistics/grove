@@ -57,14 +57,14 @@ fn materialise_creates_branch_and_worktree() {
     inboxes::materialise(repo.path()).unwrap();
 
     // Worktree dir + inboxes/ subdir exist on disk.
-    let wt = repo.path().join(".grove-inboxes");
+    let wt = repo.path().join(".grove-meta");
     assert!(wt.is_dir(), "worktree dir missing");
     assert!(wt.join("inboxes").is_dir(), "inboxes/ subdir missing");
 
     // Branch exists locally.
-    let out = git(repo.path(), &["branch", "--list", "grove-inboxes"]);
+    let out = git(repo.path(), &["branch", "--list", "grove-meta"]);
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("grove-inboxes"), "expected grove-inboxes branch in: {s}");
+    assert!(s.contains("grove-meta"), "expected grove-meta branch in: {s}");
 
     // Main repo's branch is unchanged.
     assert_eq!(current_branch(repo.path()), main_branch);
@@ -75,12 +75,12 @@ fn materialise_is_idempotent() {
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
     inboxes::materialise(repo.path()).unwrap();
-    assert!(repo.path().join(".grove-inboxes/inboxes").is_dir());
+    assert!(repo.path().join(".grove-meta/inboxes").is_dir());
 
     // No duplicate commits on the inbox branch (just the initial one).
-    let out = git(repo.path(), &["rev-list", "--count", "grove-inboxes"]);
+    let out = git(repo.path(), &["rev-list", "--count", "grove-meta"]);
     let n: usize = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
-    assert_eq!(n, 1, "expected 1 commit on grove-inboxes, got {n}");
+    assert_eq!(n, 1, "expected 1 commit on grove-meta, got {n}");
 }
 
 #[test]
@@ -88,15 +88,15 @@ fn inbox_branch_history_does_not_include_main_history() {
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
 
-    // The grove-inboxes branch has exactly one commit (its empty-tree init),
+    // The grove-meta branch has exactly one commit (its empty-tree init),
     // with no shared ancestor with the main branch — that's the whole point
     // of the orphan-style start.
-    let out = git(repo.path(), &["rev-list", "--count", "grove-inboxes"]);
+    let out = git(repo.path(), &["rev-list", "--count", "grove-meta"]);
     let count: usize = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
     assert_eq!(count, 1);
 
     // The commit's tree is empty (no README).
-    let tree = git(repo.path(), &["ls-tree", "-r", "grove-inboxes"]);
+    let tree = git(repo.path(), &["ls-tree", "-r", "grove-meta"]);
     assert!(
         tree.stdout.is_empty(),
         "expected empty tree, got: {}",
@@ -111,7 +111,7 @@ fn capture_writes_one_file_per_observation_with_gitkeep_on_first_write() {
 
     inboxes::capture(repo.path(), "future-grove", "noticed a bug in X", None).unwrap();
 
-    let dir = repo.path().join(".grove-inboxes/inboxes/future-grove");
+    let dir = repo.path().join(".grove-meta/inboxes/future-grove");
     assert!(dir.is_dir(), "per-grove inbox dir missing");
     assert!(dir.join(".gitkeep").is_file(), ".gitkeep missing");
 
@@ -128,7 +128,7 @@ fn capture_writes_one_file_per_observation_with_gitkeep_on_first_write() {
     let body = fs::read_to_string(&obs[0]).unwrap();
     assert_eq!(body, "noticed a bug in X");
 
-    let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
     assert!(s.contains("inbox: capture to future-grove"), "log: {s}");
 
@@ -146,7 +146,7 @@ fn two_captures_produce_two_files_on_disjoint_paths() {
     inboxes::capture(repo.path(), "g", "first observation", None).unwrap();
     inboxes::capture(repo.path(), "g", "second observation", None).unwrap();
 
-    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    let dir = repo.path().join(".grove-meta/inboxes/g");
     let obs = list_obs(&dir);
     assert_eq!(obs.len(), 2, "expected two observation files, got {}", obs.len());
 
@@ -162,7 +162,7 @@ fn slug_override_is_used_in_filename() {
 
     inboxes::capture(repo.path(), "g", "any content", Some("custom-slug")).unwrap();
 
-    let obs = list_obs(&repo.path().join(".grove-inboxes/inboxes/g"));
+    let obs = list_obs(&repo.path().join(".grove-meta/inboxes/g"));
     assert_eq!(obs.len(), 1);
     let name = obs[0].file_name().unwrap().to_string_lossy().to_string();
     assert!(name.contains("-custom-slug-"), "filename: {name}");
@@ -174,13 +174,13 @@ fn idempotent_on_content_hash_no_duplicate_file_no_extra_commit() {
     inboxes::materialise(repo.path()).unwrap();
 
     inboxes::capture(repo.path(), "g", "same observation", None).unwrap();
-    let commits_after_first = rev_count(repo.path(), "grove-inboxes");
+    let commits_after_first = rev_count(repo.path(), "grove-meta");
 
     // Same body, second call: no new file, no new commit, no error.
     inboxes::capture(repo.path(), "g", "same observation", None).unwrap();
-    let commits_after_second = rev_count(repo.path(), "grove-inboxes");
+    let commits_after_second = rev_count(repo.path(), "grove-meta");
 
-    let obs = list_obs(&repo.path().join(".grove-inboxes/inboxes/g"));
+    let obs = list_obs(&repo.path().join(".grove-meta/inboxes/g"));
     assert_eq!(obs.len(), 1, "expected one file, got {}", obs.len());
     assert_eq!(
         commits_after_first, commits_after_second,
@@ -189,7 +189,7 @@ fn idempotent_on_content_hash_no_duplicate_file_no_extra_commit() {
 
     // A different body produces a new file.
     inboxes::capture(repo.path(), "g", "different observation", None).unwrap();
-    let obs = list_obs(&repo.path().join(".grove-inboxes/inboxes/g"));
+    let obs = list_obs(&repo.path().join(".grove-meta/inboxes/g"));
     assert_eq!(obs.len(), 2);
 }
 
@@ -200,7 +200,7 @@ fn legacy_single_file_inbox_is_migrated_on_first_capture() {
 
     // Hand-construct a pre-shape-change inbox file and commit it as if a
     // previous grove version had written it.
-    let wt = repo.path().join(".grove-inboxes");
+    let wt = repo.path().join(".grove-meta");
     let legacy = wt.join("inboxes/legacy.md");
     fs::write(&legacy, "old appended content\n").unwrap();
     let out = git(&wt, &["add", "inboxes/legacy.md"]);
@@ -238,14 +238,14 @@ fn legacy_single_file_inbox_is_migrated_on_first_capture() {
     assert!(found_legacy && found_new, "missing legacy or new entry: {obs:?}");
 
     // A dedicated migration commit precedes the capture commit.
-    let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
     assert!(s.contains("migrate inbox legacy to directory shape"), "log: {s}");
     assert!(s.contains("inbox: capture to legacy"), "log: {s}");
 
     // Migration runs once: a follow-up capture must not re-trigger it.
     inboxes::capture(repo.path(), "legacy", "yet another", None).unwrap();
-    let log2 = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let log2 = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s2 = String::from_utf8_lossy(&log2.stdout);
     assert_eq!(
         s2.matches("migrate inbox legacy").count(),
@@ -292,7 +292,7 @@ fn cross_repo_capture_writes_into_other_repos_inbox_only() {
     // From repo_a's session, address repo_b's inbox.
     inboxes::capture(repo_b.path(), "future-in-b", "noticed in a", None).unwrap();
 
-    let dir = repo_b.path().join(".grove-inboxes/inboxes/future-in-b");
+    let dir = repo_b.path().join(".grove-meta/inboxes/future-in-b");
     assert!(dir.is_dir());
     let obs = list_obs(&dir);
     assert_eq!(obs.len(), 1);
@@ -300,7 +300,7 @@ fn cross_repo_capture_writes_into_other_repos_inbox_only() {
     assert!(body.contains("noticed in a"));
 
     // repo_a has no inbox worktree (we never materialised it).
-    assert!(!repo_a.path().join(".grove-inboxes").exists());
+    assert!(!repo_a.path().join(".grove-meta").exists());
 }
 
 #[test]
@@ -331,7 +331,7 @@ fn capture_is_seed_compatible_when_target_grove_does_not_exist_yet() {
 
     // No worktree for `racket-bugs` — the seed dir exists in isolation.
     assert!(!repo.path().join(".grove-worktrees/racket-bugs").exists());
-    let dir = repo.path().join(".grove-inboxes/inboxes/racket-bugs");
+    let dir = repo.path().join(".grove-meta/inboxes/racket-bugs");
     assert!(dir.is_dir());
     assert!(dir.join(".gitkeep").is_file());
     let obs = list_obs(&dir);
@@ -381,10 +381,10 @@ fn drain_enumerate_on_missing_inbox_returns_empty_no_commit() {
     let paths = inboxes::drain_enumerate(repo.path(), "never-existed").unwrap();
     assert!(paths.is_empty());
     // Enumerate must not create the inbox dir — capture is the creation path.
-    assert!(!repo.path().join(".grove-inboxes/inboxes/never-existed").exists());
+    assert!(!repo.path().join(".grove-meta/inboxes/never-existed").exists());
 
     // Only the initial empty-tree commit on the branch.
-    assert_eq!(rev_count(repo.path(), "grove-inboxes"), 1);
+    assert_eq!(rev_count(repo.path(), "grove-meta"), 1);
 }
 
 #[test]
@@ -408,12 +408,12 @@ fn drain_finalize_deletes_listed_paths_and_commits_with_disposition_counts() {
     )
     .unwrap();
 
-    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    let dir = repo.path().join(".grove-meta/inboxes/g");
     assert!(dir.is_dir(), "inbox dir should persist after drain");
     assert!(dir.join(".gitkeep").is_file(), ".gitkeep should survive drain");
     assert!(list_obs(&dir).is_empty(), "observation files should be gone after drain");
 
-    let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
     assert!(
         s.contains("drain g: 1 incorporated, 1 deferred, 1 rejected"),
@@ -441,12 +441,12 @@ fn drain_finalize_partial_disposition_only_deletes_named_paths() {
     )
     .unwrap();
 
-    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    let dir = repo.path().join(".grove-meta/inboxes/g");
     let remaining = list_obs(&dir);
     assert_eq!(remaining.len(), 1, "expected beta still present: {remaining:?}");
     assert_eq!(remaining[0], paths[1]);
 
-    let log = git(repo.path(), &["log", "--oneline", "grove-inboxes"]);
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
     assert!(
         s.contains("drain g: 1 incorporated, 0 deferred, 0 rejected"),
@@ -476,7 +476,7 @@ fn drain_finalize_rejects_paths_outside_inbox() {
     );
 
     // Inbox state is unchanged — no deletion happened before the rejection.
-    let dir = repo.path().join(".grove-inboxes/inboxes/g");
+    let dir = repo.path().join(".grove-meta/inboxes/g");
     assert_eq!(list_obs(&dir).len(), 1, "drain must be all-or-nothing");
 }
 
@@ -494,7 +494,7 @@ fn drain_finalize_rejects_gitkeep() {
     inboxes::materialise(repo.path()).unwrap();
     inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
 
-    let gitkeep = repo.path().join(".grove-inboxes/inboxes/g/.gitkeep");
+    let gitkeep = repo.path().join(".grove-meta/inboxes/g/.gitkeep");
     let err = inboxes::drain_finalize(repo.path(), "g", &[gitkeep], &[], &[]).unwrap_err();
     assert!(err.to_string().contains(".gitkeep cannot be drained"), "got: {err}");
 }

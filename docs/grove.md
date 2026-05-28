@@ -116,6 +116,8 @@ Three directions worth giving explicitly during planning:
 
 The mechanical bookkeeping — renumbering files, updating headers, hunting cross-references, growing the parent brief — belongs to the LLM, not the user. Judgement calls (what the new concern is, what to name it, where in the order it should sit) belong to the user. The healthy planning session is one where the user makes a small number of substantive judgements and the LLM converts each into the right tree shape; the unhealthy planning session is one where the user is mentally tracking the numbering. If you notice yourself doing the latter, that is a signal to pause.
 
+For a longer field guide on driving grove well — when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running decision log, citation discipline), and when research findings retire into ADRs — see [`driving-a-grove.md`](driving-a-grove.md).
+
 ### One-off and exploratory use
 
 There is no global, ambient grove — a globally-installed skill would conflict with the per-project materialised copy and re-introduce the drift problem grove exists to prevent. Even for a single short workstream, run `grove install` in the target repo. The cost is one command and one commit; the benefit is that the experiment is still reproducible weeks later. If the work truly does not warrant a commit, run it freeform without grove at all — that is a more honest choice than a globally-unpinned grove.

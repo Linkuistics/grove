@@ -111,6 +111,9 @@ unblocked.
 ## Pointers
 
 - Prior-art survey driving the design: `docs/research/seed-capture-prior-art.md`.
+- Post-mortem survey of in-repo issue trackers (de-risks downstream
+  planning leaves; cites concrete prior failures for each):
+  `docs/research/in-repo-issue-tracker-postmortems.md`.
 - Glossary terms in play (see `CONTEXT.md`): `Inbox`, `Seed`, `Drain`,
   `grove-meta branch` (renamed from the originally-considered
   `grove-inboxes branch`; the rejection rationale is recorded in the

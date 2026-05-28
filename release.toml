@@ -12,12 +12,6 @@
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
 publish = false
 
-# Skip `cargo package` verification. We never publish, so the package
-# step is pure overhead — and it scans into the `.grove-meta` worktree,
-# which holds inbox files whose ISO-8601 names contain `:` (rejected by
-# `cargo package` as not Windows-portable).
-verify = false
-
 # Leave the push to the operator so the release commit + tag can be
 # inspected locally before any remote side-effect.
 push = false

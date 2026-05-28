@@ -7,6 +7,12 @@ license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 rust-version = "1.74"
 
+# Sibling git worktrees live alongside the crate root but aren't part
+# of the crate. `.grove-meta/` carries inbox files whose ISO-8601 names
+# contain `:` (rejected by `cargo package` as not Windows-portable),
+# and `.grove-worktrees/` holds active grove worktrees.
+exclude = [".grove-meta", ".grove-worktrees"]
+
 [[bin]]
 name = "grove"
 path = "src/main.rs"

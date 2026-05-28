@@ -70,9 +70,13 @@ Sessions are launched by the `grove` CLI (installed via `brew install Linkuistic
 
 If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
 
-**Pick.** From the grove root, depth-first in numeric-prefix order, skipping
-`done/`: descend into directories; the first `.md` leaf reached is the next
-task.
+**Pick.** Run `grove-llm pick` — it walks `.grove/` depth-first in
+numeric-prefix order, skipping `done/`, and prints the absolute path of the
+next live `.md` leaf. Empty stdout (and a diagnostic on stderr) means the
+grove has no live leaves and is ready to **Finish**. The walk's *semantics*
+(depth-first, numeric prefix, skip `done/`, `BRIEF.md` is not a leaf) are
+what the verb implements; reach for them only when reasoning about the walk,
+not when running it.
 
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the

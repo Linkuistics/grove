@@ -9,6 +9,7 @@ pub mod launch;
 pub mod llm_cli;
 pub mod meta;
 pub mod list;
+pub mod pick;
 pub mod repo;
 pub mod status;
 pub mod uninstall;

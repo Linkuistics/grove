@@ -22,6 +22,23 @@ pub fn resolve(arg: Option<&Path>) -> Result<PathBuf> {
     Ok(main_repo)
 }
 
+/// Resolve the working-tree top directory of `cwd` via `git rev-parse
+/// --show-toplevel`. For a grove session this is the grove worktree at
+/// `<repo>/.grove-worktrees/<name>/`.
+pub fn git_toplevel(cwd: &Path) -> Result<PathBuf> {
+    let out = Command::new("git")
+        .arg("rev-parse")
+        .arg("--show-toplevel")
+        .current_dir(cwd)
+        .output()
+        .context("running git rev-parse --show-toplevel")?;
+    if !out.status.success() {
+        anyhow::bail!("not in a git repo (cwd: {})", cwd.display());
+    }
+    let s = String::from_utf8(out.stdout).context("git output not utf-8")?;
+    Ok(PathBuf::from(s.trim()))
+}
+
 fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
     let out = Command::new("git")
         .arg("rev-parse")

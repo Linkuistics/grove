@@ -9,6 +9,7 @@
 
 use crate::cli::{InboxAddArgs, InboxDrainArgs};
 use crate::inboxes;
+use crate::pick;
 use crate::repo;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -37,6 +38,11 @@ pub enum Command {
     /// `--incorporated`/`--deferred`/`--rejected` paths → finalize by
     /// deleting the triaged files in one commit.
     InboxDrain(InboxDrainArgs),
+    /// Print the absolute path of the next live leaf in this grove's tree —
+    /// depth-first walk of `.grove/` in numeric-prefix order, skipping
+    /// `done/`. Empty stdout (and a diagnostic on stderr) when the grove has
+    /// no live leaves.
+    Pick,
 }
 
 pub fn run() -> Result<()> {
@@ -44,6 +50,7 @@ pub fn run() -> Result<()> {
     match cli.command {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
+        Command::Pick => cmd_pick(),
     }
 }
 
@@ -82,6 +89,25 @@ fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {
             paths.len(),
             if paths.len() == 1 { "" } else { "s" }
         );
+    }
+    Ok(())
+}
+
+fn cmd_pick() -> Result<()> {
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::git_toplevel(&cwd)?;
+    let grove_root = worktree.join(".grove");
+    match pick::next_leaf(&grove_root)? {
+        Some(p) => {
+            println!("{}", p.display());
+        }
+        None => {
+            let label = worktree
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| worktree.display().to_string());
+            eprintln!("grove {}: no live leaves; this grove is done", label);
+        }
     }
     Ok(())
 }

@@ -58,6 +58,7 @@ build_target() {
   local stage="$DIST_DIR/staging/grove-v${version}-${target}"
   mkdir -p "$stage"
   cp "$REPO_ROOT/target/$target/release/grove" "$stage/grove"
+  cp "$REPO_ROOT/target/$target/release/grove-llm" "$stage/grove-llm"
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/"
 
   local archive="$DIST_DIR/grove-v${version}-${target}.tar.xz"

@@ -1,4 +1,4 @@
-# 070-audit-llm-cli-boundaries
+# 080-audit-llm-cli-boundaries
 
 **Kind:** planning
 
@@ -23,7 +23,7 @@ verbs converts each failure mode into a CLI bug to be fixed once.
 
 ## Why this came after the rename in pick order
 
-The rename leaf (060) is mechanical and well-scoped (move strings,
+The rename leaf (070) is mechanical and well-scoped (move strings,
 add `grove meta init`). Its scope does not intersect the
 reclassifications this audit will produce. Gating the rename on a
 broader planning task would block obviously useful work for a
@@ -87,11 +87,27 @@ top-to-bottom. This list is a starting set:
   anything from briefs that should outlive the grove" step is a
   judgement call (keep as prose) or has mechanical sub-steps the
   CLI could orchestrate.
-- **Renumber a leaf during planning**. Currently `git mv` driven by
-  the LLM. Is this common enough to deserve a verb (`grove leaf
-  renumber <from> <to>` that also updates the leaf's `# NNN-name`
-  header and warns on cross-references)? Probably premature; flag
-  as a future candidate if renumbers continue to be common.
+- **Insert a leaf at a given position and renumber subsequent leaves**.
+  **Strong candidate — featured example.** During the planning that
+  produced this very leaf, the surrounding subtree's leaves were
+  renumbered three times in two sessions as new concerns surfaced.
+  Each renumber is mechanically identical: `git mv` every leaf at or
+  after the insertion point up by ten, update each leaf's
+  `# NNN-name` header line, and surface numeric cross-references for
+  manual review. Recommended verb shape:
+  - `grove leaf insert <prefix>-<slug> [--kind work|planning]` —
+    create a templated leaf file at the given prefix, renumber every
+    sibling at or after that prefix up by ten, update headers,
+    print numeric cross-references found in any renumbered file
+    so the operator can review which (if any) need updating.
+  - `grove leaf add <prefix>-<slug> [--kind work|planning]` — append
+    a new leaf at the given prefix with no renumber (the common
+    case when growing the tree at the end).
+  The insertion case is the one the LLM gets wrong: easy to forget
+  to update the header inside a renamed file, easy to miss a
+  numeric cross-reference in a sibling, easy to leave the tree in a
+  state with two leaves sharing a prefix. The verb converts each
+  failure mode into a CLI bug to fix once.
 - **Capture seed name conventions**. The LLM has to invent the seed
   name (`tui-multi-repo`, etc.). Could a `grove inbox list` /
   `grove inbox names` verb at least show existing inbox names so
@@ -108,13 +124,13 @@ top-to-bottom. This list is a starting set:
 - Each prose step inspected has a classification: **keep**,
   **promote**, or **hybrid**, with a one-sentence rationale.
 - Each promotion has a recommended placement: a new work leaf in
-  this subtree (numbered after 070), a fold-in to an existing leaf
+  this subtree (numbered after 080), a fold-in to an existing leaf
   (specify which and how), or a seed for a future grove (the
   recommendation captures the suggested seed name and a one-paragraph
   description for the seed file).
 - If the audit produces enough promotions to warrant a dedicated
   implementation phase, this planning leaf is replaced by
-  `070-audit-llm-cli-boundaries/` with `BRIEF.md` and child work
+  `080-audit-llm-cli-boundaries/` with `BRIEF.md` and child work
   leaves. Otherwise it produces one or two new sibling leaves and a
   short summary of which steps stay as prose and why.
 - If any step's "this should be a verb" conclusion is non-obvious
@@ -131,8 +147,8 @@ top-to-bottom. This list is a starting set:
   should be *promote when deterministic and repeatedly LLM-driven*,
   not *promote on principle*.
 - **Resist scope expansion into TUI territory.** Some promoted verbs
-  may overlap with what the TUI (080) wants to display; that is
-  fine and intentional. But the TUI's design is the 080 leaf's
+  may overlap with what the TUI (090) wants to display; that is
+  fine and intentional. But the TUI's design is the 090 leaf's
   concern; this audit only inventories what should be a verb, not
   how to surface it.
 - **Walk-away-ability still rules.** A promoted verb should leave
@@ -143,7 +159,7 @@ top-to-bottom. This list is a starting set:
   prose-coded steps that fire every session. They are
   disproportionately important to get right.
 - **Reference the rename leaf's verb namespace.** If new verbs are
-  recommended under `grove meta`, the rename leaf (060) is the
+  recommended under `grove meta`, the rename leaf (070) is the
   first place that establishes that namespace; coordinate so the
   cluster grows coherently rather than scattering verbs across
   inconsistent parents.

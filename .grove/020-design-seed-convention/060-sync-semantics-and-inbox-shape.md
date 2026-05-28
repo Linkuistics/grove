@@ -1,4 +1,4 @@
-# 050-sync-semantics-and-inbox-shape
+# 060-sync-semantics-and-inbox-shape
 
 **Kind:** planning
 
@@ -34,7 +34,7 @@ planning leaf decides:
 
 ## Why this came before the rename
 
-The rename leaf (`060-grove-meta-rename-and-init.md`) rewrites ADR 0002
+The rename leaf (`070-grove-meta-rename-and-init.md`) rewrites ADR 0002
 and every reference to `inboxes/<name>.md`. If this leaf concludes the
 inbox shape changes (directory of files, not a single file), those
 references must change shape *and* path — doing the rename first would
@@ -138,7 +138,7 @@ before this leaf retires*, not a script.
   during grilling, or — for the durable ones — in ADR 0002's revision,
   or in a new ADR 0004 if the shape changes substantively).
 - If the inbox shape changes: ADR 0002 is updated (or superseded by a
-  new ADR), and the `060-grove-meta-rename-and-init.md` leaf's
+  new ADR), and the `070-grove-meta-rename-and-init.md` leaf's
   "Done when" is amended to include the shape change in the same
   rewrite. `CONTEXT.md`'s `Inbox` entry is updated inline (path,
   shape, and example).
@@ -148,8 +148,8 @@ before this leaf retires*, not a script.
   (fetch-before-drain, push-after-add, push-after-drain, locking if
   applicable, shape change if applicable) is captured either as new
   child leaves of this planning leaf (decomposing it into
-  `050-sync-semantics-and-inbox-shape/`) or by amending the
-  `060-grove-meta-rename-and-init.md` leaf's scope. Choose by
+  `060-sync-semantics-and-inbox-shape/`) or by amending the
+  `070-grove-meta-rename-and-init.md` leaf's scope. Choose by
   size — if the additional CLI work is small enough to fit alongside
   the rename, fold it in; otherwise decompose.
 

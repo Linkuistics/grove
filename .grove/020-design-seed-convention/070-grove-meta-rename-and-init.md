@@ -1,4 +1,4 @@
-# 060-grove-meta-rename-and-init
+# 070-grove-meta-rename-and-init
 
 **Kind:** work
 
@@ -15,7 +15,7 @@ repos whose worktree has been deleted, are repaired by running
 
 ## Why this came before the TUI
 
-The TUI planning leaf (now `080-tui-server.md`) was about to start
+The TUI planning leaf (now `090-tui-server.md`) was about to start
 grilling against the durable state defined by the surrounding ADRs.
 That state's *identity* — the branch's name — is in flux: ADR 0002
 already reserves the branch "more broadly for cross-grove coordination
@@ -24,7 +24,7 @@ references the old name would be a migration; renaming now is a single
 focused edit. Done before the TUI is grilled so the TUI is designed
 against the final names.
 
-The sync-and-shape planning leaf (`050-sync-semantics-and-inbox-shape.md`)
+The sync-and-shape planning leaf (`060-sync-semantics-and-inbox-shape.md`)
 was inserted ahead of this leaf in a later planning session. If that
 leaf concludes the inbox storage shape changes (e.g. directory-of-files
 instead of single file), this leaf's references to `inboxes/<name>.md`
@@ -130,5 +130,5 @@ Check the outcome of 050 before starting work here.
   appended later. ADR 0002's "Why drain is a bootstrap step" still
   applies as written.
 - **Resist scope creep into the TUI.** The TUI grilling (now
-  `060-tui-server.md`) is the next planning step. This leaf is
+  `090-tui-server.md`) is the next planning step. This leaf is
   rename + one CLI verb, nothing more.

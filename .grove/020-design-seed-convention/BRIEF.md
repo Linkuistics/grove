@@ -60,18 +60,11 @@ verb, and a planning leaf for the TUI navigator.
 
 ## Decomposition
 
-Eight leaves, ordered to minimise blocking — ADRs first because they
-record decisions the rest depends on; SKILL/glossary next because the
-methodology must reflect the new bootstrap step before tooling is wired
-to it; CLI implementation fourth; remote-sync semantics + inbox shape
-fifth (gates the rename's ADR rewrite because shape may change); the
-branch rename + explicit `grove meta init` verb sixth; the prose-vs-CLI
-audit seventh (independent of rename, comes after to keep the rename
-unblocked); TUI planning last because its grilling shouldn't gate the
-rest. Three of the leaves below (050, 070, 080) are planning tasks
-whose grilling sessions may grow the tree further; the audit and TUI
-leaves in particular are scoped to produce either a sibling work leaf
-or a decomposing subtree, not pre-baked work.
+Nine leaves, ordered to minimise blocking. The retired four (010–040)
+delivered the design's first pass. The live five (050–090) absorb the
+four foundational concerns the original decomposition did not
+anticipate — in the order needed to keep each downstream leaf
+unblocked.
 
 - `010-adr-inbox-model.md` — ADR for the inbox model + shared branch
   architecture (work, retired).
@@ -82,25 +75,36 @@ or a decomposing subtree, not pre-baked work.
 - `040-cli-implement-inbox.md` — `grove install` materialises the
   branch and worktree; `grove start`/`continue` drain; new
   `grove inbox` verb for capture (work, retired).
-- `050-sync-semantics-and-inbox-shape.md` — planning task: grill the
+- `050-research-in-repo-issue-trackers.md` — survey prior in-repo
+  issue-tracker / annotation systems (git-bug, Fossil tickets,
+  bugs-everywhere, ditz, ticgit, artemis, git-appraise, Radicle COBs,
+  Sapling/jj metadata, plus baseline TODO-comment and changelog
+  conventions) for *failure modes*. Produces
+  `docs/research/in-repo-issue-tracker-postmortems.md` with a
+  per-system section and a synthesis section answering specific
+  questions each downstream planning leaf needs (work).
+- `060-sync-semantics-and-inbox-shape.md` — planning task: grill the
   remote-sync semantics of the `grove-meta` branch (default state is
   *no remote*; explicit opt-in CLI verb configures one) and
   reconsider the inbox storage shape (single file vs directory of
   observation files) in light of multi-writer ff-push requirements
   (planning).
-- `060-grove-meta-rename-and-init.md` — rename the branch from
+- `070-grove-meta-rename-and-init.md` — rename the branch from
   `grove-inboxes` to `grove-meta` (worktree at `<repo>/.grove-meta/`)
   across CLI, ADRs, SKILL, prompts, and docs; add explicit
   `grove meta init` verb (idempotent), invoked internally by
   `install`/`update` and externally for pre-feature repos or
   worktree repair. Scope may grow to include shape change pending
-  050's outcome (work).
-- `070-audit-llm-cli-boundaries.md` — planning task: audit
+  060's outcome (work).
+- `080-audit-llm-cli-boundaries.md` — planning task: audit
   `content/SKILL.md` and `content/prompts/*.md` for deterministic
   prose-coded steps that should be promoted to CLI verbs the LLM
   invokes; output a classified inventory and placement
-  recommendations for each promotion (planning).
-- `080-tui-server.md` — planning task: grill TUI scope (initial
+  recommendations for each promotion. The featured example, drawn
+  from this very subtree's planning history, is `grove leaf insert`
+  for inserting a leaf at a given position with automatic renumbering
+  of subsequent leaves (planning).
+- `090-tui-server.md` — planning task: grill TUI scope (initial
   target is medium — per-repo, filesystem-watch; multi-repo
   evolution is a later seed candidate) and decompose (planning).
 
@@ -134,10 +138,13 @@ or a decomposing subtree, not pre-baked work.
   SKILL.md update together *are* the convention. Adding a separate
   `docs/seeds.md` would duplicate without earning its keep.
 - **Why the leaves are numbered the way they are**: the subtree grew
-  during a single planning session that surfaced three foundational
+  during a single planning session that surfaced four foundational
   concerns the original decomposition did not cover. Each was
   captured as a leaf when it surfaced; the numeric prefixes carry
-  the resolved order, not the order of capture.
+  the resolved order, not the order of capture. The grilling session
+  rolled the renumber by hand each time — explicit acknowledgement
+  that this insert-and-renumber pattern is itself a strong CLI verb
+  candidate (called out as the featured example in leaf 080).
   - The TUI leaf was originally numbered `050`.
   - When the rename concern surfaced (the branch `grove-inboxes` lied
     about the scope ADR 0002 already declared, and the branch had
@@ -157,4 +164,19 @@ or a decomposing subtree, not pre-baked work.
     be CLI verbs), a planning leaf was inserted between the rename
     and the TUI. It does not gate the rename — the rename's scope
     does not intersect the audit's reclassifications — so audit
-    landed at `070` rather than ahead of `060`.
+    landed between rename and TUI rather than ahead of rename.
+  - When the in-repo-tracker post-mortem research concern surfaced
+    (prior tools have tried very similar architectures; their
+    failure modes inform every downstream planning leaf), a research
+    work leaf was inserted ahead of every live leaf — the research's
+    findings de-risk the sync grilling, the audit grilling, and the
+    TUI grilling. Each subsequent leaf shifted up by ten: sync to
+    `060`, rename to `070`, audit to `080`, TUI to `090`.
+- **The pause point.** This subtree has now absorbed every concern
+  surfaced in the planning conversation that produced it. The next
+  pick is the research leaf (050). Subsequent additions, if any,
+  should be deferred to a follow-up planning session (or captured
+  as seeds) rather than continuing to extend this brief — the
+  rolling-renumber overhead is what the audit leaf's featured CLI
+  candidate exists to address; doing more by-hand renumbers before
+  that candidate is implemented would be self-defeating.

@@ -1,4 +1,4 @@
-# 080-tui-server
+# 090-tui-server
 
 **Kind:** planning
 
@@ -55,9 +55,9 @@ The grilling has settled enough that:
   `grove inbox add`, dogfooding the convention) with a short
   description of what the future grove would tackle: cross-repo
   navigation, a server daemon, editor integration, etc.
-- This leaf is replaced by `080-tui-server/` with `BRIEF.md` and child
+- This leaf is replaced by `090-tui-server/` with `BRIEF.md` and child
   leaves covering the v1 implementation. Or — if the grilling shows v1
-  is small enough — by a single `080-tui-implement.md` work leaf.
+  is small enough — by a single `090-tui-implement.md` work leaf.
 
 ## Notes
 

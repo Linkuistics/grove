@@ -25,6 +25,9 @@ A dedicated branch in each repo, materialised as a sibling worktree at `<repo>/.
 **Drain**:
 The session-bootstrap triage of a running grove's [[inbox]], performed at every `grove start` and `grove continue`. If the `grove-meta` branch has a remote configured, drain fetches it first (soft-on-failure — warn-and-continue if offline; refuse-and-instruct on non-ff). For each pending observation the LLM proposes incorporating it into the current task, deferring it to a later leaf, or rejecting it as out-of-scope (and possibly seeding a different grove). After triage the triaged observation files are deleted in one session-commit; drained observations live in git history (`git log inboxes/<name>/`). The `.gitkeep` stays so the directory's existence remains the "known grove" signal even when no observations are pending.
 
+**cli version** / **repo version** / **worktree version**:
+The three locations at which a grove-methodology version stamp can live, and which any pair can drift between. **cli version** is the installed `grove` binary's own version (`env!("CARGO_PKG_VERSION")`, the methodology bundled inside the binary). **repo version** is the version stamped in `<repo>/.<harness>/skills/grove/VERSION.md` — one per installed harness, written by `grove install` / `grove update`. **worktree version** is the version stamped in `<repo>/.grove-worktrees/<name>/.<harness>/skills/grove/VERSION.md` — one per worktree per harness, written when `grove start` materialises the skill into the new worktree. The three are independent because `grove install`/`update` only touches the repo's install path and `grove start` only touches the new worktree's install path; the binary the user runs `grove status` with is a third axis entirely. Surfacing all three (and drift between them) is the job of `grove status`, `grove list`, `grove version`, and the TUI.
+
 ## Flagged ambiguities
 
 **"grove"** is overloaded across this codebase. It can mean:

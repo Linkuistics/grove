@@ -111,7 +111,16 @@ nothing else by reflex.
 
 **Decompose.** When a leaf is too big for one focused session, a planning task
 replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
-(`BRIEF-FORMAT.md`) and ordered child leaves — lazily, only when needed.
+(`BRIEF-FORMAT.md`) and ordered child leaves — lazily, only when needed. Grow a
+node by running `grove-llm leaf-add <slug>` to append a new leaf at the next
+free three-digit prefix (the common case), or `grove-llm leaf-insert
+<prefix>-<slug>` when a new concern surfaces that must sequence ahead of
+existing leaves — the insert verb shifts every sibling at or after that prefix
+up by 10, `git mv`s the affected files and directories, rewrites their
+`# NNN-...` first-line headers, and surfaces any numeric cross-references on
+stderr for the operator to review (the verb does not auto-rewrite — references
+may be intentional historical pointers). Both verbs are working-tree changes
+only; the enclosing task's commit folds them in.
 
 **Commit.** One task = one focused commit.
 

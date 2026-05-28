@@ -10,6 +10,7 @@
 use crate::brief_chain;
 use crate::cli::{InboxAddArgs, InboxDrainArgs};
 use crate::inboxes;
+use crate::leaf;
 use crate::pick;
 use crate::repo;
 use anyhow::{Context, Result};
@@ -55,6 +56,45 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
+    /// Append a new leaf at the next free numeric prefix in the target
+    /// node (or at `--prefix` if free). Prints the absolute path of the
+    /// new leaf on stdout. Working-tree change only — no commit.
+    LeafAdd(LeafAddArgs),
+    /// Insert a new leaf at the given prefix in the target node, shifting
+    /// every sibling at or after that prefix up by 10. `git mv`s affected
+    /// siblings, rewrites their `# NNN-...` first-line headers, and
+    /// surfaces numeric cross-references on stderr for review. Prints the
+    /// new leaf's absolute path on stdout. Working-tree change only —
+    /// no commit.
+    LeafInsert(LeafInsertArgs),
+}
+
+#[derive(Parser)]
+pub struct LeafAddArgs {
+    /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
+    pub slug: String,
+    /// Explicit three-digit prefix (e.g. `050`). Default: next free prefix
+    /// in the target node.
+    #[arg(long = "prefix")]
+    pub prefix: Option<String>,
+    /// Leaf kind, written into the templated `**Kind:**` line.
+    #[arg(long = "kind", default_value = "work")]
+    pub kind: String,
+    /// Target node directory. Default: current working directory.
+    #[arg(long = "node")]
+    pub node: Option<PathBuf>,
+}
+
+#[derive(Parser)]
+pub struct LeafInsertArgs {
+    /// `<prefix>-<slug>`, e.g. `050-foo-bar`.
+    pub prefix_slug: String,
+    /// Leaf kind, written into the templated `**Kind:**` line.
+    #[arg(long = "kind", default_value = "work")]
+    pub kind: String,
+    /// Target node directory. Default: current working directory.
+    #[arg(long = "node")]
+    pub node: Option<PathBuf>,
 }
 
 pub fn run() -> Result<()> {
@@ -64,6 +104,8 @@ pub fn run() -> Result<()> {
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
+        Command::LeafAdd(args) => cmd_leaf_add(&args),
+        Command::LeafInsert(args) => cmd_leaf_insert(&args),
     }
 }
 
@@ -148,6 +190,90 @@ fn cmd_brief_chain(leaf_path: Option<&std::path::Path>) -> Result<()> {
         println!("{}", p.display());
     }
     Ok(())
+}
+
+fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
+    let node = resolve_node(args.node.as_deref())?;
+    let kind = leaf::Kind::parse(&args.kind)?;
+    let explicit = args
+        .prefix
+        .as_deref()
+        .map(parse_prefix_arg)
+        .transpose()?;
+    let path = leaf::add(&node, &args.slug, explicit, kind)?;
+    println!("{}", path.display());
+    Ok(())
+}
+
+fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
+    let node = resolve_node(args.node.as_deref())?;
+    let kind = leaf::Kind::parse(&args.kind)?;
+    let (prefix, slug) = parse_prefix_slug(&args.prefix_slug)?;
+    let (path, renumbers) = leaf::insert(&node, prefix, slug, kind)?;
+
+    // The new leaf's path is the only stdout content; renumber summary and
+    // cross-references go to stderr so the LLM can parse stdout cleanly.
+    println!("{}", path.display());
+    let mut stderr = std::io::stderr();
+    if renumbers.is_empty() {
+        eprintln!("leaf-insert {:03}-{}: no siblings to renumber", prefix, slug);
+    } else {
+        eprintln!(
+            "leaf-insert {:03}-{}: renumbered {} sibling{}:",
+            prefix,
+            slug,
+            renumbers.len(),
+            if renumbers.len() == 1 { "" } else { "s" }
+        );
+        for r in &renumbers {
+            eprintln!("  {:03} -> {:03}  ({})", r.old_prefix, r.new_prefix, r.new_name);
+        }
+        eprintln!("cross-references to review (verb does not auto-rewrite):");
+        leaf::surface_cross_refs(&node, &renumbers, &mut stderr)?;
+    }
+    Ok(())
+}
+
+fn resolve_node(arg: Option<&std::path::Path>) -> Result<PathBuf> {
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let node = match arg {
+        Some(p) if p.is_absolute() => p.to_path_buf(),
+        Some(p) => cwd.join(p),
+        None => cwd,
+    };
+    Ok(node)
+}
+
+fn parse_prefix_arg(s: &str) -> Result<u32> {
+    let n: u32 = s
+        .parse()
+        .with_context(|| format!("--prefix must be a number: {:?}", s))?;
+    Ok(n)
+}
+
+fn parse_prefix_slug(arg: &str) -> Result<(u32, &str)> {
+    if arg.len() < 5 {
+        anyhow::bail!(
+            "argument must be `<prefix>-<slug>` (got {:?}) — e.g. `050-foo-bar`",
+            arg
+        );
+    }
+    let (head, tail) = arg.split_at(3);
+    if !head.chars().all(|c| c.is_ascii_digit()) {
+        anyhow::bail!(
+            "prefix must be exactly three ASCII digits (got {:?}) — e.g. `050-foo-bar`",
+            arg
+        );
+    }
+    if !tail.starts_with('-') {
+        anyhow::bail!(
+            "prefix and slug must be separated by `-` (got {:?}) — e.g. `050-foo-bar`",
+            arg
+        );
+    }
+    let prefix: u32 = head.parse().unwrap();
+    let slug = &tail[1..];
+    Ok((prefix, slug))
 }
 
 fn read_body(args: &InboxAddArgs) -> Result<String> {

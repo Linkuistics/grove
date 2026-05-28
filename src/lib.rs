@@ -7,6 +7,7 @@ pub mod harness_stamp;
 pub mod inboxes;
 pub mod install;
 pub mod launch;
+pub mod leaf;
 pub mod llm_cli;
 pub mod meta;
 pub mod list;

@@ -11,6 +11,7 @@ use crate::brief_chain;
 use crate::cli::{InboxAddArgs, InboxDrainArgs};
 use crate::inboxes;
 use crate::leaf;
+use crate::leaf_ops;
 use crate::pick;
 use crate::repo;
 use anyhow::{Context, Result};
@@ -67,6 +68,19 @@ pub enum Command {
     /// new leaf's absolute path on stdout. Working-tree change only —
     /// no commit.
     LeafInsert(LeafInsertArgs),
+    /// Convert a leaf file `NNN-x.md` into a node directory `NNN-x/`
+    /// containing `BRIEF.md` seeded from the leaf's body. The first-line
+    /// `# NNN-x` header is retitled to `# NNN-x — brief`; further reshape
+    /// is the LLM's call. Children are added afterwards via `leaf-add`.
+    /// Prints the new `BRIEF.md`'s absolute path on stdout. Working-tree
+    /// change only — no commit.
+    LeafDecompose(LeafDecomposeArgs),
+    /// Move a single leaf into `.grove/done/`, preserving its relative path
+    /// inside `.grove/`. Pure mechanics — the parent-chain cascade (ask
+    /// before retiring each empty node, promote brief content upward)
+    /// stays prose. Prints the destination path on stdout. Working-tree
+    /// change only — no commit.
+    LeafRetire(LeafRetireArgs),
 }
 
 #[derive(Parser)]
@@ -97,6 +111,20 @@ pub struct LeafInsertArgs {
     pub node: Option<PathBuf>,
 }
 
+#[derive(Parser)]
+pub struct LeafDecomposeArgs {
+    /// Leaf path. Absolute, relative to the cwd, or relative to the grove
+    /// root (`.grove/`).
+    pub leaf_path: PathBuf,
+}
+
+#[derive(Parser)]
+pub struct LeafRetireArgs {
+    /// Leaf path. Absolute, relative to the cwd, or relative to the grove
+    /// root (`.grove/`).
+    pub leaf_path: PathBuf,
+}
+
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -106,6 +134,8 @@ pub fn run() -> Result<()> {
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
+        Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
+        Command::LeafRetire(args) => cmd_leaf_retire(&args),
     }
 }
 
@@ -231,6 +261,18 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
         eprintln!("cross-references to review (verb does not auto-rewrite):");
         leaf::surface_cross_refs(&node, &renumbers, &mut stderr)?;
     }
+    Ok(())
+}
+
+fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
+    let dst = leaf_ops::decompose(&args.leaf_path)?;
+    println!("{}", dst.display());
+    Ok(())
+}
+
+fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
+    let dst = leaf_ops::retire(&args.leaf_path)?;
+    println!("{}", dst.display());
     Ok(())
 }
 

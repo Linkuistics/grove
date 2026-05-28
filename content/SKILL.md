@@ -111,29 +111,37 @@ nothing else by reflex.
 
 **Decompose.** When a leaf is too big for one focused session, a planning task
 replaces the leaf `NNN-x.md` with a node `NNN-x/` holding a `BRIEF.md`
-(`BRIEF-FORMAT.md`) and ordered child leaves — lazily, only when needed. Grow a
-node by running `grove-llm leaf-add <slug>` to append a new leaf at the next
-free three-digit prefix (the common case), or `grove-llm leaf-insert
+(`BRIEF-FORMAT.md`) and ordered child leaves — lazily, only when needed.
+Convert the leaf into a node by running `grove-llm leaf-decompose <leaf-path>`:
+the verb `git mv`s `NNN-x.md` into `NNN-x/BRIEF.md` and retitles the first-line
+`# NNN-x` header to `# NNN-x — brief`. Reshape the brief body afterwards if
+needed (that part is judgement; the verb only does the mechanical move). Then
+grow the node by running `grove-llm leaf-add <slug>` to append a new leaf at
+the next free three-digit prefix (the common case), or `grove-llm leaf-insert
 <prefix>-<slug>` when a new concern surfaces that must sequence ahead of
 existing leaves — the insert verb shifts every sibling at or after that prefix
 up by 10, `git mv`s the affected files and directories, rewrites their
 `# NNN-...` first-line headers, and surfaces any numeric cross-references on
 stderr for the operator to review (the verb does not auto-rewrite — references
-may be intentional historical pointers). Both verbs are working-tree changes
-only; the enclosing task's commit folds them in.
+may be intentional historical pointers). All three verbs are working-tree
+changes only; the enclosing task's commit folds them in.
 
 **Commit.** One task = one focused commit.
 
-**Retire.** After committing the task, `mv` the just-finished leaf into
-`.grove/done/`, preserving its relative path — mechanical bookkeeping, no need
-to ask. Then walk the parent chain: if a node now has no live leaves left,
-**ask the user before retiring it** — the confirmation gives them a moment to
-add a follow-up leaf if the node is not actually done. On confirmation, promote
-anything still relevant from the node's `BRIEF.md` upward — to the parent
-brief, an ADR, or the glossary — then `mv` the whole node into `.grove/done/`,
-preserving its path. That retirement may empty the next ancestor; re-check,
-ask again, recurse, until a node still has live leaves or you reach the grove
-root. Archived in-grove, never deleted while the grove is live.
+**Retire.** After committing the task, retire the just-finished leaf by
+running `grove-llm leaf-retire <leaf-path>` — the verb `git mv`s the leaf into
+`.grove/done/`, preserving its relative path inside `.grove/`. Mechanical
+bookkeeping, no need to ask. Then walk the parent chain: if a node now has no
+live leaves left, **ask the user before retiring it** — the confirmation gives
+them a moment to add a follow-up leaf if the node is not actually done. On
+confirmation, promote anything still relevant from the node's `BRIEF.md`
+upward — to the parent brief, an ADR, or the glossary — then `git mv` the
+whole node into `.grove/done/`, preserving its path. That retirement may empty
+the next ancestor; re-check, ask again, recurse, until a node still has live
+leaves or you reach the grove root. Archived in-grove, never deleted while the
+grove is live. The cascade walk and the brief-promotion-upward stay prose
+deliberately: both are judgement steps (does this node retire? what survives
+upward?) with no stable input/output shape that would justify a verb.
 
 **Finish.** When the whole grove is done — every leaf retired into `done/` —
 promote anything from the briefs that should outlive the grove (ADRs, docs,

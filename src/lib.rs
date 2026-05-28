@@ -8,6 +8,7 @@ pub mod inboxes;
 pub mod install;
 pub mod launch;
 pub mod leaf;
+pub mod leaf_ops;
 pub mod llm_cli;
 pub mod meta;
 pub mod list;

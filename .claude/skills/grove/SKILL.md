@@ -143,12 +143,37 @@ grove is live. The cascade walk and the brief-promotion-upward stay prose
 deliberately: both are judgement steps (does this node retire? what survives
 upward?) with no stable input/output shape that would justify a verb.
 
-**Finish.** When the whole grove is done — every leaf retired into `done/` —
-promote anything from the briefs that should outlive the grove (ADRs, docs,
-glossary entries), then **delete `.grove/` in one focused commit** before
-merging the branch to the default branch. The default branch never carries
-any grove's local state; its history of completed groves lives in git's
-commit graph, not in retained directories.
+**Finish.** A grove is ready to finish when it has no live leaves —
+`grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
+done" on stderr. The **complete finish cycle** is driven in-session by the LLM
+(no Rust automation): the session **proposes** it and **waits for explicit human
+confirmation before any teardown** — never run steps 2–5 unprompted, so a
+headless run with no human present simply reports the plan and stops. On
+confirmation, run:
+
+1. **Promote** anything from the briefs that should outlive the grove — ADRs,
+   docs, glossary entries. Reviewable working-tree edits; often a near no-op
+   when decisions landed inline as they were made.
+2. **Delete `.grove/` in one focused commit** on the grove branch.
+3. **Merge** into the default branch: `git -C <repo> merge <name>` —
+   fast-forwards when the default has not advanced, makes a merge commit when it
+   has. (Stop and resolve if it conflicts.)
+4. **Remove the worktree**: `git -C <repo> worktree remove <worktree>`.
+5. **Delete the branch**: `git -C <repo> branch -d <name>` — safe delete,
+   succeeds only because step 3 merged it.
+
+Steps 3–5 run `git -C <repo>` against the **main repo**, not the worktree (the
+session's cwd is inside the worktree it removes); worktree-remove precedes
+branch-delete because git refuses to delete a branch checked out in a live
+worktree. The default branch never carries any grove's local state; the history
+of completed groves lives in git's commit graph, not in retained directories.
+
+**Resume is state-checked, never a marker file** (constraint 1). `grove do` into
+a half-finished grove resumes from the first incomplete step: if `.grove/` is
+already gone (`grove-llm pick` errors with "grove root not found") skip 1–2; if
+`git -C <repo> merge-base --is-ancestor <name> <default>` passes skip 3; if the
+worktree is gone skip 4; if the branch is gone skip 5; if all are done, report
+"already finished" and stop.
 
 ## Artifacts
 
@@ -204,6 +229,6 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
-- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`, `finish.md`).
+- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
 - `VERSION.md` — which grove version this is and how to update it (present only
   in a materialised copy; written by the materialise script).

@@ -78,6 +78,8 @@ pub struct App {
     show_help: bool,
     status: Option<String>,
     capture: CaptureModal,
+    /// Disposition picker for the selected inbox entry; `Some` while open.
+    disposition: Option<DispositionModal>,
     /// A keystroke (Ctrl-E / Enter in body / submit) decides *that* an
     /// external action should run; the live loop then suspends the
     /// terminal and runs it. Splitting these phases keeps `handle_key`
@@ -105,12 +107,58 @@ enum CaptureField {
     Body,
 }
 
+/// Disposition picker — opened by `d` on the selected entry while the Inbox
+/// pane is focused. A sub-modal rather than three bare keys because `r` is the
+/// global refresh key: scoping the choice behind a modal keeps the top-level
+/// keymap unambiguous and the choice discoverable.
+pub struct DispositionModal {
+    /// Absolute path of the observation being dispositioned.
+    path: PathBuf,
+    /// Filename of that entry, shown in the picker title.
+    entry: String,
+}
+
+/// The three [[Drain]] buckets. All three delete the observation file; the
+/// choice only sets the `grove-llm inbox-drain` commit-message category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Disposition {
+    Incorporated,
+    Deferred,
+    Rejected,
+}
+
+impl Disposition {
+    /// The `grove-llm inbox-drain` finalize flag for this bucket.
+    fn flag(self) -> &'static str {
+        match self {
+            Disposition::Incorporated => "--incorporated",
+            Disposition::Deferred => "--deferred",
+            Disposition::Rejected => "--rejected",
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Disposition::Incorporated => "incorporated",
+            Disposition::Deferred => "deferred",
+            Disposition::Rejected => "rejected",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingAction {
     /// Submit `app.capture` via `grove-llm inbox-add`.
     Submit,
     /// Drop into `$EDITOR` (or `vi` fallback) to edit `app.capture.body`.
     EditBody,
+    /// Disposition the observation at `path` into `disposition`'s bucket via
+    /// `grove-llm inbox-drain` — all three buckets delete the file; the bucket
+    /// only sets the drain commit-message category (faithful to Drain).
+    Drain {
+        path: PathBuf,
+        disposition: Disposition,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -181,6 +229,7 @@ impl App {
             show_help: false,
             status: None,
             capture: CaptureModal::default(),
+            disposition: None,
             pending_action: None,
         }
     }
@@ -415,6 +464,32 @@ fn process_pending_action(
                 }
             }
         }
+        PendingAction::Drain { path, disposition } => {
+            // The grove the detail screen is on is the drain target; the
+            // picker only opens from a focused detail inbox pane.
+            let grove = app
+                .detail
+                .as_ref()
+                .map(|d| d.grove.clone())
+                .unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let outcome = suspended(terminal, || shell_drain(&grove, &path, disposition));
+            match outcome {
+                Ok(()) => {
+                    // The fs-watch on `.grove-meta/inboxes` fires on the delete,
+                    // debounces, and rescans — the entry then disappears and the
+                    // inbox `ListState` clamps via the render-time bounds check.
+                    app.status = Some(format!("{} {}", disposition.label(), name));
+                }
+                Err(e) => {
+                    // Mirror capture's handling: surface stderr, no silent retry.
+                    app.status = Some(format!("disposition failed: {}", short_err(&e)));
+                }
+            }
+        }
     }
 }
 
@@ -476,6 +551,30 @@ fn shell_capture(target: &str, body: &str) -> Result<()> {
     Ok(())
 }
 
+/// Disposition a single observation by shelling out to `grove-llm
+/// inbox-drain --for=<grove> --<bucket>=<path>`. The CLI deletes the file and
+/// commits (and pushes when a remote is configured); the TUI never touches the
+/// `grove-meta` git plumbing directly, mirroring `shell_capture`.
+fn shell_drain(grove: &str, path: &Path, disposition: Disposition) -> Result<()> {
+    if grove.trim().is_empty() {
+        anyhow::bail!("grove name is empty");
+    }
+    let status = std::process::Command::new(find_grove_llm())
+        .arg("inbox-drain")
+        .arg(format!("--for={}", grove.trim()))
+        .arg(disposition.flag())
+        .arg(path)
+        .status()
+        .context("running grove-llm inbox-drain")?;
+    if !status.success() {
+        anyhow::bail!(
+            "grove-llm inbox-drain exited with status {:?}",
+            status.code()
+        );
+    }
+    Ok(())
+}
+
 fn shell_editor(initial: &str) -> Result<String> {
     let editor = std::env::var("EDITOR")
         .or_else(|_| std::env::var("VISUAL"))
@@ -509,6 +608,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
     // Capture modal swallows almost everything; only Ctrl-C still quits.
     if app.capture.open {
         handle_capture_key(app, code, mods);
+        return Ok(false);
+    }
+
+    // Disposition picker swallows its keys (i/d/r choose, Esc/Ctrl-C cancel).
+    if app.disposition.is_some() {
+        handle_disposition_key(app, code, mods);
         return Ok(false);
     }
 
@@ -593,6 +698,11 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
                 d.right = d.right.next();
                 d.right_scroll = 0;
             }
+        }
+        (Screen::GroveDetail, KeyCode::Char('d')) => {
+            // Disposition the selected inbox entry — only meaningful while the
+            // Inbox pane is focused and has a selection (see open helper).
+            open_disposition_modal(app);
         }
         (Screen::GroveDetail, KeyCode::Down | KeyCode::Char('j')) => {
             move_detail_selection(app, 1);
@@ -707,6 +817,62 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
     }
 }
 
+/// Open the disposition picker for the currently-selected inbox entry. No-op
+/// unless the Inbox pane is focused and holds at least one observation — `d`
+/// is inert from any other pane or an empty inbox.
+fn open_disposition_modal(app: &mut App) {
+    let modal = {
+        let Some(d) = app.detail.as_ref() else {
+            return;
+        };
+        if d.right != RightPane::Inbox {
+            return;
+        }
+        let Some(gd) = app.view.grove(&d.grove) else {
+            return;
+        };
+        if gd.inbox.is_empty() {
+            return;
+        }
+        // Clamp the selection the same way the renderer does, so the picker
+        // always targets a real entry even if the cursor drifted past the end.
+        let idx = d.inbox.selected().unwrap_or(0).min(gd.inbox.len() - 1);
+        let path = gd.inbox[idx].clone();
+        let entry = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        DispositionModal { path, entry }
+    };
+    app.disposition = Some(modal);
+}
+
+/// Handle a key while the disposition picker is open: `i`/`d`/`r` choose a
+/// bucket and request the drain; `Esc`/`Ctrl-C` cancel. Mirrors the capture
+/// modal's "decide here, run in the loop" split, so it stays unit-testable.
+fn handle_disposition_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
+    if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
+        app.disposition = None;
+        return;
+    }
+    let disposition = match code {
+        KeyCode::Esc => {
+            app.disposition = None;
+            return;
+        }
+        KeyCode::Char('i') => Disposition::Incorporated,
+        KeyCode::Char('d') => Disposition::Deferred,
+        KeyCode::Char('r') => Disposition::Rejected,
+        _ => return,
+    };
+    if let Some(modal) = app.disposition.take() {
+        app.pending_action = Some(PendingAction::Drain {
+            path: modal.path,
+            disposition,
+        });
+    }
+}
+
 fn move_selection(state: &mut ListState, len: isize, delta: isize) {
     if len <= 0 {
         state.select(None);
@@ -770,9 +936,43 @@ pub fn render(f: &mut Frame, app: &App) {
     if app.capture.open {
         render_capture_modal(f, area, &app.capture);
     }
+    if let Some(modal) = app.disposition.as_ref() {
+        render_disposition_modal(f, area, modal);
+    }
     if app.show_help {
         render_help_overlay(f, area);
     }
+}
+
+/// A small centred picker listing the three [[Drain]] buckets and their
+/// hotkeys. Purely presentational — the keys are handled in
+/// `handle_disposition_key`.
+fn render_disposition_modal(f: &mut Frame, area: Rect, modal: &DispositionModal) {
+    let popup = centered_rect(60, 30, area);
+    f.render_widget(Clear, popup);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("disposition — grove inbox drain");
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let lines = vec![
+        Line::from(Span::styled(
+            modal.entry.clone(),
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+        Line::from("  i  incorporated"),
+        Line::from("  d  deferred"),
+        Line::from("  r  rejected"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Esc cancel",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
@@ -1196,6 +1396,8 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Esc / q       back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("                  in the inbox pane, j/k select an observation"),
+        Line::from("  d             disposition the selected observation"),
+        Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
         Line::from("  PgUp / PgDn   scroll right pane"),
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
         Line::from("  c             capture an observation to a grove's inbox"),
@@ -1376,6 +1578,11 @@ mod tests {
             &beta_inbox.join("2026-05-28T10-00-00Z--note.md"),
             "first observation\n",
         );
+        // Live grove "gamma" with a leaf but an empty inbox (no inbox dir) —
+        // the substrate for "disposition is a no-op when the inbox is empty".
+        let gamma = root.join(".grove-worktrees/gamma/.grove");
+        touch(&gamma.join("BRIEF.md"), "# gamma — brief\n");
+        touch(&gamma.join("010-task.md"), "# 010-task\n\nWork.\n");
         tmp
     }
 
@@ -1496,6 +1703,102 @@ mod tests {
             Some(1),
             "inbox selection must persist across Tab cycling"
         );
+    }
+
+    /// Drive the detail screen into the focused inbox pane, ready for a
+    /// disposition keystroke. Returns the app preselected on `alpha` (which
+    /// the fixture gives two pending observations).
+    fn app_focused_on_alpha_inbox(tmp: &TempDir) -> App {
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap(); // → detail
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane
+        app
+    }
+
+    #[test]
+    fn d_on_inbox_entry_opens_disposition_picker() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_some(), "disposition picker should open");
+        assert_eq!(app.pending_action, None, "opening the picker is not yet an action");
+    }
+
+    #[test]
+    fn disposition_choice_requests_drain_with_path_and_bucket() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        // Select the second observation, then disposition it as rejected.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('r'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::Drain { path, disposition }) => {
+                assert_eq!(*disposition, Disposition::Rejected);
+                assert!(
+                    path.ends_with("2026-05-28T09-00-00Z-bbb-2222.md"),
+                    "drain should target the selected entry, got {:?}",
+                    path
+                );
+            }
+            other => panic!("expected Drain pending action, got {:?}", other),
+        }
+        assert!(app.disposition.is_none(), "picker closes once a bucket is chosen");
+    }
+
+    #[test]
+    fn disposition_hotkeys_map_to_each_bucket() {
+        for (key, expected) in [
+            ('i', Disposition::Incorporated),
+            ('d', Disposition::Deferred),
+            ('r', Disposition::Rejected),
+        ] {
+            let tmp = fixture_repo();
+            let mut app = app_focused_on_alpha_inbox(&tmp);
+            handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap(); // open
+            handle_key(&mut app, KeyCode::Char(key), KeyModifiers::NONE).unwrap(); // choose
+            match app.pending_action.as_ref() {
+                Some(PendingAction::Drain { disposition, .. }) => {
+                    assert_eq!(*disposition, expected, "key {:?} → wrong bucket", key);
+                }
+                other => panic!("key {:?}: expected Drain, got {:?}", key, other),
+            }
+        }
+    }
+
+    #[test]
+    fn esc_cancels_disposition_picker() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Esc, KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "Esc should cancel the picker");
+        assert_eq!(app.pending_action, None, "cancel must not request a drain");
+    }
+
+    #[test]
+    fn d_is_noop_when_inbox_empty() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        // gamma is a live grove with no pending observations.
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("gamma".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane (empty)
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "no picker for an empty inbox");
+        assert_eq!(app.pending_action, None, "no drain for an empty inbox");
+    }
+
+    #[test]
+    fn d_is_noop_when_inbox_pane_not_focused() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Right pane defaults to LeafBody — `d` must not open the picker.
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "picker only opens from the inbox pane");
     }
 
     #[test]

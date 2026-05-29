@@ -86,9 +86,10 @@ pub struct App {
 }
 
 /// Capture modal — opened by `c`, drives the two-step
-/// target/body workflow. The modal is intentionally tiny: a multi-line
-/// editor is the wrong tool for a one-line observation, and anything
-/// longer should drop to `$EDITOR` via Ctrl-E.
+/// target/body workflow. The body accepts multi-line input: `Enter`
+/// inserts a newline (so a multi-line paste lands intact) and submit is
+/// the deliberate `Ctrl-S` gesture, which a paste cannot trigger. A
+/// longer or heavier edit still drops to `$EDITOR` via `Ctrl-E`.
 #[derive(Default, Clone)]
 pub struct CaptureModal {
     open: bool,
@@ -667,6 +668,16 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
             // this up after the key handler returns.
             app.pending_action = Some(PendingAction::EditBody);
         }
+        KeyCode::Char('s') if mods.contains(KeyModifiers::CONTROL) => {
+            // The deliberate submit gesture. Distinct from `Enter` so a
+            // pasted (or typed) newline in the body cannot fire submit by
+            // accident; works from either field once both are filled.
+            if !app.capture.target.trim().is_empty()
+                && !app.capture.body.trim().is_empty()
+            {
+                app.pending_action = Some(PendingAction::Submit);
+            }
+        }
         KeyCode::Enter => match app.capture.field {
             CaptureField::Target => {
                 if !app.capture.target.trim().is_empty() {
@@ -674,11 +685,10 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
                 }
             }
             CaptureField::Body => {
-                if !app.capture.target.trim().is_empty()
-                    && !app.capture.body.trim().is_empty()
-                {
-                    app.pending_action = Some(PendingAction::Submit);
-                }
+                // `Enter` in the body inserts a newline rather than
+                // submitting — multi-line observations are typed and
+                // pasted here, and submit is the deliberate Ctrl-S above.
+                app.capture.body.push('\n');
             }
         },
         KeyCode::Backspace => match app.capture.field {
@@ -794,7 +804,8 @@ fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
         .block(Block::default().borders(Borders::ALL).title("observation body"));
     f.render_widget(body_para, body_area);
 
-    let hint = "Tab=switch  Enter=next/submit  Ctrl-E=edit in $EDITOR  Esc=cancel";
+    let hint =
+        "Tab=switch  Enter=next(target)/newline(body)  Ctrl-S=submit  Ctrl-E=$EDITOR  Esc=cancel";
     f.render_widget(Paragraph::new(hint), hint_area);
 }
 
@@ -1111,7 +1122,7 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
         Line::from("  c             capture an observation to a grove's inbox"),
         Line::from("                  Tab=switch field, Ctrl-E=edit in $EDITOR,"),
-        Line::from("                  Enter on body=submit, Esc=cancel"),
+        Line::from("                  Enter on body=newline, Ctrl-S=submit, Esc=cancel"),
         Line::from("  r             rescan the repo (also: fs-watch auto-refreshes)"),
         Line::from("  ?             toggle this help"),
         Line::from("  Ctrl-C        force quit"),
@@ -1472,7 +1483,7 @@ mod tests {
     }
 
     #[test]
-    fn enter_on_body_with_both_fields_requests_submit() {
+    fn ctrl_s_in_body_with_both_fields_requests_submit() {
         let tmp = fixture_repo();
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
@@ -1480,7 +1491,7 @@ mod tests {
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
         handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
         type_str(&mut app, "first observation");
-        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).unwrap();
         assert_eq!(app.pending_action, Some(PendingAction::Submit));
         // Submitting does *not* close the modal in the key handler;
         // the live loop will close it after the shell-out finishes.
@@ -1488,13 +1499,62 @@ mod tests {
     }
 
     #[test]
-    fn enter_on_body_with_empty_body_does_not_submit() {
+    fn ctrl_s_with_empty_body_does_not_submit() {
         let tmp = fixture_repo();
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
         handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None);
+    }
+
+    #[test]
+    fn enter_in_body_inserts_newline_and_does_not_submit() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "a");
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "b");
+        assert_eq!(app.capture.body, "a\nb");
+        assert_eq!(app.pending_action, None);
+        assert!(app.capture.open);
+    }
+
+    #[test]
+    fn multiline_paste_in_body_does_not_submit_or_truncate() {
+        // A terminal paste (no bracketed-paste) arrives as chars
+        // interspersed with Enter key events. The whole string must land
+        // in the body intact, and submit must not fire.
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        for c in "line1\nline2\nline3".chars() {
+            if c == '\n' {
+                handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+            } else {
+                handle_key(&mut app, KeyCode::Char(c), KeyModifiers::NONE).unwrap();
+            }
+        }
+        assert_eq!(app.capture.body, "line1\nline2\nline3");
+        assert_eq!(app.pending_action, None);
+    }
+
+    #[test]
+    fn enter_in_target_still_advances_to_body() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+        // List screen opens on the target field, prefilled with a grove.
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Target);
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Body);
         assert_eq!(app.pending_action, None);
     }
 

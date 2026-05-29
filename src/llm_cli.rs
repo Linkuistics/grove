@@ -94,7 +94,8 @@ pub struct LeafAddArgs {
     /// Leaf kind, written into the templated `**Kind:**` line.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
-    /// Target node directory. Default: current working directory.
+    /// Target node directory. Absolute, relative to the cwd, or relative to
+    /// the grove root (`.grove/`). Default: the grove root.
     #[arg(long = "node")]
     pub node: Option<PathBuf>,
 }
@@ -106,7 +107,8 @@ pub struct LeafInsertArgs {
     /// Leaf kind, written into the templated `**Kind:**` line.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
-    /// Target node directory. Default: current working directory.
+    /// Target node directory. Absolute, relative to the cwd, or relative to
+    /// the grove root (`.grove/`). Default: the grove root.
     #[arg(long = "node")]
     pub node: Option<PathBuf>,
 }
@@ -276,12 +278,37 @@ fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     Ok(())
 }
 
+// Resolve the target node directory for `leaf-add` / `leaf-insert`. The leaf
+// verbs run from the worktree root (not from inside `.grove/`), so cwd is the
+// wrong anchor — `cmd_pick` and `cmd_brief_chain` both resolve against
+// `worktree/.grove`, and the leaf verbs must agree or a leaf created from the
+// worktree root lands one level above `.grove/` where `pick` never sees it.
+//
+// - no `--node`        → the grove root (`worktree/.grove`)
+// - absolute `--node`  → used verbatim
+// - relative `--node`  → tried cwd-relative first, then grove-root-relative,
+//   mirroring `leaf_ops::resolve_leaf`. Falls back to the cwd-relative path so
+//   a genuinely missing node surfaces the intuitive path in the error.
 fn resolve_node(arg: Option<&std::path::Path>) -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::git_toplevel(&cwd)?;
+    let grove_root = worktree.join(".grove");
     let node = match arg {
+        None => grove_root,
         Some(p) if p.is_absolute() => p.to_path_buf(),
-        Some(p) => cwd.join(p),
-        None => cwd,
+        Some(p) => {
+            let cwd_rel = cwd.join(p);
+            if cwd_rel.is_dir() {
+                cwd_rel
+            } else {
+                let grove_rel = grove_root.join(p);
+                if grove_rel.is_dir() {
+                    grove_rel
+                } else {
+                    cwd_rel
+                }
+            }
+        }
     };
     Ok(node)
 }

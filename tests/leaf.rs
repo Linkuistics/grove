@@ -188,6 +188,45 @@ fn add_with_planning_kind_writes_planning_in_template() {
     assert!(body.contains("**Kind:** planning\n"), "got {body:?}");
 }
 
+#[test]
+fn add_without_node_defaults_to_grove_root() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# root — brief\n");
+    stage_all(tmp.path());
+
+    // Run from the worktree root with no --node: the leaf must land under
+    // `.grove/` (where `pick` walks), not at the worktree root.
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "stray"]);
+    assert!(ok, "leaf-add without --node failed");
+    assert_eq!(
+        rel_path(&stdout, tmp.path()),
+        PathBuf::from(".grove/010-stray.md"),
+        "leaf must default to .grove/, not the worktree root"
+    );
+    assert!(
+        !tmp.path().join("010-stray.md").exists(),
+        "leaf leaked to the worktree root"
+    );
+}
+
+#[test]
+fn add_with_grove_root_relative_node_resolves_under_grove() {
+    let tmp = init_repo();
+    let node = tmp.path().join(".grove/020-target");
+    touch(&node.join("BRIEF.md"), "# 020-target — brief\n");
+    stage_all(tmp.path());
+
+    // `--node 020-target` (no `.grove/` prefix) is grove-root-relative, matching
+    // the leaf_ops resolution. It must resolve to `.grove/020-target`.
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "first", "--node", "020-target"]);
+    assert!(ok, "leaf-add with grove-root-relative --node failed");
+    assert_eq!(
+        rel_path(&stdout, tmp.path()),
+        PathBuf::from(".grove/020-target/010-first.md")
+    );
+}
+
 // ---------------------------------------------------------------------------
 // leaf-insert
 
@@ -359,6 +398,27 @@ fn insert_surfaces_cross_references_on_stderr() {
     assert!(stderr.contains("050-"), "expected 050- in stderr, got {stderr:?}");
 }
 
+#[test]
+fn insert_without_node_defaults_to_grove_root() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# root — brief\n");
+    touch(&grove.join("010-alpha.md"), "# 010-alpha\n");
+    stage_all(tmp.path());
+
+    // Run from the worktree root with no --node: insert targets `.grove/`.
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-insert", "010-zero"]);
+    assert!(ok, "leaf-insert without --node failed");
+    assert_eq!(
+        rel_path(&stdout, tmp.path()),
+        PathBuf::from(".grove/010-zero.md"),
+        "inserted leaf must default to .grove/, not the worktree root"
+    );
+    // The pre-existing sibling shifted up by ten, inside `.grove/`.
+    assert!(tmp.path().join(".grove/020-alpha.md").is_file());
+    assert!(!tmp.path().join("010-zero.md").exists(), "leaf leaked to worktree root");
+}
+
 // ---------------------------------------------------------------------------
 // CLI surface
 
@@ -372,6 +432,20 @@ fn leaf_add_and_insert_listed_in_grove_llm_help() {
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(s.contains("leaf-add"), "missing leaf-add: {s}");
     assert!(s.contains("leaf-insert"), "missing leaf-insert: {s}");
+}
+
+#[test]
+fn leaf_add_help_no_longer_claims_cwd_default() {
+    let out = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .args(["leaf-add", "--help"])
+        .output()
+        .unwrap();
+    let s = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        !s.contains("current working directory"),
+        "leaf-add --help still claims the cwd default: {s}"
+    );
 }
 
 #[test]

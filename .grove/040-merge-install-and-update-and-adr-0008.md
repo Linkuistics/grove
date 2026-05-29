@@ -34,20 +34,25 @@ write ADR-0008 documenting the Cargo-vs-Homebrew trade-off.
   - `path-scoped commit` + `install scope` (from `CONTEXT.md`) continue
     to apply.
 - **Decision (2026-05-29, while implementing [[020-extend-status-with-worktree-versions]]):**
-  store the **stripped** version in `VERSION.md`. The leading `v` is a
-  git-tag artifact — `3.0.1` is the version's identity and matches
-  `CARGO_PKG_VERSION`. `version_md::write` should `strip_v` the stamp it
-  writes so the stored artifact is canonical and directly comparable to
-  the cli version. **Critical constraint:** in `src/install.rs` the
-  `version` string does double duty — it is also the *fetch ref*
-  (`fetch_tarball(&version)` → `.../refs/tags/v3.0.1.tar.gz`). Strip
-  **only** the stamp, never the fetch ref; `latest_version()` and
-  `--version` keep returning/accepting the `v`-prefixed tag. The
-  read-side `status::strip_v` stays as a backward-compat shim for stamps
-  already materialised with the `v` (it is no longer load-bearing once
-  new writes are canonical). This dovetails with the per-harness compare
-  below: comparing canonical stored stamps to the target is cleaner if
-  both sides are normalised via `status::same_version`.
+  store the **canonical** (stripped) version in `VERSION.md`. The leading
+  `v` is a git-tag artifact — `3.0.1` is the version's identity and
+  matches `CARGO_PKG_VERSION`. `version_md::write` strips a leading `v`
+  from the stamp it writes so the stored artifact is canonical. **Critical
+  constraint:** in `src/install.rs` the `version` string does double duty
+  — it is also the *fetch ref* (`fetch_tarball(&version)` →
+  `.../refs/tags/v3.0.1.tar.gz`). Strip **only** the stamp, never the
+  fetch ref; `latest_version()` and `--version` keep returning/accepting
+  the `v`-prefixed tag. Concretely: compute `canonical = strip_v(target)`
+  once, fetch with the raw `target`, store `canonical`, and run the
+  idempotency compare (below) as `stored == canonical` — both sides
+  canonical. **No read-side compat shim anywhere:** [[020-extend-status-with-worktree-versions]]
+  removed all `v`-normalisation from `status` (comparison and display are
+  plain `==` / verbatim). That is sound because this binary ships only
+  under a new version number, so once writes are canonical any stamp
+  still bearing a `v` is a genuinely-older pre-v4 release and `!=` drift
+  is the correct verdict (see the glossary drift-rule entry). Do **not**
+  reintroduce `strip_v` on the read/compare side; the only `strip_v` is
+  here, normalising the incoming tag.
 
 ## Done when
 

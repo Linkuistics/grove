@@ -67,18 +67,18 @@ fn render(repo_path: &Path) -> Result<String> {
     // Header section: the `cli` layer plus each harness's `repo` layer.
     out.push_str(&format!(
         "grove cli {}, installs in {}:\n",
-        strip_v(CLI_VERSION),
+        CLI_VERSION,
         repo_path.display()
     ));
     for (name, ver) in &repo_versions {
         match ver {
-            Some(v) => out.push_str(&format!("  {} → {}\n", name, strip_v(v))),
+            Some(v) => out.push_str(&format!("  {} → {}\n", name, v)),
             None => out.push_str(&format!("  {} → (unknown version)\n", name)),
         }
     }
     let mut distinct: Vec<&str> = repo_versions
         .values()
-        .filter_map(|o| o.as_deref().map(strip_v))
+        .filter_map(|o| o.as_deref())
         .collect();
     distinct.sort();
     distinct.dedup();
@@ -198,35 +198,27 @@ fn gather_grove(
 /// - Worktree vs repo and worktree vs cli are each flagged with `⚠` on a raw
 ///   string mismatch — no semver interpretation (the reader works out the
 ///   major/minor/patch significance).
+///
+/// Comparison and display are plain string equality with **no** `v`-prefix
+/// normalisation: from v4 onward `grove install` stores the canonical stamp
+/// (no leading `v` — see leaf 040), and this binary only ships under a new
+/// version number, so any stamp still bearing a `v` is necessarily a pre-v4
+/// release — genuinely older than the running code. Flagging it as drift is
+/// the correct verdict, not a false positive; do not re-add `v`-stripping.
 fn version_segment(worktree: &Option<String>, repo: &Option<String>, cli: &str) -> String {
     let Some(wt) = worktree else {
         return "worktree=(unknown)".to_string();
     };
-    let mut s = format!("worktree={}", strip_v(wt));
+    let mut s = format!("worktree={}", wt);
     match repo {
         None => s.push_str(" repo=(none)"),
-        Some(r) if !same_version(r, wt) => s.push_str(&format!(" ⚠ repo={}", strip_v(r))),
+        Some(r) if r != wt => s.push_str(&format!(" ⚠ repo={}", r)),
         Some(_) => {}
     }
-    if !same_version(cli, wt) {
-        s.push_str(&format!(" ⚠ cli={}", strip_v(cli)));
+    if cli != wt {
+        s.push_str(&format!(" ⚠ cli={}", cli));
     }
     s
-}
-
-/// Strip the optional leading `v`/`V` from a version stamp. The prefix is a
-/// git-tag artifact (release tags are `v3.0.1`; `CARGO_PKG_VERSION` is `3.0.1`)
-/// and never belongs in output or in a comparison.
-pub fn strip_v(s: &str) -> &str {
-    s.strip_prefix('v').or_else(|| s.strip_prefix('V')).unwrap_or(s)
-}
-
-/// Whether two version stamps name the same release. Raw string comparison —
-/// no semver interpretation — after [`strip_v`] normalises the optional tag
-/// prefix. Shared so the TUI (leaf 050) applies the identical rule and does
-/// not reintroduce the `v`-prefix false positive.
-pub fn same_version(a: &str, b: &str) -> bool {
-    strip_v(a) == strip_v(b)
 }
 
 /// Recursively count `.md` files in `dir`. Returns (live_count, done_count).
@@ -264,11 +256,14 @@ mod tests {
     }
 
     // --- version_segment: the five required drift cases -------------------
+    //
+    // Stamps are canonical (no leading `v`) from v4 onward; these inputs model
+    // that world. Comparison and display are plain string equality.
 
     #[test]
     fn segment_aligned_shows_only_worktree() {
         assert_eq!(
-            version_segment(&s("v4.0.0"), &s("v4.0.0"), "v4.0.0"),
+            version_segment(&s("4.0.0"), &s("4.0.0"), "4.0.0"),
             "worktree=4.0.0"
         );
     }
@@ -276,7 +271,7 @@ mod tests {
     #[test]
     fn segment_flags_drift_between_worktree_and_repo() {
         assert_eq!(
-            version_segment(&s("v3.0.1"), &s("v4.0.0"), "v3.0.1"),
+            version_segment(&s("3.0.1"), &s("4.0.0"), "3.0.1"),
             "worktree=3.0.1 ⚠ repo=4.0.0"
         );
     }
@@ -284,7 +279,7 @@ mod tests {
     #[test]
     fn segment_flags_drift_between_worktree_and_cli() {
         assert_eq!(
-            version_segment(&s("v3.0.1"), &s("v3.0.1"), "v4.0.0"),
+            version_segment(&s("3.0.1"), &s("3.0.1"), "4.0.0"),
             "worktree=3.0.1 ⚠ cli=4.0.0"
         );
     }
@@ -292,7 +287,7 @@ mod tests {
     #[test]
     fn segment_unknown_worktree_is_not_drift() {
         assert_eq!(
-            version_segment(&None, &s("v4.0.0"), "v4.0.0"),
+            version_segment(&None, &s("4.0.0"), "4.0.0"),
             "worktree=(unknown)"
         );
     }
@@ -300,39 +295,27 @@ mod tests {
     #[test]
     fn segment_orphan_worktree_shows_repo_none_without_warning() {
         assert_eq!(
-            version_segment(&s("v4.0.0"), &None, "v4.0.0"),
+            version_segment(&s("4.0.0"), &None, "4.0.0"),
             "worktree=4.0.0 repo=(none)"
-        );
-    }
-
-    #[test]
-    fn segment_strips_leading_v_for_display() {
-        // The leading `v` is a git-tag artifact; it never appears in output.
-        assert_eq!(
-            version_segment(&s("v3.0.1"), &s("v4.0.0"), "v3.0.1"),
-            "worktree=3.0.1 ⚠ repo=4.0.0"
-        );
-    }
-
-    #[test]
-    fn segment_tolerates_v_prefix_against_cargo_version() {
-        // VERSION.md stamps carry the release-tag `v` prefix; CARGO_PKG_VERSION
-        // does not. `v3.0.1` and `3.0.1` are the same release, not drift.
-        assert_eq!(
-            version_segment(&s("v3.0.1"), &s("v3.0.1"), "3.0.1"),
-            "worktree=3.0.1"
-        );
-        assert_eq!(
-            version_segment(&s("v3.0.1"), &s("3.0.1"), "v3.0.1"),
-            "worktree=3.0.1"
         );
     }
 
     #[test]
     fn segment_orphan_still_flags_cli_drift() {
         assert_eq!(
-            version_segment(&s("v3.0.1"), &None, "v4.0.0"),
+            version_segment(&s("3.0.1"), &None, "4.0.0"),
             "worktree=3.0.1 repo=(none) ⚠ cli=4.0.0"
+        );
+    }
+
+    #[test]
+    fn segment_v_prefixed_stamp_reads_as_pre_v4_drift() {
+        // A stamp still bearing the git-tag `v` is a pre-v4 release: older than
+        // the canonical v4 code, so plain `!=` correctly flags drift and the
+        // verbatim `v` value is shown. No normalisation masks it.
+        assert_eq!(
+            version_segment(&s("v3.0.1"), &s("4.0.0"), "4.0.0"),
+            "worktree=v3.0.1 ⚠ repo=4.0.0 ⚠ cli=4.0.0"
         );
     }
 
@@ -388,12 +371,13 @@ mod tests {
     fn render_flags_repo_drift_on_the_grove_row() {
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path();
-        install_repo(repo, "claude", "v4.0.0");
-        install_worktree(repo, "alpha", "claude", "v3.0.1");
+        // Worktree aligned with the running cli, repo install ahead of both.
+        install_repo(repo, "claude", "9.9.9");
+        install_worktree(repo, "alpha", "claude", CLI_VERSION);
 
         let out = render(repo).unwrap();
         assert!(
-            out.contains("worktree=3.0.1 ⚠ repo=4.0.0"),
+            out.contains(&format!("worktree={} ⚠ repo=9.9.9", CLI_VERSION)),
             "repo drift marker missing:\n{out}"
         );
     }

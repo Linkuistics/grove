@@ -123,6 +123,9 @@ struct DetailState {
     grove: String,
     /// Selected row in the flattened task-tree view.
     tree: ListState,
+    /// Selected pending observation in the inbox pane. Kept distinct from
+    /// `tree` so each pane remembers its own cursor across `Tab` switches.
+    inbox: ListState,
     right: RightPane,
     /// Scroll offset for the right pane (lines from top).
     right_scroll: u16,
@@ -566,9 +569,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             {
                 let mut tree = ListState::default();
                 tree.select(Some(0));
+                let mut inbox = ListState::default();
+                inbox.select(Some(0));
                 app.detail = Some(DetailState {
                     grove: g,
                     tree,
+                    inbox,
                     right: RightPane::LeafBody,
                     right_scroll: 0,
                 });
@@ -589,18 +595,10 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             }
         }
         (Screen::GroveDetail, KeyCode::Down | KeyCode::Char('j')) => {
-            let rows = flat_rows_len(app);
-            if let Some(d) = app.detail.as_mut() {
-                move_selection(&mut d.tree, rows as isize, 1);
-                d.right_scroll = 0;
-            }
+            move_detail_selection(app, 1);
         }
         (Screen::GroveDetail, KeyCode::Up | KeyCode::Char('k')) => {
-            let rows = flat_rows_len(app);
-            if let Some(d) = app.detail.as_mut() {
-                move_selection(&mut d.tree, rows as isize, -1);
-                d.right_scroll = 0;
-            }
+            move_detail_selection(app, -1);
         }
         (Screen::GroveDetail, KeyCode::PageDown) => {
             if let Some(d) = app.detail.as_mut() {
@@ -721,6 +719,31 @@ fn move_selection(state: &mut ListState, len: isize, delta: isize) {
 
 fn flat_rows_len(app: &App) -> usize {
     flatten_for(app).len()
+}
+
+fn inbox_len(app: &App) -> usize {
+    app.detail
+        .as_ref()
+        .and_then(|d| app.view.grove(&d.grove))
+        .map(|gd| gd.inbox.len())
+        .unwrap_or(0)
+}
+
+/// Move the selection in whichever detail-screen pane currently owns `j`/`k`:
+/// the inbox list while the Inbox pane is focused, the task tree otherwise.
+/// Lengths are read before the mutable borrow of `app.detail` to avoid
+/// aliasing `app.view`.
+fn move_detail_selection(app: &mut App, delta: isize) {
+    let rows = flat_rows_len(app);
+    let inbox = inbox_len(app);
+    if let Some(d) = app.detail.as_mut() {
+        if d.right == RightPane::Inbox {
+            move_selection(&mut d.inbox, inbox as isize, delta);
+        } else {
+            move_selection(&mut d.tree, rows as isize, delta);
+        }
+        d.right_scroll = 0;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -987,13 +1010,82 @@ fn render_grove_detail(f: &mut Frame, area: Rect, app: &App) {
     }
     f.render_stateful_widget(left_list, left, &mut tree_state);
 
-    // Right pane.
-    let (title, body) = right_pane_content(app, grove_detail, &rows);
-    let para = Paragraph::new(body)
+    // Right pane. The inbox pane is a selectable list over a body view; the
+    // other panes are a single scrollable paragraph.
+    if detail.right == RightPane::Inbox {
+        render_inbox_pane(f, right, app, grove_detail);
+    } else {
+        let (title, body) = right_pane_content(app, grove_detail, &rows);
+        let para = Paragraph::new(body)
+            .block(Block::default().borders(Borders::ALL).title(title))
+            .wrap(Wrap { trim: false })
+            .scroll((detail.right_scroll, 0));
+        f.render_widget(para, right);
+    }
+}
+
+/// Render the inbox right-pane: a selectable list of pending observation
+/// filenames on top, the selected entry's body below. Bodies are read on
+/// demand (`repo_view::read_path`); the scan loads none.
+fn render_inbox_pane(f: &mut Frame, area: Rect, app: &App, detail: Option<&GroveDetail>) {
+    let Some(d) = app.detail.as_ref() else {
+        return;
+    };
+    let Some(detail) = detail else {
+        let para = Paragraph::new(String::new())
+            .block(Block::default().borders(Borders::ALL).title("inbox — no snapshot"));
+        f.render_widget(para, area);
+        return;
+    };
+
+    let title = format!("inbox ({})", detail.inbox.len());
+    if detail.inbox.is_empty() {
+        let para = Paragraph::new("(no pending observations)")
+            .block(Block::default().borders(Borders::ALL).title(title))
+            .wrap(Wrap { trim: false });
+        f.render_widget(para, area);
+        return;
+    }
+
+    let [list_area, body_area] =
+        Layout::vertical([Constraint::Percentage(40), Constraint::Min(0)]).areas(area);
+
+    // List of observation filenames.
+    let items: Vec<ListItem> = detail
+        .inbox
+        .iter()
+        .map(|p| {
+            let name = p
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            ListItem::new(Line::from(name))
+        })
+        .collect();
+    let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(title))
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+    let mut state = d.inbox.clone();
+    if let Some(sel) = state.selected() {
+        if sel >= detail.inbox.len() {
+            state.select(Some(detail.inbox.len() - 1));
+        }
+    } else {
+        state.select(Some(0));
+    }
+    f.render_stateful_widget(list, list_area, &mut state);
+
+    // Body of the selected entry.
+    let body = state
+        .selected()
+        .and_then(|i| detail.inbox.get(i))
+        .map(|p| repo_view::read_path(p).unwrap_or_else(|e| format!("(error: {})", e)))
+        .unwrap_or_default();
+    let body_para = Paragraph::new(body)
+        .block(Block::default().borders(Borders::ALL).title("body"))
         .wrap(Wrap { trim: false })
-        .scroll((detail.right_scroll, 0));
-    f.render_widget(para, right);
+        .scroll((d.right_scroll, 0));
+    f.render_widget(body_para, body_area);
 }
 
 fn right_pane_content(
@@ -1027,24 +1119,9 @@ fn right_pane_content(
                 (format!("leaf — {}", row.name), body)
             }
         }
-        RightPane::Inbox => {
-            let title = format!("inbox ({})", detail.inbox.len());
-            if detail.inbox.is_empty() {
-                (title, "(no pending observations)".into())
-            } else {
-                let body = detail
-                    .inbox
-                    .iter()
-                    .map(|p| {
-                        p.file_name()
-                            .map(|n| n.to_string_lossy().into_owned())
-                            .unwrap_or_default()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                (title, body)
-            }
-        }
+        // The inbox pane is rendered by `render_inbox_pane` (selectable list +
+        // body), not as a single paragraph, so it never reaches here.
+        RightPane::Inbox => unreachable!("inbox pane is rendered by render_inbox_pane"),
         RightPane::Brief => {
             let brief_path = enclosing_brief(detail, selected);
             match brief_path {
@@ -1118,6 +1195,7 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Enter         drill into grove (list screen)"),
         Line::from("  Esc / q       back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
+        Line::from("                  in the inbox pane, j/k select an observation"),
         Line::from("  PgUp / PgDn   scroll right pane"),
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
         Line::from("  c             capture an observation to a grove's inbox"),
@@ -1280,6 +1358,17 @@ mod tests {
         touch(&alpha.join("020-node/BRIEF.md"), "# 020-node — brief\n");
         touch(&alpha.join("020-node/010-child.md"), "# 010-child\n");
         touch(&alpha.join("done/000-old.md"), "# old\n");
+        // alpha has two pending inbox observations (sorted chronologically).
+        let alpha_inbox = root.join(".grove-meta/inboxes/alpha");
+        fs::create_dir_all(&alpha_inbox).unwrap();
+        touch(
+            &alpha_inbox.join("2026-05-27T09-00-00Z-aaa-1111.md"),
+            "first alpha observation body\n",
+        );
+        touch(
+            &alpha_inbox.join("2026-05-28T09-00-00Z-bbb-2222.md"),
+            "second alpha observation body\n",
+        );
         // Seed for grove "beta": inbox only, no worktree.
         let beta_inbox = root.join(".grove-meta/inboxes/beta");
         fs::create_dir_all(&beta_inbox).unwrap();
@@ -1355,14 +1444,58 @@ mod tests {
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
-        // leaf → inbox
+        // leaf → inbox: alpha has pending observations, so the list + body render.
         handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
         let out = render_to_buffer(&app, 100, 16);
-        assert!(out.contains("no pending observations"), "inbox empty msg missing:\n{}", out);
+        assert!(out.contains("inbox (2)"), "inbox count title missing:\n{}", out);
+        assert!(out.contains("aaa-1111"), "observation filename missing:\n{}", out);
         // inbox → brief
         handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
         let out = render_to_buffer(&app, 100, 16);
         assert!(out.contains("alpha — brief"), "root brief missing:\n{}", out);
+    }
+
+    #[test]
+    fn inbox_pane_jk_moves_inbox_selection_not_tree() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Focus the inbox pane.
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        let tree_before = app.detail.as_ref().unwrap().tree.selected();
+        assert_eq!(app.detail.as_ref().unwrap().inbox.selected(), Some(0));
+        // j moves the inbox selection, leaving the tree cursor untouched.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        let d = app.detail.as_ref().unwrap();
+        assert_eq!(d.inbox.selected(), Some(1), "inbox selection should advance");
+        assert_eq!(d.tree.selected(), tree_before, "tree selection must not move");
+        // The selected entry's body renders.
+        let out = render_to_buffer(&app, 100, 20);
+        assert!(
+            out.contains("second alpha observation body"),
+            "selected body missing:\n{}",
+            out
+        );
+    }
+
+    #[test]
+    fn inbox_selection_survives_pane_cycle() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap(); // select #1
+        // Cycle all the way around: inbox → brief → leaf → inbox.
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        assert_eq!(
+            app.detail.as_ref().unwrap().inbox.selected(),
+            Some(1),
+            "inbox selection must persist across Tab cycling"
+        );
     }
 
     #[test]

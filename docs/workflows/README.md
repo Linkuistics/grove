@@ -8,7 +8,7 @@ End-to-end, per-verb walks through grove's main flows: each shows the command(s)
 2. [**`update.md`**](update.md) — refresh an existing materialisation by re-running the idempotent `grove install`, including the per-harness outcome line, the ADR-bump nudge, and the no-op-refresh behaviour.
 3. [**`start.md`**](start.md) — open a new grove with `grove do` (its new-grove path): worktree creation, branching, the harness exec, and the bootstrap session that writes the root `BRIEF.md`.
 4. [**`multi-step.md`**](multi-step.md) — the inner loop across several sessions: `grove do` cadence, leaf-vs-node retirement, the manual `grove retire <name>/<node-path>` verb, and `grove takeover` for orientation.
-5. [**`finish.md`**](finish.md) — close out a completed grove: promote durable content out of `.grove/`, delete the scaffolding, merge per project convention, clean up worktree and branch. (Finishing is now an **in-session** step, not a `grove finish` verb — the page carries a pending-rewrite note.)
+5. [**`finish.md`**](finish.md) — close out a completed grove: the **in-session** complete finish cycle (there is no `grove finish` verb) — triggered by an empty `grove-llm pick`, gated by one confirmation, it promotes durable content out of `.grove/`, deletes the scaffolding, merges to the default branch, and removes the worktree and branch.
 
 ## Running example
 

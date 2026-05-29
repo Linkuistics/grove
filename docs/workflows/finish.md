@@ -1,10 +1,8 @@
-# `grove finish` — walkthrough
+# Finishing a grove — walkthrough
 
-> ⚠️ **Superseded — pending rewrite.** The `grove finish` *verb* has been removed: `grove do` is now the sole lifecycle entry verb, and finishing a grove is an **in-session** step (when the grove has no live leaves left, the running loop proposes the complete finish cycle). The step-by-step flow below still describes the *what* — promote durable output, delete `.grove/`, merge, drop the branch and worktree — but the *trigger* is no longer a `grove finish` invocation. This walkthrough (and the `prompts/finish.md` launcher prompt it references) will be rewritten to the in-session model once that flow is designed (grove leaf `020-do-proposes-finish-cycle`). Read the command invocations below as historical until then.
+Close out a completed grove. There is no `grove finish` verb: `grove do` is the sole lifecycle entry verb, and finishing is an **in-session** step. When a grove has no live leaves left, the running session proposes the **complete finish cycle** and, on one confirmation, carries it out end to end. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, the scaffolding has been deleted in a focused commit, the branch has been merged into `acme/orders-api`'s default branch, and the worktree and branch are gone. The default branch shows the grove's history as a contiguous run of commits — no `.grove/` left behind.
 
-Close out a completed grove. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, the scaffolding has been deleted in a focused commit, the branch has been merged into `acme/orders-api`'s default branch, and the worktree is gone. The default branch shows the grove's history as a contiguous run of commits — no `.grove/` left behind.
-
-> This page is about driving the **grove CLI**. For *why a finished grove must not leave its scaffolding on the default branch*, see [`../grove.md`](../grove.md); for what the harness session does step-by-step, the canonical instructions are in [`../../content/prompts/finish.md`](../../content/prompts/finish.md).
+> This page is about driving the **grove CLI** through its finish step. For *why a finished grove must not leave its scaffolding on the default branch*, see [`../grove.md`](../grove.md); for the canonical step-by-step the session follows, the source of truth is the **Finish** step of the methodology in [`../../content/SKILL.md`](../../content/SKILL.md) (materialised per harness at `.claude/skills/grove/SKILL.md`), with the step-level design rationale in [`../adr/0010-in-session-finish-cycle.md`](../adr/0010-in-session-finish-cycle.md).
 
 ## Starting state
 
@@ -32,20 +30,35 @@ b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
 
 The implementation is committed; the design intent has been recorded as an ADR; the root `BRIEF.md` has had design intent promoted into it from the retired node. The grove is done. Time to wrap up.
 
-## `grove finish` is a harness launcher
+## The trigger is an empty pick, not a verb
+
+There is nothing to *launch*. You finish a grove from inside an ordinary session — the same `grove do` you would run to do the next task:
 
 ```
-$ grove finish add-rate-limiting
+$ grove do add-rate-limiting
 ```
 
-The CLI does not delete, promote, or merge anything itself. It exec's the harness in the worktree with the **finish prompt** (`prompts/finish.md` in the materialised content) and lets the session conduct the four-step wrap-up:
+`grove do` opens the continue session as always. Its first move is to pick the next live leaf — and this time the walk finds none:
+
+```
+$ grove-llm pick
+# (no output on stdout)
+# stderr: no live leaves; this grove is done
+```
+
+An empty `pick` (exit 0, nothing on stdout, *"no live leaves; this grove is done"* on stderr) is the finish trigger. The session recognises it and switches from "do the next task" to "propose the complete finish cycle." No CLI-side finished-detection is involved; the methodology in `SKILL.md` drives the whole thing.
+
+## The complete finish cycle is five steps
+
+The session proposes the cycle as five ordered steps:
 
 1. **Promote** anything from `.grove/`'s briefs that should outlive the grove — to an ADR, a design doc, or `CONTEXT.md`.
-2. **Delete** `.grove/` in one focused commit.
-3. **Merge** the branch into the default branch per this project's convention.
-4. **Remove** the worktree and delete the branch.
+2. **Delete** `.grove/` in one focused commit on the grove branch.
+3. **Merge** the branch into the default branch (`git -C <repo> merge <name>`).
+4. **Remove** the worktree.
+5. **Delete** the branch.
 
-Steps 1–3 happen *inside* the running harness session. Step 4 is awkward because the session lives inside the worktree it is about to remove — see the cleanup note below.
+Step 1 is ordinary, reviewable session work — its edits land in the diff like any other commit. Steps 2–5 are the mechanical teardown, and they are gated by **one** confirmation (see below). Two details that the seed sketch of this cycle got wrong and are worth internalising: **worktree-remove precedes branch-delete** (git refuses `git branch -d` on a branch checked out in a live worktree), and the teardown runs against the main repo with `git -C <repo>` rather than `cd`-ing — the session is standing *inside* the worktree it is about to remove, so it never changes its own directory out from under itself.
 
 ## Step 1: promotion is where judgement lives
 
@@ -57,7 +70,7 @@ This is the highest-stakes step. Anything load-bearing that *only* lives in `.gr
 
 What is *not* promoted: process scaffolding. Decomposition rationale, planning notes, the order in which things were tackled — those are exactly what `.grove/` exists to hold, and they exit when the directory exits. If the discipline of "what to promote vs. what to delete" feels unclear, the litmus is: would a reader who never opens `.grove/` ever need this? If yes, promote; if no, let it go.
 
-The session commits the promotion(s) as one or more focused commits before moving to step 2:
+The session commits the promotion(s) as one or more focused commits before moving on:
 
 ```
 $ git log --oneline -2
@@ -65,9 +78,28 @@ $ git log --oneline -2
 a9b8c7d chore(grove): retire 030-implement
 ```
 
-If `.grove/` carried nothing worth promoting (a small grove whose conclusions were entirely captured in its commits and ADRs as it went), this step produces no commits at all — just an explicit check that nothing was left behind.
+If `.grove/` carried nothing worth promoting (a small grove whose conclusions were entirely captured in its commits and ADRs as it went), this step produces no commits at all — just an explicit check that nothing was left behind. Because promotion is normal reviewable work, it happens *before* the confirmation gate: the diff is there to inspect when you decide whether to proceed.
+
+## The confirmation gate
+
+With promotion done, the session presents the concrete teardown plan and **waits** for explicit confirmation before running anything destructive:
+
+```
+Ready to finish grove `add-rate-limiting`. This will:
+  2. delete .grove/ in one commit
+  3. merge add-rate-limiting → main (in ~/code/acme/orders-api)
+  4. remove worktree ~/code/acme/orders-api/.grove-worktrees/add-rate-limiting
+  5. delete branch add-rate-limiting
+Proceed? (yes/no)
+```
+
+One gate, not five. Per-step confirmation was rejected as a flow-breaking "wizard" — and it would buy nothing, because nothing in the cycle is irreversible in git: the `.grove/` deletion is a commit, the merge is revertible, deleting a *merged* branch loses nothing, and a removed worktree is re-attachable. The real risk the gate guards against is finishing the *wrong* grove, which one clear plan-and-confirm addresses. The plan names the merge target, the worktree path, and the branch so that risk is visible.
+
+This single rule also makes the cycle safe **headless**, with no mode detection: the session proposes the teardown and waits. An interactive run gets a confirmation and proceeds; a headless run with no human present simply ends the turn with the plan as output and runs nothing destructive.
 
 ## Step 2: delete `.grove/` in one focused commit
+
+On confirmation, the session removes the scaffolding:
 
 ```
 $ git rm -r .grove
@@ -88,31 +120,19 @@ $ tree -L 1
 └── tests
 ```
 
-No `.grove/` left. The worktree still exists on disk (you are standing in it), but it now looks like any other branch of `acme/orders-api`.
+No `.grove/` left. The worktree still exists on disk (the session is standing in it), but it now looks like any other branch of `acme/orders-api`.
 
-## Step 3: merge into the default branch per project convention
+## Step 3: merge into the default branch
 
-grove guides, it does not gate (constraint 5). The CLI takes no opinion on *how* the grove branch lands on `main`; the project's convention does. Three common shapes, pick whichever matches yours:
+The canonical cycle uses a **plain `git merge`**, run against the main repo so the session never has to leave the worktree:
 
 ```
-# Fast-forward merge (small, single-author grove, no PR review required):
-$ git -C ~/code/acme/orders-api checkout main
-$ git -C ~/code/acme/orders-api merge --ff-only add-rate-limiting
-
-# Squash merge (collapse the grove's history into one main commit):
-$ git -C ~/code/acme/orders-api checkout main
-$ git -C ~/code/acme/orders-api merge --squash add-rate-limiting
-$ git -C ~/code/acme/orders-api commit -m "feat: add rate limiting (grove add-rate-limiting)"
-
-# PR-and-rebase (standard team convention):
-$ git push -u origin add-rate-limiting
-$ gh pr create --base main --head add-rate-limiting --title "feat: add rate limiting"
-# ... reviews, then merge via the PR UI
+$ git -C ~/code/acme/orders-api merge add-rate-limiting
 ```
 
-The session running the finish prompt picks whichever shape fits the project and runs the corresponding commands. The convention is the variable; the discipline of one promotion + one deletion *before* the merge is invariant.
+Plain `git merge` fast-forwards when the default branch has not advanced since the grove branched, and makes a merge commit when it has. It never blocks on policy and never manufactures a merge bubble on a clean fast-forward (the reason `--no-ff`-always was rejected). On a genuine conflict the cycle stops and the operator — or the in-session LLM — resolves it before continuing.
 
-After a fast-forward merge, the grove's history appears on `main` as a contiguous run:
+After a fast-forward merge, the grove's history appears on the default branch as a contiguous run:
 
 ```
 $ git -C ~/code/acme/orders-api log --oneline main -8
@@ -126,30 +146,42 @@ b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
 2c4d5e6 Bootstrap add-rate-limiting: root brief + initial leaves
 ```
 
-Under a squash merge, the same range collapses into one commit on `main` — and the grove's per-task history is preserved on the merged-out branch in the reflog and remote, not on `main`. Either is fine; the constraint is that *whatever lands on `main` carries no `.grove/`*.
+grove guides, it does not gate (constraint 5): a team whose convention is squash-or-PR can of course land the branch that way instead — but that is a deliberate deviation the operator drives, not something the in-session cycle chooses. The canonical cycle runs the plain merge; the invariant is one promotion + one deletion *before* whatever merge shape lands.
 
-## Step 4: worktree and branch cleanup
-
-The session is still standing inside the soon-to-be-removed worktree, so the cleanup commands target the main repo directly with `git -C`:
+## Step 4: remove the worktree
 
 ```
 $ git -C ~/code/acme/orders-api worktree remove .grove-worktrees/add-rate-limiting
+```
+
+`git worktree remove` deletes the worktree directory and untracks it from `git worktree list`. It runs before the branch delete because git refuses to delete a branch that is checked out in a live worktree.
+
+## Step 5: delete the branch
+
+```
 $ git -C ~/code/acme/orders-api branch -d add-rate-limiting
 ```
 
-`git worktree remove` deletes the worktree directory and untracks it from `git worktree list`. `git branch -d` deletes the branch *only if it has been merged* into its upstream — which it has, after step 3. (If you squashed, `git branch -d` will refuse because git can't see the squash relationship; `-D` is appropriate there since the squash commit on `main` is the canonical record.)
+`git branch -d` is the *safe* delete — it succeeds only because step 3 merged the branch into the default. (If you deviated to a squash merge in step 3, `git branch -d` will refuse because git can't see the squash relationship; `-D` is appropriate there, since the squash commit on the default branch is the canonical record.)
 
-In practice the harness session running `grove finish` does steps 1–3, then exits, and you run step 4 from the main-repo shell once the session is gone. There is no harm in this split — the work is done; the cleanup is a tidy-up.
+## Resume is read from state, never a marker file
+
+grove keeps no finish-progress file (constraint 1, *artifacts not state*). If a finish is interrupted — a conflicted merge, a closed terminal — you resume by running `grove do add-rate-limiting` again, and the session works out where it stopped from inspectable git and filesystem state:
+
+- The two entry conditions are distinguishable by `grove-llm pick` itself: exit 0 + empty stdout + *"no live leaves; this grove is done"* means `.grove/` is still present (fresh finish, run from step 1); a non-zero exit + *"grove root not found"* means `.grove/` is already gone (steps 1–2 done, resume at the merge).
+- From there each step is guarded: skip 1–2 if `.grove/` is gone; skip 3 if `git -C <repo> merge-base --is-ancestor add-rate-limiting main` passes (already merged); skip 4 if the worktree is gone; skip 5 if the branch is gone; if all are done, report *"already finished"* and stop.
+
+One benign quirk: in the window where the worktree is gone but the branch remains, `grove do` re-attaches the worktree before the session starts, so step 4 simply removes it again — wasteful but convergent.
 
 ## Multi-harness stamp cleanup
 
-If the repo runs multiple harnesses and `.grove-stamps/add-rate-limiting` was written at `grove start` time, remove it alongside the worktree:
+If the repo runs multiple harnesses and `.grove-stamps/add-rate-limiting` was written at `grove do` time (to bind the grove to its harness — see [`start.md`](start.md)), remove it alongside the worktree:
 
 ```
 $ rm ~/code/acme/orders-api/.grove-stamps/add-rate-limiting
 ```
 
-The stamp's sole purpose was to bind the grove to its harness across launcher verbs; with the grove gone, the stamp is dead state. Single-harness repos never had a stamp and have nothing to clean up.
+The stamp's sole purpose was to bind the grove to its harness across verbs; with the grove gone, the stamp is dead state. Single-harness repos never had a stamp and have nothing to clean up.
 
 ## After finishing
 
@@ -161,8 +193,8 @@ $ ls ~/code/acme/orders-api/.grove-worktrees 2>/dev/null || echo "(none)"
 (none)
 ```
 
-The grove is gone. Its durable output — code, ADRs, design docs, glossary entries — lives in the repo on `main`, where every contributor can find it without knowing this grove ever existed.
+The grove is gone. Its durable output — code, ADRs, design docs, glossary entries — lives in the repo on the default branch, where every contributor can find it without knowing this grove ever existed.
 
 ## Codex harness
 
-Identical flow. The harness binary differs, the finish prompt is read from `.codex/skills/grove/prompts/finish.md` rather than `.claude/skills/grove/prompts/finish.md`, and the prompt body is identical. The four steps, the merge-convention freedom, the stamp-cleanup detail, and the post-finish state of `main` are all the same.
+Identical flow. Finishing is an in-session step driven by the same methodology, so there is no per-harness finish prompt to differ — the Codex session reads its loop from `.codex/skills/grove/SKILL.md` rather than `.claude/skills/grove/SKILL.md`, and the body is identical. The trigger (empty `grove-llm pick`), the five steps, the single confirmation gate, the plain merge, and the post-finish state of the default branch are all the same.

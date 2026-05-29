@@ -92,15 +92,14 @@ The resulting commit's subject is whatever you passed; the install scope (and th
 
 ## Re-running on an already-installed repo
 
-`grove install` is **create-only**. If grove is already present at the target path, it refuses rather than overwriting:
+`grove install` is **idempotent** (ADR-0008): re-running it on an already-installed repo is safe and is how you refresh. The verb compares the bundled (canonical) version to each harness's installed stamp and prints a per-harness outcome — no-op when they match, an update when they differ. See the [refresh walkthrough](update.md) for the full update flow; in brief:
 
 ```
 $ grove install
 grove: target /Users/you/code/acme/orders-api @ v2.0.0
-Error: grove already installed at /Users/you/code/acme/orders-api/.claude/skills/grove (use `grove update`)
+grove: /Users/you/code/acme/orders-api/.claude/skills/grove → already at 2.0.0, no change
+grove: no changes to commit
 ```
-
-Use [`grove update`](update.md) to refresh an existing install.
 
 ## Refusing with pre-existing staged changes in scope
 
@@ -110,7 +109,7 @@ Because grove commits using explicit paths, it refuses *only* when something is 
 $ git add .claude/skills/grove/SKILL.md  # imagine a leftover stage from a prior session
 $ grove install
 grove: target /Users/you/code/acme/orders-api @ v2.0.0
-Error: refusing to proceed: install-scope paths have pre-existing staged changes (.claude/skills/grove). Commit or unstage them before running grove install/update.
+Error: refusing to proceed: install-scope paths have pre-existing staged changes (.claude/skills/grove). Commit or unstage them before running grove install.
 ```
 
 The fix is whichever you intended — `git commit` the staged hunks separately, or `git restore --staged .claude/skills/grove` to unstage them — then re-run `grove install`. Unrelated staged hunks elsewhere in the repo are *not* a problem and do not block the install.

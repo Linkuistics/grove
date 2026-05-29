@@ -2,7 +2,19 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 
+/// Strip a single leading `v` from a version/tag string, yielding the
+/// **canonical** form — the identity that `VERSION.md` stores and that
+/// `grove status` compares (`v3.0.1` → `3.0.1`; `3.0.1` → `3.0.1`). Only the
+/// stamp is canonicalised; the git fetch ref keeps its `v` (see
+/// `src/install.rs`, which strips for the stamp/compare but fetches the raw
+/// tag). `CARGO_PKG_VERSION` is already canonical, so once writes are
+/// canonical every stamp in play is — any lingering `v` is genuinely pre-v4.
+pub fn canonical(version: &str) -> &str {
+    version.strip_prefix('v').unwrap_or(version)
+}
+
 pub fn write(install_dir: &Path, harness: &str, version: &str) -> Result<()> {
+    let version = canonical(version);
     let date = today_iso();
     let content = format!(
         "# grove — materialised version\n\
@@ -18,7 +30,7 @@ pub fn write(install_dir: &Path, harness: &str, version: &str) -> Result<()> {
          ## Updating\n\
          \n\
          ```\n\
-         grove update --version <tag>\n\
+         grove install --version <tag>\n\
          ```\n",
     );
     fs::write(install_dir.join("VERSION.md"), content)
@@ -26,7 +38,7 @@ pub fn write(install_dir: &Path, harness: &str, version: &str) -> Result<()> {
     Ok(())
 }
 
-/// Read the `| version | `vX.Y.Z` |` row from a VERSION.md.
+/// Read the `| version | `X.Y.Z` |` row from a VERSION.md (canonical, no `v`).
 pub fn read_version(install_dir: &Path) -> Result<String> {
     let content = fs::read_to_string(install_dir.join("VERSION.md"))
         .with_context(|| format!("reading VERSION.md in {}", install_dir.display()))?;

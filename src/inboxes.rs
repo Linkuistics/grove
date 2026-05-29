@@ -426,7 +426,7 @@ pub(crate) fn require_worktree(repo: &Path) -> Result<PathBuf> {
     let wt = worktree_dir(repo);
     if !wt.is_dir() {
         anyhow::bail!(
-            "grove-meta worktree not present at {} — run `grove install` (or `grove update`) first",
+            "grove-meta worktree not present at {} — run `grove install` first",
             wt.display()
         );
     }

@@ -309,8 +309,8 @@ fn capture_without_materialisation_fails_with_useful_hint() {
     let err = inboxes::capture(repo.path(), "any", "obs", None).unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("grove install") || msg.contains("grove update"),
-        "expected hint to run install/update, got: {msg}"
+        msg.contains("grove install"),
+        "expected hint to run grove install, got: {msg}"
     );
 }
 

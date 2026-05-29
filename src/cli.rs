@@ -10,10 +10,9 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Materialise grove into <repo>'s .<harness>/skills/grove/ (create-only).
+    /// Materialise grove into <repo>'s .<harness>/skills/grove/ (idempotent:
+    /// installs if absent, updates if a different version, no-ops if current).
     Install(InstallArgs),
-    /// Refresh an existing grove install (update-only).
-    Update(InstallArgs),
     /// Remove grove from <repo>.
     Uninstall(UninstallArgs),
     /// Show grove install + grove tree state in <repo>.
@@ -68,7 +67,7 @@ pub enum MetaCommand {
     /// Create the `grove-meta` branch and attach its worktree at
     /// `<repo>/.grove-meta/`. Idempotent: a no-op when both are already in
     /// place (prints the materialised state). Invoked internally by
-    /// `grove install` / `grove update`; invoke explicitly for repos that
+    /// `grove install`; invoke explicitly for repos that
     /// pre-date the feature or whose worktree has been removed.
     Init(MetaInitArgs),
     /// Configure the optional upstream remote for the meta branch.
@@ -264,8 +263,7 @@ pub struct RetireArgs {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
-        Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
+        Command::Install(args) => crate::install::run(&args),
         Command::Uninstall(args) => crate::uninstall::run(&args),
         Command::Status(args) => crate::status::run(&args),
         Command::Start(args)    => crate::launch::start(&args),

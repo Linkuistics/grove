@@ -38,7 +38,7 @@ fn cmd_init(args: &MetaInitArgs) -> Result<()> {
 /// one-line summary of the materialised state to stdout in all cases so the
 /// verb is useful for "is this repo set up?" diagnostics.
 ///
-/// Used by `grove install` / `grove update` via the same code path
+/// Used by `grove install` via the same code path
 /// (`inboxes::materialise`), and exposed as an explicit verb for repos that
 /// pre-date the feature or whose worktree has been removed.
 pub fn init(repo: &Path) -> Result<()> {

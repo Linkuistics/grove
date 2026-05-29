@@ -83,7 +83,7 @@ fn render(repo_path: &Path) -> Result<String> {
     distinct.sort();
     distinct.dedup();
     if distinct.len() > 1 {
-        out.push_str("  ⚠ harnesses are on different versions — `grove update` to align\n");
+        out.push_str("  ⚠ harnesses are on different versions — `grove install` to align\n");
     }
 
     render_groves(repo_path, &repo_versions, &mut out)?;

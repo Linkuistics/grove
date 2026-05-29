@@ -2,7 +2,7 @@ mod common;
 
 use common::{fixture_tarball, StubFetcher};
 use grove::cli::{InstallArgs, NameArgs, StartArgs};
-use grove::install::{run_with_fetcher, Mode};
+use grove::install::run_with_fetcher;
 use grove::launch;
 use std::fs;
 use std::process::Command;
@@ -54,7 +54,6 @@ fn init_repo_with_grove_installed() -> TempDir {
             no_commit: true,
             message: None,
         },
-        Mode::Install,
         &fetcher,
     )
     .unwrap();

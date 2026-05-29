@@ -54,8 +54,7 @@ A project with many concurrent, long-lived workstreams needs each to be reproduc
 From a project repo:
 
 ```
-grove install [<repo>]            # create the .<harness>/skills/grove/ tree
-grove update  [<repo>]            # refresh an existing materialisation
+grove install [<repo>]            # create or refresh the .<harness>/skills/grove/ tree (idempotent)
 grove uninstall [<repo>]          # remove it (refuses if live groves exist; --force overrides)
 grove status [<repo>]             # cli/repo/worktree versions, drift, and per-grove summary
 ```
@@ -66,7 +65,7 @@ All file-system verbs auto-detect the harness from the repo's `.claude/` and `.c
 
 ### Updating
 
-`grove update` refreshes the materialised files in place. By discipline, record version bumps in an ADR (`docs/adr/`) so the update decision is traceable — `VERSION.md` only carries the current version, not the history.
+`grove install` is idempotent (ADR-0008), so refreshing is the same verb: re-run `grove install` (optionally `--version <tag>` to pin) and it updates in place when the bundled version differs, or no-ops when it matches — printing a per-harness outcome line either way. By discipline, record version bumps in an ADR (`docs/adr/`) so the update decision is traceable — `VERSION.md` only carries the current version, not the history.
 
 ## Driving a grove
 

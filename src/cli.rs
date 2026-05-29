@@ -10,18 +10,13 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Materialise grove into <repo>'s .<harness>/skills/grove/ (create-only).
+    /// Materialise grove into <repo>'s .<harness>/skills/grove/ (idempotent:
+    /// installs if absent, updates if a different version, no-ops if current).
     Install(InstallArgs),
-    /// Refresh an existing grove install (update-only).
-    Update(InstallArgs),
     /// Remove grove from <repo>.
     Uninstall(UninstallArgs),
-    /// Show CLI and installed grove version.
-    Version,
     /// Show grove install + grove tree state in <repo>.
     Status(RepoArgs),
-    /// List groves in <repo>, one per line.
-    List(RepoArgs),
     /// Start a new grove: create worktree + launch harness.
     Start(StartArgs),
     /// Continue an existing grove.
@@ -72,7 +67,7 @@ pub enum MetaCommand {
     /// Create the `grove-meta` branch and attach its worktree at
     /// `<repo>/.grove-meta/`. Idempotent: a no-op when both are already in
     /// place (prints the materialised state). Invoked internally by
-    /// `grove install` / `grove update`; invoke explicitly for repos that
+    /// `grove install`; invoke explicitly for repos that
     /// pre-date the feature or whose worktree has been removed.
     Init(MetaInitArgs),
     /// Configure the optional upstream remote for the meta branch.
@@ -191,6 +186,26 @@ pub struct InboxDrainArgs {
 }
 
 #[derive(Parser)]
+pub struct InboxEditArgs {
+    /// Path of the observation to edit (a `.md` file inside
+    /// `inboxes/<name>/` on the `grove-meta` worktree). The addressed grove is
+    /// read off the path.
+    pub path: PathBuf,
+    /// New observation body as an inline string.
+    #[arg(long = "body", conflicts_with_all = ["body_file", "body_stdin"])]
+    pub body: Option<String>,
+    /// New observation body read from a file at the given path.
+    #[arg(long = "body-file", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<PathBuf>,
+    /// Read the new observation body from stdin (single-shot, no prompt).
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
+    /// Target repo (defaults to cwd's git root).
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 pub struct InboxShowArgs {
     /// Name of the grove whose inbox to print.
     pub name: String,
@@ -268,12 +283,9 @@ pub struct RetireArgs {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
-        Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
+        Command::Install(args) => crate::install::run(&args),
         Command::Uninstall(args) => crate::uninstall::run(&args),
-        Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
-        Command::List(args) => crate::list::run(&args),
         Command::Start(args)    => crate::launch::start(&args),
         Command::Continue(args) => crate::launch::continue_grove(&args),
         Command::Do(args)       => crate::launch::do_grove(&args),

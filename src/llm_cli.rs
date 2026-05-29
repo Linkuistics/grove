@@ -8,7 +8,7 @@
 // drops context (parent BRIEF Q3 of leaf 080).
 
 use crate::brief_chain;
-use crate::cli::{InboxAddArgs, InboxDrainArgs};
+use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs};
 use crate::inboxes;
 use crate::leaf;
 use crate::leaf_ops;
@@ -42,6 +42,11 @@ pub enum Command {
     /// `--incorporated`/`--deferred`/`--rejected` paths → finalize by
     /// deleting the triaged files in one commit.
     InboxDrain(InboxDrainArgs),
+    /// Rewrite the body of an existing observation on the `grove-meta` branch.
+    /// Recomputes the filename's content-hash suffix (so capture-dedup stays
+    /// correct) while preserving the capture timestamp and slug; commits and
+    /// pushes best-effort. The addressed grove is read off the path.
+    InboxEdit(InboxEditArgs),
     /// Print the absolute path of the next live leaf in this grove's tree —
     /// depth-first walk of `.grove/` in numeric-prefix order, skipping
     /// `done/`. Empty stdout (and a diagnostic on stderr) when the grove has
@@ -94,7 +99,8 @@ pub struct LeafAddArgs {
     /// Leaf kind, written into the templated `**Kind:**` line.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
-    /// Target node directory. Default: current working directory.
+    /// Target node directory. Absolute, relative to the cwd, or relative to
+    /// the grove root (`.grove/`). Default: the grove root.
     #[arg(long = "node")]
     pub node: Option<PathBuf>,
 }
@@ -106,7 +112,8 @@ pub struct LeafInsertArgs {
     /// Leaf kind, written into the templated `**Kind:**` line.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
-    /// Target node directory. Default: current working directory.
+    /// Target node directory. Absolute, relative to the cwd, or relative to
+    /// the grove root (`.grove/`). Default: the grove root.
     #[arg(long = "node")]
     pub node: Option<PathBuf>,
 }
@@ -130,6 +137,7 @@ pub fn run() -> Result<()> {
     match cli.command {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
+        Command::InboxEdit(args) => cmd_inbox_edit(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
@@ -141,8 +149,14 @@ pub fn run() -> Result<()> {
 
 fn cmd_inbox_add(args: &InboxAddArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
-    let observation = read_body(args)?;
+    let observation = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
     inboxes::capture(&repo_path, &args.to, &observation, args.slug.as_deref())
+}
+
+fn cmd_inbox_edit(args: &InboxEditArgs) -> Result<()> {
+    let repo_path = repo::resolve(args.repo.as_deref())?;
+    let body = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
+    inboxes::edit(&repo_path, &args.path, &body)
 }
 
 fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {
@@ -276,12 +290,37 @@ fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     Ok(())
 }
 
+// Resolve the target node directory for `leaf-add` / `leaf-insert`. The leaf
+// verbs run from the worktree root (not from inside `.grove/`), so cwd is the
+// wrong anchor — `cmd_pick` and `cmd_brief_chain` both resolve against
+// `worktree/.grove`, and the leaf verbs must agree or a leaf created from the
+// worktree root lands one level above `.grove/` where `pick` never sees it.
+//
+// - no `--node`        → the grove root (`worktree/.grove`)
+// - absolute `--node`  → used verbatim
+// - relative `--node`  → tried cwd-relative first, then grove-root-relative,
+//   mirroring `leaf_ops::resolve_leaf`. Falls back to the cwd-relative path so
+//   a genuinely missing node surfaces the intuitive path in the error.
 fn resolve_node(arg: Option<&std::path::Path>) -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::git_toplevel(&cwd)?;
+    let grove_root = worktree.join(".grove");
     let node = match arg {
+        None => grove_root,
         Some(p) if p.is_absolute() => p.to_path_buf(),
-        Some(p) => cwd.join(p),
-        None => cwd,
+        Some(p) => {
+            let cwd_rel = cwd.join(p);
+            if cwd_rel.is_dir() {
+                cwd_rel
+            } else {
+                let grove_rel = grove_root.join(p);
+                if grove_rel.is_dir() {
+                    grove_rel
+                } else {
+                    cwd_rel
+                }
+            }
+        }
     };
     Ok(node)
 }
@@ -318,15 +357,22 @@ fn parse_prefix_slug(arg: &str) -> Result<(u32, &str)> {
     Ok((prefix, slug))
 }
 
-fn read_body(args: &InboxAddArgs) -> Result<String> {
-    if let Some(b) = &args.body {
-        return Ok(b.clone());
+/// Shared body-input plumbing for the inbox write verbs (`inbox-add`,
+/// `inbox-edit`): exactly one of `--body` / `--body-file` / `--body-stdin`
+/// (clap enforces mutual exclusion; this enforces presence).
+fn read_body(
+    body: Option<&str>,
+    body_file: Option<&std::path::Path>,
+    body_stdin: bool,
+) -> Result<String> {
+    if let Some(b) = body {
+        return Ok(b.to_string());
     }
-    if let Some(p) = &args.body_file {
+    if let Some(p) = body_file {
         return std::fs::read_to_string(p)
             .with_context(|| format!("reading body file {}", p.display()));
     }
-    if args.body_stdin {
+    if body_stdin {
         let mut s = String::new();
         std::io::stdin().read_to_string(&mut s).context("reading body from stdin")?;
         return Ok(s);

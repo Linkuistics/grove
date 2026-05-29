@@ -309,8 +309,8 @@ fn capture_without_materialisation_fails_with_useful_hint() {
     let err = inboxes::capture(repo.path(), "any", "obs", None).unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("grove install") || msg.contains("grove update"),
-        "expected hint to run install/update, got: {msg}"
+        msg.contains("grove install"),
+        "expected hint to run grove install, got: {msg}"
     );
 }
 
@@ -497,6 +497,92 @@ fn drain_finalize_rejects_gitkeep() {
     let gitkeep = repo.path().join(".grove-meta/inboxes/g/.gitkeep");
     let err = inboxes::drain_finalize(repo.path(), "g", &[gitkeep], &[], &[]).unwrap_err();
     assert!(err.to_string().contains(".gitkeep cannot be drained"), "got: {err}");
+}
+
+#[test]
+fn edit_rewrites_body_renames_to_new_hash_preserving_stamp_and_slug() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "original body", Some("my-note")).unwrap();
+
+    let dir = repo.path().join(".grove-meta/inboxes/g");
+    let before = list_obs(&dir);
+    assert_eq!(before.len(), 1);
+    let old_name = before[0].file_name().unwrap().to_string_lossy().to_string();
+    // <stamp>Z-my-note-<hash8>.md — capture the stamp+slug prefix to assert it
+    // survives the edit unchanged.
+    let prefix = old_name
+        .rsplit_once('-')
+        .map(|(head, _)| head.to_string())
+        .unwrap();
+    assert!(prefix.contains("Z-my-note"), "unexpected name shape: {old_name}");
+
+    inboxes::edit(repo.path(), &before[0], "rewritten body").unwrap();
+
+    let after = list_obs(&dir);
+    assert_eq!(after.len(), 1, "edit must not add a second file: {after:?}");
+    let new_name = after[0].file_name().unwrap().to_string_lossy().to_string();
+
+    // Body rewritten.
+    assert_eq!(fs::read_to_string(&after[0]).unwrap(), "rewritten body");
+
+    // Stamp + slug preserved; hash suffix recomputed (so the name changed).
+    assert!(
+        new_name.starts_with(&prefix),
+        "stamp+slug prefix should survive: old={old_name} new={new_name}"
+    );
+    assert_ne!(new_name, old_name, "hash suffix should change with the body");
+    // New suffix is the content hash of the *new* body — i.e. a fresh capture
+    // of the edited body would dedup against this file, not create a duplicate.
+    inboxes::capture(repo.path(), "g", "rewritten body", None).unwrap();
+    assert_eq!(
+        list_obs(&dir).len(),
+        1,
+        "recapturing the edited body must dedup against the renamed file"
+    );
+
+    // A commit was created for the edit.
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
+    let s = String::from_utf8_lossy(&log.stdout);
+    assert!(s.contains(&format!("inbox: edit g/{new_name}")), "log: {s}");
+}
+
+#[test]
+fn edit_rejects_paths_outside_inbox() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+
+    let outside = repo.path().join("README");
+    let err = inboxes::edit(repo.path(), &outside, "x").unwrap_err();
+    assert!(
+        err.to_string().contains("not inside") || err.to_string().contains("inbox"),
+        "got: {err}"
+    );
+}
+
+#[test]
+fn edit_rejects_gitkeep() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+
+    let gitkeep = repo.path().join(".grove-meta/inboxes/g/.gitkeep");
+    let err = inboxes::edit(repo.path(), &gitkeep, "x").unwrap_err();
+    assert!(err.to_string().contains(".gitkeep"), "got: {err}");
+}
+
+#[test]
+fn edit_rejects_empty_body() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+
+    let obs = list_obs(&repo.path().join(".grove-meta/inboxes/g"));
+    let err = inboxes::edit(repo.path(), &obs[0], "   \n\n").unwrap_err();
+    assert!(err.to_string().contains("empty"), "got: {err}");
+
+    // The original file is untouched after a rejected edit.
+    assert_eq!(fs::read_to_string(&obs[0]).unwrap(), "alpha");
 }
 
 fn rev_count(repo: &Path, refspec: &str) -> usize {

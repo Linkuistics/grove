@@ -2,7 +2,9 @@ mod common;
 
 use common::{fixture_tarball, StubFetcher};
 use grove::cli::InstallArgs;
-use grove::install::{run_with_fetcher, Mode};
+use grove::fetch::Fetcher;
+use grove::install::run_with_fetcher;
+use std::cell::RefCell;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -75,7 +77,7 @@ fn install_writes_content_and_version() {
     let repo = init_repo_with(true, false);
     let args = args_for(repo.path());
 
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     let dest = repo.path().join(".claude/skills/grove");
     assert_eq!(fs::read_to_string(dest.join("SKILL.md")).unwrap(), "# SKILL");
@@ -84,22 +86,16 @@ fn install_writes_content_and_version() {
 }
 
 #[test]
-fn install_errors_when_grove_already_present() {
+fn reinstall_same_version_is_idempotent_noop() {
+    // `grove install` is no longer create-only (ADR-0008): re-running it over
+    // an already-installed, same-version target succeeds and changes nothing.
     let repo = init_repo_with(true, false);
-    fs::create_dir_all(repo.path().join(".claude/skills/grove")).unwrap();
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
+    assert_eq!(head_count(repo.path()), 1);
 
-    let args = args_for(repo.path());
-    let err = run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap_err();
-    assert!(err.to_string().contains("already installed"));
-}
-
-#[test]
-fn update_errors_when_grove_not_present() {
-    let repo = init_repo_with(true, false);
-
-    let args = args_for(repo.path());
-    let err = run_with_fetcher(&args, Mode::Update, &fetcher_at("v0.1.0")).unwrap_err();
-    assert!(err.to_string().contains("not installed"));
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
+    // No second commit; the materialisation was byte-identical.
+    assert_eq!(head_count(repo.path()), 1);
 }
 
 #[test]
@@ -107,7 +103,7 @@ fn install_into_both_harnesses_when_both_present() {
     let repo = init_repo_with(true, true);
 
     let args = args_for(repo.path());
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     assert!(repo.path().join(".claude/skills/grove/SKILL.md").exists());
     assert!(repo.path().join(".codex/skills/grove/SKILL.md").exists());
@@ -119,7 +115,7 @@ fn install_into_only_claude_when_harness_flag_narrows() {
 
     let mut args = args_for(repo.path());
     args.harnesses = vec!["claude".to_string()];
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     assert!(repo.path().join(".claude/skills/grove/SKILL.md").exists());
     assert!(!repo.path().join(".codex/skills/grove/SKILL.md").exists());
@@ -132,7 +128,7 @@ fn install_creates_commit_by_default() {
     let repo = init_repo_with(true, false);
     let args = args_for(repo.path());
 
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     assert_eq!(head_count(repo.path()), 1);
     assert_eq!(last_subject(repo.path()), "Install grove v0.1.0");
@@ -147,13 +143,13 @@ fn install_creates_commit_by_default() {
 fn update_creates_commit_with_update_message() {
     let repo = init_repo_with(true, false);
     // First install (commit #1).
-    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
     assert_eq!(head_count(repo.path()), 1);
 
     // Update to a different version (commit #2).
     let mut args = args_for(repo.path());
     args.version = Some("v0.2.0".into());
-    run_with_fetcher(&args, Mode::Update, &fetcher_at("v0.2.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.2.0")).unwrap();
 
     assert_eq!(head_count(repo.path()), 2);
     assert_eq!(last_subject(repo.path()), "Update grove to v0.2.0");
@@ -165,7 +161,7 @@ fn no_commit_flag_skips_commit() {
     let mut args = args_for(repo.path());
     args.no_commit = true;
 
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     // Materialisation happened.
     assert!(repo.path().join(".claude/skills/grove/SKILL.md").exists());
@@ -186,7 +182,7 @@ fn message_flag_overrides_default() {
     let mut args = args_for(repo.path());
     args.message = Some("chore(deps): bump grove skill to v0.1.0".into());
 
-    run_with_fetcher(&args, Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     assert_eq!(last_subject(repo.path()), "chore(deps): bump grove skill to v0.1.0");
 }
@@ -198,7 +194,7 @@ fn unrelated_dirty_state_is_preserved() {
     fs::write(repo.path().join("other.txt"), "wip\n").unwrap();
     git(repo.path(), &["add", "other.txt"]);
 
-    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
 
     // The grove commit landed.
     assert_eq!(last_subject(repo.path()), "Install grove v0.1.0");
@@ -223,8 +219,9 @@ fn pre_existing_staged_install_scope_is_refused() {
     fs::write(repo.path().join(".claude/skills/grove/SKILL.md"), "stale\n").unwrap();
     git(repo.path(), &["add", ".claude/skills/grove/SKILL.md"]);
 
-    // It's already present, so we use Update mode (Install would error first on existence).
-    let err = run_with_fetcher(&args_for(repo.path()), Mode::Update, &fetcher_at("v0.1.0"))
+    // Idempotent install still refuses when the scope has pre-existing staged
+    // changes — the one case where an auto-commit could bundle in-flight work.
+    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0"))
         .unwrap_err();
     let msg = err.to_string();
     assert!(
@@ -241,7 +238,7 @@ fn pre_existing_staged_install_scope_is_refused() {
 fn multi_harness_install_produces_single_combined_commit() {
     let repo = init_repo_with(true, true);
 
-    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
 
     assert_eq!(head_count(repo.path()), 1);
     let show = git(repo.path(), &["show", "--name-only", "--pretty=", "HEAD"]);
@@ -268,7 +265,7 @@ fn commit_failure_leaves_materialisation_in_place() {
     // Point hooksPath at our hook dir (overriding the /dev/null disable in init_repo_with).
     git(repo.path(), &["config", "core.hooksPath", hooks.to_str().unwrap()]);
 
-    let err = run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0"))
+    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0"))
         .unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("git commit failed"), "got: {msg}");
@@ -287,7 +284,7 @@ fn commit_failure_leaves_materialisation_in_place() {
 #[test]
 fn install_materialises_inbox_worktree_and_branch() {
     let repo = init_repo_with(true, false);
-    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
 
     // The inbox worktree exists at the canonical path.
     assert!(repo.path().join(".grove-meta/inboxes").is_dir());
@@ -299,17 +296,67 @@ fn install_materialises_inbox_worktree_and_branch() {
 }
 
 #[test]
-fn noop_update_does_not_create_empty_commit() {
+fn version_pin_is_idempotent_then_updates() {
     let repo = init_repo_with(true, false);
-    // First install creates one commit.
-    run_with_fetcher(&args_for(repo.path()), Mode::Install, &fetcher_at("v0.1.0")).unwrap();
+    let mut args = args_for(repo.path());
+    args.version = Some("v0.1.0".into());
+
+    // Pin to v0.1.0: installs.
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
     assert_eq!(head_count(repo.path()), 1);
 
-    // Re-running update with the same tarball produces no diff → no commit.
-    run_with_fetcher(&args_for(repo.path()), Mode::Update, &fetcher_at("v0.1.0")).unwrap();
-    assert_eq!(
-        head_count(repo.path()),
-        1,
-        "no-op update must not create a second commit"
+    // Re-pin to the same tag: no-op, no second commit.
+    run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
+    assert_eq!(head_count(repo.path()), 1, "same-tag pin must be a no-op");
+
+    // Pin to a different tag: updates.
+    args.version = Some("v0.2.0".into());
+    run_with_fetcher(&args, &fetcher_at("v0.2.0")).unwrap();
+    assert_eq!(head_count(repo.path()), 2);
+    assert_eq!(last_subject(repo.path()), "Update grove to v0.2.0");
+}
+
+/// A fetcher that records the tag it was asked to fetch, so we can assert the
+/// git fetch ref keeps its leading `v` even as the stored stamp is canonical.
+struct RecordingFetcher {
+    inner: StubFetcher,
+    fetched: RefCell<Vec<String>>,
+}
+
+impl Fetcher for RecordingFetcher {
+    fn latest_version(&self) -> anyhow::Result<String> {
+        self.inner.latest_version()
+    }
+    fn fetch_tarball(&self, tag: &str) -> anyhow::Result<Vec<u8>> {
+        self.fetched.borrow_mut().push(tag.to_string());
+        self.inner.fetch_tarball(tag)
+    }
+}
+
+#[test]
+fn stamp_is_canonical_while_fetch_ref_keeps_v() {
+    let repo = init_repo_with(true, false);
+    let mut args = args_for(repo.path());
+    args.version = Some("v3.0.1".into());
+
+    let fetcher = RecordingFetcher {
+        inner: fetcher_at("v3.0.1"),
+        fetched: RefCell::new(Vec::new()),
+    };
+    run_with_fetcher(&args, &fetcher).unwrap();
+
+    // The stored stamp is canonical (no leading `v`).
+    let version_md =
+        fs::read_to_string(repo.path().join(".claude/skills/grove/VERSION.md")).unwrap();
+    assert!(
+        version_md.contains("| version | `3.0.1` |"),
+        "stamp should be canonical 3.0.1, got:\n{version_md}"
     );
+    assert!(
+        !version_md.contains("`v3.0.1`"),
+        "stamp must not carry the leading v:\n{version_md}"
+    );
+
+    // The fetch ref passed to the fetcher kept its `v` (it's the git tag).
+    assert_eq!(fetcher.fetched.borrow().as_slice(), &["v3.0.1".to_string()]);
 }

@@ -22,6 +22,7 @@
 // edits grove state directly.
 
 use anyhow::{Context, Result};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -41,6 +42,14 @@ use crate::repo_view::{
 };
 
 const DEBOUNCE: Duration = Duration::from_millis(200);
+
+/// Styling for a version-drift marker — bold yellow, to draw the eye on both
+/// the header (`cli`-vs-`repo`) and grove rows (`worktree`-vs-`repo`/`cli`).
+/// The drift *rule* is the same plain string-equality one `grove status` uses
+/// (`CONTEXT.md`); only the presentation differs (colour vs. plain text).
+const DRIFT_STYLE: Style = Style::new()
+    .fg(Color::Yellow)
+    .add_modifier(Modifier::BOLD);
 
 pub fn run(args: &RepoArgs) -> Result<()> {
     let repo = repo::resolve(args.repo.as_deref())?;
@@ -69,6 +78,8 @@ pub struct App {
     show_help: bool,
     status: Option<String>,
     capture: CaptureModal,
+    /// Disposition picker for the selected inbox entry; `Some` while open.
+    disposition: Option<DispositionModal>,
     /// A keystroke (Ctrl-E / Enter in body / submit) decides *that* an
     /// external action should run; the live loop then suspends the
     /// terminal and runs it. Splitting these phases keeps `handle_key`
@@ -77,9 +88,10 @@ pub struct App {
 }
 
 /// Capture modal — opened by `c`, drives the two-step
-/// target/body workflow. The modal is intentionally tiny: a multi-line
-/// editor is the wrong tool for a one-line observation, and anything
-/// longer should drop to `$EDITOR` via Ctrl-E.
+/// target/body workflow. The body accepts multi-line input: `Enter`
+/// inserts a newline (so a multi-line paste lands intact) and submit is
+/// the deliberate `Ctrl-S` gesture, which a paste cannot trigger. A
+/// longer or heavier edit still drops to `$EDITOR` via `Ctrl-E`.
 #[derive(Default, Clone)]
 pub struct CaptureModal {
     open: bool,
@@ -95,12 +107,65 @@ enum CaptureField {
     Body,
 }
 
+/// Disposition picker — opened by `d` on the selected entry while the Inbox
+/// pane is focused. A sub-modal rather than three bare keys because `r` is the
+/// global refresh key: scoping the choice behind a modal keeps the top-level
+/// keymap unambiguous and the choice discoverable.
+pub struct DispositionModal {
+    /// Absolute path of the observation being dispositioned.
+    path: PathBuf,
+    /// Filename of that entry, shown in the picker title.
+    entry: String,
+}
+
+/// The three [[Drain]] buckets. All three delete the observation file; the
+/// choice only sets the `grove-llm inbox-drain` commit-message category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Disposition {
+    Incorporated,
+    Deferred,
+    Rejected,
+}
+
+impl Disposition {
+    /// The `grove-llm inbox-drain` finalize flag for this bucket.
+    fn flag(self) -> &'static str {
+        match self {
+            Disposition::Incorporated => "--incorporated",
+            Disposition::Deferred => "--deferred",
+            Disposition::Rejected => "--rejected",
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Disposition::Incorporated => "incorporated",
+            Disposition::Deferred => "deferred",
+            Disposition::Rejected => "rejected",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingAction {
     /// Submit `app.capture` via `grove-llm inbox-add`.
     Submit,
     /// Drop into `$EDITOR` (or `vi` fallback) to edit `app.capture.body`.
     EditBody,
+    /// Disposition the observation at `path` into `disposition`'s bucket via
+    /// `grove-llm inbox-drain` — all three buckets delete the file; the bucket
+    /// only sets the drain commit-message category (faithful to Drain).
+    Drain {
+        path: PathBuf,
+        disposition: Disposition,
+    },
+    /// Edit the *existing committed* observation at `path`: seed `$EDITOR` with
+    /// its current body, then on a non-empty change round-trip through
+    /// `grove-llm inbox-edit`. Distinct from `EditBody`, which edits the
+    /// in-memory capture draft before it is ever committed.
+    EditObservation {
+        path: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,6 +178,9 @@ struct DetailState {
     grove: String,
     /// Selected row in the flattened task-tree view.
     tree: ListState,
+    /// Selected pending observation in the inbox pane. Kept distinct from
+    /// `tree` so each pane remembers its own cursor across `Tab` switches.
+    inbox: ListState,
     right: RightPane,
     /// Scroll offset for the right pane (lines from top).
     right_scroll: u16,
@@ -168,6 +236,7 @@ impl App {
             show_help: false,
             status: None,
             capture: CaptureModal::default(),
+            disposition: None,
             pending_action: None,
         }
     }
@@ -402,6 +471,62 @@ fn process_pending_action(
                 }
             }
         }
+        PendingAction::EditObservation { path } => {
+            // Seed $EDITOR with the entry's current body, then — only if the
+            // user actually changed it to something non-empty — round-trip
+            // through `grove-llm inbox-edit`. The drain target grove is the one
+            // the detail screen is on (the inbox pane only opens from there).
+            let grove = app
+                .detail
+                .as_ref()
+                .map(|d| d.grove.clone())
+                .unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let outcome = suspended(terminal, || shell_edit_observation(&path));
+            match outcome {
+                Ok(EditOutcome::Unchanged) => {
+                    app.status = Some(format!("{}: unchanged", name));
+                }
+                Ok(EditOutcome::Saved) => {
+                    // The fs-watch on `.grove-meta/inboxes` fires on the rename,
+                    // debounces, and rescans — the renamed entry then appears.
+                    app.status = Some(format!("edited {} in {}", name, grove));
+                }
+                Err(e) => {
+                    // Mirror capture/disposition: surface stderr, no silent retry.
+                    app.status = Some(format!("edit failed: {}", short_err(&e)));
+                }
+            }
+        }
+        PendingAction::Drain { path, disposition } => {
+            // The grove the detail screen is on is the drain target; the
+            // picker only opens from a focused detail inbox pane.
+            let grove = app
+                .detail
+                .as_ref()
+                .map(|d| d.grove.clone())
+                .unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let outcome = suspended(terminal, || shell_drain(&grove, &path, disposition));
+            match outcome {
+                Ok(()) => {
+                    // The fs-watch on `.grove-meta/inboxes` fires on the delete,
+                    // debounces, and rescans — the entry then disappears and the
+                    // inbox `ListState` clamps via the render-time bounds check.
+                    app.status = Some(format!("{} {}", disposition.label(), name));
+                }
+                Err(e) => {
+                    // Mirror capture's handling: surface stderr, no silent retry.
+                    app.status = Some(format!("disposition failed: {}", short_err(&e)));
+                }
+            }
+        }
     }
 }
 
@@ -463,6 +588,77 @@ fn shell_capture(target: &str, body: &str) -> Result<()> {
     Ok(())
 }
 
+/// Disposition a single observation by shelling out to `grove-llm
+/// inbox-drain --for=<grove> --<bucket>=<path>`. The CLI deletes the file and
+/// commits (and pushes when a remote is configured); the TUI never touches the
+/// `grove-meta` git plumbing directly, mirroring `shell_capture`.
+fn shell_drain(grove: &str, path: &Path, disposition: Disposition) -> Result<()> {
+    if grove.trim().is_empty() {
+        anyhow::bail!("grove name is empty");
+    }
+    let status = std::process::Command::new(find_grove_llm())
+        .arg("inbox-drain")
+        .arg(format!("--for={}", grove.trim()))
+        .arg(disposition.flag())
+        .arg(path)
+        .status()
+        .context("running grove-llm inbox-drain")?;
+    if !status.success() {
+        anyhow::bail!(
+            "grove-llm inbox-drain exited with status {:?}",
+            status.code()
+        );
+    }
+    Ok(())
+}
+
+/// The result of an inbox-edit round-trip: either the body was changed and
+/// committed, or the user left it untouched (so no verb ran).
+enum EditOutcome {
+    Saved,
+    Unchanged,
+}
+
+/// Edit an existing committed observation: read its current body, open it in
+/// `$EDITOR`, and — only if the user changed it to something non-empty —
+/// rewrite it via `grove-llm inbox-edit --body-file`. The CLI recomputes the
+/// content-hash filename, commits, and pushes when a remote is configured; the
+/// TUI never touches `grove-meta` git plumbing directly. An empty edited body
+/// is rejected (mirroring capture's empty-body guard) rather than producing an
+/// empty observation.
+fn shell_edit_observation(path: &Path) -> Result<EditOutcome> {
+    let current = std::fs::read_to_string(path)
+        .with_context(|| format!("reading observation {}", path.display()))?;
+    let edited = shell_editor(&current)?;
+    if edited == current {
+        return Ok(EditOutcome::Unchanged);
+    }
+    if edited.trim().is_empty() {
+        anyhow::bail!("edited body is empty; the observation was left unchanged");
+    }
+    let tf = tempfile::Builder::new()
+        .prefix("grove-edit-")
+        .suffix(".md")
+        .tempfile()
+        .context("creating body tempfile")?;
+    std::fs::write(tf.path(), &edited)
+        .with_context(|| format!("writing edited body to {}", tf.path().display()))?;
+    let status = std::process::Command::new(find_grove_llm())
+        .arg("inbox-edit")
+        .arg(path)
+        .arg("--body-file")
+        .arg(tf.path())
+        .status()
+        .context("running grove-llm inbox-edit")?;
+    if !status.success() {
+        anyhow::bail!(
+            "grove-llm inbox-edit exited with status {:?}",
+            status.code()
+        );
+    }
+    Ok(EditOutcome::Saved)
+}
+
 fn shell_editor(initial: &str) -> Result<String> {
     let editor = std::env::var("EDITOR")
         .or_else(|_| std::env::var("VISUAL"))
@@ -499,6 +695,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         return Ok(false);
     }
 
+    // Disposition picker swallows its keys (i/d/r choose, Esc/Ctrl-C cancel).
+    if app.disposition.is_some() {
+        handle_disposition_key(app, code, mods);
+        return Ok(false);
+    }
+
     // Filter-edit mode swallows almost everything.
     if app.filter.editing {
         match code {
@@ -523,6 +725,17 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
     // Ctrl-C always quits.
     if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
         return Ok(true);
+    }
+
+    // Ctrl-E on the detail screen edits the selected inbox observation. Handled
+    // ahead of the `(screen, code)` match because that match ignores modifiers,
+    // and a bare `e` must not trigger an edit.
+    if mods.contains(KeyModifiers::CONTROL)
+        && matches!(code, KeyCode::Char('e'))
+        && matches!(app.screen, Screen::GroveDetail)
+    {
+        request_observation_edit(app);
+        return Ok(false);
     }
 
     match (app.screen, code) {
@@ -556,9 +769,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             {
                 let mut tree = ListState::default();
                 tree.select(Some(0));
+                let mut inbox = ListState::default();
+                inbox.select(Some(0));
                 app.detail = Some(DetailState {
                     grove: g,
                     tree,
+                    inbox,
                     right: RightPane::LeafBody,
                     right_scroll: 0,
                 });
@@ -578,19 +794,16 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
                 d.right_scroll = 0;
             }
         }
+        (Screen::GroveDetail, KeyCode::Char('d')) => {
+            // Disposition the selected inbox entry — only meaningful while the
+            // Inbox pane is focused and has a selection (see open helper).
+            open_disposition_modal(app);
+        }
         (Screen::GroveDetail, KeyCode::Down | KeyCode::Char('j')) => {
-            let rows = flat_rows_len(app);
-            if let Some(d) = app.detail.as_mut() {
-                move_selection(&mut d.tree, rows as isize, 1);
-                d.right_scroll = 0;
-            }
+            move_detail_selection(app, 1);
         }
         (Screen::GroveDetail, KeyCode::Up | KeyCode::Char('k')) => {
-            let rows = flat_rows_len(app);
-            if let Some(d) = app.detail.as_mut() {
-                move_selection(&mut d.tree, rows as isize, -1);
-                d.right_scroll = 0;
-            }
+            move_detail_selection(app, -1);
         }
         (Screen::GroveDetail, KeyCode::PageDown) => {
             if let Some(d) = app.detail.as_mut() {
@@ -658,6 +871,16 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
             // this up after the key handler returns.
             app.pending_action = Some(PendingAction::EditBody);
         }
+        KeyCode::Char('s') if mods.contains(KeyModifiers::CONTROL) => {
+            // The deliberate submit gesture. Distinct from `Enter` so a
+            // pasted (or typed) newline in the body cannot fire submit by
+            // accident; works from either field once both are filled.
+            if !app.capture.target.trim().is_empty()
+                && !app.capture.body.trim().is_empty()
+            {
+                app.pending_action = Some(PendingAction::Submit);
+            }
+        }
         KeyCode::Enter => match app.capture.field {
             CaptureField::Target => {
                 if !app.capture.target.trim().is_empty() {
@@ -665,11 +888,10 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
                 }
             }
             CaptureField::Body => {
-                if !app.capture.target.trim().is_empty()
-                    && !app.capture.body.trim().is_empty()
-                {
-                    app.pending_action = Some(PendingAction::Submit);
-                }
+                // `Enter` in the body inserts a newline rather than
+                // submitting — multi-line observations are typed and
+                // pasted here, and submit is the deliberate Ctrl-S above.
+                app.capture.body.push('\n');
             }
         },
         KeyCode::Backspace => match app.capture.field {
@@ -690,6 +912,87 @@ fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
     }
 }
 
+/// Open the disposition picker for the currently-selected inbox entry. No-op
+/// unless the Inbox pane is focused and holds at least one observation — `d`
+/// is inert from any other pane or an empty inbox.
+fn open_disposition_modal(app: &mut App) {
+    let modal = {
+        let Some(d) = app.detail.as_ref() else {
+            return;
+        };
+        if d.right != RightPane::Inbox {
+            return;
+        }
+        let Some(gd) = app.view.grove(&d.grove) else {
+            return;
+        };
+        if gd.inbox.is_empty() {
+            return;
+        }
+        // Clamp the selection the same way the renderer does, so the picker
+        // always targets a real entry even if the cursor drifted past the end.
+        let idx = d.inbox.selected().unwrap_or(0).min(gd.inbox.len() - 1);
+        let path = gd.inbox[idx].clone();
+        let entry = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        DispositionModal { path, entry }
+    };
+    app.disposition = Some(modal);
+}
+
+/// Request an `$EDITOR` round-trip for the currently-selected inbox entry. No-op
+/// unless the Inbox pane is focused and holds at least one observation — Ctrl-E
+/// is inert from any other pane or an empty inbox, mirroring `d`.
+fn request_observation_edit(app: &mut App) {
+    let path = {
+        let Some(d) = app.detail.as_ref() else {
+            return;
+        };
+        if d.right != RightPane::Inbox {
+            return;
+        }
+        let Some(gd) = app.view.grove(&d.grove) else {
+            return;
+        };
+        if gd.inbox.is_empty() {
+            return;
+        }
+        // Clamp the selection the same way the renderer does, so we always
+        // target a real entry even if the cursor drifted past the end.
+        let idx = d.inbox.selected().unwrap_or(0).min(gd.inbox.len() - 1);
+        gd.inbox[idx].clone()
+    };
+    app.pending_action = Some(PendingAction::EditObservation { path });
+}
+
+/// Handle a key while the disposition picker is open: `i`/`d`/`r` choose a
+/// bucket and request the drain; `Esc`/`Ctrl-C` cancel. Mirrors the capture
+/// modal's "decide here, run in the loop" split, so it stays unit-testable.
+fn handle_disposition_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
+    if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
+        app.disposition = None;
+        return;
+    }
+    let disposition = match code {
+        KeyCode::Esc => {
+            app.disposition = None;
+            return;
+        }
+        KeyCode::Char('i') => Disposition::Incorporated,
+        KeyCode::Char('d') => Disposition::Deferred,
+        KeyCode::Char('r') => Disposition::Rejected,
+        _ => return,
+    };
+    if let Some(modal) = app.disposition.take() {
+        app.pending_action = Some(PendingAction::Drain {
+            path: modal.path,
+            disposition,
+        });
+    }
+}
+
 fn move_selection(state: &mut ListState, len: isize, delta: isize) {
     if len <= 0 {
         state.select(None);
@@ -704,14 +1007,46 @@ fn flat_rows_len(app: &App) -> usize {
     flatten_for(app).len()
 }
 
+fn inbox_len(app: &App) -> usize {
+    app.detail
+        .as_ref()
+        .and_then(|d| app.view.grove(&d.grove))
+        .map(|gd| gd.inbox.len())
+        .unwrap_or(0)
+}
+
+/// Move the selection in whichever detail-screen pane currently owns `j`/`k`:
+/// the inbox list while the Inbox pane is focused, the task tree otherwise.
+/// Lengths are read before the mutable borrow of `app.detail` to avoid
+/// aliasing `app.view`.
+fn move_detail_selection(app: &mut App, delta: isize) {
+    let rows = flat_rows_len(app);
+    let inbox = inbox_len(app);
+    if let Some(d) = app.detail.as_mut() {
+        if d.right == RightPane::Inbox {
+            move_selection(&mut d.inbox, inbox as isize, delta);
+        } else {
+            move_selection(&mut d.tree, rows as isize, delta);
+        }
+        d.right_scroll = 0;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Rendering
 
 pub fn render(f: &mut Frame, app: &App) {
     let area = f.area();
-    let [main, footer] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(area);
+    // A one-row header (cli + repo versions) sits above the body on both
+    // screens; the footer keeps its keyhint role below.
+    let [header, main, footer] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(1),
+        Constraint::Length(1),
+    ])
+    .areas(area);
 
+    render_header(f, header, app);
     match app.screen {
         Screen::GroveList => render_grove_list(f, main, app),
         Screen::GroveDetail => render_grove_detail(f, main, app),
@@ -721,9 +1056,43 @@ pub fn render(f: &mut Frame, app: &App) {
     if app.capture.open {
         render_capture_modal(f, area, &app.capture);
     }
+    if let Some(modal) = app.disposition.as_ref() {
+        render_disposition_modal(f, area, modal);
+    }
     if app.show_help {
         render_help_overlay(f, area);
     }
+}
+
+/// A small centred picker listing the three [[Drain]] buckets and their
+/// hotkeys. Purely presentational — the keys are handled in
+/// `handle_disposition_key`.
+fn render_disposition_modal(f: &mut Frame, area: Rect, modal: &DispositionModal) {
+    let popup = centered_rect(60, 30, area);
+    f.render_widget(Clear, popup);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("disposition — grove inbox drain");
+    let inner = block.inner(popup);
+    f.render_widget(block, popup);
+
+    let lines = vec![
+        Line::from(Span::styled(
+            modal.entry.clone(),
+            Style::default().fg(Color::Yellow),
+        )),
+        Line::from(""),
+        Line::from("  i  incorporated"),
+        Line::from("  d  deferred"),
+        Line::from("  r  rejected"),
+        Line::from(""),
+        Line::from(Span::styled(
+            "Esc cancel",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
@@ -778,13 +1147,57 @@ fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
         .block(Block::default().borders(Borders::ALL).title("observation body"));
     f.render_widget(body_para, body_area);
 
-    let hint = "Tab=switch  Enter=next/submit  Ctrl-E=edit in $EDITOR  Esc=cancel";
+    let hint =
+        "Tab=switch  Enter=next(target)/newline(body)  Ctrl-S=submit  Ctrl-E=$EDITOR  Esc=cancel";
     f.render_widget(Paragraph::new(hint), hint_area);
+}
+
+/// Build the header line — the `cli` layer plus each installed harness's
+/// `repo` layer — as styled spans. On a `cli`-vs-`repo` mismatch the affected
+/// `repo` token is styled via [`DRIFT_STYLE`] to draw the eye, using the same
+/// string-equality drift rule as the rows and `grove status`. In multi-harness
+/// repos each `repo` token is disambiguated as `repo[<name>]=…`.
+fn header_spans(
+    cli: &str,
+    repo_versions: &BTreeMap<&'static str, Option<String>>,
+) -> Vec<Span<'static>> {
+    let mut spans = vec![Span::raw(format!("grove cli={}", cli))];
+    if repo_versions.is_empty() {
+        spans.push(Span::raw("  ·  (not installed)"));
+        return spans;
+    }
+    let multi = repo_versions.len() > 1;
+    for (name, ver) in repo_versions {
+        spans.push(Span::raw("  ·  "));
+        let label = if multi {
+            format!("repo[{}]=", name)
+        } else {
+            "repo=".to_string()
+        };
+        match ver {
+            Some(v) => {
+                let style = if v != cli { DRIFT_STYLE } else { Style::default() };
+                spans.push(Span::styled(format!("{}{}", label, v), style));
+            }
+            None => spans.push(Span::raw(format!("{}(unknown)", label))),
+        }
+    }
+    spans
+}
+
+fn render_header(f: &mut Frame, area: Rect, app: &App) {
+    let spans = header_spans(app.view.cli_version(), app.view.repo_versions());
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     let filtered = app.filtered_groves();
-    let items: Vec<ListItem> = filtered.iter().map(|g| ListItem::new(grove_row(g))).collect();
+    let cli = app.view.cli_version();
+    let repo_versions = app.view.repo_versions();
+    let items: Vec<ListItem> = filtered
+        .iter()
+        .map(|g| ListItem::new(grove_row(g, cli, repo_versions)))
+        .collect();
     let title = if app.filter.text.is_empty() {
         "groves".to_string()
     } else {
@@ -805,26 +1218,72 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     f.render_stateful_widget(list, area, &mut state);
 }
 
-fn grove_row(g: &GroveSummary) -> Line<'static> {
+fn grove_row(
+    g: &GroveSummary,
+    cli: &str,
+    repo_versions: &BTreeMap<&'static str, Option<String>>,
+) -> Line<'static> {
     let badge = match g.lifecycle {
         Lifecycle::Live => Span::styled(" live ", Style::default().fg(Color::Green)),
         Lifecycle::Seed => Span::styled(" seed ", Style::default().fg(Color::Yellow)),
     };
-    let inbox = if g.inbox_pending > 0 {
-        Span::styled(
-            format!("  inbox:{}", g.inbox_pending),
-            Style::default().fg(Color::Cyan),
-        )
-    } else {
-        Span::raw("".to_string())
-    };
-    Line::from(vec![
+    let mut spans = vec![
         badge,
         Span::raw(" "),
         Span::raw(g.name.clone()),
         Span::raw(format!("  leaves:{}/{}", g.live_leaves, g.retired_leaves)),
-        inbox,
-    ])
+    ];
+    // The `worktree` layer, one segment per relevant harness (Seeds carry
+    // none). Prefix the harness only when this grove spans more than one.
+    let multi = g.worktree_versions.len() > 1;
+    for (harness, worktree) in &g.worktree_versions {
+        let repo = repo_versions.get(harness).cloned().flatten();
+        spans.push(Span::raw("  "));
+        spans.extend(worktree_spans(
+            multi.then_some(*harness),
+            worktree,
+            &repo,
+            cli,
+        ));
+    }
+    if g.inbox_pending > 0 {
+        spans.push(Span::styled(
+            format!("  inbox:{}", g.inbox_pending),
+            Style::default().fg(Color::Cyan),
+        ));
+    }
+    Line::from(spans)
+}
+
+/// Build the trailing `worktree=…` version segment for a grove row as styled
+/// spans. Mirrors `status::version_segment`'s rule exactly — plain
+/// string-equality drift, `(unknown)` for a missing stamp, `repo=(none)` for
+/// an orphan — but colours the `⚠` markers via [`DRIFT_STYLE`] instead of
+/// emitting plain text. `harness` is `Some` only in multi-harness repos, where
+/// it disambiguates the segment as `worktree[<name>]=…`.
+fn worktree_spans(
+    harness: Option<&str>,
+    worktree: &Option<String>,
+    repo: &Option<String>,
+    cli: &str,
+) -> Vec<Span<'static>> {
+    let key = match harness {
+        Some(h) => format!("worktree[{}]=", h),
+        None => "worktree=".to_string(),
+    };
+    let Some(wt) = worktree else {
+        return vec![Span::raw(format!("{}(unknown)", key))];
+    };
+    let mut spans = vec![Span::raw(format!("{}{}", key, wt))];
+    match repo {
+        None => spans.push(Span::raw(" repo=(none)")),
+        Some(r) if r != wt => spans.push(Span::styled(format!(" ⚠ repo={}", r), DRIFT_STYLE)),
+        Some(_) => {}
+    }
+    if cli != wt {
+        spans.push(Span::styled(format!(" ⚠ cli={}", cli), DRIFT_STYLE));
+    }
+    spans
 }
 
 fn render_grove_detail(f: &mut Frame, area: Rect, app: &App) {
@@ -871,13 +1330,82 @@ fn render_grove_detail(f: &mut Frame, area: Rect, app: &App) {
     }
     f.render_stateful_widget(left_list, left, &mut tree_state);
 
-    // Right pane.
-    let (title, body) = right_pane_content(app, grove_detail, &rows);
-    let para = Paragraph::new(body)
+    // Right pane. The inbox pane is a selectable list over a body view; the
+    // other panes are a single scrollable paragraph.
+    if detail.right == RightPane::Inbox {
+        render_inbox_pane(f, right, app, grove_detail);
+    } else {
+        let (title, body) = right_pane_content(app, grove_detail, &rows);
+        let para = Paragraph::new(body)
+            .block(Block::default().borders(Borders::ALL).title(title))
+            .wrap(Wrap { trim: false })
+            .scroll((detail.right_scroll, 0));
+        f.render_widget(para, right);
+    }
+}
+
+/// Render the inbox right-pane: a selectable list of pending observation
+/// filenames on top, the selected entry's body below. Bodies are read on
+/// demand (`repo_view::read_path`); the scan loads none.
+fn render_inbox_pane(f: &mut Frame, area: Rect, app: &App, detail: Option<&GroveDetail>) {
+    let Some(d) = app.detail.as_ref() else {
+        return;
+    };
+    let Some(detail) = detail else {
+        let para = Paragraph::new(String::new())
+            .block(Block::default().borders(Borders::ALL).title("inbox — no snapshot"));
+        f.render_widget(para, area);
+        return;
+    };
+
+    let title = format!("inbox ({})", detail.inbox.len());
+    if detail.inbox.is_empty() {
+        let para = Paragraph::new("(no pending observations)")
+            .block(Block::default().borders(Borders::ALL).title(title))
+            .wrap(Wrap { trim: false });
+        f.render_widget(para, area);
+        return;
+    }
+
+    let [list_area, body_area] =
+        Layout::vertical([Constraint::Percentage(40), Constraint::Min(0)]).areas(area);
+
+    // List of observation filenames.
+    let items: Vec<ListItem> = detail
+        .inbox
+        .iter()
+        .map(|p| {
+            let name = p
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            ListItem::new(Line::from(name))
+        })
+        .collect();
+    let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(title))
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+    let mut state = d.inbox.clone();
+    if let Some(sel) = state.selected() {
+        if sel >= detail.inbox.len() {
+            state.select(Some(detail.inbox.len() - 1));
+        }
+    } else {
+        state.select(Some(0));
+    }
+    f.render_stateful_widget(list, list_area, &mut state);
+
+    // Body of the selected entry.
+    let body = state
+        .selected()
+        .and_then(|i| detail.inbox.get(i))
+        .map(|p| repo_view::read_path(p).unwrap_or_else(|e| format!("(error: {})", e)))
+        .unwrap_or_default();
+    let body_para = Paragraph::new(body)
+        .block(Block::default().borders(Borders::ALL).title("body"))
         .wrap(Wrap { trim: false })
-        .scroll((detail.right_scroll, 0));
-    f.render_widget(para, right);
+        .scroll((d.right_scroll, 0));
+    f.render_widget(body_para, body_area);
 }
 
 fn right_pane_content(
@@ -911,24 +1439,9 @@ fn right_pane_content(
                 (format!("leaf — {}", row.name), body)
             }
         }
-        RightPane::Inbox => {
-            let title = format!("inbox ({})", detail.inbox.len());
-            if detail.inbox.is_empty() {
-                (title, "(no pending observations)".into())
-            } else {
-                let body = detail
-                    .inbox
-                    .iter()
-                    .map(|p| {
-                        p.file_name()
-                            .map(|n| n.to_string_lossy().into_owned())
-                            .unwrap_or_default()
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                (title, body)
-            }
-        }
+        // The inbox pane is rendered by `render_inbox_pane` (selectable list +
+        // body), not as a single paragraph, so it never reaches here.
+        RightPane::Inbox => unreachable!("inbox pane is rendered by render_inbox_pane"),
         RightPane::Brief => {
             let brief_path = enclosing_brief(detail, selected);
             match brief_path {
@@ -1002,11 +1515,15 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Enter         drill into grove (list screen)"),
         Line::from("  Esc / q       back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
+        Line::from("                  in the inbox pane, j/k select an observation"),
+        Line::from("  d             disposition the selected observation"),
+        Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
+        Line::from("  Ctrl-E        edit the selected observation's body in $EDITOR"),
         Line::from("  PgUp / PgDn   scroll right pane"),
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
         Line::from("  c             capture an observation to a grove's inbox"),
         Line::from("                  Tab=switch field, Ctrl-E=edit in $EDITOR,"),
-        Line::from("                  Enter on body=submit, Esc=cancel"),
+        Line::from("                  Enter on body=newline, Ctrl-S=submit, Esc=cancel"),
         Line::from("  r             rescan the repo (also: fs-watch auto-refreshes)"),
         Line::from("  ?             toggle this help"),
         Line::from("  Ctrl-C        force quit"),
@@ -1164,6 +1681,17 @@ mod tests {
         touch(&alpha.join("020-node/BRIEF.md"), "# 020-node — brief\n");
         touch(&alpha.join("020-node/010-child.md"), "# 010-child\n");
         touch(&alpha.join("done/000-old.md"), "# old\n");
+        // alpha has two pending inbox observations (sorted chronologically).
+        let alpha_inbox = root.join(".grove-meta/inboxes/alpha");
+        fs::create_dir_all(&alpha_inbox).unwrap();
+        touch(
+            &alpha_inbox.join("2026-05-27T09-00-00Z-aaa-1111.md"),
+            "first alpha observation body\n",
+        );
+        touch(
+            &alpha_inbox.join("2026-05-28T09-00-00Z-bbb-2222.md"),
+            "second alpha observation body\n",
+        );
         // Seed for grove "beta": inbox only, no worktree.
         let beta_inbox = root.join(".grove-meta/inboxes/beta");
         fs::create_dir_all(&beta_inbox).unwrap();
@@ -1171,6 +1699,11 @@ mod tests {
             &beta_inbox.join("2026-05-28T10-00-00Z--note.md"),
             "first observation\n",
         );
+        // Live grove "gamma" with a leaf but an empty inbox (no inbox dir) —
+        // the substrate for "disposition is a no-op when the inbox is empty".
+        let gamma = root.join(".grove-worktrees/gamma/.grove");
+        touch(&gamma.join("BRIEF.md"), "# gamma — brief\n");
+        touch(&gamma.join("010-task.md"), "# 010-task\n\nWork.\n");
         tmp
     }
 
@@ -1239,14 +1772,196 @@ mod tests {
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
-        // leaf → inbox
+        // leaf → inbox: alpha has pending observations, so the list + body render.
         handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
         let out = render_to_buffer(&app, 100, 16);
-        assert!(out.contains("no pending observations"), "inbox empty msg missing:\n{}", out);
+        assert!(out.contains("inbox (2)"), "inbox count title missing:\n{}", out);
+        assert!(out.contains("aaa-1111"), "observation filename missing:\n{}", out);
         // inbox → brief
         handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
         let out = render_to_buffer(&app, 100, 16);
         assert!(out.contains("alpha — brief"), "root brief missing:\n{}", out);
+    }
+
+    #[test]
+    fn inbox_pane_jk_moves_inbox_selection_not_tree() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Focus the inbox pane.
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        let tree_before = app.detail.as_ref().unwrap().tree.selected();
+        assert_eq!(app.detail.as_ref().unwrap().inbox.selected(), Some(0));
+        // j moves the inbox selection, leaving the tree cursor untouched.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        let d = app.detail.as_ref().unwrap();
+        assert_eq!(d.inbox.selected(), Some(1), "inbox selection should advance");
+        assert_eq!(d.tree.selected(), tree_before, "tree selection must not move");
+        // The selected entry's body renders.
+        let out = render_to_buffer(&app, 100, 20);
+        assert!(
+            out.contains("second alpha observation body"),
+            "selected body missing:\n{}",
+            out
+        );
+    }
+
+    #[test]
+    fn inbox_selection_survives_pane_cycle() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap(); // select #1
+        // Cycle all the way around: inbox → brief → leaf → inbox.
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        assert_eq!(
+            app.detail.as_ref().unwrap().inbox.selected(),
+            Some(1),
+            "inbox selection must persist across Tab cycling"
+        );
+    }
+
+    /// Drive the detail screen into the focused inbox pane, ready for a
+    /// disposition keystroke. Returns the app preselected on `alpha` (which
+    /// the fixture gives two pending observations).
+    fn app_focused_on_alpha_inbox(tmp: &TempDir) -> App {
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap(); // → detail
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane
+        app
+    }
+
+    #[test]
+    fn d_on_inbox_entry_opens_disposition_picker() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_some(), "disposition picker should open");
+        assert_eq!(app.pending_action, None, "opening the picker is not yet an action");
+    }
+
+    #[test]
+    fn disposition_choice_requests_drain_with_path_and_bucket() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        // Select the second observation, then disposition it as rejected.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('r'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::Drain { path, disposition }) => {
+                assert_eq!(*disposition, Disposition::Rejected);
+                assert!(
+                    path.ends_with("2026-05-28T09-00-00Z-bbb-2222.md"),
+                    "drain should target the selected entry, got {:?}",
+                    path
+                );
+            }
+            other => panic!("expected Drain pending action, got {:?}", other),
+        }
+        assert!(app.disposition.is_none(), "picker closes once a bucket is chosen");
+    }
+
+    #[test]
+    fn disposition_hotkeys_map_to_each_bucket() {
+        for (key, expected) in [
+            ('i', Disposition::Incorporated),
+            ('d', Disposition::Deferred),
+            ('r', Disposition::Rejected),
+        ] {
+            let tmp = fixture_repo();
+            let mut app = app_focused_on_alpha_inbox(&tmp);
+            handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap(); // open
+            handle_key(&mut app, KeyCode::Char(key), KeyModifiers::NONE).unwrap(); // choose
+            match app.pending_action.as_ref() {
+                Some(PendingAction::Drain { disposition, .. }) => {
+                    assert_eq!(*disposition, expected, "key {:?} → wrong bucket", key);
+                }
+                other => panic!("key {:?}: expected Drain, got {:?}", key, other),
+            }
+        }
+    }
+
+    #[test]
+    fn ctrl_e_on_inbox_entry_requests_edit_with_selected_path() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        // Select the second observation, then Ctrl-E to edit it.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::EditObservation { path }) => {
+                assert!(
+                    path.ends_with("2026-05-28T09-00-00Z-bbb-2222.md"),
+                    "edit should target the selected entry, got {:?}",
+                    path
+                );
+            }
+            other => panic!("expected EditObservation pending action, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn ctrl_e_is_noop_when_inbox_empty() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        // gamma is a live grove with no pending observations.
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("gamma".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane (empty)
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None, "no edit for an empty inbox");
+    }
+
+    #[test]
+    fn ctrl_e_is_noop_when_inbox_pane_not_focused() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Right pane defaults to LeafBody — Ctrl-E must not request an edit.
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None, "edit only fires from the inbox pane");
+    }
+
+    #[test]
+    fn esc_cancels_disposition_picker() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Esc, KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "Esc should cancel the picker");
+        assert_eq!(app.pending_action, None, "cancel must not request a drain");
+    }
+
+    #[test]
+    fn d_is_noop_when_inbox_empty() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        // gamma is a live grove with no pending observations.
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("gamma".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane (empty)
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "no picker for an empty inbox");
+        assert_eq!(app.pending_action, None, "no drain for an empty inbox");
+    }
+
+    #[test]
+    fn d_is_noop_when_inbox_pane_not_focused() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Right pane defaults to LeafBody — `d` must not open the picker.
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_none(), "picker only opens from the inbox pane");
     }
 
     #[test]
@@ -1367,7 +2082,7 @@ mod tests {
     }
 
     #[test]
-    fn enter_on_body_with_both_fields_requests_submit() {
+    fn ctrl_s_in_body_with_both_fields_requests_submit() {
         let tmp = fixture_repo();
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
@@ -1375,7 +2090,7 @@ mod tests {
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
         handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
         type_str(&mut app, "first observation");
-        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).unwrap();
         assert_eq!(app.pending_action, Some(PendingAction::Submit));
         // Submitting does *not* close the modal in the key handler;
         // the live loop will close it after the shell-out finishes.
@@ -1383,13 +2098,62 @@ mod tests {
     }
 
     #[test]
-    fn enter_on_body_with_empty_body_does_not_submit() {
+    fn ctrl_s_with_empty_body_does_not_submit() {
         let tmp = fixture_repo();
         let view = RepoView::scan(tmp.path()).unwrap();
         let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
         handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('s'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None);
+    }
+
+    #[test]
+    fn enter_in_body_inserts_newline_and_does_not_submit() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "a");
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        type_str(&mut app, "b");
+        assert_eq!(app.capture.body, "a\nb");
+        assert_eq!(app.pending_action, None);
+        assert!(app.capture.open);
+    }
+
+    #[test]
+    fn multiline_paste_in_body_does_not_submit_or_truncate() {
+        // A terminal paste (no bracketed-paste) arrives as chars
+        // interspersed with Enter key events. The whole string must land
+        // in the body intact, and submit must not fire.
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        for c in "line1\nline2\nline3".chars() {
+            if c == '\n' {
+                handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+            } else {
+                handle_key(&mut app, KeyCode::Char(c), KeyModifiers::NONE).unwrap();
+            }
+        }
+        assert_eq!(app.capture.body, "line1\nline2\nline3");
+        assert_eq!(app.pending_action, None);
+    }
+
+    #[test]
+    fn enter_in_target_still_advances_to_body() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+        // List screen opens on the target field, prefilled with a grove.
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Target);
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.capture.field, CaptureField::Body);
         assert_eq!(app.pending_action, None);
     }
 
@@ -1453,6 +2217,164 @@ mod tests {
         let app = App::new(tmp.path().to_path_buf(), view, None);
         let out = render_to_buffer(&app, 100, 12);
         assert!(out.contains("c=capture"), "list footer missing c=capture:\n{}", out);
+    }
+
+    // -----------------------------------------------------------------
+    // Version surfaces end-to-end (header on both screens + row segment)
+
+    fn write_version(p: &Path, version: &str) {
+        touch(p, &format!("| version | `{}` |\n", version));
+    }
+
+    #[test]
+    fn header_and_row_show_versions_on_both_screens() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let claude = crate::harness::by_name("claude").unwrap();
+        write_version(&claude.install_path(root).join("VERSION.md"), "4.0.0");
+        let alpha = root.join(".grove-worktrees/alpha");
+        write_version(&claude.install_path(&alpha).join("VERSION.md"), "4.0.0");
+        touch(&alpha.join(".grove/010-first.md"), "# 010-first\n");
+
+        let view = RepoView::scan(root).unwrap();
+        let mut app = App::new(root.to_path_buf(), view, Some("alpha".into()));
+
+        let out = render_to_buffer(&app, 100, 12);
+        assert!(out.contains("cli="), "header cli missing on list:\n{out}");
+        assert!(out.contains("repo=4.0.0"), "header repo missing on list:\n{out}");
+        assert!(out.contains("worktree=4.0.0"), "row worktree missing:\n{out}");
+
+        // The header is drawn on the detail screen too.
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        let out = render_to_buffer(&app, 100, 16);
+        assert!(out.contains("cli="), "header missing on detail:\n{out}");
+    }
+
+    #[test]
+    fn row_flags_worktree_repo_drift() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let claude = crate::harness::by_name("claude").unwrap();
+        write_version(&claude.install_path(root).join("VERSION.md"), "9.9.9");
+        let alpha = root.join(".grove-worktrees/alpha");
+        write_version(&claude.install_path(&alpha).join("VERSION.md"), "4.0.0");
+        touch(&alpha.join(".grove/010-first.md"), "# 010-first\n");
+
+        let view = RepoView::scan(root).unwrap();
+        let app = App::new(root.to_path_buf(), view, Some("alpha".into()));
+        let out = render_to_buffer(&app, 120, 12);
+        assert!(out.contains("worktree=4.0.0"), "worktree missing:\n{out}");
+        assert!(out.contains("⚠ repo=9.9.9"), "drift marker missing:\n{out}");
+    }
+
+    // -----------------------------------------------------------------
+    // Header spans (cli + repo layers)
+
+    fn repo_map(pairs: &[(&'static str, Option<&str>)]) -> BTreeMap<&'static str, Option<String>> {
+        pairs
+            .iter()
+            .map(|(k, v)| (*k, v.map(|s| s.to_string())))
+            .collect()
+    }
+
+    #[test]
+    fn header_spans_single_harness_aligned_has_no_drift() {
+        let repo = repo_map(&[("claude", Some("4.0.0"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("cli=4.0.0"), "got: {text}");
+        assert!(text.contains("repo=4.0.0"), "got: {text}");
+        assert!(!text.contains("repo[claude]"), "single harness must not prefix: {text}");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn header_spans_flags_repo_drift_token() {
+        let repo = repo_map(&[("claude", Some("3.0.1"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let marker = spans.iter().find(|sp| sp.content.contains("3.0.1")).unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn header_spans_multi_harness_prefixes_repo_tokens() {
+        let repo = repo_map(&[("claude", Some("4.0.0")), ("codex", Some("4.0.0"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("repo[claude]=4.0.0"), "got: {text}");
+        assert!(text.contains("repo[codex]=4.0.0"), "got: {text}");
+    }
+
+    #[test]
+    fn header_spans_not_installed_shows_cli_only() {
+        let repo = repo_map(&[]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("cli=4.0.0"), "got: {text}");
+        assert!(text.contains("not installed"), "got: {text}");
+    }
+
+    // -----------------------------------------------------------------
+    // Version segment spans (worktree layer)
+
+    fn text_of(spans: &[Span]) -> String {
+        spans.iter().map(|s| s.content.as_ref()).collect()
+    }
+
+    fn s(v: &str) -> Option<String> {
+        Some(v.to_string())
+    }
+
+    #[test]
+    fn worktree_spans_aligned_has_no_drift_style() {
+        let spans = worktree_spans(None, &s("4.0.0"), &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=4.0.0");
+        assert!(
+            spans.iter().all(|sp| sp.style != DRIFT_STYLE),
+            "aligned segment must carry no drift styling"
+        );
+    }
+
+    #[test]
+    fn worktree_spans_flags_repo_drift_in_drift_style() {
+        let spans = worktree_spans(None, &s("3.0.1"), &s("4.0.0"), "3.0.1");
+        assert_eq!(text_of(&spans), "worktree=3.0.1 ⚠ repo=4.0.0");
+        let marker = spans
+            .iter()
+            .find(|sp| sp.content.contains("repo=4.0.0"))
+            .unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn worktree_spans_flags_cli_drift_in_drift_style() {
+        let spans = worktree_spans(None, &s("3.0.1"), &s("3.0.1"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=3.0.1 ⚠ cli=4.0.0");
+        let marker = spans
+            .iter()
+            .find(|sp| sp.content.contains("cli=4.0.0"))
+            .unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn worktree_spans_unknown_is_not_drift() {
+        let spans = worktree_spans(None, &None, &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=(unknown)");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn worktree_spans_orphan_shows_repo_none_without_warning() {
+        let spans = worktree_spans(None, &s("4.0.0"), &None, "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=4.0.0 repo=(none)");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn worktree_spans_prefixes_harness_when_named() {
+        let spans = worktree_spans(Some("codex"), &s("4.0.0"), &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree[codex]=4.0.0");
     }
 
     // -----------------------------------------------------------------

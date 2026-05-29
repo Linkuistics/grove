@@ -91,6 +91,40 @@ fn inbox_add_dispatches_through_grove_llm() {
 }
 
 #[test]
+fn inbox_edit_dispatches_through_grove_llm() {
+    let repo = init_repo();
+    grove::inboxes::materialise(repo.path()).unwrap();
+    grove::inboxes::capture(repo.path(), "g", "original", None).unwrap();
+
+    let dir = repo.path().join(".grove-meta/inboxes/g");
+    let path = fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().and_then(|s| s.to_str()) == Some("md"))
+        .unwrap();
+
+    Command::cargo_bin("grove-llm")
+        .unwrap()
+        .arg("inbox-edit")
+        .arg(&path)
+        .arg("--body=rewritten via grove-llm")
+        .args(["--repo"])
+        .arg(repo.path())
+        .assert()
+        .success();
+
+    let obs: Vec<_> = fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("md"))
+        .collect();
+    assert_eq!(obs.len(), 1, "edit must not add a file, got {obs:?}");
+    assert_eq!(fs::read_to_string(&obs[0]).unwrap(), "rewritten via grove-llm");
+}
+
+#[test]
 fn inbox_drain_enumerate_and_finalize_dispatch_through_grove_llm() {
     let repo = init_repo();
     grove::inboxes::materialise(repo.path()).unwrap();

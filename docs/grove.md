@@ -54,19 +54,18 @@ A project with many concurrent, long-lived workstreams needs each to be reproduc
 From a project repo:
 
 ```
-grove install [<repo>]            # create the .<harness>/skills/grove/ tree
-grove update  [<repo>]            # refresh an existing materialisation
+grove install [<repo>]            # create or refresh the .<harness>/skills/grove/ tree (idempotent)
 grove uninstall [<repo>]          # remove it (refuses if live groves exist; --force overrides)
-grove version                     # CLI version + the materialised content version per harness
-grove status [<repo>]             # installed versions + per-grove summary
-grove list [<repo>]               # grove names in the repo, one per line (scriptable)
+grove status [<repo>]             # cli/repo/worktree versions, drift, and per-grove summary
 ```
+
+`grove status` is the canonical visibility surface: it reports the CLI version, each harness's installed (`repo`) version, and every grove worktree's materialised version with drift markers — superseding the former `grove list` and `grove version` (removed in v4.0.0). For the CLI version alone, `grove --version`.
 
 All file-system verbs auto-detect the harness from the repo's `.claude/` and `.codex/` directories. In a multi-harness repo every detected harness is operated on; pass `--harness <name>` (repeatable) to target specific ones. Commit the materialised `.{claude,codex}/skills/grove/` as part of the repo — that commit is the methodology version pin.
 
 ### Updating
 
-`grove update` refreshes the materialised files in place. By discipline, record version bumps in an ADR (`docs/adr/`) so the update decision is traceable — `VERSION.md` only carries the current version, not the history.
+`grove install` is idempotent (ADR-0008), so refreshing is the same verb: re-run `grove install` (optionally `--version <tag>` to pin) and it updates in place when the bundled version differs, or no-ops when it matches — printing a per-harness outcome line either way. By discipline, record version bumps in an ADR (`docs/adr/`) so the update decision is traceable — `VERSION.md` only carries the current version, not the history.
 
 ## Driving a grove
 

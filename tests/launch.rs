@@ -98,8 +98,11 @@ fn do_starts_when_grove_is_unknown() {
     let repo = init_repo_with_grove_installed();
     std::env::set_current_dir(repo.path()).unwrap();
 
-    launch::do_grove(&NameArgs {
+    // `do` is the sole entry verb; on an unknown grove it takes the start
+    // path and honours --start-point (StartArgs.start_point).
+    launch::do_grove(&StartArgs {
         name: "fresh".into(),
+        start_point: Some("main".into()),
         harness: None,
         no_launch: true,
     })
@@ -124,8 +127,9 @@ fn do_continues_when_worktree_is_live() {
 
     // Worktree exists; `do` must succeed (the continue path in no-launch
     // mode is a no-op past the worktree presence check).
-    launch::do_grove(&NameArgs {
+    launch::do_grove(&StartArgs {
         name: "alive".into(),
+        start_point: None,
         harness: None,
         no_launch: true,
     })
@@ -155,8 +159,9 @@ fn do_reattaches_orphaned_worktree() {
         .unwrap();
     assert!(!repo.path().join(".grove-worktrees/orphan").exists());
 
-    launch::do_grove(&NameArgs {
+    launch::do_grove(&StartArgs {
         name: "orphan".into(),
+        start_point: None,
         harness: None,
         no_launch: true,
     })

@@ -17,22 +17,18 @@ pub enum Command {
     Uninstall(UninstallArgs),
     /// Show grove install + grove tree state in <repo>.
     Status(RepoArgs),
-    /// Start a new grove: create worktree + launch harness.
-    Start(StartArgs),
-    /// Continue an existing grove.
-    Continue(NameArgs),
-    /// Start or continue a grove — use this when you don't remember which.
+    /// Start or continue a grove — the sole lifecycle entry verb.
     ///
     /// Inspects the grove's state and dispatches: no grove by that name →
-    /// `start`; live worktree → `continue`; branch exists but worktree gone
-    /// (orphaned or finished) → re-attach the worktree and `continue`.
-    Do(NameArgs),
+    /// create the worktree and open a bootstrap session; live worktree →
+    /// continue; branch exists but worktree gone (orphaned or finished) →
+    /// re-attach the worktree and continue. When the grove has no live
+    /// leaves left, the in-session loop proposes the complete finish cycle.
+    Do(StartArgs),
     /// Orient on an unfamiliar grove without picking a task.
     Takeover(NameArgs),
     /// Retire a done node (promote brief, mv into done/).
     Retire(RetireArgs),
-    /// Wrap up a fully-done grove (merge, cleanup).
-    Finish(NameArgs),
     /// Inspect a grove's inbox on the `grove-meta` branch (diagnostic).
     ///
     /// The corresponding capture and drain verbs are LLM-driven and live on
@@ -286,12 +282,9 @@ pub fn run() -> anyhow::Result<()> {
         Command::Install(args) => crate::install::run(&args),
         Command::Uninstall(args) => crate::uninstall::run(&args),
         Command::Status(args) => crate::status::run(&args),
-        Command::Start(args)    => crate::launch::start(&args),
-        Command::Continue(args) => crate::launch::continue_grove(&args),
         Command::Do(args)       => crate::launch::do_grove(&args),
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args)   => crate::launch::retire(&args),
-        Command::Finish(args)   => crate::launch::finish(&args),
         Command::Inbox(args)    => match args.command {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },

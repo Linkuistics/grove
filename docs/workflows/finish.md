@@ -1,5 +1,7 @@
 # `grove finish` — walkthrough
 
+> ⚠️ **Superseded — pending rewrite.** The `grove finish` *verb* has been removed: `grove do` is now the sole lifecycle entry verb, and finishing a grove is an **in-session** step (when the grove has no live leaves left, the running loop proposes the complete finish cycle). The step-by-step flow below still describes the *what* — promote durable output, delete `.grove/`, merge, drop the branch and worktree — but the *trigger* is no longer a `grove finish` invocation. This walkthrough (and the `prompts/finish.md` launcher prompt it references) will be rewritten to the in-session model once that flow is designed (grove leaf `020-do-proposes-finish-cycle`). Read the command invocations below as historical until then.
+
 Close out a completed grove. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, the scaffolding has been deleted in a focused commit, the branch has been merged into `acme/orders-api`'s default branch, and the worktree is gone. The default branch shows the grove's history as a contiguous run of commits — no `.grove/` left behind.
 
 > This page is about driving the **grove CLI**. For *why a finished grove must not leave its scaffolding on the default branch*, see [`../grove.md`](../grove.md); for what the harness session does step-by-step, the canonical instructions are in [`../../content/prompts/finish.md`](../../content/prompts/finish.md).

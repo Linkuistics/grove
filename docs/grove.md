@@ -71,19 +71,19 @@ All file-system verbs auto-detect the harness from the repo's `.claude/` and `.c
 
 A grove lives in three places — the CLI binary (Homebrew, used from anywhere); the materialised methodology at `<repo>/.<harness>/skills/grove/`, committed as part of the repo and serving as the version pin; and the grove itself, which is a **git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>`. The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/.grove-worktrees/<name>/.grove/`, committed to the `<name>` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
 
-Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. `grove finish` first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
+Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
 
 If a multi-harness repo (both `.claude/` and `.codex/`) launches a grove, the CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` so later verbs know which harness this grove is bound to. Single-harness repos skip the stamp entirely.
 
 ```
-grove start <name>                # new grove: create worktree + launch harness on the start prompt
-grove continue <name>             # resume: open the worktree and run the loop
+grove do <name>                   # the sole lifecycle entry verb: start a new grove, or continue an existing one
 grove takeover <name>             # orient on an unfamiliar grove without picking a task
 grove retire <name>/<node-path>   # promote brief upward, mv node into done/
-grove finish <name>               # grove is done: merge + cleanup per project convention
 ```
 
-Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (set up the worktree but skip exec'ing the harness — useful for inspection or scripting). `grove start` also takes `--start-point <ref>` to branch from somewhere other than origin's HEAD.
+`grove do` is the sole lifecycle entry verb — it inspects the grove's state and dispatches: no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch present but worktree gone → re-attach and continue. (The former `grove start` and `grove continue` are removed; `do` already covered both. Finishing is in-session — see above — so there is no `grove finish` verb.)
+
+Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (set up the worktree but skip exec'ing the harness — useful for inspection or scripting). On a brand-new grove `grove do` also takes `--start-point <ref>` to branch from somewhere other than origin's HEAD.
 
 The exec'd session is pre-named `<repo>: <name> grove` and the worktree carries a `.harness` stamp only when needed to disambiguate in multi-harness repos.
 

@@ -26,13 +26,12 @@ grove status [<repo>]             # cli/repo/worktree versions, drift, and per-g
 **Drive a grove workstream:**
 
 ```
-grove start <name>                # new grove: create worktree + launch harness
-grove continue <name>             # resume: pick the next leaf, run the loop
-grove do <name>                   # start or continue — use when you don't remember which
+grove do <name>                   # the sole lifecycle entry verb: start a new grove or continue an existing one
 grove takeover <name>             # orient on an unfamiliar grove without picking a task
 grove retire <name>/<node-path>   # promote brief upward, mv node into done/
-grove finish <name>               # grove is done: merge + cleanup per project convention
 ```
+
+`grove do` is the **sole lifecycle entry verb**: it inspects the grove's state and dispatches — no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch exists but worktree gone → re-attach and continue. The former `grove start` and `grove continue` are removed (`do` already covered both); on a brand-new grove `do` accepts `--start-point <ref>` to branch from somewhere other than origin's HEAD. The former `grove finish` is also removed: a grove is now finished **in-session** — when it has no live leaves left, the running loop proposes the complete finish cycle (delete `.grove/`, merge to the default branch, delete the branch and worktree). See the methodology's *Finish* step.
 
 Each verb takes optional `--harness <name>` (repeatable for file-system verbs) and respects auto-detection from the repo's `.claude/` and `.codex/` directories. Session launchers stamp `.grove-stamps/<name>` only when needed for disambiguation in multi-harness repos. Worktrees live at `.grove-worktrees/<name>/`; the task tree itself is `.grove/` inside that worktree.
 

@@ -317,7 +317,7 @@ fn capture_without_materialisation_fails_with_useful_hint() {
 #[test]
 fn capture_is_seed_compatible_when_target_grove_does_not_exist_yet() {
     // The "seed" lifecycle state: nothing addresses-side; the inbox dir
-    // just sits on the branch waiting for `grove start <name>`.
+    // just sits on the branch waiting for `grove do <name>`.
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
 

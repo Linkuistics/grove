@@ -35,15 +35,23 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
     launch_existing(args, "continue")
 }
 
-/// State-dispatching launcher: a single verb that works whether the named
-/// grove has been started yet, is currently live, or is orphaned (branch
-/// present, worktree gone). The launched harness session handles any
-/// in-context judgement; this verb only dispatches.
-pub fn do_grove(args: &NameArgs) -> Result<()> {
+/// State-dispatching launcher: the sole lifecycle entry verb. It works
+/// whether the named grove has been started yet, is currently live, or is
+/// orphaned (branch present, worktree gone). The new-grove path honours
+/// `--start-point`; the continue paths ignore it (the branch already exists).
+/// The launched harness session handles any in-context judgement — including
+/// proposing the complete finish cycle once the grove has no live leaves
+/// left; this verb only dispatches.
+pub fn do_grove(args: &StartArgs) -> Result<()> {
     let repo_path = repo::resolve(None)?;
+    let cont = NameArgs {
+        name: args.name.clone(),
+        harness: args.harness.clone(),
+        no_launch: args.no_launch,
+    };
     let worktree = repo::grove_worktree(&repo_path, &args.name);
     if worktree.is_dir() {
-        return continue_grove(args);
+        return continue_grove(&cont);
     }
     if repo::branch_exists(&repo_path, &args.name)? {
         let attached = repo::attach_grove_worktree(&repo_path, &args.name)?;
@@ -51,22 +59,13 @@ pub fn do_grove(args: &NameArgs) -> Result<()> {
             "grove: re-attached worktree at {} (branch existed but worktree was gone)",
             attached.display()
         );
-        return continue_grove(args);
+        return continue_grove(&cont);
     }
-    start(&StartArgs {
-        name: args.name.clone(),
-        start_point: None,
-        harness: args.harness.clone(),
-        no_launch: args.no_launch,
-    })
+    start(args)
 }
 
 pub fn takeover(args: &NameArgs) -> Result<()> {
     launch_existing(args, "takeover")
-}
-
-pub fn finish(args: &NameArgs) -> Result<()> {
-    launch_existing(args, "finish")
 }
 
 fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
@@ -80,7 +79,7 @@ fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
     let worktree = repo::grove_worktree(&repo_path, &args.name);
     if !worktree.is_dir() {
         anyhow::bail!(
-            "no worktree for grove '{}' at {} — run `grove start {}` first",
+            "no worktree for grove '{}' at {} — run `grove do {}` first",
             args.name,
             worktree.display(),
             args.name

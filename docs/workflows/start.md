@@ -1,8 +1,8 @@
-# `grove start` — walkthrough
+# `grove do` (new grove) — walkthrough
 
-Begin a new workstream. By the end of this walkthrough, `acme/orders-api` has a fresh worktree at `.grove-worktrees/add-rate-limiting/` on a new `add-rate-limiting` branch, and a harness session is running inside it on grove's start prompt.
+Begin a new workstream. `grove do` is the sole lifecycle entry verb; this page shows its new-grove path (the former `grove start`). Running `grove do` against a grove that already exists *continues* it instead — see [`multi-step.md`](multi-step.md). By the end of this walkthrough, `acme/orders-api` has a fresh worktree at `.grove-worktrees/add-rate-limiting/` on a new `add-rate-limiting` branch, and a harness session is running inside it on grove's start prompt.
 
-> This page is about driving the **grove CLI**. For *what grove is and why*, see [`../grove.md`](../grove.md); for the methodology agents read at runtime, see [`../../content/SKILL.md`](../../content/SKILL.md). For the full flag surface, run `grove start --help`.
+> This page is about driving the **grove CLI**. For *what grove is and why*, see [`../grove.md`](../grove.md); for the methodology agents read at runtime, see [`../../content/SKILL.md`](../../content/SKILL.md). For the full flag surface, run `grove do --help`.
 
 ## Starting state
 
@@ -23,7 +23,7 @@ We want to add request rate limiting to the API — a project we expect to span 
 ## The default start
 
 ```
-$ grove start add-rate-limiting
+$ grove do add-rate-limiting
 Preparing worktree (new branch 'add-rate-limiting')
 HEAD is now at 1a2b3c4 Install grove v2.0.0
 ```
@@ -56,7 +56,7 @@ claude -n "orders-api: add-rate-limiting grove" <prompt>
 
 ## The bootstrap session
 
-The harness session that just opened is the **bootstrap session** — the first session on the new branch. It is part of the grove, but it is *not* what `grove start` itself did; the CLI's job ended at `exec_harness`. Following the start prompt, the session will:
+The harness session that just opened is the **bootstrap session** — the first session on the new branch. It is part of the grove, but it is *not* what `grove do` itself did; the CLI's job ended at `exec_harness`. Following the start prompt, the session will:
 
 1. Run a grilling pass on your goal, sharpening any new terminology into `CONTEXT.md` inline.
 2. Propose a root [`BRIEF.md`](../../content/BRIEF-FORMAT.md) for the grove and a small initial decomposition — usually one or two leaves, no more.
@@ -72,14 +72,14 @@ $ tree -L 1 .grove-worktrees/add-rate-limiting/.grove
 └── BRIEF.md
 ```
 
-That brief and its first leaves are produced by the bootstrap session — `grove start` itself does not write a `BRIEF.md`. Keep the bootstrap planning small; the decomposition will grow as later planning tasks discover what is actually there.
+That brief and its first leaves are produced by the bootstrap session — `grove do` itself does not write a `BRIEF.md`. Keep the bootstrap planning small; the decomposition will grow as later planning tasks discover what is actually there.
 
 ## Variation: branching from somewhere other than origin's HEAD
 
 Pass `--start-point <ref>` when the grove should branch from a tag, a release branch, or a colleague's WIP — anywhere other than `origin/HEAD`:
 
 ```
-$ grove start add-rate-limiting --start-point release/2026.04
+$ grove do add-rate-limiting --start-point release/2026.04
 Preparing worktree (new branch 'add-rate-limiting')
 HEAD is now at 9c8d7e6 cut 2026.04
 ```
@@ -91,20 +91,20 @@ The flag is forwarded straight to `git worktree add ... -b add-rate-limiting <re
 When you want the worktree and branch but not the interactive session — for inspection, scripting, or because you intend to drive the harness by hand — pass `--no-launch`:
 
 ```
-$ grove start add-rate-limiting --no-launch
+$ grove do add-rate-limiting --no-launch
 Preparing worktree (new branch 'add-rate-limiting')
 HEAD is now at 1a2b3c4 Install grove v2.0.0
 grove: worktree ready at /Users/you/code/acme/orders-api/.grove-worktrees/add-rate-limiting (no-launch)
 ```
 
-The worktree and branch exist exactly as in the default flow; `.grove/` is still empty until a bootstrap session runs. You can `cd` into the worktree and start the harness yourself with a free-form prompt, or come back later with `grove continue add-rate-limiting`.
+The worktree and branch exist exactly as in the default flow; `.grove/` is still empty until a bootstrap session runs. You can `cd` into the worktree and start the harness yourself with a free-form prompt, or come back later with `grove do add-rate-limiting` (which continues the now-existing grove).
 
 ## Multi-harness repos
 
-If `acme/orders-api` has both `.claude/` and `.codex/` directories — i.e. grove is materialised under each — `grove start` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
+If `acme/orders-api` has both `.claude/` and `.codex/` directories — i.e. grove is materialised under each — `grove do` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
 
 ```
-$ grove start add-rate-limiting --harness claude
+$ grove do add-rate-limiting --harness claude
 ```
 
 The CLI records the binding by writing a one-line stamp at `.grove-stamps/add-rate-limiting`:
@@ -114,7 +114,7 @@ $ cat .grove-stamps/add-rate-limiting
 claude
 ```
 
-Later verbs (`grove continue`, `grove takeover`, `grove retire`, `grove finish`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos the stamp is not written — there's nothing to disambiguate.
+Later verbs (`grove do`, `grove takeover`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos the stamp is not written — there's nothing to disambiguate.
 
 ## Codex harness
 

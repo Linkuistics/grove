@@ -2,7 +2,7 @@
 
 `docs/grove.md` is the methodology: *what* grove is and *why*.
 [Workflows](workflows/) are the verb-by-verb walkthroughs: what `grove
-install`, `grove start`, etc. actually do. This file is the third
+install`, `grove do`, etc. actually do. This file is the third
 companion — the field guide to *driving* a grove well as the human
 collaborator. The moves and habits below turn the loop into productive
 design work rather than ceremonial bookkeeping.

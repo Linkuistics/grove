@@ -66,7 +66,7 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove. The grove's task tree lives at `.grove/` inside that worktree.
 
-Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove start <name>` for a new grove (creates the worktree, branches off the default branch, opens a bootstrap session) and `grove continue <name>` to resume. Both pre-name the harness session, so the rename ritual is unnecessary in the common case.
+Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove do <name>` is the **sole lifecycle entry verb** — for a brand-new grove it creates the worktree, branches off the default branch, and opens a bootstrap session; for an existing grove it resumes (re-attaching the worktree first if the branch is present but the worktree is gone). It pre-names the harness session, so the rename ritual is unnecessary in the common case.
 
 If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
 
@@ -93,7 +93,7 @@ observation. Read each, triage as **incorporate** (use it in this task),
 Finalize with `grove-llm inbox-drain --for=<name>
 --incorporated=<path>... --deferred=<path>... --rejected=<path>...`: the CLI deletes the triaged
 files in one commit named with the disposition counts and pushes when
-configured. Drain runs at every `grove start` and `grove continue`; the
+configured. Drain runs at every `grove do`; the
 LLM never touches the inbox branch directly. That assembled context —
 read material plus drained inbox — is the session's entire mandate; read
 nothing else by reflex.
@@ -161,7 +161,7 @@ standard artifact that outlives grove (constraint 6).
 | ADRs | `docs/adr/NNNN-*.md` | atomic decisions: hard to reverse, surprising, or a real trade-off |
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
-| Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at `grove finish` before merging |
+| Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step before merging |
 | `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove-llm inbox-add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`, `0006-grove-llm-binary-separation.md`). Materialised by `grove install`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work

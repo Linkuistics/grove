@@ -33,6 +33,21 @@ write ADR-0008 documenting the Cargo-vs-Homebrew trade-off.
   - Name stays `grove install`; no deprecated alias for `grove update`.
   - `path-scoped commit` + `install scope` (from `CONTEXT.md`) continue
     to apply.
+- **Decision (2026-05-29, while implementing [[020-extend-status-with-worktree-versions]]):**
+  store the **stripped** version in `VERSION.md`. The leading `v` is a
+  git-tag artifact — `3.0.1` is the version's identity and matches
+  `CARGO_PKG_VERSION`. `version_md::write` should `strip_v` the stamp it
+  writes so the stored artifact is canonical and directly comparable to
+  the cli version. **Critical constraint:** in `src/install.rs` the
+  `version` string does double duty — it is also the *fetch ref*
+  (`fetch_tarball(&version)` → `.../refs/tags/v3.0.1.tar.gz`). Strip
+  **only** the stamp, never the fetch ref; `latest_version()` and
+  `--version` keep returning/accepting the `v`-prefixed tag. The
+  read-side `status::strip_v` stays as a backward-compat shim for stamps
+  already materialised with the `v` (it is no longer load-bearing once
+  new writes are canonical). This dovetails with the per-harness compare
+  below: comparing canonical stored stamps to the target is cleaner if
+  both sides are normalised via `status::same_version`.
 
 ## Done when
 
@@ -40,6 +55,9 @@ write ADR-0008 documenting the Cargo-vs-Homebrew trade-off.
   no longer take a mode parameter.
 - Per-harness outcome decided by comparing existing `VERSION.md` (if any)
   to the target version, and printed using one of the three lines above.
+- `version_md::write` stores the stripped version (no leading `v`); a
+  test asserts the stamp written for tag `v3.0.1` reads back `3.0.1`,
+  while the fetch ref passed to the fetcher remains `v3.0.1`.
 - `src/cli.rs` no longer has `Update`; `Command::Install` is the only
   install verb.
 - `grove install` over an already-installed-at-same-version target prints

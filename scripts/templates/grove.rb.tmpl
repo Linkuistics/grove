@@ -27,7 +27,7 @@ class Grove < Formula
   end
 
   test do
-    assert_match "grove cli @VERSION@", shell_output("#{bin}/grove version")
+    assert_match "grove @VERSION@", shell_output("#{bin}/grove --version")
     assert_match "grove-llm @VERSION@", shell_output("#{bin}/grove-llm --version")
   end
 end

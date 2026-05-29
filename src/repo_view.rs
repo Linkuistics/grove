@@ -16,6 +16,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::harness::HARNESSES;
+use crate::status;
+
 /// What the TUI sees for one repo. Construct with `scan`; re-construct on
 /// every filesystem-watch refresh (no memoisation — see the leaf's
 /// "No memoisation in v1" note).
@@ -24,6 +27,14 @@ pub struct RepoView {
     pub repo_root: PathBuf,
     groves: Vec<GroveSummary>,
     details: BTreeMap<String, GroveDetail>,
+    /// The `cli` layer: the running `grove` binary's version. Snapshotted at
+    /// scan time so rendering stays a pure function of the snapshot.
+    cli_version: String,
+    /// The `repo` layer: each installed harness's `VERSION.md`, keyed by
+    /// harness name. Read once per scan via [`status::repo_versions`]; absent
+    /// harnesses omitted, unreadable `VERSION.md` mapped to `None`. The header
+    /// renders this; grove rows compare their worktree stamp against it.
+    repo_versions: BTreeMap<&'static str, Option<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +50,13 @@ pub struct GroveSummary {
     /// Pending observation files at `.grove-meta/inboxes/<name>/` (the
     /// `.gitkeep` placeholder is excluded; only `.md` files are counted).
     pub inbox_pending: usize,
+    /// The `worktree` layer: this grove worktree's materialised `VERSION.md`
+    /// per relevant harness (the union of repo-installed harnesses and any
+    /// harness materialised in the worktree, so legacy and orphan worktrees
+    /// stay visible). `None` = missing/unreadable, rendered `(unknown)` and
+    /// never drift. Always empty for a `Seed` (no worktree). Read via the
+    /// shared [`status::worktree_version`] reader.
+    pub worktree_versions: BTreeMap<&'static str, Option<String>>,
 }
 
 /// Per-grove lifecycle state distinguishable from `scan`-time evidence.
@@ -114,6 +132,10 @@ impl RepoView {
         let live_names = list_subdirs(&worktrees_dir)?;
         let inbox_names = list_subdirs(&inboxes_dir)?;
 
+        // Version layers, read once per scan (rendering reads only the
+        // snapshot, never the filesystem — keeps the TUI snapshot tests honest).
+        let repo_versions = status::repo_versions(repo_root);
+
         let mut all: BTreeSet<String> = BTreeSet::new();
         all.extend(live_names.iter().cloned());
         all.extend(inbox_names.iter().cloned());
@@ -145,12 +167,31 @@ impl RepoView {
             };
             let inbox_pending = inbox.len();
 
+            // The `worktree` layer for this grove. Relevant harnesses are the
+            // union of those installed in the repo and those materialised in
+            // the worktree — the same union `grove status` uses, so legacy
+            // worktrees (no stamp) still show one `(unknown)` per repo harness
+            // and orphan worktrees (harness gone from the repo) stay visible.
+            let mut worktree_versions: BTreeMap<&'static str, Option<String>> = BTreeMap::new();
+            if is_live {
+                let worktree = worktrees_dir.join(&name);
+                for h in HARNESSES {
+                    let in_repo = repo_versions.contains_key(h.name);
+                    let in_worktree = h.install_path(&worktree).exists();
+                    if in_repo || in_worktree {
+                        worktree_versions
+                            .insert(h.name, status::worktree_version(repo_root, &name, h));
+                    }
+                }
+            }
+
             groves.push(GroveSummary {
                 name: name.clone(),
                 lifecycle,
                 live_leaves,
                 retired_leaves,
                 inbox_pending,
+                worktree_versions,
             });
             details.insert(
                 name.clone(),
@@ -162,7 +203,19 @@ impl RepoView {
             repo_root: repo_root.to_path_buf(),
             groves,
             details,
+            cli_version: status::CLI_VERSION.to_string(),
+            repo_versions,
         })
+    }
+
+    /// The `cli` layer: the running binary's version, snapshotted at scan.
+    pub fn cli_version(&self) -> &str {
+        &self.cli_version
+    }
+
+    /// The `repo` layer: installed harness versions captured at scan time.
+    pub fn repo_versions(&self) -> &BTreeMap<&'static str, Option<String>> {
+        &self.repo_versions
     }
 
     /// All groves seen in this scan, sorted by name. The slice is the
@@ -333,11 +386,59 @@ fn list_observations(dir: &Path) -> Result<Vec<PathBuf>> {
 #[cfg(test)]
 mod inline_tests {
     use super::*;
+    use crate::harness;
+    use tempfile::TempDir;
 
     #[test]
     fn sort_key_prefixed_before_unprefixed() {
         let mut names = vec!["readme.md", "010-a.md", "020-b.md", "alpha"];
         names.sort_by(|a, b| sort_key(a).cmp(&sort_key(b)));
         assert_eq!(names, vec!["010-a.md", "020-b.md", "alpha", "readme.md"]);
+    }
+
+    fn write_version_md(dir: &Path, version: &str) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(dir.join("VERSION.md"), format!("| version | `{}` |\n", version)).unwrap();
+    }
+
+    #[test]
+    fn scan_captures_cli_repo_and_worktree_versions() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        let claude = harness::by_name("claude").unwrap();
+        // Repo install on 4.0.0, one live grove whose worktree is on 3.0.1.
+        write_version_md(&claude.install_path(repo), "4.0.0");
+        let worktree = repo.join(".grove-worktrees").join("alpha");
+        write_version_md(&claude.install_path(&worktree), "3.0.1");
+        fs::create_dir_all(worktree.join(".grove")).unwrap();
+        fs::write(worktree.join(".grove/010-task.md"), "# 010-task\n").unwrap();
+
+        let view = RepoView::scan(repo).unwrap();
+
+        assert_eq!(view.cli_version(), crate::status::CLI_VERSION);
+        assert_eq!(view.repo_versions().get("claude"), Some(&Some("4.0.0".to_string())));
+        let alpha = view.groves().iter().find(|g| g.name == "alpha").unwrap();
+        assert_eq!(
+            alpha.worktree_versions.get("claude"),
+            Some(&Some("3.0.1".to_string()))
+        );
+    }
+
+    #[test]
+    fn scan_marks_legacy_worktree_version_unknown() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        let claude = harness::by_name("claude").unwrap();
+        write_version_md(&claude.install_path(repo), "4.0.0");
+        // Worktree has a task tree but no materialised VERSION.md.
+        let worktree = repo.join(".grove-worktrees").join("legacy");
+        fs::create_dir_all(worktree.join(".grove")).unwrap();
+        fs::write(worktree.join(".grove/010-task.md"), "# 010-task\n").unwrap();
+
+        let view = RepoView::scan(repo).unwrap();
+        let legacy = view.groves().iter().find(|g| g.name == "legacy").unwrap();
+        // Repo-installed harness is relevant even with no worktree stamp,
+        // and renders as unknown (None), never as drift.
+        assert_eq!(legacy.worktree_versions.get("claude"), Some(&None));
     }
 }

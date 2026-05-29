@@ -9,7 +9,23 @@ use std::path::Path;
 
 /// The version of the `grove` binary itself — the methodology bundled inside
 /// the binary (the `cli` layer of the three-version model in `CONTEXT.md`).
-const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Public so the TUI snapshot (leaf 050) can compare against the same value.
+pub const CLI_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The `repo` layer: each installed harness's version, keyed by harness name.
+/// An absent harness is omitted entirely; a present-but-unreadable `VERSION.md`
+/// maps to `None`. Shared by `grove status` and the TUI (leaf 050) so both
+/// surfaces read the repo layer the same way.
+pub fn repo_versions(repo: &Path) -> BTreeMap<&'static str, Option<String>> {
+    let mut out = BTreeMap::new();
+    for h in HARNESSES {
+        let dest = h.install_path(repo);
+        if dest.exists() {
+            out.insert(h.name, version_md::read_version(&dest).ok());
+        }
+    }
+    out
+}
 
 pub fn run(args: &RepoArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
@@ -50,13 +66,7 @@ struct GroveStatus {
 fn render(repo_path: &Path) -> Result<String> {
     // The `repo` layer: each harness's installed version. Absent harnesses are
     // not in the map; a present-but-unreadable `VERSION.md` maps to `None`.
-    let mut repo_versions: BTreeMap<&'static str, Option<String>> = BTreeMap::new();
-    for h in HARNESSES {
-        let dest = h.install_path(repo_path);
-        if dest.exists() {
-            repo_versions.insert(h.name, version_md::read_version(&dest).ok());
-        }
-    }
+    let repo_versions = repo_versions(repo_path);
 
     let mut out = String::new();
     if repo_versions.is_empty() {
@@ -317,6 +327,29 @@ mod tests {
             version_segment(&s("v3.0.1"), &s("4.0.0"), "4.0.0"),
             "worktree=v3.0.1 ⚠ repo=4.0.0 ⚠ cli=4.0.0"
         );
+    }
+
+    // --- repo_versions: the shared repo-layer reader ----------------------
+
+    #[test]
+    fn repo_versions_lists_only_installed_harnesses() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        install_repo(repo, "claude", "4.0.0");
+        let m = repo_versions(repo);
+        assert_eq!(m.get("claude"), Some(&Some("4.0.0".to_string())));
+        assert!(!m.contains_key("codex"), "absent harness must be omitted");
+    }
+
+    #[test]
+    fn repo_versions_maps_unreadable_version_md_to_none() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        // Create the install dir but no parseable VERSION.md.
+        let h = harness::by_name("claude").unwrap();
+        fs::create_dir_all(h.install_path(repo)).unwrap();
+        let m = repo_versions(repo);
+        assert_eq!(m.get("claude"), Some(&None));
     }
 
     // --- render: end-to-end over a fixture repo ---------------------------

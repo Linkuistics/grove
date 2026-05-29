@@ -22,6 +22,7 @@
 // edits grove state directly.
 
 use anyhow::{Context, Result};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -41,6 +42,14 @@ use crate::repo_view::{
 };
 
 const DEBOUNCE: Duration = Duration::from_millis(200);
+
+/// Styling for a version-drift marker — bold yellow, to draw the eye on both
+/// the header (`cli`-vs-`repo`) and grove rows (`worktree`-vs-`repo`/`cli`).
+/// The drift *rule* is the same plain string-equality one `grove status` uses
+/// (`CONTEXT.md`); only the presentation differs (colour vs. plain text).
+const DRIFT_STYLE: Style = Style::new()
+    .fg(Color::Yellow)
+    .add_modifier(Modifier::BOLD);
 
 pub fn run(args: &RepoArgs) -> Result<()> {
     let repo = repo::resolve(args.repo.as_deref())?;
@@ -709,9 +718,16 @@ fn flat_rows_len(app: &App) -> usize {
 
 pub fn render(f: &mut Frame, app: &App) {
     let area = f.area();
-    let [main, footer] =
-        Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).areas(area);
+    // A one-row header (cli + repo versions) sits above the body on both
+    // screens; the footer keeps its keyhint role below.
+    let [header, main, footer] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(1),
+        Constraint::Length(1),
+    ])
+    .areas(area);
 
+    render_header(f, header, app);
     match app.screen {
         Screen::GroveList => render_grove_list(f, main, app),
         Screen::GroveDetail => render_grove_detail(f, main, app),
@@ -782,9 +798,52 @@ fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
     f.render_widget(Paragraph::new(hint), hint_area);
 }
 
+/// Build the header line — the `cli` layer plus each installed harness's
+/// `repo` layer — as styled spans. On a `cli`-vs-`repo` mismatch the affected
+/// `repo` token is styled via [`DRIFT_STYLE`] to draw the eye, using the same
+/// string-equality drift rule as the rows and `grove status`. In multi-harness
+/// repos each `repo` token is disambiguated as `repo[<name>]=…`.
+fn header_spans(
+    cli: &str,
+    repo_versions: &BTreeMap<&'static str, Option<String>>,
+) -> Vec<Span<'static>> {
+    let mut spans = vec![Span::raw(format!("grove cli={}", cli))];
+    if repo_versions.is_empty() {
+        spans.push(Span::raw("  ·  (not installed)"));
+        return spans;
+    }
+    let multi = repo_versions.len() > 1;
+    for (name, ver) in repo_versions {
+        spans.push(Span::raw("  ·  "));
+        let label = if multi {
+            format!("repo[{}]=", name)
+        } else {
+            "repo=".to_string()
+        };
+        match ver {
+            Some(v) => {
+                let style = if v != cli { DRIFT_STYLE } else { Style::default() };
+                spans.push(Span::styled(format!("{}{}", label, v), style));
+            }
+            None => spans.push(Span::raw(format!("{}(unknown)", label))),
+        }
+    }
+    spans
+}
+
+fn render_header(f: &mut Frame, area: Rect, app: &App) {
+    let spans = header_spans(app.view.cli_version(), app.view.repo_versions());
+    f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     let filtered = app.filtered_groves();
-    let items: Vec<ListItem> = filtered.iter().map(|g| ListItem::new(grove_row(g))).collect();
+    let cli = app.view.cli_version();
+    let repo_versions = app.view.repo_versions();
+    let items: Vec<ListItem> = filtered
+        .iter()
+        .map(|g| ListItem::new(grove_row(g, cli, repo_versions)))
+        .collect();
     let title = if app.filter.text.is_empty() {
         "groves".to_string()
     } else {
@@ -805,26 +864,72 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     f.render_stateful_widget(list, area, &mut state);
 }
 
-fn grove_row(g: &GroveSummary) -> Line<'static> {
+fn grove_row(
+    g: &GroveSummary,
+    cli: &str,
+    repo_versions: &BTreeMap<&'static str, Option<String>>,
+) -> Line<'static> {
     let badge = match g.lifecycle {
         Lifecycle::Live => Span::styled(" live ", Style::default().fg(Color::Green)),
         Lifecycle::Seed => Span::styled(" seed ", Style::default().fg(Color::Yellow)),
     };
-    let inbox = if g.inbox_pending > 0 {
-        Span::styled(
-            format!("  inbox:{}", g.inbox_pending),
-            Style::default().fg(Color::Cyan),
-        )
-    } else {
-        Span::raw("".to_string())
-    };
-    Line::from(vec![
+    let mut spans = vec![
         badge,
         Span::raw(" "),
         Span::raw(g.name.clone()),
         Span::raw(format!("  leaves:{}/{}", g.live_leaves, g.retired_leaves)),
-        inbox,
-    ])
+    ];
+    // The `worktree` layer, one segment per relevant harness (Seeds carry
+    // none). Prefix the harness only when this grove spans more than one.
+    let multi = g.worktree_versions.len() > 1;
+    for (harness, worktree) in &g.worktree_versions {
+        let repo = repo_versions.get(harness).cloned().flatten();
+        spans.push(Span::raw("  "));
+        spans.extend(worktree_spans(
+            multi.then_some(*harness),
+            worktree,
+            &repo,
+            cli,
+        ));
+    }
+    if g.inbox_pending > 0 {
+        spans.push(Span::styled(
+            format!("  inbox:{}", g.inbox_pending),
+            Style::default().fg(Color::Cyan),
+        ));
+    }
+    Line::from(spans)
+}
+
+/// Build the trailing `worktree=…` version segment for a grove row as styled
+/// spans. Mirrors `status::version_segment`'s rule exactly — plain
+/// string-equality drift, `(unknown)` for a missing stamp, `repo=(none)` for
+/// an orphan — but colours the `⚠` markers via [`DRIFT_STYLE`] instead of
+/// emitting plain text. `harness` is `Some` only in multi-harness repos, where
+/// it disambiguates the segment as `worktree[<name>]=…`.
+fn worktree_spans(
+    harness: Option<&str>,
+    worktree: &Option<String>,
+    repo: &Option<String>,
+    cli: &str,
+) -> Vec<Span<'static>> {
+    let key = match harness {
+        Some(h) => format!("worktree[{}]=", h),
+        None => "worktree=".to_string(),
+    };
+    let Some(wt) = worktree else {
+        return vec![Span::raw(format!("{}(unknown)", key))];
+    };
+    let mut spans = vec![Span::raw(format!("{}{}", key, wt))];
+    match repo {
+        None => spans.push(Span::raw(" repo=(none)")),
+        Some(r) if r != wt => spans.push(Span::styled(format!(" ⚠ repo={}", r), DRIFT_STYLE)),
+        Some(_) => {}
+    }
+    if cli != wt {
+        spans.push(Span::styled(format!(" ⚠ cli={}", cli), DRIFT_STYLE));
+    }
+    spans
 }
 
 fn render_grove_detail(f: &mut Frame, area: Rect, app: &App) {
@@ -1453,6 +1558,164 @@ mod tests {
         let app = App::new(tmp.path().to_path_buf(), view, None);
         let out = render_to_buffer(&app, 100, 12);
         assert!(out.contains("c=capture"), "list footer missing c=capture:\n{}", out);
+    }
+
+    // -----------------------------------------------------------------
+    // Version surfaces end-to-end (header on both screens + row segment)
+
+    fn write_version(p: &Path, version: &str) {
+        touch(p, &format!("| version | `{}` |\n", version));
+    }
+
+    #[test]
+    fn header_and_row_show_versions_on_both_screens() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let claude = crate::harness::by_name("claude").unwrap();
+        write_version(&claude.install_path(root).join("VERSION.md"), "4.0.0");
+        let alpha = root.join(".grove-worktrees/alpha");
+        write_version(&claude.install_path(&alpha).join("VERSION.md"), "4.0.0");
+        touch(&alpha.join(".grove/010-first.md"), "# 010-first\n");
+
+        let view = RepoView::scan(root).unwrap();
+        let mut app = App::new(root.to_path_buf(), view, Some("alpha".into()));
+
+        let out = render_to_buffer(&app, 100, 12);
+        assert!(out.contains("cli="), "header cli missing on list:\n{out}");
+        assert!(out.contains("repo=4.0.0"), "header repo missing on list:\n{out}");
+        assert!(out.contains("worktree=4.0.0"), "row worktree missing:\n{out}");
+
+        // The header is drawn on the detail screen too.
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        let out = render_to_buffer(&app, 100, 16);
+        assert!(out.contains("cli="), "header missing on detail:\n{out}");
+    }
+
+    #[test]
+    fn row_flags_worktree_repo_drift() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path();
+        let claude = crate::harness::by_name("claude").unwrap();
+        write_version(&claude.install_path(root).join("VERSION.md"), "9.9.9");
+        let alpha = root.join(".grove-worktrees/alpha");
+        write_version(&claude.install_path(&alpha).join("VERSION.md"), "4.0.0");
+        touch(&alpha.join(".grove/010-first.md"), "# 010-first\n");
+
+        let view = RepoView::scan(root).unwrap();
+        let app = App::new(root.to_path_buf(), view, Some("alpha".into()));
+        let out = render_to_buffer(&app, 120, 12);
+        assert!(out.contains("worktree=4.0.0"), "worktree missing:\n{out}");
+        assert!(out.contains("⚠ repo=9.9.9"), "drift marker missing:\n{out}");
+    }
+
+    // -----------------------------------------------------------------
+    // Header spans (cli + repo layers)
+
+    fn repo_map(pairs: &[(&'static str, Option<&str>)]) -> BTreeMap<&'static str, Option<String>> {
+        pairs
+            .iter()
+            .map(|(k, v)| (*k, v.map(|s| s.to_string())))
+            .collect()
+    }
+
+    #[test]
+    fn header_spans_single_harness_aligned_has_no_drift() {
+        let repo = repo_map(&[("claude", Some("4.0.0"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("cli=4.0.0"), "got: {text}");
+        assert!(text.contains("repo=4.0.0"), "got: {text}");
+        assert!(!text.contains("repo[claude]"), "single harness must not prefix: {text}");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn header_spans_flags_repo_drift_token() {
+        let repo = repo_map(&[("claude", Some("3.0.1"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let marker = spans.iter().find(|sp| sp.content.contains("3.0.1")).unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn header_spans_multi_harness_prefixes_repo_tokens() {
+        let repo = repo_map(&[("claude", Some("4.0.0")), ("codex", Some("4.0.0"))]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("repo[claude]=4.0.0"), "got: {text}");
+        assert!(text.contains("repo[codex]=4.0.0"), "got: {text}");
+    }
+
+    #[test]
+    fn header_spans_not_installed_shows_cli_only() {
+        let repo = repo_map(&[]);
+        let spans = header_spans("4.0.0", &repo);
+        let text: String = spans.iter().map(|s| s.content.as_ref()).collect();
+        assert!(text.contains("cli=4.0.0"), "got: {text}");
+        assert!(text.contains("not installed"), "got: {text}");
+    }
+
+    // -----------------------------------------------------------------
+    // Version segment spans (worktree layer)
+
+    fn text_of(spans: &[Span]) -> String {
+        spans.iter().map(|s| s.content.as_ref()).collect()
+    }
+
+    fn s(v: &str) -> Option<String> {
+        Some(v.to_string())
+    }
+
+    #[test]
+    fn worktree_spans_aligned_has_no_drift_style() {
+        let spans = worktree_spans(None, &s("4.0.0"), &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=4.0.0");
+        assert!(
+            spans.iter().all(|sp| sp.style != DRIFT_STYLE),
+            "aligned segment must carry no drift styling"
+        );
+    }
+
+    #[test]
+    fn worktree_spans_flags_repo_drift_in_drift_style() {
+        let spans = worktree_spans(None, &s("3.0.1"), &s("4.0.0"), "3.0.1");
+        assert_eq!(text_of(&spans), "worktree=3.0.1 ⚠ repo=4.0.0");
+        let marker = spans
+            .iter()
+            .find(|sp| sp.content.contains("repo=4.0.0"))
+            .unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn worktree_spans_flags_cli_drift_in_drift_style() {
+        let spans = worktree_spans(None, &s("3.0.1"), &s("3.0.1"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=3.0.1 ⚠ cli=4.0.0");
+        let marker = spans
+            .iter()
+            .find(|sp| sp.content.contains("cli=4.0.0"))
+            .unwrap();
+        assert_eq!(marker.style, DRIFT_STYLE);
+    }
+
+    #[test]
+    fn worktree_spans_unknown_is_not_drift() {
+        let spans = worktree_spans(None, &None, &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=(unknown)");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn worktree_spans_orphan_shows_repo_none_without_warning() {
+        let spans = worktree_spans(None, &s("4.0.0"), &None, "4.0.0");
+        assert_eq!(text_of(&spans), "worktree=4.0.0 repo=(none)");
+        assert!(spans.iter().all(|sp| sp.style != DRIFT_STYLE));
+    }
+
+    #[test]
+    fn worktree_spans_prefixes_harness_when_named() {
+        let spans = worktree_spans(Some("codex"), &s("4.0.0"), &s("4.0.0"), "4.0.0");
+        assert_eq!(text_of(&spans), "worktree[codex]=4.0.0");
     }
 
     // -----------------------------------------------------------------

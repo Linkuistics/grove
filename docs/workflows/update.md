@@ -28,12 +28,12 @@ The CLI and the materialised skill are versioned together — `grove update` mat
 $ brew upgrade grove
 ==> Upgrading Linkuistics/taps/grove 2.0.0 -> 2.1.0
 ...
-$ grove version
-grove CLI 2.1.0
-  claude: .claude/skills/grove @ v2.0.0
+$ grove status
+grove cli 2.1.0, installs in /Users/you/code/acme/orders-api:
+  claude → 2.0.0
 ```
 
-`grove version` confirms the mismatch we are about to resolve: CLI at `2.1.0`, materialised content still at `2.0.0`.
+`grove status` confirms the mismatch we are about to resolve: CLI at `2.1.0`, materialised content still at `2.0.0`.
 
 ## The default update
 

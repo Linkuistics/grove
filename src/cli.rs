@@ -16,12 +16,8 @@ pub enum Command {
     Update(InstallArgs),
     /// Remove grove from <repo>.
     Uninstall(UninstallArgs),
-    /// Show CLI and installed grove version.
-    Version,
     /// Show grove install + grove tree state in <repo>.
     Status(RepoArgs),
-    /// List groves in <repo>, one per line.
-    List(RepoArgs),
     /// Start a new grove: create worktree + launch harness.
     Start(StartArgs),
     /// Continue an existing grove.
@@ -271,9 +267,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Install(args) => crate::install::run(&args, crate::install::Mode::Install),
         Command::Update(args)  => crate::install::run(&args, crate::install::Mode::Update),
         Command::Uninstall(args) => crate::uninstall::run(&args),
-        Command::Version => crate::version::run(),
         Command::Status(args) => crate::status::run(&args),
-        Command::List(args) => crate::list::run(&args),
         Command::Start(args)    => crate::launch::start(&args),
         Command::Continue(args) => crate::launch::continue_grove(&args),
         Command::Do(args)       => crate::launch::do_grove(&args),

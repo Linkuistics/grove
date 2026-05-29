@@ -57,10 +57,10 @@ From a project repo:
 grove install [<repo>]            # create the .<harness>/skills/grove/ tree
 grove update  [<repo>]            # refresh an existing materialisation
 grove uninstall [<repo>]          # remove it (refuses if live groves exist; --force overrides)
-grove version                     # CLI version + the materialised content version per harness
-grove status [<repo>]             # installed versions + per-grove summary
-grove list [<repo>]               # grove names in the repo, one per line (scriptable)
+grove status [<repo>]             # cli/repo/worktree versions, drift, and per-grove summary
 ```
+
+`grove status` is the canonical visibility surface: it reports the CLI version, each harness's installed (`repo`) version, and every grove worktree's materialised version with drift markers — superseding the former `grove list` and `grove version` (removed in v4.0.0). For the CLI version alone, `grove --version`.
 
 All file-system verbs auto-detect the harness from the repo's `.claude/` and `.codex/` directories. In a multi-harness repo every detected harness is operated on; pass `--harness <name>` (repeatable) to target specific ones. Commit the materialised `.{claude,codex}/skills/grove/` as part of the repo — that commit is the methodology version pin.
 

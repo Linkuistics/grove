@@ -17,10 +17,10 @@ brew install grove
 grove install [<repo>]            # materialise grove into <repo> (create-only)
 grove update  [<repo>]            # refresh an existing install
 grove uninstall [<repo>]          # remove grove (refuses if live groves exist; --force to override)
-grove version                     # CLI version + installed content version per harness
-grove status [<repo>]             # installed versions + per-grove summary in <repo>
-grove list [<repo>]               # grove names in <repo>, one per line (scriptable)
+grove status [<repo>]             # cli/repo/worktree versions, drift, and per-grove summary in <repo>
 ```
+
+`grove status` is the canonical visibility surface — it shows the CLI version, each harness's installed (`repo`) version, and every grove worktree's materialised version with drift markers. It supersedes the former `grove list` and `grove version`, both removed in v4.0.0; for the CLI version alone use `grove --version`.
 
 `grove install` and `grove update` create a single path-scoped git commit covering the installed paths (default messages: `Install grove v<ver>` / `Update grove to v<ver>`). They refuse to proceed if the install-scope paths already have staged changes, but leave unrelated dirty state elsewhere untouched. Pass `--no-commit` to stage and commit yourself, or `--message <text>` (`-m`) to override the message.
 

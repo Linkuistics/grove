@@ -159,6 +159,13 @@ pub enum PendingAction {
         path: PathBuf,
         disposition: Disposition,
     },
+    /// Edit the *existing committed* observation at `path`: seed `$EDITOR` with
+    /// its current body, then on a non-empty change round-trip through
+    /// `grove-llm inbox-edit`. Distinct from `EditBody`, which edits the
+    /// in-memory capture draft before it is ever committed.
+    EditObservation {
+        path: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -464,6 +471,36 @@ fn process_pending_action(
                 }
             }
         }
+        PendingAction::EditObservation { path } => {
+            // Seed $EDITOR with the entry's current body, then — only if the
+            // user actually changed it to something non-empty — round-trip
+            // through `grove-llm inbox-edit`. The drain target grove is the one
+            // the detail screen is on (the inbox pane only opens from there).
+            let grove = app
+                .detail
+                .as_ref()
+                .map(|d| d.grove.clone())
+                .unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            let outcome = suspended(terminal, || shell_edit_observation(&path));
+            match outcome {
+                Ok(EditOutcome::Unchanged) => {
+                    app.status = Some(format!("{}: unchanged", name));
+                }
+                Ok(EditOutcome::Saved) => {
+                    // The fs-watch on `.grove-meta/inboxes` fires on the rename,
+                    // debounces, and rescans — the renamed entry then appears.
+                    app.status = Some(format!("edited {} in {}", name, grove));
+                }
+                Err(e) => {
+                    // Mirror capture/disposition: surface stderr, no silent retry.
+                    app.status = Some(format!("edit failed: {}", short_err(&e)));
+                }
+            }
+        }
         PendingAction::Drain { path, disposition } => {
             // The grove the detail screen is on is the drain target; the
             // picker only opens from a focused detail inbox pane.
@@ -575,6 +612,53 @@ fn shell_drain(grove: &str, path: &Path, disposition: Disposition) -> Result<()>
     Ok(())
 }
 
+/// The result of an inbox-edit round-trip: either the body was changed and
+/// committed, or the user left it untouched (so no verb ran).
+enum EditOutcome {
+    Saved,
+    Unchanged,
+}
+
+/// Edit an existing committed observation: read its current body, open it in
+/// `$EDITOR`, and — only if the user changed it to something non-empty —
+/// rewrite it via `grove-llm inbox-edit --body-file`. The CLI recomputes the
+/// content-hash filename, commits, and pushes when a remote is configured; the
+/// TUI never touches `grove-meta` git plumbing directly. An empty edited body
+/// is rejected (mirroring capture's empty-body guard) rather than producing an
+/// empty observation.
+fn shell_edit_observation(path: &Path) -> Result<EditOutcome> {
+    let current = std::fs::read_to_string(path)
+        .with_context(|| format!("reading observation {}", path.display()))?;
+    let edited = shell_editor(&current)?;
+    if edited == current {
+        return Ok(EditOutcome::Unchanged);
+    }
+    if edited.trim().is_empty() {
+        anyhow::bail!("edited body is empty; the observation was left unchanged");
+    }
+    let tf = tempfile::Builder::new()
+        .prefix("grove-edit-")
+        .suffix(".md")
+        .tempfile()
+        .context("creating body tempfile")?;
+    std::fs::write(tf.path(), &edited)
+        .with_context(|| format!("writing edited body to {}", tf.path().display()))?;
+    let status = std::process::Command::new(find_grove_llm())
+        .arg("inbox-edit")
+        .arg(path)
+        .arg("--body-file")
+        .arg(tf.path())
+        .status()
+        .context("running grove-llm inbox-edit")?;
+    if !status.success() {
+        anyhow::bail!(
+            "grove-llm inbox-edit exited with status {:?}",
+            status.code()
+        );
+    }
+    Ok(EditOutcome::Saved)
+}
+
 fn shell_editor(initial: &str) -> Result<String> {
     let editor = std::env::var("EDITOR")
         .or_else(|_| std::env::var("VISUAL"))
@@ -641,6 +725,17 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
     // Ctrl-C always quits.
     if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
         return Ok(true);
+    }
+
+    // Ctrl-E on the detail screen edits the selected inbox observation. Handled
+    // ahead of the `(screen, code)` match because that match ignores modifiers,
+    // and a bare `e` must not trigger an edit.
+    if mods.contains(KeyModifiers::CONTROL)
+        && matches!(code, KeyCode::Char('e'))
+        && matches!(app.screen, Screen::GroveDetail)
+    {
+        request_observation_edit(app);
+        return Ok(false);
     }
 
     match (app.screen, code) {
@@ -845,6 +940,31 @@ fn open_disposition_modal(app: &mut App) {
         DispositionModal { path, entry }
     };
     app.disposition = Some(modal);
+}
+
+/// Request an `$EDITOR` round-trip for the currently-selected inbox entry. No-op
+/// unless the Inbox pane is focused and holds at least one observation — Ctrl-E
+/// is inert from any other pane or an empty inbox, mirroring `d`.
+fn request_observation_edit(app: &mut App) {
+    let path = {
+        let Some(d) = app.detail.as_ref() else {
+            return;
+        };
+        if d.right != RightPane::Inbox {
+            return;
+        }
+        let Some(gd) = app.view.grove(&d.grove) else {
+            return;
+        };
+        if gd.inbox.is_empty() {
+            return;
+        }
+        // Clamp the selection the same way the renderer does, so we always
+        // target a real entry even if the cursor drifted past the end.
+        let idx = d.inbox.selected().unwrap_or(0).min(gd.inbox.len() - 1);
+        gd.inbox[idx].clone()
+    };
+    app.pending_action = Some(PendingAction::EditObservation { path });
 }
 
 /// Handle a key while the disposition picker is open: `i`/`d`/`r` choose a
@@ -1398,6 +1518,7 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("                  in the inbox pane, j/k select an observation"),
         Line::from("  d             disposition the selected observation"),
         Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
+        Line::from("  Ctrl-E        edit the selected observation's body in $EDITOR"),
         Line::from("  PgUp / PgDn   scroll right pane"),
         Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
         Line::from("  c             capture an observation to a grove's inbox"),
@@ -1765,6 +1886,48 @@ mod tests {
                 other => panic!("key {:?}: expected Drain, got {:?}", key, other),
             }
         }
+    }
+
+    #[test]
+    fn ctrl_e_on_inbox_entry_requests_edit_with_selected_path() {
+        let tmp = fixture_repo();
+        let mut app = app_focused_on_alpha_inbox(&tmp);
+        // Select the second observation, then Ctrl-E to edit it.
+        handle_key(&mut app, KeyCode::Char('j'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::EditObservation { path }) => {
+                assert!(
+                    path.ends_with("2026-05-28T09-00-00Z-bbb-2222.md"),
+                    "edit should target the selected entry, got {:?}",
+                    path
+                );
+            }
+            other => panic!("expected EditObservation pending action, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn ctrl_e_is_noop_when_inbox_empty() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        // gamma is a live grove with no pending observations.
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("gamma".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap(); // → inbox pane (empty)
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None, "no edit for an empty inbox");
+    }
+
+    #[test]
+    fn ctrl_e_is_noop_when_inbox_pane_not_focused() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+        // Right pane defaults to LeafBody — Ctrl-E must not request an edit.
+        handle_key(&mut app, KeyCode::Char('e'), KeyModifiers::CONTROL).unwrap();
+        assert_eq!(app.pending_action, None, "edit only fires from the inbox pane");
     }
 
     #[test]

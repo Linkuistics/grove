@@ -186,6 +186,26 @@ pub struct InboxDrainArgs {
 }
 
 #[derive(Parser)]
+pub struct InboxEditArgs {
+    /// Path of the observation to edit (a `.md` file inside
+    /// `inboxes/<name>/` on the `grove-meta` worktree). The addressed grove is
+    /// read off the path.
+    pub path: PathBuf,
+    /// New observation body as an inline string.
+    #[arg(long = "body", conflicts_with_all = ["body_file", "body_stdin"])]
+    pub body: Option<String>,
+    /// New observation body read from a file at the given path.
+    #[arg(long = "body-file", conflicts_with_all = ["body", "body_stdin"])]
+    pub body_file: Option<PathBuf>,
+    /// Read the new observation body from stdin (single-shot, no prompt).
+    #[arg(long = "body-stdin", conflicts_with_all = ["body", "body_file"])]
+    pub body_stdin: bool,
+    /// Target repo (defaults to cwd's git root).
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 pub struct InboxShowArgs {
     /// Name of the grove whose inbox to print.
     pub name: String,

@@ -8,7 +8,7 @@
 // drops context (parent BRIEF Q3 of leaf 080).
 
 use crate::brief_chain;
-use crate::cli::{InboxAddArgs, InboxDrainArgs};
+use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs};
 use crate::inboxes;
 use crate::leaf;
 use crate::leaf_ops;
@@ -42,6 +42,11 @@ pub enum Command {
     /// `--incorporated`/`--deferred`/`--rejected` paths → finalize by
     /// deleting the triaged files in one commit.
     InboxDrain(InboxDrainArgs),
+    /// Rewrite the body of an existing observation on the `grove-meta` branch.
+    /// Recomputes the filename's content-hash suffix (so capture-dedup stays
+    /// correct) while preserving the capture timestamp and slug; commits and
+    /// pushes best-effort. The addressed grove is read off the path.
+    InboxEdit(InboxEditArgs),
     /// Print the absolute path of the next live leaf in this grove's tree —
     /// depth-first walk of `.grove/` in numeric-prefix order, skipping
     /// `done/`. Empty stdout (and a diagnostic on stderr) when the grove has
@@ -132,6 +137,7 @@ pub fn run() -> Result<()> {
     match cli.command {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
+        Command::InboxEdit(args) => cmd_inbox_edit(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
@@ -143,8 +149,14 @@ pub fn run() -> Result<()> {
 
 fn cmd_inbox_add(args: &InboxAddArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
-    let observation = read_body(args)?;
+    let observation = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
     inboxes::capture(&repo_path, &args.to, &observation, args.slug.as_deref())
+}
+
+fn cmd_inbox_edit(args: &InboxEditArgs) -> Result<()> {
+    let repo_path = repo::resolve(args.repo.as_deref())?;
+    let body = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
+    inboxes::edit(&repo_path, &args.path, &body)
 }
 
 fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {
@@ -345,15 +357,22 @@ fn parse_prefix_slug(arg: &str) -> Result<(u32, &str)> {
     Ok((prefix, slug))
 }
 
-fn read_body(args: &InboxAddArgs) -> Result<String> {
-    if let Some(b) = &args.body {
-        return Ok(b.clone());
+/// Shared body-input plumbing for the inbox write verbs (`inbox-add`,
+/// `inbox-edit`): exactly one of `--body` / `--body-file` / `--body-stdin`
+/// (clap enforces mutual exclusion; this enforces presence).
+fn read_body(
+    body: Option<&str>,
+    body_file: Option<&std::path::Path>,
+    body_stdin: bool,
+) -> Result<String> {
+    if let Some(b) = body {
+        return Ok(b.to_string());
     }
-    if let Some(p) = &args.body_file {
+    if let Some(p) = body_file {
         return std::fs::read_to_string(p)
             .with_context(|| format!("reading body file {}", p.display()));
     }
-    if args.body_stdin {
+    if body_stdin {
         let mut s = String::new();
         std::io::stdin().read_to_string(&mut s).context("reading body from stdin")?;
         return Ok(s);

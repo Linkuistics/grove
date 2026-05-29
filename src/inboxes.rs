@@ -127,6 +127,66 @@ pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option
     Ok(())
 }
 
+/// Rewrite the body of an existing observation file on `grove-meta`.
+///
+/// `path` names a `.md` observation inside some `inboxes/<name>/` directory on
+/// the meta worktree; the addressed grove is read off the path rather than
+/// supplied separately. The contract follows ADR-0004's content-hash filename
+/// invariant:
+///
+/// - **Recompute the `-<hash8>` suffix** from the new body and `git mv` the
+///   file so dedup (`find_by_hash`) stays correct — a later capture of the
+///   edited body must dedup against this file, not create a duplicate.
+/// - **Preserve the original `<stamp>Z` prefix.** Chronological ordering is
+///   capture order, which an edit does not change.
+/// - **Keep the slug.** It is a cosmetic human hint; re-slugging on every edit
+///   would be churn.
+///
+/// Commits `inbox: edit <name>/<entry>` (the surviving, renamed entry) and
+/// pushes best-effort like capture. Rejects empty bodies (mirroring capture),
+/// `.gitkeep`, non-`.md`, and paths outside the inbox tree.
+pub fn edit(repo: &Path, path: &Path, new_body: &str) -> Result<()> {
+    if new_body.trim().is_empty() {
+        anyhow::bail!("empty observation body; pass body via --body, --body-file, or --body-stdin");
+    }
+    let wt = require_worktree(repo)?;
+    let (name, old_rel) = validate_observation_path(&wt, path)?;
+
+    let old_abs = wt.join(&old_rel);
+    if !old_abs.is_file() {
+        anyhow::bail!("no such observation: {}", path.display());
+    }
+
+    let old_filename = old_abs
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("path has no filename: {}", path.display()))?;
+    let new_filename = rehash_filename(old_filename, &content_hash_8(new_body));
+    let new_rel = format!("{}/{}/{}", INBOXES_SUBDIR, name, new_filename);
+
+    // Rewrite the body in place, then (if the hash suffix changed) `git mv`
+    // the file. Writing first means the rename carries the new content. After a
+    // `git mv` both the deletion and the addition are already staged, so we
+    // commit the path pair directly (`run_git_commit`) rather than re-`add`ing
+    // the now-absent old path — the same pattern `migrate_legacy_if_present`
+    // uses. When the hash is unchanged (a no-op edit), `stage_and_commit`
+    // stages the path and no-ops cleanly if there is no diff.
+    let message = format!("inbox: edit {}/{}", name, new_filename);
+    std::fs::write(&old_abs, new_body.as_bytes())
+        .with_context(|| format!("rewriting {}", old_abs.display()))?;
+
+    if new_filename != old_filename {
+        with_index_lock_retry(|| run_git_mv(&wt, &old_rel, &new_rel))?;
+        with_index_lock_retry(|| {
+            run_git_commit(&wt, &[old_rel.clone(), new_rel.clone()], &message)
+        })?;
+    } else {
+        with_index_lock_retry(|| stage_and_commit(&wt, std::slice::from_ref(&old_rel), &message))?;
+    }
+    push_best_effort(&wt);
+    Ok(())
+}
+
 /// Phase 1 of drain: fetch the latest `grove-meta` state (if a remote is
 /// configured) and enumerate the pending observation files for `name`.
 ///
@@ -278,6 +338,78 @@ fn validate_path_inside_inbox(worktree: &Path, inbox_dir: &Path, candidate: &Pat
             )
         })?;
     Ok(rel.to_string_lossy().replace('\\', "/"))
+}
+
+/// Validate that `candidate` names a `.md` observation inside *some* inbox
+/// (`inboxes/<name>/<entry>.md`) on the meta worktree, returning
+/// `(name, rel)` — the addressed grove and the worktree-relative path. Used by
+/// `edit`, where the grove is determined by the path itself rather than passed
+/// separately (unlike drain, which knows its `--for` name up front).
+///
+/// Rejects `.gitkeep`, non-`.md`, and any path that does not sit exactly two
+/// levels under the `inboxes/` subdir.
+fn validate_observation_path(worktree: &Path, candidate: &Path) -> Result<(String, String)> {
+    let abs = if candidate.is_absolute() {
+        candidate.to_path_buf()
+    } else {
+        std::env::current_dir().context("getting cwd")?.join(candidate)
+    };
+    let canon_abs = canonical_parent_plus_file(&abs)?;
+    let canon_wt = worktree
+        .canonicalize()
+        .with_context(|| format!("canonicalising worktree {}", worktree.display()))?;
+    let rel = canon_abs.strip_prefix(&canon_wt).with_context(|| {
+        format!(
+            "path {} is not inside the inbox worktree {}",
+            candidate.display(),
+            worktree.display()
+        )
+    })?;
+    let comps: Vec<String> = rel
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    if comps.len() != 3 || comps[0] != INBOXES_SUBDIR {
+        anyhow::bail!(
+            "path {} is not an observation inside inboxes/<name>/",
+            candidate.display()
+        );
+    }
+    let name = comps[1].as_str();
+    let filename = comps[2].as_str();
+    if filename == GITKEEP {
+        anyhow::bail!(".gitkeep is not an observation: {}", candidate.display());
+    }
+    if !filename.ends_with(".md") {
+        anyhow::bail!(
+            "edit only operates on .md observation files (got {})",
+            candidate.display()
+        );
+    }
+    Ok((
+        name.to_string(),
+        format!("{}/{}/{}", INBOXES_SUBDIR, name, filename),
+    ))
+}
+
+/// Replace (or append) the `-<hash8>` suffix on an observation filename with
+/// `new_hash`, preserving the `<stamp>Z-<slug>` prefix. Capture-written names
+/// always end in `-<8 hex>`; for any other shape the hash is appended so the
+/// result still carries a valid suffix (and a re-edit then replaces it rather
+/// than stacking).
+fn rehash_filename(old: &str, new_hash: &str) -> String {
+    let stem = old.strip_suffix(".md").unwrap_or(old);
+    let base = if stem.len() >= 9 {
+        let (head, tail) = stem.split_at(stem.len() - 9);
+        if tail.starts_with('-') && tail[1..].chars().all(|c| c.is_ascii_hexdigit()) {
+            head
+        } else {
+            stem
+        }
+    } else {
+        stem
+    };
+    format!("{}-{}.md", base, new_hash)
 }
 
 /// Resolve a path's parent to its canonical form even if the file itself no

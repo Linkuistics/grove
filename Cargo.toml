@@ -1,6 +1,6 @@
 [package]
 name = "grove"
-version = "5.0.0"
+version = "5.1.0"
 edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"

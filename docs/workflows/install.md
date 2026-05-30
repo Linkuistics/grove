@@ -90,14 +90,56 @@ $ grove install -m "chore: install grove skill (v2.0.0)"
 
 The resulting commit's subject is whatever you passed; the install scope (and the path-scoped staging) is unchanged.
 
-## Re-running on an already-installed repo
+## Refreshing an existing install
 
-`grove install` is **idempotent** (ADR-0008): re-running it on an already-installed repo is safe and is how you refresh. The verb compares the bundled (canonical) version to each harness's installed stamp and prints a per-harness outcome — no-op when they match, an update when they differ. See the [refresh walkthrough](update.md) for the full update flow; in brief:
+`grove install` is **idempotent** (ADR-0008): re-running it on an already-installed repo is safe and *is* how you refresh — there is no separate `update` verb. The verb compares the bundled (canonical) version to each harness's installed stamp and prints a per-harness outcome: no-op when they match, an update when they differ.
+
+Upgrade the CLI first — the CLI and the materialised skill are versioned together, so `grove install` materialises whatever version the *currently-installed CLI* defaults to:
+
+```
+$ brew upgrade grove
+==> Upgrading Linkuistics/taps/grove 2.0.0 -> 2.1.0
+$ grove status
+grove cli 2.1.0, installs in /Users/you/code/acme/orders-api:
+  claude → 2.0.0
+```
+
+`grove status` confirms the mismatch to resolve: CLI at `2.1.0`, materialised content still at `2.0.0`. Then just re-run `grove install` — because the installed version differs from the bundled one, the outcome line reports an **update**:
 
 ```
 $ grove install
-grove: target /Users/you/code/acme/orders-api @ v2.0.0
-grove: /Users/you/code/acme/orders-api/.claude/skills/grove → already at 2.0.0, no change
+grove: target /Users/you/code/acme/orders-api @ v2.1.0
+grove: /Users/you/code/acme/orders-api/.claude/skills/grove → updated 2.0.0 → 2.1.0
+grove: record this bump as an ADR in docs/adr/ (grove's discipline for version changes).
+```
+
+The contents under `.claude/skills/grove/` are re-extracted at `v2.1.0` (the existing tree is cleared first, so removed files are removed, not left behind), and the install scope is committed as a single path-scoped commit. Its default subject is `Update grove to v2.1.0` rather than `Install grove v<version>`, because the harness already had an install:
+
+```
+$ git log --oneline -2
+5e6f7a8 Update grove to v2.1.0
+1a2b3c4 Install grove v2.0.0
+```
+
+The outcome line is the durable record of *what happened* — `installed @ X`, `already at X, no change`, or `updated X → Y`. It is always printed, which makes `grove install` safe to lean on in CI and setup scripts: a re-run never errors on "already installed" and tells you, every time, whether anything actually changed.
+
+**Pin a version** with `grove install --version <tag>`: it honours the pin and stays idempotent — no-ops if the harness is already at `<tag>`, updates otherwise.
+
+**Record the bump as an ADR.** The nudge above is convention, not enforcement — it fires only on a real bump (a no-op refresh stays silent), and grove does *not* scaffold the ADR. Author it by hand and commit it separately from the materialisation, since it is its own decision:
+
+```
+$ git add docs/adr/0009-update-grove-to-v2.1.0.md
+$ git commit -m "docs(adr): record grove v2.1.0 bump"
+```
+
+You end up with two commits for the bump — the materialisation diff and the decision record — answering both *what changed* and *why*.
+
+**Nothing to refresh.** If the bundled content already matches what's materialised (you ran `grove install` twice, or the new release didn't change any bundled files), the outcome line reports no change and grove finishes silently without producing an empty commit; the ADR nudge does not fire:
+
+```
+$ grove install
+grove: target /Users/you/code/acme/orders-api @ v2.1.0
+grove: /Users/you/code/acme/orders-api/.claude/skills/grove → already at 2.1.0, no change
 grove: no changes to commit
 ```
 

@@ -8,7 +8,7 @@
 // drops context (parent BRIEF Q3 of leaf 080).
 
 use crate::brief_chain;
-use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs};
+use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs, InboxRemoveArgs};
 use crate::inboxes;
 use crate::leaf;
 use crate::leaf_ops;
@@ -48,6 +48,11 @@ pub enum Command {
     /// correct) while preserving the capture timestamp and slug; commits and
     /// pushes best-effort. The addressed grove is read off the path.
     InboxEdit(InboxEditArgs),
+    /// Remove the inbox of `<name>` entirely (the finish-cycle cleanup step,
+    /// ADR-0012) so a finished grove stops showing as a seed. Refuses if any
+    /// observation is still pending — drain first. Idempotent when the inbox
+    /// is already absent. Commits and pushes best-effort.
+    InboxRemove(InboxRemoveArgs),
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
     /// `BRIEF.md` stub, and lay down a first planning leaf `010-<slug>.md`
     /// (default slug `plan`). After this, `grove-llm pick` returns the new
@@ -154,6 +159,7 @@ pub fn run() -> Result<()> {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
         Command::InboxEdit(args) => cmd_inbox_edit(&args),
+        Command::InboxRemove(args) => cmd_inbox_remove(&args),
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
@@ -174,6 +180,11 @@ fn cmd_inbox_edit(args: &InboxEditArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
     let body = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
     inboxes::edit(&repo_path, &args.path, &body)
+}
+
+fn cmd_inbox_remove(args: &InboxRemoveArgs) -> Result<()> {
+    let repo_path = repo::resolve(args.repo.as_deref())?;
+    inboxes::remove(&repo_path, &args.for_grove)
 }
 
 fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {

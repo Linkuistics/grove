@@ -1,4 +1,5 @@
 use grove::inboxes;
+use grove::repo_view::{Lifecycle, RepoView};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -583,6 +584,100 @@ fn edit_rejects_empty_body() {
 
     // The original file is untouched after a rejected edit.
     assert_eq!(fs::read_to_string(&obs[0]).unwrap(), "alpha");
+}
+
+#[test]
+fn remove_deletes_inbox_dir_including_gitkeep_when_empty() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
+
+    // Drain the lone observation so the inbox holds only its .gitkeep — the
+    // state a grove's inbox is in by finish time once the session has triaged.
+    let paths = inboxes::drain_enumerate(repo.path(), "g").unwrap();
+    inboxes::drain_finalize(repo.path(), "g", &[paths[0].clone()], &[], &[]).unwrap();
+
+    let dir = repo.path().join(".grove-meta/inboxes/g");
+    assert!(dir.is_dir() && dir.join(".gitkeep").is_file(), "precondition");
+
+    inboxes::remove(repo.path(), "g").unwrap();
+
+    // Whole directory gone — .gitkeep and all — so `repo_view::scan` no longer
+    // classifies `g` as a seed.
+    assert!(!dir.exists(), "inbox dir should be removed entirely: {dir:?}");
+
+    let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
+    let s = String::from_utf8_lossy(&log.stdout);
+    assert!(s.contains("inbox: remove g (grove finished)"), "log: {s}");
+
+    // The removal is committed: nothing for `inboxes/g` remains tracked.
+    let tree = git(repo.path(), &["ls-tree", "-r", "--name-only", "grove-meta"]);
+    let t = String::from_utf8_lossy(&tree.stdout);
+    assert!(!t.contains("inboxes/g/"), "inboxes/g/ still tracked: {t}");
+}
+
+#[test]
+fn remove_refuses_when_observations_pending() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "g", "un-triaged observation", None).unwrap();
+
+    let err = inboxes::remove(repo.path(), "g").unwrap_err();
+    let msg = err.to_string();
+    assert!(msg.contains("pending observation"), "got: {msg}");
+    assert!(msg.contains("inbox-drain"), "error should point at draining: {msg}");
+
+    // Refusal is total — the observation and the dir are untouched.
+    let dir = repo.path().join(".grove-meta/inboxes/g");
+    assert!(dir.is_dir(), "inbox dir must survive a refused remove");
+    assert_eq!(list_obs(&dir).len(), 1, "pending observation must not be lost");
+}
+
+#[test]
+fn remove_is_idempotent_when_inbox_absent() {
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    let before = rev_count(repo.path(), "grove-meta");
+
+    // Grove never seeded: removing its (absent) inbox is a clean no-op, which
+    // is what makes the state-checked finish resume safe to re-run.
+    inboxes::remove(repo.path(), "never-seeded").unwrap();
+
+    assert!(!repo.path().join(".grove-meta/inboxes/never-seeded").exists());
+    assert_eq!(
+        rev_count(repo.path(), "grove-meta"),
+        before,
+        "no-op remove must not create a commit"
+    );
+}
+
+#[test]
+fn finished_grove_does_not_appear_as_seed_after_remove() {
+    // The end-to-end contract of leaf 030: once the finish cycle removes a
+    // grove's inbox, `repo_view::scan` (the data layer behind `grove status`
+    // and the TUI) no longer classifies it as a seed.
+    let repo = init_repo();
+    inboxes::materialise(repo.path()).unwrap();
+    inboxes::capture(repo.path(), "done-grove", "an observation", None).unwrap();
+
+    // Drain to the .gitkeep-only state the inbox reaches by finish time.
+    let paths = inboxes::drain_enumerate(repo.path(), "done-grove").unwrap();
+    inboxes::drain_finalize(repo.path(), "done-grove", &[paths[0].clone()], &[], &[]).unwrap();
+
+    // No worktree was ever created → the orphaned inbox is exactly the
+    // "finished grove looks like a seed" symptom this leaf fixes.
+    let before = RepoView::scan(repo.path()).unwrap();
+    let seed = before.groves().iter().find(|g| g.name == "done-grove").unwrap();
+    assert_eq!(seed.lifecycle, Lifecycle::Seed, "precondition: orphaned inbox shows as seed");
+
+    inboxes::remove(repo.path(), "done-grove").unwrap();
+
+    let after = RepoView::scan(repo.path()).unwrap();
+    assert!(
+        after.groves().iter().all(|g| g.name != "done-grove"),
+        "a finished grove must not appear as a seed after inbox removal: {:?}",
+        after.groves().iter().map(|g| &g.name).collect::<Vec<_>>()
+    );
 }
 
 fn rev_count(repo: &Path, refspec: &str) -> usize {

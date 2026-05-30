@@ -278,6 +278,63 @@ pub fn drain_finalize(
     Ok(())
 }
 
+/// Remove the entire inbox directory `inboxes/<name>/` (including its
+/// `.gitkeep`) on the `grove-meta` branch — the finish-cycle cleanup step that
+/// stops a *finished* grove from masquerading as a [[Seed]] in `grove status` /
+/// the TUI (whose seed classification is "inbox dir present, worktree absent",
+/// see `repo_view::scan`). ADR-0012.
+///
+/// Refuses (Option A — mirroring ADR-0005's non-ff refuse-and-instruct) if any
+/// pending `.md` observation remains: finish must drain/triage first so no
+/// un-triaged observation — possibly added by another grove since this
+/// session's bootstrap [[Drain]] — is silently destroyed. The fetch-before
+/// matches drain's freshness, so observations another machine pushed are seen
+/// (and refused on) too.
+///
+/// Idempotent: if `inboxes/<name>/` does not exist (the grove was never
+/// seeded, or a prior — resumed — finish step already removed it), returns Ok
+/// without a commit. This is what lets the state-checked finish resume
+/// (ADR-0010, constraint 1) re-run the step with no marker file.
+///
+/// Removes the directory and commits `inbox: remove <name> (grove finished)`,
+/// then pushes best-effort like the other grove-meta writes (ADR-0005).
+pub fn remove(repo: &Path, name: &str) -> Result<()> {
+    let wt = require_worktree(repo)?;
+    let dir = inbox_dir(repo, name);
+    if !dir.is_dir() {
+        // Never seeded, or already removed by a prior (resumed) finish step.
+        return Ok(());
+    }
+
+    // Fetch first so a remote-pushed observation is part of the pending check,
+    // then refuse-and-instruct if anything is still un-triaged (Option A).
+    fetch_and_ff(&wt)?;
+    let pending = list_observations(&dir)?;
+    if !pending.is_empty() {
+        anyhow::bail!(
+            "inbox {name} has {} pending observation{} — drain it before finishing: \
+             `grove-llm inbox-drain --for={name}`, triage each (at finish the \
+             dispositions narrow to re-seed-elsewhere or reject — there is no later \
+             leaf to defer to), then re-run. Refusing to remove the inbox so no \
+             un-triaged observation is lost.",
+            pending.len(),
+            if pending.len() == 1 { "" } else { "s" }
+        );
+    }
+
+    let rel = format!("{}/{}", INBOXES_SUBDIR, name);
+    std::fs::remove_dir_all(&dir).with_context(|| format!("removing {}", dir.display()))?;
+    with_index_lock_retry(|| {
+        stage_and_commit(
+            &wt,
+            std::slice::from_ref(&rel),
+            &format!("inbox: remove {} (grove finished)", name),
+        )
+    })?;
+    push_best_effort(&wt);
+    Ok(())
+}
+
 /// Validate that `candidate` (as supplied by the LLM, possibly absolute or
 /// relative to cwd) names a file inside `inbox_dir`. Returns the
 /// `inboxes/<name>/<entry>.md` path relative to `worktree`, suitable for

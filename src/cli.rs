@@ -182,6 +182,16 @@ pub struct InboxDrainArgs {
 }
 
 #[derive(Parser)]
+pub struct InboxRemoveArgs {
+    /// Name of the grove whose inbox to remove (finish-cycle cleanup).
+    #[arg(long = "for")]
+    pub for_grove: String,
+    /// Target repo (defaults to cwd's git root).
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 pub struct InboxEditArgs {
     /// Path of the observation to edit (a `.md` file inside
     /// `inboxes/<name>/` on the `grove-meta` worktree). The addressed grove is

@@ -37,6 +37,17 @@ The bootstrap of a brand-new grove (worktree + branch exist, but no `.grove/` tr
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file, then [[Drain]] the inbox. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
+## TUI / v2 presentation
+
+**Dashboard**:
+grove's TUI chrome — the master/detail navigation surface (`grove list`-style grove list, task tree, briefs, inbox triage), rendered with Ratatui. In v2 it is also the **navigation/switch surface** between active [[harness pane]]s: the user picks which working grove to focus *in the dashboard*, not via the multiplexer's own switching. It sits *above* the [[presentation boundary]]; the data it renders comes from the presentation-agnostic `RepoView`/`MultiRepoView` core below the seam.
+
+**Harness pane**:
+The TUI region showing one grove's **live, interactive harness session** — the `grove do <name>` process (claude code / codex / other terminal tooling) — displayed alongside the [[dashboard]] so the user can watch and interact with it. Named "pane" because the working model is a single window split into the dashboard surface plus the active harness, not separate full-screen windows. **The realisation mechanism is undecided** pending the `050-spike-embed-pty-harness` leaf (decision D2): either a tmux pane on grove's owned server, or an in-process pty rendered as a Ratatui widget (`tui-term` + `portable-pty`). The term is mechanism-neutral. Distinct from the [[dashboard]] (grove's own chrome); the harness pane shows someone else's program (the harness) emulated/embedded.
+
+**Presentation boundary** (core↔presentation seam):
+The architectural seam (ADR-0013) separating Ratatui rendering (*above*) from grove's core logic — the `RepoView`/`MultiRepoView` data layer, harness driving, and shell-out writes (*below*). Code below the seam never imports `ratatui` types. Its purpose is optionality: a future web front-end becomes a *second presentation over the same core*, not a rewrite. Enforced by module placement and review, deliberately **not** by a `GroveBackend` trait (no second consumer exists yet to shape one). The harness-embedding mechanism (tmux vs in-process pty, decision D2) lives *below* this boundary either way.
+
 ## Flagged ambiguities
 
 **"grove"** is overloaded across this codebase. It can mean:

@@ -1,4 +1,4 @@
-# 060-fleet-view
+# 070-fleet-view
 
 **Kind:** planning (decompose into impl leaves)
 
@@ -32,6 +32,6 @@ per the v1 brief's deliberate factoring.
 
 ## Notes
 
-Sequenced after the harness pane (040). The harness-window model from 040 must
-compose with the fleet list — pressing `d` on any grove in any repo opens its
-window. Likely needs decomposition.
+Sequenced after the harness pane (060). The harness model 060 settles (per the
+050 backend spike) must compose with the fleet list — selecting any grove in any
+repo opens its harness beside the dashboard. Likely needs decomposition.

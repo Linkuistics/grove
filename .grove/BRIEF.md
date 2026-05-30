@@ -16,36 +16,45 @@ multiplexer-aware TUI. The headline capabilities, all deferred from v1:
 
 ## Done when
 
-- The harness pane works: from the dashboard, open a grove's harness session as
-  a window in grove's owned tmux session; it persists when the dashboard closes.
+- The harness pane works: from the dashboard, open a grove's **live harness
+  session beside the dashboard** (claude code / codex), interact with it, and
+  switch between groves. The backend mechanism (tmux-owner vs in-process pty) is
+  decided by the 050 spike; crash-resilience rests on the artifacts-over-state
+  model, so live-session survival across a dashboard restart is a *convenience*,
+  not a guarantee.
 - The fleet view spans multiple repos with filtering; `notify` ignores `.git/`
   churn.
 - Concern 4 (async) is formally resolved — refactored or recorded as not-needed.
 
 ## Decomposition
 
-Settled in 010-plan (D1–D3), then amended: a web-front-end alternative to the
-TUI presentation surfaced and now gates the integration decision. Spine:
-research the tmux-ownership prior art → compare a web front-end vs the TUI
-(presentation-layer fork) → decide the architecture + integration mechanics →
-build the harness pane (validates it) → build the fleet view → revisit async.
+Settled in 010-plan (D1–D3), then twice amended: (a) a web-front-end alternative
+to the TUI presentation surfaced and gated the architecture decision; (b) in 040,
+the resilience reframe (crash-resilience is the artifacts-over-state model, not
+multiplexer persistence) **reopened D2** — the harness *backend* — between a
+tmux-owned server and an in-process pty embedded in Ratatui. Spine: research the
+tmux-ownership prior art → compare web vs TUI presentation → ratify TUI + the
+core↔presentation boundary (D3) → **spike the embed to decide the backend (D2)** →
+build the harness pane → build the fleet view → revisit async.
 
 ```
-020-research-tmux-ownership   research the owner pattern (claude-squad, iTerm2 -CC, …)  [done]
-030-web-frontend-comparison   hybrid web UI vs Ratatui TUI over the same tmux backend → recommendation
-040-decide-tmux-integration   architecture (TUI vs web) + socket / control-mode / launch-attach / config → ADR(s)
-050-harness-pane              'd' opens a grove-do window (concern 3) — first validator
-060-fleet-view                MultiRepoView (concern 1); fs-watch .git filter folds in
-070-async-revisit             confirm sync suffices / minimal async (concern 4)
+020-research-tmux-ownership   owner pattern prior art (claude-squad, iTerm2 -CC, …)            [done]
+030-web-frontend-comparison   web UI vs Ratatui TUI → recommend TUI                            [done]
+040-decide-tmux-integration   D3=TUI + core↔presentation boundary (ADR-0013); D2 reopened      [done]
+050-spike-embed-pty-harness   decide D2 empirically: tui-term+portable-pty embed vs tmux-owner → backend ADR
+060-harness-pane              live harness beside the dashboard (concern 3) — shape depends on 050's verdict
+070-fleet-view                MultiRepoView (concern 1); fs-watch .git filter folds in
+080-async-revisit             confirm sync suffices / minimal async (concern 4)
 ```
 
-Core architecture (010-plan D2/D3): grove **owns** a dedicated tmux session;
-each harness is a window grove creates. Chosen over in-process pty for session
-persistence + crash isolation — D2 is settled and 020 confirmed it; the web
-alternative keeps this tmux backend (hybrid scope). **What 030 re-opens is D3**
-(the *presentation* layer — TUI window 0 vs a browser front-end), not D2. The
-binding ADR is raised in 040 once 030's comparison lands; 030 may reframe 040
-and reshape 050/060 if the recommendation is "go web".
+Architecture status after 040: **D3 is settled** — v2 presentation is the Ratatui
+TUI behind a core↔presentation boundary, web deferred (ADR-0013). **D2 is
+reopened** — 010-plan chose a tmux-owned session over in-process pty for "session
+persistence + crash isolation," but 040 demoted tmux persistence to a convenience
+(resilience is the artifact model), so the embed alternative is live again. 020's
+tmux mechanics (socket / scripting / launch / config) are worked out and held as
+the plan *if* the 050 spike picks tmux; the binding backend ADR (and whether
+060/070 are tmux- or pty-shaped) waits on that spike.
 
 ## Pointers
 

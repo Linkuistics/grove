@@ -14,6 +14,7 @@ pub mod meta;
 pub mod pick;
 pub mod repo;
 pub mod repo_view;
+pub mod root_init;
 pub mod status;
 pub mod tui;
 pub mod uninstall;

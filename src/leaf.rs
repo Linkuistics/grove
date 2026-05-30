@@ -235,7 +235,7 @@ fn require_dir(p: &Path) -> Result<()> {
     Ok(())
 }
 
-fn validate_slug(slug: &str) -> Result<()> {
+pub(crate) fn validate_slug(slug: &str) -> Result<()> {
     if slug.is_empty() {
         bail!("slug must not be empty");
     }

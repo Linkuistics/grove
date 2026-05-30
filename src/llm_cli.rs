@@ -14,6 +14,7 @@ use crate::leaf;
 use crate::leaf_ops;
 use crate::pick;
 use crate::repo;
+use crate::root_init;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use std::io::Read;
@@ -47,6 +48,13 @@ pub enum Command {
     /// correct) while preserving the capture timestamp and slug; commits and
     /// pushes best-effort. The addressed grove is read off the path.
     InboxEdit(InboxEditArgs),
+    /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
+    /// `BRIEF.md` stub, and lay down a first planning leaf `010-<slug>.md`
+    /// (default slug `plan`). After this, `grove-llm pick` returns the new
+    /// leaf — a fresh grove is no longer indistinguishable from a finished
+    /// one. Refuses if `.grove/` already exists. Working-tree change only —
+    /// no commit.
+    RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree —
     /// depth-first walk of `.grove/` in numeric-prefix order, skipping
     /// `done/`. Empty stdout (and a diagnostic on stderr) when the grove has
@@ -86,6 +94,14 @@ pub enum Command {
     /// stays prose. Prints the destination path on stdout. Working-tree
     /// change only — no commit.
     LeafRetire(LeafRetireArgs),
+}
+
+#[derive(Parser)]
+pub struct RootInitArgs {
+    /// Slug for the first planning leaf (lowercase ASCII letters, digits,
+    /// dashes). Default: `plan`. Mirrors `leaf-add <slug>`.
+    #[arg(default_value = "plan")]
+    pub slug: String,
 }
 
 #[derive(Parser)]
@@ -138,6 +154,7 @@ pub fn run() -> Result<()> {
         Command::InboxAdd(args) => cmd_inbox_add(&args),
         Command::InboxDrain(args) => cmd_inbox_drain(&args),
         Command::InboxEdit(args) => cmd_inbox_edit(&args),
+        Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
@@ -188,6 +205,16 @@ fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {
             paths.len(),
             if paths.len() == 1 { "" } else { "s" }
         );
+    }
+    Ok(())
+}
+
+fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::git_toplevel(&cwd)?;
+    let paths = root_init::init(&worktree, &args.slug)?;
+    for p in &paths {
+        println!("{}", p.display());
     }
     Ok(())
 }

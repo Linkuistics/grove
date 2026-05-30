@@ -1,4 +1,4 @@
-# 060-async-revisit
+# 070-async-revisit
 
 **Kind:** planning (likely a short re-evaluation; may resolve to "no change")
 

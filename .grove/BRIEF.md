@@ -24,22 +24,28 @@ multiplexer-aware TUI. The headline capabilities, all deferred from v1:
 
 ## Decomposition
 
-Settled in 010-plan (D1–D3). Spine: research the tmux-ownership prior art →
-decide the integration mechanics → build the harness pane (validates the
-architecture) → build the fleet view → revisit async.
+Settled in 010-plan (D1–D3), then amended: a web-front-end alternative to the
+TUI presentation surfaced and now gates the integration decision. Spine:
+research the tmux-ownership prior art → compare a web front-end vs the TUI
+(presentation-layer fork) → decide the architecture + integration mechanics →
+build the harness pane (validates it) → build the fleet view → revisit async.
 
 ```
-020-research-tmux-ownership   research the owner pattern (claude-squad, iTerm2 -CC, …)
-030-decide-tmux-integration   socket / control-mode / launch-attach / config → ADR(s)
-040-harness-pane              'd' opens a grove-do window (concern 3) — first validator
-050-fleet-view                MultiRepoView (concern 1); fs-watch .git filter folds in
-060-async-revisit             confirm sync suffices / minimal async (concern 4)
+020-research-tmux-ownership   research the owner pattern (claude-squad, iTerm2 -CC, …)  [done]
+030-web-frontend-comparison   hybrid web UI vs Ratatui TUI over the same tmux backend → recommendation
+040-decide-tmux-integration   architecture (TUI vs web) + socket / control-mode / launch-attach / config → ADR(s)
+050-harness-pane              'd' opens a grove-do window (concern 3) — first validator
+060-fleet-view                MultiRepoView (concern 1); fs-watch .git filter folds in
+070-async-revisit             confirm sync suffices / minimal async (concern 4)
 ```
 
 Core architecture (010-plan D2/D3): grove **owns** a dedicated tmux session;
-the TUI dashboard is window 0; each harness is a window grove creates. Chosen
-over in-process pty for session persistence + crash isolation. The binding ADR
-is raised in 030 once the research backs the mechanics.
+each harness is a window grove creates. Chosen over in-process pty for session
+persistence + crash isolation — D2 is settled and 020 confirmed it; the web
+alternative keeps this tmux backend (hybrid scope). **What 030 re-opens is D3**
+(the *presentation* layer — TUI window 0 vs a browser front-end), not D2. The
+binding ADR is raised in 040 once 030's comparison lands; 030 may reframe 040
+and reshape 050/060 if the recommendation is "go web".
 
 ## Pointers
 

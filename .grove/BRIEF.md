@@ -1,12 +1,22 @@
 # grove-startup-confuses-the-LLM — brief
 
 ## Goal
-When `grove do <name>` opens a brand-new grove (worktree + branch exist, but no
-`.grove/` tree yet), the LLM has no documented procedure for bootstrapping the
-root of the tree. This grove makes a fresh-grove start legible: an explicit
-"bootstrap a new grove" procedure in the methodology and launcher prompt, plus a
-thin CLI affordance to scaffold the root `.grove/` so the LLM never improvises
-the very first artifacts.
+Make a grove's **lifecycle state legible** at both ends of the seed/done axis,
+where it is currently mis-signalled.
+
+- **Start side (the originating confusion).** When `grove do <name>` opens a
+  brand-new grove (worktree + branch exist, but no `.grove/` tree yet), the LLM
+  has no documented procedure for bootstrapping the root. Fix: an explicit
+  "bootstrap a new grove" procedure in the methodology and launcher prompt, plus
+  a thin CLI affordance (`grove-llm root-init`) to scaffold the root so the LLM
+  never improvises the first artifacts.
+- **Finish side (added after the start-side plan settled).** The Complete finish
+  cycle tears down the worktree and branch but orphans the grove's `grove-meta`
+  inbox, so a *finished* grove shows up as a Seed in `grove status` / the TUI.
+  Fix: finish also cleans up (or tombstones) the inbox. See leaf 030.
+
+The two are symmetric lifecycle-legibility bugs: startup mis-signals a newborn
+grove as **done**; finish mis-signals a dead grove as a **seed**.
 
 ## Done when
 - The grove methodology (`content/SKILL.md`) and the `start.md` launcher prompt
@@ -42,6 +52,14 @@ start-a-new-grove flow."*
    tear down the worktree). A fresh grove is currently indistinguishable from a
    finished one, so root-scaffolding that stops at the root brief is actively
    dangerous: the next normal `pick` would propose tearing the grove down.
+
+5. **A finished grove looks like a Seed.** The Complete finish cycle (ADR-0010)
+   has five steps — promote, delete `.grove/`, merge, remove worktree, delete
+   branch — none of which touch the grove's `grove-meta` inbox. By the glossary's
+   own definition *Seed* includes "already finished", so the orphaned
+   `inboxes/<name>/` (kept alive by its `.gitkeep`) renders in `grove status` /
+   the TUI as a seed, indistinguishable from a not-yet-started one. The
+   finish-side counterpart of item 4. (Leaf 030.)
 
 ## Pointers
 - Launcher prompts: `content/prompts/start.md` (the content-free pointer),
@@ -91,3 +109,11 @@ start-a-new-grove flow."*
   binds every future new grove), surprising without context (why does a new grove
   auto-carry a planning leaf?), genuine trade-off (real alternatives rejected
   above).
+- **Scope broadened (settled):** added the **finish side** — finish must clean up
+  the grove's inbox so a finished grove stops showing as a Seed (leaf 030).
+  (Rejected: seed it to a separate grove; grill the finish design now.) Rationale:
+  thematic kinship — same seed/done legibility axis as item 4 — keeps both ends
+  of the lifecycle fix in one workstream. The finish-side disposition-of-pending-
+  observations question is left open for the 030 session to settle (recommended:
+  refuse-and-instruct on pending, then remove the inbox dir), because Drain runs
+  only at `grove do`, so finish can encounter un-triaged observations.

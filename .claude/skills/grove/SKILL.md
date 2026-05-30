@@ -70,6 +70,22 @@ Sessions are launched by the `grove` CLI (installed via `brew install Linkuistic
 
 If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
 
+**Starting a new grove.** `grove do <name>` on a brand-new grove creates the
+worktree and branch but no `.grove/` tree yet — and every step below assumes
+`.grove/` already exists. Resolve that chicken-and-egg first: a rootless grove
+has nothing for `grove-llm pick` to walk (it errors `grove root not found`), and
+the tree-growing verbs (`leaf-add` and friends) all need a root too. Run
+**`grove-llm root-init [<slug>]`** (default slug `plan`) once: it creates
+`.grove/`, the root `BRIEF.md` stub, and a first **planning** leaf
+`010-<slug>.md` — working-tree only, no commit (the first session's commit folds
+it in), refusing to clobber an existing `.grove/`. Creating the first leaf, not
+just the brief, is load-bearing: `pick` skips every `BRIEF.md`, so a brief-only
+`.grove/` reports `no live leaves; this grove is done` and would mis-trigger the
+Complete finish cycle — a newborn grove indistinguishable from a finished one
+(ADR-0011). After `root-init`, `pick` returns the planning leaf and you enter the
+normal loop below at **Bootstrap**; the launcher's `start.md` prompt names this
+as step one.
+
 **Pick.** Run `grove-llm pick` — it walks `.grove/` depth-first in
 numeric-prefix order, skipping `done/`, and prints the absolute path of the
 next live `.md` leaf. Empty stdout (and a diagnostic on stderr) means the

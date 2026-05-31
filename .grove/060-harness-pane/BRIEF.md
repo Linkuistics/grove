@@ -73,23 +73,36 @@ These set the crate's public API and the new CONTEXT.md glossary entries.
 
 ## Decomposition (this node)
 
-Split into three work leaves (base crate → feature → integration):
+Base crate → **substrate decision** → feature → integration. The substrate-decision
+leaf was inserted after 010 shipped, when a conversation reopened whether zellij (a
+named-but-never-evaluated D2 candidate) should be the substrate; it **gates** 030/040.
 
 - **`010-embed-pane`** — scaffold `crates/harness-pane`; build `TerminalEmulator`
   + `PtySession` + input wiring + native cursor + `wants_mouse()`. Proven by
-  synthetic-ANSI **and** real-child tests.
-- **`020-scrollback-copy`** — pane-local **scrollback (key + mouse)** and a
+  synthetic-ANSI **and** real-child tests. **[done]**
+- **`020-decide-zellij-substrate`** *(planning)* — decide zellij-as-owned-multiplexer
+  vs the ADR-0014 in-process embed, on zellij's own terms (the comparison ADR-0014
+  folded into "tmux-owner" and skipped). Grill + a throwaway Strategy-1 spike (grove
+  dashboard as a zellij plugin rendering ratatui beside native zellij harness panes,
+  via `zellij_widgets`) → amend or supersede ADR-0014. **Gates 030/040:** if the
+  embed stands they proceed unchanged; if zellij wins, 030 evaporates (copy mode is
+  free) and 040 becomes a plugin+layout, not a `src/tui.rs` crate consumer.
+- **`030-scrollback-copy`** — pane-local **scrollback (key + mouse)** and a
   selection/copy model over vt100 scrollback → clipboard (OSC-52). The user
   confirmed *both* key- and mouse-driven scrollback are required, with selection
-  *within* the pane (not the host terminal's selection).
-- **`030-grove-integration`** — grove consumes the crate in `src/tui.rs`:
+  *within* the pane (not the host terminal's selection). **Conditional on 020:** moot
+  if zellij wins.
+- **`040-grove-integration`** — grove consumes the crate in `src/tui.rs`:
   launch/attach a harness beside the dashboard, switch focus between groves,
   re-evaluate `EnableMouseCapture` on every focus change. Within-repo only;
-  cross-repo fleet is 070.
+  cross-repo fleet is 070. **Reshaped by 020** if zellij wins.
 
 ## Notes
 
-Backend is settled — build, don't re-litigate tmux. The crate boundary is the
+The **tmux** backend stays retired (ADR-0014) — do not re-litigate it. What 020
+reopens is narrower and was never run: **zellij** as substrate, on its own terms.
+Until 020 decides, treat the in-process embed as the working assumption (010 shipped
+on it) but hold 030/040 as contingent. The crate boundary is the
 deliverable's spine: keep grove's ratatui code calling *into* the crate, never
 the reverse (the crate itself legitimately depends on ratatui/tui-term — it *is*
 the boundary bridge; the no-ratatui rule constrains grove **core**, not this

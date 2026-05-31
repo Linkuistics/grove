@@ -4,6 +4,8 @@
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove spike 060/020)
 - Supersedes: ADR-0014 (in-process pty embed)
+- Refined by: ADR-0016 (the 1b dashboard is a dumb-terminal proxy to a persistent
+  controlling process that owns all logic + rendering — not a standalone `grove tui`)
 
 ## Context
 

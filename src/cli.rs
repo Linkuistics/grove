@@ -38,6 +38,18 @@ pub enum Command {
     Meta(MetaArgs),
     /// Launch the read-only TUI navigator over this repo's groves.
     Tui(RepoArgs),
+    /// Internal: the dumb dashboard proxy (ADR-0016). Runs in a zellij pane and
+    /// relays a controller's rendered output to the tty and its stdin back up.
+    /// Hidden from `--help`, like the `grove-llm` surface (ADR-0006).
+    #[command(name = "__dash-proxy", hide = true)]
+    DashProxy(DashProxyArgs),
+}
+
+#[derive(Parser)]
+pub struct DashProxyArgs {
+    /// Path to the controlling process's unix-domain socket.
+    #[arg(long)]
+    pub socket: PathBuf,
 }
 
 #[derive(Parser)]
@@ -300,5 +312,6 @@ pub fn run() -> anyhow::Result<()> {
         },
         Command::Meta(args)     => crate::meta::run(&args),
         Command::Tui(args)      => crate::tui::run(&args),
+        Command::DashProxy(args) => crate::dash::proxy::run(&args.socket),
     }
 }

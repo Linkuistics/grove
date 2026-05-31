@@ -1,5 +1,6 @@
 pub mod brief_chain;
 pub mod cli;
+pub mod dash;
 pub mod extract;
 pub mod fetch;
 pub mod harness;

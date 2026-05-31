@@ -1,58 +1,64 @@
 # 060-harness-pane
 
-**Kind:** planning (decompose into impl leaves once the 050 spike fixes the backend)
+**Kind:** work (backend decided: in-process pty — ADR-0014)
 
 ## Goal
 
-Build the headline feature: from the TUI dashboard, open a grove's **live harness
-session beside the dashboard** (claude code / codex via `grove do <name>`),
-interact with it, and switch between active groves. First real exerciser of the
-v2 harness architecture.
+Build the **harness pane**: from the dashboard, open a grove's live harness
+session (`grove do <name>` → claude code / codex) beside the dashboard,
+interact with it, and switch between groves. This is concern 3 — the grove's
+headline feature.
+
+Build it as an **extractable in-repo workspace crate** (working name
+`harness-pane`) that grove consumes — the reusable embed component the 050 spike
+identified (ADR-0014). Publishable later if its API stabilises; no published-crate
+overhead now.
 
 ## Context
 
-- **Backend is decided by 050, not assumed here.** 050 (the embed spike) decides
-  D2 — in-process pty (`tui-term` + `portable-pty`, harness = a Ratatui widget) vs
-  tmux-owner (harness = a pane on `tmux -L grove`). This brief is written
-  mechanism-neutral; **re-sharpen it from 050's verdict + ADR-0014** before
-  decomposing. If pty: layout is native Ratatui widgets, no tmux. If tmux: apply
-  040's worked-out Q1–Q4 mechanics (socket/config/`$TMUX`-refuse/plain-scripting)
-  and the pane-layout spike below.
-- **Layout intent (locked in 040, mechanism-independent):** *single window* —
-  a persistent **dashboard pane** that is the **navigation/switch surface** (the
-  user picks which working grove to focus *in the dashboard*) plus the active
-  grove's **harness pane** shown alongside; N harnesses alive for parallel work.
-  Not separate full-screen windows. See `CONTEXT.md` → `Dashboard`, `Harness
-  pane`.
-- **If the verdict is tmux**, the layout has a known wrinkle to spike first: a
-  tmux client shows one window at a time and `resize-pane -Z` zooms a pane to the
-  *whole* window (hiding the dashboard too), so "dashboard + one full-size harness,
-  others hidden" needs `join-pane`/`break-pane` choreography, not zoom. 040's log
-  recommends starting with the zoom-toggle (overview ⟷ focus) and escalating to
-  join-pane only if needed. **If the verdict is pty**, this wrinkle evaporates —
-  it's just ratatui layout.
-- **Verb:** the window/pane runs **`grove do <name>`** — confirmed the sole
-  lifecycle entry verb (`grove continue` is internal-only; `cli.rs`/`launch.rs`).
-  The old seed's `grove continue` reference is stale.
-- v1 has a `d` keybinding stub on `Screen::GroveDetail` (`src/tui.rs` ~line 797) —
-  check and replace/extend.
-- Keep harness/pty (or tmux) driving **below** the presentation boundary
-  (ADR-0013); ratatui rendering above.
+- **Backend decided (050 → ADR-0014): in-process pty**, not tmux. Stack:
+  `tui-term 0.2` (render `vt100::Screen` → ratatui) + `portable-pty 0.9` +
+  **`vt100 0.15.2`** (pin is load-bearing — tui-term 0.2 re-exports its own vt100
+  and only impls `Screen` for 0.15.2; newer fails to compile, and 0.15.2 keeps
+  `Screen::title()` for OSC). Sync stack (ratatui 0.29 + crossterm), no async.
+- **The 050 prototype is throwaway evidence, not a starting point** — it was a
+  scratch crate, now discarded. Rebuild cleanly in `crates/harness-pane`. But its
+  *findings* are the spec; carry them forward (see Done-when).
+- v1 gives: sync event loop, `RepoView` data layer, shell-out-to-`grove` writes,
+  the master/detail dashboard. The harness pane adds a live terminal beside it.
+- The dashboard-as-switcher model (040): the user picks the focused grove *in the
+  dashboard*; harness panes are alive for parallel work (native ratatui splits,
+  no tmux join/break choreography).
+- **Boundary (ADR-0013):** the crate owns vt100/pty/input below the seam and
+  returns a renderable screen + plain data; only "render this screen / here's a
+  key event" crosses into ratatui. No `ratatui` event handler touches pty bytes
+  directly — *except* the one deliberate data-up/command-down coupling for mouse
+  capture (below), which ADR-0014 records.
 
 ## Done when
 
-- Selecting a grove opens/focuses its live harness beside the dashboard;
-  re-selecting focuses the existing one rather than spawning a duplicate.
-- The dashboard reflects harness state (running / exited) and is the switch
-  surface between active harnesses.
-- Closing/restarting the dashboard does not lose work — recovery is `grove do
-  <name>` re-deriving state from artifacts (resilience = artifact model, not
-  live-session durability; live-session survival is a convenience the chosen
-  backend may or may not provide).
+- A `crates/harness-pane` workspace crate exists, grove consumes it, and from the
+  dashboard the user can **launch/attach a harness for the selected grove, see it
+  render live, type into it, and switch focus between groves**.
+- The **consumer wiring** from the 050 spike is reproduced and solid:
+  - reader-thread → `mpsc` → `try_recv` drain per pane between `poll` ticks;
+  - full crossterm `KeyEvent`→bytes encoder (ctrl/alt/fn/arrows/nav), SGR mouse,
+    bracketed paste, resize → `master.resize()` + `parser.set_size()` together;
+  - **native cursor**: hide tui-term's drawn cursor (`Cursor::default().hide()`),
+    position the hardware cursor — avoids the white-on-grey unreadable-in-vim bug;
+  - **dynamic mouse capture**: enable only while the focused app requests mouse
+    (`mouse_protocol_mode != None`), release otherwise so host selection works.
+- **Pane-local copy mode** (the 050 outstanding gap, user-confirmed real): a
+  selection model over vt100 scrollback so the user can drag-select / scroll
+  *within one pane* (not the whole outer grid), with copy to clipboard (OSC-52 or
+  platform clipboard). This is the feature tmux would have given free; the embed
+  owes it. Scope it as its own sub-step — decompose 060 if it needs >1 session.
+- Switching the focused grove re-evaluates mouse-capture state (every focus change,
+  not just startup).
 
 ## Notes
 
-Sequenced before the fleet view (070) by 010-plan: prove the risky harness
-architecture earliest. Likely needs decomposition — treat as planning until the
-impl steps are small enough for single sessions, and only after 050's verdict has
-re-sharpened this brief.
+Backend is settled — build, don't re-litigate tmux. If pane-local copy mode +
+the base pane together exceed one session, decompose 060 into a node (base embed
+pane → copy mode). The crate boundary is the deliverable's spine: keep grove's
+ratatui code calling *into* the crate, never the reverse.

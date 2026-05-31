@@ -32,6 +32,8 @@ per the v1 brief's deliberate factoring.
 
 ## Notes
 
-Sequenced after the harness pane (060). The harness model 060 settles (per the
-050 backend spike) must compose with the fleet list — selecting any grove in any
-repo opens its harness beside the dashboard. Likely needs decomposition.
+Sequenced after the harness pane (060). The backend is settled — **in-process pty**
+(ADR-0014); the fleet list is unaffected by that choice (it's the data layer), but
+the harness it opens for any selected grove is a `harness-pane` crate widget, not a
+tmux pane. Selecting any grove in any repo opens its embedded harness beside the
+dashboard. Likely needs decomposition.

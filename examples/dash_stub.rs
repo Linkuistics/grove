@@ -23,7 +23,7 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 
 use grove::dash::decode::{InputDecoder, Key};
-use grove::dash::proto::{UpDecoder, UpFrame};
+use grove::dash::proto::{FrameWriter, UpDecoder, UpFrame};
 
 use ratatui::layout::Size;
 use ratatui::style::{Modifier, Style};
@@ -31,7 +31,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use ratatui::Terminal;
 
-type Backend = grove::dash::backend::ProxyBackend<UnixStream>;
+// The down direction is now framed (`DownFrame::Output` per draw), so the stub
+// wraps its socket writer in a `FrameWriter` just like the real controller.
+type Backend = grove::dash::backend::ProxyBackend<FrameWriter<UnixStream>>;
 
 fn main() -> anyhow::Result<()> {
     let path = std::env::args()
@@ -57,7 +59,7 @@ fn main() -> anyhow::Result<()> {
     let mut rbuf = [0u8; 4096];
 
     let mut size = wait_for_size(&mut reader, &mut frames, &mut rbuf)?;
-    let mut term = grove::dash::backend::terminal(writer, size)?;
+    let mut term = grove::dash::backend::terminal(FrameWriter::new(writer), size)?;
 
     let mut log: Vec<String> = Vec::new();
     draw(&mut term, size, &log)?;
@@ -86,6 +88,12 @@ fn main() -> anyhow::Result<()> {
                         }
                         dirty = true;
                     }
+                }
+                // The stub never sends `RunEditor`, so this should not arrive;
+                // log it if it does rather than crash the seam check.
+                UpFrame::EditorDone { ok } => {
+                    log.push(format!("EditorDone(ok={ok})"));
+                    dirty = true;
                 }
             }
         }

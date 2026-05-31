@@ -23,19 +23,24 @@
 
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
+use std::io::{self, Read, Write};
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::{DefaultTerminal, Frame, Terminal};
 
 use crate::cli::RepoArgs;
+use crate::dash::backend::{self, ProxyBackend};
+use crate::dash::decode::InputDecoder;
+use crate::dash::proto::{DownFrame, FrameWriter, UpDecoder, UpFrame};
 use crate::repo;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -530,6 +535,337 @@ fn process_pending_action(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Controller (ADR-0016): the dashboard, driven over the proxy seam
+//
+// This is the same dashboard as `run`/`live_event_loop` above — same `App`,
+// `render`, `handle_key`, `WatchSet`, and shell-out writes — but its *driver*
+// talks to a dumb `grove __dash-proxy` over a unix-domain socket instead of a
+// local crossterm tty. Display flows down (rendered ANSI, framed as
+// `DownFrame::Output`); input and resizes flow up (`UpFrame`), decoded into the
+// same `KeyCode`/`KeyModifiers` `handle_key` already consumes. Only the
+// transport changed; the UI did not. 030 (head binary) will launch zellij and
+// place the proxy pane; until then this is exercised by running `grove
+// __dash-proxy --socket <path>` against `grove __dash-controller --socket
+// <path>` in two terminals.
+
+/// The dashboard's render target over the seam: ratatui rendering into a
+/// per-draw `DownFrame::Output` frame on the socket, sized to the proxy.
+type ProxyTerminal = Terminal<ProxyBackend<FrameWriter<UnixStream>>>;
+
+/// Drive the dashboard over the proxy seam: bind `socket`, accept one proxy,
+/// and run the event loop against it. Functionally identical to `grove tui`,
+/// but rendered remotely (ADR-0016).
+pub fn run_controller(socket: &Path, args: &RepoArgs) -> Result<()> {
+    let repo = repo::resolve(args.repo.as_deref())?;
+    let view = RepoView::scan(&repo)?;
+    let preselect = current_grove_name(&repo);
+    let mut app = App::new(repo.clone(), view, preselect);
+    let mut watch = WatchSet::new(&repo);
+
+    let mut controller = Controller::accept(socket)?;
+    let outcome = controller.event_loop(&mut app, &mut watch);
+    // Best-effort: leave no stale socket file behind for the next launch.
+    let _ = std::fs::remove_file(socket);
+    outcome
+}
+
+/// One connected proxy and the controller-side seam state for driving it.
+struct Controller {
+    /// Read half of the socket: up-frames (resize / input / editor-done).
+    reader: UnixStream,
+    /// A second handle for writing `RunEditor` control frames down, distinct
+    /// from the render path (`term`'s `FrameWriter`, which only emits `Output`).
+    /// Safe to interleave because the loop always flushes `term` (via `draw`)
+    /// before processing the input that could enqueue a control frame.
+    ctrl: UnixStream,
+    /// ratatui render target writing framed output down the socket.
+    term: ProxyTerminal,
+    /// Up-frame reassembler across partial socket reads.
+    frames: UpDecoder,
+    /// Raw stdin bytes → key events (crossterm's reader can't read a socket).
+    keys: InputDecoder,
+}
+
+impl Controller {
+    /// Bind `socket`, accept one proxy connection, learn its initial size, and
+    /// build the render target. Blocks until a proxy connects.
+    fn accept(socket: &Path) -> Result<Self> {
+        // A stale socket file would refuse to bind.
+        let _ = std::fs::remove_file(socket);
+        let listener = UnixListener::bind(socket)
+            .with_context(|| format!("binding controller socket {}", socket.display()))?;
+        let (stream, _addr) = listener.accept().context("accepting proxy connection")?;
+
+        let mut reader = stream.try_clone().context("cloning socket for reading")?;
+        let ctrl = stream.try_clone().context("cloning socket for control")?;
+        let render_half = stream.try_clone().context("cloning socket for rendering")?;
+
+        let mut frames = UpDecoder::new();
+        let size = wait_for_size(&mut reader, &mut frames)?;
+        let term = backend::terminal(FrameWriter::new(render_half), size)
+            .context("building proxy render target")?;
+
+        Ok(Self {
+            reader,
+            ctrl,
+            term,
+            frames,
+            keys: InputDecoder::new(),
+        })
+    }
+
+    /// The driver loop — the seam-driven analogue of `live_event_loop`. Each
+    /// tick: render to the proxy, settle the fs-watch debounce, then read the
+    /// socket with the same per-tick timeout `event::poll` used, decode any
+    /// up-frames, and run a queued shell-out / editor action.
+    fn event_loop(&mut self, app: &mut App, watch: &mut WatchSet) -> Result<()> {
+        let mut force_redraw = false;
+        let mut rbuf = [0u8; 4096];
+        loop {
+            if force_redraw {
+                // A shell-out / editor may have repainted the proxy's tty; force
+                // a full redraw so the dashboard reclaims the screen cleanly.
+                let _ = self.term.clear();
+                force_redraw = false;
+            }
+            self.term.draw(|f| render(f, app))?;
+
+            watch.drain();
+            if watch.settled() {
+                if let Err(e) = app.refresh_silent() {
+                    app.status = Some(format!("rescan failed: {}", e));
+                }
+                watch.clear();
+            }
+
+            // The `event::poll(timeout)` analogue: a timed-out read means "no
+            // input this tick", which is the cue to loop and re-check the watch.
+            self.reader.set_read_timeout(Some(watch.poll_timeout()))?;
+            let idle = match self.reader.read(&mut rbuf) {
+                Ok(0) => return Ok(()), // proxy closed the seam — clean exit.
+                Ok(n) => {
+                    self.frames.extend(&rbuf[..n]);
+                    false
+                }
+                Err(ref e) if is_timeout(e) => true,
+                Err(e) => return Err(e).context("reading proxy seam"),
+            };
+
+            let mut quit = false;
+            while let Some(frame) = self.frames.next_frame() {
+                match frame {
+                    UpFrame::Resize { cols, rows } => self.apply_resize(cols, rows),
+                    UpFrame::Input(bytes) => {
+                        for key in self.keys.feed(&bytes) {
+                            if handle_key(app, key.code, key.mods)? {
+                                quit = true;
+                            }
+                        }
+                    }
+                    // Only awaited synchronously inside `run_editor_on_proxy`; a
+                    // stray one here is harmless.
+                    UpFrame::EditorDone { .. } => {}
+                }
+            }
+            // On a genuine idle tick, resolve a buffered lone ESC into `Esc`
+            // (the decoder's documented controller-driven timeout behaviour).
+            if idle {
+                for key in self.keys.flush() {
+                    if handle_key(app, key.code, key.mods)? {
+                        quit = true;
+                    }
+                }
+            }
+            if quit {
+                return Ok(());
+            }
+
+            if let Some(action) = app.pending_action.take() {
+                self.process_pending_action(app, action);
+                force_redraw = true;
+            }
+        }
+    }
+
+    /// Re-size the proxy's render target after a SIGWINCH-driven resize frame.
+    fn apply_resize(&mut self, cols: u16, rows: u16) {
+        let size = Size::new(cols, rows);
+        self.term.backend_mut().set_size(size);
+        let _ = self.term.resize(Rect::new(0, 0, cols, rows));
+    }
+
+    /// Run a queued action. The non-interactive `grove-llm` writes run directly
+    /// in the controller (no tty needed — the old `suspended()` dance existed
+    /// only because the dashboard process used to own the tty). Only the
+    /// interactive `$EDITOR` drops route to the proxy's tty (ADR-0017).
+    fn process_pending_action(&mut self, app: &mut App, action: PendingAction) {
+        match action {
+            PendingAction::Submit => {
+                let target = app.capture.target.clone();
+                let body = app.capture.body.clone();
+                match shell_capture(&target, &body) {
+                    Ok(()) => {
+                        app.status = Some(format!("captured to {}", target));
+                        app.capture = CaptureModal::default();
+                    }
+                    Err(e) => {
+                        app.status = Some(format!("capture failed: {}", short_err(&e)));
+                        app.capture = CaptureModal::default();
+                    }
+                }
+            }
+            PendingAction::EditBody => {
+                let body = app.capture.body.clone();
+                match self.edit_text_on_proxy(&body) {
+                    Ok(new_body) => {
+                        app.capture.body = new_body;
+                        app.capture.field = CaptureField::Body;
+                    }
+                    Err(e) => {
+                        app.status = Some(format!("editor failed: {}", short_err(&e)));
+                    }
+                }
+            }
+            PendingAction::EditObservation { path } => {
+                let grove = app
+                    .detail
+                    .as_ref()
+                    .map(|d| d.grove.clone())
+                    .unwrap_or_default();
+                let name = file_name_of(&path);
+                match self.edit_observation_on_proxy(&path) {
+                    Ok(EditOutcome::Unchanged) => {
+                        app.status = Some(format!("{}: unchanged", name));
+                    }
+                    Ok(EditOutcome::Saved) => {
+                        app.status = Some(format!("edited {} in {}", name, grove));
+                    }
+                    Err(e) => {
+                        app.status = Some(format!("edit failed: {}", short_err(&e)));
+                    }
+                }
+            }
+            PendingAction::Drain { path, disposition } => {
+                let grove = app
+                    .detail
+                    .as_ref()
+                    .map(|d| d.grove.clone())
+                    .unwrap_or_default();
+                let name = file_name_of(&path);
+                match shell_drain(&grove, &path, disposition) {
+                    Ok(()) => {
+                        app.status = Some(format!("{} {}", disposition.label(), name));
+                    }
+                    Err(e) => {
+                        app.status = Some(format!("disposition failed: {}", short_err(&e)));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Edit `initial` in the user's `$EDITOR` on the *proxy's* tty: seed a
+    /// tempfile, ask the proxy to run the editor against it, and read the result
+    /// back (the tempfile is reachable by both — local-proxy assumption,
+    /// ADR-0017). The controller-side analogue of `shell_editor`.
+    fn edit_text_on_proxy(&mut self, initial: &str) -> Result<String> {
+        let tf = tempfile::Builder::new()
+            .prefix("grove-capture-")
+            .suffix(".md")
+            .tempfile()
+            .context("creating editor tempfile")?;
+        std::fs::write(tf.path(), initial)
+            .with_context(|| format!("seeding editor tempfile {}", tf.path().display()))?;
+        if !self.run_editor_on_proxy(tf.path())? {
+            anyhow::bail!("editor exited unsuccessfully");
+        }
+        std::fs::read_to_string(tf.path())
+            .with_context(|| format!("reading edited body back from {}", tf.path().display()))
+    }
+
+    /// Edit an existing committed observation via the proxy's `$EDITOR`, then
+    /// share the change-detection / `inbox-edit` tail with the local path.
+    fn edit_observation_on_proxy(&mut self, path: &Path) -> Result<EditOutcome> {
+        let current = std::fs::read_to_string(path)
+            .with_context(|| format!("reading observation {}", path.display()))?;
+        let edited = self.edit_text_on_proxy(&current)?;
+        decide_observation_edit(path, &current, edited)
+    }
+
+    /// Send a `RunEditor` control frame and block until the proxy reports
+    /// `EditorDone`. While the editor owns the proxy's tty, no `Output` frames
+    /// are produced (rendering is paused here) and the proxy forwards no input,
+    /// so the editor has the terminal to itself. Resizes that arrive mid-edit
+    /// are still applied so the post-edit redraw uses the right size.
+    fn run_editor_on_proxy(&mut self, path: &Path) -> Result<bool> {
+        let frame = DownFrame::RunEditor {
+            path: path.to_path_buf(),
+        };
+        self.ctrl
+            .write_all(&frame.encode())
+            .context("sending RunEditor to proxy")?;
+        self.ctrl.flush().context("flushing RunEditor")?;
+
+        // Block (no read timeout) until the editor child returns.
+        self.reader
+            .set_read_timeout(None)
+            .context("clearing read timeout for editor")?;
+        let mut rbuf = [0u8; 4096];
+        loop {
+            let n = self
+                .reader
+                .read(&mut rbuf)
+                .context("awaiting EditorDone from proxy")?;
+            if n == 0 {
+                anyhow::bail!("proxy closed the seam while editing");
+            }
+            self.frames.extend(&rbuf[..n]);
+            while let Some(frame) = self.frames.next_frame() {
+                match frame {
+                    UpFrame::EditorDone { ok } => return Ok(ok),
+                    UpFrame::Resize { cols, rows } => self.apply_resize(cols, rows),
+                    // The proxy isn't forwarding stdin while the editor runs; a
+                    // straggler from before the drop is irrelevant to the edit.
+                    UpFrame::Input(_) => {}
+                }
+            }
+        }
+    }
+}
+
+/// Read up-frames until the proxy's first `Resize` reports its size. Sent on
+/// connect by the proxy before anything else (`proxy::send_size`).
+fn wait_for_size(reader: &mut UnixStream, frames: &mut UpDecoder) -> Result<Size> {
+    let mut rbuf = [0u8; 4096];
+    loop {
+        let n = reader.read(&mut rbuf).context("reading proxy initial size")?;
+        if n == 0 {
+            anyhow::bail!("proxy closed before reporting its size");
+        }
+        frames.extend(&rbuf[..n]);
+        while let Some(frame) = frames.next_frame() {
+            if let UpFrame::Resize { cols, rows } = frame {
+                return Ok(Size::new(cols, rows));
+            }
+        }
+    }
+}
+
+/// True when a socket read returned because its timeout elapsed (no data), the
+/// `event::poll(timeout) == false` analogue. Platforms differ on which kind a
+/// read-timeout surfaces, so accept both.
+fn is_timeout(e: &io::Error) -> bool {
+    matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut)
+}
+
+/// The trailing filename of a path as an owned `String`, for status messages.
+fn file_name_of(p: &Path) -> String {
+    p.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
 fn short_err(e: &anyhow::Error) -> String {
     // `{:#}` collapses the anyhow chain into "top: cause: root", which
     // is what the status line needs — a single-line summary that names
@@ -630,18 +966,35 @@ fn shell_edit_observation(path: &Path) -> Result<EditOutcome> {
     let current = std::fs::read_to_string(path)
         .with_context(|| format!("reading observation {}", path.display()))?;
     let edited = shell_editor(&current)?;
+    decide_observation_edit(path, &current, edited)
+}
+
+/// Shared tail of the observation-edit flow: given the original body and the
+/// edited body, no-op on no change, reject an empty result, else round-trip
+/// through the `grove-llm inbox-edit` verb. Used by both the local-tty
+/// `shell_edit_observation` and the controller's proxy-routed editor flow, which
+/// differ only in *how* `$EDITOR` is run (local tty vs the proxy's tty).
+fn decide_observation_edit(path: &Path, current: &str, edited: String) -> Result<EditOutcome> {
     if edited == current {
         return Ok(EditOutcome::Unchanged);
     }
     if edited.trim().is_empty() {
         anyhow::bail!("edited body is empty; the observation was left unchanged");
     }
+    inbox_edit_verb(path, &edited)?;
+    Ok(EditOutcome::Saved)
+}
+
+/// Rewrite the committed observation at `path` via `grove-llm inbox-edit`. The
+/// CLI recomputes the content-hash filename, commits, and pushes when a remote
+/// is configured; the dashboard never touches `grove-meta` git plumbing.
+fn inbox_edit_verb(path: &Path, edited: &str) -> Result<()> {
     let tf = tempfile::Builder::new()
         .prefix("grove-edit-")
         .suffix(".md")
         .tempfile()
         .context("creating body tempfile")?;
-    std::fs::write(tf.path(), &edited)
+    std::fs::write(tf.path(), edited)
         .with_context(|| format!("writing edited body to {}", tf.path().display()))?;
     let status = std::process::Command::new(find_grove_llm())
         .arg("inbox-edit")
@@ -656,7 +1009,7 @@ fn shell_edit_observation(path: &Path) -> Result<EditOutcome> {
             status.code()
         );
     }
-    Ok(EditOutcome::Saved)
+    Ok(())
 }
 
 fn shell_editor(initial: &str) -> Result<String> {
@@ -2375,6 +2728,80 @@ mod tests {
     fn worktree_spans_prefixes_harness_when_named() {
         let spans = worktree_spans(Some("codex"), &s("4.0.0"), &s("4.0.0"), "4.0.0");
         assert_eq!(text_of(&spans), "worktree[codex]=4.0.0");
+    }
+
+    // -----------------------------------------------------------------
+    // Controller seam wiring: raw proxy bytes → decoder → handle_key
+    //
+    // The controller decodes the proxy's forwarded stdin into the same
+    // crossterm keys `handle_key` already consumes. These exercise that exact
+    // pump (`InputDecoder::feed` → `handle_key`) on real `App` state, standing
+    // in for the socket the live loop reads from.
+
+    /// Drive raw input bytes through the controller's decode→dispatch path.
+    fn pump_bytes(app: &mut App, keys: &mut InputDecoder, bytes: &[u8]) {
+        for key in keys.feed(bytes) {
+            handle_key(app, key.code, key.mods).unwrap();
+        }
+    }
+
+    #[test]
+    fn seam_csi_arrow_moves_list_selection() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        let mut keys = InputDecoder::new();
+        assert_eq!(app.list.selected(), Some(0));
+        // A real terminal's Down arrow: the CSI sequence the proxy forwards up.
+        pump_bytes(&mut app, &mut keys, b"\x1b[B");
+        assert_eq!(app.list.selected(), Some(1), "CSI down must move like `j`");
+    }
+
+    #[test]
+    fn seam_enter_drills_into_detail() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        let mut keys = InputDecoder::new();
+        pump_bytes(&mut app, &mut keys, b"\r"); // Enter over the seam.
+        assert_eq!(app.screen, Screen::GroveDetail);
+    }
+
+    #[test]
+    fn seam_ctrl_s_submits_capture_from_decoded_bytes() {
+        // The full capture gesture arriving as raw proxy bytes: open, type a
+        // body, then Ctrl-S (0x13) — which the decoder maps to Ctrl+`s` and
+        // `handle_capture_key` treats as submit.
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        let mut keys = InputDecoder::new();
+        pump_bytes(&mut app, &mut keys, b"\r"); // → detail (alpha)
+        pump_bytes(&mut app, &mut keys, b"c"); // open capture, jumps to body
+        pump_bytes(&mut app, &mut keys, b"noted"); // type body
+        pump_bytes(&mut app, &mut keys, &[0x13]); // Ctrl-S
+        assert_eq!(app.pending_action, Some(PendingAction::Submit));
+        assert_eq!(app.capture.body, "noted");
+    }
+
+    #[test]
+    fn seam_lone_esc_flushes_to_escape_key() {
+        // A bare ESC byte is buffered (it may start a CSI); the controller's
+        // idle-tick `flush()` resolves it to `Esc`, popping detail → list.
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        let mut keys = InputDecoder::new();
+        pump_bytes(&mut app, &mut keys, b"\r"); // → detail
+        assert_eq!(app.screen, Screen::GroveDetail);
+        // Lone ESC: nothing decodes yet (it may be the head of a sequence).
+        assert!(keys.feed(b"\x1b").is_empty());
+        assert_eq!(app.screen, Screen::GroveDetail, "bare ESC must not act yet");
+        // Idle tick: the controller calls flush(), which yields Esc.
+        for key in keys.flush() {
+            handle_key(&mut app, key.code, key.mods).unwrap();
+        }
+        assert_eq!(app.screen, Screen::GroveList, "flushed ESC pops to the list");
     }
 
     // -----------------------------------------------------------------

@@ -43,6 +43,12 @@ pub enum Command {
     /// Hidden from `--help`, like the `grove-llm` surface (ADR-0006).
     #[command(name = "__dash-proxy", hide = true)]
     DashProxy(DashProxyArgs),
+    /// Internal: the dashboard controlling process (ADR-0016). Renders the
+    /// dashboard and serves one connected `grove __dash-proxy` over the socket.
+    /// 030 will launch this behind zellij; for now it is run standalone to
+    /// exercise the seam. Hidden from `--help`, like `__dash-proxy`.
+    #[command(name = "__dash-controller", hide = true)]
+    DashController(DashControllerArgs),
 }
 
 #[derive(Parser)]
@@ -50,6 +56,16 @@ pub struct DashProxyArgs {
     /// Path to the controlling process's unix-domain socket.
     #[arg(long)]
     pub socket: PathBuf,
+}
+
+#[derive(Parser)]
+pub struct DashControllerArgs {
+    /// Path to bind the controlling process's unix-domain socket at.
+    #[arg(long)]
+    pub socket: PathBuf,
+    /// Target repo (defaults to cwd's git root), like `grove tui`.
+    #[arg(long = "repo")]
+    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -313,5 +329,8 @@ pub fn run() -> anyhow::Result<()> {
         Command::Meta(args)     => crate::meta::run(&args),
         Command::Tui(args)      => crate::tui::run(&args),
         Command::DashProxy(args) => crate::dash::proxy::run(&args.socket),
+        Command::DashController(args) => {
+            crate::tui::run_controller(&args.socket, &RepoArgs { repo: args.repo })
+        }
     }
 }

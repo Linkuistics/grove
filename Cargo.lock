@@ -516,6 +516,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "flate2",
+ "libc",
  "notify",
  "predicates",
  "ratatui",

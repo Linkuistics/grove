@@ -11,7 +11,7 @@ use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
 use grove::dash::decode::InputDecoder;
-use grove::dash::proto::{UpDecoder, UpFrame};
+use grove::dash::proto::{DownDecoder, DownFrame, FrameWriter, UpDecoder, UpFrame};
 
 use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::Size;
@@ -25,20 +25,62 @@ fn rendered_frame_reaches_the_proxy_end() {
         .unwrap();
 
     // Controller side: render "HELLO" into a proxy-sized terminal over the wire.
-    let mut term = grove::dash::backend::terminal(controller_end, Size::new(40, 10)).unwrap();
-    // `Terminal::draw` flushes the backend (our socket writer) on completion.
+    // The down direction is framed, so wrap the socket in a `FrameWriter` (as
+    // the real controller does); one `draw` becomes one `DownFrame::Output`.
+    let mut term =
+        grove::dash::backend::terminal(FrameWriter::new(controller_end), Size::new(40, 10)).unwrap();
+    // `Terminal::draw` flushes the backend (our framing writer) on completion.
     term.draw(|f| f.render_widget(Paragraph::new("HELLO"), f.area()))
         .unwrap();
 
-    // Proxy side: the ANSI stream the proxy would blit must carry the text.
+    // Proxy side: decode the down frame and assert its payload — the ANSI the
+    // proxy would blit — carries the text.
     let mut buf = [0u8; 8192];
     let n = proxy_end.read(&mut buf).unwrap();
     assert!(n > 0, "no bytes arrived at the proxy end");
-    let stream = &buf[..n];
+    let mut down = DownDecoder::new();
+    down.extend(&buf[..n]);
+    let payload = match down.next_frame() {
+        Some(DownFrame::Output(bytes)) => bytes,
+        other => panic!("expected an Output frame, got {other:?}"),
+    };
     assert!(
-        stream.windows(5).any(|w| w == b"HELLO"),
+        payload.windows(5).any(|w| w == b"HELLO"),
         "rendered text did not reach the proxy end of the socket"
     );
+}
+
+#[test]
+fn editor_done_reply_decodes_at_the_controller() {
+    // The proxy's reply to a `RunEditor` control frame round-trips over a real
+    // socket and reassembles to the right `EditorDone` at the controller.
+    let (mut controller_end, mut proxy_end) = UnixStream::pair().unwrap();
+    controller_end
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+
+    proxy_end
+        .write_all(&UpFrame::EditorDone { ok: true }.encode())
+        .unwrap();
+    proxy_end.flush().unwrap();
+    drop(proxy_end);
+
+    let mut frames = UpDecoder::new();
+    let mut buf = [0u8; 256];
+    let mut got = None;
+    loop {
+        let n = controller_end.read(&mut buf).unwrap();
+        if n == 0 {
+            break;
+        }
+        frames.extend(&buf[..n]);
+        while let Some(frame) = frames.next_frame() {
+            if let UpFrame::EditorDone { ok } = frame {
+                got = Some(ok);
+            }
+        }
+    }
+    assert_eq!(got, Some(true));
 }
 
 #[test]
@@ -74,6 +116,7 @@ fn proxy_input_and_resize_decode_at_the_controller() {
             match frame {
                 UpFrame::Resize { cols, rows } => got_resize = Some((cols, rows)),
                 UpFrame::Input(bytes) => decoded.extend(keys.feed(&bytes)),
+                UpFrame::EditorDone { .. } => {}
             }
         }
     }

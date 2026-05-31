@@ -1,0 +1,27 @@
+[package]
+name = "harness-pane"
+version = "0.1.0"
+edition = "2021"
+description = "An in-process pty terminal embed for Ratatui: a vt100-backed emulator, a portable-pty byte source, and the input wiring tui-term leaves open."
+license = "Apache-2.0"
+repository = "https://github.com/Linkuistics/grove"
+rust-version = "1.74"
+
+[dependencies]
+# Pin trio is load-bearing (ADR-0014 / 050 spike): tui-term 0.2 re-exports its
+# own vt100 and only impls its `Screen` trait for 0.15.2; a newer vt100 pinned
+# alongside resolves two crates and fails to compile. 0.15.2 also keeps
+# `Screen::title()` (gone in 0.16.x), which the OSC-title path uses.
+tui-term = "0.2"
+portable-pty = "0.9"
+vt100 = "0.15.2"
+# ratatui (and its re-exported crossterm 0.28) is a legitimate dependency here:
+# this crate *is* the presentation-boundary bridge (ADR-0013). It returns a
+# renderable widget + plain data and consumes crossterm key/mouse events. The
+# "no ratatui below the seam" rule constrains grove's *core*, not this crate.
+ratatui = "0.29"
+anyhow = "1.0"
+
+[dev-dependencies]
+# A deterministic child for the real-child test without depending on the host
+# shell's quirks; `sh -c` is used directly via portable-pty in the test.

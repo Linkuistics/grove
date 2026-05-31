@@ -1,3 +1,10 @@
+# grove is a cargo workspace: the root `grove` package (CLI) plus the
+# extractable `harness-pane` crate (the in-process-pty terminal embed,
+# ADR-0014). The root package is itself an implicit workspace member, so
+# `cargo build`/`cargo test` from here covers both.
+[workspace]
+members = ["crates/harness-pane"]
+
 [package]
 name = "grove"
 version = "5.1.0"

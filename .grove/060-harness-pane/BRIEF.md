@@ -1,4 +1,4 @@
-# 060-harness-pane
+# 060-harness-pane — brief
 
 **Kind:** work (backend decided: in-process pty — ADR-0014)
 
@@ -56,9 +56,41 @@ overhead now.
 - Switching the focused grove re-evaluates mouse-capture state (every focus change,
   not just startup).
 
+## Naming — settled (with user)
+
+Keep **"pane"** meaning a *layout region* (which may hold non-pty content, e.g.
+the dashboard). The pty-backed thing inside it gets its own name. Three layers:
+
+- **`TerminalEmulator`** — owns the `vt100` parser/screen, fed *bytes*, renders
+  via `tui-term`. Source-agnostic and the testable core (synthetic ANSI, no
+  child needed).
+- **`PtySession`** — the byte *source*: `portable-pty` master + child + reader
+  thread.
+- **pane** — grove's layout concern (030) pairing an emulator with input
+  routing.
+
+These set the crate's public API and the new CONTEXT.md glossary entries.
+
+## Decomposition (this node)
+
+Split into three work leaves (base crate → feature → integration):
+
+- **`010-embed-pane`** — scaffold `crates/harness-pane`; build `TerminalEmulator`
+  + `PtySession` + input wiring + native cursor + `wants_mouse()`. Proven by
+  synthetic-ANSI **and** real-child tests.
+- **`020-scrollback-copy`** — pane-local **scrollback (key + mouse)** and a
+  selection/copy model over vt100 scrollback → clipboard (OSC-52). The user
+  confirmed *both* key- and mouse-driven scrollback are required, with selection
+  *within* the pane (not the host terminal's selection).
+- **`030-grove-integration`** — grove consumes the crate in `src/tui.rs`:
+  launch/attach a harness beside the dashboard, switch focus between groves,
+  re-evaluate `EnableMouseCapture` on every focus change. Within-repo only;
+  cross-repo fleet is 070.
+
 ## Notes
 
-Backend is settled — build, don't re-litigate tmux. If pane-local copy mode +
-the base pane together exceed one session, decompose 060 into a node (base embed
-pane → copy mode). The crate boundary is the deliverable's spine: keep grove's
-ratatui code calling *into* the crate, never the reverse.
+Backend is settled — build, don't re-litigate tmux. The crate boundary is the
+deliverable's spine: keep grove's ratatui code calling *into* the crate, never
+the reverse (the crate itself legitimately depends on ratatui/tui-term — it *is*
+the boundary bridge; the no-ratatui rule constrains grove **core**, not this
+crate).

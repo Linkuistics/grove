@@ -1,8 +1,19 @@
 # 14. Harness backend is an in-process pty embedded in Ratatui
 
-- Status: accepted
+- Status: superseded by ADR-0015
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove spike 050)
+
+> **Superseded by [ADR-0015](0015-harness-substrate-is-zellij-owned-multiplexer.md)
+> (2026-05-31).** This ADR rejected the "owned multiplexer" alternative on
+> **tmux's** weaknesses, folding zellij into the same bucket without evaluating it
+> on its own terms. Leaf 060/020 ran that missing comparison: a grove-owned
+> **zellij** substrate (head binary + native dashboard pane + native harness panes,
+> driven via `zellij action`) clears the keybinding/chrome blocker and gives copy
+> mode, scrollback, search, session persistence, and a web client for free.
+> The in-process-pty embed (the `harness-pane` crate) is retained as the documented
+> **fallback**, not the live path. The fidelity findings and consumer-wiring lessons
+> below remain valid evidence for that fallback.
 
 ## Context
 

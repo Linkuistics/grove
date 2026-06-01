@@ -36,8 +36,11 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the read-only TUI navigator over this repo's groves.
-    Tui(RepoArgs),
+    /// Launch the grove dashboard. By default this is the head binary: it
+    /// launches the grove-owned zellij substrate (ADR-0015/0016) with the
+    /// dashboard running as a dumb proxy pane inside it. `--local` runs the
+    /// legacy in-terminal dashboard directly (no zellij), a dev/debug escape.
+    Tui(TuiArgs),
     /// Internal: the dumb dashboard proxy (ADR-0016). Runs in a zellij pane and
     /// relays a controller's rendered output to the tty and its stdin back up.
     /// Hidden from `--help`, like the `grove-llm` surface (ADR-0006).
@@ -49,6 +52,17 @@ pub enum Command {
     /// exercise the seam. Hidden from `--help`, like `__dash-proxy`.
     #[command(name = "__dash-controller", hide = true)]
     DashController(DashControllerArgs),
+}
+
+#[derive(Parser)]
+pub struct TuiArgs {
+    /// Target repo (defaults to cwd's git root).
+    pub repo: Option<PathBuf>,
+    /// Run the legacy in-terminal dashboard directly, without the zellij
+    /// substrate. A dev/debug escape hatch (needs no installed zellij); hidden
+    /// because the zellij substrate is the supported path (ADR-0016).
+    #[arg(long, hide = true)]
+    pub local: bool,
 }
 
 #[derive(Parser)]
@@ -327,7 +341,14 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args)     => crate::meta::run(&args),
-        Command::Tui(args)      => crate::tui::run(&args),
+        Command::Tui(args)      => {
+            let repo_args = RepoArgs { repo: args.repo };
+            if args.local {
+                crate::tui::run(&repo_args)
+            } else {
+                crate::zellij::launch(&repo_args)
+            }
+        }
         Command::DashProxy(args) => crate::dash::proxy::run(&args.socket),
         Command::DashController(args) => {
             crate::tui::run_controller(&args.socket, &RepoArgs { repo: args.repo })

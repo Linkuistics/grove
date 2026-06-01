@@ -35,4 +35,12 @@ grove retire <name>/<node-path>   # promote brief upward, mv node into done/
 
 Each verb takes optional `--harness <name>` (repeatable for file-system verbs) and respects auto-detection from the repo's `.claude/` and `.codex/` directories. Session launchers stamp `.grove-stamps/<name>` only when needed for disambiguation in multi-harness repos. Worktrees live at `.grove-worktrees/<name>/`; the task tree itself is `.grove/` inside that worktree.
 
+**Browse a repo's groves in the dashboard:**
+
+```
+grove tui [<repo>]                # launch the interactive dashboard
+```
+
+`grove tui` opens grove's dashboard — a master/detail navigator over the repo's groves with inbox capture. It runs on a grove-owned [zellij](https://zellij.dev) substrate (ADR-0015/0016): grove launches zellij with its own bundled config and a chrome-free layout, so the composite presents as a single binary, not "a zellij session". zellij runs in **locked mode**, passing every key straight through to the focused app; the one control seam is **`Ctrl-o`**, which toggles zellij's own controls on and off (remapped from zellij's default `Ctrl-g`). An installed `zellij` is required. Quitting zellij returns to your shell.
+
 See `grove --help` for flag details. For end-to-end walkthroughs of each verb in context, see [`docs/workflows/`](docs/workflows/).

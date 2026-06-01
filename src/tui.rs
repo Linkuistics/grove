@@ -555,19 +555,33 @@ type ProxyTerminal = Terminal<ProxyBackend<FrameWriter<UnixStream>>>;
 
 /// Drive the dashboard over the proxy seam: bind `socket`, accept one proxy,
 /// and run the event loop against it. Functionally identical to `grove tui`,
-/// but rendered remotely (ADR-0016).
+/// but rendered remotely (ADR-0016). This is the standalone test path; the 030
+/// head binary binds the listener itself (before spawning zellij) and calls
+/// [`serve`] with the connected stream.
 pub fn run_controller(socket: &Path, args: &RepoArgs) -> Result<()> {
     let repo = repo::resolve(args.repo.as_deref())?;
+    // A stale socket file would refuse to bind.
+    let _ = std::fs::remove_file(socket);
+    let listener = UnixListener::bind(socket)
+        .with_context(|| format!("binding controller socket {}", socket.display()))?;
+    let (stream, _addr) = listener.accept().context("accepting proxy connection")?;
+    let outcome = serve(stream, repo);
+    // Best-effort: leave no stale socket file behind for the next launch.
+    let _ = std::fs::remove_file(socket);
+    outcome
+}
+
+/// Build the dashboard `App`/`WatchSet` for `repo` and run the controller loop
+/// against an already-connected proxy `stream`. Shared by the standalone
+/// [`run_controller`] test path and the zellij head-binary launch (leaf 030),
+/// which differ only in *how* the proxy connection is obtained.
+pub fn serve(stream: UnixStream, repo: PathBuf) -> Result<()> {
     let view = RepoView::scan(&repo)?;
     let preselect = current_grove_name(&repo);
     let mut app = App::new(repo.clone(), view, preselect);
     let mut watch = WatchSet::new(&repo);
-
-    let mut controller = Controller::accept(socket)?;
-    let outcome = controller.event_loop(&mut app, &mut watch);
-    // Best-effort: leave no stale socket file behind for the next launch.
-    let _ = std::fs::remove_file(socket);
-    outcome
+    let mut controller = Controller::from_stream(stream)?;
+    controller.event_loop(&mut app, &mut watch)
 }
 
 /// One connected proxy and the controller-side seam state for driving it.
@@ -588,15 +602,11 @@ struct Controller {
 }
 
 impl Controller {
-    /// Bind `socket`, accept one proxy connection, learn its initial size, and
-    /// build the render target. Blocks until a proxy connects.
-    fn accept(socket: &Path) -> Result<Self> {
-        // A stale socket file would refuse to bind.
-        let _ = std::fs::remove_file(socket);
-        let listener = UnixListener::bind(socket)
-            .with_context(|| format!("binding controller socket {}", socket.display()))?;
-        let (stream, _addr) = listener.accept().context("accepting proxy connection")?;
-
+    /// Adopt an already-connected proxy `stream`, learn its initial size, and
+    /// build the render target. The caller owns the accept (a plain blocking
+    /// `accept` in [`run_controller`], or the zellij-watching accept in the 030
+    /// head binary) — this only sets up the seam state once a proxy is connected.
+    fn from_stream(stream: UnixStream) -> Result<Self> {
         let mut reader = stream.try_clone().context("cloning socket for reading")?;
         let ctrl = stream.try_clone().context("cloning socket for control")?;
         let render_half = stream.try_clone().context("cloning socket for rendering")?;

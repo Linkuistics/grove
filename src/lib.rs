@@ -20,3 +20,4 @@ pub mod status;
 pub mod tui;
 pub mod uninstall;
 pub mod version_md;
+pub mod zellij;

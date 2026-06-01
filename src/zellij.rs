@@ -339,7 +339,12 @@ fn socket_path() -> PathBuf {
 /// The zellij session name for `repo`: `grove-<sanitised-basename>`, so two
 /// repos' dashboards don't collide on one session. Non-`[A-Za-z0-9_-]` chars
 /// become `-`; a basename that sanitises to nothing falls back to plain `grove`.
-fn session_name(repo: &Path) -> String {
+///
+/// `pub(crate)` so the controller (`tui::serve`) derives the *same* session
+/// name this head binary launched zellij with — the harness-driving layer
+/// targets it via `zellij --session <name> action …` (leaf 040). Both call this
+/// one pure function, so they match by construction.
+pub(crate) fn session_name(repo: &Path) -> String {
     let base = repo
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())

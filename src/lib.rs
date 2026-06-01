@@ -4,6 +4,7 @@ pub mod dash;
 pub mod extract;
 pub mod fetch;
 pub mod harness;
+pub mod harness_drive;
 pub mod harness_stamp;
 pub mod inboxes;
 pub mod install;

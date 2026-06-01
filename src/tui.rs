@@ -41,6 +41,7 @@ use crate::cli::RepoArgs;
 use crate::dash::backend::{self, ProxyBackend};
 use crate::dash::decode::InputDecoder;
 use crate::dash::proto::{DownFrame, FrameWriter, UpDecoder, UpFrame};
+use crate::harness_drive::HarnessPanes;
 use crate::repo;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -170,6 +171,20 @@ pub enum PendingAction {
     /// in-memory capture draft before it is ever committed.
     EditObservation {
         path: PathBuf,
+    },
+    /// Open (or focus, if already open) the harness pane for grove `name`,
+    /// running `grove do <name>` in `repo`. The controller drives zellij via
+    /// `zellij action` and tracks the pane id (ADR-0015/0016). `repo` is
+    /// explicit so the cross-repo fleet (070) reuses the driving layer
+    /// unchanged. Controller-path only — the `--local` in-terminal dashboard
+    /// has no zellij substrate to drive.
+    OpenHarness {
+        name: String,
+        repo: PathBuf,
+    },
+    /// Close the harness pane for grove `name` and forget its pane id.
+    CloseHarness {
+        name: String,
     },
 }
 
@@ -532,6 +547,15 @@ fn process_pending_action(
                 }
             }
         }
+        PendingAction::OpenHarness { name, .. } | PendingAction::CloseHarness { name } => {
+            // Harnesses are native zellij panes the *controller* drives; the
+            // legacy `--local` in-terminal dashboard has no substrate to drive,
+            // so this is a no-op beyond an explanatory status line.
+            app.status = Some(format!(
+                "harness panes need the zellij substrate — run `grove tui` (not --local): {}",
+                name
+            ));
+        }
     }
 }
 
@@ -578,9 +602,13 @@ pub fn run_controller(socket: &Path, args: &RepoArgs) -> Result<()> {
 pub fn serve(stream: UnixStream, repo: PathBuf) -> Result<()> {
     let view = RepoView::scan(&repo)?;
     let preselect = current_grove_name(&repo);
+    // The session name the head binary launched zellij with — derived from the
+    // same pure `session_name(repo)`, so the driving layer targets the right
+    // session by construction (leaf 040).
+    let session = crate::zellij::session_name(&repo);
     let mut app = App::new(repo.clone(), view, preselect);
     let mut watch = WatchSet::new(&repo);
-    let mut controller = Controller::from_stream(stream)?;
+    let mut controller = Controller::from_stream(stream, session)?;
     controller.event_loop(&mut app, &mut watch)
 }
 
@@ -599,6 +627,9 @@ struct Controller {
     frames: UpDecoder,
     /// Raw stdin bytes → key events (crossterm's reader can't read a socket).
     keys: InputDecoder,
+    /// Open harness panes, keyed by grove name → stable zellij pane id. The
+    /// controller's single source of truth for pane decisions (ADR-0016).
+    harnesses: HarnessPanes,
 }
 
 impl Controller {
@@ -606,7 +637,9 @@ impl Controller {
     /// build the render target. The caller owns the accept (a plain blocking
     /// `accept` in [`run_controller`], or the zellij-watching accept in the 030
     /// head binary) — this only sets up the seam state once a proxy is connected.
-    fn from_stream(stream: UnixStream) -> Result<Self> {
+    /// `session` is the zellij session the dashboard runs in, which the
+    /// harness-driving layer (leaf 040) targets via `zellij --session … action`.
+    fn from_stream(stream: UnixStream, session: String) -> Result<Self> {
         let mut reader = stream.try_clone().context("cloning socket for reading")?;
         let ctrl = stream.try_clone().context("cloning socket for control")?;
         let render_half = stream.try_clone().context("cloning socket for rendering")?;
@@ -622,6 +655,7 @@ impl Controller {
             term,
             frames,
             keys: InputDecoder::new(),
+            harnesses: HarnessPanes::new(session),
         })
     }
 
@@ -769,6 +803,27 @@ impl Controller {
                     }
                     Err(e) => {
                         app.status = Some(format!("disposition failed: {}", short_err(&e)));
+                    }
+                }
+            }
+            PendingAction::OpenHarness { name, repo } => {
+                // Open the harness as a native zellij pane, or switch to it if
+                // already open; the tracker drives `zellij action` and remembers
+                // the pane id (ADR-0016). zellij focuses the pane, so the user
+                // lands in the harness; the dashboard stays reachable via native
+                // zellij focus (Ctrl-o → move-focus) — discoverability is 050.
+                match self.harnesses.open_or_focus(&name, &repo) {
+                    Ok(action) => app.status = Some(action.status_line(&name)),
+                    Err(e) => {
+                        app.status = Some(format!("harness open failed: {}", short_err(&e)))
+                    }
+                }
+            }
+            PendingAction::CloseHarness { name } => {
+                match self.harnesses.close(&name) {
+                    Ok(action) => app.status = Some(action.status_line(&name)),
+                    Err(e) => {
+                        app.status = Some(format!("harness close failed: {}", short_err(&e)))
                     }
                 }
             }
@@ -1115,6 +1170,16 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         (_, KeyCode::Char('c')) => {
             open_capture_modal(app);
         }
+        // Harness driving (controller path): `o` opens the acting grove's
+        // harness or, if already open, switches focus to it; `x` closes it.
+        // The decision is recorded here; the controller's
+        // `process_pending_action` drives zellij (the `--local` path can't).
+        (_, KeyCode::Char('o')) => {
+            request_open_harness(app);
+        }
+        (_, KeyCode::Char('x')) => {
+            request_close_harness(app);
+        }
         (Screen::GroveList, KeyCode::Char('q')) => return Ok(true),
         (Screen::GroveList, KeyCode::Down | KeyCode::Char('j')) => {
             let len = app.filtered_groves().len() as isize;
@@ -1208,6 +1273,37 @@ fn open_capture_modal(app: &mut App) {
         target,
         body: String::new(),
     };
+}
+
+/// The grove the user is acting on for harness driving: the highlighted row on
+/// the list screen, or the open grove on the detail screen. `None` when the
+/// list is empty / unselected.
+fn acting_grove_name(app: &App) -> Option<String> {
+    match app.screen {
+        Screen::GroveDetail => app.detail.as_ref().map(|d| d.grove.clone()),
+        Screen::GroveList => app
+            .filtered_groves()
+            .get(app.list.selected().unwrap_or(0))
+            .map(|g| g.name.clone()),
+    }
+}
+
+/// Request "open or focus the acting grove's harness pane". The repo is carried
+/// explicitly so the cross-repo fleet (070) reuses this path unchanged. No-op
+/// when no grove is selected.
+fn request_open_harness(app: &mut App) {
+    if let Some(name) = acting_grove_name(app) {
+        let repo = app.repo.clone();
+        app.pending_action = Some(PendingAction::OpenHarness { name, repo });
+    }
+}
+
+/// Request "close the acting grove's harness pane". No-op when no grove is
+/// selected.
+fn request_close_harness(app: &mut App) {
+    if let Some(name) = acting_grove_name(app) {
+        app.pending_action = Some(PendingAction::CloseHarness { name });
+    }
 }
 
 fn handle_capture_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
@@ -1848,8 +1944,8 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
         spans.push(Span::raw("  Enter=apply  Esc=cancel"));
     } else {
         let hint = match app.screen {
-            Screen::GroveList => "Enter=open  j/k=move  /=filter  c=capture  r=refresh  ?=help  q=quit",
-            Screen::GroveDetail => "Tab=cycle  j/k=move  PgUp/PgDn=scroll  /=filter  c=capture  r=refresh  Esc=back  ?=help",
+            Screen::GroveList => "Enter=open  j/k=move  o=harness  x=close  /=filter  c=capture  r=refresh  ?=help  q=quit",
+            Screen::GroveDetail => "Tab=cycle  j/k=move  o=harness  x=close  PgUp/PgDn=scroll  /=filter  c=capture  r=refresh  Esc=back  ?=help",
         };
         spans.push(Span::raw(hint));
         if !app.filter.text.is_empty() {
@@ -1879,6 +1975,8 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Esc / q       back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("                  in the inbox pane, j/k select an observation"),
+        Line::from("  o             open (or switch to) the grove's harness pane"),
+        Line::from("  x             close the grove's harness pane"),
         Line::from("  d             disposition the selected observation"),
         Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
         Line::from("  Ctrl-E        edit the selected observation's body in $EDITOR"),
@@ -2370,6 +2468,78 @@ mod tests {
         let mut app = App::new(tmp.path().to_path_buf(), view, None);
         let quit = handle_key(&mut app, KeyCode::Char('q'), KeyModifiers::NONE).unwrap();
         assert!(quit);
+    }
+
+    // -----------------------------------------------------------------
+    // Harness driving keys (`o` open/switch, `x` close)
+    //
+    // `handle_key` only records the intent (a `PendingAction`); the controller
+    // executes it against zellij (see `harness_drive` for that logic). These
+    // assert the pure decision: which grove, and that the repo is carried so
+    // 070's cross-repo fleet reuses the path unchanged.
+
+    #[test]
+    fn o_on_list_requests_open_harness_for_selected_grove() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Char('o'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::OpenHarness { name, repo }) => {
+                assert_eq!(name, "alpha");
+                assert_eq!(repo, tmp.path(), "open carries the repo for cross-repo reuse");
+            }
+            other => panic!("expected OpenHarness, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn o_on_detail_requests_open_harness_for_current_grove() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap(); // → detail
+        handle_key(&mut app, KeyCode::Char('o'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::OpenHarness { name, .. }) => assert_eq!(name, "alpha"),
+            other => panic!("expected OpenHarness, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn x_on_list_requests_close_harness_for_selected_grove() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("beta".into()));
+        handle_key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.as_ref() {
+            Some(PendingAction::CloseHarness { name }) => assert_eq!(name, "beta"),
+            other => panic!("expected CloseHarness, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn harness_keys_inert_inside_capture_modal() {
+        // While typing an observation, `o`/`x` must type into the field, not
+        // drive harnesses.
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap(); // open capture
+        handle_key(&mut app, KeyCode::Char('o'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('x'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.pending_action, None, "harness keys must be inert in the modal");
+        assert!(app.capture.open, "the capture modal stays open");
+    }
+
+    #[test]
+    fn footer_shows_harness_hints() {
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let app = App::new(tmp.path().to_path_buf(), view, None);
+        let out = render_to_buffer(&app, 120, 12);
+        assert!(out.contains("o=harness"), "list footer missing o=harness:\n{}", out);
+        assert!(out.contains("x=close"), "list footer missing x=close:\n{}", out);
     }
 
     // -----------------------------------------------------------------

@@ -185,7 +185,9 @@ pub fn launch(args: &RepoArgs) -> Result<()> {
         .with_context(|| format!("creating cache dir {}", cache.display()))?;
     let config_path = cache.join("config.kdl");
     let layout_path = cache.join("layout.kdl");
-    let nav_wasm_path = cache.join("grove-nav.wasm");
+    // One source of truth for the plugin path: the controller resolves the same
+    // via `nav_wasm_path()` so its 080 pipes address the instance launched here.
+    let nav_wasm_path = nav_wasm_path()?;
 
     // 2. Bind the controller socket BEFORE spawning zellij, so the proxy pane's
     //    connect() never races a missing socket.
@@ -327,6 +329,16 @@ fn render_layout(grove_bin: &Path, socket: &Path, nav_wasm: &Path) -> String {
 /// `.wasm` — the same instance the layout's sidebar launches (ADR-0018).
 fn render_config(nav_wasm: &Path) -> String {
     CONFIG_TEMPLATE.replace("{{NAV_WASM}}", &nav_wasm.display().to_string())
+}
+
+/// The bundled nav plugin's cache path — `<cache_dir>/grove-nav.wasm`, the same
+/// path [`launch`] writes [`NAV_WASM`] to. `pub(crate)` so the controller
+/// (`tui::serve`) addresses the *same* `file:` plugin URL the head binary
+/// launched (the leader bind, the layout sidebar, and the 080 `grove-state` /
+/// `grove-intent` pipes must all resolve to one instance). Both callers go
+/// through this one function, so they agree by construction.
+pub(crate) fn nav_wasm_path() -> Result<PathBuf> {
+    Ok(cache_dir()?.join("grove-nav.wasm"))
 }
 
 /// The grove zellij cache dir: `$XDG_CACHE_HOME/grove/zellij/`, falling back to

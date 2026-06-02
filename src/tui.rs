@@ -42,6 +42,7 @@ use crate::dash::backend::{self, ProxyBackend};
 use crate::dash::decode::InputDecoder;
 use crate::dash::proto::{DownFrame, FrameWriter, UpDecoder, UpFrame};
 use crate::harness_drive::HarnessTabs;
+use crate::nav_pipe::{self, IntentReader};
 use crate::repo;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -630,6 +631,16 @@ struct Controller {
     /// Open harness tabs, keyed by grove name → stable zellij tab id. The
     /// controller's single source of truth for tab decisions (ADR-0016/0018).
     harnesses: HarnessTabs,
+    /// The zellij session every `zellij …` shell-out targets (also held by
+    /// `harnesses`); kept here for the 080 `grove-state` pushes.
+    session: String,
+    /// The bundled nav plugin's `file:` path — the pipe destination. `None` only
+    /// when the cache dir can't be resolved (then the 080 pipes are skipped).
+    nav_wasm: Option<PathBuf>,
+    /// The controller's end of the `grove-intent` back-channel (ADR-0018, leaf
+    /// 080): the plugin streams `open <name>` up it, the controller first-opens
+    /// each. `None` when there is no nav plugin path to address.
+    intent: Option<IntentReader>,
 }
 
 impl Controller {
@@ -649,13 +660,25 @@ impl Controller {
         let term = backend::terminal(FrameWriter::new(render_half), size)
             .context("building proxy render target")?;
 
+        // The 080 controller↔nav pipes (ADR-0018): address the bundled plugin by
+        // the same `file:` path the head binary launched it with, and open the
+        // long-lived `grove-intent` back-channel so the nav can stream open-grove
+        // requests up to us. Skipped if the cache dir can't be resolved.
+        let nav_wasm = crate::zellij::nav_wasm_path().ok();
+        let intent = nav_wasm
+            .clone()
+            .map(|wasm| IntentReader::spawn(session.clone(), wasm));
+
         Ok(Self {
             reader,
             ctrl,
             term,
             frames,
             keys: InputDecoder::new(),
-            harnesses: HarnessTabs::new(session),
+            harnesses: HarnessTabs::new(session.clone()),
+            session,
+            nav_wasm,
+            intent,
         })
     }
 
@@ -666,6 +689,10 @@ impl Controller {
     fn event_loop(&mut self, app: &mut App, watch: &mut WatchSet) -> Result<()> {
         let mut force_redraw = false;
         let mut rbuf = [0u8; 4096];
+        // Seed the nav with the initial grove list (leaf 080). `zellij pipe
+        // --plugin <url>` launches-and-delivers, so this lands even if the nav is
+        // still loading; later settles keep it live.
+        self.push_nav_state(app);
         loop {
             if force_redraw {
                 // A shell-out / editor may have repainted the proxy's tty; force
@@ -681,6 +708,10 @@ impl Controller {
                     app.status = Some(format!("rescan failed: {}", e));
                 }
                 watch.clear();
+                // The grove list may have changed (a grove opened/closed/drained);
+                // re-push it so the nav reflects the rescan (leaf 080 "updates on
+                // fs-watch changes").
+                self.push_nav_state(app);
             }
 
             // The `event::poll(timeout)` analogue: a timed-out read means "no
@@ -725,9 +756,43 @@ impl Controller {
                 return Ok(());
             }
 
+            // Open-grove intents the nav streamed up the back-channel (leaf 080):
+            // first-open each via the 040 driver. Already-open groves are switched
+            // by the plugin itself (`switch_tab_to`), so only first-opens arrive.
+            self.drain_intents(app);
+
             if let Some(action) = app.pending_action.take() {
                 self.process_pending_action(app, action);
                 force_redraw = true;
+            }
+        }
+    }
+
+    /// Push the live grove list to the nav plugin (controller → plugin, leaf
+    /// 080). Best-effort: a failed push just leaves the nav showing the previous
+    /// list until the next push, so it is not worth a status line per settle.
+    fn push_nav_state(&self, app: &App) {
+        if let Some(wasm) = &self.nav_wasm {
+            let _ = nav_pipe::push_grove_state(&self.session, wasm, app.view.groves());
+        }
+    }
+
+    /// Drain any open-grove intents the nav streamed up the `grove-intent`
+    /// back-channel and first-open each as a workspace tab (reusing the 040
+    /// driver / `HarnessTabs`). Names are collected first so the immutable borrow
+    /// of `self.intent` is released before `self.harnesses` is driven.
+    fn drain_intents(&mut self, app: &mut App) {
+        let names: Vec<String> = match &self.intent {
+            Some(reader) => reader.rx.try_iter().collect(),
+            None => Vec::new(),
+        };
+        for name in names {
+            let repo = app.repo.clone();
+            match self.harnesses.open_or_focus(&name, &repo) {
+                Ok(action) => app.status = Some(action.status_line(&name)),
+                Err(e) => {
+                    app.status = Some(format!("harness open failed: {}", short_err(&e)))
+                }
             }
         }
     }

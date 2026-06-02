@@ -1,5 +1,5 @@
 //! grove-nav — grove's [[leader]]-focused command surface, realised as a zellij
-//! WASM plugin (ADR-0018, leaf 070-nav-plugin).
+//! WASM plugin (ADR-0018, leaves 070-nav-plugin + 080-controller-plugin-pipe).
 //!
 //! ## Why a plugin (the one API fact this rests on)
 //!
@@ -9,39 +9,60 @@
 //! that lands focus on a named surface is `LaunchOrFocusPlugin "<name>"`, and a
 //! focused plugin then receives every keypress (`Event::Key`, no permission). So
 //! the leader-reachable control surface *must* be a plugin. `Ctrl-o` is bound to
-//! `LaunchOrFocusPlugin "grove-nav" { move_to_focused_tab true }` (see
-//! `src/zellij.rs`); this crate is what it focuses.
+//! `LaunchOrFocusPlugin "file:…"` (see `src/zellij.rs`); this crate is what it
+//! focuses.
 //!
-//! ## What it does (this leaf)
+//! ## What it does (with the 080 pipe)
 //!
-//! Per ADR-0018 the plugin holds **no grove state** — it carries only
-//! zellij-layout logic. For workspace switching it needs only zellij's own tab
-//! list, which it gets from the `TabUpdate` event: each grove is a tab and the
-//! dashboard is the "home" tab (leaf 060). So the nav renders the live tab list,
-//! moves a selection over it, and switches via `switch_tab_to` — entirely from
-//! zellij state, no controller round-trip. The controller→plugin **pipe** that
-//! carries the *full* grove list (including groves not yet opened as a tab, to
-//! first-open them) is leaf 080; until then the nav switches among already-open
-//! workspaces and jumps home, and is the live mode/key discoverability surface
-//! (subsuming the former 050-mode-discoverability concern).
+//! The nav lists **every grove in the repo** — not just the ones already open as
+//! tabs — and switches to the selected one. It learns that full list from the
+//! **controller**, which owns grove state (`RepoView` + fs-watch) and pushes it
+//! over a `grove-state` [[pipe]] on startup and on every fs-watch settle (leaf
+//! 080). The plugin holds **no grove state of its own** (ADR-0018): it renders
+//! the piped list and cross-references zellij's own `TabUpdate` to know, per
+//! grove, whether it is already open and where.
+//!
+//! That cross-reference drives the **split** (ADR-0018): selecting a grove that
+//! already has a tab switches to it with pure-zellij `switch_tab_to` (snappy, no
+//! round-trip); selecting one that is *not* yet open streams an `open <name>`
+//! intent back up the **`grove-intent` back-channel** to the controller, which
+//! first-opens the tab + working set via the 040 `zellij action` driver (so
+//! `grove do` command/cwd composition stays in Rust). The back-channel is a CLI
+//! pipe the controller holds open (by keeping its stdin open); the plugin
+//! captures that invocation's `pipe_id` from the `__init` message and
+//! `cli_pipe_output`s intents up it at any time.
 //!
 //! ## Persistent home sidebar
 //!
-//! The nav is **not** a vanish-on-use palette: it is launched by the layout as a
-//! permanent left sidebar on the "home" tab and stays open. The leader (`Ctrl-o`,
-//! `LaunchOrFocusPlugin "file:…"`) focuses this running instance — which lives on
-//! home, so `Ctrl-o` from anywhere brings you to home and onto the nav. Acting
-//! (`Enter`/`h`) switches the tab; the nav simply stays put on home as focus moves
-//! to the chosen workspace. Cancelling (`q`/`Esc`) hands focus to the sibling
-//! dashboard pane via `focus_next_pane` rather than closing. locked mode is
-//! otherwise untouched — keys reach the nav only because zellij focused it.
+//! The nav is **not** a vanish-on-use palette: the layout launches it as a
+//! permanent left sidebar on the "home" tab and it stays open. The leader
+//! (`Ctrl-o`, `LaunchOrFocusPlugin "file:…"`) focuses this running instance —
+//! which lives on home, so `Ctrl-o` from anywhere brings you to home and onto the
+//! nav. Acting (`Enter`/`l`) switches to / opens the selected grove; the nav stays
+//! put on home as focus moves. Cancelling (`q`/`Esc`) hands focus to the sibling
+//! dashboard pane via `focus_next_pane` rather than closing.
 
 use std::collections::BTreeMap;
 
 use zellij_tile::prelude::*;
 
-/// One zellij tab as the nav sees it: its display name and 0-based position.
-/// Built from `TabInfo`; the nav keeps nothing else (no grove state).
+/// Pipe message names — must match the controller's (`src/nav_pipe.rs`).
+const STATE_PIPE: &str = "grove-state";
+const INTENT_PIPE: &str = "grove-intent";
+
+/// One grove as piped from the controller (the `grove-state` pipe, leaf 080).
+/// The nav keeps nothing else — open-ness/position come from `TabUpdate`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GroveRow {
+    name: String,
+    /// Pending inbox observations, surfaced as a badge (the inbox is the point
+    /// of grove, so a count belongs in the nav).
+    pending: usize,
+}
+
+/// One zellij tab as the nav sees it (from `TabUpdate`): used only to resolve
+/// whether a grove is already open (and where), to mark the active one, and to
+/// find the "home" tab. Not a source of grove identity.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct TabEntry {
     name: String,
@@ -51,14 +72,31 @@ struct TabEntry {
     active: bool,
 }
 
+/// What selecting a grove does — the ADR-0018 split driving, as a value so it is
+/// unit-testable apart from the zellij-tile calls that carry it out.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Activation {
+    /// The grove already has a tab → switch via pure zellij (0-based position).
+    Switch(usize),
+    /// The grove is not yet open → ask the controller to first-open it.
+    Open(String),
+}
+
 #[derive(Default)]
 struct State {
-    /// The live workspace list, mirrored from `TabUpdate`. Ordered by position.
+    /// The full grove list, piped from the controller. Ordered as the controller
+    /// sends it (the dashboard's own grove order).
+    groves: Vec<GroveRow>,
+    /// zellij's live tab list (from `TabUpdate`), for open/active/position lookup.
     tabs: Vec<TabEntry>,
-    /// The highlighted row in [`State::tabs`].
+    /// The highlighted row in [`State::groves`].
     selected: usize,
     /// The current zellij input mode, shown in the hint footer (discoverability).
     mode: String,
+    /// The `grove-intent` back-channel's CLI pipe id, captured from its `__init`
+    /// message. `Some` once the controller has opened the channel; intents are
+    /// streamed up it via `cli_pipe_output`.
+    intent_pipe: Option<String>,
 }
 
 register_plugin!(State);
@@ -67,7 +105,7 @@ impl ZellijPlugin for State {
     fn load(&mut self, _configuration: BTreeMap<String, String>) {
         // `switch_tab_to` needs ChangeApplicationState; reading tabs/mode needs
         // ReadApplicationState. Requested once on first load; zellij remembers the
-        // grant across launches.
+        // grant across launches. (Pipe handling needs no permission/subscription.)
         request_permission(&[
             PermissionType::ReadApplicationState,
             PermissionType::ChangeApplicationState,
@@ -83,7 +121,6 @@ impl ZellijPlugin for State {
     fn update(&mut self, event: Event) -> bool {
         match event {
             Event::TabUpdate(tabs) => {
-                let was_empty = self.tabs.is_empty();
                 self.tabs = tabs
                     .iter()
                     .map(|t| TabEntry {
@@ -92,14 +129,9 @@ impl ZellijPlugin for State {
                         active: t.active,
                     })
                     .collect();
-                // On first population, start the cursor on the active workspace so
-                // the nav opens "where you are."
-                if was_empty {
-                    if let Some(i) = active_index(&self.tabs) {
-                        self.selected = i;
-                    }
-                }
-                self.selected = clamp_index(self.selected, self.tabs.len());
+                // A tab closing/opening can change which grove is active; keep the
+                // selection in range but don't yank the cursor around.
+                self.selected = clamp_index(self.selected, self.groves.len());
                 true
             }
             Event::ModeUpdate(mode_info) => {
@@ -107,9 +139,9 @@ impl ZellijPlugin for State {
                 true
             }
             // Re-focused (the leader fired again): re-anchor the cursor on the
-            // active workspace.
+            // active workspace so the nav opens "where you are."
             Event::Visible(true) => {
-                if let Some(i) = active_index(&self.tabs) {
+                if let Some(i) = active_grove_index(&self.groves, &self.tabs) {
                     self.selected = i;
                 }
                 true
@@ -119,20 +151,59 @@ impl ZellijPlugin for State {
         }
     }
 
+    fn pipe(&mut self, message: PipeMessage) -> bool {
+        match message.name.as_str() {
+            STATE_PIPE => {
+                let was_empty = self.groves.is_empty();
+                if let Some(payload) = &message.payload {
+                    self.groves = parse_groves(payload);
+                }
+                if was_empty {
+                    // First list: start the cursor on the active workspace.
+                    if let Some(i) = active_grove_index(&self.groves, &self.tabs) {
+                        self.selected = i;
+                    }
+                }
+                self.selected = clamp_index(self.selected, self.groves.len());
+                // A one-shot state push: release the CLI invocation so it exits
+                // promptly rather than lingering blocked.
+                if let PipeSource::Cli(id) = &message.source {
+                    unblock_cli_pipe_input(id);
+                }
+                true
+            }
+            INTENT_PIPE => {
+                // The long-lived back-channel: capture this CLI invocation's id so
+                // we can `cli_pipe_output` `open <name>` up it later. The
+                // controller keeps the invocation alive by holding its stdin open;
+                // we just record the id (and don't unblock — there is no next
+                // stdin message we want).
+                if let PipeSource::Cli(id) = message.source {
+                    self.intent_pipe = Some(id);
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
     fn render(&mut self, _rows: usize, cols: usize) {
         // The nav lives in a narrow sidebar; keep every line within `cols` and the
         // hints terse and stacked so nothing wraps.
         println!("\u{1b}[1m grove\u{1b}[0m");
         println!();
-        for (i, tab) in self.tabs.iter().enumerate() {
+        if self.groves.is_empty() {
+            println!("\u{1b}[2m (loading…)\u{1b}[0m");
+        }
+        for (i, g) in self.groves.iter().enumerate() {
             let arrow = if i == self.selected { "▸" } else { " " };
-            let dot = if tab.active { "●" } else { " " };
-            let raw = if tab.name.is_empty() {
-                format!("tab {}", tab.position + 1)
-            } else {
-                tab.name.clone()
+            // ● active workspace, ○ open but not focused, blank not yet open.
+            let dot = match grove_open_state(g, &self.tabs) {
+                OpenState::Active => "●",
+                OpenState::Open => "○",
+                OpenState::Closed => " ",
             };
-            let label = truncate(&raw, cols.saturating_sub(5));
+            let label = truncate(&grove_label(g), cols.saturating_sub(5));
             if i == self.selected {
                 // Reverse-video the selected row.
                 println!("\u{1b}[7m {arrow} {dot} {label}\u{1b}[0m");
@@ -158,11 +229,11 @@ impl State {
         }
         match key.bare_key {
             BareKey::Char('j') | BareKey::Down => {
-                self.selected = next_index(self.selected, self.tabs.len());
+                self.selected = next_index(self.selected, self.groves.len());
                 true
             }
             BareKey::Char('k') | BareKey::Up => {
-                self.selected = prev_index(self.selected, self.tabs.len());
+                self.selected = prev_index(self.selected, self.groves.len());
                 true
             }
             BareKey::Char('h') => {
@@ -183,11 +254,23 @@ impl State {
         }
     }
 
-    /// Switch to the selected workspace. The nav stays put on home; zellij moves
-    /// focus to the chosen tab.
+    /// Act on the selected grove (ADR-0018 split): switch to its tab if open,
+    /// else stream an open-intent up the back-channel for the controller to
+    /// first-open. The nav stays put on home; zellij moves focus.
     fn activate_selected(&mut self) {
-        if let Some(tab) = self.tabs.get(self.selected) {
-            activate(tab.position);
+        let Some(grove) = self.groves.get(self.selected) else {
+            return;
+        };
+        match resolve_activation(grove, &self.tabs) {
+            Activation::Switch(position) => activate(position),
+            Activation::Open(name) => {
+                if let Some(id) = &self.intent_pipe {
+                    cli_pipe_output(id, &format!("open {name}\n"));
+                }
+                // No back-channel yet → drop silently; the controller pushes
+                // state (and opens the channel) at startup, so this is a brief
+                // pre-init window only.
+            }
         }
     }
 
@@ -217,9 +300,64 @@ fn activate(position: usize) {
 // ---------------------------------------------------------------------------
 // Pure list logic (unit-tested; no zellij-tile calls).
 
-/// The index of the active tab, if any.
-fn active_index(tabs: &[TabEntry]) -> Option<usize> {
-    tabs.iter().position(|t| t.active)
+/// Whether a grove is the active workspace, merely open, or not yet open.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OpenState {
+    Active,
+    Open,
+    Closed,
+}
+
+/// Parse the `grove-state` pipe payload (leaf 080): one grove per line, `name \t
+/// pending`. Blank lines are skipped; a missing or non-numeric pending column is
+/// 0. Names cannot contain a tab (they are sanitised), so the split is safe.
+fn parse_groves(payload: &str) -> Vec<GroveRow> {
+    payload
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let mut cols = line.splitn(2, '\t');
+            let name = cols.next().unwrap_or("").trim().to_string();
+            let pending = cols.next().and_then(|p| p.trim().parse().ok()).unwrap_or(0);
+            GroveRow { name, pending }
+        })
+        .filter(|g| !g.name.is_empty())
+        .collect()
+}
+
+/// Resolve how to act on `grove`: switch to its tab if one is open (matched by
+/// name — the controller names a grove's tab for the grove), else open it.
+fn resolve_activation(grove: &GroveRow, tabs: &[TabEntry]) -> Activation {
+    match tabs.iter().find(|t| t.name == grove.name) {
+        Some(tab) => Activation::Switch(tab.position),
+        None => Activation::Open(grove.name.clone()),
+    }
+}
+
+/// The open/active state of `grove` per the live tab list.
+fn grove_open_state(grove: &GroveRow, tabs: &[TabEntry]) -> OpenState {
+    match tabs.iter().find(|t| t.name == grove.name) {
+        Some(tab) if tab.active => OpenState::Active,
+        Some(_) => OpenState::Open,
+        None => OpenState::Closed,
+    }
+}
+
+/// The render label for a grove: its name plus a `(N)` pending-inbox badge when
+/// there are pending observations.
+fn grove_label(grove: &GroveRow) -> String {
+    if grove.pending > 0 {
+        format!("{} ({})", grove.name, grove.pending)
+    } else {
+        grove.name.clone()
+    }
+}
+
+/// The index into `groves` of the grove whose tab is currently active, if any.
+/// `None` when the active tab is not a grove (e.g. "home") or there is none.
+fn active_grove_index(groves: &[GroveRow], tabs: &[TabEntry]) -> Option<usize> {
+    let active = tabs.iter().find(|t| t.active)?;
+    groves.iter().position(|g| g.name == active.name)
 }
 
 /// The 0-based position of the tab named "home" (the dashboard), if present.
@@ -258,22 +396,99 @@ fn prev_index(idx: usize, len: usize) -> usize {
     }
 }
 
+// zellij provides `host_run_plugin_command` as a wasm import at runtime; every
+// `zellij_tile` shim call funnels through it. A host-target `cargo test` (which
+// runs the pure list logic below) never calls a shim, but the linker still needs
+// the symbol to resolve. Provide a no-op off-wasm so `cargo test` links; the wasm
+// build excludes this and binds the real zellij import instead.
+#[cfg(not(target_arch = "wasm32"))]
+#[no_mangle]
+extern "C" fn host_run_plugin_command() {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn groves() -> Vec<GroveRow> {
+        vec![
+            GroveRow { name: "auth".into(), pending: 0 },
+            GroveRow { name: "billing".into(), pending: 3 },
+            GroveRow { name: "search".into(), pending: 0 },
+        ]
+    }
+
     fn tabs() -> Vec<TabEntry> {
         vec![
             TabEntry { name: "home".into(), position: 0, active: false },
-            TabEntry { name: "auth".into(), position: 1, active: true },
-            TabEntry { name: "billing".into(), position: 2, active: false },
+            TabEntry { name: "billing".into(), position: 1, active: true },
         ]
     }
 
     #[test]
-    fn active_index_finds_the_focused_tab() {
-        assert_eq!(active_index(&tabs()), Some(1));
-        assert_eq!(active_index(&[]), None);
+    fn parse_groves_reads_name_and_pending_columns() {
+        let parsed = parse_groves("auth\t0\nbilling\t3");
+        assert_eq!(
+            parsed,
+            vec![
+                GroveRow { name: "auth".into(), pending: 0 },
+                GroveRow { name: "billing".into(), pending: 3 },
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_groves_tolerates_blank_lines_and_missing_pending() {
+        // Empty payload → no groves; a name with no pending column → 0; a blank
+        // line is skipped; a non-numeric pending falls back to 0.
+        assert_eq!(parse_groves(""), vec![]);
+        assert_eq!(
+            parse_groves("auth\n\nbilling\tx\n"),
+            vec![
+                GroveRow { name: "auth".into(), pending: 0 },
+                GroveRow { name: "billing".into(), pending: 0 },
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_activation_switches_open_groves_and_opens_closed_ones() {
+        // "billing" has a tab → switch to its 0-based position.
+        assert_eq!(
+            resolve_activation(&groves()[1], &tabs()),
+            Activation::Switch(1)
+        );
+        // "auth" has no tab → open it (intent to the controller).
+        assert_eq!(
+            resolve_activation(&groves()[0], &tabs()),
+            Activation::Open("auth".into())
+        );
+    }
+
+    #[test]
+    fn grove_open_state_marks_active_open_and_closed() {
+        assert_eq!(grove_open_state(&groves()[1], &tabs()), OpenState::Active); // billing tab is active
+        // A grove that is open but whose tab is not active reads as Open.
+        let open_not_active = vec![TabEntry { name: "auth".into(), position: 2, active: false }];
+        assert_eq!(grove_open_state(&groves()[0], &open_not_active), OpenState::Open);
+        // No tab at all → Closed.
+        assert_eq!(grove_open_state(&groves()[0], &tabs()), OpenState::Closed);
+    }
+
+    #[test]
+    fn grove_label_shows_a_pending_badge_only_when_nonzero() {
+        assert_eq!(grove_label(&GroveRow { name: "auth".into(), pending: 0 }), "auth");
+        assert_eq!(grove_label(&GroveRow { name: "billing".into(), pending: 3 }), "billing (3)");
+    }
+
+    #[test]
+    fn active_grove_index_finds_the_grove_whose_tab_is_focused() {
+        // billing's tab is active → its index in the grove list is 1.
+        assert_eq!(active_grove_index(&groves(), &tabs()), Some(1));
+        // Active tab is "home" (not a grove) → None.
+        let home_active = vec![TabEntry { name: "home".into(), position: 0, active: true }];
+        assert_eq!(active_grove_index(&groves(), &home_active), None);
+        // No active tab → None.
+        assert_eq!(active_grove_index(&groves(), &[]), None);
     }
 
     #[test]
@@ -309,8 +524,8 @@ mod tests {
     }
 
     #[test]
-    fn clamp_keeps_selection_in_range_when_tabs_shrink() {
-        // A workspace closing shrinks the list; a stale selection clamps to the
+    fn clamp_keeps_selection_in_range_when_the_list_shrinks() {
+        // A grove leaving the list shrinks it; a stale selection clamps to the
         // last row rather than pointing past the end.
         assert_eq!(clamp_index(5, 3), 2);
         assert_eq!(clamp_index(1, 3), 1);

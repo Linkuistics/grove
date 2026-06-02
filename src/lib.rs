@@ -13,6 +13,7 @@ pub mod leaf;
 pub mod leaf_ops;
 pub mod llm_cli;
 pub mod meta;
+pub mod nav_pipe;
 pub mod pick;
 pub mod repo;
 pub mod repo_view;

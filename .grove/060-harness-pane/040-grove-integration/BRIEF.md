@@ -3,8 +3,10 @@
 **Kind:** node (build). Substrate per ADR-0015 ([[zellij substrate]]); dashboard
 architecture per ADR-0016 ([[controlling process]] + [[dashboard proxy]]);
 **harness UX reshaped by ADR-0018** — groves are [[workspace]] tabs navigated by
-a [[nav plugin]], replacing the original "dashboard-as-switcher + `focus-pane-id`"
-model.
+a [[nav plugin]] — then **the integration model reshaped again by ADR-0019** after
+live-testing 080: `cli_pipe_output` is reply-only, so the nav opens workspaces
+**itself** (no back-channel) and grove **detail lives per-workspace** as a
+[[detail proxy]]; the home tab is the nav, full-height.
 
 ## Goal
 
@@ -47,18 +49,19 @@ grove's working set at a time, switched as workspaces.
 
 ## Done when (acceptance for the whole node)
 
-- `grove tui` launches the zellij substrate as a single binary; the home
-  dashboard is a dumb proxy. **[done — 010/020/030]**
-- Each grove opens as a [[workspace]] tab with its [[working set]]; the dashboard
-  is the "home" tab.
-- Switching between workspaces works via `GoToTab` keybinds and the [[nav
-  plugin]]; the leader (`Ctrl-o`) focuses the nav from any pane.
-- The nav plugin lists groves (piped from the controller), switches / toggles /
-  jumps-home, and surfaces the live mode/keys (discoverability).
-- A grove's working set (harness + terminal + yazi + lazygit) lays out
-  responsively and each pane toggles.
-- Within one repo; opens with explicit repo/cwd so 070-fleet-view reuses the
-  driving cross-repo.
+- `grove tui` launches the zellij substrate as a single binary. **[done —
+  010/020/030]**
+- The **home tab is the [[nav plugin]]** (full-height grove list); the leader
+  (`Ctrl-o`) focuses it from any pane (ADR-0019).
+- Selecting a grove in the nav **opens or switches its [[workspace]] tab itself**
+  (no controller back-channel); `GoToTab` keybinds also switch.
+- Each grove tab shows its [[working set]] — harness + a per-grove [[detail
+  proxy]] (its task tree / inbox / capture) + terminal + yazi + lazygit — laid out
+  responsively, each pane toggleable.
+- One grove-owned [[whichkey bar]] spans the bottom of every tab; no other surface
+  draws hints.
+- Within one repo; the nav opens with explicit repo/cwd so 070-fleet-view reuses
+  the driving cross-repo.
 
 ## Decomposition (this node)
 
@@ -68,19 +71,24 @@ done/
   020-controller-loop      dashboard event loop in the controller, over the seam
   030-zellij-launch        head binary: embed config+layout, launch zellij, Ctrl-o
   040-harness-driving      zellij-action open/close + HarnessPanes tracker
-                           [primitives landed & reused; the focus-pane-id switcher
-                            + dashboard o/x model superseded by ADR-0018]
+                           [primitives landed; focus-pane-id switcher superseded]
   050-mode-discoverability [subsumed by the nav plugin — see 070]
+  060-workspace-tabs       grove = zellij tab; home tab; GoToTab switching
+  070-nav-plugin           grove-nav WASM plugin: render piped state, keys when
+                           focused, pure-zellij nav; leader→LaunchOrFocusPlugin
+  080-controller-plugin-pipe controller↔plugin pipe [built, then SUPERSEDED by
+                           ADR-0019: cli_pipe_output is reply-only; back-channel
+                           deleted. The work surfaced that constraint empirically.]
 
-live (ADR-0018 model):
-  060-workspace-tabs         grove = zellij tab; home tab; GoToTab switching;
-                             controller first-opens a grove's tab (reuses 040)
-  070-nav-plugin             grove-nav WASM plugin: render piped state, keys when
-                             focused, pure-zellij nav; leader→LaunchOrFocusPlugin
-                             (subsumes 050)
-  080-controller-plugin-pipe controller↔plugin pipe: grove-state out, open-grove
-                             intent in → controller first-opens via the 040 driver
-  090-working-set-responsive harness+terminal+yazi+lazygit; per-pane toggles;
+live (ADR-0019 "A′" model):
+  090-nav-self-opens         nav opens/switches tabs ITSELF (new_tabs_with_layout);
+                             grove-state carries cmd+cwd; delete the 080 channel;
+                             pre-seed permissions.kdl; sigil hints
+  100-detail-proxy-per-grove controller renders per-grove detail into each grove
+                             tab (N proxies); home tab = nav full-height
+  110-whichkey-bar           grove-owned full-width bottom-bar plugin (sigils);
+                             dashboard/harness stop drawing hints
+  120-working-set-responsive +terminal +yazi +lazygit; per-pane toggles;
                              responsive layout (5K2K ↔ MacBook Pro)
 ```
 
@@ -89,7 +97,7 @@ live (ADR-0018 model):
 - Scope is within one repo; the cross-repo fleet is 070-fleet-view (it reuses
   this driving layer, opened cross-repo).
 - Launching `grove do <name>` inside a tab nests grove deliberately — intended.
-- ADR-0018 pulled Strategy 1a (WASM plugin) forward from ADR-0015's deferral, for
-  the nav specifically; the home dashboard stays a controller-rendered proxy.
+- ADR-0019 supersedes 080's back-channel and the "home dashboard lists groves"
+  framing; the nav is the home + the navigator, detail is per-grove.
 - The shelved [[harness-pane crate]] embed (ADR-0014) stays a recoverable
   fallback, not on this path.

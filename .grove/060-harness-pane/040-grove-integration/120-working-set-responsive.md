@@ -1,4 +1,4 @@
-# 090-working-set-responsive
+# 120-working-set-responsive
 
 **Kind:** work
 
@@ -11,8 +11,10 @@ display (5K2K) and degrades gracefully to a MacBook Pro screen.
 
 ## Context
 
-- ADR-0018. Leaf 060 stood up the harness-only tab; this adds the terminal +
-  yazi + lazygit panes, the per-pane toggles, and the responsive behaviour.
+- ADR-0018 + ADR-0019. Leaf 090 stood up the nav-opened harness tab and 100 added
+  the per-grove [[detail proxy]]; this adds the terminal + yazi + lazygit panes,
+  the per-pane toggles, and the responsive behaviour, so the full [[working set]]
+  is harness + detail proxy + terminal + yazi + lazygit.
 - Each aux pane runs in the grove's worktree cwd. Toggling a *specific* pane
   isn't a native zellij concept (zellij's float-toggle is all-or-nothing), so a
   toggle is open/close (or float/embed) of that one pane — driven from the nav
@@ -30,6 +32,7 @@ display (5K2K) and degrades gracefully to a MacBook Pro screen.
 
 ## Notes
 
-- Depends on **060/070/080**. Keep it the smallest thing that's legible (grove
-  constraint 4) — not a general tiling-config system. The responsive
-  defaults/breakpoints are this leaf's design call.
+- Depends on **090/100** (nav self-opens the tab; the detail proxy is in it). Keep
+  it the smallest thing that's legible (grove constraint 4) — not a general
+  tiling-config system. The responsive defaults/breakpoints are this leaf's design
+  call.

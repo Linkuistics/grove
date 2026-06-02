@@ -9,3 +9,6 @@
 # its own branch and must not appear as untracked in main's tree.
 /.grove-meta
 /.grove-worktrees
+
+# superpowers brainstorming visual companion (local-only)
+.superpowers/

@@ -25,13 +25,16 @@
 //! workspaces and jumps home, and is the live mode/key discoverability surface
 //! (subsuming the former 050-mode-discoverability concern).
 //!
-//! ## Returning focus
+//! ## Persistent home sidebar
 //!
-//! Acting (`Enter`/`h`) switches the tab and then `close_self()`s, so the nav
-//! behaves like a command palette: it vanishes and focus lands on the chosen
-//! workspace. Cancelling (`q`/`Esc`) just `close_self()`s, returning focus to the
-//! pane that was focused when the leader fired. locked mode is otherwise
-//! untouched — keys reach the nav only because zellij focused it.
+//! The nav is **not** a vanish-on-use palette: it is launched by the layout as a
+//! permanent left sidebar on the "home" tab and stays open. The leader (`Ctrl-o`,
+//! `LaunchOrFocusPlugin "file:…"`) focuses this running instance — which lives on
+//! home, so `Ctrl-o` from anywhere brings you to home and onto the nav. Acting
+//! (`Enter`/`h`) switches the tab; the nav simply stays put on home as focus moves
+//! to the chosen workspace. Cancelling (`q`/`Esc`) hands focus to the sibling
+//! dashboard pane via `focus_next_pane` rather than closing. locked mode is
+//! otherwise untouched — keys reach the nav only because zellij focused it.
 
 use std::collections::BTreeMap;
 
@@ -116,28 +119,33 @@ impl ZellijPlugin for State {
         }
     }
 
-    fn render(&mut self, _rows: usize, _cols: usize) {
-        println!("\u{1b}[1m grove · workspaces\u{1b}[0m");
+    fn render(&mut self, _rows: usize, cols: usize) {
+        // The nav lives in a narrow sidebar; keep every line within `cols` and the
+        // hints terse and stacked so nothing wraps.
+        println!("\u{1b}[1m grove\u{1b}[0m");
         println!();
         for (i, tab) in self.tabs.iter().enumerate() {
+            let arrow = if i == self.selected { "▸" } else { " " };
             let dot = if tab.active { "●" } else { " " };
-            let label = if tab.name.is_empty() {
+            let raw = if tab.name.is_empty() {
                 format!("tab {}", tab.position + 1)
             } else {
                 tab.name.clone()
             };
+            let label = truncate(&raw, cols.saturating_sub(5));
             if i == self.selected {
                 // Reverse-video the selected row.
-                println!("\u{1b}[7m > {dot} {label}\u{1b}[0m");
+                println!("\u{1b}[7m {arrow} {dot} {label}\u{1b}[0m");
             } else {
-                println!("   {dot} {label}");
+                println!(" {arrow} {dot} {label}");
             }
         }
         println!();
-        println!(
-            "\u{1b}[2m j/k move · enter switch · h home · q close\u{1b}[0m"
-        );
-        println!("\u{1b}[2m mode: {}\u{1b}[0m", self.mode);
+        for hint in [" j/k move", " ent  go", " h   home", " esc back"] {
+            println!("\u{1b}[2m{hint}\u{1b}[0m");
+        }
+        println!();
+        println!("\u{1b}[2m mode: {}\u{1b}[0m", truncate(&self.mode, cols.saturating_sub(7)));
     }
 }
 
@@ -166,27 +174,37 @@ impl State {
                 false
             }
             BareKey::Char('q') | BareKey::Esc => {
-                close_self();
+                // Hand focus back to the sibling dashboard pane; the nav stays
+                // open (it is the permanent home sidebar, not a palette).
+                focus_next_pane();
                 false
             }
             _ => false,
         }
     }
 
-    /// Switch to the selected workspace, then dismiss the nav (focus lands on it).
+    /// Switch to the selected workspace. The nav stays put on home; zellij moves
+    /// focus to the chosen tab.
     fn activate_selected(&mut self) {
         if let Some(tab) = self.tabs.get(self.selected) {
             activate(tab.position);
         }
-        close_self();
     }
 
-    /// Jump to the "home" (dashboard) workspace, then dismiss the nav.
+    /// Jump to the "home" (dashboard) workspace.
     fn jump_home(&mut self) {
         if let Some(pos) = home_position(&self.tabs) {
             activate(pos);
         }
-        close_self();
+    }
+}
+
+/// Truncate `s` to at most `max` characters (char-aware), for the narrow sidebar.
+fn truncate(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        s.chars().take(max).collect()
     }
 }
 
@@ -281,6 +299,13 @@ mod tests {
         // empty list: no movement, no panic.
         assert_eq!(next_index(0, 0), 0);
         assert_eq!(prev_index(0, 0), 0);
+    }
+
+    #[test]
+    fn truncate_respects_the_narrow_sidebar_width() {
+        assert_eq!(truncate("auth", 10), "auth");
+        assert_eq!(truncate("a-very-long-grove-name", 8), "a-very-l");
+        assert_eq!(truncate("auth", 0), "");
     }
 
     #[test]

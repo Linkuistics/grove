@@ -1,113 +1,95 @@
 # 040-grove-integration — brief
 
-**Kind:** node (build, reshaped by 020 onto the [[zellij substrate]], ADR-0015;
-dashboard architecture per ADR-0016). Decomposed into ordered build leaves
-because the integration is a 3–4 session build, not one focused commit.
+**Kind:** node (build). Substrate per ADR-0015 ([[zellij substrate]]); dashboard
+architecture per ADR-0016 ([[controlling process]] + [[dashboard proxy]]);
+**harness UX reshaped by ADR-0018** — groves are [[workspace]] tabs navigated by
+a [[nav plugin]], replacing the original "dashboard-as-switcher + `focus-pane-id`"
+model.
 
 ## Goal
 
-Wire grove onto its **owned zellij substrate** (Strategy 1b) under the
-**controlling-process / dumb-proxy** model (ADR-0016): a persistent **controlling
-process** launches zellij (as a child) with grove's bundled config + bars-free
-layout (presenting as a single binary) and owns *all* logic, state, and rendering;
-the **dashboard** appears in a zellij pane as a [[dashboard proxy]] (dumb terminal)
-that the controller renders into; and from the dashboard the user
-**launches/attaches a grove's live harness** (`grove do <name>` → claude code /
-codex) as a native zellij pane and **switches focus between groves**. This closes
-the 060 "Done when" — via zellij, with logic centralised in the controller.
+Wire grove onto its owned [[zellij substrate]] under the controlling-process
+model: a persistent [[controlling process]] launches zellij and owns all state +
+rendering; the **home dashboard** is a [[dashboard proxy]] it renders into; and
+**each grove is a [[workspace]] tab** holding that grove's [[working set]]
+(harness + terminal + yazi + lazygit), navigated by a leader-focused [[nav
+plugin]] (ADR-0018). Closes the 060 headline feature — live harness sessions, one
+grove's working set at a time, switched as workspaces.
 
 ## Context
 
-- **Substrate decided (020 → ADR-0015): grove-owned zellij.** Harness panes are
-  native zellij panes; grove does *not* emulate terminals. The in-process-pty
-  `harness-pane` crate is the shelved fallback, not consumed here.
-- **Dashboard architecture (ADR-0016): controlling process + dumb proxies.** The
-  controller renders every dashboard surface and ships frames over a local IPC
-  channel (unix socket) to a thin `grove __dash-proxy` running in the pane; the
-  proxy only reports its size (+ SIGWINCH), blits controller output to stdout, and
-  forwards stdin up. The proxy holds **no** state/logic/ratatui.
-- **Boundary (ADR-0013) reinforced (ADR-0016):** all of grove — data layer,
-  writes, *and* dashboard ratatui rendering — lives in the controlling process;
-  the dashboard proxy is pure presentation transport. The seam becomes a runtime
-  client/server split, and a future web client is just another proxy.
-- **Free from the substrate (do NOT rebuild):** per-pane copy mode, scrollback,
-  search, floating panes, session persistence — all native zellij. (This is why
-  030 was retired.)
-- **Tamed config knobs (validated on zellij 0.44.3, from the 020 spike):**
-  `default_mode "locked"`, `pane_frames false`, `simplified_ui true`,
-  `show_release_notes false`, `show_startup_tips false`, `copy_on_select true`,
-  `session_serialization true`; a custom top-level `layout { … }` with **no**
-  tab/status-bar panes; command panes need `start_suspended false`. The throwaway
-  spike at `/tmp/grove-zellij-spike/` is the starting reference.
+- **Substrate (ADR-0015):** harness panes are native zellij panes; grove drives
+  via `zellij action`. Copy/scrollback/search/persistence are native (why
+  030-scrollback-copy was retired).
+- **Controller + proxy (ADR-0016):** the controller renders the dashboard and
+  ships frames to a dumb `grove __dash-proxy`; input up, display down. Tamed
+  config knobs validated on zellij 0.44.3 (locked mode, no bars, command panes
+  `start_suspended false`).
+- **Harness UX reshaped (ADR-0018):** the original model — dashboard is the
+  switch surface, harness panes beside it, switched by `focus-pane-id` — hit a
+  locked-mode dead-end (no bound key returns focus to the dashboard; grove's
+  config stripped pane-nav binds). Replaced by: grove = zellij tab; switch via
+  `GoToTab` + the [[nav plugin]] (a WASM plugin, Strategy 1a pulled forward);
+  split driving (plugin does pure-zellij nav, controller does grove-data
+  first-open).
 
-## Decisions carried into the build (settled when this node was created)
+## Decisions carried into the build
 
-- **Render-over-socket = `CrosstermBackend` over a socket writer.** ratatui already
-  renders to any `Backend`/`io::Write`; the controller holds a
-  `Terminal<CrosstermBackend<W>>` per proxy where `W` writes framed bytes down the
-  socket. The ANSI escape stream *is* the "frames down" wire payload — so the proxy
-  stays genuinely dumb (copy socket→stdout). ratatui's cell-diffing already
-  minimises the bytes.
-- **Input decoder is hand-rolled, no new dep.** crossterm's `event::read()` is
-  hard-wired to the process's own stdin/tty and cannot be pointed at a socket, so
-  the controller must decode the proxy's raw stdin bytes into
-  `KeyCode`/`KeyModifiers` itself. A focused ANSI input parser covering the
-  dashboard's key subset (arrows, Enter/Esc/Tab/Backspace, control chars, UTF-8
-  chars) is small and aligns with grove's lean-dependency value (ADR-0013). Mouse
-  may be deferred for the within-repo cut.
-- **Bundled config/layout: embed in the binary, write to a cache dir at launch**
-  (e.g. `$XDG_CACHE_HOME/grove/zellij/` or `~/.cache/grove/zellij/`). Keeps the
-  single-binary presentation; no reliance on a user-edited config path.
-- **Packaging: depend on an installed zellij** for the within-repo cut (task note);
-  a bundle/vendor decision can come later (flag if it needs its own leaf/ADR).
-- **Unlock key (zellij control seam): `Ctrl-o`** — deliberate, documented,
-  low-collision (default `Ctrl-g` collides with nvim "show file info"; user steer).
-- **One dashboard proxy for v1**, but the protocol supports N proxies (ADR-0016's
-  plural "component(s)"; a future web client is another proxy).
+- Render-over-socket = `CrosstermBackend` over a socket writer (010, done).
+  Hand-rolled input decoder, no new dep (010, done). Bundled config/layout
+  embedded + written to a cache dir (030, done). Depend on an installed zellij.
+  Leader = `Ctrl-o` (now bound to `LaunchOrFocusPlugin`, ADR-0018). Protocol
+  supports N proxies.
+- **Split driving (ADR-0018):** the [[nav plugin]] issues pure-zellij nav
+  (`go_to_tab`/focus/toggle) directly; the controller owns state, pipes it to the
+  nav, and does first-open of a grove's tab + working set via the 040 `zellij
+  action` driver.
 
 ## Done when (acceptance for the whole node)
 
-- `grove`/`grove tui` launches the zellij substrate with grove's bundled config +
-  layout and **presents as a single binary** (no visible "you are in zellij":
-  bars/frames/branding hidden; dashboard auto-runs in its pane).
-- **The dashboard pane is a dumb proxy** (`grove __dash-proxy`): the controlling
-  process renders the dashboard and ships frames to it; the proxy carries no grove
-  state/logic/ratatui. Resize (SIGWINCH) and input round-trip correctly.
-- From the dashboard, selecting a grove makes the **controller open `grove do
-  <name>` as a native zellij pane** beside the dashboard (`zellij action
-  new-pane`), interactable normally (locked-mode passthrough).
-- **Switching focus** between groves works from the dashboard via stable pane-ID
-  addressing (`focus-pane-id`); the dashboard remains reachable as the switch
-  surface.
-- Multiple groves' harnesses can be alive at once; closing one is clean
-  (`close-tab-by-id` / `close-pane`).
-- The unlock key is `Ctrl-o`, documented.
+- `grove tui` launches the zellij substrate as a single binary; the home
+  dashboard is a dumb proxy. **[done — 010/020/030]**
+- Each grove opens as a [[workspace]] tab with its [[working set]]; the dashboard
+  is the "home" tab.
+- Switching between workspaces works via `GoToTab` keybinds and the [[nav
+  plugin]]; the leader (`Ctrl-o`) focuses the nav from any pane.
+- The nav plugin lists groves (piped from the controller), switches / toggles /
+  jumps-home, and surfaces the live mode/keys (discoverability).
+- A grove's working set (harness + terminal + yazi + lazygit) lays out
+  responsively and each pane toggles.
+- Within one repo; opens with explicit repo/cwd so 070-fleet-view reuses the
+  driving cross-repo.
 
 ## Decomposition (this node)
 
 ```
-010-proxy-protocol   IPC protocol + dumb `grove __dash-proxy` client + input
-                     decoder + render-over-socket backend. The controller↔proxy
-                     seam, tested against a controller stub. The hard core.
-020-controller-loop  Refactor the dashboard event loop into the controlling
-                     process: render the existing App to the proxy, feed decoded
-                     input to handle_key, run fs-watch + shell-out over the seam.
-030-zellij-launch    Head binary: embed config+layout assets, write to cache dir,
-                     launch zellij as a child, place the dashboard proxy pane,
-                     present-as-single-binary; wire the Ctrl-o unlock key.
-040-harness-driving  Controller drives zellij via `zellij action`: open `grove do
-                     <name>` panes, focus/switch, close; track stable pane IDs;
-                     wire dashboard select→open. Driving layer must not hard-assume
-                     one repo (070 reuses it cross-repo).
+done/
+  010-proxy-protocol       IPC seam + dumb proxy + input decoder + render backend
+  020-controller-loop      dashboard event loop in the controller, over the seam
+  030-zellij-launch        head binary: embed config+layout, launch zellij, Ctrl-o
+  040-harness-driving      zellij-action open/close + HarnessPanes tracker
+                           [primitives landed & reused; the focus-pane-id switcher
+                            + dashboard o/x model superseded by ADR-0018]
+  050-mode-discoverability [subsumed by the nav plugin — see 070]
+
+live (ADR-0018 model):
+  060-workspace-tabs         grove = zellij tab; home tab; GoToTab switching;
+                             controller first-opens a grove's tab (reuses 040)
+  070-nav-plugin             grove-nav WASM plugin: render piped state, keys when
+                             focused, pure-zellij nav; leader→LaunchOrFocusPlugin
+                             (subsumes 050)
+  080-controller-plugin-pipe controller↔plugin pipe: grove-state out, open-grove
+                             intent in → controller first-opens via the 040 driver
+  090-working-set-responsive harness+terminal+yazi+lazygit; per-pane toggles;
+                             responsive layout (5K2K ↔ MacBook Pro)
 ```
 
 ## Notes
 
-- Scope is **within one repo** (the v1 dashboard already lists a repo's groves).
-  **Cross-repo** fleet is 070 — but it opens cross-repo harness panes via the same
-  `zellij action` driving, so 040's driving layer (leaf 040) must not hard-assume
-  one repo.
-- Launching `grove do <name>` inside a zellij pane nests grove deliberately (the
-  harness *is* a grove session) — intended, not a problem.
-- 1a (WASM plugin dashboard via `zellij_widgets` + pipe IPC) stays a recorded
-  future refinement; do not pull it into this node (ADR-0015, grove constraint 4).
+- Scope is within one repo; the cross-repo fleet is 070-fleet-view (it reuses
+  this driving layer, opened cross-repo).
+- Launching `grove do <name>` inside a tab nests grove deliberately — intended.
+- ADR-0018 pulled Strategy 1a (WASM plugin) forward from ADR-0015's deferral, for
+  the nav specifically; the home dashboard stays a controller-rendered proxy.
+- The shelved [[harness-pane crate]] embed (ADR-0014) stays a recoverable
+  fallback, not on this path.

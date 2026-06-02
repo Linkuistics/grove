@@ -2,8 +2,14 @@
 # extractable `harness-pane` crate (the in-process-pty terminal embed,
 # ADR-0014). The root package is itself an implicit workspace member, so
 # `cargo build`/`cargo test` from here covers both.
+#
+# `crates/grove-nav` (the zellij WASM nav plugin, ADR-0018) is **excluded**: it
+# only builds for `wasm32-wasip1` and depends on `zellij-tile`, so a host
+# `cargo build`/`cargo test` must not try to compile it. The root `build.rs`
+# builds it explicitly for wasm and embeds the result.
 [workspace]
 members = ["crates/harness-pane"]
+exclude = ["crates/grove-nav"]
 
 [package]
 name = "grove"
@@ -13,6 +19,8 @@ description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 rust-version = "1.74"
+# Builds the grove-nav wasm plugin and embeds it (see build.rs, leaf 070).
+build = "build.rs"
 
 # Sibling git worktrees live alongside the crate root but aren't part
 # of the crate. `.grove-meta/` carries inbox files whose ISO-8601 names

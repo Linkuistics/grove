@@ -1,5 +1,9 @@
 /target
 
+# The grove-nav plugin is workspace-excluded, so it has its own target dir when
+# built standalone (the normal embed build routes through build.rs → OUT_DIR).
+/crates/grove-nav/target
+
 # Sibling git worktrees attached to this repo: the grove-meta worktree
 # (cross-grove inbox state) and active grove worktrees. Each lives on
 # its own branch and must not appear as untracked in main's tree.

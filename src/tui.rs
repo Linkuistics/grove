@@ -41,7 +41,7 @@ use crate::cli::RepoArgs;
 use crate::dash::backend::{self, ProxyBackend};
 use crate::dash::decode::InputDecoder;
 use crate::dash::proto::{DownFrame, FrameWriter, UpDecoder, UpFrame};
-use crate::harness_drive::HarnessPanes;
+use crate::harness_drive::HarnessTabs;
 use crate::repo;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -172,17 +172,17 @@ pub enum PendingAction {
     EditObservation {
         path: PathBuf,
     },
-    /// Open (or focus, if already open) the harness pane for grove `name`,
+    /// Open (or focus, if already open) the harness tab for grove `name`,
     /// running `grove do <name>` in `repo`. The controller drives zellij via
-    /// `zellij action` and tracks the pane id (ADR-0015/0016). `repo` is
-    /// explicit so the cross-repo fleet (070) reuses the driving layer
-    /// unchanged. Controller-path only — the `--local` in-terminal dashboard
-    /// has no zellij substrate to drive.
+    /// `zellij action` and tracks the tab id (ADR-0018). `repo` is explicit so
+    /// the cross-repo fleet (070) reuses the driving layer unchanged.
+    /// Controller-path only — the `--local` in-terminal dashboard has no zellij
+    /// substrate to drive.
     OpenHarness {
         name: String,
         repo: PathBuf,
     },
-    /// Close the harness pane for grove `name` and forget its pane id.
+    /// Close the harness tab for grove `name` and forget its tab id.
     CloseHarness {
         name: String,
     },
@@ -552,7 +552,7 @@ fn process_pending_action(
             // legacy `--local` in-terminal dashboard has no substrate to drive,
             // so this is a no-op beyond an explanatory status line.
             app.status = Some(format!(
-                "harness panes need the zellij substrate — run `grove tui` (not --local): {}",
+                "workspace tabs need the zellij substrate — run `grove tui` (not --local): {}",
                 name
             ));
         }
@@ -627,9 +627,9 @@ struct Controller {
     frames: UpDecoder,
     /// Raw stdin bytes → key events (crossterm's reader can't read a socket).
     keys: InputDecoder,
-    /// Open harness panes, keyed by grove name → stable zellij pane id. The
-    /// controller's single source of truth for pane decisions (ADR-0016).
-    harnesses: HarnessPanes,
+    /// Open harness tabs, keyed by grove name → stable zellij tab id. The
+    /// controller's single source of truth for tab decisions (ADR-0016/0018).
+    harnesses: HarnessTabs,
 }
 
 impl Controller {
@@ -655,7 +655,7 @@ impl Controller {
             term,
             frames,
             keys: InputDecoder::new(),
-            harnesses: HarnessPanes::new(session),
+            harnesses: HarnessTabs::new(session),
         })
     }
 
@@ -807,11 +807,12 @@ impl Controller {
                 }
             }
             PendingAction::OpenHarness { name, repo } => {
-                // Open the harness as a native zellij pane, or switch to it if
-                // already open; the tracker drives `zellij action` and remembers
-                // the pane id (ADR-0016). zellij focuses the pane, so the user
-                // lands in the harness; the dashboard stays reachable via native
-                // zellij focus (Ctrl-o → move-focus) — discoverability is 050.
+                // Open the grove as a native zellij tab running `grove do
+                // <name>`, or switch to its tab if already open; the tracker
+                // drives `zellij action` and remembers the tab id (ADR-0018).
+                // zellij focuses the new tab, so the user lands in the harness;
+                // the home dashboard tab stays reachable via the locked-mode
+                // `GoToTab` keybinds (and, once 070 lands, the nav plugin).
                 match self.harnesses.open_or_focus(&name, &repo) {
                     Ok(action) => app.status = Some(action.status_line(&name)),
                     Err(e) => {
@@ -1171,9 +1172,11 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             open_capture_modal(app);
         }
         // Harness driving (controller path): `o` opens the acting grove's
-        // harness or, if already open, switches focus to it; `x` closes it.
-        // The decision is recorded here; the controller's
-        // `process_pending_action` drives zellij (the `--local` path can't).
+        // workspace tab (or switches to it if already open); `x` closes it. The
+        // decision is recorded here; the controller's `process_pending_action`
+        // drives zellij via `zellij action` (the `--local` path can't).
+        // Ongoing switching between open workspaces is the locked-mode GoToTab
+        // keybinds, handled by zellij itself — not this dashboard key.
         (_, KeyCode::Char('o')) => {
             request_open_harness(app);
         }
@@ -1288,7 +1291,7 @@ fn acting_grove_name(app: &App) -> Option<String> {
     }
 }
 
-/// Request "open or focus the acting grove's harness pane". The repo is carried
+/// Request "open or focus the acting grove's workspace tab". The repo is carried
 /// explicitly so the cross-repo fleet (070) reuses this path unchanged. No-op
 /// when no grove is selected.
 fn request_open_harness(app: &mut App) {
@@ -1298,7 +1301,7 @@ fn request_open_harness(app: &mut App) {
     }
 }
 
-/// Request "close the acting grove's harness pane". No-op when no grove is
+/// Request "close the acting grove's workspace tab". No-op when no grove is
 /// selected.
 fn request_close_harness(app: &mut App) {
     if let Some(name) = acting_grove_name(app) {
@@ -1975,8 +1978,8 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Esc / q       back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("                  in the inbox pane, j/k select an observation"),
-        Line::from("  o             open (or switch to) the grove's harness pane"),
-        Line::from("  x             close the grove's harness pane"),
+        Line::from("  o             open (or switch to) the grove's workspace tab"),
+        Line::from("  x             close the grove's workspace tab"),
         Line::from("  d             disposition the selected observation"),
         Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
         Line::from("  Ctrl-E        edit the selected observation's body in $EDITOR"),

@@ -102,6 +102,25 @@ workspace-`exclude`d cargo workspace; forked from zellij `v0.44.3`, see
 dependency behind the `trellis-seam` feature until the native host API (leaf 110)
 makes it always-on.
 
+**trellis hosting API** (library-you-link; resolved by ADR-0021):
+the shape by which grove hosts the [[trellis framework]] — **grove owns `main`**,
+*links* the `zellij-client`/`zellij-server`/`zellij-utils` crates, and **dispatches
+the client/server roles itself** (no `--server` arg → client UI path; `--server
+<socket>` → the trellis server, augmented with grove's surfaces). Chosen over
+*runtime-you-plug-into* (trellis owns `main`, grove registers an app) because
+**zellij's server is a re-exec'd separate process** (`spawn_server` runs
+`current_exe() --server`, double-forks, talks over a unix socket): grove's panes
+render **server-side**, so grove's code must be compiled in and re-dispatched on
+the `--server` path regardless — a runtime wrapper can only mean a **WASM plugin**
+(the rejected ADR-0018 premise) or a native callback that can't survive the
+re-exec. This is the shape zellij's own `main.rs` already implements. **The seam
+110 builds on:** (1) grove's `main` dispatches roles; (2) grove substitutes/extends
+the injectable `ClientOsApi`/`ServerOsApi` trait objects; (3) grove adds a **native
+`Pane` impl** — a *third pane kind* beside `Terminal`/`Plugin` — rendering ratatui
+as `CharacterChunk`s server-side, subsuming the [[dashboard proxy]] seam and the
+`zellij action` driving. Note: ADR-0020's "in-process rendering" means *inside the
+server daemon* (same binary), not the thin foreground client that blits ANSI.
+
 **Owned zellij substrate** (zellij substrate):
 *(Superseded by the [[trellis framework]] fork — ADR-0020 — for the v2 path; this
 describes the unmodified-installed-zellij model it replaced. The substrate is now a

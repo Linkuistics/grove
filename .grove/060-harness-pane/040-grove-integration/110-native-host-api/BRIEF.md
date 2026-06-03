@@ -1,6 +1,8 @@
-# 110-native-host-api
+# 110-native-host-api — brief
 
-**Kind:** work (framework MVP — **may decompose** when picked)
+**Kind:** node (build — framework MVP). **Decomposed when picked** into three
+strictly-stacked leaves (boot → render+input → port+drive); the carve is
+mechanical (architecture settled by ADR-0020/0021), not a re-grilling.
 
 ## Goal
 
@@ -39,10 +41,36 @@ proxy socket, no WASM. This is the framework MVP that the rest of grove's UX
   on, and the first cut of what a future extracted `trellis` publishes).
 - `cargo build`/`cargo test` green; grove core stays `ratatui`-free below the seam.
 
+## Decomposition (this node)
+
+Three leaves, each building strictly on the prior, each a focused commit. The
+seam they realise is ADR-0021's three points (grove owns `main` + role-dispatch;
+substitute `ClientOsApi`/`ServerOsApi`; native `Pane` impl as a third pane kind).
+
+```
+010-boot-role-dispatch   grove owns `main`; link zellij-client/-server/-utils;
+                         dispatch client vs `--server`; bring up a live trellis
+                         session FROM the grove binary (stock terminal pane proves
+                         the `current_exe --server` re-exec). Foundation — nothing
+                         renders without it.
+020-native-pane-render   the third `PaneId`/`Pane` kind: a host ratatui buffer →
+                         `CharacterChunk`s server-side, composited as a real pane;
+                         in-process key/mouse/resize/focus delivery (crossterm
+                         model, replacing the 010 hand-rolled socket decoder).
+                         The headline render+input proof.
+030-port-dashboard-drive port the v1 `App`/`RepoView` dashboard to render through
+                         the native pane; create/close/focus tab+pane by direct
+                         call (subsumes the proxy seam + `zellij action` driving);
+                         document the host-API seam. Acceptance: the v1 dashboard
+                         runs natively, no proxy socket anywhere.
+```
+
+The node's original "Done when" (below) is the acceptance for the *whole* node,
+met when 030 retires.
+
 ## Notes
 
 - Resist gold-plating the API — it is **discovered by a real consumer** (grove);
   add surface only as 120–150 demand it (constraint 4). GraphQL/network exposure is
   explicitly out of scope (ADR-0020 §5).
-- If the host-render path and the input/event path each want a session, decompose.
-- Depends on **100** (the fork builds; hosting-API direction chosen).
+- Depends on **100** (the fork builds; hosting-API direction chosen — ADR-0021).

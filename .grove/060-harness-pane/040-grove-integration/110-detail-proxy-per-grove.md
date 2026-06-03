@@ -1,4 +1,4 @@
-# 100-detail-proxy-per-grove
+# 110-detail-proxy-per-grove
 
 **Kind:** work
 

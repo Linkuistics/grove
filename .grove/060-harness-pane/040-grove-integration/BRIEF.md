@@ -80,15 +80,23 @@ done/
                            ADR-0019: cli_pipe_output is reply-only; back-channel
                            deleted. The work surfaced that constraint empirically.]
 
-live (ADR-0019 "A′" model):
-  090-nav-self-opens         nav opens/switches tabs ITSELF (new_tabs_with_layout);
+live:
+  090-zellij-fork-framework  (planning, GATING) fork-and-rebrand zellij into
+                             grove's framework? — pane-id focus removes the need
+                             for a nav *plugin*; native control channel removes the
+                             back-channel; controller-in-zellij dissolves the proxy
+                             seam. Decide BEFORE 100-130; a fork reshapes/retires
+                             them. Reopens ADR-0015; may supersede ADR-0018/0019.
+
+  (ADR-0019 "A′" path — proceeds only if 090 says "no fork"; reshaped if it forks)
+  100-nav-self-opens         nav opens/switches tabs ITSELF (new_tabs_with_layout);
                              grove-state carries cmd+cwd; delete the 080 channel;
                              pre-seed permissions.kdl; sigil hints
-  100-detail-proxy-per-grove controller renders per-grove detail into each grove
+  110-detail-proxy-per-grove controller renders per-grove detail into each grove
                              tab (N proxies); home tab = nav full-height
-  110-whichkey-bar           grove-owned full-width bottom-bar plugin (sigils);
+  120-whichkey-bar           grove-owned full-width bottom-bar plugin (sigils);
                              dashboard/harness stop drawing hints
-  120-working-set-responsive +terminal +yazi +lazygit; per-pane toggles;
+  130-working-set-responsive +terminal +yazi +lazygit; per-pane toggles;
                              responsive layout (5K2K ↔ MacBook Pro)
 ```
 

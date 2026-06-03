@@ -166,15 +166,24 @@ The grove process (`grove`/`grove tui`) that launches and owns the [[zellij subs
 **Presentation boundary** (core↔presentation seam):
 The architectural seam (ADR-0013) separating Ratatui rendering (*above*) from grove's core logic — the `RepoView`/`MultiRepoView` data layer, harness driving, and shell-out writes (*below*). Code below the seam never imports `ratatui` types. Its purpose is optionality: a future web front-end becomes a *second presentation over the same core*, not a rewrite. Enforced by module placement and review, deliberately **not** by a `GroveBackend` trait (no second consumer exists yet to shape one). The harness-embedding mechanism (tmux vs in-process pty, decision D2) lives *below* this boundary either way.
 
-**Workspace** (grove tab):
-A single zellij **tab** holding one grove's [[working set]], with a "home" tab for the [[dashboard]] (ADR-0018). One grove's working set is visible at a time; zellij keeps every tab's panes alive across switches. Switched via native `GoToTab`/`GoToNextTab` keybinds (the hot path) and the [[nav plugin]] (rich/fuzzy selection). Replaces the superseded model of multiple [[harness pane]]s beside the [[dashboard]] switched by `focus-pane-id`.
+**Workspace** (one grove's swappable working set):
+*(Reshaped by ADR-0022 — a workspace is **no longer a zellij tab**. The nav is
+**constant** (always on screen) and a **content region** swaps the selected grove's
+[[working set]] in; non-selected harness ptys stay alive off-screen. The term
+*workspace* is kept for "one grove's working set, switched as a unit," but
+"workspace = tab / `GoToTab` switching" is superseded. The one-grove-at-a-time
+property survives. This entry describes the superseded tab model.)*
+A single zellij **tab** holding one grove's [[working set]], with a "home" tab for the [[dashboard]] (ADR-0018). One grove's working set is visible at a time; zellij keeps every tab's panes alive across switches. Switched via native `GoToTab`/`GoToNextTab` keybinds (the hot path) and the [[nav plugin]] (rich/fuzzy selection). Replaces the superseded model of multiple [[harness pane]]s beside the [[dashboard]] switched by `focus-pane-id`. **Why tabs went (ADR-0022):** pinning a *tiled* nav pane across tabs is not native (floating-only), and a pty stays alive/captures scrollback while not displayed (per-pane reader thread) — so tabs were never load-bearing for keeping background harnesses alive, and they fought the constant-nav requirement.
 
 **Working set**:
-*(Mechanism updated by the [[trellis framework]] fork — ADR-0020: the tab + its
-panes are opened by a **direct in-process call** into the framework (not the WASM
-nav's `new_tabs_with_layout` over a `zellij pipe`), and the aux tools are embedded
-via trellis's TUI-embedding. The pane composition + toggle/responsive **UX** below
-is unchanged. Live leaf: `150-working-set`.)*
+*(Mechanism updated by the [[trellis framework]] fork — ADR-0020: opened by a
+**direct in-process call** into the framework (not the WASM nav's
+`new_tabs_with_layout` over a `zellij pipe`), aux tools embedded via trellis's
+TUI-embedding. **Then ADR-0022:** the working set is no longer a tab's contents — it
+fills the **content region** beside the constant nav when its grove is selected,
+and is **parked alive off-screen** (not closed) when another grove is selected. The
+pane composition + toggle/responsive **UX** below is unchanged. Live leaf:
+`150-working-set`.)*
 The set of panes shown for one grove inside its [[workspace]] tab: the [[harness pane]] + a per-grove [[detail proxy]] (task tree / inbox / capture) + a plain terminal + yazi (files) + lazygit/lazyjj (vcs) (ADR-0018, ADR-0019). Panes are individually toggleable and the layout is responsive — pack on a large display, degrade gracefully to a laptop screen. **First-time creation is the [[nav plugin]]'s job** (ADR-0019: the nav opens the tab itself via `new_tabs_with_layout`, fed the grove's `grove do` command + cwd over the forward `zellij pipe`) — *not* the controller via `zellij action`, since the `cli_pipe_output` back-channel that would have let the nav ask the controller to open is unworkable. Toggling/focusing within the set is also driven from the nav.
 
 **Nav plugin** (`grove-nav`):

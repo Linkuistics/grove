@@ -33,7 +33,7 @@ Make the detail surface's **`$EDITOR` drop** (Ctrl-E) work natively, by running
 - `Ctrl-E` on an inbox entry opens `$EDITOR` seeded with the entry body; on a
   non-empty change it runs `grove-llm inbox-edit` and the detail rescans; unchanged
   is a no-op with a status line (faithful to `EditOutcome`).
-- The editor pane closes itself on exit (no stray pane left in the tab).
+- The editor pane closes itself on exit (no stray pane left in the content region).
 - `cargo build`/`cargo test` green. The trellis exit-observability addition has a
   unit test; grove core stays `ratatui`-free below the seam.
 

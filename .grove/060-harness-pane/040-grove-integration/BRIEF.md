@@ -7,14 +7,18 @@ TUI-embedding framework (grove-first, extract-later). This **supersedes ADR-0015
 (unmodified installed zellij) and **largely supersedes ADR-0016/0018/0019**: the
 [[dashboard proxy]] seam, the WASM [[nav plugin]], and the `cli_pipe_output`
 back-channel all evaporate — they were workarounds for grove being *outside*
-zellij. The **UX model** they settled survives (grove = [[workspace]] tab, [[working
-set]], home = nav, [[whichkey bar]], detail per-grove); only the plugin/proxy/
-back-channel **realisations** are replaced by native code.
+zellij. The **UX model** they settled mostly survives ([[working set]], home = nav,
+[[whichkey bar]], detail per-grove); only the plugin/proxy/back-channel
+**realisations** are replaced by native code. **Then ADR-0022 reshaped one piece
+of that UX:** grove is **no longer a [[workspace]] tab** — the nav is **constant**
+and a **content region** swaps the selected grove's working set in (non-selected
+harnesses stay alive off-screen). So "grove = tab / `GoToTab` switching" is
+superseded; one-grove-at-a-time + per-grove detail beside the harness survive.
 
 *(History: substrate per ADR-0015 → dashboard as [[controlling process]] +
 [[dashboard proxy]] per ADR-0016 → harness UX as [[workspace]] tabs + WASM nav per
-ADR-0018 → nav-opens-itself + per-grove [[detail proxy]] per ADR-0019 → now the
-native fork, ADR-0020.)*
+ADR-0018 → nav-opens-itself + per-grove [[detail proxy]] per ADR-0019 → native
+fork per ADR-0020 → constant-nav + swapped content, no tab-per-grove, ADR-0022.)*
 
 ## Goal
 
@@ -59,20 +63,22 @@ writes, and the v1 dashboard/detail **ratatui views** all port to the native pat
 ADR-0013's boundary holds (ratatui above; `RepoView`/writes below) and is promoted
 to the framework↔grove crate seam.
 
-## Done when (acceptance for the whole node — restated for the fork, ADR-0020)
+## Done when (acceptance for the whole node — fork ADR-0020 + UX ADR-0022)
 
 - `grove tui` launches the **forked [[trellis framework]]** as a single binary; the
   grove dashboard renders **natively in-process** (no proxy socket).
-- The **home tab is the native nav** (full-height grove list); the leader
-  (`Ctrl-o`) focuses it from any pane by a **direct in-process call** (no WASM,
-  no `LaunchOrFocusPlugin`).
-- Selecting a grove **opens or switches its [[workspace]] tab in-process** (no
-  back-channel, no permission dance); `GoToTab`-style switching also works.
-- Each grove tab shows its [[working set]] — harness + native per-grove detail (its
-  task tree / inbox / capture) + terminal + yazi + lazygit, the aux tools embedded
-  via trellis's TUI-embedding — laid out responsively, each pane toggleable.
-- One grove-owned native **whichkey** spans the bottom of every tab; no other
-  surface draws hints.
+- The **nav is constant** (always on screen, native — full-height grove list); the
+  leader (`Ctrl-o`) focuses it from the content region by a **direct in-process
+  call** (no WASM, no `LaunchOrFocusPlugin`).
+- Selecting a grove **swaps its [[working set]] into the content region
+  in-process** (ADR-0022 — no tab-per-grove, no `GoToTab`); the previously-selected
+  grove's harness stays alive off-screen.
+- The content region shows the selected grove's [[working set]] — harness + native
+  per-grove detail (its task tree / inbox / capture) + terminal + yazi + lazygit,
+  the aux tools embedded via trellis's TUI-embedding — laid out responsively, each
+  pane toggleable.
+- One grove-owned native **whichkey** spans the bottom; no other surface draws
+  hints.
 - Within one repo; the nav opens with explicit repo/cwd so 070-fleet-view reuses
   the driving cross-repo.
 
@@ -120,12 +126,14 @@ live: (the fork path — ADR-0020. Native in-process replaces proxy/WASM/back-ch
   130-native-detail          per-grove detail (task tree + inbox + capture)
                              rendered natively in each grove tab; $EDITOR drop
                              in-process. Supersedes old 110 (dumb detail proxy).
-                             [decomposed → node: 010 multi-host-panes (widen the
-                             host-pane seam one-shot→N), 020 detail-surface (the
-                             headline), 030 native-editor ($EDITOR as a trellis
-                             pane + embedded-tool exit observability, §6 slice).
-                             $EDITOR-as-in-process-tty premise corrected: surface
-                             renders server-side w/ no tty (ADR-0021).]
+                             [decomposed → node, then reshaped by ADR-0022
+                             (constant nav + swapped content, no tab-per-grove):
+                             010 content-swap-spike (suppressed_panes vs pool →
+                             mechanism ADR-0023), 020 detail-surface (mount detail
+                             into the content region), 030 native-editor ($EDITOR
+                             as a trellis pane + §6 exit observability). $EDITOR-as-
+                             in-process-tty premise corrected: surface renders
+                             server-side w/ no tty (ADR-0021).]
   140-native-whichkey        grove-owned full-width bottom hint bar, native (sigils);
                              single hint owner. Supersedes old 120 (WASM bar).
   150-working-set            harness + terminal + yazi + lazygit as embedded TUI

@@ -347,7 +347,12 @@ load_plugins {
 // Choose the mode that zellij uses when starting up.
 // Default: normal
 //
-// default_mode "locked"
+// grove fork (ADR-0020): start in locked mode. grove panes are harness / shell
+// surfaces — keystrokes pass straight through to the embedded program, and
+// grove drives navigation natively (110+) rather than via zellij's modal
+// keybinds. The locked-mode `Ctrl g` unlock binding is retained as an escape
+// hatch. This is the "locked-friendly" default expressed in source.
+default_mode "locked"
 
 // Toggle enabling the mouse mode.
 // On certain configurations, or terminals this could
@@ -507,7 +512,15 @@ load_plugins {
 // Whether to show release notes on first version run
 // Default: true
 //
-// show_release_notes false
+// grove fork (ADR-0020): suppress zellij's startup-branding floating panes.
+// On a fresh session zellij pushes a floating pane — release notes (the `about`
+// plugin) on a new version, otherwise a "Zellij Tip #N / support the developer"
+// startup tip. Both are upstream branding/chrome on a surface grove owns, so the
+// fork defaults them off. (The setup-wizard floating pane only triggers when the
+// config dir is first written; grove launches with its own config, so it never
+// fires in practice.)
+show_release_notes false
+show_startup_tips false
 
 // Whether to enable mouse hover effects and pane grouping functionality
 // Default: true

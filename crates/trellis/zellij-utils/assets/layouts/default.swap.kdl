@@ -1,11 +1,9 @@
+// grove fork (ADR-0020): the "ui" wrapper no longer injects the tab-bar /
+// status-bar plugin panes. The swap layouts keep their responsive geometry
+// (the max_panes arrangements below), but auto-layout no longer re-introduces
+// the bars grove strips in the default tiled layout.
 tab_template name="ui" {
-   pane size=1 borderless=true {
-       plugin location="tab-bar"
-   }
    children
-   pane size=1 borderless=true {
-       plugin location="status-bar"
-   }
 }
 
 swap_tiled_layout name="vertical" {

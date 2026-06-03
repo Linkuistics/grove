@@ -149,8 +149,19 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
 
 [features]
-# See remarks in zellij_utils/Cargo.toml
-default = ["plugins_from_target", "vendored_curl", "web_server_capability"]
+# See remarks in zellij_utils/Cargo.toml.
+#
+# grove fork (ADR-0020): `plugins_from_target` is DROPPED from the defaults.
+# Upstream zellij's debug builds default to loading the builtin plugins from
+# `target/wasm32-wasip1/debug/`, which assumes a `cargo xtask build` step has
+# freshly compiled the plugin wasm — a dev loop for *authoring* the default
+# plugins. grove consumes zellij as a finished multiplexer and does not develop
+# its default plugins (it strips the bars), so that loop is pure friction: it
+# makes a plain `cargo build` require a wasm toolchain we don't need. Defaulting
+# without the feature embeds the committed `assets/plugins/*.wasm` directly, so
+# `cargo build` produces a launchable binary out of the box. The feature is
+# still defined for anyone who *does* want the from-target loop.
+default = ["vendored_curl", "web_server_capability"]
 plugins_from_target = ["zellij-utils/plugins_from_target"]
 disable_automatic_asset_installation = ["zellij-utils/disable_automatic_asset_installation"]
 vendored_curl = ["zellij-utils/vendored_curl"]

@@ -63,9 +63,16 @@ region when its grove is selected.
                         native suppressed_panes via in-place replace_pane into a
                         content slot; N-surface widening = registry + id-only
                         MountHostSurface; HostDriver swap verb; GoToTab binds retire.
-020-detail-surface      grove: per-grove DetailSurface (scoped App, detail-only)
-                        mounted into the content region; nav select swaps it in.
-                        The headline acceptance (minus $EDITOR).
+020-detail-surface      (node) the headline acceptance (minus $EDITOR), split
+                        substrate→surface because 010 only *decided* the mechanism
+                        and the code is still the tab model:
+                          010-swap-substrate  trellis: constant-nav + content-slot
+                                              layout, keyed registry + MountHostSurface,
+                                              HostDriver swap verb, harness-into-slot
+                                              park/restore; retire GoToTab binds.
+                          020-mount-detail    grove: per-grove DetailSurface mounted
+                                              beside the harness; pair park/restore;
+                                              per-grove watch; triage/capture in-process.
 030-native-editor       $EDITOR as a trellis terminal pane + embedded-tool exit
                         observability (first slice of ADR-0020 §6); wire
                         EditBody/EditObservation; seeds 150-working-set.

@@ -49,6 +49,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use trellis::cli::CliArgs;
+use trellis::input::config::Config;
 use trellis::setup::Setup;
 use trellis_client::os_input_output::get_client_os_input;
 use trellis_client::{start_client, ClientInfo};
@@ -160,9 +161,16 @@ pub fn run_client(args: &RepoArgs) -> Result<()> {
     let session = crate::zellij::session_name(&repo);
     let opts = client_cli_args(&session);
 
-    let (config, layout_info, config_options, _config_no_layout, _options_no_layout) =
+    let (config, layout_info, _config_options, _config_no_layout, _options_no_layout) =
         Setup::from_cli_args(&opts)
             .map_err(|e| anyhow::anyhow!("resolving the trellis config/layout: {e}"))?;
+
+    // Merge grove's tamed config (locked mode + the `Ctrl-o` leader + `Alt-n` tab
+    // switching) onto the trellis base. `config_options` is taken from the merged
+    // config so the session boots in `locked` mode — the modal design that lets
+    // every other key pass through to the focused harness / nav surface.
+    let config = grove_tui_config(config)?;
+    let config_options = config.options.clone();
 
     let os_input =
         get_client_os_input().map_err(|e| anyhow::anyhow!("opening the terminal: {e}"))?;
@@ -194,6 +202,65 @@ fn client_cli_args(session: &str) -> CliArgs {
         session: Some(session.to_string()),
         ..CliArgs::default()
     }
+}
+
+/// grove's tamed trellis config (leaf `120-native-nav`), built **in-process** and
+/// merged onto the trellis base in [`grove_tui_config`] — never written to disk
+/// (the bundled-config-to-cache-dir machinery retired with ADR-0020). The
+/// decisions here survive from the superseded `zellij action` era (the retired
+/// `030-zellij-launch` `CONFIG_TEMPLATE`); only the *realisation* of the leader
+/// changed — `LaunchOrFocusPlugin` → a native `GoToTab` (ADR-0020/0018).
+///
+/// - `default_mode "locked"`: trellis passes every *unbound* key straight through
+///   to the focused pane — the harness (claude/codex chords, vim Esc) or grove's
+///   own nav surface (`j`/`k`/`⏎`/`c`). Only the binds below are intercepted.
+/// - The **leader, `Ctrl-o`**, focuses the home tab (the native nav) from any
+///   pane: a `GoToTab 1` (home is always tab 1 — harness tabs append after it).
+///   A zellij keybind *must* carry the leader: in `locked` only zellij sees keys
+///   while a harness is focused. This is ADR-0020's "native focus call" replacing
+///   ADR-0018's `LaunchOrFocusPlugin "grove-nav"`.
+/// - `Alt-<n>` / `Alt-]` / `Alt-[` switch between [[workspace]] tabs (native
+///   `GoToTab`, bindable in `locked`). `Alt`-digit is chosen because the harnesses
+///   don't use it, so locked-mode pass-through loses nothing.
+/// - `pane_frames false` / `simplified_ui true` / startup floats off: the
+///   composite reads as grove's own UI, not "a zellij session".
+/// - `session_serialization false`: the dashboard is rebuilt from the live
+///   `RepoView` each launch and the host pane is not serialisable; persistence is
+///   a convenience the artifacts-over-state model does not need (root brief).
+const GROVE_TUI_CONFIG: &str = r##"// grove's in-process trellis config (leaf 120-native-nav). Not hand-edited.
+keybinds clear-defaults=true {
+    locked {
+        // The leader: focus the home tab (the native nav) from anywhere.
+        bind "Ctrl o" { GoToTab 1; }
+        // Workspace switching — native GoToTab, bindable in locked mode.
+        bind "Alt 1" { GoToTab 1; }
+        bind "Alt 2" { GoToTab 2; }
+        bind "Alt 3" { GoToTab 3; }
+        bind "Alt 4" { GoToTab 4; }
+        bind "Alt 5" { GoToTab 5; }
+        bind "Alt 6" { GoToTab 6; }
+        bind "Alt 7" { GoToTab 7; }
+        bind "Alt 8" { GoToTab 8; }
+        bind "Alt 9" { GoToTab 9; }
+        bind "Alt ]" { GoToNextTab; }
+        bind "Alt [" { GoToPreviousTab; }
+    }
+}
+default_mode "locked"
+pane_frames false
+simplified_ui true
+session_serialization false
+show_release_notes false
+show_startup_tips false
+"##;
+
+/// Merge [`GROVE_TUI_CONFIG`] onto `base` (the trellis default resolved by
+/// [`Setup::from_cli_args`]). `clear-defaults=true` in the KDL discards trellis's
+/// stock keybinds so grove's locked-mode map is the whole keymap; the options
+/// (locked default mode, no chrome) merge over the base.
+fn grove_tui_config(base: Config) -> Result<Config> {
+    Config::from_kdl(GROVE_TUI_CONFIG, Some(base))
+        .map_err(|e| anyhow::anyhow!("building grove's trellis config: {e}"))
 }
 
 /// The preamble zellij's `main.rs` runs before any role dispatch: install the
@@ -244,6 +311,32 @@ mod tests {
         assert_eq!(parse_server_invocation(Vec::<String>::new()), None);
         // A lone `--debug` (no socket) is not a server invocation.
         assert_eq!(parse_server_invocation(["--debug"]), None);
+    }
+
+    #[test]
+    fn grove_config_parses_and_locks_the_session() {
+        use trellis::data::{BareKey, InputMode, KeyWithModifier};
+
+        // A bad action name or KDL typo in GROVE_TUI_CONFIG fails here, before any
+        // session ever boots.
+        let config = grove_tui_config(Config::default()).expect("grove config builds");
+
+        // The session must start in locked mode (keys pass through to the harness;
+        // only grove's binds are intercepted).
+        assert_eq!(config.options.default_mode, Some(InputMode::Locked));
+
+        // The leader is bound *in locked mode* — the only mode that sees keys while
+        // a harness is focused. An unbound leader would make the nav unreachable.
+        let locked = config
+            .keybinds
+            .0
+            .get(&InputMode::Locked)
+            .expect("a locked keybind block");
+        let leader = KeyWithModifier::new(BareKey::Char('o')).with_ctrl_modifier();
+        assert!(
+            locked.contains_key(&leader),
+            "Ctrl-o (the leader) must be bound in locked mode"
+        );
     }
 
     #[test]

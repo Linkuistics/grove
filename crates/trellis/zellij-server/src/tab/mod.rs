@@ -5566,9 +5566,15 @@ impl Tab {
         Ok(())
     }
     /// Inject grove's host-rendered native pane (ADR-0021's third pane kind) into
-    /// this tab as a tiled pane, focused by `client_id`. Splits the current tiled
-    /// layout like opening any new pane. Used once at first-layout to prove
-    /// render+input for the host surface (leaf 020); richer layout control is 030.
+    /// this tab as its **sole** pane, focused by `client_id`. The home tab is the
+    /// full-height grove nav (leaf 120-native-nav), so the host pane must own the
+    /// whole tab — *not* split beside the layout's placeholder pane (the 020/030
+    /// behaviour). grove's bars-free default layout (`layout { pane }`) yields
+    /// exactly one placeholder terminal pane; the host pane **adopts its slot** via
+    /// [`close_pane_and_replace_with_other_pane`](Self::close_pane_and_replace_with_other_pane),
+    /// inheriting its full-tab geometry and client focus and closing its pty. A tab
+    /// with no panes (defensive — not the default-layout path) falls back to a
+    /// plain add.
     pub fn inject_host_pane(
         &mut self,
         surface: Box<dyn crate::panes::host_pane::HostSurface>,
@@ -5599,7 +5605,25 @@ impl Tab {
             to_server,
             client_id,
         );
-        self.add_tiled_pane(Box::new(host_pane), PaneId::Host(pid), false, Some(client_id))
+        // Replace the layout's placeholder pane so the nav fills the tab; `None`
+        // here (no other pane) only happens off the default-layout path.
+        match self.get_tiled_pane_ids().first().copied() {
+            Some(placeholder) => {
+                self.close_pane_and_replace_with_other_pane(
+                    placeholder,
+                    Box::new(host_pane),
+                    None,
+                );
+                // The replace re-points any client already active on the
+                // placeholder; focus explicitly too so the nav reliably receives
+                // input regardless of focus timing (mirrors `add_tiled_pane`).
+                self.tiled_panes.focus_pane(PaneId::Host(pid), client_id);
+                Ok(())
+            },
+            None => {
+                self.add_tiled_pane(Box::new(host_pane), PaneId::Host(pid), false, Some(client_id))
+            },
+        }
     }
     pub fn add_stacked_pane_to_pane_id(
         &mut self,

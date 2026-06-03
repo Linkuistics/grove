@@ -166,12 +166,14 @@ pub enum PendingAction {
     EditObservation {
         path: PathBuf,
     },
-    /// Open (or focus, if already open) the harness tab for grove `name`,
-    /// running `grove do <name>` in `repo`. The controller drives zellij via
-    /// `zellij action` and tracks the tab id (ADR-0018). `repo` is explicit so
-    /// the cross-repo fleet (070) reuses the driving layer unchanged.
-    /// Controller-path only — the `--local` in-terminal dashboard has no zellij
-    /// substrate to drive.
+    /// Open (or switch to, if already open) the [[workspace]] tab for grove
+    /// `name`, running `grove do <name>` in `repo`. The native dashboard drives
+    /// this by direct in-process `HostDriver` call (`new_command_tab` /
+    /// `focus_tab`), tracking open names itself — no `zellij action`, no
+    /// permission prompt (ADR-0020 superseded ADR-0018's WASM/`zellij action`
+    /// realisation). `repo` is explicit so the cross-repo fleet (070) reuses the
+    /// driving layer unchanged. Native-path only — the `--local` in-terminal
+    /// dashboard has no substrate to drive.
     OpenHarness {
         name: String,
         repo: PathBuf,
@@ -307,6 +309,32 @@ impl App {
             .iter()
             .filter(|g| needle.is_empty() || g.name.to_lowercase().contains(&needle))
             .collect()
+    }
+
+    /// The grove the **native nav's `Enter` (select)** should act on: the
+    /// highlighted row, but only while the plain grove list is showing — no modal,
+    /// filter, or help intercepting keys. `None` otherwise, so `Enter` falls
+    /// through to the shared key handler (e.g. inserting a newline in the capture
+    /// body, or advancing the capture target field).
+    ///
+    /// In the native nav, selecting a grove **opens or switches to its
+    /// [[workspace]] tab** (leaf 120); the v1 master/detail drill-in is superseded
+    /// by per-grove detail tabs (130). Only the native [`DashboardSurface`]
+    /// consults this — the legacy `--local` dashboard keeps `Enter` = drill-in.
+    pub fn nav_enter_target(&self) -> Option<String> {
+        if self.show_help
+            || self.capture.open
+            || self.disposition.is_some()
+            || self.filter.editing
+        {
+            return None;
+        }
+        if !matches!(self.screen, Screen::GroveList) {
+            return None;
+        }
+        self.filtered_groves()
+            .get(self.list.selected().unwrap_or(0))
+            .map(|g| g.name.clone())
     }
 }
 
@@ -1567,11 +1595,14 @@ fn render_footer(f: &mut Frame, area: Rect, app: &App) {
             format!("/{}_", app.filter.text),
             Style::default().add_modifier(Modifier::REVERSED),
         ));
-        spans.push(Span::raw("  Enter=apply  Esc=cancel"));
+        spans.push(Span::raw("  ⏎ apply · ⎋ cancel"));
     } else {
+        // Hints use sigils (⏎ Enter, ⎋ Esc, ⌃o the leader, ⌥ Alt) — leaf
+        // 120-native-nav. The bottom *bar* proper is 140's job; the nav just
+        // exposes its own keys here.
         let hint = match app.screen {
-            Screen::GroveList => "Enter=open  j/k=move  o=harness  x=close  /=filter  c=capture  r=refresh  ?=help  q=quit",
-            Screen::GroveDetail => "Tab=cycle  j/k=move  o=harness  x=close  PgUp/PgDn=scroll  /=filter  c=capture  r=refresh  Esc=back  ?=help",
+            Screen::GroveList => "⏎ open · j/k move · ⌃o nav · ⌥1-9 switch · x close · / filter · c capture · r refresh · ? help · q quit",
+            Screen::GroveDetail => "⇥ cycle · j/k move · o open · x close · PgUp/PgDn scroll · / filter · c capture · r refresh · ⎋ back · ? help",
         };
         spans.push(Span::raw(hint));
         if !app.filter.text.is_empty() {
@@ -1597,8 +1628,10 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         )),
         Line::from(""),
         Line::from("  ↑/↓ or j/k    move selection"),
-        Line::from("  Enter         drill into grove (list screen)"),
-        Line::from("  Esc / q       back / quit"),
+        Line::from("  ⏎ Enter       open (or switch to) the grove's workspace tab"),
+        Line::from("  ⌃o            focus this nav from any pane (the leader)"),
+        Line::from("  ⌥1-9 / ⌥[ ]   switch between workspace tabs"),
+        Line::from("  ⎋ Esc / q     back / quit"),
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("                  in the inbox pane, j/k select an observation"),
         Line::from("  o             open (or switch to) the grove's workspace tab"),
@@ -1821,8 +1854,8 @@ mod tests {
         assert!(out.contains("live"), "live badge missing:\n{}", out);
         assert!(out.contains("seed"), "seed badge missing:\n{}", out);
         assert!(out.contains("inbox:1"), "inbox count missing:\n{}", out);
-        // Footer hints.
-        assert!(out.contains("Enter=open"), "footer missing:\n{}", out);
+        // Footer hints (sigils — leaf 120-native-nav).
+        assert!(out.contains("⏎ open"), "footer missing:\n{}", out);
     }
 
     #[test]
@@ -2164,8 +2197,8 @@ mod tests {
         let view = RepoView::scan(tmp.path()).unwrap();
         let app = App::new(tmp.path().to_path_buf(), view, None);
         let out = render_to_buffer(&app, 120, 12);
-        assert!(out.contains("o=harness"), "list footer missing o=harness:\n{}", out);
-        assert!(out.contains("x=close"), "list footer missing x=close:\n{}", out);
+        assert!(out.contains("⏎ open"), "list footer missing ⏎ open:\n{}", out);
+        assert!(out.contains("x close"), "list footer missing x close:\n{}", out);
     }
 
     // -----------------------------------------------------------------
@@ -2375,7 +2408,7 @@ mod tests {
         let view = RepoView::scan(tmp.path()).unwrap();
         let app = App::new(tmp.path().to_path_buf(), view, None);
         let out = render_to_buffer(&app, 100, 12);
-        assert!(out.contains("c=capture"), "list footer missing c=capture:\n{}", out);
+        assert!(out.contains("c capture"), "list footer missing c capture:\n{}", out);
     }
 
     // -----------------------------------------------------------------
@@ -2597,7 +2630,7 @@ mod native {
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
-    use ratatui::crossterm::event::KeyEvent;
+    use ratatui::crossterm::event::{KeyCode, KeyEvent};
     use ratatui::layout::Rect;
     use ratatui::Terminal;
 
@@ -2762,6 +2795,22 @@ mod native {
         }
 
         fn handle_key(&mut self, key: KeyEvent) -> bool {
+            // Native-nav select: `Enter` on the grove list opens (or switches to)
+            // the selected grove's [[workspace]] tab via the `HostDriver`, instead
+            // of the v1 master/detail drill-in. `nav_enter_target` returns `None`
+            // when a modal / filter / help is up, so `Enter` still falls through to
+            // the shared handler there (e.g. a newline in the capture body). Detail
+            // is per-grove-tab in 130; the `--local` dashboard keeps the drill-in.
+            if matches!(key.code, KeyCode::Enter) && key.modifiers.is_empty() {
+                if let Some(name) = self.app.nav_enter_target() {
+                    self.process_action(PendingAction::OpenHarness {
+                        name,
+                        repo: self.repo.clone(),
+                    });
+                    return true;
+                }
+            }
+
             // Route to the unchanged v1 key handler, then drain any action it
             // queued (capture/drain writes, harness drive). v1's `q` returns
             // `true` ("quit the loop"); natively that means quit the session.

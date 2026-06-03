@@ -134,6 +134,12 @@ spawn. Instead:
    that tab's screen/server senders via `set_driver` (those senders only exist on
    the screen thread, which is why the driver arrives here and not in the factory).
 
+The host pane **adopts the tab's slot** rather than splitting beside the layout's
+placeholder pane: `Tab::inject_host_pane` replaces the bars-free default layout's
+single placeholder via `close_pane_and_replace_with_other_pane`, so the host
+surface owns the whole tab (the home tab is grove's full-height nav — leaf
+`120-native-nav`). A tab with no panes falls back to a plain add.
+
 A general multi-host registry is intentionally not built (one host pane per
 session is all grove needs today).
 

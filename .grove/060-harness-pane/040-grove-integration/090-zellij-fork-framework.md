@@ -88,3 +88,153 @@ What a fork could buy (the user's framing):
   picks the path.
 - Carry forward: [[zellij substrate]], [[nav plugin]], [[dashboard proxy]],
   [[leader]], and ADRs 0013–0019 are the inputs to grill against.
+
+## Decisions (running log)
+
+### D-fork-1 — Deep hard fork: grove becomes a based-on-zellij codebase
+*Settled (user, this session).* Outcome on the three Done-when axes:
+- **Off-installed: yes** — grove ships its own zellij-derived build; supersedes
+  ADR-0015's "depend on an installed zellij."
+- **Fork, deep scope: yes** — grove's logic is compiled in **natively** (not a
+  WASM plugin, not an external `zellij action` driver). The [[controlling
+  process]] dissolves *into* the process; rendering is in-process, so the
+  [[dashboard proxy]] seam (ADR-0016), the [[nav plugin]] WASM artifact
+  (ADR-0018), and the `cli_pipe_output` back-channel (ADR-0019) all evaporate.
+- **Hard fork, not a tracking fork** — take zellij as a one-time gift of a
+  working multiplexer, then own it. **No rebase cadence, no adopting upstream
+  code.** Upstream is watched only as a **CVE/advisory information feed**;
+  relevant security fixes are assessed and hand-patched into our tree. Behavioural
+  upstream fixes/features are ours to notice and hand-port if wanted — accepted
+  cost (user: "not even that concerned about tracking upstream").
+- *Rationale:* the dominant recurring cost is per-platform builds (vendoring),
+  incurred the moment we go off-installed regardless of patching; the patch on top
+  is cheap; a hard fork zeroes the rebase tax that a deep fork would otherwise
+  make enormous. Breaks constraint 6 (walk-away → stock zellij) — user accepts.
+- *Supersedes:* ADR-0015 (installed/unmodified). *Largely supersedes:* ADR-0016
+  (proxy seam), ADR-0018 (nav-as-plugin), ADR-0019 (back-channel + plugin nav
+  realisation). The *UX model* those ADRs settled (grove = tab, [[working set]],
+  home = nav, [[whichkey bar]], detail per-grove) is expected to survive; only its
+  *realisation* moves from plugin/proxy to native in-process.
+
+### D-fork-2 — Two products: a reusable framework + grove as a consumer
+*Settled (user, this session).* The deep fork is **modularised** so the
+non-grove parts are extractable and **publishable as a reusable framework** (for
+others, and for the user's own future projects). Two products:
+- **The framework** — the based-on-zellij codebase, generalised: embed a native
+  Rust app as a first-class in-process controller of a multiplexer (render
+  in-process; drive tabs/panes/layout/focus + receive input/events natively;
+  inherit zellij's terminal emulation of other panes, copy/scrollback/search,
+  session persistence, web client). This is the publishable, novel artifact — the
+  "build a native TUI app *on top of* a multiplexer" niche none of zellij's three
+  extension paths (WASM plugin / external `zellij action` / source hack) fills.
+- **grove** — one consumer, holding all grove-specific logic + the nav/detail/
+  working-set UX.
+- *Implication:* a real **framework↔consumer seam** is mandatory — this is the
+  product/packaging-level successor to ADR-0013's in-module presentation boundary.
+  Repo/crate strategy, the extension-API shape, naming, and license/attribution
+  (zellij is MIT) are the open mechanical questions that follow.
+
+### D-fork-3 — Framework identity: a TUI framework for seamless TUI-app embedding
+*Settled (user, this session).* Product #1 is **not** "a multiplexer you can
+extend." It is **a TUI application framework whose headline, differentiating
+concern is seamlessly embedding *other* TUI apps** (vim, lazygit, yazi, a shell,
+claude) as first-class fully-emulated regions of your own TUI app — correct focus,
+input routing, copy mode, resize, cursor — without hand-rolling a terminal
+emulator and without zellij's existing extension limits (WASM sandbox / external
+`zellij action` round-trips / source hacking). zellij's pane + emulation engine is
+the machinery under the hood; "embed other TUI apps seamlessly" is the product.
+- *Arc:* this is the synthesis of grove's own history — the embed mission of leaf
+  010 / ADR-0014 ([[harness-pane crate]]: `tui-term`+`portable-pty`+`vt100`,
+  shelved because owning emulator fidelity is a tar pit) **+** zellij's mature
+  emulation **+** native in-process control (which neither the embed nor the
+  external-zellij path had). The fork keeps 010's goal and swaps the hand-rolled
+  emulator for zellij's.
+- *Note (altitude):* the exact hosting-API shape (library-you-link `run(app)` vs
+  runtime-you-plug-into) is **deferred to the first framework build leaf** —
+  build-discovered against the real zellij internals, per this tree's own
+  precedent (leaf 080 surfaced the `cli_pipe_output` constraint empirically). The
+  ADR records intent (publishable, library-idiomatic preferred), not the trait
+  design.
+
+### D-fork-4 — Access the full system model; GraphQL only at a network boundary
+*Settled (user, this session — corrected from first framing).* The goal is that
+consumers can **access the full system model, not just a fixed menu of exposed
+functions**. How that is delivered depends on the boundary:
+- **Native consumer boundary (the framework's primary, core path).** A consumer
+  that *links* the framework (grove, and any app built on it) gets the full system
+  model as **actual typed Rust values + calls, in-process** — no serialization, no
+  query language. This is *strictly more* than GraphQL could give and is the
+  realisation of "full model, not just exposed functions" for the native case.
+  "You don't serialize what you can link."
+- **Network / out-of-process boundary (conditional, lazy — constraint 4).** Only
+  *if/when* the framework exposes remote or out-of-process control (web client,
+  external automation, an out-of-process AI agent) does a wire format matter — and
+  **there GraphQL-over-the-model beats protobuf RPC** (query/traverse/mutate/
+  subscribe the whole model vs. a fixed-function `PluginCommand` enum). zellij
+  *needs* protobuf because its plugins are out-of-process WASM and its CLI is a
+  separate process; a link-in framework may have **no such boundary in its core**.
+- *Net:* GraphQL is **not** part of the framework core and **grove-as-native-
+  consumer never touches it**. It is the chosen wire *if* a network surface is
+  later added. Transport (socket/HTTP, subscriptions over websockets) is a build
+  detail. The protobuf→GraphQL "switch" is therefore optional, not foundational.
+
+### D-fork-6 — Sequencing/structure: grove-first, extract the framework later
+*Settled (user, this session).* Of {framework-first in its own repo/grove} vs
+{grove-first, extract later}, the choice is **grove-first, extract-later**:
+- Hard-fork zellij into a **new crate in grove's cargo workspace**, with a **strict
+  one-way dependency** (framework crate must not depend on the grove crate — the
+  compiler enforces the seam, keeping grove-isms out of the framework).
+- Build **only the native-host API grove actually needs** to land the harness pane
+  + nav + detail + working set. **Defer GraphQL, the network boundary, and the full
+  observability API** until a second consumer or a real publish intent earns them —
+  the expensive, API-freezing parts are designed by a real consumer first, not in
+  the abstract.
+- **Extract to its own repo + its own grove when the API has stabilised** (the
+  user's word: "modularise so we can *extract*"). Per-platform build pipeline and
+  the extraction are **later/lazy leaves**, not front-loaded.
+- *Rationale:* avoids freezing a framework boundary whose shape we haven't learned;
+  delivers grove value without front-loading whole-codebase fork bring-up + a
+  published API; honours grove constraint 4 (smallest thing that earns its place).
+  Cautionary precedent in this very tree: leaf 080 *built* a back-channel before
+  ADR-0019 discovered empirically it couldn't work — design-by-real-consumer beats
+  design-in-the-abstract.
+
+### D-fork-7 — Remaining mechanicals (recommended; correct if wrong)
+*Proposed (LLM), driving per "continue".* Low-stakes/reversible, recorded so the
+ADR can cite them; flagged for user veto:
+- **Naming:** provisional working crate name **`trellis`** (a trellis is a
+  framework other things grow *on* — fits the grove/garden metaphor and the
+  "framework you build a TUI app on" identity). **Provisional** — the *public*
+  brand is a decision deferred to the extraction leaf (constraint 4); nothing
+  downstream depends on the final name.
+- **License/attribution:** zellij is **MIT** (confirmed at fork time by reading its
+  `LICENSE`). MIT permits fork + rebrand + relicensing-of-our-additions freely,
+  provided zellij's copyright notice + MIT text are preserved. No copyleft
+  exposure. The bring-up leaf carries the attribution forward
+  (`LICENSES/zellij.LICENSE` or equivalent).
+- **Binary model:** **one unified binary** — native link, app owns `main` (library-
+  idiomatic intent); the grove CLI + framework + mux are one artifact. Detail
+  deferred to bring-up.
+- **Build/maintenance:** per-platform CI matrix (macOS arm64/x64, Linux x64/arm64)
+  extending the existing manual `scripts/release-*.sh`; distribute via the existing
+  brew tap; binary size grows (ships a multiplexer) — accepted. **Upstream
+  tracking: none** (hard fork). **CVE-watch only:** RustSec advisories + GitHub
+  security advisories on the zellij repo + its dependency tree; relevant fixes
+  assessed and hand-patched, never rebased. Chrome/branding stripped in-source as
+  we own it (the old bundled-config `clear-defaults`/bars gymnastics become
+  unnecessary — set our defaults in the fork).
+
+### D-fork-5 — First-class observability of wrapped tools
+*Settled (user, this session).* A headline framework facility: **observe and
+reason about what the embedded ("wrapped") TUI tools are doing, and interact with
+them programmatically.** Embedded apps are not opaque terminal grids — the
+framework exposes their observable state (screen contents, cursor, title/OSC,
+scrollback, exit status, mouse/mode requests) **as part of the GraphQL system
+model** (D-fork-4) and offers a programmatic channel to drive them (inject input,
+read output).
+- *Why it fits the identity:* this is the introspection half of "seamlessly embed
+  other TUI apps" (D-fork-3) — and it is **grove's own need generalised**: grove
+  drives AI harnesses and wants to watch/reason about them. The framework turns
+  that into a first-class, reusable capability, and an unusually strong **AI-era
+  pitch**: a TUI workspace whose embedded tools are introspectable + drivable by
+  agents via GraphQL.

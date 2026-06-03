@@ -1,12 +1,20 @@
 # 040-grove-integration — brief
 
-**Kind:** node (build). Substrate per ADR-0015 ([[zellij substrate]]); dashboard
-architecture per ADR-0016 ([[controlling process]] + [[dashboard proxy]]);
-**harness UX reshaped by ADR-0018** — groves are [[workspace]] tabs navigated by
-a [[nav plugin]] — then **the integration model reshaped again by ADR-0019** after
-live-testing 080: `cli_pipe_output` is reply-only, so the nav opens workspaces
-**itself** (no back-channel) and grove **detail lives per-workspace** as a
-[[detail proxy]]; the home tab is the nav, full-height.
+**Kind:** node (build). **Substrate reshaped by ADR-0020 ([[trellis framework]]):**
+grove is now a **deep hard fork** of zellij — grove's TUI logic compiled in
+**natively, in-process**, with the non-grove parts modularised as a publishable
+TUI-embedding framework (grove-first, extract-later). This **supersedes ADR-0015**
+(unmodified installed zellij) and **largely supersedes ADR-0016/0018/0019**: the
+[[dashboard proxy]] seam, the WASM [[nav plugin]], and the `cli_pipe_output`
+back-channel all evaporate — they were workarounds for grove being *outside*
+zellij. The **UX model** they settled survives (grove = [[workspace]] tab, [[working
+set]], home = nav, [[whichkey bar]], detail per-grove); only the plugin/proxy/
+back-channel **realisations** are replaced by native code.
+
+*(History: substrate per ADR-0015 → dashboard as [[controlling process]] +
+[[dashboard proxy]] per ADR-0016 → harness UX as [[workspace]] tabs + WASM nav per
+ADR-0018 → nav-opens-itself + per-grove [[detail proxy]] per ADR-0019 → now the
+native fork, ADR-0020.)*
 
 ## Goal
 
@@ -37,31 +45,40 @@ grove's working set at a time, switched as workspaces.
 
 ## Decisions carried into the build
 
-- Render-over-socket = `CrosstermBackend` over a socket writer (010, done).
-  Hand-rolled input decoder, no new dep (010, done). Bundled config/layout
-  embedded + written to a cache dir (030, done). Depend on an installed zellij.
-  Leader = `Ctrl-o` (now bound to `LaunchOrFocusPlugin`, ADR-0018). Protocol
-  supports N proxies.
-- **Split driving (ADR-0018):** the [[nav plugin]] issues pure-zellij nav
-  (`go_to_tab`/focus/toggle) directly; the controller owns state, pipes it to the
-  nav, and does first-open of a grove's tab + working set via the 040 `zellij
-  action` driver.
+**Superseded by the fork (ADR-0020) — kept for history, not the live path:**
+render-over-socket (`CrosstermBackend` over a socket writer, 010), the hand-rolled
+input decoder (010), bundled-config-to-cache-dir + depend-on-installed-zellij
+(030), the N-proxy protocol, and **split driving** (ADR-0018: WASM nav issues
+pure-zellij nav, controller first-opens via `zellij action`). The native fork
+renders **in-process** and drives panes/tabs/focus by **direct calls**, so none of
+the socket/plugin/`zellij action` machinery survives.
 
-## Done when (acceptance for the whole node)
+**Carried forward:** Leader = `Ctrl-o` (its *binding* is now a native focus call,
+not `LaunchOrFocusPlugin`). The v1 `RepoView` data layer, fs-watch, shell-out
+writes, and the v1 dashboard/detail **ratatui views** all port to the native path.
+ADR-0013's boundary holds (ratatui above; `RepoView`/writes below) and is promoted
+to the framework↔grove crate seam.
 
-- `grove tui` launches the zellij substrate as a single binary. **[done —
-  010/020/030]**
-- The **home tab is the [[nav plugin]]** (full-height grove list); the leader
-  (`Ctrl-o`) focuses it from any pane (ADR-0019).
-- Selecting a grove in the nav **opens or switches its [[workspace]] tab itself**
-  (no controller back-channel); `GoToTab` keybinds also switch.
-- Each grove tab shows its [[working set]] — harness + a per-grove [[detail
-  proxy]] (its task tree / inbox / capture) + terminal + yazi + lazygit — laid out
-  responsively, each pane toggleable.
-- One grove-owned [[whichkey bar]] spans the bottom of every tab; no other surface
-  draws hints.
+## Done when (acceptance for the whole node — restated for the fork, ADR-0020)
+
+- `grove tui` launches the **forked [[trellis framework]]** as a single binary; the
+  grove dashboard renders **natively in-process** (no proxy socket).
+- The **home tab is the native nav** (full-height grove list); the leader
+  (`Ctrl-o`) focuses it from any pane by a **direct in-process call** (no WASM,
+  no `LaunchOrFocusPlugin`).
+- Selecting a grove **opens or switches its [[workspace]] tab in-process** (no
+  back-channel, no permission dance); `GoToTab`-style switching also works.
+- Each grove tab shows its [[working set]] — harness + native per-grove detail (its
+  task tree / inbox / capture) + terminal + yazi + lazygit, the aux tools embedded
+  via trellis's TUI-embedding — laid out responsively, each pane toggleable.
+- One grove-owned native **whichkey** spans the bottom of every tab; no other
+  surface draws hints.
 - Within one repo; the nav opens with explicit repo/cwd so 070-fleet-view reuses
   the driving cross-repo.
+
+*(The framework's own publish-grade surface — GraphQL/network, full observability,
+per-platform pipeline, extraction — is explicitly out of this node's acceptance;
+those are the later/lazy leaves.)*
 
 ## Decomposition (this node)
 
@@ -80,24 +97,38 @@ done/
                            ADR-0019: cli_pipe_output is reply-only; back-channel
                            deleted. The work surfaced that constraint empirically.]
 
-live:
-  090-zellij-fork-framework  (planning, GATING) fork-and-rebrand zellij into
-                             grove's framework? — pane-id focus removes the need
-                             for a nav *plugin*; native control channel removes the
-                             back-channel; controller-in-zellij dissolves the proxy
-                             seam. Decide BEFORE 100-130; a fork reshapes/retires
-                             them. Reopens ADR-0015; may supersede ADR-0018/0019.
+  090-zellij-fork-framework  (planning, GATING) [done → ADR-0020] DECIDED: deep
+                             hard fork — grove becomes a based-on-zellij codebase,
+                             native in-process; non-grove parts modularised as the
+                             publishable [[trellis framework]]; grove-first,
+                             extract-later. Supersedes ADR-0015; largely supersedes
+                             ADR-0016/0018/0019 (mechanism, not UX).
 
-  (ADR-0019 "A′" path — proceeds only if 090 says "no fork"; reshaped if it forks)
-  100-nav-self-opens         nav opens/switches tabs ITSELF (new_tabs_with_layout);
-                             grove-state carries cmd+cwd; delete the 080 channel;
-                             pre-seed permissions.kdl; sigil hints
-  110-detail-proxy-per-grove controller renders per-grove detail into each grove
-                             tab (N proxies); home tab = nav full-height
-  120-whichkey-bar           grove-owned full-width bottom-bar plugin (sigils);
-                             dashboard/harness stop drawing hints
-  130-working-set-responsive +terminal +yazi +lazygit; per-pane toggles;
-                             responsive layout (5K2K ↔ MacBook Pro)
+live: (the fork path — ADR-0020. Native in-process replaces proxy/WASM/back-channel.)
+  100-framework-fork-bringup hard-fork zellij into the cargo workspace as the
+                             `trellis` crate; one-way framework↔grove seam; minimal
+                             rebrand + MIT attribution; builds on the dev platform.
+                             Foundation; spike-then-build, decompose if needed.
+  110-native-host-api        framework MVP: render a native ratatui surface as an
+                             in-process pane; native tab/pane/layout/focus +
+                             input/event delivery; port grove's v1 dashboard to
+                             render natively. Subsumes the 010/020 proxy seam +
+                             040 zellij-action driving. May decompose.
+  120-native-nav             home nav surface, native (no WASM); opens/switches
+                             grove [[workspace]] tabs in-process. Supersedes 070
+                             (plugin) / 080 (back-channel) / old 100 (self-opens).
+  130-native-detail          per-grove detail (task tree + inbox + capture)
+                             rendered natively in each grove tab; $EDITOR drop
+                             in-process. Supersedes old 110 (dumb detail proxy).
+  140-native-whichkey        grove-owned full-width bottom hint bar, native (sigils);
+                             single hint owner. Supersedes old 120 (WASM bar).
+  150-working-set            harness + terminal + yazi + lazygit as embedded TUI
+                             apps via trellis's embedding; per-pane toggles;
+                             responsive layout (5K2K ↔ MacBook Pro). Was old 130.
+
+later/lazy (added when earned — ADR-0020 §7):
+  per-platform build pipeline (CI matrix; CVE-watch); GraphQL/network surface +
+  full observability API; **extraction** of `trellis` into its own repo + grove.
 ```
 
 ## Notes

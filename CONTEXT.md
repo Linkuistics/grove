@@ -40,22 +40,68 @@ The per-session context-loading step of the grove loop: read the glossary, the a
 ## TUI / v2 presentation
 
 **Dashboard**:
+*(Mechanism updated by the [[trellis framework]] fork — ADR-0020: both surfaces
+below now render **natively in-process** — the nav is a native surface (not a WASM
+plugin) and the detail is native (not a dumb proxy). The two-surface **split** and
+where each lives are unchanged.)*
 grove's TUI chrome — historically the master/detail navigation surface (`grove list`-style grove list, task tree, briefs, inbox triage). **As of ADR-0019 (the "A′" model) the master/detail split is dissolved into two surfaces:** the **master list** is the [[nav plugin]], which *is* the **"home" [[workspace]]** (full-height grove list, the leader-focusable command surface); the **detail** (one grove's task tree / inbox / capture) is a per-grove [[detail proxy]] rendered into *that grove's own* [[workspace]] tab beside its harness. Both still sit *above* the [[presentation boundary]] and render from the presentation-agnostic `RepoView`/`MultiRepoView` core inside the [[controlling process]]; the detail proxy is a [[dashboard proxy]] in the ADR-0016 sense (dumb, controller-rendered), the nav is a smart self-rendering plugin. **Switching *between* groves is done in the [[nav plugin]]** (which opens/switches tabs itself, ADR-0019) and via `GoToTab` keybinds — never in a home dashboard, which no longer carries a grove list (ADR-0019 superseded both the earlier "dashboard is the switch surface" model and the ADR-0018 "home dashboard lists groves" framing).
 
 **Controlling process**:
+*(Dissolved by the [[trellis framework]] fork — ADR-0020. With grove compiled in
+natively there is no separate controller launching zellij as a child; all the
+functionality below now runs **in-process** inside the forked framework, and the
+proxy seam disappears. This entry describes the superseded out-of-process model.)*
 The single, persistent process that launches and owns the [[zellij substrate]] (runs zellij as a child; does *not* `exec` and vanish) and owns **all** grove functionality: the `RepoView`/`MultiRepoView` data layer, fs-watch/`notify`, shell-out-to-`grove` writes, the decisions about which [[harness pane]]s to open/focus (driving zellij via `zellij action`), **and** the ratatui rendering of every [[dashboard proxy]] (ADR-0016). It keeps a per-proxy render target sized to that proxy and ships rendered diffs down the [[seam frame]] channel (a unix socket); input flows up, display flows down. Its non-interactive `grove-llm` writes run in-process with no tty (the v1 alt-screen `suspended()` dance is gone — that only existed because the dashboard process used to own the tty); only the interactive `$EDITOR` drop needs a tty, and routes to the proxy's own via a `RunEditor` seam frame (ADR-0017). The realisation of the [[head binary]] role as an always-on owner rather than a launcher. The single-source-of-truth that all presentations (1b native-pane proxy, future 1a plugin, future web client) proxy to.
 
 **Dashboard proxy**:
+*(Superseded by the [[trellis framework]] fork — ADR-0020: rendering is in-process,
+so there is no dumb-terminal proxy and no socket seam. This entry describes the
+superseded mechanism; the per-grove detail *surface* it carried survives natively —
+see [[detail proxy]].)*
 A **dumb-terminal proxy** for a [[dashboard]] surface (working name `grove __dash-proxy`): a thin client running in a zellij pane that only (1) reports its terminal size to the [[controlling process]] (and on SIGWINCH), (2) blits the controller's down-going output to its stdout, and (3) forwards its stdin (key/mouse) up to the controller (ADR-0016). It holds **no** grove state, business logic, or ratatui — all of that is in the controlling process. The seam is one unix-domain socket carrying tag+length [[seam frame]]s both ways; the one place the dumb proxy meets an interactive child is the `$EDITOR` drop, which the controller routes to the proxy's *own* tty via a `RunEditor` control frame (ADR-0017). Implemented as a single-threaded `poll(2)` loop over (socket, stdin) so that while an editor child owns the tty the proxy is not racing it for stdin. "component(s)" is plural: multiple dashboard surfaces are each an independent proxy the controller renders separately. Distinct from a [[harness pane]] (a *native* zellij pane running someone else's program, `grove do <name>`, which zellij emulates — not a grove-rendered surface).
 
 **Seam frame** (controller↔proxy wire):
+*(Superseded by the [[trellis framework]] fork — ADR-0020: with in-process
+rendering there is no controller↔proxy wire. Describes the superseded socket
+codec.)*
 The message unit on the [[dashboard proxy]] seam — one unix-domain socket, both directions tag+length framed (ADR-0016, ADR-0017). **Down** (controller→proxy): `Output` carries a rendered draw's raw ANSI (the hot path, one frame per draw via a `FrameWriter`; the proxy blits the payload), and `RunEditor { path }` is the rare control verb to run `$EDITOR` on the proxy's tty. **Up** (proxy→controller): `Resize` (size on connect + SIGWINCH), `Input` (forwarded raw stdin, which the controller decodes into `crossterm` `KeyCode`/`KeyModifiers` itself — its `event::read()` cannot point at a socket), and `EditorDone { ok }` (the `RunEditor` reply). The codec is hand-rolled (no `serde` for a handful of variants) and `ratatui`/`RepoView`-free transport. 010 left the down direction unframed ("proposed; refine in build"); ADR-0017 framed it to carry `RunEditor`. The `$EDITOR` tempfile is shared-filesystem (local-proxy assumption); a future remote/web proxy uses a non-`RunEditor` edit affordance.
 
 **Harness pane**:
+*(Mechanism updated by the [[trellis framework]] fork — ADR-0020: the harness is a
+native pane the **forked framework** emulates and grove opens by a **direct
+in-process call**, not via external `zellij action`. The role below is unchanged.)*
 The TUI region showing one grove's **live, interactive harness session** — the `grove do <name>` process (claude code / codex / other terminal tooling) — displayed within that grove's [[workspace]] tab as one pane of its [[working set]] (ADR-0018) so the user can watch and interact with it. Named "pane" because the working model is a single window split into the dashboard surface plus the active harness, not separate full-screen windows. **The realisation mechanism is a native [[zellij substrate]] pane** (decision D2 — first settled as in-process pty by the 050 spike/ADR-0014, then *superseded* by ADR-0015 after the 060/020 spike evaluated zellij on its own terms): the harness runs as a native zellij terminal pane that zellij emulates, opened/focused by grove via `zellij action`. grove does **not** emulate the harness itself. (The superseded in-process-pty path — the [[harness-pane crate]] — is the recoverable fallback, not the live mechanism.) Distinct from the [[dashboard]] (grove's own chrome); the harness pane shows someone else's program (the harness).
 
+**trellis framework** (provisional name; the v2 substrate as of ADR-0020):
+grove's v2 TUI/harness substrate after the fork: a **deep hard fork of zellij**
+turned into a reusable **TUI application framework whose headline concern is
+seamlessly embedding *other* TUI apps** (vim, lazygit, yazi, a shell, claude) as
+first-class, fully-emulated panes of a host app — using zellij's emulation under
+the hood, not a hand-rolled one. grove's TUI logic is compiled in **natively,
+in-process** (not a WASM plugin, not external `zellij action` driving), which
+**dissolves** the [[controlling process]]/[[dashboard proxy]] seam, the WASM
+[[nav plugin]], and the `cli_pipe_output` back-channel — each of which was a
+workaround for grove being *outside* zellij. **Hard fork, not a tracking fork:**
+owned outright, **no rebase**; upstream watched **only as a CVE feed**, security
+fixes hand-patched. **Two products, grove-first / extract-later:** `trellis` itself
+(publishable — the non-grove parts behind a compiler-enforced **one-way crate
+seam**, framework must not depend on grove) **+ grove as its first consumer**.
+Native consumers *link* it and get the **full system model as typed Rust values +
+calls** ("you don't serialize what you can link"); a wire format (and there,
+**GraphQL** over protobuf RPC) matters **only if/when** an out-of-process/network
+surface is later added — not in the core. **Observing + programmatically driving
+embedded tools** is a first-class framework facility (grove's harness-watching,
+generalised). `trellis` is a **provisional working name**; the public brand is
+decided at the extraction leaf. **Supersedes [[Owned zellij substrate]]** (ADR-0015,
+unmodified installed zellij) and the *mechanism* of ADR-0016/0018/0019 (the UX they
+settled survives). Distinct from the shelved [[harness-pane crate]] — trellis
+fulfils that crate's embedding *mission* via zellij's mature emulator instead of
+`tui-term`/`vt100`.
+
 **Owned zellij substrate** (zellij substrate):
-grove's v2 presentation/harness substrate (ADR-0015): a **grove-owned zellij multiplexer**. A [[head binary]] launches zellij with grove's *bundled config + bars-free KDL layout* so it presents as a single binary; the [[dashboard]] is a native zellij pane running grove's own ratatui (Strategy **1b**), [[harness pane]]s are native zellij panes, and grove drives the layout from outside via `zellij action` (each grove a tab: `new-tab` / `go-to-tab-by-id` / `close-tab-by-id`, existence checked via `list-tabs` — ADR-0018) — its shell-out write idiom. zellij runs in `default_mode "locked"` so every key passes through to the focused app (the modal design that avoids tmux's prefix-collision tax); the only intercepted key is the remappable unlock. Wins native+free: copy mode, scrollback, search, floating panes, session persistence, web client. **Strategy 1a** (a WASM plugin via `zellij_widgets` + zellij *pipe* IPC to the head binary) was a recorded future refinement; ADR-0018 **pulled it forward for the [[nav plugin]]** (not the whole dashboard) after the CLI-driven `focus-pane-id` switch model hit a locked-mode dead-end. Workspace switching also moved from `focus-pane-id` to per-grove [[workspace]] tabs (`GoToTab`). Distinct from the retired tmux-owner plan (ADR-0014: zellij ≠ tmux) and from the superseded in-process-pty embed (the [[harness-pane crate]] fallback).
+*(Superseded by the [[trellis framework]] fork — ADR-0020 — for the v2 path; this
+describes the unmodified-installed-zellij model it replaced. The substrate is now a
+deep hard fork, not an unmodified dependency.)* grove's v2 presentation/harness substrate (ADR-0015): a **grove-owned zellij multiplexer**. A [[head binary]] launches zellij with grove's *bundled config + bars-free KDL layout* so it presents as a single binary; the [[dashboard]] is a native zellij pane running grove's own ratatui (Strategy **1b**), [[harness pane]]s are native zellij panes, and grove drives the layout from outside via `zellij action` (each grove a tab: `new-tab` / `go-to-tab-by-id` / `close-tab-by-id`, existence checked via `list-tabs` — ADR-0018) — its shell-out write idiom. zellij runs in `default_mode "locked"` so every key passes through to the focused app (the modal design that avoids tmux's prefix-collision tax); the only intercepted key is the remappable unlock. Wins native+free: copy mode, scrollback, search, floating panes, session persistence, web client. **Strategy 1a** (a WASM plugin via `zellij_widgets` + zellij *pipe* IPC to the head binary) was a recorded future refinement; ADR-0018 **pulled it forward for the [[nav plugin]]** (not the whole dashboard) after the CLI-driven `focus-pane-id` switch model hit a locked-mode dead-end. Workspace switching also moved from `focus-pane-id` to per-grove [[workspace]] tabs (`GoToTab`). Distinct from the retired tmux-owner plan (ADR-0014: zellij ≠ tmux) and from the superseded in-process-pty embed (the [[harness-pane crate]] fallback).
 
 **Head binary**:
 The grove process (`grove`/`grove tui`) that launches and owns the [[zellij substrate]] — starting zellij (as a **child**, persisting alongside it — ADR-0016) with grove's bundled config and layout, and driving panes via `zellij action`. Its purpose is to make a multi-process substrate present as a single walk-away binary: "one binary vs many" is a packaging detail, the UX/DX is what matters (user steer, 060/020). It *is* the [[controlling process]]: **all** functionality (data layer, fs-watch, writes, pane decisions, and dashboard rendering) lives here; every dashboard surface is a [[dashboard proxy]]. (Earlier phrasing had the 1b dashboard pane running a standalone `grove tui`; ADR-0016 corrected that — the pane is a dumb proxy, the logic+rendering is here.)
@@ -82,18 +128,39 @@ The architectural seam (ADR-0013) separating Ratatui rendering (*above*) from gr
 A single zellij **tab** holding one grove's [[working set]], with a "home" tab for the [[dashboard]] (ADR-0018). One grove's working set is visible at a time; zellij keeps every tab's panes alive across switches. Switched via native `GoToTab`/`GoToNextTab` keybinds (the hot path) and the [[nav plugin]] (rich/fuzzy selection). Replaces the superseded model of multiple [[harness pane]]s beside the [[dashboard]] switched by `focus-pane-id`.
 
 **Working set**:
+*(Mechanism updated by the [[trellis framework]] fork — ADR-0020: the tab + its
+panes are opened by a **direct in-process call** into the framework (not the WASM
+nav's `new_tabs_with_layout` over a `zellij pipe`), and the aux tools are embedded
+via trellis's TUI-embedding. The pane composition + toggle/responsive **UX** below
+is unchanged. Live leaf: `150-working-set`.)*
 The set of panes shown for one grove inside its [[workspace]] tab: the [[harness pane]] + a per-grove [[detail proxy]] (task tree / inbox / capture) + a plain terminal + yazi (files) + lazygit/lazyjj (vcs) (ADR-0018, ADR-0019). Panes are individually toggleable and the layout is responsive — pack on a large display, degrade gracefully to a laptop screen. **First-time creation is the [[nav plugin]]'s job** (ADR-0019: the nav opens the tab itself via `new_tabs_with_layout`, fed the grove's `grove do` command + cwd over the forward `zellij pipe`) — *not* the controller via `zellij action`, since the `cli_pipe_output` back-channel that would have let the nav ask the controller to open is unworkable. Toggling/focusing within the set is also driven from the nav.
 
 **Nav plugin** (`grove-nav`):
+*(Realisation superseded by the [[trellis framework]] fork — ADR-0020: the nav is
+now a **native in-process surface**, not a WASM plugin — a keybind reaches it by a
+direct focus call, with no `LaunchOrFocusPlugin`/permission/`cli_pipe_output`
+apparatus. The nav's **role/UX** below survives; only "it is a WASM plugin" is
+superseded. Live leaf: `120-native-nav`.)*
 grove's [[leader]]-focused command surface, realised as a **zellij WASM plugin** (Strategy 1a, pulled forward by ADR-0018 — the one surface a keybind can focus *by name* and that receives keys while focused; locked-mode key delivery to it is confirmed live). The [[leader]] focuses it via `LaunchOrFocusPlugin`. As of ADR-0019 it is also the **"home" [[workspace]]** — a full-height grove list. It switches [[workspace]]s, toggles [[working set]] panes, jumps home, and is the mode/key discoverability surface (subsuming the former `050-mode-discoverability` concern). It holds **no** grove state — the [[controlling process]] pipes it the live grove list *with each grove's `grove do` command + cwd* (forward `zellij pipe`). **It opens and switches workspaces *itself*** (ADR-0019: `switch_tab_to` for an open grove, `new_tabs_with_layout` to first-open a closed one) — *not* by "signalling intent back to the controller," which ADR-0018 proposed but ADR-0019 found unworkable (`cli_pipe_output` is reply-only — it cannot push to a stored channel from a keypress). Amends ADR-0016: unlike a [[dashboard proxy]] (dumb, controller-rendered), the nav is a *smart*, self-rendering surface.
 
 **Detail proxy** (per-grove):
+*(Mechanism superseded by the [[trellis framework]] fork — ADR-0020: per-grove
+detail is rendered **natively in-process** in each grove tab, not as a dumb
+terminal proxy over a seam. The per-grove-detail **UX** survives; "it is a dumb
+proxy / N socket clients" is superseded. Live leaf: `130-native-detail`.)*
 A grove-scoped [[dashboard proxy]] (`grove __dash-proxy --grove <name>`) that lives **inside that grove's [[workspace]] tab**, beside its [[harness pane]], and shows *only that grove's* detail — task tree, inbox triage, capture (ADR-0019). The [[controlling process]] renders **one per open grove** (N proxies, the latent ADR-0016 "supports N proxies" now load-bearing): each proxy is fixed to its grove for its whole life, set when the [[nav plugin]] opens the tab, so **no nav→controller selection signalling is needed** (which is what makes A′ buildable given `cli_pipe_output` is reply-only). The dumb-proxy mechanics (size up, blit down, input up, `RunEditor` for `$EDITOR`) are unchanged from [[dashboard proxy]]; "detail" just means the chrome it renders is the detail view, not a grove list (the list is the [[nav plugin]]).
 
 **Whichkey bar**:
+*(Realisation superseded by the [[trellis framework]] fork — ADR-0020: a **native
+bottom region** the in-process host draws, not a WASM plugin (no build.rs embed, no
+layout-pin). The single-hint-owner **UX** survives. Live leaf:
+`140-native-whichkey`.)*
 A grove-owned, **full-width bottom-bar** zellij plugin spanning every [[workspace]] tab, rendering the context-sensitive key hints (sigils, e.g. `⏎`/`⎋`) for whatever is focused (ADR-0019). It is the *single owner* of the bottom hint line: the [[dashboard]]/[[detail proxy]] and the harness stop drawing their own. Pinned in the bundled layout like the [[nav plugin]] sidebar; a sibling plugin to `grove-nav`, not the same instance.
 
 **Leader** (control-seam key):
+*(Binding updated by the [[trellis framework]] fork — ADR-0020: `Ctrl-o` now
+triggers a **native in-process focus** of the nav surface, not
+`LaunchOrFocusPlugin`. The key and its role are unchanged.)*
 The single zellij locked-mode keybind that reaches grove's control — `Ctrl-o` (unchanged since ADR-0016), but bound to `LaunchOrFocusPlugin "grove-nav"` rather than `SwitchToMode "Normal"` (ADR-0018). It *must* be a zellij keybind: in `default_mode "locked"` only zellij intercepts keys while another app is focused; everything *after* the leader is handled by the [[nav plugin]]. The earlier `Ctrl-o`→`Normal` binding was a dead-end — grove's config (leaf 030) stripped all pane-navigation bindings, so unlocked `Normal` had no way to move focus.
 
 ## Flagged ambiguities

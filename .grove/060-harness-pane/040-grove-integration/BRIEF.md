@@ -120,6 +120,12 @@ live: (the fork path — ADR-0020. Native in-process replaces proxy/WASM/back-ch
   130-native-detail          per-grove detail (task tree + inbox + capture)
                              rendered natively in each grove tab; $EDITOR drop
                              in-process. Supersedes old 110 (dumb detail proxy).
+                             [decomposed → node: 010 multi-host-panes (widen the
+                             host-pane seam one-shot→N), 020 detail-surface (the
+                             headline), 030 native-editor ($EDITOR as a trellis
+                             pane + embedded-tool exit observability, §6 slice).
+                             $EDITOR-as-in-process-tty premise corrected: surface
+                             renders server-side w/ no tty (ADR-0021).]
   140-native-whichkey        grove-owned full-width bottom hint bar, native (sigils);
                              single hint owner. Supersedes old 120 (WASM bar).
   150-working-set            harness + terminal + yazi + lazygit as embedded TUI

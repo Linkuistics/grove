@@ -121,6 +121,25 @@ as `CharacterChunk`s server-side, subsuming the [[dashboard proxy]] seam and the
 `zellij action` driving. Note: ADR-0020's "in-process rendering" means *inside the
 server daemon* (same binary), not the thin foreground client that blits ANSI.
 
+**host surface / host driver / host tick** (the realised trellis host-API; leaf
+`110/030`): the consumer-facing seam a host app (grove) drives the [[trellis
+framework]] through — the realisation of the [[trellis hosting API]]'s seam point
+(3). A **host surface** (`trait HostSurface`) is what a host draws into an
+off-screen ratatui `Buffer`: `draw` / `handle_key` (crossterm keys) / `resize` /
+`set_focused` / `cursor`, plus the lifecycle hooks `set_driver` and `tick`. A
+**host driver** (`HostDriver`, handed to the surface by `set_driver`) is the
+clonable, `Send` handle the surface drives layout through — `new_command_tab` /
+`focus_tab` / `close_tab` (open / focus / close a *named* harness tab),
+`request_tick`, `quit` — each a fire-and-forget post onto the server's
+`ScreenInstruction` channel (the surface runs *on* the screen thread, so it cannot
+block waiting for that same thread to reply; that is why driving is by message,
+not return value). A **host tick** (`ScreenInstruction::HostSurfaceTick(pane_id)`)
+is how a host's *background* thread (grove's fs-watch) wakes a refresh+redraw with
+no keypress: it posts the tick, the screen thread calls the surface's `tick()` and
+re-renders if it returns `true`. grove's v1 [[dashboard]] is the first consumer —
+it now renders as a host surface, retiring the [[dashboard proxy]] seam and the
+`zellij action` driving. Contract doc: `crates/trellis/HOST_API.md`.
+
 **Owned zellij substrate** (zellij substrate):
 *(Superseded by the [[trellis framework]] fork — ADR-0020 — for the v2 path; this
 describes the unmodified-installed-zellij model it replaced. The substrate is now a

@@ -568,6 +568,14 @@ pub trait Pane {
     /// (escape sequences to their pty) and plugins via events; only a host pane
     /// (ADR-0021) needs this in-process hook so its surface can react.
     fn set_focused(&mut self, _focused: bool) {}
+    /// Tick a host-rendered pane (ADR-0021): let its surface refresh out-of-band
+    /// state and report whether it now needs a redraw. Driven by
+    /// `ScreenInstruction::HostSurfaceTick`, the mechanism a host's background
+    /// thread (e.g. grove's fs-watch) uses to wake a redraw with no keypress.
+    /// Default `false` — only a host pane overrides it.
+    fn host_tick(&mut self) -> bool {
+        false
+    }
     fn get_line_number(&self) -> Option<usize> {
         None
     }
@@ -5567,12 +5575,29 @@ impl Tab {
         client_id: ClientId,
     ) -> Result<()> {
         let pid = crate::panes::host_pane::next_host_pane_id();
+        // The host pane's `HostDriver` rides on this tab's bus senders, which only
+        // exist on the screen thread — hence the surface is driven from here, not
+        // from the pre-`start_server` factory. In the screen thread both senders
+        // are always wired (`Some`).
+        let to_screen = self
+            .senders
+            .to_screen
+            .clone()
+            .expect("screen thread always has a screen sender");
+        let to_server = self
+            .senders
+            .to_server
+            .clone()
+            .expect("screen thread always has a server sender");
         let host_pane = crate::panes::host_pane::HostPane::new(
             pid,
             PaneGeom::default(),
             self.style,
             surface,
             "grove".to_owned(),
+            to_screen,
+            to_server,
+            client_id,
         );
         self.add_tiled_pane(Box::new(host_pane), PaneId::Host(pid), false, Some(client_id))
     }

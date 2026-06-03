@@ -36,50 +36,24 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the grove dashboard. By default this is the head binary: it
-    /// launches the grove-owned zellij substrate (ADR-0015/0016) with the
-    /// dashboard running as a dumb proxy pane inside it. `--local` runs the
-    /// legacy in-terminal dashboard directly (no zellij), a dev/debug escape.
+    /// Launch the grove dashboard. By default `grove tui` renders the dashboard
+    /// **natively in-process** as a trellis pane (ADR-0020/0021): grove owns
+    /// `main`, links the forked `zellij-*` crates, and starts the trellis client
+    /// (which spawns the server by re-exec). `--local` runs the legacy
+    /// in-terminal dashboard directly (no trellis, no embedding), a dev/debug
+    /// escape that needs neither the substrate nor the `trellis-seam` feature.
     Tui(TuiArgs),
-    /// Internal: the dumb dashboard proxy (ADR-0016). Runs in a zellij pane and
-    /// relays a controller's rendered output to the tty and its stdin back up.
-    /// Hidden from `--help`, like the `grove-llm` surface (ADR-0006).
-    #[command(name = "__dash-proxy", hide = true)]
-    DashProxy(DashProxyArgs),
-    /// Internal: the dashboard controlling process (ADR-0016). Renders the
-    /// dashboard and serves one connected `grove __dash-proxy` over the socket.
-    /// 030 will launch this behind zellij; for now it is run standalone to
-    /// exercise the seam. Hidden from `--help`, like `__dash-proxy`.
-    #[command(name = "__dash-controller", hide = true)]
-    DashController(DashControllerArgs),
 }
 
 #[derive(Parser)]
 pub struct TuiArgs {
     /// Target repo (defaults to cwd's git root).
     pub repo: Option<PathBuf>,
-    /// Run the legacy in-terminal dashboard directly, without the zellij
-    /// substrate. A dev/debug escape hatch (needs no installed zellij); hidden
-    /// because the zellij substrate is the supported path (ADR-0016).
+    /// Run the legacy in-terminal dashboard directly, without the trellis
+    /// substrate. A dev/debug escape hatch; hidden because the native trellis
+    /// pane (ADR-0020/0021) is the supported path.
     #[arg(long, hide = true)]
     pub local: bool,
-}
-
-#[derive(Parser)]
-pub struct DashProxyArgs {
-    /// Path to the controlling process's unix-domain socket.
-    #[arg(long)]
-    pub socket: PathBuf,
-}
-
-#[derive(Parser)]
-pub struct DashControllerArgs {
-    /// Path to bind the controlling process's unix-domain socket at.
-    #[arg(long)]
-    pub socket: PathBuf,
-    /// Target repo (defaults to cwd's git root), like `grove tui`.
-    #[arg(long = "repo")]
-    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -353,28 +327,26 @@ pub fn run() -> anyhow::Result<()> {
         Command::Meta(args)     => crate::meta::run(&args),
         Command::Tui(args)      => {
             let repo_args = RepoArgs { repo: args.repo };
-            if args.local {
-                crate::tui::run(&repo_args)
-            } else {
-                // Default `grove tui` is the head binary. With the trellis seam
-                // linked (ADR-0020/0021) it is the **native in-process** path:
-                // grove owns `main` and starts the trellis client, which spawns
-                // the server by re-exec (see `run()`'s `--server` intercept). The
-                // legacy external-zellij launch (ADR-0015/0016) remains the path
-                // for a default build, until the seam is flipped always-on (110).
-                #[cfg(feature = "trellis-seam")]
-                {
+            // Default `grove tui` renders the dashboard **natively in-process**
+            // (ADR-0020/0021): grove owns `main` and starts the trellis client,
+            // which spawns the server by re-exec (see `run()`'s `--server`
+            // intercept). `--local` runs the legacy in-terminal dashboard. A
+            // default build (no `trellis-seam`) has no embedding, so it can only
+            // serve the local dashboard — the proxy/`zellij action` transport it
+            // used to fall back to retired with the native port (110/030).
+            #[cfg(feature = "trellis-seam")]
+            {
+                if args.local {
+                    crate::tui::run(&repo_args)
+                } else {
                     crate::trellis_host::run_client(&repo_args)
                 }
-                #[cfg(not(feature = "trellis-seam"))]
-                {
-                    crate::zellij::launch(&repo_args)
-                }
             }
-        }
-        Command::DashProxy(args) => crate::dash::proxy::run(&args.socket),
-        Command::DashController(args) => {
-            crate::tui::run_controller(&args.socket, &RepoArgs { repo: args.repo })
+            #[cfg(not(feature = "trellis-seam"))]
+            {
+                let _ = args.local;
+                crate::tui::run(&repo_args)
+            }
         }
     }
 }

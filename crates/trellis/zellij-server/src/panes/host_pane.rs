@@ -25,6 +25,7 @@
 //! once when the first tab's layout is applied and injects a single `HostPane`.
 //! A general multi-host registry is intentionally not built here (constraint 4).
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
@@ -35,11 +36,13 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier};
 
+use zellij_utils::channels::SenderWithContext;
 use zellij_utils::data::{
     BareKey, InputMode, KeyModifier, KeyWithModifier, PaletteColor, PaneContents, Style,
 };
 use zellij_utils::errors::prelude::*;
-use zellij_utils::input::layout::Run;
+use zellij_utils::input::command::RunCommand;
+use zellij_utils::input::layout::{Run, TiledPaneLayout};
 use zellij_utils::pane_size::{Offset, PaneGeom};
 use zellij_utils::position::Position;
 
@@ -48,9 +51,10 @@ use crate::panes::terminal_character::{
     AnsiCode, CharacterStyles, NamedColor, RcCharacterStyles, TerminalCharacter, DEFAULT_STYLES,
 };
 use crate::panes::terminal_pane::PaneId;
+use crate::screen::ScreenInstruction;
 use crate::tab::{AdjustedInput, Pane};
 use crate::ui::pane_boundaries_frame::{FrameParams, PaneFrame};
-use crate::ClientId;
+use crate::{ClientId, ServerInstruction};
 
 /// The host-facing surface a [`HostPane`] renders and drives. Implemented by the
 /// host (grove); trellis only ever calls these methods. See the module docs for
@@ -76,6 +80,133 @@ pub trait HostSurface: Send {
     /// `None` to hide it.
     fn cursor(&self) -> Option<(u16, u16)> {
         None
+    }
+
+    /// Hand the surface its [`HostDriver`] — the in-process handle through which
+    /// it drives layout (open/focus/close tabs) and requests redraws. Called
+    /// once, when the `HostPane` is constructed inside the server's screen
+    /// thread (which is where the senders the driver wraps become available).
+    /// The surface clones the driver into any background threads (e.g. an
+    /// fs-watch thread) that need to wake a redraw — the driver is `Send` +
+    /// `Clone`. Defaulted no-op: a surface that drives nothing ignores it.
+    fn set_driver(&mut self, _driver: HostDriver) {}
+
+    /// Called when a [`HostDriver::request_tick`] lands on the screen thread:
+    /// the surface may refresh out-of-band state (re-scan the filesystem,
+    /// drain a queue) and returns `true` if it now needs a redraw. This is the
+    /// only safe way for a background thread to drive the surface — the surface
+    /// itself is touched **only** on the screen thread, here and in the
+    /// input/draw methods. Defaulted to "nothing changed".
+    fn tick(&mut self) -> bool {
+        false
+    }
+}
+
+// ---------------------------------------------------------------------------
+// The host driver: a clonable, thread-safe handle the surface drives layout
+// through. It wraps the screen-thread sender (and the server sender for quit),
+// so a host surface — or any thread it clones the driver into — can post
+// layout instructions and redraw requests into the running session without
+// touching server state directly. This is the consumer-facing half of the
+// ADR-0021 host-API seam: the smallest verb set grove's v1 dashboard exercises
+// (open/focus/close a named command-tab, request a redraw, quit), widened only
+// as later host surfaces (120–150) demand.
+// ---------------------------------------------------------------------------
+
+/// The in-process handle a [`HostSurface`] drives the session through. Cheap to
+/// clone (the senders are channel handles); `Send` so a surface can hand a clone
+/// to a background thread. Every method is fire-and-forget: it posts a
+/// [`ScreenInstruction`]/[`ServerInstruction`] and returns, because the surface
+/// runs *on* the screen thread (via input routing) and so cannot block waiting
+/// for that same thread to process a reply.
+#[derive(Clone)]
+pub struct HostDriver {
+    to_screen: SenderWithContext<ScreenInstruction>,
+    to_server: SenderWithContext<ServerInstruction>,
+    /// The host pane's own id — the target of [`request_tick`](Self::request_tick).
+    pane_id: u32,
+    /// The client the host pane is focused by; layout instructions are issued as
+    /// if from this client (zellij's instructions are client-scoped).
+    client_id: ClientId,
+}
+
+impl HostDriver {
+    /// Open a **new tab** named `name` whose initial pane runs `command args…`
+    /// in `cwd`, focusing it. This is the native replacement for the v1
+    /// `zellij action new-tab --cwd … --name … -- <cmd>` shell-out: the command
+    /// rides in as the tab layout's `Run::Command`, so the harness process is
+    /// spawned by trellis's own pty thread, in-process, no external CLI.
+    ///
+    /// The caller (grove) tracks which names are open and chooses between this
+    /// and [`focus_tab`](Self::focus_tab); trellis does not dedupe names.
+    pub fn new_command_tab(&self, name: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>) {
+        let run = RunCommand {
+            command,
+            args,
+            cwd: Some(cwd.clone()),
+            ..RunCommand::default()
+        };
+        let layout = TiledPaneLayout {
+            run: Some(Run::Command(run)),
+            ..TiledPaneLayout::default()
+        };
+        let _ = self.to_screen.send(ScreenInstruction::NewTab(
+            Some(cwd),
+            None, // default_shell — unused, the layout carries the command
+            Some(layout),
+            vec![], // no floating panes
+            Some(name.to_string()),
+            (None, None), // fall back to the session's swap layouts
+            None,         // initial_panes
+            false,        // block_on_first_terminal
+            true,         // should_change_focus_to_new_tab
+            (self.client_id, false),
+            None, // no completion signal — fire-and-forget
+        ));
+    }
+
+    /// Focus the existing tab named `name` (the native replacement for `zellij
+    /// action go-to-tab-by-id`). `create = false`, so a missing tab is a no-op
+    /// rather than spawning an empty tab — the command tab is only ever created
+    /// by [`new_command_tab`](Self::new_command_tab).
+    pub fn focus_tab(&self, name: &str) {
+        let _ = self.to_screen.send(ScreenInstruction::GoToTabName(
+            name.to_string(),
+            None,
+            false, // do not create
+            Some(self.client_id),
+            None,
+        ));
+    }
+
+    /// Close the tab named `name` (native replacement for `close-tab-by-id`).
+    /// Focus it by name first, then close the now-active tab — the two
+    /// instructions are processed in order on the screen thread, so this closes
+    /// the intended tab without needing its numeric id.
+    pub fn close_tab(&self, name: &str) {
+        self.focus_tab(name);
+        let _ = self
+            .to_screen
+            .send(ScreenInstruction::CloseTab(self.client_id, None));
+    }
+
+    /// Ask the screen thread to **tick** this host pane: post a
+    /// [`ScreenInstruction::HostSurfaceTick`] naming this pane. The handler calls
+    /// the surface's [`tick`](HostSurface::tick) and re-renders if it asks.
+    /// Safe to call from any thread — this is how grove's fs-watch thread wakes
+    /// a redraw when the filesystem changes with no keypress.
+    pub fn request_tick(&self) {
+        let _ = self
+            .to_screen
+            .send(ScreenInstruction::HostSurfaceTick(self.pane_id));
+    }
+
+    /// Quit the session (native replacement for the v1 dashboard's `q`). Posts a
+    /// client-exit to the server thread, which tears the session down.
+    pub fn quit(&self) {
+        let _ = self
+            .to_server
+            .send(ServerInstruction::ClientExit(self.client_id, None));
     }
 }
 
@@ -258,13 +389,28 @@ pub struct HostPane {
 }
 
 impl HostPane {
+    /// Build a host pane and hand its surface a [`HostDriver`] wired to the
+    /// screen/server senders. Called from `Tab::inject_host_pane`, which passes
+    /// its own bus senders (`to_screen` / `to_server`) and the focusing client —
+    /// the screen thread is the only place those senders exist, which is why the
+    /// driver cannot be set up earlier (in the pre-`start_server` factory).
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         pid: u32,
         geom: PaneGeom,
         style: Style,
-        surface: Box<dyn HostSurface>,
+        mut surface: Box<dyn HostSurface>,
         title: String,
+        to_screen: SenderWithContext<ScreenInstruction>,
+        to_server: SenderWithContext<ServerInstruction>,
+        client_id: ClientId,
     ) -> Self {
+        surface.set_driver(HostDriver {
+            to_screen,
+            to_server,
+            pane_id: pid,
+            client_id,
+        });
         HostPane {
             pid,
             geom,
@@ -544,6 +690,14 @@ impl Pane for HostPane {
         self.surface.set_focused(focused);
         self.should_render = true;
     }
+    fn host_tick(&mut self) -> bool {
+        if self.surface.tick() {
+            self.should_render = true;
+            true
+        } else {
+            false
+        }
+    }
     fn add_red_pane_frame_color_override(&mut self, error_text: Option<String>) {
         self.pane_frame_color_override =
             Some((self.style.colors.exit_code_error.base, error_text));
@@ -660,5 +814,78 @@ mod tests {
             key_with_modifier_to_crossterm(&up).map(|e| e.code),
             Some(KeyCode::Up)
         );
+    }
+
+    /// The consumer-facing host-API contract (ADR-0021): each [`HostDriver`] verb
+    /// posts exactly the expected [`ScreenInstruction`] onto the screen channel.
+    /// This pins the seam grove's dashboard (and 120–150) drives layout through.
+    #[test]
+    fn host_driver_posts_the_expected_screen_instructions() {
+        use zellij_utils::channels::unbounded;
+        use zellij_utils::errors::ErrorContext;
+
+        let (screen_tx, screen_rx) = unbounded::<(ScreenInstruction, ErrorContext)>();
+        let (server_tx, _server_rx) = unbounded::<(ServerInstruction, ErrorContext)>();
+        let driver = HostDriver {
+            to_screen: SenderWithContext::new(screen_tx),
+            to_server: SenderWithContext::new(server_tx),
+            pane_id: 7,
+            client_id: 1,
+        };
+        let next = || screen_rx.try_recv().map(|(i, _)| i).expect("an instruction");
+
+        // request_tick names this pane so the handler finds it.
+        driver.request_tick();
+        assert!(matches!(next(), ScreenInstruction::HostSurfaceTick(7)));
+
+        // new_command_tab → a focused, named NewTab whose layout runs the command.
+        driver.new_command_tab(
+            "auth",
+            PathBuf::from("/work/acme"),
+            PathBuf::from("/opt/grove"),
+            vec!["do".to_string(), "auth".to_string()],
+        );
+        match next() {
+            ScreenInstruction::NewTab(cwd, _, layout, _, name, _, _, _, focus, (cid, _), _) => {
+                assert_eq!(name.as_deref(), Some("auth"));
+                assert_eq!(cwd, Some(PathBuf::from("/work/acme")));
+                assert!(focus, "a freshly opened harness tab is focused");
+                assert_eq!(cid, 1);
+                match layout.expect("a tab layout").run.expect("a command run") {
+                    Run::Command(rc) => {
+                        assert_eq!(rc.command, PathBuf::from("/opt/grove"));
+                        assert_eq!(rc.args, vec!["do".to_string(), "auth".to_string()]);
+                        assert_eq!(rc.cwd, Some(PathBuf::from("/work/acme")));
+                    }
+                    other => panic!("expected Run::Command, got {other:?}"),
+                }
+            }
+            other => panic!("expected NewTab, got {other:?}"),
+        }
+
+        // focus_tab → GoToTabName by name, create=false (never spawns an empty tab).
+        driver.focus_tab("auth");
+        match next() {
+            ScreenInstruction::GoToTabName(name, _, create, cid, _) => {
+                assert_eq!(name, "auth");
+                assert!(!create, "focus must not create");
+                assert_eq!(cid, Some(1));
+            }
+            other => panic!("expected GoToTabName, got {other:?}"),
+        }
+
+        // close_tab → focus the named tab, then close the now-active one.
+        driver.close_tab("auth");
+        assert!(
+            matches!(next(), ScreenInstruction::GoToTabName(ref n, _, false, _, _) if n == "auth")
+        );
+        assert!(matches!(next(), ScreenInstruction::CloseTab(1, _)));
+
+        // quit → a client-exit on the server channel.
+        driver.quit();
+        assert!(matches!(
+            _server_rx.try_recv().map(|(i, _)| i),
+            Ok(ServerInstruction::ClientExit(1, _))
+        ));
     }
 }

@@ -217,6 +217,7 @@ pub enum ScreenContext {
     PluginBytes,
     Render,
     RenderToClients,
+    HostSurfaceTick,
     NewPane,
     OpenInPlaceEditor,
     ToggleFloatingPanes,

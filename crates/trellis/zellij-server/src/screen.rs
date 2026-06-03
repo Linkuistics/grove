@@ -322,6 +322,11 @@ pub enum ScreenInstruction {
     PluginBytes(Vec<PluginRenderAsset>),
     Render,
     RenderToClients,
+    /// Tick the host pane with this id (ADR-0021): refresh its surface's
+    /// out-of-band state and re-render if it changed. Posted by a host's
+    /// [`HostDriver::request_tick`](crate::panes::host_pane::HostDriver::request_tick),
+    /// the mechanism grove's fs-watch thread uses to wake a redraw with no input.
+    HostSurfaceTick(u32),
     NewPane(
         PaneId,
         Option<InitialTitle>,
@@ -876,6 +881,7 @@ impl From<&ScreenInstruction> for ScreenContext {
             ScreenInstruction::PluginBytes(..) => ScreenContext::PluginBytes,
             ScreenInstruction::Render => ScreenContext::Render,
             ScreenInstruction::RenderToClients => ScreenContext::RenderToClients,
+            ScreenInstruction::HostSurfaceTick(..) => ScreenContext::HostSurfaceTick,
             ScreenInstruction::NewPane(..) => ScreenContext::NewPane,
             ScreenInstruction::OpenInPlaceEditor(..) => ScreenContext::OpenInPlaceEditor,
             ScreenInstruction::TogglePaneEmbedOrFloating(..) => {
@@ -5773,6 +5779,22 @@ pub(crate) fn screen_thread_main(
             },
             ScreenInstruction::Render => {
                 screen.render(None)?;
+            },
+            ScreenInstruction::HostSurfaceTick(host_id) => {
+                // Find the host pane by id across all tabs, let its surface
+                // refresh out-of-band state, and re-render only if it changed.
+                // The pane lives in exactly one tab, but we don't track which, so
+                // a linear scan is fine (there is one host pane per session today).
+                let mut dirty = false;
+                for tab in screen.get_tabs_mut().values_mut() {
+                    if let Some(pane) = tab.get_pane_with_id_mut(PaneId::Host(host_id)) {
+                        dirty = pane.host_tick();
+                        break;
+                    }
+                }
+                if dirty {
+                    screen.render(None)?;
+                }
             },
             ScreenInstruction::RenderToClients => {
                 // render_blocker.can_render() returning true means that either all pending plugins

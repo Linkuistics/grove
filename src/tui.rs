@@ -23,26 +23,19 @@
 
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
-use std::io::{self, Read, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
-use ratatui::layout::{Constraint, Direction, Layout, Rect, Size};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::{DefaultTerminal, Frame, Terminal};
+use ratatui::{DefaultTerminal, Frame};
 
 use crate::cli::RepoArgs;
-use crate::dash::backend::{self, ProxyBackend};
-use crate::dash::decode::InputDecoder;
-use crate::dash::proto::{DownFrame, FrameWriter, UpDecoder, UpFrame};
-use crate::harness_drive::HarnessTabs;
-use crate::nav_pipe::{self, IntentReader};
 use crate::repo;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -549,453 +542,18 @@ fn process_pending_action(
             }
         }
         PendingAction::OpenHarness { name, .. } | PendingAction::CloseHarness { name } => {
-            // Harnesses are native zellij panes the *controller* drives; the
-            // legacy `--local` in-terminal dashboard has no substrate to drive,
-            // so this is a no-op beyond an explanatory status line.
+            // Harness tabs are driven natively by the trellis `HostDriver`; the
+            // legacy `--local` in-terminal dashboard has no embedding to drive,
+            // so this is a no-op beyond an explanatory status line. The native
+            // `grove tui` (default) opens/closes harness tabs for real.
             app.status = Some(format!(
-                "workspace tabs need the zellij substrate — run `grove tui` (not --local): {}",
+                "workspace tabs need the native dashboard — run `grove tui` (not --local): {}",
                 name
             ));
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Controller (ADR-0016): the dashboard, driven over the proxy seam
-//
-// This is the same dashboard as `run`/`live_event_loop` above — same `App`,
-// `render`, `handle_key`, `WatchSet`, and shell-out writes — but its *driver*
-// talks to a dumb `grove __dash-proxy` over a unix-domain socket instead of a
-// local crossterm tty. Display flows down (rendered ANSI, framed as
-// `DownFrame::Output`); input and resizes flow up (`UpFrame`), decoded into the
-// same `KeyCode`/`KeyModifiers` `handle_key` already consumes. Only the
-// transport changed; the UI did not. 030 (head binary) will launch zellij and
-// place the proxy pane; until then this is exercised by running `grove
-// __dash-proxy --socket <path>` against `grove __dash-controller --socket
-// <path>` in two terminals.
-
-/// The dashboard's render target over the seam: ratatui rendering into a
-/// per-draw `DownFrame::Output` frame on the socket, sized to the proxy.
-type ProxyTerminal = Terminal<ProxyBackend<FrameWriter<UnixStream>>>;
-
-/// Drive the dashboard over the proxy seam: bind `socket`, accept one proxy,
-/// and run the event loop against it. Functionally identical to `grove tui`,
-/// but rendered remotely (ADR-0016). This is the standalone test path; the 030
-/// head binary binds the listener itself (before spawning zellij) and calls
-/// [`serve`] with the connected stream.
-pub fn run_controller(socket: &Path, args: &RepoArgs) -> Result<()> {
-    let repo = repo::resolve(args.repo.as_deref())?;
-    // A stale socket file would refuse to bind.
-    let _ = std::fs::remove_file(socket);
-    let listener = UnixListener::bind(socket)
-        .with_context(|| format!("binding controller socket {}", socket.display()))?;
-    let (stream, _addr) = listener.accept().context("accepting proxy connection")?;
-    let outcome = serve(stream, repo);
-    // Best-effort: leave no stale socket file behind for the next launch.
-    let _ = std::fs::remove_file(socket);
-    outcome
-}
-
-/// Build the dashboard `App`/`WatchSet` for `repo` and run the controller loop
-/// against an already-connected proxy `stream`. Shared by the standalone
-/// [`run_controller`] test path and the zellij head-binary launch (leaf 030),
-/// which differ only in *how* the proxy connection is obtained.
-pub fn serve(stream: UnixStream, repo: PathBuf) -> Result<()> {
-    let view = RepoView::scan(&repo)?;
-    let preselect = current_grove_name(&repo);
-    // The session name the head binary launched zellij with — derived from the
-    // same pure `session_name(repo)`, so the driving layer targets the right
-    // session by construction (leaf 040).
-    let session = crate::zellij::session_name(&repo);
-    let mut app = App::new(repo.clone(), view, preselect);
-    let mut watch = WatchSet::new(&repo);
-    let mut controller = Controller::from_stream(stream, session)?;
-    controller.event_loop(&mut app, &mut watch)
-}
-
-/// One connected proxy and the controller-side seam state for driving it.
-struct Controller {
-    /// Read half of the socket: up-frames (resize / input / editor-done).
-    reader: UnixStream,
-    /// A second handle for writing `RunEditor` control frames down, distinct
-    /// from the render path (`term`'s `FrameWriter`, which only emits `Output`).
-    /// Safe to interleave because the loop always flushes `term` (via `draw`)
-    /// before processing the input that could enqueue a control frame.
-    ctrl: UnixStream,
-    /// ratatui render target writing framed output down the socket.
-    term: ProxyTerminal,
-    /// Up-frame reassembler across partial socket reads.
-    frames: UpDecoder,
-    /// Raw stdin bytes → key events (crossterm's reader can't read a socket).
-    keys: InputDecoder,
-    /// Open harness tabs, keyed by grove name → stable zellij tab id. The
-    /// controller's single source of truth for tab decisions (ADR-0016/0018).
-    harnesses: HarnessTabs,
-    /// The zellij session every `zellij …` shell-out targets (also held by
-    /// `harnesses`); kept here for the 080 `grove-state` pushes.
-    session: String,
-    /// The bundled nav plugin's `file:` path — the pipe destination. `None` only
-    /// when the cache dir can't be resolved (then the 080 pipes are skipped).
-    nav_wasm: Option<PathBuf>,
-    /// The controller's end of the `grove-intent` back-channel (ADR-0018, leaf
-    /// 080): the plugin streams `open <name>` up it, the controller first-opens
-    /// each. `None` when there is no nav plugin path to address.
-    intent: Option<IntentReader>,
-}
-
-impl Controller {
-    /// Adopt an already-connected proxy `stream`, learn its initial size, and
-    /// build the render target. The caller owns the accept (a plain blocking
-    /// `accept` in [`run_controller`], or the zellij-watching accept in the 030
-    /// head binary) — this only sets up the seam state once a proxy is connected.
-    /// `session` is the zellij session the dashboard runs in, which the
-    /// harness-driving layer (leaf 040) targets via `zellij --session … action`.
-    fn from_stream(stream: UnixStream, session: String) -> Result<Self> {
-        let mut reader = stream.try_clone().context("cloning socket for reading")?;
-        let ctrl = stream.try_clone().context("cloning socket for control")?;
-        let render_half = stream.try_clone().context("cloning socket for rendering")?;
-
-        let mut frames = UpDecoder::new();
-        let size = wait_for_size(&mut reader, &mut frames)?;
-        let term = backend::terminal(FrameWriter::new(render_half), size)
-            .context("building proxy render target")?;
-
-        // The 080 controller↔nav pipes (ADR-0018): address the bundled plugin by
-        // the same `file:` path the head binary launched it with, and open the
-        // long-lived `grove-intent` back-channel so the nav can stream open-grove
-        // requests up to us. Skipped if the cache dir can't be resolved.
-        let nav_wasm = crate::zellij::nav_wasm_path().ok();
-        let intent = nav_wasm
-            .clone()
-            .map(|wasm| IntentReader::spawn(session.clone(), wasm));
-
-        Ok(Self {
-            reader,
-            ctrl,
-            term,
-            frames,
-            keys: InputDecoder::new(),
-            harnesses: HarnessTabs::new(session.clone()),
-            session,
-            nav_wasm,
-            intent,
-        })
-    }
-
-    /// The driver loop — the seam-driven analogue of `live_event_loop`. Each
-    /// tick: render to the proxy, settle the fs-watch debounce, then read the
-    /// socket with the same per-tick timeout `event::poll` used, decode any
-    /// up-frames, and run a queued shell-out / editor action.
-    fn event_loop(&mut self, app: &mut App, watch: &mut WatchSet) -> Result<()> {
-        let mut force_redraw = false;
-        let mut rbuf = [0u8; 4096];
-        // Seed the nav with the initial grove list (leaf 080). `zellij pipe
-        // --plugin <url>` launches-and-delivers, so this lands even if the nav is
-        // still loading; later settles keep it live.
-        self.push_nav_state(app);
-        loop {
-            if force_redraw {
-                // A shell-out / editor may have repainted the proxy's tty; force
-                // a full redraw so the dashboard reclaims the screen cleanly.
-                let _ = self.term.clear();
-                force_redraw = false;
-            }
-            self.term.draw(|f| render(f, app))?;
-
-            watch.drain();
-            if watch.settled() {
-                if let Err(e) = app.refresh_silent() {
-                    app.status = Some(format!("rescan failed: {}", e));
-                }
-                watch.clear();
-                // The grove list may have changed (a grove opened/closed/drained);
-                // re-push it so the nav reflects the rescan (leaf 080 "updates on
-                // fs-watch changes").
-                self.push_nav_state(app);
-            }
-
-            // The `event::poll(timeout)` analogue: a timed-out read means "no
-            // input this tick", which is the cue to loop and re-check the watch.
-            self.reader.set_read_timeout(Some(watch.poll_timeout()))?;
-            let idle = match self.reader.read(&mut rbuf) {
-                Ok(0) => return Ok(()), // proxy closed the seam — clean exit.
-                Ok(n) => {
-                    self.frames.extend(&rbuf[..n]);
-                    false
-                }
-                Err(ref e) if is_timeout(e) => true,
-                Err(e) => return Err(e).context("reading proxy seam"),
-            };
-
-            let mut quit = false;
-            while let Some(frame) = self.frames.next_frame() {
-                match frame {
-                    UpFrame::Resize { cols, rows } => self.apply_resize(cols, rows),
-                    UpFrame::Input(bytes) => {
-                        for key in self.keys.feed(&bytes) {
-                            if handle_key(app, key.code, key.mods)? {
-                                quit = true;
-                            }
-                        }
-                    }
-                    // Only awaited synchronously inside `run_editor_on_proxy`; a
-                    // stray one here is harmless.
-                    UpFrame::EditorDone { .. } => {}
-                }
-            }
-            // On a genuine idle tick, resolve a buffered lone ESC into `Esc`
-            // (the decoder's documented controller-driven timeout behaviour).
-            if idle {
-                for key in self.keys.flush() {
-                    if handle_key(app, key.code, key.mods)? {
-                        quit = true;
-                    }
-                }
-            }
-            if quit {
-                return Ok(());
-            }
-
-            // Open-grove intents the nav streamed up the back-channel (leaf 080):
-            // first-open each via the 040 driver. Already-open groves are switched
-            // by the plugin itself (`switch_tab_to`), so only first-opens arrive.
-            self.drain_intents(app);
-
-            if let Some(action) = app.pending_action.take() {
-                self.process_pending_action(app, action);
-                force_redraw = true;
-            }
-        }
-    }
-
-    /// Push the live grove list to the nav plugin (controller → plugin, leaf
-    /// 080). Best-effort: a failed push just leaves the nav showing the previous
-    /// list until the next push, so it is not worth a status line per settle.
-    fn push_nav_state(&self, app: &App) {
-        if let Some(wasm) = &self.nav_wasm {
-            let _ = nav_pipe::push_grove_state(&self.session, wasm, app.view.groves());
-        }
-    }
-
-    /// Drain any open-grove intents the nav streamed up the `grove-intent`
-    /// back-channel and first-open each as a workspace tab (reusing the 040
-    /// driver / `HarnessTabs`). Names are collected first so the immutable borrow
-    /// of `self.intent` is released before `self.harnesses` is driven.
-    fn drain_intents(&mut self, app: &mut App) {
-        let names: Vec<String> = match &self.intent {
-            Some(reader) => reader.rx.try_iter().collect(),
-            None => Vec::new(),
-        };
-        for name in names {
-            let repo = app.repo.clone();
-            match self.harnesses.open_or_focus(&name, &repo) {
-                Ok(action) => app.status = Some(action.status_line(&name)),
-                Err(e) => {
-                    app.status = Some(format!("harness open failed: {}", short_err(&e)))
-                }
-            }
-        }
-    }
-
-    /// Re-size the proxy's render target after a SIGWINCH-driven resize frame.
-    fn apply_resize(&mut self, cols: u16, rows: u16) {
-        let size = Size::new(cols, rows);
-        self.term.backend_mut().set_size(size);
-        let _ = self.term.resize(Rect::new(0, 0, cols, rows));
-    }
-
-    /// Run a queued action. The non-interactive `grove-llm` writes run directly
-    /// in the controller (no tty needed — the old `suspended()` dance existed
-    /// only because the dashboard process used to own the tty). Only the
-    /// interactive `$EDITOR` drops route to the proxy's tty (ADR-0017).
-    fn process_pending_action(&mut self, app: &mut App, action: PendingAction) {
-        match action {
-            PendingAction::Submit => {
-                let target = app.capture.target.clone();
-                let body = app.capture.body.clone();
-                match shell_capture(&target, &body) {
-                    Ok(()) => {
-                        app.status = Some(format!("captured to {}", target));
-                        app.capture = CaptureModal::default();
-                    }
-                    Err(e) => {
-                        app.status = Some(format!("capture failed: {}", short_err(&e)));
-                        app.capture = CaptureModal::default();
-                    }
-                }
-            }
-            PendingAction::EditBody => {
-                let body = app.capture.body.clone();
-                match self.edit_text_on_proxy(&body) {
-                    Ok(new_body) => {
-                        app.capture.body = new_body;
-                        app.capture.field = CaptureField::Body;
-                    }
-                    Err(e) => {
-                        app.status = Some(format!("editor failed: {}", short_err(&e)));
-                    }
-                }
-            }
-            PendingAction::EditObservation { path } => {
-                let grove = app
-                    .detail
-                    .as_ref()
-                    .map(|d| d.grove.clone())
-                    .unwrap_or_default();
-                let name = file_name_of(&path);
-                match self.edit_observation_on_proxy(&path) {
-                    Ok(EditOutcome::Unchanged) => {
-                        app.status = Some(format!("{}: unchanged", name));
-                    }
-                    Ok(EditOutcome::Saved) => {
-                        app.status = Some(format!("edited {} in {}", name, grove));
-                    }
-                    Err(e) => {
-                        app.status = Some(format!("edit failed: {}", short_err(&e)));
-                    }
-                }
-            }
-            PendingAction::Drain { path, disposition } => {
-                let grove = app
-                    .detail
-                    .as_ref()
-                    .map(|d| d.grove.clone())
-                    .unwrap_or_default();
-                let name = file_name_of(&path);
-                match shell_drain(&grove, &path, disposition) {
-                    Ok(()) => {
-                        app.status = Some(format!("{} {}", disposition.label(), name));
-                    }
-                    Err(e) => {
-                        app.status = Some(format!("disposition failed: {}", short_err(&e)));
-                    }
-                }
-            }
-            PendingAction::OpenHarness { name, repo } => {
-                // Open the grove as a native zellij tab running `grove do
-                // <name>`, or switch to its tab if already open; the tracker
-                // drives `zellij action` and remembers the tab id (ADR-0018).
-                // zellij focuses the new tab, so the user lands in the harness;
-                // the home dashboard tab stays reachable via the locked-mode
-                // `GoToTab` keybinds (and, once 070 lands, the nav plugin).
-                match self.harnesses.open_or_focus(&name, &repo) {
-                    Ok(action) => app.status = Some(action.status_line(&name)),
-                    Err(e) => {
-                        app.status = Some(format!("harness open failed: {}", short_err(&e)))
-                    }
-                }
-            }
-            PendingAction::CloseHarness { name } => {
-                match self.harnesses.close(&name) {
-                    Ok(action) => app.status = Some(action.status_line(&name)),
-                    Err(e) => {
-                        app.status = Some(format!("harness close failed: {}", short_err(&e)))
-                    }
-                }
-            }
-        }
-    }
-
-    /// Edit `initial` in the user's `$EDITOR` on the *proxy's* tty: seed a
-    /// tempfile, ask the proxy to run the editor against it, and read the result
-    /// back (the tempfile is reachable by both — local-proxy assumption,
-    /// ADR-0017). The controller-side analogue of `shell_editor`.
-    fn edit_text_on_proxy(&mut self, initial: &str) -> Result<String> {
-        let tf = tempfile::Builder::new()
-            .prefix("grove-capture-")
-            .suffix(".md")
-            .tempfile()
-            .context("creating editor tempfile")?;
-        std::fs::write(tf.path(), initial)
-            .with_context(|| format!("seeding editor tempfile {}", tf.path().display()))?;
-        if !self.run_editor_on_proxy(tf.path())? {
-            anyhow::bail!("editor exited unsuccessfully");
-        }
-        std::fs::read_to_string(tf.path())
-            .with_context(|| format!("reading edited body back from {}", tf.path().display()))
-    }
-
-    /// Edit an existing committed observation via the proxy's `$EDITOR`, then
-    /// share the change-detection / `inbox-edit` tail with the local path.
-    fn edit_observation_on_proxy(&mut self, path: &Path) -> Result<EditOutcome> {
-        let current = std::fs::read_to_string(path)
-            .with_context(|| format!("reading observation {}", path.display()))?;
-        let edited = self.edit_text_on_proxy(&current)?;
-        decide_observation_edit(path, &current, edited)
-    }
-
-    /// Send a `RunEditor` control frame and block until the proxy reports
-    /// `EditorDone`. While the editor owns the proxy's tty, no `Output` frames
-    /// are produced (rendering is paused here) and the proxy forwards no input,
-    /// so the editor has the terminal to itself. Resizes that arrive mid-edit
-    /// are still applied so the post-edit redraw uses the right size.
-    fn run_editor_on_proxy(&mut self, path: &Path) -> Result<bool> {
-        let frame = DownFrame::RunEditor {
-            path: path.to_path_buf(),
-        };
-        self.ctrl
-            .write_all(&frame.encode())
-            .context("sending RunEditor to proxy")?;
-        self.ctrl.flush().context("flushing RunEditor")?;
-
-        // Block (no read timeout) until the editor child returns.
-        self.reader
-            .set_read_timeout(None)
-            .context("clearing read timeout for editor")?;
-        let mut rbuf = [0u8; 4096];
-        loop {
-            let n = self
-                .reader
-                .read(&mut rbuf)
-                .context("awaiting EditorDone from proxy")?;
-            if n == 0 {
-                anyhow::bail!("proxy closed the seam while editing");
-            }
-            self.frames.extend(&rbuf[..n]);
-            while let Some(frame) = self.frames.next_frame() {
-                match frame {
-                    UpFrame::EditorDone { ok } => return Ok(ok),
-                    UpFrame::Resize { cols, rows } => self.apply_resize(cols, rows),
-                    // The proxy isn't forwarding stdin while the editor runs; a
-                    // straggler from before the drop is irrelevant to the edit.
-                    UpFrame::Input(_) => {}
-                }
-            }
-        }
-    }
-}
-
-/// Read up-frames until the proxy's first `Resize` reports its size. Sent on
-/// connect by the proxy before anything else (`proxy::send_size`).
-fn wait_for_size(reader: &mut UnixStream, frames: &mut UpDecoder) -> Result<Size> {
-    let mut rbuf = [0u8; 4096];
-    loop {
-        let n = reader.read(&mut rbuf).context("reading proxy initial size")?;
-        if n == 0 {
-            anyhow::bail!("proxy closed before reporting its size");
-        }
-        frames.extend(&rbuf[..n]);
-        while let Some(frame) = frames.next_frame() {
-            if let UpFrame::Resize { cols, rows } = frame {
-                return Ok(Size::new(cols, rows));
-            }
-        }
-    }
-}
-
-/// True when a socket read returned because its timeout elapsed (no data), the
-/// `event::poll(timeout) == false` analogue. Platforms differ on which kind a
-/// read-timeout surfaces, so accept both.
-fn is_timeout(e: &io::Error) -> bool {
-    matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut)
-}
-
-/// The trailing filename of a path as an owned `String`, for status messages.
-fn file_name_of(p: &Path) -> String {
-    p.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default()
-}
 
 fn short_err(e: &anyhow::Error) -> String {
     // `{:#}` collapses the anyhow chain into "top: cause: root", which
@@ -2977,81 +2535,6 @@ mod tests {
         let spans = worktree_spans(Some("codex"), &s("4.0.0"), &s("4.0.0"), "4.0.0");
         assert_eq!(text_of(&spans), "worktree[codex]=4.0.0");
     }
-
-    // -----------------------------------------------------------------
-    // Controller seam wiring: raw proxy bytes → decoder → handle_key
-    //
-    // The controller decodes the proxy's forwarded stdin into the same
-    // crossterm keys `handle_key` already consumes. These exercise that exact
-    // pump (`InputDecoder::feed` → `handle_key`) on real `App` state, standing
-    // in for the socket the live loop reads from.
-
-    /// Drive raw input bytes through the controller's decode→dispatch path.
-    fn pump_bytes(app: &mut App, keys: &mut InputDecoder, bytes: &[u8]) {
-        for key in keys.feed(bytes) {
-            handle_key(app, key.code, key.mods).unwrap();
-        }
-    }
-
-    #[test]
-    fn seam_csi_arrow_moves_list_selection() {
-        let tmp = fixture_repo();
-        let view = RepoView::scan(tmp.path()).unwrap();
-        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
-        let mut keys = InputDecoder::new();
-        assert_eq!(app.list.selected(), Some(0));
-        // A real terminal's Down arrow: the CSI sequence the proxy forwards up.
-        pump_bytes(&mut app, &mut keys, b"\x1b[B");
-        assert_eq!(app.list.selected(), Some(1), "CSI down must move like `j`");
-    }
-
-    #[test]
-    fn seam_enter_drills_into_detail() {
-        let tmp = fixture_repo();
-        let view = RepoView::scan(tmp.path()).unwrap();
-        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
-        let mut keys = InputDecoder::new();
-        pump_bytes(&mut app, &mut keys, b"\r"); // Enter over the seam.
-        assert_eq!(app.screen, Screen::GroveDetail);
-    }
-
-    #[test]
-    fn seam_ctrl_s_submits_capture_from_decoded_bytes() {
-        // The full capture gesture arriving as raw proxy bytes: open, type a
-        // body, then Ctrl-S (0x13) — which the decoder maps to Ctrl+`s` and
-        // `handle_capture_key` treats as submit.
-        let tmp = fixture_repo();
-        let view = RepoView::scan(tmp.path()).unwrap();
-        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
-        let mut keys = InputDecoder::new();
-        pump_bytes(&mut app, &mut keys, b"\r"); // → detail (alpha)
-        pump_bytes(&mut app, &mut keys, b"c"); // open capture, jumps to body
-        pump_bytes(&mut app, &mut keys, b"noted"); // type body
-        pump_bytes(&mut app, &mut keys, &[0x13]); // Ctrl-S
-        assert_eq!(app.pending_action, Some(PendingAction::Submit));
-        assert_eq!(app.capture.body, "noted");
-    }
-
-    #[test]
-    fn seam_lone_esc_flushes_to_escape_key() {
-        // A bare ESC byte is buffered (it may start a CSI); the controller's
-        // idle-tick `flush()` resolves it to `Esc`, popping detail → list.
-        let tmp = fixture_repo();
-        let view = RepoView::scan(tmp.path()).unwrap();
-        let mut app = App::new(tmp.path().to_path_buf(), view, Some("alpha".into()));
-        let mut keys = InputDecoder::new();
-        pump_bytes(&mut app, &mut keys, b"\r"); // → detail
-        assert_eq!(app.screen, Screen::GroveDetail);
-        // Lone ESC: nothing decodes yet (it may be the head of a sequence).
-        assert!(keys.feed(b"\x1b").is_empty());
-        assert_eq!(app.screen, Screen::GroveDetail, "bare ESC must not act yet");
-        // Idle tick: the controller calls flush(), which yields Esc.
-        for key in keys.flush() {
-            handle_key(&mut app, key.code, key.mods).unwrap();
-        }
-        assert_eq!(app.screen, Screen::GroveList, "flushed ESC pops to the list");
-    }
-
     // -----------------------------------------------------------------
     // Filesystem watcher debounce predicate
 
@@ -3086,3 +2569,272 @@ mod tests {
         assert!(t >= Duration::from_millis(10));
     }
 }
+
+// ===========================================================================
+// Native host surface (ADR-0021): the v1 dashboard, rendered as a trellis
+// `HostPane` in-process — no proxy socket, no `zellij action`, no WASM.
+//
+// This is leaf 030-port-dashboard-drive. The whole point is **port, not
+// rewrite**: the `App`, `render`, `handle_key`, `WatchSet` debounce, and
+// shell-out writes above are reused *unchanged*. Only the transport is new —
+// instead of a crossterm tty loop (`run`) or a proxy socket (`Controller`),
+// the dashboard draws into an off-screen `ratatui` buffer that trellis blits
+// as a real pane, receives keys in-process, drives tabs/panes by direct
+// `HostDriver` call, and wakes fs-watch redraws via a tick instruction.
+//
+// It lives in a child module so it can reuse this module's private items
+// (`render`, `handle_key`, `App`'s fields, `refresh_silent`, the `shell_*`
+// writers) without widening their visibility; it is feature-gated because it
+// links the forked `zellij-*` crates (the `trellis-seam` feature).
+// ===========================================================================
+#[cfg(feature = "trellis-seam")]
+mod native {
+    use std::collections::BTreeSet;
+    use std::path::PathBuf;
+    use std::sync::mpsc;
+
+    use anyhow::Result;
+    use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
+    use ratatui::crossterm::event::KeyEvent;
+    use ratatui::layout::Rect;
+    use ratatui::Terminal;
+
+    use trellis_server::panes::host_pane::{HostDriver, HostSurface};
+
+    use super::{
+        current_grove_name, handle_key, render, shell_capture, shell_drain, short_err, App,
+        CaptureModal, PendingAction, RepoView, DEBOUNCE,
+    };
+
+    /// Build the dashboard surface for `repo`: scan it, seed `App`, and prepare
+    /// an off-screen render target. The fs-watch thread is *not* started here —
+    /// it needs the [`HostDriver`], which only arrives in [`set_driver`] once the
+    /// pane is constructed on the server's screen thread.
+    ///
+    /// Returns `Err` only if the initial scan fails (a repo with no readable
+    /// grove state) — the caller surfaces that rather than rendering a broken
+    /// dashboard.
+    pub fn dashboard_surface(repo: PathBuf) -> Result<DashboardSurface> {
+        let view = RepoView::scan(&repo)?;
+        let preselect = current_grove_name(&repo);
+        let app = App::new(repo.clone(), view, preselect);
+        // Initial size is a placeholder; the first `draw` resizes to the pane.
+        let terminal = Terminal::new(TestBackend::new(80, 24))
+            .map_err(|e| anyhow::anyhow!("building the off-screen render target: {e}"))?;
+        Ok(DashboardSurface {
+            repo,
+            app,
+            terminal,
+            driver: None,
+            open_harnesses: BTreeSet::new(),
+            _watcher: None,
+        })
+    }
+
+    /// The v1 dashboard as a trellis [`HostSurface`]. Wraps the unchanged `App`
+    /// and renders it through an off-screen [`TestBackend`] terminal so the v1
+    /// `render(f, app)` is reused verbatim; the resulting cells are blitted into
+    /// the pane buffer trellis composites.
+    pub struct DashboardSurface {
+        /// The repo whose groves the dashboard surfaces; fs-watch roots derive
+        /// from it.
+        repo: PathBuf,
+        /// The unchanged v1 dashboard state.
+        app: App,
+        /// Off-screen render target — the trick that lets the v1 `render`
+        /// (which needs a `Frame`) run without a real terminal. We draw into it,
+        /// then copy its buffer into the host pane buffer.
+        terminal: Terminal<TestBackend>,
+        /// The layout/redraw handle, set once at first-layout. `None` until then.
+        driver: Option<HostDriver>,
+        /// Grove names with an open harness tab — the native, name-keyed analogue
+        /// of the retired `HarnessTabs` id map (the screen thread addresses tabs
+        /// by name, so no numeric id round-trip is needed).
+        open_harnesses: BTreeSet<String>,
+        /// Kept alive so the fs-watch thread's channel stays open; dropping it
+        /// (on surface drop) closes the channel and the thread exits cleanly.
+        _watcher: Option<RecommendedWatcher>,
+    }
+
+    impl DashboardSurface {
+        /// Run a deferred action the v1 `handle_key` queued. The non-interactive
+        /// `grove-llm` writes run **synchronously on the screen thread** (sub-second
+        /// git commits; the v1 `suspended()` tty dance is gone because the surface
+        /// no longer owns a tty). Harness open/close/focus drive tabs by direct
+        /// `HostDriver` call. The interactive `$EDITOR` drops are deferred to
+        /// 130-native-detail, which renders detail (and its editor) in-process —
+        /// the native editor needs embedded-tool exit observability (an ADR-0020
+        /// §6 later leaf), so 030 surfaces a pointer rather than half-doing it.
+        fn process_action(&mut self, action: PendingAction) {
+            match action {
+                PendingAction::Submit => {
+                    let target = self.app.capture.target.clone();
+                    let body = self.app.capture.body.clone();
+                    match shell_capture(&target, &body) {
+                        Ok(()) => self.app.status = Some(format!("captured to {target}")),
+                        Err(e) => {
+                            self.app.status = Some(format!("capture failed: {}", short_err(&e)))
+                        }
+                    }
+                    self.app.capture = CaptureModal::default();
+                    let _ = self.app.refresh_silent();
+                }
+                PendingAction::Drain { path, disposition } => {
+                    let grove = self
+                        .app
+                        .detail
+                        .as_ref()
+                        .map(|d| d.grove.clone())
+                        .unwrap_or_default();
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    match shell_drain(&grove, &path, disposition) {
+                        Ok(()) => self.app.status = Some(format!("{} {}", disposition.label(), name)),
+                        Err(e) => {
+                            self.app.status =
+                                Some(format!("disposition failed: {}", short_err(&e)))
+                        }
+                    }
+                    let _ = self.app.refresh_silent();
+                }
+                PendingAction::OpenHarness { name, repo } => {
+                    let Some(driver) = self.driver.clone() else {
+                        return;
+                    };
+                    if self.open_harnesses.contains(&name) {
+                        driver.focus_tab(&name);
+                        self.app.status = Some(format!("switched to harness: {name}"));
+                    } else {
+                        // Run the same binary the server is (dev `target/debug/grove`
+                        // or an installed one), mirroring the retired driver.
+                        let grove_bin =
+                            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("grove"));
+                        driver.new_command_tab(
+                            &name,
+                            repo,
+                            grove_bin,
+                            vec!["do".to_string(), name.clone()],
+                        );
+                        self.open_harnesses.insert(name.clone());
+                        self.app.status = Some(format!("opened harness: {name}"));
+                    }
+                }
+                PendingAction::CloseHarness { name } => {
+                    let Some(driver) = self.driver.clone() else {
+                        return;
+                    };
+                    if self.open_harnesses.remove(&name) {
+                        driver.close_tab(&name);
+                        self.app.status = Some(format!("closed harness: {name}"));
+                    } else {
+                        self.app.status = Some(format!("no open harness: {name}"));
+                    }
+                }
+                PendingAction::EditBody | PendingAction::EditObservation { .. } => {
+                    self.app.status =
+                        Some("native $EDITOR drop lands in 130-native-detail".to_string());
+                }
+            }
+        }
+    }
+
+    impl HostSurface for DashboardSurface {
+        fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+            // Match the off-screen terminal to the pane's content rect, render the
+            // *unchanged* v1 dashboard into it, then blit its cells into the host
+            // buffer trellis composites. `area` always has origin (0,0) (the host
+            // pane builds it that way), so source and destination coords align.
+            let _ = self.terminal.resize(Rect::new(0, 0, area.width, area.height));
+            let Self { app, terminal, .. } = self;
+            let _ = terminal.draw(|f| render(f, app));
+            let src = terminal.backend().buffer();
+            let w = area.width.min(src.area.width);
+            let h = area.height.min(src.area.height);
+            for y in 0..h {
+                for x in 0..w {
+                    buf[(area.x + x, area.y + y)] = src[(x, y)].clone();
+                }
+            }
+        }
+
+        fn handle_key(&mut self, key: KeyEvent) -> bool {
+            // Route to the unchanged v1 key handler, then drain any action it
+            // queued (capture/drain writes, harness drive). v1's `q` returns
+            // `true` ("quit the loop"); natively that means quit the session.
+            let quit = match handle_key(&mut self.app, key.code, key.modifiers) {
+                Ok(q) => q,
+                Err(e) => {
+                    self.app.status = Some(format!("key error: {}", short_err(&e)));
+                    false
+                }
+            };
+            if let Some(action) = self.app.pending_action.take() {
+                self.process_action(action);
+            }
+            if quit {
+                if let Some(driver) = &self.driver {
+                    driver.quit();
+                }
+            }
+            // Always re-render: a key almost always moves the selection or sets a
+            // status line, and the cost of an extra draw is trivial.
+            true
+        }
+
+        fn set_driver(&mut self, driver: HostDriver) {
+            self.driver = Some(driver.clone());
+            // Replace v1's in-loop `WatchSet` polling with a dedicated fs-watch
+            // thread: it owns the `notify` receiver, coalesces bursts under the
+            // same 200ms debounce, then asks the screen thread (via the driver) to
+            // refresh+redraw. The surface itself is only ever touched on the screen
+            // thread — the thread never sees `App`, only posts a tick.
+            let (tx, rx) = mpsc::channel::<()>();
+            let mut watcher = match notify::recommended_watcher(move |_res| {
+                let _ = tx.send(());
+            }) {
+                Ok(w) => w,
+                // No fs-watch (exotic platform): `r` still refreshes manually.
+                Err(_) => return,
+            };
+            for dir in [
+                self.repo.join(".grove-worktrees"),
+                self.repo.join(".grove-meta").join("inboxes"),
+            ] {
+                if dir.is_dir() {
+                    let _ = watcher.watch(&dir, RecursiveMode::Recursive);
+                }
+            }
+            std::thread::spawn(move || {
+                // Block for the first event, then coalesce until quiet for
+                // DEBOUNCE, then tick. Mirrors v1's `WatchSet` debounce exactly,
+                // moved off the (now event-driven) render path.
+                while rx.recv().is_ok() {
+                    loop {
+                        match rx.recv_timeout(DEBOUNCE) {
+                            Ok(()) => continue,
+                            Err(mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+                    driver.request_tick();
+                }
+            });
+            self._watcher = Some(watcher);
+        }
+
+        fn tick(&mut self) -> bool {
+            // An fs-watch settle (or any out-of-band wake): re-scan and redraw.
+            if let Err(e) = self.app.refresh_silent() {
+                self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
+            }
+            true
+        }
+    }
+}
+
+#[cfg(feature = "trellis-seam")]
+pub use native::dashboard_surface;

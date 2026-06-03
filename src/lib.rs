@@ -1,10 +1,8 @@
 pub mod brief_chain;
 pub mod cli;
-pub mod dash;
 pub mod extract;
 pub mod fetch;
 pub mod harness;
-pub mod harness_drive;
 pub mod harness_stamp;
 pub mod inboxes;
 pub mod install;
@@ -13,7 +11,6 @@ pub mod leaf;
 pub mod leaf_ops;
 pub mod llm_cli;
 pub mod meta;
-pub mod nav_pipe;
 pub mod pick;
 pub mod repo;
 pub mod repo_view;

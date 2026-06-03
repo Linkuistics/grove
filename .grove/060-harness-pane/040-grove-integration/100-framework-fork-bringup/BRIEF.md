@@ -1,6 +1,23 @@
-# 100-framework-fork-bringup
+# 100-framework-fork-bringup — brief
 
-**Kind:** work (foundation; spike-then-build — **decompose if needed** when picked)
+**Kind:** node (foundation). Decomposed 3-way when picked (see Decomposition).
+
+## Decomposition (this node)
+
+Decomposed into three sequential leaves; **fork source = zellij 0.44.3**
+(latest stable tag *and* the version grove already validated), **vendored by
+plain copy + recorded SHA** (no git-subtree, no upstream tracking — ADR-0020 §3).
+
+```
+010-vendor-and-seam    plain-copy zellij 0.44.3 into the workspace as `trellis`;
+                       MIT license + provenance; one-way grove→trellis seam;
+                       crates compile in the workspace.
+020-build-and-launch   cargo build → working forked-mux binary launches a bare
+                       shell pane on dev platform; minimal rebrand (defaults in
+                       source, no bars).
+030-hosting-api-spike  build-discover library-you-link vs runtime-you-plug-into
+                       against real internals; record direction + evidence for 110.
+```
 
 ## Goal
 

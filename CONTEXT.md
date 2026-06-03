@@ -96,7 +96,11 @@ decided at the extraction leaf. **Supersedes [[Owned zellij substrate]]** (ADR-0
 unmodified installed zellij) and the *mechanism* of ADR-0016/0018/0019 (the UX they
 settled survives). Distinct from the shelved [[harness-pane crate]] — trellis
 fulfils that crate's embedding *mission* via zellij's mature emulator instead of
-`tui-term`/`vt100`.
+`tui-term`/`vt100`. **Vendored** at `crates/trellis/` (a self-contained,
+workspace-`exclude`d cargo workspace; forked from zellij `v0.44.3`, see
+`crates/trellis/PROVENANCE.md`); the grove→trellis edge is the optional `trellis`
+dependency behind the `trellis-seam` feature until the native host API (leaf 110)
+makes it always-on.
 
 **Owned zellij substrate** (zellij substrate):
 *(Superseded by the [[trellis framework]] fork — ADR-0020 — for the v2 path; this

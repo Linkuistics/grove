@@ -12,6 +12,13 @@ grove **mounts** that grove's detail beside its harness in the **content region*
 
 - **Depends on 010** (the content-swap substrate + park/mount mechanism + the
   `HostDriver` swap verb, per ADR-0023) and **120** (the nav surface + leader).
+  **Concrete mechanism (ADR-0023):** swap = in-place `TiledPanes::replace_pane` on
+  the content slot (incoming pane inherits the slot geom; displaced pane parked in
+  the tab's `suppressed_panes`, kept alive by the existing pty/resize routing).
+  The detail host pane is created on demand via a keyed **host-surface registry +
+  an id-only `MountHostSurface` instruction** — *not* a surface carried in a
+  `ScreenInstruction` (the enum is `Clone+Debug`). `HostDriver` gains the swap
+  verb. The `GoToTab`/`Alt-1..9` binds in `GROVE_TUI_CONFIG` retire here.
 - **Reuse the v1 `App` detail rendering**, scoped to one fixed grove, detail-only:
   no grove list, no master/detail drill-in. The relevant v1 pieces: `DetailState`,
   `render_grove_detail`, `render_inbox_pane`, the capture modal

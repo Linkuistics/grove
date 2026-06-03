@@ -32,9 +32,15 @@ region when its grove is selected.
    is not native (floating-only), and a pty stays alive/capturing scrollback while
    not displayed (per-pane reader thread). Tabs were never load-bearing for
    aliveness.
-2. **Park/mount mechanism → build-discovery spike (leaf 010).** zellij's native
-   `suppressed_panes` vs a grove-managed pane pool — decided empirically, lands its
-   own ADR (this tree's precedent: 050/020-decide/ADR-0021).
+2. **Park/mount mechanism → settled by leaf 010 (ADR-0023).** Verdict: **Candidate
+   A — native `suppressed_panes`** — realised as in-place `TiledPanes::replace_pane`
+   into a stable content slot (incoming pane inherits the slot geom; displaced pane
+   parked in `suppressed_panes`, kept alive by the existing ~15-site pty/resize
+   routing). B (grove pool) rejected — it sits off that routing. The N-detail-surface
+   widening is a keyed **host-surface registry + id-only `MountHostSurface`**
+   instruction (a surface can't ride a `Clone+Debug` `ScreenInstruction`); `HostDriver`
+   gains a swap verb; `GoToTab`/`Alt-1..9` binds retire. Proven by code trace + a
+   throwaway (green first run, not retained — the decision is the artifact).
 3. **`$EDITOR` as a real trellis terminal pane + exit observability** (leaf 030;
    first slice of ADR-0020 §6). The "in-process tty hand-off" premise was stale —
    host surfaces render server-side with no tty (ADR-0021).
@@ -53,10 +59,10 @@ region when its grove is selected.
 ## Decomposition (this node)
 
 ```
-010-content-swap-spike  (planning) spike: suppressed_panes vs grove pool to
-                        park/mount a grove's harness+detail into a content region
-                        beside a constant nav → mechanism ADR. Reshapes the
-                        host-pane seam (still N surfaces, now swapped not tabbed).
+010-content-swap-spike  (planning) [done → ADR-0023] DECIDED: Candidate A —
+                        native suppressed_panes via in-place replace_pane into a
+                        content slot; N-surface widening = registry + id-only
+                        MountHostSurface; HostDriver swap verb; GoToTab binds retire.
 020-detail-surface      grove: per-grove DetailSurface (scoped App, detail-only)
                         mounted into the content region; nav select swaps it in.
                         The headline acceptance (minus $EDITOR).

@@ -19,7 +19,7 @@ pub mod repo;
 pub mod repo_view;
 pub mod root_init;
 pub mod status;
-pub mod trellis_seam;
+pub mod trellis_host;
 pub mod tui;
 pub mod uninstall;
 pub mod version_md;

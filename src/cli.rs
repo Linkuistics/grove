@@ -329,6 +329,16 @@ pub struct RetireArgs {
 }
 
 pub fn run() -> anyhow::Result<()> {
+    // Trellis server re-exec (ADR-0021): `zellij_client::spawn_server` re-execs
+    // `current_exe() --server <socket> [--debug]`, and `current_exe()` is grove.
+    // Intercept it *before* clap — grove's `Cli` has no `--server` flag and would
+    // reject the re-exec'd argv. No grove verb uses `--server`, so a normal
+    // invocation never reaches this branch.
+    #[cfg(feature = "trellis-seam")]
+    if let Some(inv) = crate::trellis_host::server_invocation() {
+        return crate::trellis_host::run_server(inv);
+    }
+
     let cli = Cli::parse();
     match cli.command {
         Command::Install(args) => crate::install::run(&args),
@@ -346,7 +356,20 @@ pub fn run() -> anyhow::Result<()> {
             if args.local {
                 crate::tui::run(&repo_args)
             } else {
-                crate::zellij::launch(&repo_args)
+                // Default `grove tui` is the head binary. With the trellis seam
+                // linked (ADR-0020/0021) it is the **native in-process** path:
+                // grove owns `main` and starts the trellis client, which spawns
+                // the server by re-exec (see `run()`'s `--server` intercept). The
+                // legacy external-zellij launch (ADR-0015/0016) remains the path
+                // for a default build, until the seam is flipped always-on (110).
+                #[cfg(feature = "trellis-seam")]
+                {
+                    crate::trellis_host::run_client(&repo_args)
+                }
+                #[cfg(not(feature = "trellis-seam"))]
+                {
+                    crate::zellij::launch(&repo_args)
+                }
             }
         }
         Command::DashProxy(args) => crate::dash::proxy::run(&args.socket),

@@ -72,20 +72,32 @@ tempfile = "3.10"
 thiserror = "1.0"
 ureq = { version = "2.10", features = ["json"] }
 
-# The grove→trellis framework seam (ADR-0020). `trellis` is grove's hard fork of
-# zellij, vendored at `crates/trellis/` (its own workspace). grove may depend on
-# trellis; trellis must **never** depend on grove (one-way). Kept **optional**
-# while the native host API is built out (leaves 020/110): a default
-# `cargo build`/`cargo test` stays fast and unchanged, while
-# `cargo build --features trellis-seam` proves the edge compiles. 110 makes the
-# real in-process link non-optional. `zellij-utils` is the framework's
-# foundational library crate; the seam will broaden as the host API lands.
+# The grove→trellis framework seam (ADR-0020/0021). `trellis` is grove's hard fork
+# of zellij, vendored at `crates/trellis/` (its own workspace). grove may depend on
+# trellis; trellis must **never** depend on grove (one-way). Kept **optional** while
+# the native host API is built out (leaf 110): a default `cargo build`/`cargo test`
+# stays fast and unchanged, while `cargo build --features trellis-seam` links the
+# framework and proves the edge compiles.
+#
+# Leaf 110/010 **broadens the seam** per ADR-0021's library-you-link decision:
+# grove owns `main` and dispatches the trellis client/server roles itself, so it
+# links all three foundational crates — `zellij-client` (the foreground client
+# UI / blitter), `zellij-server` (the re-exec'd render daemon), and `zellij-utils`
+# (shared config/layout/data). The package aliases keep grove's references reading
+# as `trellis*` rather than `zellij_*`. Still optional behind `trellis-seam`: the
+# heavy ~100k-LOC server link (terminal emulation, PTY, the wasmi plugin host) must
+# not slow a default `grove`/`grove-llm` build that never starts the TUI. Whether
+# to flip the feature always-on is deferred to a later 110 leaf (030), once the
+# native dashboard fully replaces the superseded launch path.
 trellis = { package = "zellij-utils", path = "crates/trellis/zellij-utils", optional = true }
+trellis-client = { package = "zellij-client", path = "crates/trellis/zellij-client", optional = true }
+trellis-server = { package = "zellij-server", path = "crates/trellis/zellij-server", optional = true }
 
 [features]
-# Compile the grove→trellis framework dependency (ADR-0020). Off by default; the
-# native host API (110) will make it always-on.
-trellis-seam = ["dep:trellis"]
+# Compile the grove→trellis framework dependency (ADR-0020/0021). Off by default;
+# links all three foundational crates so grove's `main` can dispatch the
+# client/server roles in-process (the native host API, leaf 110).
+trellis-seam = ["dep:trellis", "dep:trellis-client", "dep:trellis-server"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

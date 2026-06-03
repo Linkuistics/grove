@@ -977,6 +977,8 @@ impl Pty {
                 .get(&client_id)
                 .and_then(|pane| match pane {
                     PaneId::Plugin(plugin_id) => self.plugin_cwds.get(plugin_id).cloned(),
+                    // Host: no pty/process, so no cwd.
+                    PaneId::Host(_) => None,
                     PaneId::Terminal(id) => {
                         // Try to get CWD from OS, fall back to cached value
                         self.id_to_child_pid
@@ -1012,6 +1014,8 @@ impl Pty {
                         .or_else(|| self.terminal_cwds.get(terminal_pane_id).cloned())
                 },
                 PaneId::Plugin(plugin_id) => self.plugin_cwds.get(plugin_id).cloned(),
+                // Host: no pty/process, so no cwd.
+                PaneId::Host(_) => None,
             };
         };
     }
@@ -1829,6 +1833,8 @@ impl Pty {
                     .senders
                     .send_to_plugin(PluginInstruction::Unload(pid)),
             ),
+            // Host: no pty/process and no wasm instance, nothing to clean up.
+            PaneId::Host(_) => {},
         }
         Ok(())
     }
@@ -2008,6 +2014,8 @@ impl Pty {
                 .get(&client_id)
                 .and_then(|pane| match pane {
                     PaneId::Plugin(plugin_id) => self.plugin_cwds.get(plugin_id).cloned(),
+                    // Host: no pty/process, so no cwd.
+                    PaneId::Host(_) => None,
                     PaneId::Terminal(id) => {
                         // Try to get CWD from OS, fall back to cached value
                         self.id_to_child_pid
@@ -2232,6 +2240,10 @@ impl Pty {
             PaneId::Plugin(plugin_id) => {
                 log::warn!("Cannot send SIGINT to plugin pane {}", plugin_id);
             },
+            // Host: no pty/process to signal.
+            PaneId::Host(host_id) => {
+                log::warn!("Cannot send SIGINT to host pane {}", host_id);
+            },
         }
     }
 
@@ -2255,6 +2267,10 @@ impl Pty {
             PaneId::Plugin(plugin_id) => {
                 log::warn!("Cannot send SIGKILL to plugin pane {}", plugin_id);
             },
+            // Host: no pty/process to signal.
+            PaneId::Host(host_id) => {
+                log::warn!("Cannot send SIGKILL to host pane {}", host_id);
+            },
         }
     }
 
@@ -2272,6 +2288,10 @@ impl Pty {
             },
             PaneId::Plugin(plugin_id) => {
                 GetPanePidResponse::Err(format!("Cannot get PID for plugin pane {}", plugin_id))
+            },
+            // Host: no pty/process, so no PID.
+            PaneId::Host(host_id) => {
+                GetPanePidResponse::Err(format!("Cannot get PID for host pane {}", host_id))
             },
         }
     }
@@ -2314,6 +2334,11 @@ impl Pty {
                 "Cannot get running command for plugin pane {}",
                 plugin_id
             )),
+            // Host: no pty/process, so no running command.
+            PaneId::Host(host_id) => GetPaneRunningCommandResponse::Err(format!(
+                "Cannot get running command for host pane {}",
+                host_id
+            )),
         }
     }
     pub fn get_pane_cwd(&self, pane_id: PaneId) -> GetPaneCwdResponse {
@@ -2343,6 +2368,10 @@ impl Pty {
             },
             PaneId::Plugin(plugin_id) => {
                 GetPaneCwdResponse::Err(format!("Cannot get CWD for plugin pane {}", plugin_id))
+            },
+            // Host: no pty/process, so no cwd.
+            PaneId::Host(host_id) => {
+                GetPaneCwdResponse::Err(format!("Cannot get CWD for host pane {}", host_id))
             },
         }
     }

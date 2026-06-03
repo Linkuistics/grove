@@ -351,6 +351,8 @@ impl<'a> LayoutApplier<'a> {
                         .senders
                         .send_to_plugin(PluginInstruction::Unload(*plugin_id));
                 },
+                // Host: no pty and no wasm instance; nothing to send.
+                PaneId::Host(_) => {},
             }
         }
     }

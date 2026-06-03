@@ -134,6 +134,8 @@ macro_rules! resize_pty {
                     ))
                     .with_context(err_context)
             },
+            // Host: no pty; the HostPane updates its own surface in set_geom, so resize is a no-op.
+            PaneId::Host(_) => Ok(()),
         }
     }};
 }
@@ -561,6 +563,11 @@ pub trait Pane {
     fn unfocus_event(&self) -> Option<String> {
         None
     }
+    /// Notify a host-rendered pane it gained (`true`) or lost (`false`) focus.
+    /// Default no-op: terminal panes learn focus via `focus_event`/`unfocus_event`
+    /// (escape sequences to their pty) and plugins via events; only a host pane
+    /// (ADR-0021) needs this in-process hook so its surface can react.
+    fn set_focused(&mut self, _focused: bool) {}
     fn get_line_number(&self) -> Option<usize> {
         None
     }
@@ -702,14 +709,14 @@ pub fn get_next_terminal_position(
     let tiled_panes_count = tiled_panes
         .get_panes()
         .filter(|(k, _)| match k {
-            PaneId::Plugin(_) => false,
+            PaneId::Plugin(_) | PaneId::Host(_) => false,
             PaneId::Terminal(_) => true,
         })
         .count();
     let floating_panes_count = floating_panes
         .get_panes()
         .filter(|(k, _)| match k {
-            PaneId::Plugin(_) => false,
+            PaneId::Plugin(_) | PaneId::Host(_) => false,
             PaneId::Terminal(_) => true,
         })
         .count();
@@ -1637,6 +1644,11 @@ impl Tab {
                     self.styled_underlines,
                 )) as Box<dyn Pane>
             },
+            // Host: host-rendered panes are created server-side via the host API, not these terminal/plugin entry points.
+            PaneId::Host(_) => {
+                return Err(anyhow!("cannot create a host pane via this entry point"))
+                    .with_context(err_context);
+            },
         };
 
         if let Some(borderless) = borderless {
@@ -1750,6 +1762,11 @@ impl Tab {
                     self.styled_underlines,
                 )) as Box<dyn Pane>
             },
+            // Host: host-rendered panes are created server-side via the host API, not these terminal/plugin entry points.
+            PaneId::Host(_) => {
+                return Err(anyhow!("cannot create a host pane via this entry point"))
+                    .with_context(err_context);
+            },
         };
 
         if let Some(borderless) = borderless {
@@ -1851,6 +1868,11 @@ impl Tab {
                     self.arrow_fonts,
                     self.styled_underlines,
                 )) as Box<dyn Pane>
+            },
+            // Host: host-rendered panes are created server-side via the host API, not these terminal/plugin entry points.
+            PaneId::Host(_) => {
+                return Err(anyhow!("cannot create a host pane via this entry point"))
+                    .with_context(err_context);
             },
         };
 
@@ -1998,6 +2020,11 @@ impl Tab {
                     self.styled_underlines,
                 )) as Box<dyn Pane>
             },
+            // Host: host-rendered panes are created server-side via the host API, not these terminal/plugin entry points.
+            PaneId::Host(_) => {
+                return Err(anyhow!("cannot create a host pane via this entry point"))
+                    .with_context(err_context);
+            },
         };
 
         if let Some(borderless) = borderless {
@@ -2086,7 +2113,7 @@ impl Tab {
                     },
                 }
             },
-            PaneId::Plugin(_pid) => {
+            PaneId::Plugin(_) | PaneId::Host(_) => {
                 // TBD, currently unsupported
             },
         }
@@ -2141,7 +2168,7 @@ impl Tab {
                     },
                 }
             },
-            PaneId::Plugin(_pid) => {
+            PaneId::Plugin(_) | PaneId::Host(_) => {
                 // TBD, currently unsupported
             },
         }
@@ -2292,6 +2319,8 @@ impl Tab {
                     }
                 }
             },
+            // Host: host-rendered panes are not created via this suppress/replace path.
+            PaneId::Host(_) => {},
         }
         Ok(())
     }
@@ -3119,6 +3148,17 @@ impl Tab {
                 Some(_) => {},
                 None => {},
             },
+            // Host: the HostPane handles the key in-process (and returns None);
+            // do not route input to the pty or plugin thread.
+            PaneId::Host(_) => {
+                let _ = active_pane.adjust_input_to_terminal(
+                    key_with_modifier,
+                    raw_input_bytes,
+                    raw_input_bytes_are_kitty,
+                    client_id,
+                );
+                should_update_ui = true;
+            },
         }
         Ok(should_update_ui)
     }
@@ -3146,6 +3186,8 @@ impl Tab {
             PaneId::Plugin(_pid) => {
                 log::error!("Unsupported plugin action");
             },
+            // Host panes handle input in-process via adjust_input_to_terminal; the raw paste path is a no-op for them.
+            PaneId::Host(_) => {},
         }
         Ok(should_update_ui)
     }
@@ -3476,7 +3518,7 @@ impl Tab {
             .tiled_panes
             .get_panes()
             .filter(|(k, _)| match k {
-                PaneId::Plugin(_) => false,
+                PaneId::Plugin(_) | PaneId::Host(_) => false,
                 PaneId::Terminal(_) => true,
             })
             .count();
@@ -3484,7 +3526,7 @@ impl Tab {
             .floating_panes
             .get_panes()
             .filter(|(k, _)| match k {
-                PaneId::Plugin(_) => false,
+                PaneId::Plugin(_) | PaneId::Host(_) => false,
                 PaneId::Terminal(_) => true,
             })
             .count();
@@ -5515,6 +5557,25 @@ impl Tab {
         }
         Ok(())
     }
+    /// Inject grove's host-rendered native pane (ADR-0021's third pane kind) into
+    /// this tab as a tiled pane, focused by `client_id`. Splits the current tiled
+    /// layout like opening any new pane. Used once at first-layout to prove
+    /// render+input for the host surface (leaf 020); richer layout control is 030.
+    pub fn inject_host_pane(
+        &mut self,
+        surface: Box<dyn crate::panes::host_pane::HostSurface>,
+        client_id: ClientId,
+    ) -> Result<()> {
+        let pid = crate::panes::host_pane::next_host_pane_id();
+        let host_pane = crate::panes::host_pane::HostPane::new(
+            pid,
+            PaneGeom::default(),
+            self.style,
+            surface,
+            "grove".to_owned(),
+        );
+        self.add_tiled_pane(Box::new(host_pane), PaneId::Host(pid), false, Some(client_id))
+    }
     pub fn add_stacked_pane_to_pane_id(
         &mut self,
         pane: Box<dyn Pane>,
@@ -6216,6 +6277,11 @@ pub fn pane_info_for_pane(
                 Run::Plugin(run_plugin_or_alias) => Some(run_plugin_or_alias.location_string()),
                 _ => None,
             });
+        },
+        // Host: host-rendered surface, not a wasm plugin and not a pty command.
+        PaneId::Host(id) => {
+            pane_info.id = *id;
+            pane_info.is_plugin = false;
         },
     }
     pane_info

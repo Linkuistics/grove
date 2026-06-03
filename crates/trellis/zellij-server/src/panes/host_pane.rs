@@ -1,0 +1,664 @@
+//! The **host-rendered pane** — trellis's third pane kind (ADR-0021).
+//!
+//! A [`HostPane`] is a [`Pane`] whose content comes from a host-supplied
+//! [`HostSurface`] drawing into an off-screen `ratatui` [`Buffer`], rather than
+//! from a pty ([`TerminalPane`](crate::panes::terminal_pane::TerminalPane)) or a
+//! wasm plugin ([`PluginPane`](crate::panes::plugin_pane::PluginPane)). The pane
+//! converts the buffer's cells into [`CharacterChunk`]s server-side, so the
+//! compositor blits it like any other pane, and it delivers input/resize/focus to
+//! the surface in-process — no pty, no socket, no `zellij action`.
+//!
+//! # The seam (kept deliberately small — discovered by a real consumer)
+//!
+//! [`HostSurface`] is the entire host-facing API for this leaf: draw, key, resize,
+//! focus, cursor. It hands the host **`crossterm` key events** (grove's surfaces
+//! are crossterm-modelled) and a **`ratatui` `Buffer`** (grove draws with real
+//! widgets). The one-way framework→host seam (ADR-0020 §4) holds: trellis defines
+//! `HostSurface`; the host implements it; trellis never names the host. The
+//! surface is widened only as grove's real dashboard (leaf 030/120–150) demands.
+//!
+//! # Injection
+//!
+//! Because zellij's server is a re-exec'd daemon, the host (grove) cannot pass a
+//! surface *value* across the spawn. Instead the host registers a one-shot
+//! [`register_host_surface`] factory before `start_server`; the server takes it
+//! once when the first tab's layout is applied and injects a single `HostPane`.
+//! A general multi-host registry is intentionally not built here (constraint 4).
+
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
+use std::time::Instant;
+
+use anyhow::Result;
+use ratatui::buffer::Buffer;
+use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier};
+
+use zellij_utils::data::{
+    BareKey, InputMode, KeyModifier, KeyWithModifier, PaletteColor, PaneContents, Style,
+};
+use zellij_utils::errors::prelude::*;
+use zellij_utils::input::layout::Run;
+use zellij_utils::pane_size::{Offset, PaneGeom};
+use zellij_utils::position::Position;
+
+use crate::output::{CharacterChunk, SixelImageChunk};
+use crate::panes::terminal_character::{
+    AnsiCode, CharacterStyles, NamedColor, RcCharacterStyles, TerminalCharacter, DEFAULT_STYLES,
+};
+use crate::panes::terminal_pane::PaneId;
+use crate::tab::{AdjustedInput, Pane};
+use crate::ui::pane_boundaries_frame::{FrameParams, PaneFrame};
+use crate::ClientId;
+
+/// The host-facing surface a [`HostPane`] renders and drives. Implemented by the
+/// host (grove); trellis only ever calls these methods. See the module docs for
+/// why the surface is this small.
+pub trait HostSurface: Send {
+    /// Draw the surface into `buf` (whose `area` is the pane's content rect,
+    /// origin `0,0`). Called only when the pane needs to re-render.
+    fn draw(&mut self, area: Rect, buf: &mut Buffer);
+
+    /// Deliver a key event (the crossterm model). Return `true` if it changed
+    /// state and the pane should re-render.
+    fn handle_key(&mut self, _key: KeyEvent) -> bool {
+        false
+    }
+
+    /// Notify the surface that its content area resized to `cols`×`rows`.
+    fn resize(&mut self, _cols: u16, _rows: u16) {}
+
+    /// Notify the surface it gained (`true`) or lost (`false`) focus.
+    fn set_focused(&mut self, _focused: bool) {}
+
+    /// The cursor position **relative to the content area** (`col`, `row`), or
+    /// `None` to hide it.
+    fn cursor(&self) -> Option<(u16, u16)> {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Injection: a one-shot host-surface factory the host sets before `start_server`.
+// ---------------------------------------------------------------------------
+
+type HostSurfaceFactory = Box<dyn FnOnce() -> Box<dyn HostSurface> + Send>;
+
+static HOST_SURFACE_FACTORY: Mutex<Option<HostSurfaceFactory>> = Mutex::new(None);
+static NEXT_HOST_PANE_ID: AtomicU32 = AtomicU32::new(0);
+
+/// Register the host-surface factory the server injects once, at first-layout.
+/// Call this on the `--server` path (grove's `run_server`) **before**
+/// `start_server`. Overwrites any previously-registered factory.
+pub fn register_host_surface(factory: HostSurfaceFactory) {
+    if let Ok(mut slot) = HOST_SURFACE_FACTORY.lock() {
+        *slot = Some(factory);
+    }
+}
+
+/// Take the registered factory and build the surface, if one was registered.
+/// Returns `None` after the first successful take (a single host pane per
+/// session) or when the host registered nothing (stock trellis behaviour).
+pub(crate) fn take_host_surface() -> Option<Box<dyn HostSurface>> {
+    let factory = HOST_SURFACE_FACTORY.lock().ok()?.take()?;
+    Some(factory())
+}
+
+/// A fresh id for a host pane (the `u32` inside `PaneId::Host`). Independent of
+/// the pty/plugin id spaces — host panes are never known to those threads.
+pub(crate) fn next_host_pane_id() -> u32 {
+    NEXT_HOST_PANE_ID.fetch_add(1, Ordering::Relaxed)
+}
+
+// ---------------------------------------------------------------------------
+// The ratatui-Buffer → CharacterChunk converter (pure; unit-tested below).
+// ---------------------------------------------------------------------------
+
+/// Convert an off-screen `ratatui` [`Buffer`] into trellis [`CharacterChunk`]s,
+/// one chunk per row, positioned at the pane's content origin.
+///
+/// `content_x` / `content_y` are the pane's absolute content coordinates on
+/// screen (from `get_content_x`/`get_content_y`); the converter offsets each row
+/// by them, matching what `TerminalPane::render` does with its grid. The function
+/// is pure over `(buffer, content_x, content_y)`, so it is testable with a
+/// synthetic `Buffer` and no server.
+pub fn buffer_to_character_chunks(
+    buffer: &Buffer,
+    content_x: usize,
+    content_y: usize,
+) -> Vec<CharacterChunk> {
+    let area = buffer.area;
+    let mut chunks = Vec::with_capacity(area.height as usize);
+    for row in 0..area.height {
+        let mut characters = Vec::with_capacity(area.width as usize);
+        for col in 0..area.width {
+            let cell = &buffer[(area.x + col, area.y + row)];
+            let character = cell.symbol().chars().next().unwrap_or(' ');
+            let styles = cell_styles(cell.fg, cell.bg, cell.modifier);
+            characters.push(TerminalCharacter::new_styled(character, styles));
+        }
+        chunks.push(CharacterChunk::new(
+            characters,
+            content_x,
+            content_y + row as usize,
+        ));
+    }
+    chunks
+}
+
+/// Build trellis cell styles from a ratatui cell's fg/bg/modifier.
+fn cell_styles(fg: Color, bg: Color, modifier: Modifier) -> RcCharacterStyles {
+    let mut styles = CharacterStyles {
+        foreground: color_to_ansi(fg),
+        background: color_to_ansi(bg),
+        ..DEFAULT_STYLES
+    };
+    let on = |present: bool| present.then_some(AnsiCode::On);
+    styles.bold = on(modifier.contains(Modifier::BOLD));
+    styles.dim = on(modifier.contains(Modifier::DIM));
+    styles.italic = on(modifier.contains(Modifier::ITALIC));
+    styles.underline = on(modifier.contains(Modifier::UNDERLINED));
+    styles.slow_blink = on(modifier.contains(Modifier::SLOW_BLINK));
+    styles.fast_blink = on(modifier.contains(Modifier::RAPID_BLINK));
+    styles.reverse = on(modifier.contains(Modifier::REVERSED));
+    styles.hidden = on(modifier.contains(Modifier::HIDDEN));
+    styles.strike = on(modifier.contains(Modifier::CROSSED_OUT));
+    styles.into()
+}
+
+/// Map a ratatui [`Color`] onto trellis's [`AnsiCode`]. `None` is never returned
+/// for a real color (`Reset` maps to `AnsiCode::Reset`), so every cell carries an
+/// explicit fg/bg and renders deterministically.
+fn color_to_ansi(color: Color) -> Option<AnsiCode> {
+    Some(match color {
+        Color::Reset => AnsiCode::Reset,
+        Color::Black => AnsiCode::NamedColor(NamedColor::Black),
+        Color::Red => AnsiCode::NamedColor(NamedColor::Red),
+        Color::Green => AnsiCode::NamedColor(NamedColor::Green),
+        Color::Yellow => AnsiCode::NamedColor(NamedColor::Yellow),
+        Color::Blue => AnsiCode::NamedColor(NamedColor::Blue),
+        Color::Magenta => AnsiCode::NamedColor(NamedColor::Magenta),
+        Color::Cyan => AnsiCode::NamedColor(NamedColor::Cyan),
+        // ratatui's `Gray` is ANSI 7 (white); `White` is ANSI 15 (bright white).
+        Color::Gray => AnsiCode::NamedColor(NamedColor::White),
+        Color::DarkGray => AnsiCode::NamedColor(NamedColor::BrightBlack),
+        Color::LightRed => AnsiCode::NamedColor(NamedColor::BrightRed),
+        Color::LightGreen => AnsiCode::NamedColor(NamedColor::BrightGreen),
+        Color::LightYellow => AnsiCode::NamedColor(NamedColor::BrightYellow),
+        Color::LightBlue => AnsiCode::NamedColor(NamedColor::BrightBlue),
+        Color::LightMagenta => AnsiCode::NamedColor(NamedColor::BrightMagenta),
+        Color::LightCyan => AnsiCode::NamedColor(NamedColor::BrightCyan),
+        Color::White => AnsiCode::NamedColor(NamedColor::BrightWhite),
+        Color::Rgb(r, g, b) => AnsiCode::RgbCode((r, g, b)),
+        Color::Indexed(i) => AnsiCode::ColorIndex(i),
+    })
+}
+
+/// Convert a trellis [`KeyWithModifier`] into a `crossterm` [`KeyEvent`] for the
+/// host surface. Returns `None` for keys the surface model does not cover (the
+/// pane then ignores them). This is the inverse of the client-side
+/// `cast_termwiz_key`, restricted to the common keys grove's surfaces consume.
+pub fn key_with_modifier_to_crossterm(key: &KeyWithModifier) -> Option<KeyEvent> {
+    let code = match key.bare_key {
+        BareKey::Char(c) => KeyCode::Char(c),
+        BareKey::Backspace => KeyCode::Backspace,
+        BareKey::Left => KeyCode::Left,
+        BareKey::Right => KeyCode::Right,
+        BareKey::Up => KeyCode::Up,
+        BareKey::Down => KeyCode::Down,
+        BareKey::Home => KeyCode::Home,
+        BareKey::End => KeyCode::End,
+        BareKey::PageUp => KeyCode::PageUp,
+        BareKey::PageDown => KeyCode::PageDown,
+        BareKey::Tab => KeyCode::Tab,
+        BareKey::Delete => KeyCode::Delete,
+        BareKey::Insert => KeyCode::Insert,
+        BareKey::Enter => KeyCode::Enter,
+        BareKey::Esc => KeyCode::Esc,
+        BareKey::F(n) => KeyCode::F(n),
+        _ => return None,
+    };
+    let mut modifiers = KeyModifiers::empty();
+    for m in &key.key_modifiers {
+        match m {
+            KeyModifier::Ctrl => modifiers.insert(KeyModifiers::CONTROL),
+            KeyModifier::Alt => modifiers.insert(KeyModifiers::ALT),
+            KeyModifier::Shift => modifiers.insert(KeyModifiers::SHIFT),
+            KeyModifier::Super => modifiers.insert(KeyModifiers::SUPER),
+        }
+    }
+    Some(KeyEvent::new(code, modifiers))
+}
+
+// ---------------------------------------------------------------------------
+// The pane itself.
+// ---------------------------------------------------------------------------
+
+/// trellis's third pane kind: a [`Pane`] backed by a host-supplied
+/// [`HostSurface`]. See the module docs.
+pub struct HostPane {
+    pid: u32,
+    geom: PaneGeom,
+    geom_override: Option<PaneGeom>,
+    content_offset: Offset,
+    surface: Box<dyn HostSurface>,
+    should_render: bool,
+    selectable: bool,
+    borderless: bool,
+    exclude_from_sync: bool,
+    style: Style,
+    title: String,
+    active_at: Instant,
+    pane_frame_color_override: Option<(PaletteColor, Option<String>)>,
+    frame: std::collections::HashMap<ClientId, PaneFrame>,
+    // Host panes are not spawned from a `Run`; this is always `None` and exists
+    // only so `invoked_with` can return a reference of the right type.
+    invoked_with: Option<Run>,
+}
+
+impl HostPane {
+    pub fn new(
+        pid: u32,
+        geom: PaneGeom,
+        style: Style,
+        surface: Box<dyn HostSurface>,
+        title: String,
+    ) -> Self {
+        HostPane {
+            pid,
+            geom,
+            geom_override: None,
+            content_offset: Offset::default(),
+            surface,
+            should_render: true,
+            selectable: true,
+            borderless: false,
+            exclude_from_sync: false,
+            style,
+            title,
+            active_at: Instant::now(),
+            pane_frame_color_override: None,
+            frame: std::collections::HashMap::new(),
+            invoked_with: None,
+        }
+    }
+
+    fn get_x(&self) -> usize {
+        self.geom_override.unwrap_or(self.geom).x
+    }
+    fn get_y(&self) -> usize {
+        self.geom_override.unwrap_or(self.geom).y
+    }
+    fn get_columns(&self) -> usize {
+        self.geom_override.unwrap_or(self.geom).cols.as_usize()
+    }
+    fn get_rows(&self) -> usize {
+        self.geom_override.unwrap_or(self.geom).rows.as_usize()
+    }
+
+    /// Tell the surface its current content size (called on any geometry change).
+    fn notify_surface_resize(&mut self) {
+        let cols = self.get_content_columns() as u16;
+        let rows = self.get_content_rows() as u16;
+        self.surface.resize(cols, rows);
+        self.should_render = true;
+    }
+}
+
+impl Pane for HostPane {
+    fn x(&self) -> usize {
+        self.get_x()
+    }
+    fn y(&self) -> usize {
+        self.get_y()
+    }
+    fn rows(&self) -> usize {
+        self.get_rows()
+    }
+    fn cols(&self) -> usize {
+        self.get_columns()
+    }
+    fn get_content_x(&self) -> usize {
+        self.get_x() + self.content_offset.left
+    }
+    fn get_content_y(&self) -> usize {
+        self.get_y() + self.content_offset.top
+    }
+    fn get_content_columns(&self) -> usize {
+        self.get_columns()
+            .saturating_sub(self.content_offset.left + self.content_offset.right)
+    }
+    fn get_content_rows(&self) -> usize {
+        self.get_rows()
+            .saturating_sub(self.content_offset.top + self.content_offset.bottom)
+    }
+    fn reset_size_and_position_override(&mut self) {
+        self.geom_override = None;
+        self.notify_surface_resize();
+    }
+    fn set_geom(&mut self, position_and_size: PaneGeom) {
+        let is_pinned = self.geom.is_pinned;
+        self.geom = position_and_size;
+        self.geom.is_pinned = is_pinned;
+        self.notify_surface_resize();
+    }
+    fn set_geom_override(&mut self, pane_geom: PaneGeom) {
+        self.geom_override = Some(pane_geom);
+        self.notify_surface_resize();
+    }
+    fn cursor_coordinates(&self, _client_id: Option<ClientId>) -> Option<(usize, usize, bool)> {
+        if self.get_content_rows() < 1 || self.get_content_columns() < 1 {
+            return None;
+        }
+        let Offset { top, left, .. } = self.content_offset;
+        self.surface
+            .cursor()
+            .map(|(x, y)| (x as usize + left, y as usize + top, true))
+    }
+    fn adjust_input_to_terminal(
+        &mut self,
+        key_with_modifier: &Option<KeyWithModifier>,
+        _raw_input_bytes: Vec<u8>,
+        _raw_input_bytes_are_kitty: bool,
+        _client_id: Option<ClientId>,
+    ) -> Option<AdjustedInput> {
+        // Host panes consume input in-process: deliver the key to the surface and
+        // return `None` (nothing is routed to a pty — there isn't one). The Tab's
+        // `PaneId::Host` arm calls this and re-renders regardless.
+        if let Some(key) = key_with_modifier.as_ref() {
+            if let Some(event) = key_with_modifier_to_crossterm(key) {
+                if self.surface.handle_key(event) {
+                    self.should_render = true;
+                }
+            }
+        }
+        None
+    }
+    fn position_and_size(&self) -> PaneGeom {
+        self.geom
+    }
+    fn current_geom(&self) -> PaneGeom {
+        self.geom_override.unwrap_or(self.geom)
+    }
+    fn geom_override(&self) -> Option<PaneGeom> {
+        self.geom_override
+    }
+    fn should_render(&self) -> bool {
+        self.should_render
+    }
+    fn set_should_render(&mut self, should_render: bool) {
+        self.should_render = should_render;
+    }
+    fn selectable(&self) -> bool {
+        self.selectable
+    }
+    fn set_selectable(&mut self, selectable: bool) {
+        self.selectable = selectable;
+    }
+    fn render(
+        &mut self,
+        _client_id: Option<ClientId>,
+    ) -> Result<Option<(Vec<CharacterChunk>, Option<String>, Vec<SixelImageChunk>)>> {
+        if !self.should_render {
+            return Ok(None);
+        }
+        let rows = self.get_content_rows();
+        let cols = self.get_content_columns();
+        if rows < 1 || cols < 1 {
+            return Ok(None);
+        }
+        let area = Rect::new(0, 0, cols as u16, rows as u16);
+        let mut buffer = Buffer::empty(area);
+        self.surface.draw(area, &mut buffer);
+        let chunks = buffer_to_character_chunks(&buffer, self.get_content_x(), self.get_content_y());
+        self.should_render = false;
+        Ok(Some((chunks, None, vec![])))
+    }
+    fn render_frame(
+        &mut self,
+        client_id: ClientId,
+        frame_params: FrameParams,
+        _input_mode: InputMode,
+    ) -> Result<Option<(Vec<CharacterChunk>, Option<String>)>> {
+        if self.borderless {
+            return Ok(None);
+        }
+        let err_context = || format!("failed to render host pane frame for client {client_id}");
+        let frame_geom = self.current_geom();
+        let is_pinned = frame_geom.is_pinned;
+        let mut frame =
+            PaneFrame::new(frame_geom.into(), (0, 0), self.title.clone(), frame_params)
+                .is_pinned(is_pinned);
+        if let Some((frame_color_override, _text)) = self.pane_frame_color_override.as_ref() {
+            frame.override_color(*frame_color_override);
+        }
+        let res = match self.frame.get(&client_id) {
+            Some(last_frame) if last_frame == &frame => None,
+            _ => {
+                let frame_output = frame.render().with_context(err_context)?;
+                self.frame.insert(client_id, frame);
+                Some(frame_output)
+            },
+        };
+        Ok(res)
+    }
+    fn render_fake_cursor(
+        &mut self,
+        _cursor_color: PaletteColor,
+        _text_color: PaletteColor,
+    ) -> Option<String> {
+        None
+    }
+    fn render_terminal_title(&mut self, _input_mode: InputMode) -> String {
+        self.title.clone()
+    }
+    fn update_name(&mut self, name: &str) {
+        self.title = name.to_owned();
+        self.should_render = true;
+    }
+    fn pid(&self) -> PaneId {
+        PaneId::Host(self.pid)
+    }
+    fn reduce_height(&mut self, percent: f64) {
+        if let Some(p) = self.geom.rows.as_percent() {
+            self.geom.rows.set_percent(p - percent);
+            self.notify_surface_resize();
+        }
+    }
+    fn increase_height(&mut self, percent: f64) {
+        if let Some(p) = self.geom.rows.as_percent() {
+            self.geom.rows.set_percent(p + percent);
+            self.notify_surface_resize();
+        }
+    }
+    fn reduce_width(&mut self, percent: f64) {
+        if let Some(p) = self.geom.cols.as_percent() {
+            self.geom.cols.set_percent(p - percent);
+            self.notify_surface_resize();
+        }
+    }
+    fn increase_width(&mut self, percent: f64) {
+        if let Some(p) = self.geom.cols.as_percent() {
+            self.geom.cols.set_percent(p + percent);
+            self.notify_surface_resize();
+        }
+    }
+    fn push_down(&mut self, count: usize) {
+        self.geom.y += count;
+        self.should_render = true;
+    }
+    fn push_right(&mut self, count: usize) {
+        self.geom.x += count;
+        self.should_render = true;
+    }
+    fn pull_left(&mut self, count: usize) {
+        self.geom.x = self.geom.x.saturating_sub(count);
+        self.should_render = true;
+    }
+    fn pull_up(&mut self, count: usize) {
+        self.geom.y = self.geom.y.saturating_sub(count);
+        self.should_render = true;
+    }
+    fn clear_screen(&mut self) {
+        self.should_render = true;
+    }
+    fn scroll_up(&mut self, _count: usize, _client_id: ClientId) {}
+    fn scroll_down(&mut self, _count: usize, _client_id: ClientId) {}
+    fn clear_scroll(&mut self) {}
+    fn is_scrolled(&self) -> bool {
+        false
+    }
+    fn active_at(&self) -> Instant {
+        self.active_at
+    }
+    fn set_active_at(&mut self, instant: Instant) {
+        self.active_at = instant;
+    }
+    fn set_frame(&mut self, _frame: bool) {}
+    fn set_content_offset(&mut self, offset: Offset) {
+        self.content_offset = offset;
+        self.notify_surface_resize();
+    }
+    fn get_content_offset(&self) -> Offset {
+        self.content_offset
+    }
+    fn store_pane_name(&mut self) {}
+    fn load_pane_name(&mut self) {}
+    fn set_borderless(&mut self, borderless: bool) {
+        self.borderless = borderless;
+    }
+    fn borderless(&self) -> bool {
+        self.borderless
+    }
+    fn set_exclude_from_sync(&mut self, exclude_from_sync: bool) {
+        self.exclude_from_sync = exclude_from_sync;
+    }
+    fn exclude_from_sync(&self) -> bool {
+        self.exclude_from_sync
+    }
+    fn focus_event(&self) -> Option<String> {
+        None
+    }
+    fn set_focused(&mut self, focused: bool) {
+        self.surface.set_focused(focused);
+        self.should_render = true;
+    }
+    fn add_red_pane_frame_color_override(&mut self, error_text: Option<String>) {
+        self.pane_frame_color_override =
+            Some((self.style.colors.exit_code_error.base, error_text));
+    }
+    fn clear_pane_frame_color_override(&mut self, _client_id: Option<ClientId>) {
+        self.pane_frame_color_override = None;
+    }
+    fn frame_color_override(&self) -> Option<PaletteColor> {
+        self.pane_frame_color_override
+            .as_ref()
+            .map(|(color, _text)| *color)
+    }
+    fn invoked_with(&self) -> &Option<Run> {
+        &self.invoked_with
+    }
+    fn set_title(&mut self, title: String) {
+        self.title = title;
+    }
+    fn current_title(&self) -> String {
+        self.title.clone()
+    }
+    fn custom_title(&self) -> Option<String> {
+        None
+    }
+    fn set_should_be_suppressed(&mut self, _should_be_suppressed: bool) {}
+    fn pane_contents(
+        &self,
+        _client_id: Option<ClientId>,
+        _get_full_scrollback: bool,
+        _max_scrollback_lines: Option<usize>,
+    ) -> PaneContents {
+        PaneContents::default()
+    }
+    fn relative_position(&self, position_on_screen: &Position) -> Position {
+        position_on_screen.relative_to(self.get_content_y(), self.get_content_x())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::style::Stylize;
+    use ratatui::text::Line;
+    use ratatui::widgets::Widget;
+
+    #[test]
+    fn converter_emits_one_chunk_per_row_at_content_origin() {
+        let area = Rect::new(0, 0, 4, 3);
+        let buffer = Buffer::empty(area);
+        let chunks = buffer_to_character_chunks(&buffer, 10, 5);
+        assert_eq!(chunks.len(), 3, "one chunk per row");
+        for (row, chunk) in chunks.iter().enumerate() {
+            assert_eq!(chunk.x, 10, "chunk x is the content x");
+            assert_eq!(chunk.y, 5 + row, "chunk y is content y + row index");
+            assert_eq!(chunk.terminal_characters.len(), 4, "one cell per column");
+        }
+    }
+
+    #[test]
+    fn converter_carries_text_and_default_styling() {
+        let area = Rect::new(0, 0, 5, 1);
+        let mut buffer = Buffer::empty(area);
+        Line::from("hi").render(area, &mut buffer);
+        let chunks = buffer_to_character_chunks(&buffer, 0, 0);
+        let row: String = chunks[0]
+            .terminal_characters
+            .iter()
+            .map(|c| c.character)
+            .collect();
+        assert_eq!(row, "hi   ", "text then padding to the buffer width");
+    }
+
+    #[test]
+    fn converter_maps_colors_and_modifiers() {
+        let area = Rect::new(0, 0, 1, 1);
+        let mut buffer = Buffer::empty(area);
+        // A bold red-on-blue 'X'.
+        Line::from("X".red().on_blue().bold()).render(area, &mut buffer);
+        let cell = &chunks_first_char(&buffer);
+        assert_eq!(cell.character, 'X');
+        assert_eq!(cell.styles.foreground, Some(AnsiCode::NamedColor(NamedColor::Red)));
+        assert_eq!(cell.styles.background, Some(AnsiCode::NamedColor(NamedColor::Blue)));
+        assert_eq!(cell.styles.bold, Some(AnsiCode::On));
+        assert_eq!(cell.styles.italic, None);
+    }
+
+    fn chunks_first_char(buffer: &Buffer) -> TerminalCharacter {
+        let chunks = buffer_to_character_chunks(buffer, 0, 0);
+        chunks[0].terminal_characters[0].clone()
+    }
+
+    #[test]
+    fn rgb_and_indexed_colors_round_trip() {
+        assert_eq!(color_to_ansi(Color::Rgb(1, 2, 3)), Some(AnsiCode::RgbCode((1, 2, 3))));
+        assert_eq!(color_to_ansi(Color::Indexed(200)), Some(AnsiCode::ColorIndex(200)));
+        assert_eq!(color_to_ansi(Color::Reset), Some(AnsiCode::Reset));
+        // ratatui Gray => ANSI white(7); White => bright white(15).
+        assert_eq!(color_to_ansi(Color::Gray), Some(AnsiCode::NamedColor(NamedColor::White)));
+        assert_eq!(
+            color_to_ansi(Color::White),
+            Some(AnsiCode::NamedColor(NamedColor::BrightWhite))
+        );
+    }
+
+    #[test]
+    fn key_conversion_covers_chars_arrows_and_modifiers() {
+        let ctrl_c = KeyWithModifier::new(BareKey::Char('c')).with_ctrl_modifier();
+        let event = key_with_modifier_to_crossterm(&ctrl_c).expect("ctrl-c maps");
+        assert_eq!(event.code, KeyCode::Char('c'));
+        assert!(event.modifiers.contains(KeyModifiers::CONTROL));
+
+        let up = KeyWithModifier::new(BareKey::Up);
+        assert_eq!(
+            key_with_modifier_to_crossterm(&up).map(|e| e.code),
+            Some(KeyCode::Up)
+        );
+    }
+}

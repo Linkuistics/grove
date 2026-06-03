@@ -110,6 +110,18 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
     // zellij sets this once per process before starting the server; a second set
     // (it is a `OnceCell`) would be a bug, so ignore the already-set Err.
     let _ = trellis::consts::DEBUG_MODE.set(inv.debug);
+
+    // Register grove's host surface (ADR-0021 native-pane seam; leaf 020). The
+    // trellis server takes this factory once, when the first tab's layout is
+    // applied, and injects it as a `HostPane` — grove's ratatui drawn in-process
+    // and composited as a real pane, no proxy socket, no WASM. For 020 the
+    // surface is a trivial render+input prover (a keypress counter); leaf 030
+    // swaps in the real v1 dashboard surface. This must happen on the `--server`
+    // path because the host pane renders inside the server daemon (Evidence #3).
+    trellis_server::panes::host_pane::register_host_surface(Box::new(|| {
+        Box::new(host_surface::CounterSurface::default())
+    }));
+
     let os_input =
         get_server_os_input().map_err(|e| anyhow::anyhow!("opening the trellis server: {e}"))?;
     // Returns `()`; it owns the process until the session exits.
@@ -180,6 +192,68 @@ fn client_cli_args(session: &str) -> CliArgs {
 fn boot_framework() {
     trellis::logging::configure_logger();
     trellis::consts::create_config_and_cache_folders();
+}
+
+/// grove's host surface for leaf 020 — the trivial render+input prover that runs
+/// through the trellis native-pane seam ([`trellis_server::panes::host_pane`]).
+/// It draws a keypress counter with ratatui and increments on every key, proving
+/// a grove-drawn ratatui surface renders as a real trellis pane and reacts to
+/// input in-process. Leaf 030 replaces it with the ported v1 dashboard.
+mod host_surface {
+    use ratatui::buffer::Buffer;
+    use ratatui::crossterm::event::KeyEvent;
+    use ratatui::layout::Rect;
+    use ratatui::style::Stylize;
+    use ratatui::text::{Line, Text};
+    use ratatui::widgets::{Paragraph, Widget, Wrap};
+
+    use trellis_server::panes::host_pane::HostSurface;
+
+    /// A self-drawing keypress counter. State lives here, in the server daemon.
+    #[derive(Default)]
+    pub struct CounterSurface {
+        keypresses: u64,
+        last_key: Option<String>,
+        focused: bool,
+        cols: u16,
+        rows: u16,
+    }
+
+    impl HostSurface for CounterSurface {
+        fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+            let lines = vec![
+                Line::from("grove · native trellis pane".bold()),
+                Line::from(""),
+                Line::from(format!("keypresses: {}", self.keypresses).cyan()),
+                Line::from(format!(
+                    "last key:   {}",
+                    self.last_key.as_deref().unwrap_or("—")
+                )),
+                Line::from(format!("focused:    {}", self.focused)),
+                Line::from(format!("content:    {}×{}", self.cols, self.rows)),
+                Line::from(""),
+                Line::from("press any key to count".dim()),
+            ];
+            Paragraph::new(Text::from(lines))
+                .wrap(Wrap { trim: false })
+                .render(area, buf);
+        }
+
+        fn handle_key(&mut self, key: KeyEvent) -> bool {
+            self.keypresses += 1;
+            self.last_key = Some(format!("{:?}", key.code));
+            true
+        }
+
+        fn resize(&mut self, cols: u16, rows: u16) {
+            self.cols = cols;
+            self.rows = rows;
+        }
+
+        fn set_focused(&mut self, focused: bool) {
+            self.focused = focused;
+        }
+    }
 }
 
 #[cfg(test)]

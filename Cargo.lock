@@ -4519,6 +4519,7 @@ dependencies = [
  "num_cpus",
  "once_cell",
  "prost",
+ "ratatui",
  "regex",
  "semver 0.11.0",
  "serde",

@@ -87,21 +87,38 @@ impl ActivePanes {
         }
     }
     fn unfocus_pane(&self, pane_id: PaneId, panes: &mut BTreeMap<PaneId, Box<dyn Pane>>) {
-        if let PaneId::Terminal(terminal_id) = pane_id {
-            if let Some(focus_event) = panes.get(&pane_id).and_then(|p| p.unfocus_event()) {
-                let _ = self
-                    .os_api
-                    .write_to_tty_stdin(terminal_id, focus_event.as_bytes());
-            }
+        match pane_id {
+            PaneId::Terminal(terminal_id) => {
+                if let Some(focus_event) = panes.get(&pane_id).and_then(|p| p.unfocus_event()) {
+                    let _ = self
+                        .os_api
+                        .write_to_tty_stdin(terminal_id, focus_event.as_bytes());
+                }
+            },
+            // Host panes (ADR-0021) learn focus in-process so their surface can react.
+            PaneId::Host(_) => {
+                if let Some(pane) = panes.get_mut(&pane_id) {
+                    pane.set_focused(false);
+                }
+            },
+            PaneId::Plugin(_) => {},
         }
     }
     fn focus_pane(&self, pane_id: PaneId, panes: &mut BTreeMap<PaneId, Box<dyn Pane>>) {
-        if let PaneId::Terminal(terminal_id) = pane_id {
-            if let Some(focus_event) = panes.get(&pane_id).and_then(|p| p.focus_event()) {
-                let _ = self
-                    .os_api
-                    .write_to_tty_stdin(terminal_id, focus_event.as_bytes());
-            }
+        match pane_id {
+            PaneId::Terminal(terminal_id) => {
+                if let Some(focus_event) = panes.get(&pane_id).and_then(|p| p.focus_event()) {
+                    let _ = self
+                        .os_api
+                        .write_to_tty_stdin(terminal_id, focus_event.as_bytes());
+                }
+            },
+            PaneId::Host(_) => {
+                if let Some(pane) = panes.get_mut(&pane_id) {
+                    pane.set_focused(true);
+                }
+            },
+            PaneId::Plugin(_) => {},
         }
     }
     pub fn pane_id_is_focused(&self, pane_id: &PaneId) -> bool {

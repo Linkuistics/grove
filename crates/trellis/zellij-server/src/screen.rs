@@ -2263,12 +2263,12 @@ impl Screen {
                     // the app emitted while waiting is replayed.
                     self.resume_pane_after_forward(pane_id, payload)?;
                 },
-                PaneId::Plugin(_) => {
-                    // Plugin panes do not issue whitelisted host queries;
+                PaneId::Plugin(_) | PaneId::Host(_) => {
+                    // Plugin and Host panes do not issue whitelisted host queries;
                     // if we reach here the mapping was populated
                     // erroneously. Drop the reply.
                     log::warn!(
-                        "Discarding host reply for plugin pane (token={}); plugins do not forward CSI/OSC queries",
+                        "Discarding host reply for plugin/host pane (token={}); they do not forward CSI/OSC queries",
                         token
                     );
                 },
@@ -2303,8 +2303,8 @@ impl Screen {
     ) -> Result<()> {
         let terminal_id = match pane_id {
             PaneId::Terminal(id) => id,
-            PaneId::Plugin(_) => {
-                // Plugin panes do not forward queries — dropping is
+            PaneId::Plugin(_) | PaneId::Host(_) => {
+                // Plugin and Host panes do not forward queries — dropping is
                 // the correct behaviour matching the existing
                 // forwarding path's plugin-pane guard.
                 return Ok(());
@@ -3022,6 +3022,20 @@ impl Screen {
             // this means this is a new client and we need to add it to our state properly
             self.add_client(client_id, is_web_client)
                 .with_context(err_context)?;
+        }
+
+        // grove (ADR-0021): inject the host-rendered native pane into the first
+        // tab whose layout is applied. `take_host_surface` is a one-shot — it
+        // yields the surface once (and only if the host registered a factory on
+        // the `--server` path), so exactly one host pane is created per session
+        // and stock trellis sessions are unaffected.
+        if let Some(surface) = crate::panes::host_pane::take_host_surface() {
+            if let Some(tab) = self.tabs.get_mut(&tab_id) {
+                tab.inject_host_pane(surface, client_id)
+                    .with_context(err_context)?;
+                tab.resize_whole_tab(self.size).with_context(err_context)?;
+                tab.set_force_render();
+            }
         }
 
         self.log_and_report_session_state()
@@ -5298,9 +5312,9 @@ impl Screen {
                     let get_full_scrollback = scrollback.is_some();
                     let max_lines = scrollback.and_then(|n| if n == 0 { None } else { Some(n) });
 
-                    // For plugin panes, use a regular client_id; for terminal panes, None is fine
+                    // For plugin/host panes, use a regular client_id; for terminal panes, None is fine
                     let query_client_id = match server_pane_id {
-                        PaneId::Plugin(_) => regular_client_id,
+                        PaneId::Plugin(_) | PaneId::Host(_) => regular_client_id,
                         PaneId::Terminal(_) => None,
                     };
                     let contents = if ansi {

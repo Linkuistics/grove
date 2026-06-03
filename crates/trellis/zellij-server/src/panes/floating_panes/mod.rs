@@ -416,7 +416,7 @@ impl FloatingPanes {
                         );
                     }
                 },
-                PaneId::Plugin(_) => {
+                PaneId::Plugin(_) | PaneId::Host(_) => {
                     for client_id in &connected_clients {
                         output.add_pane_contents(
                             &[*client_id],

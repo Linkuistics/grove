@@ -27,6 +27,13 @@ lazy_static = { workspace = true }
 log = { workspace = true }
 notify-debouncer-full = { workspace = true }
 prost = { workspace = true }
+# Host-rendered native panes (grove's third PaneId kind) draw into an off-screen
+# ratatui `Buffer`; the host-pane converter turns that into `CharacterChunk`s. The
+# `crossterm` feature is kept so the host-surface seam can hand the host real
+# `crossterm` `KeyEvent`s (grove's surfaces are crossterm-modelled) using exactly
+# the crossterm version ratatui pins — avoiding a second, conflicting crossterm.
+# Other backends are off; this crate never drives a terminal through ratatui.
+ratatui = { version = "0.29", default-features = false, features = ["crossterm"] }
 regex = { workspace = true }
 semver = { version = "0.11.0", default-features = false }
 serde = { workspace = true }

@@ -633,6 +633,7 @@ impl ClientMetadata {
         match self.pane_id {
             PaneId::Terminal(terminal_id) => format!("terminal_{}", terminal_id),
             PaneId::Plugin(plugin_id) => format!("plugin_{}", plugin_id),
+            PaneId::Host(host_id) => format!("host_{}", host_id),
         }
     }
     pub fn stringify_command(&self, editor: &Option<PathBuf>) -> String {

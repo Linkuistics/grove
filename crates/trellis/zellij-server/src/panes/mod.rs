@@ -8,6 +8,7 @@ pub mod terminal_character;
 
 mod active_panes;
 pub mod floating_panes;
+pub mod host_pane;
 mod plugin_pane;
 mod search;
 pub mod terminal_pane;

@@ -89,6 +89,13 @@ impl AnsiEncoding {
 pub enum PaneId {
     Terminal(u32),
     Plugin(u32), // FIXME: Drop the trait object, make this a wrapper for the struct?
+    // grove's third pane kind (ADR-0021): a *host-rendered* surface. Unlike
+    // `Terminal` (pty-backed) and `Plugin` (wasm-backed), a `Host` pane's content
+    // comes from a host-supplied `HostSurface` drawing into an off-screen ratatui
+    // buffer, composited server-side as a real pane. It has no pty and no wasm
+    // instance, so pty/plugin-thread routing must skip it (see the `Host` arms the
+    // server's `PaneId` matches grew when this variant landed).
+    Host(u32),
 }
 
 // because crate architecture and reasons...
@@ -106,6 +113,14 @@ impl Into<ZellijUtilsPaneId> for PaneId {
         match self {
             PaneId::Terminal(id) => ZellijUtilsPaneId::Terminal(id),
             PaneId::Plugin(id) => ZellijUtilsPaneId::Plugin(id),
+            // `ZellijUtilsPaneId` is the plugin-API/protobuf mirror; it has no
+            // `Host` variant because host panes never cross the plugin wire on
+            // grove's native path (ADR-0021: no wasm plugins there). This arm is
+            // reached only by session-state *reporting* code that walks every
+            // pane; reporting a host pane as a terminal is harmless (it carries no
+            // pty either way) and keeps the conversion total without leaking the
+            // host kind into the wire enum.
+            PaneId::Host(id) => ZellijUtilsPaneId::Terminal(id),
         }
     }
 }
@@ -115,6 +130,7 @@ impl std::fmt::Display for PaneId {
         match self {
             PaneId::Terminal(id) => write!(f, "terminal_{}", id),
             PaneId::Plugin(id) => write!(f, "plugin_{}", id),
+            PaneId::Host(id) => write!(f, "host_{}", id),
         }
     }
 }

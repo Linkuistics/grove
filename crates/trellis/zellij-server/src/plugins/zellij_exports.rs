@@ -4987,6 +4987,8 @@ fn close_multiple_panes(env: &PluginEnv, pane_ids: Vec<PaneId>) {
             PaneId::Plugin(plugin_pane_id) => {
                 close_plugin_pane(env, plugin_pane_id);
             },
+            // Host: no wasm plugin instance; the plugin-thread close path does not apply.
+            PaneId::Host(_) => {},
         }
     }
 }

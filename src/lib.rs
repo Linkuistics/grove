@@ -2,6 +2,7 @@ pub mod brief_chain;
 pub mod cli;
 pub mod extract;
 pub mod fetch;
+pub mod fleet;
 pub mod harness;
 pub mod harness_stamp;
 pub mod inboxes;

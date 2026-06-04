@@ -42,3 +42,12 @@ Depends on `020` (data) and `030` (live updates). Precedes `050` (which consumes
 repo-carrying selection). Confirm whether the controller→nav feed is a pipe/string
 (WASM-era) or a native call post-ADR-0020 and extend accordingly — check the current
 nav feed path before changing the wire shape.
+
+**Document the fleet manifest in the README here.** Leaf `010` built the
+`fleet::resolve` discovery layer and the `fleet.toml` format (`repos` +
+`scan_roots` at `~/.config/grove/fleet.toml`; see `src/fleet.rs` module docs),
+but deferred the *user-facing* README doc because no running command consumed it
+yet (`grove tui` still resolves a single repo until `020`/this leaf wire it).
+When the fleet renders here, add the manifest format + `--repo` flag to the
+`grove tui` section of `README.md` (010 task note: "document the file format
+wherever the TUI/config is documented").

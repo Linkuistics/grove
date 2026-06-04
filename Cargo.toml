@@ -70,6 +70,11 @@ sha2 = "0.10"
 tar = "0.4"
 tempfile = "3.10"
 thiserror = "1.0"
+# Parse the fleet manifest (`~/.config/grove/fleet.toml`) — the user-facing,
+# hand-edited config listing explicit `repos` and `scan_roots` for the
+# multi-repo fleet view (ADR-0025, leaf 070/010). Below the presentation
+# boundary; the manifest is a plain, walk-away-legible artifact.
+toml = "0.8"
 ureq = { version = "2.10", features = ["json"] }
 
 # The grove→trellis framework seam (ADR-0020/0021). `trellis` is grove's hard fork

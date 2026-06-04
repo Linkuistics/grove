@@ -182,9 +182,11 @@ A single zellij **tab** holding one grove's [[working set]], with a "home" tab f
 TUI-embedding. **Then ADR-0022:** the working set is no longer a tab's contents — it
 fills the **content region** beside the constant nav when its grove is selected,
 and is **parked alive off-screen** (not closed) when another grove is selected. The
-pane composition + toggle/responsive **UX** below is unchanged. Live leaf:
-`150-working-set`.)*
-The set of panes shown for one grove inside its [[workspace]] tab: the [[harness pane]] + a per-grove [[detail proxy]] (task tree / inbox / capture) + a plain terminal + yazi (files) + lazygit/lazyjj (vcs) (ADR-0018, ADR-0019). Panes are individually toggleable and the layout is responsive — pack on a large display, degrade gracefully to a laptop screen. **First-time creation is the [[nav plugin]]'s job** (ADR-0019: the nav opens the tab itself via `new_tabs_with_layout`, fed the grove's `grove do` command + cwd over the forward `zellij pipe`) — *not* the controller via `zellij action`, since the `cli_pipe_output` back-channel that would have let the nav ask the controller to open is unworkable. Toggling/focusing within the set is also driven from the nav.
+pane composition + toggle/responsive **UX** below is unchanged. Built by
+`150-working-set` (done): variable-membership content region + per-pane park-alive
+toggles + the responsive tiers, all on ADR-0023's suppress/restore + `replace_pane`
+primitives.)*
+The set of panes shown for one grove inside its [[workspace]] tab: the [[harness pane]] + a per-grove [[detail proxy]] (task tree / inbox / capture) + a plain terminal + yazi (files) + lazygit/lazyjj (vcs) (ADR-0018, ADR-0019). Panes are individually toggleable (park-alive suppress/restore) and the layout is **responsive in two tiers**, chosen from the content region's column width at mount (grove's breakpoint, ~220 cols): the **wide** tier shows every member in a **harness-dominant** arrangement — the harness is one wide column (largest share) and detail/term/yazi/vcs **stack vertically in a side column** beside it; the **laptop** tier defaults to harness + detail visible, the aux tools parked-alive and toggled on demand. Two tiers, not a continuum; the user always toggles from the default. **First-time creation is the [[nav plugin]]'s job** (ADR-0019: the nav opens the tab itself via `new_tabs_with_layout`, fed the grove's `grove do` command + cwd over the forward `zellij pipe`) — *not* the controller via `zellij action`, since the `cli_pipe_output` back-channel that would have let the nav ask the controller to open is unworkable. Toggling/focusing within the set is also driven from the nav.
 
 **Nav plugin** (`grove-nav`):
 *(Realisation superseded by the [[trellis framework]] fork — ADR-0020: the nav is

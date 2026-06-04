@@ -748,6 +748,22 @@ pub fn get_next_terminal_position(
     tiled_panes_count + floating_panes_count + 1
 }
 
+/// Split a content-region pane list into the nav target and the ordered content
+/// slots (020-aux-tool-panes). The leftmost non-`grove-whichkey` pane is the nav;
+/// every pane after it, in `x` order, is a content slot (harness, detail, then the
+/// aux tools). The full-width whichkey bar shares `x == 0` with the nav, so it is
+/// excluded by title first. Pure over the `(id, x, title)` triples, so the slot
+/// role assignment is unit-testable without a live tab.
+pub(crate) fn nav_and_content_slots(
+    mut panes: Vec<(PaneId, usize, String)>,
+) -> (Option<PaneId>, Vec<PaneId>) {
+    panes.retain(|(_, _, title)| title != "grove-whichkey");
+    panes.sort_by_key(|(_, x, _)| *x);
+    let mut ids = panes.into_iter().map(|(id, _, _)| id);
+    let nav = ids.next();
+    (nav, ids.collect())
+}
+
 impl Tab {
     // FIXME: Still too many arguments for clippy to be happy...
     #[allow(clippy::too_many_arguments)]
@@ -5723,14 +5739,14 @@ impl Tab {
     /// content-swap bookkeeping.
     ///
     /// grove's session layout is one tab of a fixed nav pane (leftmost) beside a
-    /// content region that is itself a **pair**: a primary slot (the harness) and a
-    /// secondary slot (the per-grove detail). The host surface adopts the **nav**
-    /// pane — the leftmost by `x` — via
+    /// content region of **N slots** (the [[working set]]: harness, detail, terminal,
+    /// yazi, vcs — 020-aux-tool-panes). The host surface adopts the **nav** pane —
+    /// the leftmost by `x` — via
     /// [`close_pane_and_replace_with_other_pane`](Self::close_pane_and_replace_with_other_pane)
     /// (inheriting its geometry + focus, closing its placeholder pty). The remaining
-    /// panes, in `x` order, are the primary slot and the optional secondary slot:
-    /// `Ok(Some((primary, secondary)))`, where `secondary` is `None` for the 010
-    /// single-content-slot layout.
+    /// panes, in `x` order, are the content slots: `Ok(Some(slots))` with the harness
+    /// slot first, then detail, then the aux slots (a two-slot layout — 130's
+    /// harness+detail pair — yields exactly two).
     ///
     /// Degenerate fallbacks (not grove's path): a **single**-pane layout makes the
     /// host pane fill the tab (the pre-content-swap 120-native-nav behaviour) and an
@@ -5739,7 +5755,7 @@ impl Tab {
         &mut self,
         surface: Box<dyn crate::panes::host_pane::HostSurface>,
         client_id: ClientId,
-    ) -> Result<Option<(PaneId, Option<PaneId>)>> {
+    ) -> Result<Option<Vec<PaneId>>> {
         let pid = crate::panes::host_pane::next_host_pane_id();
         // The host pane's `HostDriver` rides on this tab's bus senders, which only
         // exist on the screen thread — hence the surface is driven from here, not
@@ -5765,21 +5781,17 @@ impl Tab {
             to_server,
             client_id,
         );
-        // Identify the nav target (leftmost pane) and the content slots (the panes
-        // to its right, in `x` order: primary then secondary). Sorting by `x` makes
-        // the roles independent of pane-map iteration order. The full-width
-        // `grove-whichkey` bar (injected first, by [`inject_whichkey_pane`]) shares
-        // `x == 0` with the nav, so it is excluded by title here — otherwise it
+        // Identify the nav target (leftmost pane) and the content slots (every pane
+        // to its right, in `x` order: harness, detail, then the aux tools). Sorting
+        // by `x` makes the roles independent of pane-map iteration order. The
+        // full-width `grove-whichkey` bar (injected first, by [`inject_whichkey_pane`])
+        // shares `x == 0` with the nav, so it is excluded by title — otherwise it
         // could be mistaken for the nav or a content slot.
-        let mut panes_by_x: Vec<(PaneId, usize)> = self
+        let panes: Vec<(PaneId, usize, String)> = self
             .get_tiled_panes()
-            .filter(|(_, pane)| pane.current_title() != "grove-whichkey")
-            .map(|(id, pane)| (*id, pane.x()))
+            .map(|(id, pane)| (*id, pane.x(), pane.current_title()))
             .collect();
-        panes_by_x.sort_by_key(|(_, x)| *x);
-        let nav_target = panes_by_x.first().map(|(id, _)| *id);
-        let primary_slot = panes_by_x.get(1).map(|(id, _)| *id);
-        let secondary_slot = panes_by_x.get(2).map(|(id, _)| *id);
+        let (nav_target, content_slots) = nav_and_content_slots(panes);
         match nav_target {
             Some(nav_pane) => {
                 self.close_pane_and_replace_with_other_pane(nav_pane, Box::new(host_pane), None);
@@ -5787,7 +5799,7 @@ impl Tab {
                 // placeholder; focus explicitly too so the nav reliably receives
                 // input regardless of focus timing (mirrors `add_tiled_pane`).
                 self.tiled_panes.focus_pane(PaneId::Host(pid), client_id);
-                Ok(primary_slot.map(|primary| (primary, secondary_slot)))
+                Ok((!content_slots.is_empty()).then_some(content_slots))
             },
             None => {
                 self.add_tiled_pane(

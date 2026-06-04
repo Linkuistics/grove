@@ -2821,6 +2821,39 @@ mod tests {
         assert!(t <= Duration::from_millis(200));
         assert!(t >= Duration::from_millis(10));
     }
+
+    #[test]
+    fn vcs_tool_defaults_to_lazygit_for_a_plain_git_worktree() {
+        // 020-aux-tool-panes: the vcs pane is not hard-wired to git — but a
+        // worktree with no `.jj/` is the default (lazygit) case.
+        let tmp = TempDir::new().unwrap();
+        assert_eq!(vcs_tool(tmp.path()), "lazygit");
+    }
+
+    #[test]
+    fn vcs_tool_selects_lazyjj_for_a_jj_worktree() {
+        // The detection seam (brief): a `.jj/` present routes to lazyjj, so the
+        // tool lands later as a one-point change without re-touching the spawn.
+        let tmp = TempDir::new().unwrap();
+        fs::create_dir(tmp.path().join(".jj")).unwrap();
+        assert_eq!(vcs_tool(tmp.path()), "lazyjj");
+    }
+
+    #[test]
+    fn on_path_finds_a_binary_in_a_path_dir() {
+        // A file present in one of the PATH dirs resolves to its full path; a
+        // name absent from every PATH dir resolves to `None` (the graceful-
+        // fallback trigger for an uninstalled aux tool).
+        let tmp = TempDir::new().unwrap();
+        let bin = tmp.path().join("grove-fake-tool");
+        fs::write(&bin, "#!/bin/sh\n").unwrap();
+        let found = on_path("grove-fake-tool", &std::ffi::OsString::from(tmp.path()));
+        assert_eq!(found.as_deref(), Some(bin.as_path()));
+        assert_eq!(
+            on_path("grove-definitely-absent-xyz", &std::ffi::OsString::from(tmp.path())),
+            None
+        );
+    }
 }
 
 // ===========================================================================
@@ -2832,6 +2865,44 @@ mod tests {
 // shell-out writes above are reused *unchanged*. Only the transport is new —
 // instead of a crossterm tty loop (`run`) or a proxy socket (`Controller`),
 // the dashboard draws into an off-screen `ratatui` buffer that trellis blits
+/// The VCS TUI to embed for `worktree`'s [[working set]] (020-aux-tool-panes):
+/// **lazyjj** for a Jujutsu worktree (a `.jj/` is present), else **lazygit**.
+/// This single indirection is the seam the brief asks for — default lazygit now,
+/// lazyjj a one-point change later — so the aux-spawn path never branches on the
+/// VCS itself. Pure over the worktree path (no shell-out), so it is unit-testable
+/// and sits below the ADR-0013 presentation boundary.
+//
+// Consumed by the `trellis-seam`-gated `mod native` (the aux-spawn path) and by
+// the always-on unit tests; without the feature only the tests use it, so the
+// dead-code lint is silenced for that build.
+#[cfg_attr(not(feature = "trellis-seam"), allow(dead_code))]
+fn vcs_tool(worktree: &Path) -> &'static str {
+    if worktree.join(".jj").is_dir() {
+        "lazyjj"
+    } else {
+        "lazygit"
+    }
+}
+
+/// Resolve `bin` against the `PATH`-style search list `path`, returning the first
+/// matching existing file. A bare name is looked up in each `PATH` entry; a name
+/// containing `/` is treated as a path and checked directly. `None` means "not
+/// found on `PATH`" — the signal the aux-spawn path uses to substitute a graceful
+/// in-pane message rather than failing the whole working-set mount when an aux
+/// tool (yazi/lazygit) is not installed. Pure over `(bin, path)`, so it is
+/// testable without touching the process environment.
+#[cfg_attr(not(feature = "trellis-seam"), allow(dead_code))]
+fn on_path(bin: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
+    if bin.contains('/') {
+        let p = PathBuf::from(bin);
+        return p.is_file().then_some(p);
+    }
+    std::env::split_paths(path).find_map(|dir| {
+        let full = dir.join(bin);
+        full.is_file().then_some(full)
+    })
+}
+
 // as a real pane, receives keys in-process, drives tabs/panes by direct
 // `HostDriver` call, and wakes fs-watch redraws via a tick instruction.
 //
@@ -2843,7 +2914,7 @@ mod tests {
 #[cfg(feature = "trellis-seam")]
 mod native {
     use std::collections::BTreeSet;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::{mpsc, Mutex};
 
     use anyhow::{Context, Result};
@@ -2858,14 +2929,15 @@ mod native {
     use ratatui::Terminal;
     use tempfile::NamedTempFile;
 
+    use trellis::input::command::RunCommand;
     use trellis_server::panes::host_pane::{
         register_keyed_host_surface, HostDriver, HostSurface,
     };
 
     use super::{
-        current_grove_name, decide_observation_edit, footer_line, handle_key, render,
-        shell_capture, shell_drain, short_err, App, CaptureField, CaptureModal, EditOutcome,
-        PendingAction, RepoView, DEBOUNCE,
+        current_grove_name, decide_observation_edit, footer_line, handle_key, on_path, render,
+        shell_capture, shell_drain, short_err, vcs_tool, App, CaptureField, CaptureModal,
+        EditOutcome, PendingAction, RepoView, DEBOUNCE,
     };
 
     // -----------------------------------------------------------------------
@@ -3275,12 +3347,21 @@ mod native {
                     };
                     let grove_bin =
                         std::env::current_exe().unwrap_or_else(|_| PathBuf::from("grove"));
+                    // The aux working-set members (terminal/yazi/vcs) run in the grove's
+                    // worktree cwd (020-aux-tool-panes), so yazi/lazygit act on the
+                    // grove's tree. Passed every swap; the screen thread only spawns them
+                    // on first-open (a re-selection restores the parked-alive set).
+                    let worktree = crate::repo::grove_worktree(&repo, &name);
+                    let shell = std::env::var_os("SHELL").unwrap_or_else(|| "/bin/sh".into());
+                    let path = std::env::var_os("PATH").unwrap_or_default();
+                    let aux = aux_members(&worktree, &shell, &path);
                     driver.swap_content(
                         &name,
                         repo,
                         grove_bin,
                         vec!["do".to_string(), name.clone()],
                         secondary_surface_key,
+                        aux,
                     );
                     if self.open_harnesses.insert(name.clone()) {
                         self.app.status = Some(format!("opened harness: {name}"));
@@ -3457,6 +3538,52 @@ mod native {
     /// it never collides with the opaque grove-name key the swap uses for the pair.
     fn detail_surface_key(grove: &str) -> String {
         format!("grove-detail:{grove}")
+    }
+
+    /// Build the **aux working-set members** (020-aux-tool-panes) for `worktree`: a
+    /// plain **terminal** (`shell`), **yazi** (files), and the **vcs** TUI (lazygit /
+    /// lazyjj via [`vcs_tool`]), in that order — matching the `grove-term`/`grove-yazi`/
+    /// `grove-vcs` slot order in `GROVE_TUI_LAYOUT`, since `swap_content` maps the aux
+    /// members onto the aux slots positionally. Each runs as a command pane in the
+    /// grove's `worktree` cwd, so yazi/lazygit operate on the grove's tree. A tool not
+    /// found on `path` is replaced by a graceful in-pane message (a held shell printing
+    /// "not installed") rather than failing the whole working-set mount — yazi/lazygit
+    /// are not guaranteed present. The terminal is the user's `shell`, always present,
+    /// so it needs no fallback. `shell`/`path` are passed in (not read from the
+    /// environment here) so the composition is deterministic and unit-testable.
+    fn aux_members(
+        worktree: &Path,
+        shell: &std::ffi::OsStr,
+        path: &std::ffi::OsStr,
+    ) -> Vec<(String, RunCommand)> {
+        let in_worktree = |command: PathBuf, args: Vec<String>| RunCommand {
+            command,
+            args,
+            cwd: Some(worktree.to_path_buf()),
+            // Hold the pane open if the child exits, so a quick failure (or a tool
+            // that exits) shows its output instead of the pane vanishing.
+            hold_on_close: true,
+            ..RunCommand::default()
+        };
+        // A tool resolved on `path`, or a graceful "<bin> not installed" shell message.
+        let tool = |role: &str, bin: &str| -> (String, RunCommand) {
+            let run = match on_path(bin, path) {
+                Some(full) => in_worktree(full, vec![]),
+                None => in_worktree(
+                    PathBuf::from(shell),
+                    vec![
+                        "-c".to_string(),
+                        format!("printf '%s\\n' '{bin} is not installed (not on PATH)'"),
+                    ],
+                ),
+            };
+            (role.to_string(), run)
+        };
+        vec![
+            ("terminal".to_string(), in_worktree(PathBuf::from(shell), vec![])),
+            tool("yazi", "yazi"),
+            tool("vcs", vcs_tool(worktree)),
+        ]
     }
 
     /// Build the per-grove **detail surface** (130-native-detail/020): an `App`
@@ -3718,6 +3845,60 @@ mod native {
             relinquish_whichkey(WhichkeyOwner::Detail);
             let owner = WHICHKEY_LINE.lock().unwrap().as_ref().map(|(o, _)| *o);
             assert_eq!(owner, Some(WhichkeyOwner::Harness), "owner blur → harness");
+        }
+
+        #[test]
+        fn aux_members_compose_terminal_yazi_vcs_in_the_worktree_cwd() {
+            use std::ffi::OsStr;
+            // A worktree with no `.jj/` (vcs → lazygit) and an empty PATH dir (no aux
+            // tool resolves) → every member runs in the worktree cwd, and the unfound
+            // tools fall back to a graceful shell message rather than failing the mount.
+            let tmp = tempfile::tempdir().unwrap();
+            let worktree = tmp.path();
+            let members = aux_members(worktree, OsStr::new("/bin/zsh"), OsStr::new(""));
+
+            let roles: Vec<&str> = members.iter().map(|(r, _)| r.as_str()).collect();
+            assert_eq!(
+                roles,
+                ["terminal", "yazi", "vcs"],
+                "aux members are terminal, yazi, vcs in slot order"
+            );
+            for (_, run) in &members {
+                assert_eq!(
+                    run.cwd.as_deref(),
+                    Some(worktree),
+                    "every aux member runs in the grove's worktree cwd"
+                );
+            }
+            // The terminal is the shell itself; the unfound yazi/vcs fall back to the
+            // shell printing a "not installed" message (graceful, not a failed mount).
+            assert_eq!(members[0].1.command, PathBuf::from("/bin/zsh"));
+            assert!(members[0].1.args.is_empty(), "the terminal is a bare shell");
+            assert_eq!(members[1].1.command, PathBuf::from("/bin/zsh"), "yazi falls back to the shell");
+            assert!(
+                members[1].1.args.last().is_some_and(|a| a.contains("yazi is not installed")),
+                "the yazi fallback prints a graceful message"
+            );
+            assert!(
+                members[2].1.args.last().is_some_and(|a| a.contains("lazygit is not installed")),
+                "the vcs fallback names the resolved tool (lazygit for a git worktree)"
+            );
+        }
+
+        #[test]
+        fn aux_members_resolve_a_present_tool_to_its_full_path() {
+            use std::ffi::OsStr;
+            // With lazygit present on PATH, the vcs member runs that binary directly
+            // (no fallback) — in the worktree cwd, no args.
+            let tmp = tempfile::tempdir().unwrap();
+            let bindir = tmp.path().join("bin");
+            std::fs::create_dir(&bindir).unwrap();
+            std::fs::write(bindir.join("lazygit"), "#!/bin/sh\n").unwrap();
+            let members = aux_members(tmp.path(), OsStr::new("/bin/sh"), bindir.as_os_str());
+
+            let vcs = &members[2].1;
+            assert_eq!(vcs.command, bindir.join("lazygit"), "vcs resolves to the found lazygit");
+            assert!(vcs.args.is_empty(), "a found tool runs with no wrapper args");
         }
     }
 }

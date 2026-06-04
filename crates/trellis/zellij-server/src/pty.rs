@@ -7,7 +7,7 @@ use crate::terminal_bytes::TerminalBytes;
 use crate::{
     panes::PaneId,
     plugins::{DumpSessionLayoutResponse, PluginId, PluginInstruction},
-    screen::{ScreenInstruction, TabOverrideResult},
+    screen::{ScreenInstruction, SpawnedAux, TabOverrideResult},
     session_layout_metadata::SessionLayoutMetadata,
     thread_bus::{Bus, ThreadSenders},
     ClientId, ServerInstruction,
@@ -102,15 +102,18 @@ pub enum PtyInstruction {
         ClientTabIndexOrPaneId,
         Option<NotificationEnd>, // completion signal
     ), // String is an optional pane name
-    /// Spawn the fresh child for a first-time content swap (ADR-0022/0023) and
-    /// round it back to the screen thread as
+    /// Spawn the fresh command members for a first-time content swap (ADR-0022/0023,
+    /// 020-aux-tool-panes) and round them back to the screen thread as
     /// [`ScreenInstruction::ContentSpawned`](crate::screen::ScreenInstruction::ContentSpawned),
-    /// which mounts it into the content slot. The spawn must happen here (the pty
-    /// thread owns child creation); the screen thread cannot block on it.
+    /// which mounts them into their content slots. The spawns must happen here (the
+    /// pty thread owns child creation); the screen thread cannot block on them. The
+    /// primary (`run`) goes to `slot_pid`; each `aux` member `(slot, role, run)` is
+    /// spawned and tagged with its target slot + opaque role for the mount.
     SwapContentSpawn {
         key: String,
         slot_pid: PaneId,
         run: RunCommand,
+        aux: Vec<(PaneId, String, RunCommand)>,
         /// Opaque registry key for the secondary host surface to mount beside the
         /// freshly-spawned primary pane (ADR-0023), or `None` for a primary-only
         /// working set. Pure pass-through — the pty thread never interprets it; it
@@ -463,13 +466,17 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                 key,
                 slot_pid,
                 run,
+                aux,
                 secondary_surface_key,
                 client_id,
             } => {
-                // Spawn the fresh child for a first-time content swap and round it
-                // back to the screen thread, which mounts it into the slot (parking
-                // the displaced occupant). On a spawn failure the slot keeps its
-                // current occupant — the swap is simply a no-op.
+                // Spawn the fresh command members for a first-time content swap (the
+                // primary harness + each aux tool) and round them back to the screen
+                // thread, which mounts each into its slot (parking the displaced
+                // occupant). On the **primary** spawn failing the whole swap is a no-op
+                // (the slots keep their occupants); an **aux** spawn failing is dropped
+                // from the set so the rest of the working set still mounts — a missing
+                // aux tool must not sink the harness (020-aux-tool-panes: graceful aux).
                 let log_key = key.clone();
                 let err_context = || format!("failed to spawn content pane for {log_key:?}");
                 match pty
@@ -480,6 +487,28 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                     .with_context(err_context)
                 {
                     Ok((pid, _starts_held)) => {
+                        let mut spawned_aux = Vec::with_capacity(aux.len());
+                        for (slot, role, aux_run) in aux {
+                            match pty.spawn_terminal(
+                                Some(TerminalAction::RunCommand(aux_run.clone())),
+                                ClientTabIndexOrPaneId::ClientId(client_id),
+                            ) {
+                                Ok((aux_pid, _)) => spawned_aux.push(SpawnedAux {
+                                    slot,
+                                    pid: PaneId::Terminal(aux_pid),
+                                    role,
+                                    run: aux_run,
+                                }),
+                                Err(e) => {
+                                    // Drop just this aux member; keep the rest of the set.
+                                    Err::<(), _>(e)
+                                        .with_context(|| {
+                                            format!("failed to spawn aux pane {role:?} for {log_key:?}")
+                                        })
+                                        .non_fatal();
+                                },
+                            }
+                        }
                         pty.bus
                             .senders
                             .send_to_screen(ScreenInstruction::ContentSpawned {
@@ -487,6 +516,7 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                                 slot_pid,
                                 new_pid: PaneId::Terminal(pid),
                                 run,
+                                aux: spawned_aux,
                                 secondary_surface_key,
                                 client_id,
                             })

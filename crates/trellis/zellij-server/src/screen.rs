@@ -330,30 +330,35 @@ pub enum ScreenInstruction {
     /// Swap the **content region** beside the constant host nav to show the working
     /// set keyed by `key` (ADR-0022/0023). A host surface posts this via
     /// [`HostDriver::swap_content`](crate::panes::host_pane::HostDriver::swap_content).
-    /// The content region is a **pair**: a primary command pane (`run`) and an
-    /// optional secondary host surface (`secondary_surface_key`, taken from the
-    /// keyed registry). The screen thread restores `key`'s parked pair in place, or
-    /// — first time for `key` — spawns `run` and mounts the secondary surface
-    /// (parking the displaced pair alive in `suppressed_panes`). The opaque `key` is
-    /// the host's domain identifier (grove names a grove); trellis never interprets
-    /// it.
+    /// The content region is an **ordered working set** (020-aux-tool-panes): a
+    /// primary command pane (`run`, the harness), an optional secondary host surface
+    /// (`secondary_surface_key`, taken from the keyed registry — the detail), and the
+    /// `aux` command members (terminal/yazi/vcs), each a `(role, RunCommand)` whose
+    /// `role` is the host's opaque member tag. The screen thread restores `key`'s
+    /// parked **set** in place, or — first time for `key` — spawns the command members
+    /// and mounts the secondary surface (parking the displaced set alive in
+    /// `suppressed_panes`). The opaque `key` is the host's domain identifier (grove
+    /// names a grove); trellis never interprets it or the roles.
     SwapContent {
         key: String,
         run: RunCommand,
         secondary_surface_key: Option<String>,
+        aux: Vec<(String, RunCommand)>,
         client_id: ClientId,
     },
-    /// The pty thread finished spawning `key`'s fresh primary pane (`new_pid`) for a
-    /// first-time [`SwapContent`](Self::SwapContent); mount it into `slot_pid` and —
-    /// if `secondary_surface_key` names a registered surface — mount that into the
-    /// secondary slot, parking the displaced pair. The async sibling of
-    /// `SwapContent`'s synchronous restore path (the spawn must round-trip through
+    /// The pty thread finished spawning `key`'s fresh command members (the primary
+    /// `new_pid` into `slot_pid`, plus each `aux` member into its slot) for a
+    /// first-time [`SwapContent`](Self::SwapContent); mount them and — if
+    /// `secondary_surface_key` names a registered surface — mount that into the
+    /// secondary slot, parking the displaced set. The async sibling of
+    /// `SwapContent`'s synchronous restore path (the spawns must round-trip through
     /// the pty thread).
     ContentSpawned {
         key: String,
         slot_pid: PaneId,
         new_pid: PaneId,
         run: RunCommand,
+        aux: Vec<SpawnedAux>,
         secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
@@ -1443,6 +1448,12 @@ struct ContentSwap {
     /// The pane id currently occupying the **secondary** slot, or `None` for a
     /// primary-only content region (the 010 single-slot layout).
     secondary_slot: Option<PaneId>,
+    /// The pane ids currently occupying the **aux** slots, in layout order — the
+    /// extra [[working set]] members beyond the harness+detail pair (terminal, yazi,
+    /// vcs — 020-aux-tool-panes). Empty for the 130 two-slot layout. Like the primary
+    /// and secondary slots, each entry tracks the *current occupant* of that slot
+    /// geometry, updated as a swap replaces occupants in place.
+    aux_slots: Vec<PaneId>,
     /// key → that key's **ordered working set** (150-working-set/010): the members it
     /// mounts into the content region, each valid whether currently shown or parked
     /// alive. Generalises the original `(primary, secondary)` pair to N members so a
@@ -1471,6 +1482,19 @@ struct ContentMember {
 const ROLE_PRIMARY: &str = "primary";
 /// The role the pair spawn/restore path assigns the detail (secondary) member.
 const ROLE_SECONDARY: &str = "secondary";
+
+/// One freshly-spawned aux [[working set]] member rounding back from the pty thread
+/// (020-aux-tool-panes): its target content `slot` (the placeholder/occupant it
+/// replaces), the spawned child's `pid`, the host's opaque `role` tag, and the
+/// `run` (re-attached to the pane so a later layout op knows its command). Carried
+/// in [`ScreenInstruction::ContentSpawned`].
+#[derive(Debug, Clone)]
+pub struct SpawnedAux {
+    pub slot: PaneId,
+    pub pid: PaneId,
+    pub role: String,
+    pub run: RunCommand,
+}
 
 /// A [`Screen`] holds multiple [`Tab`]s, each one holding multiple [`panes`](crate::client::panes).
 /// It only directly controls which tab is active, delegating the rest to the individual `Tab`.
@@ -3182,15 +3206,23 @@ impl Screen {
             // Initialise the content-swap facility (ADR-0022/0023) when the nav was
             // injected beside the content slots. The slot panes are the layout's
             // placeholder occupants; `mounted: None` marks them the throwaways the
-            // first key mount closes.
-            if let Some((primary_slot, secondary_slot)) = content_slots {
-                self.content_swap = Some(ContentSwap {
-                    tab_id,
-                    primary_slot,
-                    secondary_slot,
-                    sets: HashMap::new(),
-                    mounted: None,
-                });
+            // first key mount closes. The slots are ordered harness, detail, then the
+            // aux tools (020-aux-tool-panes); a 130 two-slot layout yields just the
+            // first two and an empty `aux_slots`.
+            if let Some(slots) = content_slots {
+                let mut slots = slots.into_iter();
+                if let Some(primary_slot) = slots.next() {
+                    let secondary_slot = slots.next();
+                    let aux_slots: Vec<PaneId> = slots.collect();
+                    self.content_swap = Some(ContentSwap {
+                        tab_id,
+                        primary_slot,
+                        secondary_slot,
+                        aux_slots,
+                        sets: HashMap::new(),
+                        mounted: None,
+                    });
+                }
             }
         }
 
@@ -5950,25 +5982,43 @@ pub(crate) fn screen_thread_main(
                 key,
                 run,
                 secondary_surface_key,
+                aux,
                 client_id,
             } => {
-                // The constant-nav content swap (ADR-0022/0023), pair-aware
-                // (130/020): a working set is a primary (harness) pane + an optional
-                // secondary (detail) host surface, parked and restored as a unit.
-                // Decide the plan without holding a borrow across the tab/pty calls.
+                // The constant-nav content swap (ADR-0022/0023), generalised to an
+                // ordered working set (020-aux-tool-panes): a primary (harness) pane,
+                // an optional secondary (detail) host surface, and the aux command
+                // members (terminal/yazi/vcs), each in its own fixed content slot,
+                // parked and restored **as a unit**. This is "the pair, but N" — each
+                // member replaces its slot's occupant 1:1 (`content_restore` /
+                // `suppress_pane_and_replace_with_pid`), the same primitives the pair
+                // used. Decide the plan without holding a borrow across the tab/pty
+                // calls. (A member toggle's hide/show — variable visible count — is a
+                // separate verb; toggle×swap coherence is 030's concern.)
                 enum SwapPlan {
                     Noop,
+                    // (current slot occupant, target member) pairs in slot order —
+                    // element 0 is the primary, so it restores last and takes focus.
                     Restore {
                         tab_id: usize,
-                        primary_slot: PaneId,
-                        secondary_slot: Option<PaneId>,
-                        target_primary: PaneId,
-                        target_secondary: Option<PaneId>,
+                        restores: Vec<(PaneId, PaneId)>,
                     },
+                    // The slots to spawn fresh command members into: the primary slot
+                    // and the aux slots (the detail is a host surface, not spawned).
                     Spawn {
                         primary_slot: PaneId,
+                        aux_slots: Vec<PaneId>,
                     },
                 }
+                // The current content-region occupants in slot order: primary,
+                // optional secondary, then the aux slots. Both the restore mapping and
+                // the spawn target-slot list derive from this.
+                let occupants = |cs: &ContentSwap| -> Vec<PaneId> {
+                    let mut slots = vec![cs.primary_slot];
+                    slots.extend(cs.secondary_slot);
+                    slots.extend(cs.aux_slots.iter().copied());
+                    slots
+                };
                 let plan = match screen.content_swap.as_ref() {
                     None => {
                         log::error!("SwapContent posted with no content region initialised");
@@ -5976,75 +6026,76 @@ pub(crate) fn screen_thread_main(
                     },
                     // Already showing this key: nothing to do.
                     Some(cs) if cs.mounted.as_deref() == Some(key.as_str()) => SwapPlan::Noop,
-                    // Previously opened (its set is parked alive): restore it. The pair
-                    // path restores the first two members (primary, optional secondary)
-                    // into the two slots — a member toggle's hide/show is a separate
-                    // verb, not part of the swap.
+                    // Previously opened (its set is parked alive): restore the whole set
+                    // in place — each member back into the slot its current occupant
+                    // holds, in slot order. The members were recorded in slot order at
+                    // mount, so zipping aligns member↔slot.
                     Some(cs) => match cs.sets.get(&key) {
-                        Some(members) => {
-                            let target_primary = members
-                                .iter()
-                                .find(|m| m.role == ROLE_PRIMARY)
-                                .map(|m| m.pane_id);
-                            let target_secondary = members
-                                .iter()
-                                .find(|m| m.role == ROLE_SECONDARY)
-                                .map(|m| m.pane_id);
-                            match target_primary {
-                                Some(target_primary) => SwapPlan::Restore {
-                                    tab_id: cs.tab_id,
-                                    primary_slot: cs.primary_slot,
-                                    secondary_slot: cs.secondary_slot,
-                                    target_primary,
-                                    target_secondary,
-                                },
-                                None => SwapPlan::Spawn {
-                                    primary_slot: cs.primary_slot,
-                                },
+                        Some(members) if !members.is_empty() => {
+                            let restores: Vec<(PaneId, PaneId)> = occupants(cs)
+                                .into_iter()
+                                .zip(members.iter().map(|m| m.pane_id))
+                                .collect();
+                            SwapPlan::Restore {
+                                tab_id: cs.tab_id,
+                                restores,
                             }
-                        }
-                        // First time for this key: spawn its primary pane.
-                        None => SwapPlan::Spawn {
+                        },
+                        // First time for this key: spawn its command members.
+                        _ => SwapPlan::Spawn {
                             primary_slot: cs.primary_slot,
+                            aux_slots: cs.aux_slots.clone(),
                         },
                     },
                 };
                 match plan {
                     SwapPlan::Noop => {},
-                    SwapPlan::Restore {
-                        tab_id,
-                        primary_slot,
-                        secondary_slot,
-                        target_primary,
-                        target_secondary,
-                    } => {
+                    SwapPlan::Restore { tab_id, restores } => {
                         if let Some(tab) = screen.tabs.get_mut(&tab_id) {
-                            // Restore the secondary (detail) first, then the primary
-                            // (harness), so focus lands on the harness — the working
-                            // surface. Each `content_restore` parks the slot's current
-                            // occupant alive, so the outgoing pair is parked as a unit.
-                            if let (Some(secondary_slot), Some(target_secondary)) =
-                                (secondary_slot, target_secondary)
-                            {
-                                tab.content_restore(secondary_slot, target_secondary, client_id)?;
+                            // Restore the non-primary members (detail + aux) first, then
+                            // the primary (harness) last, so focus lands on the harness —
+                            // the working surface. Each `content_restore` parks the slot's
+                            // current occupant alive, so the outgoing set is parked as a
+                            // unit.
+                            for (slot, target) in restores.iter().skip(1) {
+                                tab.content_restore(*slot, *target, client_id)?;
                             }
-                            tab.content_restore(primary_slot, target_primary, client_id)?;
+                            if let Some((slot, target)) = restores.first() {
+                                tab.content_restore(*slot, *target, client_id)?;
+                            }
                         }
                         if let Some(cs) = screen.content_swap.as_mut() {
-                            cs.primary_slot = target_primary;
-                            if target_secondary.is_some() {
-                                cs.secondary_slot = target_secondary;
+                            // The slot occupants are now the restored targets, in slot
+                            // order: primary, optional secondary, then the aux slots.
+                            let mut targets = restores.iter().map(|(_, t)| *t);
+                            if let Some(p) = targets.next() {
+                                cs.primary_slot = p;
                             }
+                            if cs.secondary_slot.is_some() {
+                                if let Some(s) = targets.next() {
+                                    cs.secondary_slot = Some(s);
+                                }
+                            }
+                            cs.aux_slots = targets.collect();
                             cs.mounted = Some(key);
                         }
                         screen.render(None)?;
                     },
-                    // Fresh open: the pty thread spawns the primary child and rounds
-                    // back via `ContentSpawned`, which mounts the pair and records the
-                    // bookkeeping (the spawn cannot be done synchronously on the screen
-                    // thread). The detail surface waits in the keyed registry under
-                    // `secondary_surface_key` until that mount.
-                    SwapPlan::Spawn { primary_slot } => {
+                    // Fresh open: the pty thread spawns the command members (primary +
+                    // aux) and rounds them back via `ContentSpawned`, which mounts the
+                    // whole set and records the bookkeeping (the spawns cannot be done
+                    // synchronously on the screen thread). The detail surface waits in
+                    // the keyed registry under `secondary_surface_key` until that mount.
+                    // Each aux run maps positionally to an aux slot.
+                    SwapPlan::Spawn {
+                        primary_slot,
+                        aux_slots,
+                    } => {
+                        let aux = aux_slots
+                            .into_iter()
+                            .zip(aux)
+                            .map(|(slot, (role, run))| (slot, role, run))
+                            .collect();
                         screen
                             .bus
                             .senders
@@ -6052,6 +6103,7 @@ pub(crate) fn screen_thread_main(
                                 key,
                                 slot_pid: primary_slot,
                                 run,
+                                aux,
                                 secondary_surface_key,
                                 client_id,
                             })?;
@@ -6063,28 +6115,33 @@ pub(crate) fn screen_thread_main(
                 slot_pid,
                 new_pid,
                 run,
+                aux,
                 secondary_surface_key,
                 client_id,
             } => {
-                // The pty thread spawned `key`'s fresh primary child (`new_pid`).
-                // Mount the **pair**: the primary into the primary slot, and — if a
-                // detail surface was registered under `secondary_surface_key` — that
-                // host surface into the secondary slot. Displaced occupants are parked
-                // alive, unless they are the layout's initial placeholders
-                // (`mounted: None`), which are closed instead. Focus the primary
-                // (harness) once both are mounted.
+                // The pty thread spawned `key`'s fresh command members: the primary
+                // (`new_pid`) and each `aux` member (terminal/yazi/vcs). Mount the
+                // whole set — the primary into the primary slot, each aux into its
+                // slot, and — if a detail surface was registered under
+                // `secondary_surface_key` — that host surface into the secondary slot.
+                // Displaced occupants are parked alive, unless they are the layout's
+                // initial placeholders (`mounted: None`), which are closed instead.
+                // Focus the primary (harness) once the set is mounted. The members are
+                // recorded in **slot order** (primary, secondary, aux…) so a later swap
+                // restore can zip member↔slot.
                 let plan = screen
                     .content_swap
                     .as_ref()
                     .map(|cs| (cs.tab_id, cs.secondary_slot, cs.mounted.is_none()));
                 if let Some((tab_id, secondary_slot, close_placeholder)) = plan {
                     // Take the detail surface from the keyed registry up front (before
-                    // the tab borrow). `None` => a primary-only working set, or the
+                    // the tab borrow). `None` => a working set with no detail, or the
                     // host never registered one (it surfaces that on its side).
                     let secondary_surface = secondary_surface_key
                         .as_deref()
                         .and_then(crate::panes::host_pane::take_keyed_host_surface);
                     let mut mounted_secondary: Option<PaneId> = None;
+                    let mut mounted_aux: Vec<(PaneId, String)> = Vec::with_capacity(aux.len());
                     if let Some(tab) = screen.tabs.get_mut(&tab_id) {
                         tab.suppress_pane_and_replace_with_pid(
                             slot_pid,
@@ -6094,6 +6151,19 @@ pub(crate) fn screen_thread_main(
                             None,
                             None,
                         )?;
+                        // Mount each aux command member into its own slot, parking the
+                        // displaced occupant (or closing its placeholder on first mount).
+                        for sa in &aux {
+                            tab.suppress_pane_and_replace_with_pid(
+                                sa.slot,
+                                sa.pid,
+                                close_placeholder,
+                                Some(Run::Command(sa.run.clone())),
+                                None,
+                                None,
+                            )?;
+                            mounted_aux.push((sa.pid, sa.role.clone()));
+                        }
                         if let (Some(secondary_slot), Some(surface)) =
                             (secondary_slot, secondary_surface)
                         {
@@ -6107,9 +6177,10 @@ pub(crate) fn screen_thread_main(
                         tab.focus_pane_with_id(new_pid, false, false, client_id)?;
                     }
                     if let Some(cs) = screen.content_swap.as_mut() {
-                        // Record the freshly-mounted working set: the harness (primary)
-                        // and, if mounted, the detail (secondary). Both start visible; a
-                        // member toggle flips `visible` later (150-working-set/010).
+                        // Record the freshly-mounted working set in slot order: the
+                        // harness (primary), then — if mounted — the detail (secondary),
+                        // then the aux members. All start visible; a member toggle flips
+                        // `visible` later (150-working-set/010).
                         let mut members = vec![ContentMember {
                             pane_id: new_pid,
                             role: ROLE_PRIMARY.to_string(),
@@ -6122,11 +6193,19 @@ pub(crate) fn screen_thread_main(
                                 visible: true,
                             });
                         }
+                        for (pid, role) in &mounted_aux {
+                            members.push(ContentMember {
+                                pane_id: *pid,
+                                role: role.clone(),
+                                visible: true,
+                            });
+                        }
                         cs.sets.insert(key.clone(), members);
                         cs.primary_slot = new_pid;
                         if let Some(sec) = mounted_secondary {
                             cs.secondary_slot = Some(sec);
                         }
+                        cs.aux_slots = mounted_aux.into_iter().map(|(pid, _)| pid).collect();
                         cs.mounted = Some(key);
                     }
                 }

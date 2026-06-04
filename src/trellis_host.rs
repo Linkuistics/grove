@@ -255,19 +255,23 @@ show_release_notes false
 show_startup_tips false
 "##;
 
-/// grove's session layout (ADR-0022/0023, pair-aware per 130/020; whichkey per
-/// ADR-0019 / leaf 140): an outer **horizontal** split stacks the working area
-/// above a one-row, full-width **`grove-whichkey`** bar — the grove-owned hint
-/// line (`Tab::inject_whichkey_pane` adopts it at first-layout). The working area
-/// is a **fixed-width constant nav** beside a **content region** that is itself a
-/// split of two slots — the **harness** (primary) and the per-grove **detail**
-/// (secondary), arranged side by side. The host nav surface adopts the leftmost
-/// (nav) pane at first-layout (`Tab::inject_host_pane`); the two content-slot
-/// placeholders are the addressable targets the content-swap verb
-/// (`HostDriver::swap_content`) mounts each selected grove's harness + detail into
-/// (closed on the first selection, then swapped as a parked-alive pair). Passed as
-/// a stringified layout (`CliArgs::layout_string` → `LayoutInfo::Stringified`), so
-/// nothing is written to disk.
+/// grove's session layout (ADR-0022/0023; working set per 150 / 020-aux-tool-panes;
+/// whichkey per ADR-0019 / leaf 140): an outer **horizontal** split stacks the
+/// working area above a one-row, full-width **`grove-whichkey`** bar — the
+/// grove-owned hint line (`Tab::inject_whichkey_pane` adopts it at first-layout).
+/// The working area is a **fixed-width constant nav** beside a **content region**
+/// that is itself a split of the [[working set]]'s slots — the **harness** (primary),
+/// the per-grove **detail** (secondary), and the aux tools **terminal**, **yazi**,
+/// **vcs** — arranged side by side. The host nav surface adopts the leftmost (nav)
+/// pane at first-layout (`Tab::inject_host_pane`); the content-slot placeholders are
+/// the addressable targets the content-swap verb (`HostDriver::swap_content`) mounts
+/// each selected grove's working set into (closed on the first selection, then
+/// swapped as a parked-alive unit). Order matters: slots are assigned by `x` order,
+/// so harness/detail/aux must appear in that order here (terminal, yazi, vcs map
+/// positionally to the `aux` members grove passes). Responsive arrangement (which
+/// members are visible, harness-dominant side stack) is 040's concern; this is the
+/// flat all-visible mount. Passed as a stringified layout (`CliArgs::layout_string`
+/// → `LayoutInfo::Stringified`), so nothing is written to disk.
 const GROVE_TUI_LAYOUT: &str = r##"layout {
     pane split_direction="horizontal" {
         pane split_direction="vertical" {
@@ -275,6 +279,9 @@ const GROVE_TUI_LAYOUT: &str = r##"layout {
             pane split_direction="vertical" {
                 pane name="grove-harness"
                 pane name="grove-detail"
+                pane name="grove-term"
+                pane name="grove-yazi"
+                pane name="grove-vcs"
             }
         }
         pane size=1 name="grove-whichkey"
@@ -368,7 +375,7 @@ mod tests {
     }
 
     #[test]
-    fn grove_layout_parses_into_a_fixed_nav_beside_a_content_pair_above_the_whichkey() {
+    fn grove_layout_parses_into_a_fixed_nav_beside_the_working_set_above_the_whichkey() {
         use trellis::input::layout::{Layout, SplitDirection, TiledPaneLayout};
 
         // A KDL typo or bad attribute in GROVE_TUI_LAYOUT fails here, before any
@@ -377,8 +384,8 @@ mod tests {
             Layout::from_kdl(GROVE_TUI_LAYOUT, None, None, None).expect("grove layout parses");
         let (root, _floating) = layout.template.expect("a template layout");
 
-        // The tree's leaf panes are the nav + the content pair (harness + detail)
-        // + the full-width whichkey bar.
+        // The tree's leaf panes are the nav + the working-set slots (harness, detail,
+        // terminal, yazi, vcs — 020-aux-tool-panes) + the full-width whichkey bar.
         fn leaves<'a>(node: &'a TiledPaneLayout, out: &mut Vec<&'a TiledPaneLayout>) {
             if node.children.is_empty() {
                 out.push(node);
@@ -394,11 +401,14 @@ mod tests {
         assert!(names.contains(&"grove-nav"), "a nav pane: {names:?}");
         assert!(names.contains(&"grove-harness"), "a harness slot: {names:?}");
         assert!(names.contains(&"grove-detail"), "a detail slot: {names:?}");
+        assert!(names.contains(&"grove-term"), "a terminal slot: {names:?}");
+        assert!(names.contains(&"grove-yazi"), "a yazi slot: {names:?}");
+        assert!(names.contains(&"grove-vcs"), "a vcs slot: {names:?}");
         assert!(names.contains(&"grove-whichkey"), "a whichkey bar: {names:?}");
         assert_eq!(
             found.len(),
-            4,
-            "exactly nav + harness + detail + whichkey: {names:?}"
+            7,
+            "exactly nav + harness + detail + term + yazi + vcs + whichkey: {names:?}"
         );
 
         // The nav is fixed-width and the whichkey is fixed-height, so they stay a
@@ -451,15 +461,18 @@ mod tests {
     }
 
     #[test]
-    fn client_cli_args_set_session_and_content_pair_layout() {
+    fn client_cli_args_set_session_and_working_set_layout() {
         let opts = client_cli_args("grove-acme");
         assert_eq!(opts.session.as_deref(), Some("grove-acme"));
-        // The constant-nav + content-pair layout rides in as a stringified layout
+        // The constant-nav + working-set layout rides in as a stringified layout
         // (no file on disk); a named/path layout and config stay at defaults.
         let layout = opts.layout_string.as_deref().expect("a stringified layout");
         assert!(layout.contains("grove-nav"), "nav pane in the layout");
         assert!(layout.contains("grove-harness"), "harness slot in the layout");
         assert!(layout.contains("grove-detail"), "detail slot in the layout");
+        assert!(layout.contains("grove-term"), "terminal slot in the layout");
+        assert!(layout.contains("grove-yazi"), "yazi slot in the layout");
+        assert!(layout.contains("grove-vcs"), "vcs slot in the layout");
         assert!(layout.contains("grove-whichkey"), "whichkey bar in the layout");
         assert!(opts.server.is_none());
         assert!(opts.layout.is_none());

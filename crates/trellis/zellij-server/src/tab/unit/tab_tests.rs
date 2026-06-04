@@ -16686,3 +16686,32 @@ fn content_swap_parks_and_restores_a_three_member_set_as_a_unit() {
         );
     }
 }
+
+#[test]
+fn nav_and_content_slots_splits_nav_from_n_content_slots_in_x_order() {
+    // 020-aux-tool-panes generalises slot discovery from a fixed pair to N: the
+    // leftmost non-whichkey pane is the nav, and the rest — in left-to-right `x`
+    // order — are the content slots (harness, detail, terminal, yazi, vcs). The
+    // full-width `grove-whichkey` bar shares `x == 0` with the nav, so it must be
+    // excluded by title before the split or it would be mistaken for the nav.
+    let panes = vec![
+        (PaneId::Terminal(5), 40, "grove-vcs".to_string()),
+        (PaneId::Terminal(0), 0, "grove-whichkey".to_string()),
+        (PaneId::Terminal(1), 0, "grove-nav".to_string()),
+        (PaneId::Terminal(2), 10, "grove-harness".to_string()),
+        (PaneId::Terminal(4), 30, "grove-yazi".to_string()),
+        (PaneId::Terminal(3), 20, "grove-detail".to_string()),
+    ];
+    let (nav, slots) = super::nav_and_content_slots(panes);
+    assert_eq!(nav, Some(PaneId::Terminal(1)), "nav is the leftmost non-whichkey pane");
+    assert_eq!(
+        slots,
+        vec![
+            PaneId::Terminal(2), // harness (primary)
+            PaneId::Terminal(3), // detail (secondary)
+            PaneId::Terminal(4), // yazi (aux)
+            PaneId::Terminal(5), // vcs (aux)
+        ],
+        "content slots follow the nav in x order, whichkey excluded"
+    );
+}

@@ -180,12 +180,14 @@ impl HostDriver {
 
     /// Swap the **content region** beside the constant nav to show the working set
     /// keyed by `key` (ADR-0022/0023) — the native switcher that supersedes the
-    /// tab model. The content region is a **pair**: a primary command pane (grove's
-    /// harness) and an optional secondary **host surface** (grove's per-grove
-    /// detail). First selection of `key` spawns `command args…` in `cwd` as the
-    /// primary pane and — if `secondary_surface_key` names a surface previously
-    /// stashed via [`register_keyed_host_surface`] — mounts it as the secondary;
-    /// re-selection restores `key`'s parked-alive **pair** (scrollback + detail
+    /// tab model. The content region is an **ordered working set** (020-aux-tool-panes):
+    /// a primary command pane (grove's harness, `command args…` in `cwd`), an
+    /// optional secondary **host surface** (grove's per-grove detail), and the `aux`
+    /// command members (terminal/yazi/vcs), each a `(role, RunCommand)` carrying its
+    /// own worktree cwd. First selection of `key` spawns every command member and —
+    /// if `secondary_surface_key` names a surface previously stashed via
+    /// [`register_keyed_host_surface`] — mounts it as the secondary; re-selection
+    /// restores `key`'s parked-alive **set** (every member's scrollback + the detail
     /// state intact). The opaque `key` is the host's own identifier (grove passes a
     /// grove name); the caller need not track open/parked state — the screen thread
     /// dedupes (already-shown → no-op, parked → restore, new → spawn). Fire-and-
@@ -195,8 +197,9 @@ impl HostDriver {
     /// (ADR-0023): a `Box<dyn HostSurface>` cannot ride a `Clone + Debug`
     /// `ScreenInstruction`, so the host stashes the built surface under a key and
     /// passes only the key here; the screen thread takes it from the registry when
-    /// it mounts the pair. `None` mounts a primary-only working set (the 010
-    /// single-pane shape).
+    /// it mounts the set. `None` mounts a working set without a secondary surface.
+    /// Each `aux` member's `role` is the host's opaque tag (also the
+    /// [`toggle_member`](Self::toggle_member) handle); trellis never interprets it.
     pub fn swap_content(
         &self,
         key: &str,
@@ -204,6 +207,7 @@ impl HostDriver {
         command: PathBuf,
         args: Vec<String>,
         secondary_surface_key: Option<String>,
+        aux: Vec<(String, RunCommand)>,
     ) {
         let run = RunCommand {
             command,
@@ -215,6 +219,7 @@ impl HostDriver {
             key: key.to_string(),
             run,
             secondary_surface_key,
+            aux,
             client_id: self.client_id,
         });
     }
@@ -1059,6 +1064,61 @@ mod tests {
                 }
             }
             other => panic!("expected NewTab, got {other:?}"),
+        }
+
+        // swap_content → a SwapContent carrying the primary (harness) run, the
+        // secondary detail-surface key, and the **ordered aux command members**
+        // (020-aux-tool-panes: terminal/yazi/vcs), each with its own worktree cwd.
+        driver.swap_content(
+            "auth",
+            PathBuf::from("/work/acme/.grove-worktrees/auth"),
+            PathBuf::from("/opt/grove"),
+            vec!["do".to_string(), "auth".to_string()],
+            Some("grove-detail:auth".to_string()),
+            vec![
+                (
+                    "terminal".to_string(),
+                    RunCommand {
+                        command: PathBuf::from("/bin/zsh"),
+                        cwd: Some(PathBuf::from("/work/acme/.grove-worktrees/auth")),
+                        ..RunCommand::default()
+                    },
+                ),
+                (
+                    "vcs".to_string(),
+                    RunCommand {
+                        command: PathBuf::from("/usr/bin/lazygit"),
+                        cwd: Some(PathBuf::from("/work/acme/.grove-worktrees/auth")),
+                        ..RunCommand::default()
+                    },
+                ),
+            ],
+        );
+        match next() {
+            ScreenInstruction::SwapContent {
+                key,
+                run,
+                secondary_surface_key,
+                aux,
+                client_id,
+            } => {
+                assert_eq!(key, "auth");
+                assert_eq!(run.command, PathBuf::from("/opt/grove"));
+                assert_eq!(run.args, vec!["do".to_string(), "auth".to_string()]);
+                assert_eq!(secondary_surface_key.as_deref(), Some("grove-detail:auth"));
+                assert_eq!(aux.len(), 2, "both aux members ride the instruction");
+                assert_eq!(aux[0].0, "terminal", "aux roles preserved in order");
+                assert_eq!(aux[0].1.command, PathBuf::from("/bin/zsh"));
+                assert_eq!(
+                    aux[0].1.cwd,
+                    Some(PathBuf::from("/work/acme/.grove-worktrees/auth")),
+                    "aux runs in the grove's worktree cwd"
+                );
+                assert_eq!(aux[1].0, "vcs");
+                assert_eq!(aux[1].1.command, PathBuf::from("/usr/bin/lazygit"));
+                assert_eq!(client_id, 1);
+            }
+            other => panic!("expected SwapContent, got {other:?}"),
         }
 
         // focus_tab → GoToTabName by name, create=false (never spawns an empty tab).

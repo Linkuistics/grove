@@ -5701,9 +5701,13 @@ impl Tab {
         );
         // Identify the nav target (leftmost pane) and the content slots (the panes
         // to its right, in `x` order: primary then secondary). Sorting by `x` makes
-        // the roles independent of pane-map iteration order.
+        // the roles independent of pane-map iteration order. The full-width
+        // `grove-whichkey` bar (injected first, by [`inject_whichkey_pane`]) shares
+        // `x == 0` with the nav, so it is excluded by title here — otherwise it
+        // could be mistaken for the nav or a content slot.
         let mut panes_by_x: Vec<(PaneId, usize)> = self
             .get_tiled_panes()
+            .filter(|(_, pane)| pane.current_title() != "grove-whichkey")
             .map(|(id, pane)| (*id, pane.x()))
             .collect();
         panes_by_x.sort_by_key(|(_, x)| *x);
@@ -5729,6 +5733,58 @@ impl Tab {
                 Ok(None)
             },
         }
+    }
+
+    /// Replace the layout's full-width bottom `grove-whichkey` placeholder with a
+    /// host pane rendering `surface` — the grove-owned **whichkey bar** (ADR-0019,
+    /// leaf 140): one hint line across the bottom of the native frame, the single
+    /// owner of key hints for whichever surface is focused. Injected **before** the
+    /// nav (so its [`HostDriver`](crate::panes::host_pane::HostDriver) is set before
+    /// the nav's first focus event ticks it), and identified by **title** rather
+    /// than geometry, since it shares `x == 0` with the nav. The pane is marked
+    /// **non-selectable** so the leader's focus cycle (nav → harness → detail) skips
+    /// it — the bar is passive chrome, never focused. Returns the new pane id, or
+    /// `None` when no pane is titled `grove-whichkey` (a layout without the bar).
+    pub fn inject_whichkey_pane(
+        &mut self,
+        surface: Box<dyn crate::panes::host_pane::HostSurface>,
+        client_id: ClientId,
+    ) -> Option<PaneId> {
+        let target = self
+            .get_tiled_panes()
+            .find(|(_, pane)| pane.current_title() == "grove-whichkey")
+            .map(|(id, _)| *id)?;
+        let pid = crate::panes::host_pane::next_host_pane_id();
+        let to_screen = self
+            .senders
+            .to_screen
+            .clone()
+            .expect("screen thread always has a screen sender");
+        let to_server = self
+            .senders
+            .to_server
+            .clone()
+            .expect("screen thread always has a server sender");
+        let host_pane = crate::panes::host_pane::HostPane::new(
+            pid,
+            PaneGeom::default(),
+            self.style,
+            surface,
+            // Keep the layout name as the title so the exclusion-by-title in
+            // `inject_host_pane` (which runs next) recognises this host pane.
+            "grove-whichkey".to_owned(),
+            to_screen,
+            to_server,
+            client_id,
+        );
+        self.close_pane_and_replace_with_other_pane(target, Box::new(host_pane), None);
+        // Passive chrome: never a focus-cycle stop. `set_selectable(false)` makes
+        // `next_selectable_pane_id` skip it, so `Ctrl-o` cycles nav → harness →
+        // detail only.
+        if let Some(pane) = self.tiled_panes.get_pane_mut(PaneId::Host(pid)) {
+            pane.set_selectable(false);
+        }
+        Some(PaneId::Host(pid))
     }
 
     /// Mount a host surface (taken from the keyed registry) into an existing content

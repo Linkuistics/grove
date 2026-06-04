@@ -202,11 +202,23 @@ proxy / N socket clients" is superseded. Live leaf: `130-native-detail`.)*
 A grove-scoped [[dashboard proxy]] (`grove __dash-proxy --grove <name>`) that lives **inside that grove's [[workspace]] tab**, beside its [[harness pane]], and shows *only that grove's* detail — task tree, inbox triage, capture (ADR-0019). The [[controlling process]] renders **one per open grove** (N proxies, the latent ADR-0016 "supports N proxies" now load-bearing): each proxy is fixed to its grove for its whole life, set when the [[nav plugin]] opens the tab, so **no nav→controller selection signalling is needed** (which is what makes A′ buildable given `cli_pipe_output` is reply-only). The dumb-proxy mechanics (size up, blit down, input up, `RunEditor` for `$EDITOR`) are unchanged from [[dashboard proxy]]; "detail" just means the chrome it renders is the detail view, not a grove list (the list is the [[nav plugin]]).
 
 **Whichkey bar**:
-*(Realisation superseded by the [[trellis framework]] fork — ADR-0020: a **native
-bottom region** the in-process host draws, not a WASM plugin (no build.rs embed, no
-layout-pin). The single-hint-owner **UX** survives. Live leaf:
-`140-native-whichkey`.)*
-A grove-owned, **full-width bottom-bar** zellij plugin spanning every [[workspace]] tab, rendering the context-sensitive key hints (sigils, e.g. `⏎`/`⎋`) for whatever is focused (ADR-0019). It is the *single owner* of the bottom hint line: the [[dashboard]]/[[detail proxy]] and the harness stop drawing their own. Pinned in the bundled layout like the [[nav plugin]] sidebar; a sibling plugin to `grove-nav`, not the same instance.
+*(Realisation **built natively** in leaf `140-native-whichkey`, per ADR-0020's fork
+— a native host pane, **not** a WASM plugin; no build.rs embed, no layout-pin. The
+single-hint-owner UX from ADR-0019 survives. The original WASM-plugin framing below
+is historical.)*
+A grove-owned, **full-width bottom-bar** spanning the bottom of the native frame,
+rendering the context-sensitive key hints (sigils, e.g. `⏎`/`⎋`) for whatever
+surface is focused (ADR-0019). It is the *single owner* of the bottom hint line: the
+[[dashboard]]/[[detail proxy]] surfaces and the harness stop drawing their own
+(grove's surfaces suppress their footer via `App::native_chrome`). **As built (140):**
+a one-row, **non-selectable** [[host surface]] in the session layout (`grove-whichkey`,
+injected by `Tab::inject_whichkey_pane`); it carries no grove state and is never
+focused. Because it cannot learn focus itself, each grove surface (nav / per-grove
+detail) *publishes* its own hint line to the bar when it gains focus or changes state
+(and relinquishes it to a "keys go to the harness" line on blur), waking a redraw via
+the bar's stored `HostDriver` — so the bar always reflects the focused surface using
+only the existing host-surface seam (no new trellis focus hook). The hint text is the
+same `footer_line` the legacy `--local` dashboard draws as its own footer.
 
 **Leader** (control-seam key):
 *(Binding updated by the [[trellis framework]] fork — ADR-0020: `Ctrl-o` now

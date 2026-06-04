@@ -303,6 +303,17 @@ static NEXT_HOST_PANE_ID: AtomicU32 = AtomicU32::new(0);
 /// once the session is up.
 static KEYED_HOST_SURFACES: Mutex<Vec<(String, Box<dyn HostSurface>)>> = Mutex::new(Vec::new());
 
+/// The one-shot factory for the grove-owned **whichkey** bar (ADR-0019, leaf
+/// 140): a second statically-injected host pane, distinct from the [`nav`
+/// factory`](HOST_SURFACE_FACTORY) above. It cannot ride the nav factory (each is
+/// taken once and injected into a different layout pane), and unlike the per-grove
+/// detail surfaces it is **not** built server-side — like the nav, the whichkey
+/// value cannot cross the re-exec, so the host registers a factory before
+/// `start_server`. A dedicated slot rather than a general multi-host registry
+/// keeps the seam minimal (constraint 4): the session has exactly two
+/// statically-placed host panes (nav + whichkey).
+static WHICHKEY_SURFACE_FACTORY: Mutex<Option<HostSurfaceFactory>> = Mutex::new(None);
+
 /// Register the host-surface factory the server injects once, at first-layout.
 /// Call this on the `--server` path (grove's `run_server`) **before**
 /// `start_server`. Overwrites any previously-registered factory.
@@ -317,6 +328,26 @@ pub fn register_host_surface(factory: HostSurfaceFactory) {
 /// session) or when the host registered nothing (stock trellis behaviour).
 pub(crate) fn take_host_surface() -> Option<Box<dyn HostSurface>> {
     let factory = HOST_SURFACE_FACTORY.lock().ok()?.take()?;
+    Some(factory())
+}
+
+/// Register the **whichkey** host-surface factory (the grove-owned bottom hint
+/// bar). Same contract as [`register_host_surface`]: call on the `--server` path
+/// before `start_server`; overwrites any prior factory. The session injects it at
+/// first-layout into the layout's `grove-whichkey` pane.
+pub fn register_whichkey_surface(factory: HostSurfaceFactory) {
+    if let Ok(mut slot) = WHICHKEY_SURFACE_FACTORY.lock() {
+        *slot = Some(factory);
+    }
+}
+
+/// Take the registered whichkey factory and build the surface, if one was
+/// registered. `None` after the first take, or when the host registered no
+/// whichkey (a layout without the bar — then the `grove-whichkey` pane, if any,
+/// stays a plain placeholder, which is why grove only emits the pane when it also
+/// registers the surface).
+pub(crate) fn take_whichkey_surface() -> Option<Box<dyn HostSurface>> {
+    let factory = WHICHKEY_SURFACE_FACTORY.lock().ok()?.take()?;
     Some(factory())
 }
 
@@ -855,6 +886,26 @@ mod tests {
     use ratatui::style::Stylize;
     use ratatui::text::Line;
     use ratatui::widgets::Widget;
+
+    /// The whichkey factory is a one-shot, distinct from the nav factory: the host
+    /// registers it before `start_server`, the session takes it exactly once at
+    /// first-layout, and a second take is empty (one whichkey pane per session).
+    #[test]
+    fn whichkey_factory_is_a_one_shot() {
+        struct Dummy;
+        impl HostSurface for Dummy {
+            fn draw(&mut self, _area: Rect, _buf: &mut Buffer) {}
+        }
+        register_whichkey_surface(Box::new(|| Box::new(Dummy)));
+        assert!(
+            take_whichkey_surface().is_some(),
+            "first take yields the registered whichkey surface"
+        );
+        assert!(
+            take_whichkey_surface().is_none(),
+            "the whichkey factory is one-shot"
+        );
+    }
 
     #[test]
     fn converter_emits_one_chunk_per_row_at_content_origin() {

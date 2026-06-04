@@ -3113,6 +3113,20 @@ impl Screen {
                 .with_context(err_context)?;
         }
 
+        // grove (ADR-0019, leaf 140): inject the full-width **whichkey** bar before
+        // the nav, so its `HostDriver` is wired before the nav's first focus event
+        // (which ticks the whichkey to publish the nav's hints). Like the nav this
+        // is a one-shot, present only when grove registered a whichkey factory on
+        // the `--server` path; it replaces the layout's `grove-whichkey` placeholder
+        // and is non-selectable (passive chrome the focus cycle skips).
+        if let Some(whichkey) = crate::panes::host_pane::take_whichkey_surface() {
+            if let Some(tab) = self.tabs.get_mut(&tab_id) {
+                tab.inject_whichkey_pane(whichkey, client_id);
+                tab.resize_whole_tab(self.size).with_context(err_context)?;
+                tab.set_force_render();
+            }
+        }
+
         // grove (ADR-0021): inject the host-rendered native pane into the first
         // tab whose layout is applied. `take_host_surface` is a one-shot — it
         // yields the surface once (and only if the host registered a factory on

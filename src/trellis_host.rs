@@ -131,6 +131,13 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
     let surface = crate::tui::dashboard_surface(repo)?;
     trellis_server::panes::host_pane::register_host_surface(Box::new(move || Box::new(surface)));
 
+    // The grove-owned whichkey bar (ADR-0019, leaf 140): a second statically-placed
+    // host pane, the single owner of the bottom hint line. Stateless (it renders
+    // whatever hint the focused surface publishes), so its factory builds fresh.
+    trellis_server::panes::host_pane::register_whichkey_surface(Box::new(|| {
+        Box::new(crate::tui::whichkey_surface())
+    }));
+
     let os_input =
         get_server_os_input().map_err(|e| anyhow::anyhow!("opening the trellis server: {e}"))?;
     // Returns `()`; it owns the process until the session exits.
@@ -248,9 +255,12 @@ show_release_notes false
 show_startup_tips false
 "##;
 
-/// grove's session layout (ADR-0022/0023, pair-aware per 130/020): one tab of a
-/// **fixed-width constant nav** beside a **content region** that is itself a split
-/// of two slots — the **harness** (primary) and the per-grove **detail**
+/// grove's session layout (ADR-0022/0023, pair-aware per 130/020; whichkey per
+/// ADR-0019 / leaf 140): an outer **horizontal** split stacks the working area
+/// above a one-row, full-width **`grove-whichkey`** bar — the grove-owned hint
+/// line (`Tab::inject_whichkey_pane` adopts it at first-layout). The working area
+/// is a **fixed-width constant nav** beside a **content region** that is itself a
+/// split of two slots — the **harness** (primary) and the per-grove **detail**
 /// (secondary), arranged side by side. The host nav surface adopts the leftmost
 /// (nav) pane at first-layout (`Tab::inject_host_pane`); the two content-slot
 /// placeholders are the addressable targets the content-swap verb
@@ -259,12 +269,15 @@ show_startup_tips false
 /// a stringified layout (`CliArgs::layout_string` → `LayoutInfo::Stringified`), so
 /// nothing is written to disk.
 const GROVE_TUI_LAYOUT: &str = r##"layout {
-    pane split_direction="vertical" {
-        pane size=34 name="grove-nav"
+    pane split_direction="horizontal" {
         pane split_direction="vertical" {
-            pane name="grove-harness"
-            pane name="grove-detail"
+            pane size=34 name="grove-nav"
+            pane split_direction="vertical" {
+                pane name="grove-harness"
+                pane name="grove-detail"
+            }
         }
+        pane size=1 name="grove-whichkey"
     }
 }
 "##;
@@ -355,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn grove_layout_parses_into_a_fixed_nav_beside_a_content_pair() {
+    fn grove_layout_parses_into_a_fixed_nav_beside_a_content_pair_above_the_whichkey() {
         use trellis::input::layout::{Layout, SplitDirection, TiledPaneLayout};
 
         // A KDL typo or bad attribute in GROVE_TUI_LAYOUT fails here, before any
@@ -364,7 +377,8 @@ mod tests {
             Layout::from_kdl(GROVE_TUI_LAYOUT, None, None, None).expect("grove layout parses");
         let (root, _floating) = layout.template.expect("a template layout");
 
-        // The tree's leaf panes are the nav + the content pair (harness + detail).
+        // The tree's leaf panes are the nav + the content pair (harness + detail)
+        // + the full-width whichkey bar.
         fn leaves<'a>(node: &'a TiledPaneLayout, out: &mut Vec<&'a TiledPaneLayout>) {
             if node.children.is_empty() {
                 out.push(node);
@@ -380,26 +394,57 @@ mod tests {
         assert!(names.contains(&"grove-nav"), "a nav pane: {names:?}");
         assert!(names.contains(&"grove-harness"), "a harness slot: {names:?}");
         assert!(names.contains(&"grove-detail"), "a detail slot: {names:?}");
-        assert_eq!(found.len(), 3, "exactly nav + harness + detail: {names:?}");
+        assert!(names.contains(&"grove-whichkey"), "a whichkey bar: {names:?}");
+        assert_eq!(
+            found.len(),
+            4,
+            "exactly nav + harness + detail + whichkey: {names:?}"
+        );
 
-        // The nav is fixed-width, so it stays a constant sidebar on tab resize.
+        // The nav is fixed-width and the whichkey is fixed-height, so they stay a
+        // constant sidebar / bottom bar on tab resize.
         let nav = found
             .iter()
             .find(|p| p.name.as_deref() == Some("grove-nav"))
             .unwrap();
-        assert!(nav.split_size.is_some(), "nav pane is fixed-size");
+        assert!(nav.split_size.is_some(), "nav pane is fixed-width");
+        let whichkey = found
+            .iter()
+            .find(|p| p.name.as_deref() == Some("grove-whichkey"))
+            .unwrap();
+        assert!(whichkey.split_size.is_some(), "whichkey bar is fixed-height");
 
-        // The nav sits beside the content region (a vertical split = a vertical
-        // divider); `inject_host_pane` relies on the nav being leftmost. The first
-        // node with two children is the nav | content-region split.
-        fn split_dir_of_pair(node: &TiledPaneLayout) -> Option<SplitDirection> {
-            if node.children.len() == 2 {
+        // The split *containing* a named pane tells us how that pane is arranged
+        // relative to its sibling, independent of how many wrapper levels the
+        // template nests it under.
+        fn split_containing<'a>(
+            node: &'a TiledPaneLayout,
+            child_name: &str,
+        ) -> Option<SplitDirection> {
+            if node
+                .children
+                .iter()
+                .any(|c| c.name.as_deref() == Some(child_name))
+            {
                 return Some(node.children_split_direction);
             }
-            node.children.iter().find_map(split_dir_of_pair)
+            node.children
+                .iter()
+                .find_map(|c| split_containing(c, child_name))
         }
+
+        // The whichkey sits below the working area (a horizontal divider stacks
+        // them top/bottom).
         assert_eq!(
-            split_dir_of_pair(&root),
+            split_containing(&root, "grove-whichkey"),
+            Some(SplitDirection::Horizontal),
+            "the working area sits above the whichkey bar"
+        );
+        // The nav sits beside the content region (a vertical divider) — and
+        // `inject_host_pane` relies on the nav being leftmost once the whichkey is
+        // excluded by title.
+        assert_eq!(
+            split_containing(&root, "grove-nav"),
             Some(SplitDirection::Vertical),
             "nav and content region are split side by side"
         );
@@ -415,6 +460,7 @@ mod tests {
         assert!(layout.contains("grove-nav"), "nav pane in the layout");
         assert!(layout.contains("grove-harness"), "harness slot in the layout");
         assert!(layout.contains("grove-detail"), "detail slot in the layout");
+        assert!(layout.contains("grove-whichkey"), "whichkey bar in the layout");
         assert!(opts.server.is_none());
         assert!(opts.layout.is_none());
         assert!(opts.config.is_none());

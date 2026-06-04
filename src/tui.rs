@@ -93,6 +93,14 @@ pub struct App {
     /// list), and `/` does not open a filter. Everything else (tree/inbox nav, `c`
     /// capture, `d` disposition, `Ctrl-E`, `Tab`) works unchanged.
     detail_locked: bool,
+    /// **Native frame** mode (leaf 140): this `App` renders as a trellis host
+    /// surface (the constant nav or a per-grove detail), where the grove-owned
+    /// [[whichkey bar]] is the *single* owner of the bottom hint line. When set,
+    /// `render` suppresses this surface's own footer and the capture modal's inline
+    /// hint — those hints are published to the whichkey instead ([`footer_line`]).
+    /// The legacy `--local` in-terminal dashboard leaves it `false` and keeps
+    /// drawing its own footer (there is no whichkey pane to delegate to).
+    native_chrome: bool,
 }
 
 /// Capture modal — opened by `c`, drives the two-step
@@ -265,6 +273,7 @@ impl App {
             disposition: None,
             pending_action: None,
             detail_locked: false,
+            native_chrome: false,
         }
     }
 
@@ -298,6 +307,9 @@ impl App {
             disposition: None,
             pending_action: None,
             detail_locked: true,
+            // A per-grove detail surface always runs inside the native frame, where
+            // the grove-owned whichkey bar owns the bottom hint line.
+            native_chrome: true,
         }
     }
 
@@ -1199,24 +1211,33 @@ fn move_detail_selection(app: &mut App, delta: isize) {
 
 pub fn render(f: &mut Frame, app: &App) {
     let area = f.area();
-    // A one-row header (cli + repo versions) sits above the body on both
-    // screens; the footer keeps its keyhint role below.
-    let [header, main, footer] = Layout::vertical([
-        Constraint::Length(1),
-        Constraint::Min(1),
-        Constraint::Length(1),
-    ])
-    .areas(area);
+    // A one-row header (cli + repo versions) sits above the body on both screens.
+    // In the **native frame** the grove-owned whichkey bar owns the bottom hint
+    // line (a separate full-width pane), so this surface draws no footer; the
+    // legacy `--local` dashboard keeps its own footer below the body.
+    let main = if app.native_chrome {
+        let [header, main] = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(area);
+        render_header(f, header, app);
+        main
+    } else {
+        let [header, main, footer] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Min(1),
+            Constraint::Length(1),
+        ])
+        .areas(area);
+        render_header(f, header, app);
+        f.render_widget(Paragraph::new(footer_line(app)), footer);
+        main
+    };
 
-    render_header(f, header, app);
     match app.screen {
         Screen::GroveList => render_grove_list(f, main, app),
         Screen::GroveDetail => render_grove_detail(f, main, app),
     }
-    render_footer(f, footer, app);
 
     if app.capture.open {
-        render_capture_modal(f, area, &app.capture);
+        render_capture_modal(f, area, app);
     }
     if let Some(modal) = app.disposition.as_ref() {
         render_disposition_modal(f, area, modal);
@@ -1257,7 +1278,8 @@ fn render_disposition_modal(f: &mut Frame, area: Rect, modal: &DispositionModal)
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
-fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
+fn render_capture_modal(f: &mut Frame, area: Rect, app: &App) {
+    let modal = &app.capture;
     let popup = centered_rect(70, 50, area);
     f.render_widget(Clear, popup);
 
@@ -1268,12 +1290,22 @@ fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
     let inner = block.inner(popup);
     f.render_widget(block, popup);
 
-    let [target_area, body_area, hint_area] = Layout::vertical([
-        Constraint::Length(3),
-        Constraint::Min(3),
-        Constraint::Length(1),
-    ])
-    .areas(inner);
+    // In the native frame the whichkey bar shows the capture keys (`footer_line`),
+    // so the modal drops its inline hint row; the legacy `--local` dashboard keeps
+    // the hint inside the modal (it has no whichkey to delegate to).
+    let (target_area, body_area, hint_area) = if app.native_chrome {
+        let [target_area, body_area] =
+            Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).areas(inner);
+        (target_area, body_area, None)
+    } else {
+        let [target_area, body_area, hint_area] = Layout::vertical([
+            Constraint::Length(3),
+            Constraint::Min(3),
+            Constraint::Length(1),
+        ])
+        .areas(inner);
+        (target_area, body_area, Some(hint_area))
+    };
 
     let target_focus = matches!(modal.field, CaptureField::Target);
     let body_focus = matches!(modal.field, CaptureField::Body);
@@ -1309,9 +1341,11 @@ fn render_capture_modal(f: &mut Frame, area: Rect, modal: &CaptureModal) {
         .block(Block::default().borders(Borders::ALL).title("observation body"));
     f.render_widget(body_para, body_area);
 
-    let hint =
-        "Tab=switch  Enter=next(target)/newline(body)  Ctrl-S=submit  Ctrl-E=$EDITOR  Esc=cancel";
-    f.render_widget(Paragraph::new(hint), hint_area);
+    if let Some(hint_area) = hint_area {
+        let hint =
+            "Tab=switch  Enter=next(target)/newline(body)  Ctrl-S=submit  Ctrl-E=$EDITOR  Esc=cancel";
+        f.render_widget(Paragraph::new(hint), hint_area);
+    }
 }
 
 /// Build the header line — the `cli` layer plus each installed harness's
@@ -1637,36 +1671,56 @@ fn enclosing_brief(detail: &GroveDetail, selected: Option<&FlatRow>) -> Option<P
     row.parent_brief.clone().or_else(|| tree.root_brief.clone())
 }
 
-fn render_footer(f: &mut Frame, area: Rect, app: &App) {
-    let mut spans = Vec::new();
-    if app.filter.editing {
-        spans.push(Span::styled(
-            format!("/{}_", app.filter.text),
-            Style::default().add_modifier(Modifier::REVERSED),
-        ));
-        spans.push(Span::raw("  ⏎ apply · ⎋ cancel"));
-    } else {
-        // Hints use sigils (⏎ Enter, ⎋ Esc, ⌃o the leader, ⌥ Alt) — leaf
-        // 120-native-nav. The bottom *bar* proper is 140's job; the nav just
-        // exposes its own keys here.
-        let hint = match app.screen {
-            Screen::GroveList => "⏎ open · j/k move · ⌃o nav · ⌥1-9 switch · x close · / filter · c capture · r refresh · ? help · q quit",
-            Screen::GroveDetail => "⇥ cycle · j/k move · o open · x close · PgUp/PgDn scroll · / filter · c capture · r refresh · ⎋ back · ? help",
-        };
-        spans.push(Span::raw(hint));
-        if !app.filter.text.is_empty() {
-            spans.push(Span::raw("   "));
-            spans.push(Span::styled(
-                format!("filter: /{}", app.filter.text),
-                Style::default().fg(Color::Yellow),
-            ));
-        }
-        if let Some(s) = app.status.as_deref() {
-            spans.push(Span::raw("   "));
-            spans.push(Span::styled(s.to_string(), Style::default().fg(Color::Green)));
-        }
+/// The bottom hint line for the focused surface, as an owned [`Line`]. This is
+/// the **single source** of grove's key hints (leaf 140): the legacy `--local`
+/// dashboard renders it as its own footer, and in the native frame each surface
+/// *publishes* it to the grove-owned [[whichkey bar]] (`publish_whichkey`) when it
+/// gains focus or changes state, so the bar always reflects the focused surface.
+///
+/// Hints use sigils (⏎ Enter, ⎋ Esc, ⇥ Tab, ⌃o the leader). The line is
+/// context-sensitive: a modal or filter takes precedence over the base
+/// screen hints, so the keys shown are always the ones currently live.
+fn footer_line(app: &App) -> Line<'static> {
+    if app.show_help {
+        return Line::from("⎋ / ? close help");
     }
-    f.render_widget(Paragraph::new(Line::from(spans)), area);
+    if app.capture.open {
+        return Line::from(
+            "⇥ switch field · ⏎ next / newline · ⌃s submit · ⌃e $EDITOR · ⎋ cancel",
+        );
+    }
+    if app.disposition.is_some() {
+        return Line::from("i incorporated · d deferred · r rejected · ⎋ cancel");
+    }
+    if app.filter.editing {
+        return Line::from(vec![
+            Span::styled(
+                format!("/{}_", app.filter.text),
+                Style::default().add_modifier(Modifier::REVERSED),
+            ),
+            Span::raw("  ⏎ apply · ⎋ cancel"),
+        ]);
+    }
+    // The base per-screen hints. `⌥1-9` tab switching is gone with ADR-0023 (the
+    // constant nav + content swap has no tabs), so the nav advertises only the
+    // leader.
+    let hint = match app.screen {
+        Screen::GroveList => "⏎ open · j/k move · ⌃o nav · x close · / filter · c capture · r refresh · ? help · q quit",
+        Screen::GroveDetail => "⇥ cycle · j/k move · o open · x close · PgUp/PgDn scroll · / filter · c capture · r refresh · ⎋ back · ? help",
+    };
+    let mut spans = vec![Span::raw(hint)];
+    if !app.filter.text.is_empty() {
+        spans.push(Span::raw("   "));
+        spans.push(Span::styled(
+            format!("filter: /{}", app.filter.text),
+            Style::default().fg(Color::Yellow),
+        ));
+    }
+    if let Some(s) = app.status.as_deref() {
+        spans.push(Span::raw("   "));
+        spans.push(Span::styled(s.to_string(), Style::default().fg(Color::Green)));
+    }
+    Line::from(spans)
 }
 
 fn render_help_overlay(f: &mut Frame, area: Rect) {
@@ -1917,6 +1971,50 @@ mod tests {
             Some("beta".into()),
         );
         assert_eq!(app.list.selected(), Some(1)); // alphabetical: alpha=0, beta=1
+    }
+
+    /// The whichkey/footer hint line (leaf 140) is the single hint source for both
+    /// the local footer and the native bar, and is context-sensitive: a modal or a
+    /// live filter takes precedence over the base per-screen hints.
+    #[test]
+    fn footer_line_is_context_sensitive() {
+        fn text(app: &App) -> String {
+            footer_line(app)
+                .spans
+                .iter()
+                .map(|s| s.content.as_ref())
+                .collect()
+        }
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+
+        // Base grove-list hints: the leader + open, but no retired tab-switch hint
+        // (ADR-0023 removed `⌥1-9 switch`).
+        let base = text(&app);
+        assert!(base.contains("⏎ open"), "list hints: {base}");
+        assert!(base.contains("⌃o nav"), "leader hint: {base}");
+        assert!(!base.contains("⌥1-9"), "no tab-switch hint: {base}");
+
+        // A live filter edit echoes the query and shows apply/cancel.
+        app.filter.editing = true;
+        app.filter.text = "au".into();
+        let filtering = text(&app);
+        assert!(filtering.contains("/au_"), "filter echo: {filtering}");
+        assert!(filtering.contains("⏎ apply"), "filter keys: {filtering}");
+        app.filter.editing = false;
+        app.filter.text.clear();
+
+        // The capture modal's keys take precedence over the base hints.
+        app.capture.open = true;
+        let capturing = text(&app);
+        assert!(capturing.contains("⌃s submit"), "capture submit: {capturing}");
+        assert!(capturing.contains("⎋ cancel"), "capture cancel: {capturing}");
+        app.capture.open = false;
+
+        // Help.
+        app.show_help = true;
+        assert!(text(&app).contains("close help"), "help hint");
     }
 
     #[test]
@@ -2746,7 +2844,7 @@ mod tests {
 mod native {
     use std::collections::BTreeSet;
     use std::path::PathBuf;
-    use std::sync::mpsc;
+    use std::sync::{mpsc, Mutex};
 
     use anyhow::{Context, Result};
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -2754,6 +2852,9 @@ mod native {
     use ratatui::buffer::Buffer;
     use ratatui::crossterm::event::{KeyCode, KeyEvent};
     use ratatui::layout::Rect;
+    use ratatui::style::{Color, Style};
+    use ratatui::text::Line;
+    use ratatui::widgets::{Paragraph, Widget};
     use ratatui::Terminal;
     use tempfile::NamedTempFile;
 
@@ -2762,10 +2863,122 @@ mod native {
     };
 
     use super::{
-        current_grove_name, decide_observation_edit, handle_key, render, shell_capture,
-        shell_drain, short_err, App, CaptureField, CaptureModal, EditOutcome, PendingAction,
-        RepoView, DEBOUNCE,
+        current_grove_name, decide_observation_edit, footer_line, handle_key, render,
+        shell_capture, shell_drain, short_err, App, CaptureField, CaptureModal, EditOutcome,
+        PendingAction, RepoView, DEBOUNCE,
     };
+
+    // -----------------------------------------------------------------------
+    // The grove-owned whichkey bar (ADR-0019, leaf 140).
+    //
+    // One full-width line across the bottom of the native frame, the **single**
+    // owner of grove's key hints: the nav/detail surfaces suppress their own
+    // footers (`App::native_chrome`) and instead *publish* their hint line here
+    // when they gain focus or change state. The harness draws no hint of its own —
+    // when it is focused, the surface that lost focus relinquishes the bar to a
+    // "keys go to the harness" line.
+    //
+    // The bar is a passive, non-selectable host pane; it never has focus and so
+    // cannot learn the focused context by `set_focused`. Instead the *publishing*
+    // surface is always the focused one (input only routes to the focused pane), so
+    // it knows its own hints — and a `request_tick` through the whichkey's stored
+    // `HostDriver` wakes the bar to redraw. No new trellis focus hook is needed.
+    // -----------------------------------------------------------------------
+
+    /// Which surface currently owns the whichkey line. Tracked so a surface only
+    /// relinquishes the bar (on losing focus) when it still owns it — keeping the
+    /// hand-off order-independent across the paired `set_focused(false)` /
+    /// `set_focused(true)` calls trellis makes when focus moves.
+    #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    enum WhichkeyOwner {
+        Nav,
+        Detail,
+        Harness,
+    }
+
+    /// The published whichkey content: its owner plus the line the bar renders.
+    /// `None` until the first surface publishes (the nav, when it is focused at
+    /// first-layout).
+    static WHICHKEY_LINE: Mutex<Option<(WhichkeyOwner, Line<'static>)>> = Mutex::new(None);
+
+    /// The whichkey pane's own [`HostDriver`], stashed by [`WhichkeySurface::set_driver`]
+    /// so any focused surface can `request_tick` the bar to redraw when it publishes
+    /// a new line. `None` until the whichkey pane is injected.
+    static WHICHKEY_DRIVER: Mutex<Option<HostDriver>> = Mutex::new(None);
+
+    /// Publish `line` as the whichkey content owned by `owner`, and wake the bar to
+    /// redraw — but only when the content actually changed, so a held key (or a
+    /// no-op redraw) does not tick the bar every keystroke. Called by the focused
+    /// nav/detail surface; a no-op-but-safe call when no whichkey pane exists (the
+    /// `--local` path) since the driver is then `None`.
+    fn publish_whichkey(owner: WhichkeyOwner, line: Line<'static>) {
+        let changed = {
+            let mut slot = WHICHKEY_LINE.lock().unwrap();
+            let same = matches!(&*slot, Some((o, l)) if *o == owner && *l == line);
+            if !same {
+                *slot = Some((owner, line));
+            }
+            !same
+        };
+        if changed {
+            if let Some(driver) = WHICHKEY_DRIVER.lock().unwrap().as_ref() {
+                driver.request_tick();
+            }
+        }
+    }
+
+    /// Hand the whichkey to the harness context when `owner` loses focus — but only
+    /// if `owner` still holds the bar (the newly-focused surface may already have
+    /// claimed it, in which case its line must stand).
+    fn relinquish_whichkey(owner: WhichkeyOwner) {
+        let owns = matches!(&*WHICHKEY_LINE.lock().unwrap(), Some((o, _)) if *o == owner);
+        if owns {
+            publish_whichkey(WhichkeyOwner::Harness, harness_whichkey_line());
+        }
+    }
+
+    /// The whichkey line shown while a harness pane is focused: grove owns only the
+    /// leader (locked mode passes every other key to the harness itself).
+    fn harness_whichkey_line() -> Line<'static> {
+        Line::from("⌃o nav   ·   keys go to the focused harness")
+    }
+
+    /// The grove-owned whichkey bar as a trellis [`HostSurface`] (leaf 140): a
+    /// stateless renderer of whatever [`WHICHKEY_LINE`] the focused surface has
+    /// published. Injected as a full-width, non-selectable bottom pane
+    /// ([`Tab::inject_whichkey_pane`](trellis_server::tab)); never focused.
+    pub struct WhichkeySurface;
+
+    /// Build the (stateless) whichkey surface for [`register_whichkey_surface`].
+    pub fn whichkey_surface() -> WhichkeySurface {
+        WhichkeySurface
+    }
+
+    impl HostSurface for WhichkeySurface {
+        fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+            let line = WHICHKEY_LINE
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|(_, l)| l.clone())
+                .unwrap_or_else(|| Line::from(""));
+            // A subtle bar background sets the hint line apart from the surfaces
+            // above it; the published spans keep their own foreground colours.
+            Paragraph::new(line)
+                .style(Style::default().bg(Color::Indexed(236)).fg(Color::Gray))
+                .render(area, buf);
+        }
+
+        fn set_driver(&mut self, driver: HostDriver) {
+            *WHICHKEY_DRIVER.lock().unwrap() = Some(driver);
+        }
+
+        fn tick(&mut self) -> bool {
+            // A publishing surface ticks the bar when it changes the line; always
+            // redraw on a tick (the surface only ticks when something changed).
+            true
+        }
+    }
 
     // -----------------------------------------------------------------------
     // The native `$EDITOR` drop (130-native-detail/030; first slice of ADR-0020
@@ -2936,7 +3149,10 @@ mod native {
     pub fn dashboard_surface(repo: PathBuf) -> Result<DashboardSurface> {
         let view = RepoView::scan(&repo)?;
         let preselect = current_grove_name(&repo);
-        let app = App::new(repo.clone(), view, preselect);
+        let mut app = App::new(repo.clone(), view, preselect);
+        // The nav renders in the native frame: suppress its own footer; the
+        // grove-owned whichkey bar (leaf 140) owns the bottom hint line.
+        app.native_chrome = true;
         // Initial size is a placeholder; the first `draw` resizes to the pane.
         let terminal = Terminal::new(TestBackend::new(80, 24))
             .map_err(|e| anyhow::anyhow!("building the off-screen render target: {e}"))?;
@@ -3143,9 +3359,24 @@ mod native {
                     driver.quit();
                 }
             }
+            // The nav is the focused surface (input only routes to the focused
+            // pane), so republish its hints to the whichkey — the key likely moved
+            // the selection, toggled a modal, or set a status line.
+            publish_whichkey(WhichkeyOwner::Nav, footer_line(&self.app));
             // Always re-render: a key almost always moves the selection or sets a
             // status line, and the cost of an extra draw is trivial.
             true
+        }
+
+        fn set_focused(&mut self, focused: bool) {
+            // The whichkey bar reflects the focused surface (leaf 140): claim it
+            // with the nav's hints on focus, and hand it to the harness context on
+            // blur (if the nav still owns it).
+            if focused {
+                publish_whichkey(WhichkeyOwner::Nav, footer_line(&self.app));
+            } else {
+                relinquish_whichkey(WhichkeyOwner::Nav);
+            }
         }
 
         fn set_driver(&mut self, driver: HostDriver) {
@@ -3359,7 +3590,20 @@ mod native {
             if let Some(action) = self.app.pending_action.take() {
                 self.process_action(action);
             }
+            // This detail surface is the focused one (input only routes to the
+            // focused pane); republish its hints to the whichkey.
+            publish_whichkey(WhichkeyOwner::Detail, footer_line(&self.app));
             true
+        }
+
+        fn set_focused(&mut self, focused: bool) {
+            // Claim the whichkey with this grove's detail hints on focus; hand it to
+            // the harness context on blur (if this detail still owns it).
+            if focused {
+                publish_whichkey(WhichkeyOwner::Detail, footer_line(&self.app));
+            } else {
+                relinquish_whichkey(WhichkeyOwner::Detail);
+            }
         }
 
         fn set_driver(&mut self, driver: HostDriver) {
@@ -3443,8 +3687,40 @@ mod native {
             finish_edit(&mut app, PendingEdit::Body { tempfile: tf }, Some(1));
             assert_eq!(app.capture.body, "untouched");
         }
+
+        /// The whichkey bar renders whatever line the focused surface published, and
+        /// the publish/relinquish ownership keeps the hand-off order-independent
+        /// (leaf 140). One test because the published line is a process-global —
+        /// keeping the steps in a single test makes them sequential (no inter-test
+        /// races on the shared `WHICHKEY_LINE`).
+        #[test]
+        fn whichkey_publishes_renders_and_hands_off() {
+            // The bar renders the published line.
+            publish_whichkey(WhichkeyOwner::Nav, Line::from("⏎ open · ⌃o nav"));
+            let mut wk = whichkey_surface();
+            let area = Rect::new(0, 0, 40, 1);
+            let mut buf = Buffer::empty(area);
+            wk.draw(area, &mut buf);
+            let row: String = (0..area.width)
+                .map(|x| buf[(x, 0)].symbol().chars().next().unwrap_or(' '))
+                .collect();
+            assert!(row.contains("open"), "whichkey shows published hints: {row:?}");
+            assert!(row.contains("nav"), "whichkey shows the leader hint: {row:?}");
+
+            // A non-owner losing focus is inert: the nav never owned the bar here
+            // (detail does), so detail's line stands.
+            publish_whichkey(WhichkeyOwner::Detail, Line::from("detail hints"));
+            relinquish_whichkey(WhichkeyOwner::Nav);
+            let owner = WHICHKEY_LINE.lock().unwrap().as_ref().map(|(o, _)| *o);
+            assert_eq!(owner, Some(WhichkeyOwner::Detail), "non-owner blur is inert");
+
+            // The owner losing focus hands the bar to the harness context.
+            relinquish_whichkey(WhichkeyOwner::Detail);
+            let owner = WHICHKEY_LINE.lock().unwrap().as_ref().map(|(o, _)| *o);
+            assert_eq!(owner, Some(WhichkeyOwner::Harness), "owner blur → harness");
+        }
     }
 }
 
 #[cfg(feature = "trellis-seam")]
-pub use native::dashboard_surface;
+pub use native::{dashboard_surface, whichkey_surface};

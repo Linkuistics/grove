@@ -2384,6 +2384,46 @@ impl Tab {
             self.insert_suppressed_pane(replaced_pane.pid(), (is_scrollback_editor, replaced_pane));
         }
     }
+    /// Restore the parked content pane `incoming_pid` into the content `slot_pid`,
+    /// parking the displaced occupant alive (ADR-0023's content swap). The
+    /// synchronous half of the swap: re-selecting an already-open key.
+    ///
+    /// Pulls `incoming_pid` out of `suppressed_panes` by its own id
+    /// ([`extract_pane`](Self::extract_pane) with `dont_swap_if_suppressed = true`,
+    /// so it is found regardless of which key suppressed it), swaps it into the slot
+    /// **in place** (inheriting the slot's exact geometry, so the nav sibling is
+    /// never touched), parks the displaced occupant by its own id, resizes the
+    /// restored pane's pty to its new geometry, and focuses it. (The fresh-open half
+    /// — first selection of a key — rounds through the pty thread to spawn the child;
+    /// see `ScreenInstruction::SwapContent` / `ContentSpawned`.)
+    pub fn content_restore(
+        &mut self,
+        slot_pid: PaneId,
+        incoming_pid: PaneId,
+        client_id: ClientId,
+    ) -> Result<()> {
+        let err_context = || format!("failed to restore content pane {incoming_pid:?}");
+        let incoming = self
+            .extract_pane(incoming_pid, true)
+            .with_context(|| format!("parked content pane {incoming_pid:?} not found"))
+            .with_context(err_context)?;
+        let displaced = self
+            .tiled_panes
+            .replace_pane(slot_pid, incoming)
+            .with_context(|| format!("content slot {slot_pid:?} not found"))
+            .with_context(err_context)?;
+        self.insert_suppressed_pane(displaced.pid(), (false, displaced));
+        // The restored pane inherited the slot geometry above; tell its pty so its
+        // child resizes to the slot (the keep-alive-while-parked invariant means the
+        // child may have been spawned at a stale size).
+        if let Some(pane) = self.tiled_panes.get_pane(incoming_pid) {
+            resize_pty!(pane, self.os_api, self.senders, self.character_cell_size).non_fatal();
+        }
+        self.tiled_panes.focus_pane(incoming_pid, client_id);
+        self.set_should_clear_display_before_rendering();
+        self.set_force_render();
+        Ok(())
+    }
     pub fn horizontal_split(
         &mut self,
         pid: PaneId,
@@ -5565,21 +5605,27 @@ impl Tab {
         }
         Ok(())
     }
-    /// Inject grove's host-rendered native pane (ADR-0021's third pane kind) into
-    /// this tab as its **sole** pane, focused by `client_id`. The home tab is the
-    /// full-height grove nav (leaf 120-native-nav), so the host pane must own the
-    /// whole tab — *not* split beside the layout's placeholder pane (the 020/030
-    /// behaviour). grove's bars-free default layout (`layout { pane }`) yields
-    /// exactly one placeholder terminal pane; the host pane **adopts its slot** via
-    /// [`close_pane_and_replace_with_other_pane`](Self::close_pane_and_replace_with_other_pane),
-    /// inheriting its full-tab geometry and client focus and closing its pty. A tab
-    /// with no panes (defensive — not the default-layout path) falls back to a
-    /// plain add.
+    /// Inject the host-rendered native pane (ADR-0021's third pane kind) as the
+    /// **constant nav** beside a **content slot** (ADR-0022/0023), focused by
+    /// `client_id`, and return the **content-slot pane id** for the screen's
+    /// content-swap bookkeeping.
+    ///
+    /// grove's session layout is one tab of two tiled panes side by side: a fixed
+    /// nav pane (leftmost) and a content-slot placeholder. The host surface adopts
+    /// the **nav** pane — the leftmost by `x` — via
+    /// [`close_pane_and_replace_with_other_pane`](Self::close_pane_and_replace_with_other_pane)
+    /// (inheriting its geometry + focus, closing its placeholder pty); the **other**
+    /// pane is left as the addressable content slot the swap verb targets, and its
+    /// id is returned (`Ok(Some(slot))`).
+    ///
+    /// Degenerate fallbacks (not grove's path): a **single**-pane layout makes the
+    /// host pane fill the tab (the pre-content-swap 120-native-nav behaviour) and an
+    /// **empty** tab plain-adds it — both return `Ok(None)` (no content slot).
     pub fn inject_host_pane(
         &mut self,
         surface: Box<dyn crate::panes::host_pane::HostSurface>,
         client_id: ClientId,
-    ) -> Result<()> {
+    ) -> Result<Option<PaneId>> {
         let pid = crate::panes::host_pane::next_host_pane_id();
         // The host pane's `HostDriver` rides on this tab's bus senders, which only
         // exist on the screen thread — hence the surface is driven from here, not
@@ -5605,23 +5651,33 @@ impl Tab {
             to_server,
             client_id,
         );
-        // Replace the layout's placeholder pane so the nav fills the tab; `None`
-        // here (no other pane) only happens off the default-layout path.
-        match self.get_tiled_pane_ids().first().copied() {
-            Some(placeholder) => {
-                self.close_pane_and_replace_with_other_pane(
-                    placeholder,
-                    Box::new(host_pane),
-                    None,
-                );
-                // The replace re-points any client already active on the
+        // Identify the nav target (leftmost pane) and the content slot (the next
+        // pane to its right). Sorting by `x` makes the nav/content roles independent
+        // of pane-map iteration order.
+        let mut panes_by_x: Vec<(PaneId, usize)> = self
+            .get_tiled_panes()
+            .map(|(id, pane)| (*id, pane.x()))
+            .collect();
+        panes_by_x.sort_by_key(|(_, x)| *x);
+        let nav_target = panes_by_x.first().map(|(id, _)| *id);
+        let content_slot = panes_by_x.get(1).map(|(id, _)| *id);
+        match nav_target {
+            Some(nav_pane) => {
+                self.close_pane_and_replace_with_other_pane(nav_pane, Box::new(host_pane), None);
+                // The replace re-points any client already active on the nav
                 // placeholder; focus explicitly too so the nav reliably receives
                 // input regardless of focus timing (mirrors `add_tiled_pane`).
                 self.tiled_panes.focus_pane(PaneId::Host(pid), client_id);
-                Ok(())
+                Ok(content_slot)
             },
             None => {
-                self.add_tiled_pane(Box::new(host_pane), PaneId::Host(pid), false, Some(client_id))
+                self.add_tiled_pane(
+                    Box::new(host_pane),
+                    PaneId::Host(pid),
+                    false,
+                    Some(client_id),
+                )?;
+                Ok(None)
             },
         }
     }

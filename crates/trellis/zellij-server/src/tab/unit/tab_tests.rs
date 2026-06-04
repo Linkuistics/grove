@@ -16307,3 +16307,109 @@ pub fn cli_rename_active_pane_then_interactive_esc_restores() {
     let pane = tab.get_pane_with_id(pane_id).unwrap();
     assert_eq!(pane.current_title(), "spark");
 }
+
+#[test]
+fn content_swap_parks_alive_and_restores_into_the_slot() {
+    // ADR-0023's content-swap park/mount/restore primitive (130/020 substrate).
+    // Build the constant-nav + content-slot shape — a nav pane (1, leftmost) beside
+    // a content slot (2) — and assert the three deltas the retired throwaway proved:
+    //   (1) the nav SIBLING is byte-for-byte untouched across a swap + restore;
+    //   (2) the displaced pane is parked ALIVE (kept in `suppressed_panes`, its
+    //       grid/scrollback intact), not closed;
+    //   (3) a restored pane inherits the content slot's exact geometry.
+    let size = Size { cols: 80, rows: 24 };
+    let mut tab = create_new_tab(size, false);
+    // pane 1 is the nav; split it so pane 2 (to its right) is the content slot.
+    tab.vertical_split(PaneId::Terminal(2), None, 1, None, None)
+        .unwrap();
+
+    let nav_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(1))
+        .unwrap()
+        .position_and_size();
+    let slot_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(2))
+        .unwrap()
+        .position_and_size();
+
+    // Grove A occupies the slot; give its pty some scrollback.
+    tab.handle_pty_bytes(2, b"grove-A-content".to_vec()).unwrap();
+
+    // Select grove B: mount a fresh pane (3) into the slot, parking A alive. This is
+    // the synchronous core of the fresh-mount path (`ContentSpawned`'s
+    // `suppress_pane_and_replace_with_pid`); the pty/screen plumbing around it is
+    // exercised by the live session, not this unit.
+    tab.suppress_pane_and_replace_with_pid(
+        PaneId::Terminal(2),
+        PaneId::Terminal(3),
+        false, // park (do not close) the displaced pane
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    tab.handle_pty_bytes(3, b"grove-B-content".to_vec()).unwrap();
+
+    // Delta 2a: grove A is parked ALIVE — present in `suppressed_panes`, scrollback
+    // fed before the park still in its grid.
+    let parked_a = tab
+        .suppressed_panes
+        .values()
+        .find(|(_, p)| p.pid() == PaneId::Terminal(2))
+        .expect("grove A is parked, not closed");
+    assert!(
+        parked_a.1.dump_screen(true, None).contains("grove-A-content"),
+        "parked grove A keeps its scrollback"
+    );
+
+    // Re-select grove A: restore it into the slot, parking grove B.
+    tab.content_restore(PaneId::Terminal(3), PaneId::Terminal(2), 1)
+        .unwrap();
+
+    // Delta 1: the nav sibling is untouched across the whole swap + restore.
+    assert_eq!(
+        tab.tiled_panes
+            .panes
+            .get(&PaneId::Terminal(1))
+            .unwrap()
+            .position_and_size(),
+        nav_geom,
+        "nav geometry is untouched by content swaps"
+    );
+
+    // Delta 3: grove A is back in the slot with the slot's exact geometry, content
+    // intact (it stayed alive the whole time it was parked).
+    let restored = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(2))
+        .expect("grove A restored to the tiled content slot");
+    assert_eq!(
+        restored.position_and_size(),
+        slot_geom,
+        "the restored pane inherits the content slot geometry"
+    );
+    assert!(
+        restored.dump_screen(true, None).contains("grove-A-content"),
+        "restored grove A still has its content"
+    );
+
+    // Delta 2b: grove B is now the parked-alive one; grove A no longer suppressed.
+    let parked_b = tab
+        .suppressed_panes
+        .values()
+        .find(|(_, p)| p.pid() == PaneId::Terminal(3))
+        .expect("grove B is now parked, not closed");
+    assert!(
+        parked_b.1.dump_screen(true, None).contains("grove-B-content"),
+        "parked grove B keeps its scrollback"
+    );
+    assert!(
+        !tab.tiled_panes.panes.contains_key(&PaneId::Terminal(3)),
+        "grove B is no longer in the tiled slot"
+    );
+}

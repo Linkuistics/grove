@@ -102,6 +102,17 @@ pub enum PtyInstruction {
         ClientTabIndexOrPaneId,
         Option<NotificationEnd>, // completion signal
     ), // String is an optional pane name
+    /// Spawn the fresh child for a first-time content swap (ADR-0022/0023) and
+    /// round it back to the screen thread as
+    /// [`ScreenInstruction::ContentSpawned`](crate::screen::ScreenInstruction::ContentSpawned),
+    /// which mounts it into the content slot. The spawn must happen here (the pty
+    /// thread owns child creation); the screen thread cannot block on it.
+    SwapContentSpawn {
+        key: String,
+        slot_pid: PaneId,
+        run: RunCommand,
+        client_id: ClientId,
+    },
     DumpLayout(SessionLayoutMetadata, ClientId, Option<NotificationEnd>),
     DumpLayoutToPlugin {
         session_layout_metadata: SessionLayoutMetadata,
@@ -172,6 +183,7 @@ impl From<&PtyInstruction> for PtyContext {
             PtyInstruction::ReRunCommandInPane(..) => PtyContext::ReRunCommandInPane,
             PtyInstruction::DropToShellInPane { .. } => PtyContext::DropToShellInPane,
             PtyInstruction::SpawnInPlaceTerminal(..) => PtyContext::SpawnInPlaceTerminal,
+            PtyInstruction::SwapContentSpawn { .. } => PtyContext::SwapContentSpawn,
             PtyInstruction::DumpLayout(..) => PtyContext::DumpLayout,
             PtyInstruction::DumpLayoutToPlugin { .. } => PtyContext::DumpLayoutToPlugin,
             PtyInstruction::LogLayoutToHd(..) => PtyContext::LogLayoutToHd,
@@ -439,6 +451,42 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                             }
                         },
                         _ => Err::<(), _>(err).non_fatal(),
+                    },
+                }
+            },
+            PtyInstruction::SwapContentSpawn {
+                key,
+                slot_pid,
+                run,
+                client_id,
+            } => {
+                // Spawn the fresh child for a first-time content swap and round it
+                // back to the screen thread, which mounts it into the slot (parking
+                // the displaced occupant). On a spawn failure the slot keeps its
+                // current occupant — the swap is simply a no-op.
+                let log_key = key.clone();
+                let err_context = || format!("failed to spawn content pane for {log_key:?}");
+                match pty
+                    .spawn_terminal(
+                        Some(TerminalAction::RunCommand(run.clone())),
+                        ClientTabIndexOrPaneId::ClientId(client_id),
+                    )
+                    .with_context(err_context)
+                {
+                    Ok((pid, _starts_held)) => {
+                        pty.bus
+                            .senders
+                            .send_to_screen(ScreenInstruction::ContentSpawned {
+                                key,
+                                slot_pid,
+                                new_pid: PaneId::Terminal(pid),
+                                run,
+                                client_id,
+                            })
+                            .with_context(err_context)?;
+                    },
+                    Err(e) => {
+                        Err::<(), _>(e).with_context(err_context).non_fatal();
                     },
                 }
             },

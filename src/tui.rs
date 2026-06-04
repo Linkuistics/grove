@@ -166,19 +166,21 @@ pub enum PendingAction {
     EditObservation {
         path: PathBuf,
     },
-    /// Open (or switch to, if already open) the [[workspace]] tab for grove
-    /// `name`, running `grove do <name>` in `repo`. The native dashboard drives
-    /// this by direct in-process `HostDriver` call (`new_command_tab` /
-    /// `focus_tab`), tracking open names itself — no `zellij action`, no
-    /// permission prompt (ADR-0020 superseded ADR-0018's WASM/`zellij action`
-    /// realisation). `repo` is explicit so the cross-repo fleet (070) reuses the
-    /// driving layer unchanged. Native-path only — the `--local` in-terminal
-    /// dashboard has no substrate to drive.
+    /// Select grove `name`: swap its `grove do <name>` harness (run in `repo`) into
+    /// the **content slot** beside the constant nav (ADR-0022/0023). The native
+    /// dashboard drives this by a direct in-process `HostDriver::swap_content` call;
+    /// the screen thread parks the previously-selected harness alive and mounts (or
+    /// restores) this one — no `zellij action`, no tabs. `repo` is explicit so the
+    /// cross-repo fleet (070) reuses the driving layer unchanged. Native-path only —
+    /// the `--local` in-terminal dashboard has no substrate to drive.
     OpenHarness {
         name: String,
         repo: PathBuf,
     },
-    /// Close the harness tab for grove `name` and forget its tab id.
+    /// Legacy "close the acting grove's harness" request (the `x` key). The
+    /// content-swap model parks harnesses alive instead of closing them, so the
+    /// native surface treats this as a no-op-with-status; retained for the `--local`
+    /// path's key handling.
     CloseHarness {
         name: String,
     },
@@ -822,12 +824,12 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         (_, KeyCode::Char('c')) => {
             open_capture_modal(app);
         }
-        // Harness driving (controller path): `o` opens the acting grove's
-        // workspace tab (or switches to it if already open); `x` closes it. The
-        // decision is recorded here; the controller's `process_pending_action`
-        // drives zellij via `zellij action` (the `--local` path can't).
-        // Ongoing switching between open workspaces is the locked-mode GoToTab
-        // keybinds, handled by zellij itself — not this dashboard key.
+        // Harness driving (native path): `o` selects the acting grove — swapping
+        // its harness into the content slot beside the constant nav (the same action
+        // as `Enter` on the nav list). `x` is the retired close affordance (the swap
+        // model parks harnesses alive; see `PendingAction::CloseHarness`). The
+        // decision is recorded here and enacted by the native `process_action`
+        // (`HostDriver::swap_content`); the `--local` path can't drive a substrate.
         (_, KeyCode::Char('o')) => {
             request_open_harness(app);
         }
@@ -942,9 +944,9 @@ fn acting_grove_name(app: &App) -> Option<String> {
     }
 }
 
-/// Request "open or focus the acting grove's workspace tab". The repo is carried
-/// explicitly so the cross-repo fleet (070) reuses this path unchanged. No-op
-/// when no grove is selected.
+/// Request "select the acting grove" — swap its harness into the content slot
+/// (ADR-0022/0023). The repo is carried explicitly so the cross-repo fleet (070)
+/// reuses this path unchanged. No-op when no grove is selected.
 fn request_open_harness(app: &mut App) {
     if let Some(name) = acting_grove_name(app) {
         let repo = app.repo.clone();
@@ -952,8 +954,8 @@ fn request_open_harness(app: &mut App) {
     }
 }
 
-/// Request "close the acting grove's workspace tab". No-op when no grove is
-/// selected.
+/// Request the retired "close the acting grove's harness" affordance (`x`). No-op
+/// when no grove is selected; the native surface parks rather than closes.
 fn request_close_harness(app: &mut App) {
     if let Some(name) = acting_grove_name(app) {
         app.pending_action = Some(PendingAction::CloseHarness { name });
@@ -2738,34 +2740,34 @@ mod native {
                     let Some(driver) = self.driver.clone() else {
                         return;
                     };
-                    if self.open_harnesses.contains(&name) {
-                        driver.focus_tab(&name);
-                        self.app.status = Some(format!("switched to harness: {name}"));
-                    } else {
-                        // Run the same binary the server is (dev `target/debug/grove`
-                        // or an installed one), mirroring the retired driver.
-                        let grove_bin =
-                            std::env::current_exe().unwrap_or_else(|_| PathBuf::from("grove"));
-                        driver.new_command_tab(
-                            &name,
-                            repo,
-                            grove_bin,
-                            vec!["do".to_string(), name.clone()],
-                        );
-                        self.open_harnesses.insert(name.clone());
+                    // Drive the content swap (ADR-0022/0023): mount this grove's
+                    // `grove do <name>` harness into the content slot beside the
+                    // constant nav, parking the previously-selected grove's harness
+                    // alive off-screen. The screen thread dedupes (already-shown →
+                    // no-op, parked → restore, first time → spawn); grove only tracks
+                    // names for the status line. Run the same binary the server is
+                    // (dev `target/debug/grove` or an installed one).
+                    let grove_bin =
+                        std::env::current_exe().unwrap_or_else(|_| PathBuf::from("grove"));
+                    driver.swap_content(
+                        &name,
+                        repo,
+                        grove_bin,
+                        vec!["do".to_string(), name.clone()],
+                    );
+                    if self.open_harnesses.insert(name.clone()) {
                         self.app.status = Some(format!("opened harness: {name}"));
+                    } else {
+                        self.app.status = Some(format!("switched to harness: {name}"));
                     }
                 }
                 PendingAction::CloseHarness { name } => {
-                    let Some(driver) = self.driver.clone() else {
-                        return;
-                    };
-                    if self.open_harnesses.remove(&name) {
-                        driver.close_tab(&name);
-                        self.app.status = Some(format!("closed harness: {name}"));
-                    } else {
-                        self.app.status = Some(format!("no open harness: {name}"));
-                    }
+                    // The content-swap model parks harnesses alive rather than
+                    // closing them; there is no per-grove close from the nav (a
+                    // lifecycle concern beyond this leaf — `GoToTab`/close-tab
+                    // retired with ADR-0023).
+                    self.app.status =
+                        Some(format!("{name} stays parked (no close in the swap model)"));
                 }
                 PendingAction::EditBody | PendingAction::EditObservation { .. } => {
                     self.app.status =

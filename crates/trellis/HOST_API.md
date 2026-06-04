@@ -90,7 +90,10 @@ synchronous "create tab and return its id".
 
 ```rust
 impl HostDriver {
-    // open a NEW tab named `name` whose initial pane runs `command args…` in `cwd`
+    // the content switcher (ADR-0022/0023) — see below; supersedes the tab verbs
+    fn swap_content(&self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>);
+
+    // legacy tab verbs — still valid generic verbs, no longer grove's switcher
     fn new_command_tab(&self, name: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>);
     fn focus_tab(&self, name: &str);   // GoToTabName(create=false) — never spawns an empty tab
     fn close_tab(&self, name: &str);   // focus the named tab, then close the now-active one
@@ -99,10 +102,21 @@ impl HostDriver {
 }
 ```
 
-Tabs are addressed **by name**, not numeric id — the async, no-reply model has no
-clean way to round-trip a server-assigned id back to the surface, and names are
-what grove already keys harnesses on. The host tracks which names are open (grove:
-a `BTreeSet<String>`); trellis does not dedupe names. This subsumes the retired
+**`swap_content` — the constant-nav content switcher (ADR-0022/0023).** Posts
+`ScreenInstruction::SwapContent { key, run, client_id }`. The session layout is one
+tab: a constant host nav pane beside a **content slot**. `swap_content(key, …)`
+shows `key`'s working set in the slot — first selection of `key` spawns `command
+args…` as the slot pane (the displaced occupant **parked alive** in the tab's
+`suppressed_panes`); re-selection **restores** `key`'s parked pane (scrollback
+intact) via an in-place `replace_pane`. The opaque `key` is the host's identifier
+(grove names a grove); trellis never interprets it. The screen thread dedupes
+(already-shown → no-op, parked → restore, new → spawn), so the host need not track
+open/parked state. This is grove's switcher; the **tab verbs are no longer used as
+the switcher** and the `GROVE_TUI_CONFIG` `GoToTab`/`Alt-1..9` binds are retired.
+
+Tabs (the legacy verbs) are addressed **by name**, not numeric id — the async,
+no-reply model has no clean way to round-trip a server-assigned id back to the
+surface. trellis does not dedupe names. The tab verbs subsume the retired
 `zellij action new-tab / go-to-tab-by-id / close-tab-by-id` shell-outs.
 
 ### The tick — waking a redraw with no input

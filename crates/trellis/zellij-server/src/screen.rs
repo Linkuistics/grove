@@ -327,6 +327,29 @@ pub enum ScreenInstruction {
     /// [`HostDriver::request_tick`](crate::panes::host_pane::HostDriver::request_tick),
     /// the mechanism grove's fs-watch thread uses to wake a redraw with no input.
     HostSurfaceTick(u32),
+    /// Swap the **content slot** beside the constant host nav to show the working
+    /// set keyed by `key` (ADR-0022/0023). A host surface posts this via
+    /// [`HostDriver::swap_content`](crate::panes::host_pane::HostDriver::swap_content);
+    /// the screen thread restores `key`'s parked pane in place, or — first time
+    /// for `key` — spawns `run` as a command pane into the slot (parking the
+    /// displaced occupant alive in `suppressed_panes`). The opaque `key` is the
+    /// host's domain identifier (grove names a grove); trellis never interprets it.
+    SwapContent {
+        key: String,
+        run: RunCommand,
+        client_id: ClientId,
+    },
+    /// The pty thread finished spawning `key`'s fresh content pane (`new_pid`) for
+    /// a first-time [`SwapContent`](Self::SwapContent); mount it into `slot_pid`,
+    /// parking the displaced occupant. The async sibling of `SwapContent`'s
+    /// synchronous restore path (the spawn must round-trip through the pty thread).
+    ContentSpawned {
+        key: String,
+        slot_pid: PaneId,
+        new_pid: PaneId,
+        run: RunCommand,
+        client_id: ClientId,
+    },
     NewPane(
         PaneId,
         Option<InitialTitle>,
@@ -882,6 +905,8 @@ impl From<&ScreenInstruction> for ScreenContext {
             ScreenInstruction::Render => ScreenContext::Render,
             ScreenInstruction::RenderToClients => ScreenContext::RenderToClients,
             ScreenInstruction::HostSurfaceTick(..) => ScreenContext::HostSurfaceTick,
+            ScreenInstruction::SwapContent { .. } => ScreenContext::SwapContent,
+            ScreenInstruction::ContentSpawned { .. } => ScreenContext::ContentSpawned,
             ScreenInstruction::NewPane(..) => ScreenContext::NewPane,
             ScreenInstruction::OpenInPlaceEditor(..) => ScreenContext::OpenInPlaceEditor,
             ScreenInstruction::TogglePaneEmbedOrFloating(..) => {
@@ -1357,6 +1382,27 @@ struct PaneRenderSubscription {
     ansi: bool,
 }
 
+/// Bookkeeping for the **content-swap** facility (ADR-0022/0023): a constant host
+/// nav pane beside a single **content slot** into which the host swaps one of N
+/// keyed working sets, the others parked alive in the tab's `suppressed_panes`.
+///
+/// This is the generic mechanism trellis exposes; grove drives it (the `key` is a
+/// grove name), but trellis never interprets the key — the one-way crate seam
+/// (ADR-0020 §4). Created at first-layout when a host nav pane is injected beside a
+/// content-slot pane; absent for stock trellis / single-pane host sessions.
+struct ContentSwap {
+    /// The screen-tab index holding the nav + content slot (grove uses one tab).
+    tab_id: usize,
+    /// The pane id currently occupying the content slot. Tracks the live occupant
+    /// across swaps (`replace_pane` changes which pane sits at the slot geometry).
+    slot_pid: PaneId,
+    /// key → that key's content pane id (whether currently mounted or parked).
+    panes: HashMap<String, PaneId>,
+    /// The key currently mounted in the slot, if any (`None` = the layout's initial
+    /// placeholder is still there, to be closed on the first mount).
+    mounted: Option<String>,
+}
+
 /// A [`Screen`] holds multiple [`Tab`]s, each one holding multiple [`panes`](crate::client::panes).
 /// It only directly controls which tab is active, delegating the rest to the individual `Tab`.
 pub(crate) struct Screen {
@@ -1464,6 +1510,9 @@ pub(crate) struct Screen {
     /// Resolved styling to apply when `host_terminal_theme_mode == Light`.
     /// `None` disables auto-switch. Refreshed on each reconfigure.
     host_theme_light_styling: Option<Styling>,
+    /// The content-swap facility's state (ADR-0022/0023), `Some` once a host nav
+    /// pane is injected beside a content slot at first-layout. See [`ContentSwap`].
+    content_swap: Option<ContentSwap>,
 }
 
 /// A pending forward waiting to be dispatched once the current in-flight
@@ -1617,6 +1666,7 @@ impl Screen {
             host_terminal_theme_mode: None,
             host_theme_dark_styling: None,
             host_theme_light_styling: None,
+            content_swap: None,
         }
     }
 
@@ -3036,11 +3086,27 @@ impl Screen {
         // the `--server` path), so exactly one host pane is created per session
         // and stock trellis sessions are unaffected.
         if let Some(surface) = crate::panes::host_pane::take_host_surface() {
-            if let Some(tab) = self.tabs.get_mut(&tab_id) {
-                tab.inject_host_pane(surface, client_id)
+            let content_slot = if let Some(tab) = self.tabs.get_mut(&tab_id) {
+                let slot = tab
+                    .inject_host_pane(surface, client_id)
                     .with_context(err_context)?;
                 tab.resize_whole_tab(self.size).with_context(err_context)?;
                 tab.set_force_render();
+                slot
+            } else {
+                None
+            };
+            // Initialise the content-swap facility (ADR-0022/0023) when the nav was
+            // injected beside a content slot. The slot pane is the layout's
+            // placeholder occupant; `mounted: None` marks it the throwaway the first
+            // key mount closes.
+            if let Some(slot_pid) = content_slot {
+                self.content_swap = Some(ContentSwap {
+                    tab_id,
+                    slot_pid,
+                    panes: HashMap::new(),
+                    mounted: None,
+                });
             }
         }
 
@@ -5795,6 +5861,113 @@ pub(crate) fn screen_thread_main(
                 if dirty {
                     screen.render(None)?;
                 }
+            },
+            ScreenInstruction::SwapContent {
+                key,
+                run,
+                client_id,
+            } => {
+                // The constant-nav content swap (ADR-0022/0023). Decide the plan
+                // without holding a borrow across the tab/pty calls.
+                enum SwapPlan {
+                    Noop,
+                    Restore {
+                        tab_id: usize,
+                        slot_pid: PaneId,
+                        parked_pid: PaneId,
+                    },
+                    Spawn {
+                        slot_pid: PaneId,
+                    },
+                }
+                let plan = match screen.content_swap.as_ref() {
+                    None => {
+                        log::error!("SwapContent posted with no content slot initialised");
+                        SwapPlan::Noop
+                    },
+                    // Already showing this key: nothing to do.
+                    Some(cs) if cs.mounted.as_deref() == Some(key.as_str()) => SwapPlan::Noop,
+                    // Previously opened (its pane is parked alive): restore it.
+                    Some(cs) => match cs.panes.get(&key) {
+                        Some(&parked_pid) => SwapPlan::Restore {
+                            tab_id: cs.tab_id,
+                            slot_pid: cs.slot_pid,
+                            parked_pid,
+                        },
+                        // First time for this key: spawn its child pane.
+                        None => SwapPlan::Spawn {
+                            slot_pid: cs.slot_pid,
+                        },
+                    },
+                };
+                match plan {
+                    SwapPlan::Noop => {},
+                    SwapPlan::Restore {
+                        tab_id,
+                        slot_pid,
+                        parked_pid,
+                    } => {
+                        if let Some(tab) = screen.tabs.get_mut(&tab_id) {
+                            tab.content_restore(slot_pid, parked_pid, client_id)?;
+                        }
+                        if let Some(cs) = screen.content_swap.as_mut() {
+                            cs.slot_pid = parked_pid;
+                            cs.mounted = Some(key);
+                        }
+                        screen.render(None)?;
+                    },
+                    // Fresh open: the pty thread spawns the child and rounds back via
+                    // `ContentSpawned`, which mounts it and records the bookkeeping
+                    // (the spawn cannot be done synchronously on the screen thread).
+                    SwapPlan::Spawn { slot_pid } => {
+                        screen
+                            .bus
+                            .senders
+                            .send_to_pty(PtyInstruction::SwapContentSpawn {
+                                key,
+                                slot_pid,
+                                run,
+                                client_id,
+                            })?;
+                    },
+                }
+            },
+            ScreenInstruction::ContentSpawned {
+                key,
+                slot_pid,
+                new_pid,
+                run,
+                client_id,
+            } => {
+                // The pty thread spawned `key`'s fresh content child (`new_pid`).
+                // Mount it into the slot in place, parking the displaced occupant
+                // alive — unless that occupant is the layout's initial placeholder
+                // (`mounted: None`), which is closed instead. The replace re-points
+                // the slot's clients to the new pane; focus it explicitly so the
+                // freshly-opened working set receives input.
+                let plan = screen
+                    .content_swap
+                    .as_ref()
+                    .map(|cs| (cs.tab_id, cs.mounted.is_none()));
+                if let Some((tab_id, close_placeholder)) = plan {
+                    if let Some(tab) = screen.tabs.get_mut(&tab_id) {
+                        tab.suppress_pane_and_replace_with_pid(
+                            slot_pid,
+                            new_pid,
+                            close_placeholder,
+                            Some(Run::Command(run)),
+                            None,
+                            None,
+                        )?;
+                        tab.focus_pane_with_id(new_pid, false, false, client_id)?;
+                    }
+                    if let Some(cs) = screen.content_swap.as_mut() {
+                        cs.panes.insert(key.clone(), new_pid);
+                        cs.slot_pid = new_pid;
+                        cs.mounted = Some(key);
+                    }
+                }
+                screen.render(None)?;
             },
             ScreenInstruction::RenderToClients => {
                 // render_blocker.can_render() returning true means that either all pending plugins

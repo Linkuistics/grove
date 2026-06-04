@@ -165,6 +165,28 @@ impl HostDriver {
         ));
     }
 
+    /// Swap the **content slot** beside the constant nav to show the working set
+    /// keyed by `key` (ADR-0022/0023) — the native switcher that supersedes the
+    /// tab model. First selection of `key` spawns `command args…` in `cwd` as the
+    /// content pane; re-selection restores its parked-alive pane (scrollback
+    /// intact). The opaque `key` is the host's own identifier (grove passes a grove
+    /// name); the caller need not track open/parked state — the screen thread
+    /// dedupes (already-shown → no-op, parked → restore, new → spawn). Fire-and-
+    /// forget like the other verbs.
+    pub fn swap_content(&self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>) {
+        let run = RunCommand {
+            command,
+            args,
+            cwd: Some(cwd),
+            ..RunCommand::default()
+        };
+        let _ = self.to_screen.send(ScreenInstruction::SwapContent {
+            key: key.to_string(),
+            run,
+            client_id: self.client_id,
+        });
+    }
+
     /// Focus the existing tab named `name` (the native replacement for `zellij
     /// action go-to-tab-by-id`). `create = false`, so a missing tab is a no-op
     /// rather than spawning an empty tab — the command tab is only ever created

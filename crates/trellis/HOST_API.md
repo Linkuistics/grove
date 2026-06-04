@@ -91,7 +91,10 @@ synchronous "create tab and return its id".
 ```rust
 impl HostDriver {
     // the content switcher (ADR-0022/0023) — see below; supersedes the tab verbs
-    fn swap_content(&self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>);
+    fn swap_content(
+        &self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>,
+        secondary_surface_key: Option<String>,   // the detail half of the pair (130/020)
+    );
 
     // legacy tab verbs — still valid generic verbs, no longer grove's switcher
     fn new_command_tab(&self, name: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>);
@@ -102,17 +105,22 @@ impl HostDriver {
 }
 ```
 
-**`swap_content` — the constant-nav content switcher (ADR-0022/0023).** Posts
-`ScreenInstruction::SwapContent { key, run, client_id }`. The session layout is one
-tab: a constant host nav pane beside a **content slot**. `swap_content(key, …)`
-shows `key`'s working set in the slot — first selection of `key` spawns `command
-args…` as the slot pane (the displaced occupant **parked alive** in the tab's
-`suppressed_panes`); re-selection **restores** `key`'s parked pane (scrollback
-intact) via an in-place `replace_pane`. The opaque `key` is the host's identifier
-(grove names a grove); trellis never interprets it. The screen thread dedupes
-(already-shown → no-op, parked → restore, new → spawn), so the host need not track
-open/parked state. This is grove's switcher; the **tab verbs are no longer used as
-the switcher** and the `GROVE_TUI_CONFIG` `GoToTab`/`Alt-1..9` binds are retired.
+**`swap_content` — the constant-nav content switcher (ADR-0022/0023), pair-aware
+(130/020).** Posts `ScreenInstruction::SwapContent { key, run, secondary_surface_key,
+client_id }`. The session layout is one tab: a constant host nav pane beside a
+**content region** that is a **pair** — a primary command pane (grove's harness) and
+an optional secondary host surface (grove's per-grove detail). `swap_content(key, …)`
+shows `key`'s working set in the region — first selection of `key` spawns `command
+args…` as the primary pane and mounts the surface stashed under
+`secondary_surface_key` (see the registry below) as the secondary, the displaced
+**pair parked alive** in the tab's `suppressed_panes`; re-selection **restores**
+`key`'s parked pair (scrollback + detail state intact) via in-place `replace_pane`s.
+The opaque `key` is the host's identifier (grove names a grove); trellis never
+interprets it. The screen thread dedupes (already-shown → no-op, parked → restore,
+new → spawn), so the host need not track open/parked state. `secondary_surface_key`
+is `None` for a primary-only working set (the 010 single-slot shape). This is grove's
+switcher; the **tab verbs are no longer used as the switcher** and the
+`GROVE_TUI_CONFIG` `GoToTab`/`Alt-1..9` binds are retired.
 
 Tabs (the legacy verbs) are addressed **by name**, not numeric id — the async,
 no-reply model has no clean way to round-trip a server-assigned id back to the
@@ -148,14 +156,33 @@ spawn. Instead:
    that tab's screen/server senders via `set_driver` (those senders only exist on
    the screen thread, which is why the driver arrives here and not in the factory).
 
-The host pane **adopts the tab's slot** rather than splitting beside the layout's
-placeholder pane: `Tab::inject_host_pane` replaces the bars-free default layout's
-single placeholder via `close_pane_and_replace_with_other_pane`, so the host
-surface owns the whole tab (the home tab is grove's full-height nav — leaf
-`120-native-nav`). A tab with no panes falls back to a plain add.
+The host pane **adopts the nav slot** of grove's layout: `Tab::inject_host_pane`
+replaces the leftmost (nav) pane via `close_pane_and_replace_with_other_pane`, so
+the host nav surface owns it (the constant nav — leaf `120-native-nav`), and returns
+the remaining content slot ids for the content-swap bookkeeping. A single-pane tab
+makes the host pane fill it; a tab with no panes falls back to a plain add.
 
-A general multi-host registry is intentionally not built (one host pane per
-session is all grove needs today).
+### The keyed surface registry — N host panes (130/020)
+
+The one-shot factory above injects exactly the **nav** (it must be registered before
+`start_server`, because a surface value cannot cross the re-exec). But a session also
+has **N per-grove detail surfaces**, built **at runtime, server-side**, one per
+selected grove. These ride a second seam:
+
+```rust
+fn register_keyed_host_surface(key: String, surface: Box<dyn HostSurface>);  // host, on the screen thread
+fn take_keyed_host_surface(key: &str) -> Option<Box<dyn HostSurface>>;        // trellis, when it mounts the pair
+```
+
+The host builds the surface in-process and stashes it under an opaque `key`, then
+passes only that key on `swap_content`'s `secondary_surface_key` (a `Box<dyn
+HostSurface>` cannot ride a `Clone + Debug` `ScreenInstruction` — the **id-only
+mount** of ADR-0023). The screen thread takes the surface from the registry exactly
+when it mounts the content pair, builds a `HostPane` (via `Tab::mount_host_surface`,
+the host-surface analogue of the harness's `suppress_pane_and_replace_with_pid`), and
+parks/restores it alongside the harness as a unit. Each detail surface is parked
+alive in `suppressed_panes` under its own id while another grove is selected — so a
+`HostSurfaceTick` (its own per-grove fs-watch) still reaches it and keeps it fresh.
 
 ## Passing host state across the re-exec
 
@@ -188,6 +215,11 @@ Cargo feature, so a default `grove` / `grove-llm` build never links the
 - **Non-blocking host writes** — grove's `grove-llm` capture/drain writes run
   synchronously on the screen thread (sub-second git commits). A background-thread
   + tick variant is a candidate follow-up if the brief freeze ever bites.
-- **Multiple host panes / a host registry** — one per session today.
+- **Out-of-band reconciliation of the content pair** — if a harness pty exits, the
+  content swap's bookkeeping for that key goes stale (a re-select restores a dead
+  pane). Robust reconciliation needs the embedded-tool observability above.
 
-Each lands when a real consumer (120–150, or the eventual extraction) demands it.
+Each lands when a real consumer (140–150, or the eventual extraction) demands it.
+
+*(The multi-host registry deferral is now realised — see "The keyed surface
+registry" above; 130/020 needed N per-grove detail panes.)*

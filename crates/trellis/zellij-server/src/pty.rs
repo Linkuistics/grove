@@ -111,6 +111,11 @@ pub enum PtyInstruction {
         key: String,
         slot_pid: PaneId,
         run: RunCommand,
+        /// Opaque registry key for the secondary host surface to mount beside the
+        /// freshly-spawned primary pane (ADR-0023), or `None` for a primary-only
+        /// working set. Pure pass-through — the pty thread never interprets it; it
+        /// rides back to the screen thread on [`ScreenInstruction::ContentSpawned`].
+        secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
     DumpLayout(SessionLayoutMetadata, ClientId, Option<NotificationEnd>),
@@ -458,6 +463,7 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                 key,
                 slot_pid,
                 run,
+                secondary_surface_key,
                 client_id,
             } => {
                 // Spawn the fresh child for a first-time content swap and round it
@@ -481,6 +487,7 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                                 slot_pid,
                                 new_pid: PaneId::Terminal(pid),
                                 run,
+                                secondary_surface_key,
                                 client_id,
                             })
                             .with_context(err_context)?;

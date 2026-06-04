@@ -16413,3 +16413,92 @@ fn content_swap_parks_alive_and_restores_into_the_slot() {
         "grove B is no longer in the tiled slot"
     );
 }
+
+#[test]
+fn content_swap_parks_and_restores_a_pair_as_a_unit() {
+    // 130/020's pair-aware content swap: the content region is a PAIR (a harness
+    // primary slot + a detail secondary slot), and a swap parks/restores BOTH panes
+    // of a working set as a unit — proving no cross-talk between two groves. The
+    // detail is a host pane in the live session, but the trellis mechanism is
+    // pane-agnostic, so two terminal panes stand in for harness + detail here.
+    let size = Size { cols: 120, rows: 24 };
+    let mut tab = create_new_tab(size, false);
+    // nav(1) | harness-slot(2) | detail-slot(3), left→right.
+    tab.vertical_split(PaneId::Terminal(2), None, 1, None, None)
+        .unwrap();
+    tab.vertical_split(PaneId::Terminal(3), None, 1, None, None)
+        .unwrap();
+
+    let nav_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(1))
+        .unwrap()
+        .position_and_size();
+    let primary_slot_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(2))
+        .unwrap()
+        .position_and_size();
+    let secondary_slot_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(3))
+        .unwrap()
+        .position_and_size();
+
+    // First selection of grove A: mount its harness (4) + detail (5), closing the
+    // two placeholders (the `mounted: None` → close path of `ContentSpawned`).
+    tab.suppress_pane_and_replace_with_pid(PaneId::Terminal(2), PaneId::Terminal(4), true, None, None, None)
+        .unwrap();
+    tab.suppress_pane_and_replace_with_pid(PaneId::Terminal(3), PaneId::Terminal(5), true, None, None, None)
+        .unwrap();
+    tab.handle_pty_bytes(4, b"harness-A".to_vec()).unwrap();
+    tab.handle_pty_bytes(5, b"detail-A".to_vec()).unwrap();
+
+    // Select grove B: mount harness (6) + detail (7), parking A's PAIR alive.
+    tab.suppress_pane_and_replace_with_pid(PaneId::Terminal(4), PaneId::Terminal(6), false, None, None, None)
+        .unwrap();
+    tab.suppress_pane_and_replace_with_pid(PaneId::Terminal(5), PaneId::Terminal(7), false, None, None, None)
+        .unwrap();
+    tab.handle_pty_bytes(6, b"harness-B".to_vec()).unwrap();
+    tab.handle_pty_bytes(7, b"detail-B".to_vec()).unwrap();
+
+    // Both halves of grove A are parked ALIVE with their scrollback.
+    let parked_pid_alive = |tab: &Tab, pid: PaneId, needle: &str| {
+        tab.suppressed_panes
+            .values()
+            .find(|(_, p)| p.pid() == pid)
+            .map(|(_, p)| p.dump_screen(true, None).contains(needle))
+            .unwrap_or(false)
+    };
+    assert!(parked_pid_alive(&tab, PaneId::Terminal(4), "harness-A"), "A harness parked alive");
+    assert!(parked_pid_alive(&tab, PaneId::Terminal(5), "detail-A"), "A detail parked alive");
+
+    // Re-select grove A: restore the pair (secondary first so focus lands on the
+    // primary — mirrors `SwapContent`'s restore arm), parking grove B's pair.
+    tab.content_restore(PaneId::Terminal(7), PaneId::Terminal(5), 1)
+        .unwrap();
+    tab.content_restore(PaneId::Terminal(6), PaneId::Terminal(4), 1)
+        .unwrap();
+
+    // The nav sibling is byte-for-byte untouched across the whole pair swap.
+    assert_eq!(
+        tab.tiled_panes.panes.get(&PaneId::Terminal(1)).unwrap().position_and_size(),
+        nav_geom,
+        "nav geometry untouched by pair swaps"
+    );
+    // Grove A's pair is back in its two slots, each with its own slot geometry and
+    // its own scrollback — no cross-talk (harness shows harness, detail shows detail).
+    let restored_primary = tab.tiled_panes.panes.get(&PaneId::Terminal(4)).expect("A harness restored");
+    assert_eq!(restored_primary.position_and_size(), primary_slot_geom, "A harness in primary slot");
+    assert!(restored_primary.dump_screen(true, None).contains("harness-A"), "A harness content intact");
+    let restored_secondary = tab.tiled_panes.panes.get(&PaneId::Terminal(5)).expect("A detail restored");
+    assert_eq!(restored_secondary.position_and_size(), secondary_slot_geom, "A detail in secondary slot");
+    assert!(restored_secondary.dump_screen(true, None).contains("detail-A"), "A detail content intact");
+
+    // Grove B's pair is now the parked-alive one — both halves, still distinct.
+    assert!(parked_pid_alive(&tab, PaneId::Terminal(6), "harness-B"), "B harness now parked alive");
+    assert!(parked_pid_alive(&tab, PaneId::Terminal(7), "detail-B"), "B detail now parked alive");
+}

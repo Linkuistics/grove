@@ -85,6 +85,14 @@ pub struct App {
     /// terminal and runs it. Splitting these phases keeps `handle_key`
     /// pure enough to test without a real terminal.
     pending_action: Option<PendingAction>,
+    /// **Detail-locked** mode (130-native-detail/020): the `App` is bound to one
+    /// grove's detail, mounted as a per-grove host surface beside its harness in the
+    /// content region. There is no grove list to return to (the constant nav is a
+    /// *separate* surface), so the list/filter navigation that the master/detail
+    /// dashboard offers is suppressed: `Esc`/`q` stay in detail (they do not pop to a
+    /// list), and `/` does not open a filter. Everything else (tree/inbox nav, `c`
+    /// capture, `d` disposition, `Ctrl-E`, `Tab`) works unchanged.
+    detail_locked: bool,
 }
 
 /// Capture modal — opened by `c`, drives the two-step
@@ -256,6 +264,40 @@ impl App {
             capture: CaptureModal::default(),
             disposition: None,
             pending_action: None,
+            detail_locked: false,
+        }
+    }
+
+    /// Build an `App` **locked to one grove's detail** (130-native-detail/020) —
+    /// the state behind a per-grove [`DetailSurface`]. Starts straight in
+    /// [`Screen::GroveDetail`] for `grove`, with fresh tree/inbox cursors and
+    /// list/filter navigation suppressed (see [`App::detail_locked`]); the detail
+    /// data itself is read from `view` by name on each render, exactly as the
+    /// master/detail dashboard does after a drill-in.
+    pub fn new_detail(repo: PathBuf, view: RepoView, grove: String) -> Self {
+        let mut tree = ListState::default();
+        tree.select(Some(0));
+        let mut inbox = ListState::default();
+        inbox.select(Some(0));
+        Self {
+            repo,
+            view,
+            screen: Screen::GroveDetail,
+            list: ListState::default(),
+            detail: Some(DetailState {
+                grove,
+                tree,
+                inbox,
+                right: RightPane::LeafBody,
+                right_scroll: 0,
+            }),
+            filter: FilterState::default(),
+            show_help: false,
+            status: None,
+            capture: CaptureModal::default(),
+            disposition: None,
+            pending_action: None,
+            detail_locked: true,
         }
     }
 
@@ -814,7 +856,9 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         (_, KeyCode::Char('?')) => {
             app.show_help = true;
         }
-        (_, KeyCode::Char('/')) => {
+        // Filtering navigates the grove list; in detail-locked mode there is no
+        // list (the constant nav is a separate surface), so `/` is inert.
+        (_, KeyCode::Char('/')) if !app.detail_locked => {
             app.filter.editing = true;
             app.filter.text.clear();
         }
@@ -866,8 +910,11 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
                 app.filter.text.clear();
             }
         }
-        // Detail screen.
-        (Screen::GroveDetail, KeyCode::Esc | KeyCode::Char('q')) => {
+        // Detail screen. `Esc`/`q` pop back to the grove list in the master/detail
+        // dashboard — but in detail-locked mode there is no list to return to (the
+        // nav is a separate constant surface), so they are inert: the detail surface
+        // stays put, and the user moves focus to the nav with the leader instead.
+        (Screen::GroveDetail, KeyCode::Esc | KeyCode::Char('q')) if !app.detail_locked => {
             app.screen = Screen::GroveList;
             app.detail = None;
             app.filter.text.clear();
@@ -1888,6 +1935,79 @@ mod tests {
         assert!(out.contains("Work here."), "leaf body missing:\n{}", out);
     }
 
+    // --- Detail-locked mode (130-native-detail/020): the App behind a per-grove
+    // DetailSurface, bound to one grove with list/filter navigation suppressed. ---
+
+    fn detail_locked_app(tmp: &TempDir, grove: &str) -> App {
+        let view = RepoView::scan(tmp.path()).unwrap();
+        App::new_detail(tmp.path().to_path_buf(), view, grove.to_string())
+    }
+
+    #[test]
+    fn new_detail_locks_onto_the_named_grove() {
+        let tmp = fixture_repo();
+        let app = detail_locked_app(&tmp, "alpha");
+        assert_eq!(app.screen, Screen::GroveDetail);
+        assert_eq!(app.detail.as_ref().unwrap().grove, "alpha");
+        assert!(app.detail_locked);
+        // It renders that grove's tree + first-leaf body straight away.
+        let out = render_to_buffer(&app, 100, 16);
+        assert!(out.contains("010-first.md"), "leaf row missing:\n{}", out);
+        assert!(out.contains("Work here."), "leaf body missing:\n{}", out);
+    }
+
+    #[test]
+    fn detail_locked_q_and_esc_stay_in_detail() {
+        let tmp = fixture_repo();
+        let mut app = detail_locked_app(&tmp, "alpha");
+        // `q` must neither quit the session nor pop to a (non-existent) list.
+        let quit = handle_key(&mut app, KeyCode::Char('q'), KeyModifiers::NONE).unwrap();
+        assert!(!quit, "q must not quit from a detail surface");
+        assert_eq!(app.screen, Screen::GroveDetail, "q stays in detail");
+        handle_key(&mut app, KeyCode::Esc, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.screen, Screen::GroveDetail, "Esc stays in detail");
+        assert!(app.detail.is_some(), "the detail is not dropped");
+    }
+
+    #[test]
+    fn detail_locked_slash_does_not_open_filter() {
+        let tmp = fixture_repo();
+        let mut app = detail_locked_app(&tmp, "alpha");
+        handle_key(&mut app, KeyCode::Char('/'), KeyModifiers::NONE).unwrap();
+        assert!(!app.filter.editing, "no list to filter in detail-locked mode");
+    }
+
+    #[test]
+    fn detail_locked_c_opens_capture_prefilled_with_the_grove() {
+        let tmp = fixture_repo();
+        let mut app = detail_locked_app(&tmp, "alpha");
+        handle_key(&mut app, KeyCode::Char('c'), KeyModifiers::NONE).unwrap();
+        assert!(app.capture.open);
+        assert_eq!(app.capture.target, "alpha", "capture targets the locked grove");
+    }
+
+    #[test]
+    fn detail_locked_d_on_inbox_requests_drain_for_the_locked_grove() {
+        let tmp = fixture_repo();
+        let mut app = detail_locked_app(&tmp, "alpha");
+        // Tab cycles the right pane LeafBody → Inbox, so `d` acts on the inbox.
+        handle_key(&mut app, KeyCode::Tab, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.detail.as_ref().unwrap().right, RightPane::Inbox);
+        handle_key(&mut app, KeyCode::Char('d'), KeyModifiers::NONE).unwrap();
+        assert!(app.disposition.is_some(), "disposition picker open on the inbox");
+        handle_key(&mut app, KeyCode::Char('i'), KeyModifiers::NONE).unwrap();
+        match app.pending_action.take() {
+            Some(PendingAction::Drain { disposition, path }) => {
+                assert_eq!(disposition, Disposition::Incorporated);
+                assert!(
+                    path.to_string_lossy().contains("inboxes/alpha/"),
+                    "drains an alpha observation: {path:?}"
+                );
+            }
+            other => panic!("expected a Drain action, got {other:?}"),
+        }
+    }
+
     #[test]
     fn tab_cycles_right_pane_to_brief() {
         let tmp = fixture_repo();
@@ -2636,7 +2756,9 @@ mod native {
     use ratatui::layout::Rect;
     use ratatui::Terminal;
 
-    use trellis_server::panes::host_pane::{HostDriver, HostSurface};
+    use trellis_server::panes::host_pane::{
+        register_keyed_host_surface, HostDriver, HostSurface,
+    };
 
     use super::{
         current_grove_name, handle_key, render, shell_capture, shell_drain, short_err, App,
@@ -2740,13 +2862,38 @@ mod native {
                     let Some(driver) = self.driver.clone() else {
                         return;
                     };
-                    // Drive the content swap (ADR-0022/0023): mount this grove's
-                    // `grove do <name>` harness into the content slot beside the
-                    // constant nav, parking the previously-selected grove's harness
-                    // alive off-screen. The screen thread dedupes (already-shown →
-                    // no-op, parked → restore, first time → spawn); grove only tracks
-                    // names for the status line. Run the same binary the server is
-                    // (dev `target/debug/grove` or an installed one).
+                    // Drive the content swap (ADR-0022/0023, pair-aware per 130/020):
+                    // mount this grove's `grove do <name>` harness **and** its
+                    // per-grove detail into the content region beside the constant
+                    // nav, parking the previously-selected grove's pair alive
+                    // off-screen. The screen thread dedupes (already-shown → no-op,
+                    // parked → restore, first time → spawn); grove only tracks names
+                    // for the status line + first-open detail build. Run the same
+                    // binary the server is (dev `target/debug/grove` or an installed).
+                    let first_open = !self.open_harnesses.contains(&name);
+                    let secondary_surface_key = if first_open {
+                        // Build the per-grove detail surface and stash it in the keyed
+                        // registry; the screen thread takes it when it mounts the pair.
+                        // On a scan failure the harness still swaps in (detail-less);
+                        // grove notes it on the status line rather than blocking the
+                        // selection.
+                        match detail_surface(repo.clone(), name.clone()) {
+                            Ok(detail) => {
+                                let key = detail_surface_key(&name);
+                                register_keyed_host_surface(key.clone(), Box::new(detail));
+                                Some(key)
+                            }
+                            Err(e) => {
+                                self.app.status =
+                                    Some(format!("detail unavailable: {}", short_err(&e)));
+                                None
+                            }
+                        }
+                    } else {
+                        // Already open: its detail pane is parked alive and restored by
+                        // the swap; no rebuild, no registry entry.
+                        None
+                    };
                     let grove_bin =
                         std::env::current_exe().unwrap_or_else(|_| PathBuf::from("grove"));
                     driver.swap_content(
@@ -2754,6 +2901,7 @@ mod native {
                         repo,
                         grove_bin,
                         vec!["do".to_string(), name.clone()],
+                        secondary_surface_key,
                     );
                     if self.open_harnesses.insert(name.clone()) {
                         self.app.status = Some(format!("opened harness: {name}"));
@@ -2839,46 +2987,218 @@ mod native {
         fn set_driver(&mut self, driver: HostDriver) {
             self.driver = Some(driver.clone());
             // Replace v1's in-loop `WatchSet` polling with a dedicated fs-watch
-            // thread: it owns the `notify` receiver, coalesces bursts under the
-            // same 200ms debounce, then asks the screen thread (via the driver) to
-            // refresh+redraw. The surface itself is only ever touched on the screen
-            // thread — the thread never sees `App`, only posts a tick.
-            let (tx, rx) = mpsc::channel::<()>();
-            let mut watcher = match notify::recommended_watcher(move |_res| {
-                let _ = tx.send(());
-            }) {
-                Ok(w) => w,
-                // No fs-watch (exotic platform): `r` still refreshes manually.
-                Err(_) => return,
-            };
-            for dir in [
-                self.repo.join(".grove-worktrees"),
-                self.repo.join(".grove-meta").join("inboxes"),
-            ] {
-                if dir.is_dir() {
-                    let _ = watcher.watch(&dir, RecursiveMode::Recursive);
-                }
-            }
-            std::thread::spawn(move || {
-                // Block for the first event, then coalesce until quiet for
-                // DEBOUNCE, then tick. Mirrors v1's `WatchSet` debounce exactly,
-                // moved off the (now event-driven) render path.
-                while rx.recv().is_ok() {
-                    loop {
-                        match rx.recv_timeout(DEBOUNCE) {
-                            Ok(()) => continue,
-                            Err(mpsc::RecvTimeoutError::Timeout) => break,
-                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
-                        }
-                    }
-                    driver.request_tick();
-                }
-            });
-            self._watcher = Some(watcher);
+            // thread (the shared 110/030 pattern): the home dashboard watches the
+            // whole repo (every grove's worktree + every inbox), since the nav lists
+            // them all.
+            self._watcher = spawn_grove_watch(
+                vec![
+                    self.repo.join(".grove-worktrees"),
+                    self.repo.join(".grove-meta").join("inboxes"),
+                ],
+                driver,
+            );
         }
 
         fn tick(&mut self) -> bool {
             // An fs-watch settle (or any out-of-band wake): re-scan and redraw.
+            if let Err(e) = self.app.refresh_silent() {
+                self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
+            }
+            true
+        }
+    }
+
+    /// Spawn the shared fs-watch → debounce → `request_tick` thread for a host
+    /// surface (the 110/030 pattern, factored so the home dashboard and each
+    /// per-grove detail reuse it). Watches each existing dir in `dirs` recursively,
+    /// coalesces bursts under [`DEBOUNCE`], and posts a tick through `driver` when
+    /// the filesystem settles — so the surface is only ever mutated on the screen
+    /// thread (in `tick`), never from this thread. Returns the [`RecommendedWatcher`]
+    /// to keep alive (dropping it closes the channel and ends the thread); `None` on
+    /// an exotic platform with no watcher, where manual `r` refresh still works.
+    fn spawn_grove_watch(dirs: Vec<PathBuf>, driver: HostDriver) -> Option<RecommendedWatcher> {
+        let (tx, rx) = mpsc::channel::<()>();
+        let mut watcher = notify::recommended_watcher(move |_res| {
+            let _ = tx.send(());
+        })
+        .ok()?;
+        for dir in dirs {
+            if dir.is_dir() {
+                let _ = watcher.watch(&dir, RecursiveMode::Recursive);
+            }
+        }
+        std::thread::spawn(move || {
+            // Block for the first event, then coalesce until quiet for DEBOUNCE,
+            // then tick. Mirrors v1's `WatchSet` debounce, moved off the (now
+            // event-driven) render path.
+            while rx.recv().is_ok() {
+                loop {
+                    match rx.recv_timeout(DEBOUNCE) {
+                        Ok(()) => continue,
+                        Err(mpsc::RecvTimeoutError::Timeout) => break,
+                        Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                    }
+                }
+                driver.request_tick();
+            }
+        });
+        Some(watcher)
+    }
+
+    /// The keyed-registry key under which grove stashes a grove's [`DetailSurface`]
+    /// for the content-swap to mount as the secondary pane (ADR-0023). Namespaced so
+    /// it never collides with the opaque grove-name key the swap uses for the pair.
+    fn detail_surface_key(grove: &str) -> String {
+        format!("grove-detail:{grove}")
+    }
+
+    /// Build the per-grove **detail surface** (130-native-detail/020): an `App`
+    /// locked to `grove`'s detail (task tree + inbox + capture), scanning `repo`.
+    /// Mounted beside that grove's harness in the content region the first time the
+    /// grove is selected, then parked alive on switch-away. `Err` only if the initial
+    /// scan fails — the caller swaps the harness in detail-less and notes it.
+    pub fn detail_surface(repo: PathBuf, grove: String) -> Result<DetailSurface> {
+        let view = RepoView::scan(&repo)?;
+        let app = App::new_detail(repo.clone(), view, grove.clone());
+        let terminal = Terminal::new(TestBackend::new(80, 24))
+            .map_err(|e| anyhow::anyhow!("building the off-screen render target: {e}"))?;
+        Ok(DetailSurface {
+            repo,
+            grove,
+            app,
+            terminal,
+            driver: None,
+            _watcher: None,
+        })
+    }
+
+    /// One grove's **detail** as a trellis [`HostSurface`] (130-native-detail/020):
+    /// the v1 master/detail dashboard reused in detail-locked mode (see
+    /// [`App::new_detail`]) and rendered through an off-screen [`TestBackend`], so
+    /// the v1 `render(f, app)` / `handle_key(app, …)` are reused verbatim. One
+    /// instance per grove, mounted beside its harness and **parked alive** (never
+    /// dropped) when another grove is selected — so its task/inbox cursor, an
+    /// in-flight capture, and its fs-watch all survive a switch-away, with no
+    /// cross-talk between groves.
+    pub struct DetailSurface {
+        /// The repo the grove lives in; fs-watch roots derive from it + the grove
+        /// name. The `App` re-scans the whole repo (cheap) but the watch is scoped to
+        /// just this grove.
+        repo: PathBuf,
+        /// The grove this surface is bound to (its worktree + inbox are watched).
+        grove: String,
+        /// The detail-locked v1 dashboard state, bound to `grove`.
+        app: App,
+        /// Off-screen render target (same blit trick as the home dashboard).
+        terminal: Terminal<TestBackend>,
+        /// The redraw/tick handle, set once at mount. `None` until then.
+        driver: Option<HostDriver>,
+        /// Kept alive so the per-grove fs-watch thread's channel stays open.
+        _watcher: Option<RecommendedWatcher>,
+    }
+
+    impl DetailSurface {
+        /// Run a deferred action the v1 `handle_key` queued, scoped to the detail's
+        /// in-process powers. Capture (`c` → `Ctrl-S`) and inbox triage (`d`) run the
+        /// same synchronous `grove-llm` shell-outs the home dashboard does; the
+        /// interactive `$EDITOR` drops (`Ctrl-E`) still defer to 030-native-editor
+        /// (the native editor needs embedded-tool exit observability), so they
+        /// surface the same pointer. Harness open/close belong to the **nav** (it
+        /// owns the content swap), so this surface ignores them — its grove's harness
+        /// is already mounted beside it.
+        fn process_action(&mut self, action: PendingAction) {
+            match action {
+                PendingAction::Submit => {
+                    let target = self.app.capture.target.clone();
+                    let body = self.app.capture.body.clone();
+                    match shell_capture(&target, &body) {
+                        Ok(()) => self.app.status = Some(format!("captured to {target}")),
+                        Err(e) => {
+                            self.app.status = Some(format!("capture failed: {}", short_err(&e)))
+                        }
+                    }
+                    self.app.capture = CaptureModal::default();
+                    let _ = self.app.refresh_silent();
+                }
+                PendingAction::Drain { path, disposition } => {
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default();
+                    match shell_drain(&self.grove, &path, disposition) {
+                        Ok(()) => {
+                            self.app.status = Some(format!("{} {}", disposition.label(), name))
+                        }
+                        Err(e) => {
+                            self.app.status =
+                                Some(format!("disposition failed: {}", short_err(&e)))
+                        }
+                    }
+                    let _ = self.app.refresh_silent();
+                }
+                PendingAction::EditBody | PendingAction::EditObservation { .. } => {
+                    self.app.status =
+                        Some("native $EDITOR drop lands in 030-native-editor".to_string());
+                }
+                // The nav drives the content swap; the detail surface must never
+                // call `swap_content` (it would fight the nav for the content
+                // region). Its grove's harness is already mounted beside it.
+                PendingAction::OpenHarness { .. } | PendingAction::CloseHarness { .. } => {}
+            }
+        }
+    }
+
+    impl HostSurface for DetailSurface {
+        fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+            // Same off-screen render + blit as the home dashboard: render the v1
+            // (detail-locked) `App` into a `TestBackend` sized to the pane, then copy
+            // its cells into the host buffer trellis composites.
+            let _ = self.terminal.resize(Rect::new(0, 0, area.width, area.height));
+            let Self { app, terminal, .. } = self;
+            let _ = terminal.draw(|f| render(f, app));
+            let src = terminal.backend().buffer();
+            let w = area.width.min(src.area.width);
+            let h = area.height.min(src.area.height);
+            for y in 0..h {
+                for x in 0..w {
+                    buf[(area.x + x, area.y + y)] = src[(x, y)].clone();
+                }
+            }
+        }
+
+        fn handle_key(&mut self, key: KeyEvent) -> bool {
+            // Route to the unchanged v1 key handler (in detail-locked mode), then
+            // drain any action it queued. Unlike the nav, the detail surface never
+            // quits the session on the handler's `true` — session lifecycle (`q` /
+            // quit) belongs to the nav; here `q`/`Esc` are inert (detail-locked).
+            if let Err(e) = handle_key(&mut self.app, key.code, key.modifiers) {
+                self.app.status = Some(format!("key error: {}", short_err(&e)));
+            }
+            if let Some(action) = self.app.pending_action.take() {
+                self.process_action(action);
+            }
+            true
+        }
+
+        fn set_driver(&mut self, driver: HostDriver) {
+            self.driver = Some(driver.clone());
+            // Per-grove fs-watch (narrower than the home dashboard's repo-wide
+            // watch): just this grove's worktree `.grove/` tree and its inbox. Fewer
+            // handles and far less `.git/` churn, and a tick only ever refreshes
+            // *this* surface (the driver carries this pane's id) — no cross-talk.
+            self._watcher = spawn_grove_watch(
+                vec![
+                    self.repo
+                        .join(".grove-worktrees")
+                        .join(&self.grove)
+                        .join(".grove"),
+                    self.repo.join(".grove-meta").join("inboxes").join(&self.grove),
+                ],
+                driver,
+            );
+        }
+
+        fn tick(&mut self) -> bool {
             if let Err(e) = self.app.refresh_silent() {
                 self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
             }

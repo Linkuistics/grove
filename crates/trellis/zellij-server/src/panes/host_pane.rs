@@ -165,15 +165,33 @@ impl HostDriver {
         ));
     }
 
-    /// Swap the **content slot** beside the constant nav to show the working set
+    /// Swap the **content region** beside the constant nav to show the working set
     /// keyed by `key` (ADR-0022/0023) — the native switcher that supersedes the
-    /// tab model. First selection of `key` spawns `command args…` in `cwd` as the
-    /// content pane; re-selection restores its parked-alive pane (scrollback
-    /// intact). The opaque `key` is the host's own identifier (grove passes a grove
-    /// name); the caller need not track open/parked state — the screen thread
+    /// tab model. The content region is a **pair**: a primary command pane (grove's
+    /// harness) and an optional secondary **host surface** (grove's per-grove
+    /// detail). First selection of `key` spawns `command args…` in `cwd` as the
+    /// primary pane and — if `secondary_surface_key` names a surface previously
+    /// stashed via [`register_keyed_host_surface`] — mounts it as the secondary;
+    /// re-selection restores `key`'s parked-alive **pair** (scrollback + detail
+    /// state intact). The opaque `key` is the host's own identifier (grove passes a
+    /// grove name); the caller need not track open/parked state — the screen thread
     /// dedupes (already-shown → no-op, parked → restore, new → spawn). Fire-and-
     /// forget like the other verbs.
-    pub fn swap_content(&self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>) {
+    ///
+    /// `secondary_surface_key` is the **id-only** half of the registry seam
+    /// (ADR-0023): a `Box<dyn HostSurface>` cannot ride a `Clone + Debug`
+    /// `ScreenInstruction`, so the host stashes the built surface under a key and
+    /// passes only the key here; the screen thread takes it from the registry when
+    /// it mounts the pair. `None` mounts a primary-only working set (the 010
+    /// single-pane shape).
+    pub fn swap_content(
+        &self,
+        key: &str,
+        cwd: PathBuf,
+        command: PathBuf,
+        args: Vec<String>,
+        secondary_surface_key: Option<String>,
+    ) {
         let run = RunCommand {
             command,
             args,
@@ -183,6 +201,7 @@ impl HostDriver {
         let _ = self.to_screen.send(ScreenInstruction::SwapContent {
             key: key.to_string(),
             run,
+            secondary_surface_key,
             client_id: self.client_id,
         });
     }
@@ -241,6 +260,17 @@ type HostSurfaceFactory = Box<dyn FnOnce() -> Box<dyn HostSurface> + Send>;
 static HOST_SURFACE_FACTORY: Mutex<Option<HostSurfaceFactory>> = Mutex::new(None);
 static NEXT_HOST_PANE_ID: AtomicU32 = AtomicU32::new(0);
 
+/// The keyed host-surface registry (ADR-0023): surfaces the host builds **at
+/// runtime, server-side** (grove's per-grove detail) and stashes under an opaque
+/// key, to be taken when a [`ScreenInstruction::SwapContent`] mounts them as the
+/// secondary pane of a content pair. A `Vec` (not a `HashMap`) so the static needs
+/// no lazy init — `Vec::new()` is const, and a session never holds more than a
+/// handful of pending surfaces. Distinct from [`HOST_SURFACE_FACTORY`]: that is the
+/// one-shot **nav** injected before `start_server` (it cannot be built server-side
+/// because the surface value cannot cross the re-exec); these are built in-process
+/// once the session is up.
+static KEYED_HOST_SURFACES: Mutex<Vec<(String, Box<dyn HostSurface>)>> = Mutex::new(Vec::new());
+
 /// Register the host-surface factory the server injects once, at first-layout.
 /// Call this on the `--server` path (grove's `run_server`) **before**
 /// `start_server`. Overwrites any previously-registered factory.
@@ -256,6 +286,27 @@ pub fn register_host_surface(factory: HostSurfaceFactory) {
 pub(crate) fn take_host_surface() -> Option<Box<dyn HostSurface>> {
     let factory = HOST_SURFACE_FACTORY.lock().ok()?.take()?;
     Some(factory())
+}
+
+/// Stash a built host surface under `key` for a later [`SwapContent`](crate::screen::ScreenInstruction::SwapContent)
+/// to mount as the secondary pane of a content pair. Replaces any surface already
+/// registered under the same key (idempotent re-selection before the mount lands).
+/// Called by the host on the screen thread (grove's nav surface, when a grove is
+/// first selected).
+pub fn register_keyed_host_surface(key: String, surface: Box<dyn HostSurface>) {
+    if let Ok(mut reg) = KEYED_HOST_SURFACES.lock() {
+        reg.retain(|(k, _)| k != &key);
+        reg.push((key, surface));
+    }
+}
+
+/// Take the surface stashed under `key`, if any. One-shot per key (the surface is
+/// removed): the screen thread takes it exactly when it mounts the pair, after
+/// which the live `HostPane` owns it.
+pub(crate) fn take_keyed_host_surface(key: &str) -> Option<Box<dyn HostSurface>> {
+    let mut reg = KEYED_HOST_SURFACES.lock().ok()?;
+    let idx = reg.iter().position(|(k, _)| k == key)?;
+    Some(reg.swap_remove(idx).1)
 }
 
 /// A fresh id for a host pane (the `u32` inside `PaneId::Host`). Independent of

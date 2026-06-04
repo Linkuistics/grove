@@ -5606,26 +5606,28 @@ impl Tab {
         Ok(())
     }
     /// Inject the host-rendered native pane (ADR-0021's third pane kind) as the
-    /// **constant nav** beside a **content slot** (ADR-0022/0023), focused by
-    /// `client_id`, and return the **content-slot pane id** for the screen's
+    /// **constant nav** beside the **content region** (ADR-0022/0023), focused by
+    /// `client_id`, and return the content region's slot pane ids for the screen's
     /// content-swap bookkeeping.
     ///
-    /// grove's session layout is one tab of two tiled panes side by side: a fixed
-    /// nav pane (leftmost) and a content-slot placeholder. The host surface adopts
-    /// the **nav** pane — the leftmost by `x` — via
+    /// grove's session layout is one tab of a fixed nav pane (leftmost) beside a
+    /// content region that is itself a **pair**: a primary slot (the harness) and a
+    /// secondary slot (the per-grove detail). The host surface adopts the **nav**
+    /// pane — the leftmost by `x` — via
     /// [`close_pane_and_replace_with_other_pane`](Self::close_pane_and_replace_with_other_pane)
-    /// (inheriting its geometry + focus, closing its placeholder pty); the **other**
-    /// pane is left as the addressable content slot the swap verb targets, and its
-    /// id is returned (`Ok(Some(slot))`).
+    /// (inheriting its geometry + focus, closing its placeholder pty). The remaining
+    /// panes, in `x` order, are the primary slot and the optional secondary slot:
+    /// `Ok(Some((primary, secondary)))`, where `secondary` is `None` for the 010
+    /// single-content-slot layout.
     ///
     /// Degenerate fallbacks (not grove's path): a **single**-pane layout makes the
     /// host pane fill the tab (the pre-content-swap 120-native-nav behaviour) and an
-    /// **empty** tab plain-adds it — both return `Ok(None)` (no content slot).
+    /// **empty** tab plain-adds it — both return `Ok(None)` (no content region).
     pub fn inject_host_pane(
         &mut self,
         surface: Box<dyn crate::panes::host_pane::HostSurface>,
         client_id: ClientId,
-    ) -> Result<Option<PaneId>> {
+    ) -> Result<Option<(PaneId, Option<PaneId>)>> {
         let pid = crate::panes::host_pane::next_host_pane_id();
         // The host pane's `HostDriver` rides on this tab's bus senders, which only
         // exist on the screen thread — hence the surface is driven from here, not
@@ -5651,16 +5653,17 @@ impl Tab {
             to_server,
             client_id,
         );
-        // Identify the nav target (leftmost pane) and the content slot (the next
-        // pane to its right). Sorting by `x` makes the nav/content roles independent
-        // of pane-map iteration order.
+        // Identify the nav target (leftmost pane) and the content slots (the panes
+        // to its right, in `x` order: primary then secondary). Sorting by `x` makes
+        // the roles independent of pane-map iteration order.
         let mut panes_by_x: Vec<(PaneId, usize)> = self
             .get_tiled_panes()
             .map(|(id, pane)| (*id, pane.x()))
             .collect();
         panes_by_x.sort_by_key(|(_, x)| *x);
         let nav_target = panes_by_x.first().map(|(id, _)| *id);
-        let content_slot = panes_by_x.get(1).map(|(id, _)| *id);
+        let primary_slot = panes_by_x.get(1).map(|(id, _)| *id);
+        let secondary_slot = panes_by_x.get(2).map(|(id, _)| *id);
         match nav_target {
             Some(nav_pane) => {
                 self.close_pane_and_replace_with_other_pane(nav_pane, Box::new(host_pane), None);
@@ -5668,7 +5671,7 @@ impl Tab {
                 // placeholder; focus explicitly too so the nav reliably receives
                 // input regardless of focus timing (mirrors `add_tiled_pane`).
                 self.tiled_panes.focus_pane(PaneId::Host(pid), client_id);
-                Ok(content_slot)
+                Ok(primary_slot.map(|primary| (primary, secondary_slot)))
             },
             None => {
                 self.add_tiled_pane(
@@ -5680,6 +5683,52 @@ impl Tab {
                 Ok(None)
             },
         }
+    }
+
+    /// Mount a host surface (taken from the keyed registry) into an existing content
+    /// slot, returning its new `PaneId::Host` id. The secondary half of the
+    /// content-swap pair (ADR-0023): the primary (harness) is a pty pane spawned via
+    /// [`suppress_pane_and_replace_with_pid`](Self::suppress_pane_and_replace_with_pid);
+    /// this is its host-surface analogue. When `close_displaced` the slot's current
+    /// occupant (the layout's placeholder, on the first mount) is closed; otherwise
+    /// it is **parked alive** in `suppressed_panes` under its own id (so a
+    /// [`HostSurfaceTick`](crate::screen::ScreenInstruction::HostSurfaceTick) can
+    /// still reach it and [`content_restore`](Self::content_restore) can bring it
+    /// back). Does **not** change focus — the pair's harness takes focus.
+    pub fn mount_host_surface(
+        &mut self,
+        slot_pid: PaneId,
+        surface: Box<dyn crate::panes::host_pane::HostSurface>,
+        close_displaced: bool,
+        client_id: ClientId,
+    ) -> Result<PaneId> {
+        let pid = crate::panes::host_pane::next_host_pane_id();
+        let to_screen = self
+            .senders
+            .to_screen
+            .clone()
+            .expect("screen thread always has a screen sender");
+        let to_server = self
+            .senders
+            .to_server
+            .clone()
+            .expect("screen thread always has a server sender");
+        let host_pane = crate::panes::host_pane::HostPane::new(
+            pid,
+            PaneGeom::default(),
+            self.style,
+            surface,
+            "grove".to_owned(),
+            to_screen,
+            to_server,
+            client_id,
+        );
+        if close_displaced {
+            self.close_pane_and_replace_with_other_pane(slot_pid, Box::new(host_pane), None);
+        } else {
+            self.suppress_pane_and_replace_with_other_pane(slot_pid, Box::new(host_pane), None);
+        }
+        Ok(PaneId::Host(pid))
     }
     pub fn add_stacked_pane_to_pane_id(
         &mut self,

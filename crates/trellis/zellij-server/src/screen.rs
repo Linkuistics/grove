@@ -327,27 +327,34 @@ pub enum ScreenInstruction {
     /// [`HostDriver::request_tick`](crate::panes::host_pane::HostDriver::request_tick),
     /// the mechanism grove's fs-watch thread uses to wake a redraw with no input.
     HostSurfaceTick(u32),
-    /// Swap the **content slot** beside the constant host nav to show the working
+    /// Swap the **content region** beside the constant host nav to show the working
     /// set keyed by `key` (ADR-0022/0023). A host surface posts this via
-    /// [`HostDriver::swap_content`](crate::panes::host_pane::HostDriver::swap_content);
-    /// the screen thread restores `key`'s parked pane in place, or — first time
-    /// for `key` — spawns `run` as a command pane into the slot (parking the
-    /// displaced occupant alive in `suppressed_panes`). The opaque `key` is the
-    /// host's domain identifier (grove names a grove); trellis never interprets it.
+    /// [`HostDriver::swap_content`](crate::panes::host_pane::HostDriver::swap_content).
+    /// The content region is a **pair**: a primary command pane (`run`) and an
+    /// optional secondary host surface (`secondary_surface_key`, taken from the
+    /// keyed registry). The screen thread restores `key`'s parked pair in place, or
+    /// — first time for `key` — spawns `run` and mounts the secondary surface
+    /// (parking the displaced pair alive in `suppressed_panes`). The opaque `key` is
+    /// the host's domain identifier (grove names a grove); trellis never interprets
+    /// it.
     SwapContent {
         key: String,
         run: RunCommand,
+        secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
-    /// The pty thread finished spawning `key`'s fresh content pane (`new_pid`) for
-    /// a first-time [`SwapContent`](Self::SwapContent); mount it into `slot_pid`,
-    /// parking the displaced occupant. The async sibling of `SwapContent`'s
-    /// synchronous restore path (the spawn must round-trip through the pty thread).
+    /// The pty thread finished spawning `key`'s fresh primary pane (`new_pid`) for a
+    /// first-time [`SwapContent`](Self::SwapContent); mount it into `slot_pid` and —
+    /// if `secondary_surface_key` names a registered surface — mount that into the
+    /// secondary slot, parking the displaced pair. The async sibling of
+    /// `SwapContent`'s synchronous restore path (the spawn must round-trip through
+    /// the pty thread).
     ContentSpawned {
         key: String,
         slot_pid: PaneId,
         new_pid: PaneId,
         run: RunCommand,
+        secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
     NewPane(
@@ -1383,23 +1390,34 @@ struct PaneRenderSubscription {
 }
 
 /// Bookkeeping for the **content-swap** facility (ADR-0022/0023): a constant host
-/// nav pane beside a single **content slot** into which the host swaps one of N
-/// keyed working sets, the others parked alive in the tab's `suppressed_panes`.
+/// nav pane beside a **content region** into which the host swaps one of N keyed
+/// working sets, the others parked alive in the tab's `suppressed_panes`.
+///
+/// The content region is a **pair** (130/020): a primary slot (grove's harness, a
+/// command pane) and an optional secondary slot (grove's per-grove detail, a host
+/// surface). A swap parks and restores the pair **as a unit** — both panes of the
+/// outgoing working set go to `suppressed_panes`, both of the incoming set come
+/// back, so two groves never cross-talk.
 ///
 /// This is the generic mechanism trellis exposes; grove drives it (the `key` is a
 /// grove name), but trellis never interprets the key — the one-way crate seam
-/// (ADR-0020 §4). Created at first-layout when a host nav pane is injected beside a
-/// content-slot pane; absent for stock trellis / single-pane host sessions.
+/// (ADR-0020 §4). Created at first-layout when a host nav pane is injected beside
+/// the content slots; absent for stock trellis / single-pane host sessions.
 struct ContentSwap {
-    /// The screen-tab index holding the nav + content slot (grove uses one tab).
+    /// The screen-tab index holding the nav + content region (grove uses one tab).
     tab_id: usize,
-    /// The pane id currently occupying the content slot. Tracks the live occupant
-    /// across swaps (`replace_pane` changes which pane sits at the slot geometry).
-    slot_pid: PaneId,
-    /// key → that key's content pane id (whether currently mounted or parked).
-    panes: HashMap<String, PaneId>,
-    /// The key currently mounted in the slot, if any (`None` = the layout's initial
-    /// placeholder is still there, to be closed on the first mount).
+    /// The pane id currently occupying the **primary** slot. Tracks the live
+    /// occupant across swaps (`replace_pane` changes which pane sits at the slot
+    /// geometry while preserving the geometry itself).
+    primary_slot: PaneId,
+    /// The pane id currently occupying the **secondary** slot, or `None` for a
+    /// primary-only content region (the 010 single-slot layout).
+    secondary_slot: Option<PaneId>,
+    /// key → that key's working-set pair `(primary, secondary)` (each pane id valid
+    /// whether currently mounted or parked alive).
+    panes: HashMap<String, (PaneId, Option<PaneId>)>,
+    /// The key currently mounted in the region, if any (`None` = the layout's
+    /// initial placeholders are still there, to be closed on the first mount).
     mounted: Option<String>,
 }
 
@@ -3086,24 +3104,25 @@ impl Screen {
         // the `--server` path), so exactly one host pane is created per session
         // and stock trellis sessions are unaffected.
         if let Some(surface) = crate::panes::host_pane::take_host_surface() {
-            let content_slot = if let Some(tab) = self.tabs.get_mut(&tab_id) {
-                let slot = tab
+            let content_slots = if let Some(tab) = self.tabs.get_mut(&tab_id) {
+                let slots = tab
                     .inject_host_pane(surface, client_id)
                     .with_context(err_context)?;
                 tab.resize_whole_tab(self.size).with_context(err_context)?;
                 tab.set_force_render();
-                slot
+                slots
             } else {
                 None
             };
             // Initialise the content-swap facility (ADR-0022/0023) when the nav was
-            // injected beside a content slot. The slot pane is the layout's
-            // placeholder occupant; `mounted: None` marks it the throwaway the first
-            // key mount closes.
-            if let Some(slot_pid) = content_slot {
+            // injected beside the content slots. The slot panes are the layout's
+            // placeholder occupants; `mounted: None` marks them the throwaways the
+            // first key mount closes.
+            if let Some((primary_slot, secondary_slot)) = content_slots {
                 self.content_swap = Some(ContentSwap {
                     tab_id,
-                    slot_pid,
+                    primary_slot,
+                    secondary_slot,
                     panes: HashMap::new(),
                     mounted: None,
                 });
@@ -5865,38 +5884,45 @@ pub(crate) fn screen_thread_main(
             ScreenInstruction::SwapContent {
                 key,
                 run,
+                secondary_surface_key,
                 client_id,
             } => {
-                // The constant-nav content swap (ADR-0022/0023). Decide the plan
-                // without holding a borrow across the tab/pty calls.
+                // The constant-nav content swap (ADR-0022/0023), pair-aware
+                // (130/020): a working set is a primary (harness) pane + an optional
+                // secondary (detail) host surface, parked and restored as a unit.
+                // Decide the plan without holding a borrow across the tab/pty calls.
                 enum SwapPlan {
                     Noop,
                     Restore {
                         tab_id: usize,
-                        slot_pid: PaneId,
-                        parked_pid: PaneId,
+                        primary_slot: PaneId,
+                        secondary_slot: Option<PaneId>,
+                        target_primary: PaneId,
+                        target_secondary: Option<PaneId>,
                     },
                     Spawn {
-                        slot_pid: PaneId,
+                        primary_slot: PaneId,
                     },
                 }
                 let plan = match screen.content_swap.as_ref() {
                     None => {
-                        log::error!("SwapContent posted with no content slot initialised");
+                        log::error!("SwapContent posted with no content region initialised");
                         SwapPlan::Noop
                     },
                     // Already showing this key: nothing to do.
                     Some(cs) if cs.mounted.as_deref() == Some(key.as_str()) => SwapPlan::Noop,
-                    // Previously opened (its pane is parked alive): restore it.
+                    // Previously opened (its pair is parked alive): restore it.
                     Some(cs) => match cs.panes.get(&key) {
-                        Some(&parked_pid) => SwapPlan::Restore {
+                        Some(&(target_primary, target_secondary)) => SwapPlan::Restore {
                             tab_id: cs.tab_id,
-                            slot_pid: cs.slot_pid,
-                            parked_pid,
+                            primary_slot: cs.primary_slot,
+                            secondary_slot: cs.secondary_slot,
+                            target_primary,
+                            target_secondary,
                         },
-                        // First time for this key: spawn its child pane.
+                        // First time for this key: spawn its primary pane.
                         None => SwapPlan::Spawn {
-                            slot_pid: cs.slot_pid,
+                            primary_slot: cs.primary_slot,
                         },
                     },
                 };
@@ -5904,29 +5930,46 @@ pub(crate) fn screen_thread_main(
                     SwapPlan::Noop => {},
                     SwapPlan::Restore {
                         tab_id,
-                        slot_pid,
-                        parked_pid,
+                        primary_slot,
+                        secondary_slot,
+                        target_primary,
+                        target_secondary,
                     } => {
                         if let Some(tab) = screen.tabs.get_mut(&tab_id) {
-                            tab.content_restore(slot_pid, parked_pid, client_id)?;
+                            // Restore the secondary (detail) first, then the primary
+                            // (harness), so focus lands on the harness — the working
+                            // surface. Each `content_restore` parks the slot's current
+                            // occupant alive, so the outgoing pair is parked as a unit.
+                            if let (Some(secondary_slot), Some(target_secondary)) =
+                                (secondary_slot, target_secondary)
+                            {
+                                tab.content_restore(secondary_slot, target_secondary, client_id)?;
+                            }
+                            tab.content_restore(primary_slot, target_primary, client_id)?;
                         }
                         if let Some(cs) = screen.content_swap.as_mut() {
-                            cs.slot_pid = parked_pid;
+                            cs.primary_slot = target_primary;
+                            if target_secondary.is_some() {
+                                cs.secondary_slot = target_secondary;
+                            }
                             cs.mounted = Some(key);
                         }
                         screen.render(None)?;
                     },
-                    // Fresh open: the pty thread spawns the child and rounds back via
-                    // `ContentSpawned`, which mounts it and records the bookkeeping
-                    // (the spawn cannot be done synchronously on the screen thread).
-                    SwapPlan::Spawn { slot_pid } => {
+                    // Fresh open: the pty thread spawns the primary child and rounds
+                    // back via `ContentSpawned`, which mounts the pair and records the
+                    // bookkeeping (the spawn cannot be done synchronously on the screen
+                    // thread). The detail surface waits in the keyed registry under
+                    // `secondary_surface_key` until that mount.
+                    SwapPlan::Spawn { primary_slot } => {
                         screen
                             .bus
                             .senders
                             .send_to_pty(PtyInstruction::SwapContentSpawn {
                                 key,
-                                slot_pid,
+                                slot_pid: primary_slot,
                                 run,
+                                secondary_surface_key,
                                 client_id,
                             })?;
                     },
@@ -5937,19 +5980,28 @@ pub(crate) fn screen_thread_main(
                 slot_pid,
                 new_pid,
                 run,
+                secondary_surface_key,
                 client_id,
             } => {
-                // The pty thread spawned `key`'s fresh content child (`new_pid`).
-                // Mount it into the slot in place, parking the displaced occupant
-                // alive — unless that occupant is the layout's initial placeholder
-                // (`mounted: None`), which is closed instead. The replace re-points
-                // the slot's clients to the new pane; focus it explicitly so the
-                // freshly-opened working set receives input.
+                // The pty thread spawned `key`'s fresh primary child (`new_pid`).
+                // Mount the **pair**: the primary into the primary slot, and — if a
+                // detail surface was registered under `secondary_surface_key` — that
+                // host surface into the secondary slot. Displaced occupants are parked
+                // alive, unless they are the layout's initial placeholders
+                // (`mounted: None`), which are closed instead. Focus the primary
+                // (harness) once both are mounted.
                 let plan = screen
                     .content_swap
                     .as_ref()
-                    .map(|cs| (cs.tab_id, cs.mounted.is_none()));
-                if let Some((tab_id, close_placeholder)) = plan {
+                    .map(|cs| (cs.tab_id, cs.secondary_slot, cs.mounted.is_none()));
+                if let Some((tab_id, secondary_slot, close_placeholder)) = plan {
+                    // Take the detail surface from the keyed registry up front (before
+                    // the tab borrow). `None` => a primary-only working set, or the
+                    // host never registered one (it surfaces that on its side).
+                    let secondary_surface = secondary_surface_key
+                        .as_deref()
+                        .and_then(crate::panes::host_pane::take_keyed_host_surface);
+                    let mut mounted_secondary: Option<PaneId> = None;
                     if let Some(tab) = screen.tabs.get_mut(&tab_id) {
                         tab.suppress_pane_and_replace_with_pid(
                             slot_pid,
@@ -5959,11 +6011,24 @@ pub(crate) fn screen_thread_main(
                             None,
                             None,
                         )?;
+                        if let (Some(secondary_slot), Some(surface)) =
+                            (secondary_slot, secondary_surface)
+                        {
+                            mounted_secondary = Some(tab.mount_host_surface(
+                                secondary_slot,
+                                surface,
+                                close_placeholder,
+                                client_id,
+                            )?);
+                        }
                         tab.focus_pane_with_id(new_pid, false, false, client_id)?;
                     }
                     if let Some(cs) = screen.content_swap.as_mut() {
-                        cs.panes.insert(key.clone(), new_pid);
-                        cs.slot_pid = new_pid;
+                        cs.panes.insert(key.clone(), (new_pid, mounted_secondary));
+                        cs.primary_slot = new_pid;
+                        if let Some(sec) = mounted_secondary {
+                            cs.secondary_slot = Some(sec);
+                        }
                         cs.mounted = Some(key);
                     }
                 }

@@ -216,14 +216,16 @@ fn client_cli_args(session: &str) -> CliArgs {
 /// - `default_mode "locked"`: trellis passes every *unbound* key straight through
 ///   to the focused pane — the harness (claude/codex chords, vim Esc) or grove's
 ///   own nav surface (`j`/`k`/`⏎`/`c`). Only the binds below are intercepted.
-/// - The **leader, `Ctrl-o`**, focuses the **constant nav** from the content
-///   region: a `MoveFocus "Left"` (the nav is the fixed leftmost pane, so moving
-///   focus left from a harness lands on it, and is a no-op when the nav already has
-///   focus). A zellij keybind *must* carry the leader: in `locked` only zellij sees
-///   keys while a harness is focused. This supersedes the ADR-0018 era's
-///   `GoToTab 1` (there is no longer a home *tab*; ADR-0022's constant nav + swapped
-///   content has one tab — nav beside a content slot — so `GoToTab`/`Alt-1..9` tab
-///   switching is retired, ADR-0023).
+/// - The **leader, `Ctrl-o`**, **cycles focus** across the session's panes with
+///   `FocusNextPane`: nav → harness → detail → nav. 010 bound it to `MoveFocus
+///   "Left"` (good for two panes — the nav was the only other pane), but 130/020's
+///   content region is a *pair* (harness + detail), so a single-direction move can
+///   no longer reach every surface; a cycle does, with one repeated key, and on a
+///   two-pane session it degrades to the old nav↔harness toggle. A zellij keybind
+///   *must* carry the leader: in `locked` only zellij sees keys while a harness is
+///   focused. This supersedes the ADR-0018 era's `GoToTab 1` (there is no longer a
+///   home *tab*; ADR-0022's constant nav + swapped content has one tab, so
+///   `GoToTab`/`Alt-1..9` tab switching is retired, ADR-0023).
 /// - `pane_frames false` / `simplified_ui true` / startup floats off: the
 ///   composite reads as grove's own UI, not "a zellij session".
 /// - `session_serialization false`: the dashboard is rebuilt from the live
@@ -232,9 +234,10 @@ fn client_cli_args(session: &str) -> CliArgs {
 const GROVE_TUI_CONFIG: &str = r##"// grove's in-process trellis config (leaf 130-native-detail/020). Not hand-edited.
 keybinds clear-defaults=true {
     locked {
-        // The leader: focus the constant nav (the fixed leftmost pane) from the
-        // content region. No-op when the nav already has focus.
-        bind "Ctrl o" { MoveFocus "Left"; }
+        // The leader: cycle focus across the session's panes
+        // (nav → harness → detail → nav), so every surface is reachable with one
+        // repeated key now the content region is a harness+detail pair (130/020).
+        bind "Ctrl o" { FocusNextPane; }
     }
 }
 default_mode "locked"
@@ -245,17 +248,23 @@ show_release_notes false
 show_startup_tips false
 "##;
 
-/// grove's session layout (ADR-0022/0023): one tab of a **fixed-width constant
-/// nav** beside a **content slot**, arranged side by side. The host nav surface
-/// adopts the leftmost (nav) pane at first-layout (`Tab::inject_host_pane`); the
-/// content-slot placeholder is the addressable target the content-swap verb
-/// (`HostDriver::swap_content`) mounts each selected grove's harness into. Passed
-/// as a stringified layout (`CliArgs::layout_string` → `LayoutInfo::Stringified`),
-/// so nothing is written to disk.
+/// grove's session layout (ADR-0022/0023, pair-aware per 130/020): one tab of a
+/// **fixed-width constant nav** beside a **content region** that is itself a split
+/// of two slots — the **harness** (primary) and the per-grove **detail**
+/// (secondary), arranged side by side. The host nav surface adopts the leftmost
+/// (nav) pane at first-layout (`Tab::inject_host_pane`); the two content-slot
+/// placeholders are the addressable targets the content-swap verb
+/// (`HostDriver::swap_content`) mounts each selected grove's harness + detail into
+/// (closed on the first selection, then swapped as a parked-alive pair). Passed as
+/// a stringified layout (`CliArgs::layout_string` → `LayoutInfo::Stringified`), so
+/// nothing is written to disk.
 const GROVE_TUI_LAYOUT: &str = r##"layout {
     pane split_direction="vertical" {
         pane size=34 name="grove-nav"
-        pane name="grove-content"
+        pane split_direction="vertical" {
+            pane name="grove-harness"
+            pane name="grove-detail"
+        }
     }
 }
 "##;
@@ -346,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn grove_layout_parses_into_a_fixed_nav_beside_a_content_slot() {
+    fn grove_layout_parses_into_a_fixed_nav_beside_a_content_pair() {
         use trellis::input::layout::{Layout, SplitDirection, TiledPaneLayout};
 
         // A KDL typo or bad attribute in GROVE_TUI_LAYOUT fails here, before any
@@ -355,7 +364,7 @@ mod tests {
             Layout::from_kdl(GROVE_TUI_LAYOUT, None, None, None).expect("grove layout parses");
         let (root, _floating) = layout.template.expect("a template layout");
 
-        // The tree's leaf panes are exactly the nav + the content slot.
+        // The tree's leaf panes are the nav + the content pair (harness + detail).
         fn leaves<'a>(node: &'a TiledPaneLayout, out: &mut Vec<&'a TiledPaneLayout>) {
             if node.children.is_empty() {
                 out.push(node);
@@ -369,8 +378,9 @@ mod tests {
         leaves(&root, &mut found);
         let names: Vec<_> = found.iter().filter_map(|p| p.name.as_deref()).collect();
         assert!(names.contains(&"grove-nav"), "a nav pane: {names:?}");
-        assert!(names.contains(&"grove-content"), "a content slot: {names:?}");
-        assert_eq!(found.len(), 2, "exactly nav + content slot: {names:?}");
+        assert!(names.contains(&"grove-harness"), "a harness slot: {names:?}");
+        assert!(names.contains(&"grove-detail"), "a detail slot: {names:?}");
+        assert_eq!(found.len(), 3, "exactly nav + harness + detail: {names:?}");
 
         // The nav is fixed-width, so it stays a constant sidebar on tab resize.
         let nav = found
@@ -379,7 +389,9 @@ mod tests {
             .unwrap();
         assert!(nav.split_size.is_some(), "nav pane is fixed-size");
 
-        // The two panes sit side by side (a vertical split = a vertical divider).
+        // The nav sits beside the content region (a vertical split = a vertical
+        // divider); `inject_host_pane` relies on the nav being leftmost. The first
+        // node with two children is the nav | content-region split.
         fn split_dir_of_pair(node: &TiledPaneLayout) -> Option<SplitDirection> {
             if node.children.len() == 2 {
                 return Some(node.children_split_direction);
@@ -389,19 +401,20 @@ mod tests {
         assert_eq!(
             split_dir_of_pair(&root),
             Some(SplitDirection::Vertical),
-            "nav and content slot are split side by side"
+            "nav and content region are split side by side"
         );
     }
 
     #[test]
-    fn client_cli_args_set_session_and_two_pane_layout() {
+    fn client_cli_args_set_session_and_content_pair_layout() {
         let opts = client_cli_args("grove-acme");
         assert_eq!(opts.session.as_deref(), Some("grove-acme"));
-        // The constant-nav + content-slot layout rides in as a stringified layout
+        // The constant-nav + content-pair layout rides in as a stringified layout
         // (no file on disk); a named/path layout and config stay at defaults.
         let layout = opts.layout_string.as_deref().expect("a stringified layout");
         assert!(layout.contains("grove-nav"), "nav pane in the layout");
-        assert!(layout.contains("grove-content"), "content slot in the layout");
+        assert!(layout.contains("grove-harness"), "harness slot in the layout");
+        assert!(layout.contains("grove-detail"), "detail slot in the layout");
         assert!(opts.server.is_none());
         assert!(opts.layout.is_none());
         assert!(opts.config.is_none());

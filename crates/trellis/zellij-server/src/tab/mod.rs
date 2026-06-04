@@ -163,6 +163,14 @@ pub(crate) struct Tab {
     tiled_panes: TiledPanes,
     floating_panes: FloatingPanes,
     suppressed_panes: SuppressedPanes,
+    /// Editor terminal panes a **host surface** opened over its own host pane
+    /// (`HostDriver::open_editor`, ADR-0020 §6 embedded-tool observability). Keyed
+    /// by the editor's `PaneId::Terminal`; the suppressed entry it shadows is the
+    /// host pane to restore. Distinguishes a host `$EDITOR` drop from both a real
+    /// scrollback edit (restored pane is a terminal) and a content-swap park
+    /// (`is_scrollback_editor` false) so `close_pane` knows to fire the surface's
+    /// `editor_exited` after restoring it. Emptied as each editor pane closes.
+    host_editor_panes: HashSet<PaneId>,
     max_panes: Option<usize>,
     viewport: Rc<RefCell<Viewport>>, // includes all non-UI panes
     display_area: Rc<RefCell<Size>>, // includes all panes (including eg. the status bar and tab bar in the default layout)
@@ -576,6 +584,15 @@ pub trait Pane {
     fn host_tick(&mut self) -> bool {
         false
     }
+    /// Notify a host-rendered pane that a `$EDITOR` pane it opened over itself
+    /// (`HostDriver::open_editor`, ADR-0020 §6) has exited and this pane has been
+    /// restored into its slot — `exit_status` is the editor child's exit code
+    /// (`None` if it was signalled). The surface reads back the tempfile it seeded
+    /// and completes its edit; returns `true` if it needs a redraw. Default `false`
+    /// — only a host pane overrides it.
+    fn host_editor_exited(&mut self, _exit_status: Option<i32>) -> bool {
+        false
+    }
     fn get_line_number(&self) -> Option<usize> {
         None
     }
@@ -831,6 +848,7 @@ impl Tab {
             tiled_panes,
             floating_panes,
             suppressed_panes: HashMap::new(),
+            host_editor_panes: HashSet::new(),
             name: name.clone(),
             prev_name: name,
             max_panes,
@@ -2099,6 +2117,14 @@ impl Tab {
                 };
                 match replaced_pane {
                     Some(replaced_pane) => {
+                        // A host surface editing over its own pane (grove's detail
+                        // `$EDITOR` drop): tag the editor pane so its close restores
+                        // the host pane *and* fires the surface's `editor_exited`
+                        // (ADR-0020 §6). A real scrollback edit suppresses a terminal
+                        // pane, so this stays false there.
+                        if matches!(replaced_pane.pid(), PaneId::Host(_)) {
+                            self.host_editor_panes.insert(PaneId::Terminal(pid));
+                        }
                         self.insert_scrollback_editor_replaced_pane(replaced_pane, pid);
                         self.get_active_pane(client_id)
                             .with_context(|| format!("no active pane found for client {client_id}"))
@@ -4088,8 +4114,28 @@ impl Tab {
         // this is because in that case, while we do use this logic, we're not actually closing the
         // pane, we're moving it
         if !ignore_suppressed_panes && self.suppressed_panes.contains_key(&id) {
+            // A host `$EDITOR` pane (ADR-0020 §6): the suppressed pane it shadows is
+            // a host surface. Restore it as usual, then let its surface observe the
+            // editor's exit (read the tempfile back) before re-rendering. Captured
+            // before the restore moves the suppressed pane out.
+            let host_to_signal = if self.host_editor_panes.remove(&id) {
+                self.suppressed_panes.get(&id).map(|(_, p)| p.pid())
+            } else {
+                None
+            };
             return match self.replace_pane_with_suppressed_pane(id) {
-                Ok(_pane) => {},
+                Ok(_pane) => {
+                    if let Some(host_pid) = host_to_signal {
+                        if let Some(pane) = self.get_pane_with_id_mut(host_pid) {
+                            if pane.host_editor_exited(exit_status) {
+                                pane.set_should_render(true);
+                            }
+                        }
+                        // The editor took over the slot while open; force the
+                        // restored host surface to repaint over it.
+                        self.set_force_render();
+                    }
+                },
                 Err(e) => {
                     Err::<(), _>(e)
                         .with_context(|| format!("failed to close pane {:?}", id))

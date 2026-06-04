@@ -357,6 +357,20 @@ pub enum ScreenInstruction {
         secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
+    /// Open `$EDITOR <tempfile>` as a terminal pane in place of host pane
+    /// `host_pane_id`, observing the editor child's exit (ADR-0020 §6, first slice
+    /// of embedded-tool observability). Posted by
+    /// [`HostDriver::open_editor`](crate::panes::host_pane::HostDriver::open_editor).
+    /// The screen thread forwards the spawn to the pty thread (the existing
+    /// in-place-editor path, targeting the focused host pane), which suppresses the
+    /// host pane alive and swaps the editor into its slot. When the editor child
+    /// exits the host pane is restored and its surface's `editor_exited` fires so it
+    /// can read the tempfile back.
+    OpenHostEditor {
+        host_pane_id: u32,
+        tempfile: PathBuf,
+        client_id: ClientId,
+    },
     NewPane(
         PaneId,
         Option<InitialTitle>,
@@ -914,6 +928,7 @@ impl From<&ScreenInstruction> for ScreenContext {
             ScreenInstruction::HostSurfaceTick(..) => ScreenContext::HostSurfaceTick,
             ScreenInstruction::SwapContent { .. } => ScreenContext::SwapContent,
             ScreenInstruction::ContentSpawned { .. } => ScreenContext::ContentSpawned,
+            ScreenInstruction::OpenHostEditor { .. } => ScreenContext::OpenHostEditor,
             ScreenInstruction::NewPane(..) => ScreenContext::NewPane,
             ScreenInstruction::OpenInPlaceEditor(..) => ScreenContext::OpenInPlaceEditor,
             ScreenInstruction::TogglePaneEmbedOrFloating(..) => {
@@ -6033,6 +6048,37 @@ pub(crate) fn screen_thread_main(
                     }
                 }
                 screen.render(None)?;
+            },
+            ScreenInstruction::OpenHostEditor {
+                host_pane_id,
+                tempfile,
+                client_id,
+            } => {
+                // Forward to the pty thread's in-place-editor spawn, targeted at the
+                // focused host pane (`ClientId`). When the editor pid rounds back via
+                // `OpenInPlaceEditor`, `replace_active_pane_with_editor_pane`
+                // suppresses the (focused) host pane and swaps the editor into its
+                // slot — moving focus to the editor — and tags it in
+                // `host_editor_panes`, so the editor's close restores the host pane
+                // and fires its surface's `editor_exited` (ADR-0020 §6).
+                let host_pid = PaneId::Host(host_pane_id);
+                let found = screen
+                    .tabs
+                    .values()
+                    .any(|tab| tab.get_pane_with_id(host_pid).is_some());
+                if found {
+                    screen
+                        .bus
+                        .senders
+                        .send_to_pty(PtyInstruction::OpenInPlaceEditor(
+                            tempfile,
+                            None, // no line-number jump (mirrors v1 `shell_editor`)
+                            ClientTabIndexOrPaneId::ClientId(client_id),
+                            None, // no completion signal — fire-and-forget
+                        ))?;
+                } else {
+                    log::error!("OpenHostEditor: no host pane with id {host_pane_id}");
+                }
             },
             ScreenInstruction::RenderToClients => {
                 // render_blocker.can_render() returning true means that either all pending plugins

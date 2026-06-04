@@ -100,6 +100,19 @@ pub trait HostSurface: Send {
     fn tick(&mut self) -> bool {
         false
     }
+
+    /// A `$EDITOR` pane this surface opened via [`HostDriver::open_editor`] has
+    /// exited and this surface's host pane is restored into its slot. `exit_status`
+    /// is the editor child's process exit code (`None` if it was killed by a
+    /// signal). The surface reads back the tempfile it seeded — applying the edit,
+    /// or treating an abnormal exit as "abort" — and returns `true` to re-render.
+    /// The first slice of ADR-0020 §6 embedded-tool observability: observe an
+    /// embedded tool's exit, then read its side effect. Called only on the screen
+    /// thread (in `Tab::close_pane`). Defaulted no-op: a surface that opens no
+    /// editor ignores it.
+    fn editor_exited(&mut self, _exit_status: Option<i32>) -> bool {
+        false
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +253,25 @@ impl HostDriver {
         let _ = self
             .to_screen
             .send(ScreenInstruction::HostSurfaceTick(self.pane_id));
+    }
+
+    /// Open `$EDITOR <tempfile>` as a real trellis terminal pane in place of this
+    /// host pane, observing the editor child's exit (ADR-0020 §6, first slice of
+    /// embedded-tool observability). While the editor runs the host pane is
+    /// suppressed (parked alive); on exit the editor pane closes itself, the host
+    /// pane is restored into its slot, and this surface's
+    /// [`HostSurface::editor_exited`] fires so it can read `tempfile` back. The
+    /// editor binary (`$EDITOR`/`$VISUAL`/`vi`) is resolved by trellis's existing
+    /// in-place-editor machinery — the surface only seeds the file and owns its
+    /// lifetime until `editor_exited`. Fire-and-forget like the other verbs; the
+    /// caller must be the focused pane (the host pane the editor replaces is the
+    /// focused one).
+    pub fn open_editor(&self, tempfile: PathBuf) {
+        let _ = self.to_screen.send(ScreenInstruction::OpenHostEditor {
+            host_pane_id: self.pane_id,
+            tempfile,
+            client_id: self.client_id,
+        });
     }
 
     /// Quit the session (native replacement for the v1 dashboard's `q`). Posts a
@@ -771,6 +803,14 @@ impl Pane for HostPane {
             false
         }
     }
+    fn host_editor_exited(&mut self, exit_status: Option<i32>) -> bool {
+        if self.surface.editor_exited(exit_status) {
+            self.should_render = true;
+            true
+        } else {
+            false
+        }
+    }
     fn add_red_pane_frame_color_override(&mut self, error_text: Option<String>) {
         self.pane_frame_color_override =
             Some((self.style.colors.exit_code_error.base, error_text));
@@ -910,6 +950,23 @@ mod tests {
         // request_tick names this pane so the handler finds it.
         driver.request_tick();
         assert!(matches!(next(), ScreenInstruction::HostSurfaceTick(7)));
+
+        // open_editor → an OpenHostEditor naming this host pane + the seeded
+        // tempfile, issued as this client (ADR-0020 §6). The screen handler forwards
+        // it to the pty in-place-editor spawn; here we pin the host-facing contract.
+        driver.open_editor(PathBuf::from("/tmp/grove-edit-xyz.md"));
+        match next() {
+            ScreenInstruction::OpenHostEditor {
+                host_pane_id,
+                tempfile,
+                client_id,
+            } => {
+                assert_eq!(host_pane_id, 7, "names this host pane");
+                assert_eq!(tempfile, PathBuf::from("/tmp/grove-edit-xyz.md"));
+                assert_eq!(client_id, 1);
+            }
+            other => panic!("expected OpenHostEditor, got {other:?}"),
+        }
 
         // new_command_tab → a focused, named NewTab whose layout runs the command.
         driver.new_command_tab(

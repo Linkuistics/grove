@@ -83,6 +83,10 @@ region when its grove is selected.
 - **Scope boundary with 150-working-set:** 150 owns the *responsive multi-pane*
   content region (harness + terminal + yazi + lazygit, pack-vs-degrade, toggles).
   130 stays minimal — detail + harness in a simple split inside the content region.
+  **150 reuses 030's embedded-tool *exit* slice (ADR-0024):** `HostDriver::open_editor`
+  / `HostSurface::editor_exited`, realised by reusing trellis's scrollback-editor
+  suppress/restore. 150 widens ADR-0020 §6 toward screen/scrollback/input-injection
+  on top of that, not by re-deriving the spawn/observe path.
 - **120-native-nav (done) is reframed, not re-opened** (ADR-0022): its
   "Enter opens a tab" delta — Enter now swaps content — lands in 010/020 here.
 - Retire the `GROVE_TUI_CONFIG` `GoToTab`/`Alt-1..9` binds when 010/020 land the

@@ -2748,22 +2748,182 @@ mod native {
     use std::path::PathBuf;
     use std::sync::mpsc;
 
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
     use ratatui::crossterm::event::{KeyCode, KeyEvent};
     use ratatui::layout::Rect;
     use ratatui::Terminal;
+    use tempfile::NamedTempFile;
 
     use trellis_server::panes::host_pane::{
         register_keyed_host_surface, HostDriver, HostSurface,
     };
 
     use super::{
-        current_grove_name, handle_key, render, shell_capture, shell_drain, short_err, App,
-        CaptureModal, PendingAction, RepoView, DEBOUNCE,
+        current_grove_name, decide_observation_edit, handle_key, render, shell_capture,
+        shell_drain, short_err, App, CaptureField, CaptureModal, EditOutcome, PendingAction,
+        RepoView, DEBOUNCE,
     };
+
+    // -----------------------------------------------------------------------
+    // The native `$EDITOR` drop (130-native-detail/030; first slice of ADR-0020
+    // §6 embedded-tool observability).
+    //
+    // v1 ran `$EDITOR` by suspending the tty (`process_pending_action`'s
+    // `suspended()`); a host surface has no tty (it renders in the server daemon —
+    // ADR-0021), so instead it asks trellis to run `$EDITOR <tempfile>` as a real
+    // terminal pane and signal `editor_exited` when the child exits. The flow is
+    // two-phase: `begin_pending_edit` seeds the tempfile and opens the pane, then
+    // `finish_edit` reads it back once trellis reports the exit. Shared verbatim by
+    // the home dashboard and the per-grove detail surfaces.
+    // -----------------------------------------------------------------------
+
+    /// A `$EDITOR` drop in flight: the seeded tempfile (held alive until the editor
+    /// exits) plus what to do with the edited text. A surface stashes one between
+    /// its `open_editor` request and the `editor_exited` that completes the flow.
+    enum PendingEdit {
+        /// Edit the in-memory capture draft; on exit the edited text becomes the
+        /// capture body (v1 `PendingAction::EditBody`).
+        Body { tempfile: NamedTempFile },
+        /// Edit a committed inbox observation; on a non-empty change, round-trip
+        /// through `grove-llm inbox-edit` (v1 `PendingAction::EditObservation`).
+        Observation {
+            tempfile: NamedTempFile,
+            path: PathBuf,
+            original: String,
+            grove: String,
+        },
+    }
+
+    /// Seed a tempfile with `initial` and ask trellis to open `$EDITOR` on it as a
+    /// terminal pane whose exit it will observe. Returns the live tempfile handle to
+    /// hold until [`finish_edit`] reads it back; `Err` if the tempfile can't be
+    /// created or written.
+    fn seed_editor(driver: &HostDriver, initial: &str) -> Result<NamedTempFile> {
+        let tf = tempfile::Builder::new()
+            .prefix("grove-edit-")
+            .suffix(".md")
+            .tempfile()
+            .context("creating editor tempfile")?;
+        std::fs::write(tf.path(), initial)
+            .with_context(|| format!("seeding editor tempfile {}", tf.path().display()))?;
+        driver.open_editor(tf.path().to_path_buf());
+        Ok(tf)
+    }
+
+    /// Begin a `$EDITOR` drop for an `EditBody`/`EditObservation` the v1 handler
+    /// queued: seed the tempfile and open the editor pane. Returns the in-flight
+    /// [`PendingEdit`] to stash, or `None` (recording a status) when there is no
+    /// driver yet or the seed/read fails.
+    fn begin_pending_edit(
+        app: &mut App,
+        driver: &Option<HostDriver>,
+        action: PendingAction,
+    ) -> Option<PendingEdit> {
+        let Some(driver) = driver.as_ref() else {
+            app.status = Some("editor unavailable (surface not mounted)".to_string());
+            return None;
+        };
+        match action {
+            PendingAction::EditBody => match seed_editor(driver, &app.capture.body) {
+                Ok(tempfile) => Some(PendingEdit::Body { tempfile }),
+                Err(e) => {
+                    app.status = Some(format!("editor failed: {}", short_err(&e)));
+                    None
+                }
+            },
+            PendingAction::EditObservation { path } => {
+                let original = match std::fs::read_to_string(&path) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        app.status = Some(format!(
+                            "reading observation failed: {}",
+                            short_err(&anyhow::anyhow!(e))
+                        ));
+                        return None;
+                    }
+                };
+                let grove = app
+                    .detail
+                    .as_ref()
+                    .map(|d| d.grove.clone())
+                    .unwrap_or_default();
+                match seed_editor(driver, &original) {
+                    Ok(tempfile) => Some(PendingEdit::Observation {
+                        tempfile,
+                        path,
+                        original,
+                        grove,
+                    }),
+                    Err(e) => {
+                        app.status = Some(format!("editor failed: {}", short_err(&e)));
+                        None
+                    }
+                }
+            }
+            // Only the two edit actions reach here; anything else is a caller bug.
+            _ => None,
+        }
+    }
+
+    /// Complete a `$EDITOR` drop once trellis reports the editor exited: read the
+    /// tempfile back and apply it. Mirrors `process_pending_action`'s
+    /// `EditBody`/`EditObservation` arms minus the tty suspend (the editor ran as a
+    /// real pane). A non-zero/signalled exit is treated as "abort, leave unchanged",
+    /// faithful to v1's `shell_editor`, which errored on a non-zero status.
+    fn finish_edit(app: &mut App, pending: PendingEdit, exit_status: Option<i32>) {
+        if exit_status != Some(0) {
+            app.status = Some("editor exited without saving; left unchanged".to_string());
+            return;
+        }
+        match pending {
+            PendingEdit::Body { tempfile } => match std::fs::read_to_string(tempfile.path()) {
+                Ok(new_body) => {
+                    app.capture.body = new_body;
+                    app.capture.field = CaptureField::Body;
+                }
+                Err(e) => {
+                    app.status = Some(format!(
+                        "reading edited body failed: {}",
+                        short_err(&anyhow::anyhow!(e))
+                    ));
+                }
+            },
+            PendingEdit::Observation {
+                tempfile,
+                path,
+                original,
+                grove,
+            } => {
+                let name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                let edited = match std::fs::read_to_string(tempfile.path()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        app.status = Some(format!(
+                            "reading edited observation failed: {}",
+                            short_err(&anyhow::anyhow!(e))
+                        ));
+                        return;
+                    }
+                };
+                match decide_observation_edit(&path, &original, edited) {
+                    Ok(EditOutcome::Unchanged) => app.status = Some(format!("{name}: unchanged")),
+                    // The fs-watch on the inbox fires on the rename, debounces, and
+                    // rescans — the renamed entry then reappears.
+                    Ok(EditOutcome::Saved) => {
+                        app.status = Some(format!("edited {name} in {grove}"))
+                    }
+                    Err(e) => app.status = Some(format!("edit failed: {}", short_err(&e))),
+                }
+                let _ = app.refresh_silent();
+            }
+        }
+    }
 
     /// Build the dashboard surface for `repo`: scan it, seed `App`, and prepare
     /// an off-screen render target. The fs-watch thread is *not* started here —
@@ -2786,6 +2946,7 @@ mod native {
             terminal,
             driver: None,
             open_harnesses: BTreeSet::new(),
+            pending_edit: None,
             _watcher: None,
         })
     }
@@ -2810,6 +2971,9 @@ mod native {
         /// of the retired `HarnessTabs` id map (the screen thread addresses tabs
         /// by name, so no numeric id round-trip is needed).
         open_harnesses: BTreeSet<String>,
+        /// A `$EDITOR` drop in flight (a capture-body edit from the nav), held from
+        /// the `open_editor` request until `editor_exited` reads the tempfile back.
+        pending_edit: Option<PendingEdit>,
         /// Kept alive so the fs-watch thread's channel stays open; dropping it
         /// (on surface drop) closes the channel and the thread exits cleanly.
         _watcher: Option<RecommendedWatcher>,
@@ -2820,10 +2984,9 @@ mod native {
         /// `grove-llm` writes run **synchronously on the screen thread** (sub-second
         /// git commits; the v1 `suspended()` tty dance is gone because the surface
         /// no longer owns a tty). Harness open/close/focus drive tabs by direct
-        /// `HostDriver` call. The interactive `$EDITOR` drops are deferred to
-        /// 130-native-detail, which renders detail (and its editor) in-process —
-        /// the native editor needs embedded-tool exit observability (an ADR-0020
-        /// §6 later leaf), so 030 surfaces a pointer rather than half-doing it.
+        /// `HostDriver` call. A `$EDITOR` drop (`Ctrl-E` on a capture draft) opens a
+        /// real trellis editor pane and reads the result back on exit
+        /// ([`begin_pending_edit`] / [`finish_edit`], 130-native-detail/030).
         fn process_action(&mut self, action: PendingAction) {
             match action {
                 PendingAction::Submit => {
@@ -2917,9 +3080,10 @@ mod native {
                     self.app.status =
                         Some(format!("{name} stays parked (no close in the swap model)"));
                 }
-                PendingAction::EditBody | PendingAction::EditObservation { .. } => {
-                    self.app.status =
-                        Some("native $EDITOR drop lands in 130-native-detail".to_string());
+                action @ (PendingAction::EditBody | PendingAction::EditObservation { .. }) => {
+                    // Open `$EDITOR` as a real trellis pane; `editor_exited` reads it
+                    // back. Disjoint borrows of `app` (mut) and `driver` (shared).
+                    self.pending_edit = begin_pending_edit(&mut self.app, &self.driver, action);
                 }
             }
         }
@@ -3006,6 +3170,18 @@ mod native {
             }
             true
         }
+
+        fn editor_exited(&mut self, exit_status: Option<i32>) -> bool {
+            // The `$EDITOR` pane this surface opened (Ctrl-E) exited: read the
+            // tempfile back and apply it. `take` so a stray double-signal is inert.
+            match self.pending_edit.take() {
+                Some(pending) => {
+                    finish_edit(&mut self.app, pending, exit_status);
+                    true
+                }
+                None => false,
+            }
+        }
     }
 
     /// Spawn the shared fs-watch → debounce → `request_tick` thread for a host
@@ -3068,6 +3244,7 @@ mod native {
             app,
             terminal,
             driver: None,
+            pending_edit: None,
             _watcher: None,
         })
     }
@@ -3093,6 +3270,9 @@ mod native {
         terminal: Terminal<TestBackend>,
         /// The redraw/tick handle, set once at mount. `None` until then.
         driver: Option<HostDriver>,
+        /// A `$EDITOR` drop in flight (a capture-body or inbox-observation edit),
+        /// held from the `open_editor` request until `editor_exited` reads it back.
+        pending_edit: Option<PendingEdit>,
         /// Kept alive so the per-grove fs-watch thread's channel stays open.
         _watcher: Option<RecommendedWatcher>,
     }
@@ -3100,12 +3280,12 @@ mod native {
     impl DetailSurface {
         /// Run a deferred action the v1 `handle_key` queued, scoped to the detail's
         /// in-process powers. Capture (`c` → `Ctrl-S`) and inbox triage (`d`) run the
-        /// same synchronous `grove-llm` shell-outs the home dashboard does; the
-        /// interactive `$EDITOR` drops (`Ctrl-E`) still defer to 030-native-editor
-        /// (the native editor needs embedded-tool exit observability), so they
-        /// surface the same pointer. Harness open/close belong to the **nav** (it
-        /// owns the content swap), so this surface ignores them — its grove's harness
-        /// is already mounted beside it.
+        /// same synchronous `grove-llm` shell-outs the home dashboard does; a
+        /// `$EDITOR` drop (`Ctrl-E` on a capture draft or a selected inbox entry)
+        /// opens a real trellis editor pane and reads the result back on exit
+        /// ([`begin_pending_edit`] / [`finish_edit`], 130-native-detail/030). Harness
+        /// open/close belong to the **nav** (it owns the content swap), so this
+        /// surface ignores them — its grove's harness is already mounted beside it.
         fn process_action(&mut self, action: PendingAction) {
             match action {
                 PendingAction::Submit => {
@@ -3136,9 +3316,11 @@ mod native {
                     }
                     let _ = self.app.refresh_silent();
                 }
-                PendingAction::EditBody | PendingAction::EditObservation { .. } => {
-                    self.app.status =
-                        Some("native $EDITOR drop lands in 030-native-editor".to_string());
+                action @ (PendingAction::EditBody | PendingAction::EditObservation { .. }) => {
+                    // Open `$EDITOR` as a real trellis pane in place of this detail
+                    // pane; `editor_exited` reads the tempfile back. For an inbox
+                    // entry the readback round-trips through `grove-llm inbox-edit`.
+                    self.pending_edit = begin_pending_edit(&mut self.app, &self.driver, action);
                 }
                 // The nav drives the content swap; the detail surface must never
                 // call `swap_content` (it would fight the nav for the content
@@ -3203,6 +3385,63 @@ mod native {
                 self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
             }
             true
+        }
+
+        fn editor_exited(&mut self, exit_status: Option<i32>) -> bool {
+            // The `$EDITOR` pane this detail opened (Ctrl-E) exited: read it back and
+            // apply (capture body, or an inbox-edit round-trip). `take` so a stray
+            // double-signal is inert.
+            match self.pending_edit.take() {
+                Some(pending) => {
+                    finish_edit(&mut self.app, pending, exit_status);
+                    true
+                }
+                None => false,
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        /// A bare repo with the two dirs `RepoView::scan` reads, so an `App` can be
+        /// built without a full grove fixture (these tests only exercise the
+        /// `$EDITOR` readback, not rendering).
+        fn empty_app() -> App {
+            let tmp = tempfile::tempdir().unwrap();
+            std::fs::create_dir_all(tmp.path().join(".grove-worktrees")).unwrap();
+            std::fs::create_dir_all(tmp.path().join(".grove-meta").join("inboxes")).unwrap();
+            let view = RepoView::scan(tmp.path()).unwrap();
+            // Keep the tempdir alive for the App's lifetime by leaking it — the test
+            // process is short-lived and never re-scans.
+            std::mem::forget(tmp);
+            App::new(std::env::temp_dir(), view, None)
+        }
+
+        #[test]
+        fn finish_edit_body_reads_tempfile_into_the_capture_draft() {
+            let mut app = empty_app();
+            app.capture.body = "old draft".into();
+            let tf = tempfile::Builder::new().suffix(".md").tempfile().unwrap();
+            std::fs::write(tf.path(), "edited in $EDITOR").unwrap();
+
+            finish_edit(&mut app, PendingEdit::Body { tempfile: tf }, Some(0));
+            assert_eq!(app.capture.body, "edited in $EDITOR");
+            assert_eq!(app.capture.field, CaptureField::Body);
+        }
+
+        #[test]
+        fn finish_edit_aborts_on_a_nonzero_exit() {
+            // A non-zero / signalled editor exit (e.g. vim `:cq`) means "abort":
+            // the draft is left exactly as it was, faithful to v1's `shell_editor`.
+            let mut app = empty_app();
+            app.capture.body = "untouched".into();
+            let tf = tempfile::Builder::new().suffix(".md").tempfile().unwrap();
+            std::fs::write(tf.path(), "edited but aborted").unwrap();
+
+            finish_edit(&mut app, PendingEdit::Body { tempfile: tf }, Some(1));
+            assert_eq!(app.capture.body, "untouched");
         }
     }
 }

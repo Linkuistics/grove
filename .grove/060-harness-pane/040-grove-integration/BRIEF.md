@@ -124,21 +124,26 @@ live: (the fork path — ADR-0020. Native in-process replaces proxy/WASM/back-ch
                              grove [[workspace]] tabs in-process. Supersedes 070
                              (plugin) / 080 (back-channel) / old 100 (self-opens).
   130-native-detail          per-grove detail (task tree + inbox + capture)
-                             rendered natively in each grove tab; $EDITOR drop
-                             in-process. Supersedes old 110 (dumb detail proxy).
-                             [decomposed → node, then reshaped by ADR-0022
+                             rendered natively beside each grove's harness; $EDITOR
+                             drop in-process. Supersedes old 110 (dumb detail proxy).
+                             [DONE → done/. Decomposed → node, reshaped by ADR-0022
                              (constant nav + swapped content, no tab-per-grove):
                              010 content-swap-spike (suppressed_panes vs pool →
                              mechanism ADR-0023), 020 detail-surface (mount detail
-                             into the content region), 030 native-editor ($EDITOR
-                             as a trellis pane + §6 exit observability). $EDITOR-as-
-                             in-process-tty premise corrected: surface renders
-                             server-side w/ no tty (ADR-0021).]
+                             into the content region), 030 native-editor ($EDITOR as
+                             a trellis pane + §6 exit observability → ADR-0024).
+                             $EDITOR-as-in-process-tty premise corrected: surface
+                             renders server-side w/ no tty (ADR-0021).]
   140-native-whichkey        grove-owned full-width bottom hint bar, native (sigils);
                              single hint owner. Supersedes old 120 (WASM bar).
   150-working-set            harness + terminal + yazi + lazygit as embedded TUI
                              apps via trellis's embedding; per-pane toggles;
                              responsive layout (5K2K ↔ MacBook Pro). Was old 130.
+                             Reuses 130/030's embedded-tool *exit* slice (ADR-0024:
+                             `HostDriver::open_editor` / `HostSurface::editor_exited`,
+                             reusing trellis's scrollback-editor suppress/restore);
+                             widens ADR-0020 §6 toward screen/scrollback/input-
+                             injection on top of it, not by re-deriving spawn/observe.
 
 later/lazy (added when earned — ADR-0020 §7):
   per-platform build pipeline (CI matrix; CVE-watch); GraphQL/network surface +

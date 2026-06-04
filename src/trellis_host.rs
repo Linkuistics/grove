@@ -260,28 +260,35 @@ show_startup_tips false
 /// working area above a one-row, full-width **`grove-whichkey`** bar — the
 /// grove-owned hint line (`Tab::inject_whichkey_pane` adopts it at first-layout).
 /// The working area is a **fixed-width constant nav** beside a **content region**
-/// that is itself a split of the [[working set]]'s slots — the **harness** (primary),
-/// the per-grove **detail** (secondary), and the aux tools **terminal**, **yazi**,
-/// **vcs** — arranged side by side. The host nav surface adopts the leftmost (nav)
-/// pane at first-layout (`Tab::inject_host_pane`); the content-slot placeholders are
-/// the addressable targets the content-swap verb (`HostDriver::swap_content`) mounts
-/// each selected grove's working set into (closed on the first selection, then
-/// swapped as a parked-alive unit). Order matters: slots are assigned by `x` order,
-/// so harness/detail/aux must appear in that order here (terminal, yazi, vcs map
-/// positionally to the `aux` members grove passes). Responsive arrangement (which
-/// members are visible, harness-dominant side stack) is 040's concern; this is the
-/// flat all-visible mount. Passed as a stringified layout (`CliArgs::layout_string`
-/// → `LayoutInfo::Stringified`), so nothing is written to disk.
+/// that holds the [[working set]]'s slots in the **wide arrangement** (040-responsive-
+/// layout): the **harness** (primary) is one dominant column taking the larger share,
+/// and the per-grove **detail** (secondary) plus the aux tools **terminal**, **yazi**,
+/// **vcs** stack vertically in a **side stack** beside it. The host nav surface adopts
+/// the leftmost (nav) pane at first-layout (`Tab::inject_host_pane`); the content-slot
+/// placeholders are the addressable targets the content-swap verb
+/// (`HostDriver::swap_content`) mounts each selected grove's working set into (closed
+/// on the first selection, then swapped as a parked-alive unit). Order matters: slots
+/// are assigned in **reading order — `x` then `y`** (`nav_and_content_slots`), so the
+/// harness (smallest `x`) is the primary, then the side stack top-to-bottom gives
+/// detail (secondary) and terminal/yazi/vcs — the aux members grove passes,
+/// positionally. The *default-visible* set adapts to the content region's width at
+/// mount: a wide region shows the whole stack; a laptop-sized one parks the aux
+/// members alive (harness + detail), grove's breakpoint (`WIDE_TIER_MIN_CONTENT_COLS`)
+/// applied by trellis. The harness share is `60%` of the content region. Passed as a
+/// stringified layout (`CliArgs::layout_string` → `LayoutInfo::Stringified`), so
+/// nothing is written to disk.
 const GROVE_TUI_LAYOUT: &str = r##"layout {
     pane split_direction="horizontal" {
         pane split_direction="vertical" {
             pane size=34 name="grove-nav"
             pane split_direction="vertical" {
-                pane name="grove-harness"
-                pane name="grove-detail"
-                pane name="grove-term"
-                pane name="grove-yazi"
-                pane name="grove-vcs"
+                pane name="grove-harness" size="60%"
+                pane split_direction="horizontal" {
+                    pane name="grove-detail"
+                    pane name="grove-term"
+                    pane name="grove-yazi"
+                    pane name="grove-vcs"
+                }
             }
         }
         pane size=1 name="grove-whichkey"
@@ -458,6 +465,33 @@ mod tests {
             Some(SplitDirection::Vertical),
             "nav and content region are split side by side"
         );
+
+        // 040-responsive-layout's **wide arrangement** — harness-dominant + side stack:
+        // the harness is a sized (dominant) column beside the content region's other
+        // members, and detail/term/yazi/vcs stack vertically (a horizontal divider) in
+        // the column beside it. The harness's share is fixed; the side stack takes the
+        // remainder. (`inject_host_pane` orders slots by `(x, y)`, so the harness leads
+        // and the stack follows top-to-bottom — harness, detail, term, yazi, vcs.)
+        let harness = found
+            .iter()
+            .find(|p| p.name.as_deref() == Some("grove-harness"))
+            .unwrap();
+        assert!(
+            harness.split_size.is_some(),
+            "the harness takes a fixed dominant share of the content region"
+        );
+        assert_eq!(
+            split_containing(&root, "grove-harness"),
+            Some(SplitDirection::Vertical),
+            "the harness sits beside the side stack (a vertical divider)"
+        );
+        for stacked in ["grove-detail", "grove-term", "grove-yazi", "grove-vcs"] {
+            assert_eq!(
+                split_containing(&root, stacked),
+                Some(SplitDirection::Horizontal),
+                "{stacked} stacks vertically in the side column (a horizontal divider)"
+            );
+        }
     }
 
     #[test]

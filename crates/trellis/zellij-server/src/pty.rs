@@ -119,6 +119,10 @@ pub enum PtyInstruction {
         /// working set. Pure pass-through — the pty thread never interprets it; it
         /// rides back to the screen thread on [`ScreenInstruction::ContentSpawned`].
         secondary_surface_key: Option<String>,
+        /// The host's responsive breakpoint (040-responsive-layout), pure pass-through
+        /// to [`ScreenInstruction::ContentSpawned`] where the freshly-mounted set is
+        /// measured against it; the pty thread never interprets it.
+        narrow_below_cols: Option<usize>,
         client_id: ClientId,
     },
     DumpLayout(SessionLayoutMetadata, ClientId, Option<NotificationEnd>),
@@ -468,6 +472,7 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                 run,
                 aux,
                 secondary_surface_key,
+                narrow_below_cols,
                 client_id,
             } => {
                 // Spawn the fresh command members for a first-time content swap (the
@@ -518,6 +523,7 @@ pub(crate) fn pty_thread_main(mut pty: Pty, layout: Box<Layout>) -> Result<()> {
                                 run,
                                 aux: spawned_aux,
                                 secondary_surface_key,
+                                narrow_below_cols,
                                 client_id,
                             })
                             .with_context(err_context)?;

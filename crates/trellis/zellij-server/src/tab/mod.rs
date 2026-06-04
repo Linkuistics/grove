@@ -750,16 +750,27 @@ pub fn get_next_terminal_position(
 
 /// Split a content-region pane list into the nav target and the ordered content
 /// slots (020-aux-tool-panes). The leftmost non-`grove-whichkey` pane is the nav;
-/// every pane after it, in `x` order, is a content slot (harness, detail, then the
-/// aux tools). The full-width whichkey bar shares `x == 0` with the nav, so it is
-/// excluded by title first. Pure over the `(id, x, title)` triples, so the slot
-/// role assignment is unit-testable without a live tab.
+/// every pane after it is a content slot (harness, detail, then the aux tools),
+/// ordered **reading order — `x` then `y`**. The full-width whichkey bar shares
+/// `x == 0` with the nav, so it is excluded by title first. Pure over the
+/// `(id, x, y, title)` tuples, so the slot role assignment is unit-testable without
+/// a live tab.
+///
+/// Why `(x, y)` and not `x` alone (040-responsive-layout): the original flat
+/// content region was a single row of side-by-side columns, so a distinct `x` per
+/// slot was enough. The responsive **wide arrangement** is harness-dominant + a
+/// *side stack* — the harness is one wide column, and detail/term/yazi/vcs stack
+/// **vertically beside it**, sharing one `x` and differing only by `y`. An `x`-only
+/// sort would tie those four and fall back to pane-map iteration order (non-
+/// deterministic), scrambling the slot→role mapping. Ordering by `(x, y)` keeps the
+/// harness first (smallest `x`) and the side-stack members in top-to-bottom order,
+/// and degrades to the old behaviour for a flat row (all `y == 0`).
 pub(crate) fn nav_and_content_slots(
-    mut panes: Vec<(PaneId, usize, String)>,
+    mut panes: Vec<(PaneId, usize, usize, String)>,
 ) -> (Option<PaneId>, Vec<PaneId>) {
-    panes.retain(|(_, _, title)| title != "grove-whichkey");
-    panes.sort_by_key(|(_, x, _)| *x);
-    let mut ids = panes.into_iter().map(|(id, _, _)| id);
+    panes.retain(|(_, _, _, title)| title != "grove-whichkey");
+    panes.sort_by_key(|(_, x, y, _)| (*x, *y));
+    let mut ids = panes.into_iter().map(|(id, _, _, _)| id);
     let nav = ids.next();
     (nav, ids.collect())
 }
@@ -5782,14 +5793,16 @@ impl Tab {
             client_id,
         );
         // Identify the nav target (leftmost pane) and the content slots (every pane
-        // to its right, in `x` order: harness, detail, then the aux tools). Sorting
-        // by `x` makes the roles independent of pane-map iteration order. The
-        // full-width `grove-whichkey` bar (injected first, by [`inject_whichkey_pane`])
-        // shares `x == 0` with the nav, so it is excluded by title — otherwise it
-        // could be mistaken for the nav or a content slot.
-        let panes: Vec<(PaneId, usize, String)> = self
+        // to its right, in reading order — `x` then `y`: harness, detail, then the aux
+        // tools stacked beside the harness). Sorting by `(x, y)` makes the roles
+        // independent of pane-map iteration order even when the wide arrangement
+        // stacks several slots at one `x` (040-responsive-layout). The full-width
+        // `grove-whichkey` bar (injected first, by [`inject_whichkey_pane`]) shares
+        // `x == 0` with the nav, so it is excluded by title — otherwise it could be
+        // mistaken for the nav or a content slot.
+        let panes: Vec<(PaneId, usize, usize, String)> = self
             .get_tiled_panes()
-            .map(|(id, pane)| (*id, pane.x(), pane.current_title()))
+            .map(|(id, pane)| (*id, pane.x(), pane.y(), pane.current_title()))
             .collect();
         let (nav_target, content_slots) = nav_and_content_slots(panes);
         match nav_target {

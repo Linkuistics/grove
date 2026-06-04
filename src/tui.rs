@@ -169,6 +169,21 @@ impl Disposition {
     }
 }
 
+/// grove's **responsive breakpoint** (040-responsive-layout): the content region must
+/// be at least this many columns wide for the **wide tier** — the whole [[working set]]
+/// visible (harness + detail + terminal + yazi + vcs) in the harness-dominant side
+/// stack. Below it is the **laptop tier**: the aux tools (terminal/yazi/vcs) default to
+/// hidden (parked alive, toggle-able per 030), leaving harness + detail. Two tiers, not
+/// a continuum (constraint 4) — the user can always toggle from the default.
+///
+/// 220 cols is sized so the wide tier gives the dominant harness (~60% ≈ 130+ cols) and
+/// a usable ~90-col side stack; a MacBook-class full-screen terminal (content ≈ 175–200
+/// cols after the 34-col nav) lands in the laptop tier, an ultra-wide / 5K2K display
+/// (content ≈ 300+) in the wide tier. This is grove's policy alone: it is passed into
+/// `HostDriver::swap_content`, and trellis only measures the region and applies the
+/// comparison — it never owns the breakpoint (the one-way seam, ADR-0020 §4).
+const WIDE_TIER_MIN_CONTENT_COLS: usize = 220;
+
 /// A toggleable member of a grove's [[working set]] (150-working-set/030): the
 /// per-grove **detail** surface and the aux tools **terminal**, **yazi**, **vcs**.
 /// The **harness** is deliberately absent — it is always present (the grove's reason
@@ -3165,7 +3180,7 @@ mod native {
     use super::{
         current_grove_name, decide_observation_edit, footer_line, handle_key, on_path, render,
         shell_capture, shell_drain, short_err, vcs_tool, App, CaptureField, CaptureModal,
-        EditOutcome, PendingAction, RepoView, DEBOUNCE,
+        EditOutcome, PendingAction, RepoView, DEBOUNCE, WIDE_TIER_MIN_CONTENT_COLS,
     };
 
     // -----------------------------------------------------------------------
@@ -3590,6 +3605,11 @@ mod native {
                     let shell = std::env::var_os("SHELL").unwrap_or_else(|| "/bin/sh".into());
                     let path = std::env::var_os("PATH").unwrap_or_default();
                     let aux = aux_members(&worktree, &shell, &path);
+                    // The responsive default (040-responsive-layout): grove's two-tier
+                    // breakpoint, applied by trellis at the first-open mount — a wide
+                    // content region shows the whole working set, a laptop-sized one parks
+                    // the aux tools (harness + detail). Re-selection restores the parked
+                    // set with its own visibility, so the default only bites on first open.
                     driver.swap_content(
                         &name,
                         repo,
@@ -3597,6 +3617,7 @@ mod native {
                         vec!["do".to_string(), name.clone()],
                         secondary_surface_key,
                         aux,
+                        Some(WIDE_TIER_MIN_CONTENT_COLS),
                     );
                     if self.open_harnesses.insert(name.clone()) {
                         self.app.status = Some(format!("opened harness: {name}"));

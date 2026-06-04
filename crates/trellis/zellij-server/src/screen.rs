@@ -339,11 +339,18 @@ pub enum ScreenInstruction {
     /// and mounts the secondary surface (parking the displaced set alive in
     /// `suppressed_panes`). The opaque `key` is the host's domain identifier (grove
     /// names a grove); trellis never interprets it or the roles.
+    ///
+    /// `narrow_below_cols` is the host's responsive breakpoint (040-responsive-layout):
+    /// on a first-time spawn, if the content region is narrower than this, the aux
+    /// members mount **hidden** (parked alive) so a laptop-sized region defaults to
+    /// harness + detail. `None` shows the whole set. The threshold is the host's policy;
+    /// trellis measures and applies, never decides it.
     SwapContent {
         key: String,
         run: RunCommand,
         secondary_surface_key: Option<String>,
         aux: Vec<(String, RunCommand)>,
+        narrow_below_cols: Option<usize>,
         client_id: ClientId,
     },
     /// The pty thread finished spawning `key`'s fresh command members (the primary
@@ -360,6 +367,10 @@ pub enum ScreenInstruction {
         run: RunCommand,
         aux: Vec<SpawnedAux>,
         secondary_surface_key: Option<String>,
+        /// The first-time responsive breakpoint carried from [`SwapContent`]: if the
+        /// measured content region is narrower than this, the aux members mount hidden
+        /// (040-responsive-layout). `None` mounts the whole set visible.
+        narrow_below_cols: Option<usize>,
         client_id: ClientId,
     },
     /// Toggle the visibility of one member (addressed by its opaque `role`) of the
@@ -1515,6 +1526,33 @@ fn swap_visibility_reconciliation(
             .collect()
     };
     (hidden(outgoing), hidden(incoming))
+}
+
+/// The content region's width in columns, given each content slot's `(x, cols)`
+/// (040-responsive-layout). The region spans from the leftmost slot's left edge to
+/// the rightmost slot's right edge, so its width is `max(x + cols) - min(x)` — which
+/// is robust to the wide arrangement stacking several slots at one `x` (their widths
+/// do not double-count) and never assumes the nav's width (the one-way seam keeps
+/// trellis blind to which pane is the nav). Empty slots ⇒ `0`. Pure, so the
+/// breakpoint measurement is unit-testable without a live tab.
+fn content_region_cols(slots: &[(usize, usize)]) -> usize {
+    let left = slots.iter().map(|(x, _)| *x).min();
+    let right = slots.iter().map(|(x, cols)| x + cols).max();
+    match (left, right) {
+        (Some(l), Some(r)) => r.saturating_sub(l),
+        _ => 0,
+    }
+}
+
+/// Whether a freshly-spawned working set's aux members start **hidden**
+/// (040-responsive-layout): the host's responsive breakpoint `narrow_below_cols`
+/// applied to the measured `content_cols`. `Some(t)` hides the aux when the content
+/// region is narrower than `t` (laptop tier → harness + detail only); `None` always
+/// shows the whole set (the wide tier, and the default for callers with no policy).
+/// The harness and detail are never affected — only the aux members can default-hide.
+/// Pure: the threshold is the host's, the measurement trellis's, the comparison here.
+fn aux_hidden_at_mount(narrow_below_cols: Option<usize>, content_cols: usize) -> bool {
+    narrow_below_cols.is_some_and(|threshold| content_cols < threshold)
 }
 
 /// One freshly-spawned aux [[working set]] member rounding back from the pty thread
@@ -6017,6 +6055,7 @@ pub(crate) fn screen_thread_main(
                 run,
                 secondary_surface_key,
                 aux,
+                narrow_below_cols,
                 client_id,
             } => {
                 // The constant-nav content swap (ADR-0022/0023), generalised to an
@@ -6192,6 +6231,7 @@ pub(crate) fn screen_thread_main(
                                 run,
                                 aux,
                                 secondary_surface_key,
+                                narrow_below_cols,
                                 client_id,
                             })?;
                     },
@@ -6204,6 +6244,7 @@ pub(crate) fn screen_thread_main(
                 run,
                 aux,
                 secondary_surface_key,
+                narrow_below_cols,
                 client_id,
             } => {
                 // The pty thread spawned `key`'s fresh command members: the primary
@@ -6229,6 +6270,11 @@ pub(crate) fn screen_thread_main(
                         .and_then(crate::panes::host_pane::take_keyed_host_surface);
                     let mut mounted_secondary: Option<PaneId> = None;
                     let mut mounted_aux: Vec<(PaneId, String)> = Vec::with_capacity(aux.len());
+                    // 040-responsive-layout: set once the mounted set is measured against
+                    // the host's breakpoint — `true` parks the aux members for the laptop
+                    // tier (harness + detail only). Recorded into each aux member's
+                    // `visible` flag below so a later swap/toggle keeps the set coherent.
+                    let mut aux_hidden = false;
                     if let Some(tab) = screen.tabs.get_mut(&tab_id) {
                         tab.suppress_pane_and_replace_with_pid(
                             slot_pid,
@@ -6262,12 +6308,43 @@ pub(crate) fn screen_thread_main(
                             )?);
                         }
                         tab.focus_pane_with_id(new_pid, false, false, client_id)?;
+                        // 040-responsive-layout: now the whole set is mounted and laid out,
+                        // measure the content region and apply the host's responsive default.
+                        // Below `narrow_below_cols` the aux members park alive (toggle-able)
+                        // so a laptop-sized region defaults to harness + detail; a wide
+                        // region keeps the whole set. Harness + detail always stay visible —
+                        // only the aux members default-hide. Measured from the slots' own
+                        // geometry (not the screen size) so trellis never assumes the nav's
+                        // width. The immutable geometry read is scoped to end before the
+                        // mutable hide below.
+                        let content_cols = {
+                            let span = |id: PaneId| {
+                                tab.get_pane_with_id(id).map(|p| (p.x(), p.cols()))
+                            };
+                            let mut spans = Vec::with_capacity(2 + mounted_aux.len());
+                            spans.extend(span(new_pid));
+                            spans.extend(mounted_secondary.and_then(span));
+                            spans.extend(mounted_aux.iter().filter_map(|(pid, _)| span(*pid)));
+                            content_region_cols(&spans)
+                        };
+                        aux_hidden = aux_hidden_at_mount(narrow_below_cols, content_cols);
+                        if aux_hidden {
+                            for (pid, _) in &mounted_aux {
+                                tab.content_hide_member(*pid)?;
+                            }
+                            // Keep focus on the harness — never an aux member — so parking
+                            // the aux set steals nothing (mirrors the swap-restore rehide).
+                            tab.focus_pane_with_id(new_pid, false, false, client_id)?;
+                        }
                     }
                     if let Some(cs) = screen.content_swap.as_mut() {
                         // Record the freshly-mounted working set in slot order: the
                         // harness (primary), then — if mounted — the detail (secondary),
-                        // then the aux members. All start visible; a member toggle flips
-                        // `visible` later (150-working-set/010).
+                        // then the aux members. Harness + detail start visible; the aux
+                        // members start hidden when the responsive default parked them
+                        // (040-responsive-layout), so the recorded visibility matches what
+                        // is on screen and a later swap/toggle stays coherent
+                        // (150-working-set/010).
                         let mut members = vec![ContentMember {
                             pane_id: new_pid,
                             role: ROLE_PRIMARY.to_string(),
@@ -6284,7 +6361,7 @@ pub(crate) fn screen_thread_main(
                             members.push(ContentMember {
                                 pane_id: *pid,
                                 role: role.clone(),
-                                visible: true,
+                                visible: !aux_hidden,
                             });
                         }
                         cs.sets.insert(key.clone(), members);

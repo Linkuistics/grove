@@ -16690,17 +16690,18 @@ fn content_swap_parks_and_restores_a_three_member_set_as_a_unit() {
 #[test]
 fn nav_and_content_slots_splits_nav_from_n_content_slots_in_x_order() {
     // 020-aux-tool-panes generalises slot discovery from a fixed pair to N: the
-    // leftmost non-whichkey pane is the nav, and the rest — in left-to-right `x`
-    // order — are the content slots (harness, detail, terminal, yazi, vcs). The
+    // leftmost non-whichkey pane is the nav, and the rest — in reading order (`x`
+    // then `y`) — are the content slots (harness, detail, terminal, yazi, vcs). The
     // full-width `grove-whichkey` bar shares `x == 0` with the nav, so it must be
-    // excluded by title before the split or it would be mistaken for the nav.
+    // excluded by title before the split or it would be mistaken for the nav. This
+    // flat case (every slot a distinct `x`, all `y == 0`) is the pre-040 layout.
     let panes = vec![
-        (PaneId::Terminal(5), 40, "grove-vcs".to_string()),
-        (PaneId::Terminal(0), 0, "grove-whichkey".to_string()),
-        (PaneId::Terminal(1), 0, "grove-nav".to_string()),
-        (PaneId::Terminal(2), 10, "grove-harness".to_string()),
-        (PaneId::Terminal(4), 30, "grove-yazi".to_string()),
-        (PaneId::Terminal(3), 20, "grove-detail".to_string()),
+        (PaneId::Terminal(5), 40, 0, "grove-vcs".to_string()),
+        (PaneId::Terminal(0), 0, 0, "grove-whichkey".to_string()),
+        (PaneId::Terminal(1), 0, 0, "grove-nav".to_string()),
+        (PaneId::Terminal(2), 10, 0, "grove-harness".to_string()),
+        (PaneId::Terminal(4), 30, 0, "grove-yazi".to_string()),
+        (PaneId::Terminal(3), 20, 0, "grove-detail".to_string()),
     ];
     let (nav, slots) = super::nav_and_content_slots(panes);
     assert_eq!(nav, Some(PaneId::Terminal(1)), "nav is the leftmost non-whichkey pane");
@@ -16713,5 +16714,133 @@ fn nav_and_content_slots_splits_nav_from_n_content_slots_in_x_order() {
             PaneId::Terminal(5), // vcs (aux)
         ],
         "content slots follow the nav in x order, whichkey excluded"
+    );
+}
+
+#[test]
+fn nav_and_content_slots_orders_a_side_stack_by_y_within_one_x() {
+    // 040-responsive-layout's wide arrangement is harness-dominant + a *side stack*:
+    // the harness is one wide column, and detail/term/yazi/vcs stack vertically
+    // beside it — sharing one `x`, differing only by `y`. An `x`-only sort would tie
+    // those four (and fall to non-deterministic pane-map order); ordering by `(x, y)`
+    // keeps the harness first and the stack top-to-bottom. The pane vec is shuffled
+    // (and the stack's `y`s interleaved) to prove the result is order-independent.
+    let panes = vec![
+        (PaneId::Terminal(4), 134, 30, "grove-yazi".to_string()), // stack, 3rd down
+        (PaneId::Terminal(1), 0, 0, "grove-nav".to_string()),     // nav, leftmost
+        (PaneId::Terminal(5), 134, 45, "grove-vcs".to_string()),  // stack, 4th down
+        (PaneId::Terminal(0), 0, 59, "grove-whichkey".to_string()), // excluded by title
+        (PaneId::Terminal(3), 134, 15, "grove-detail".to_string()), // stack, 2nd down
+        (PaneId::Terminal(2), 34, 0, "grove-harness".to_string()), // wide harness column
+        (PaneId::Terminal(6), 134, 0, "grove-term".to_string()),  // stack, top
+    ];
+    let (nav, slots) = super::nav_and_content_slots(panes);
+    assert_eq!(nav, Some(PaneId::Terminal(1)), "nav is still the leftmost pane");
+    assert_eq!(
+        slots,
+        vec![
+            PaneId::Terminal(2), // harness  (x=34,  first column)
+            PaneId::Terminal(6), // term     (x=134, y=0)  — slot order is the layout's
+            PaneId::Terminal(3), // detail   (x=134, y=15)   member order, top-to-bottom
+            PaneId::Terminal(4), // yazi     (x=134, y=30)
+            PaneId::Terminal(5), // vcs      (x=134, y=45)
+        ],
+        "harness leads (smallest x); the side stack follows in y order at its shared x"
+    );
+}
+
+#[test]
+fn applied_side_stack_layout_assigns_distinct_y_so_slot_roles_are_deterministic() {
+    // 040-responsive-layout, the geometry proof behind the `(x, y)` slot ordering: when
+    // the real `GROVE_TUI_LAYOUT` shape is *applied*, the side stack's members must come
+    // out with one shared `x` and **distinct, increasing `y`** — otherwise `(x, y)`
+    // could not separate them and the slot→role map would fall to non-deterministic
+    // pane-map order. This applies the harness-dominant + side-stack layout to a real
+    // tab and feeds its applied geometry through `nav_and_content_slots`, closing the
+    // gap the pure-tuple test above cannot (it asserts the sort, not that layout-apply
+    // populates `y`). Mirrors `working_set_tab`, but with the nested wide arrangement.
+    let named = |name: &str| {
+        let mut p = TiledPaneLayout::default();
+        p.name = Some(name.to_string());
+        p
+    };
+    // The side stack: detail/term/yazi/vcs stacked top-to-bottom (horizontal divider).
+    let mut stack = TiledPaneLayout::default();
+    stack.children_split_direction = SplitDirection::Horizontal;
+    stack.children = vec![
+        named("grove-detail"),
+        named("grove-term"),
+        named("grove-yazi"),
+        named("grove-vcs"),
+    ];
+    // The content region: dominant harness column (60%) beside the side stack.
+    let mut harness = named("grove-harness");
+    harness.split_size = Some(SplitSize::Percent(60));
+    let mut content = TiledPaneLayout::default();
+    content.children_split_direction = SplitDirection::Vertical;
+    content.children = vec![harness, stack];
+    // Working area: Fixed nav beside the content region.
+    let mut nav = named("grove-nav");
+    nav.split_size = Some(SplitSize::Fixed(34));
+    let mut working = TiledPaneLayout::default();
+    working.children_split_direction = SplitDirection::Vertical;
+    working.children = vec![nav, content];
+    // Whole frame: working area above a Fixed whichkey bar.
+    let mut whichkey = named("grove-whichkey");
+    whichkey.split_size = Some(SplitSize::Fixed(1));
+    let mut root = TiledPaneLayout::default();
+    root.children_split_direction = SplitDirection::Horizontal;
+    root.children = vec![working, whichkey];
+
+    // A wide frame so the side stack has real width to occupy.
+    let tab = create_new_tab_with_layout(Size { cols: 300, rows: 60 }, root);
+
+    // Collect the applied geometry exactly as `inject_host_pane` does.
+    let geom: Vec<(PaneId, usize, usize, String)> = tab
+        .tiled_panes
+        .panes
+        .iter()
+        .map(|(id, pane)| (*id, pane.x(), pane.y(), pane.current_title()))
+        .collect();
+    let by_name = |name: &str| {
+        geom.iter()
+            .find(|(_, _, _, t)| t == name)
+            .unwrap_or_else(|| panic!("a {name} pane in {geom:?}"))
+    };
+
+    // The crux: the four side-stack members share one `x` and have strictly increasing
+    // `y` — the layout engine genuinely separates them vertically.
+    let stack_names = ["grove-detail", "grove-term", "grove-yazi", "grove-vcs"];
+    let stack_x = by_name("grove-detail").1;
+    let mut last_y = None;
+    for name in stack_names {
+        let (_, x, y, _) = by_name(name);
+        assert_eq!(*x, stack_x, "{name} shares the side-stack column's x");
+        if let Some(prev) = last_y {
+            assert!(*y > prev, "{name} sits strictly below the previous stack member");
+        }
+        last_y = Some(*y);
+    }
+    // The harness is the dominant column to the *left* of the stack (smaller x).
+    assert!(
+        by_name("grove-harness").1 < stack_x,
+        "the harness column sits left of the side stack"
+    );
+
+    // And so `nav_and_content_slots` over the *applied* geometry yields the canonical
+    // role order: harness (primary), then the stack top-to-bottom (detail = secondary,
+    // then the aux tools terminal/yazi/vcs).
+    let (nav_id, slots) = super::nav_and_content_slots(geom.clone());
+    assert_eq!(nav_id, Some(by_name("grove-nav").0), "nav is the leftmost pane");
+    assert_eq!(
+        slots,
+        vec![
+            by_name("grove-harness").0,
+            by_name("grove-detail").0,
+            by_name("grove-term").0,
+            by_name("grove-yazi").0,
+            by_name("grove-vcs").0,
+        ],
+        "applied side-stack geometry maps to harness, detail, term, yazi, vcs in order"
     );
 }

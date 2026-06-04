@@ -200,6 +200,15 @@ impl HostDriver {
     /// it mounts the set. `None` mounts a working set without a secondary surface.
     /// Each `aux` member's `role` is the host's opaque tag (also the
     /// [`toggle_member`](Self::toggle_member) handle); trellis never interprets it.
+    ///
+    /// `narrow_below_cols` is the host's **responsive breakpoint** (040-responsive-
+    /// layout), applied only on a first-time spawn: if the content region trellis lays
+    /// the set into is narrower than this many columns, the aux members start **hidden**
+    /// (parked alive, toggle-able) so a laptop-sized region defaults to harness + detail
+    /// while a wide region shows the whole set. `None` always shows everything. The
+    /// *threshold value* is the host's policy (passed in here); trellis only measures
+    /// the region it owns and applies the comparison — it never decides the breakpoint
+    /// (the one-way seam, ADR-0020 §4).
     pub fn swap_content(
         &self,
         key: &str,
@@ -208,6 +217,7 @@ impl HostDriver {
         args: Vec<String>,
         secondary_surface_key: Option<String>,
         aux: Vec<(String, RunCommand)>,
+        narrow_below_cols: Option<usize>,
     ) {
         let run = RunCommand {
             command,
@@ -220,6 +230,7 @@ impl HostDriver {
             run,
             secondary_surface_key,
             aux,
+            narrow_below_cols,
             client_id: self.client_id,
         });
     }
@@ -1093,6 +1104,7 @@ mod tests {
                     },
                 ),
             ],
+            Some(220),
         );
         match next() {
             ScreenInstruction::SwapContent {
@@ -1100,6 +1112,7 @@ mod tests {
                 run,
                 secondary_surface_key,
                 aux,
+                narrow_below_cols,
                 client_id,
             } => {
                 assert_eq!(key, "auth");
@@ -1116,6 +1129,11 @@ mod tests {
                 );
                 assert_eq!(aux[1].0, "vcs");
                 assert_eq!(aux[1].1.command, PathBuf::from("/usr/bin/lazygit"));
+                assert_eq!(
+                    narrow_below_cols,
+                    Some(220),
+                    "the host's responsive breakpoint rides the instruction"
+                );
                 assert_eq!(client_id, 1);
             }
             other => panic!("expected SwapContent, got {other:?}"),

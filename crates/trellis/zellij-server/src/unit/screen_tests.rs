@@ -9528,3 +9528,55 @@ fn swap_visibility_reconciliation_reshows_outgoing_and_rehides_incoming_hidden()
     let (reshow, rehide) = super::swap_visibility_reconciliation(None, None);
     assert!(reshow.is_empty() && rehide.is_empty(), "no sets ⇒ nothing to reconcile");
 }
+
+#[test]
+fn content_region_cols_spans_the_slots_without_double_counting_a_stack() {
+    // 040-responsive-layout measures the content region from the slots' own geometry
+    // (not the screen size — the one-way seam keeps trellis blind to the nav's width).
+    // The width is the bounding box `max(x + cols) - min(x)`: a flat row sums, but the
+    // wide arrangement's *side stack* shares one `x`, so its members must not double-
+    // count — only the stack column's single width adds to the harness's.
+    // Wide layout: harness at x=34 width 180 (60%), the side stack at x=214 width 120,
+    // four members sharing that x. Region = (214 + 120) - 34 = 300.
+    let stack_x = 214;
+    let spans = vec![
+        (34, 180),         // harness column
+        (stack_x, 120),    // detail   (top of the stack)
+        (stack_x, 120),    // terminal (same x, different y — not visible here)
+        (stack_x, 120),    // yazi
+        (stack_x, 120),    // vcs
+    ];
+    assert_eq!(
+        super::content_region_cols(&spans),
+        300,
+        "the stack's shared-x members contribute one width, not four"
+    );
+    // A flat two-slot row (the 130 harness+detail layout) just spans end to end.
+    assert_eq!(super::content_region_cols(&[(34, 100), (134, 100)]), 200);
+    // No slots ⇒ zero (degenerate; never narrows anything since the comparison is `<`).
+    assert_eq!(super::content_region_cols(&[]), 0);
+}
+
+#[test]
+fn aux_hidden_at_mount_applies_the_hosts_breakpoint() {
+    // 040-responsive-layout's two-tier decision: the host's `narrow_below_cols`
+    // threshold applied to the measured content width. Below the threshold is the
+    // laptop tier (aux parked → harness + detail); at or above it is the wide tier
+    // (whole set). `None` is "no policy" — always the wide tier.
+    assert!(
+        super::aux_hidden_at_mount(Some(220), 180),
+        "a laptop-width region (< 220) parks the aux members"
+    );
+    assert!(
+        !super::aux_hidden_at_mount(Some(220), 300),
+        "a wide region (>= 220) keeps the whole set"
+    );
+    assert!(
+        !super::aux_hidden_at_mount(Some(220), 220),
+        "the threshold is inclusive of the wide tier (220 is wide, not narrow)"
+    );
+    assert!(
+        !super::aux_hidden_at_mount(None, 10),
+        "no breakpoint policy ⇒ never default-hide, however narrow"
+    );
+}

@@ -9468,3 +9468,63 @@ fn empty_reply_with_paused_pane_drains_buffer_without_phantom_write() {
         "queue fully consumed by post-resume processing"
     );
 }
+
+#[test]
+fn swap_visibility_reconciliation_reshows_outgoing_and_rehides_incoming_hidden() {
+    // 150-working-set/030 toggle×swap coherence (the pure decision the swap brackets
+    // its 1:1 park/restore with). A swap replaces slot occupants 1:1, valid only when
+    // every member sits in a slot — but a toggled-hidden member is parked, not slotted.
+    // So before the swap the *outgoing* set's hidden members are re-shown (full geometry
+    // for the 1:1 pass), and after the incoming set mounts full its *own* remembered-
+    // hidden members are re-hidden — that is what keeps each grove's visibility its own.
+    use super::ContentMember;
+    let member = |id: u32, role: &str, visible: bool| ContentMember {
+        pane_id: PaneId::Terminal(id),
+        role: role.to_string(),
+        visible,
+    };
+    // Outgoing set A: yazi hidden. Incoming set B: vcs hidden (each its own toggle state).
+    let outgoing = vec![
+        member(1, "primary", true),
+        member(2, "secondary", true),
+        member(3, "terminal", true),
+        member(4, "yazi", false),
+        member(5, "vcs", true),
+    ];
+    let incoming = vec![
+        member(11, "primary", true),
+        member(12, "secondary", true),
+        member(13, "terminal", true),
+        member(14, "yazi", true),
+        member(15, "vcs", false),
+    ];
+
+    let (reshow, rehide) =
+        super::swap_visibility_reconciliation(Some(&outgoing), Some(&incoming));
+    assert_eq!(
+        reshow,
+        vec![PaneId::Terminal(4)],
+        "the outgoing set's hidden member (yazi) is re-shown before the 1:1 swap"
+    );
+    assert_eq!(
+        rehide,
+        vec![PaneId::Terminal(15)],
+        "the incoming set's own hidden member (vcs) is re-hidden after it mounts full"
+    );
+
+    // A fully-visible set on either side contributes nothing — the all-visible common
+    // case is a pure 1:1 swap with no normalisation churn.
+    let all_visible = vec![
+        member(1, "primary", true),
+        member(2, "secondary", true),
+        member(3, "terminal", true),
+    ];
+    let (reshow, rehide) =
+        super::swap_visibility_reconciliation(Some(&all_visible), Some(&all_visible));
+    assert!(reshow.is_empty() && rehide.is_empty(), "all-visible ⇒ no reconciliation");
+
+    // Absent sides (first-ever mount: nothing outgoing; fresh spawn: nothing incoming
+    // recorded yet) are no-ops, not panics.
+    let (reshow, rehide) = super::swap_visibility_reconciliation(None, None);
+    assert!(reshow.is_empty() && rehide.is_empty(), "no sets ⇒ nothing to reconcile");
+}

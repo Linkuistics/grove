@@ -80,6 +80,13 @@ pub struct App {
     capture: CaptureModal,
     /// Disposition picker for the selected inbox entry; `Some` while open.
     disposition: Option<DispositionModal>,
+    /// Working-set **toggle picker** open (150-working-set/030): `true` between the `t`
+    /// toggle leader and the member key (`d`/`t`/`y`/`v`) or a cancel. A which-key style
+    /// sub-mode — scoping the member letters behind the leader keeps the nav's top-level
+    /// keymap unambiguous and surfaces the choices in the whichkey bar, exactly as the
+    /// disposition picker does for its three buckets. The target grove is *not* held here
+    /// — it is the currently-mounted set, resolved by the native surface at action time.
+    toggle_open: bool,
     /// A keystroke (Ctrl-E / Enter in body / submit) decides *that* an
     /// external action should run; the live loop then suspends the
     /// terminal and runs it. Splitting these phases keeps `handle_key`
@@ -162,6 +169,71 @@ impl Disposition {
     }
 }
 
+/// A toggleable member of a grove's [[working set]] (150-working-set/030): the
+/// per-grove **detail** surface and the aux tools **terminal**, **yazi**, **vcs**.
+/// The **harness** is deliberately absent — it is always present (the grove's reason
+/// to exist), so there is nothing to toggle. Each maps to the opaque `role` tag trellis
+/// recorded for that member at mount (the harness is `primary`, never toggled; detail
+/// is `secondary`; the aux tools self-name) — the addressing handle
+/// `HostDriver::toggle_member` takes. Keeping the role strings in this one typed place
+/// (not scattered string literals) is the seam against a silent role-name drift between
+/// grove's [`aux_members`] composition and a toggle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkingSetMember {
+    Detail,
+    Terminal,
+    Yazi,
+    Vcs,
+}
+
+impl WorkingSetMember {
+    /// The opaque trellis `role` tag for this member — what
+    /// [`HostDriver::toggle_member`](trellis_server::panes::host_pane::HostDriver::toggle_member)
+    /// addresses it by. `Detail` is the pair's `secondary`; the aux tools self-name
+    /// (matching the roles [`aux_members`] assigns).
+    fn role(self) -> &'static str {
+        match self {
+            WorkingSetMember::Detail => "secondary",
+            WorkingSetMember::Terminal => "terminal",
+            WorkingSetMember::Yazi => "yazi",
+            WorkingSetMember::Vcs => "vcs",
+        }
+    }
+
+    /// The toggle-picker key that selects this member (the which-key second key after
+    /// the `t` toggle leader): first letter of each, `t` doubling for terminal.
+    fn key(self) -> char {
+        match self {
+            WorkingSetMember::Detail => 'd',
+            WorkingSetMember::Terminal => 't',
+            WorkingSetMember::Yazi => 'y',
+            WorkingSetMember::Vcs => 'v',
+        }
+    }
+
+    /// Resolve a picker key to its member, or `None` for any other key (which the
+    /// picker treats as inert — only `Esc`/`Ctrl-C` cancel).
+    fn from_key(c: char) -> Option<Self> {
+        [
+            WorkingSetMember::Detail,
+            WorkingSetMember::Terminal,
+            WorkingSetMember::Yazi,
+            WorkingSetMember::Vcs,
+        ]
+        .into_iter()
+        .find(|m| m.key() == c)
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            WorkingSetMember::Detail => "detail",
+            WorkingSetMember::Terminal => "terminal",
+            WorkingSetMember::Yazi => "yazi",
+            WorkingSetMember::Vcs => "vcs",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PendingAction {
     /// Submit `app.capture` via `grove-llm inbox-add`.
@@ -199,6 +271,15 @@ pub enum PendingAction {
     /// path's key handling.
     CloseHarness {
         name: String,
+    },
+    /// Toggle the visibility of one [[working set]] member of the **currently-mounted**
+    /// grove (150-working-set/030). Chosen from the toggle picker (`t` then a member
+    /// letter); the native surface drives it via `HostDriver::toggle_member` keyed by the
+    /// mounted grove, so it acts on the grove whose set is in the content region — not
+    /// the nav's highlighted list row. Native-path only: the `--local` dashboard has no
+    /// working set, so it reports a no-op status.
+    ToggleMember {
+        member: WorkingSetMember,
     },
 }
 
@@ -271,6 +352,7 @@ impl App {
             status: None,
             capture: CaptureModal::default(),
             disposition: None,
+            toggle_open: false,
             pending_action: None,
             detail_locked: false,
             native_chrome: false,
@@ -305,6 +387,7 @@ impl App {
             status: None,
             capture: CaptureModal::default(),
             disposition: None,
+            toggle_open: false,
             pending_action: None,
             detail_locked: true,
             // A per-grove detail surface always runs inside the native frame, where
@@ -635,6 +718,16 @@ fn process_pending_action(
                 name
             ));
         }
+        PendingAction::ToggleMember { member } => {
+            // Exhaustiveness arm: the `t` picker only opens under `native_chrome`, so the
+            // `--local` dashboard never queues this. Kept as an explanatory no-op should
+            // that gate ever change — the working set lives in the native content region,
+            // which `--local` has none of (150-working-set/030).
+            app.status = Some(format!(
+                "toggling {} needs the native dashboard — run `grove tui` (not --local)",
+                member.label()
+            ));
+        }
     }
 }
 
@@ -827,6 +920,13 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         return Ok(false);
     }
 
+    // Working-set toggle picker swallows its keys (d/t/y/v choose a member, Esc/Ctrl-C
+    // cancel; any other key is inert). 150-working-set/030.
+    if app.toggle_open {
+        handle_toggle_key(app, code, mods);
+        return Ok(false);
+    }
+
     // Filter-edit mode swallows almost everything.
     if app.filter.editing {
         match code {
@@ -891,6 +991,13 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         }
         (_, KeyCode::Char('x')) => {
             request_close_harness(app);
+        }
+        // `t` opens the working-set toggle picker — but only in the **native nav**
+        // (`native_chrome`), where a content region with a mounted working set exists.
+        // In the `--local` in-terminal dashboard there is no substrate to toggle, so `t`
+        // stays inert there (150-working-set/030).
+        (Screen::GroveList, KeyCode::Char('t')) if app.native_chrome => {
+            app.toggle_open = true;
         }
         (Screen::GroveList, KeyCode::Char('q')) => return Ok(true),
         (Screen::GroveList, KeyCode::Down | KeyCode::Char('j')) => {
@@ -1164,6 +1271,30 @@ fn handle_disposition_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
             path: modal.path,
             disposition,
         });
+    }
+}
+
+/// Handle a key while the working-set toggle picker is open (150-working-set/030): a
+/// member letter (`d`/`t`/`y`/`v`) closes the picker and requests the toggle; `Esc`/
+/// `Ctrl-C` cancel; any other key is inert (the picker stays open). Mirrors the
+/// disposition picker's "decide here, run in the loop" split — the request becomes a
+/// [`PendingAction::ToggleMember`] the native surface enacts on the *mounted* grove via
+/// `HostDriver::toggle_member`, so this stays unit-testable with no substrate.
+fn handle_toggle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) {
+    if mods.contains(KeyModifiers::CONTROL) && matches!(code, KeyCode::Char('c')) {
+        app.toggle_open = false;
+        return;
+    }
+    match code {
+        KeyCode::Esc => app.toggle_open = false,
+        KeyCode::Char(c) => {
+            if let Some(member) = WorkingSetMember::from_key(c) {
+                app.toggle_open = false;
+                app.pending_action = Some(PendingAction::ToggleMember { member });
+            }
+            // An unrecognised letter is inert — the picker stays open for a valid key.
+        }
+        _ => {}
     }
 }
 
@@ -1692,6 +1823,11 @@ fn footer_line(app: &App) -> Line<'static> {
     if app.disposition.is_some() {
         return Line::from("i incorporated · d deferred · r rejected · ⎋ cancel");
     }
+    if app.toggle_open {
+        // The working-set toggle picker (150-working-set/030): the member letters live
+        // here, behind the `t` leader, so the bar names exactly the keys now live.
+        return Line::from("toggle: d detail · t terminal · y yazi · v vcs · ⎋ cancel");
+    }
     if app.filter.editing {
         return Line::from(vec![
             Span::styled(
@@ -1704,7 +1840,11 @@ fn footer_line(app: &App) -> Line<'static> {
     // The base per-screen hints. `⌥1-9` tab switching is gone with ADR-0023 (the
     // constant nav + content swap has no tabs), so the nav advertises only the
     // leader.
+    // `t toggle` only applies in the native nav (a mounted working set to toggle); the
+    // `--local` dashboard has no content region, so it omits the hint, matching the `t`
+    // opener's `native_chrome` gate (150-working-set/030).
     let hint = match app.screen {
+        Screen::GroveList if app.native_chrome => "⏎ open · j/k move · ⌃o nav · t toggle · x close · / filter · c capture · r refresh · ? help · q quit",
         Screen::GroveList => "⏎ open · j/k move · ⌃o nav · x close · / filter · c capture · r refresh · ? help · q quit",
         Screen::GroveDetail => "⇥ cycle · j/k move · o open · x close · PgUp/PgDn scroll · / filter · c capture · r refresh · ⎋ back · ? help",
     };
@@ -1738,6 +1878,8 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("  Tab           cycle right pane (leaf → inbox → brief)"),
         Line::from("                  in the inbox pane, j/k select an observation"),
         Line::from("  o             open (or switch to) the grove's workspace tab"),
+        Line::from("  t             toggle a working-set pane for the mounted grove"),
+        Line::from("                  (then d=detail, t=terminal, y=yazi, v=vcs, Esc=cancel)"),
         Line::from("  x             close the grove's workspace tab"),
         Line::from("  d             disposition the selected observation"),
         Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
@@ -2015,6 +2157,92 @@ mod tests {
         // Help.
         app.show_help = true;
         assert!(text(&app).contains("close help"), "help hint");
+        app.show_help = false;
+
+        // The working-set toggle picker names its member keys, taking precedence over
+        // the base hints (150-working-set/030).
+        app.toggle_open = true;
+        let toggling = text(&app);
+        assert!(toggling.contains("d detail"), "toggle members: {toggling}");
+        assert!(toggling.contains("t terminal"), "toggle members: {toggling}");
+        assert!(toggling.contains("y yazi"), "toggle members: {toggling}");
+        assert!(toggling.contains("v vcs"), "toggle members: {toggling}");
+        app.toggle_open = false;
+
+        // The base `t toggle` hint appears only in the native nav (a working set to
+        // toggle); the `--local` `App` (native_chrome=false) omits it.
+        assert!(!text(&app).contains("t toggle"), "no toggle hint in --local: {}", text(&app));
+        app.native_chrome = true;
+        assert!(text(&app).contains("t toggle"), "toggle hint in native nav: {}", text(&app));
+    }
+
+    /// The working-set toggle UX decision layer (150-working-set/030): the `t` picker
+    /// opens only in the native nav, a member letter requests a `ToggleMember` for the
+    /// right member, and cancel keys close it without acting. Driving the *substrate*
+    /// (the actual hide/show) is trellis's, covered by its own suite; here we pin the
+    /// grove-side keymap → action mapping, unit-testable with no host driver.
+    #[test]
+    fn toggle_picker_maps_member_letters_to_toggle_actions() {
+        // Role tags must match what `aux_members` / the trellis mount record, or a
+        // toggle would address a member that does not exist.
+        assert_eq!(WorkingSetMember::Detail.role(), "secondary");
+        assert_eq!(WorkingSetMember::Terminal.role(), "terminal");
+        assert_eq!(WorkingSetMember::Yazi.role(), "yazi");
+        assert_eq!(WorkingSetMember::Vcs.role(), "vcs");
+        // The picker keys round-trip through `from_key`.
+        for m in [
+            WorkingSetMember::Detail,
+            WorkingSetMember::Terminal,
+            WorkingSetMember::Yazi,
+            WorkingSetMember::Vcs,
+        ] {
+            assert_eq!(WorkingSetMember::from_key(m.key()), Some(m));
+        }
+        assert_eq!(WorkingSetMember::from_key('z'), None);
+
+        let tmp = fixture_repo();
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut app = App::new(tmp.path().to_path_buf(), view, None);
+        app.native_chrome = true; // the native nav, where a working set exists
+
+        // `t` opens the picker (no action queued yet).
+        handle_key(&mut app, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        assert!(app.toggle_open, "t opens the toggle picker");
+        assert!(app.pending_action.is_none(), "no action until a member is chosen");
+
+        // `y` chooses yazi: the picker closes and a ToggleMember{Yazi} is queued.
+        handle_key(&mut app, KeyCode::Char('y'), KeyModifiers::NONE).unwrap();
+        assert!(!app.toggle_open, "picker closes on a member key");
+        assert_eq!(
+            app.pending_action.take(),
+            Some(PendingAction::ToggleMember {
+                member: WorkingSetMember::Yazi
+            })
+        );
+
+        // `t t` — the leader then terminal's own `t` — toggles the terminal.
+        handle_key(&mut app, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        assert_eq!(
+            app.pending_action.take(),
+            Some(PendingAction::ToggleMember {
+                member: WorkingSetMember::Terminal
+            })
+        );
+
+        // An unrecognised key inside the picker is inert; Esc cancels with no action.
+        handle_key(&mut app, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        handle_key(&mut app, KeyCode::Char('z'), KeyModifiers::NONE).unwrap();
+        assert!(app.toggle_open, "an unknown member key leaves the picker open");
+        handle_key(&mut app, KeyCode::Esc, KeyModifiers::NONE).unwrap();
+        assert!(!app.toggle_open, "Esc cancels the picker");
+        assert!(app.pending_action.is_none(), "cancel queues no action");
+
+        // In `--local` (native_chrome=false) `t` is inert — no working set to toggle.
+        let view = RepoView::scan(tmp.path()).unwrap();
+        let mut local = App::new(tmp.path().to_path_buf(), view, None);
+        handle_key(&mut local, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        assert!(!local.toggle_open, "t is inert in the --local dashboard");
     }
 
     #[test]
@@ -3234,6 +3462,7 @@ mod native {
             terminal,
             driver: None,
             open_harnesses: BTreeSet::new(),
+            mounted_grove: None,
             pending_edit: None,
             _watcher: None,
         })
@@ -3259,6 +3488,12 @@ mod native {
         /// of the retired `HarnessTabs` id map (the screen thread addresses tabs
         /// by name, so no numeric id round-trip is needed).
         open_harnesses: BTreeSet<String>,
+        /// The grove whose [[working set]] is currently mounted in the content region
+        /// (the last one swapped to), or `None` before any selection. This is the key a
+        /// working-set toggle addresses (150-working-set/030) — *not* the nav's
+        /// highlighted list row, which may differ when the user has moved the cursor
+        /// without re-selecting. A toggle with nothing mounted is a no-op-with-status.
+        mounted_grove: Option<String>,
         /// A `$EDITOR` drop in flight (a capture-body edit from the nav), held from
         /// the `open_editor` request until `editor_exited` reads the tempfile back.
         pending_edit: Option<PendingEdit>,
@@ -3367,6 +3602,29 @@ mod native {
                         self.app.status = Some(format!("opened harness: {name}"));
                     } else {
                         self.app.status = Some(format!("switched to harness: {name}"));
+                    }
+                    // This grove's working set is now the mounted one — the target a
+                    // subsequent member toggle addresses (150-working-set/030).
+                    self.mounted_grove = Some(name);
+                }
+                PendingAction::ToggleMember { member } => {
+                    // Toggle one member of the **currently-mounted** grove's working set
+                    // (150-working-set/030), via `HostDriver::toggle_member` keyed by that
+                    // grove — so it acts on the set in the content region, not the nav's
+                    // highlighted row. trellis hides/shows the member alive (park/restore +
+                    // re-tile) and ignores the verb when `key` is not the mounted set, so
+                    // passing the mounted grove keeps the toggle per-grove. A no-op-with-
+                    // status when nothing is mounted yet (no working set to toggle).
+                    match (&self.driver, &self.mounted_grove) {
+                        (Some(driver), Some(grove)) => {
+                            driver.toggle_member(grove, member.role());
+                            self.app.status =
+                                Some(format!("toggled {} in {grove}", member.label()));
+                        }
+                        _ => {
+                            self.app.status =
+                                Some("no working set mounted — select a grove first".into());
+                        }
                     }
                 }
                 PendingAction::CloseHarness { name } => {
@@ -3680,10 +3938,14 @@ mod native {
                     // entry the readback round-trips through `grove-llm inbox-edit`.
                     self.pending_edit = begin_pending_edit(&mut self.app, &self.driver, action);
                 }
-                // The nav drives the content swap; the detail surface must never
-                // call `swap_content` (it would fight the nav for the content
-                // region). Its grove's harness is already mounted beside it.
-                PendingAction::OpenHarness { .. } | PendingAction::CloseHarness { .. } => {}
+                // The nav drives the content swap and the working-set toggles (it owns
+                // the content region); the detail surface must never call `swap_content`
+                // or `toggle_member` (it would fight the nav). Its grove's harness is
+                // already mounted beside it, and the `t` picker only opens in the nav
+                // anyway (GroveList + `native_chrome`).
+                PendingAction::OpenHarness { .. }
+                | PendingAction::CloseHarness { .. }
+                | PendingAction::ToggleMember { .. } => {}
             }
         }
     }

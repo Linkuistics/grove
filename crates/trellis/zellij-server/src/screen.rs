@@ -1483,6 +1483,40 @@ const ROLE_PRIMARY: &str = "primary";
 /// The role the pair spawn/restore path assigns the detail (secondary) member.
 const ROLE_SECONDARY: &str = "secondary";
 
+/// Toggle×swap coherence (150-working-set/030): reconcile per-set member visibility
+/// across a content swap. A swap parks the outgoing set and mounts the incoming one by
+/// replacing each slot's occupant **1:1**, which is only valid when every member
+/// occupies a slot. A member hidden by [`HostDriver::toggle_member`] is *parked alive*
+/// (not in a slot), so a swap that ignored visibility would break: a hidden outgoing
+/// member has no slot to restore from, and the incoming set's remembered-hidden members
+/// would come back visible. This pure helper returns the two corrective passes the
+/// swap brackets its 1:1 park/restore with:
+/// - **`reshow`** — the outgoing set's currently-hidden members, re-shown *before* the
+///   swap to restore the full N-slot geometry. Their recorded `visible = false` is left
+///   untouched, so returning to that set re-hides them in turn.
+/// - **`rehide`** — the incoming set's remembered-hidden members, re-hidden *after* it is
+///   restored full, so each set keeps **its own** visibility across switches (the
+///   per-grove toggle requirement).
+/// Both are returned in slot order. The screen handler executes the pane ids; the
+/// sibling a re-show splits is the outgoing primary (always visible), chosen at the call
+/// site. Pure over the member lists so the coherence decision is unit-testable without a
+/// screen thread (mirroring how the async swap orchestration is covered by its building
+/// blocks).
+fn swap_visibility_reconciliation(
+    outgoing: Option<&[ContentMember]>,
+    incoming: Option<&[ContentMember]>,
+) -> (Vec<PaneId>, Vec<PaneId>) {
+    let hidden = |members: Option<&[ContentMember]>| -> Vec<PaneId> {
+        members
+            .into_iter()
+            .flatten()
+            .filter(|m| !m.visible)
+            .map(|m| m.pane_id)
+            .collect()
+    };
+    (hidden(outgoing), hidden(incoming))
+}
+
 /// One freshly-spawned aux [[working set]] member rounding back from the pty thread
 /// (020-aux-tool-panes): its target content `slot` (the placeholder/occupant it
 /// replaces), the spawned child's `pid`, the host's opaque `role` tag, and the
@@ -5999,9 +6033,13 @@ pub(crate) fn screen_thread_main(
                     Noop,
                     // (current slot occupant, target member) pairs in slot order —
                     // element 0 is the primary, so it restores last and takes focus.
+                    // `rehide` re-parks the incoming set's remembered-hidden members
+                    // after it mounts full, so each set keeps its own visibility
+                    // across switches (150-working-set/030).
                     Restore {
                         tab_id: usize,
                         restores: Vec<(PaneId, PaneId)>,
+                        rehide: Vec<PaneId>,
                     },
                     // The slots to spawn fresh command members into: the primary slot
                     // and the aux slots (the detail is a host surface, not spawned).
@@ -6036,9 +6074,14 @@ pub(crate) fn screen_thread_main(
                                 .into_iter()
                                 .zip(members.iter().map(|m| m.pane_id))
                                 .collect();
+                            // The incoming set's remembered-hidden members, re-parked
+                            // after it mounts full (150-working-set/030 coherence).
+                            let (_, rehide) =
+                                swap_visibility_reconciliation(None, Some(members));
                             SwapPlan::Restore {
                                 tab_id: cs.tab_id,
                                 restores,
+                                rehide,
                             }
                         },
                         // First time for this key: spawn its command members.
@@ -6048,9 +6091,46 @@ pub(crate) fn screen_thread_main(
                         },
                     },
                 };
+                // 150-working-set/030 coherence: before parking the outgoing set, re-show
+                // any of *its* members that a toggle hid, so the 1:1 park/restore below
+                // sees the full N-slot geometry (a hidden member is parked, not in a slot,
+                // so the swap would otherwise fail to find it). The members' recorded
+                // `visible = false` is left as-is, so returning to that set re-hides them.
+                // Splitting target = the outgoing primary (always visible). A no-op when
+                // nothing is mounted or no member is hidden, and skipped for `Noop`.
+                if !matches!(plan, SwapPlan::Noop) {
+                    let reshow: Option<(usize, Vec<(PaneId, PaneId)>)> =
+                        match screen.content_swap.as_ref() {
+                            Some(cs) => cs
+                                .mounted
+                                .as_deref()
+                                .and_then(|m| cs.sets.get(m))
+                                .and_then(|members| {
+                                    let sibling = members.first().map(|m| m.pane_id)?;
+                                    let (hidden, _) =
+                                        swap_visibility_reconciliation(Some(members), None);
+                                    Some((
+                                        cs.tab_id,
+                                        hidden.into_iter().map(|h| (h, sibling)).collect(),
+                                    ))
+                                }),
+                            None => None,
+                        };
+                    if let Some((tab_id, reshow)) = reshow {
+                        if let Some(tab) = screen.tabs.get_mut(&tab_id) {
+                            for (member, sibling) in &reshow {
+                                tab.content_show_member(*member, *sibling, client_id)?;
+                            }
+                        }
+                    }
+                }
                 match plan {
                     SwapPlan::Noop => {},
-                    SwapPlan::Restore { tab_id, restores } => {
+                    SwapPlan::Restore {
+                        tab_id,
+                        restores,
+                        rehide,
+                    } => {
                         if let Some(tab) = screen.tabs.get_mut(&tab_id) {
                             // Restore the non-primary members (detail + aux) first, then
                             // the primary (harness) last, so focus lands on the harness —
@@ -6062,6 +6142,13 @@ pub(crate) fn screen_thread_main(
                             }
                             if let Some((slot, target)) = restores.first() {
                                 tab.content_restore(*slot, *target, client_id)?;
+                            }
+                            // 150-working-set/030 coherence: the set just mounted full;
+                            // re-hide the members a toggle had hidden *in this set*, so it
+                            // returns with its own visibility (focus already on the primary,
+                            // which is never hidden, so re-hiding never steals it).
+                            for member in &rehide {
+                                tab.content_hide_member(*member)?;
                             }
                         }
                         if let Some(cs) = screen.content_swap.as_mut() {

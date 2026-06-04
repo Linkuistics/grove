@@ -1121,6 +1121,23 @@ mod tests {
             other => panic!("expected SwapContent, got {other:?}"),
         }
 
+        // toggle_member → a ToggleContentMember naming the mounted set's key and the
+        // opaque member role, as this client (150-working-set/030 — the toggle UX drives
+        // this verb for the currently-mounted working set).
+        driver.toggle_member("auth", "yazi");
+        match next() {
+            ScreenInstruction::ToggleContentMember {
+                key,
+                role,
+                client_id,
+            } => {
+                assert_eq!(key, "auth", "names the mounted set");
+                assert_eq!(role, "yazi", "carries the opaque member role verbatim");
+                assert_eq!(client_id, 1);
+            }
+            other => panic!("expected ToggleContentMember, got {other:?}"),
+        }
+
         // focus_tab → GoToTabName by name, create=false (never spawns an empty tab).
         driver.focus_tab("auth");
         match next() {

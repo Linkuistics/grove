@@ -93,8 +93,12 @@ impl HostDriver {
     // the content switcher (ADR-0022/0023) — see below; supersedes the tab verbs
     fn swap_content(
         &self, key: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>,
-        secondary_surface_key: Option<String>,   // the detail half of the pair (130/020)
+        secondary_surface_key: Option<String>,   // the detail half of the set (130/020)
+        aux: Vec<(String, RunCommand)>,           // ordered aux members (terminal/yazi/vcs, 020)
     );
+
+    // toggle one member of the mounted working set by its opaque role (150/010, 030)
+    fn toggle_member(&self, key: &str, role: &str);
 
     // legacy tab verbs — still valid generic verbs, no longer grove's switcher
     fn new_command_tab(&self, name: &str, cwd: PathBuf, command: PathBuf, args: Vec<String>);
@@ -105,22 +109,39 @@ impl HostDriver {
 }
 ```
 
-**`swap_content` — the constant-nav content switcher (ADR-0022/0023), pair-aware
+**`swap_content` — the constant-nav content switcher (ADR-0022/0023), working-set-aware
 (130/020).** Posts `ScreenInstruction::SwapContent { key, run, secondary_surface_key,
-client_id }`. The session layout is one tab: a constant host nav pane beside a
-**content region** that is a **pair** — a primary command pane (grove's harness) and
-an optional secondary host surface (grove's per-grove detail). `swap_content(key, …)`
-shows `key`'s working set in the region — first selection of `key` spawns `command
-args…` as the primary pane and mounts the surface stashed under
-`secondary_surface_key` (see the registry below) as the secondary, the displaced
-**pair parked alive** in the tab's `suppressed_panes`; re-selection **restores**
-`key`'s parked pair (scrollback + detail state intact) via in-place `replace_pane`s.
-The opaque `key` is the host's identifier (grove names a grove); trellis never
-interprets it. The screen thread dedupes (already-shown → no-op, parked → restore,
-new → spawn), so the host need not track open/parked state. `secondary_surface_key`
-is `None` for a primary-only working set (the 010 single-slot shape). This is grove's
-switcher; the **tab verbs are no longer used as the switcher** and the
-`GROVE_TUI_CONFIG` `GoToTab`/`Alt-1..9` binds are retired.
+aux, client_id }`. The session layout is one tab: a constant host nav pane beside a
+**content region** that holds an **ordered working set** — a primary command pane
+(grove's harness), an optional secondary host surface (grove's per-grove detail), and
+the `aux` command members (terminal/yazi/vcs), each a `(role, RunCommand)` carrying its
+own cwd. `swap_content(key, …)` shows `key`'s set in the region — first selection of
+`key` spawns the primary + each aux member, mounts the surface stashed under
+`secondary_surface_key` (see the registry below) as the secondary, and parks the
+displaced **set alive** in the tab's `suppressed_panes`; re-selection **restores**
+`key`'s parked set (every member's scrollback + the detail state intact) via in-place
+`replace_pane`s. The opaque `key` is the host's identifier (grove names a grove);
+trellis never interprets it, nor each aux member's opaque `role`. The screen thread
+dedupes (already-shown → no-op, parked → restore, new → spawn), so the host need not
+track open/parked state. `secondary_surface_key` is `None` for a set without a detail
+surface, and `aux` may be empty (the 010 single-slot shape). This is grove's switcher;
+the **tab verbs are no longer used as the switcher** and the `GROVE_TUI_CONFIG`
+`GoToTab`/`Alt-1..9` binds are retired.
+
+**`toggle_member` — hide/show one working-set member (150/010, 030).** Posts
+`ScreenInstruction::ToggleContentMember { key, role, client_id }`. `role` is the host's
+own opaque member tag — the same one carried in `swap_content`'s `aux` (grove uses
+`secondary` for detail and `terminal`/`yazi`/`vcs` for the aux tools; the harness's
+`primary` is never toggled). Hiding a member **parks it alive** (`suppressed_panes`,
+scrollback intact) and re-tiles its content-region siblings to fill the gap; showing it
+splits a still-visible sibling and re-tiles — the **Fixed** nav/whichkey, living in
+other split regions, stay byte-stable throughout. The verb is a **no-op** unless `key`
+names the currently-mounted set, so a stale toggle never disturbs another grove. Each
+set's per-member visibility persists across a `swap_content`: the swap re-shows the
+outgoing set's hidden members (to keep its 1:1 park/restore valid) and re-hides the
+incoming set's remembered-hidden members, so **switching groves restores each set's own
+visibility** (toggle×swap coherence, 030). Fire-and-forget; only ids/keys ride the
+instruction — a `Box<dyn HostSurface>` cannot (it is neither `Clone` nor `Debug`).
 
 Tabs (the legacy verbs) are addressed **by name**, not numeric id — the async,
 no-reply model has no clean way to round-trip a server-assigned id back to the

@@ -219,6 +219,23 @@ impl HostDriver {
         });
     }
 
+    /// Toggle the visibility of one member (named by its opaque `role`) of the
+    /// **currently-mounted** working set `key` (150-working-set/010). Hiding a member
+    /// suppresses it alive and re-tiles its content-region siblings to fill the gap;
+    /// showing it restores it beside a still-visible sibling and re-tiles — the
+    /// embedded child keeps running and its scrollback survives either way. `role` is
+    /// the host's own member tag (grove: harness/detail/terminal/yazi/vcs); trellis
+    /// never interprets it. A no-op when `key` is not the mounted set, the role is
+    /// unknown, or a show finds no visible sibling. Fire-and-forget like the other
+    /// verbs; only ids/keys ride the instruction (no surface — ADR-0023 Evidence #4).
+    pub fn toggle_member(&self, key: &str, role: &str) {
+        let _ = self.to_screen.send(ScreenInstruction::ToggleContentMember {
+            key: key.to_string(),
+            role: role.to_string(),
+            client_id: self.client_id,
+        });
+    }
+
     /// Focus the existing tab named `name` (the native replacement for `zellij
     /// action go-to-tab-by-id`). `create = false`, so a missing tab is a no-op
     /// rather than spawning an empty tab — the command tab is only ever created

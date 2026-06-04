@@ -357,6 +357,20 @@ pub enum ScreenInstruction {
         secondary_surface_key: Option<String>,
         client_id: ClientId,
     },
+    /// Toggle the visibility of one member (addressed by its opaque `role`) of the
+    /// **currently-mounted** working set `key` (150-working-set/010). A visible member
+    /// is hidden — suppressed alive, its content-region siblings re-tiling to fill the
+    /// gap (`Tab::content_hide_member`); a hidden member is shown — restored beside a
+    /// still-visible sibling, re-tiling (`Tab::content_show_member`). Posted by
+    /// [`HostDriver::toggle_member`](crate::panes::host_pane::HostDriver::toggle_member).
+    /// id/role-keyed — no surface rides the instruction (ADR-0023 Evidence #4). A no-op
+    /// when `key` is not the mounted set, the role is unknown, or a show finds no
+    /// visible sibling to split.
+    ToggleContentMember {
+        key: String,
+        role: String,
+        client_id: ClientId,
+    },
     /// Open `$EDITOR <tempfile>` as a terminal pane in place of host pane
     /// `host_pane_id`, observing the editor child's exit (ADR-0020 §6, first slice
     /// of embedded-tool observability). Posted by
@@ -928,6 +942,7 @@ impl From<&ScreenInstruction> for ScreenContext {
             ScreenInstruction::HostSurfaceTick(..) => ScreenContext::HostSurfaceTick,
             ScreenInstruction::SwapContent { .. } => ScreenContext::SwapContent,
             ScreenInstruction::ContentSpawned { .. } => ScreenContext::ContentSpawned,
+            ScreenInstruction::ToggleContentMember { .. } => ScreenContext::ToggleContentMember,
             ScreenInstruction::OpenHostEditor { .. } => ScreenContext::OpenHostEditor,
             ScreenInstruction::NewPane(..) => ScreenContext::NewPane,
             ScreenInstruction::OpenInPlaceEditor(..) => ScreenContext::OpenInPlaceEditor,
@@ -1428,13 +1443,34 @@ struct ContentSwap {
     /// The pane id currently occupying the **secondary** slot, or `None` for a
     /// primary-only content region (the 010 single-slot layout).
     secondary_slot: Option<PaneId>,
-    /// key → that key's working-set pair `(primary, secondary)` (each pane id valid
-    /// whether currently mounted or parked alive).
-    panes: HashMap<String, (PaneId, Option<PaneId>)>,
+    /// key → that key's **ordered working set** (150-working-set/010): the members it
+    /// mounts into the content region, each valid whether currently shown or parked
+    /// alive. Generalises the original `(primary, secondary)` pair to N members so a
+    /// member toggle can hide/show one of them; the pair spawn/restore path populates
+    /// the first two (roles [`ROLE_PRIMARY`]/[`ROLE_SECONDARY`]).
+    sets: HashMap<String, Vec<ContentMember>>,
     /// The key currently mounted in the region, if any (`None` = the layout's
     /// initial placeholders are still there, to be closed on the first mount).
     mounted: Option<String>,
 }
+
+/// One member of a key's content-region [[working set]] (150-working-set/010): a pane
+/// that is either mounted in the content region or parked alive, tagged with an opaque
+/// `role` the host assigns (grove: harness, detail, later terminal/yazi/vcs) and a
+/// `visible` flag a member toggle flips. trellis never interprets `role` — it is the
+/// host's addressing handle for [`HostDriver::toggle_member`](crate::panes::host_pane::HostDriver::toggle_member),
+/// kept opaque by the one-way crate seam (ADR-0020 §4).
+#[derive(Clone, Debug)]
+struct ContentMember {
+    pane_id: PaneId,
+    role: String,
+    visible: bool,
+}
+
+/// The role the pair spawn/restore path assigns the harness (primary) member.
+const ROLE_PRIMARY: &str = "primary";
+/// The role the pair spawn/restore path assigns the detail (secondary) member.
+const ROLE_SECONDARY: &str = "secondary";
 
 /// A [`Screen`] holds multiple [`Tab`]s, each one holding multiple [`panes`](crate::client::panes).
 /// It only directly controls which tab is active, delegating the rest to the individual `Tab`.
@@ -3152,7 +3188,7 @@ impl Screen {
                     tab_id,
                     primary_slot,
                     secondary_slot,
-                    panes: HashMap::new(),
+                    sets: HashMap::new(),
                     mounted: None,
                 });
             }
@@ -5940,15 +5976,33 @@ pub(crate) fn screen_thread_main(
                     },
                     // Already showing this key: nothing to do.
                     Some(cs) if cs.mounted.as_deref() == Some(key.as_str()) => SwapPlan::Noop,
-                    // Previously opened (its pair is parked alive): restore it.
-                    Some(cs) => match cs.panes.get(&key) {
-                        Some(&(target_primary, target_secondary)) => SwapPlan::Restore {
-                            tab_id: cs.tab_id,
-                            primary_slot: cs.primary_slot,
-                            secondary_slot: cs.secondary_slot,
-                            target_primary,
-                            target_secondary,
-                        },
+                    // Previously opened (its set is parked alive): restore it. The pair
+                    // path restores the first two members (primary, optional secondary)
+                    // into the two slots — a member toggle's hide/show is a separate
+                    // verb, not part of the swap.
+                    Some(cs) => match cs.sets.get(&key) {
+                        Some(members) => {
+                            let target_primary = members
+                                .iter()
+                                .find(|m| m.role == ROLE_PRIMARY)
+                                .map(|m| m.pane_id);
+                            let target_secondary = members
+                                .iter()
+                                .find(|m| m.role == ROLE_SECONDARY)
+                                .map(|m| m.pane_id);
+                            match target_primary {
+                                Some(target_primary) => SwapPlan::Restore {
+                                    tab_id: cs.tab_id,
+                                    primary_slot: cs.primary_slot,
+                                    secondary_slot: cs.secondary_slot,
+                                    target_primary,
+                                    target_secondary,
+                                },
+                                None => SwapPlan::Spawn {
+                                    primary_slot: cs.primary_slot,
+                                },
+                            }
+                        }
                         // First time for this key: spawn its primary pane.
                         None => SwapPlan::Spawn {
                             primary_slot: cs.primary_slot,
@@ -6053,7 +6107,22 @@ pub(crate) fn screen_thread_main(
                         tab.focus_pane_with_id(new_pid, false, false, client_id)?;
                     }
                     if let Some(cs) = screen.content_swap.as_mut() {
-                        cs.panes.insert(key.clone(), (new_pid, mounted_secondary));
+                        // Record the freshly-mounted working set: the harness (primary)
+                        // and, if mounted, the detail (secondary). Both start visible; a
+                        // member toggle flips `visible` later (150-working-set/010).
+                        let mut members = vec![ContentMember {
+                            pane_id: new_pid,
+                            role: ROLE_PRIMARY.to_string(),
+                            visible: true,
+                        }];
+                        if let Some(sec) = mounted_secondary {
+                            members.push(ContentMember {
+                                pane_id: sec,
+                                role: ROLE_SECONDARY.to_string(),
+                                visible: true,
+                            });
+                        }
+                        cs.sets.insert(key.clone(), members);
                         cs.primary_slot = new_pid;
                         if let Some(sec) = mounted_secondary {
                             cs.secondary_slot = Some(sec);
@@ -6062,6 +6131,77 @@ pub(crate) fn screen_thread_main(
                     }
                 }
                 screen.render(None)?;
+            },
+            ScreenInstruction::ToggleContentMember {
+                key,
+                role,
+                client_id,
+            } => {
+                // Hide/show one member of the mounted working set (150-working-set/010).
+                // Decide the plan without holding a borrow across the tab call, then
+                // flip the member's `visible` flag once the tab op succeeds.
+                enum TogglePlan {
+                    Noop,
+                    Hide { tab_id: usize, member: PaneId },
+                    Show { tab_id: usize, member: PaneId, sibling: PaneId },
+                }
+                let plan = match screen.content_swap.as_ref() {
+                    // Only the currently-mounted set is toggleable.
+                    Some(cs) if cs.mounted.as_deref() == Some(key.as_str()) => {
+                        let members = cs.sets.get(&key);
+                        match members.and_then(|ms| ms.iter().find(|m| m.role == role)) {
+                            None => TogglePlan::Noop,
+                            Some(member) if member.visible => TogglePlan::Hide {
+                                tab_id: cs.tab_id,
+                                member: member.pane_id,
+                            },
+                            Some(member) => {
+                                // Show: split a still-visible sibling. No visible
+                                // sibling ⇒ nothing to split ⇒ no-op (degenerate).
+                                match members
+                                    .unwrap()
+                                    .iter()
+                                    .find(|m| m.visible && m.pane_id != member.pane_id)
+                                {
+                                    Some(sibling) => TogglePlan::Show {
+                                        tab_id: cs.tab_id,
+                                        member: member.pane_id,
+                                        sibling: sibling.pane_id,
+                                    },
+                                    None => TogglePlan::Noop,
+                                }
+                            }
+                        }
+                    }
+                    _ => TogglePlan::Noop,
+                };
+                let toggled = match plan {
+                    TogglePlan::Noop => false,
+                    TogglePlan::Hide { tab_id, member } => match screen.tabs.get_mut(&tab_id) {
+                        Some(tab) => tab.content_hide_member(member).is_ok(),
+                        None => false,
+                    },
+                    TogglePlan::Show {
+                        tab_id,
+                        member,
+                        sibling,
+                    } => match screen.tabs.get_mut(&tab_id) {
+                        Some(tab) => tab.content_show_member(member, sibling, client_id).is_ok(),
+                        None => false,
+                    },
+                };
+                if toggled {
+                    if let Some(cs) = screen.content_swap.as_mut() {
+                        if let Some(member) = cs
+                            .sets
+                            .get_mut(&key)
+                            .and_then(|ms| ms.iter_mut().find(|m| m.role == role))
+                        {
+                            member.visible = !member.visible;
+                        }
+                    }
+                    screen.render(None)?;
+                }
             },
             ScreenInstruction::OpenHostEditor {
                 host_pane_id,

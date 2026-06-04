@@ -2450,6 +2450,72 @@ impl Tab {
         self.set_force_render();
         Ok(())
     }
+    /// Hide one member of the mounted [[working set]] (150-working-set/010), parking
+    /// it **alive** and re-tiling the remaining visible content members. The member is
+    /// removed from the tiled layout — its space absorbed by its content-region
+    /// siblings via the region-local relayout (`remove_pane` → `fill_space_over_pane`),
+    /// while the **Fixed** nav/whichkey siblings, living in other split regions of the
+    /// nested layout, stay byte-stable — and stashed in `suppressed_panes` keyed by its
+    /// **own** id (the same self-keyed park `content_restore` uses for a displaced
+    /// occupant). The pane keeps receiving pty bytes (routing finds a suppressed pane
+    /// by value-pid, not by key), so its scrollback survives until
+    /// [`content_show_member`](Self::content_show_member) brings it back.
+    ///
+    /// This is the **re-tile-on-toggle** primitive the working set composes on top of
+    /// the fixed-slot content swap: a swap replaces a *slot's* occupant 1:1 (no count
+    /// change); a toggle changes the *number* of visible members, so it relayouts.
+    pub fn content_hide_member(&mut self, member_id: PaneId) -> Result<()> {
+        let err_context = || format!("failed to hide working-set member {member_id:?}");
+        let pane = self
+            .tiled_panes
+            .remove_pane(member_id)
+            .with_context(|| format!("working-set member {member_id:?} not in the tiled layout"))
+            .with_context(err_context)?;
+        // Park alive, self-keyed — a toggle-hide has no replacing pane, so the key is
+        // never consulted by `close_pane`'s auto-restore; aliveness is value-pid routed.
+        self.insert_suppressed_pane(member_id, (false, pane));
+        self.set_should_clear_display_before_rendering();
+        self.set_force_render();
+        Ok(())
+    }
+    /// Show a previously-hidden working-set member (150-working-set/010), restoring it
+    /// **alive** into the content region beside `sibling_id` and re-tiling. Inverse of
+    /// [`content_hide_member`](Self::content_hide_member): the parked pane is pulled
+    /// out of `suppressed_panes` by its own id (`extract_pane` with
+    /// `dont_swap_if_suppressed = true`, the value-pid path) and re-inserted by
+    /// **splitting `sibling_id`** — a currently-visible content member the caller
+    /// names. The split target is explicit, not auto-chosen, because the one-way crate
+    /// seam (ADR-0020 §4) keeps trellis blind to *which* panes are content vs the Fixed
+    /// nav/whichkey: an auto-placer (`insert_pane`) would split the largest flexible
+    /// pane, and the full-height nav's flexible **rows** make it a candidate — so grove
+    /// (which owns the member list) passes a real content sibling. The pane returns
+    /// with its scrollback intact (it stayed alive while parked) and its pty is resized
+    /// to the new slot. Exact placement/ordering is 040's responsive-layout concern;
+    /// this only needs show to work for any subset.
+    pub fn content_show_member(
+        &mut self,
+        member_id: PaneId,
+        sibling_id: PaneId,
+        client_id: ClientId,
+    ) -> Result<()> {
+        let err_context = || format!("failed to show working-set member {member_id:?}");
+        let pane = self
+            .extract_pane(member_id, true)
+            .with_context(|| format!("hidden working-set member {member_id:?} not parked"))
+            .with_context(err_context)?;
+        // Split the named content sibling (focus it first — `split_pane_vertically`
+        // splits the client's active pane), inserting the member as a new column.
+        self.tiled_panes.focus_pane(sibling_id, client_id);
+        self.tiled_panes
+            .split_pane_vertically(member_id, pane, client_id);
+        // The re-inserted member took a fresh geometry from the split; tell its pty.
+        if let Some(pane) = self.tiled_panes.get_pane(member_id) {
+            resize_pty!(pane, self.os_api, self.senders, self.character_cell_size).non_fatal();
+        }
+        self.set_should_clear_display_before_rendering();
+        self.set_force_render();
+        Ok(())
+    }
     pub fn horizontal_split(
         &mut self,
         pid: PaneId,

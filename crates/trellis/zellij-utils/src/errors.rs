@@ -220,6 +220,7 @@ pub enum ScreenContext {
     HostSurfaceTick,
     SwapContent,
     ContentSpawned,
+    ToggleContentMember,
     OpenHostEditor,
     NewPane,
     OpenInPlaceEditor,

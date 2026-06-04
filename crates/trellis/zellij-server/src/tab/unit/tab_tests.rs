@@ -16502,3 +16502,187 @@ fn content_swap_parks_and_restores_a_pair_as_a_unit() {
     assert!(parked_pid_alive(&tab, PaneId::Terminal(6), "harness-B"), "B harness now parked alive");
     assert!(parked_pid_alive(&tab, PaneId::Terminal(7), "detail-B"), "B detail now parked alive");
 }
+
+/// Build the real grove session shape in a unit tab: a **Fixed** nav (`size=34`) and
+/// a content region of `member_count` flexible panes stacked in a vertical split,
+/// above a **Fixed** one-row whichkey bar — mirroring `GROVE_TUI_LAYOUT`. Returns the
+/// tab; leaf-pane ids (run-instruction extraction order) are nav(0), whichkey(1),
+/// then the content members 2..2+member_count.
+fn working_set_tab(size: Size, member_count: usize) -> Tab {
+    let mut content = TiledPaneLayout::default();
+    content.children_split_direction = SplitDirection::Vertical;
+    content.children = (0..member_count).map(|_| TiledPaneLayout::default()).collect();
+    let mut nav = TiledPaneLayout::default();
+    nav.split_size = Some(SplitSize::Fixed(34));
+    let mut working = TiledPaneLayout::default();
+    working.children_split_direction = SplitDirection::Vertical;
+    working.children = vec![nav, content];
+    let mut whichkey = TiledPaneLayout::default();
+    whichkey.split_size = Some(SplitSize::Fixed(1));
+    let mut root = TiledPaneLayout::default();
+    root.children_split_direction = SplitDirection::Horizontal;
+    root.children = vec![working, whichkey];
+    create_new_tab_with_layout(size, root)
+}
+
+#[test]
+fn content_toggle_hides_a_member_alive_and_re_tiles_with_fixed_siblings_stable() {
+    // 150-working-set/010's re-tile-on-toggle primitive: hiding one content member
+    // PARKS it alive (scrollback survives a hide→show round-trip) and re-tiles the
+    // remaining visible members to absorb its space, while the Fixed nav + Fixed
+    // whichkey siblings stay byte-for-byte untouched (they live in other split
+    // regions, so the region-local relayout never visits them). This is what the
+    // throwaway spike proved and the build now asserts for keeps.
+    let size = Size { cols: 120, rows: 24 };
+    let mut tab = working_set_tab(size, 3);
+    // nav(0), whichkey(1), m1(2), m2(3), m3(4).
+    let geom = |tab: &Tab, id: u32| {
+        tab.tiled_panes
+            .panes
+            .get(&PaneId::Terminal(id))
+            .unwrap()
+            .position_and_size()
+    };
+    let nav_geom = geom(&tab, 0);
+    let whichkey_geom = geom(&tab, 1);
+    let m1_geom = geom(&tab, 2);
+    let m3_geom = geom(&tab, 4);
+
+    // Give the middle member (m2 = id 3) some scrollback before hiding it.
+    tab.handle_pty_bytes(3, b"member-2-content".to_vec()).unwrap();
+
+    // Hide m2.
+    tab.content_hide_member(PaneId::Terminal(3)).unwrap();
+
+    // m2 is parked ALIVE (in suppressed_panes, scrollback intact), gone from the
+    // tiled layout.
+    let parked = tab
+        .suppressed_panes
+        .values()
+        .find(|(_, p)| p.pid() == PaneId::Terminal(3))
+        .expect("hidden member parked, not closed");
+    assert!(
+        parked.1.dump_screen(true, None).contains("member-2-content"),
+        "parked member keeps its scrollback"
+    );
+    assert!(
+        !tab.tiled_panes.panes.contains_key(&PaneId::Terminal(3)),
+        "hidden member left the tiled layout"
+    );
+
+    // The Fixed siblings are byte-stable; a content sibling grew to absorb m2.
+    assert_eq!(geom(&tab, 0), nav_geom, "Fixed nav untouched by a member toggle");
+    assert_eq!(geom(&tab, 1), whichkey_geom, "Fixed whichkey untouched by a member toggle");
+    assert!(
+        geom(&tab, 2).cols.as_usize() > m1_geom.cols.as_usize()
+            || geom(&tab, 4).cols.as_usize() > m3_geom.cols.as_usize(),
+        "a visible content sibling grew to absorb the hidden member's space"
+    );
+
+    // Show m2 again — split a real content sibling (m1 = id 2); it comes back alive,
+    // scrollback intact, Fixed siblings still stable.
+    tab.content_show_member(PaneId::Terminal(3), PaneId::Terminal(2), 1)
+        .unwrap();
+    let shown = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(3))
+        .expect("shown member back in the tiled layout");
+    assert!(
+        shown.dump_screen(true, None).contains("member-2-content"),
+        "shown member's scrollback survived the hide→show round-trip"
+    );
+    assert!(
+        !tab.suppressed_panes
+            .values()
+            .any(|(_, p)| p.pid() == PaneId::Terminal(3)),
+        "shown member no longer parked"
+    );
+    assert_eq!(geom(&tab, 0), nav_geom, "Fixed nav still untouched after show");
+    assert_eq!(geom(&tab, 1), whichkey_geom, "Fixed whichkey still untouched after show");
+}
+
+#[test]
+fn content_swap_parks_and_restores_a_three_member_set_as_a_unit() {
+    // The N-member generalisation of the pair swap: a working set of THREE members
+    // parks and restores as a unit across a grove-switch, each member keeping its own
+    // scrollback (no cross-talk), proving the existing per-member suppress/restore
+    // primitives compose to N. Three terminal panes stand in for harness + detail +
+    // a third aux tool (the trellis mechanism is pane-agnostic).
+    let size = Size { cols: 160, rows: 24 };
+    let mut tab = working_set_tab(size, 3);
+    let nav_geom = tab
+        .tiled_panes
+        .panes
+        .get(&PaneId::Terminal(0))
+        .unwrap()
+        .position_and_size();
+    // Content slots: m1(2), m2(3), m3(4).
+    let slots = [PaneId::Terminal(2), PaneId::Terminal(3), PaneId::Terminal(4)];
+
+    // First selection of grove A: mount its three members (ids 5,6,7), closing the
+    // placeholders (the `mounted: None` first-mount close path).
+    let a = [PaneId::Terminal(5), PaneId::Terminal(6), PaneId::Terminal(7)];
+    for (slot, member) in slots.iter().zip(a.iter()) {
+        tab.suppress_pane_and_replace_with_pid(*slot, *member, true, None, None, None)
+            .unwrap();
+    }
+    for (i, member) in a.iter().enumerate() {
+        let PaneId::Terminal(pid) = member else { unreachable!() };
+        tab.handle_pty_bytes(*pid, format!("A-member-{i}").into_bytes())
+            .unwrap();
+    }
+
+    // Select grove B: mount its three members (8,9,10), parking A's whole set alive.
+    let b = [PaneId::Terminal(8), PaneId::Terminal(9), PaneId::Terminal(10)];
+    for (slot, member) in a.iter().zip(b.iter()) {
+        tab.suppress_pane_and_replace_with_pid(*slot, *member, false, None, None, None)
+            .unwrap();
+    }
+
+    // All three of A's members are parked ALIVE with distinct scrollback.
+    for (i, member) in a.iter().enumerate() {
+        let alive = tab
+            .suppressed_panes
+            .values()
+            .find(|(_, p)| &p.pid() == member)
+            .map(|(_, p)| p.dump_screen(true, None).contains(&format!("A-member-{i}")))
+            .unwrap_or(false);
+        assert!(alive, "A member {i} parked alive as a unit");
+    }
+
+    // Re-select grove A: restore the whole set as a unit (each member into the slot
+    // its B counterpart now occupies), parking B's set.
+    for (slot, member) in b.iter().zip(a.iter()) {
+        tab.content_restore(*slot, *member, 1).unwrap();
+    }
+
+    assert_eq!(
+        tab.tiled_panes
+            .panes
+            .get(&PaneId::Terminal(0))
+            .unwrap()
+            .position_and_size(),
+        nav_geom,
+        "nav untouched across the three-member set swap"
+    );
+    // A's set is back, each member with its own scrollback; B's set is now parked.
+    for (i, member) in a.iter().enumerate() {
+        let PaneId::Terminal(pid) = member else { unreachable!() };
+        let restored = tab
+            .tiled_panes
+            .panes
+            .get(&PaneId::Terminal(*pid))
+            .expect("A member restored to a content slot");
+        assert!(
+            restored.dump_screen(true, None).contains(&format!("A-member-{i}")),
+            "A member {i} content intact after restore"
+        );
+    }
+    for member in b.iter() {
+        assert!(
+            tab.suppressed_panes.values().any(|(_, p)| &p.pid() == member),
+            "B member now parked alive as a unit"
+        );
+    }
+}

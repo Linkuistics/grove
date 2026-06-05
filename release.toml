@@ -23,3 +23,13 @@ tag-message = "Release v{{version}}"
 
 # Single consistent commit message shape across releases.
 pre-release-commit-message = "chore: release v{{version}}"
+
+# Give each released crate its own commit instead of one consolidated workspace
+# commit. This is what makes `{{version}}` render in the message above: in a
+# *consolidated* commit (cargo-release's default for a workspace) `{{version}}`
+# is ambiguous across members and is left unrendered — producing a literal
+# "chore: release v{{version}}". grove only ever releases the one `grove` crate
+# (`harness-pane` is `release = false`), so a per-crate commit is a single,
+# correctly-rendered commit. (The tag templates above always rendered because
+# tagging is per-crate.)
+consolidate-commits = false

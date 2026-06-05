@@ -11,18 +11,23 @@ use crate::home_unix as platform;
 #[cfg(windows)]
 use crate::home_windows as platform;
 
-#[cfg(not(test))]
-/// Goes through a predefined list and checks for an already
-/// existing config directory, returns the first match
-pub fn find_default_config_dir() -> Option<PathBuf> {
-    default_config_dirs()
-        .into_iter()
-        .filter(|p| p.is_some())
-        .find(|p| p.clone().unwrap().exists())
-        .flatten()
-}
-
-#[cfg(test)]
+/// grove fork: the trellis TUI is **not** zellij and must never inherit the
+/// user's zellij configuration, so this returns `None` unconditionally.
+///
+/// This is the single chokepoint every on-disk *user* config source funnels
+/// through — the config file (`$ZELLIJ_CONFIG_DIR` / `$XDG_CONFIG_HOME/zellij` /
+/// `~/.config/zellij/config.kdl`, via `Config::try_from`), the user theme dir and
+/// layout dir (via `Setup::from_cli_args`), and the `~/.config/zellij` mkdir in
+/// `create_config_and_cache_folders`. Returning `None` severs all of them at once:
+/// grove's only config is trellis's built-in defaults plus its in-process
+/// `GROVE_TUI_CONFIG` merge (see `src/trellis_host.rs`). A user with a populated
+/// `~/.config/zellij` therefore sees identical grove behaviour to one with none,
+/// and grove never creates that directory.
+///
+/// Upstream walked `default_config_dirs()` here and returned the first existing
+/// match; the fork owes upstream no compatibility (grove project principle /
+/// ADR-0020). The previous implementation already returned `None` under
+/// `#[cfg(test)]` — this just makes the test behaviour universal.
 pub fn find_default_config_dir() -> Option<PathBuf> {
     None
 }
@@ -79,4 +84,22 @@ pub fn get_theme_dir(config_dir: Option<PathBuf>) -> Option<PathBuf> {
 
 pub fn default_theme_dir() -> Option<PathBuf> {
     find_default_config_dir().map(|dir| dir.join("themes"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// grove fork contract: the user's zellij config is never sourced. The config
+    /// file, user theme dir, user layout dir, and the `~/.config/zellij` mkdir all
+    /// funnel through `find_default_config_dir`; pinning it to `None` is what makes
+    /// a populated `~/.config/zellij` invisible to grove. If a future edit
+    /// re-introduces the upstream `default_config_dirs()` search, this fails.
+    #[test]
+    fn user_zellij_config_dir_is_never_sourced() {
+        assert_eq!(find_default_config_dir(), None);
+        // The derived user theme/layout dirs collapse to None with it.
+        assert_eq!(default_theme_dir(), None);
+        assert_eq!(default_layout_dir(), None);
+    }
 }

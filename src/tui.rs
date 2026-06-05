@@ -528,13 +528,12 @@ impl WatchSet {
                 return Self { _watcher: None, rx: None, dirty_since: None };
             }
         };
-        // Watch the two roots that hold grove state. Recursive picks up
-        // new groves, new leaves, and new observation files without
-        // re-registering watchers.
-        for dir in [
-            repo.join(".grove-worktrees"),
-            repo.join(".grove-meta").join("inboxes"),
-        ] {
+        // Watch the two roots that hold grove state, built via the shared fleet
+        // helper (070/030) so the legacy `--local` dashboard and the native
+        // fleet dashboard register identical dir sets; at N=1 it is exactly the
+        // two single-repo roots. Recursive picks up new groves, new leaves, and
+        // new observation files without re-registering watchers.
+        for dir in crate::fleet::fleet_watch_dirs(std::slice::from_ref(&repo.to_path_buf())) {
             if dir.is_dir() {
                 let _ = watcher.watch(&dir, RecursiveMode::Recursive);
             }
@@ -546,8 +545,17 @@ impl WatchSet {
     fn drain(&mut self) {
         let Some(rx) = self.rx.as_ref() else { return };
         let mut any = false;
-        while let Ok(_ev) = rx.try_recv() {
-            any = true;
+        while let Ok(res) = rx.try_recv() {
+            let Ok(ev) = res else { continue };
+            // Drop `.git/`-internal churn (070 Q6): an event whose paths are all
+            // inside a `.git/` dir never marks dirty — pack/ref/index writes the
+            // 200ms debounce only masked, amplified N-fold at fleet scale. A
+            // pathless event is treated as relevant (conservative refresh).
+            if ev.paths.is_empty()
+                || ev.paths.iter().any(|p| !crate::fleet::path_is_git_internal(p))
+            {
+                any = true;
+            }
         }
         if any {
             self.dirty_since = Some(Instant::now());
@@ -3053,6 +3061,30 @@ mod tests {
     }
 
     #[test]
+    fn watchset_drain_ignores_git_internal_events() {
+        // 070/030 Done-when: an event whose path is inside `.git/` never marks
+        // the snapshot dirty — fed here as a synthetic notify event through the
+        // real `drain` channel, not just the pure predicate.
+        use notify::{Event, EventKind};
+        let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+        let mut w = WatchSet { _watcher: None, rx: Some(rx), dirty_since: None };
+
+        // A `.git/`-internal write: pack/ref/index churn. Must be ignored.
+        tx.send(Ok(Event::new(EventKind::Any)
+            .add_path(PathBuf::from("/r/.grove-worktrees/feat/.git/refs/heads/main"))))
+            .unwrap();
+        w.drain();
+        assert!(w.dirty_since.is_none(), "a .git/ event must not mark dirty");
+
+        // A real grove-state write under the same worktree: must mark dirty.
+        tx.send(Ok(Event::new(EventKind::Any)
+            .add_path(PathBuf::from("/r/.grove-worktrees/feat/.grove/030-x.md"))))
+            .unwrap();
+        w.drain();
+        assert!(w.dirty_since.is_some(), "a .grove/ event must mark dirty");
+    }
+
+    #[test]
     fn watchset_poll_timeout_shortens_when_dirty() {
         let mut w = WatchSet { _watcher: None, rx: None, dirty_since: None };
         assert_eq!(w.poll_timeout(), Duration::from_millis(200));
@@ -3742,16 +3774,17 @@ mod native {
         fn set_driver(&mut self, driver: HostDriver) {
             self.driver = Some(driver.clone());
             // Replace v1's in-loop `WatchSet` polling with a dedicated fs-watch
-            // thread (the shared 110/030 pattern): the home dashboard watches the
-            // whole repo (every grove's worktree + every inbox), since the nav lists
-            // them all.
-            self._watcher = spawn_grove_watch(
-                vec![
-                    self.repo.join(".grove-worktrees"),
-                    self.repo.join(".grove-meta").join("inboxes"),
-                ],
-                driver,
-            );
+            // thread (the shared 110/030 pattern). At fleet scale (070/030 Q6) the
+            // home dashboard watches **every fleet repo's** two grove-state roots on
+            // this single watcher — `fleet::resolve` supplies the repo set (this
+            // surface's own repo guaranteed in via the flag), `fleet_watch_dirs`
+            // expands each to its `.grove-worktrees/` + `.grove-meta/inboxes/`. At
+            // N=1 it is exactly the prior single-repo set. The targeted per-repo
+            // re-scan that distinguishes which repo changed lands in 040, where the
+            // `App` holds the fleet `MultiRepoView`; until then `tick` re-scans this
+            // surface's repo (a no-op when an unrelated fleet repo changed).
+            let roots = crate::fleet::resolve(std::slice::from_ref(&self.repo));
+            self._watcher = spawn_grove_watch(crate::fleet::fleet_watch_dirs(&roots), driver);
         }
 
         fn tick(&mut self) -> bool {
@@ -3785,8 +3818,18 @@ mod native {
     /// an exotic platform with no watcher, where manual `r` refresh still works.
     fn spawn_grove_watch(dirs: Vec<PathBuf>, driver: HostDriver) -> Option<RecommendedWatcher> {
         let (tx, rx) = mpsc::channel::<()>();
-        let mut watcher = notify::recommended_watcher(move |_res| {
-            let _ = tx.send(());
+        let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+            // Drop `.git/`-internal churn before it can wake a tick (070 Q6):
+            // pack/ref/index writes inside any watched worktree's `.git/`, which
+            // fleet-scale watching would amplify N-fold. A pathless event is kept
+            // (conservative refresh). Mirrors the legacy `WatchSet::drain` filter.
+            if let Ok(ev) = res {
+                if ev.paths.is_empty()
+                    || ev.paths.iter().any(|p| !crate::fleet::path_is_git_internal(p))
+                {
+                    let _ = tx.send(());
+                }
+            }
         })
         .ok()?;
         for dir in dirs {

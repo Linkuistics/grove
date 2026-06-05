@@ -195,6 +195,53 @@ fn scan_root(root: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------
+// Fleet fs-watch helpers (leaf 070/030)
+//
+// One `notify` watcher spans the whole fleet (070 Q6). These pure helpers give
+// the watch its three fleet-scale behaviours: which directories to register,
+// which events to ignore (`.git/` churn), and which repo owns an event so a
+// settle re-scans only that repo's `RepoView`. They live here (below the
+// presentation boundary, ADR-0013) so both watch paths — the legacy `--local`
+// `WatchSet` and the native `spawn_grove_watch` — share one implementation.
+
+/// True when `path` lies inside (or *is*) a `.git/` directory — any path
+/// component is exactly `.git`. The fleet fs-watch drops such events before they
+/// mark the snapshot dirty: pack writes, ref updates, and index churn inside
+/// each worktree's `.git/` are noise the 200ms debounce only *masked*, amplified
+/// N-fold at fleet scale (070 Q6; root BRIEF "fs-watch .git/ noise"). Matching is
+/// by whole path component, so a sibling like `digit/` is never mistaken for it.
+pub fn path_is_git_internal(path: &Path) -> bool {
+    path.components().any(|c| c.as_os_str() == ".git")
+}
+
+/// The index into `repo_roots` of the repo that owns `event_path` — the root
+/// that is an ancestor of (or equal to) the event path. Fleet repo roots do not
+/// nest, so at most one matches; `None` when the path is under no known repo (a
+/// stray event, or one from a since-removed repo). `Path::starts_with` matches
+/// whole components, so `/work/alpha` never falsely owns `/work/alpha-two`.
+/// The watch uses this to re-scan only the owning repo's `RepoView` (070 Q6).
+pub fn owning_repo(event_path: &Path, repo_roots: &[PathBuf]) -> Option<usize> {
+    repo_roots.iter().position(|root| event_path.starts_with(root))
+}
+
+/// The directories the fleet fs-watch registers: each repo's two grove-state
+/// roots — `.grove-worktrees/` and `.grove-meta/inboxes/` — in repo order. One
+/// `notify` watcher watches them all (070 Q6: one watcher, not N per-repo). Every
+/// root is listed unconditionally; the watch constructor skips any that do not
+/// yet exist on disk. At N=1 this is exactly today's single-repo watch set.
+pub fn fleet_watch_dirs(repo_roots: &[PathBuf]) -> Vec<PathBuf> {
+    repo_roots
+        .iter()
+        .flat_map(|r| {
+            [
+                r.join(".grove-worktrees"),
+                r.join(".grove-meta").join("inboxes"),
+            ]
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -440,5 +487,85 @@ mod tests {
     #[test]
     fn manifest_path_none_without_env() {
         assert_eq!(manifest_path_from(None, None), None);
+    }
+
+    // ---- fleet fs-watch helpers (leaf 070/030) ----
+
+    #[test]
+    fn git_internal_paths_are_recognised() {
+        // A path inside any `.git/` directory is git-internal noise.
+        assert!(path_is_git_internal(Path::new(
+            "/r/.grove-worktrees/feat/.git/refs/heads/main"
+        )));
+        // The `.git` directory itself counts too (an event on the dir node).
+        assert!(path_is_git_internal(Path::new("/r/.grove-worktrees/feat/.git")));
+        // The nested-worktree `.git` file/dir at a repo root.
+        assert!(path_is_git_internal(Path::new("/r/.git/index")));
+    }
+
+    #[test]
+    fn grove_state_paths_are_not_git_internal() {
+        // A real grove-state write must pass the filter.
+        assert!(!path_is_git_internal(Path::new(
+            "/r/.grove-worktrees/feat/.grove/030-x.md"
+        )));
+        // An inbox observation write must pass the filter.
+        assert!(!path_is_git_internal(Path::new(
+            "/r/.grove-meta/inboxes/feat/obs.md"
+        )));
+        // A directory that merely *contains* the substring "git" is not `.git`.
+        assert!(!path_is_git_internal(Path::new("/r/.grove-worktrees/digit/.grove/x.md")));
+    }
+
+    #[test]
+    fn owning_repo_prefix_matches_the_right_repo() {
+        let roots = vec![
+            PathBuf::from("/work/alpha"),
+            PathBuf::from("/work/beta"),
+        ];
+        // An event under beta resolves to index 1.
+        assert_eq!(
+            owning_repo(Path::new("/work/beta/.grove-worktrees/x/.grove/010.md"), &roots),
+            Some(1),
+        );
+        // An event under alpha resolves to index 0.
+        assert_eq!(
+            owning_repo(Path::new("/work/alpha/.grove-meta/inboxes/y/o.md"), &roots),
+            Some(0),
+        );
+        // A path under no known repo is unowned.
+        assert_eq!(owning_repo(Path::new("/elsewhere/z"), &roots), None);
+    }
+
+    #[test]
+    fn owning_repo_does_not_false_match_sibling_prefix() {
+        // `/work/alpha` must not own a path under `/work/alpha-two`: matching is
+        // by path component, not raw string prefix.
+        let roots = vec![
+            PathBuf::from("/work/alpha"),
+            PathBuf::from("/work/alpha-two"),
+        ];
+        assert_eq!(
+            owning_repo(Path::new("/work/alpha-two/.grove-worktrees/x"), &roots),
+            Some(1),
+        );
+    }
+
+    #[test]
+    fn fleet_watch_dirs_are_two_roots_per_repo_in_order() {
+        let roots = vec![
+            PathBuf::from("/work/alpha"),
+            PathBuf::from("/work/beta"),
+        ];
+        let dirs = fleet_watch_dirs(&roots);
+        assert_eq!(
+            dirs,
+            vec![
+                PathBuf::from("/work/alpha/.grove-worktrees"),
+                PathBuf::from("/work/alpha/.grove-meta/inboxes"),
+                PathBuf::from("/work/beta/.grove-worktrees"),
+                PathBuf::from("/work/beta/.grove-meta/inboxes"),
+            ],
+        );
     }
 }

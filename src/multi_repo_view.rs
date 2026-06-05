@@ -127,6 +127,22 @@ impl MultiRepoView {
         *slot = fresh;
         Ok(true)
     }
+
+    /// Targeted re-scan driven by a fleet fs-watch event (leaf `070-fleet-view/030`):
+    /// resolve which repo owns `event_path` (prefix-match against the scanned
+    /// roots, via [`crate::fleet::owning_repo`]) and re-scan **only that** repo's
+    /// [`RepoView`] in place — every other repo's view object is untouched (070 Q6).
+    /// `Ok(false)` when the path is under no repo in the fleet (a stray event, or
+    /// one from a since-removed repo) — a no-op, not an error. A scan failure
+    /// propagates as `Err` and, per [`rescan_repo`](Self::rescan_repo), leaves the
+    /// existing view unchanged.
+    pub fn rescan_for_event_path(&mut self, event_path: &Path) -> anyhow::Result<bool> {
+        let roots: Vec<PathBuf> = self.repos.iter().map(|r| r.repo_root.clone()).collect();
+        match crate::fleet::owning_repo(event_path, &roots) {
+            Some(i) => self.rescan_repo(&roots[i]),
+            None => Ok(false),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -223,6 +239,44 @@ mod tests {
 
         // An unknown root is a no-op, reported as not-found.
         assert!(!view.rescan_repo(&tmp.path().join("nope")).unwrap());
+    }
+
+    #[test]
+    fn rescan_for_event_path_targets_only_the_owning_repo() {
+        let tmp = TempDir::new().unwrap();
+        let r1 = make_repo(tmp.path(), "one", &["alpha"]);
+        let r2 = make_repo(tmp.path(), "two", &["beta"]);
+        let (mut view, _) = MultiRepoView::scan_with_warnings(&[r1.clone(), r2.clone()]);
+
+        // Capture r2's view object identity by value before the event.
+        let r2_before: Vec<String> = view.groups().collect::<Vec<_>>()[1]
+            .1
+            .iter()
+            .map(|g| g.name.clone())
+            .collect();
+
+        // A new grove lands in r1 on disk; an event *under r1* fires.
+        add_grove(&r1, "delta");
+        let event = r1.join(".grove-worktrees").join("delta").join(".grove").join("010-x.md");
+        assert!(view.rescan_for_event_path(&event).unwrap());
+
+        let groups: Vec<_> = view.groups().collect();
+        // r1 refreshed (alpha + delta)…
+        let r1_names: Vec<&str> = groups[0].1.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(r1_names, vec!["alpha", "delta"]);
+        // …r2 untouched — same groves as before, no re-scan side effect.
+        let r2_after: Vec<String> = groups[1].1.iter().map(|g| g.name.clone()).collect();
+        assert_eq!(r2_before, r2_after);
+        assert_eq!(r2_after, vec!["beta".to_string()]);
+    }
+
+    #[test]
+    fn rescan_for_event_path_under_no_repo_is_a_noop() {
+        let tmp = TempDir::new().unwrap();
+        let r1 = make_repo(tmp.path(), "one", &["alpha"]);
+        let (mut view, _) = MultiRepoView::scan_with_warnings(&[r1.clone()]);
+        // A stray path under no fleet repo: reported not-found, nothing re-scanned.
+        assert!(!view.rescan_for_event_path(&tmp.path().join("elsewhere/x")).unwrap());
     }
 
     /// A repo whose scan errors is dropped from the fleet with a breadcrumb,

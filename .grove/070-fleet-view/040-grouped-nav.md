@@ -43,6 +43,19 @@ repo-carrying selection). Confirm whether the controller→nav feed is a pipe/st
 (WASM-era) or a native call post-ADR-0020 and extend accordingly — check the current
 nav feed path before changing the wire shape.
 
+**Targeted re-scan seam left ready by `030`.** `030` landed the `.git/` filter (live in
+both watch paths) and made the native dashboard's watcher span **every** fleet repo's two
+roots (`fleet::resolve` + `fleet::fleet_watch_dirs` in `DashboardSurface::set_driver`). But
+the `App` still holds a single `RepoView`, so `DashboardSurface::tick` re-scans only this
+surface's repo today — a no-op when an *unrelated* fleet repo changes. When this leaf swaps
+the `App`'s data source to `MultiRepoView`, route the tick through the **already built +
+tested** `MultiRepoView::rescan_for_event_path(event_path)` (it prefix-matches the owning
+repo via `fleet::owning_repo` and re-scans only that `RepoView`). That needs the watch to
+carry the *dirty event paths* to `tick` — today `spawn_grove_watch` only signals "something
+settled" via `request_tick` with no payload — so thread a shared dirty-path buffer (or
+extend the tick payload) from the watch thread into `tick`, then call
+`rescan_for_event_path` per path so an event under repo A leaves repo B's section untouched.
+
 **Document the fleet manifest in the README here.** Leaf `010` built the
 `fleet::resolve` discovery layer and the `fleet.toml` format (`repos` +
 `scan_roots` at `~/.config/grove/fleet.toml`; see `src/fleet.rs` module docs),

@@ -43,12 +43,21 @@ read_version() {
 
 build_target() {
   local target="$1" version="$2"
+  # NOTE: the explicit `|| return 1` is load-bearing. build_target runs inside a
+  # command substitution (`archive="$(build_target ...)"`), and `set -e` does NOT
+  # reliably abort a function in that context (notably under macOS's bash 3.2). A
+  # bare failing cargo would otherwise fall through to the `cp` below and tarball a
+  # STALE binary from a previous build. The caller also tests the exit status.
   case "$target" in
     *-apple-darwin)
-      cargo build --release --target "$target"
+      cargo build --release --target "$target" || return 1
       ;;
     *-unknown-linux-gnu)
-      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}"
+      # `--features trellis/vendored_curl`: trellis (the zellij fork) pulls curl +
+      # openssl-sys transitively via isahc; the zigbuild Linux cross-build cannot
+      # find a system OpenSSL, so vendor curl + build OpenSSL from source.
+      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}" \
+        --features trellis/vendored_curl || return 1
       ;;
     *)
       die "unknown target: $target"
@@ -101,7 +110,12 @@ main() {
   for target in "${TARGETS[@]}"; do
     echo "release-build: target $target"
     local archive
-    archive="$(build_target "$target" "$version")"
+    # Test the substitution explicitly — do not rely on `set -e` propagating out
+    # of a command substitution (it does not, reliably). A failed build_target
+    # must abort the release, never silently ship a stale tarball.
+    if ! archive="$(build_target "$target" "$version")"; then
+      die "build failed for $target — see cargo output above"
+    fi
     sha_args+=("${target}=$(sha256_of "$archive")")
   done
 

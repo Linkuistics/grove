@@ -44,3 +44,54 @@ Deliberately last. The 050 evidence makes "keep sync" the leading answer — res
 refactoring for its own sake (grove constraint 4). Let 060's real, multi-pane,
 heavy-output use either confirm sync or produce the specific number that justifies
 async.
+
+## Decision — concern 4 is dissolved; grove stays sync (no ADR)
+
+**Outcome: keep sync. Concern 4 closed as architecturally dissolved, not merely
+"absorbed."** Recorded as this note (committed → git history), not an ADR: a
+non-change confirming the status quo doesn't clear the ADR bar (not surprising,
+not hard to reverse, no live trade-off). Decided with the user (grilling, this
+session).
+
+**Why the concern no longer applies.** Concern 4 was scoped against an
+architecture where *grove's own event loop* juggled the three async drivers in
+the root brief: a multiplexer control socket, N-repo `notify` streams, and
+subprocess output juggling. Three pivots later (ADR-0014 → 0015 → 0020) grove is
+a hard fork of zellij (`crates/trellis`), and none of those drivers is grove's
+loop anymore:
+
+- **Subprocess/pty output juggling → trellis's**, not grove's. zellij's threaded
+  server owns terminal emulation for every harness pane. The 050 workload (grove
+  pumping a `claude` pty in its sync loop) no longer exists as grove code.
+- **Multiplexer control socket → dissolved.** ADR-0020 made grove's logic
+  in-process; control is direct `HostDriver` calls. The proxy seam (ADR-0016),
+  WASM nav (0018), and reply-only back-channel (0019) all evaporated.
+- **N-repo `notify` streams → already off the render path.** A dedicated
+  `std::thread` per surface coalesces fs-watch bursts under the 200 ms `DEBOUNCE`
+  and wakes the screen thread via `driver.request_tick()`
+  (`src/tui.rs` `spawn_grove_watch`, ~4913). The surface mutates only in `tick()`.
+  This is the fleet-scale design (070 Q6: one watcher over every fleet repo's two
+  grove-state roots) and it is non-blocking w.r.t. grove's render path by
+  construction.
+
+grove has **no event loop of its own to refactor**: its `handle_key` / `render` /
+`tick` are callbacks trellis invokes. There is no I/O left for a "minimal async
+slice" to own; a full async refactor is plainly unjustified (constraint 4).
+
+**Evidence (test against real use, not the abstract — per this brief):**
+
+- **050 spike:** sync pump max backlog **4 chunks/tick** under claude's startup
+  burst (ADR-0014). Sync absorbed it trivially.
+- **060/010:** kept the embed sync on that evidence, explicitly deferring the
+  call here.
+- **060 + 070 real use** (heavy harness panes; multi-repo fleet fs-watch): every
+  running log reviewed — **no `frame_ms` / input-latency / output-backlog / jank
+  finding surfaced.** The HUD `frame_ms` probe the brief named never flagged.
+
+**The fallback, if ever needed,** remains a minimal async slice (e.g. tokio for a
+*future* out-of-process / network surface — the ADR-0020 GraphQL/network boundary,
+explicitly deferred), not a rewrite of grove's render path. Nothing in v2 reaches
+for it. v1's `notify` fs-watch stays comfortably sync (now thread + tick).
+
+**Closes** the last deferred concern from the root brief; this is the grove's
+final leaf.

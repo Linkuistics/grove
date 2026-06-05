@@ -354,12 +354,87 @@ impl RightPane {
     }
 }
 
+/// Flat-list ordering for the filter-active nav (070-fleet-view/060). The
+/// idle (grouped) nav always uses the fleet's natural order; this only takes
+/// effect once the list has flattened.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
+enum SortMode {
+    /// Fleet order (current-repo-first / lifecycle / numeric prefix),
+    /// reordered by fuzzy score when a text needle is present.
+    #[default]
+    Default,
+    /// Most inbox-pending groves first — the "show me what needs attention"
+    /// order.
+    InboxDesc,
+}
+
+impl SortMode {
+    /// Cycle `Default ↔ InboxDesc` (the `s` toggle).
+    fn next(self) -> Self {
+        match self {
+            SortMode::Default => SortMode::InboxDesc,
+            SortMode::InboxDesc => SortMode::Default,
+        }
+    }
+}
+
+/// The lifecycle predicate toggle (070-fleet-view/060). Cycles
+/// `All → LiveOnly → SeedOnly → All`.
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug)]
+enum LifecycleFilter {
+    #[default]
+    All,
+    LiveOnly,
+    SeedOnly,
+}
+
+impl LifecycleFilter {
+    /// Cycle `All → LiveOnly → SeedOnly → All` (the `l` toggle).
+    fn next(self) -> Self {
+        match self {
+            LifecycleFilter::All => LifecycleFilter::LiveOnly,
+            LifecycleFilter::LiveOnly => LifecycleFilter::SeedOnly,
+            LifecycleFilter::SeedOnly => LifecycleFilter::All,
+        }
+    }
+}
+
+/// The ephemeral (per-session, never persisted — constraint 1) filter applied
+/// to the fleet nav. The text filter is **fuzzy** over `<repo>/<grove>`; the
+/// three non-text dimensions (`inbox_only`, `lifecycle`, `sort`) are toggles.
+/// While **any** dimension is engaged ([`active`](Self::active)) the nav
+/// flattens out of its grouped shape into a single ranked list (070-060 Q3).
 #[derive(Default)]
 struct FilterState {
-    /// True while the user is typing into the filter input.
+    /// True while the user is typing into the text-filter input.
     editing: bool,
-    /// The committed (or in-progress) substring filter — applied live.
+    /// The committed (or in-progress) fuzzy needle — matched live against
+    /// each grove's `<repo>/<grove>` string.
     text: String,
+    /// Show only groves with pending inbox observations (`i`).
+    inbox_only: bool,
+    /// Lifecycle predicate (`l`): all / live-only / seed-only.
+    lifecycle: LifecycleFilter,
+    /// Flat-list ordering (`s`).
+    sort: SortMode,
+}
+
+impl FilterState {
+    /// Any narrowing or reordering engaged → the nav flattens into a single
+    /// ranked list (070-060 Q3); idle leaves the grouped two-level shape.
+    fn active(&self) -> bool {
+        !self.text.is_empty()
+            || self.inbox_only
+            || self.lifecycle != LifecycleFilter::All
+            || self.sort != SortMode::Default
+    }
+
+    /// Reset every dimension to idle — used on the transitions that return the
+    /// nav to its resting grouped state (drill-in, back, refresh), so a filter
+    /// never silently outlives the visit that set it.
+    fn clear(&mut self) {
+        *self = FilterState::default();
+    }
 }
 
 impl App {
@@ -525,10 +600,12 @@ impl App {
     }
 
     /// Rescan the fleet and signal "refreshed" in the status line.
-    /// Triggered by `r`. Clears any in-progress filter to make the
-    /// rescan's selection deterministic for the user.
+    /// Triggered by `r`. Clears any active filter (text + predicates + sort) to
+    /// make the rescan's selection deterministic for the user — the nav returns
+    /// to its grouped resting shape. (The fs-watch auto-rescan path keeps the
+    /// filter, refreshing in place.)
     fn refresh(&mut self) -> Result<()> {
-        self.filter.text.clear();
+        self.filter.clear();
         self.refresh_silent()?;
         self.status = Some("refreshed".into());
         Ok(())
@@ -553,7 +630,7 @@ impl App {
     /// headers (N>1) interleaved with their filter-matched groves, honouring the
     /// collapse set. Rebuilt per call; bounded by fleet size.
     fn nav_rows_cached(&self) -> Vec<NavRow<'_>> {
-        nav_rows(&self.fleet, &self.collapsed, &self.filter.text)
+        nav_rows(&self.fleet, &self.collapsed, &self.filter)
     }
 
     /// The number of nav rows — the movement length for `j`/`k` (which step over
@@ -1166,6 +1243,27 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             app.toggle_open = true;
         }
         (Screen::GroveList, KeyCode::Char('q')) => return Ok(true),
+        // Fleet filter toggles (070-fleet-view/060). Each engages a non-text
+        // filter dimension; any active dimension flattens the grouped nav into a
+        // single ranked list (070-060 Q3). `/` (above) drives the *text* needle;
+        // these three are the predicate/sort toggles. Each re-anchors the
+        // selection onto the same grove when it survives the new predicate set
+        // (else the render clamps) — the filter reshapes the rows like a rescan.
+        (Screen::GroveList, KeyCode::Char('i')) => {
+            let sel = app.selected_nav();
+            app.filter.inbox_only = !app.filter.inbox_only;
+            app.reselect(sel);
+        }
+        (Screen::GroveList, KeyCode::Char('l')) => {
+            let sel = app.selected_nav();
+            app.filter.lifecycle = app.filter.lifecycle.next();
+            app.reselect(sel);
+        }
+        (Screen::GroveList, KeyCode::Char('s')) => {
+            let sel = app.selected_nav();
+            app.filter.sort = app.filter.sort.next();
+            app.reselect(sel);
+        }
         // Movement steps over the flattened two-level nav rows — repo headers
         // and groves alike — so a header can be highlighted to collapse it.
         (Screen::GroveList, KeyCode::Down | KeyCode::Char('j')) => {
@@ -1194,7 +1292,7 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
                     right_scroll: 0,
                 });
                 app.screen = Screen::GroveDetail;
-                app.filter.text.clear();
+                app.filter.clear();
             }
         }
         // Detail screen. `Esc`/`q` pop back to the grove list in the master/detail
@@ -1204,7 +1302,7 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         (Screen::GroveDetail, KeyCode::Esc | KeyCode::Char('q')) if !app.detail_locked => {
             app.screen = Screen::GroveList;
             app.detail = None;
-            app.filter.text.clear();
+            app.filter.clear();
         }
         (Screen::GroveDetail, KeyCode::Tab) => {
             if let Some(d) = app.detail.as_mut() {
@@ -1513,23 +1611,30 @@ fn move_detail_selection(app: &mut App, delta: isize) {
 }
 
 // ---------------------------------------------------------------------------
-// The two-level fleet nav model (070-fleet-view/040)
+// The two-level fleet nav model (070-fleet-view/040 + /060 filtering)
 //
-// The nav renders a **grouped** fleet: repo section headers, each followed by
-// its groves (070 Q2/Q4). `nav_rows` flattens the `MultiRepoView` + the
-// ephemeral collapse set + the live substring filter into the flat row sequence
-// the `ListState` indexes into — a **pure** projection (no `ratatui`), so the
-// grouping/collapse/N=1-hide/sort rules are unit-tested without a render. The
-// fleet is already sorted current-repo-first → explicit → scanned by the
-// discovery layer (`fleet::resolve`); this preserves that order (070 Q5).
+// `nav_rows` is a **pure** projection (no `ratatui`) of the `MultiRepoView`
+// into the flat row sequence the `ListState` indexes into, so the
+// grouping/collapse/N=1-hide and the filter/sort rules are unit-tested without
+// a render. It has **two shapes** keyed off [`FilterState::active`]:
+//
+//   * **Idle (grouped)** — the resting nav (070 Q2/Q4): repo section headers
+//     (N>1), each followed by its groves, honouring the ephemeral collapse set.
+//     The fleet is already sorted current-repo-first → explicit → scanned by
+//     the discovery layer (`fleet::resolve`); this preserves that order.
+//   * **Filter-active (flat)** — any engaged filter dimension flattens the nav
+//     into a single ranked list across all repos, with **no** section headers
+//     (070-060 Q3). Each grove is matched (fuzzy text over `<repo>/<grove>` +
+//     the inbox-pending / lifecycle predicates) and the survivors are ordered
+//     by sort mode → fuzzy score → fleet order.
 
 /// One row of the flattened two-level nav: a repo section header or a grove
 /// beneath one. Borrows from the fleet snapshot — rebuilt cheaply per render.
 enum NavRow<'a> {
-    /// A repo section header — emitted only when the fleet spans **>1** repo
-    /// (N=1 hides it, 070 Q4). `count` is the number of *matched* groves under
-    /// it (honest under a filter); `collapsed` drives the caret and whether its
-    /// grove rows follow.
+    /// A repo section header — emitted only in the **idle (grouped)** nav when
+    /// the fleet spans **>1** repo (N=1 hides it, 070 Q4; the filter-active flat
+    /// nav has none, 070-060 Q3). `count` is the repo's grove count; `collapsed`
+    /// drives the caret and whether its grove rows follow.
     RepoHeader {
         repo: &'a Path,
         count: usize,
@@ -1544,24 +1649,32 @@ enum NavRow<'a> {
     },
 }
 
-/// Flatten the fleet into the nav's row sequence: per repo (in fleet order) a
-/// header — unless N=1, where the lone header is hidden so the rows read as
-/// today's flat single-repo nav (070 Q4) — followed by its filter-matched
-/// groves, save when the repo is collapsed (header only). The substring
-/// `filter` is the existing nav filter, applied unchanged; no new filter
-/// dimension lands here (070 Q5 defers that to leaf 060).
+/// Project the fleet into nav rows. Dispatches on [`FilterState::active`]:
+/// idle → the grouped two-level shape; any filter engaged → a single ranked
+/// flat list (070-060 Q3).
 fn nav_rows<'a>(
     fleet: &'a MultiRepoView,
     collapsed: &BTreeSet<PathBuf>,
-    filter: &str,
+    filter: &FilterState,
+) -> Vec<NavRow<'a>> {
+    if filter.active() {
+        flat_filtered_rows(fleet, filter)
+    } else {
+        grouped_rows(fleet, collapsed)
+    }
+}
+
+/// The idle nav: per repo (in fleet order) a section header — unless N=1, where
+/// the lone header is hidden so the rows read as today's flat single-repo nav
+/// (070 Q4) — followed by its groves, save when the repo is collapsed (header
+/// only). No filtering happens here; that is the flat path's job.
+fn grouped_rows<'a>(
+    fleet: &'a MultiRepoView,
+    collapsed: &BTreeSet<PathBuf>,
 ) -> Vec<NavRow<'a>> {
     let multi = fleet.repos().len() > 1;
-    let needle = filter.to_lowercase();
     let mut rows = Vec::new();
     for (repo, groves) in fleet.groups() {
-        let matched = groves
-            .iter()
-            .filter(|g| needle.is_empty() || g.name.to_lowercase().contains(&needle));
         // N>1 ⇒ a section header; N=1 ⇒ none (flat as today). Collapse is only
         // meaningful with a header to carry the marker, so it never hides the
         // lone N=1 repo's groves.
@@ -1569,18 +1682,118 @@ fn nav_rows<'a>(
             let is_collapsed = collapsed.contains(repo);
             rows.push(NavRow::RepoHeader {
                 repo,
-                count: matched.clone().count(),
+                count: groves.len(),
                 collapsed: is_collapsed,
             });
             if is_collapsed {
                 continue;
             }
         }
-        for summary in matched {
+        for summary in groves {
             rows.push(NavRow::Grove { repo, summary });
         }
     }
     rows
+}
+
+/// The filter-active nav: every grove across the fleet that passes all engaged
+/// predicates (fuzzy text over `<repo>/<grove>`, inbox-pending, lifecycle),
+/// flattened into a single ranked list with no section headers (070-060 Q3).
+/// Ordering is layered: the sort toggle is primary (inbox-pending-desc when
+/// engaged), then fuzzy score (best matches first when a needle is present),
+/// then the original fleet order (a stable final key, so equal-ranked groves
+/// keep current-repo-first / lifecycle / prefix order).
+fn flat_filtered_rows<'a>(
+    fleet: &'a MultiRepoView,
+    filter: &FilterState,
+) -> Vec<NavRow<'a>> {
+    // (repo, summary, fleet_index, fuzzy_score) for each survivor.
+    let mut matched: Vec<(&Path, &GroveSummary, usize, i32)> = Vec::new();
+    let mut fleet_index = 0usize;
+    for (repo, groves) in fleet.groups() {
+        let repo_base = repo_basename(repo);
+        for summary in groves {
+            let idx = fleet_index;
+            fleet_index += 1;
+
+            let lifecycle_ok = match filter.lifecycle {
+                LifecycleFilter::All => true,
+                LifecycleFilter::LiveOnly => summary.lifecycle == Lifecycle::Live,
+                LifecycleFilter::SeedOnly => summary.lifecycle == Lifecycle::Seed,
+            };
+            if !lifecycle_ok {
+                continue;
+            }
+            if filter.inbox_only && summary.inbox_pending == 0 {
+                continue;
+            }
+            // Fuzzy text matches against the qualified `<repo>/<grove>` string,
+            // so typing a repo basename surfaces that repo's groves (Q5 shape).
+            let hay = format!("{repo_base}/{}", summary.name);
+            let Some(score) = fuzzy_score(&filter.text, &hay) else {
+                continue;
+            };
+            matched.push((repo, summary, idx, score));
+        }
+    }
+
+    matched.sort_by(|a, b| {
+        let sort_key = match filter.sort {
+            SortMode::InboxDesc => b.1.inbox_pending.cmp(&a.1.inbox_pending),
+            SortMode::Default => std::cmp::Ordering::Equal,
+        };
+        sort_key
+            // Higher fuzzy score first (no-op when the needle is empty: every
+            // score is 0).
+            .then_with(|| b.3.cmp(&a.3))
+            // Stable final key: original fleet order.
+            .then_with(|| a.2.cmp(&b.2))
+    });
+
+    matched
+        .into_iter()
+        .map(|(repo, summary, _, _)| NavRow::Grove { repo, summary })
+        .collect()
+}
+
+/// A repo root's basename for display/matching (`acme-api` for
+/// `/src/acme-api`); falls back to the full path when there is no file name.
+fn repo_basename(repo: &Path) -> String {
+    repo.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| repo.display().to_string())
+}
+
+/// Fuzzy **subsequence** match of `needle` against `haystack`, both compared
+/// case-insensitively. Returns `Some(score)` when every char of `needle`
+/// appears in `haystack` in order (a subsequence), else `None`. Higher score =
+/// better: a contiguous run scores far above a scattered match, a match at the
+/// very start gets a small bonus, and each gap skipped since the previous match
+/// costs — so the strongest matches sort to the top of the flat nav. An empty
+/// needle matches anything with score 0 (every grove passes, none preferred).
+fn fuzzy_score(needle: &str, haystack: &str) -> Option<i32> {
+    if needle.is_empty() {
+        return Some(0);
+    }
+    let hay: Vec<char> = haystack.chars().flat_map(char::to_lowercase).collect();
+    let mut score = 0i32;
+    let mut from = 0usize; // next haystack index to search from
+    let mut prev: Option<usize> = None; // previous matched index
+    for nc in needle.chars().flat_map(char::to_lowercase) {
+        let off = hay[from..].iter().position(|&c| c == nc)?;
+        let pos = from + off;
+        score += 10; // a char matched
+        if prev.is_some() && prev == pos.checked_sub(1) {
+            score += 15; // contiguous with the previous match
+        }
+        if pos == 0 {
+            score += 5; // anchored at the start
+        }
+        score -= off as i32; // gap skipped since the last match
+        prev = Some(pos);
+        from = pos + 1;
+    }
+    Some(score)
 }
 
 // ---------------------------------------------------------------------------
@@ -1769,6 +1982,33 @@ fn render_header(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
+/// A compact one-line description of every engaged filter dimension — the
+/// `/needle` text plus `[inbox]` / `[live]`|`[seed]` / `[↓inbox]` tags — or
+/// `None` when the filter is idle. Shared by the list title and the footer so
+/// the active filter is always legible. Mirrors [`FilterState::active`]: it is
+/// `Some` exactly when `active()` is true.
+fn filter_summary(filter: &FilterState) -> Option<String> {
+    if !filter.active() {
+        return None;
+    }
+    let mut parts: Vec<String> = Vec::new();
+    if !filter.text.is_empty() {
+        parts.push(format!("/{}", filter.text));
+    }
+    if filter.inbox_only {
+        parts.push("[inbox]".to_string());
+    }
+    match filter.lifecycle {
+        LifecycleFilter::All => {}
+        LifecycleFilter::LiveOnly => parts.push("[live]".to_string()),
+        LifecycleFilter::SeedOnly => parts.push("[seed]".to_string()),
+    }
+    if filter.sort == SortMode::InboxDesc {
+        parts.push("[↓inbox]".to_string());
+    }
+    Some(parts.join(" "))
+}
+
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     // The two-level fleet nav (070 Q2/Q4): repo section headers (only when the
     // fleet spans >1 repo) interleaved with their groves. At N=1 there are no
@@ -1777,6 +2017,10 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
     // grove row shows is its **owning** repo's, looked up per row.
     let rows = app.nav_rows_cached();
     let multi = app.fleet.repos().len() > 1;
+    // When a filter is active the nav is flat (no section headers, 070-060 Q3),
+    // so each grove row carries its repo as a `<repo>/` prefix; idle the header
+    // supplies the attribution and grove rows are just indented under it.
+    let flat = app.filter.active();
     let cli = app
         .primary_view()
         .map(|v| v.cli_version())
@@ -1795,19 +2039,28 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
                     .map(|v| v.repo_versions())
                     .unwrap_or(&empty_versions);
                 let mut line = grove_row(summary, cli, repo_versions);
-                // Indent grove rows under their section header when the fleet
-                // spans >1 repo, so the two-level structure reads at a glance.
-                if multi {
+                if multi && flat {
+                    // Flat ranked list: prefix the owning repo for attribution
+                    // (the section header that would carry it is gone).
+                    line.spans.insert(
+                        0,
+                        Span::styled(
+                            format!("{}/", repo_basename(repo)),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                    );
+                } else if multi {
+                    // Grouped: indent under the section header so the two-level
+                    // structure reads at a glance.
                     line.spans.insert(0, Span::raw("  "));
                 }
                 ListItem::new(line)
             }
         })
         .collect();
-    let title = if app.filter.text.is_empty() {
-        "groves".to_string()
-    } else {
-        format!("groves  /{}", app.filter.text)
+    let title = match filter_summary(&app.filter) {
+        Some(s) => format!("groves  {s}"),
+        None => "groves".to_string(),
     };
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL).title(title))
@@ -1829,10 +2082,7 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
 /// (070 Q2). Rendered only when the fleet spans >1 repo (N=1 hides it).
 fn repo_header_row(repo: &Path, count: usize, collapsed: bool) -> Line<'static> {
     let caret = if collapsed { "▸" } else { "▾" };
-    let name = repo
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| repo.display().to_string());
+    let name = repo_basename(repo);
     Line::from(vec![
         Span::styled(
             format!("{caret} {name}"),
@@ -2144,15 +2394,15 @@ fn footer_line(app: &App) -> Line<'static> {
     // `--local` dashboard has no content region, so it omits the hint, matching the `t`
     // opener's `native_chrome` gate (150-working-set/030).
     let hint = match app.screen {
-        Screen::GroveList if app.native_chrome => "⏎ open · j/k move · ⌃o nav · t toggle · x close · / filter · c capture · r refresh · ? help · q quit",
-        Screen::GroveList => "⏎ open · j/k move · ⌃o nav · x close · / filter · c capture · r refresh · ? help · q quit",
+        Screen::GroveList if app.native_chrome => "⏎ open · j/k move · ⌃o nav · t toggle · x close · / filter · i inbox · l live/seed · s sort · c capture · r refresh · ? help · q quit",
+        Screen::GroveList => "⏎ open · j/k move · ⌃o nav · x close · / filter · i inbox · l live/seed · s sort · c capture · r refresh · ? help · q quit",
         Screen::GroveDetail => "⇥ cycle · j/k move · o open · x close · PgUp/PgDn scroll · / filter · c capture · r refresh · ⎋ back · ? help",
     };
     let mut spans = vec![Span::raw(hint)];
-    if !app.filter.text.is_empty() {
+    if let Some(summary) = filter_summary(&app.filter) {
         spans.push(Span::raw("   "));
         spans.push(Span::styled(
-            format!("filter: /{}", app.filter.text),
+            format!("filter: {summary}"),
             Style::default().fg(Color::Yellow),
         ));
     }
@@ -2185,7 +2435,11 @@ fn render_help_overlay(f: &mut Frame, area: Rect) {
         Line::from("                  (i=incorporated, d=deferred, r=rejected, Esc=cancel)"),
         Line::from("  Ctrl-E        edit the selected observation's body in $EDITOR"),
         Line::from("  PgUp / PgDn   scroll right pane"),
-        Line::from("  /             filter current pane (Enter=apply, Esc=cancel)"),
+        Line::from("  /             fuzzy-filter the fleet by repo/grove name"),
+        Line::from("                  (Enter=apply, Esc=cancel; flattens to a ranked list)"),
+        Line::from("  i             toggle: show only groves with a pending inbox"),
+        Line::from("  l             cycle lifecycle filter (all → live → seed)"),
+        Line::from("  s             cycle sort (fleet order ↔ inbox-pending first)"),
         Line::from("  c             capture an observation to a grove's inbox"),
         Line::from("                  Tab=switch field, Ctrl-E=edit in $EDITOR,"),
         Line::from("                  Enter on body=newline, Ctrl-S=submit, Esc=cancel"),
@@ -3430,6 +3684,16 @@ mod tests {
         repo
     }
 
+    /// Add `count` pending observation files to `repo`'s inbox for `grove`. When
+    /// `grove` has no live worktree this makes a **seed** (an inbox dir with no
+    /// worktree); when it does, it gives that live grove `inbox_pending = count`.
+    fn add_inbox(repo: &Path, grove: &str, count: usize) {
+        let dir = repo.join(".grove-meta").join("inboxes").join(grove);
+        for i in 0..count {
+            touch(&dir.join(format!("2026-01-01T00-00-{i:02}Z-obs-deadbeef.md")), "# obs\n");
+        }
+    }
+
     #[test]
     fn nav_rows_n1_is_flat_with_no_repo_header() {
         // N=1 (070 Q4): the lone repo's section header is hidden; the rows are
@@ -3437,7 +3701,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let r = fleet_repo(tmp.path(), "solo", &["alpha", "beta"]);
         let fleet = MultiRepoView::scan(&[r.clone()]);
-        let rows = nav_rows(&fleet, &BTreeSet::new(), "");
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &FilterState::default());
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|r| matches!(r, NavRow::Grove { .. })));
         let names: Vec<&str> = rows
@@ -3458,7 +3722,7 @@ mod tests {
         let r1 = fleet_repo(tmp.path(), "one", &["alpha"]);
         let r2 = fleet_repo(tmp.path(), "two", &["beta", "gamma"]);
         let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
-        let rows = nav_rows(&fleet, &BTreeSet::new(), "");
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &FilterState::default());
 
         // header(r1), grove(alpha@r1), header(r2), grove(beta@r2), grove(gamma@r2)
         assert_eq!(rows.len(), 5);
@@ -3496,7 +3760,7 @@ mod tests {
         let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
         let mut collapsed = BTreeSet::new();
         collapsed.insert(r1.clone());
-        let rows = nav_rows(&fleet, &collapsed, "");
+        let rows = nav_rows(&fleet, &collapsed, &FilterState::default());
 
         // header(r1, collapsed), header(r2), grove(beta), grove(gamma)
         assert_eq!(rows.len(), 4);
@@ -3512,34 +3776,195 @@ mod tests {
         assert!(matches!(&rows[2], NavRow::Grove { summary, .. } if summary.name == "beta"));
     }
 
+    /// A `FilterState` carrying just a text needle (the common test shape).
+    fn text_filter(needle: &str) -> FilterState {
+        FilterState {
+            text: needle.to_string(),
+            ..Default::default()
+        }
+    }
+
+    /// The grove names in a flat (filter-active) row sequence, in order. Panics
+    /// if any row is a header — the flat nav must emit none (070-060 Q3).
+    fn flat_names<'a>(rows: &'a [NavRow<'a>]) -> Vec<&'a str> {
+        rows.iter()
+            .map(|r| match r {
+                NavRow::Grove { summary, .. } => summary.name.as_str(),
+                NavRow::RepoHeader { .. } => panic!("flat nav must not emit headers"),
+            })
+            .collect()
+    }
+
     #[test]
-    fn nav_rows_filter_narrows_groves_and_header_count() {
-        // The existing substring filter narrows the grove rows and the header's
-        // count (the count is of *matched* groves, so it stays honest).
+    fn nav_rows_text_filter_flattens_and_drops_headers() {
+        // An active text filter flattens the grouped nav into a single ranked
+        // list with NO section headers (070-060 Q3); only matching groves
+        // survive, across all repos.
         let tmp = TempDir::new().unwrap();
         let r1 = fleet_repo(tmp.path(), "one", &["apex", "april"]);
         let r2 = fleet_repo(tmp.path(), "two", &["beta"]);
         let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
-        let rows = nav_rows(&fleet, &BTreeSet::new(), "ap");
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &text_filter("ap"));
 
-        // r1: apex, april match "ap"; r2: beta does not.
-        let grove_names: Vec<&str> = rows
-            .iter()
-            .filter_map(|r| match r {
-                NavRow::Grove { summary, .. } => Some(summary.name.as_str()),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(grove_names, vec!["apex", "april"]);
-        // r1's header count is 2 (matched), r2's is 0.
-        let counts: Vec<usize> = rows
-            .iter()
-            .filter_map(|r| match r {
-                NavRow::RepoHeader { count, .. } => Some(*count),
-                _ => None,
-            })
-            .collect();
-        assert_eq!(counts, vec![2, 0]);
+        // apex, april match "ap"; beta does not. No headers at all.
+        assert!(rows.iter().all(|r| matches!(r, NavRow::Grove { .. })));
+        let names = flat_names(&rows);
+        assert!(names.contains(&"apex") && names.contains(&"april"));
+        assert!(!names.contains(&"beta"));
+    }
+
+    #[test]
+    fn nav_rows_text_filter_matches_repo_name() {
+        // The fuzzy needle matches against `<repo>/<grove>`, so typing a repo
+        // basename surfaces that repo's groves even when their own names don't
+        // contain the needle (070 Q5 "repo/grove name").
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "alpha-repo", &["work"]);
+        let r2 = fleet_repo(tmp.path(), "beta-repo", &["chore"]);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        // "alpha" matches r1's basename; r1's grove "work" surfaces, r2's hides.
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &text_filter("alpha"));
+        assert_eq!(flat_names(&rows), vec!["work"]);
+    }
+
+    #[test]
+    fn nav_rows_inbox_only_drops_groves_with_no_pending() {
+        // The inbox-pending predicate keeps only groves with observations; with
+        // it engaged the nav flattens (no headers) and empty repos vanish.
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["alpha", "beta"]);
+        add_inbox(&r1, "alpha", 2); // alpha has 2 pending; beta has none
+        let r2 = fleet_repo(tmp.path(), "two", &["gamma"]); // none pending
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let filter = FilterState {
+            inbox_only: true,
+            ..Default::default()
+        };
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &filter);
+        assert_eq!(flat_names(&rows), vec!["alpha"]);
+    }
+
+    #[test]
+    fn nav_rows_lifecycle_filter_selects_live_or_seed() {
+        // `l` cycles all → live-only → seed-only. A seed is an inbox dir with no
+        // worktree; a live grove has a worktree.
+        let tmp = TempDir::new().unwrap();
+        let r = fleet_repo(tmp.path(), "one", &["alpha"]); // live
+        add_inbox(&r, "ghost", 1); // seed (no worktree)
+        let fleet = MultiRepoView::scan(&[r]);
+
+        let live = FilterState {
+            lifecycle: LifecycleFilter::LiveOnly,
+            ..Default::default()
+        };
+        assert_eq!(
+            flat_names(&nav_rows(&fleet, &BTreeSet::new(), &live)),
+            vec!["alpha"]
+        );
+
+        let seed = FilterState {
+            lifecycle: LifecycleFilter::SeedOnly,
+            ..Default::default()
+        };
+        assert_eq!(
+            flat_names(&nav_rows(&fleet, &BTreeSet::new(), &seed)),
+            vec!["ghost"]
+        );
+    }
+
+    #[test]
+    fn nav_rows_sort_inbox_desc_orders_by_pending_count() {
+        // The sort toggle puts the most inbox-pending groves first (across the
+        // flattened fleet), regardless of repo.
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["low", "high"]);
+        add_inbox(&r1, "low", 1);
+        add_inbox(&r1, "high", 5);
+        let r2 = fleet_repo(tmp.path(), "two", &["mid"]);
+        add_inbox(&r2, "mid", 3);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let filter = FilterState {
+            sort: SortMode::InboxDesc,
+            ..Default::default()
+        };
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &filter);
+        // high(5) → mid(3) → low(1), ignoring repo grouping.
+        assert_eq!(flat_names(&rows), vec!["high", "mid", "low"]);
+    }
+
+    #[test]
+    fn nav_rows_idle_stays_grouped_with_headers() {
+        // Sanity: with no filter dimension engaged the nav keeps its grouped
+        // two-level shape (headers present), so flattening is filter-gated.
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["alpha"]);
+        let r2 = fleet_repo(tmp.path(), "two", &["beta"]);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let rows = nav_rows(&fleet, &BTreeSet::new(), &FilterState::default());
+        assert!(rows.iter().any(|r| matches!(r, NavRow::RepoHeader { .. })));
+    }
+
+    #[test]
+    fn fuzzy_score_matches_subsequence_case_insensitively() {
+        // Every needle char appears in order → Some; case-insensitive both ways.
+        assert!(fuzzy_score("afb", "acme/fix-bug").is_some()); // a..f..b
+        assert!(fuzzy_score("FIX", "acme/fix-bug").is_some());
+        // A char out of order / absent → None.
+        assert!(fuzzy_score("xyz", "acme/fix-bug").is_none());
+        assert!(fuzzy_score("ba", "abc").is_none()); // b before a not a subseq
+        // Empty needle matches anything with the neutral score 0.
+        assert_eq!(fuzzy_score("", "anything"), Some(0));
+    }
+
+    #[test]
+    fn fuzzy_score_prefers_contiguous_and_earlier_matches() {
+        // A contiguous run beats a scattered subsequence of the same chars.
+        let contiguous = fuzzy_score("ab", "abxx").unwrap();
+        let scattered = fuzzy_score("ab", "axbx").unwrap();
+        assert!(contiguous > scattered, "{contiguous} !> {scattered}");
+        // An earlier match beats a later one.
+        let early = fuzzy_score("a", "axxx").unwrap();
+        let late = fuzzy_score("a", "xxxa").unwrap();
+        assert!(early > late, "{early} !> {late}");
+    }
+
+    #[test]
+    fn filter_state_active_tracks_every_dimension() {
+        assert!(!FilterState::default().active());
+        assert!(text_filter("x").active());
+        assert!(FilterState { inbox_only: true, ..Default::default() }.active());
+        assert!(FilterState { lifecycle: LifecycleFilter::LiveOnly, ..Default::default() }.active());
+        assert!(FilterState { sort: SortMode::InboxDesc, ..Default::default() }.active());
+        // clear() returns it to idle.
+        let mut f = text_filter("x");
+        f.inbox_only = true;
+        f.clear();
+        assert!(!f.active());
+    }
+
+    #[test]
+    fn lifecycle_and_sort_toggles_cycle() {
+        assert_eq!(LifecycleFilter::All.next(), LifecycleFilter::LiveOnly);
+        assert_eq!(LifecycleFilter::LiveOnly.next(), LifecycleFilter::SeedOnly);
+        assert_eq!(LifecycleFilter::SeedOnly.next(), LifecycleFilter::All);
+        assert_eq!(SortMode::Default.next(), SortMode::InboxDesc);
+        assert_eq!(SortMode::InboxDesc.next(), SortMode::Default);
+    }
+
+    #[test]
+    fn filter_summary_describes_active_dimensions() {
+        assert_eq!(filter_summary(&FilterState::default()), None);
+        let f = FilterState {
+            text: "wip".into(),
+            inbox_only: true,
+            lifecycle: LifecycleFilter::SeedOnly,
+            sort: SortMode::InboxDesc,
+            ..Default::default()
+        };
+        assert_eq!(
+            filter_summary(&f).as_deref(),
+            Some("/wip [inbox] [seed] [↓inbox]")
+        );
     }
 
     /// Build a multi-repo `App` (native fleet nav) over `repos`, each
@@ -3551,6 +3976,38 @@ mod tests {
             .collect();
         let fleet = MultiRepoView::scan(&roots);
         App::new_fleet(roots[0].clone(), fleet, None)
+    }
+
+    #[test]
+    fn filter_toggle_keys_engage_and_flatten_the_nav() {
+        // `i` / `l` / `s` on the grove list engage the predicate/sort dimensions
+        // and flatten the nav (070-060). Idle starts grouped with headers.
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        assert!(!app.filter.active());
+        assert!(app
+            .nav_rows_cached()
+            .iter()
+            .any(|r| matches!(r, NavRow::RepoHeader { .. })));
+
+        // `i` engages inbox-only → flat, no headers.
+        handle_key(&mut app, KeyCode::Char('i'), KeyModifiers::NONE).unwrap();
+        assert!(app.filter.inbox_only);
+        assert!(app
+            .nav_rows_cached()
+            .iter()
+            .all(|r| matches!(r, NavRow::Grove { .. })));
+
+        // `i` again clears it → back to grouped.
+        handle_key(&mut app, KeyCode::Char('i'), KeyModifiers::NONE).unwrap();
+        assert!(!app.filter.inbox_only);
+        assert!(!app.filter.active());
+
+        // `l` cycles lifecycle; `s` cycles sort.
+        handle_key(&mut app, KeyCode::Char('l'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.filter.lifecycle, LifecycleFilter::LiveOnly);
+        handle_key(&mut app, KeyCode::Char('s'), KeyModifiers::NONE).unwrap();
+        assert_eq!(app.filter.sort, SortMode::InboxDesc);
     }
 
     #[test]
@@ -3654,6 +4111,30 @@ mod tests {
         assert!(out.contains("alpha"), "grove row missing:\n{out}");
         assert!(!out.contains('▾'), "N=1 must hide the section caret:\n{out}");
         assert!(!out.contains("solo"), "N=1 must not show the repo-name header:\n{out}");
+    }
+
+    #[test]
+    fn filter_active_render_flattens_with_repo_prefix_and_titles_the_filter() {
+        // With a text filter engaged the multi-repo nav flattens: no section
+        // carets, each grove row carries its `<repo>/` prefix for attribution,
+        // and the list title shows the active filter (070-060 Q3).
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        // Type "/beta" and apply.
+        handle_key(&mut app, KeyCode::Char('/'), KeyModifiers::NONE).unwrap();
+        for c in "beta".chars() {
+            handle_key(&mut app, KeyCode::Char(c), KeyModifiers::NONE).unwrap();
+        }
+        handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
+
+        let out = render_to_buffer(&app, 80, 16);
+        assert!(!out.contains('▾'), "flat nav must show no section caret:\n{out}");
+        // The row reads `two/ live  beta`: a dim `<repo>/` prefix, then the grove
+        // row (badge + name). Assert the prefix and the name both render.
+        assert!(out.contains("two/"), "repo prefix missing on flat row:\n{out}");
+        assert!(out.contains("beta"), "matching grove missing:\n{out}");
+        assert!(!out.contains("alpha"), "non-matching grove must be filtered out:\n{out}");
+        assert!(out.contains("/beta"), "filter not shown in the title:\n{out}");
     }
 }
 

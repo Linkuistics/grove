@@ -39,6 +39,28 @@ The per-session context-loading step of the grove loop: read the glossary, the a
 
 ## TUI / v2 presentation
 
+**Fleet** (multi-repo view):
+The grove workstreams across **N repos** surfaced in one TUI process — concern 1
+of the v2 work. The data layer is **`MultiRepoView`**, a collection of per-repo
+`RepoView`s scanned concurrently below the [[presentation boundary]] (no
+`ratatui`); a repo whose scan fails is **silently skipped**, never blocking the
+others. **Single-repo is the N=1 "fleet of one"** — the nav renders one path, not
+a single-vs-multi fork. The repos to span are resolved by a **manifest +
+scan-roots hybrid** (ADR-0025: explicit `repos` always included, `scan_roots`
+walked to discover more, cwd's git root always in, `--repo` flags layered on).
+The nav has two shapes: **grouped** (collapsible repo section headers → their
+groves; the lone header auto-hides at N=1) when idle, and a **flat ranked list**
+(no headers, repo shown as a per-row `<repo>/` prefix) whenever any filter
+dimension is engaged — a fuzzy needle over `<repo>/<grove>`, an inbox-pending
+toggle, a lifecycle cycle, or a sort toggle, **all ephemeral per session**
+(constraint 1). fs-watch at fleet scale uses **one multi-root watcher** with a
+`/.git/`-path filter and a prefix-matched **per-repo re-scan** (only the repo
+owning the changed path is re-scanned). Selecting any grove opens its [[working
+set]] in its *owning* repo (the harness path carries the repo explicitly), with
+workspace/tab keys **repo-qualified** so two repos' same-named groves don't
+collide. Avoid the alias *workspace* for this — a [[workspace]] is one grove's
+swappable working set, an orthogonal axis.
+
 **Dashboard**:
 *(Mechanism updated by the [[trellis framework]] fork — ADR-0020: both surfaces
 below now render **natively in-process** — the nav is a native surface (not a WASM

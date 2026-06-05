@@ -45,9 +45,15 @@ of the v2 work. The data layer is **`MultiRepoView`**, a collection of per-repo
 `RepoView`s scanned concurrently below the [[presentation boundary]] (no
 `ratatui`); a repo whose scan fails is **silently skipped**, never blocking the
 others. **Single-repo is the N=1 "fleet of one"** — the nav renders one path, not
-a single-vs-multi fork. The repos to span are resolved by a **manifest +
-scan-roots hybrid** (ADR-0025: explicit `repos` always included, `scan_roots`
-walked to discover more, cwd's git root always in, `--repo` flags layered on).
+a single-vs-multi fork. The repos to span are resolved **purely from config**: a
+**manifest + scan-roots hybrid** (ADR-0025: explicit `repos` always included,
+`scan_roots` walked to discover more) plus additive `--repo` flags. **No cwd git
+root is detected or auto-included** — ADR-0027 removed the cwd anchor entirely
+(amending ADR-0025 §3), so `grove tui` runs from *any* directory and is driven
+only by the config; an empty resolved fleet launches the TUI with an in-nav
+empty-state, never a git-repo error. The fleet TUI is a **singleton zellij
+session** (`grove-fleet`), since with no cwd anchor the session name is a constant
+(ADR-0027).
 The nav has two shapes: **grouped** (collapsible repo section headers → their
 groves; the lone header auto-hides at N=1) when idle, and a **flat ranked list**
 (no headers, repo shown as a per-row `<repo>/` prefix) whenever any filter

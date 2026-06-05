@@ -241,7 +241,11 @@ pub enum ExitReason {
 impl Display for ExitReason {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            Self::Normal => write!(f, "Bye from Zellij!"),
+            // The user-facing normal-exit banner is host-branded via
+            // `crate::branding` (the client teardown consults it); this `Display`
+            // is only the internal/log fallback, kept neutral so no "Zellij"
+            // literal leaks if a `Normal` reason is stringified elsewhere.
+            Self::Normal => write!(f, ""),
             Self::NormalDetached => write!(f, "Session detached"),
             Self::ForceDetached => write!(
                 f,

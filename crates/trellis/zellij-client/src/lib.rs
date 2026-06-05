@@ -702,7 +702,11 @@ pub fn start_remote_client(
         connections,
     ))?;
 
-    let exit_msg = String::from("Bye from Zellij!");
+    // Normal exit: the host-supplied branding governs the teardown banner (None
+    // ⇒ a clean, unbranded return to the shell). See `zellij_utils::branding`.
+    let exit_msg = zellij_utils::branding::branding()
+        .exit_message()
+        .unwrap_or_default();
 
     if reconnect_to_session.is_none() {
         reset_controlling_terminal_state(exit_msg, 0);
@@ -1145,7 +1149,14 @@ pub fn start_client(
                 if let ExitReason::Error(_) = reason {
                     handle_error(reason.to_string());
                 }
-                exit_msg = reason.to_string();
+                // A normal exit's banner is the host's to brand (None ⇒ no
+                // banner); every other reason keeps its descriptive text.
+                exit_msg = match reason {
+                    ExitReason::Normal => zellij_utils::branding::branding()
+                        .exit_message()
+                        .unwrap_or_default(),
+                    other => other.to_string(),
+                };
                 break;
             },
             ClientInstruction::Error(backtrace) => {

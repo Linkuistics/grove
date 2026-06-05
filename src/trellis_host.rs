@@ -311,6 +311,23 @@ fn grove_tui_config(base: Config) -> Result<Config> {
 fn boot_framework() {
     trellis::logging::configure_logger();
     trellis::consts::create_config_and_cache_folders();
+    // Register grove's branding so the framework's user-facing strings read as
+    // grove, not the vendored multiplexer (one-way crate seam, ADR-0021/0027).
+    // Called on both the client and the re-exec'd server path — a `Box<dyn
+    // Branding>` cannot cross the re-exec, so each process registers its own.
+    trellis::branding::register_branding(Box::new(GroveBranding));
+}
+
+/// grove's [`trellis::branding::Branding`]. grove's TUI presents as its own UI
+/// (`pane_frames false` / `simplified_ui true`), so a normal exit returns the
+/// user cleanly to the shell with **no** banner — `exit_message` is `None`,
+/// which is also the trait default but is stated explicitly as grove's choice.
+struct GroveBranding;
+
+impl trellis::branding::Branding for GroveBranding {
+    fn exit_message(&self) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]

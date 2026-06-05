@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- **`grove tui` is resolved purely from config — the cwd git-repo anchor is gone.** The dashboard is now driven entirely by `fleet.toml` (`repos` + `scan_roots`) plus additive, repeatable `--repo <path>` flags; no cwd git root is detected or auto-included. `grove tui` runs from **any** directory — including a non-git one — and the pre-launch `not in a git repo (cwd: …)` error is gone (previously the gate fired before the fleet was even built, so a `scan_roots` manifest couldn't be reached from outside a repo). The cost is that the zero-config "stand in a repo → see its groves" convenience is removed: standing in a repo with no manifest now shows the empty-state, not that repo's groves. The deliberate replacements are a one-line manifest (`repos = ["."]` or a `scan_roots` entry) or **`grove tui --repo .`** to pin the current directory. An empty fleet (no manifest, no scan hits, no `--repo`) still launches the TUI, to an in-nav empty-state pointing at `~/.config/grove/fleet.toml` and `--repo` — no precondition branch is reintroduced. The fleet TUI is now a **singleton `grove-fleet` session**: a second `grove tui` re-attaches it rather than spawning one session per launch directory. The `grove tui` argument changes from a single positional `[<repo>]` to repeatable `--repo` flags. (ADR-0027)
+
 ## v6.1.0
 
 ### Breaking

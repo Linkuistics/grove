@@ -4071,16 +4071,22 @@ mod native {
         terminal: Terminal<TestBackend>,
         /// The layout/redraw handle, set once at first-layout. `None` until then.
         driver: Option<HostDriver>,
-        /// Grove names with an open harness tab — the native, name-keyed analogue
-        /// of the retired `HarnessTabs` id map (the screen thread addresses tabs
-        /// by name, so no numeric id round-trip is needed).
+        /// The **repo-qualified [`harness_key`]s** with an open working set — the
+        /// native analogue of the retired `HarnessTabs` id map (the screen thread
+        /// addresses sets by this opaque key, so no numeric id round-trip is needed).
+        /// Keyed by `(repo, name)` not bare name, so two same-named groves across
+        /// repos track independently (050-cross-repo-harness); membership drives the
+        /// `first_open` (spawn vs restore) decision.
         open_harnesses: BTreeSet<String>,
-        /// The grove whose [[working set]] is currently mounted in the content region
-        /// (the last one swapped to), or `None` before any selection. This is the key a
-        /// working-set toggle addresses (150-working-set/030) — *not* the nav's
-        /// highlighted list row, which may differ when the user has moved the cursor
-        /// without re-selecting. A toggle with nothing mounted is a no-op-with-status.
-        mounted_grove: Option<String>,
+        /// The `(repo, name)` of the grove whose [[working set]] is currently mounted
+        /// in the content region (the last one swapped to), or `None` before any
+        /// selection. The toggle re-derives the **repo-qualified** [`harness_key`]
+        /// from this to address the mounted set (150-working-set/030), so a same-named
+        /// grove in another repo never steals the toggle (050-cross-repo-harness); the
+        /// bare name is kept alongside for the status line. *Not* the nav's highlighted
+        /// list row, which may differ when the user moved the cursor without
+        /// re-selecting. A toggle with nothing mounted is a no-op-with-status.
+        mounted_grove: Option<(PathBuf, String)>,
         /// A `$EDITOR` drop in flight (a capture-body edit from the nav), held from
         /// the `open_editor` request until `editor_exited` reads the tempfile back.
         pending_edit: Option<PendingEdit>,
@@ -4152,7 +4158,12 @@ mod native {
                     // parked → restore, first time → spawn); grove only tracks names
                     // for the status line + first-open detail build. Run the same
                     // binary the server is (dev `target/debug/grove` or an installed).
-                    let first_open = !self.open_harnesses.contains(&name);
+                    // Repo-qualify the working-set key so a same-named grove in
+                    // another repo addresses its *own* harness/detail/aux set, never
+                    // this one (050-cross-repo-harness / 070 Q7). Every map and
+                    // trellis verb below keys on this, not the bare name.
+                    let key = harness_key(&repo, &name);
+                    let first_open = !self.open_harnesses.contains(&key);
                     let secondary_surface_key = if first_open {
                         // Build the per-grove detail surface and stash it in the keyed
                         // registry; the screen thread takes it when it mounts the pair.
@@ -4161,9 +4172,9 @@ mod native {
                         // selection.
                         match detail_surface(repo.clone(), name.clone()) {
                             Ok(detail) => {
-                                let key = detail_surface_key(&name);
-                                register_keyed_host_surface(key.clone(), Box::new(detail));
-                                Some(key)
+                                let dkey = detail_surface_key(&key);
+                                register_keyed_host_surface(dkey.clone(), Box::new(detail));
+                                Some(dkey)
                             }
                             Err(e) => {
                                 self.app.status =
@@ -4192,22 +4203,24 @@ mod native {
                     // the aux tools (harness + detail). Re-selection restores the parked
                     // set with its own visibility, so the default only bites on first open.
                     driver.swap_content(
-                        &name,
-                        repo,
+                        &key,
+                        repo.clone(),
                         grove_bin,
                         vec!["do".to_string(), name.clone()],
                         secondary_surface_key,
                         aux,
                         Some(WIDE_TIER_MIN_CONTENT_COLS),
                     );
-                    if self.open_harnesses.insert(name.clone()) {
+                    if self.open_harnesses.insert(key) {
                         self.app.status = Some(format!("opened harness: {name}"));
                     } else {
                         self.app.status = Some(format!("switched to harness: {name}"));
                     }
                     // This grove's working set is now the mounted one — the target a
-                    // subsequent member toggle addresses (150-working-set/030).
-                    self.mounted_grove = Some(name);
+                    // subsequent member toggle addresses (150-working-set/030). Track
+                    // repo+name so the toggle re-derives the qualified key while the
+                    // status line still shows the bare grove name.
+                    self.mounted_grove = Some((repo, name));
                 }
                 PendingAction::ToggleMember { member } => {
                     // Toggle one member of the **currently-mounted** grove's working set
@@ -4218,8 +4231,8 @@ mod native {
                     // passing the mounted grove keeps the toggle per-grove. A no-op-with-
                     // status when nothing is mounted yet (no working set to toggle).
                     match (&self.driver, &self.mounted_grove) {
-                        (Some(driver), Some(grove)) => {
-                            driver.toggle_member(grove, member.role());
+                        (Some(driver), Some((repo, grove))) => {
+                            driver.toggle_member(&harness_key(repo, grove), member.role());
                             self.app.status =
                                 Some(format!("toggled {} in {grove}", member.label()));
                         }
@@ -4473,11 +4486,27 @@ mod native {
         Some(watcher)
     }
 
+    /// The **repo-qualified** key identifying one grove's harness / working set
+    /// across the fleet (050-cross-repo-harness). Two repos can each own a grove of
+    /// the same bare name (`grove/fix-bug` and `acme-api/fix-bug`), so every map and
+    /// trellis verb that addresses a working set keys on this — `open_harnesses`,
+    /// `mounted_grove`, the `swap_content`/`toggle_member` content key, and (via
+    /// [`detail_surface_key`]) the per-grove detail registry — never on the bare
+    /// name, which would collide and mis-focus (070 Q7). The full repo *path* (not
+    /// its basename) is used so two repos sharing a basename in different parents
+    /// still derive distinct keys; the string is opaque to trellis (it "never
+    /// interprets it"), so its exact shape is private to grove.
+    fn harness_key(repo: &Path, name: &str) -> String {
+        format!("{}\u{1f}{name}", repo.display())
+    }
+
     /// The keyed-registry key under which grove stashes a grove's [`DetailSurface`]
     /// for the content-swap to mount as the secondary pane (ADR-0023). Namespaced so
-    /// it never collides with the opaque grove-name key the swap uses for the pair.
-    fn detail_surface_key(grove: &str) -> String {
-        format!("grove-detail:{grove}")
+    /// it never collides with the opaque working-set key the swap uses for the pair.
+    /// Derived from the **repo-qualified** [`harness_key`], so two same-named groves
+    /// in different repos get distinct detail registry slots (050-cross-repo-harness).
+    fn detail_surface_key(harness_key: &str) -> String {
+        format!("grove-detail:{harness_key}")
     }
 
     /// Build the **aux working-set members** (020-aux-tool-panes) for `worktree`: a
@@ -4792,6 +4821,28 @@ mod native {
             relinquish_whichkey(WhichkeyOwner::Detail);
             let owner = WHICHKEY_LINE.lock().unwrap().as_ref().map(|(o, _)| *o);
             assert_eq!(owner, Some(WhichkeyOwner::Harness), "owner blur → harness");
+        }
+
+        #[test]
+        fn harness_key_qualifies_by_repo_so_same_named_groves_dont_collide() {
+            // Two repos each own a grove named "fix-bug". The harness/working-set
+            // key must be repo-qualified so they address *distinct* working sets —
+            // a bare name would collide and mis-focus (070 Q7 / 050-cross-repo).
+            let repo_a = PathBuf::from("/work/grove");
+            let repo_b = PathBuf::from("/work/acme-api");
+            let a = harness_key(&repo_a, "fix-bug");
+            let b = harness_key(&repo_b, "fix-bug");
+            assert_ne!(a, b, "same grove name in different repos must not share a key");
+            // Stable: the same (repo, name) always derives the same key, so a
+            // re-select finds the already-open set instead of spawning a duplicate.
+            assert_eq!(a, harness_key(&repo_a, "fix-bug"), "the key is stable per (repo, name)");
+            // The per-grove detail-surface registry key is derived from the
+            // qualified key, so it inherits the same non-collision.
+            assert_ne!(
+                detail_surface_key(&a),
+                detail_surface_key(&b),
+                "per-grove detail surfaces must not collide across repos either"
+            );
         }
 
         #[test]

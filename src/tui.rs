@@ -1,6 +1,10 @@
-// The `grove tui` subcommand: a sync master/detail navigator over one
-// repo's groves. Leaves 020 (read-only shell) and 030 (writes +
-// fs-watch) under `020-design-seed-convention/090-tui-server/`.
+// grove's master/detail navigator over a repo's groves — the dashboard the
+// `grove tui` subcommand surfaces. It renders **only** as a native trellis host
+// surface ([`dashboard_surface`], in `mod native`): grove links the forked
+// `zellij-*` crates unconditionally and trellis is the one, always-on TUI
+// (ADR-0026). There is no standalone in-terminal event loop anymore — the legacy
+// `tui::run` crossterm path and the `--local` flag were removed when local mode
+// was eliminated.
 //
 // Architecture:
 //   - All state derives from a `RepoView` snapshot. The snapshot is
@@ -10,12 +14,9 @@
 //     manual refresh.
 //   - `App` owns the snapshot, screen/selection state, and the capture
 //     modal. Rendering is a pure function of `App` + the screen rect,
-//     which keeps the `TestBackend` snapshot test honest.
-//   - The Ratatui event loop is the standard sync poll/read pattern
-//     (see ratatui 0.29 docs). The shell-out from `c` suspends the
-//     alternate-screen / raw-mode terminal via `ratatui::restore()` and
-//     resumes it with a fresh `ratatui::init()` — no bespoke
-//     alt-screen toggling.
+//     which keeps the `TestBackend` snapshot test honest. The host surface
+//     ticks this render into an off-screen `ratatui` `Buffer` that trellis
+//     blits as a real pane; input arrives as `handle_key` calls.
 //
 // Walk-away-ability (SKILL.md constraint 6) is preserved by routing
 // every write through the `grove-llm inbox-add` verb. The TUI never
@@ -24,18 +25,15 @@
 use anyhow::{Context, Result};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use ratatui::crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use ratatui::crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::{DefaultTerminal, Frame};
+use ratatui::Frame;
 
-use crate::cli::RepoArgs;
 use crate::repo;
 use crate::multi_repo_view::MultiRepoView;
 use crate::repo_view::{
@@ -52,19 +50,6 @@ const DRIFT_STYLE: Style = Style::new()
     .fg(Color::Yellow)
     .add_modifier(Modifier::BOLD);
 
-pub fn run(args: &RepoArgs) -> Result<()> {
-    let repo = repo::resolve(args.repo.as_deref())?;
-    let view = RepoView::scan(&repo)?;
-    let preselect = current_grove_name(&repo);
-    let mut app = App::new(repo.clone(), view, preselect);
-    let mut watch = WatchSet::new(&repo);
-
-    let mut terminal = ratatui::init();
-    let outcome = live_event_loop(&mut terminal, &mut app, &mut watch);
-    ratatui::restore();
-    outcome
-}
-
 // ---------------------------------------------------------------------------
 // State
 
@@ -72,13 +57,13 @@ pub fn run(args: &RepoArgs) -> Result<()> {
 pub struct App {
     /// The surface's **own/primary** repo: the one whose `cli`/`repo` versions
     /// the header shows, the one a detail screen reads by grove name, and the
-    /// single repo of the `--local` (N=1) dashboard. In the native fleet nav it
-    /// is the current repo, sorted first by the discovery layer.
+    /// single repo of an N=1 fleet. In the native fleet nav it is the current
+    /// repo, sorted first by the discovery layer.
     repo: PathBuf,
     /// The fleet snapshot the nav renders (070 Q4 "subsume"). Single-repo
-    /// callers (`new`/`new_detail`, the `--local` dashboard) hold a one-element
-    /// fleet — the N=1 case that renders flat, exactly as before. The native
-    /// dashboard holds the resolved multi-repo fleet.
+    /// callers (`new`/`new_detail`, exercised by the unit tests) hold a
+    /// one-element fleet — the N=1 case that renders flat. The native dashboard
+    /// holds the resolved multi-repo fleet.
     fleet: MultiRepoView,
     /// Repo section roots the user has **collapsed** in the two-level nav —
     /// ephemeral per-session UI state, never persisted (070 Q5, constraint 1).
@@ -101,9 +86,10 @@ pub struct App {
     /// — it is the currently-mounted set, resolved by the native surface at action time.
     toggle_open: bool,
     /// A keystroke (Ctrl-E / Enter in body / submit) decides *that* an
-    /// external action should run; the live loop then suspends the
-    /// terminal and runs it. Splitting these phases keeps `handle_key`
-    /// pure enough to test without a real terminal.
+    /// external action should run; the native host surface then carries it out
+    /// (shell-out write, or `$EDITOR` on the harness tty via the `HostDriver`).
+    /// Splitting these phases keeps `handle_key` pure enough to test without a
+    /// real terminal or a live substrate.
     pending_action: Option<PendingAction>,
     /// **Detail-locked** mode (130-native-detail/020): the `App` is bound to one
     /// grove's detail, mounted as a per-grove host surface beside its harness in the
@@ -118,8 +104,9 @@ pub struct App {
     /// [[whichkey bar]] is the *single* owner of the bottom hint line. When set,
     /// `render` suppresses this surface's own footer and the capture modal's inline
     /// hint — those hints are published to the whichkey instead ([`footer_line`]).
-    /// The legacy `--local` in-terminal dashboard leaves it `false` and keeps
-    /// drawing its own footer (there is no whichkey pane to delegate to).
+    /// Every production surface sets it `true`; `false` (the footer-drawing,
+    /// whichkey-less rendering) survives only as a unit-test fixture, since the
+    /// legacy in-terminal dashboard that once ran that way is gone (ADR-0026).
     native_chrome: bool,
 }
 
@@ -287,16 +274,16 @@ pub enum PendingAction {
     /// dashboard drives this by a direct in-process `HostDriver::swap_content` call;
     /// the screen thread parks the previously-selected harness alive and mounts (or
     /// restores) this one — no `zellij action`, no tabs. `repo` is explicit so the
-    /// cross-repo fleet (070) reuses the driving layer unchanged. Native-path only —
-    /// the `--local` in-terminal dashboard has no substrate to drive.
+    /// cross-repo fleet (070) reuses the driving layer unchanged. Carried out by
+    /// the native host surface — the only TUI path (ADR-0026).
     OpenHarness {
         name: String,
         repo: PathBuf,
     },
     /// Legacy "close the acting grove's harness" request (the `x` key). The
     /// content-swap model parks harnesses alive instead of closing them, so the
-    /// native surface treats this as a no-op-with-status; retained for the `--local`
-    /// path's key handling.
+    /// native surface treats this as a no-op-with-status; kept so `x` has a
+    /// defined disposition.
     CloseHarness {
         name: String,
     },
@@ -304,8 +291,7 @@ pub enum PendingAction {
     /// grove (150-working-set/030). Chosen from the toggle picker (`t` then a member
     /// letter); the native surface drives it via `HostDriver::toggle_member` keyed by the
     /// mounted grove, so it acts on the grove whose set is in the content region — not
-    /// the nav's highlighted list row. Native-path only: the `--local` dashboard has no
-    /// working set, so it reports a no-op status.
+    /// the nav's highlighted list row.
     ToggleMember {
         member: WorkingSetMember,
     },
@@ -585,7 +571,7 @@ impl App {
 
     /// If on the detail screen and the bound grove vanished from the fleet, pop
     /// back to the list. (The native detail surfaces are per-grove; this guards
-    /// the `--local` master/detail drill-in path.)
+    /// the in-`App` master/detail drill-in path the unit tests exercise.)
     fn handle_detail_vanish(&mut self, detail_grove: Option<String>) {
         if matches!(self.screen, Screen::GroveDetail) {
             let still_there = detail_grove
@@ -620,8 +606,8 @@ impl App {
     }
 
     /// Resolve a grove's detail in the surface's **own** repo — the detail
-    /// screen is single-repo-scoped (the `--local` dashboard and each per-grove
-    /// detail surface, both N=1 over `self.repo`).
+    /// screen is single-repo-scoped (each per-grove detail surface is N=1 over
+    /// `self.repo`).
     fn detail_grove(&self, name: &str) -> Option<&GroveDetail> {
         self.fleet.grove(&self.repo, name)
     }
@@ -647,8 +633,8 @@ impl App {
     }
 
     /// Activate the highlighted nav row. A **grove** yields
-    /// [`NavActivation::Open`] with its `(repo, name)` for the caller to open
-    /// (native) or drill into (`--local`) — the repo is the grove's **owning**
+    /// [`NavActivation::Open`] with its `(repo, name)` for the native surface to
+    /// open (or the unit tests to drill into) — the repo is the grove's **owning**
     /// repo, carried for cross-repo open (070 Q4/050). A **repo header** toggles
     /// its section's collapse in place (ephemeral, 070 Q5) and yields
     /// [`NavActivation::Toggled`]. While a modal / filter / help intercepts keys
@@ -713,267 +699,7 @@ impl NavSelection {
 }
 
 // ---------------------------------------------------------------------------
-// Filesystem watcher
-//
-// `notify` runs its watcher thread; events arrive on an `mpsc` channel
-// that the sync event loop polls each tick. We don't act on individual
-// events — any event marks the snapshot "dirty" and starts a 200ms
-// debounce window. After that window elapses with no new events, we
-// rescan once. A `git checkout` that touches dozens of files therefore
-// produces one rescan, not dozens.
-//
-// Best-effort: if `notify` cannot initialise (e.g. an exotic platform),
-// or a watched directory does not yet exist, we proceed without
-// fs-watch. `r` still works.
-
-/// Watcher + receiver bundle, kept alive for the duration of the event
-/// loop. Dropping `WatchSet` stops the watcher thread cleanly — the
-/// brief's "exits cleanly on `q`, no leaked threads" constraint.
-pub struct WatchSet {
-    _watcher: Option<RecommendedWatcher>,
-    rx: Option<mpsc::Receiver<notify::Result<notify::Event>>>,
-    /// When set, an event arrived at this instant and we are inside the
-    /// debounce window. `None` means the snapshot is settled.
-    dirty_since: Option<Instant>,
-}
-
-impl WatchSet {
-    pub fn new(repo: &Path) -> Self {
-        let (tx, rx) = mpsc::channel();
-        let mut watcher = match notify::recommended_watcher(move |res| {
-            let _ = tx.send(res);
-        }) {
-            Ok(w) => w,
-            Err(_) => {
-                return Self { _watcher: None, rx: None, dirty_since: None };
-            }
-        };
-        // Watch the two roots that hold grove state, built via the shared fleet
-        // helper (070/030) so the legacy `--local` dashboard and the native
-        // fleet dashboard register identical dir sets; at N=1 it is exactly the
-        // two single-repo roots. Recursive picks up new groves, new leaves, and
-        // new observation files without re-registering watchers.
-        for dir in crate::fleet::fleet_watch_dirs(std::slice::from_ref(&repo.to_path_buf())) {
-            if dir.is_dir() {
-                let _ = watcher.watch(&dir, RecursiveMode::Recursive);
-            }
-        }
-        Self { _watcher: Some(watcher), rx: Some(rx), dirty_since: None }
-    }
-
-    /// Drain pending events from the channel; mark dirty if any arrived.
-    fn drain(&mut self) {
-        let Some(rx) = self.rx.as_ref() else { return };
-        let mut any = false;
-        while let Ok(res) = rx.try_recv() {
-            let Ok(ev) = res else { continue };
-            // Drop `.git/`-internal churn (070 Q6): an event whose paths are all
-            // inside a `.git/` dir never marks dirty — pack/ref/index writes the
-            // 200ms debounce only masked, amplified N-fold at fleet scale. A
-            // pathless event is treated as relevant (conservative refresh).
-            if ev.paths.is_empty()
-                || ev.paths.iter().any(|p| !crate::fleet::path_is_git_internal(p))
-            {
-                any = true;
-            }
-        }
-        if any {
-            self.dirty_since = Some(Instant::now());
-        }
-    }
-
-    /// True when an event has arrived and the debounce window has elapsed.
-    fn settled(&self) -> bool {
-        match self.dirty_since {
-            Some(t) => t.elapsed() >= DEBOUNCE,
-            None => false,
-        }
-    }
-
-    fn clear(&mut self) {
-        self.dirty_since = None;
-    }
-
-    /// Poll timeout for `event::poll`. While dirty, shorten so we notice
-    /// the debounce settling promptly without idling for 200ms.
-    fn poll_timeout(&self) -> Duration {
-        match self.dirty_since {
-            Some(t) => DEBOUNCE
-                .saturating_sub(t.elapsed())
-                .max(Duration::from_millis(10)),
-            None => Duration::from_millis(200),
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Live event loop (with fs-watch and shell-out)
-
-fn live_event_loop(
-    terminal: &mut DefaultTerminal,
-    app: &mut App,
-    watch: &mut WatchSet,
-) -> Result<()> {
-    loop {
-        terminal.draw(|f| render(f, app))?;
-
-        watch.drain();
-        if watch.settled() {
-            if let Err(e) = app.refresh_silent() {
-                app.status = Some(format!("rescan failed: {}", e));
-            }
-            watch.clear();
-        }
-
-        if event::poll(watch.poll_timeout())? {
-            if let Event::Key(k) = event::read()? {
-                if k.kind == KeyEventKind::Press
-                    && handle_key(app, k.code, k.modifiers)?
-                {
-                    return Ok(());
-                }
-            }
-        }
-
-        if let Some(action) = app.pending_action.take() {
-            process_pending_action(terminal, app, action);
-            // The shell-out wrote (or read) the filesystem; the watcher
-            // will fire, debounce, and trigger a rescan on the next
-            // settled tick. No manual refresh needed here.
-        }
-    }
-}
-
-/// Suspend the alt-screen / raw-mode TUI, run `f`, then re-init.
-///
-/// Uses `ratatui::restore()` / `ratatui::init()` rather than bespoke
-/// alt-screen toggling, per ratatui 0.29 guidance.
-fn suspended<F, R>(terminal: &mut DefaultTerminal, f: F) -> R
-where
-    F: FnOnce() -> R,
-{
-    ratatui::restore();
-    let r = f();
-    *terminal = ratatui::init();
-    let _ = terminal.clear();
-    r
-}
-
-fn process_pending_action(
-    terminal: &mut DefaultTerminal,
-    app: &mut App,
-    action: PendingAction,
-) {
-    match action {
-        PendingAction::Submit => {
-            let target = app.capture.target.clone();
-            let body = app.capture.body.clone();
-            let outcome = suspended(terminal, || shell_capture(&target, &body));
-            match outcome {
-                Ok(()) => {
-                    app.status = Some(format!("captured to {}", target));
-                    app.capture = CaptureModal::default();
-                }
-                Err(e) => {
-                    // Per the leaf: "No retry on capture failure in v1.
-                    // Surface stderr and let the user re-press c."
-                    app.status = Some(format!("capture failed: {}", short_err(&e)));
-                    app.capture = CaptureModal::default();
-                }
-            }
-        }
-        PendingAction::EditBody => {
-            let body = app.capture.body.clone();
-            let outcome = suspended(terminal, || shell_editor(&body));
-            match outcome {
-                Ok(new_body) => {
-                    app.capture.body = new_body;
-                    app.capture.field = CaptureField::Body;
-                }
-                Err(e) => {
-                    app.status = Some(format!("editor failed: {}", short_err(&e)));
-                }
-            }
-        }
-        PendingAction::EditObservation { path } => {
-            // Seed $EDITOR with the entry's current body, then — only if the
-            // user actually changed it to something non-empty — round-trip
-            // through `grove-llm inbox-edit`. The drain target grove is the one
-            // the detail screen is on (the inbox pane only opens from there).
-            let grove = app
-                .detail
-                .as_ref()
-                .map(|d| d.grove.clone())
-                .unwrap_or_default();
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            let outcome = suspended(terminal, || shell_edit_observation(&path));
-            match outcome {
-                Ok(EditOutcome::Unchanged) => {
-                    app.status = Some(format!("{}: unchanged", name));
-                }
-                Ok(EditOutcome::Saved) => {
-                    // The fs-watch on `.grove-meta/inboxes` fires on the rename,
-                    // debounces, and rescans — the renamed entry then appears.
-                    app.status = Some(format!("edited {} in {}", name, grove));
-                }
-                Err(e) => {
-                    // Mirror capture/disposition: surface stderr, no silent retry.
-                    app.status = Some(format!("edit failed: {}", short_err(&e)));
-                }
-            }
-        }
-        PendingAction::Drain { path, disposition } => {
-            // The grove the detail screen is on is the drain target; the
-            // picker only opens from a focused detail inbox pane.
-            let grove = app
-                .detail
-                .as_ref()
-                .map(|d| d.grove.clone())
-                .unwrap_or_default();
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            let outcome = suspended(terminal, || shell_drain(&grove, &path, disposition));
-            match outcome {
-                Ok(()) => {
-                    // The fs-watch on `.grove-meta/inboxes` fires on the delete,
-                    // debounces, and rescans — the entry then disappears and the
-                    // inbox `ListState` clamps via the render-time bounds check.
-                    app.status = Some(format!("{} {}", disposition.label(), name));
-                }
-                Err(e) => {
-                    // Mirror capture's handling: surface stderr, no silent retry.
-                    app.status = Some(format!("disposition failed: {}", short_err(&e)));
-                }
-            }
-        }
-        PendingAction::OpenHarness { name, .. } | PendingAction::CloseHarness { name } => {
-            // Harness tabs are driven natively by the trellis `HostDriver`; the
-            // legacy `--local` in-terminal dashboard has no embedding to drive,
-            // so this is a no-op beyond an explanatory status line. The native
-            // `grove tui` (default) opens/closes harness tabs for real.
-            app.status = Some(format!(
-                "workspace tabs need the native dashboard — run `grove tui` (not --local): {}",
-                name
-            ));
-        }
-        PendingAction::ToggleMember { member } => {
-            // Exhaustiveness arm: the `t` picker only opens under `native_chrome`, so the
-            // `--local` dashboard never queues this. Kept as an explanatory no-op should
-            // that gate ever change — the working set lives in the native content region,
-            // which `--local` has none of (150-working-set/030).
-            app.status = Some(format!(
-                "toggling {} needs the native dashboard — run `grove tui` (not --local)",
-                member.label()
-            ));
-        }
-    }
-}
-
+// Shell-out helpers (used by both the native host surface and the unit tests)
 
 fn short_err(e: &anyhow::Error) -> String {
     // `{:#}` collapses the anyhow chain into "top: cause: root", which
@@ -1064,25 +790,10 @@ enum EditOutcome {
     Unchanged,
 }
 
-/// Edit an existing committed observation: read its current body, open it in
-/// `$EDITOR`, and — only if the user changed it to something non-empty —
-/// rewrite it via `grove-llm inbox-edit --body-file`. The CLI recomputes the
-/// content-hash filename, commits, and pushes when a remote is configured; the
-/// TUI never touches `grove-meta` git plumbing directly. An empty edited body
-/// is rejected (mirroring capture's empty-body guard) rather than producing an
-/// empty observation.
-fn shell_edit_observation(path: &Path) -> Result<EditOutcome> {
-    let current = std::fs::read_to_string(path)
-        .with_context(|| format!("reading observation {}", path.display()))?;
-    let edited = shell_editor(&current)?;
-    decide_observation_edit(path, &current, edited)
-}
-
 /// Shared tail of the observation-edit flow: given the original body and the
 /// edited body, no-op on no change, reject an empty result, else round-trip
-/// through the `grove-llm inbox-edit` verb. Used by both the local-tty
-/// `shell_edit_observation` and the controller's proxy-routed editor flow, which
-/// differ only in *how* `$EDITOR` is run (local tty vs the proxy's tty).
+/// through the `grove-llm inbox-edit` verb. The native host surface drives
+/// `$EDITOR` on the harness tty and calls this with the result.
 fn decide_observation_edit(path: &Path, current: &str, edited: String) -> Result<EditOutcome> {
     if edited == current {
         return Ok(EditOutcome::Unchanged);
@@ -1119,28 +830,6 @@ fn inbox_edit_verb(path: &Path, edited: &str) -> Result<()> {
         );
     }
     Ok(())
-}
-
-fn shell_editor(initial: &str) -> Result<String> {
-    let editor = std::env::var("EDITOR")
-        .or_else(|_| std::env::var("VISUAL"))
-        .unwrap_or_else(|_| "vi".into());
-    let tf = tempfile::Builder::new()
-        .prefix("grove-capture-")
-        .suffix(".md")
-        .tempfile()
-        .context("creating editor tempfile")?;
-    std::fs::write(tf.path(), initial)
-        .with_context(|| format!("seeding editor tempfile {}", tf.path().display()))?;
-    let status = std::process::Command::new(&editor)
-        .arg(tf.path())
-        .status()
-        .with_context(|| format!("running editor `{}`", editor))?;
-    if !status.success() {
-        anyhow::bail!("editor `{}` exited with status {:?}", editor, status.code());
-    }
-    std::fs::read_to_string(tf.path())
-        .with_context(|| format!("reading edited body back from {}", tf.path().display()))
 }
 
 /// Returns true when the app should exit.
@@ -1228,7 +917,7 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         // as `Enter` on the nav list). `x` is the retired close affordance (the swap
         // model parks harnesses alive; see `PendingAction::CloseHarness`). The
         // decision is recorded here and enacted by the native `process_action`
-        // (`HostDriver::swap_content`); the `--local` path can't drive a substrate.
+        // (`HostDriver::swap_content`).
         (_, KeyCode::Char('o')) => {
             request_open_harness(app);
         }
@@ -1237,8 +926,8 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         }
         // `t` opens the working-set toggle picker — but only in the **native nav**
         // (`native_chrome`), where a content region with a mounted working set exists.
-        // In the `--local` in-terminal dashboard there is no substrate to toggle, so `t`
-        // stays inert there (150-working-set/030).
+        // Without `native_chrome` (the unit-test rendering) there is no substrate to
+        // toggle, so `t` stays inert (150-working-set/030).
         (Screen::GroveList, KeyCode::Char('t')) if app.native_chrome => {
             app.toggle_open = true;
         }
@@ -1276,9 +965,9 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
         }
         (Screen::GroveList, KeyCode::Enter) => {
             // `nav_activate` toggles a section when a repo header is highlighted;
-            // on a grove it yields its `(repo, name)`, which the `--local`
-            // dashboard drills into as detail. (The native nav intercepts `Enter`
-            // earlier to open the harness instead.)
+            // on a grove it yields its `(repo, name)`, which this shared handler
+            // drills into as detail (the path the unit tests exercise). The native
+            // nav intercepts `Enter` earlier to open the harness instead.
             if let NavActivation::Open(_repo, name) = app.nav_activate() {
                 let mut tree = ListState::default();
                 tree.select(Some(0));
@@ -1804,7 +1493,7 @@ pub fn render(f: &mut Frame, app: &App) {
     // A one-row header (cli + repo versions) sits above the body on both screens.
     // In the **native frame** the grove-owned whichkey bar owns the bottom hint
     // line (a separate full-width pane), so this surface draws no footer; the
-    // legacy `--local` dashboard keeps its own footer below the body.
+    // non-`native_chrome` rendering (unit tests) keeps its own footer below the body.
     let main = if app.native_chrome {
         let [header, main] = Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(area);
         render_header(f, header, app);
@@ -1881,8 +1570,8 @@ fn render_capture_modal(f: &mut Frame, area: Rect, app: &App) {
     f.render_widget(block, popup);
 
     // In the native frame the whichkey bar shows the capture keys (`footer_line`),
-    // so the modal drops its inline hint row; the legacy `--local` dashboard keeps
-    // the hint inside the modal (it has no whichkey to delegate to).
+    // so the modal drops its inline hint row; the non-`native_chrome` rendering
+    // (unit tests) keeps the hint inside the modal (no whichkey to delegate to).
     let (target_area, body_area, hint_area) = if app.native_chrome {
         let [target_area, body_area] =
             Layout::vertical([Constraint::Length(3), Constraint::Min(3)]).areas(inner);
@@ -2353,10 +2042,11 @@ fn enclosing_brief(detail: &GroveDetail, selected: Option<&FlatRow>) -> Option<P
 }
 
 /// The bottom hint line for the focused surface, as an owned [`Line`]. This is
-/// the **single source** of grove's key hints (leaf 140): the legacy `--local`
-/// dashboard renders it as its own footer, and in the native frame each surface
-/// *publishes* it to the grove-owned [[whichkey bar]] (`publish_whichkey`) when it
-/// gains focus or changes state, so the bar always reflects the focused surface.
+/// the **single source** of grove's key hints (leaf 140): in the native frame each
+/// surface *publishes* it to the grove-owned [[whichkey bar]] (`publish_whichkey`)
+/// when it gains focus or changes state, so the bar always reflects the focused
+/// surface. (The non-`native_chrome` rendering used in unit tests draws it as a
+/// plain footer.)
 ///
 /// Hints use sigils (⏎ Enter, ⎋ Esc, ⇥ Tab, ⌃o the leader). The line is
 /// context-sensitive: a modal or filter takes precedence over the base
@@ -2390,9 +2080,9 @@ fn footer_line(app: &App) -> Line<'static> {
     // The base per-screen hints. `⌥1-9` tab switching is gone with ADR-0023 (the
     // constant nav + content swap has no tabs), so the nav advertises only the
     // leader.
-    // `t toggle` only applies in the native nav (a mounted working set to toggle); the
-    // `--local` dashboard has no content region, so it omits the hint, matching the `t`
-    // opener's `native_chrome` gate (150-working-set/030).
+    // `t toggle` only applies in the native nav (a mounted working set to toggle);
+    // without `native_chrome` there is no content region, so the hint is omitted,
+    // matching the `t` opener's `native_chrome` gate (150-working-set/030).
     let hint = match app.screen {
         Screen::GroveList if app.native_chrome => "⏎ open · j/k move · ⌃o nav · t toggle · x close · / filter · i inbox · l live/seed · s sort · c capture · r refresh · ? help · q quit",
         Screen::GroveList => "⏎ open · j/k move · ⌃o nav · x close · / filter · i inbox · l live/seed · s sort · c capture · r refresh · ? help · q quit",
@@ -2724,8 +2414,8 @@ mod tests {
         app.toggle_open = false;
 
         // The base `t toggle` hint appears only in the native nav (a working set to
-        // toggle); the `--local` `App` (native_chrome=false) omits it.
-        assert!(!text(&app).contains("t toggle"), "no toggle hint in --local: {}", text(&app));
+        // toggle); a `native_chrome=false` `App` omits it.
+        assert!(!text(&app).contains("t toggle"), "no toggle hint without native_chrome: {}", text(&app));
         app.native_chrome = true;
         assert!(text(&app).contains("t toggle"), "toggle hint in native nav: {}", text(&app));
     }
@@ -2792,11 +2482,11 @@ mod tests {
         assert!(!app.toggle_open, "Esc cancels the picker");
         assert!(app.pending_action.is_none(), "cancel queues no action");
 
-        // In `--local` (native_chrome=false) `t` is inert — no working set to toggle.
+        // Without `native_chrome` `t` is inert — no working set to toggle.
         let view = RepoView::scan(tmp.path()).unwrap();
-        let mut local = App::new(tmp.path().to_path_buf(), view, None);
-        handle_key(&mut local, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
-        assert!(!local.toggle_open, "t is inert in the --local dashboard");
+        let mut plain = App::new(tmp.path().to_path_buf(), view, None);
+        handle_key(&mut plain, KeyCode::Char('t'), KeyModifiers::NONE).unwrap();
+        assert!(!plain.toggle_open, "t is inert without native_chrome");
     }
 
     #[test]
@@ -3579,64 +3269,6 @@ mod tests {
         let spans = worktree_spans(Some("codex"), &s("4.0.0"), &s("4.0.0"), "4.0.0");
         assert_eq!(text_of(&spans), "worktree[codex]=4.0.0");
     }
-    // -----------------------------------------------------------------
-    // Filesystem watcher debounce predicate
-
-    #[test]
-    fn watchset_settled_only_after_debounce() {
-        // Construct without spawning a real watcher; just exercise the
-        // debounce predicate, which is the public-facing
-        // contract the event loop depends on.
-        let mut w = WatchSet { _watcher: None, rx: None, dirty_since: None };
-        assert!(!w.settled());
-
-        w.dirty_since = Some(Instant::now());
-        assert!(!w.settled(), "fresh dirty mark must not be settled");
-
-        w.dirty_since = Some(Instant::now() - Duration::from_millis(250));
-        assert!(w.settled(), "older-than-debounce mark must be settled");
-
-        w.clear();
-        assert!(!w.settled());
-    }
-
-    #[test]
-    fn watchset_drain_ignores_git_internal_events() {
-        // 070/030 Done-when: an event whose path is inside `.git/` never marks
-        // the snapshot dirty — fed here as a synthetic notify event through the
-        // real `drain` channel, not just the pure predicate.
-        use notify::{Event, EventKind};
-        let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
-        let mut w = WatchSet { _watcher: None, rx: Some(rx), dirty_since: None };
-
-        // A `.git/`-internal write: pack/ref/index churn. Must be ignored.
-        tx.send(Ok(Event::new(EventKind::Any)
-            .add_path(PathBuf::from("/r/.grove-worktrees/feat/.git/refs/heads/main"))))
-            .unwrap();
-        w.drain();
-        assert!(w.dirty_since.is_none(), "a .git/ event must not mark dirty");
-
-        // A real grove-state write under the same worktree: must mark dirty.
-        tx.send(Ok(Event::new(EventKind::Any)
-            .add_path(PathBuf::from("/r/.grove-worktrees/feat/.grove/030-x.md"))))
-            .unwrap();
-        w.drain();
-        assert!(w.dirty_since.is_some(), "a .grove/ event must mark dirty");
-    }
-
-    #[test]
-    fn watchset_poll_timeout_shortens_when_dirty() {
-        let mut w = WatchSet { _watcher: None, rx: None, dirty_since: None };
-        assert_eq!(w.poll_timeout(), Duration::from_millis(200));
-
-        w.dirty_since = Some(Instant::now());
-        // Within the window, the timeout is some positive value below
-        // 200ms — clamped to at least 10ms so we don't busy-spin.
-        let t = w.poll_timeout();
-        assert!(t <= Duration::from_millis(200));
-        assert!(t >= Duration::from_millis(10));
-    }
-
     #[test]
     fn vcs_tool_defaults_to_lazygit_for_a_plain_git_worktree() {
         // 020-aux-tool-panes: the vcs pane is not hard-wired to git — but a
@@ -4154,10 +3786,7 @@ mod tests {
 /// VCS itself. Pure over the worktree path (no shell-out), so it is unit-testable
 /// and sits below the ADR-0013 presentation boundary.
 //
-// Consumed by the `trellis-seam`-gated `mod native` (the aux-spawn path) and by
-// the always-on unit tests; without the feature only the tests use it, so the
-// dead-code lint is silenced for that build.
-#[cfg_attr(not(feature = "trellis-seam"), allow(dead_code))]
+// Consumed by `mod native` (the aux-spawn path) and by the unit tests.
 fn vcs_tool(worktree: &Path) -> &'static str {
     if worktree.join(".jj").is_dir() {
         "lazyjj"
@@ -4173,7 +3802,6 @@ fn vcs_tool(worktree: &Path) -> &'static str {
 /// in-pane message rather than failing the whole working-set mount when an aux
 /// tool (yazi/lazygit) is not installed. Pure over `(bin, path)`, so it is
 /// testable without touching the process environment.
-#[cfg_attr(not(feature = "trellis-seam"), allow(dead_code))]
 fn on_path(bin: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
     if bin.contains('/') {
         let p = PathBuf::from(bin);
@@ -4190,10 +3818,9 @@ fn on_path(bin: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
 //
 // It lives in a child module so it can reuse this module's private items
 // (`render`, `handle_key`, `App`'s fields, `refresh_silent`, the `shell_*`
-// writers) without widening their visibility; it is feature-gated because it
-// links the forked `zellij-*` crates (the `trellis-seam` feature).
+// writers) without widening their visibility. It links the forked `zellij-*`
+// crates unconditionally — trellis is the only TUI (ADR-0026).
 // ===========================================================================
-#[cfg(feature = "trellis-seam")]
 mod native {
     use std::collections::BTreeSet;
     use std::path::{Path, PathBuf};
@@ -4264,8 +3891,8 @@ mod native {
     /// Publish `line` as the whichkey content owned by `owner`, and wake the bar to
     /// redraw — but only when the content actually changed, so a held key (or a
     /// no-op redraw) does not tick the bar every keystroke. Called by the focused
-    /// nav/detail surface; a no-op-but-safe call when no whichkey pane exists (the
-    /// `--local` path) since the driver is then `None`.
+    /// nav/detail surface; a no-op-but-safe call when no whichkey pane exists yet
+    /// (the driver is then `None`).
     fn publish_whichkey(owner: WhichkeyOwner, line: Line<'static>) {
         let changed = {
             let mut slot = WHICHKEY_LINE.lock().unwrap();
@@ -5382,5 +5009,4 @@ mod native {
     }
 }
 
-#[cfg(feature = "trellis-seam")]
 pub use native::{dashboard_surface, whichkey_surface};

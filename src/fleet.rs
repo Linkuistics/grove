@@ -202,8 +202,8 @@ fn scan_root(root: &Path) -> Vec<PathBuf> {
 // the watch its three fleet-scale behaviours: which directories to register,
 // which events to ignore (`.git/` churn), and which repo owns an event so a
 // settle re-scans only that repo's `RepoView`. They live here (below the
-// presentation boundary, ADR-0013) so both watch paths — the legacy `--local`
-// `WatchSet` and the native `spawn_grove_watch` — share one implementation.
+// presentation boundary, ADR-0013) so the native `spawn_grove_watch` and its
+// unit tests share one implementation.
 
 /// True when `path` lies inside (or *is*) a `.git/` directory — any path
 /// component is exactly `.git`. The fleet fs-watch drops such events before they

@@ -120,9 +120,11 @@ settled survives). Distinct from the shelved [[harness-pane crate]] — trellis
 fulfils that crate's embedding *mission* via zellij's mature emulator instead of
 `tui-term`/`vt100`. **Vendored** at `crates/trellis/` (a self-contained,
 workspace-`exclude`d cargo workspace; forked from zellij `v0.44.3`, see
-`crates/trellis/PROVENANCE.md`); the grove→trellis edge is the optional `trellis`
-dependency behind the `trellis-seam` feature until the native host API (leaf 110)
-makes it always-on.
+`crates/trellis/PROVENANCE.md`); the grove→trellis edge is an **unconditional**
+path dependency — trellis is the one, always-on TUI, so every `grove` build links
+it. (The earlier `trellis-seam` feature gate that kept it optional while the native
+host API was built out was removed once trellis became the sole TUI — ADR-0026,
+which also deleted the obsolete `grove-nav` WASM plugin the native nav replaced.)
 
 **trellis hosting API** (library-you-link; resolved by ADR-0021):
 the shape by which grove hosts the [[trellis framework]] — **grove owns `main`**,
@@ -215,7 +217,9 @@ The set of panes shown for one grove inside its [[workspace]] tab: the [[harness
 now a **native in-process surface**, not a WASM plugin — a keybind reaches it by a
 direct focus call, with no `LaunchOrFocusPlugin`/permission/`cli_pipe_output`
 apparatus. The nav's **role/UX** below survives; only "it is a WASM plugin" is
-superseded. Live leaf: `120-native-nav`.)*
+superseded. Built by `120-native-nav`; the obsolete `crates/grove-nav` WASM crate
+and its `build.rs` embed were **deleted** in ADR-0026 — the `"grove-nav"` name now
+denotes the native nav *pane* in the layout, not a plugin.)*
 grove's [[leader]]-focused command surface, realised as a **zellij WASM plugin** (Strategy 1a, pulled forward by ADR-0018 — the one surface a keybind can focus *by name* and that receives keys while focused; locked-mode key delivery to it is confirmed live). The [[leader]] focuses it via `LaunchOrFocusPlugin`. As of ADR-0019 it is also the **"home" [[workspace]]** — a full-height grove list. It switches [[workspace]]s, toggles [[working set]] panes, jumps home, and is the mode/key discoverability surface (subsuming the former `050-mode-discoverability` concern). It holds **no** grove state — the [[controlling process]] pipes it the live grove list *with each grove's `grove do` command + cwd* (forward `zellij pipe`). **It opens and switches workspaces *itself*** (ADR-0019: `switch_tab_to` for an open grove, `new_tabs_with_layout` to first-open a closed one) — *not* by "signalling intent back to the controller," which ADR-0018 proposed but ADR-0019 found unworkable (`cli_pipe_output` is reply-only — it cannot push to a stored channel from a keypress). Amends ADR-0016: unlike a [[dashboard proxy]] (dumb, controller-rendered), the nav is a *smart*, self-rendering surface.
 
 **Detail proxy** (per-grove):
@@ -242,7 +246,8 @@ detail) *publishes* its own hint line to the bar when it gains focus or changes 
 (and relinquishes it to a "keys go to the harness" line on blur), waking a redraw via
 the bar's stored `HostDriver` — so the bar always reflects the focused surface using
 only the existing host-surface seam (no new trellis focus hook). The hint text is the
-same `footer_line` the legacy `--local` dashboard draws as its own footer.
+same `footer_line` the `App` produces (drawn as a plain footer only in the
+`native_chrome=false` rendering the unit tests exercise).
 
 **Leader** (control-seam key):
 *(Binding updated by the [[trellis framework]] fork — ADR-0020: `Ctrl-o` now

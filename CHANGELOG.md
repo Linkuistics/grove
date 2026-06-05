@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- **trellis is the only TUI — the legacy in-terminal dashboard and the `--local` flag are gone.** v6.0.0 shipped the native trellis dashboard but left the pre-v6 in-terminal ratatui dashboard behind a hidden `grove tui --local` escape hatch, gated by an *off-by-default* `trellis-seam` build feature. Because nothing in the release path turned that feature on, the **shipped binary actually built without trellis and always fell back to the local, single-repo dashboard that ignores `~/.config/grove/fleet.toml`** — the fleet view never reached users. This release removes the `trellis-seam` feature (the `trellis` crates are now unconditional dependencies, so a default `cargo build` is trellis-capable), deletes the in-terminal `tui::run` event loop, and removes the `--local` flag (`grove tui --local` is now an unknown-flag error). `grove tui` launches the native trellis dashboard, unconditionally. (ADR-0026)
+
+### Removed
+
+- **The obsolete `grove-nav` WASM plugin.** The nav became a native in-process surface during the v6 fork (ADR-0020); the WASM plugin's embed site was already gone (nothing did `include_bytes!` on it), leaving the `crates/grove-nav` crate and its `build.rs` compile step as dead weight that also broke `cargo build` inside nested worktrees. Both are deleted; the `"grove-nav"` name now denotes only the native nav *pane* in the layout. As a result, **no `wasm32-wasip1` target is needed to build grove**.
+
 ## v6.0.0
 
 This release rebuilds grove's TUI on its own multiplexer. The CLI and methodology surface (`grove`, `grove-llm`, the `.grove/` task tree, durable markdown artifacts) is unchanged; the entire delta is the dashboard substrate and the multi-repo/embedding capabilities it unlocks.

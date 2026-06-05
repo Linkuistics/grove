@@ -28,9 +28,9 @@
 //! # The seam stays one-way (ADR-0020 §4)
 //!
 //! grove depends on the `zellij-{client,server,utils}` crates (aliased
-//! `trellis*`); they never depend on grove. Everything here is gated behind the
-//! `trellis-seam` feature so a default `grove`/`grove-llm` build never links the
-//! ~100k-LOC server.
+//! `trellis*`); they never depend on grove. The dependency is **unconditional** —
+//! trellis is the one, always-on TUI, so every `grove` build links the
+//! ~100k-LOC server (ADR-0026, which removed the former `trellis-seam` gate).
 //!
 //! # Scope of this leaf (010)
 //!
@@ -41,8 +41,6 @@
 //! *tamed* config (bars-free, locked mode — already drafted in
 //! [`crate::zellij`]'s `CONFIG_TEMPLATE`) is a fast-follow, deferred so this
 //! foundation step maximises the chance the session simply boots.
-
-#![cfg(feature = "trellis-seam")]
 
 use std::path::PathBuf;
 

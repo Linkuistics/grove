@@ -21,10 +21,8 @@ use std::path::Path;
 /// two repos' dashboards don't collide on one session. Non-`[A-Za-z0-9_-]` chars
 /// become `-`; a basename that sanitises to nothing falls back to plain `grove`.
 ///
-/// Consumed by the trellis client ([`crate::trellis_host`]), which only exists
-/// under the `trellis-seam` feature — so a default build sees it as unused; the
-/// test below keeps it exercised in every build.
-#[cfg_attr(not(feature = "trellis-seam"), allow(dead_code))]
+/// Consumed by the trellis client ([`crate::trellis_host`]), the one, always-on
+/// TUI (ADR-0026).
 pub(crate) fn session_name(repo: &Path) -> String {
     let base = repo
         .file_name()

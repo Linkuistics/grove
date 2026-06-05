@@ -2,20 +2,14 @@
 # extractable `harness-pane` crate (the in-process-pty terminal embed,
 # ADR-0014). The root package is itself an implicit workspace member, so
 # `cargo build`/`cargo test` from here covers both.
-#
-# `crates/grove-nav` (the zellij WASM nav plugin, ADR-0018) is **excluded**: it
-# only builds for `wasm32-wasip1` and depends on `zellij-tile`, so a host
-# `cargo build`/`cargo test` must not try to compile it. The root `build.rs`
-# builds it explicitly for wasm and embeds the result.
 [workspace]
 members = ["crates/harness-pane"]
 # `crates/trellis` is grove's hard fork of zellij (ADR-0020), itself a complete
 # cargo workspace with its own `Cargo.lock`. It is **excluded** so a host
 # `cargo build`/`cargo test` never folds its ~100k-LOC member crates into grove's
-# build; the one-way grove→trellis seam is a path dependency *into* it (see the
-# optional `trellis` dependency + `trellis-seam` feature below). Same pattern as
-# `crates/grove-nav`.
-exclude = ["crates/grove-nav", "crates/trellis"]
+# build *as workspace members*; the one-way grove→trellis seam is an
+# unconditional path dependency *into* it (see the `trellis` dependency below).
+exclude = ["crates/trellis"]
 
 [package]
 name = "grove"
@@ -25,8 +19,6 @@ description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 rust-version = "1.74"
-# Builds the grove-nav wasm plugin and embeds it (see build.rs, leaf 070).
-build = "build.rs"
 
 # Sibling git worktrees live alongside the crate root but aren't part
 # of the crate. `.grove-meta/` carries inbox files whose ISO-8601 names
@@ -79,30 +71,23 @@ ureq = { version = "2.10", features = ["json"] }
 
 # The grove→trellis framework seam (ADR-0020/0021). `trellis` is grove's hard fork
 # of zellij, vendored at `crates/trellis/` (its own workspace). grove may depend on
-# trellis; trellis must **never** depend on grove (one-way). Kept **optional** while
-# the native host API is built out (leaf 110): a default `cargo build`/`cargo test`
-# stays fast and unchanged, while `cargo build --features trellis-seam` links the
-# framework and proves the edge compiles.
+# trellis; trellis must **never** depend on grove (one-way).
 #
-# Leaf 110/010 **broadens the seam** per ADR-0021's library-you-link decision:
-# grove owns `main` and dispatches the trellis client/server roles itself, so it
-# links all three foundational crates — `zellij-client` (the foreground client
-# UI / blitter), `zellij-server` (the re-exec'd render daemon), and `zellij-utils`
-# (shared config/layout/data). The package aliases keep grove's references reading
-# as `trellis*` rather than `zellij_*`. Still optional behind `trellis-seam`: the
-# heavy ~100k-LOC server link (terminal emulation, PTY, the wasmi plugin host) must
-# not slow a default `grove`/`grove-llm` build that never starts the TUI. Whether
-# to flip the feature always-on is deferred to a later 110 leaf (030), once the
-# native dashboard fully replaces the superseded launch path.
-trellis = { package = "zellij-utils", path = "crates/trellis/zellij-utils", optional = true }
-trellis-client = { package = "zellij-client", path = "crates/trellis/zellij-client", optional = true }
-trellis-server = { package = "zellij-server", path = "crates/trellis/zellij-server", optional = true }
-
-[features]
-# Compile the grove→trellis framework dependency (ADR-0020/0021). Off by default;
-# links all three foundational crates so grove's `main` can dispatch the
-# client/server roles in-process (the native host API, leaf 110).
-trellis-seam = ["dep:trellis", "dep:trellis-client", "dep:trellis-server"]
+# These deps are **unconditional**: trellis is the one, always-on TUI (ADR-0026).
+# Per ADR-0021's library-you-link decision grove owns `main` and dispatches the
+# trellis client/server roles itself, so it links all three foundational crates —
+# `zellij-client` (the foreground client UI / blitter), `zellij-server` (the
+# re-exec'd render daemon), and `zellij-utils` (shared config/layout/data). The
+# package aliases keep grove's references reading as `trellis*` rather than
+# `zellij_*`. The earlier `trellis-seam` feature gate (which kept these optional
+# while the native host API was built out) was removed: it defaulted *off*, so the
+# shipped binary linked no trellis and `grove tui` fell into a fleet-blind local
+# dashboard — the bug ADR-0026 fixes. The cost is a slower default build (the heavy
+# ~100k-LOC server link: terminal emulation, PTY, the wasmi plugin host), accepted
+# for one coherent always-trellis binary.
+trellis = { package = "zellij-utils", path = "crates/trellis/zellij-utils" }
+trellis-client = { package = "zellij-client", path = "crates/trellis/zellij-client" }
+trellis-server = { package = "zellij-server", path = "crates/trellis/zellij-server" }
 
 [dev-dependencies]
 assert_cmd = "2.0"

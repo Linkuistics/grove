@@ -54,7 +54,37 @@ use trellis_client::{start_client, ClientInfo};
 use trellis_server::os_input_output::get_server_os_input;
 use trellis_server::start_server;
 
-use crate::cli::RepoArgs;
+/// The env var the client uses to hand the resolved `--repo` flags to the
+/// re-exec'd server (ADR-0027 §4). Newline-joined path strings; the server
+/// splits them back. Replaces the single-anchor `GROVE_REPO` the cwd-anchored
+/// TUI used — the fleet is config-driven, so the *list* of explicit flags is
+/// what must cross the re-exec (the cwd + manifest are inherited identically).
+const GROVE_REPO_FLAGS_ENV: &str = "GROVE_REPO_FLAGS";
+
+/// Encode `--repo` flags for the [`GROVE_REPO_FLAGS_ENV`] handoff: newline-joined
+/// path strings. A grove-internal channel (the client → its own re-exec'd
+/// server), so the theoretical newline-in-a-path case is not defended against.
+fn encode_repo_flags(flags: &[PathBuf]) -> String {
+    flags
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Decode the [`GROVE_REPO_FLAGS_ENV`] handoff back into `--repo` flags. Absent
+/// or empty env → no flags (the manifest + scan-root fleet alone). Inverse of
+/// [`encode_repo_flags`].
+fn decode_repo_flags(raw: Option<std::ffi::OsString>) -> Vec<PathBuf> {
+    match raw {
+        Some(s) if !s.is_empty() => s
+            .to_string_lossy()
+            .split('\n')
+            .map(PathBuf::from)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
 
 /// The trellis server re-exec, parsed from grove's own argv.
 ///
@@ -110,14 +140,13 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
     // (it is a `OnceCell`) would be a bug, so ignore the already-set Err.
     let _ = trellis::consts::DEBUG_MODE.set(inv.debug);
 
-    // Resolve the repo the dashboard surfaces. The client passes it via the
-    // `GROVE_REPO` env var, which the re-exec inherits (`spawn_server` runs
-    // `current_exe() --server …` without clearing the environment); fall back to
-    // the cwd's git root for a bare `grove --server` invocation.
-    let repo = match std::env::var_os("GROVE_REPO") {
-        Some(p) => PathBuf::from(p),
-        None => crate::repo::resolve(None)?,
-    };
+    // Resolve the **fleet** the dashboard surfaces — config-only, no cwd anchor
+    // (ADR-0027). The client passes the `--repo` flags via `GROVE_REPO_FLAGS`,
+    // which the re-exec inherits (`spawn_server` runs `current_exe() --server …`
+    // without clearing the environment); the cwd is inherited too, so the
+    // manifest + scan-root resolution is identical to the client side. A bare
+    // `grove --server` (no env) resolves the manifest + scan fleet alone.
+    let repo_flags = decode_repo_flags(std::env::var_os(GROVE_REPO_FLAGS_ENV));
 
     // Register grove's host surface (ADR-0021 native-pane seam). The trellis
     // server takes this factory once, when the first tab's layout is applied, and
@@ -126,7 +155,7 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
     // built **now** (so a scan failure surfaces before the session boots) and
     // moved into the one-shot factory. This must happen on the `--server` path
     // because the host pane renders inside the server daemon (Evidence #3).
-    let surface = crate::tui::dashboard_surface(repo)?;
+    let surface = crate::tui::dashboard_surface(&repo_flags)?;
     trellis_server::panes::host_pane::register_host_surface(Box::new(move || Box::new(surface)));
 
     // The grove-owned whichkey bar (ADR-0019, leaf 140): a second statically-placed
@@ -143,9 +172,10 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
     Ok(())
 }
 
-/// Run the **trellis client** UI for `args.repo` (default: the cwd's git root):
-/// grove's foreground role when launched as the TUI. Mirrors the essential setup
-/// of zellij `commands::start_client` — resolve config/options/layout via
+/// Run the **trellis client** UI for the config-resolved fleet (the additive
+/// `--repo` flags; no cwd git root, ADR-0027): grove's foreground role when
+/// launched as the TUI. Mirrors the essential setup of zellij
+/// `commands::start_client` — resolve config/options/layout via
 /// [`Setup::from_cli_args`], open the client OS seam, and start a **new** named
 /// session via `zellij_client::start_client`. The client connects to the server
 /// (spawning it by re-exec — see [`run_server`]) and blits its rendered frames.
@@ -155,15 +185,21 @@ pub fn run_server(inv: ServerInvocation) -> Result<()> {
 /// (`start_client` can return a `ConnectToSession`) is intentionally not looped
 /// here — a single session is the foundation proof; 030's dashboard port revisits
 /// it if detach/reattach is needed.
-pub fn run_client(args: &RepoArgs) -> Result<()> {
-    let repo = crate::repo::resolve(args.repo.as_deref())?;
+pub fn run_client(repo_flags: &[PathBuf]) -> Result<()> {
     boot_framework();
 
-    // The re-exec'd server inherits our environment; pass it the repo so its
-    // dashboard surface (built on the `--server` path) scans the right tree.
-    std::env::set_var("GROVE_REPO", &repo);
+    // Hand the `--repo` flags to the re-exec'd server (which builds the dashboard
+    // surface on the `--server` path): it inherits our environment, so the flag
+    // list rides across in `GROVE_REPO_FLAGS` and the cwd is shared for identical
+    // scan-root resolution (ADR-0027). No single `GROVE_REPO` anchor any more.
+    if !repo_flags.is_empty() {
+        std::env::set_var(GROVE_REPO_FLAGS_ENV, encode_repo_flags(repo_flags));
+    }
 
-    let session = crate::zellij::session_name(&repo);
+    // The fleet TUI is a **singleton session** (ADR-0027 §4): one constant
+    // `grove-fleet` session, so a second `grove tui` re-attaches rather than
+    // fragmenting the fleet into one session per launch directory.
+    let session = crate::zellij::session_name();
     let opts = client_cli_args(&session);
 
     let (config, layout_info, _config_options, _config_no_layout, _options_no_layout) =
@@ -180,7 +216,9 @@ pub fn run_client(args: &RepoArgs) -> Result<()> {
     let os_input =
         get_client_os_input().map_err(|e| anyhow::anyhow!("opening the terminal: {e}"))?;
 
-    let info = ClientInfo::New(session, layout_info, Some(repo.clone()));
+    // No cwd anchor (ADR-0027): the new session inherits the launch directory
+    // rather than being pinned to a single repo's path.
+    let info = ClientInfo::New(session, layout_info, None);
 
     // Foreground client loop: owns the tty until the session detaches/exits.
     let _reconnect = start_client(
@@ -368,6 +406,24 @@ mod tests {
         assert_eq!(parse_server_invocation(Vec::<String>::new()), None);
         // A lone `--debug` (no socket) is not a server invocation.
         assert_eq!(parse_server_invocation(["--debug"]), None);
+    }
+
+    #[test]
+    fn repo_flags_round_trip_through_the_server_handoff() {
+        // The client encodes the `--repo` flags into `GROVE_REPO_FLAGS`; the
+        // re-exec'd server decodes the same list back (ADR-0027 §4).
+        let flags = vec![PathBuf::from("/work/alpha"), PathBuf::from("../beta")];
+        let encoded = encode_repo_flags(&flags);
+        let decoded = decode_repo_flags(Some(encoded.into()));
+        assert_eq!(decoded, flags);
+    }
+
+    #[test]
+    fn absent_or_empty_handoff_decodes_to_no_flags() {
+        // A bare `grove --server` (no env) and an empty value both mean "no
+        // explicit flags" — the manifest + scan fleet resolves alone.
+        assert!(decode_repo_flags(None).is_empty());
+        assert!(decode_repo_flags(Some(std::ffi::OsString::new())).is_empty());
     }
 
     #[test]

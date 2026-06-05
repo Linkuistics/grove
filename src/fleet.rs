@@ -1,13 +1,16 @@
-//! Fleet repo discovery (ADR-0025) — resolve the set of repo roots a fleet
-//! `grove tui` process spans, from a manifest file + scan roots + `--repo`
-//! flags + the current repo. Produces a plain, canonical, deduped
-//! `Vec<repo root>` consumed by the `MultiRepoView` data layer (leaf 070/020).
+//! Fleet repo discovery (ADR-0025, amended by ADR-0027) — resolve the set of
+//! repo roots a fleet `grove tui` process spans, from a manifest file + scan
+//! roots + `--repo` flags. Produces a plain, canonical, deduped `Vec<repo root>`
+//! consumed by the `MultiRepoView` data layer (leaf 070/020). The fleet is
+//! **config-only**: no cwd git root is detected or auto-included (ADR-0027 §2,
+//! which removed ADR-0025 §3's "current repo always included" convenience) — pin
+//! the current directory deliberately with `grove tui --repo .`.
 //!
 //! This module sits **below** the presentation boundary (ADR-0013): it has no
 //! `ratatui` dependency. The resolution logic is a pure function over injected
 //! inputs (`Discovery`); the side-effecting [`resolve`] wrapper builds those
-//! inputs from the real environment (XDG manifest + cwd git root) and prints
-//! breadcrumbs to stderr.
+//! inputs from the real environment (the XDG manifest) and prints breadcrumbs to
+//! stderr.
 
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -67,9 +70,9 @@ fn manifest_path_from(xdg: Option<String>, home: Option<String>) -> Option<PathB
 /// resolution logic is pure and unit-testable without touching XDG or the
 /// process cwd.
 pub struct Discovery {
-    /// The cwd's git root, if any — always included (ADR-0025 §3).
-    pub current_repo: Option<PathBuf>,
-    /// `--repo <path>` flags, layered additively (ADR-0025 §2).
+    /// `--repo <path>` flags, layered additively (ADR-0025 §2). The sole
+    /// explicit-input axis since ADR-0027 removed the cwd `current_repo`; pin the
+    /// current directory with `grove tui --repo .`.
     pub repo_flags: Vec<PathBuf>,
     /// The parsed manifest, if one was found.
     pub manifest: Option<FleetManifest>,
@@ -80,10 +83,10 @@ impl Discovery {
     /// warnings (one per missing *explicit* repo) alongside it for the caller
     /// to surface. Never fails — unresolvable repos are dropped.
     ///
-    /// Order: current repo first, then manifest `repos` (file order), then
-    /// `--repo` flags (CLI order), then scan-discovered repos (alphabetical).
-    /// Dedup keeps the first occurrence, so explicit routes win over scan
-    /// (ADR-0025 §4; the final fleet sort is leaf 070/040's concern).
+    /// Order: manifest `repos` (file order), then `--repo` flags (CLI order),
+    /// then scan-discovered repos (alphabetical). Dedup keeps the first
+    /// occurrence, so explicit routes win over scan (ADR-0025 §4; the final fleet
+    /// sort is leaf 070/040's concern).
     pub fn resolve_with_warnings(&self) -> (Vec<PathBuf>, Vec<String>) {
         let mut out: Vec<PathBuf> = Vec::new();
         let mut seen: HashSet<PathBuf> = HashSet::new();
@@ -99,15 +102,7 @@ impl Discovery {
             }
         };
 
-        // 1. Current repo — always included, no existence breadcrumb (it is the
-        //    cwd's git root, which exists by construction).
-        if let Some(cur) = &self.current_repo {
-            if cur.is_dir() {
-                push(cur, &mut out);
-            }
-        }
-
-        // 2/3. Explicit repos (manifest `repos`, then `--repo` flags). A missing
+        // 1/2. Explicit repos (manifest `repos`, then `--repo` flags). A missing
         //      one is dropped with a single stderr breadcrumb — never blocks.
         let explicit = self
             .manifest
@@ -127,7 +122,7 @@ impl Discovery {
             }
         }
 
-        // 4. Scan roots — each walked one level; an immediate child that contains
+        // 3. Scan roots — each walked one level; an immediate child that contains
         //    a `.grove-worktrees/` is a discovered repo. Empty/missing scan
         //    roots are expected and stay silent. Discovered repos are sorted
         //    alphabetically by path for a deterministic order.
@@ -160,8 +155,9 @@ impl Discovery {
 }
 
 /// Top-level entry: build [`Discovery`] from the real environment (the XDG
-/// manifest and the cwd git root) plus the given `--repo` flags, and resolve.
-/// The canonical, deduped repo list is returned; breadcrumbs go to stderr.
+/// manifest) plus the given `--repo` flags, and resolve. Config-only — no cwd
+/// git root is consulted (ADR-0027). The canonical, deduped repo list is
+/// returned; breadcrumbs go to stderr.
 pub fn resolve(repo_flags: &[PathBuf]) -> Vec<PathBuf> {
     let manifest = default_manifest_path()
         .and_then(|p| match FleetManifest::load(&p) {
@@ -171,9 +167,7 @@ pub fn resolve(repo_flags: &[PathBuf]) -> Vec<PathBuf> {
                 None
             }
         });
-    let current_repo = crate::repo::resolve(None).ok();
     Discovery {
-        current_repo,
         repo_flags: repo_flags.to_vec(),
         manifest,
     }
@@ -265,7 +259,6 @@ mod tests {
         let a = make_repo(tmp.path(), "a", false);
         let b = make_repo(tmp.path(), "b", false);
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![a.clone(), b.clone()],
@@ -285,7 +278,6 @@ mod tests {
         let with = make_repo(&root, "has-groves", false);
         let _without = make_repo(&root, "no-groves", true); // bare: excluded
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![],
@@ -304,7 +296,6 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let a = make_repo(&root, "a", false);
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![a.clone()],
@@ -316,16 +307,18 @@ mod tests {
     }
 
     #[test]
-    fn current_repo_always_included_even_without_worktrees() {
+    fn repo_flag_included_even_without_worktrees() {
+        // A `--repo` flag is an explicit, always-included root (the surviving
+        // explicit input after ADR-0027 removed the cwd `current_repo`) — it does
+        // not need a `.grove-worktrees/` to qualify, unlike a scan-discovered repo.
         let tmp = TempDir::new().unwrap();
-        let cur = make_repo(tmp.path(), "current", true); // no .grove-worktrees/
+        let pinned = make_repo(tmp.path(), "pinned", true); // no .grove-worktrees/
         let d = Discovery {
-            current_repo: Some(cur.clone()),
-            repo_flags: vec![],
+            repo_flags: vec![pinned.clone()],
             manifest: None,
         };
         let (repos, warnings) = d.resolve_with_warnings();
-        assert_eq!(repos, vec![cur]);
+        assert_eq!(repos, vec![pinned]);
         assert!(warnings.is_empty());
     }
 
@@ -334,7 +327,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let missing = tmp.path().join("gone");
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![missing.clone()],
@@ -350,7 +342,6 @@ mod tests {
     #[test]
     fn empty_everything_yields_empty() {
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: None,
         };
@@ -364,7 +355,6 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let a = make_repo(tmp.path(), "a", false);
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![a.clone()],
             manifest: None,
         };
@@ -373,37 +363,38 @@ mod tests {
     }
 
     #[test]
-    fn current_repo_first_then_manifest_repos() {
+    fn manifest_repos_before_repo_flags() {
+        // Order: manifest `repos` (file order) then `--repo` flags (CLI order).
         let tmp = TempDir::new().unwrap();
-        let cur = make_repo(tmp.path(), "current", false);
-        let a = make_repo(tmp.path(), "a", false);
+        let m = make_repo(tmp.path(), "manifest", false);
+        let f = make_repo(tmp.path(), "flag", false);
         let d = Discovery {
-            current_repo: Some(cur.clone()),
-            repo_flags: vec![],
+            repo_flags: vec![f.clone()],
             manifest: Some(FleetManifest {
-                repos: vec![a.clone()],
+                repos: vec![m.clone()],
                 scan_roots: vec![],
             }),
         };
         let (repos, _) = d.resolve_with_warnings();
-        assert_eq!(repos, vec![cur, a]);
+        assert_eq!(repos, vec![m, f]);
     }
 
     #[test]
-    fn current_repo_also_in_manifest_deduped_kept_first() {
+    fn repo_in_manifest_and_flags_deduped_kept_first() {
+        // A repo named in both the manifest and a `--repo` flag appears once,
+        // kept at its manifest position (dedup keeps the first occurrence).
         let tmp = TempDir::new().unwrap();
-        let cur = make_repo(tmp.path(), "current", false);
+        let shared = make_repo(tmp.path(), "shared", false);
         let a = make_repo(tmp.path(), "a", false);
         let d = Discovery {
-            current_repo: Some(cur.clone()),
-            repo_flags: vec![],
+            repo_flags: vec![shared.clone()],
             manifest: Some(FleetManifest {
-                repos: vec![a.clone(), cur.clone()],
+                repos: vec![a.clone(), shared.clone()],
                 scan_roots: vec![],
             }),
         };
         let (repos, _) = d.resolve_with_warnings();
-        assert_eq!(repos, vec![cur, a]);
+        assert_eq!(repos, vec![a, shared]);
     }
 
     #[test]
@@ -414,7 +405,6 @@ mod tests {
         let z = make_repo(&root, "zeta", false);
         let a = make_repo(&root, "alpha", false);
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![],
@@ -429,7 +419,6 @@ mod tests {
     fn missing_scan_root_silent() {
         let tmp = TempDir::new().unwrap();
         let d = Discovery {
-            current_repo: None,
             repo_flags: vec![],
             manifest: Some(FleetManifest {
                 repos: vec![],

@@ -34,7 +34,6 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
-use crate::repo;
 use crate::multi_repo_view::MultiRepoView;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
@@ -55,11 +54,13 @@ const DRIFT_STYLE: Style = Style::new()
 
 /// Top-level app state — single source of truth for both screens.
 pub struct App {
-    /// The surface's **own/primary** repo: the one whose `cli`/`repo` versions
-    /// the header shows, the one a detail screen reads by grove name, and the
-    /// single repo of an N=1 fleet. In the native fleet nav it is the current
-    /// repo, sorted first by the discovery layer.
-    repo: PathBuf,
+    /// The surface's **own/primary** repo, when it has one — the single repo of
+    /// an N=1 surface (`new`/`new_detail`: the per-grove detail surface is
+    /// genuinely repo-explicit) whose detail screen reads groves by name. `None`
+    /// for the **config-only fleet nav** (`new_fleet` via `dashboard_surface`),
+    /// which has no cwd anchor (ADR-0027): its header derives from the whole
+    /// fleet and grove rows carry their own owning repo.
+    repo: Option<PathBuf>,
     /// The fleet snapshot the nav renders (070 Q4 "subsume"). Single-repo
     /// callers (`new`/`new_detail`, exercised by the unit tests) hold a
     /// one-element fleet — the N=1 case that renders flat. The native dashboard
@@ -427,15 +428,23 @@ impl App {
     pub fn new(repo: PathBuf, view: RepoView, preselect: Option<String>) -> Self {
         // Single-repo: the N=1 "fleet of one" (070 Q4). Wrap the already-scanned
         // `RepoView` rather than re-scanning, and render flat (no repo header).
+        // An explicit anchor repo (`Some`) — this constructor is for genuinely
+        // repo-scoped surfaces, not the cwd-anchored fleet nav (ADR-0027).
         let fleet = MultiRepoView::from_repos(vec![view]);
-        Self::new_fleet(repo, fleet, preselect)
+        Self::new_fleet(Some(repo), fleet, preselect)
     }
 
     /// Build the **native fleet nav** `App` over a multi-repo `fleet` (070 Q4).
-    /// The single-repo [`new`](Self::new) is the N=1 special case routed through
-    /// here. `preselect` names a grove (in the surface's own repo) to highlight;
-    /// the selection is the index of that grove's row in the flattened nav.
-    pub fn new_fleet(repo: PathBuf, fleet: MultiRepoView, preselect: Option<String>) -> Self {
+    /// `repo` is the surface's own anchor repo, or `None` for the config-only
+    /// fleet nav with no cwd anchor (ADR-0027); the single-repo [`new`](Self::new)
+    /// routes through here with `Some`. `preselect` names a grove (in the anchor
+    /// repo) to highlight; the selection is the index of that grove's row in the
+    /// flattened nav. With no anchor, only the first-row fallback applies.
+    pub fn new_fleet(
+        repo: Option<PathBuf>,
+        fleet: MultiRepoView,
+        preselect: Option<String>,
+    ) -> Self {
         let mut app = Self {
             repo,
             fleet,
@@ -461,7 +470,7 @@ impl App {
             .and_then(|name| {
                 rows.iter().position(|r| {
                     matches!(r, NavRow::Grove { repo, summary }
-                        if *repo == app.repo.as_path() && summary.name == name)
+                        if app.repo.as_deref() == Some(*repo) && summary.name == name)
                 })
             })
             .or_else(|| (!rows.is_empty()).then_some(0));
@@ -481,7 +490,9 @@ impl App {
         let mut inbox = ListState::default();
         inbox.select(Some(0));
         Self {
-            repo,
+            // A per-grove detail surface is genuinely repo-explicit (ADR-0027) —
+            // it reads one repo's grove by name, not a cwd anchor.
+            repo: Some(repo),
             fleet: MultiRepoView::from_repos(vec![view]),
             collapsed: BTreeSet::new(),
             screen: Screen::GroveDetail,
@@ -597,19 +608,24 @@ impl App {
         Ok(())
     }
 
-    /// The surface's own repo's [`RepoView`] — the header's version source.
-    /// Falls back to the first repo in the fleet, then `None` (empty fleet).
+    /// The surface's own repo's [`RepoView`], when it has an anchor repo. Falls
+    /// back to the first repo in the fleet, then `None` (no anchor + empty fleet).
+    /// The config-only fleet nav (`repo: None`) takes the first-repo fallback —
+    /// but its header no longer reads a single repo's versions (ADR-0027 §6;
+    /// `render_header` derives from the whole fleet instead).
     fn primary_view(&self) -> Option<&RepoView> {
-        self.fleet
-            .repo(&self.repo)
+        self.repo
+            .as_deref()
+            .and_then(|r| self.fleet.repo(r))
             .or_else(|| self.fleet.repos().first())
     }
 
     /// Resolve a grove's detail in the surface's **own** repo — the detail
     /// screen is single-repo-scoped (each per-grove detail surface is N=1 over
-    /// `self.repo`).
+    /// an explicit `repo`). `None` when the surface has no anchor repo (the fleet
+    /// nav, which drives detail through separate per-grove surfaces).
     fn detail_grove(&self, name: &str) -> Option<&GroveDetail> {
-        self.fleet.grove(&self.repo, name)
+        self.repo.as_deref().and_then(|r| self.fleet.grove(r, name))
     }
 
     /// The flattened two-level nav rows the `ListState` indexes into — repo
@@ -1062,10 +1078,13 @@ fn open_capture_modal(app: &mut App) {
 /// owning repo so a cross-repo open targets the right one (070 Q4/050).
 fn acting_grove(app: &App) -> Option<(PathBuf, String)> {
     match app.screen {
+        // The detail screen only runs on a repo-explicit surface (`new_detail`,
+        // `repo: Some`), so the anchor is present; `None` otherwise is inert.
         Screen::GroveDetail => app
             .detail
             .as_ref()
-            .map(|d| (app.repo.clone(), d.grove.clone())),
+            .zip(app.repo.clone())
+            .map(|(d, repo)| (repo, d.grove.clone())),
         Screen::GroveList => match app.selected_nav() {
             Some(NavSelection::Grove { repo, name }) => Some((repo, name)),
             _ => None,
@@ -1661,14 +1680,39 @@ fn header_spans(
 }
 
 fn render_header(f: &mut Frame, area: Rect, app: &App) {
-    // The header shows the surface's own repo's version layers; in the fleet nav
-    // each repo's drift is shown per-row instead (`render_grove_list`). An empty
-    // fleet (no resolved repos) falls back to a bare `cli` line.
-    let spans = match app.primary_view() {
+    // The config-only fleet nav has no anchor repo (ADR-0027 §6), so the header
+    // derives from the **whole fleet**: the running binary's methodology version
+    // (`status::CLI_VERSION`, shared across repos) plus an `N repos · M groves`
+    // summary. Per-repo version *drift* stays per-row in the nav
+    // (`render_grove_list`). A repo-explicit surface (`new`/`new_detail`) shows
+    // its own repo's version layers instead, exactly as before.
+    let spans = match app.repo.as_deref().and_then(|r| app.fleet.repo(r)) {
         Some(v) => header_spans(v.cli_version(), v.repo_versions()),
-        None => header_spans(crate::status::CLI_VERSION, &BTreeMap::new()),
+        None => fleet_header_spans(app),
     };
     f.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+/// The config-only fleet nav header (ADR-0027 §6): `grove cli=<v>  ·  N repos ·
+/// M groves`. The `cli` is the running binary (shared across the fleet); the
+/// counts come from the fleet snapshot. Pluralised so a one-repo / one-grove
+/// fleet reads naturally.
+fn fleet_header_spans(app: &App) -> Vec<Span<'static>> {
+    let n_repos = app.fleet.repos().len();
+    let n_groves: usize = app.fleet.repos().iter().map(|r| r.groves().len()).sum();
+    fn plural(n: usize, one: &'static str, many: &'static str) -> &'static str {
+        if n == 1 { one } else { many }
+    }
+    vec![
+        Span::raw(format!("grove cli={}", crate::status::CLI_VERSION)),
+        Span::raw(format!(
+            "  ·  {} {} · {} {}",
+            n_repos,
+            plural(n_repos, "repo", "repos"),
+            n_groves,
+            plural(n_groves, "grove", "groves"),
+        )),
+    ]
 }
 
 /// A compact one-line description of every engaged filter dimension — the
@@ -1698,7 +1742,45 @@ fn filter_summary(filter: &FilterState) -> Option<String> {
     Some(parts.join(" "))
 }
 
+/// The empty-fleet in-nav empty-state (ADR-0027 §5 / 020 Q6): a short panel that
+/// names where the fleet comes from, so the user can populate it. Drawn in place
+/// of the grove list when the resolved fleet has no repos.
+fn render_empty_fleet(f: &mut Frame, area: Rect) {
+    let lines = vec![
+        Line::from(Span::styled(
+            "No repos in the fleet",
+            Style::default().add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from("The grove TUI is resolved purely from config. Add repos by:"),
+        Line::from(Span::styled(
+            "  • listing them in ~/.config/grove/fleet.toml",
+            Style::default().fg(Color::DarkGray),
+        )),
+        Line::from(Span::styled(
+            "    (repos = [\".\"] or scan_roots = [\"…/Development\"])",
+            Style::default().fg(Color::DarkGray),
+        )),
+        Line::from(Span::styled(
+            "  • or launching with --repo <path> (e.g. grove tui --repo .)",
+            Style::default().fg(Color::DarkGray),
+        )),
+    ];
+    let panel = Paragraph::new(lines)
+        .block(Block::default().borders(Borders::ALL).title("groves"));
+    f.render_widget(panel, area);
+}
+
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
+    // An **empty fleet** (no manifest, no scan hits, no `--repo`) still launches
+    // the TUI (ADR-0027 §5): the nav renders a helpful in-nav empty-state pointing
+    // at the config, rather than a pre-launch git-repo error. This is the
+    // config-only model's replacement for the removed cwd gate — not a new
+    // gate-shaped branch, just a render of the empty case.
+    if app.fleet.repos().is_empty() {
+        render_empty_fleet(f, area);
+        return;
+    }
     // The two-level fleet nav (070 Q2/Q4): repo section headers (only when the
     // fleet spans >1 repo) interleaved with their groves. At N=1 there are no
     // headers and the rows read flat, exactly as the single-repo nav. `cli` is
@@ -2247,19 +2329,6 @@ fn push_entry(
             }
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// Pre-selection: which grove is `cwd` inside?
-
-fn current_grove_name(repo: &Path) -> Option<String> {
-    let cwd = std::env::current_dir().ok()?;
-    let top = repo::git_toplevel(&cwd).ok()?;
-    let worktrees = repo.join(".grove-worktrees");
-    let rel = top.strip_prefix(&worktrees).ok()?;
-    rel.components()
-        .next()
-        .map(|c| c.as_os_str().to_string_lossy().into_owned())
 }
 
 // ---------------------------------------------------------------------------
@@ -3207,6 +3276,38 @@ mod tests {
         assert!(text.contains("not installed"), "got: {text}");
     }
 
+    #[test]
+    fn config_only_fleet_nav_header_shows_cli_and_fleet_counts() {
+        // The anchorless fleet nav (ADR-0027 §6) shows the running binary's
+        // version plus an `N repos · M groves` summary, not a single repo's layers.
+        let tmp = TempDir::new().unwrap();
+        let roots = vec![
+            fleet_repo(tmp.path(), "alpha", &["one", "two"]),
+            fleet_repo(tmp.path(), "beta", &["three"]),
+        ];
+        let fleet = MultiRepoView::scan(&roots);
+        let app = App::new_fleet(None, fleet, None);
+        let out = render_to_buffer(&app, 80, 12);
+        assert!(out.contains("2 repos"), "got: {out}");
+        assert!(out.contains("3 groves"), "got: {out}");
+        assert!(
+            out.contains(&format!("cli={}", crate::status::CLI_VERSION)),
+            "got: {out}"
+        );
+    }
+
+    #[test]
+    fn empty_fleet_renders_the_in_nav_empty_state() {
+        // An empty resolved fleet still launches the TUI (ADR-0027 §5): the nav
+        // points at the config rather than erroring. Header reads `0 repos`.
+        let app = App::new_fleet(None, MultiRepoView::from_repos(vec![]), None);
+        let out = render_to_buffer(&app, 80, 12);
+        assert!(out.contains("No repos in the fleet"), "got: {out}");
+        assert!(out.contains("fleet.toml"), "got: {out}");
+        assert!(out.contains("--repo"), "got: {out}");
+        assert!(out.contains("0 repos"), "got: {out}");
+    }
+
     // -----------------------------------------------------------------
     // Version segment spans (worktree layer)
 
@@ -3607,7 +3708,7 @@ mod tests {
             .map(|(name, groves)| fleet_repo(parent, name, groves))
             .collect();
         let fleet = MultiRepoView::scan(&roots);
-        App::new_fleet(roots[0].clone(), fleet, None)
+        App::new_fleet(Some(roots[0].clone()), fleet, None)
     }
 
     #[test]
@@ -3844,7 +3945,7 @@ mod native {
     };
 
     use super::{
-        current_grove_name, decide_observation_edit, footer_line, handle_key, on_path, render,
+        decide_observation_edit, footer_line, handle_key, on_path, render,
         shell_capture, shell_drain, short_err, vcs_tool, App, CaptureField, CaptureModal,
         EditOutcome, MultiRepoView, NavActivation, PendingAction, RepoView, DEBOUNCE,
         WIDE_TIER_MIN_CONTENT_COLS,
@@ -4120,30 +4221,28 @@ mod native {
         }
     }
 
-    /// Build the dashboard surface for `repo`: resolve the **fleet** it spans
-    /// (070 Q1/Q4 — the manifest + scan-discovered repos plus this repo), scan
-    /// it, seed the `App`, and prepare an off-screen render target. The nav then
-    /// renders the grouped two-level fleet (or flat, at N=1). The fs-watch thread
-    /// is *not* started here — it needs the [`HostDriver`], which only arrives in
-    /// [`set_driver`] once the pane is constructed on the server's screen thread.
+    /// Build the dashboard surface from the `--repo` flags: resolve the **fleet**
+    /// it spans (070 Q1/Q4 — the manifest + scan-discovered repos plus these
+    /// flags, config-only with no cwd anchor, ADR-0027), scan it, seed the `App`,
+    /// and prepare an off-screen render target. The nav then renders the grouped
+    /// two-level fleet (flat at N=1, or the empty-state at N=0). The fs-watch
+    /// thread is *not* started here — it needs the [`HostDriver`], which only
+    /// arrives in [`set_driver`] once the pane is constructed on the server's
+    /// screen thread.
     ///
     /// Never errors on a single unreadable repo (070 Q3 silent-skip drops it from
     /// the fleet with a stderr breadcrumb); the `Result` stays for the off-screen
     /// terminal build.
-    pub fn dashboard_surface(repo: PathBuf) -> Result<DashboardSurface> {
-        // Canonicalize the anchor repo so it matches the fleet's roots, which
-        // `fleet::resolve` canonicalizes — otherwise the surface's own repo
-        // (e.g. `/var/…` vs the resolved `/private/var/…` on macOS) would not be
-        // found in its own fleet, breaking the header, detail lookup, and
-        // preselect. `self.repo` therefore stays canonical for `set_driver` too.
-        let repo = std::fs::canonicalize(&repo).unwrap_or(repo);
-        // Resolve the fleet this dashboard spans. `repo` is passed as a `--repo`
-        // flag so the surface's own repo is always included, matching the
-        // identical resolve in `set_driver` that drives the fleet fs-watch.
-        let roots = crate::fleet::resolve(std::slice::from_ref(&repo));
+    pub fn dashboard_surface(repo_flags: &[PathBuf]) -> Result<DashboardSurface> {
+        // Resolve the fleet this dashboard spans — config-only, from the manifest
+        // + scan roots + these `--repo` flags, with no cwd anchor (ADR-0027). The
+        // same flags are stored on the surface so `set_driver`'s fleet fs-watch
+        // re-resolves the identical repo set.
+        let roots = crate::fleet::resolve(repo_flags);
         let fleet = MultiRepoView::scan(&roots);
-        let preselect = current_grove_name(&repo);
-        let mut app = App::new_fleet(repo.clone(), fleet, preselect);
+        // The config-only fleet nav has no anchor repo and no cwd preselect
+        // (ADR-0027 §3): the nav starts at row 0.
+        let mut app = App::new_fleet(None, fleet, None);
         // The nav renders in the native frame: suppress its own footer; the
         // grove-owned whichkey bar (leaf 140) owns the bottom hint line.
         app.native_chrome = true;
@@ -4151,7 +4250,7 @@ mod native {
         let terminal = Terminal::new(TestBackend::new(80, 24))
             .map_err(|e| anyhow::anyhow!("building the off-screen render target: {e}"))?;
         Ok(DashboardSurface {
-            repo,
+            repo_flags: repo_flags.to_vec(),
             app,
             terminal,
             driver: None,
@@ -4168,9 +4267,11 @@ mod native {
     /// `render(f, app)` is reused verbatim; the resulting cells are blitted into
     /// the pane buffer trellis composites.
     pub struct DashboardSurface {
-        /// The repo whose groves the dashboard surfaces; fs-watch roots derive
-        /// from it.
-        repo: PathBuf,
+        /// The `--repo` flags this surface was built from (ADR-0027) — stored,
+        /// not a single anchor repo, so `set_driver` re-resolves the identical
+        /// config-only fleet for the fs-watch (manifest + scan roots + these
+        /// flags). Empty when the fleet is the manifest/scan set alone.
+        repo_flags: Vec<PathBuf>,
         /// The unchanged v1 dashboard state.
         app: App,
         /// Off-screen render target — the trick that lets the v1 `render`
@@ -4455,14 +4556,15 @@ mod native {
             // Replace v1's in-loop `WatchSet` polling with a dedicated fs-watch
             // thread (the shared 110/030 pattern). At fleet scale (070/030 Q6) the
             // home dashboard watches **every fleet repo's** two grove-state roots on
-            // this single watcher — `fleet::resolve` supplies the repo set (this
-            // surface's own repo guaranteed in via the flag), `fleet_watch_dirs`
-            // expands each to its `.grove-worktrees/` + `.grove-meta/inboxes/`. At
-            // N=1 it is exactly the prior single-repo set. The watch records the
-            // dirty event paths into the shared `dirty` buffer so `tick` re-scans
-            // only the owning repo (`App::rescan_event_paths`); an event under an
-            // unrelated fleet repo leaves this repo's section untouched.
-            let roots = crate::fleet::resolve(std::slice::from_ref(&self.repo));
+            // this single watcher — `fleet::resolve` re-resolves the same
+            // config-only fleet from the stored `--repo` flags (ADR-0027), matching
+            // the surface's own `dashboard_surface` resolve; `fleet_watch_dirs`
+            // expands each repo to its `.grove-worktrees/` + `.grove-meta/inboxes/`.
+            // The watch records the dirty event paths into the shared `dirty`
+            // buffer so `tick` re-scans only the owning repo
+            // (`App::rescan_event_paths`); an event under an unrelated fleet repo
+            // leaves that repo's section untouched.
+            let roots = crate::fleet::resolve(&self.repo_flags);
             self._watcher = spawn_grove_watch(
                 crate::fleet::fleet_watch_dirs(&roots),
                 driver,

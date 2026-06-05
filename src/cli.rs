@@ -46,8 +46,12 @@ pub enum Command {
 
 #[derive(Parser)]
 pub struct TuiArgs {
-    /// Target repo (defaults to cwd's git root).
-    pub repo: Option<PathBuf>,
+    /// Additive fleet repo root (ADR-0027 §2). Repeatable — `--repo .
+    /// --repo ../other`. The fleet is `fleet.toml` (`repos` + `scan_roots`) plus
+    /// these flags, deduped; **no** cwd git root is auto-included, so `--repo .`
+    /// is how you deliberately pin the current directory.
+    #[arg(long = "repo")]
+    pub repo: Vec<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -319,14 +323,15 @@ pub fn run() -> anyhow::Result<()> {
         },
         Command::Meta(args)     => crate::meta::run(&args),
         Command::Tui(args)      => {
-            let repo_args = RepoArgs { repo: args.repo };
             // `grove tui` renders the dashboard **natively in-process**
-            // (ADR-0020/0021/0026): grove owns `main` and starts the trellis
-            // client, which spawns the server by re-exec (see `run()`'s
-            // `--server` intercept). This is the only TUI path — the legacy
-            // in-terminal dashboard and the `trellis-seam` feature gate were
-            // removed.
-            crate::trellis_host::run_client(&repo_args)
+            // (ADR-0020/0021/0026) and is resolved **purely from config** — the
+            // fleet manifest + scan roots + these additive `--repo` flags, with
+            // no cwd git-repo gate or single-repo anchor (ADR-0027). grove owns
+            // `main` and starts the trellis client, which spawns the server by
+            // re-exec (see `run()`'s `--server` intercept). This is the only TUI
+            // path — the legacy in-terminal dashboard and the `trellis-seam`
+            // feature gate were removed.
+            crate::trellis_host::run_client(&args.repo)
         }
     }
 }

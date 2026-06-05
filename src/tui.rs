@@ -22,7 +22,7 @@
 // edits grove state directly.
 
 use anyhow::{Context, Result};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -37,6 +37,7 @@ use ratatui::{DefaultTerminal, Frame};
 
 use crate::cli::RepoArgs;
 use crate::repo;
+use crate::multi_repo_view::MultiRepoView;
 use crate::repo_view::{
     self, GroveDetail, GroveSummary, Lifecycle, RepoView, TaskEntry, TaskKind,
 };
@@ -69,8 +70,20 @@ pub fn run(args: &RepoArgs) -> Result<()> {
 
 /// Top-level app state — single source of truth for both screens.
 pub struct App {
+    /// The surface's **own/primary** repo: the one whose `cli`/`repo` versions
+    /// the header shows, the one a detail screen reads by grove name, and the
+    /// single repo of the `--local` (N=1) dashboard. In the native fleet nav it
+    /// is the current repo, sorted first by the discovery layer.
     repo: PathBuf,
-    view: RepoView,
+    /// The fleet snapshot the nav renders (070 Q4 "subsume"). Single-repo
+    /// callers (`new`/`new_detail`, the `--local` dashboard) hold a one-element
+    /// fleet — the N=1 case that renders flat, exactly as before. The native
+    /// dashboard holds the resolved multi-repo fleet.
+    fleet: MultiRepoView,
+    /// Repo section roots the user has **collapsed** in the two-level nav —
+    /// ephemeral per-session UI state, never persisted (070 Q5, constraint 1).
+    /// Empty at N=1 (no headers to collapse).
+    collapsed: BTreeSet<PathBuf>,
     screen: Screen,
     list: ListState,
     detail: Option<DetailState>,
@@ -351,16 +364,23 @@ struct FilterState {
 
 impl App {
     pub fn new(repo: PathBuf, view: RepoView, preselect: Option<String>) -> Self {
-        let mut list = ListState::default();
-        let preselect_idx = preselect
-            .as_deref()
-            .and_then(|name| view.groves().iter().position(|g| g.name == name));
-        list.select(Some(preselect_idx.unwrap_or(0)));
-        Self {
+        // Single-repo: the N=1 "fleet of one" (070 Q4). Wrap the already-scanned
+        // `RepoView` rather than re-scanning, and render flat (no repo header).
+        let fleet = MultiRepoView::from_repos(vec![view]);
+        Self::new_fleet(repo, fleet, preselect)
+    }
+
+    /// Build the **native fleet nav** `App` over a multi-repo `fleet` (070 Q4).
+    /// The single-repo [`new`](Self::new) is the N=1 special case routed through
+    /// here. `preselect` names a grove (in the surface's own repo) to highlight;
+    /// the selection is the index of that grove's row in the flattened nav.
+    pub fn new_fleet(repo: PathBuf, fleet: MultiRepoView, preselect: Option<String>) -> Self {
+        let mut app = Self {
             repo,
-            view,
+            fleet,
+            collapsed: BTreeSet::new(),
             screen: Screen::GroveList,
-            list,
+            list: ListState::default(),
             detail: None,
             filter: FilterState::default(),
             show_help: false,
@@ -371,7 +391,21 @@ impl App {
             pending_action: None,
             detail_locked: false,
             native_chrome: false,
-        }
+        };
+        // Highlight the preselected grove's row (or the first row). Built after
+        // construction so it can consult the flattened nav rows.
+        let rows = app.nav_rows_cached();
+        let idx = preselect
+            .as_deref()
+            .and_then(|name| {
+                rows.iter().position(|r| {
+                    matches!(r, NavRow::Grove { repo, summary }
+                        if *repo == app.repo.as_path() && summary.name == name)
+                })
+            })
+            .or_else(|| (!rows.is_empty()).then_some(0));
+        app.list.select(idx);
+        app
     }
 
     /// Build an `App` **locked to one grove's detail** (130-native-detail/020) —
@@ -387,7 +421,8 @@ impl App {
         inbox.select(Some(0));
         Self {
             repo,
-            view,
+            fleet: MultiRepoView::from_repos(vec![view]),
+            collapsed: BTreeSet::new(),
             screen: Screen::GroveDetail,
             list: ListState::default(),
             detail: Some(DetailState {
@@ -413,40 +448,83 @@ impl App {
 
     /// Rescan the repo without touching the status line. Used by fs-watch.
     fn refresh_silent(&mut self) -> Result<()> {
-        // Preserve which grove the user was looking at across the rescan.
-        let current_grove = match self.screen {
-            Screen::GroveDetail => self.detail.as_ref().map(|d| d.grove.clone()),
-            Screen::GroveList => self
-                .filtered_groves()
-                .get(self.list.selected().unwrap_or(0))
-                .map(|g| g.name.clone()),
-        };
-        self.view = RepoView::scan(&self.repo)?;
-        // Reselect by name if possible; otherwise fall back to first row.
-        let groves = self.view.groves();
-        let idx = current_grove
-            .as_deref()
-            .and_then(|name| groves.iter().position(|g| g.name == name))
-            .unwrap_or(0);
-        self.list.select(if groves.is_empty() { None } else { Some(idx) });
-        // If we were on detail and the grove vanished, pop to list.
+        // Full fleet rescan: re-scan every repo currently in the fleet, in place
+        // (preserving fleet order). The fs-watch hot path uses the targeted
+        // `rescan_event_paths` instead; this is `r` and the pathless/out-of-band
+        // fallback. A repo whose rescan fails is dropped by `scan_with_warnings`
+        // (070 Q3 silent-skip), so this never errors — the `Result` stays only
+        // for signature compatibility with the call sites.
+        let selected = self.selected_nav();
+        let detail_grove = self.detail.as_ref().map(|d| d.grove.clone());
+        let roots: Vec<PathBuf> =
+            self.fleet.repos().iter().map(|r| r.repo_root.clone()).collect();
+        let (fleet, _warnings) = MultiRepoView::scan_with_warnings(&roots);
+        self.fleet = fleet;
+        self.reselect(selected);
+        self.handle_detail_vanish(detail_grove);
+        Ok(())
+    }
+
+    /// Targeted fleet rescan — the fs-watch hot path (070 Q6). Re-scan only the
+    /// repos that own `paths` (prefix-match via `fleet::owning_repo`), leaving
+    /// every other repo's `RepoView` untouched, then restore the selection. A
+    /// path under no fleet repo is a no-op; a single repo's scan failure leaves
+    /// that repo's view unchanged (a transient I/O error must not drop a repo
+    /// mid-session), so this, too, cannot fail.
+    fn rescan_event_paths(&mut self, paths: &[PathBuf]) {
+        let selected = self.selected_nav();
+        let detail_grove = self.detail.as_ref().map(|d| d.grove.clone());
+        for p in paths {
+            let _ = self.fleet.rescan_for_event_path(p);
+        }
+        self.reselect(selected);
+        self.handle_detail_vanish(detail_grove);
+    }
+
+    /// Restore the selection after a rescan: re-find the same grove (by
+    /// repo+name) or the same repo header, else clamp into range (or clear when
+    /// the fleet is empty).
+    fn reselect(&mut self, prev: Option<NavSelection>) {
+        let rows = self.nav_rows_cached();
+        if rows.is_empty() {
+            self.list.select(None);
+            return;
+        }
+        let found = prev.and_then(|sel| {
+            rows.iter().position(|r| match (&sel, r) {
+                (
+                    NavSelection::Grove { repo, name },
+                    NavRow::Grove { repo: rr, summary },
+                ) => *rr == repo.as_path() && summary.name == *name,
+                (NavSelection::Header(repo), NavRow::RepoHeader { repo: rr, .. }) => {
+                    *rr == repo.as_path()
+                }
+                _ => false,
+            })
+        });
+        let idx = found.unwrap_or_else(|| {
+            self.list.selected().unwrap_or(0).min(rows.len() - 1)
+        });
+        self.list.select(Some(idx));
+    }
+
+    /// If on the detail screen and the bound grove vanished from the fleet, pop
+    /// back to the list. (The native detail surfaces are per-grove; this guards
+    /// the `--local` master/detail drill-in path.)
+    fn handle_detail_vanish(&mut self, detail_grove: Option<String>) {
         if matches!(self.screen, Screen::GroveDetail) {
-            let still_there = current_grove
+            let still_there = detail_grove
                 .as_deref()
-                .map(|name| self.view.grove(name).is_some())
+                .map(|name| self.detail_grove(name).is_some())
                 .unwrap_or(false);
             if !still_there {
                 self.screen = Screen::GroveList;
                 self.detail = None;
             }
-            // Tree shape may have changed; let the selection clamp on
-            // next render via the existing bounds check in
-            // `render_grove_detail` rather than resetting to 0 here.
         }
-        Ok(())
     }
 
-    /// Rescan the repo and signal "refreshed" in the status line.
+    /// Rescan the fleet and signal "refreshed" in the status line.
     /// Triggered by `r`. Clears any in-progress filter to make the
     /// rescan's selection deterministic for the user.
     fn refresh(&mut self) -> Result<()> {
@@ -456,39 +534,104 @@ impl App {
         Ok(())
     }
 
-    fn filtered_groves(&self) -> Vec<&GroveSummary> {
-        let needle = self.filter.text.to_lowercase();
-        self.view
-            .groves()
-            .iter()
-            .filter(|g| needle.is_empty() || g.name.to_lowercase().contains(&needle))
-            .collect()
+    /// The surface's own repo's [`RepoView`] — the header's version source.
+    /// Falls back to the first repo in the fleet, then `None` (empty fleet).
+    fn primary_view(&self) -> Option<&RepoView> {
+        self.fleet
+            .repo(&self.repo)
+            .or_else(|| self.fleet.repos().first())
     }
 
-    /// The grove the **native nav's `Enter` (select)** should act on: the
-    /// highlighted row, but only while the plain grove list is showing — no modal,
-    /// filter, or help intercepting keys. `None` otherwise, so `Enter` falls
-    /// through to the shared key handler (e.g. inserting a newline in the capture
-    /// body, or advancing the capture target field).
-    ///
-    /// In the native nav, selecting a grove **opens or switches to its
-    /// [[workspace]] tab** (leaf 120); the v1 master/detail drill-in is superseded
-    /// by per-grove detail tabs (130). Only the native [`DashboardSurface`]
-    /// consults this — the legacy `--local` dashboard keeps `Enter` = drill-in.
-    pub fn nav_enter_target(&self) -> Option<String> {
+    /// Resolve a grove's detail in the surface's **own** repo — the detail
+    /// screen is single-repo-scoped (the `--local` dashboard and each per-grove
+    /// detail surface, both N=1 over `self.repo`).
+    fn detail_grove(&self, name: &str) -> Option<&GroveDetail> {
+        self.fleet.grove(&self.repo, name)
+    }
+
+    /// The flattened two-level nav rows the `ListState` indexes into — repo
+    /// headers (N>1) interleaved with their filter-matched groves, honouring the
+    /// collapse set. Rebuilt per call; bounded by fleet size.
+    fn nav_rows_cached(&self) -> Vec<NavRow<'_>> {
+        nav_rows(&self.fleet, &self.collapsed, &self.filter.text)
+    }
+
+    /// The number of nav rows — the movement length for `j`/`k` (which step over
+    /// headers and groves alike, so a header can be selected to collapse it).
+    fn nav_len(&self) -> usize {
+        self.nav_rows_cached().len()
+    }
+
+    /// What the highlighted nav row is: a repo header or a grove (with its owning
+    /// repo). `None` when nothing is selected or the fleet is empty.
+    fn selected_nav(&self) -> Option<NavSelection> {
+        let rows = self.nav_rows_cached();
+        rows.get(self.list.selected()?).map(NavSelection::from_row)
+    }
+
+    /// Activate the highlighted nav row. A **grove** yields
+    /// [`NavActivation::Open`] with its `(repo, name)` for the caller to open
+    /// (native) or drill into (`--local`) — the repo is the grove's **owning**
+    /// repo, carried for cross-repo open (070 Q4/050). A **repo header** toggles
+    /// its section's collapse in place (ephemeral, 070 Q5) and yields
+    /// [`NavActivation::Toggled`]. While a modal / filter / help intercepts keys
+    /// — or nothing is selected — it yields [`NavActivation::Passthrough`] so
+    /// `Enter` falls through to the shared handler (e.g. a capture-body newline).
+    /// Supersedes the old name-only `nav_enter_target`.
+    fn nav_activate(&mut self) -> NavActivation {
         if self.show_help
             || self.capture.open
             || self.disposition.is_some()
             || self.filter.editing
+            || !matches!(self.screen, Screen::GroveList)
         {
-            return None;
+            return NavActivation::Passthrough;
         }
-        if !matches!(self.screen, Screen::GroveList) {
-            return None;
+        match self.selected_nav() {
+            Some(NavSelection::Header(repo)) => {
+                if !self.collapsed.remove(&repo) {
+                    self.collapsed.insert(repo);
+                }
+                NavActivation::Toggled
+            }
+            Some(NavSelection::Grove { repo, name }) => NavActivation::Open(repo, name),
+            None => NavActivation::Passthrough,
         }
-        self.filtered_groves()
-            .get(self.list.selected().unwrap_or(0))
-            .map(|g| g.name.clone())
+    }
+}
+
+/// The outcome of activating a nav row (`Enter`/`o`): open a grove, toggle a
+/// repo section's collapse, or let the key pass through to the shared handler.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NavActivation {
+    /// Open (or drill into) grove `name` in its owning `repo`.
+    Open(PathBuf, String),
+    /// A repo header was highlighted; its section's collapse was toggled.
+    Toggled,
+    /// A modal / filter / help is up, or nothing is selected — `Enter` should
+    /// fall through to the shared key handler.
+    Passthrough,
+}
+
+/// What the highlighted nav row resolves to — the owned counterpart of a
+/// [`NavRow`], so a selection survives the rebuild of the borrowed row vec.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum NavSelection {
+    /// A repo section header at `repo` — activating it toggles collapse.
+    Header(PathBuf),
+    /// A grove `name` in its owning `repo` — activating it opens/drills in.
+    Grove { repo: PathBuf, name: String },
+}
+
+impl NavSelection {
+    fn from_row(row: &NavRow) -> Self {
+        match row {
+            NavRow::RepoHeader { repo, .. } => NavSelection::Header(repo.to_path_buf()),
+            NavRow::Grove { repo, summary } => NavSelection::Grove {
+                repo: repo.to_path_buf(),
+                name: summary.name.clone(),
+            },
+        }
     }
 }
 
@@ -1023,26 +1166,28 @@ fn handle_key(app: &mut App, code: KeyCode, mods: KeyModifiers) -> Result<bool> 
             app.toggle_open = true;
         }
         (Screen::GroveList, KeyCode::Char('q')) => return Ok(true),
+        // Movement steps over the flattened two-level nav rows — repo headers
+        // and groves alike — so a header can be highlighted to collapse it.
         (Screen::GroveList, KeyCode::Down | KeyCode::Char('j')) => {
-            let len = app.filtered_groves().len() as isize;
+            let len = app.nav_len() as isize;
             move_selection(&mut app.list, len, 1);
         }
         (Screen::GroveList, KeyCode::Up | KeyCode::Char('k')) => {
-            let len = app.filtered_groves().len() as isize;
+            let len = app.nav_len() as isize;
             move_selection(&mut app.list, len, -1);
         }
         (Screen::GroveList, KeyCode::Enter) => {
-            if let Some(g) = app
-                .filtered_groves()
-                .get(app.list.selected().unwrap_or(0))
-                .map(|g| g.name.clone())
-            {
+            // `nav_activate` toggles a section when a repo header is highlighted;
+            // on a grove it yields its `(repo, name)`, which the `--local`
+            // dashboard drills into as detail. (The native nav intercepts `Enter`
+            // earlier to open the harness instead.)
+            if let NavActivation::Open(_repo, name) = app.nav_activate() {
                 let mut tree = ListState::default();
                 tree.select(Some(0));
                 let mut inbox = ListState::default();
                 inbox.select(Some(0));
                 app.detail = Some(DetailState {
-                    grove: g,
+                    grove: name,
                     tree,
                     inbox,
                     right: RightPane::LeafBody,
@@ -1104,11 +1249,14 @@ fn open_capture_modal(app: &mut App) {
             None => (String::new(), CaptureField::Target),
         },
         Screen::GroveList => {
-            let pre = app
-                .filtered_groves()
-                .get(app.list.selected().unwrap_or(0))
-                .map(|g| g.name.clone())
-                .unwrap_or_default();
+            // The selection indexes the two-level nav rows (which interleave repo
+            // headers), so resolve the highlighted *grove* through `selected_nav`
+            // rather than a flat-list index. A header (or nothing) selected
+            // prefills an empty target for the user to type.
+            let pre = match app.selected_nav() {
+                Some(NavSelection::Grove { name, .. }) => name,
+                _ => String::new(),
+            };
             (pre, CaptureField::Target)
         }
     };
@@ -1120,25 +1268,29 @@ fn open_capture_modal(app: &mut App) {
     };
 }
 
-/// The grove the user is acting on for harness driving: the highlighted row on
-/// the list screen, or the open grove on the detail screen. `None` when the
-/// list is empty / unselected.
-fn acting_grove_name(app: &App) -> Option<String> {
+/// The grove the user is acting on for harness driving, **with its owning
+/// repo**: the highlighted grove row on the list screen (a repo header has no
+/// acting grove), or the open grove on the detail screen (in the surface's own
+/// repo). `None` when nothing actionable is selected. The repo is the grove's
+/// owning repo so a cross-repo open targets the right one (070 Q4/050).
+fn acting_grove(app: &App) -> Option<(PathBuf, String)> {
     match app.screen {
-        Screen::GroveDetail => app.detail.as_ref().map(|d| d.grove.clone()),
-        Screen::GroveList => app
-            .filtered_groves()
-            .get(app.list.selected().unwrap_or(0))
-            .map(|g| g.name.clone()),
+        Screen::GroveDetail => app
+            .detail
+            .as_ref()
+            .map(|d| (app.repo.clone(), d.grove.clone())),
+        Screen::GroveList => match app.selected_nav() {
+            Some(NavSelection::Grove { repo, name }) => Some((repo, name)),
+            _ => None,
+        },
     }
 }
 
 /// Request "select the acting grove" — swap its harness into the content slot
-/// (ADR-0022/0023). The repo is carried explicitly so the cross-repo fleet (070)
-/// reuses this path unchanged. No-op when no grove is selected.
+/// (ADR-0022/0023). The grove's **owning** repo is carried so the cross-repo
+/// fleet (070) opens it in the right repo. No-op when no grove is selected.
 fn request_open_harness(app: &mut App) {
-    if let Some(name) = acting_grove_name(app) {
-        let repo = app.repo.clone();
+    if let Some((repo, name)) = acting_grove(app) {
         app.pending_action = Some(PendingAction::OpenHarness { name, repo });
     }
 }
@@ -1146,7 +1298,7 @@ fn request_open_harness(app: &mut App) {
 /// Request the retired "close the acting grove's harness" affordance (`x`). No-op
 /// when no grove is selected; the native surface parks rather than closes.
 fn request_close_harness(app: &mut App) {
-    if let Some(name) = acting_grove_name(app) {
+    if let Some((_repo, name)) = acting_grove(app) {
         app.pending_action = Some(PendingAction::CloseHarness { name });
     }
 }
@@ -1227,7 +1379,7 @@ fn open_disposition_modal(app: &mut App) {
         if d.right != RightPane::Inbox {
             return;
         }
-        let Some(gd) = app.view.grove(&d.grove) else {
+        let Some(gd) = app.detail_grove(&d.grove) else {
             return;
         };
         if gd.inbox.is_empty() {
@@ -1257,7 +1409,7 @@ fn request_observation_edit(app: &mut App) {
         if d.right != RightPane::Inbox {
             return;
         }
-        let Some(gd) = app.view.grove(&d.grove) else {
+        let Some(gd) = app.detail_grove(&d.grove) else {
             return;
         };
         if gd.inbox.is_empty() {
@@ -1338,7 +1490,7 @@ fn flat_rows_len(app: &App) -> usize {
 fn inbox_len(app: &App) -> usize {
     app.detail
         .as_ref()
-        .and_then(|d| app.view.grove(&d.grove))
+        .and_then(|d| app.detail_grove(&d.grove))
         .map(|gd| gd.inbox.len())
         .unwrap_or(0)
 }
@@ -1358,6 +1510,77 @@ fn move_detail_selection(app: &mut App, delta: isize) {
         }
         d.right_scroll = 0;
     }
+}
+
+// ---------------------------------------------------------------------------
+// The two-level fleet nav model (070-fleet-view/040)
+//
+// The nav renders a **grouped** fleet: repo section headers, each followed by
+// its groves (070 Q2/Q4). `nav_rows` flattens the `MultiRepoView` + the
+// ephemeral collapse set + the live substring filter into the flat row sequence
+// the `ListState` indexes into — a **pure** projection (no `ratatui`), so the
+// grouping/collapse/N=1-hide/sort rules are unit-tested without a render. The
+// fleet is already sorted current-repo-first → explicit → scanned by the
+// discovery layer (`fleet::resolve`); this preserves that order (070 Q5).
+
+/// One row of the flattened two-level nav: a repo section header or a grove
+/// beneath one. Borrows from the fleet snapshot — rebuilt cheaply per render.
+enum NavRow<'a> {
+    /// A repo section header — emitted only when the fleet spans **>1** repo
+    /// (N=1 hides it, 070 Q4). `count` is the number of *matched* groves under
+    /// it (honest under a filter); `collapsed` drives the caret and whether its
+    /// grove rows follow.
+    RepoHeader {
+        repo: &'a Path,
+        count: usize,
+        collapsed: bool,
+    },
+    /// A grove row under repo `repo`. `repo` is carried so selecting the row
+    /// opens the grove **in its owning repo** (cross-repo open, 070 Q4/050) —
+    /// not the nav surface's own repo.
+    Grove {
+        repo: &'a Path,
+        summary: &'a GroveSummary,
+    },
+}
+
+/// Flatten the fleet into the nav's row sequence: per repo (in fleet order) a
+/// header — unless N=1, where the lone header is hidden so the rows read as
+/// today's flat single-repo nav (070 Q4) — followed by its filter-matched
+/// groves, save when the repo is collapsed (header only). The substring
+/// `filter` is the existing nav filter, applied unchanged; no new filter
+/// dimension lands here (070 Q5 defers that to leaf 060).
+fn nav_rows<'a>(
+    fleet: &'a MultiRepoView,
+    collapsed: &BTreeSet<PathBuf>,
+    filter: &str,
+) -> Vec<NavRow<'a>> {
+    let multi = fleet.repos().len() > 1;
+    let needle = filter.to_lowercase();
+    let mut rows = Vec::new();
+    for (repo, groves) in fleet.groups() {
+        let matched = groves
+            .iter()
+            .filter(|g| needle.is_empty() || g.name.to_lowercase().contains(&needle));
+        // N>1 ⇒ a section header; N=1 ⇒ none (flat as today). Collapse is only
+        // meaningful with a header to carry the marker, so it never hides the
+        // lone N=1 repo's groves.
+        if multi {
+            let is_collapsed = collapsed.contains(repo);
+            rows.push(NavRow::RepoHeader {
+                repo,
+                count: matched.clone().count(),
+                collapsed: is_collapsed,
+            });
+            if is_collapsed {
+                continue;
+            }
+        }
+        for summary in matched {
+            rows.push(NavRow::Grove { repo, summary });
+        }
+    }
+    rows
 }
 
 // ---------------------------------------------------------------------------
@@ -1536,17 +1759,50 @@ fn header_spans(
 }
 
 fn render_header(f: &mut Frame, area: Rect, app: &App) {
-    let spans = header_spans(app.view.cli_version(), app.view.repo_versions());
+    // The header shows the surface's own repo's version layers; in the fleet nav
+    // each repo's drift is shown per-row instead (`render_grove_list`). An empty
+    // fleet (no resolved repos) falls back to a bare `cli` line.
+    let spans = match app.primary_view() {
+        Some(v) => header_spans(v.cli_version(), v.repo_versions()),
+        None => header_spans(crate::status::CLI_VERSION, &BTreeMap::new()),
+    };
     f.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
-    let filtered = app.filtered_groves();
-    let cli = app.view.cli_version();
-    let repo_versions = app.view.repo_versions();
-    let items: Vec<ListItem> = filtered
+    // The two-level fleet nav (070 Q2/Q4): repo section headers (only when the
+    // fleet spans >1 repo) interleaved with their groves. At N=1 there are no
+    // headers and the rows read flat, exactly as the single-repo nav. `cli` is
+    // the one running binary (shared across repos); the `repo`-version drift a
+    // grove row shows is its **owning** repo's, looked up per row.
+    let rows = app.nav_rows_cached();
+    let multi = app.fleet.repos().len() > 1;
+    let cli = app
+        .primary_view()
+        .map(|v| v.cli_version())
+        .unwrap_or(crate::status::CLI_VERSION);
+    let empty_versions = BTreeMap::new();
+    let items: Vec<ListItem> = rows
         .iter()
-        .map(|g| ListItem::new(grove_row(g, cli, repo_versions)))
+        .map(|row| match row {
+            NavRow::RepoHeader { repo, count, collapsed } => {
+                ListItem::new(repo_header_row(repo, *count, *collapsed))
+            }
+            NavRow::Grove { repo, summary } => {
+                let repo_versions = app
+                    .fleet
+                    .repo(repo)
+                    .map(|v| v.repo_versions())
+                    .unwrap_or(&empty_versions);
+                let mut line = grove_row(summary, cli, repo_versions);
+                // Indent grove rows under their section header when the fleet
+                // spans >1 repo, so the two-level structure reads at a glance.
+                if multi {
+                    line.spans.insert(0, Span::raw("  "));
+                }
+                ListItem::new(line)
+            }
+        })
         .collect();
     let title = if app.filter.text.is_empty() {
         "groves".to_string()
@@ -1557,15 +1813,36 @@ fn render_grove_list(f: &mut Frame, area: Rect, app: &App) {
         .block(Block::default().borders(Borders::ALL).title(title))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
     let mut state = app.list.clone();
-    // Clamp selection in case the filter narrowed the list.
+    // Clamp selection in case the filter or a collapse narrowed the rows.
     if let Some(sel) = state.selected() {
-        if sel >= filtered.len() && !filtered.is_empty() {
-            state.select(Some(filtered.len() - 1));
-        } else if filtered.is_empty() {
+        if rows.is_empty() {
             state.select(None);
+        } else if sel >= rows.len() {
+            state.select(Some(rows.len() - 1));
         }
     }
     f.render_stateful_widget(list, area, &mut state);
+}
+
+/// A repo section header row: a collapse caret, the repo's basename, and its
+/// grove count. Bold so it reads as a section divider above its indented groves
+/// (070 Q2). Rendered only when the fleet spans >1 repo (N=1 hides it).
+fn repo_header_row(repo: &Path, count: usize, collapsed: bool) -> Line<'static> {
+    let caret = if collapsed { "▸" } else { "▾" };
+    let name = repo
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| repo.display().to_string());
+    Line::from(vec![
+        Span::styled(
+            format!("{caret} {name}"),
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            format!("  ({count})"),
+            Style::default().fg(Color::DarkGray),
+        ),
+    ])
 }
 
 fn grove_row(
@@ -1641,7 +1918,7 @@ fn render_grove_detail(f: &mut Frame, area: Rect, app: &App) {
         return;
     };
     let summary_name = detail.grove.clone();
-    let grove_detail = app.view.grove(&summary_name);
+    let grove_detail = app.detail_grove(&summary_name);
 
     let [left, right] =
         Layout::horizontal([Constraint::Percentage(40), Constraint::Percentage(60)]).areas(area);
@@ -1972,7 +2249,7 @@ fn flatten_for(app: &App) -> Vec<FlatRow> {
     let Some(d) = app.detail.as_ref() else {
         return Vec::new();
     };
-    let Some(detail) = app.view.grove(&d.grove) else {
+    let Some(detail) = app.detail_grove(&d.grove) else {
         return Vec::new();
     };
     let Some(tree) = detail.task_tree.as_ref() else {
@@ -2576,8 +2853,17 @@ mod tests {
             handle_key(&mut app, KeyCode::Char(c), KeyModifiers::NONE).unwrap();
         }
         handle_key(&mut app, KeyCode::Enter, KeyModifiers::NONE).unwrap();
-        assert_eq!(app.filtered_groves().len(), 1);
-        assert_eq!(app.filtered_groves()[0].name, "beta");
+        // At N=1 the nav rows are all groves (no repo header); the filter leaves
+        // only "beta".
+        let rows = app.nav_rows_cached();
+        let names: Vec<&str> = rows
+            .iter()
+            .filter_map(|r| match r {
+                NavRow::Grove { summary, .. } => Some(summary.name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names, vec!["beta"]);
     }
 
     #[test]
@@ -3129,6 +3415,246 @@ mod tests {
             None
         );
     }
+
+    // ---- the two-level fleet nav model (070-fleet-view/040) ----
+
+    /// Build `parent/<name>/` as a repo with one live grove worktree per entry
+    /// in `groves` and return its path — a multi-repo fleet fixture for the
+    /// pure `nav_rows` tests (lighter than `fixture_repo`, which is one repo).
+    fn fleet_repo(parent: &Path, name: &str, groves: &[&str]) -> PathBuf {
+        let repo = parent.join(name);
+        for g in groves {
+            let root = repo.join(".grove-worktrees").join(g).join(".grove");
+            touch(&root.join("010-x.md"), "# 010-x\n");
+        }
+        repo
+    }
+
+    #[test]
+    fn nav_rows_n1_is_flat_with_no_repo_header() {
+        // N=1 (070 Q4): the lone repo's section header is hidden; the rows are
+        // just its groves, exactly as today's single-repo nav.
+        let tmp = TempDir::new().unwrap();
+        let r = fleet_repo(tmp.path(), "solo", &["alpha", "beta"]);
+        let fleet = MultiRepoView::scan(&[r.clone()]);
+        let rows = nav_rows(&fleet, &BTreeSet::new(), "");
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|r| matches!(r, NavRow::Grove { .. })));
+        let names: Vec<&str> = rows
+            .iter()
+            .filter_map(|r| match r {
+                NavRow::Grove { summary, .. } => Some(summary.name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names, vec!["alpha", "beta"]);
+    }
+
+    #[test]
+    fn nav_rows_multi_repo_has_headers_then_groves_carrying_repo() {
+        // N>1: a header per repo (in fleet order), its groves following, each
+        // grove row carrying its owning repo (for cross-repo open, 070 Q4/050).
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["alpha"]);
+        let r2 = fleet_repo(tmp.path(), "two", &["beta", "gamma"]);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let rows = nav_rows(&fleet, &BTreeSet::new(), "");
+
+        // header(r1), grove(alpha@r1), header(r2), grove(beta@r2), grove(gamma@r2)
+        assert_eq!(rows.len(), 5);
+        match &rows[0] {
+            NavRow::RepoHeader { repo, count, collapsed } => {
+                assert_eq!(*repo, r1.as_path());
+                assert_eq!(*count, 1);
+                assert!(!collapsed);
+            }
+            _ => panic!("row 0 should be r1's header"),
+        }
+        match &rows[1] {
+            NavRow::Grove { repo, summary } => {
+                assert_eq!(*repo, r1.as_path());
+                assert_eq!(summary.name, "alpha");
+            }
+            _ => panic!("row 1 should be alpha@r1"),
+        }
+        match &rows[3] {
+            NavRow::Grove { repo, summary } => {
+                assert_eq!(*repo, r2.as_path());
+                assert_eq!(summary.name, "beta");
+            }
+            _ => panic!("row 3 should be beta@r2"),
+        }
+    }
+
+    #[test]
+    fn nav_rows_collapsed_section_hides_its_groves_but_keeps_header() {
+        // A collapsed repo shows its header (full count, collapsed marker) and
+        // none of its grove rows; other sections are unaffected (070 Q5).
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["alpha"]);
+        let r2 = fleet_repo(tmp.path(), "two", &["beta", "gamma"]);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let mut collapsed = BTreeSet::new();
+        collapsed.insert(r1.clone());
+        let rows = nav_rows(&fleet, &collapsed, "");
+
+        // header(r1, collapsed), header(r2), grove(beta), grove(gamma)
+        assert_eq!(rows.len(), 4);
+        match &rows[0] {
+            NavRow::RepoHeader { repo, count, collapsed } => {
+                assert_eq!(*repo, r1.as_path());
+                assert_eq!(*count, 1); // count reflects groves even while hidden
+                assert!(collapsed);
+            }
+            _ => panic!("row 0 should be r1's collapsed header"),
+        }
+        assert!(matches!(&rows[1], NavRow::RepoHeader { repo, .. } if *repo == r2.as_path()));
+        assert!(matches!(&rows[2], NavRow::Grove { summary, .. } if summary.name == "beta"));
+    }
+
+    #[test]
+    fn nav_rows_filter_narrows_groves_and_header_count() {
+        // The existing substring filter narrows the grove rows and the header's
+        // count (the count is of *matched* groves, so it stays honest).
+        let tmp = TempDir::new().unwrap();
+        let r1 = fleet_repo(tmp.path(), "one", &["apex", "april"]);
+        let r2 = fleet_repo(tmp.path(), "two", &["beta"]);
+        let fleet = MultiRepoView::scan(&[r1.clone(), r2.clone()]);
+        let rows = nav_rows(&fleet, &BTreeSet::new(), "ap");
+
+        // r1: apex, april match "ap"; r2: beta does not.
+        let grove_names: Vec<&str> = rows
+            .iter()
+            .filter_map(|r| match r {
+                NavRow::Grove { summary, .. } => Some(summary.name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(grove_names, vec!["apex", "april"]);
+        // r1's header count is 2 (matched), r2's is 0.
+        let counts: Vec<usize> = rows
+            .iter()
+            .filter_map(|r| match r {
+                NavRow::RepoHeader { count, .. } => Some(*count),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(counts, vec![2, 0]);
+    }
+
+    /// Build a multi-repo `App` (native fleet nav) over `repos`, each
+    /// `(name, groves)`, with the first repo as the surface's own/primary repo.
+    fn fleet_app(parent: &Path, repos: &[(&str, &[&str])]) -> App {
+        let roots: Vec<PathBuf> = repos
+            .iter()
+            .map(|(name, groves)| fleet_repo(parent, name, groves))
+            .collect();
+        let fleet = MultiRepoView::scan(&roots);
+        App::new_fleet(roots[0].clone(), fleet, None)
+    }
+
+    #[test]
+    fn nav_activate_on_a_header_toggles_that_section_collapse() {
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        // Row 0 is r1's header (N>1). Activating it collapses, hiding alpha.
+        app.list.select(Some(0));
+        assert_eq!(app.nav_activate(), NavActivation::Toggled);
+        let rows = app.nav_rows_cached();
+        assert!(matches!(&rows[0], NavRow::RepoHeader { collapsed: true, .. }));
+        // r1's grove is gone; row 1 is now r2's header.
+        assert!(matches!(&rows[1], NavRow::RepoHeader { .. }));
+        // Activating again expands.
+        assert_eq!(app.nav_activate(), NavActivation::Toggled);
+        assert!(matches!(&app.nav_rows_cached()[1], NavRow::Grove { .. }));
+    }
+
+    #[test]
+    fn nav_activate_on_a_grove_returns_its_owning_repo_and_name() {
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        // Rows: header(r1), alpha@r1, header(r2), beta@r2. Select beta (row 3).
+        app.list.select(Some(3));
+        let got = app.nav_activate();
+        // The fleet stores roots as passed (this test bypasses `fleet::resolve`,
+        // which is what canonicalizes in production); the nav row carries the same
+        // path the fleet was scanned with.
+        let r2 = tmp.path().join("two");
+        assert_eq!(got, NavActivation::Open(r2, "beta".to_string()));
+    }
+
+    #[test]
+    fn acting_grove_in_list_carries_the_selected_repo_not_the_surface_repo() {
+        // The surface's own repo is r1, but the highlighted grove is in r2 — the
+        // acting grove must carry r2 so a cross-repo open targets the right repo.
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        app.list.select(Some(3)); // beta@r2
+        let r2 = tmp.path().join("two");
+        assert_eq!(acting_grove(&app), Some((r2, "beta".to_string())));
+        // On a header row there is no acting grove.
+        app.list.select(Some(0));
+        assert_eq!(acting_grove(&app), None);
+    }
+
+    #[test]
+    fn rescan_event_paths_refreshes_only_the_owning_repo_and_keeps_selection() {
+        let tmp = TempDir::new().unwrap();
+        let mut app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        // Highlight beta@r2 (row 3: header r1, alpha, header r2, beta).
+        app.list.select(Some(3));
+
+        // A new grove lands in r1 on disk; fire a watch event under r1.
+        let r1 = tmp.path().join("one");
+        let root = r1.join(".grove-worktrees").join("delta").join(".grove");
+        touch(&root.join("010-x.md"), "# 010-x\n");
+        app.rescan_event_paths(&[root.join("010-x.md")]);
+
+        // r1's section refreshed (alpha + delta); r2 untouched; and the selection
+        // followed beta@r2 to its new row (now after the extra delta row).
+        let rows = app.nav_rows_cached();
+        let r1_groves: Vec<&str> = rows
+            .iter()
+            .filter_map(|r| match r {
+                NavRow::Grove { repo, summary } if *repo == r1.as_path() => {
+                    Some(summary.name.as_str())
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(r1_groves, vec!["alpha", "delta"]);
+        assert_eq!(
+            app.selected_nav(),
+            Some(NavSelection::Grove {
+                repo: tmp.path().join("two"),
+                name: "beta".to_string()
+            })
+        );
+    }
+
+    #[test]
+    fn multi_repo_nav_renders_collapsible_section_headers() {
+        // N>1: the grouped two-level nav shows a section header (caret + repo
+        // basename) per repo, with its groves beneath.
+        let tmp = TempDir::new().unwrap();
+        let app = fleet_app(tmp.path(), &[("one", &["alpha"]), ("two", &["beta"])]);
+        let out = render_to_buffer(&app, 80, 16);
+        assert!(out.contains("one"), "repo header 'one' missing:\n{out}");
+        assert!(out.contains("two"), "repo header 'two' missing:\n{out}");
+        assert!(out.contains("alpha") && out.contains("beta"), "groves missing:\n{out}");
+        assert!(out.contains('▾'), "expanded-section caret missing:\n{out}");
+    }
+
+    #[test]
+    fn single_repo_nav_hides_the_section_header() {
+        // N=1 (070 Q4): no caret, no repo-name header — visually today's nav.
+        let tmp = TempDir::new().unwrap();
+        let app = fleet_app(tmp.path(), &[("solo", &["alpha"])]);
+        let out = render_to_buffer(&app, 80, 12);
+        assert!(out.contains("alpha"), "grove row missing:\n{out}");
+        assert!(!out.contains('▾'), "N=1 must hide the section caret:\n{out}");
+        assert!(!out.contains("solo"), "N=1 must not show the repo-name header:\n{out}");
+    }
 }
 
 // ===========================================================================
@@ -3190,7 +3716,7 @@ fn on_path(bin: &str, path: &std::ffi::OsStr) -> Option<PathBuf> {
 mod native {
     use std::collections::BTreeSet;
     use std::path::{Path, PathBuf};
-    use std::sync::{mpsc, Mutex};
+    use std::sync::{mpsc, Arc, Mutex};
 
     use anyhow::{Context, Result};
     use notify::{RecommendedWatcher, RecursiveMode, Watcher};
@@ -3212,7 +3738,8 @@ mod native {
     use super::{
         current_grove_name, decide_observation_edit, footer_line, handle_key, on_path, render,
         shell_capture, shell_drain, short_err, vcs_tool, App, CaptureField, CaptureModal,
-        EditOutcome, PendingAction, RepoView, DEBOUNCE, WIDE_TIER_MIN_CONTENT_COLS,
+        EditOutcome, MultiRepoView, NavActivation, PendingAction, RepoView, DEBOUNCE,
+        WIDE_TIER_MIN_CONTENT_COLS,
     };
 
     // -----------------------------------------------------------------------
@@ -3485,18 +4012,30 @@ mod native {
         }
     }
 
-    /// Build the dashboard surface for `repo`: scan it, seed `App`, and prepare
-    /// an off-screen render target. The fs-watch thread is *not* started here —
-    /// it needs the [`HostDriver`], which only arrives in [`set_driver`] once the
-    /// pane is constructed on the server's screen thread.
+    /// Build the dashboard surface for `repo`: resolve the **fleet** it spans
+    /// (070 Q1/Q4 — the manifest + scan-discovered repos plus this repo), scan
+    /// it, seed the `App`, and prepare an off-screen render target. The nav then
+    /// renders the grouped two-level fleet (or flat, at N=1). The fs-watch thread
+    /// is *not* started here — it needs the [`HostDriver`], which only arrives in
+    /// [`set_driver`] once the pane is constructed on the server's screen thread.
     ///
-    /// Returns `Err` only if the initial scan fails (a repo with no readable
-    /// grove state) — the caller surfaces that rather than rendering a broken
-    /// dashboard.
+    /// Never errors on a single unreadable repo (070 Q3 silent-skip drops it from
+    /// the fleet with a stderr breadcrumb); the `Result` stays for the off-screen
+    /// terminal build.
     pub fn dashboard_surface(repo: PathBuf) -> Result<DashboardSurface> {
-        let view = RepoView::scan(&repo)?;
+        // Canonicalize the anchor repo so it matches the fleet's roots, which
+        // `fleet::resolve` canonicalizes — otherwise the surface's own repo
+        // (e.g. `/var/…` vs the resolved `/private/var/…` on macOS) would not be
+        // found in its own fleet, breaking the header, detail lookup, and
+        // preselect. `self.repo` therefore stays canonical for `set_driver` too.
+        let repo = std::fs::canonicalize(&repo).unwrap_or(repo);
+        // Resolve the fleet this dashboard spans. `repo` is passed as a `--repo`
+        // flag so the surface's own repo is always included, matching the
+        // identical resolve in `set_driver` that drives the fleet fs-watch.
+        let roots = crate::fleet::resolve(std::slice::from_ref(&repo));
+        let fleet = MultiRepoView::scan(&roots);
         let preselect = current_grove_name(&repo);
-        let mut app = App::new(repo.clone(), view, preselect);
+        let mut app = App::new_fleet(repo.clone(), fleet, preselect);
         // The nav renders in the native frame: suppress its own footer; the
         // grove-owned whichkey bar (leaf 140) owns the bottom hint line.
         app.native_chrome = true;
@@ -3512,6 +4051,7 @@ mod native {
             mounted_grove: None,
             pending_edit: None,
             _watcher: None,
+            dirty: Arc::new(Mutex::new(DirtyBuf::default())),
         })
     }
 
@@ -3547,6 +4087,15 @@ mod native {
         /// Kept alive so the fs-watch thread's channel stays open; dropping it
         /// (on surface drop) closes the channel and the thread exits cleanly.
         _watcher: Option<RecommendedWatcher>,
+        /// The fleet fs-watch's **dirty-path buffer** (070 Q6). The watch thread
+        /// records the (`.git/`-filtered) event paths here as a burst settles;
+        /// `tick` drains it and re-scans **only the repos those paths belong to**
+        /// (`App::rescan_event_paths`), leaving the rest of the fleet untouched —
+        /// so an event under repo A never re-scans repo B. A `full_refresh`
+        /// marker (a pathless/conservative event) falls back to a whole-fleet
+        /// rescan. Shared `Arc` so the off-thread watch and the on-thread `tick`
+        /// hand paths across without changing `HostDriver::request_tick`'s shape.
+        dirty: Arc<Mutex<DirtyBuf>>,
     }
 
     impl DashboardSurface {
@@ -3717,19 +4266,28 @@ mod native {
         }
 
         fn handle_key(&mut self, key: KeyEvent) -> bool {
-            // Native-nav select: `Enter` on the grove list opens (or switches to)
-            // the selected grove's [[workspace]] tab via the `HostDriver`, instead
-            // of the v1 master/detail drill-in. `nav_enter_target` returns `None`
-            // when a modal / filter / help is up, so `Enter` still falls through to
-            // the shared handler there (e.g. a newline in the capture body). Detail
-            // is per-grove-tab in 130; the `--local` dashboard keeps the drill-in.
+            // Native-nav select: `Enter` opens (or switches to) the selected
+            // grove's [[workspace]] in **its owning repo** (070 Q4/050 cross-repo
+            // open), instead of the v1 master/detail drill-in. `nav_activate`
+            // returns `None` when a modal / filter / help is up (so `Enter` falls
+            // through to the shared handler, e.g. a newline in the capture body)
+            // **and** when a repo header is highlighted — there it toggles the
+            // section's collapse in place, so we re-render and consume the key.
             if matches!(key.code, KeyCode::Enter) && key.modifiers.is_empty() {
-                if let Some(name) = self.app.nav_enter_target() {
-                    self.process_action(PendingAction::OpenHarness {
-                        name,
-                        repo: self.repo.clone(),
-                    });
-                    return true;
+                match self.app.nav_activate() {
+                    NavActivation::Open(repo, name) => {
+                        self.process_action(PendingAction::OpenHarness { name, repo });
+                        return true;
+                    }
+                    NavActivation::Toggled => {
+                        // A section collapse toggled: consume the key and
+                        // re-render; republish hints since the rows changed.
+                        publish_whichkey(WhichkeyOwner::Nav, footer_line(&self.app));
+                        return true;
+                    }
+                    // Passthrough: a modal / filter / help is up — let `Enter`
+                    // fall through to the shared handler below.
+                    NavActivation::Passthrough => {}
                 }
             }
 
@@ -3779,18 +4337,31 @@ mod native {
             // this single watcher — `fleet::resolve` supplies the repo set (this
             // surface's own repo guaranteed in via the flag), `fleet_watch_dirs`
             // expands each to its `.grove-worktrees/` + `.grove-meta/inboxes/`. At
-            // N=1 it is exactly the prior single-repo set. The targeted per-repo
-            // re-scan that distinguishes which repo changed lands in 040, where the
-            // `App` holds the fleet `MultiRepoView`; until then `tick` re-scans this
-            // surface's repo (a no-op when an unrelated fleet repo changed).
+            // N=1 it is exactly the prior single-repo set. The watch records the
+            // dirty event paths into the shared `dirty` buffer so `tick` re-scans
+            // only the owning repo (`App::rescan_event_paths`); an event under an
+            // unrelated fleet repo leaves this repo's section untouched.
             let roots = crate::fleet::resolve(std::slice::from_ref(&self.repo));
-            self._watcher = spawn_grove_watch(crate::fleet::fleet_watch_dirs(&roots), driver);
+            self._watcher = spawn_grove_watch(
+                crate::fleet::fleet_watch_dirs(&roots),
+                driver,
+                Some(self.dirty.clone()),
+            );
         }
 
         fn tick(&mut self) -> bool {
-            // An fs-watch settle (or any out-of-band wake): re-scan and redraw.
-            if let Err(e) = self.app.refresh_silent() {
-                self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
+            // An fs-watch settle (or out-of-band wake): drain the dirty buffer and
+            // re-scan. With concrete event paths, re-scan only the repos they
+            // belong to (070 Q6 targeted re-scan); a `full_refresh` marker (a
+            // pathless/conservative event) or an empty drain (an out-of-band wake)
+            // falls back to a whole-fleet rescan.
+            let dirty = std::mem::take(&mut *self.dirty.lock().unwrap());
+            if dirty.full_refresh || dirty.paths.is_empty() {
+                if let Err(e) = self.app.refresh_silent() {
+                    self.app.status = Some(format!("rescan failed: {}", short_err(&e)));
+                }
+            } else {
+                self.app.rescan_event_paths(&dirty.paths);
             }
             true
         }
@@ -3808,26 +4379,68 @@ mod native {
         }
     }
 
+    /// The fleet fs-watch's **dirty-path buffer** (070 Q6), drained by `tick`.
+    /// The watch thread records the dirty event paths here as a burst settles;
+    /// `tick` re-scans only the repos those paths belong to. `full_refresh` is set
+    /// when a pathless/conservative event arrives, forcing a whole-fleet rescan.
+    #[derive(Default)]
+    struct DirtyBuf {
+        full_refresh: bool,
+        paths: Vec<PathBuf>,
+    }
+
+    /// Record one debounce-thread message into the shared dirty buffer (when a
+    /// surface supplied one): an empty `paths` is the conservative full-refresh
+    /// marker; otherwise the (already `.git/`-filtered) paths are accumulated for
+    /// the targeted per-repo re-scan.
+    fn record_dirty(dirty: &Option<Arc<Mutex<DirtyBuf>>>, paths: Vec<PathBuf>) {
+        if let Some(d) = dirty {
+            let mut buf = d.lock().unwrap();
+            if paths.is_empty() {
+                buf.full_refresh = true;
+            } else {
+                buf.paths.extend(paths);
+            }
+        }
+    }
+
     /// Spawn the shared fs-watch → debounce → `request_tick` thread for a host
     /// surface (the 110/030 pattern, factored so the home dashboard and each
     /// per-grove detail reuse it). Watches each existing dir in `dirs` recursively,
     /// coalesces bursts under [`DEBOUNCE`], and posts a tick through `driver` when
     /// the filesystem settles — so the surface is only ever mutated on the screen
-    /// thread (in `tick`), never from this thread. Returns the [`RecommendedWatcher`]
-    /// to keep alive (dropping it closes the channel and ends the thread); `None` on
-    /// an exotic platform with no watcher, where manual `r` refresh still works.
-    fn spawn_grove_watch(dirs: Vec<PathBuf>, driver: HostDriver) -> Option<RecommendedWatcher> {
-        let (tx, rx) = mpsc::channel::<()>();
+    /// thread (in `tick`), never from this thread. When `dirty` is `Some`, the
+    /// (`.git/`-filtered) event paths are recorded into it for the targeted
+    /// per-repo re-scan (070 Q6); when `None` (the per-grove detail surface, which
+    /// re-scans its single grove regardless), only the tick is posted. Returns the
+    /// [`RecommendedWatcher`] to keep alive (dropping it closes the channel and
+    /// ends the thread); `None` on an exotic platform with no watcher, where manual
+    /// `r` refresh still works.
+    fn spawn_grove_watch(
+        dirs: Vec<PathBuf>,
+        driver: HostDriver,
+        dirty: Option<Arc<Mutex<DirtyBuf>>>,
+    ) -> Option<RecommendedWatcher> {
+        let (tx, rx) = mpsc::channel::<Vec<PathBuf>>();
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
             // Drop `.git/`-internal churn before it can wake a tick (070 Q6):
             // pack/ref/index writes inside any watched worktree's `.git/`, which
-            // fleet-scale watching would amplify N-fold. A pathless event is kept
-            // (conservative refresh). Mirrors the legacy `WatchSet::drain` filter.
+            // fleet-scale watching would amplify N-fold. A pathless event becomes
+            // a conservative full-refresh marker (empty vec). Mirrors the legacy
+            // `WatchSet::drain` filter, but forwards the surviving paths so `tick`
+            // can target the owning repo.
             if let Ok(ev) = res {
-                if ev.paths.is_empty()
-                    || ev.paths.iter().any(|p| !crate::fleet::path_is_git_internal(p))
-                {
-                    let _ = tx.send(());
+                if ev.paths.is_empty() {
+                    let _ = tx.send(Vec::new());
+                } else {
+                    let real: Vec<PathBuf> = ev
+                        .paths
+                        .into_iter()
+                        .filter(|p| !crate::fleet::path_is_git_internal(p))
+                        .collect();
+                    if !real.is_empty() {
+                        let _ = tx.send(real);
+                    }
                 }
             }
         })
@@ -3840,11 +4453,16 @@ mod native {
         std::thread::spawn(move || {
             // Block for the first event, then coalesce until quiet for DEBOUNCE,
             // then tick. Mirrors v1's `WatchSet` debounce, moved off the (now
-            // event-driven) render path.
-            while rx.recv().is_ok() {
+            // event-driven) render path. Each message's paths are recorded into the
+            // shared buffer as it arrives, so the settle tick sees the whole burst.
+            while let Ok(first) = rx.recv() {
+                record_dirty(&dirty, first);
                 loop {
                     match rx.recv_timeout(DEBOUNCE) {
-                        Ok(()) => continue,
+                        Ok(paths) => {
+                            record_dirty(&dirty, paths);
+                            continue;
+                        }
                         Err(mpsc::RecvTimeoutError::Timeout) => break,
                         Err(mpsc::RecvTimeoutError::Disconnected) => return,
                     }
@@ -4074,6 +4692,9 @@ mod native {
                     self.repo.join(".grove-meta").join("inboxes").join(&self.grove),
                 ],
                 driver,
+                // This surface re-scans its single grove on any settle, so it needs
+                // no per-repo targeting — `tick` ignores paths.
+                None,
             );
         }
 

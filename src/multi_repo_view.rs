@@ -78,6 +78,22 @@ impl MultiRepoView {
         view
     }
 
+    /// Wrap already-scanned [`RepoView`]s into a fleet **without re-scanning**,
+    /// preserving their order. The single-repo `App` path (the N=1 "fleet of
+    /// one" that 070 Q4's subsume rests on) builds a fleet from the one
+    /// `RepoView` it already holds via this, rather than paying a second scan.
+    pub fn from_repos(repos: Vec<RepoView>) -> Self {
+        MultiRepoView { repos }
+    }
+
+    /// The [`RepoView`] whose root is `repo_root`, or `None` when no repo with
+    /// that root is in the fleet. The nav (leaf `040`) uses this to read a
+    /// single repo's `cli`/`repo` version data when rendering that repo's grove
+    /// rows, since version drift is a per-repo property.
+    pub fn repo(&self, repo_root: &Path) -> Option<&RepoView> {
+        self.repos.iter().find(|r| r.repo_root == repo_root)
+    }
+
     /// The underlying per-repo views, in fleet order. The primary read surface
     /// for the nav (leaf `040`), which needs each `RepoView`'s full data (its
     /// `repo_root`, version layers, and grove summaries) to render a repo
@@ -170,6 +186,28 @@ mod tests {
         let task_root = repo.join(".grove-worktrees").join(grove).join(".grove");
         fs::create_dir_all(&task_root).unwrap();
         fs::write(task_root.join("010-x.md"), "# 010-x\n").unwrap();
+    }
+
+    #[test]
+    fn from_repos_wraps_without_rescanning_and_looks_up_by_root() {
+        let tmp = TempDir::new().unwrap();
+        let r1 = make_repo(tmp.path(), "one", &["alpha"]);
+        let r2 = make_repo(tmp.path(), "two", &["beta"]);
+        // Scan each repo independently, then wrap the already-scanned views —
+        // this is the single-repo `App` path (N=1 fleet of one) and the
+        // nav's per-repo version lookup, neither of which should re-scan.
+        let v1 = RepoView::scan(&r1).unwrap();
+        let v2 = RepoView::scan(&r2).unwrap();
+        let fleet = MultiRepoView::from_repos(vec![v1, v2]);
+
+        assert_eq!(fleet.repos().len(), 2);
+        // Order preserved: the wrap is identity over the input vec.
+        let groups: Vec<_> = fleet.groups().collect();
+        assert_eq!(groups[0].0, r1.as_path());
+        assert_eq!(groups[1].0, r2.as_path());
+        // `repo` resolves a RepoView by its root for per-repo version data.
+        assert_eq!(fleet.repo(&r2).unwrap().repo_root, r2);
+        assert!(fleet.repo(&tmp.path().join("nope")).is_none());
     }
 
     #[test]

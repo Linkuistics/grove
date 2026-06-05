@@ -22,6 +22,13 @@ readonly TARGETS=(
   x86_64-unknown-linux-gnu
 )
 
+# The grove-nav zellij plugin (ADR-0018) is built by build.rs for this wasm
+# target on every `cargo build` and embedded into the binary, so it is a
+# prerequisite for *all* release targets, not a release output itself — hence
+# checked separately from TARGETS (which release-build.sh iterates to produce
+# per-host tarballs).
+readonly PLUGIN_TARGET=wasm32-wasip1
+
 failed=0
 
 mark_pass() {
@@ -66,7 +73,7 @@ check_rustup_targets() {
   local installed
   installed="$(rustup target list --installed)"
   local target
-  for target in "${TARGETS[@]}"; do
+  for target in "${TARGETS[@]}" "$PLUGIN_TARGET"; do
     if grep -qx "$target" <<<"$installed"; then
       mark_pass "rustup target: $target"
     else

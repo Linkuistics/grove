@@ -1,3 +1,22 @@
+# grove is a cargo workspace: the root `grove` package (CLI) plus the
+# extractable `harness-pane` crate (the in-process-pty terminal embed,
+# ADR-0014). The root package is itself an implicit workspace member, so
+# `cargo build`/`cargo test` from here covers both.
+#
+# `crates/grove-nav` (the zellij WASM nav plugin, ADR-0018) is **excluded**: it
+# only builds for `wasm32-wasip1` and depends on `zellij-tile`, so a host
+# `cargo build`/`cargo test` must not try to compile it. The root `build.rs`
+# builds it explicitly for wasm and embeds the result.
+[workspace]
+members = ["crates/harness-pane"]
+# `crates/trellis` is grove's hard fork of zellij (ADR-0020), itself a complete
+# cargo workspace with its own `Cargo.lock`. It is **excluded** so a host
+# `cargo build`/`cargo test` never folds its ~100k-LOC member crates into grove's
+# build; the one-way grove→trellis seam is a path dependency *into* it (see the
+# optional `trellis` dependency + `trellis-seam` feature below). Same pattern as
+# `crates/grove-nav`.
+exclude = ["crates/grove-nav", "crates/trellis"]
+
 [package]
 name = "grove"
 version = "5.1.0"
@@ -6,6 +25,8 @@ description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
 rust-version = "1.74"
+# Builds the grove-nav wasm plugin and embeds it (see build.rs, leaf 070).
+build = "build.rs"
 
 # Sibling git worktrees live alongside the crate root but aren't part
 # of the crate. `.grove-meta/` carries inbox files whose ISO-8601 names
@@ -32,15 +53,56 @@ path = "src/lib.rs"
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 flate2 = "1.0"
+# `poll(2)` on the proxy's (socket, stdin) fds so a single-threaded relay loop
+# stops reading stdin while an `$EDITOR` child owns the tty (ADR-0017). Already
+# in the tree transitively; declared here for the proxy's direct use.
+libc = "0.2"
 notify = "6"
 ratatui = "0.29"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# SIGWINCH detection in the dumb dashboard proxy (`grove __dash-proxy`,
+# ADR-0016). The proxy forwards *raw* stdin up to the controller rather than
+# using crossterm's event reader, so it needs an independent resize-signal path.
+# Already in the tree transitively (via crossterm); declared here for the proxy.
+signal-hook = "0.3"
 sha2 = "0.10"
 tar = "0.4"
 tempfile = "3.10"
 thiserror = "1.0"
+# Parse the fleet manifest (`~/.config/grove/fleet.toml`) — the user-facing,
+# hand-edited config listing explicit `repos` and `scan_roots` for the
+# multi-repo fleet view (ADR-0025, leaf 070/010). Below the presentation
+# boundary; the manifest is a plain, walk-away-legible artifact.
+toml = "0.8"
 ureq = { version = "2.10", features = ["json"] }
+
+# The grove→trellis framework seam (ADR-0020/0021). `trellis` is grove's hard fork
+# of zellij, vendored at `crates/trellis/` (its own workspace). grove may depend on
+# trellis; trellis must **never** depend on grove (one-way). Kept **optional** while
+# the native host API is built out (leaf 110): a default `cargo build`/`cargo test`
+# stays fast and unchanged, while `cargo build --features trellis-seam` links the
+# framework and proves the edge compiles.
+#
+# Leaf 110/010 **broadens the seam** per ADR-0021's library-you-link decision:
+# grove owns `main` and dispatches the trellis client/server roles itself, so it
+# links all three foundational crates — `zellij-client` (the foreground client
+# UI / blitter), `zellij-server` (the re-exec'd render daemon), and `zellij-utils`
+# (shared config/layout/data). The package aliases keep grove's references reading
+# as `trellis*` rather than `zellij_*`. Still optional behind `trellis-seam`: the
+# heavy ~100k-LOC server link (terminal emulation, PTY, the wasmi plugin host) must
+# not slow a default `grove`/`grove-llm` build that never starts the TUI. Whether
+# to flip the feature always-on is deferred to a later 110 leaf (030), once the
+# native dashboard fully replaces the superseded launch path.
+trellis = { package = "zellij-utils", path = "crates/trellis/zellij-utils", optional = true }
+trellis-client = { package = "zellij-client", path = "crates/trellis/zellij-client", optional = true }
+trellis-server = { package = "zellij-server", path = "crates/trellis/zellij-server", optional = true }
+
+[features]
+# Compile the grove→trellis framework dependency (ADR-0020/0021). Off by default;
+# links all three foundational crates so grove's `main` can dispatch the
+# client/server roles in-process (the native host API, leaf 110).
+trellis-seam = ["dep:trellis", "dep:trellis-client", "dep:trellis-server"]
 
 [dev-dependencies]
 assert_cmd = "2.0"

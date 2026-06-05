@@ -36,8 +36,24 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the read-only TUI navigator over this repo's groves.
-    Tui(RepoArgs),
+    /// Launch the grove dashboard. By default `grove tui` renders the dashboard
+    /// **natively in-process** as a trellis pane (ADR-0020/0021): grove owns
+    /// `main`, links the forked `zellij-*` crates, and starts the trellis client
+    /// (which spawns the server by re-exec). `--local` runs the legacy
+    /// in-terminal dashboard directly (no trellis, no embedding), a dev/debug
+    /// escape that needs neither the substrate nor the `trellis-seam` feature.
+    Tui(TuiArgs),
+}
+
+#[derive(Parser)]
+pub struct TuiArgs {
+    /// Target repo (defaults to cwd's git root).
+    pub repo: Option<PathBuf>,
+    /// Run the legacy in-terminal dashboard directly, without the trellis
+    /// substrate. A dev/debug escape hatch; hidden because the native trellis
+    /// pane (ADR-0020/0021) is the supported path.
+    #[arg(long, hide = true)]
+    pub local: bool,
 }
 
 #[derive(Parser)]
@@ -287,6 +303,16 @@ pub struct RetireArgs {
 }
 
 pub fn run() -> anyhow::Result<()> {
+    // Trellis server re-exec (ADR-0021): `zellij_client::spawn_server` re-execs
+    // `current_exe() --server <socket> [--debug]`, and `current_exe()` is grove.
+    // Intercept it *before* clap — grove's `Cli` has no `--server` flag and would
+    // reject the re-exec'd argv. No grove verb uses `--server`, so a normal
+    // invocation never reaches this branch.
+    #[cfg(feature = "trellis-seam")]
+    if let Some(inv) = crate::trellis_host::server_invocation() {
+        return crate::trellis_host::run_server(inv);
+    }
+
     let cli = Cli::parse();
     match cli.command {
         Command::Install(args) => crate::install::run(&args),
@@ -299,6 +325,28 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args)     => crate::meta::run(&args),
-        Command::Tui(args)      => crate::tui::run(&args),
+        Command::Tui(args)      => {
+            let repo_args = RepoArgs { repo: args.repo };
+            // Default `grove tui` renders the dashboard **natively in-process**
+            // (ADR-0020/0021): grove owns `main` and starts the trellis client,
+            // which spawns the server by re-exec (see `run()`'s `--server`
+            // intercept). `--local` runs the legacy in-terminal dashboard. A
+            // default build (no `trellis-seam`) has no embedding, so it can only
+            // serve the local dashboard — the proxy/`zellij action` transport it
+            // used to fall back to retired with the native port (110/030).
+            #[cfg(feature = "trellis-seam")]
+            {
+                if args.local {
+                    crate::tui::run(&repo_args)
+                } else {
+                    crate::trellis_host::run_client(&repo_args)
+                }
+            }
+            #[cfg(not(feature = "trellis-seam"))]
+            {
+                let _ = args.local;
+                crate::tui::run(&repo_args)
+            }
+        }
     }
 }

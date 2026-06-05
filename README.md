@@ -35,4 +35,30 @@ grove retire <name>/<node-path>   # promote brief upward, mv node into done/
 
 Each verb takes optional `--harness <name>` (repeatable for file-system verbs) and respects auto-detection from the repo's `.claude/` and `.codex/` directories. Session launchers stamp `.grove-stamps/<name>` only when needed for disambiguation in multi-harness repos. Worktrees live at `.grove-worktrees/<name>/`; the task tree itself is `.grove/` inside that worktree.
 
+**Browse a repo's groves in the dashboard:**
+
+```
+grove tui [<repo>]                # launch the interactive dashboard
+```
+
+`grove tui` opens grove's dashboard — a master/detail navigator over your groves with inbox capture. It runs on a grove-owned [zellij](https://zellij.dev) substrate (ADR-0015/0016): grove launches zellij with its own bundled config and a chrome-free layout, so the composite presents as a single binary, not "a zellij session". zellij runs in **locked mode**, passing every key straight through to the focused app; the one control seam is **`Ctrl-o`**, which toggles zellij's own controls on and off (remapped from zellij's default `Ctrl-g`). An installed `zellij` is required. Quitting zellij returns to your shell.
+
+**Multi-repo fleet.** The dashboard isn't limited to one repo — it can surface groves across a whole **fleet** of repos at once. The nav groups groves under a collapsible section per repo (highlight a section header and press `Enter` to collapse/expand it); with only one repo in view the header is hidden and the list reads flat. Sections are ordered current-repo-first, then your explicit repos, then scan-discovered ones. The fleet is configured by an optional manifest at **`~/.config/grove/fleet.toml`** (or `$XDG_CONFIG_HOME/grove/fleet.toml`):
+
+```toml
+# Explicit repos — always included (a missing one is skipped, never fatal).
+repos = [
+  "/Users/me/work/api",
+  "/Users/me/work/web",
+]
+
+# Scan roots — each is walked one level deep; every immediate child that
+# contains a .grove-worktrees/ is discovered as a repo automatically.
+scan_roots = [
+  "/Users/me/work",
+]
+```
+
+Both keys are optional. The repo `grove tui` is launched in (the positional `[<repo>]`, or the cwd's git root) is always part of the fleet, so a fleet manifest is purely additive — without one, `grove tui` behaves exactly as a single-repo dashboard. A repo found via both `repos` and a `scan_root` appears once.
+
 See `grove --help` for flag details. For end-to-end walkthroughs of each verb in context, see [`docs/workflows/`](docs/workflows/).

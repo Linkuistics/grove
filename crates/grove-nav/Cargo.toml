@@ -1,0 +1,35 @@
+# grove-nav: the leader-focused command surface, a zellij WASM plugin
+# (ADR-0018, leaf 060-harness-pane/040-grove-integration/070-nav-plugin).
+#
+# NOT a workspace member — it targets `wasm32-wasip1` and depends on
+# `zellij-tile`, which only makes sense compiled to wasm. The root `grove`
+# package's `build.rs` builds it explicitly for that target and embeds the
+# resulting `.wasm` via `include_bytes!`; the root workspace `exclude`s this
+# directory so a plain `cargo build`/`cargo test` never tries to build it for
+# the host. Its own Cargo.lock resolves independently.
+[package]
+name = "grove-nav"
+version = "0.1.0"
+edition = "2021"
+description = "grove's leader-focused navigation: a zellij WASM plugin that lists workspace tabs and switches between them."
+license = "Apache-2.0"
+repository = "https://github.com/Linkuistics/grove"
+rust-version = "1.74"
+publish = false
+
+# A zellij plugin is a wasm *binary* (`register_plugin!` exports the lifecycle
+# hooks); `src/main.rs` is the entry point.
+[[bin]]
+name = "grove-nav"
+path = "src/main.rs"
+
+[dependencies]
+# Match grove's host zellij (0.44.3): the plugin's wasm ABI must be compatible
+# with the zellij that loads it. zellij-tile tracks the zellij release line.
+zellij-tile = "0.44"
+
+# wasm is small; optimise for size so the embedded blob stays lean.
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true

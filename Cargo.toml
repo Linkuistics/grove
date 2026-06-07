@@ -1,15 +1,11 @@
-# grove is a cargo workspace: the root `grove` package (CLI) plus the
-# extractable `harness-pane` crate (the in-process-pty terminal embed,
-# ADR-0014). The root package is itself an implicit workspace member, so
-# `cargo build`/`cargo test` from here covers both.
+# grove is a single-package cargo workspace (the root `grove` package / CLI).
+# The TUI substrate is being rebuilt on rmux (grove `rmux-substrate`): the
+# vendored trellis zellij-fork and the shelved `harness-pane` crate were both
+# removed in `020-rip-out`, so the workspace currently has no extra members.
+# 030/040 may re-add path members here (e.g. a vendored rmux fork) as that work
+# lands.
 [workspace]
-members = ["crates/harness-pane"]
-# `crates/trellis` is grove's hard fork of zellij (ADR-0020), itself a complete
-# cargo workspace with its own `Cargo.lock`. It is **excluded** so a host
-# `cargo build`/`cargo test` never folds its ~100k-LOC member crates into grove's
-# build *as workspace members*; the one-way grove→trellis seam is an
-# unconditional path dependency *into* it (see the `trellis` dependency below).
-exclude = ["crates/trellis"]
+members = []
 
 [package]
 name = "grove"
@@ -69,25 +65,10 @@ thiserror = "1.0"
 toml = "0.8"
 ureq = { version = "2.10", features = ["json"] }
 
-# The grove→trellis framework seam (ADR-0020/0021). `trellis` is grove's hard fork
-# of zellij, vendored at `crates/trellis/` (its own workspace). grove may depend on
-# trellis; trellis must **never** depend on grove (one-way).
-#
-# These deps are **unconditional**: trellis is the one, always-on TUI (ADR-0026).
-# Per ADR-0021's library-you-link decision grove owns `main` and dispatches the
-# trellis client/server roles itself, so it links all three foundational crates —
-# `zellij-client` (the foreground client UI / blitter), `zellij-server` (the
-# re-exec'd render daemon), and `zellij-utils` (shared config/layout/data). The
-# package aliases keep grove's references reading as `trellis*` rather than
-# `zellij_*`. The earlier `trellis-seam` feature gate (which kept these optional
-# while the native host API was built out) was removed: it defaulted *off*, so the
-# shipped binary linked no trellis and `grove tui` fell into a fleet-blind local
-# dashboard — the bug ADR-0026 fixes. The cost is a slower default build (the heavy
-# ~100k-LOC server link: terminal emulation, PTY, the wasmi plugin host), accepted
-# for one coherent always-trellis binary.
-trellis = { package = "zellij-utils", path = "crates/trellis/zellij-utils" }
-trellis-client = { package = "zellij-client", path = "crates/trellis/zellij-client" }
-trellis-server = { package = "zellij-server", path = "crates/trellis/zellij-server" }
+# The TUI substrate (the trellis zellij-fork `trellis`/`trellis-client`/
+# `trellis-server` deps) was removed in `020-rip-out`; grove links no TUI
+# substrate while `grove tui` is rebuilt on rmux. The rmux deps (`rmux-sdk`,
+# `ratatui-rmux`, and the daemon) land in 030/040.
 
 [dev-dependencies]
 assert_cmd = "2.0"

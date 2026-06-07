@@ -36,20 +36,19 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the grove dashboard. `grove tui` renders the dashboard
-    /// **natively in-process** as a trellis pane (ADR-0020/0021/0026): grove owns
-    /// `main`, links the forked `zellij-*` crates, and starts the trellis client
-    /// (which spawns the server by re-exec). This is the one, unconditional TUI —
-    /// there is no legacy in-terminal mode and no build feature to gate it.
+    /// Launch the grove dashboard (temporarily disabled). The TUI is being
+    /// rebuilt on the rmux substrate (grove `rmux-substrate`); the old trellis
+    /// zellij-fork was removed in `020-rip-out`. Until the rmux engine lands
+    /// (030), this prints a notice and exits. Drive groves via `grove-llm` /
+    /// `grove status` meanwhile.
     Tui(TuiArgs),
 }
 
 #[derive(Parser)]
 pub struct TuiArgs {
     /// Additive fleet repo root (ADR-0027 §2). Repeatable — `--repo .
-    /// --repo ../other`. The fleet is `fleet.toml` (`repos` + `scan_roots`) plus
-    /// these flags, deduped; **no** cwd git root is auto-included, so `--repo .`
-    /// is how you deliberately pin the current directory.
+    /// --repo ../other`. Parsed but inert while the TUI is disabled; rewired
+    /// when the rmux engine lands (030).
     #[arg(long = "repo")]
     pub repo: Vec<PathBuf>,
 }
@@ -301,15 +300,6 @@ pub struct RetireArgs {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    // Trellis server re-exec (ADR-0021): `zellij_client::spawn_server` re-execs
-    // `current_exe() --server <socket> [--debug]`, and `current_exe()` is grove.
-    // Intercept it *before* clap — grove's `Cli` has no `--server` flag and would
-    // reject the re-exec'd argv. No grove verb uses `--server`, so a normal
-    // invocation never reaches this branch.
-    if let Some(inv) = crate::trellis_host::server_invocation() {
-        return crate::trellis_host::run_server(inv);
-    }
-
     let cli = Cli::parse();
     match cli.command {
         Command::Install(args) => crate::install::run(&args),
@@ -322,16 +312,17 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args)     => crate::meta::run(&args),
-        Command::Tui(args)      => {
-            // `grove tui` renders the dashboard **natively in-process**
-            // (ADR-0020/0021/0026) and is resolved **purely from config** — the
-            // fleet manifest + scan roots + these additive `--repo` flags, with
-            // no cwd git-repo gate or single-repo anchor (ADR-0027). grove owns
-            // `main` and starts the trellis client, which spawns the server by
-            // re-exec (see `run()`'s `--server` intercept). This is the only TUI
-            // path — the legacy in-terminal dashboard and the `trellis-seam`
-            // feature gate were removed.
-            crate::trellis_host::run_client(&args.repo)
+        Command::Tui(_args)     => {
+            // Temporarily disabled: the trellis zellij-fork substrate was removed
+            // in `020-rip-out` and the rmux rebuild has not landed yet (030). A
+            // clean notice, not a panic — `grove tui` returns once the rmux engine
+            // is in place. Groves are driven via `grove-llm` / `grove status`
+            // meanwhile.
+            eprintln!(
+                "grove tui is temporarily disabled: the dashboard is being rebuilt on the \
+                 rmux substrate.\nDrive groves via `grove-llm` and `grove status` until it returns."
+            );
+            Ok(())
         }
     }
 }

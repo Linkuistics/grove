@@ -53,11 +53,11 @@ build_target() {
       cargo build --release --target "$target" || return 1
       ;;
     *-unknown-linux-gnu)
-      # `--features trellis/vendored_curl`: trellis (the zellij fork) pulls curl +
-      # openssl-sys transitively via isahc; the zigbuild Linux cross-build cannot
-      # find a system OpenSSL, so vendor curl + build OpenSSL from source.
-      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}" \
-        --features trellis/vendored_curl || return 1
+      # The trellis zellij-fork (which pulled curl + openssl-sys transitively via
+      # isahc, needing `--features trellis/vendored_curl` for the OpenSSL-less
+      # zigbuild cross-build) was removed in `020-rip-out`; a plain zigbuild now
+      # suffices. Revisit if the rmux daemon dep reintroduces a system-lib need.
+      cargo zigbuild --release --target "${target}.${LINUX_GLIBC}" || return 1
       ;;
     *)
       die "unknown target: $target"

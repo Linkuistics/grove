@@ -26,9 +26,10 @@ these (focus model, pane/session model, layout primitives).
   park-alive (rmux splits/sessions keep panes alive off-screen natively — does this
   replace the suppress/restore + `replace_pane` machinery of ADR-0023?), responsive tiers
   (the ~220-col breakpoint).
-- **Daemon lifecycle + bundling + launch** — vendoring/shipping the rmux daemon binary
-  (`SDK_DAEMON_BINARY_ENV`, `connect_or_start`), session naming/persistence, how
-  `grove tui` launches, fleet singleton + multi-repo (ADR-0025/0027) under rmux.
+- **Daemon lifecycle + bundling + launch** — vendoring/shipping the **forked** rmux daemon
+  binary (D7: grove ships *our* build, not the published one) via `SDK_DAEMON_BINARY_ENV` /
+  `connect_or_start`, session naming/persistence, how `grove tui` launches, fleet singleton
+  + multi-repo (ADR-0025/0027) under rmux.
 - **Detach + web path** — rmux session persistence/detach; rmux `web-share` (HTTP share
   URLs, opt-in daemon capability) vs grove's whole-UI-on-web goal. Likely research-first.
 - **Teardown** — dissolve the ADR-0013–0028 tower (D4 mark-dissolved sweep + finalise the

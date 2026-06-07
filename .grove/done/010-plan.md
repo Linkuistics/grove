@@ -44,8 +44,9 @@ coupling it to full copy-mode (Full-parity option) would chain it to an unresolv
 upstream dependency, while shipping an unusable stand-in (the spike's regression)
 is not acceptable. Interim-with-a-working-stand-in threads the needle.
 
-**D2 — Rendered history = grove ring over `render_stream`, no fork, upstream ask in
-parallel; spike-validated first.** Source clean history from `render_stream()`'s
+**D2 — [SUPERSEDED by D7 — see root BRIEF: rendered history is now sourced via a rmux
+fork with native capture; no grove ring.] Rendered history = grove ring over
+`render_stream`, no fork, upstream ask in parallel; spike-validated first.** Source clean history from `render_stream()`'s
 rmux-RENDERED snapshots (NOT raw `line_stream`, NOT a grove vt100 emulator, NOT a
 rmux fork on the critical path). grove reconstructs scrolled-off rendered lines into
 a bounded per-pane ring; open-in-editor dumps the ring. Rejected: a grove client-side

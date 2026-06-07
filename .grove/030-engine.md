@@ -21,6 +21,12 @@ entry). Below the presentation boundary (ADR-0013) the `RepoView`/`MultiRepoView
 unchanged — this leaf is the new presentation over it. Drafts the **landmark "rmux
 substrate" ADR** (D4) as the architecture settles.
 
+Per D7, grove depends on a **fork of rmux** (for the rendered-history capture landing in
+040) — including the daemon binary `connect_or_start` spawns. Target the forked daemon/SDK
+from the start here rather than the published crate, so the engine and 040 share one
+dependency. (The fork itself is established in 040; if 030 lands first, it can begin on the
+published crate and switch when 040 forks — but prefer forking up front if cheap.)
+
 ## Done when
 
 `grove tui` runs on rmux: a harness pane renders + takes input, a centered capture modal

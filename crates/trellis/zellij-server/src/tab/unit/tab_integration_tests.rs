@@ -14845,3 +14845,62 @@ fn hidden_cursor_still_emits_cup_for_host_terminal_positioning() {
         "Show-cursor sequence must not be present when app has hidden the cursor"
     );
 }
+
+/// Regression (tui-blank-host-surfaces): a host surface's drawn content must reach
+/// the composited output. grove's native nav and whichkey are `PaneId::Host` panes
+/// that emit their cells via `Pane::render` → `CharacterChunk`s, exactly like plugin
+/// panes — but the tiled-panes render loop only invoked
+/// `render_pane_contents_for_client` for `PaneId::Plugin`, so host panes rendered
+/// their frame and *nothing else*: every host surface was silently blank. This drives
+/// a marker-drawing surface through `inject_host_pane` → `Tab::render` →
+/// `Output::serialize` and asserts the marker lands on screen — the end-to-end guard
+/// the converter unit tests (which call `render` directly) could not provide, since
+/// the defect was that the render loop never called `render` on a host pane at all.
+#[test]
+fn host_surface_content_reaches_composited_output() {
+    use crate::panes::host_pane::HostSurface;
+    use ratatui::buffer::Buffer;
+    use ratatui::layout::Rect;
+    use ratatui::text::Line;
+    use ratatui::widgets::Widget;
+
+    const MARKER: &str = "GROVEHOSTSURFACEMARKER";
+
+    struct MarkerSurface;
+    impl HostSurface for MarkerSurface {
+        fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+            Line::from(MARKER).render(area, buf);
+        }
+    }
+
+    let size = Size {
+        cols: 80,
+        rows: 24,
+    };
+    let client_id = 1;
+    let mut tab = create_new_tab(size, ModeInfo::default());
+    // `inject_host_pane` hands the surface a `HostDriver` wired to the tab's
+    // screen/server senders, which `create_new_tab` leaves unset (it silently fails
+    // on send). The driver only stores them — nothing is sent during render — so
+    // dummy channels suffice; we keep the receivers alive for the test's lifetime.
+    let (screen_tx, _screen_rx) = channels::unbounded();
+    let (server_tx, _server_rx) = channels::unbounded();
+    tab.senders.to_screen = Some(SenderWithContext::new(screen_tx));
+    tab.senders.to_server = Some(SenderWithContext::new(server_tx));
+    tab.inject_host_pane(Box::new(MarkerSurface), client_id)
+        .unwrap();
+
+    let mut output = Output::default();
+    tab.render(&mut output, None).unwrap();
+    let snapshot = take_snapshot(
+        output.serialize().unwrap().get(&client_id).unwrap(),
+        size.rows,
+        size.cols,
+        Palette::default(),
+    );
+
+    assert!(
+        snapshot.contains(MARKER),
+        "host surface content must reach the composited output; got:\n{snapshot}"
+    );
+}

@@ -1123,7 +1123,12 @@ impl TiledPanes {
                         .mode;
                     let err_context =
                         || format!("failed to render tiled panes for client {client_id}");
-                    if let PaneId::Plugin(..) = kind {
+                    // Plugin and host panes both supply their cells via
+                    // `Pane::render` → `CharacterChunk`s (terminals use the grid
+                    // path above), so both must render their contents here — omitting
+                    // `Host` left grove's nav/whichkey surfaces drawing only a frame
+                    // (tui-blank-host-surfaces).
+                    if matches!(kind, PaneId::Plugin(..) | PaneId::Host(..)) {
                         if !pane_is_one_liner_in_stack {
                             pane_contents_and_ui
                                 .render_pane_contents_for_client(*client_id)

@@ -490,7 +490,10 @@ impl FloatingPanes {
                         pane_is_selectable,
                     )
                     .with_context(err_context)?;
-                if let PaneId::Plugin(..) = kind {
+                // Plugin and host panes both supply their cells via `Pane::render`
+                // → `CharacterChunk`s (terminals use the multi-client path below),
+                // so both render their contents here (tui-blank-host-surfaces).
+                if matches!(kind, PaneId::Plugin(..) | PaneId::Host(..)) {
                     pane_contents_and_ui
                         .render_pane_contents_for_client(*client_id)
                         .with_context(err_context)?;

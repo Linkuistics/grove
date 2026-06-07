@@ -1,5 +1,11 @@
 # Changelog
 
+## v6.2.1
+
+### Fixed
+
+- **`grove tui`'s native nav and whichkey surfaces no longer render blank.** The left `grove-nav` fleet list and the bottom `grove-whichkey` hint bar are `PaneId::Host` panes — trellis's third pane kind, which supplies its cells by drawing into an off-screen ratatui `Buffer` that the server converts to `CharacterChunk`s in `Pane::render` (exactly like a WASM plugin pane; terminal panes use a separate grid path). But both of trellis's pane-render loops gated the call that actually invokes `Pane::render` and feeds its chunks to the client — `render_pane_contents_for_client` — to `PaneId::Plugin` alone. Host panes therefore had their frame drawn but `render` never called, so every host surface composited to nothing. The companion `add_pane_contents` dispatch had already been widened to `Plugin | Host` when the host pane kind was added; the parallel render gate was the one site missed. Both gates (tiled and floating) now match `Plugin | Host`, and a new end-to-end regression test drives a host surface through `inject_host_pane → Tab::render → Output::serialize` and asserts its content reaches the composited output — the guard whose absence let the surfaces ship blank.
+
 ## v6.2.0
 
 ### Breaking

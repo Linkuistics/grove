@@ -21,11 +21,14 @@
 //!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
 //!   - [`capture`] — the centered capture modal over the live pane (the
 //!     landmark bug-fix proof point) + its shell-out capture write.
+//!   - [`editor`] — open-in-editor (040): leader → `e` dumps the focused pane's
+//!     rendered history to `$EDITOR` via stock `rmux capture-pane` (ADR-0029).
 
 pub mod app;
 pub mod capture;
 pub mod config;
 pub mod driver;
+pub mod editor;
 pub mod focus;
 pub mod input;
 pub mod nav;

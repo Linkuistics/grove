@@ -47,6 +47,7 @@ use crate::multi_repo_view::MultiRepoView;
 use crate::tui::capture::{CaptureModal, CaptureOutcome, CaptureTarget};
 use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::driver::PaneDriver;
+use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus};
 use crate::tui::nav::{Nav, NavItem};
 use crate::tui::pane::render_pane;
@@ -173,7 +174,9 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
 
     // --- input + fs-watch event sources, surfaced into the select! ---
     let stop = Arc::new(AtomicBool::new(false));
-    let mut input_rx = spawn_input_reader(Arc::clone(&stop));
+    // The editor drop (D-E) pauses the reader so the `$EDITOR` child owns stdin.
+    let input_pause = Arc::new(AtomicBool::new(false));
+    let mut input_rx = spawn_input_reader(Arc::clone(&stop), Arc::clone(&input_pause));
     let (_watcher, mut watch_rx) = spawn_fs_watch(&repo_roots)?;
 
     // --- terminal setup ---
@@ -205,7 +208,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         render_tx,
     };
     let result = app
-        .run(&mut terminal, &mut render_rx, &mut input_rx, &mut watch_rx)
+        .run(&mut terminal, &mut render_rx, &mut input_rx, &mut watch_rx, &input_pause)
         .await;
 
     // --- teardown (always, even on error) ---
@@ -231,6 +234,7 @@ impl App {
         render_rx: &mut mpsc::UnboundedReceiver<(String, PaneSnapshot)>,
         input_rx: &mut mpsc::UnboundedReceiver<Event>,
         watch_rx: &mut mpsc::UnboundedReceiver<()>,
+        input_pause: &Arc<AtomicBool>,
     ) -> Result<()> {
         let mut needs_redraw = true;
         loop {
@@ -256,6 +260,13 @@ impl App {
                     Some(ev) => match self.handle_event(&ev).await? {
                         EventOutcome::Quit => break,
                         EventOutcome::Redraw => needs_redraw = true,
+                        EventOutcome::OpenEditor => {
+                            // The editor drop owns the terminal + stdin, so it
+                            // runs here in the loop body (not in `handle_event`,
+                            // which has neither). On return, force a full repaint.
+                            self.open_in_editor(terminal, input_pause, input_rx).await;
+                            needs_redraw = true;
+                        }
                         EventOutcome::Nothing => {}
                     },
                     None => break, // input reader gone
@@ -354,6 +365,7 @@ impl App {
                 self.capture.clear();
                 EventOutcome::Redraw
             }
+            Action::OpenEditor => EventOutcome::OpenEditor,
             Action::Quit => EventOutcome::Quit,
         };
 
@@ -389,6 +401,105 @@ impl App {
             Ok(Err(e)) => CaptureOutcome::Failed(format!("{e:#}")),
             Err(e) => CaptureOutcome::Failed(format!("capture task panicked: {e}")),
         });
+    }
+
+    /// The open-in-editor drop (040, D-B/D-E): capture the focused harness
+    /// pane's full *rendered* history via stock `rmux capture-pane`, suspend the
+    /// TUI + pause the input reader so the `$EDITOR` child owns the terminal,
+    /// then restore and force a full repaint. A no-op-with-toast on the bare
+    /// shell pane (no grove). Every failure surfaces as a toast and never
+    /// crashes the loop (mirrors [`Self::submit_capture`]).
+    async fn open_in_editor(
+        &mut self,
+        terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
+        input_pause: &Arc<AtomicBool>,
+        input_rx: &mut mpsc::UnboundedReceiver<Event>,
+    ) {
+        // Gate on harness-ness (a grove target); the bare shell is a no-op with a
+        // toast per the leaf's "Done when". Extract what we need and drop the
+        // borrow before touching `self.toast`.
+        let (pane_id, is_harness) = match self.panes.get(&self.focused) {
+            Some(e) => (e.driver.id(), e.target.is_some()),
+            None => return,
+        };
+        if !is_harness {
+            self.toast = Some(CaptureOutcome::Failed("no harness focused".into()));
+            return;
+        }
+
+        // 1. Capture the rendered history below the seam (spawn_blocking — it
+        //    talks to the daemon over IPC; keep the reactor free, E1).
+        let dump = match tokio::task::spawn_blocking(move || editor::capture_history(pane_id)).await
+        {
+            Ok(Ok(text)) => text,
+            Ok(Err(e)) => {
+                self.toast = Some(CaptureOutcome::Failed(format!("capture failed: {e:#}")));
+                return;
+            }
+            Err(e) => {
+                self.toast = Some(CaptureOutcome::Failed(format!("capture task panicked: {e}")));
+                return;
+            }
+        };
+
+        // 2. Stage the dump in a temp file for the editor to open.
+        let tmp = match write_dump_tempfile(&dump) {
+            Ok(t) => t,
+            Err(e) => {
+                self.toast = Some(CaptureOutcome::Failed(format!("temp file: {e:#}")));
+                return;
+            }
+        };
+
+        // 3. Suspend the TUI and pause the input reader so the editor owns stdin
+        //    (D-E). Sleep one reader poll-budget so any in-flight poll finishes
+        //    before the child takes over.
+        input_pause.store(true, Ordering::Relaxed);
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        let _ = disable_raw_mode();
+        let _ = execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            DisableBracketedPaste
+        );
+        let _ = terminal.show_cursor();
+
+        // 4. Run `$EDITOR <tmpfile>` blocking, inheriting the real terminal. On a
+        //    blocking-pool thread so the reactor's render/watch tasks keep
+        //    draining into their channels while the editor is up.
+        let mut argv = editor::resolve_editor();
+        argv.push(tmp.path().to_string_lossy().into_owned());
+        let status = tokio::task::spawn_blocking(move || {
+            std::process::Command::new(&argv[0]).args(&argv[1..]).status()
+        })
+        .await;
+
+        // 5. Restore the TUI (setup order) and resume input.
+        let _ = enable_raw_mode();
+        let _ = execute!(
+            terminal.backend_mut(),
+            EnterAlternateScreen,
+            EnableMouseCapture,
+            EnableBracketedPaste
+        );
+        let _ = terminal.hide_cursor();
+        input_pause.store(false, Ordering::Relaxed);
+
+        // 6. Drop any keystrokes that slipped through at the boundary and clear,
+        //    so the caller's redraw fully repaints over the editor's scribbles.
+        while input_rx.try_recv().is_ok() {}
+        let _ = terminal.clear();
+
+        // 7. A clean editor exit is silent; anything else becomes a toast.
+        match status {
+            Ok(Ok(st)) if st.success() => {}
+            Ok(Ok(st)) => self.toast = Some(CaptureOutcome::Failed(format!("editor exited {st}"))),
+            Ok(Err(e)) => self.toast = Some(CaptureOutcome::Failed(format!("editor: {e}"))),
+            Err(e) => {
+                self.toast = Some(CaptureOutcome::Failed(format!("editor task panicked: {e}")))
+            }
+        }
     }
 
     /// A clone of the focused pane's handle, if one is open. Cloning (the rmux
@@ -518,6 +629,9 @@ enum EventOutcome {
     Quit,
     /// Something changed; redraw before the next event.
     Redraw,
+    /// Suspend the loop and dump the focused harness pane into `$EDITOR` (040).
+    /// Carried out by the loop body, which owns the terminal + input stream.
+    OpenEditor,
     /// Forwarded to the pane (or ignored); no grove-surface redraw needed —
     /// the pane's own output will arrive as a render push if it changed.
     Nothing,
@@ -532,6 +646,23 @@ fn resolve_repo_roots(args: &TuiArgs) -> Result<Vec<PathBuf>> {
     } else {
         Ok(roots)
     }
+}
+
+/// Stage the captured history `dump` in a uniquely-named temp file for the
+/// editor to open. Returned as a [`tempfile::NamedTempFile`] so the file is
+/// cleaned up when the handle drops — which the caller holds until *after* the
+/// editor has exited.
+fn write_dump_tempfile(dump: &str) -> Result<tempfile::NamedTempFile> {
+    use std::io::Write;
+    let mut tmp = tempfile::Builder::new()
+        .prefix("grove-history-")
+        .suffix(".txt")
+        .tempfile()
+        .context("creating the history temp file")?;
+    tmp.write_all(dump.as_bytes())
+        .context("writing the history temp file")?;
+    tmp.flush().context("flushing the history temp file")?;
+    Ok(tmp)
 }
 
 /// Absolute path to the running `grove` binary, for `grove do <name>` argv.
@@ -585,11 +716,20 @@ fn select_initial_process(
 /// a channel the async loop selects over. crossterm's reader is blocking, so it
 /// cannot live inside the reactor; the thread polls on a budget and checks
 /// `stop` so it releases stdin promptly at teardown.
-fn spawn_input_reader(stop: Arc<AtomicBool>) -> mpsc::UnboundedReceiver<Event> {
+///
+/// `pause` (D-E) lets the open-in-editor drop hand stdin to the `$EDITOR` child:
+/// while set, the thread does **not** poll/read the terminal, so it never races
+/// the editor for keystrokes. It resumes (and the screen repaints) on restore.
+fn spawn_input_reader(stop: Arc<AtomicBool>, pause: Arc<AtomicBool>) -> mpsc::UnboundedReceiver<Event> {
     let (tx, rx) = mpsc::unbounded_channel();
     std::thread::spawn(move || loop {
         if stop.load(Ordering::Relaxed) {
             break;
+        }
+        if pause.load(Ordering::Relaxed) {
+            // Paused for the editor drop: don't touch stdin; the child owns it.
+            std::thread::sleep(Duration::from_millis(20));
+            continue;
         }
         match event::poll(Duration::from_millis(100)) {
             Ok(true) => match event::read() {

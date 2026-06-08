@@ -89,6 +89,10 @@ pub enum Action {
     ModalBackspace,
     /// Submit the modal buffer (040 wires this to grove's capture write).
     ModalSubmit,
+    /// Dump the focused harness pane's rendered history into `$EDITOR` (040,
+    /// ADR-0029): leader → `e`. The app suspends the loop, shells out to stock
+    /// `rmux capture-pane`, runs the editor, and restores the TUI.
+    OpenEditor,
     /// Discard the modal buffer.
     ModalCancel,
     /// Quit the TUI.
@@ -164,6 +168,10 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
                     },
                     Action::Redraw,
                 ),
+                // Open-in-editor (040, ADR-0029): dump the focused harness pane's
+                // rendered history to `$EDITOR`, landing back on the harness (the
+                // app no-ops with a toast when the focused pane is the bare shell).
+                KeyCode::Char('e') => (Focus::Harness, Action::OpenEditor),
                 _ => (Focus::Nav, Action::Ignore),
             }
         }
@@ -335,6 +343,16 @@ mod tests {
         let (_, action) =
             arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('q'), KeyModifiers::NONE));
         assert_eq!(action, Action::Quit);
+    }
+
+    #[test]
+    fn nav_e_opens_editor_and_lands_on_harness() {
+        // leader → e (evaluated in Nav, like leader → c): dump the focused
+        // harness pane's history to $EDITOR, returning focus to the harness.
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('e'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Harness);
+        assert_eq!(action, Action::OpenEditor);
     }
 
     #[test]

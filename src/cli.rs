@@ -36,19 +36,16 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the grove dashboard (temporarily disabled). The TUI is being
-    /// rebuilt on the rmux substrate (grove `rmux-substrate`); the old trellis
-    /// zellij-fork was removed in `020-rip-out`. Until the rmux engine lands
-    /// (030), this prints a notice and exits. Drive groves via `grove-llm` /
-    /// `grove status` meanwhile.
+    /// Launch the grove dashboard — a ratatui app on the rmux substrate (grove
+    /// `rmux-substrate`, ADR-0028) that embeds one live harness pane. 010-engine
+    /// scope: render + resize + quit; input/nav/capture arrive in 020/030/040.
     Tui(TuiArgs),
 }
 
 #[derive(Parser)]
 pub struct TuiArgs {
     /// Additive fleet repo root (ADR-0027 §2). Repeatable — `--repo .
-    /// --repo ../other`. Parsed but inert while the TUI is disabled; rewired
-    /// when the rmux engine lands (030).
+    /// --repo ../other`. With none given, the cwd's repo is used.
     #[arg(long = "repo")]
     pub repo: Vec<PathBuf>,
 }
@@ -312,17 +309,6 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args)     => crate::meta::run(&args),
-        Command::Tui(_args)     => {
-            // Temporarily disabled: the trellis zellij-fork substrate was removed
-            // in `020-rip-out` and the rmux rebuild has not landed yet (030). A
-            // clean notice, not a panic — `grove tui` returns once the rmux engine
-            // is in place. Groves are driven via `grove-llm` / `grove status`
-            // meanwhile.
-            eprintln!(
-                "grove tui is temporarily disabled: the dashboard is being rebuilt on the \
-                 rmux substrate.\nDrive groves via `grove-llm` and `grove status` until it returns."
-            );
-            Ok(())
-        }
+        Command::Tui(args)      => crate::tui::run(&args),
     }
 }

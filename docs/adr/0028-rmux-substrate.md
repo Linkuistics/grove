@@ -1,15 +1,20 @@
 # 28. The TUI substrate is rmux: grove owns its draw loop and embeds panes (inversion)
 
-- Status: **proposed — skeleton, finalized in 030-engine/040** (drafted in
-  010-draw-loop-pane per D4: the landmark ADR is authored *within* the engine
-  leaves, not as a separate leaf)
+- Status: **accepted** (drafted in 030-engine/010-draw-loop-pane, finalized in
+  030-engine/040-capture-modal per D4: the landmark ADR is authored *within* the
+  engine leaves, not as a separate leaf). Accepted now because the engine
+  milestone is demonstrated end-to-end — a harness pane renders + takes input, a
+  minimal nav lists/opens groves, and the **centered capture modal works over the
+  live pane** (the motivating bug, fixed; verified headlessly).
 - Date: 2026-06-08
 - Deciders: Antony Blakey (with grove `rmux-substrate` 010-plan + 030-engine)
-- Supersedes / will mark dissolved (finalized in 040 once the engine lands): the
-  trellis zellij-fork tower — esp. ADR-0015 (owned zellij multiplexer), ADR-0020
-  (fork zellij into grove's own framework), ADR-0021 (trellis hosting API),
-  ADR-0026 (trellis is the only TUI). The **UX model** those ADRs settled
-  survives; only their zellij-fork *realisation* is replaced.
+- Supersedes (at the thesis level — the per-ADR `Superseded` marking sweep is the
+  050 teardown, D4): the trellis zellij-fork tower, esp. ADR-0015 (owned zellij
+  multiplexer), ADR-0020 (fork zellij into grove's own framework), ADR-0021
+  (trellis hosting API), ADR-0026 (trellis is the only TUI), and the
+  ADR-0016–0024 host-surface / host-driver / ScreenInstruction sub-tower they
+  anchor. The **UX model** those ADRs settled survives; only their zellij-fork
+  *realisation* is replaced.
 - Builds on / amends: ADR-0013 (presentation boundary — promoted to a literal
   directory wall, see E2; its async-as-web-toll prediction is amended, see E1)
   and ADR-0027 (singleton fleet session name).
@@ -37,7 +42,7 @@ becomes plain headless tests (snapshot → `PaneWidget` → `Buffer`), because t
 render path no longer needs a running multiplexer. This reframing is the durable
 decision; the specific crates are implementation.
 
-## Decisions settled so far (030-engine grilling — full text in the node brief)
+## Decisions (030-engine grilling — full text in the node brief)
 
 **E1 — Async is confined above the presentation seam.** grove is otherwise 100%
 synchronous; the rmux SDK is wholly async and the draw loop is a
@@ -65,20 +70,73 @@ nav + capture drawn around/over it. The harness pane runs **`grove do <name>`**
 uses a stable `PaneId` with a `grove-name → PaneId` map, not a positional slot,
 so 030's dynamic open/close/park has stable handles.
 
-## To be finalized in 040
+**E4 — Focus is a leader-gated `Harness | Nav | Modal` state machine; leader =
+`Alt-g` (configurable).** grove owns the loop, so there is no zellij locked-mode —
+grove is the arbiter by construction and sees every crossterm key first.
+Arbitration is **leader-gated**: while the harness is focused, grove forwards
+*everything* to the pane except the single leader key (maximising harness key
+fidelity — vim/claude lean on F-keys + Ctrl-chords). The transition table is a
+**pure function** `(Focus, Leader, Event) → (Focus, Action)`, so the whole focus
+model is headlessly unit-tested; the app applies the returned side-effecting
+`Action`. **Harness:** forward all keys but the leader. **Nav:** grove handles
+keys (navigate, select → open/focus a harness, open the modal). **Modal:** a focus
+overlay capturing all keys, `Esc` cancels and `Enter` submits, both restoring the
+prior focus. Leader `Alt-g` chosen for lowest collision across readline/vim/claude.
 
-E4 (focus model: leader-gated `Alt-g`, `Harness | Nav | Modal` state machine),
-E5 (input coverage), E6 (dependency staging: published 0.5.0 now → rendered-history
-fork in 040), the rendered-history capture (D7), and the explicit
-mark-dissolved list for the superseded ADR tower (D4).
+**E5 — Input coverage: extended crossterm→tmux key-map; bracketed paste forwarded
+wrapped; mouse drives grove surfaces + click-to-focus.** The key-map covers the
+modifier matrix on special keys (`C-Left`, `S-Up`, `C-Enter`, …). A multi-line
+paste arrives as one `Event::Paste` forwarded **wrapped in `\e[200~…\e[201~`** so
+it does not execute line-by-line (claude multi-line / vim paste-mode); in the
+modal, paste inserts into the buffer literally. Mouse drives grove's own
+nav/modal, with a basic left-click forwarded to the harness as focus/click. **Rich
+mouse passthrough (drag/wheel/motion) is deferred to 050 and flagged as a likely
+rmux-*fork* raw-mouse capability** — no lossy automation-call translator is built.
+
+**E6 — Dependency staging: the engine builds on published `rmux 0.5.0`; the
+rendered-history fork is a *separate, later* leaf.** The whole 030 engine — render,
+input, session, nav, the capture modal — needs only what published `rmux 0.5.0`
+offers, **not** the rendered-history capture the fork (D7) exists for. So grove
+still depends on the published SDK/daemon as of this milestone; forking rmux,
+adding `capture_region`, and switching the dep is the root-level `040-rmux-history`
+leaf (a clean superset → mechanical dep swap). The capture modal here writes its
+observation via `grove-llm inbox-add` (E1's shell-out write), needing no
+rendered-history capability.
+
+## The capture write (E1, this leaf)
+
+The capture modal's submit performs grove's **capture write below the seam** by
+shelling out to `grove-llm inbox-add --to=<grove> --repo=<root> --body=…` — the
+same idiom every grove capture uses, not a new in-process path. The target is the
+**focused pane's grove** (capturing over a harness leaves a note for that grove's
+next session). Because the write commits + best-effort pushes, the async loop runs
+it under `spawn_blocking` so a slow push cannot stall the reactor (E1's firewall).
 
 ## Consequences
 
-- The capture-popup bug class is dissolved by construction (grove's modals are
-  native widgets, not zellij floating panes).
-- The render path is headlessly testable (the migration's whole point).
+- The capture-popup bug class is **dissolved by construction**, and now
+  demonstrated: the capture modal renders as a centered `Clear`+widget overlay
+  *over the live harness pane*, proven by a headless overlay-over-pane buffer
+  test. grove's modals are native widgets, not zellij floating panes.
+- The render path is headlessly testable (the migration's whole point): pane,
+  nav, focus, input, and the capture overlay all run as pure
+  snapshot/event → `Buffer` unit tests with no daemon and no terminal.
+- Async entered the codebase, contained to `src/tui/` (E1/E2): the multi-threaded
+  tokio runtime + `tokio::select!` loop live behind the presentation seam; the
+  sync core is called directly, with `spawn_blocking` for the capture write.
 - grove now depends on the rmux daemon (`connect_or_start` spawns it); bundling
-  the daemon binary is 050/060's job. 040 switches the dep to the
-  rendered-history fork.
+  the daemon binary is 050/060's job. The dep is still **published `rmux 0.5.0`**
+  here — the root-level `040-rmux-history` leaf forks rmux and switches to it (D7).
 - `crates/trellis/` and `crates/harness-pane/` (removed in 020-rip-out) stay
-  gone; the ADR-0013–0028 tower dissolves per D4.
+  gone. The full **mark-`Superseded` sweep across the ADR-0015–0026 tower is the
+  050 teardown** (D4); this ADR records the supersession at the thesis level so
+  the decision is durable now, with the per-ADR edits to follow.
+
+## Remaining engine-adjacent work (pointers, not blockers)
+
+- **Root `040-rmux-history` (D7):** fork rmux, add native rendered-history capture
+  (`capture_region`), repoint the dep, wire open-in-editor, file the upstream PR.
+- **Root `050-plan-rebuild`:** the full surface set (per-grove detail / whichkey),
+  the working set (multi-pane layout, aux panes, park-alive, responsive tiers),
+  daemon bundling/launch, the detach+web path, and the ADR-tower teardown + `bugs`
+  grove retirement + glossary cleanup.

@@ -35,9 +35,6 @@ use ratatui::crossterm::execute;
 use ratatui::crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use ratatui::layout::Rect;
-use ratatui::style::{Color, Style};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Terminal;
 use ratatui_rmux::PaneState;
 use rmux_sdk::{
@@ -47,9 +44,10 @@ use tokio::sync::mpsc;
 
 use crate::cli::TuiArgs;
 use crate::multi_repo_view::MultiRepoView;
+use crate::tui::capture::{CaptureModal, CaptureOutcome, CaptureTarget};
 use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::driver::PaneDriver;
-use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
+use crate::tui::focus::{arbitrate, Action, Focus};
 use crate::tui::nav::{Nav, NavItem};
 use crate::tui::pane::render_pane;
 
@@ -62,6 +60,9 @@ const SESSION_NAME: &str = "grove-fleet";
 struct PaneEntry {
     driver: PaneDriver,
     state: PaneState,
+    /// Where a capture submitted while this pane is focused is written — the
+    /// pane's own grove (E1). `None` for the bare-shell fallback (no grove).
+    target: Option<CaptureTarget>,
 }
 
 /// The harness pane's process + placement, chosen below the presentation seam
@@ -73,6 +74,8 @@ struct PaneProcess {
     key: String,
     cwd: PathBuf,
     argv: Vec<String>,
+    /// Capture target for this pane (the grove), or `None` for the shell.
+    target: Option<CaptureTarget>,
 }
 
 /// The running TUI: the daemon handles, the open-pane map, the focus machine,
@@ -91,9 +94,14 @@ struct App {
     fleet: MultiRepoView,
     repo_roots: Vec<PathBuf>,
     leader: Leader,
-    /// The capture modal's text buffer (loop state; the real surface is 040).
-    modal_buf: String,
-    /// Absolute path to the `grove` binary, for `grove do <name>` argv.
+    /// The capture modal (040): owns its text buffer and centered render.
+    capture: CaptureModal,
+    /// A transient capture result, shown briefly after submit and cleared on the
+    /// next keypress (the modal has already closed by then — E4 restores prior
+    /// focus on Enter).
+    toast: Option<CaptureOutcome>,
+    /// Absolute path to the `grove` binary, for `grove do <name>` argv and for
+    /// resolving the `grove-llm` sibling that performs the capture write.
     grove_exe: String,
     /// Last known terminal size, applied to newly opened panes.
     size: (u16, u16),
@@ -152,7 +160,11 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         .context("opening the harness pane render stream")?;
     panes.insert(
         process.key.clone(),
-        PaneEntry { driver, state: PaneState::default() },
+        PaneEntry {
+            driver,
+            state: PaneState::default(),
+            target: process.target.clone(),
+        },
     );
 
     // --- the nav surface, selection landed on the initially-focused grove ---
@@ -186,7 +198,8 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         fleet,
         repo_roots,
         leader,
-        modal_buf: String::new(),
+        capture: CaptureModal::new(),
+        toast: None,
         grove_exe,
         size: (cols, rows),
         render_tx,
@@ -271,21 +284,26 @@ impl App {
             return Ok(EventOutcome::Redraw);
         }
 
+        // A capture toast shows until the next keypress dismisses it ("briefly").
+        // Dismissing forces a redraw even when the key itself implies none (e.g.
+        // a char forwarded to the harness), so a stale toast never lingers.
+        let dismissed_toast = matches!(ev, Event::Key(_)) && self.toast.take().is_some();
+
         let (next, action) = arbitrate(&self.focus, &self.leader, ev);
         self.focus = next;
-        match action {
-            Action::Ignore => Ok(EventOutcome::Nothing),
+        let outcome = match action {
+            Action::Ignore => EventOutcome::Nothing,
             Action::SendText(text) => {
                 if let Some(pane) = self.focused_pane() {
                     pane.send_text(text).await.ok();
                 }
-                Ok(EventOutcome::Nothing)
+                EventOutcome::Nothing
             }
             Action::SendKey(token) => {
                 if let Some(pane) = self.focused_pane() {
                     pane.send_key(token).await.ok();
                 }
-                Ok(EventOutcome::Nothing)
+                EventOutcome::Nothing
             }
             Action::SendPaste(text) => {
                 // Wrap in bracketed-paste markers so multi-line pastes don't
@@ -293,21 +311,21 @@ impl App {
                 if let Some(pane) = self.focused_pane() {
                     pane.send_text(format!("\x1b[200~{text}\x1b[201~")).await.ok();
                 }
-                Ok(EventOutcome::Nothing)
+                EventOutcome::Nothing
             }
             Action::HarnessClick { row, col } => {
                 if let Some(pane) = self.focused_pane() {
                     let _ = pane.mouse().click(row, col).await;
                 }
-                Ok(EventOutcome::Nothing)
+                EventOutcome::Nothing
             }
             Action::NavUp => {
                 self.nav.select_up();
-                Ok(EventOutcome::Redraw)
+                EventOutcome::Redraw
             }
             Action::NavDown => {
                 self.nav.select_down();
-                Ok(EventOutcome::Redraw)
+                EventOutcome::Redraw
             }
             Action::NavSelect => {
                 if let Some(item) = self.nav.selected().cloned() {
@@ -317,29 +335,60 @@ impl App {
                         let _ = e;
                     }
                 }
-                Ok(EventOutcome::Redraw)
+                EventOutcome::Redraw
             }
-            Action::Redraw => Ok(EventOutcome::Redraw),
+            Action::Redraw => EventOutcome::Redraw,
             Action::ModalInsert(text) => {
-                self.modal_buf.push_str(&text);
-                Ok(EventOutcome::Redraw)
+                self.capture.insert(&text);
+                EventOutcome::Redraw
             }
             Action::ModalBackspace => {
-                self.modal_buf.pop();
-                Ok(EventOutcome::Redraw)
+                self.capture.backspace();
+                EventOutcome::Redraw
             }
             Action::ModalSubmit => {
-                // 040 wires submit to grove's capture write; this leaf proves the
-                // mechanics, so it just clears the buffer.
-                self.modal_buf.clear();
-                Ok(EventOutcome::Redraw)
+                self.submit_capture().await;
+                EventOutcome::Redraw
             }
             Action::ModalCancel => {
-                self.modal_buf.clear();
-                Ok(EventOutcome::Redraw)
+                self.capture.clear();
+                EventOutcome::Redraw
             }
-            Action::Quit => Ok(EventOutcome::Quit),
+            Action::Quit => EventOutcome::Quit,
+        };
+
+        // If we dismissed a toast on a key that otherwise implies no redraw,
+        // upgrade so the toast actually disappears from the screen.
+        Ok(match (dismissed_toast, outcome) {
+            (true, EventOutcome::Nothing) => EventOutcome::Redraw,
+            (_, outcome) => outcome,
+        })
+    }
+
+    /// Perform the capture write for the focused pane's grove (E1): take the
+    /// modal buffer, shell out to `grove-llm inbox-add` under `spawn_blocking`
+    /// (it commits + best-effort pushes — must not stall the reactor), and stash
+    /// the result as a toast. A no-op for an empty buffer or the shell pane.
+    async fn submit_capture(&mut self) {
+        let body = self.capture.take();
+        if body.trim().is_empty() {
+            return;
         }
+        let Some(target) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+            self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
+            return;
+        };
+        let name = target.name.clone();
+        let exe = self.grove_exe.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            crate::tui::capture::write_capture(&exe, &target, &body)
+        })
+        .await;
+        self.toast = Some(match result {
+            Ok(Ok(())) => CaptureOutcome::Captured(name),
+            Ok(Err(e)) => CaptureOutcome::Failed(format!("{e:#}")),
+            Err(e) => CaptureOutcome::Failed(format!("capture task panicked: {e}")),
+        });
     }
 
     /// A clone of the focused pane's handle, if one is open. Cloning (the rmux
@@ -392,7 +441,14 @@ impl App {
             .context("opening the harness pane render stream")?;
         self.panes.insert(
             item.name.clone(),
-            PaneEntry { driver, state: PaneState::default() },
+            PaneEntry {
+                driver,
+                state: PaneState::default(),
+                target: Some(CaptureTarget {
+                    name: item.name.clone(),
+                    repo_root: item.repo_root.clone(),
+                }),
+            },
         );
         self.focused = item.name.clone();
         Ok(())
@@ -428,14 +484,27 @@ impl App {
                         }
                     }
                     Focus::Nav => self.nav.render(area, frame.buffer_mut()),
-                    Focus::Modal { kind, .. } => {
+                    Focus::Modal { .. } => {
+                        // The proof point: draw the live pane, then the centered
+                        // capture modal *over* it (Clear punches the hole).
                         if let Some(entry) = self.panes.get(&self.focused) {
                             render_pane(&entry.state, area, frame.buffer_mut());
                         }
-                        if let Some(pos) = draw_modal(frame, area, *kind, &self.modal_buf) {
+                        let label = self
+                            .panes
+                            .get(&self.focused)
+                            .and_then(|e| e.target.as_ref())
+                            .map(|t| t.name.as_str())
+                            .unwrap_or("(no grove)");
+                        if let Some(pos) = self.capture.render(area, frame.buffer_mut(), label) {
                             frame.set_cursor_position(pos);
                         }
                     }
+                }
+                // The capture toast rides on the bottom row of whatever surface
+                // is up (it appears after the modal has already closed).
+                if let Some(outcome) = &self.toast {
+                    crate::tui::capture::render_toast(outcome, area, frame.buffer_mut());
                 }
             })
             .context("drawing a frame")?;
@@ -452,49 +521,6 @@ enum EventOutcome {
     /// Forwarded to the pane (or ignored); no grove-surface redraw needed —
     /// the pane's own output will arrive as a render push if it changed.
     Nothing,
-}
-
-/// The Modal stub (040 builds the real capture modal): a centered box over the
-/// live pane showing the buffer. Returns where the hardware cursor belongs (end
-/// of the buffer text), or `None` if it cannot be placed.
-fn draw_modal(
-    frame: &mut ratatui::Frame,
-    area: Rect,
-    kind: ModalKind,
-    buf: &str,
-) -> Option<(u16, u16)> {
-    let popup = centered_rect(70, 50, area);
-    frame.render_widget(Clear, popup);
-    let title = match kind {
-        ModalKind::Capture => " capture (modal stub) — Enter: submit · Esc: cancel ",
-    };
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .style(Style::default().fg(Color::Yellow));
-    let inner = block.inner(popup);
-    frame.render_widget(block, popup);
-    frame.render_widget(Paragraph::new(buf).wrap(Wrap { trim: false }), inner);
-    if inner.width == 0 || inner.height == 0 {
-        return None;
-    }
-    // Place the cursor just past the buffer text, wrapping across the inner box.
-    let len = buf.chars().count() as u16;
-    let cx = inner.x + (len % inner.width);
-    let cy = inner.y + (len / inner.width).min(inner.height - 1);
-    Some((cx, cy))
-}
-
-/// A percentage box centered in `r` (grove's historical `centered_rect`).
-fn centered_rect(pct_x: u16, pct_y: u16, r: Rect) -> Rect {
-    let w = r.width * pct_x / 100;
-    let h = r.height * pct_y / 100;
-    Rect {
-        x: r.x + (r.width - w) / 2,
-        y: r.y + (r.height - h) / 2,
-        width: w,
-        height: h,
-    }
 }
 
 /// Resolve the fleet repo roots: explicit `--repo` flags + manifest (below the
@@ -534,6 +560,10 @@ fn select_initial_process(
                 key: grove.name.clone(),
                 cwd: crate::repo::grove_worktree(&repo.repo_root, &grove.name),
                 argv: vec![grove_exe.to_string(), "do".to_string(), grove.name.clone()],
+                target: Some(CaptureTarget {
+                    name: grove.name.clone(),
+                    repo_root: repo.repo_root.clone(),
+                }),
             };
         }
     }
@@ -547,6 +577,7 @@ fn select_initial_process(
         key: "shell".to_string(),
         cwd,
         argv: vec![shell],
+        target: None,
     }
 }
 

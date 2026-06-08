@@ -11,7 +11,7 @@
 //! (`RepoView`, launch, fleet resolution) is called directly from async context
 //! (E1) — it is fast, local fs/git — and never imports tokio.
 //!
-//! Submodules (capture's real surface arrives in 040):
+//! Submodules:
 //!   - [`app`] — the async draw loop (`tokio::select!` over render/input/watch).
 //!   - [`driver`] — per-pane rmux glue: the D3 push `render_stream` task.
 //!   - [`pane`] — the headless-testable render path (snapshot → buffer + cursor).
@@ -19,8 +19,11 @@
 //!   - [`input`] — the crossterm → tmux key-map.
 //!   - [`config`] — the configurable leader key.
 //!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
+//!   - [`capture`] — the centered capture modal over the live pane (the
+//!     landmark bug-fix proof point) + its shell-out capture write.
 
 pub mod app;
+pub mod capture;
 pub mod config;
 pub mod driver;
 pub mod focus;

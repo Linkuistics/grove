@@ -39,7 +39,7 @@ pub fn footer_text(focus: &Focus, leader: &Leader) -> Option<String> {
     match focus {
         Focus::LeaderPending { .. } => Some(leader_menu()),
         Focus::Pane => Some(format!("{lead} leader")),
-        Focus::Detail => Some(format!("{lead} leader · ⎋ pane")),
+        Focus::Detail => Some(format!("↑/↓ scroll · ⎋ pane · {lead} leader")),
         Focus::Nav => Some(format!("↑/↓ move · ⏎ open · ⎋ pane · {lead} leader")),
         Focus::Modal { .. } => None,
     }
@@ -115,8 +115,9 @@ mod tests {
     }
 
     #[test]
-    fn detail_text_offers_the_pane_return() {
+    fn detail_text_offers_scroll_and_the_pane_return() {
         let text = footer_text(&Focus::Detail, &leader()).expect("detail has a footer");
+        assert!(text.contains("scroll"), "detail hint shows scroll: {text}");
         assert!(text.contains("pane"), "detail hint offers ⎋ pane: {text}");
         assert!(text.contains("⌥g"), "detail hint still names the leader: {text}");
     }

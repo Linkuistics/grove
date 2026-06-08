@@ -101,6 +101,10 @@ pub enum Action {
     /// Open (or focus) the harness for the nav's currently selected grove.
     /// The app applies the open/focus and lands on the pane.
     NavSelect,
+    /// Scroll the detail panel's content up one line.
+    DetailScrollUp,
+    /// Scroll the detail panel's content down one line.
+    DetailScrollDown,
     /// A grove surface changed; the app should redraw.
     Redraw,
     /// Insert literal text into the focused modal's buffer.
@@ -173,8 +177,8 @@ fn arbitrate_pane(leader: &Leader, ev: &Event) -> (Focus, Action) {
 }
 
 /// The per-grove detail panel. The leader opens the gate (remembering Detail);
-/// `Esc` returns to the home pane. The widget's in-surface keys (scroll) arrive
-/// with the 030 detail widget — until then a stray key is inert (not forwarded).
+/// `Esc` returns to the home pane; `j`/`k` (or arrows) scroll the content. Any
+/// other key is inert (not forwarded to the pane — detail owns focus while up).
 fn arbitrate_detail(leader: &Leader, ev: &Event) -> (Focus, Action) {
     match ev {
         Event::Key(key) if is_press(key) => {
@@ -186,10 +190,12 @@ fn arbitrate_detail(leader: &Leader, ev: &Event) -> (Focus, Action) {
                     Action::Redraw,
                 );
             }
-            if key.code == KeyCode::Esc {
-                return (Focus::Pane, Action::Redraw);
+            match key.code {
+                KeyCode::Esc => (Focus::Pane, Action::Redraw),
+                KeyCode::Down | KeyCode::Char('j') => (Focus::Detail, Action::DetailScrollDown),
+                KeyCode::Up | KeyCode::Char('k') => (Focus::Detail, Action::DetailScrollUp),
+                _ => (Focus::Detail, Action::Ignore),
             }
-            (Focus::Detail, Action::Ignore)
         }
         _ => (Focus::Detail, Action::Ignore),
     }
@@ -503,9 +509,22 @@ mod tests {
     }
 
     #[test]
-    fn detail_swallows_other_keys_until_the_widget_exists() {
-        // The detail widget's in-surface keys (scroll) arrive in 030; here a
-        // stray char is a no-op, not a forward to the pane.
+    fn detail_jk_and_arrows_scroll_the_widget() {
+        for code in [KeyCode::Down, KeyCode::Char('j')] {
+            let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, Focus::Detail);
+            assert_eq!(action, Action::DetailScrollDown);
+        }
+        for code in [KeyCode::Up, KeyCode::Char('k')] {
+            let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, Focus::Detail);
+            assert_eq!(action, Action::DetailScrollUp);
+        }
+    }
+
+    #[test]
+    fn detail_swallows_unmapped_keys() {
+        // A key with no in-surface meaning is inert (not forwarded to the pane).
         let (focus, action) =
             arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('x'), KeyModifiers::NONE));
         assert_eq!(focus, Focus::Detail);

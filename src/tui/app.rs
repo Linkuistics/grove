@@ -48,6 +48,7 @@ use crate::cli::TuiArgs;
 use crate::multi_repo_view::MultiRepoView;
 use crate::tui::capture::{CaptureModal, CaptureOutcome, CaptureTarget};
 use crate::tui::config::{resolve_leader, Leader};
+use crate::tui::detail::Detail;
 use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus};
@@ -93,6 +94,9 @@ struct App {
     /// Which surface owns input (E4).
     focus: Focus,
     nav: Nav,
+    /// The per-grove detail panel (050/030), re-pointed at the focused pane's
+    /// grove and rebuilt from the fleet snapshot on every fs-watch tick.
+    detail: Detail,
     /// The fleet snapshot the nav renders from; re-scanned on fs-watch ticks.
     fleet: MultiRepoView,
     repo_roots: Vec<PathBuf>,
@@ -157,6 +161,13 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     let (render_tx, mut render_rx) = mpsc::unbounded_channel();
     let mut panes: HashMap<String, PaneEntry> = HashMap::new();
     let driver = PaneDriver::new(pane, pane_id);
+    // Size the harness to the composed layout's pane share (the detail column
+    // coexists beside it), not the full terminal — otherwise its grid is clipped.
+    let pane_vp = composed_layout(Rect::new(0, 0, cols, rows)).pane;
+    let _ = driver
+        .pane()
+        .resize(TerminalSizeSpec::new(pane_vp.width.max(1), pane_vp.height.max(1)))
+        .await;
     driver
         .spawn_render_task(process.key.clone(), render_tx.clone())
         .await
@@ -200,6 +211,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         focused: process.key.clone(),
         focus: Focus::Pane,
         nav,
+        detail: Detail::new(),
         fleet,
         repo_roots,
         leader,
@@ -209,6 +221,8 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         size: (cols, rows),
         render_tx,
     };
+    // Point the detail panel at the initially-focused grove before the first draw.
+    app.rebuild_detail();
     let result = app
         .run(&mut terminal, &mut render_rx, &mut input_rx, &mut watch_rx, &input_pause)
         .await;
@@ -292,8 +306,11 @@ impl App {
     async fn handle_event(&mut self, ev: &Event) -> Result<EventOutcome> {
         if let Event::Resize(w, h) = ev {
             self.size = (*w, *h);
+            // Panes coexist with the detail column, so they are sized to the
+            // composed pane share, not the full terminal.
+            let (pw, ph) = self.pane_viewport();
             for entry in self.panes.values() {
-                let _ = entry.driver.pane().resize(TerminalSizeSpec::new(*w, *h)).await;
+                let _ = entry.driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
             }
             return Ok(EventOutcome::Redraw);
         }
@@ -349,6 +366,16 @@ impl App {
                         let _ = e;
                     }
                 }
+                // The focused grove changed; re-point the coexisting detail panel.
+                self.rebuild_detail();
+                EventOutcome::Redraw
+            }
+            Action::DetailScrollUp => {
+                self.detail.scroll_up();
+                EventOutcome::Redraw
+            }
+            Action::DetailScrollDown => {
+                self.detail.scroll_down();
                 EventOutcome::Redraw
             }
             Action::Redraw => EventOutcome::Redraw,
@@ -545,10 +572,8 @@ impl App {
             .await
             .context("resolving the new harness pane")?;
         let driver = PaneDriver::new(pane, wp.id);
-        let _ = driver
-            .pane()
-            .resize(TerminalSizeSpec::new(self.size.0, self.size.1))
-            .await;
+        let (pw, ph) = self.pane_viewport();
+        let _ = driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
         driver
             .spawn_render_task(item.name.clone(), self.render_tx.clone())
             .await
@@ -575,6 +600,37 @@ impl App {
         let (fleet, _warnings) = MultiRepoView::scan_with_warnings(&self.repo_roots);
         self.fleet = fleet;
         self.nav.rebuild(&self.fleet);
+        // The focused grove's task tree / inbox may have changed (a leaf retired,
+        // an observation captured); re-point detail off the fresh scan too.
+        self.rebuild_detail();
+    }
+
+    /// Point the detail panel at the focused pane's grove, using the current
+    /// fleet snapshot. The bare-shell pane (no grove target) shows the empty
+    /// "no grove" state. Re-pointing to a different grove resets detail's scroll;
+    /// refreshing the same grove preserves it (see [`Detail::show`]).
+    fn rebuild_detail(&mut self) {
+        let target = self.panes.get(&self.focused).and_then(|e| e.target.clone());
+        match target {
+            Some(t) => {
+                let grove = self
+                    .fleet
+                    .repos()
+                    .iter()
+                    .find(|r| r.repo_root == t.repo_root)
+                    .and_then(|r| r.grove(&t.name));
+                self.detail.show(Some(&t.name), grove);
+            }
+            None => self.detail.show(None, None),
+        }
+    }
+
+    /// The harness pane's size under the composed layout (the dominant left share
+    /// beside the detail column), clamped to at least 1×1 for a degenerate
+    /// terminal. Every pane is resized to this, not the full terminal.
+    fn pane_viewport(&self) -> (u16, u16) {
+        let pane = composed_layout(Rect::new(0, 0, self.size.0, self.size.1)).pane;
+        (pane.width.max(1), pane.height.max(1))
     }
 
     /// Paint one frame for the current [`Focus`]: the surface, then the whichkey
@@ -620,24 +676,43 @@ impl App {
     /// Render one focus surface into `buf`, returning where the hardware cursor
     /// belongs (the pane's cursor, or the modal's text caret), or `None`. Never
     /// receives [`Focus::LeaderPending`] — the caller unwraps that to its `prior`.
+    ///
+    /// The composed surfaces ([`Focus::Pane`]/[`Focus::Detail`], and the modal
+    /// drawn over them) tile the content region into the harness pane (left) and
+    /// the coexisting detail column (right) via [`composed_layout`]; [`Focus::Nav`]
+    /// is a flip-to full surface that hides the pair.
     fn render_surface(&self, focus: &Focus, area: Rect, buf: &mut Buffer) -> Option<(u16, u16)> {
         match focus {
-            // The pane is the home base; Detail's widget is 030, so until then it
-            // renders the pane behind it too (no-op detail render — the brief).
-            Focus::Pane | Focus::Detail => self
-                .panes
-                .get(&self.focused)
-                .and_then(|entry| render_pane(&entry.state, area, buf)),
+            // Pane and Detail coexist: render the harness in the left share and the
+            // detail column on the right, accenting whichever holds focus. The
+            // hardware cursor shows only when the *pane* is focused (detail is a
+            // scroll list with no text caret).
+            Focus::Pane | Focus::Detail => {
+                let layout = composed_layout(area);
+                let cursor = self
+                    .panes
+                    .get(&self.focused)
+                    .and_then(|entry| render_pane(&entry.state, layout.pane, buf));
+                self.detail
+                    .render(layout.detail, buf, matches!(focus, Focus::Detail));
+                if matches!(focus, Focus::Pane) {
+                    cursor
+                } else {
+                    None
+                }
+            }
             Focus::Nav => {
                 self.nav.render(area, buf);
                 None
             }
             Focus::Modal { .. } => {
-                // The landmark proof point: draw the live pane, then the centered
-                // capture modal *over* it (Clear punches the hole).
+                // The landmark proof point: draw the composed layout (pane + detail),
+                // then the centered capture modal *over* it (Clear punches the hole).
+                let layout = composed_layout(area);
                 if let Some(entry) = self.panes.get(&self.focused) {
-                    render_pane(&entry.state, area, buf);
+                    render_pane(&entry.state, layout.pane, buf);
                 }
+                self.detail.render(layout.detail, buf, false);
                 let label = self
                     .panes
                     .get(&self.focused)
@@ -649,6 +724,45 @@ impl App {
             // Unwrapped by the caller; rendering its `prior` instead.
             Focus::LeaderPending { .. } => None,
         }
+    }
+}
+
+/// The composed-layout rects (050/030): the harness pane (dominant left share),
+/// the detail panel (a side column on the right), and the reserved footer row.
+/// The harness pane and detail panel **coexist** — focus moves laterally between
+/// them — which is the 050/010-surfaces verdict the trellis flip-to model lacked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ComposedLayout {
+    pane: Rect,
+    detail: Rect,
+    footer: Rect,
+}
+
+/// The detail side column's width as a fraction of the content region, capped so
+/// it stays a *column* on wide terminals and the harness keeps the dominant
+/// share. The full responsive tiers + aux-pane placement are 050; this is the
+/// minimal split that proves coexistence + lateral focus.
+fn detail_column_width(content_width: u16) -> u16 {
+    (content_width.saturating_mul(34) / 100).min(48)
+}
+
+/// Split `area` into the composed layout: a reserved bottom footer row, then the
+/// content region divided into the harness pane (left, dominant) and the detail
+/// column (right). Degrades without panic on a tiny area.
+fn composed_layout(area: Rect) -> ComposedLayout {
+    let footer_h = area.height.min(1);
+    let content_h = area.height - footer_h;
+    let footer = Rect::new(area.x, area.y + content_h, area.width, footer_h);
+    let content = Rect::new(area.x, area.y, area.width, content_h);
+
+    let detail_w = detail_column_width(content.width);
+    let pane_w = content.width - detail_w;
+    let pane = Rect::new(content.x, content.y, pane_w, content.height);
+    let detail = Rect::new(content.x + pane_w, content.y, detail_w, content.height);
+    ComposedLayout {
+        pane,
+        detail,
+        footer,
     }
 }
 
@@ -816,4 +930,45 @@ fn spawn_fs_watch(
         }
     }
     Ok((watcher, rx))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn composed_layout_reserves_the_bottom_footer_row() {
+        let area = Rect::new(0, 0, 120, 40);
+        let layout = composed_layout(area);
+        assert_eq!(layout.footer, Rect::new(0, 39, 120, 1));
+        // pane + detail occupy the content region above the footer.
+        assert_eq!(layout.pane.height, 39);
+        assert_eq!(layout.detail.height, 39);
+    }
+
+    #[test]
+    fn composed_layout_places_detail_as_a_right_side_column() {
+        let area = Rect::new(0, 0, 120, 40);
+        let layout = composed_layout(area);
+        // Detail abuts the pane on the right; together they tile the full width.
+        assert_eq!(layout.detail.x, layout.pane.x + layout.pane.width);
+        assert_eq!(layout.pane.width + layout.detail.width, 120);
+        // The harness keeps the dominant share.
+        assert!(layout.pane.width > layout.detail.width, "{layout:?}");
+    }
+
+    #[test]
+    fn composed_layout_caps_the_detail_column_on_wide_terminals() {
+        let layout = composed_layout(Rect::new(0, 0, 400, 50));
+        assert_eq!(layout.detail.width, 48, "detail stays a column, not a half");
+    }
+
+    #[test]
+    fn composed_layout_degrades_without_panic_on_a_tiny_area() {
+        // Zero-height and one-row areas must not underflow.
+        let _ = composed_layout(Rect::new(0, 0, 0, 0));
+        let l = composed_layout(Rect::new(0, 0, 10, 1));
+        assert_eq!(l.footer.height, 1);
+        assert_eq!(l.pane.height, 0);
+    }
 }

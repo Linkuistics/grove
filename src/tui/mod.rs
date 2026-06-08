@@ -22,6 +22,8 @@
 //!   - [`input`] — the crossterm → tmux key-map.
 //!   - [`config`] — the configurable leader key.
 //!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
+//!   - [`detail`] — the per-grove detail panel grove draws from `RepoView`
+//!     (task tree + brief chain + inbox view), a focus peer beside the pane.
 //!   - [`capture`] — the centered capture modal over the live pane (the
 //!     landmark bug-fix proof point) + its shell-out capture write.
 //!   - [`editor`] — open-in-editor (040): leader → `e` dumps the focused pane's
@@ -30,6 +32,7 @@
 pub mod app;
 pub mod capture;
 pub mod config;
+pub mod detail;
 pub mod driver;
 pub mod editor;
 pub mod focus;

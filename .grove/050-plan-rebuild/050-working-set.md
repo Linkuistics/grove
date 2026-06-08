@@ -1,4 +1,4 @@
-# 020-working-set
+# 050-working-set
 
 **Kind:** planning
 
@@ -8,7 +8,9 @@ Settle and grow the **working set** — the multi-pane layout shown for one grov
 the harness pane plus aux panes (plain terminal / yazi files / lazygit-or-lazyjj
 vcs), with **park-alive** (off-screen panes stay live) and **responsive tiers**
 (the ~220-col breakpoint). The biggest rebuild area; depends on the surface +
-focus model from 010 and the session/pane model from 030-engine (E3).
+focus model from 010 (built in 020-leader-dispatch / 030-detail-widget /
+040-detail-triage — the `Pane | Detail | Nav | Modal` + leader-dispatch gate) and
+the session/pane model from the root 030-engine node (E3).
 
 ## Context
 

@@ -229,6 +229,17 @@ denotes the native nav *pane* in the layout, not a plugin.)*
 grove's [[leader]]-focused command surface, realised as a **zellij WASM plugin** (Strategy 1a, pulled forward by ADR-0018 — the one surface a keybind can focus *by name* and that receives keys while focused; locked-mode key delivery to it is confirmed live). The [[leader]] focuses it via `LaunchOrFocusPlugin`. As of ADR-0019 it is also the **"home" [[workspace]]** — a full-height grove list. It switches [[workspace]]s, toggles [[working set]] panes, jumps home, and is the mode/key discoverability surface (subsuming the former `050-mode-discoverability` concern). It holds **no** grove state — the [[controlling process]] pipes it the live grove list *with each grove's `grove do` command + cwd* (forward `zellij pipe`). **It opens and switches workspaces *itself*** (ADR-0019: `switch_tab_to` for an open grove, `new_tabs_with_layout` to first-open a closed one) — *not* by "signalling intent back to the controller," which ADR-0018 proposed but ADR-0019 found unworkable (`cli_pipe_output` is reply-only — it cannot push to a stored channel from a keypress). Amends ADR-0016: unlike a [[dashboard proxy]] (dumb, controller-rendered), the nav is a *smart*, self-rendering surface.
 
 **Detail proxy** (per-grove):
+*(rmux-substrate update — 050-plan-rebuild/010-surfaces: under the inversion
+(ADR-0028) per-grove **detail** is a **ratatui widget grove draws itself** from
+`RepoView` (`src/tui/detail.rs`) — task tree + brief chain + inbox view — a
+focusable panel that **coexists** beside the harness in a grove's [[working set]],
+reached via the leader-dispatch gate (`leader → d`, see [[Focus]]). The dumb-proxy
+mechanism fully dissolves: no `grove __dash-proxy`, no controller socket seam, no
+`RunEditor` frame, no N-socket-clients. Inbox interaction is **grooming** only
+(reject + move/re-route via `grove-llm` below the seam); incorporate/defer-to-leaf
+stay at the bootstrap [[Drain]]. The earlier "dumb proxy" and "native in-process
+trellis pane" framings below are both historical. Built in 030-detail-widget /
+040-detail-triage.)*
 *(Mechanism superseded by the [[trellis framework]] fork — ADR-0020: per-grove
 detail is rendered **natively in-process** in each grove tab, not as a dumb
 terminal proxy over a seam. The per-grove-detail **UX** survives; "it is a dumb
@@ -236,6 +247,15 @@ proxy / N socket clients" is superseded. Live leaf: `130-native-detail`.)*
 A grove-scoped [[dashboard proxy]] (`grove __dash-proxy --grove <name>`) that lives **inside that grove's [[workspace]] tab**, beside its [[harness pane]], and shows *only that grove's* detail — task tree, inbox triage, capture (ADR-0019). The [[controlling process]] renders **one per open grove** (N proxies, the latent ADR-0016 "supports N proxies" now load-bearing): each proxy is fixed to its grove for its whole life, set when the [[nav plugin]] opens the tab, so **no nav→controller selection signalling is needed** (which is what makes A′ buildable given `cli_pipe_output` is reply-only). The dumb-proxy mechanics (size up, blit down, input up, `RunEditor` for `$EDITOR`) are unchanged from [[dashboard proxy]]; "detail" just means the chrome it renders is the detail view, not a grove list (the list is the [[nav plugin]]).
 
 **Whichkey bar**:
+*(rmux-substrate update — 050-plan-rebuild/010-surfaces: under the inversion
+(ADR-0028) whichkey is **not a surface or a pane** — it is one **footer line the
+`App` draws**: the live **leader menu** when [[Focus]] is `LeaderPending`
+(`g nav · d detail · c capture · e editor · q quit · ⎋ cancel`), the focused
+surface's hint line otherwise. ADR-0019's *single hint-owner* rule holds **by
+construction** (one draw loop, one footer) — the injected non-focusable
+`grove-whichkey` host pane, the publish/subscribe `HostDriver` seam, and the
+`Tab::inject_whichkey_pane` machinery all dissolve. It collapsed too far to earn a
+leaf; folded into 020-leader-dispatch. The host-pane framing below is historical.)*
 *(Realisation **built natively** in leaf `140-native-whichkey`, per ADR-0020's fork
 — a native host pane, **not** a WASM plugin; no build.rs embed, no layout-pin. The
 single-hint-owner UX from ADR-0019 survives. The original WASM-plugin framing below
@@ -267,6 +287,17 @@ teardown.)*
 The single zellij locked-mode keybind that reaches grove's control — `Ctrl-o` (unchanged since ADR-0016), but bound to `LaunchOrFocusPlugin "grove-nav"` rather than `SwitchToMode "Normal"` (ADR-0018). It *must* be a zellij keybind: in `default_mode "locked"` only zellij intercepts keys while another app is focused; everything *after* the leader is handled by the [[nav plugin]]. The earlier `Ctrl-o`→`Normal` binding was a dead-end — grove's config (leaf 030) stripped all pane-navigation bindings, so unlocked `Normal` had no way to move focus.
 
 **Focus** (rmux-substrate, 030-engine E4):
+*(rmux-substrate update — 050-plan-rebuild/010-surfaces: the **composed layout**
+(harness + detail panels coexisting) extends the model to
+`Pane | Detail | Nav | Modal` + a transient `LeaderPending`, and the [[leader]]
+becomes a **dispatch gate** rather than a direct nav-flip. **`Pane`** generalises
+`Harness` — *any* focused foreign rmux pane (harness, or the 050 aux term/yazi/vcs
+panes); `self.focused` says which, so aux panes need no new variant. **`Detail`**
+is the grove-drawn detail widget peer (`leader → d`; `j`/`k` scroll). Leader →
+`LeaderPending`; the next key dispatches `g`→Nav, `d`→Detail, `c`→Capture,
+`e`→Editor, `q`→Quit (`t`/`y`/`v`→aux in 050), `⎋`→cancel. The [[Whichkey bar]]
+footer renders the live menu while pending. Built in 020-leader-dispatch. The
+`Harness | Nav | Modal` description below is the 030-engine baseline this extends.)*
 grove's leader-gated input arbitration state — `Harness | Nav | Modal(kind)`
 (`src/tui/focus.rs`). The pure transition table `arbitrate(Focus, Leader, Event)
 → (Focus, Action)` decides UI-vs-forward purely from the current focus: **Harness**

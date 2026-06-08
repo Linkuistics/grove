@@ -32,24 +32,35 @@ suppress/restore + `replace_pane` dance; rmux keeps panes alive off-screen
 natively. Each area's grilling should separate the **UX intent that survives**
 (mostly the ADR-0019 "A′" model) from the **mechanism that dissolves**.
 
-## Decomposition (the five areas → four leaves + one deferred grove)
+## Decomposition (four areas → seven leaves + one deferred grove)
 
-- **010-surfaces** (planning) — nav / per-grove detail / capture / whichkey as
-  plain ratatui widgets. What survives of the ADR-0019 "A′" UX (constant nav +
-  swapped content)? Nav + capture exist (030); detail + whichkey are the new
-  build. First, because it is the natural next functional increment and sharpens
-  the surface/focus model the working set depends on.
-- **020-working-set** (planning) — multi-pane layout, aux panes (plain term /
+- **010-surfaces** (planning, **settled**) — what shape the surface set takes
+  under the inversion. Verdict (see decision log): a **composed layout** (harness
+  pane + detail panel coexist), a **`Pane | Detail | Nav | Modal` + leader-dispatch**
+  focus model, **whichkey collapses to an `App` footer**, and **detail is a widget
+  grove draws from `RepoView`**. Grew the three work leaves below.
+- **020-leader-dispatch** (work) — the focus spine: generalise `Harness`→`Pane`,
+  add `LeaderPending` + a `Detail` peer, the leader-dispatch gate, and the
+  whichkey footer (leader menu when pending / surface hints otherwise). Whichkey
+  earned no leaf of its own — folded here.
+- **030-detail-widget** (work) — the per-grove detail surface as a ratatui widget
+  (task tree + brief chain + inbox view) drawn from `RepoView`, focusable + scroll,
+  placed beside the harness (minimal split; full layout is 050).
+- **040-detail-triage** (work) — interactive inbox **grooming** in detail: reject
+  + move/re-route, shell-outs below the seam (E1) under `spawn_blocking`.
+- **050-working-set** (planning) — multi-pane layout, aux panes (plain term /
   yazi / lazygit-lazyjj), park-alive (do rmux splits/sessions replace the
   ADR-0023 suppress/restore + `replace_pane` machinery?), responsive tiers
   (~220-col breakpoint). The biggest area; depends on the surface/session model.
-- **030-daemon-launch** (planning) — bundling/shipping the **stock** rmux daemon
+  Resolves the **detail-placement seam** 010 flagged (where detail sits among the
+  aux panes) and wires the aux panes into the leader-dispatch gate (`t`/`y`/`v`).
+- **060-daemon-launch** (planning) — bundling/shipping the **stock** rmux daemon
   binary (ADR-0029 — *no fork*; grove ships published rmux 0.5.0's daemon+CLI)
   via `SDK_DAEMON_BINARY_ENV` / `connect_or_start`, session naming/persistence,
   how `grove tui` launches, fleet singleton + multi-repo (ADR-0025/0027) under
   rmux. Makes `grove tui` a walk-away binary. Independent enough to pull earlier
   if a shippable artifact is wanted sooner.
-- **040-teardown** (work) — dissolve the ADR-0013–0028 tower (D4 mark-Superseded
+- **070-teardown** (work) — dissolve the ADR-0013–0028 tower (D4 mark-Superseded
   sweep + finalise the landmark/focused ADRs), retire the `bugs` grove, clean up
   `CONTEXT.md` (the superseded trellis/proxy/host-surface entries). Near the end,
   so we are not marking ADRs superseded while still discovering what survives —
@@ -85,4 +96,50 @@ interim-parity path. (User confirmed: "your recommendation.")
 **Corrected stale note.** The pre-decomposition leaf text said daemon bundling
 ships grove's *forked* rmux build (the original D7). **ADR-0029 superseded D7** —
 there is no fork; grove ships the *stock* published rmux 0.5.0 daemon+CLI. The
-030-daemon-launch leaf inherits the corrected framing.
+060-daemon-launch leaf inherits the corrected framing.
+
+**Surfaces (010-surfaces grilling, this session).** Settled the surface set + focus
+model under the inversion, and grew three work leaves (020/030/040). User confirmed
+each decision:
+
+- **Composed layout, not flip-to.** A grove's view is a *layout* grove draws — the
+  harness pane and the **detail** panel coexist on screen; focus moves laterally
+  between visible panels. Nav stays a flip-to full surface, Modal an overlay.
+  Owning the draw loop *upgrades* ADR-0019's "A′": detail is a coexisting panel,
+  not a flip-to tab and not a dumb proxy. The aux term/yazi/vcs panes the user
+  reaffirmed are foreign rmux panes in the same working set — their layout +
+  membership is **050** (placement deferred per the leaf).
+- **Focus = `Pane | Detail | Nav | Modal` + transient `LeaderPending`; leader =
+  dispatch gate.** `Pane` generalises today's `Harness` (any focused foreign rmux
+  pane; `self.focused` says which — so aux panes need no new focus variant).
+  Leader → pending → next key dispatches `g`→Nav, `d`→Detail, `c`→Capture,
+  `e`→Editor, `q`→Quit (`t`/`y`/`v`→aux in 050), `Esc`→cancel. Costs one keystroke
+  to reach nav vs 030's direct flip; bought back in uniformity + discoverability.
+- **Whichkey is a footer, not a surface.** The `App` draws one footer line: the
+  live leader menu when `LeaderPending`, the focused surface's hints otherwise.
+  ADR-0019's single-hint-owner holds **by construction** (one draw loop, one
+  footer) — the publish/subscribe host-driver seam + injected `grove-whichkey`
+  pane fully dissolve. It collapsed too far to earn a leaf; folded into
+  020-leader-dispatch.
+- **Detail = ratatui widget from `RepoView`** (task tree + brief chain + inbox
+  view), pure snapshot→Buffer, headless-tested. The ADR-0016 dumb-proxy /
+  `grove __dash-proxy` / socket seam / `RunEditor` frame all dissolve.
+- **Detail triage = grooming.** Interactive **reject** + **move/re-route** only
+  (shell-outs below the seam, E1). `incorporate` / `defer-to-a-leaf` have no honest
+  TUI meaning (no active task) and stay at the session-bootstrap [[Drain]].
+
+**A′-survival verdict (feeds the 070 teardown's ADR-0019 marking).** The ADR-0019
+*UX intent survives* — nav always reachable (now via the leader, not a pinned
+region), detail scoped per-grove. The *mechanisms dissolve*: N dumb proxies /
+`grove __dash-proxy` / the controller socket seam / the `RunEditor` frame (→ detail
+is a grove-drawn widget); the "constant nav **region**" pin (a zellij-era artifact,
+ADR-0022 — "always reachable via leader" replaces it); whichkey-as-injected-pane +
+the publish/subscribe host-driver (→ an `App` footer). Mark ADR-0019 **amended /
+mechanism-superseded, UX survives**, not blanked.
+
+**Whichkey earned no leaf (deviation from the leaf's "grow leaves for detail and
+whichkey").** The grilling *finding* is that under the inversion whichkey is one
+footer the `App` draws, intrinsically tied to the `LeaderPending` dispatch state —
+building it apart from the dispatch table would be artificial. So it folds into
+020-leader-dispatch (grove constraint 4: an artifact earns its place). Detail, by
+contrast, splits into two work leaves (widget + triage).

@@ -1,4 +1,4 @@
-# 040-teardown
+# 070-teardown
 
 **Kind:** work
 
@@ -7,15 +7,16 @@
 Tear down the trellis-era scaffolding now that the rmux substrate is in place:
 sweep the ADR-0013–0028 tower per D4, retire the `bugs` grove, and clean the
 `CONTEXT.md` TUI section down to its rmux-substrate reality. Last leaf — runs once
-010/020/030 have produced their "what survives" verdicts.
+010/050/060 have produced their "what survives" verdicts.
 
 ## Context
 
 ADR-0028 recorded the supersession at the **thesis level** but deliberately left
 the **per-ADR `Superseded` marking** to this leaf (D4). The verdicts that decide
 *which* ADRs are fully superseded vs "mechanism gone, UX survives" come from the
-earlier leaves: 010-surfaces (ADR-0019 A′), 020-working-set (ADR-0022/0023),
-030-daemon-launch (ADR-0027 under rmux). Pull those verdicts in before marking.
+earlier leaves: 010-surfaces (ADR-0019 A′ — and its build leaves 020-leader-dispatch
+/ 030-detail-widget / 040-detail-triage), 050-working-set (ADR-0022/0023),
+060-daemon-launch (ADR-0027 under rmux). Pull those verdicts in before marking.
 
 ## Tasks
 
@@ -24,7 +25,7 @@ earlier leaves: 010-surfaces (ADR-0019 A′), 020-working-set (ADR-0022/0023),
   0020, 0021, 0023, 0024, 0026.
 - *Mechanism superseded, UX intent survives* — annotate, don't blank: 0019
   (per-grove detail / nav-opens), 0022 (constant nav + swapped content). Point at
-  the 010/020 verdicts.
+  the 010/050 verdicts.
 - *Survives / amended, do NOT mark superseded*: 0013 (presentation boundary —
   amended by 0028 E1/E2), 0025 (fleet discovery — below the seam), 0027 (no-cwd
   anchor — possibly amended by 030, not superseded).
@@ -45,7 +46,7 @@ mouse capture, pane-local copy mode, Nav plugin, Detail proxy, Whichkey bar as
 host-pane). **Keep** the rmux-substrate entries (Leader, Focus, Nav surface,
 Rendered-history capture, open-in-editor) and the surviving cross-cutting ones
 (Fleet, Working set, Workspace, Presentation boundary), reconciled to the
-inversion. Some of this may already be done incrementally by 010/020/030 — finish
+inversion. Some of this may already be done incrementally by 010/050/060 — finish
 whatever remains.
 
 ## Done when

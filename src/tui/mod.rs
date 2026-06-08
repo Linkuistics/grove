@@ -15,7 +15,10 @@
 //!   - [`app`] — the async draw loop (`tokio::select!` over render/input/watch).
 //!   - [`driver`] — per-pane rmux glue: the D3 push `render_stream` task.
 //!   - [`pane`] — the headless-testable render path (snapshot → buffer + cursor).
-//!   - [`focus`] — the leader-gated `Harness | Nav | Modal` arbitration (E4).
+//!   - [`focus`] — the leader-dispatch `Pane | Detail | Nav | Modal` +
+//!     `LeaderPending` arbitration (E4 / 050-surfaces).
+//!   - [`footer`] — the whichkey footer: the leader menu when the gate is open,
+//!     the focused surface's hint line otherwise (one footer the `App` draws).
 //!   - [`input`] — the crossterm → tmux key-map.
 //!   - [`config`] — the configurable leader key.
 //!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
@@ -30,6 +33,7 @@ pub mod config;
 pub mod driver;
 pub mod editor;
 pub mod focus;
+pub mod footer;
 pub mod input;
 pub mod nav;
 pub mod pane;

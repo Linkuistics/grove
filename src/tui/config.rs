@@ -49,6 +49,44 @@ impl Leader {
     pub fn matches(&self, key: &KeyEvent) -> bool {
         key.code == self.code && (key.modifiers & MATCHED_MODS) == self.mods
     }
+
+    /// A compact display label for the whichkey footer, e.g. `⌥g`, `⌃o`,
+    /// `⌥⇧x`, `⌃Up`. Modifiers render as macOS glyphs (⌃ Ctrl, ⌥ Alt, ⇧ Shift)
+    /// in the conventional Ctrl→Alt→Shift order; the key follows.
+    pub fn label(&self) -> String {
+        let mut s = String::new();
+        if self.mods.contains(KeyModifiers::CONTROL) {
+            s.push('⌃');
+        }
+        if self.mods.contains(KeyModifiers::ALT) {
+            s.push('⌥');
+        }
+        if self.mods.contains(KeyModifiers::SHIFT) {
+            s.push('⇧');
+        }
+        s.push_str(&key_label(self.code));
+        s
+    }
+}
+
+/// Display a key code for the leader label: a printable char as itself, `Space`
+/// spelled out, function keys as `F1`…, named keys by name.
+fn key_label(code: KeyCode) -> String {
+    match code {
+        KeyCode::Char(' ') => "Space".to_string(),
+        KeyCode::Char(c) => c.to_string(),
+        KeyCode::F(n) => format!("F{n}"),
+        KeyCode::Up => "Up".to_string(),
+        KeyCode::Down => "Down".to_string(),
+        KeyCode::Left => "Left".to_string(),
+        KeyCode::Right => "Right".to_string(),
+        KeyCode::Enter => "Enter".to_string(),
+        KeyCode::Esc => "Esc".to_string(),
+        KeyCode::Tab => "Tab".to_string(),
+        KeyCode::Home => "Home".to_string(),
+        KeyCode::End => "End".to_string(),
+        other => format!("{other:?}"),
+    }
 }
 
 impl Default for Leader {
@@ -189,6 +227,23 @@ mod tests {
     fn default_leader_is_alt_g() {
         let leader = Leader::default();
         assert!(leader.matches(&KeyEvent::new(KeyCode::Char('g'), KeyModifiers::ALT)));
+    }
+
+    #[test]
+    fn label_renders_alt_g_with_the_option_glyph() {
+        assert_eq!(Leader::alt_g().label(), "⌥g");
+    }
+
+    #[test]
+    fn label_renders_ctrl_and_named_keys() {
+        assert_eq!(parse_leader("Ctrl-o").unwrap().label(), "⌃o");
+        assert_eq!(parse_leader("Ctrl-Up").unwrap().label(), "⌃Up");
+    }
+
+    #[test]
+    fn label_orders_modifiers_ctrl_alt_shift() {
+        assert_eq!(parse_leader("Alt-Shift-x").unwrap().label(), "⌥⇧x");
+        assert_eq!(parse_leader("Shift-Ctrl-Alt-x").unwrap().label(), "⌃⌥⇧x");
     }
 
     #[test]

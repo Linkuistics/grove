@@ -150,9 +150,9 @@ impl Nav {
     /// `area` first so the live pane underneath does not bleed through.
     pub fn render(&self, area: Rect, buf: &mut Buffer) {
         Clear.render(area, buf);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" groves — ↑/↓ (j/k) move · ⏎ open · Esc harness · q quit ");
+        // Just the surface name; the key hints live in the single whichkey
+        // footer the App draws ([`crate::tui::footer`]), not duplicated here.
+        let block = Block::default().borders(Borders::ALL).title(" groves ");
         let inner = block.inner(area);
         block.render(area, buf);
         if inner.width == 0 || inner.height == 0 {

@@ -27,6 +27,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::backend::CrosstermBackend;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use ratatui::crossterm::event::{
     self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
     Event,
@@ -196,7 +198,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         session,
         panes,
         focused: process.key.clone(),
-        focus: Focus::Harness,
+        focus: Focus::Pane,
         nav,
         fleet,
         repo_roots,
@@ -248,9 +250,10 @@ impl App {
                         if let Some(entry) = self.panes.get_mut(&key) {
                             entry.state.set_snapshot(snapshot);
                         }
-                        // Only the visible (focused, harness-or-modal) pane's
-                        // updates trigger a redraw; background panes stay warm.
-                        if key == self.focused && !matches!(self.focus, Focus::Nav) {
+                        // Only the visible pane's updates trigger a redraw;
+                        // background panes (and the Nav surface, which hides the
+                        // pane) stay warm without repainting.
+                        if key == self.focused && surface_shows_pane(&self.focus) {
                             needs_redraw = true;
                         }
                     }
@@ -574,9 +577,12 @@ impl App {
         self.nav.rebuild(&self.fleet);
     }
 
-    /// Paint one frame per the current [`Focus`]: the focused pane full-screen
-    /// (hardware cursor at its cursor), the nav as a full surface, or the pane
-    /// with the capture modal centered over it.
+    /// Paint one frame for the current [`Focus`]: the surface, then the whichkey
+    /// footer (leader menu when pending, the surface's hint line otherwise), then
+    /// any transient capture toast on top.
+    ///
+    /// Whichkey is a single footer the `App` draws (050/010 verdict): one draw
+    /// loop, one footer, so ADR-0019's single-hint-owner holds by construction.
     fn draw(
         &self,
         terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
@@ -584,42 +590,76 @@ impl App {
         terminal
             .draw(|frame| {
                 let area = frame.area();
-                match &self.focus {
-                    Focus::Harness => {
-                        if let Some(entry) = self.panes.get(&self.focused) {
-                            if let Some((cx, cy)) =
-                                render_pane(&entry.state, area, frame.buffer_mut())
-                            {
-                                frame.set_cursor_position((cx, cy));
-                            }
-                        }
-                    }
-                    Focus::Nav => self.nav.render(area, frame.buffer_mut()),
-                    Focus::Modal { .. } => {
-                        // The proof point: draw the live pane, then the centered
-                        // capture modal *over* it (Clear punches the hole).
-                        if let Some(entry) = self.panes.get(&self.focused) {
-                            render_pane(&entry.state, area, frame.buffer_mut());
-                        }
-                        let label = self
-                            .panes
-                            .get(&self.focused)
-                            .and_then(|e| e.target.as_ref())
-                            .map(|t| t.name.as_str())
-                            .unwrap_or("(no grove)");
-                        if let Some(pos) = self.capture.render(area, frame.buffer_mut(), label) {
-                            frame.set_cursor_position(pos);
-                        }
-                    }
+                // The surface a `LeaderPending` gate sits over is the one we
+                // leadered from, so render *that* surface behind the menu footer.
+                let surface = match &self.focus {
+                    Focus::LeaderPending { prior } => prior.as_ref(),
+                    other => other,
+                };
+                if let Some(pos) = self.render_surface(surface, area, frame.buffer_mut()) {
+                    frame.set_cursor_position(pos);
                 }
-                // The capture toast rides on the bottom row of whatever surface
-                // is up (it appears after the modal has already closed).
+                // The whichkey footer rides the bottom row (overlay, like the
+                // toast — proper row-reservation is 050's composed layout).
+                crate::tui::footer::render_footer(
+                    &self.focus,
+                    &self.leader,
+                    area,
+                    frame.buffer_mut(),
+                );
+                // The capture toast rides on the same bottom row, briefly over
+                // the footer (it appears after the modal has already closed).
                 if let Some(outcome) = &self.toast {
                     crate::tui::capture::render_toast(outcome, area, frame.buffer_mut());
                 }
             })
             .context("drawing a frame")?;
         Ok(())
+    }
+
+    /// Render one focus surface into `buf`, returning where the hardware cursor
+    /// belongs (the pane's cursor, or the modal's text caret), or `None`. Never
+    /// receives [`Focus::LeaderPending`] — the caller unwraps that to its `prior`.
+    fn render_surface(&self, focus: &Focus, area: Rect, buf: &mut Buffer) -> Option<(u16, u16)> {
+        match focus {
+            // The pane is the home base; Detail's widget is 030, so until then it
+            // renders the pane behind it too (no-op detail render — the brief).
+            Focus::Pane | Focus::Detail => self
+                .panes
+                .get(&self.focused)
+                .and_then(|entry| render_pane(&entry.state, area, buf)),
+            Focus::Nav => {
+                self.nav.render(area, buf);
+                None
+            }
+            Focus::Modal { .. } => {
+                // The landmark proof point: draw the live pane, then the centered
+                // capture modal *over* it (Clear punches the hole).
+                if let Some(entry) = self.panes.get(&self.focused) {
+                    render_pane(&entry.state, area, buf);
+                }
+                let label = self
+                    .panes
+                    .get(&self.focused)
+                    .and_then(|e| e.target.as_ref())
+                    .map(|t| t.name.as_str())
+                    .unwrap_or("(no grove)");
+                self.capture.render(area, buf, label)
+            }
+            // Unwrapped by the caller; rendering its `prior` instead.
+            Focus::LeaderPending { .. } => None,
+        }
+    }
+}
+
+/// Whether the focused pane is visible on the current surface (so a background
+/// render push should trigger a repaint). Nav hides the pane; a gate inherits its
+/// `prior`'s visibility.
+fn surface_shows_pane(focus: &Focus) -> bool {
+    match focus {
+        Focus::Pane | Focus::Detail | Focus::Modal { .. } => true,
+        Focus::Nav => false,
+        Focus::LeaderPending { prior } => surface_shows_pane(prior),
     }
 }
 

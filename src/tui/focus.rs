@@ -74,6 +74,13 @@ pub enum Action {
     SendPaste(String),
     /// Forward a left-click to the harness at a (row, col) pane cell.
     HarnessClick { row: u16, col: u16 },
+    /// Move the nav selection up one row.
+    NavUp,
+    /// Move the nav selection down one row.
+    NavDown,
+    /// Open (or focus) the harness for the nav's currently selected grove.
+    /// The app applies the open/focus and lands on the harness.
+    NavSelect,
     /// A grove surface changed; the app should redraw.
     Redraw,
     /// Insert literal text into the focused modal's buffer.
@@ -138,10 +145,18 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
             if leader.matches(key) || key.code == KeyCode::Esc {
                 return (Focus::Harness, Action::Redraw);
             }
-            // Stub bindings (030 replaces the nav body): q quits, c opens the
-            // capture modal restoring back into Nav.
             match key.code {
+                // List navigation: arrows or vim j/k. The selection lives in the
+                // app's `Nav` (it needs the grove list); arbitrate only emits the
+                // movement intent.
+                KeyCode::Up | KeyCode::Char('k') => (Focus::Nav, Action::NavUp),
+                KeyCode::Down | KeyCode::Char('j') => (Focus::Nav, Action::NavDown),
+                // Open/focus the selected grove's harness, landing on it (E4:
+                // "Focus returns to Harness on selection").
+                KeyCode::Enter => (Focus::Harness, Action::NavSelect),
                 KeyCode::Char('q') => (Focus::Nav, Action::Quit),
+                // The capture modal (the real surface is 040), opened from the
+                // nav and restoring back into it on cancel/submit.
                 KeyCode::Char('c') => (
                     Focus::Modal {
                         kind: ModalKind::Capture,
@@ -291,6 +306,28 @@ mod tests {
         let (focus, _) =
             arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('g'), KeyModifiers::ALT));
         assert_eq!(focus, Focus::Harness);
+    }
+
+    #[test]
+    fn nav_arrows_and_jk_move_the_selection() {
+        for code in [KeyCode::Up, KeyCode::Char('k')] {
+            let (focus, action) = arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, Focus::Nav);
+            assert_eq!(action, Action::NavUp);
+        }
+        for code in [KeyCode::Down, KeyCode::Char('j')] {
+            let (focus, action) = arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, Focus::Nav);
+            assert_eq!(action, Action::NavDown);
+        }
+    }
+
+    #[test]
+    fn nav_enter_selects_and_lands_on_harness() {
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Harness);
+        assert_eq!(action, Action::NavSelect);
     }
 
     #[test]

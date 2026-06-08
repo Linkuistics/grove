@@ -1,13 +1,22 @@
 //! The async draw loop: a ratatui app that owns its own render loop (D3) and
-//! embeds one live harness pane.
+//! embeds harness panes, switched by the minimal [`Nav`] surface (030).
 //!
-//! Shape (010-draw-loop-pane): connect/start the rmux daemon, ensure one
-//! deterministically-named session, open one harness pane running
-//! `grove do <name>` in that grove's worktree (E3), then run an event-driven
-//! `tokio::select!` over three sources — per-pane render-stream pushes, crossterm
-//! input, and fs-watch ticks — redrawing only when something changed. Input
-//! handling beyond quit + resize is deliberately out of scope here (020); this
-//! leaf proves the *render* path.
+//! Shape: connect/start the rmux daemon, ensure one deterministically-named
+//! session, open the first harness pane (`grove do <name>` in that grove's
+//! worktree, E3), then run an event-driven `tokio::select!` over three sources —
+//! per-pane render-stream pushes, crossterm input, and fs-watch ticks —
+//! redrawing only when something *visible* changed.
+//!
+//! ## Multi-pane (the 030 step up from 010)
+//!
+//! 010 had exactly one pane and quit when it exited. 030's [`Nav`] lets the user
+//! open/focus a harness per grove, so several panes coexist: the app keeps a
+//! `grove-name → `[`PaneEntry`] map (E3's `PaneId` map made load-bearing), every
+//! pane's `render_stream` pushes onto **one** key-tagged channel, and only the
+//! *focused* pane is drawn. Non-focused panes stay alive and keep their
+//! [`PaneState`] warm (their render tasks run on), so switching focus is
+//! instant. Park/close semantics are 050; here a deselected pane simply stays
+//! open in the background.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -28,28 +37,37 @@ use ratatui::crossterm::terminal::{
 };
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
-use ratatui::text::Line;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Terminal;
 use ratatui_rmux::PaneState;
-use rmux_sdk::{EnsureSession, EnsureSessionPolicy, Pane, Rmux, SessionName, TerminalSizeSpec};
+use rmux_sdk::{
+    EnsureSession, EnsureSessionPolicy, PaneSnapshot, Rmux, Session, SessionName, TerminalSizeSpec,
+};
 use tokio::sync::mpsc;
 
 use crate::cli::TuiArgs;
+use crate::multi_repo_view::MultiRepoView;
 use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::driver::PaneDriver;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
+use crate::tui::nav::{Nav, NavItem};
 use crate::tui::pane::render_pane;
 
 /// One rmux session per `grove tui`, named deterministically (ADR-0027's
 /// singleton). 050 revisits park-alive / multi-session lifecycle.
 const SESSION_NAME: &str = "grove-fleet";
 
+/// One embedded harness pane and its latest rendered grid. The map value behind
+/// each grove key (and the `"shell"` fallback).
+struct PaneEntry {
+    driver: PaneDriver,
+    state: PaneState,
+}
+
 /// The harness pane's process + placement, chosen below the presentation seam
-/// (sync core). With no nav yet (030), the single pane runs
-/// `grove do <first-live-grove>` in that grove's worktree; a repo with no live
-/// groves falls back to the user's shell so `grove tui` still launches and
-/// renders a live pane.
+/// (sync core). The *first* pane is the first live grove anywhere in the fleet
+/// (`grove do <name>` in its worktree), or the user's shell when the fleet has
+/// no live groves so `grove tui` still launches with a live pane.
 struct PaneProcess {
     /// Map key / focus label: the grove name, or `"shell"` for the fallback.
     key: String,
@@ -57,10 +75,40 @@ struct PaneProcess {
     argv: Vec<String>,
 }
 
+/// The running TUI: the daemon handles, the open-pane map, the focus machine,
+/// and the nav surface + fleet data it renders from.
+struct App {
+    rmux: Rmux,
+    session: Session,
+    /// Open harness panes by key (grove name, or `"shell"`).
+    panes: HashMap<String, PaneEntry>,
+    /// The currently displayed harness key (the surface to return to from Nav).
+    focused: String,
+    /// Which surface owns input (E4).
+    focus: Focus,
+    nav: Nav,
+    /// The fleet snapshot the nav renders from; re-scanned on fs-watch ticks.
+    fleet: MultiRepoView,
+    repo_roots: Vec<PathBuf>,
+    leader: Leader,
+    /// The capture modal's text buffer (loop state; the real surface is 040).
+    modal_buf: String,
+    /// Absolute path to the `grove` binary, for `grove do <name>` argv.
+    grove_exe: String,
+    /// Last known terminal size, applied to newly opened panes.
+    size: (u16, u16),
+    /// The shared sender every pane's render task clones. Held here so the
+    /// render channel never closes while the app lives (a single pane exiting
+    /// must not end the loop).
+    render_tx: mpsc::UnboundedSender<(String, PaneSnapshot)>,
+}
+
 pub async fn run_app(args: &TuiArgs) -> Result<()> {
-    // --- below the seam: pick what the single pane runs (sync core) ---
+    // --- below the seam: scan the fleet and pick the first pane (sync core) ---
     let repo_roots = resolve_repo_roots(args)?;
-    let process = select_pane_process(&repo_roots)?;
+    let fleet = MultiRepoView::scan(&repo_roots);
+    let grove_exe = grove_exe();
+    let process = select_initial_process(&fleet, &repo_roots, &grove_exe);
 
     // The leader key (E4), configurable from day one (`tui.toml`), default Alt-g.
     let leader = resolve_leader().context("resolving the leader key")?;
@@ -86,7 +134,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         .await
         .context("ensuring the grove tui session")?;
 
-    // --- one harness pane, addressed by stable PaneId (E3) ---
+    // --- the first harness pane, addressed by stable PaneId (E3) ---
     let pane = session.pane(0, 0);
     let pane_id = pane
         .id()
@@ -94,17 +142,22 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         .context("resolving harness pane id")?
         .context("harness pane has no id yet")?;
 
-    // The grove-name → pane map (E3): one entry this leaf, but the addressing
-    // model is established now so 030's dynamic open/close/park can extend it.
-    let mut panes: HashMap<String, PaneDriver> = HashMap::new();
-    panes.insert(process.key.clone(), PaneDriver::new(pane, pane_id));
-    let focused = process.key.clone();
-
-    // --- D3 push: spawn the focused pane's render-stream task ---
-    let mut render_rx = panes[&focused]
-        .spawn_render_task()
+    // The grove-name → pane map (E3). The nav adds entries as groves are opened.
+    let (render_tx, mut render_rx) = mpsc::unbounded_channel();
+    let mut panes: HashMap<String, PaneEntry> = HashMap::new();
+    let driver = PaneDriver::new(pane, pane_id);
+    driver
+        .spawn_render_task(process.key.clone(), render_tx.clone())
         .await
         .context("opening the harness pane render stream")?;
+    panes.insert(
+        process.key.clone(),
+        PaneEntry { driver, state: PaneState::default() },
+    );
+
+    // --- the nav surface, selection landed on the initially-focused grove ---
+    let mut nav = Nav::from_fleet(&fleet);
+    nav.select(&process.key);
 
     // --- input + fs-watch event sources, surfaced into the select! ---
     let stop = Arc::new(AtomicBool::new(false));
@@ -112,9 +165,9 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     let (_watcher, mut watch_rx) = spawn_fs_watch(&repo_roots)?;
 
     // --- terminal setup ---
-    // Bracketed paste (E5): so a multi-line paste arrives as one `Event::Paste`
-    // we forward wrapped, not as line-by-line key events that execute as typed.
-    // Mouse capture feeds click-to-focus (E5).
+    // Bracketed paste (E5): a multi-line paste arrives as one `Event::Paste`
+    // forwarded wrapped, not line-by-line keys that execute as typed. Mouse
+    // capture feeds click-to-focus (E5).
     enable_raw_mode().context("enabling raw mode")?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)
@@ -123,15 +176,24 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         Terminal::new(CrosstermBackend::new(stdout)).context("creating the ratatui terminal")?;
 
     // --- the event-driven draw loop ---
-    let result = event_loop(
-        &mut terminal,
-        &mut render_rx,
-        &mut input_rx,
-        &mut watch_rx,
-        panes[&focused].pane(),
-        &leader,
-    )
-    .await;
+    let mut app = App {
+        rmux,
+        session,
+        panes,
+        focused: process.key.clone(),
+        focus: Focus::Harness,
+        nav,
+        fleet,
+        repo_roots,
+        leader,
+        modal_buf: String::new(),
+        grove_exe,
+        size: (cols, rows),
+        render_tx,
+    };
+    let result = app
+        .run(&mut terminal, &mut render_rx, &mut input_rx, &mut watch_rx)
+        .await;
 
     // --- teardown (always, even on error) ---
     stop.store(true, Ordering::Relaxed);
@@ -146,51 +208,239 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     result
 }
 
-/// The `tokio::select!` loop. Redraws only when a source reports a change
-/// (render push, input, or fs-watch tick). Owns the focus state machine
-/// ([`Focus`]) and the modal buffer; input is routed through the pure
-/// [`arbitrate`] table and the resulting [`Action`] applied here (the impure
-/// seam). Returns when the pane exits, input closes, or the user quits
-/// (leader → `q`).
-async fn event_loop(
-    terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
-    render_rx: &mut mpsc::UnboundedReceiver<rmux_sdk::PaneSnapshot>,
-    input_rx: &mut mpsc::UnboundedReceiver<Event>,
-    watch_rx: &mut mpsc::UnboundedReceiver<()>,
-    pane: &Pane,
-    leader: &Leader,
-) -> Result<()> {
-    let mut state = PaneState::default();
-    let mut focus = Focus::Harness;
-    let mut modal_buf = String::new();
-    let mut needs_redraw = true;
-    loop {
-        if needs_redraw {
-            draw(terminal, &state, &focus, &modal_buf)?;
-            needs_redraw = false;
-        }
-        tokio::select! {
-            maybe = render_rx.recv() => match maybe {
-                Some(snapshot) => { state.set_snapshot(snapshot); needs_redraw = true; }
-                None => break, // render task ended: the pane's process exited
-            },
-            maybe = input_rx.recv() => match maybe {
-                Some(ev) => match handle_event(&ev, pane, leader, &mut focus, &mut modal_buf).await? {
-                    EventOutcome::Quit => break,
-                    EventOutcome::Redraw => needs_redraw = true,
-                    EventOutcome::Nothing => {}
+impl App {
+    /// The `tokio::select!` loop. Redraws only when a source reports a *visible*
+    /// change (the focused pane's render push, input, or an fs-watch tick).
+    /// Returns when input closes or the user quits (leader → `q`).
+    async fn run(
+        &mut self,
+        terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
+        render_rx: &mut mpsc::UnboundedReceiver<(String, PaneSnapshot)>,
+        input_rx: &mut mpsc::UnboundedReceiver<Event>,
+        watch_rx: &mut mpsc::UnboundedReceiver<()>,
+    ) -> Result<()> {
+        let mut needs_redraw = true;
+        loop {
+            if needs_redraw {
+                self.draw(terminal)?;
+                needs_redraw = false;
+            }
+            tokio::select! {
+                maybe = render_rx.recv() => match maybe {
+                    Some((key, snapshot)) => {
+                        if let Some(entry) = self.panes.get_mut(&key) {
+                            entry.state.set_snapshot(snapshot);
+                        }
+                        // Only the visible (focused, harness-or-modal) pane's
+                        // updates trigger a redraw; background panes stay warm.
+                        if key == self.focused && !matches!(self.focus, Focus::Nav) {
+                            needs_redraw = true;
+                        }
+                    }
+                    None => break, // every render sender gone (only at shutdown)
                 },
-                None => break, // input reader gone
-            },
-            maybe = watch_rx.recv() => {
-                // fs-watch only triggers a redraw this leaf; nav rescan is 030.
-                if maybe.is_some() {
-                    needs_redraw = true;
+                maybe = input_rx.recv() => match maybe {
+                    Some(ev) => match self.handle_event(&ev).await? {
+                        EventOutcome::Quit => break,
+                        EventOutcome::Redraw => needs_redraw = true,
+                        EventOutcome::Nothing => {}
+                    },
+                    None => break, // input reader gone
+                },
+                maybe = watch_rx.recv() => {
+                    // fs-watch refreshes the nav list (groves appearing/retiring).
+                    if maybe.is_some() {
+                        self.refresh_fleet();
+                        needs_redraw = true;
+                    }
                 }
             }
         }
+        Ok(())
     }
-    Ok(())
+
+    /// Apply one input event: resize is focus-independent (re-size every open
+    /// pane); everything else routes through the pure [`arbitrate`] table and
+    /// the returned [`Action`] is carried out here (the I/O seam).
+    async fn handle_event(&mut self, ev: &Event) -> Result<EventOutcome> {
+        if let Event::Resize(w, h) = ev {
+            self.size = (*w, *h);
+            for entry in self.panes.values() {
+                let _ = entry.driver.pane().resize(TerminalSizeSpec::new(*w, *h)).await;
+            }
+            return Ok(EventOutcome::Redraw);
+        }
+
+        let (next, action) = arbitrate(&self.focus, &self.leader, ev);
+        self.focus = next;
+        match action {
+            Action::Ignore => Ok(EventOutcome::Nothing),
+            Action::SendText(text) => {
+                if let Some(pane) = self.focused_pane() {
+                    pane.send_text(text).await.ok();
+                }
+                Ok(EventOutcome::Nothing)
+            }
+            Action::SendKey(token) => {
+                if let Some(pane) = self.focused_pane() {
+                    pane.send_key(token).await.ok();
+                }
+                Ok(EventOutcome::Nothing)
+            }
+            Action::SendPaste(text) => {
+                // Wrap in bracketed-paste markers so multi-line pastes don't
+                // execute line-by-line (claude multi-line / vim paste-mode).
+                if let Some(pane) = self.focused_pane() {
+                    pane.send_text(format!("\x1b[200~{text}\x1b[201~")).await.ok();
+                }
+                Ok(EventOutcome::Nothing)
+            }
+            Action::HarnessClick { row, col } => {
+                if let Some(pane) = self.focused_pane() {
+                    let _ = pane.mouse().click(row, col).await;
+                }
+                Ok(EventOutcome::Nothing)
+            }
+            Action::NavUp => {
+                self.nav.select_up();
+                Ok(EventOutcome::Redraw)
+            }
+            Action::NavDown => {
+                self.nav.select_down();
+                Ok(EventOutcome::Redraw)
+            }
+            Action::NavSelect => {
+                if let Some(item) = self.nav.selected().cloned() {
+                    if let Err(e) = self.open_or_focus(&item).await {
+                        // Opening must never kill the TUI; fall back to the
+                        // prior harness. (No stderr — we're on the alt screen.)
+                        let _ = e;
+                    }
+                }
+                Ok(EventOutcome::Redraw)
+            }
+            Action::Redraw => Ok(EventOutcome::Redraw),
+            Action::ModalInsert(text) => {
+                self.modal_buf.push_str(&text);
+                Ok(EventOutcome::Redraw)
+            }
+            Action::ModalBackspace => {
+                self.modal_buf.pop();
+                Ok(EventOutcome::Redraw)
+            }
+            Action::ModalSubmit => {
+                // 040 wires submit to grove's capture write; this leaf proves the
+                // mechanics, so it just clears the buffer.
+                self.modal_buf.clear();
+                Ok(EventOutcome::Redraw)
+            }
+            Action::ModalCancel => {
+                self.modal_buf.clear();
+                Ok(EventOutcome::Redraw)
+            }
+            Action::Quit => Ok(EventOutcome::Quit),
+        }
+    }
+
+    /// A clone of the focused pane's handle, if one is open. Cloning (the rmux
+    /// `Pane` handle is cheap to clone) keeps the `panes`/`focused` borrow short,
+    /// so the input forward `.await` doesn't hold a borrow of `self` across it.
+    fn focused_pane(&self) -> Option<rmux_sdk::Pane> {
+        self.panes.get(&self.focused).map(|e| e.driver.pane().clone())
+    }
+
+    /// Open the selected grove's harness pane if absent, else focus the existing
+    /// one — the no-duplicate-pane guarantee (E3's `grove-name → PaneId` map).
+    /// On open, a new detached window runs `grove do <name>` in the worktree.
+    async fn open_or_focus(&mut self, item: &NavItem) -> Result<()> {
+        if self.panes.contains_key(&item.name) {
+            self.focused = item.name.clone(); // focus the already-open pane
+            return Ok(());
+        }
+
+        let cwd = crate::repo::grove_worktree(&item.repo_root, &item.name);
+        let argv = vec![self.grove_exe.clone(), "do".to_string(), item.name.clone()];
+        let window = self
+            .session
+            .new_window_with()
+            .name(&item.name)
+            .spawn(argv)
+            .cwd(cwd)
+            .detached(true)
+            .await
+            .context("opening a harness window")?;
+        let wp = window
+            .panes()
+            .await
+            .context("listing the new window's panes")?
+            .into_iter()
+            .next()
+            .context("new harness window has no pane")?;
+        let pane = self
+            .rmux
+            .pane(wp.target.clone())
+            .await
+            .context("resolving the new harness pane")?;
+        let driver = PaneDriver::new(pane, wp.id);
+        let _ = driver
+            .pane()
+            .resize(TerminalSizeSpec::new(self.size.0, self.size.1))
+            .await;
+        driver
+            .spawn_render_task(item.name.clone(), self.render_tx.clone())
+            .await
+            .context("opening the harness pane render stream")?;
+        self.panes.insert(
+            item.name.clone(),
+            PaneEntry { driver, state: PaneState::default() },
+        );
+        self.focused = item.name.clone();
+        Ok(())
+    }
+
+    /// Re-scan the fleet and rebuild the nav (groves appearing/retiring),
+    /// keeping the selection on the same grove where it survives. Uses the
+    /// warning-collecting scan so no stderr noise corrupts the alt screen.
+    fn refresh_fleet(&mut self) {
+        let (fleet, _warnings) = MultiRepoView::scan_with_warnings(&self.repo_roots);
+        self.fleet = fleet;
+        self.nav.rebuild(&self.fleet);
+    }
+
+    /// Paint one frame per the current [`Focus`]: the focused pane full-screen
+    /// (hardware cursor at its cursor), the nav as a full surface, or the pane
+    /// with the capture modal centered over it.
+    fn draw(
+        &self,
+        terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
+    ) -> Result<()> {
+        terminal
+            .draw(|frame| {
+                let area = frame.area();
+                match &self.focus {
+                    Focus::Harness => {
+                        if let Some(entry) = self.panes.get(&self.focused) {
+                            if let Some((cx, cy)) =
+                                render_pane(&entry.state, area, frame.buffer_mut())
+                            {
+                                frame.set_cursor_position((cx, cy));
+                            }
+                        }
+                    }
+                    Focus::Nav => self.nav.render(area, frame.buffer_mut()),
+                    Focus::Modal { kind, .. } => {
+                        if let Some(entry) = self.panes.get(&self.focused) {
+                            render_pane(&entry.state, area, frame.buffer_mut());
+                        }
+                        if let Some(pos) = draw_modal(frame, area, *kind, &self.modal_buf) {
+                            frame.set_cursor_position(pos);
+                        }
+                    }
+                }
+            })
+            .context("drawing a frame")?;
+        Ok(())
+    }
 }
 
 /// What one handled input event implies for the loop.
@@ -202,117 +452,6 @@ enum EventOutcome {
     /// Forwarded to the pane (or ignored); no grove-surface redraw needed —
     /// the pane's own output will arrive as a render push if it changed.
     Nothing,
-}
-
-/// Apply one input event: resize is focus-independent and handled directly; all
-/// other events route through the pure [`arbitrate`] table, and the returned
-/// [`Action`] is carried out here (the I/O seam). Modal buffer mutation lives
-/// here because the buffer is loop state, not transition state.
-async fn handle_event(
-    ev: &Event,
-    pane: &Pane,
-    leader: &Leader,
-    focus: &mut Focus,
-    modal_buf: &mut String,
-) -> Result<EventOutcome> {
-    // Resize is not a focus decision — always re-size the pane and redraw.
-    if let Event::Resize(w, h) = ev {
-        let _ = pane.resize(TerminalSizeSpec::new(*w, *h)).await;
-        return Ok(EventOutcome::Redraw);
-    }
-
-    let (next, action) = arbitrate(focus, leader, ev);
-    *focus = next;
-    match action {
-        Action::Ignore => Ok(EventOutcome::Nothing),
-        Action::SendText(text) => {
-            pane.send_text(text).await.ok();
-            Ok(EventOutcome::Nothing)
-        }
-        Action::SendKey(token) => {
-            pane.send_key(token).await.ok();
-            Ok(EventOutcome::Nothing)
-        }
-        Action::SendPaste(text) => {
-            // Wrap in bracketed-paste markers so multi-line pastes don't execute
-            // line-by-line (claude multi-line input / vim paste-mode depend on it).
-            pane.send_text(format!("\x1b[200~{text}\x1b[201~")).await.ok();
-            Ok(EventOutcome::Nothing)
-        }
-        Action::HarnessClick { row, col } => {
-            let _ = pane.mouse().click(row, col).await;
-            Ok(EventOutcome::Nothing)
-        }
-        Action::Redraw => Ok(EventOutcome::Redraw),
-        Action::ModalInsert(text) => {
-            modal_buf.push_str(&text);
-            Ok(EventOutcome::Redraw)
-        }
-        Action::ModalBackspace => {
-            modal_buf.pop();
-            Ok(EventOutcome::Redraw)
-        }
-        Action::ModalSubmit => {
-            // 040 wires submit to grove's capture write; this leaf proves the
-            // mechanics, so it just clears the buffer.
-            modal_buf.clear();
-            Ok(EventOutcome::Redraw)
-        }
-        Action::ModalCancel => {
-            modal_buf.clear();
-            Ok(EventOutcome::Redraw)
-        }
-        Action::Quit => Ok(EventOutcome::Quit),
-    }
-}
-
-/// Paint one frame: the focused pane full-screen, with grove's own surfaces
-/// drawn over it per [`Focus`]. The hardware cursor goes to the pane cursor when
-/// the harness is focused, to the modal buffer's end when a modal is up, and is
-/// hidden over the Nav stub.
-fn draw(
-    terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
-    state: &PaneState,
-    focus: &Focus,
-    modal_buf: &str,
-) -> Result<()> {
-    terminal
-        .draw(|frame| {
-            let area = frame.area();
-            let pane_cursor = render_pane(state, area, frame.buffer_mut());
-            match focus {
-                Focus::Harness => {
-                    if let Some((cx, cy)) = pane_cursor {
-                        frame.set_cursor_position((cx, cy));
-                    }
-                }
-                Focus::Nav => draw_nav_indicator(frame, area),
-                Focus::Modal { kind, .. } => {
-                    if let Some(pos) = draw_modal(frame, area, *kind, modal_buf) {
-                        frame.set_cursor_position(pos);
-                    }
-                }
-            }
-        })
-        .context("drawing a frame")?;
-    Ok(())
-}
-
-/// The Nav stub (030 builds the real surface): a one-line "grove focus" banner
-/// across the top, listing the stub bindings.
-fn draw_nav_indicator(frame: &mut ratatui::Frame, area: Rect) {
-    if area.height == 0 {
-        return;
-    }
-    let bar = Rect::new(area.x, area.y, area.width, 1);
-    frame.render_widget(Clear, bar);
-    frame.render_widget(
-        Paragraph::new(Line::from(
-            " grove (nav stub) — Esc/leader: harness · c: capture · q: quit ",
-        ))
-        .style(Style::default().fg(Color::Black).bg(Color::Cyan)),
-        bar,
-    );
 }
 
 /// The Modal stub (040 builds the real capture modal): a centered box over the
@@ -335,10 +474,7 @@ fn draw_modal(
         .style(Style::default().fg(Color::Yellow));
     let inner = block.inner(popup);
     frame.render_widget(block, popup);
-    frame.render_widget(
-        Paragraph::new(buf).wrap(Wrap { trim: false }),
-        inner,
-    );
+    frame.render_widget(Paragraph::new(buf).wrap(Wrap { trim: false }), inner);
     if inner.width == 0 || inner.height == 0 {
         return None;
     }
@@ -372,41 +508,46 @@ fn resolve_repo_roots(args: &TuiArgs) -> Result<Vec<PathBuf>> {
     }
 }
 
-/// Pick the single harness pane's process (E3). First live grove of the first
-/// repo → `grove do <name>` in its worktree; otherwise the user's shell.
-fn select_pane_process(repo_roots: &[PathBuf]) -> Result<PaneProcess> {
-    let grove_exe = std::env::current_exe()
+/// Absolute path to the running `grove` binary, for `grove do <name>` argv.
+fn grove_exe() -> String {
+    std::env::current_exe()
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "grove".to_string());
+        .unwrap_or_else(|| "grove".to_string())
+}
 
-    for repo in repo_roots {
-        let view = crate::repo_view::RepoView::scan(repo)
-            .with_context(|| format!("scanning repo {}", repo.display()))?;
-        if let Some(grove) = view
+/// Pick the first pane's process (E3) from an already-scanned fleet. First live
+/// grove anywhere → `grove do <name>` in its worktree; otherwise the user's
+/// shell so the render path still demos.
+fn select_initial_process(
+    fleet: &MultiRepoView,
+    repo_roots: &[PathBuf],
+    grove_exe: &str,
+) -> PaneProcess {
+    for repo in fleet.repos() {
+        if let Some(grove) = repo
             .groves()
             .iter()
             .find(|g| g.lifecycle == crate::repo_view::Lifecycle::Live)
         {
-            return Ok(PaneProcess {
+            return PaneProcess {
                 key: grove.name.clone(),
-                cwd: crate::repo::grove_worktree(repo, &grove.name),
-                argv: vec![grove_exe, "do".to_string(), grove.name.clone()],
-            });
+                cwd: crate::repo::grove_worktree(&repo.repo_root, &grove.name),
+                argv: vec![grove_exe.to_string(), "do".to_string(), grove.name.clone()],
+            };
         }
     }
 
-    // No live grove anywhere: a shell so the render path still demos.
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     let cwd = repo_roots
         .first()
         .cloned()
         .unwrap_or_else(|| PathBuf::from("."));
-    Ok(PaneProcess {
+    PaneProcess {
         key: "shell".to_string(),
         cwd,
         argv: vec![shell],
-    })
+    }
 }
 
 /// Spawn a dedicated OS thread reading crossterm events and forwarding them onto

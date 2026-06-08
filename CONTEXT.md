@@ -271,12 +271,29 @@ grove's leader-gated input arbitration state — `Harness | Nav | Modal(kind)`
 (`src/tui/focus.rs`). The pure transition table `arbitrate(Focus, Leader, Event)
 → (Focus, Action)` decides UI-vs-forward purely from the current focus: **Harness**
 forwards all keys to the pane except the [[leader]]; **Nav** is grove's command
-surface (a stub in leaf 020, the real surface is 030); **Modal** is a focus
+surface (the [[Nav surface]], built in leaf 030; a stub in 020); **Modal** is a focus
 overlay that captures all keys and restores the prior focus on cancel/submit (the
 capture modal is 040). Tracks the *surface*, not the `PaneId` — pane addressing
 is the app's `name → PaneDriver` map + `focused` key (E3). The transition table
 and the crossterm→tmux key-map (`src/tui/input.rs`) are pure, headless-tested
 functions — the testability win of the rmux migration.
+
+**Nav surface** (rmux-substrate, 030-engine leaf 030):
+grove's minimal grove-list command surface (`src/tui/nav.rs`) — what makes
+`grove tui` usable for more than one grove. A flat, selectable list of **live**
+groves projected from the presentation-agnostic core
+([[Fleet]]/`MultiRepoView`/`RepoView`): labels are bare `<grove>` at a single-repo
+fleet and `<repo>/<grove>` when N>1. The [[leader]] flips [[Focus]] to it;
+↑/↓ (or `j`/`k`) move, ⏎ opens the selected grove's [[harness pane]]
+(`grove do <name>` in a new detached rmux window) or focuses the already-open one
+(no duplicate pane — the `grove-name → PaneId` map, E3), Esc returns to the
+harness. fs-watch ticks rebuild it (groves appearing/retiring), preserving the
+selection by name. `Nav::render` is a **pure** snapshot → `Buffer` function
+(headless-tested). Deliberately minimal: grouped/collapsible repo headers, fuzzy
+ranked filtering, and inbox/lifecycle toggles are **050**; park/close of
+non-selected harnesses is **050** (here a deselected pane just stays open in the
+background). Distinct from the superseded zellij [[Nav plugin]] (a WASM plugin) —
+this is a native ratatui surface grove draws itself.
 
 ## Flagged ambiguities
 

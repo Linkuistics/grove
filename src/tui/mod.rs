@@ -11,17 +11,21 @@
 //! (`RepoView`, launch, fleet resolution) is called directly from async context
 //! (E1) — it is fast, local fs/git — and never imports tokio.
 //!
-//! Submodules (this leaf builds the first three; input/nav/capture arrive in
-//! 020/030/040):
+//! Submodules (capture's real surface arrives in 040):
 //!   - [`app`] — the async draw loop (`tokio::select!` over render/input/watch).
 //!   - [`driver`] — per-pane rmux glue: the D3 push `render_stream` task.
 //!   - [`pane`] — the headless-testable render path (snapshot → buffer + cursor).
+//!   - [`focus`] — the leader-gated `Harness | Nav | Modal` arbitration (E4).
+//!   - [`input`] — the crossterm → tmux key-map.
+//!   - [`config`] — the configurable leader key.
+//!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
 
 pub mod app;
 pub mod config;
 pub mod driver;
 pub mod focus;
 pub mod input;
+pub mod nav;
 pub mod pane;
 
 use crate::cli::TuiArgs;

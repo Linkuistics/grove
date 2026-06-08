@@ -295,6 +295,30 @@ non-selected harnesses is **050** (here a deselected pane just stays open in the
 background). Distinct from the superseded zellij [[Nav plugin]] (a WASM plugin) —
 this is a native ratatui surface grove draws itself.
 
+**Rendered-history capture** (rmux-substrate, 040; ADR-0029):
+the clean, emulator-**rendered** scrollback of a harness pane (history rows + visible
+screen), as opposed to raw `line_stream` ANSI bytes. The source of truth is the rmux
+*daemon's* rendered grid (`rmux-core` keeps `history` rows in the grid and renders them via
+`capture_transcript`); grove obtains it by **shelling out to the stock `rmux capture-pane`
+CLI** (`-p -S - -J` for full history, plain text, soft-wrap joined) against the daemon its
+TUI already started — the same shell-out-below-the-seam idiom as the capture write (ADR-0028
+E1). **No fork:** published rmux 0.5.0 already ships this end-to-end (emulator → proto
+`CapturePaneRequest` → CLI); the 040 scoping spike retired the earlier plan to fork rmux (D7)
+and the still-earlier grove-side "rendered-scrollback ring" (D2). Note the asymmetry: the
+`rmux-sdk` `Pane` helpers (`snapshot`/`capture_region`/`screenshot`) are **visible-screen
+only** — history capture lives in the proto/CLI, not the SDK sugar. First consumer is
+[[open-in-editor]] (040); the deferred real copy-mode/scrollback/search groves build on the
+same capability. Avoid the alias *scrollback ring* (the abandoned D2 grove-side
+reconstruction).
+
+**open-in-editor** (rmux-substrate, 040):
+the interim stand-in (010-plan D1) for real copy-mode/scrollback: **leader → `e`** dumps the
+focused [[harness pane]]'s [[rendered-history capture]] to a temp file and opens `$EDITOR`,
+restoring the TUI on exit. Trivial because grove owns the draw loop (ADR-0028) — suspend raw
+mode + alt-screen (and pause the crossterm input-reader thread so the editor child owns
+stdin), run `$EDITOR`, restore. Deliberately *not* a real standalone copy-mode/scrollback/
+search surface — those are explicitly out of scope, deferred to follow-up groves.
+
 ## Flagged ambiguities
 
 **"grove"** is overloaded across this codebase. It can mean:

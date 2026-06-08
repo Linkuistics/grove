@@ -256,10 +256,27 @@ same `footer_line` the `App` produces (drawn as a plain footer only in the
 `native_chrome=false` rendering the unit tests exercise).
 
 **Leader** (control-seam key):
-*(Binding updated by the [[trellis framework]] fork — ADR-0020: `Ctrl-o` now
-triggers a **native in-process focus** of the nav surface, not
-`LaunchOrFocusPlugin`. The key and its role are unchanged.)*
+*(rmux-substrate update — 030-engine E4, leaf 020: the leader is now **`Alt-g`**
+(configurable via `leader` in `~/.config/grove/tui.toml`), a **grove-owned
+crossterm key**, not a zellij keybind. grove owns the draw loop, so there is no
+zellij locked-mode — grove sees every key first and arbitrates by [[focus]]:
+while the [[harness pane]] is focused it forwards *every* key to the pane except
+the leader, which flips to the nav surface. This supersedes the `Ctrl-o`/zellij
+model below; the broader zellij-flavoured TUI section is retired in 050's
+teardown.)*
 The single zellij locked-mode keybind that reaches grove's control — `Ctrl-o` (unchanged since ADR-0016), but bound to `LaunchOrFocusPlugin "grove-nav"` rather than `SwitchToMode "Normal"` (ADR-0018). It *must* be a zellij keybind: in `default_mode "locked"` only zellij intercepts keys while another app is focused; everything *after* the leader is handled by the [[nav plugin]]. The earlier `Ctrl-o`→`Normal` binding was a dead-end — grove's config (leaf 030) stripped all pane-navigation bindings, so unlocked `Normal` had no way to move focus.
+
+**Focus** (rmux-substrate, 030-engine E4):
+grove's leader-gated input arbitration state — `Harness | Nav | Modal(kind)`
+(`src/tui/focus.rs`). The pure transition table `arbitrate(Focus, Leader, Event)
+→ (Focus, Action)` decides UI-vs-forward purely from the current focus: **Harness**
+forwards all keys to the pane except the [[leader]]; **Nav** is grove's command
+surface (a stub in leaf 020, the real surface is 030); **Modal** is a focus
+overlay that captures all keys and restores the prior focus on cancel/submit (the
+capture modal is 040). Tracks the *surface*, not the `PaneId` — pane addressing
+is the app's `name → PaneDriver` map + `focused` key (E3). The transition table
+and the crossterm→tmux key-map (`src/tui/input.rs`) are pure, headless-tested
+functions — the testability win of the rmux migration.
 
 ## Flagged ambiguities
 

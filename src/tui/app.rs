@@ -19,19 +19,26 @@ use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::backend::CrosstermBackend;
 use ratatui::crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers,
+    self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
+    Event,
 };
 use ratatui::crossterm::execute;
 use ratatui::crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::Line;
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui::Terminal;
 use ratatui_rmux::PaneState;
 use rmux_sdk::{EnsureSession, EnsureSessionPolicy, Pane, Rmux, SessionName, TerminalSizeSpec};
 use tokio::sync::mpsc;
 
 use crate::cli::TuiArgs;
+use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::driver::PaneDriver;
+use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::pane::render_pane;
 
 /// One rmux session per `grove tui`, named deterministically (ADR-0027's
@@ -54,6 +61,9 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     // --- below the seam: pick what the single pane runs (sync core) ---
     let repo_roots = resolve_repo_roots(args)?;
     let process = select_pane_process(&repo_roots)?;
+
+    // The leader key (E4), configurable from day one (`tui.toml`), default Alt-g.
+    let leader = resolve_leader().context("resolving the leader key")?;
 
     // --- connect/start the daemon and ensure one sized, detached session ---
     let (cols, rows) = ratatui::crossterm::terminal::size().unwrap_or((120, 32));
@@ -102,11 +112,12 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     let (_watcher, mut watch_rx) = spawn_fs_watch(&repo_roots)?;
 
     // --- terminal setup ---
-    // Mouse capture is plumbed in now (setup/teardown); mouse *handling* —
-    // click-to-focus / passthrough — is 020 (E5), so events are ignored here.
+    // Bracketed paste (E5): so a multi-line paste arrives as one `Event::Paste`
+    // we forward wrapped, not as line-by-line key events that execute as typed.
+    // Mouse capture feeds click-to-focus (E5).
     enable_raw_mode().context("enabling raw mode")?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)
         .context("entering alternate screen")?;
     let mut terminal =
         Terminal::new(CrosstermBackend::new(stdout)).context("creating the ratatui terminal")?;
@@ -118,32 +129,44 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         &mut input_rx,
         &mut watch_rx,
         panes[&focused].pane(),
+        &leader,
     )
     .await;
 
     // --- teardown (always, even on error) ---
     stop.store(true, Ordering::Relaxed);
     let _ = disable_raw_mode();
-    let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture);
+    let _ = execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture,
+        DisableBracketedPaste
+    );
     let _ = terminal.show_cursor();
     result
 }
 
 /// The `tokio::select!` loop. Redraws only when a source reports a change
-/// (render push, input, or fs-watch tick). Returns when the pane exits, input
-/// closes, or the user quits (Ctrl-Q).
+/// (render push, input, or fs-watch tick). Owns the focus state machine
+/// ([`Focus`]) and the modal buffer; input is routed through the pure
+/// [`arbitrate`] table and the resulting [`Action`] applied here (the impure
+/// seam). Returns when the pane exits, input closes, or the user quits
+/// (leader → `q`).
 async fn event_loop(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     render_rx: &mut mpsc::UnboundedReceiver<rmux_sdk::PaneSnapshot>,
     input_rx: &mut mpsc::UnboundedReceiver<Event>,
     watch_rx: &mut mpsc::UnboundedReceiver<()>,
     pane: &Pane,
+    leader: &Leader,
 ) -> Result<()> {
     let mut state = PaneState::default();
+    let mut focus = Focus::Harness;
+    let mut modal_buf = String::new();
     let mut needs_redraw = true;
     loop {
         if needs_redraw {
-            draw(terminal, &state)?;
+            draw(terminal, &state, &focus, &modal_buf)?;
             needs_redraw = false;
         }
         tokio::select! {
@@ -152,12 +175,11 @@ async fn event_loop(
                 None => break, // render task ended: the pane's process exited
             },
             maybe = input_rx.recv() => match maybe {
-                Some(ev) => {
-                    if handle_input(&ev, pane).await? {
-                        break; // quit
-                    }
-                    needs_redraw = true;
-                }
+                Some(ev) => match handle_event(&ev, pane, leader, &mut focus, &mut modal_buf).await? {
+                    EventOutcome::Quit => break,
+                    EventOutcome::Redraw => needs_redraw = true,
+                    EventOutcome::Nothing => {}
+                },
                 None => break, // input reader gone
             },
             maybe = watch_rx.recv() => {
@@ -171,39 +193,171 @@ async fn event_loop(
     Ok(())
 }
 
-/// Paint one frame: the focused pane full-screen, with the hardware cursor
-/// placed at the pane's cursor cell.
+/// What one handled input event implies for the loop.
+enum EventOutcome {
+    /// Quit the loop.
+    Quit,
+    /// Something changed; redraw before the next event.
+    Redraw,
+    /// Forwarded to the pane (or ignored); no grove-surface redraw needed —
+    /// the pane's own output will arrive as a render push if it changed.
+    Nothing,
+}
+
+/// Apply one input event: resize is focus-independent and handled directly; all
+/// other events route through the pure [`arbitrate`] table, and the returned
+/// [`Action`] is carried out here (the I/O seam). Modal buffer mutation lives
+/// here because the buffer is loop state, not transition state.
+async fn handle_event(
+    ev: &Event,
+    pane: &Pane,
+    leader: &Leader,
+    focus: &mut Focus,
+    modal_buf: &mut String,
+) -> Result<EventOutcome> {
+    // Resize is not a focus decision — always re-size the pane and redraw.
+    if let Event::Resize(w, h) = ev {
+        let _ = pane.resize(TerminalSizeSpec::new(*w, *h)).await;
+        return Ok(EventOutcome::Redraw);
+    }
+
+    let (next, action) = arbitrate(focus, leader, ev);
+    *focus = next;
+    match action {
+        Action::Ignore => Ok(EventOutcome::Nothing),
+        Action::SendText(text) => {
+            pane.send_text(text).await.ok();
+            Ok(EventOutcome::Nothing)
+        }
+        Action::SendKey(token) => {
+            pane.send_key(token).await.ok();
+            Ok(EventOutcome::Nothing)
+        }
+        Action::SendPaste(text) => {
+            // Wrap in bracketed-paste markers so multi-line pastes don't execute
+            // line-by-line (claude multi-line input / vim paste-mode depend on it).
+            pane.send_text(format!("\x1b[200~{text}\x1b[201~")).await.ok();
+            Ok(EventOutcome::Nothing)
+        }
+        Action::HarnessClick { row, col } => {
+            let _ = pane.mouse().click(row, col).await;
+            Ok(EventOutcome::Nothing)
+        }
+        Action::Redraw => Ok(EventOutcome::Redraw),
+        Action::ModalInsert(text) => {
+            modal_buf.push_str(&text);
+            Ok(EventOutcome::Redraw)
+        }
+        Action::ModalBackspace => {
+            modal_buf.pop();
+            Ok(EventOutcome::Redraw)
+        }
+        Action::ModalSubmit => {
+            // 040 wires submit to grove's capture write; this leaf proves the
+            // mechanics, so it just clears the buffer.
+            modal_buf.clear();
+            Ok(EventOutcome::Redraw)
+        }
+        Action::ModalCancel => {
+            modal_buf.clear();
+            Ok(EventOutcome::Redraw)
+        }
+        Action::Quit => Ok(EventOutcome::Quit),
+    }
+}
+
+/// Paint one frame: the focused pane full-screen, with grove's own surfaces
+/// drawn over it per [`Focus`]. The hardware cursor goes to the pane cursor when
+/// the harness is focused, to the modal buffer's end when a modal is up, and is
+/// hidden over the Nav stub.
 fn draw(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     state: &PaneState,
+    focus: &Focus,
+    modal_buf: &str,
 ) -> Result<()> {
     terminal
         .draw(|frame| {
             let area = frame.area();
-            if let Some((cx, cy)) = render_pane(state, area, frame.buffer_mut()) {
-                frame.set_cursor_position((cx, cy));
+            let pane_cursor = render_pane(state, area, frame.buffer_mut());
+            match focus {
+                Focus::Harness => {
+                    if let Some((cx, cy)) = pane_cursor {
+                        frame.set_cursor_position((cx, cy));
+                    }
+                }
+                Focus::Nav => draw_nav_indicator(frame, area),
+                Focus::Modal { kind, .. } => {
+                    if let Some(pos) = draw_modal(frame, area, *kind, modal_buf) {
+                        frame.set_cursor_position(pos);
+                    }
+                }
             }
         })
         .context("drawing a frame")?;
     Ok(())
 }
 
-/// Handle one input event. This leaf forwards *nothing* to the pane (020 owns
-/// the key-map and focus model); it only quits on Ctrl-Q and forwards resize.
-/// Returns `true` to quit.
-async fn handle_input(ev: &Event, pane: &Pane) -> Result<bool> {
-    match ev {
-        Event::Key(key)
-            if key.code == KeyCode::Char('q')
-                && key.modifiers.contains(KeyModifiers::CONTROL) =>
-        {
-            Ok(true)
-        }
-        Event::Resize(w, h) => {
-            let _ = pane.resize(TerminalSizeSpec::new(*w, *h)).await;
-            Ok(false)
-        }
-        _ => Ok(false),
+/// The Nav stub (030 builds the real surface): a one-line "grove focus" banner
+/// across the top, listing the stub bindings.
+fn draw_nav_indicator(frame: &mut ratatui::Frame, area: Rect) {
+    if area.height == 0 {
+        return;
+    }
+    let bar = Rect::new(area.x, area.y, area.width, 1);
+    frame.render_widget(Clear, bar);
+    frame.render_widget(
+        Paragraph::new(Line::from(
+            " grove (nav stub) — Esc/leader: harness · c: capture · q: quit ",
+        ))
+        .style(Style::default().fg(Color::Black).bg(Color::Cyan)),
+        bar,
+    );
+}
+
+/// The Modal stub (040 builds the real capture modal): a centered box over the
+/// live pane showing the buffer. Returns where the hardware cursor belongs (end
+/// of the buffer text), or `None` if it cannot be placed.
+fn draw_modal(
+    frame: &mut ratatui::Frame,
+    area: Rect,
+    kind: ModalKind,
+    buf: &str,
+) -> Option<(u16, u16)> {
+    let popup = centered_rect(70, 50, area);
+    frame.render_widget(Clear, popup);
+    let title = match kind {
+        ModalKind::Capture => " capture (modal stub) — Enter: submit · Esc: cancel ",
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(Style::default().fg(Color::Yellow));
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+    frame.render_widget(
+        Paragraph::new(buf).wrap(Wrap { trim: false }),
+        inner,
+    );
+    if inner.width == 0 || inner.height == 0 {
+        return None;
+    }
+    // Place the cursor just past the buffer text, wrapping across the inner box.
+    let len = buf.chars().count() as u16;
+    let cx = inner.x + (len % inner.width);
+    let cy = inner.y + (len / inner.width).min(inner.height - 1);
+    Some((cx, cy))
+}
+
+/// A percentage box centered in `r` (grove's historical `centered_rect`).
+fn centered_rect(pct_x: u16, pct_y: u16, r: Rect) -> Rect {
+    let w = r.width * pct_x / 100;
+    let h = r.height * pct_y / 100;
+    Rect {
+        x: r.x + (r.width - w) / 2,
+        y: r.y + (r.height - h) / 2,
+        width: w,
+        height: h,
     }
 }
 

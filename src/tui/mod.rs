@@ -18,7 +18,10 @@
 //!   - [`pane`] — the headless-testable render path (snapshot → buffer + cursor).
 
 pub mod app;
+pub mod config;
 pub mod driver;
+pub mod focus;
+pub mod input;
 pub mod pane;
 
 use crate::cli::TuiArgs;

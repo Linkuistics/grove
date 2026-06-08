@@ -37,8 +37,11 @@ pub enum Command {
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
     /// Launch the grove dashboard — a ratatui app on the rmux substrate (grove
-    /// `rmux-substrate`, ADR-0028) that embeds one live harness pane. 010-engine
-    /// scope: render + resize + quit; input/nav/capture arrive in 020/030/040.
+    /// `rmux-substrate`, ADR-0028) that embeds one live harness pane. 020-engine
+    /// scope: the pane renders + takes input through grove's leader-gated focus
+    /// model — type into it as a normal terminal; the leader (`Alt-g` by default,
+    /// set `leader` in `~/.config/grove/tui.toml`) reaches grove's nav/capture
+    /// surfaces (stubs this leaf). Real nav/capture-modal arrive in 030/040.
     Tui(TuiArgs),
 }
 

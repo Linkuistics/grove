@@ -49,12 +49,15 @@ use ratatui::crossterm::event::{
 use crate::tui::config::Leader;
 use crate::tui::input::{map_key, KeyToken};
 
-/// Which kind of modal is up. Only [`ModalKind::Capture`] exists today; the enum
-/// is here so later leaves can add modal kinds without reshaping the focus type.
+/// Which kind of modal is up. The enum lets a single [`Focus::Modal`] variant
+/// carry several overlays without reshaping the focus type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModalKind {
-    /// The capture modal.
+    /// The capture modal (a text buffer).
     Capture,
+    /// The move/re-route target picker (a selectable grove list, 040 grooming):
+    /// pick which grove the selected observation moves to.
+    MovePicker,
 }
 
 /// Which surface currently owns keyboard input.
@@ -101,10 +104,28 @@ pub enum Action {
     /// Open (or focus) the harness for the nav's currently selected grove.
     /// The app applies the open/focus and lands on the pane.
     NavSelect,
-    /// Scroll the detail panel's content up one line.
-    DetailScrollUp,
-    /// Scroll the detail panel's content down one line.
-    DetailScrollDown,
+    /// Move up in the detail panel: the widget interprets this as *select the
+    /// previous inbox observation* (when the grove has pending observations) or,
+    /// for an empty inbox, *scroll the content up* — a single cursor the widget
+    /// resolves against its own state (the impure half stays in the app).
+    DetailUp,
+    /// Move down in the detail panel (next observation, or scroll — see
+    /// [`Action::DetailUp`]).
+    DetailDown,
+    /// Reject the detail panel's selected inbox observation (040 grooming): the
+    /// app shells out to `grove-llm inbox-drain --rejected` under `spawn_blocking`.
+    DetailReject,
+    /// Begin a move/re-route of the selected inbox observation: the app opens the
+    /// [`ModalKind::MovePicker`] target-grove picker (a no-op when nothing is
+    /// selected — the app reverts the focus).
+    DetailMove,
+    /// Move the move-picker's selection up one row.
+    MovePickerUp,
+    /// Move the move-picker's selection down one row.
+    MovePickerDown,
+    /// Commit the move: send the pending observation to the picker's selected
+    /// grove (`inbox-add --body-file`) then drop it here, under `spawn_blocking`.
+    MovePickerSelect,
     /// A grove surface changed; the app should redraw.
     Redraw,
     /// Insert literal text into the focused modal's buffer.
@@ -130,7 +151,8 @@ pub fn arbitrate(focus: &Focus, leader: &Leader, ev: &Event) -> (Focus, Action) 
         Focus::Pane => arbitrate_pane(leader, ev),
         Focus::Detail => arbitrate_detail(leader, ev),
         Focus::Nav => arbitrate_nav(leader, ev),
-        Focus::Modal { kind, prior } => arbitrate_modal(*kind, prior, ev),
+        Focus::Modal { kind: ModalKind::Capture, prior } => arbitrate_modal(prior, ev),
+        Focus::Modal { kind: ModalKind::MovePicker, prior } => arbitrate_move_picker(prior, ev),
         Focus::LeaderPending { prior } => arbitrate_pending(prior, ev),
     }
 }
@@ -177,8 +199,12 @@ fn arbitrate_pane(leader: &Leader, ev: &Event) -> (Focus, Action) {
 }
 
 /// The per-grove detail panel. The leader opens the gate (remembering Detail);
-/// `Esc` returns to the home pane; `j`/`k` (or arrows) scroll the content. Any
-/// other key is inert (not forwarded to the pane — detail owns focus while up).
+/// `Esc` returns to the home pane; `j`/`k` (or arrows) move within the panel
+/// (select an inbox observation, or scroll — the widget resolves which). The two
+/// **grooming** keys act on the selected observation: `x` rejects it (stays in
+/// Detail), `m` opens the move-target picker (a [`ModalKind::MovePicker`] modal
+/// that restores Detail on cancel). Any other key is inert (not forwarded to the
+/// pane — detail owns focus while up).
 fn arbitrate_detail(leader: &Leader, ev: &Event) -> (Focus, Action) {
     match ev {
         Event::Key(key) if is_press(key) => {
@@ -192,8 +218,18 @@ fn arbitrate_detail(leader: &Leader, ev: &Event) -> (Focus, Action) {
             }
             match key.code {
                 KeyCode::Esc => (Focus::Pane, Action::Redraw),
-                KeyCode::Down | KeyCode::Char('j') => (Focus::Detail, Action::DetailScrollDown),
-                KeyCode::Up | KeyCode::Char('k') => (Focus::Detail, Action::DetailScrollUp),
+                KeyCode::Down | KeyCode::Char('j') => (Focus::Detail, Action::DetailDown),
+                KeyCode::Up | KeyCode::Char('k') => (Focus::Detail, Action::DetailUp),
+                // Grooming: reject stays in Detail; move opens the target picker
+                // (the app reverts the focus if there is nothing selected to move).
+                KeyCode::Char('x') => (Focus::Detail, Action::DetailReject),
+                KeyCode::Char('m') => (
+                    Focus::Modal {
+                        kind: ModalKind::MovePicker,
+                        prior: Box::new(Focus::Detail),
+                    },
+                    Action::DetailMove,
+                ),
                 _ => (Focus::Detail, Action::Ignore),
             }
         }
@@ -268,11 +304,13 @@ fn arbitrate_pending(prior: &Focus, ev: &Event) -> (Focus, Action) {
     }
 }
 
-fn arbitrate_modal(kind: ModalKind, prior: &Focus, ev: &Event) -> (Focus, Action) {
+/// The capture modal (a text buffer). `Esc` cancels / `Enter` submits, both
+/// restoring `prior`; chars edit the buffer.
+fn arbitrate_modal(prior: &Focus, ev: &Event) -> (Focus, Action) {
     let stay = |action| {
         (
             Focus::Modal {
-                kind,
+                kind: ModalKind::Capture,
                 prior: Box::new(prior.clone()),
             },
             action,
@@ -291,6 +329,33 @@ fn arbitrate_modal(kind: ModalKind, prior: &Focus, ev: &Event) -> (Focus, Action
         // Paste lands in the buffer literally (not bracketed-wrapped — there is
         // no pane to forward to while the modal is up).
         Event::Paste(text) => stay(Action::ModalInsert(text.clone())),
+        _ => stay(Action::Ignore),
+    }
+}
+
+/// The move/re-route target picker (040 grooming): a selectable grove list, so
+/// it behaves like [`Nav`](crate::tui::nav), not like a text modal. `j`/`k`
+/// (or arrows) move the selection; `Enter` commits the move (and restores the
+/// `prior` Detail surface); `Esc` cancels (also restoring Detail). The leader is
+/// swallowed — the modal owns focus while up.
+fn arbitrate_move_picker(prior: &Focus, ev: &Event) -> (Focus, Action) {
+    let stay = |action| {
+        (
+            Focus::Modal {
+                kind: ModalKind::MovePicker,
+                prior: Box::new(prior.clone()),
+            },
+            action,
+        )
+    };
+    match ev {
+        Event::Key(key) if is_press(key) => match key.code {
+            KeyCode::Esc => (prior.clone(), Action::ModalCancel),
+            KeyCode::Enter => (prior.clone(), Action::MovePickerSelect),
+            KeyCode::Up | KeyCode::Char('k') => stay(Action::MovePickerUp),
+            KeyCode::Down | KeyCode::Char('j') => stay(Action::MovePickerDown),
+            _ => stay(Action::Ignore),
+        },
         _ => stay(Action::Ignore),
     }
 }
@@ -509,25 +574,110 @@ mod tests {
     }
 
     #[test]
-    fn detail_jk_and_arrows_scroll_the_widget() {
+    fn detail_jk_and_arrows_move_within_the_widget() {
         for code in [KeyCode::Down, KeyCode::Char('j')] {
             let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
             assert_eq!(focus, Focus::Detail);
-            assert_eq!(action, Action::DetailScrollDown);
+            assert_eq!(action, Action::DetailDown);
         }
         for code in [KeyCode::Up, KeyCode::Char('k')] {
             let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
             assert_eq!(focus, Focus::Detail);
-            assert_eq!(action, Action::DetailScrollUp);
+            assert_eq!(action, Action::DetailUp);
         }
     }
 
     #[test]
-    fn detail_swallows_unmapped_keys() {
-        // A key with no in-surface meaning is inert (not forwarded to the pane).
+    fn detail_x_rejects_the_selected_observation_in_place() {
         let (focus, action) =
             arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('x'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Detail, "reject stays in the detail panel");
+        assert_eq!(action, Action::DetailReject);
+    }
+
+    #[test]
+    fn detail_m_opens_the_move_picker_modal_over_detail() {
+        let (focus, action) =
+            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('m'), KeyModifiers::NONE));
+        // The picker's prior is Detail, so cancel returns there.
+        assert_eq!(
+            focus,
+            Focus::Modal {
+                kind: ModalKind::MovePicker,
+                prior: Box::new(Focus::Detail),
+            }
+        );
+        assert_eq!(action, Action::DetailMove);
+    }
+
+    #[test]
+    fn detail_swallows_other_unmapped_keys() {
+        // A key with no in-surface meaning is inert (not forwarded to the pane).
+        let (focus, action) =
+            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('z'), KeyModifiers::NONE));
         assert_eq!(focus, Focus::Detail);
+        assert_eq!(action, Action::Ignore);
+    }
+
+    // --- Move picker modal (a selectable grove list) -----------------------
+
+    fn move_picker_over(prior: Focus) -> Focus {
+        Focus::Modal {
+            kind: ModalKind::MovePicker,
+            prior: Box::new(prior),
+        }
+    }
+
+    #[test]
+    fn move_picker_jk_and_arrows_move_the_selection_and_stay() {
+        for code in [KeyCode::Down, KeyCode::Char('j')] {
+            let (focus, action) = arbitrate(
+                &move_picker_over(Focus::Detail),
+                &leader(),
+                &key_ev(code, KeyModifiers::NONE),
+            );
+            assert_eq!(focus, move_picker_over(Focus::Detail));
+            assert_eq!(action, Action::MovePickerDown);
+        }
+        for code in [KeyCode::Up, KeyCode::Char('k')] {
+            let (focus, action) = arbitrate(
+                &move_picker_over(Focus::Detail),
+                &leader(),
+                &key_ev(code, KeyModifiers::NONE),
+            );
+            assert_eq!(focus, move_picker_over(Focus::Detail));
+            assert_eq!(action, Action::MovePickerUp);
+        }
+    }
+
+    #[test]
+    fn move_picker_enter_commits_and_returns_to_detail() {
+        let (focus, action) = arbitrate(
+            &move_picker_over(Focus::Detail),
+            &leader(),
+            &key_ev(KeyCode::Enter, KeyModifiers::NONE),
+        );
+        assert_eq!(focus, Focus::Detail);
+        assert_eq!(action, Action::MovePickerSelect);
+    }
+
+    #[test]
+    fn move_picker_esc_cancels_back_to_detail() {
+        let (focus, action) = arbitrate(
+            &move_picker_over(Focus::Detail),
+            &leader(),
+            &key_ev(KeyCode::Esc, KeyModifiers::NONE),
+        );
+        assert_eq!(focus, Focus::Detail);
+        assert_eq!(action, Action::ModalCancel);
+    }
+
+    #[test]
+    fn move_picker_swallows_the_leader() {
+        // The picker owns focus; the leader is just another swallowed key.
+        let (focus, action) =
+            arbitrate(&move_picker_over(Focus::Detail), &leader(), &leader_ev());
+        assert_eq!(focus, move_picker_over(Focus::Detail));
         assert_eq!(action, Action::Ignore);
     }
 

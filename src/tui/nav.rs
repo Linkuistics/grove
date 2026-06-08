@@ -16,7 +16,7 @@
 //! [`Nav::render`] is a **pure** snapshot → [`Buffer`] function, so the whole
 //! surface is exercised by a headless unit test with no daemon and no terminal.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -109,6 +109,16 @@ impl Nav {
                 self.selected = idx;
             }
         }
+    }
+
+    /// Drop the item identified by `repo_root` + `name`, clamping the selection.
+    /// Used to build the move-target picker (040 grooming) from the fleet list
+    /// with the *source* grove excluded — you do not move an observation to the
+    /// grove it already sits in.
+    pub fn remove(&mut self, repo_root: &Path, name: &str) {
+        self.items
+            .retain(|i| !(i.repo_root == repo_root && i.name == name));
+        self.clamp_selection();
     }
 
     /// Move the selection towards an item with the given grove name, if present
@@ -304,6 +314,24 @@ mod tests {
 
         // Cursor stays on beta even though the indices shifted.
         assert_eq!(nav.selected().unwrap().name, "beta");
+    }
+
+    #[test]
+    fn remove_drops_a_grove_and_clamps_the_selection() {
+        let tmp = TempDir::new().unwrap();
+        let r = make_repo(tmp.path(), "solo", &["alpha", "beta", "gamma"]);
+        let mut nav = Nav::from_fleet(&fleet_of(&[r.clone()]));
+        nav.select_down();
+        nav.select_down(); // gamma (last)
+        assert_eq!(nav.selected().unwrap().name, "gamma");
+        // Excluding the now-selected last item clamps the cursor into range.
+        nav.remove(&r, "gamma");
+        assert!(nav.selected().is_some());
+        assert_eq!(nav.selected().unwrap().name, "beta");
+        // The dropped grove is gone from the list entirely.
+        nav.remove(&r, "alpha");
+        nav.remove(&r, "beta");
+        assert!(nav.selected().is_none(), "removing every item empties the picker");
     }
 
     #[test]

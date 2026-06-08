@@ -51,7 +51,7 @@ use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::detail::Detail;
 use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
-use crate::tui::focus::{arbitrate, Action, Focus};
+use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::nav::{Nav, NavItem};
 use crate::tui::pane::render_pane;
 
@@ -103,6 +103,13 @@ struct App {
     leader: Leader,
     /// The capture modal (040): owns its text buffer and centered render.
     capture: CaptureModal,
+    /// The move-target picker (050/040 grooming): a [`Nav`]-backed grove list,
+    /// rebuilt from the fleet (source grove excluded) each time `m` opens it.
+    move_picker: Nav,
+    /// The observation being moved while the picker is up — captured when `m` is
+    /// pressed, committed on Enter, cleared on cancel. `None` when no move is in
+    /// flight.
+    pending_move: Option<PathBuf>,
     /// A transient capture result, shown briefly after submit and cleared on the
     /// next keypress (the modal has already closed by then — E4 restores prior
     /// focus on Enter).
@@ -216,6 +223,8 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         repo_roots,
         leader,
         capture: CaptureModal::new(),
+        move_picker: Nav::default(),
+        pending_move: None,
         toast: None,
         grove_exe,
         size: (cols, rows),
@@ -370,12 +379,35 @@ impl App {
                 self.rebuild_detail();
                 EventOutcome::Redraw
             }
-            Action::DetailScrollUp => {
-                self.detail.scroll_up();
+            Action::DetailUp => {
+                self.detail.nav_up();
                 EventOutcome::Redraw
             }
-            Action::DetailScrollDown => {
-                self.detail.scroll_down();
+            Action::DetailDown => {
+                self.detail.nav_down();
+                EventOutcome::Redraw
+            }
+            Action::DetailReject => {
+                self.reject_selected().await;
+                EventOutcome::Redraw
+            }
+            Action::DetailMove => {
+                // arbitrate already flipped focus to the picker modal; open it for
+                // real (populate + remember the obs), or revert if there is
+                // nothing to move / nowhere to move it.
+                self.begin_move();
+                EventOutcome::Redraw
+            }
+            Action::MovePickerUp => {
+                self.move_picker.select_up();
+                EventOutcome::Redraw
+            }
+            Action::MovePickerDown => {
+                self.move_picker.select_down();
+                EventOutcome::Redraw
+            }
+            Action::MovePickerSelect => {
+                self.commit_move().await;
                 EventOutcome::Redraw
             }
             Action::Redraw => EventOutcome::Redraw,
@@ -392,7 +424,10 @@ impl App {
                 EventOutcome::Redraw
             }
             Action::ModalCancel => {
+                // One cancel path for both modals: discard the capture buffer and
+                // any in-flight move (whichever modal was up).
                 self.capture.clear();
+                self.pending_move = None;
                 EventOutcome::Redraw
             }
             Action::OpenEditor => EventOutcome::OpenEditor,
@@ -431,6 +466,94 @@ impl App {
             Ok(Err(e)) => CaptureOutcome::Failed(format!("{e:#}")),
             Err(e) => CaptureOutcome::Failed(format!("capture task panicked: {e}")),
         });
+    }
+
+    /// Reject the detail panel's selected inbox observation (040 grooming):
+    /// shell out to `grove-llm inbox-drain --rejected` under `spawn_blocking`
+    /// (commit + best-effort push must not stall the reactor, E1), toast the
+    /// result, and re-scan so the shrunk inbox view refreshes. A no-op when no
+    /// observation is selected (empty inbox) or the pane has no grove.
+    async fn reject_selected(&mut self) {
+        let Some(obs) = self.detail.selected_observation().cloned() else {
+            return;
+        };
+        let Some(target) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+            self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
+            return;
+        };
+        let exe = self.grove_exe.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            crate::tui::capture::reject_observation(&exe, &target, &obs)
+        })
+        .await;
+        self.toast = Some(match result {
+            Ok(Ok(())) => CaptureOutcome::Rejected,
+            Ok(Err(e)) => CaptureOutcome::Failed(format!("reject failed: {e:#}")),
+            Err(e) => CaptureOutcome::Failed(format!("reject task panicked: {e}")),
+        });
+        // The inbox shrank; re-scan so the detail view drops the rejected row.
+        self.refresh_fleet();
+    }
+
+    /// Open the move-target picker for the selected observation (the `m` key).
+    /// arbitrate already set the focus to the picker modal; here we either arm it
+    /// (snapshot the observation + build the grove list with the source excluded)
+    /// or, when there is nothing to move or nowhere to move it, revert the focus
+    /// back to Detail so no empty picker is shown.
+    fn begin_move(&mut self) {
+        let Some(obs) = self.detail.selected_observation().cloned() else {
+            self.focus = Focus::Detail; // empty inbox — nothing selected
+            return;
+        };
+        let Some(source) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+            self.focus = Focus::Detail;
+            self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
+            return;
+        };
+        let mut picker = Nav::from_fleet(&self.fleet);
+        picker.remove(&source.repo_root, &source.name);
+        if picker.selected().is_none() {
+            self.focus = Focus::Detail;
+            self.toast = Some(CaptureOutcome::Failed("no other grove to move to".into()));
+            return;
+        }
+        self.move_picker = picker;
+        self.pending_move = Some(obs);
+    }
+
+    /// Commit the move/re-route (Enter in the picker): copy the pending
+    /// observation into the picker's selected grove then drop it from the source
+    /// inbox, both under `spawn_blocking` (E1). Toast the result and re-scan so
+    /// the source inbox view refreshes. Focus has already returned to Detail.
+    async fn commit_move(&mut self) {
+        let Some(obs) = self.pending_move.take() else {
+            return;
+        };
+        let Some(dest_item) = self.move_picker.selected().cloned() else {
+            self.toast = Some(CaptureOutcome::Failed("no target grove selected".into()));
+            return;
+        };
+        let Some(source) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+            self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
+            return;
+        };
+        let dest = CaptureTarget {
+            name: dest_item.name.clone(),
+            repo_root: dest_item.repo_root.clone(),
+        };
+        let dest_name = dest.name.clone();
+        let exe = self.grove_exe.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            crate::tui::capture::move_observation(&exe, &source, &dest, &obs)
+        })
+        .await;
+        self.toast = Some(match result {
+            Ok(Ok(())) => CaptureOutcome::Moved(dest_name),
+            Ok(Err(e)) => CaptureOutcome::Failed(format!("move failed: {e:#}")),
+            Err(e) => CaptureOutcome::Failed(format!("move task panicked: {e}")),
+        });
+        // The source inbox shrank; re-scan so the detail view drops the moved row.
+        self.refresh_fleet();
     }
 
     /// The open-in-editor drop (040, D-B/D-E): capture the focused harness
@@ -705,21 +828,33 @@ impl App {
                 self.nav.render(area, buf);
                 None
             }
-            Focus::Modal { .. } => {
+            Focus::Modal { kind, .. } => {
                 // The landmark proof point: draw the composed layout (pane + detail),
-                // then the centered capture modal *over* it (Clear punches the hole).
+                // then the centered modal *over* it (Clear punches the hole).
                 let layout = composed_layout(area);
                 if let Some(entry) = self.panes.get(&self.focused) {
                     render_pane(&entry.state, layout.pane, buf);
                 }
                 self.detail.render(layout.detail, buf, false);
-                let label = self
-                    .panes
-                    .get(&self.focused)
-                    .and_then(|e| e.target.as_ref())
-                    .map(|t| t.name.as_str())
-                    .unwrap_or("(no grove)");
-                self.capture.render(area, buf, label)
+                match kind {
+                    ModalKind::Capture => {
+                        let label = self
+                            .panes
+                            .get(&self.focused)
+                            .and_then(|e| e.target.as_ref())
+                            .map(|t| t.name.as_str())
+                            .unwrap_or("(no grove)");
+                        self.capture.render(area, buf, label)
+                    }
+                    ModalKind::MovePicker => {
+                        // The move-target picker: the fleet's grove list (source
+                        // excluded) reused as a centered overlay (Nav clears its
+                        // own rect). j/k select · ⏎ send · ⎋ cancel.
+                        let popup = crate::tui::capture::centered_rect(60, 60, area);
+                        self.move_picker.render(popup, buf);
+                        None
+                    }
+                }
             }
             // Unwrapped by the caller; rendering its `prior` instead.
             Focus::LeaderPending { .. } => None,

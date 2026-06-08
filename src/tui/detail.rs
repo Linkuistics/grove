@@ -18,6 +18,8 @@
 //! scan already loaded (paths, not bodies); opening observation/brief bodies is the
 //! next leaf (040 triage).
 
+use std::path::PathBuf;
+
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -27,7 +29,8 @@ use crate::repo_view::GroveDetail;
 
 /// The detail surface's state: the grove it currently shows (the focused pane's
 /// grove), the pre-rendered content lines built from that grove's
-/// [`GroveDetail`] snapshot, and the vertical scroll offset.
+/// [`GroveDetail`] snapshot, the vertical scroll offset, and — for 040 grooming —
+/// the inbox observation list plus which one is selected.
 #[derive(Debug, Clone, Default)]
 pub struct Detail {
     /// The grove name shown in the title, or `None` for the bare-shell (no grove).
@@ -35,8 +38,18 @@ pub struct Detail {
     /// Content lines built at [`show`](Self::show) time from the snapshot, so
     /// [`render`](Self::render) is a trivial blit of the scrolled window.
     lines: Vec<Line<'static>>,
-    /// First visible content line (the scroll offset).
+    /// First visible content line (the scroll offset, used when the inbox is
+    /// empty; otherwise the scroll *follows the selection* — see [`render`]).
     scroll: usize,
+    /// The focused grove's pending observation paths (the `GroveDetail::inbox`
+    /// snapshot), kept so the grooming actions can act on the **selected** one.
+    inbox: Vec<PathBuf>,
+    /// Index into [`inbox`](Self::inbox) of the selected observation. Meaningless
+    /// (and unused) when the inbox is empty.
+    selected: usize,
+    /// The `lines` index of the first inbox observation row, so [`render`] can
+    /// highlight the selected one (`inbox_start + selected`) and keep it visible.
+    inbox_start: usize,
 }
 
 impl Detail {
@@ -52,17 +65,57 @@ impl Detail {
     pub fn show(&mut self, name: Option<&str>, detail: Option<&GroveDetail>) {
         let next = name.map(str::to_owned);
         if next != self.grove {
+            // A different grove starts fresh — top of the content, first obs.
             self.scroll = 0;
+            self.selected = 0;
         }
         self.grove = next;
-        self.lines = match detail {
-            Some(d) => build_lines(d),
-            None => Vec::new(),
+        let (lines, inbox_start, inbox) = match detail {
+            Some(d) => {
+                let (lines, inbox_start) = build_lines(d);
+                (lines, inbox_start, d.inbox.clone())
+            }
+            None => (Vec::new(), 0, Vec::new()),
         };
+        self.lines = lines;
+        self.inbox_start = inbox_start;
+        self.inbox = inbox;
         // A refresh may shrink the content (a leaf retired, an observation
-        // drained); keep the offset inside the new bounds so it never scrolls
-        // into the void.
+        // drained); keep both the scroll offset and the inbox selection inside
+        // the new bounds so neither points into the void.
         self.scroll = self.scroll.min(self.lines.len().saturating_sub(1));
+        if self.selected >= self.inbox.len() {
+            self.selected = self.inbox.len().saturating_sub(1);
+        }
+    }
+
+    /// Move down in the panel: select the **next** inbox observation when the
+    /// grove has any (grooming), else scroll the content (an empty inbox still
+    /// reads like a document). Resolves [`Action::DetailDown`] against own state.
+    ///
+    /// [`Action::DetailDown`]: crate::tui::focus::Action::DetailDown
+    pub fn nav_down(&mut self) {
+        if self.inbox.is_empty() {
+            self.scroll_down();
+        } else if self.selected + 1 < self.inbox.len() {
+            self.selected += 1;
+        }
+    }
+
+    /// Move up in the panel: select the **previous** inbox observation, or scroll
+    /// up for an empty inbox (see [`nav_down`](Self::nav_down)).
+    pub fn nav_up(&mut self) {
+        if self.inbox.is_empty() {
+            self.scroll_up();
+        } else {
+            self.selected = self.selected.saturating_sub(1);
+        }
+    }
+
+    /// The selected pending observation's path, or `None` when the inbox is
+    /// empty. The app acts on this for reject / move (the impure shell-out half).
+    pub fn selected_observation(&self) -> Option<&PathBuf> {
+        self.inbox.get(self.selected)
     }
 
     /// Scroll the content window down one line (clamped so at least the last line
@@ -80,7 +133,7 @@ impl Detail {
     /// border when `focused`) holding the scrolled content window. [`Clear`]s
     /// `area` first so the pane beside it does not bleed through.
     pub fn render(&self, area: Rect, buf: &mut Buffer, focused: bool) {
-        use ratatui::style::{Color, Style};
+        use ratatui::style::{Color, Modifier, Style};
         Clear.render(area, buf);
         let title = match &self.grove {
             Some(name) => format!(" detail: {name} "),
@@ -99,8 +152,29 @@ impl Detail {
             Paragraph::new("no grove").render(inner, buf);
             return;
         }
-        Paragraph::new(self.lines.clone())
-            .scroll((self.scroll as u16, 0))
+
+        let mut lines = self.lines.clone();
+        let mut scroll = self.scroll;
+        // With pending observations the selection is the cursor: derive the scroll
+        // so the selected row stays visible (the stored offset is a baseline the
+        // selection nudges), and highlight that row when the panel is focused.
+        if !self.inbox.is_empty() {
+            let sel = self.inbox_start + self.selected;
+            let h = inner.height as usize;
+            if sel < scroll {
+                scroll = sel;
+            } else if h > 0 && sel >= scroll + h {
+                scroll = sel + 1 - h;
+            }
+            if focused {
+                if let Some(line) = lines.get_mut(sel) {
+                    let taken = std::mem::take(line);
+                    *line = taken.patch_style(Style::default().add_modifier(Modifier::REVERSED));
+                }
+            }
+        }
+        Paragraph::new(lines)
+            .scroll((scroll as u16, 0))
             .render(inner, buf);
     }
 }
@@ -108,14 +182,16 @@ impl Detail {
 /// Build the panel's content lines from a grove's [`GroveDetail`] snapshot: the
 /// three sections — brief chain, tasks, inbox — stacked top to bottom. Reads only
 /// the snapshot *structure* (paths, not bodies), so it stays pure and headless.
-fn build_lines(detail: &GroveDetail) -> Vec<Line<'static>> {
+/// Also returns the `lines` index of the first inbox observation row, so the
+/// caller can map an inbox selection to a content line.
+fn build_lines(detail: &GroveDetail) -> (Vec<Line<'static>>, usize) {
     let mut lines = Vec::new();
     push_brief_chain(&mut lines, detail);
     lines.push(plain_line(""));
     push_tasks(&mut lines, detail);
     lines.push(plain_line(""));
-    push_inbox(&mut lines, detail);
-    lines
+    let inbox_start = push_inbox(&mut lines, detail);
+    (lines, inbox_start)
 }
 
 /// The **brief chain** section: the ancestor spine root→leaf to the current pick
@@ -186,12 +262,15 @@ fn path_to<'a>(
 }
 
 /// The **inbox** section: the pending count in the header, then one line per
-/// pending observation (filename only — opening bodies is the 040 triage leaf).
-fn push_inbox(lines: &mut Vec<Line<'static>>, detail: &GroveDetail) {
+/// pending observation (filename only — bodies open in `$EDITOR`, not here).
+/// Returns the `lines` index of the first observation row (the row the inbox
+/// selection maps onto); for an empty inbox the index addresses no obs row.
+fn push_inbox(lines: &mut Vec<Line<'static>>, detail: &GroveDetail) -> usize {
     lines.push(header_line(&format!("inbox ({})", detail.inbox.len())));
+    let start = lines.len();
     if detail.inbox.is_empty() {
         lines.push(plain_line("  (empty)"));
-        return;
+        return start;
     }
     for obs in &detail.inbox {
         let name = obs
@@ -200,6 +279,7 @@ fn push_inbox(lines: &mut Vec<Line<'static>>, detail: &GroveDetail) {
             .unwrap_or_default();
         lines.push(plain_line(format!("  {name}")));
     }
+    start
 }
 
 /// The **tasks** section: the task tree, indented, nodes suffixed `/`.
@@ -565,6 +645,133 @@ mod tests {
             Some(Color::Cyan),
             "unfocused border is not accented"
         );
+    }
+
+    // --- 040 grooming: inbox selection ------------------------------------
+
+    /// The file name of an observation path (the comparable identity in tests).
+    fn obs_name(path: &std::path::Path) -> String {
+        path.file_name().unwrap().to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn nav_moves_the_inbox_selection_within_bounds() {
+        let (_tmp, view) = grove_view_with_inbox(
+            &["010-x.md"],
+            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+        );
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view.grove("g"));
+        // Defaults to the first pending observation.
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-1-a.md");
+        detail.nav_down();
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-2-b.md");
+        detail.nav_down();
+        detail.nav_down(); // already at the last — saturates, no overshoot.
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-3-c.md");
+        detail.nav_up();
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-2-b.md");
+    }
+
+    #[test]
+    fn the_selected_observation_row_is_highlighted_when_focused() {
+        use ratatui::style::Modifier;
+        let (_tmp, view) = grove_view_with_inbox(
+            &["010-x.md"],
+            &["2026-06-08-1-first.md", "2026-06-08-2-second.md"],
+        );
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view.grove("g"));
+        detail.nav_down(); // select the second observation
+        let area = Rect::new(0, 0, 50, 24);
+        let mut buf = Buffer::empty(area);
+        detail.render(area, &mut buf, true);
+
+        let row = (0..area.height)
+            .find(|&y| {
+                (0..area.width)
+                    .map(|x| buf[(x, y)].symbol().to_string())
+                    .collect::<String>()
+                    .contains("second.md")
+            })
+            .expect("second.md row present");
+        let highlighted = (1..area.width - 1)
+            .any(|x| buf[(x, row)].style().add_modifier.contains(Modifier::REVERSED));
+        assert!(highlighted, "the selected observation row is reversed when focused");
+
+        // The unselected row is not highlighted.
+        let first_row = (0..area.height)
+            .find(|&y| {
+                (0..area.width)
+                    .map(|x| buf[(x, y)].symbol().to_string())
+                    .collect::<String>()
+                    .contains("first.md")
+            })
+            .expect("first.md row present");
+        let first_highlighted = (1..area.width - 1)
+            .any(|x| buf[(x, first_row)].style().add_modifier.contains(Modifier::REVERSED));
+        assert!(!first_highlighted, "unselected observation row is not highlighted");
+    }
+
+    #[test]
+    fn an_empty_inbox_has_no_selection_and_nav_falls_back_to_scroll() {
+        // Many leaves so the content overflows a short panel; empty inbox.
+        let (_tmp, view) = grove_view_with_inbox(
+            &[
+                "010-a.md", "020-b.md", "030-c.md", "040-d.md", "050-e.md", "060-f.md", "070-g.md",
+                "080-h.md", "090-i.md", "100-j.md",
+            ],
+            &[],
+        );
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view.grove("g"));
+        assert!(detail.selected_observation().is_none(), "empty inbox: nothing selected");
+
+        let area = Rect::new(0, 0, 40, 8);
+        let mut top_before = Buffer::empty(area);
+        detail.render(area, &mut top_before, true);
+        for _ in 0..5 {
+            detail.nav_down(); // with an empty inbox this scrolls the content
+        }
+        let mut top_after = Buffer::empty(area);
+        detail.render(area, &mut top_after, true);
+        let row = |b: &Buffer| -> String {
+            (0..area.width).map(|x| b[(x, 1)].symbol().to_string()).collect()
+        };
+        assert_ne!(row(&top_before), row(&top_after), "empty-inbox nav scrolled the content");
+    }
+
+    #[test]
+    fn refreshing_clamps_the_selection_when_the_inbox_shrinks() {
+        let (_tmp, view3) = grove_view_with_inbox(
+            &["010-x.md"],
+            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+        );
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view3.grove("g"));
+        detail.nav_down();
+        detail.nav_down(); // select the last (index 2)
+
+        // The same grove now has a single observation (two were groomed away):
+        // the stale index 2 clamps onto the one remaining row, never past it.
+        let (_tmp2, view1) = grove_view_with_inbox(&["010-x.md"], &["2026-06-08-9-only.md"]);
+        detail.show(Some("g"), view1.grove("g"));
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-9-only.md");
+    }
+
+    #[test]
+    fn switching_groves_resets_the_inbox_selection() {
+        let (_tmp, view) = grove_view_with_inbox(
+            &["010-x.md"],
+            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+        );
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view.grove("g"));
+        detail.nav_down();
+        detail.nav_down(); // selection on the third
+        // A different grove name resets the selection to the first observation.
+        detail.show(Some("g2"), view.grove("g"));
+        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-1-a.md");
     }
 
     #[test]

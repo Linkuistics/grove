@@ -113,13 +113,19 @@ impl CaptureModal {
     }
 }
 
-/// The result of a capture submit, surfaced briefly as a toast after the modal
-/// closes (the app clears it on the next keypress).
+/// The result of a TUI action that shells out, surfaced briefly as a toast after
+/// the action completes (the app clears it on the next keypress). Covers capture
+/// (the modal submit) and the 040 inbox **grooming** actions (reject / move).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CaptureOutcome {
-    /// Written to the named grove's inbox.
+    /// A capture was written to the named grove's inbox.
     Captured(String),
-    /// The write failed; carries a one-line reason.
+    /// The selected observation was rejected (dropped from the inbox).
+    Rejected,
+    /// The selected observation was moved/re-routed to the named grove.
+    Moved(String),
+    /// The action failed; carries a one-line reason (the caller prefixes context,
+    /// e.g. `"capture failed: …"` / `"move failed: …"`).
     Failed(String),
 }
 
@@ -134,7 +140,9 @@ pub fn render_toast(outcome: &CaptureOutcome, area: Rect, buf: &mut Buffer) {
     Clear.render(line, buf);
     let (text, bg) = match outcome {
         CaptureOutcome::Captured(name) => (format!(" \u{2713} captured to {name} "), Color::Green),
-        CaptureOutcome::Failed(msg) => (format!(" \u{2717} capture failed: {msg} "), Color::Red),
+        CaptureOutcome::Rejected => (" \u{2713} observation rejected ".to_string(), Color::Green),
+        CaptureOutcome::Moved(name) => (format!(" \u{2713} moved to {name} "), Color::Green),
+        CaptureOutcome::Failed(msg) => (format!(" \u{2717} {msg} "), Color::Red),
     };
     Paragraph::new(text)
         .style(Style::default().fg(Color::Black).bg(bg))
@@ -157,16 +165,68 @@ pub fn write_capture(grove_exe: &str, target: &CaptureTarget, body: &str) -> Res
         .arg(body)
         .output()
         .with_context(|| format!("running {} inbox-add", bin.display()))?;
+    check_status(output, "inbox-add failed")
+}
+
+/// Reject the focused grove's selected observation (040 grooming): shell out to
+/// `grove-llm inbox-drain --rejected <obs>`, which deletes the one file in a
+/// commit (and best-effort pushes). Synchronous + blocking like the other writes,
+/// so the app runs it under `spawn_blocking` (E1).
+pub fn reject_observation(grove_exe: &str, target: &CaptureTarget, obs: &Path) -> Result<()> {
+    let bin = grove_llm_path(grove_exe);
+    let output = Command::new(&bin)
+        .arg("inbox-drain")
+        .arg("--for")
+        .arg(&target.name)
+        .arg("--repo")
+        .arg(&target.repo_root)
+        .arg("--rejected")
+        .arg(obs)
+        .output()
+        .with_context(|| format!("running {} inbox-drain", bin.display()))?;
+    check_status(output, "inbox-drain failed")
+}
+
+/// Move/re-route the selected observation from `source` to `dest` (040 grooming):
+/// **copy first** — `inbox-add --to <dest> --body-file <obs>` re-captures the
+/// note's body into the destination grove — then, only once that lands, **drop**
+/// the original from the source inbox via [`reject_observation`]. The copy-before-
+/// drop order is deliberate: a failed copy leaves the observation untouched (no
+/// data loss); a failed drop after a successful copy surfaces as an error toast
+/// (the note is duplicated, which the user can then groom away).
+pub fn move_observation(
+    grove_exe: &str,
+    source: &CaptureTarget,
+    dest: &CaptureTarget,
+    obs: &Path,
+) -> Result<()> {
+    let bin = grove_llm_path(grove_exe);
+    let output = Command::new(&bin)
+        .arg("inbox-add")
+        .arg("--to")
+        .arg(&dest.name)
+        .arg("--repo")
+        .arg(&dest.repo_root)
+        .arg("--body-file")
+        .arg(obs)
+        .output()
+        .with_context(|| format!("running {} inbox-add", bin.display()))?;
+    check_status(output, "inbox-add failed")?;
+    reject_observation(grove_exe, source, obs)
+}
+
+/// Turn a finished child process into a `Result`: `Ok` on success, else `Err`
+/// carrying the most informative line of the child's stderr as the toast text.
+fn check_status(output: std::process::Output, fallback: &str) -> Result<()> {
     if output.status.success() {
         return Ok(());
     }
-    // Surface the most informative line of the child's stderr as the toast text.
     let stderr = String::from_utf8_lossy(&output.stderr);
     let msg = stderr
         .lines()
         .rev()
         .find(|l| !l.trim().is_empty())
-        .unwrap_or("inbox-add failed")
+        .unwrap_or(fallback)
         .trim()
         .to_string();
     bail!("{msg}");
@@ -184,8 +244,9 @@ fn grove_llm_path(grove_exe: &str) -> PathBuf {
     PathBuf::from("grove-llm")
 }
 
-/// A percentage box centered in `r` (grove's historical `centered_rect`).
-fn centered_rect(pct_x: u16, pct_y: u16, r: Rect) -> Rect {
+/// A percentage box centered in `r` (grove's historical `centered_rect`). Shared
+/// with the app, which centers the move-picker overlay with it.
+pub(crate) fn centered_rect(pct_x: u16, pct_y: u16, r: Rect) -> Rect {
     let w = r.width * pct_x / 100;
     let h = r.height * pct_y / 100;
     Rect {
@@ -303,13 +364,28 @@ mod tests {
 
     #[test]
     fn failure_toast_carries_the_reason() {
+        // Callers prefix their own context; render_toast shows the message verbatim.
         let area = Rect::new(0, 0, 50, 6);
         let mut buf = Buffer::empty(area);
-        render_toast(&CaptureOutcome::Failed("no such repo".into()), area, &mut buf);
+        render_toast(&CaptureOutcome::Failed("capture failed: no such repo".into()), area, &mut buf);
         let bottom: String = (0..area.width)
             .map(|x| buf[(x, area.height - 1)].symbol().to_string())
             .collect();
         assert!(bottom.contains("capture failed: no such repo"), "got: {bottom}");
+    }
+
+    #[test]
+    fn grooming_toasts_report_reject_and_move() {
+        let area = Rect::new(0, 0, 40, 6);
+        let bottom = |outcome: &CaptureOutcome| -> String {
+            let mut buf = Buffer::empty(area);
+            render_toast(outcome, area, &mut buf);
+            (0..area.width)
+                .map(|x| buf[(x, area.height - 1)].symbol().to_string())
+                .collect()
+        };
+        assert!(bottom(&CaptureOutcome::Rejected).contains("rejected"));
+        assert!(bottom(&CaptureOutcome::Moved("beta".into())).contains("moved to beta"));
     }
 
     // --- sibling-binary resolution ------------------------------------------

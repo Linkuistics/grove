@@ -169,9 +169,11 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     let (render_tx, mut render_rx) = mpsc::unbounded_channel();
     let mut panes: HashMap<PaneKey, PaneEntry> = HashMap::new();
     let driver = PaneDriver::new(pane, pane_id);
-    // Size the harness to the composed layout's pane share (the detail column
+    // Size the harness to the composed layout's pane share (the side column
     // coexists beside it), not the full terminal — otherwise its grid is clipped.
-    let pane_vp = composed_layout(Rect::new(0, 0, cols, rows)).pane;
+    // Side count is 1 here (detail only; no aux panes yet) — and the harness
+    // share is count-independent anyway (it depends only on the column width).
+    let pane_vp = composed_layout(Rect::new(0, 0, cols, rows), 1).pane;
     let _ = driver
         .pane()
         .resize(TerminalSizeSpec::new(pane_vp.width.max(1), pane_vp.height.max(1)))
@@ -756,11 +758,44 @@ impl App {
     }
 
     /// The harness pane's size under the composed layout (the dominant left share
-    /// beside the detail column), clamped to at least 1×1 for a degenerate
-    /// terminal. Every pane is resized to this, not the full terminal.
+    /// beside the side column), clamped to at least 1×1 for a degenerate
+    /// terminal. The harness/shell panes are resized to this; aux panes size to
+    /// their own side-column slot (resize-on-show, 050/030).
     fn pane_viewport(&self) -> (u16, u16) {
-        let pane = composed_layout(Rect::new(0, 0, self.size.0, self.size.1)).pane;
+        let pane = composed_layout(Rect::new(0, 0, self.size.0, self.size.1), self.side_count()).pane;
         (pane.width.max(1), pane.height.max(1))
+    }
+
+    /// The number of side-column members this frame: the always-present detail
+    /// widget (`side[0]`) plus each visible aux pane. Drives the vertical split
+    /// in [`composed_layout`]; matches [`Self::visible_aux_keys`] + 1.
+    fn side_count(&self) -> usize {
+        1 + self.visible_aux_keys().len()
+    }
+
+    /// The aux panes occupying the side column this frame, in stack order
+    /// (term → yazi → vcs), each paired with `side[1..]` by [`render_side_column`].
+    /// Empty until 050/030 wires the per-grove toggle/visibility state — the
+    /// side-column layout + render path is built here so 030 only fills this list.
+    fn visible_aux_keys(&self) -> Vec<PaneKey> {
+        Vec::new()
+    }
+
+    /// Render the side-column members into their slots: the detail widget into
+    /// `slots[0]` (always present, the stable anchor — Q5), then each visible aux
+    /// pane into the slots below it. `detail_focused` accents detail when it holds
+    /// focus. Aux slots are empty until 050/030, so the second loop is a no-op for
+    /// now (it renders whatever the visible-aux list resolves in the pane map).
+    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, detail_focused: bool) {
+        let Some((detail_slot, aux_slots)) = slots.split_first() else {
+            return; // floored at 1 in composed_layout, but stay panic-free
+        };
+        self.detail.render(*detail_slot, buf, detail_focused);
+        for (slot, key) in aux_slots.iter().zip(self.visible_aux_keys()) {
+            if let Some(entry) = self.panes.get(&key) {
+                render_pane(&entry.state, *slot, buf);
+            }
+        }
     }
 
     /// Paint one frame for the current [`Focus`]: the surface, then the whichkey
@@ -809,8 +844,9 @@ impl App {
     ///
     /// The composed surfaces ([`Focus::Pane`]/[`Focus::Detail`], and the modal
     /// drawn over them) tile the content region into the harness pane (left) and
-    /// the coexisting detail column (right) via [`composed_layout`]; [`Focus::Nav`]
-    /// is a flip-to full surface that hides the pair.
+    /// the coexisting side column (right: detail + any aux slots) via
+    /// [`composed_layout`]; [`Focus::Nav`] is a flip-to full surface that hides
+    /// the pair.
     fn render_surface(&self, focus: &Focus, area: Rect, buf: &mut Buffer) -> Option<(u16, u16)> {
         match focus {
             // Pane and Detail coexist: render the harness in the left share and the
@@ -818,13 +854,12 @@ impl App {
             // hardware cursor shows only when the *pane* is focused (detail is a
             // scroll list with no text caret).
             Focus::Pane | Focus::Detail => {
-                let layout = composed_layout(area);
+                let layout = composed_layout(area, self.side_count());
                 let cursor = self
                     .panes
                     .get(&self.focused)
                     .and_then(|entry| render_pane(&entry.state, layout.pane, buf));
-                self.detail
-                    .render(layout.detail, buf, matches!(focus, Focus::Detail));
+                self.render_side_column(&layout.side, buf, matches!(focus, Focus::Detail));
                 if matches!(focus, Focus::Pane) {
                     cursor
                 } else {
@@ -836,13 +871,13 @@ impl App {
                 None
             }
             Focus::Modal { kind, .. } => {
-                // The landmark proof point: draw the composed layout (pane + detail),
-                // then the centered modal *over* it (Clear punches the hole).
-                let layout = composed_layout(area);
+                // The landmark proof point: draw the composed layout (pane + side
+                // column), then the centered modal *over* it (Clear punches the hole).
+                let layout = composed_layout(area, self.side_count());
                 if let Some(entry) = self.panes.get(&self.focused) {
                     render_pane(&entry.state, layout.pane, buf);
                 }
-                self.detail.render(layout.detail, buf, false);
+                self.render_side_column(&layout.side, buf, false);
                 match kind {
                     ModalKind::Capture => {
                         let label = self
@@ -869,43 +904,88 @@ impl App {
     }
 }
 
-/// The composed-layout rects (050/030): the harness pane (dominant left share),
-/// the detail panel (a side column on the right), and the reserved footer row.
-/// The harness pane and detail panel **coexist** — focus moves laterally between
-/// them — which is the 050/010-surfaces verdict the trellis flip-to model lacked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The composed-layout rects (050/020): the harness pane (dominant left share),
+/// an ordered **side column** of member rects (detail first, then a slot per
+/// visible aux pane), and the reserved footer row. The harness pane and the side
+/// column **coexist** — focus moves laterally between them — which is the
+/// 050/010-surfaces verdict the trellis flip-to model lacked. The side column is
+/// a *heterogeneous stack* (Q5): `side[0]` is the always-present detail widget,
+/// `side[1..]` are the visible aux-pane slots (term/yazi/vcs, populated in
+/// 050/030). `side` always has at least one rect.
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ComposedLayout {
     pane: Rect,
-    detail: Rect,
+    side: Vec<Rect>,
     footer: Rect,
 }
 
-/// The detail side column's width as a fraction of the content region, capped so
-/// it stays a *column* on wide terminals and the harness keeps the dominant
-/// share. The full responsive tiers + aux-pane placement are 050; this is the
-/// minimal split that proves coexistence + lateral focus.
-fn detail_column_width(content_width: u16) -> u16 {
-    (content_width.saturating_mul(34) / 100).min(48)
+/// The ~220-col responsive breakpoint (Q4): the side column gets a more generous
+/// width cap on wide terminals and stays the narrower ≈laptop column below it.
+/// Geometry only — membership is user-toggle (050/030), never width-driven.
+const WIDE_BREAKPOINT: u16 = 220;
+/// The side column targets this fraction of the content region…
+const SIDE_COLUMN_FRACTION: u16 = 34;
+/// …capped here on wide terminals (raises the old flat 48 cap) …
+const SIDE_COLUMN_CAP_WIDE: u16 = 64;
+/// …and here on laptops (≈the pre-050 column), keeping the harness dominant.
+const SIDE_COLUMN_CAP_NARROW: u16 = 48;
+
+/// The side column's width as a fraction of the content region, capped by the
+/// responsive breakpoint so it stays a *column* (harness keeps the dominant
+/// share) and widens a little on big displays. Width is the **sole** responsive
+/// geometry lever: per-member height is pure equal-share tiling (see
+/// [`stack_evenly`]), so the breakpoint has no height job to do (Q4 "let it
+/// tile").
+fn side_column_width(content_width: u16) -> u16 {
+    let cap = if content_width >= WIDE_BREAKPOINT {
+        SIDE_COLUMN_CAP_WIDE
+    } else {
+        SIDE_COLUMN_CAP_NARROW
+    };
+    (content_width.saturating_mul(SIDE_COLUMN_FRACTION) / 100).min(cap)
+}
+
+/// Split `area` into `n` vertically-stacked rects of equal height, the remainder
+/// rows handed to the topmost members so the stack tiles `area` exactly. This is
+/// the Q4 "let it tile" rule: members always share the column evenly, with no
+/// overflow/scroll machinery — too many toggled-on members is a degradation the
+/// user manages via the toggles. Degrades without panic on a zero-height area
+/// (every member gets a 0-height rect) and returns empty for `n == 0`.
+fn stack_evenly(area: Rect, n: usize) -> Vec<Rect> {
+    if n == 0 {
+        return Vec::new();
+    }
+    let n_u16 = n as u16;
+    let base = area.height / n_u16;
+    let extra = area.height % n_u16;
+    let mut rects = Vec::with_capacity(n);
+    let mut y = area.y;
+    for i in 0..n_u16 {
+        let h = base + u16::from(i < extra);
+        rects.push(Rect::new(area.x, y, area.width, h));
+        y += h;
+    }
+    rects
 }
 
 /// Split `area` into the composed layout: a reserved bottom footer row, then the
-/// content region divided into the harness pane (left, dominant) and the detail
-/// column (right). Degrades without panic on a tiny area.
-fn composed_layout(area: Rect) -> ComposedLayout {
+/// content region divided into the harness pane (left, dominant) and a side
+/// column of `side_count` stacked member rects (detail at `side[0]`, then aux
+/// slots). The layout math is **key-agnostic** — it takes a member *count*, not
+/// the panes — so 050/030 only has to grow the count. Degrades without panic on
+/// a tiny area; `side_count` is floored at 1 so detail always has a slot.
+fn composed_layout(area: Rect, side_count: usize) -> ComposedLayout {
     let footer_h = area.height.min(1);
     let content_h = area.height - footer_h;
     let footer = Rect::new(area.x, area.y + content_h, area.width, footer_h);
     let content = Rect::new(area.x, area.y, area.width, content_h);
 
-    let detail_w = detail_column_width(content.width);
-    let pane_w = content.width - detail_w;
+    let side_w = side_column_width(content.width);
+    let pane_w = content.width - side_w;
     let pane = Rect::new(content.x, content.y, pane_w, content.height);
-    let detail = Rect::new(content.x + pane_w, content.y, detail_w, content.height);
-    ComposedLayout {
-        pane,
-        detail,
-        footer,
-    }
+    let side_area = Rect::new(content.x + pane_w, content.y, side_w, content.height);
+    let side = stack_evenly(side_area, side_count.max(1));
+    ComposedLayout { pane, side, footer }
 }
 
 /// Whether the focused pane is visible on the current surface (so a background
@@ -1081,36 +1161,98 @@ mod tests {
     #[test]
     fn composed_layout_reserves_the_bottom_footer_row() {
         let area = Rect::new(0, 0, 120, 40);
-        let layout = composed_layout(area);
+        let layout = composed_layout(area, 1);
         assert_eq!(layout.footer, Rect::new(0, 39, 120, 1));
-        // pane + detail occupy the content region above the footer.
+        // pane + the side column occupy the content region above the footer.
         assert_eq!(layout.pane.height, 39);
-        assert_eq!(layout.detail.height, 39);
+        assert_eq!(layout.side[0].height, 39);
     }
 
     #[test]
-    fn composed_layout_places_detail_as_a_right_side_column() {
+    fn composed_layout_places_the_side_column_on_the_right() {
         let area = Rect::new(0, 0, 120, 40);
-        let layout = composed_layout(area);
-        // Detail abuts the pane on the right; together they tile the full width.
-        assert_eq!(layout.detail.x, layout.pane.x + layout.pane.width);
-        assert_eq!(layout.pane.width + layout.detail.width, 120);
+        let layout = composed_layout(area, 1);
+        // The side column abuts the pane on the right; together they tile the
+        // full width.
+        let side = layout.side[0];
+        assert_eq!(side.x, layout.pane.x + layout.pane.width);
+        assert_eq!(layout.pane.width + side.width, 120);
         // The harness keeps the dominant share.
-        assert!(layout.pane.width > layout.detail.width, "{layout:?}");
+        assert!(layout.pane.width > side.width, "{layout:?}");
     }
 
     #[test]
-    fn composed_layout_caps_the_detail_column_on_wide_terminals() {
-        let layout = composed_layout(Rect::new(0, 0, 400, 50));
-        assert_eq!(layout.detail.width, 48, "detail stays a column, not a half");
+    fn side_count_maps_one_to_one_to_side_slots() {
+        let area = Rect::new(0, 0, 200, 60);
+        for n in 1..=5 {
+            assert_eq!(composed_layout(area, n).side.len(), n, "{n} members → {n} slots");
+        }
+        // Floored at 1 so detail always has a slot even if a caller passes 0.
+        assert_eq!(composed_layout(area, 0).side.len(), 1);
+    }
+
+    #[test]
+    fn side_column_stacks_detail_on_top_in_order() {
+        // Three members tile the column top-to-bottom with no gaps/overlaps and
+        // detail (slot 0) is the topmost — the Q5 stable anchor.
+        let area = Rect::new(0, 0, 200, 61); // 60 content rows / 3 = 20 each
+        let layout = composed_layout(area, 3);
+        let s = &layout.side;
+        assert_eq!(s[0].y, layout.pane.y, "detail sits at the top of the column");
+        assert!(s[0].y < s[1].y && s[1].y < s[2].y, "stacked top-to-bottom: {s:?}");
+        // Contiguous: each slot begins where the previous ends.
+        assert_eq!(s[1].y, s[0].y + s[0].height);
+        assert_eq!(s[2].y, s[1].y + s[1].height);
+        // They tile the content height exactly (last slot ends at the footer).
+        assert_eq!(s[2].y + s[2].height, layout.footer.y);
+        // Equal shares (60 / 3 = 20, no remainder).
+        assert!(s.iter().all(|r| r.height == 20), "{s:?}");
+    }
+
+    #[test]
+    fn side_column_tiles_remainder_rows_onto_the_top_members() {
+        // 61 content rows / 4 members = 15 each + 1 remainder → the topmost
+        // member absorbs it; still tiles the column exactly (let-it-tile, Q4).
+        let area = Rect::new(0, 0, 200, 62); // 61 content rows after the footer
+        let layout = composed_layout(area, 4);
+        let heights: Vec<u16> = layout.side.iter().map(|r| r.height).collect();
+        assert_eq!(heights, vec![16, 15, 15, 15], "{heights:?}");
+        assert_eq!(heights.iter().sum::<u16>(), 61, "tiles the content exactly");
+    }
+
+    #[test]
+    fn breakpoint_widens_the_side_column_above_220_cols() {
+        // Below the breakpoint: the narrower ≈laptop cap (48). The fraction is
+        // dominated by the cap on any realistic laptop width.
+        let narrow = composed_layout(Rect::new(0, 0, 200, 50), 1);
+        assert_eq!(narrow.side[0].width, 48, "laptop column stays narrow");
+        // At/above the breakpoint: the wider cap (64).
+        let wide = composed_layout(Rect::new(0, 0, 400, 50), 1);
+        assert_eq!(wide.side[0].width, 64, "wide displays get a roomier column");
+        // The harness stays dominant in both regimes.
+        assert!(narrow.pane.width > narrow.side[0].width);
+        assert!(wide.pane.width > wide.side[0].width);
+    }
+
+    #[test]
+    fn breakpoint_is_exactly_220_cols() {
+        // The content region (not the terminal) is what the breakpoint reads, so
+        // probe widths straddling 220 directly.
+        assert_eq!(side_column_width(219), 48);
+        assert_eq!(side_column_width(220), 64);
     }
 
     #[test]
     fn composed_layout_degrades_without_panic_on_a_tiny_area() {
-        // Zero-height and one-row areas must not underflow.
-        let _ = composed_layout(Rect::new(0, 0, 0, 0));
-        let l = composed_layout(Rect::new(0, 0, 10, 1));
+        // Zero-height, one-row, and multi-member tiny areas must not underflow.
+        let _ = composed_layout(Rect::new(0, 0, 0, 0), 3);
+        let l = composed_layout(Rect::new(0, 0, 10, 1), 1);
         assert_eq!(l.footer.height, 1);
         assert_eq!(l.pane.height, 0);
+        // A column too short to give every member a row tiles to zero-height
+        // slots rather than panicking.
+        let cramped = composed_layout(Rect::new(0, 0, 10, 3), 5);
+        assert_eq!(cramped.side.len(), 5);
+        assert_eq!(cramped.side.iter().map(|r| r.height).sum::<u16>(), 2); // 3 - footer
     }
 }

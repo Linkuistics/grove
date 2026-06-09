@@ -206,6 +206,26 @@ property survives. This entry describes the superseded tab model.)*
 A single zellij **tab** holding one grove's [[working set]], with a "home" tab for the [[dashboard]] (ADR-0018). One grove's working set is visible at a time; zellij keeps every tab's panes alive across switches. Switched via native `GoToTab`/`GoToNextTab` keybinds (the hot path) and the [[nav plugin]] (rich/fuzzy selection). Replaces the superseded model of multiple [[harness pane]]s beside the [[dashboard]] switched by `focus-pane-id`. **Why tabs went (ADR-0022):** pinning a *tiled* nav pane across tabs is not native (floating-only), and a pty stays alive/captures scrollback while not displayed (per-pane reader thread) — so tabs were never load-bearing for keeping background harnesses alive, and they fought the constant-nav requirement.
 
 **Working set**:
+*(rmux-substrate update — 050-plan-rebuild/050-working-set: under the inversion
+(ADR-0028) the working set is a **layout grove draws itself** — the [[harness
+pane]] (dominant left) + a **side column** stacking the *visible* members
+vertically + the footer row. The side column is a **heterogeneous stack**: the
+per-grove **detail** widget (always-present top member, grove-drawn — see
+[[detail proxy]]) + zero-or-more **aux panes** (plain term / yazi / lazygit-lazyjj
+vcs) below it in fixed order. Aux panes are ordinary foreign rmux panes embedded
+exactly like the harness — one **detached rmux window** each, keyed by composite
+**(grove, role)**, rendered into a grove-chosen `Rect` via `PaneWidget` (no rmux
+splits — grove owns the layout). **Park-alive is native and free** (ADR-0023/0024
+machinery evaporates): a pane in a detached window stays alive in the daemon
+whether or not grove draws it, so "off-screen" is just "not drawn this frame" —
+no suppress/restore, no `replace_pane`. Aux panes **lazy-spawn on first toggle**
+(leader `t`/`y`/`v`, cwd = worktree), **hide-not-close** on toggle-off, and close
+only at TUI exit; **visibility is per-grove**, ephemeral per session. **Responsive
+tiers collapse to geometry:** a single ~220-col breakpoint sets the side-column
+width + per-member min-height — ADR-0022's "tier picks which panes mount" rule
+dissolves (membership is now user-toggle + always-on detail). Built in
+050-working-set/{010-pane-keying, 020-side-column-layout, 030-aux-panes}. The
+trellis-era mechanism below is historical.)*
 *(Mechanism updated by the [[trellis framework]] fork — ADR-0020: opened by a
 **direct in-process call** into the framework (not the WASM nav's
 `new_tabs_with_layout` over a `zellij pipe`), aux tools embedded via trellis's

@@ -13,6 +13,8 @@ set -euo pipefail
 IFS=$'\n\t'
 trap 'echo "release-doctor: error on line $LINENO" >&2' ERR
 
+readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Must stay in sync with release-build.sh's TARGETS array. The native
 # host target is included even though rustup typically auto-installs it
 # — explicit checks survive a partial rustup setup.
@@ -76,6 +78,44 @@ check_rustup_targets() {
   done
 }
 
+check_rmux_daemon_build() {
+  # ADR-0030: grove bundles a from-source stock rmux daemon/CLI, built at the
+  # exact version grove's rmux-sdk resolves to in Cargo.lock (lockstep publish).
+  # Derive that version and confirm a published rmux crate exists at it, so a
+  # caret bump of rmux-sdk ahead of a matching rmux binary fails the punch list
+  # HERE rather than mid-build. rmux has no openssl/curl (its `web` feature
+  # gates only pure-Rust crypto, and release-build drops it with
+  # --no-default-features), so the zig/zigbuild/rustup-targets checked above
+  # cover the cross-build with no new prerequisite.
+  local version
+  version="$(awk '
+    /^\[\[package\]\]/ { name = "" }
+    /^name = / { name = $3 }
+    name == "\"rmux-sdk\"" && /^version = / { gsub(/"/, "", $3); print $3; exit }
+  ' "$REPO_ROOT/Cargo.lock")"
+
+  if [[ -z "$version" ]]; then
+    mark_fail "rmux daemon: could not read rmux-sdk version from Cargo.lock"
+    remediation "ensure rmux-sdk is a resolved dependency (cargo build) so Cargo.lock pins it"
+    return
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    mark_fail "rmux daemon: curl not on PATH (needed to verify the published rmux crate)"
+    remediation "brew install curl"
+    return
+  fi
+
+  # crates.io sparse index: newline-delimited JSON, one record per version.
+  if curl -fsS "https://index.crates.io/rm/ux/rmux" 2>/dev/null \
+       | grep -qF "\"vers\":\"${version}\""; then
+    mark_pass "rmux daemon: stock rmux ${version} published (matches locked rmux-sdk)"
+  else
+    mark_fail "rmux daemon: no published rmux crate at ${version} (locked rmux-sdk version)"
+    remediation "bump rmux-sdk to a version with a matching published rmux binary crate, or await the rmux ${version} release"
+  fi
+}
+
 check_gh_auth() {
   if ! command -v gh >/dev/null 2>&1; then
     mark_fail "gh: not installed"
@@ -97,6 +137,7 @@ main() {
   check_zig
   check_cargo_zigbuild
   check_rustup_targets
+  check_rmux_daemon_build
   check_gh_auth
 
   echo

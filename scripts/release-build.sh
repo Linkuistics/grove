@@ -30,6 +30,20 @@ die() {
   exit 1
 }
 
+# The bundled stock rmux daemon/CLI is built at exactly the version grove's
+# rmux-sdk resolves to in Cargo.lock — the rmux workspace publishes
+# rmux ⇔ rmux-sdk ⇔ ratatui-rmux in lockstep, and the daemon must speak the
+# SDK's wire protocol (ADR-0030 §2). Single source of truth = Cargo.lock; no
+# hand-maintained pin to drift. release-doctor confirms a published rmux crate
+# exists at this version before the build commits to it.
+locked_rmux_sdk_version() {
+  awk '
+    /^\[\[package\]\]/ { name = "" }
+    /^name = / { name = $3 }
+    name == "\"rmux-sdk\"" && /^version = / { gsub(/"/, "", $3); print $3; exit }
+  ' "$REPO_ROOT/Cargo.lock"
+}
+
 require_clean_tagged_tree() {
   [[ -z "$(git -C "$REPO_ROOT" status --porcelain)" ]] \
     || die "working tree is dirty; commit or stash before releasing"
@@ -39,6 +53,37 @@ require_clean_tagged_tree() {
 
 read_version() {
   git -C "$REPO_ROOT" describe --tags --abbrev=0 | sed 's/^v//'
+}
+
+# Build the stock rmux daemon+CLI from the published crate, for one target,
+# into a per-target install root (binary lands at $root/bin/rmux). rmux is a
+# binary-only crate (no lib to wrap in a local manifest), so `cargo install`
+# is the build path; `--locked` uses rmux's own published Cargo.lock for
+# provenance; `--no-default-features` drops the `web` share server grove defers
+# to the rmux-web grove (ADR-0030 §1). rmux has no openssl/curl, so the same
+# zig cross used for grove's Linux targets builds it cleanly. The Linux cross
+# uses `cargo-zigbuild install` — invoked on the binary DIRECTLY, because
+# `cargo zigbuild …` dispatches to the `zigbuild` subcommand, which has no
+# `install`. Writes to the caller's stderr only — safe inside build_target's
+# command substitution.
+build_rmux() {
+  local target="$1" version="$2" root="$3"
+  mkdir -p "$root"
+  case "$target" in
+    *-apple-darwin)
+      cargo install rmux --version "=$version" \
+        --no-default-features --locked --bin rmux \
+        --target "$target" --root "$root" --force 1>&2 || return 1
+      ;;
+    *-unknown-linux-gnu)
+      cargo-zigbuild install rmux --version "=$version" \
+        --no-default-features --locked --bin rmux \
+        --target "${target}.${LINUX_GLIBC}" --root "$root" --force 1>&2 || return 1
+      ;;
+    *)
+      die "unknown target: $target"
+      ;;
+  esac
 }
 
 build_target() {
@@ -64,10 +109,16 @@ build_target() {
       ;;
   esac
 
+  # Bundle the stock rmux daemon/CLI beside grove (ADR-0030). RMUX_VERSION is
+  # set in main() before this loop; command substitution inherits it.
+  local rmux_root="$DIST_DIR/rmux-install/$target"
+  build_rmux "$target" "$RMUX_VERSION" "$rmux_root" || return 1
+
   local stage="$DIST_DIR/staging/grove-v${version}-${target}"
   mkdir -p "$stage"
   cp "$REPO_ROOT/target/$target/release/grove" "$stage/grove"
   cp "$REPO_ROOT/target/$target/release/grove-llm" "$stage/grove-llm"
+  cp "$rmux_root/bin/rmux" "$stage/rmux"
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/"
 
   local archive="$DIST_DIR/grove-v${version}-${target}.tar.xz"
@@ -103,6 +154,12 @@ main() {
   version="$(read_version)"
   echo "release-build: building grove v${version}"
 
+  # Derived once, used per target inside build_target (ADR-0030 §2).
+  RMUX_VERSION="$(locked_rmux_sdk_version)"
+  [[ -n "$RMUX_VERSION" ]] \
+    || die "could not read rmux-sdk version from Cargo.lock (is rmux-sdk a resolved dependency?)"
+  echo "release-build: bundling stock rmux daemon v${RMUX_VERSION} (locked to rmux-sdk)"
+
   rm -rf "$DIST_DIR"
   mkdir -p "$DIST_DIR/staging"
 
@@ -120,7 +177,7 @@ main() {
   done
 
   render_formula "$version" "${sha_args[@]}"
-  rm -rf "$DIST_DIR/staging"
+  rm -rf "$DIST_DIR/staging" "$DIST_DIR/rmux-install"
 
   echo
   echo "release-build: artifacts in $DIST_DIR"

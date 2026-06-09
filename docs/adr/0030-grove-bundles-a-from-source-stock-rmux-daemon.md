@@ -92,10 +92,20 @@ controls are deferred to the **`rmux-web`** grove.
   direct download): the daemon is physically present beside grove, version-matched by
   construction, and the TUI finds it with zero config. `cargo install grove` and dev
   builds fall back to a `PATH` `rmux`.
-- **The release pipeline gains a from-source rmux build step** (a `scripts/`-local
-  pinned manifest, `cargo zigbuild --no-default-features` per target) and a
-  `release-doctor` version-match assertion. The formula installs three binaries and
-  tests `rmux --version`. (Implemented in `060/020-bundle-pipeline`.)
+- **The release pipeline gains a from-source rmux build step** and a `release-doctor`
+  guard. *Mechanism (settled in `060/020-bundle-pipeline`, refining §1's sketch):*
+  `rmux` is a **binary-only crate** — no library to wrap in a `scripts/`-local
+  dependency manifest, so the build path is `cargo install rmux --version =<v>
+  --no-default-features --locked` (`cargo-zigbuild install` for the Linux cross),
+  per target, into a staging root. `--locked` builds against rmux's *own published*
+  `Cargo.lock` (provenance ≥ a hand-rolled second lockfile). `<v>` is derived live
+  from grove's `Cargo.lock` (the locked `rmux-sdk` version), so there is no
+  hand-maintained pin at all — strictly honouring §2's single-source-of-truth. The
+  `release-doctor` guard therefore verifies the *useful* invariant — that a published
+  `rmux` crate **exists** at that derived version (crates.io sparse index) — failing
+  the punch list before a build commits, rather than tautologically comparing two
+  copies of the same number. The formula installs three binaries and tests `rmux -V`
+  (rmux mirrors tmux's terse CLI, not GNU `--version`).
 - **grove's `grove tui` entry sets one process env var before the runtime starts**
   (`060/010-launch-wiring`); both the SDK and the ADR-0029 capture path inherit it.
 - **No fork, no patch to rebase, no upstream PR** — the from-source build is of the

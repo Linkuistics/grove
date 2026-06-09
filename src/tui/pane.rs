@@ -63,6 +63,19 @@ impl PaneKey {
             PaneKey::Shell => None,
         }
     }
+
+    /// Whether this is a working-set **aux** pane (term/yazi/vcs, 050/030) rather
+    /// than a harness or the shell fallback. Aux panes size to their side-column
+    /// slot (resize-on-show), so the full-terminal resize sweep skips them.
+    pub fn is_aux(&self) -> bool {
+        matches!(
+            self,
+            PaneKey::Grove {
+                role: PaneRole::Term | PaneRole::Yazi | PaneRole::Vcs,
+                ..
+            }
+        )
+    }
 }
 
 /// Paint `state`'s captured grid into `buf` over `area`, returning the absolute

@@ -21,10 +21,12 @@ use crate::tui::config::Leader;
 use crate::tui::focus::Focus;
 
 /// The leader dispatch menu, shown while [`Focus::LeaderPending`]: the keys the
-/// gate routes (mirrors the [`arbitrate`](crate::tui::focus::arbitrate) table).
-/// The 050 aux-pane keys (`t`/`y`/`v`) join here when those panes exist.
+/// gate routes (mirrors the [`arbitrate`](crate::tui::focus::arbitrate) table),
+/// in dispatch order: surfaces (`g`/`d`/`c`), the aux-pane toggles
+/// (`t`/`y`/`v`, 050/030), then the app actions (`e`/`q`).
 pub fn leader_menu() -> String {
-    "g nav · d detail · c capture · e editor · q quit · ⎋ cancel".to_string()
+    "g nav · d detail · c capture · t term · y yazi · v vcs · e editor · q quit · ⎋ cancel"
+        .to_string()
 }
 
 /// The footer text for a focus state, or `None` when no footer should draw.
@@ -102,7 +104,10 @@ mod tests {
     #[test]
     fn pending_text_is_the_leader_menu() {
         let text = footer_text(&pending(), &leader()).expect("pending has a footer");
-        for token in ["g nav", "d detail", "c capture", "e editor", "q quit", "cancel"] {
+        for token in [
+            "g nav", "d detail", "c capture", "t term", "y yazi", "v vcs", "e editor", "q quit",
+            "cancel",
+        ] {
             assert!(text.contains(token), "menu missing {token:?}: {text}");
         }
     }
@@ -140,11 +145,14 @@ mod tests {
 
     #[test]
     fn render_paints_the_leader_menu_on_the_bottom_row() {
-        let area = Rect::new(0, 0, 80, 6);
+        // Wide enough to fit the full menu (the aux toggles t/y/v lengthened it
+        // past 80 cols — on a narrower terminal the tail simply truncates).
+        let area = Rect::new(0, 0, 100, 6);
         let mut buf = Buffer::empty(area);
         render_footer(&pending(), &leader(), area, &mut buf);
         let row = bottom_row(&buf);
         assert!(row.contains("g nav"), "menu painted on the bottom row: {row}");
+        assert!(row.contains("t term"), "aux toggles painted on the bottom row: {row}");
         assert!(row.contains("cancel"), "menu painted on the bottom row: {row}");
     }
 

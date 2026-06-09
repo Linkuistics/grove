@@ -18,7 +18,7 @@
 //! instant. Park/close semantics are 050; here a deselected pane simply stays
 //! open in the background.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -53,7 +53,7 @@ use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::nav::{Nav, NavItem};
-use crate::tui::pane::{render_pane, PaneKey};
+use crate::tui::pane::{render_pane, PaneKey, PaneRole};
 
 /// One rmux session per `grove tui`, named deterministically (ADR-0027's
 /// singleton). 050 revisits park-alive / multi-session lifecycle.
@@ -67,6 +67,52 @@ struct PaneEntry {
     /// Where a capture submitted while this pane is focused is written — the
     /// pane's own grove (E1). `None` for the bare-shell fallback (no grove).
     target: Option<CaptureTarget>,
+}
+
+/// The aux roles in side-column stack order (Q5: term → yazi → vcs). Detail is
+/// the always-present top member (slot 0); these fill the slots below it in this
+/// fixed order, independent of the order the user toggled them on.
+const AUX_STACK_ORDER: [PaneRole; 3] = [PaneRole::Term, PaneRole::Yazi, PaneRole::Vcs];
+
+/// Per-grove aux-pane visibility — the ephemeral working-set toggle state (Q6).
+/// Which aux roles are shown is tracked per grove and restored when you switch
+/// back; it dies with the session (grove constraint 1, no persisted state).
+///
+/// Pure set-membership over `(grove, role)` with a fixed canonical stack order —
+/// no panes, no daemon — so the toggle transitions are unit-testable on their
+/// own (the spawn/focus I/O lives in [`App::toggle_aux`]).
+#[derive(Default)]
+struct AuxVisibility {
+    by_grove: HashMap<String, HashSet<PaneRole>>,
+}
+
+impl AuxVisibility {
+    /// Whether `grove`'s `role` aux pane is currently toggled on.
+    fn is_visible(&self, grove: &str, role: PaneRole) -> bool {
+        self.by_grove.get(grove).is_some_and(|s| s.contains(&role))
+    }
+
+    /// Mark `grove`'s `role` aux pane shown (idempotent).
+    fn show(&mut self, grove: &str, role: PaneRole) {
+        self.by_grove.entry(grove.to_string()).or_default().insert(role);
+    }
+
+    /// Mark `grove`'s `role` aux pane hidden — the pty stays warm (hide-not-
+    /// close, Q3); this only stops it being drawn (idempotent).
+    fn hide(&mut self, grove: &str, role: PaneRole) {
+        if let Some(s) = self.by_grove.get_mut(grove) {
+            s.remove(&role);
+        }
+    }
+
+    /// `grove`'s visible aux roles in side-column stack order (term → yazi →
+    /// vcs), independent of the order they were toggled on (Q5: fixed position).
+    fn visible_roles(&self, grove: &str) -> Vec<PaneRole> {
+        let Some(set) = self.by_grove.get(grove) else {
+            return Vec::new();
+        };
+        AUX_STACK_ORDER.into_iter().filter(|r| set.contains(r)).collect()
+    }
 }
 
 /// The harness pane's process + placement, chosen below the presentation seam
@@ -91,7 +137,14 @@ struct App {
     /// Open panes by composite `(grove, role)` key (or [`PaneKey::Shell`]).
     panes: HashMap<PaneKey, PaneEntry>,
     /// The currently displayed pane's key (the surface to return to from Nav).
+    /// May be a grove's harness, the bare shell, or — with focus-follow — one of
+    /// that grove's aux panes (050/030). The big-left pane is always the grove's
+    /// *harness* ([`Self::left_pane_key`]); `focused` is the input/cursor target.
     focused: PaneKey,
+    /// Per-grove aux-pane visibility — the ephemeral working-set toggle state
+    /// (Q6). Drives the side column's membership and is restored when you switch
+    /// back to a grove; it dies with the session (grove constraint 1).
+    aux: AuxVisibility,
     /// Which surface owns input (E4).
     focus: Focus,
     nav: Nav,
@@ -222,6 +275,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         session,
         panes,
         focused: process.key.clone(),
+        aux: AuxVisibility::default(),
         focus: Focus::Pane,
         nav,
         detail: Detail::new(),
@@ -279,10 +333,14 @@ impl App {
                         if let Some(entry) = self.panes.get_mut(&key) {
                             entry.state.set_snapshot(snapshot);
                         }
-                        // Only the visible pane's updates trigger a redraw;
-                        // background panes (and the Nav surface, which hides the
-                        // pane) stay warm without repainting.
-                        if key == self.focused && surface_shows_pane(&self.focus) {
+                        // Only a *currently-drawn* pane's updates trigger a
+                        // redraw — the grove's harness (big-left) or one of its
+                        // visible aux panes (side column). Background groves' panes
+                        // and hidden aux stay warm without repainting, and Nav
+                        // hides the lot. This is the [`surface_shows_pane`] gate
+                        // widened from "the focused key" to "any visible pane" so a
+                        // background aux push behind a focused harness still paints.
+                        if self.pane_is_visible(&key) && surface_shows_pane(&self.focus) {
                             needs_redraw = true;
                         }
                     }
@@ -321,12 +379,17 @@ impl App {
     async fn handle_event(&mut self, ev: &Event) -> Result<EventOutcome> {
         if let Event::Resize(w, h) = ev {
             self.size = (*w, *h);
-            // Panes coexist with the detail column, so they are sized to the
-            // composed pane share, not the full terminal.
+            // Harness/shell panes get the dominant-left share (count-independent —
+            // it tracks only the side-column *width*). Aux panes size to their own
+            // side-column slot, so skip them here and let `resize_visible_aux`
+            // size the visible ones; hidden aux re-size on next show.
             let (pw, ph) = self.pane_viewport();
-            for entry in self.panes.values() {
-                let _ = entry.driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
+            for (key, entry) in &self.panes {
+                if !key.is_aux() {
+                    let _ = entry.driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
+                }
             }
+            self.resize_visible_aux().await;
             return Ok(EventOutcome::Redraw);
         }
 
@@ -437,6 +500,10 @@ impl App {
                 EventOutcome::Redraw
             }
             Action::OpenEditor => EventOutcome::OpenEditor,
+            Action::ToggleAux(role) => {
+                self.toggle_aux(role).await;
+                EventOutcome::Redraw
+            }
             Action::Quit => EventOutcome::Quit,
         };
 
@@ -775,27 +842,183 @@ impl App {
 
     /// The aux panes occupying the side column this frame, in stack order
     /// (term → yazi → vcs), each paired with `side[1..]` by [`render_side_column`].
-    /// Empty until 050/030 wires the per-grove toggle/visibility state — the
-    /// side-column layout + render path is built here so 030 only fills this list.
+    /// Resolved from the **current grove** (the focused pane's grove) and its
+    /// per-grove visibility (Q6); empty for the bare shell (no grove → no working
+    /// set). The fixed stack order comes from [`AuxVisibility::visible_roles`].
     fn visible_aux_keys(&self) -> Vec<PaneKey> {
-        Vec::new()
+        match self.focused.grove() {
+            Some(grove) => self
+                .aux
+                .visible_roles(grove)
+                .into_iter()
+                .map(|role| PaneKey::Grove {
+                    grove: grove.to_string(),
+                    role,
+                })
+                .collect(),
+            None => Vec::new(),
+        }
+    }
+
+    /// The key of the **big-left** pane: always the current grove's *harness*
+    /// (the dominant pane stays the harness even when focus follows to an aux
+    /// pane in the side column), or the bare shell when there is no grove.
+    fn left_pane_key(&self) -> PaneKey {
+        match self.focused.grove() {
+            Some(grove) => PaneKey::harness(grove),
+            None => self.focused.clone(),
+        }
+    }
+
+    /// Whether `key`'s pane is drawn this frame — the big-left harness/shell or
+    /// one of the current grove's visible aux panes. Drives the render-push
+    /// redraw gate so only on-screen panes repaint (a background grove's panes
+    /// and hidden aux stay warm but quiet).
+    fn pane_is_visible(&self, key: &PaneKey) -> bool {
+        *key == self.left_pane_key() || self.visible_aux_keys().contains(key)
+    }
+
+    /// Toggle the current grove's `role` aux pane (leader `t`/`y`/`v`, Q6): a
+    /// **toggle-with-focus-follow**. Visible → hide (the pty stays warm) and
+    /// return focus to the harness. Hidden → **lazy-spawn on first toggle**, then
+    /// show and focus-follow to the pane. The bare shell has no per-grove working
+    /// set, so toggling there is a no-op.
+    async fn toggle_aux(&mut self, role: PaneRole) {
+        // The working grove is the focused pane's grove (harness, or an aux of the
+        // same grove). Clone the target up front so the borrow is released before
+        // the spawn/mutation below.
+        let Some(target) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+            return; // shell fallback — no grove, no aux
+        };
+        let grove = target.name.clone();
+        let key = PaneKey::Grove {
+            grove: grove.clone(),
+            role,
+        };
+
+        if self.aux.is_visible(&grove, role) {
+            // Hide: stop drawing it (pty stays live, close only at TUI exit) and
+            // return focus to the grove's harness.
+            self.aux.hide(&grove, role);
+            self.focused = PaneKey::harness(grove.clone());
+        } else {
+            // Show: spawn the window on first toggle, *before* recording the
+            // pane visible — so a hard spawn failure (e.g. daemon trouble) leaves
+            // no phantom-visible slot to render. A missing tool *binary* is not a
+            // spawn failure: the window opens and the process fails visibly inside
+            // it (Q3), exactly like the harness.
+            // No stderr on the alt screen; a hard spawn failure stays put silently
+            // (mirrors `open_or_focus`'s open-must-never-kill-the-TUI posture).
+            if !self.panes.contains_key(&key)
+                && self.spawn_aux(&grove, role, &target.repo_root).await.is_err()
+            {
+                return;
+            }
+            self.aux.show(&grove, role);
+            self.focused = key;
+        }
+        // Detail re-points at the (unchanged) grove and the side column re-tiles;
+        // size the now-visible aux panes to their fresh slots (resize-on-show).
+        self.rebuild_detail();
+        self.resize_visible_aux().await;
+    }
+
+    /// Lazy-spawn the `role` aux pane for `grove` as one detached rmux window
+    /// (Q1 — same mechanism as the harness; only the argv and cwd differ), open
+    /// its render stream onto the shared channel, and insert it into the pane map
+    /// keyed by composite `(grove, role)`. cwd is the grove's worktree (Q3); the
+    /// capture target is the grove, so grooming from an aux pane still targets it.
+    /// Not resized here — the caller sizes it to its side-column slot on show.
+    async fn spawn_aux(&mut self, grove: &str, role: PaneRole, repo_root: &Path) -> Result<()> {
+        let key = PaneKey::Grove {
+            grove: grove.to_string(),
+            role,
+        };
+        let cwd = crate::repo::grove_worktree(repo_root, grove);
+        let window = self
+            .session
+            .new_window_with()
+            .name(format!("{grove}:{}", aux_label(role)))
+            .spawn(aux_argv(role))
+            .cwd(cwd)
+            .detached(true)
+            .await
+            .context("opening an aux window")?;
+        let wp = window
+            .panes()
+            .await
+            .context("listing the new aux window's panes")?
+            .into_iter()
+            .next()
+            .context("new aux window has no pane")?;
+        let pane = self
+            .rmux
+            .pane(wp.target.clone())
+            .await
+            .context("resolving the new aux pane")?;
+        let driver = PaneDriver::new(pane, wp.id);
+        driver
+            .spawn_render_task(key.clone(), self.render_tx.clone())
+            .await
+            .context("opening the aux pane render stream")?;
+        self.panes.insert(
+            key,
+            PaneEntry {
+                driver,
+                state: PaneState::default(),
+                target: Some(CaptureTarget {
+                    name: grove.to_string(),
+                    repo_root: repo_root.to_path_buf(),
+                }),
+            },
+        );
+        Ok(())
+    }
+
+    /// Size each currently-visible aux pane to its side-column slot (resize-on-
+    /// show, Q2 residual): a hidden pane has no `Rect`, so it is sized only when
+    /// it next becomes visible — and showing/hiding any member re-tiles the whole
+    /// column, so every visible aux is re-sized, not just the one that changed.
+    async fn resize_visible_aux(&self) {
+        let layout = composed_layout(Rect::new(0, 0, self.size.0, self.size.1), self.side_count());
+        // side[0] is detail; side[1..] are the aux slots, paired with the visible
+        // aux in the same stack order `render_side_column` zips.
+        let aux_slots = layout.side.get(1..).unwrap_or(&[]);
+        for (slot, key) in aux_slots.iter().zip(self.visible_aux_keys()) {
+            if let Some(entry) = self.panes.get(&key) {
+                let _ = entry
+                    .driver
+                    .pane()
+                    .resize(TerminalSizeSpec::new(slot.width.max(1), slot.height.max(1)))
+                    .await;
+            }
+        }
     }
 
     /// Render the side-column members into their slots: the detail widget into
     /// `slots[0]` (always present, the stable anchor — Q5), then each visible aux
-    /// pane into the slots below it. `detail_focused` accents detail when it holds
-    /// focus. Aux slots are empty until 050/030, so the second loop is a no-op for
-    /// now (it renders whatever the visible-aux list resolves in the pane map).
-    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, detail_focused: bool) {
+    /// pane into the slots below it (term → yazi → vcs). Detail is accented when
+    /// `focus` is [`Focus::Detail`]. Returns the **focused aux pane's** hardware
+    /// cursor (in its slot) when an aux pane holds focus, so the caller can place
+    /// the real cursor there; `None` otherwise. The caller decides whether to use
+    /// it (only when a [`Focus::Pane`] is focused, not detail/modal).
+    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, focus: &Focus) -> Option<(u16, u16)> {
         let Some((detail_slot, aux_slots)) = slots.split_first() else {
-            return; // floored at 1 in composed_layout, but stay panic-free
+            return None; // floored at 1 in composed_layout, but stay panic-free
         };
-        self.detail.render(*detail_slot, buf, detail_focused);
+        self.detail.render(*detail_slot, buf, matches!(focus, Focus::Detail));
+        let mut aux_cursor = None;
         for (slot, key) in aux_slots.iter().zip(self.visible_aux_keys()) {
             if let Some(entry) = self.panes.get(&key) {
-                render_pane(&entry.state, *slot, buf);
+                let cursor = render_pane(&entry.state, *slot, buf);
+                // The focused aux pane (if any) owns the hardware cursor — its
+                // grid is small but it is the input target while focus-followed.
+                if key == self.focused {
+                    aux_cursor = cursor;
+                }
             }
         }
+        aux_cursor
     }
 
     /// Paint one frame for the current [`Focus`]: the surface, then the whichkey
@@ -849,19 +1072,27 @@ impl App {
     /// the pair.
     fn render_surface(&self, focus: &Focus, area: Rect, buf: &mut Buffer) -> Option<(u16, u16)> {
         match focus {
-            // Pane and Detail coexist: render the harness in the left share and the
-            // detail column on the right, accenting whichever holds focus. The
-            // hardware cursor shows only when the *pane* is focused (detail is a
-            // scroll list with no text caret).
+            // Pane and Detail coexist: the **harness** always fills the dominant
+            // left share, the side column (detail + visible aux) the right. Focus
+            // may rest on the harness, on detail, or — focus-followed — on an aux
+            // pane drawn in its side slot; the accent + hardware cursor track it.
+            // The cursor shows only when a *pane* is focused (detail is a scroll
+            // list with no text caret): the aux pane's slot cursor when an aux is
+            // focused, else the harness's.
             Focus::Pane | Focus::Detail => {
                 let layout = composed_layout(area, self.side_count());
-                let cursor = self
+                let left_key = self.left_pane_key();
+                let harness_cursor = self
                     .panes
-                    .get(&self.focused)
+                    .get(&left_key)
                     .and_then(|entry| render_pane(&entry.state, layout.pane, buf));
-                self.render_side_column(&layout.side, buf, matches!(focus, Focus::Detail));
+                let aux_cursor = self.render_side_column(&layout.side, buf, focus);
                 if matches!(focus, Focus::Pane) {
-                    cursor
+                    if self.focused == left_key {
+                        harness_cursor
+                    } else {
+                        aux_cursor
+                    }
                 } else {
                     None
                 }
@@ -871,13 +1102,17 @@ impl App {
                 None
             }
             Focus::Modal { kind, .. } => {
-                // The landmark proof point: draw the composed layout (pane + side
-                // column), then the centered modal *over* it (Clear punches the hole).
+                // The landmark proof point: draw the composed layout (harness +
+                // side column), then the centered modal *over* it (Clear punches
+                // the hole). The harness fills the left share even if focus was on
+                // an aux pane when the modal opened; the side column's cursor is
+                // unused here — the modal owns the caret.
                 let layout = composed_layout(area, self.side_count());
-                if let Some(entry) = self.panes.get(&self.focused) {
+                let left_key = self.left_pane_key();
+                if let Some(entry) = self.panes.get(&left_key) {
                     render_pane(&entry.state, layout.pane, buf);
                 }
-                self.render_side_column(&layout.side, buf, false);
+                self.render_side_column(&layout.side, buf, focus);
                 match kind {
                     ModalKind::Capture => {
                         let label = self
@@ -1041,6 +1276,32 @@ fn write_dump_tempfile(dump: &str) -> Result<tempfile::NamedTempFile> {
     Ok(tmp)
 }
 
+/// The argv a working-set aux pane runs (Q3): `term` = the user's `$SHELL`,
+/// `yazi` = `yazi`, `vcs` = **lazygit** (hardcoded). A missing binary is not
+/// pre-checked — the window opens and the process fails visibly inside the pane
+/// (same posture as the harness). `Harness` never reaches here (it spawns via
+/// [`select_initial_process`] / [`App::open_or_focus`], not the aux path).
+fn aux_argv(role: PaneRole) -> Vec<String> {
+    match role {
+        PaneRole::Term => vec![std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())],
+        PaneRole::Yazi => vec!["yazi".to_string()],
+        // jj detection is a follow-up: grove worktrees are git today, so lazygit
+        // is correct now; lazyjj-vs-lazygit selection is a seam left for later.
+        PaneRole::Vcs => vec!["lazygit".to_string()],
+        PaneRole::Harness => unreachable!("the harness is not an aux role"),
+    }
+}
+
+/// The short role label used in an aux pane's rmux window name (`<grove>:<role>`).
+fn aux_label(role: PaneRole) -> &'static str {
+    match role {
+        PaneRole::Term => "term",
+        PaneRole::Yazi => "yazi",
+        PaneRole::Vcs => "vcs",
+        PaneRole::Harness => "harness",
+    }
+}
+
 /// Absolute path to the running `grove` binary, for `grove do <name>` argv.
 fn grove_exe() -> String {
     std::env::current_exe()
@@ -1157,6 +1418,61 @@ fn spawn_fs_watch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- AuxVisibility: per-grove working-set toggle state (Q6) -------------
+
+    #[test]
+    fn aux_visibility_is_per_grove_and_survives_hide_as_warm() {
+        let mut v = AuxVisibility::default();
+        assert!(!v.is_visible("a", PaneRole::Term), "starts hidden");
+        v.show("a", PaneRole::Term);
+        assert!(v.is_visible("a", PaneRole::Term));
+        // Toggling one grove leaves another untouched — visibility is per-grove,
+        // so switching groves restores *that* grove's set.
+        assert!(!v.is_visible("b", PaneRole::Term), "visibility is per-grove");
+        v.hide("a", PaneRole::Term);
+        assert!(!v.is_visible("a", PaneRole::Term), "hide stops drawing it");
+    }
+
+    #[test]
+    fn aux_visible_roles_use_the_fixed_stack_order_not_toggle_order() {
+        let mut v = AuxVisibility::default();
+        // Toggle on out of order; the stack position is fixed term→yazi→vcs (Q5).
+        v.show("a", PaneRole::Vcs);
+        v.show("a", PaneRole::Term);
+        assert_eq!(
+            v.visible_roles("a"),
+            vec![PaneRole::Term, PaneRole::Vcs],
+            "canonical order regardless of toggle order"
+        );
+        v.show("a", PaneRole::Yazi);
+        assert_eq!(
+            v.visible_roles("a"),
+            vec![PaneRole::Term, PaneRole::Yazi, PaneRole::Vcs]
+        );
+        // A grove never toggled has no visible aux.
+        assert!(v.visible_roles("untouched").is_empty());
+    }
+
+    #[test]
+    fn aux_show_is_idempotent_and_hide_tolerates_absent() {
+        let mut v = AuxVisibility::default();
+        v.show("a", PaneRole::Yazi);
+        v.show("a", PaneRole::Yazi); // no duplicate, no panic
+        assert_eq!(v.visible_roles("a"), vec![PaneRole::Yazi]);
+        v.hide("a", PaneRole::Term); // hiding something never shown is a no-op
+        v.hide("never", PaneRole::Term);
+        assert_eq!(v.visible_roles("a"), vec![PaneRole::Yazi]);
+    }
+
+    #[test]
+    fn aux_argv_resolves_each_role_and_vcs_is_lazygit() {
+        assert_eq!(aux_argv(PaneRole::Yazi), vec!["yazi".to_string()]);
+        // vcs is lazygit (hardcoded; jj detection is a follow-up).
+        assert_eq!(aux_argv(PaneRole::Vcs), vec!["lazygit".to_string()]);
+        // term is a single-element argv (the shell), whatever $SHELL resolves to.
+        assert_eq!(aux_argv(PaneRole::Term).len(), 1);
+    }
 
     #[test]
     fn composed_layout_reserves_the_bottom_footer_row() {

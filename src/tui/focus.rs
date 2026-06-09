@@ -32,8 +32,10 @@
 //! - **[`Focus::LeaderPending`]** — the transient dispatch gate. The leader (from
 //!   any non-modal surface) enters it; the *next* key dispatches: `g`→Nav,
 //!   `d`→Detail, `c`→Capture, `e`→OpenEditor, `q`→Quit, `Esc`/anything-else →
-//!   cancel back to the surface we leadered from (`prior`). The 050 aux-pane keys
-//!   (`t`/`y`/`v`) slot in here later; do not wire panes that don't exist yet.
+//!   cancel back to the surface we leadered from (`prior`). The aux-pane keys
+//!   `t`/`y`/`v` toggle the current grove's term/yazi/vcs panes (050/030) — each
+//!   a toggle-with-focus-follow that lands on [`Focus::Pane`] (the pane on show,
+//!   the harness on hide).
 //!
 //! ## Whichkey lives in the app footer, not here (050/010 verdict)
 //!
@@ -48,6 +50,7 @@ use ratatui::crossterm::event::{
 
 use crate::tui::config::Leader;
 use crate::tui::input::{map_key, KeyToken};
+use crate::tui::pane::PaneRole;
 
 /// Which kind of modal is up. The enum lets a single [`Focus::Modal`] variant
 /// carry several overlays without reshaping the focus type.
@@ -138,6 +141,12 @@ pub enum Action {
     /// leader → `e`. The app suspends the loop, shells out to stock `rmux
     /// capture-pane`, runs the editor, and restores the TUI.
     OpenEditor,
+    /// Toggle a working-set aux pane (term/yazi/vcs) for the current grove
+    /// (050/030): leader → `t`/`y`/`v`. The *decision* — lazy-spawn on first
+    /// show, hide-not-close on toggle-off, focus-follow to the pane on show or
+    /// back to the harness on hide — is all app state the pure table cannot see,
+    /// so the gate just names the role to flip and the app resolves the rest.
+    ToggleAux(PaneRole),
     /// Discard the modal buffer.
     ModalCancel,
     /// Quit the TUI.
@@ -292,6 +301,13 @@ fn arbitrate_pending(prior: &Focus, ev: &Event) -> (Focus, Action) {
                 },
                 Action::Redraw,
             ),
+            // Aux-pane toggles (050/030): show/hide the current grove's
+            // term/yazi/vcs pane. Always land on `Pane` — focus-follows to the
+            // pane on show, returns to the harness on hide (both foreign panes,
+            // so both are `Focus::Pane`); the app resolves which from its state.
+            KeyCode::Char('t') => (Focus::Pane, Action::ToggleAux(PaneRole::Term)),
+            KeyCode::Char('y') => (Focus::Pane, Action::ToggleAux(PaneRole::Yazi)),
+            KeyCode::Char('v') => (Focus::Pane, Action::ToggleAux(PaneRole::Vcs)),
             // Open-in-editor / quit return focus to the prior surface (the editor
             // and quit operate on the app, not on which surface is focused).
             KeyCode::Char('e') => (prior.clone(), Action::OpenEditor),
@@ -522,6 +538,26 @@ mod tests {
             &key_ev(KeyCode::Char('q'), KeyModifiers::NONE),
         );
         assert_eq!(action, Action::Quit);
+    }
+
+    #[test]
+    fn pending_tyv_toggle_the_aux_panes_and_land_on_pane() {
+        // leader → t/y/v flips the current grove's term/yazi/vcs pane. The pure
+        // table can't know visible-vs-hidden, so it names the role and lands on
+        // `Pane` (focus-follow on show / return-to-harness on hide both → Pane).
+        for (ch, role) in [
+            ('t', PaneRole::Term),
+            ('y', PaneRole::Yazi),
+            ('v', PaneRole::Vcs),
+        ] {
+            let (focus, action) = arbitrate(
+                &pending_over(Focus::Detail),
+                &leader(),
+                &key_ev(KeyCode::Char(ch), KeyModifiers::NONE),
+            );
+            assert_eq!(focus, Focus::Pane, "{ch} lands on the pane regardless of prior");
+            assert_eq!(action, Action::ToggleAux(role), "{ch} toggles {role:?}");
+        }
     }
 
     #[test]

@@ -53,14 +53,14 @@ use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::nav::{Nav, NavItem};
-use crate::tui::pane::render_pane;
+use crate::tui::pane::{render_pane, PaneKey};
 
 /// One rmux session per `grove tui`, named deterministically (ADR-0027's
 /// singleton). 050 revisits park-alive / multi-session lifecycle.
 const SESSION_NAME: &str = "grove-fleet";
 
-/// One embedded harness pane and its latest rendered grid. The map value behind
-/// each grove key (and the `"shell"` fallback).
+/// One embedded pane and its latest rendered grid. The map value behind each
+/// composite `(grove, role)` key (and the [`PaneKey::Shell`] fallback).
 struct PaneEntry {
     driver: PaneDriver,
     state: PaneState,
@@ -74,8 +74,9 @@ struct PaneEntry {
 /// (`grove do <name>` in its worktree), or the user's shell when the fleet has
 /// no live groves so `grove tui` still launches with a live pane.
 struct PaneProcess {
-    /// Map key / focus label: the grove name, or `"shell"` for the fallback.
-    key: String,
+    /// Map key / focus identity: the grove's harness role, or [`PaneKey::Shell`]
+    /// for the no-grove fallback.
+    key: PaneKey,
     cwd: PathBuf,
     argv: Vec<String>,
     /// Capture target for this pane (the grove), or `None` for the shell.
@@ -87,10 +88,10 @@ struct PaneProcess {
 struct App {
     rmux: Rmux,
     session: Session,
-    /// Open harness panes by key (grove name, or `"shell"`).
-    panes: HashMap<String, PaneEntry>,
-    /// The currently displayed harness key (the surface to return to from Nav).
-    focused: String,
+    /// Open panes by composite `(grove, role)` key (or [`PaneKey::Shell`]).
+    panes: HashMap<PaneKey, PaneEntry>,
+    /// The currently displayed pane's key (the surface to return to from Nav).
+    focused: PaneKey,
     /// Which surface owns input (E4).
     focus: Focus,
     nav: Nav,
@@ -122,7 +123,7 @@ struct App {
     /// The shared sender every pane's render task clones. Held here so the
     /// render channel never closes while the app lives (a single pane exiting
     /// must not end the loop).
-    render_tx: mpsc::UnboundedSender<(String, PaneSnapshot)>,
+    render_tx: mpsc::UnboundedSender<(PaneKey, PaneSnapshot)>,
 }
 
 pub async fn run_app(args: &TuiArgs) -> Result<()> {
@@ -164,9 +165,9 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         .context("resolving harness pane id")?
         .context("harness pane has no id yet")?;
 
-    // The grove-name → pane map (E3). The nav adds entries as groves are opened.
+    // The (grove, role) → pane map (E3). The nav adds entries as groves are opened.
     let (render_tx, mut render_rx) = mpsc::unbounded_channel();
-    let mut panes: HashMap<String, PaneEntry> = HashMap::new();
+    let mut panes: HashMap<PaneKey, PaneEntry> = HashMap::new();
     let driver = PaneDriver::new(pane, pane_id);
     // Size the harness to the composed layout's pane share (the detail column
     // coexists beside it), not the full terminal — otherwise its grid is clipped.
@@ -190,7 +191,10 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
 
     // --- the nav surface, selection landed on the initially-focused grove ---
     let mut nav = Nav::from_fleet(&fleet);
-    nav.select(&process.key);
+    // The shell fallback has no grove → no nav row to land on (a harmless no-op).
+    if let Some(name) = process.key.grove() {
+        nav.select(name);
+    }
 
     // --- input + fs-watch event sources, surfaced into the select! ---
     let stop = Arc::new(AtomicBool::new(false));
@@ -256,7 +260,7 @@ impl App {
     async fn run(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
-        render_rx: &mut mpsc::UnboundedReceiver<(String, PaneSnapshot)>,
+        render_rx: &mut mpsc::UnboundedReceiver<(PaneKey, PaneSnapshot)>,
         input_rx: &mut mpsc::UnboundedReceiver<Event>,
         watch_rx: &mut mpsc::UnboundedReceiver<()>,
         input_pause: &Arc<AtomicBool>,
@@ -666,8 +670,11 @@ impl App {
     /// one — the no-duplicate-pane guarantee (E3's `grove-name → PaneId` map).
     /// On open, a new detached window runs `grove do <name>` in the worktree.
     async fn open_or_focus(&mut self, item: &NavItem) -> Result<()> {
-        if self.panes.contains_key(&item.name) {
-            self.focused = item.name.clone(); // focus the already-open pane
+        // Nav opens a grove's *harness* pane; aux roles arrive via the leader
+        // gate (050/030). The grove's other role-panes (if any) are distinct keys.
+        let key = PaneKey::harness(item.name.clone());
+        if self.panes.contains_key(&key) {
+            self.focused = key; // focus the already-open pane
             return Ok(());
         }
 
@@ -698,11 +705,11 @@ impl App {
         let (pw, ph) = self.pane_viewport();
         let _ = driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
         driver
-            .spawn_render_task(item.name.clone(), self.render_tx.clone())
+            .spawn_render_task(key.clone(), self.render_tx.clone())
             .await
             .context("opening the harness pane render stream")?;
         self.panes.insert(
-            item.name.clone(),
+            key.clone(),
             PaneEntry {
                 driver,
                 state: PaneState::default(),
@@ -712,7 +719,7 @@ impl App {
                 }),
             },
         );
-        self.focused = item.name.clone();
+        self.focused = key;
         Ok(())
     }
 
@@ -977,7 +984,7 @@ fn select_initial_process(
             .find(|g| g.lifecycle == crate::repo_view::Lifecycle::Live)
         {
             return PaneProcess {
-                key: grove.name.clone(),
+                key: PaneKey::harness(grove.name.clone()),
                 cwd: crate::repo::grove_worktree(&repo.repo_root, &grove.name),
                 argv: vec![grove_exe.to_string(), "do".to_string(), grove.name.clone()],
                 target: Some(CaptureTarget {
@@ -994,7 +1001,7 @@ fn select_initial_process(
         .cloned()
         .unwrap_or_else(|| PathBuf::from("."));
     PaneProcess {
-        key: "shell".to_string(),
+        key: PaneKey::Shell,
         cwd,
         argv: vec![shell],
         target: None,

@@ -19,6 +19,8 @@
 use rmux_sdk::{Pane, PaneId, PaneSnapshot};
 use tokio::sync::mpsc;
 
+use crate::tui::pane::PaneKey;
+
 /// One embedded rmux pane and its stable identity.
 pub struct PaneDriver {
     pane: Pane,
@@ -50,8 +52,8 @@ impl PaneDriver {
     /// process ending.
     pub async fn spawn_render_task(
         &self,
-        key: String,
-        tx: mpsc::UnboundedSender<(String, PaneSnapshot)>,
+        key: PaneKey,
+        tx: mpsc::UnboundedSender<(PaneKey, PaneSnapshot)>,
     ) -> rmux_sdk::Result<()> {
         let mut stream = self.pane.render_stream().await?;
         tokio::spawn(async move {

@@ -80,6 +80,28 @@ the detach+web path is seeded elsewhere; interim parity is reached and the ADR
 tower + `bugs` grove + glossary are torn down. A PRD is written only if an
 increment is a genuine human-facing agreement point.
 
+## Working-set teardown inputs (for 070, promoted on 050-working-set retirement)
+
+The 050-working-set node is **built and retired** (keying → side-column layout →
+aux panes, all on rmux's native park-alive). The full rationale lives in the
+archived node brief (`.grove/done/050-plan-rebuild/050-working-set/BRIEF.md`);
+the **ADR markings 070-teardown must apply** are lifted here so they stay on the
+live path:
+
+- **ADR-0022 — UX survives, two mechanisms dissolve.** Survives: harness-dominant
+  layout + an aux side column + a width breakpoint (now a single ~220-col
+  breakpoint governing column *geometry only*). Dissolves: the constant-nav
+  *region* pin (already retired in 010-surfaces) and *tier-as-mount-time-
+  membership* (membership is now user-driven lazy-toggle, Q3/Q4). Mark **amended /
+  mechanism-superseded, UX survives** — not blanked.
+- **ADR-0023 + ADR-0024 — evaporate wholesale (mechanism-dissolved).** The
+  suppress/restore + `replace_pane`-into-`suppressed_panes` machinery (0023) and
+  the suppress/restore exit-observability (0024) have **no analogue** under the
+  inversion: a pane in a detached rmux window stays alive whether or not grove
+  draws it (park = do nothing). ADR-0024's *concern* survives via the SDK
+  (`render_stream` closing / `Pane::wait_exit()`), not suppress/restore. Mark
+  both **Superseded (mechanism-dissolved)**.
+
 ## Decisions (running log)
 
 **Sequencing + decomposition (050 grilling, this session).** Decompose 050 into

@@ -38,6 +38,7 @@ pub mod editor;
 pub mod focus;
 pub mod footer;
 pub mod input;
+pub mod launch;
 pub mod nav;
 pub mod pane;
 
@@ -47,6 +48,11 @@ use crate::cli::TuiArgs;
 /// tokio runtime (E1 — the async firewall lives behind this call) and drives the
 /// async app to completion. The rest of the `grove` binary stays synchronous.
 pub fn run(args: &TuiArgs) -> anyhow::Result<()> {
+    // Redirect the SDK daemon-spawn + the ADR-0029 `capture-pane` shell-out to
+    // the bundled `rmux` (sibling-of-exe) by setting `RMUX_SDK_DAEMON_BINARY`
+    // (ADR-0030 §3). MUST precede the runtime build: that spawns worker threads,
+    // after which `std::env::set_var` is unsound under Rust 2024.
+    launch::redirect_daemon_binary_to_sibling();
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()

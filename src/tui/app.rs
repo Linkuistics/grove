@@ -52,6 +52,7 @@ use crate::tui::detail::Detail;
 use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
+use crate::tui::launch;
 use crate::tui::nav::{Nav, NavItem};
 use crate::tui::pane::{render_pane, PaneKey, PaneRole};
 
@@ -191,11 +192,22 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
 
     // --- connect/start the daemon and ensure one sized, detached session ---
     let (cols, rows) = ratatui::crossterm::terminal::size().unwrap_or((120, 32));
-    let rmux = Rmux::builder()
+    let rmux = match Rmux::builder()
         .default_timeout(Duration::from_secs(10))
         .connect_or_start()
         .await
-        .context("connecting to / starting the rmux daemon")?;
+    {
+        Ok(rmux) => rmux,
+        // First-run failure: when no `rmux` resolves anywhere (env var → bundled
+        // sibling → PATH), the raw transport error is opaque. Point the user at
+        // the bundled daemon / the override var instead (ADR-0030 §3). A daemon
+        // already running is reachable over its socket without a local binary, so
+        // we only swap in the hint when nothing resolves.
+        Err(e) if !launch::daemon_binary_resolves() => {
+            return Err(e).context(launch::DAEMON_NOT_FOUND_HINT);
+        }
+        Err(e) => return Err(e).context("connecting to / starting the rmux daemon"),
+    };
     let session_name = SessionName::new(SESSION_NAME).expect("valid session name");
     let session = rmux
         .ensure_session(

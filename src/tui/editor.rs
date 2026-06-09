@@ -25,13 +25,8 @@ use std::ffi::OsString;
 use std::process::Command;
 
 use anyhow::{bail, Context, Result};
+use rmux_sdk::bootstrap::discovery::SDK_DAEMON_BINARY_ENV;
 use rmux_sdk::PaneId;
-
-/// The env var the rmux SDK consults to locate its (daemon) binary
-/// (`rmux-sdk` `discovery::SDK_DAEMON_BINARY_ENV`). We resolve the `rmux` CLI the
-/// same way (D-D) so the `capture-pane` shell-out hits the *same* binary that
-/// started the daemon grove is already talking to — dev + 060-bundled alike.
-const RMUX_BINARY_ENV: &str = "RMUX_SDK_DAEMON_BINARY";
 
 /// Build the `capture-pane` argument vector for `pane_id` (D-B): printed (`-p`),
 /// full retained history + visible (`-S -`), soft-wrapped lines rejoined (`-J`),
@@ -69,9 +64,11 @@ pub fn resolve_editor() -> Vec<String> {
 }
 
 /// Resolve the `rmux` binary the SDK's way (D-D): `$RMUX_SDK_DAEMON_BINARY` when
-/// set, else bare `rmux` on `PATH`.
+/// set, else bare `rmux` on `PATH`. grove redirects this var to the bundled
+/// daemon at startup ([`crate::tui::launch`], ADR-0030 §3), so dev + bundled
+/// alike hit the *same* binary the daemon was started from.
 pub fn rmux_binary() -> OsString {
-    std::env::var_os(RMUX_BINARY_ENV).unwrap_or_else(|| "rmux".into())
+    std::env::var_os(SDK_DAEMON_BINARY_ENV).unwrap_or_else(|| "rmux".into())
 }
 
 /// Capture the pane's full rendered history by shelling out to stock `rmux

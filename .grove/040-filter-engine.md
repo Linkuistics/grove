@@ -33,3 +33,20 @@ engaged.
 
 The mode's *interaction* (keys, focus, footer) is 050 — this leaf is the
 engine only, consumable by tests before any key exists.
+
+**Completion notes (2026-06-10):**
+
+- Fuzzy crate: **`nucleo-matcher` 0.3** — Helix's matcher, actively
+  maintained, tiny dep footprint; `fuzzy-matcher` (skim's) rejected as
+  dormant since 2023. A single fuzzy `Atom` (not `Pattern::parse`), so fzf
+  operator syntax (`^`, `!`, `'`) is matched literally, no surprises.
+- Module: `src/tui/filter.rs` (inside the directory wall; imports no
+  ratatui). `Criteria` + `engaged()`, `SortOrder::cycle` /
+  `LifecycleFilter::cycle`, `project(fleet, criteria) → Vec<Ranked>`, with
+  the private `rank()` split out so tests rank hand-built rows without
+  tempdir/git fixtures.
+- Haystack = the row label: `<repo>/<grove>` at N>1, bare name at N=1 (same
+  convention as the nav's flat picker shape) — at a single-repo fleet the
+  repo name doesn't vacuously match every row.
+- `engaged()` is `self != Criteria::default()` — the boundary is
+  "any dimension off its default", including a non-Name sort alone.

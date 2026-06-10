@@ -22,6 +22,9 @@
 //!   - [`input`] — the crossterm → tmux key-map.
 //!   - [`config`] — the configurable leader key.
 //!   - [`nav`] — the minimal grove-list surface: list → open/focus a harness.
+//!   - [`filter`] — the pure filter/sort engine behind the nav's `/` filter
+//!     mode: criteria (needle/toggles/sort) → flat ranked rows (no keys here;
+//!     the interaction is 050).
 //!   - [`detail`] — the per-grove detail panel grove draws from `RepoView`
 //!     (task tree + brief chain + inbox view), a focus peer beside the pane.
 //!   - [`capture`] — the centered capture modal over the live pane (the
@@ -35,6 +38,7 @@ pub mod config;
 pub mod detail;
 pub mod driver;
 pub mod editor;
+pub mod filter;
 pub mod focus;
 pub mod footer;
 pub mod input;

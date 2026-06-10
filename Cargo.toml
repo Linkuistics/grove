@@ -76,6 +76,11 @@ ureq = { version = "2.10", features = ["json"] }
 # 0.5.0 crates; 040 switches the dep to the rendered-history fork (E6/D7).
 ratatui-rmux = "0.5"
 rmux-sdk = "0.5"
+# Fuzzy ranking for the nav's filter mode (rmux-tui-polish 040). Chosen over
+# `fuzzy-matcher` (skim's, dormant since 2023) for active maintenance (it is
+# Helix's matcher) and a tiny dependency footprint. Only imported under
+# `src/tui/` like the other presentation deps.
+nucleo-matcher = "0.3"
 # Async runtime for the TUI draw loop only (E1: async is confined above the
 # presentation seam; the sync core never imports tokio). Multi-thread so each
 # visible pane's `render_stream` task can run on its own worker.

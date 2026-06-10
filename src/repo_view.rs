@@ -50,6 +50,12 @@ pub struct GroveSummary {
     /// Pending observation files at `.grove-meta/inboxes/<name>/` (the
     /// `.gitkeep` placeholder is excluded; only `.md` files are counted).
     pub inbox_pending: usize,
+    /// Recency: unix seconds of the last commit on the grove's branch (the
+    /// worktree's `HEAD`). `None` for `Seed` (no branch) and for live groves
+    /// whose lookup fails — a failure never blocks the scan, same
+    /// silently-skip posture as repo scan failures. Commit time, not file
+    /// mtime: background file touches must not reorder a recency sort.
+    pub last_commit: Option<i64>,
     /// The `worktree` layer: this grove worktree's materialised `VERSION.md`
     /// per relevant harness (the union of repo-installed harnesses and any
     /// harness materialised in the worktree, so legacy and orphan worktrees
@@ -140,6 +146,24 @@ impl RepoView {
         all.extend(live_names.iter().cloned());
         all.extend(inbox_names.iter().cloned());
 
+        // Recency lookups shell out to git (one `log -1` per live grove);
+        // run them on scoped threads so a many-grove repo doesn't serialise
+        // process spawns inside its scan (fleet scans already run one thread
+        // per repo — this keeps the per-repo walk comparably cheap). A
+        // panicked lookup degrades to `None`, the silently-skip posture.
+        let last_commits: BTreeMap<&String, Option<i64>> = std::thread::scope(|s| {
+            live_names
+                .iter()
+                .map(|name| {
+                    let wt = worktrees_dir.join(name);
+                    (name, s.spawn(move || last_commit_unix(&wt)))
+                })
+                .collect::<Vec<_>>()
+                .into_iter()
+                .map(|(name, h)| (name, h.join().unwrap_or(None)))
+                .collect()
+        });
+
         let mut groves = Vec::with_capacity(all.len());
         let mut details = BTreeMap::new();
 
@@ -185,12 +209,15 @@ impl RepoView {
                 }
             }
 
+            let last_commit = last_commits.get(&name).copied().flatten();
+
             groves.push(GroveSummary {
                 name: name.clone(),
                 lifecycle,
                 live_leaves,
                 retired_leaves,
                 inbox_pending,
+                last_commit,
                 worktree_versions,
             });
             details.insert(
@@ -362,6 +389,26 @@ fn sort_key(name: &str) -> (bool, &str) {
     (!has_prefix, name)
 }
 
+/// Unix seconds of the last commit at `worktree`'s `HEAD`, `None` on any
+/// failure. The `.git` guard matters: without it, `git -C` on a leftover
+/// worktree directory (worktree pruned, dir remains) would walk up to the
+/// *enclosing* repo and silently report the wrong branch's commit.
+fn last_commit_unix(worktree: &Path) -> Option<i64> {
+    if !worktree.join(".git").exists() {
+        return None;
+    }
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(worktree)
+        .args(["log", "-1", "--format=%ct"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8(out.stdout).ok()?.trim().parse().ok()
+}
+
 fn list_observations(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut v = Vec::new();
     if !dir.is_dir() {
@@ -422,6 +469,67 @@ mod inline_tests {
             alpha.worktree_versions.get("claude"),
             Some(&Some("3.0.1".to_string()))
         );
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(["-c", "user.email=t@t", "-c", "user.name=t"])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "git {:?} failed in {}", args, dir.display());
+    }
+
+    #[test]
+    fn scan_captures_last_commit_for_live_grove() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        let worktree = repo.join(".grove-worktrees").join("alpha");
+        fs::create_dir_all(&worktree).unwrap();
+        git(&worktree, &["init"]);
+        git(&worktree, &["commit", "--allow-empty", "-m", "first"]);
+
+        let view = RepoView::scan(repo).unwrap();
+        let alpha = view.groves().iter().find(|g| g.name == "alpha").unwrap();
+        let expected: i64 = {
+            let out = std::process::Command::new("git")
+                .args(["-C"])
+                .arg(&worktree)
+                .args(["log", "-1", "--format=%ct"])
+                .output()
+                .unwrap();
+            String::from_utf8(out.stdout).unwrap().trim().parse().unwrap()
+        };
+        assert_eq!(alpha.last_commit, Some(expected));
+    }
+
+    #[test]
+    fn scan_last_commit_none_for_seed() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        // Inbox directory but no worktree: a Seed.
+        fs::create_dir_all(repo.join(".grove-meta/inboxes/seedy")).unwrap();
+
+        let view = RepoView::scan(repo).unwrap();
+        let seedy = view.groves().iter().find(|g| g.name == "seedy").unwrap();
+        assert_eq!(seedy.lifecycle, Lifecycle::Seed);
+        assert_eq!(seedy.last_commit, None);
+    }
+
+    #[test]
+    fn scan_last_commit_none_when_lookup_fails() {
+        let tmp = TempDir::new().unwrap();
+        let repo = tmp.path();
+        // Live worktree directory that is not a git repo/worktree: the
+        // lookup fails, the scan must not.
+        fs::create_dir_all(repo.join(".grove-worktrees").join("broken")).unwrap();
+
+        let view = RepoView::scan(repo).unwrap();
+        let broken = view.groves().iter().find(|g| g.name == "broken").unwrap();
+        assert_eq!(broken.lifecycle, Lifecycle::Live);
+        assert_eq!(broken.last_commit, None);
     }
 
     #[test]

@@ -53,7 +53,8 @@ use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::launch;
-use crate::tui::nav::{Nav, NavItem};
+use crate::repo_view::Lifecycle;
+use crate::tui::nav::{Nav, NavItem, NavRow};
 use crate::tui::pane::{render_pane, PaneKey, PaneRole};
 
 /// One rmux session per `grove tui`, named deterministically (ADR-0027's
@@ -449,15 +450,38 @@ impl App {
                 EventOutcome::Redraw
             }
             Action::NavSelect => {
-                if let Some(item) = self.nav.selected().cloned() {
-                    if let Err(e) = self.open_or_focus(&item).await {
-                        // Opening must never kill the TUI; fall back to the
-                        // prior harness. (No stderr — we're on the alt screen.)
-                        let _ = e;
+                // arbitrate landed the focus on the pane optimistically; only
+                // Enter on a *live grove* actually goes there. On a header or
+                // a seed the app reverts to Nav (the begin_move precedent).
+                match self.nav.selected_row().cloned() {
+                    Some(NavRow::Header { .. }) => {
+                        self.nav.toggle_fold();
+                        self.focus = Focus::Nav;
                     }
+                    Some(NavRow::Grove(item)) if item.lifecycle == Lifecycle::Seed => {
+                        // Inert until 070 wires confirm-and-start; a seed has
+                        // no harness to land on, so stay in the nav.
+                        self.focus = Focus::Nav;
+                    }
+                    Some(NavRow::Grove(item)) => {
+                        if let Err(e) = self.open_or_focus(&item).await {
+                            // Opening must never kill the TUI; fall back to the
+                            // prior harness. (No stderr — we're on the alt screen.)
+                            let _ = e;
+                        }
+                        // The focused grove changed; re-point the detail panel.
+                        self.rebuild_detail();
+                    }
+                    None => {}
                 }
-                // The focused grove changed; re-point the coexisting detail panel.
-                self.rebuild_detail();
+                EventOutcome::Redraw
+            }
+            Action::NavCollapse => {
+                self.nav.collapse();
+                EventOutcome::Redraw
+            }
+            Action::NavExpand => {
+                self.nav.expand();
                 EventOutcome::Redraw
             }
             Action::DetailUp => {
@@ -595,7 +619,7 @@ impl App {
             self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
             return;
         };
-        let mut picker = Nav::from_fleet(&self.fleet);
+        let mut picker = Nav::flat_from_fleet(&self.fleet);
         picker.remove(&source.repo_root, &source.name);
         if picker.selected().is_none() {
             self.focus = Focus::Detail;

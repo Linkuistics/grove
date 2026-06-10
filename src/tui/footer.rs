@@ -42,7 +42,7 @@ pub fn footer_text(focus: &Focus, leader: &Leader) -> Option<String> {
         Focus::LeaderPending { .. } => Some(leader_menu()),
         Focus::Pane => Some(format!("{lead} leader")),
         Focus::Detail => Some(format!("↑/↓ select · x reject · m move · ⎋ pane · {lead} leader")),
-        Focus::Nav => Some(format!("↑/↓ move · ⏎ open · ⎋ pane · {lead} leader")),
+        Focus::Nav => Some(format!("↑/↓ move · h/l fold · ⏎ open · ⎋ pane · {lead} leader")),
         Focus::Modal { .. } => None,
     }
 }

@@ -105,8 +105,18 @@ pub enum Action {
     /// Move the nav selection down one row.
     NavDown,
     /// Open (or focus) the harness for the nav's currently selected grove.
-    /// The app applies the open/focus and lands on the pane.
+    /// The app applies the open/focus and lands on the pane — unless the
+    /// cursor sits on a repo section header (the app toggles its fold and
+    /// reverts the focus to Nav) or a seed (inert until 070 wires the
+    /// confirm-and-start flow). The table cannot see the row kind, so the
+    /// app resolves it — the [`Action::DetailMove`] revert precedent.
     NavSelect,
+    /// Collapse the repo section under the nav cursor (`h`). The fold itself
+    /// lives in the app's `Nav`; a no-op at a single-repo fleet (no headers).
+    NavCollapse,
+    /// Expand the folded repo section under the nav cursor (`l`). Inert on a
+    /// grove row — 060 gives `l` there a meaning (focus into detail).
+    NavExpand,
     /// Move up in the detail panel: the widget interprets this as *select the
     /// previous inbox observation* (when the grove has pending observations) or,
     /// for an empty inbox, *scroll the content up* — a single cursor the widget
@@ -267,7 +277,12 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
                 // app's `Nav`; arbitrate only emits the movement intent.
                 KeyCode::Up | KeyCode::Char('k') => (Focus::Nav, Action::NavUp),
                 KeyCode::Down | KeyCode::Char('j') => (Focus::Nav, Action::NavDown),
+                // Fold the repo section under the cursor (Q6: vim-style h/l).
+                KeyCode::Char('h') => (Focus::Nav, Action::NavCollapse),
+                KeyCode::Char('l') => (Focus::Nav, Action::NavExpand),
                 // Open/focus the selected grove's harness, landing on the pane.
+                // (On a header or seed row the app reverts the focus to Nav —
+                // see [`Action::NavSelect`].)
                 KeyCode::Enter => (Focus::Pane, Action::NavSelect),
                 _ => (Focus::Nav, Action::Ignore),
             }
@@ -746,6 +761,18 @@ mod tests {
             assert_eq!(focus, Focus::Nav);
             assert_eq!(action, Action::NavDown);
         }
+    }
+
+    #[test]
+    fn nav_h_l_fold_the_repo_section_staying_in_nav() {
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('h'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Nav);
+        assert_eq!(action, Action::NavCollapse);
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('l'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Nav);
+        assert_eq!(action, Action::NavExpand);
     }
 
     #[test]

@@ -185,6 +185,28 @@ non-selected harnesses is **050** (here a deselected pane just stays open in the
 background). Distinct from the superseded zellij nav *plugin* (a WASM plugin,
 ADR-0028) — this is a native ratatui surface grove draws itself.
 
+**Filter mode** (rmux-tui-polish, 010-plan):
+the [[nav surface]]'s discrete sort/filter sub-mode — entered with `/` from Nav,
+exited with Enter (accept) or Esc (clear). Inline and live: the list re-ranks as
+the fuzzy needle is typed and the toggles flip (Ctrl-i inbox-pending, Ctrl-l
+lifecycle cycle, Ctrl-s sort cycle). While any dimension is **engaged** the nav
+shows a flat ranked list plus a one-line criteria summary; Esc in normal Nav
+layers — first press clears the engaged filter, second returns to the pane. All
+state is ephemeral per session (constraint 1). Sort cycle: name → recency
+(last-commit timestamp on the grove branch) → inbox-pending count. Avoid the
+alias *sub-modal* (the old-codebase precedent it replaces — the discreteness
+survives, the separate panel does not).
+
+**Live preview** (rmux-tui-polish, 010-plan):
+the inspect-without-harness affordance: while Nav has focus, the [[detail
+widget]] re-points to the *highlighted* grove as the cursor moves — reading a
+grove's task tree / briefs / inbox never spawns its harness. Tab (or `l` on a
+grove row) moves focus into detail; Esc there returns to Nav (detail remembers
+it was entered from Nav, unlike the pane-entered path). A previewed **seed**
+shows its pending observations (it has no task tree); Enter on a seed starts
+the grove behind a y/n confirm. Avoid the alias *peek key* (the rejected
+explicit-keystroke variant).
+
 **Rendered-history capture** (rmux-substrate, 040; ADR-0029):
 the clean, emulator-**rendered** scrollback of a harness pane (history rows + visible
 screen), as opposed to raw `line_stream` ANSI bytes. The source of truth is the rmux

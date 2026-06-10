@@ -1,6 +1,9 @@
 # 17. Interactive `$EDITOR` runs on the dashboard proxy's tty via a framed down control verb
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — there is no proxy tty and no `RunEditor` control
+  frame: open-in-editor is a direct suspend-loop + `$EDITOR` over `rmux
+  capture-pane` (ADR-0029). Mechanism gone.
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove 060 build, leaf 040/020-controller-loop)
 - Refines: ADR-0016 (dashboard surfaces are dumb-terminal proxies)

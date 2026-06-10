@@ -1,6 +1,10 @@
 # 20. Fork zellij into grove's own TUI framework (deep hard fork, extract-later)
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — the deep zellij hard-fork (trellis) is **retired
+  entirely**; grove depends on stock published rmux 0.5.0 (no fork) and
+  `crates/trellis/` is deleted. This is the fork the grove exists to retire.
+  Premise + mechanism gone.
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/090 planning)
 - Supersedes: ADR-0015 (owned but **unmodified, installed** zellij)

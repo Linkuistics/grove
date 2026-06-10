@@ -1,6 +1,9 @@
 # 16. Dashboard surfaces are dumb-terminal proxies to one controlling process
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — the dumb-terminal-proxy / controlling-process /
+  socket-seam model dissolves: grove draws its own surfaces as ratatui widgets,
+  with no controller↔proxy wire. Premise + mechanism gone.
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove 060 design)
 - Refines: ADR-0015 (grove-owned zellij substrate)

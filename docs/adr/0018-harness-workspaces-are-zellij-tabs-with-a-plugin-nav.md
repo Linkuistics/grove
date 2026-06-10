@@ -1,6 +1,9 @@
 # 18. Harness workspaces are zellij tabs, navigated by a plugin nav
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — no zellij tabs and no WASM plugin nav: grove
+  draws a native ratatui nav surface and owns its layout directly. Premise +
+  mechanism gone.
 - Date: 2026-06-02
 - Deciders: Antony Blakey (with grove 060 design)
 - Amends: ADR-0016 (dashboard surfaces are dumb-terminal proxies — no longer

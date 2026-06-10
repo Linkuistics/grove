@@ -1,6 +1,10 @@
 # 27. The TUI is config-only — the cwd git-repo anchor is removed
 
-- Status: accepted
+- Status: accepted — **survives; realisation amended** by
+  [ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4
+  (rmux substrate, 2026-06-10). The config-only, no-cwd-anchor model is **untouched**;
+  the singleton fleet session it set (`grove-fleet`, §4 below) is now realised as a
+  persistent **rmux** session (`CreateOrReuse`) rather than a zellij one. Not superseded.
 - Date: 2026-06-05
 - Deciders: Antony Blakey (grove `fleet-only-tui` 010-plan grilling)
 - Amends: ADR-0025 §3 (current repo always included) — removed; ADR-0026

@@ -1,6 +1,9 @@
 # 21. trellis hosting-API is library-you-link (grove owns `main`)
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — there is no trellis hosting API to link: grove
+  owns `main` and its own ratatui draw loop, and rmux (a separate daemon) owns
+  the ptys. Premise + mechanism gone.
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/100/030 spike)
 - Builds on: ADR-0020 (deep hard fork; this resolves the hosting-API shape that

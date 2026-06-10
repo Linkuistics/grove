@@ -9,7 +9,15 @@ the `RepoView`/`MultiRepoView` data layer, harness driving, and shell-out writes
 preserved option, not a rejected one.
 
 ## Status
-accepted
+accepted — **amended (not superseded) by [ADR-0028](0028-rmux-substrate.md)** (rmux
+substrate, 2026-06-10). The core↔presentation boundary **survives and is
+strengthened**: ADR-0028 E2 promotes it from "module placement + review" to a literal
+directory wall (`src/tui/` may import ratatui/rmux/tokio; nothing outside may), and E1
+amends the "async is the entry toll, paid only if/when web is chosen" prediction below
+— the rmux SDK brings `tokio` forward **now**, but the boundary contains it as a
+runtime firewall (the sync core is called directly, `spawn_blocking` for slow writes).
+The boundary's purpose (optionality — a future web surface is a second presentation,
+not a rewrite) is intact.
 
 ## Why the TUI now
 The comparison is recorded in full in

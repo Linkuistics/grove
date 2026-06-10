@@ -1,6 +1,8 @@
 # 19. The nav opens workspaces itself; grove detail lives per-workspace
 
-- Status: accepted
+- Status: accepted — **mechanism superseded by [ADR-0028](0028-rmux-substrate.md);
+  UX intent survives** (rmux substrate, 2026-06-10, 070-teardown D4; per the
+  050-plan-rebuild/010-surfaces verdict)
 - Date: 2026-06-02
 - Deciders: Antony Blakey (with grove 060 design)
 - Supersedes: ADR-0018's **split-driving back-channel** (the nav no longer
@@ -8,6 +10,15 @@
   framing
 - Amends: ADR-0016 (the controller now renders **N per-grove detail proxies**, one
   per open workspace, not a single home dashboard)
+
+> **rmux-substrate verdict (070-teardown, D4; per 050-plan-rebuild/010-surfaces).**
+> The *UX* survives: the nav stays always-reachable and per-grove detail stays
+> scoped to its grove. The *realisations dissolve* — the N dumb `grove __dash-proxy`
+> detail proxies, the controller socket seam, and the `RunEditor` frame become a
+> single ratatui detail **widget** grove draws from `RepoView` (030-detail-widget);
+> the "nav opens the workspace itself via the plugin API" becomes the leader-dispatch
+> gate (`leader → g`); the constant-nav *region* pin gives way to "reachable via the
+> leader" (020-leader-dispatch). Annotated, not blanked.
 
 ## Context
 

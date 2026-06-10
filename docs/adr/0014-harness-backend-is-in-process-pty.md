@@ -1,6 +1,8 @@
 # 14. Harness backend is an in-process pty embedded in Ratatui
 
-- Status: superseded by ADR-0015
+- Status: superseded by ADR-0015 — and the entire substrate tower this began
+  (ADR-0014→0026) is dissolved by [ADR-0028](0028-rmux-substrate.md), the rmux
+  substrate (2026-06-10, rmux-substrate 070-teardown, D4)
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove spike 050)
 

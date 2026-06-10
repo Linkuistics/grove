@@ -1,6 +1,8 @@
 # 22. Harness UX is a constant nav + a swapped content region (no tab-per-grove)
 
-- Status: accepted
+- Status: accepted — **mechanism superseded by [ADR-0028](0028-rmux-substrate.md);
+  UX intent survives** (rmux substrate, 2026-06-10, 070-teardown D4; per the
+  050-plan-rebuild/050-working-set verdict)
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/130 decompose)
 - Supersedes: the **tab-per-grove realisation** of ADR-0018 (grove = zellij tab,
@@ -10,6 +12,14 @@
   **carried forward**; only "a grove is a tab, switched by `GoToTab`" is replaced.
 - Builds on: ADR-0020 (native fork — grove renders in-process) and ADR-0021
   (library-you-link host API; the host pane is grove's third pane kind).
+
+> **rmux-substrate verdict (070-teardown, D4; per 050-plan-rebuild/050-working-set).**
+> The *UX* survives: a harness-dominant layout, an aux side column, and a width
+> breakpoint (now a single ~220-col breakpoint governing column **geometry only**).
+> Two *mechanisms* dissolve: the constant-nav **region** pin (already retired in
+> 010-surfaces — nav is reachable via the leader, not pinned on screen) and
+> **tier-as-mount-time-membership** (membership is now user-driven lazy-toggle plus
+> always-on detail, not chosen by tier at mount). Annotated, not blanked.
 
 ## Context
 

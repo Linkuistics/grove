@@ -1,6 +1,10 @@
 # 23. Content-swap is in-place `replace_pane` into a `suppressed_panes` slot
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4; mechanism-dissolved) — the `suppressed_panes` +
+  in-place `replace_pane` park machinery has **no analogue**: under rmux a pane in
+  a detached window stays alive in the daemon whether or not grove draws it, so
+  "park" is just "don't draw it this frame". The mechanism evaporates wholesale.
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/130/010 spike)
 - Builds on: ADR-0022 (constant nav + swapped content region — this ADR fixes the

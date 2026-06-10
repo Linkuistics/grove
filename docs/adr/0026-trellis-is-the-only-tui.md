@@ -1,6 +1,9 @@
 # 26. trellis is the only TUI — local dashboard and `trellis-seam` gate removed
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4) — trellis itself is removed (`crates/trellis/`
+  deleted), so "trellis is the only TUI" is moot: rmux is the substrate and grove
+  draws a native nav. Premise + mechanism gone.
 - Date: 2026-06-05
 - Deciders: Antony Blakey (grove `grove-always-starts-in-local-mode`)
 - Amends: ADR-0020 / ADR-0021 (trellis as the native, supported TUI) — by

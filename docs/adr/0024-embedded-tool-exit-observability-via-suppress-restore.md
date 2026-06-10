@@ -1,6 +1,10 @@
 # 24. Embedded-tool exit observability reuses suppress/restore + a host-pane signal
 
-- Status: accepted
+- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
+  2026-06-10, 070-teardown D4; mechanism-dissolved) — suppress/restore
+  exit-observability evaporates with the park machinery (ADR-0023). The *concern*
+  — knowing when a wrapped tool exits — survives via the SDK (`render_stream`
+  closing / `Pane::wait_exit()`), not suppress/restore.
 - Date: 2026-06-04
 - Deciders: Antony Blakey (with grove 060/040/130/030 build)
 - Builds on: ADR-0020 §6 (first-class observability of wrapped tools — this is its

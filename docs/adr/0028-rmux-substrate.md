@@ -18,6 +18,12 @@
 - Builds on / amends: ADR-0013 (presentation boundary — promoted to a literal
   directory wall, see E2; its async-as-web-toll prediction is amended, see E1)
   and ADR-0027 (singleton fleet session name).
+- Amended by: ADR-0029 (the D7/E6 rendered-history *fork* is abandoned — capture
+  comes from shelling out to the stock `rmux capture-pane` CLI, so the "Remaining
+  engine-adjacent work" §040-rmux-history fork plan below is retracted) and ADR-0030
+  (E6's daemon bundling is settled: a from-source, version-locked **stock** rmux,
+  no fork). The per-ADR `Superseded` sweep this ADR deferred (D4) is done in
+  070-teardown (2026-06-10).
 
 ## Context
 

@@ -1,6 +1,9 @@
 # 25. Fleet repo discovery is a manifest file plus optional scan roots
 
-- Status: accepted
+- Status: accepted — **survives untouched** under the rmux substrate
+  ([ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4):
+  fleet repo discovery lives **below** the presentation boundary (it feeds
+  `MultiRepoView`), so the substrate swap does not touch it. Not superseded.
 - Date: 2026-06-04
 - Deciders: Antony Blakey (with grove 070 fleet-view planning)
 - Builds on: ADR-0013 (presentation boundary — discovery lives below it, feeding

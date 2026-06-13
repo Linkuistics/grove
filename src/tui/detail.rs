@@ -367,6 +367,22 @@ mod tests {
         (tmp, view)
     }
 
+    /// A **seed**-shaped grove: an inbox with observations but no worktree
+    /// `.grove/` (lifecycle Seed → [`GroveDetail::task_tree`] is `None`). The 060
+    /// live preview must render this inbox-only state cleanly.
+    fn seed_view_with_inbox(obs: &[&str]) -> (TempDir, RepoView) {
+        let tmp = TempDir::new().unwrap();
+        // No `.grove-worktrees/g` — the grove exists only as an inbox.
+        fs::create_dir_all(tmp.path().join(".grove-worktrees")).unwrap();
+        let inbox = tmp.path().join(".grove-meta").join("inboxes").join("g");
+        fs::create_dir_all(&inbox).unwrap();
+        for o in obs {
+            fs::write(inbox.join(o), "an observation\n").unwrap();
+        }
+        let view = RepoView::scan(tmp.path()).unwrap();
+        (tmp, view)
+    }
+
     fn buffer_text(buf: &Buffer) -> String {
         let area = buf.area;
         let mut s = String::new();
@@ -442,6 +458,29 @@ mod tests {
         assert!(text.contains("inbox (2)"), "got:\n{text}");
         assert!(text.contains("first.md"), "got:\n{text}");
         assert!(text.contains("second.md"), "got:\n{text}");
+    }
+
+    #[test]
+    fn a_seed_previews_its_inbox_without_a_task_tree() {
+        // 060: a highlighted seed (no worktree) still previews its observations.
+        let (_tmp, view) = seed_view_with_inbox(&["2026-06-10-1-note.md", "2026-06-10-2-idea.md"]);
+        let mut detail = Detail::new();
+        detail.show(Some("g"), view.grove("g"));
+        let area = Rect::new(0, 0, 50, 20);
+        let mut buf = Buffer::empty(area);
+        detail.render(area, &mut buf, false);
+        let text = buffer_text(&buf);
+        // The inbox previews even though the grove has no task tree …
+        assert!(text.contains("inbox (2)"), "got:\n{text}");
+        assert!(text.contains("note.md"), "got:\n{text}");
+        assert!(text.contains("idea.md"), "got:\n{text}");
+        // … and the brief/task sections degrade to the no-tree hint, never panic.
+        assert!(text.contains("no .grove/ yet"), "got:\n{text}");
+        // The selected observation resolves, so grooming (x/m) acts on the seed.
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-10-1-note.md"
+        );
     }
 
     #[test]

@@ -18,7 +18,7 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Clear, Paragraph, Widget};
 
 use crate::tui::config::Leader;
-use crate::tui::focus::Focus;
+use crate::tui::focus::{DetailOrigin, Focus};
 
 /// The leader dispatch menu, shown while [`Focus::LeaderPending`]: the keys the
 /// gate routes (mirrors the [`arbitrate`](crate::tui::focus::arbitrate) table),
@@ -33,7 +33,8 @@ pub fn leader_menu() -> String {
 ///
 /// - [`Focus::LeaderPending`] → the live [`leader_menu`].
 /// - The home [`Focus::Pane`] → how to open the gate.
-/// - [`Focus::Detail`] → its in-surface keys + the gate.
+/// - [`Focus::Detail`] → its in-surface keys + the gate; the `⎋` target names
+///   where the panel returns (the pane, or the nav for a 060 live preview).
 /// - [`Focus::Nav`] → its keys; when a filter is `engaged` the hint swaps fold →
 ///   `/` re-filter and Esc → clear (the layered Esc's first rung, 050 Q5).
 /// - [`Focus::Filter`] → the in-mode key hints (toggles + accept/clear).
@@ -48,7 +49,13 @@ pub fn footer_text(focus: &Focus, leader: &Leader, engaged: bool) -> Option<Stri
     match focus {
         Focus::LeaderPending { .. } => Some(leader_menu()),
         Focus::Pane => Some(format!("{lead} leader")),
-        Focus::Detail => Some(format!("↑/↓ select · x reject · m move · ⎋ pane · {lead} leader")),
+        Focus::Detail { origin } => {
+            let back = match origin {
+                DetailOrigin::Pane => "pane",
+                DetailOrigin::Nav => "nav",
+            };
+            Some(format!("↑/↓ select · x reject · m move · ⎋ {back} · {lead} leader"))
+        }
         Focus::Nav if engaged => {
             Some(format!("↑/↓ move · ⏎ open · / filter · ⎋ clear · {lead} leader"))
         }
@@ -86,7 +93,7 @@ pub fn render_footer(focus: &Focus, leader: &Leader, engaged: bool, area: Rect, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tui::focus::ModalKind;
+    use crate::tui::focus::{DetailOrigin, ModalKind};
 
     fn leader() -> Leader {
         Leader::alt_g()
@@ -133,13 +140,19 @@ mod tests {
     }
 
     #[test]
-    fn detail_text_offers_grooming_and_the_pane_return() {
-        let text = footer_text(&Focus::Detail, &leader(), false).expect("detail has a footer");
-        assert!(text.contains("select"), "detail hint shows select: {text}");
-        assert!(text.contains("reject"), "detail hint shows reject: {text}");
-        assert!(text.contains("move"), "detail hint shows move: {text}");
-        assert!(text.contains("pane"), "detail hint offers ⎋ pane: {text}");
-        assert!(text.contains("⌥g"), "detail hint still names the leader: {text}");
+    fn detail_text_offers_grooming_and_the_origin_aware_return() {
+        let pane = footer_text(&Focus::Detail { origin: DetailOrigin::Pane }, &leader(), false)
+            .expect("detail has a footer");
+        assert!(pane.contains("select"), "detail hint shows select: {pane}");
+        assert!(pane.contains("reject"), "detail hint shows reject: {pane}");
+        assert!(pane.contains("move"), "detail hint shows move: {pane}");
+        assert!(pane.contains("⎋ pane"), "pane-entered detail offers ⎋ pane: {pane}");
+        assert!(pane.contains("⌥g"), "detail hint still names the leader: {pane}");
+
+        // The 060 live preview returns to the nav, and the hint says so.
+        let nav = footer_text(&Focus::Detail { origin: DetailOrigin::Nav }, &leader(), false)
+            .expect("detail has a footer");
+        assert!(nav.contains("⎋ nav"), "nav-entered detail offers ⎋ nav: {nav}");
     }
 
     #[test]

@@ -52,7 +52,7 @@ use crate::tui::detail::Detail;
 use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
 use crate::tui::filter_mode::FilterMode;
-use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
+use crate::tui::focus::{arbitrate, Action, DetailOrigin, Focus, ModalKind};
 use crate::tui::launch;
 use crate::repo_view::Lifecycle;
 use crate::tui::nav::{Nav, NavItem, NavRow};
@@ -156,8 +156,11 @@ struct App {
     /// `nav`'s, over the flat ranked list the 040 engine projects. Ephemeral per
     /// session (constraint 1).
     filter: FilterMode,
-    /// The per-grove detail panel (050/030), re-pointed at the focused pane's
-    /// grove and rebuilt from the fleet snapshot on every fs-watch tick.
+    /// The per-grove detail panel (050/030), rebuilt from the fleet snapshot
+    /// before every paint and re-pointed at its current
+    /// [`subject`](App::detail_subject): the focused pane's grove during pane
+    /// work, or the nav-*highlighted* grove while the nav owns focus (060 live
+    /// preview).
     detail: Detail,
     /// The fleet snapshot the nav renders from; re-scanned on fs-watch ticks.
     fleet: MultiRepoView,
@@ -344,6 +347,12 @@ impl App {
         let mut needs_redraw = true;
         loop {
             if needs_redraw {
+                // Re-point the detail panel at its current subject before every
+                // paint (060): while the nav owns focus that is the *highlighted*
+                // grove (live preview re-points as the cursor moves), otherwise
+                // the focused pane's grove. One call site keeps it consistent;
+                // [`Detail::show`] preserves scroll when the grove is unchanged.
+                self.rebuild_detail();
                 self.draw(terminal)?;
                 needs_redraw = false;
             }
@@ -504,9 +513,30 @@ impl App {
                 }
                 EventOutcome::Redraw
             }
-            Action::NavExpand => {
-                if !self.filter.engaged() {
+            Action::NavPeek => {
+                // Tab → detail live preview (060). arbitrate optimistically set
+                // Detail{Nav}; revert to Nav when the cursor has nothing to read
+                // (a header, or an empty list). The preview itself re-points via
+                // `rebuild_detail` before the paint.
+                if !self.peek_has_subject() {
+                    self.focus = Focus::Nav;
+                }
+                EventOutcome::Redraw
+            }
+            Action::NavPeekOrExpand => {
+                // `l` → preview on a grove row, expand the fold on a header. The
+                // table optimistically landed on Detail{Nav}; resolve the row kind
+                // here (the [`Action::NavSelect`] revert precedent).
+                if self.filter.engaged() {
+                    // The ranked list has no headers; behave like NavPeek.
+                    if self.filter.selected().is_none() {
+                        self.focus = Focus::Nav;
+                    }
+                } else if matches!(self.nav.selected_row(), Some(NavRow::Header { .. })) {
+                    self.focus = Focus::Nav;
                     self.nav.expand();
+                } else if self.nav.selected().is_none() {
+                    self.focus = Focus::Nav; // empty list — nothing to preview
                 }
                 EventOutcome::Redraw
             }
@@ -621,7 +651,9 @@ impl App {
         if body.trim().is_empty() {
             return;
         }
-        let Some(target) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+        // Capture targets the grove the user is looking at (060): the previewed
+        // grove while the nav owns focus, else the focused pane's grove.
+        let Some(target) = self.detail_subject() else {
             self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
             return;
         };
@@ -647,7 +679,9 @@ impl App {
         let Some(obs) = self.detail.selected_observation().cloned() else {
             return;
         };
-        let Some(target) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+        // Grooming acts on the grove detail is showing (060): a nav-previewed
+        // grove with no pane open still grooms correctly.
+        let Some(target) = self.detail_subject() else {
             self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
             return;
         };
@@ -671,19 +705,27 @@ impl App {
     /// or, when there is nothing to move or nowhere to move it, revert the focus
     /// back to Detail so no empty picker is shown.
     fn begin_move(&mut self) {
+        // arbitrate set focus to the move-picker modal over Detail{origin}; if we
+        // bail, revert to that same detail surface so its Esc origin survives.
+        let detail_focus = match &self.focus {
+            Focus::Modal { prior, .. } => (**prior).clone(),
+            other => other.clone(),
+        };
         let Some(obs) = self.detail.selected_observation().cloned() else {
-            self.focus = Focus::Detail; // empty inbox — nothing selected
+            self.focus = detail_focus; // empty inbox — nothing selected
             return;
         };
-        let Some(source) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
-            self.focus = Focus::Detail;
+        // The source is the grove detail is showing (060) — the nav-previewed
+        // grove when there is no pane open, not the focused pane's.
+        let Some(source) = self.detail_subject() else {
+            self.focus = detail_focus;
             self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
             return;
         };
         let mut picker = Nav::flat_from_fleet(&self.fleet);
         picker.remove(&source.repo_root, &source.name);
         if picker.selected().is_none() {
-            self.focus = Focus::Detail;
+            self.focus = detail_focus;
             self.toast = Some(CaptureOutcome::Failed("no other grove to move to".into()));
             return;
         }
@@ -703,7 +745,8 @@ impl App {
             self.toast = Some(CaptureOutcome::Failed("no target grove selected".into()));
             return;
         };
-        let Some(source) = self.panes.get(&self.focused).and_then(|e| e.target.clone()) else {
+        // Same subject begin_move armed from (stable while the picker is up).
+        let Some(source) = self.detail_subject() else {
             self.toast = Some(CaptureOutcome::Failed("no grove focused".into()));
             return;
         };
@@ -930,13 +973,14 @@ impl App {
         self.rebuild_detail();
     }
 
-    /// Point the detail panel at the focused pane's grove, using the current
-    /// fleet snapshot. The bare-shell pane (no grove target) shows the empty
-    /// "no grove" state. Re-pointing to a different grove resets detail's scroll;
-    /// refreshing the same grove preserves it (see [`Detail::show`]).
+    /// Point the detail panel at its current [`subject`](Self::detail_subject),
+    /// using the current fleet snapshot. No subject (bare shell / a header / an
+    /// empty list) shows the empty "no grove" state. Re-pointing to a different
+    /// grove resets detail's scroll; refreshing the same grove preserves it (see
+    /// [`Detail::show`]). A seed resolves too — its `GroveDetail` has no task tree
+    /// but a populated inbox, so the panel previews the inbox-only state (060).
     fn rebuild_detail(&mut self) {
-        let target = self.panes.get(&self.focused).and_then(|e| e.target.clone());
-        match target {
+        match self.detail_subject() {
             Some(t) => {
                 let grove = self
                     .fleet
@@ -948,6 +992,45 @@ impl App {
             }
             None => self.detail.show(None, None),
         }
+    }
+
+    /// The grove the detail panel currently shows — and the grove every
+    /// grove-targeted action (capture, reject, move) acts on (060). While the nav
+    /// owns focus (or a nav-originated detail / a modal over one), it is the
+    /// *highlighted* grove (the live preview, no harness spawn); otherwise the
+    /// focused pane's grove (the pre-060 pane-coupling, restored when focus
+    /// returns to a pane). `None` for a header row, an empty list, or the bare
+    /// shell.
+    fn detail_subject(&self) -> Option<CaptureTarget> {
+        if focus_follows_nav(&self.focus) {
+            self.nav_highlighted_target()
+        } else {
+            self.panes.get(&self.focused).and_then(|e| e.target.clone())
+        }
+    }
+
+    /// The grove the nav cursor highlights, as a capture target: the ranked
+    /// cursor when a filter is engaged, else the grouped selection. `None` on a
+    /// header row or an empty list. Seeds resolve like live groves (preview-only).
+    fn nav_highlighted_target(&self) -> Option<CaptureTarget> {
+        if self.filter.engaged() {
+            self.filter.selected().map(|r| CaptureTarget {
+                name: r.name.clone(),
+                repo_root: r.repo_root.clone(),
+            })
+        } else {
+            self.nav.selected().map(|item| CaptureTarget {
+                name: item.name.clone(),
+                repo_root: item.repo_root.clone(),
+            })
+        }
+    }
+
+    /// Whether the nav currently highlights a grove worth previewing (Tab / `l`):
+    /// a grove row in the grouped nav, or a ranked match in the engaged filter. A
+    /// header row or an empty list has nothing to inspect.
+    fn peek_has_subject(&self) -> bool {
+        self.nav_highlighted_target().is_some()
     }
 
     /// The harness pane's size under the composed layout (the dominant left share
@@ -1124,15 +1207,15 @@ impl App {
     /// Render the side-column members into their slots: the detail widget into
     /// `slots[0]` (always present, the stable anchor — Q5), then each visible aux
     /// pane into the slots below it (term → yazi → vcs). Detail is accented when
-    /// `focus` is [`Focus::Detail`]. Returns the **focused aux pane's** hardware
-    /// cursor (in its slot) when an aux pane holds focus, so the caller can place
-    /// the real cursor there; `None` otherwise. The caller decides whether to use
-    /// it (only when a [`Focus::Pane`] is focused, not detail/modal).
-    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, focus: &Focus) -> Option<(u16, u16)> {
+    /// `detail_focused`. Returns the **focused aux pane's** hardware cursor (in
+    /// its slot) when an aux pane holds focus, so the caller can place the real
+    /// cursor there; `None` otherwise. The caller decides whether to use it (only
+    /// when a [`Focus::Pane`] is focused, not detail/modal).
+    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, detail_focused: bool) -> Option<(u16, u16)> {
         let Some((detail_slot, aux_slots)) = slots.split_first() else {
             return None; // floored at 1 in composed_layout, but stay panic-free
         };
-        self.detail.render(*detail_slot, buf, matches!(focus, Focus::Detail));
+        self.detail.render(*detail_slot, buf, detail_focused);
         let mut aux_cursor = None;
         for (slot, key) in aux_slots.iter().zip(self.visible_aux_keys()) {
             if let Some(entry) = self.panes.get(&key) {
@@ -1188,78 +1271,114 @@ impl App {
         Ok(())
     }
 
+    /// Render the **working set** surface (the pre-060 composed layout): the
+    /// grove's harness in the dominant left pane and the side column (detail +
+    /// visible aux) on the right. `detail_focused` accents the detail border;
+    /// `pane_cursor` returns the focused pane's hardware cursor (the harness, or a
+    /// focus-followed aux pane) — used only when a [`Focus::Pane`] is focused (a
+    /// detail/modal surface has no pane caret).
+    fn render_working_set(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        detail_focused: bool,
+        pane_cursor: bool,
+    ) -> Option<(u16, u16)> {
+        let layout = composed_layout(area, self.side_count());
+        let left_key = self.left_pane_key();
+        let harness_cursor = self
+            .panes
+            .get(&left_key)
+            .and_then(|entry| render_pane(&entry.state, layout.pane, buf));
+        let aux_cursor = self.render_side_column(&layout.side, buf, detail_focused);
+        if pane_cursor {
+            if self.focused == left_key {
+                harness_cursor
+            } else {
+                aux_cursor
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Render the **nav + live-preview** surface (060): the grove list (or the
+    /// ranked filter list when engaged / being typed) fills the dominant left
+    /// pane, and the detail widget previews the highlighted grove in the side
+    /// column's top slot. No harness/aux — a nav surface hides the focused grove's
+    /// panes (it is a file-manager list+preview, not the working set). The detail
+    /// panel is re-pointed by [`rebuild_detail`] before the paint, so moving the
+    /// nav cursor re-previews live. `detail_focused` accents the detail border
+    /// (focus moved *into* the preview via Tab / `l`); `typing` shows the needle
+    /// caret ([`Focus::Filter`]) and is returned so the App places the cursor.
+    fn render_nav_preview(
+        &self,
+        area: Rect,
+        buf: &mut Buffer,
+        detail_focused: bool,
+        typing: bool,
+    ) -> Option<(u16, u16)> {
+        let layout = composed_layout(area, 1); // nav + detail only — no aux
+        let caret = if typing || self.filter.engaged() {
+            // Engaged → the flat ranked list (+ criteria line); a caret only while
+            // actively typing the needle.
+            self.filter.render(layout.pane, buf, typing)
+        } else {
+            self.nav.render(layout.pane, buf);
+            None
+        };
+        if let Some(detail_slot) = layout.side.first() {
+            self.detail.render(*detail_slot, buf, detail_focused);
+        }
+        caret
+    }
+
     /// Render one focus surface into `buf`, returning where the hardware cursor
     /// belongs (the pane's cursor, or the modal's text caret), or `None`. Never
     /// receives [`Focus::LeaderPending`] — the caller unwraps that to its `prior`.
     ///
-    /// The composed surfaces ([`Focus::Pane`]/[`Focus::Detail`], and the modal
-    /// drawn over them) tile the content region into the harness pane (left) and
-    /// the coexisting side column (right: detail + any aux slots) via
-    /// [`composed_layout`]; [`Focus::Nav`] is a flip-to full surface that hides
-    /// the pair.
+    /// Two surface families tile the content region (both via [`composed_layout`],
+    /// with the footer row reserved): the **working set** ([`Focus::Pane`] and
+    /// pane-entered [`Focus::Detail`]) — harness left, side column right — and the
+    /// **nav preview** ([`Focus::Nav`], [`Focus::Filter`], and nav-entered
+    /// [`Focus::Detail`], the 060 live preview) — the grove list left, the
+    /// highlighted grove's detail right. A modal draws whichever its `prior` was,
+    /// then the centered overlay on top.
     fn render_surface(&self, focus: &Focus, area: Rect, buf: &mut Buffer) -> Option<(u16, u16)> {
         match focus {
-            // Pane and Detail coexist: the **harness** always fills the dominant
-            // left share, the side column (detail + visible aux) the right. Focus
-            // may rest on the harness, on detail, or — focus-followed — on an aux
-            // pane drawn in its side slot; the accent + hardware cursor track it.
-            // The cursor shows only when a *pane* is focused (detail is a scroll
-            // list with no text caret): the aux pane's slot cursor when an aux is
-            // focused, else the harness's.
-            Focus::Pane | Focus::Detail => {
-                let layout = composed_layout(area, self.side_count());
-                let left_key = self.left_pane_key();
-                let harness_cursor = self
-                    .panes
-                    .get(&left_key)
-                    .and_then(|entry| render_pane(&entry.state, layout.pane, buf));
-                let aux_cursor = self.render_side_column(&layout.side, buf, focus);
-                if matches!(focus, Focus::Pane) {
-                    if self.focused == left_key {
-                        harness_cursor
-                    } else {
-                        aux_cursor
-                    }
+            // Working set: the cursor shows only when a *pane* is focused (detail
+            // is a scroll list with no text caret).
+            Focus::Pane => self.render_working_set(area, buf, false, true),
+            Focus::Detail {
+                origin: DetailOrigin::Pane,
+            } => self.render_working_set(area, buf, true, false),
+            // Nav preview (060): the list on the left, the highlighted grove's
+            // detail on the right. Detail is accented once focus moves into it.
+            Focus::Nav => self.render_nav_preview(area, buf, false, false),
+            Focus::Detail {
+                origin: DetailOrigin::Nav,
+            } => self.render_nav_preview(area, buf, true, false),
+            Focus::Filter => self.render_nav_preview(area, buf, false, true),
+            Focus::Modal { kind, prior } => {
+                // Draw the surface the modal opened over (working set or nav
+                // preview, per `prior`), then the centered modal *over* it (Clear
+                // punches the hole). The underlying cursor is unused — the modal
+                // owns the caret.
+                let detail_focused = matches!(**prior, Focus::Detail { .. });
+                if focus_follows_nav(prior) {
+                    self.render_nav_preview(area, buf, detail_focused, false);
                 } else {
-                    None
+                    self.render_working_set(area, buf, detail_focused, false);
                 }
-            }
-            Focus::Nav => {
-                // Engaged → the flat ranked list (+ criteria line); idle → the
-                // grouped nav. `false`: not actively typing, so no caret.
-                if self.filter.engaged() {
-                    self.filter.render(area, buf, false);
-                } else {
-                    self.nav.render(area, buf);
-                }
-                None
-            }
-            Focus::Filter => {
-                // Actively typing: the ranked list with the live needle prompt and
-                // its caret (returned so the App places the hardware cursor).
-                self.filter.render(area, buf, true)
-            }
-            Focus::Modal { kind, .. } => {
-                // The landmark proof point: draw the composed layout (harness +
-                // side column), then the centered modal *over* it (Clear punches
-                // the hole). The harness fills the left share even if focus was on
-                // an aux pane when the modal opened; the side column's cursor is
-                // unused here — the modal owns the caret.
-                let layout = composed_layout(area, self.side_count());
-                let left_key = self.left_pane_key();
-                if let Some(entry) = self.panes.get(&left_key) {
-                    render_pane(&entry.state, layout.pane, buf);
-                }
-                self.render_side_column(&layout.side, buf, focus);
                 match kind {
                     ModalKind::Capture => {
+                        // The capture targets the grove the user is looking at
+                        // (the detail subject), so name *that* grove in the modal.
                         let label = self
-                            .panes
-                            .get(&self.focused)
-                            .and_then(|e| e.target.as_ref())
-                            .map(|t| t.name.as_str())
-                            .unwrap_or("(no grove)");
-                        self.capture.render(area, buf, label)
+                            .detail_subject()
+                            .map(|t| t.name)
+                            .unwrap_or_else(|| "(no grove)".to_string());
+                        self.capture.render(area, buf, &label)
                     }
                     ModalKind::MovePicker => {
                         // The move-target picker: the fleet's grove list (source
@@ -1361,15 +1480,34 @@ fn composed_layout(area: Rect, side_count: usize) -> ComposedLayout {
     ComposedLayout { pane, side, footer }
 }
 
+/// Whether `focus` is a **nav surface** — one that previews the nav-highlighted
+/// grove rather than the focused pane's grove (060). True for Nav and its `/`
+/// filter sub-mode, a nav-originated [`Focus::Detail`] (the live preview), and
+/// any gate/modal layered over one of those; false for a pane and a pane-entered
+/// detail. Drives both [`App::detail_subject`] (which grove detail shows) and
+/// which underlying surface a modal/preview renders behind itself.
+fn focus_follows_nav(focus: &Focus) -> bool {
+    match focus {
+        Focus::Nav | Focus::Filter => true,
+        Focus::Detail { origin } => matches!(origin, DetailOrigin::Nav),
+        Focus::Modal { prior, .. } | Focus::LeaderPending { prior } => focus_follows_nav(prior),
+        Focus::Pane => false,
+    }
+}
+
 /// Whether the focused pane is visible on the current surface (so a background
-/// render push should trigger a repaint). Nav hides the pane; a gate inherits its
-/// `prior`'s visibility.
+/// render push should trigger a repaint). Nav and the 060 nav-preview detail hide
+/// the pane; a gate/modal inherits the surface it opened over.
 fn surface_shows_pane(focus: &Focus) -> bool {
     match focus {
-        Focus::Pane | Focus::Detail | Focus::Modal { .. } => true,
+        Focus::Pane => true,
+        // Pane-entered detail keeps the working set (harness) behind it; the 060
+        // nav-preview detail shows nav + detail with no pane.
+        Focus::Detail { origin } => matches!(origin, DetailOrigin::Pane),
+        // A modal/gate inherits the visibility of the surface it sits over.
+        Focus::Modal { prior, .. } | Focus::LeaderPending { prior } => surface_shows_pane(prior),
         // Nav and its `/` filter sub-mode are flip-to surfaces that hide the pane.
         Focus::Nav | Focus::Filter => false,
-        Focus::LeaderPending { prior } => surface_shows_pane(prior),
     }
 }
 

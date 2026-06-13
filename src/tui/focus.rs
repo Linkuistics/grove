@@ -21,8 +21,9 @@
 //!   050 aux term/yazi/vcs panes tomorrow). Which pane is focused lives in the
 //!   app's `self.focused` map key — the focus type does not name it.
 //! - **[`Focus::Detail`]** — the per-grove detail panel, a focus peer beside the
-//!   pane. The widget itself is 030/040; here the *transition* is wired (`Esc`
-//!   returns to the pane; in-surface keys arrive once the widget exists).
+//!   pane. Carries a [`DetailOrigin`]: entered from a pane (leader → `d`) `Esc`
+//!   returns to the pane; entered from the nav (Tab / `l`, the 060 live preview)
+//!   `Esc` returns to the nav. The widget itself is 030/040.
 //! - **[`Focus::Nav`]** — grove's grove-list surface. Its in-surface keys
 //!   (`j`/`k`/arrows move, `Enter` opens, `Esc` returns to the pane) stay; the
 //!   former leader-prefixed actions (`c`/`e`/`q`) have moved onto the gate.
@@ -64,14 +65,31 @@ pub enum ModalKind {
     MovePicker,
 }
 
+/// How a [`Focus::Detail`] was entered — the seam the 060 live preview needs so
+/// the detail panel's `Esc` returns to the surface the user came from, while
+/// [`arbitrate`] stays a pure function (the origin rides in the focus value, not
+/// in mutable app state).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DetailOrigin {
+    /// Entered via the leader gate from a pane (`leader → d`): `Esc` → the pane.
+    Pane,
+    /// Entered from the nav (Tab, or `l` on a grove row): the file-manager live
+    /// preview (Q7). `Esc` → the nav, not the pane — detail remembers it came
+    /// from the nav.
+    Nav,
+}
+
 /// Which surface currently owns keyboard input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Focus {
     /// A focused foreign rmux pane (forward everything but the leader). The app's
     /// `self.focused` says *which* pane; the focus type is pane-agnostic.
     Pane,
-    /// The per-grove detail panel (a focus peer beside the pane).
-    Detail,
+    /// The per-grove detail panel (a focus peer beside the pane). `origin` records
+    /// how it was entered (see [`DetailOrigin`]): it decides where `Esc` returns
+    /// and, in the app, whether detail follows the focused pane's grove or the
+    /// nav-highlighted one (the 060 live preview).
+    Detail { origin: DetailOrigin },
     /// grove's grove-list surface.
     Nav,
     /// The nav's **filter mode** (rmux-tui-polish 050): entered with `/` from
@@ -123,9 +141,16 @@ pub enum Action {
     /// Collapse the repo section under the nav cursor (`h`). The fold itself
     /// lives in the app's `Nav`; a no-op at a single-repo fleet (no headers).
     NavCollapse,
-    /// Expand the folded repo section under the nav cursor (`l`). Inert on a
-    /// grove row — 060 gives `l` there a meaning (focus into detail).
-    NavExpand,
+    /// Enter the detail **live preview** from the nav (060): `Tab`. The app
+    /// focuses the detail panel on the highlighted grove; on a header or an empty
+    /// list there is nothing to inspect, so it reverts to Nav (the [`NavSelect`]
+    /// revert precedent — the pure table can't see the row kind).
+    NavPeek,
+    /// `l` from the nav (060): on a grove row enter the detail live preview (like
+    /// [`NavPeek`]); on a header expand its fold (the vim-fold idiom `l` carried
+    /// from 030). The app resolves the row kind, expanding and reverting to Nav
+    /// for the header case.
+    NavPeekOrExpand,
     /// `Esc` in normal Nav — the **layered Esc** (050 Q5). The table can't see
     /// whether a filter is engaged (App state), so it optimistically lands on the
     /// pane; the App reverts to Nav and clears the filter when one *was* engaged
@@ -197,7 +222,7 @@ pub enum Action {
 pub fn arbitrate(focus: &Focus, leader: &Leader, ev: &Event) -> (Focus, Action) {
     match focus {
         Focus::Pane => arbitrate_pane(leader, ev),
-        Focus::Detail => arbitrate_detail(leader, ev),
+        Focus::Detail { origin } => arbitrate_detail(*origin, leader, ev),
         Focus::Nav => arbitrate_nav(leader, ev),
         Focus::Filter => arbitrate_filter(ev),
         Focus::Modal { kind: ModalKind::Capture, prior } => arbitrate_modal(prior, ev),
@@ -247,42 +272,53 @@ fn arbitrate_pane(leader: &Leader, ev: &Event) -> (Focus, Action) {
     }
 }
 
-/// The per-grove detail panel. The leader opens the gate (remembering Detail);
-/// `Esc` returns to the home pane; `j`/`k` (or arrows) move within the panel
-/// (select an inbox observation, or scroll — the widget resolves which). The two
-/// **grooming** keys act on the selected observation: `x` rejects it (stays in
-/// Detail), `m` opens the move-target picker (a [`ModalKind::MovePicker`] modal
-/// that restores Detail on cancel). Any other key is inert (not forwarded to the
-/// pane — detail owns focus while up).
-fn arbitrate_detail(leader: &Leader, ev: &Event) -> (Focus, Action) {
+/// The per-grove detail panel. The leader opens the gate (remembering Detail and
+/// its `origin`); `Esc` returns to where the panel was entered from — the pane
+/// (leader → `d`) or the nav (Tab / `l`, the 060 live preview); `j`/`k` (or
+/// arrows) move within the panel (select an inbox observation, or scroll — the
+/// widget resolves which). The two **grooming** keys act on the selected
+/// observation: `x` rejects it (stays in Detail), `m` opens the move-target
+/// picker (a [`ModalKind::MovePicker`] modal that restores Detail on cancel).
+/// Any other key is inert (not forwarded to the pane — detail owns focus).
+fn arbitrate_detail(origin: DetailOrigin, leader: &Leader, ev: &Event) -> (Focus, Action) {
+    let here = Focus::Detail { origin };
     match ev {
         Event::Key(key) if is_press(key) => {
             if leader.matches(key) {
                 return (
                     Focus::LeaderPending {
-                        prior: Box::new(Focus::Detail),
+                        prior: Box::new(here),
                     },
                     Action::Redraw,
                 );
             }
             match key.code {
-                KeyCode::Esc => (Focus::Pane, Action::Redraw),
-                KeyCode::Down | KeyCode::Char('j') => (Focus::Detail, Action::DetailDown),
-                KeyCode::Up | KeyCode::Char('k') => (Focus::Detail, Action::DetailUp),
+                // The origin-aware return: nav-preview detail goes back to the
+                // nav, pane-entered detail back to the pane (Q7).
+                KeyCode::Esc => {
+                    let back = match origin {
+                        DetailOrigin::Pane => Focus::Pane,
+                        DetailOrigin::Nav => Focus::Nav,
+                    };
+                    (back, Action::Redraw)
+                }
+                KeyCode::Down | KeyCode::Char('j') => (here, Action::DetailDown),
+                KeyCode::Up | KeyCode::Char('k') => (here, Action::DetailUp),
                 // Grooming: reject stays in Detail; move opens the target picker
                 // (the app reverts the focus if there is nothing selected to move).
-                KeyCode::Char('x') => (Focus::Detail, Action::DetailReject),
+                // The modal's prior keeps the origin so cancel lands back here.
+                KeyCode::Char('x') => (here, Action::DetailReject),
                 KeyCode::Char('m') => (
                     Focus::Modal {
                         kind: ModalKind::MovePicker,
-                        prior: Box::new(Focus::Detail),
+                        prior: Box::new(here),
                     },
                     Action::DetailMove,
                 ),
-                _ => (Focus::Detail, Action::Ignore),
+                _ => (here, Action::Ignore),
             }
         }
-        _ => (Focus::Detail, Action::Ignore),
+        _ => (here, Action::Ignore),
     }
 }
 
@@ -314,7 +350,24 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
                 KeyCode::Down | KeyCode::Char('j') => (Focus::Nav, Action::NavDown),
                 // Fold the repo section under the cursor (Q6: vim-style h/l).
                 KeyCode::Char('h') => (Focus::Nav, Action::NavCollapse),
-                KeyCode::Char('l') => (Focus::Nav, Action::NavExpand),
+                // `l` is row-kind-dependent (060): a grove row enters the detail
+                // live preview, a header expands its fold. The pure table can't
+                // see the row kind, so it optimistically lands on Detail{Nav} and
+                // the app reverts to Nav (expanding) on a header.
+                KeyCode::Char('l') => (
+                    Focus::Detail {
+                        origin: DetailOrigin::Nav,
+                    },
+                    Action::NavPeekOrExpand,
+                ),
+                // Tab enters the detail live preview (060); the app reverts to Nav
+                // when the cursor sits on a header / empty list (nothing to read).
+                KeyCode::Tab => (
+                    Focus::Detail {
+                        origin: DetailOrigin::Nav,
+                    },
+                    Action::NavPeek,
+                ),
                 // Open/focus the selected grove's harness, landing on the pane.
                 // (On a header or seed row the app reverts the focus to Nav —
                 // see [`Action::NavSelect`].)
@@ -383,7 +436,17 @@ fn arbitrate_pending(prior: &Focus, ev: &Event) -> (Focus, Action) {
     match ev {
         Event::Key(key) if is_press(key) => match key.code {
             KeyCode::Char('g') => (Focus::Nav, Action::Redraw),
-            KeyCode::Char('d') => (Focus::Detail, Action::Redraw),
+            // Detail's `Esc`-return origin is sticky through the gate: leadering
+            // from the nav (or a nav-preview detail) keeps the Nav origin, so
+            // `Esc` still returns to the nav; from a pane it returns to the pane.
+            KeyCode::Char('d') => {
+                let origin = match prior {
+                    Focus::Nav => DetailOrigin::Nav,
+                    Focus::Detail { origin } => *origin,
+                    _ => DetailOrigin::Pane,
+                };
+                (Focus::Detail { origin }, Action::Redraw)
+            }
             // The capture modal restores the surface we leadered from on cancel.
             KeyCode::Char('c') => (
                 Focus::Modal {
@@ -520,6 +583,10 @@ mod tests {
         }
     }
 
+    fn detail(origin: DetailOrigin) -> Focus {
+        Focus::Detail { origin }
+    }
+
     fn capture_over(prior: Focus) -> Focus {
         Focus::Modal {
             kind: ModalKind::Capture,
@@ -587,14 +654,33 @@ mod tests {
     }
 
     #[test]
-    fn pending_d_dispatches_to_detail() {
+    fn pending_d_dispatches_to_detail_with_a_pane_origin() {
+        // Leadered from a pane → detail's Esc origin is the pane.
         let (focus, action) = arbitrate(
             &pending_over(Focus::Pane),
             &leader(),
             &key_ev(KeyCode::Char('d'), KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Detail);
+        assert_eq!(focus, detail(DetailOrigin::Pane));
         assert_eq!(action, Action::Redraw);
+    }
+
+    #[test]
+    fn pending_d_from_nav_keeps_the_nav_origin() {
+        // Leadered from the nav → detail's Esc returns to the nav, not the pane.
+        let (focus, _) = arbitrate(
+            &pending_over(Focus::Nav),
+            &leader(),
+            &key_ev(KeyCode::Char('d'), KeyModifiers::NONE),
+        );
+        assert_eq!(focus, detail(DetailOrigin::Nav));
+        // And the origin is sticky if we leadered from a nav-preview detail.
+        let (focus, _) = arbitrate(
+            &pending_over(detail(DetailOrigin::Nav)),
+            &leader(),
+            &key_ev(KeyCode::Char('d'), KeyModifiers::NONE),
+        );
+        assert_eq!(focus, detail(DetailOrigin::Nav));
     }
 
     #[test]
@@ -602,11 +688,11 @@ mod tests {
         // Leadered from Detail → the capture modal's prior is Detail, so cancel
         // returns there, not to the pane.
         let (focus, action) = arbitrate(
-            &pending_over(Focus::Detail),
+            &pending_over(detail(DetailOrigin::Pane)),
             &leader(),
             &key_ev(KeyCode::Char('c'), KeyModifiers::NONE),
         );
-        assert_eq!(focus, capture_over(Focus::Detail));
+        assert_eq!(focus, capture_over(detail(DetailOrigin::Pane)));
         assert_eq!(action, Action::Redraw);
     }
 
@@ -642,7 +728,7 @@ mod tests {
             ('v', PaneRole::Vcs),
         ] {
             let (focus, action) = arbitrate(
-                &pending_over(Focus::Detail),
+                &pending_over(detail(DetailOrigin::Pane)),
                 &leader(),
                 &key_ev(KeyCode::Char(ch), KeyModifiers::NONE),
             );
@@ -687,51 +773,73 @@ mod tests {
 
     #[test]
     fn detail_leader_enters_pending_remembering_detail() {
-        let (focus, action) = arbitrate(&Focus::Detail, &leader(), &leader_ev());
-        assert_eq!(focus, pending_over(Focus::Detail));
+        let (focus, action) = arbitrate(&detail(DetailOrigin::Pane), &leader(), &leader_ev());
+        assert_eq!(focus, pending_over(detail(DetailOrigin::Pane)));
         assert_eq!(action, Action::Redraw);
     }
 
     #[test]
-    fn detail_esc_returns_to_pane() {
-        let (focus, action) =
-            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Esc, KeyModifiers::NONE));
-        assert_eq!(focus, Focus::Pane);
+    fn detail_pane_origin_esc_returns_to_pane() {
+        let (focus, action) = arbitrate(
+            &detail(DetailOrigin::Pane),
+            &leader(),
+            &key_ev(KeyCode::Esc, KeyModifiers::NONE),
+        );
+        assert_eq!(focus, Focus::Pane, "pane-entered detail Esc's back to the pane");
+        assert_eq!(action, Action::Redraw);
+    }
+
+    #[test]
+    fn detail_nav_origin_esc_returns_to_nav() {
+        // The 060 live-preview leg: detail entered from the nav remembers it and
+        // Esc returns to the nav, not the pane.
+        let (focus, action) = arbitrate(
+            &detail(DetailOrigin::Nav),
+            &leader(),
+            &key_ev(KeyCode::Esc, KeyModifiers::NONE),
+        );
+        assert_eq!(focus, Focus::Nav, "nav-entered detail Esc's back to the nav");
         assert_eq!(action, Action::Redraw);
     }
 
     #[test]
     fn detail_jk_and_arrows_move_within_the_widget() {
+        let here = detail(DetailOrigin::Pane);
         for code in [KeyCode::Down, KeyCode::Char('j')] {
-            let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
-            assert_eq!(focus, Focus::Detail);
+            let (focus, action) = arbitrate(&here, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, here);
             assert_eq!(action, Action::DetailDown);
         }
         for code in [KeyCode::Up, KeyCode::Char('k')] {
-            let (focus, action) = arbitrate(&Focus::Detail, &leader(), &key_ev(code, KeyModifiers::NONE));
-            assert_eq!(focus, Focus::Detail);
+            let (focus, action) = arbitrate(&here, &leader(), &key_ev(code, KeyModifiers::NONE));
+            assert_eq!(focus, here);
             assert_eq!(action, Action::DetailUp);
         }
     }
 
     #[test]
     fn detail_x_rejects_the_selected_observation_in_place() {
+        let here = detail(DetailOrigin::Nav);
         let (focus, action) =
-            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('x'), KeyModifiers::NONE));
-        assert_eq!(focus, Focus::Detail, "reject stays in the detail panel");
+            arbitrate(&here, &leader(), &key_ev(KeyCode::Char('x'), KeyModifiers::NONE));
+        assert_eq!(focus, here, "reject stays in the detail panel (preserving origin)");
         assert_eq!(action, Action::DetailReject);
     }
 
     #[test]
-    fn detail_m_opens_the_move_picker_modal_over_detail() {
-        let (focus, action) =
-            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('m'), KeyModifiers::NONE));
-        // The picker's prior is Detail, so cancel returns there.
+    fn detail_m_opens_the_move_picker_modal_preserving_origin() {
+        // Grooming a nav-previewed grove: the picker's prior is Detail{Nav}, so
+        // cancel returns to the preview, not to a pane.
+        let (focus, action) = arbitrate(
+            &detail(DetailOrigin::Nav),
+            &leader(),
+            &key_ev(KeyCode::Char('m'), KeyModifiers::NONE),
+        );
         assert_eq!(
             focus,
             Focus::Modal {
                 kind: ModalKind::MovePicker,
-                prior: Box::new(Focus::Detail),
+                prior: Box::new(detail(DetailOrigin::Nav)),
             }
         );
         assert_eq!(action, Action::DetailMove);
@@ -740,9 +848,10 @@ mod tests {
     #[test]
     fn detail_swallows_other_unmapped_keys() {
         // A key with no in-surface meaning is inert (not forwarded to the pane).
+        let here = detail(DetailOrigin::Pane);
         let (focus, action) =
-            arbitrate(&Focus::Detail, &leader(), &key_ev(KeyCode::Char('z'), KeyModifiers::NONE));
-        assert_eq!(focus, Focus::Detail);
+            arbitrate(&here, &leader(), &key_ev(KeyCode::Char('z'), KeyModifiers::NONE));
+        assert_eq!(focus, here);
         assert_eq!(action, Action::Ignore);
     }
 
@@ -757,22 +866,23 @@ mod tests {
 
     #[test]
     fn move_picker_jk_and_arrows_move_the_selection_and_stay() {
+        let prior = detail(DetailOrigin::Pane);
         for code in [KeyCode::Down, KeyCode::Char('j')] {
             let (focus, action) = arbitrate(
-                &move_picker_over(Focus::Detail),
+                &move_picker_over(prior.clone()),
                 &leader(),
                 &key_ev(code, KeyModifiers::NONE),
             );
-            assert_eq!(focus, move_picker_over(Focus::Detail));
+            assert_eq!(focus, move_picker_over(prior.clone()));
             assert_eq!(action, Action::MovePickerDown);
         }
         for code in [KeyCode::Up, KeyCode::Char('k')] {
             let (focus, action) = arbitrate(
-                &move_picker_over(Focus::Detail),
+                &move_picker_over(prior.clone()),
                 &leader(),
                 &key_ev(code, KeyModifiers::NONE),
             );
-            assert_eq!(focus, move_picker_over(Focus::Detail));
+            assert_eq!(focus, move_picker_over(prior.clone()));
             assert_eq!(action, Action::MovePickerUp);
         }
     }
@@ -780,31 +890,31 @@ mod tests {
     #[test]
     fn move_picker_enter_commits_and_returns_to_detail() {
         let (focus, action) = arbitrate(
-            &move_picker_over(Focus::Detail),
+            &move_picker_over(detail(DetailOrigin::Pane)),
             &leader(),
             &key_ev(KeyCode::Enter, KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Detail);
+        assert_eq!(focus, detail(DetailOrigin::Pane));
         assert_eq!(action, Action::MovePickerSelect);
     }
 
     #[test]
     fn move_picker_esc_cancels_back_to_detail() {
         let (focus, action) = arbitrate(
-            &move_picker_over(Focus::Detail),
+            &move_picker_over(detail(DetailOrigin::Pane)),
             &leader(),
             &key_ev(KeyCode::Esc, KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Detail);
+        assert_eq!(focus, detail(DetailOrigin::Pane));
         assert_eq!(action, Action::ModalCancel);
     }
 
     #[test]
     fn move_picker_swallows_the_leader() {
         // The picker owns focus; the leader is just another swallowed key.
-        let (focus, action) =
-            arbitrate(&move_picker_over(Focus::Detail), &leader(), &leader_ev());
-        assert_eq!(focus, move_picker_over(Focus::Detail));
+        let prior = detail(DetailOrigin::Pane);
+        let (focus, action) = arbitrate(&move_picker_over(prior.clone()), &leader(), &leader_ev());
+        assert_eq!(focus, move_picker_over(prior));
         assert_eq!(action, Action::Ignore);
     }
 
@@ -851,15 +961,30 @@ mod tests {
     }
 
     #[test]
-    fn nav_h_l_fold_the_repo_section_staying_in_nav() {
+    fn nav_h_collapses_staying_in_nav() {
         let (focus, action) =
             arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('h'), KeyModifiers::NONE));
         assert_eq!(focus, Focus::Nav);
         assert_eq!(action, Action::NavCollapse);
+    }
+
+    #[test]
+    fn nav_l_optimistically_enters_detail_and_lets_the_app_resolve_the_row() {
+        // `l` is row-kind-dependent (060): the pure table lands on Detail{Nav}
+        // and emits NavPeekOrExpand; the app keeps the preview on a grove row or
+        // reverts to Nav + expands on a header.
         let (focus, action) =
             arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('l'), KeyModifiers::NONE));
-        assert_eq!(focus, Focus::Nav);
-        assert_eq!(action, Action::NavExpand);
+        assert_eq!(focus, detail(DetailOrigin::Nav));
+        assert_eq!(action, Action::NavPeekOrExpand);
+    }
+
+    #[test]
+    fn nav_tab_enters_the_detail_live_preview() {
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Tab, KeyModifiers::NONE));
+        assert_eq!(focus, detail(DetailOrigin::Nav));
+        assert_eq!(action, Action::NavPeek);
     }
 
     #[test]

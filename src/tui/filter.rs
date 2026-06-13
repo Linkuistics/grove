@@ -53,6 +53,16 @@ impl SortOrder {
             SortOrder::InboxPending => SortOrder::Name,
         }
     }
+
+    /// The short label for the 050 criteria summary line. `Name` is the idle
+    /// default, so the summary omits it (only a non-default sort is a *chip*).
+    pub fn label(self) -> &'static str {
+        match self {
+            SortOrder::Name => "name",
+            SortOrder::Recency => "recency",
+            SortOrder::InboxPending => "pending",
+        }
+    }
 }
 
 /// The lifecycle dimension, cycled by Ctrl-l (050). `All` is the idle default.
@@ -79,6 +89,16 @@ impl LifecycleFilter {
             LifecycleFilter::All => true,
             LifecycleFilter::Live => lifecycle == Lifecycle::Live,
             LifecycleFilter::Seed => lifecycle == Lifecycle::Seed,
+        }
+    }
+
+    /// The short label for the 050 criteria summary line. `All` is the idle
+    /// default, so the summary omits it (only a narrowing lifecycle is a *chip*).
+    pub fn label(self) -> &'static str {
+        match self {
+            LifecycleFilter::All => "all",
+            LifecycleFilter::Live => "live",
+            LifecycleFilter::Seed => "seed",
         }
     }
 }
@@ -257,6 +277,16 @@ mod tests {
         let s = s.cycle();
         assert_eq!(s, SortOrder::InboxPending);
         assert_eq!(s.cycle(), SortOrder::Name);
+    }
+
+    #[test]
+    fn labels_name_the_non_default_dimensions() {
+        // The defaults (name / all) carry a label too, but the 050 summary omits
+        // them — only a non-default value is a chip (see [`FilterMode::summary`]).
+        assert_eq!(SortOrder::Recency.label(), "recency");
+        assert_eq!(SortOrder::InboxPending.label(), "pending");
+        assert_eq!(LifecycleFilter::Live.label(), "live");
+        assert_eq!(LifecycleFilter::Seed.label(), "seed");
     }
 
     #[test]

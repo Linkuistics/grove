@@ -49,6 +49,7 @@ use ratatui::crossterm::event::{
 };
 
 use crate::tui::config::Leader;
+use crate::tui::filter_mode::FilterEdit;
 use crate::tui::input::{map_key, KeyToken};
 use crate::tui::pane::PaneRole;
 
@@ -73,6 +74,14 @@ pub enum Focus {
     Detail,
     /// grove's grove-list surface.
     Nav,
+    /// The nav's **filter mode** (rmux-tui-polish 050): entered with `/` from
+    /// [`Focus::Nav`], a text-entry sub-mode where keys edit the fuzzy needle and
+    /// the toggles (Ctrl-i/l/s) live-re-rank the list. `Enter` accepts (back to
+    /// [`Focus::Nav`], criteria kept), `Esc` clears (back to Nav, idle). The live
+    /// [`Criteria`](crate::tui::filter::Criteria) and the ranked cursor are App
+    /// state ([`crate::tui::filter_mode::FilterMode`]); this variant only says we
+    /// are typing a filter.
+    Filter,
     /// A focus overlay; restores `prior` on cancel/submit.
     Modal {
         kind: ModalKind,
@@ -117,6 +126,26 @@ pub enum Action {
     /// Expand the folded repo section under the nav cursor (`l`). Inert on a
     /// grove row — 060 gives `l` there a meaning (focus into detail).
     NavExpand,
+    /// `Esc` in normal Nav — the **layered Esc** (050 Q5). The table can't see
+    /// whether a filter is engaged (App state), so it optimistically lands on the
+    /// pane; the App reverts to Nav and clears the filter when one *was* engaged
+    /// (the [`Action::NavSelect`] revert precedent). First Esc clears, second
+    /// returns to the pane.
+    NavEsc,
+    /// Enter the nav's `/` filter mode (050): the App reprojects so the ranked
+    /// list is fresh, then the user types. Preserves any existing needle/toggles
+    /// (re-entering after accept), since only [`Action::FilterClear`] resets them.
+    FilterEnter,
+    /// Apply one in-mode edit to the live criteria (typed needle char/paste,
+    /// backspace, or a Ctrl-i/l/s toggle). The App folds it in, reprojects, and
+    /// snaps the cursor to the top row (fzf — the leaf's Notes).
+    FilterEdit(FilterEdit),
+    /// `Enter` in filter mode: accept and return to [`Focus::Nav`] with the
+    /// criteria kept engaged (the nav now browses the ranked list).
+    FilterAccept,
+    /// `Esc` in filter mode: clear every dimension and return to [`Focus::Nav`]
+    /// idle (the nav reverts to its grouped shape).
+    FilterClear,
     /// Move up in the detail panel: the widget interprets this as *select the
     /// previous inbox observation* (when the grove has pending observations) or,
     /// for an empty inbox, *scroll the content up* — a single cursor the widget
@@ -170,6 +199,7 @@ pub fn arbitrate(focus: &Focus, leader: &Leader, ev: &Event) -> (Focus, Action) 
         Focus::Pane => arbitrate_pane(leader, ev),
         Focus::Detail => arbitrate_detail(leader, ev),
         Focus::Nav => arbitrate_nav(leader, ev),
+        Focus::Filter => arbitrate_filter(ev),
         Focus::Modal { kind: ModalKind::Capture, prior } => arbitrate_modal(prior, ev),
         Focus::Modal { kind: ModalKind::MovePicker, prior } => arbitrate_move_picker(prior, ev),
         Focus::LeaderPending { prior } => arbitrate_pending(prior, ev),
@@ -272,9 +302,14 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
                 );
             }
             match key.code {
-                KeyCode::Esc => (Focus::Pane, Action::Redraw),
+                // Layered Esc (050 Q5): optimistically lands on the pane; the App
+                // reverts to Nav + clears when a filter was engaged (NavEsc).
+                KeyCode::Esc => (Focus::Pane, Action::NavEsc),
+                // `/` enters the filter sub-mode, preserving any prior needle.
+                KeyCode::Char('/') => (Focus::Filter, Action::FilterEnter),
                 // List navigation: arrows or vim j/k. The selection lives in the
-                // app's `Nav`; arbitrate only emits the movement intent.
+                // app's `Nav` (or the filter cursor when engaged); arbitrate only
+                // emits the movement intent.
                 KeyCode::Up | KeyCode::Char('k') => (Focus::Nav, Action::NavUp),
                 KeyCode::Down | KeyCode::Char('j') => (Focus::Nav, Action::NavDown),
                 // Fold the repo section under the cursor (Q6: vim-style h/l).
@@ -288,6 +323,47 @@ fn arbitrate_nav(leader: &Leader, ev: &Event) -> (Focus, Action) {
             }
         }
         _ => (Focus::Nav, Action::Ignore),
+    }
+}
+
+/// The nav's **filter mode** (050): a text-entry sub-mode over the grove list.
+/// Plain chars (and pastes) extend the fuzzy needle; `Backspace` trims it; the
+/// three toggles re-rank live — **Ctrl-i *or* Tab** flips inbox-pending (Q3's
+/// legacy-terminal aliasing: many terminals send the same byte for both),
+/// `Ctrl-l` cycles lifecycle, `Ctrl-s` cycles sort. `↑`/`↓` move the ranked
+/// cursor while typing (fzf). `Enter` accepts (→ Nav, criteria kept); `Esc`
+/// clears (→ Nav, idle). Everything else — including the leader — is swallowed
+/// (this is text entry; the leader is a valid needle char via plain `g`).
+fn arbitrate_filter(ev: &Event) -> (Focus, Action) {
+    let stay = |action| (Focus::Filter, action);
+    match ev {
+        Event::Key(key) if is_press(key) => {
+            use ratatui::crossterm::event::KeyModifiers;
+            let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+            match key.code {
+                KeyCode::Enter => (Focus::Nav, Action::FilterAccept),
+                KeyCode::Esc => (Focus::Nav, Action::FilterClear),
+                KeyCode::Backspace => stay(Action::FilterEdit(FilterEdit::Backspace)),
+                // Move the ranked cursor without leaving the needle (fzf).
+                KeyCode::Up => stay(Action::NavUp),
+                KeyCode::Down => stay(Action::NavDown),
+                // Inbox toggle: Tab is the legacy alias for Ctrl-i (same byte on
+                // many terminals — Q3). Ctrl-l/Ctrl-s cycle lifecycle/sort.
+                KeyCode::Tab => stay(Action::FilterEdit(FilterEdit::ToggleInbox)),
+                KeyCode::Char('i') if ctrl => stay(Action::FilterEdit(FilterEdit::ToggleInbox)),
+                KeyCode::Char('l') if ctrl => stay(Action::FilterEdit(FilterEdit::CycleLifecycle)),
+                KeyCode::Char('s') if ctrl => stay(Action::FilterEdit(FilterEdit::CycleSort)),
+                // Plain printable chars extend the needle; modifier chords are
+                // swallowed (like the capture modal).
+                KeyCode::Char(c) if is_plain_char(key) => {
+                    stay(Action::FilterEdit(FilterEdit::Insert(c.to_string())))
+                }
+                _ => stay(Action::Ignore),
+            }
+        }
+        // A paste lands in the needle literally (no pane to forward to).
+        Event::Paste(text) => stay(Action::FilterEdit(FilterEdit::Insert(text.clone()))),
+        _ => stay(Action::Ignore),
     }
 }
 
@@ -742,11 +818,22 @@ mod tests {
     }
 
     #[test]
-    fn nav_esc_returns_to_pane() {
+    fn nav_esc_is_the_layered_esc_landing_optimistically_on_the_pane() {
+        // The table can't see whether a filter is engaged (App state), so Esc
+        // optimistically lands on the pane and emits NavEsc; the App reverts to
+        // Nav + clears when a filter *was* engaged (layer one), else stays.
         let (focus, action) =
             arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Esc, KeyModifiers::NONE));
         assert_eq!(focus, Focus::Pane);
-        assert_eq!(action, Action::Redraw);
+        assert_eq!(action, Action::NavEsc);
+    }
+
+    #[test]
+    fn nav_slash_enters_filter_mode() {
+        let (focus, action) =
+            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('/'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(action, Action::FilterEnter);
     }
 
     #[test]
@@ -792,6 +879,92 @@ mod tests {
             assert_eq!(focus, Focus::Nav);
             assert_eq!(action, Action::Ignore, "{code:?} should be inert in Nav now");
         }
+    }
+
+    // --- Filter mode (the `/` sub-mode over the nav) -----------------------
+
+    fn ctrl(c: char) -> Event {
+        key_ev(KeyCode::Char(c), KeyModifiers::CONTROL)
+    }
+
+    #[test]
+    fn filter_plain_char_extends_the_needle_and_stays() {
+        let (focus, action) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Char('a'), KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(action, Action::FilterEdit(FilterEdit::Insert("a".into())));
+    }
+
+    #[test]
+    fn filter_backspace_trims_the_needle() {
+        let (focus, action) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(action, Action::FilterEdit(FilterEdit::Backspace));
+    }
+
+    #[test]
+    fn filter_ctrl_i_and_tab_both_toggle_inbox_pending() {
+        // Q3 legacy-terminal aliasing: Ctrl-i and Tab are the same byte on many
+        // terminals, so both must drive the inbox toggle in mode.
+        let (_, via_ctrl) = arbitrate(&Focus::Filter, &leader(), &ctrl('i'));
+        assert_eq!(via_ctrl, Action::FilterEdit(FilterEdit::ToggleInbox));
+        let (focus, via_tab) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Tab, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(via_tab, Action::FilterEdit(FilterEdit::ToggleInbox));
+    }
+
+    #[test]
+    fn filter_ctrl_l_and_ctrl_s_cycle_lifecycle_and_sort() {
+        let (_, lifecycle) = arbitrate(&Focus::Filter, &leader(), &ctrl('l'));
+        assert_eq!(lifecycle, Action::FilterEdit(FilterEdit::CycleLifecycle));
+        let (_, sort) = arbitrate(&Focus::Filter, &leader(), &ctrl('s'));
+        assert_eq!(sort, Action::FilterEdit(FilterEdit::CycleSort));
+    }
+
+    #[test]
+    fn filter_arrows_move_the_ranked_cursor_without_leaving_the_needle() {
+        let (focus, down) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Down, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Filter, "still typing — the needle stays");
+        assert_eq!(down, Action::NavDown);
+        let (_, up) = arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Up, KeyModifiers::NONE));
+        assert_eq!(up, Action::NavUp);
+    }
+
+    #[test]
+    fn filter_enter_accepts_back_to_nav_keeping_the_criteria() {
+        let (focus, action) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Enter, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Nav, "accept returns to the nav surface");
+        assert_eq!(action, Action::FilterAccept);
+    }
+
+    #[test]
+    fn filter_esc_clears_back_to_nav() {
+        let (focus, action) =
+            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Esc, KeyModifiers::NONE));
+        assert_eq!(focus, Focus::Nav);
+        assert_eq!(action, Action::FilterClear);
+    }
+
+    #[test]
+    fn filter_swallows_the_leader_and_unmapped_chords() {
+        // Text entry owns every key: the leader is just a swallowed chord (a plain
+        // `g` would be a needle char), as is any Ctrl chord without a binding.
+        let (focus, action) = arbitrate(&Focus::Filter, &leader(), &leader_ev());
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(action, Action::Ignore);
+        let (_, action) = arbitrate(&Focus::Filter, &leader(), &ctrl('z'));
+        assert_eq!(action, Action::Ignore);
+    }
+
+    #[test]
+    fn filter_ignores_key_release() {
+        let (focus, action) = arbitrate(&Focus::Filter, &leader(), &release_ev(KeyCode::Char('a')));
+        assert_eq!(focus, Focus::Filter);
+        assert_eq!(action, Action::Ignore);
     }
 
     // --- Modal focus -------------------------------------------------------

@@ -25,6 +25,9 @@
 //!   - [`filter`] — the pure filter/sort engine behind the nav's `/` filter
 //!     mode: criteria (needle/toggles/sort) → flat ranked rows (no keys here;
 //!     the interaction is 050).
+//!   - [`filter_mode`] — the stateful `/` filter mode over that engine (050):
+//!     the live criteria the user edits, the ranked-list cursor, and the
+//!     criteria-line render; keys are the `focus` table, the App glues them.
 //!   - [`detail`] — the per-grove detail panel grove draws from `RepoView`
 //!     (task tree + brief chain + inbox view), a focus peer beside the pane.
 //!   - [`capture`] — the centered capture modal over the live pane (the
@@ -39,6 +42,7 @@ pub mod detail;
 pub mod driver;
 pub mod editor;
 pub mod filter;
+pub mod filter_mode;
 pub mod focus;
 pub mod footer;
 pub mod input;

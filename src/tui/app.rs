@@ -51,6 +51,7 @@ use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::detail::Detail;
 use crate::tui::driver::PaneDriver;
 use crate::tui::editor;
+use crate::tui::filter_mode::FilterMode;
 use crate::tui::focus::{arbitrate, Action, Focus, ModalKind};
 use crate::tui::launch;
 use crate::repo_view::Lifecycle;
@@ -150,6 +151,11 @@ struct App {
     /// Which surface owns input (E4).
     focus: Focus,
     nav: Nav,
+    /// The `/` filter mode (050): the live criteria + ranked cursor the nav
+    /// switches to whenever any dimension is engaged. A separate selection from
+    /// `nav`'s, over the flat ranked list the 040 engine projects. Ephemeral per
+    /// session (constraint 1).
+    filter: FilterMode,
     /// The per-grove detail panel (050/030), re-pointed at the focused pane's
     /// grove and rebuilt from the fleet snapshot on every fs-watch tick.
     detail: Detail,
@@ -291,6 +297,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         aux: AuxVisibility::default(),
         focus: Focus::Pane,
         nav,
+        filter: FilterMode::new(),
         detail: Detail::new(),
         fleet,
         repo_roots,
@@ -442,46 +449,100 @@ impl App {
                 EventOutcome::Nothing
             }
             Action::NavUp => {
-                self.nav.select_up();
+                // The cursor lives in the filter when engaged (the ranked list),
+                // else in the grouped nav.
+                if self.filter.engaged() {
+                    self.filter.select_up();
+                } else {
+                    self.nav.select_up();
+                }
                 EventOutcome::Redraw
             }
             Action::NavDown => {
-                self.nav.select_down();
+                if self.filter.engaged() {
+                    self.filter.select_down();
+                } else {
+                    self.nav.select_down();
+                }
                 EventOutcome::Redraw
             }
             Action::NavSelect => {
                 // arbitrate landed the focus on the pane optimistically; only
                 // Enter on a *live grove* actually goes there. On a header or
                 // a seed the app reverts to Nav (the begin_move precedent).
-                match self.nav.selected_row().cloned() {
-                    Some(NavRow::Header { .. }) => {
-                        self.nav.toggle_fold();
-                        self.focus = Focus::Nav;
-                    }
-                    Some(NavRow::Grove(item)) if item.lifecycle == Lifecycle::Seed => {
-                        // Inert until 070 wires confirm-and-start; a seed has
-                        // no harness to land on, so stay in the nav.
-                        self.focus = Focus::Nav;
-                    }
-                    Some(NavRow::Grove(item)) => {
-                        if let Err(e) = self.open_or_focus(&item).await {
-                            // Opening must never kill the TUI; fall back to the
-                            // prior harness. (No stderr — we're on the alt screen.)
-                            let _ = e;
+                if self.filter.engaged() {
+                    self.select_ranked().await;
+                } else {
+                    match self.nav.selected_row().cloned() {
+                        Some(NavRow::Header { .. }) => {
+                            self.nav.toggle_fold();
+                            self.focus = Focus::Nav;
                         }
-                        // The focused grove changed; re-point the detail panel.
-                        self.rebuild_detail();
+                        Some(NavRow::Grove(item)) if item.lifecycle == Lifecycle::Seed => {
+                            // Inert until 070 wires confirm-and-start; a seed has
+                            // no harness to land on, so stay in the nav.
+                            self.focus = Focus::Nav;
+                        }
+                        Some(NavRow::Grove(item)) => {
+                            if let Err(e) = self.open_or_focus(&item).await {
+                                // Opening must never kill the TUI; fall back to the
+                                // prior harness. (No stderr — we're on the alt screen.)
+                                let _ = e;
+                            }
+                            // The focused grove changed; re-point the detail panel.
+                            self.rebuild_detail();
+                        }
+                        None => {}
                     }
-                    None => {}
                 }
                 EventOutcome::Redraw
             }
             Action::NavCollapse => {
-                self.nav.collapse();
+                // No headers in the ranked shape — fold is inert while engaged.
+                if !self.filter.engaged() {
+                    self.nav.collapse();
+                }
                 EventOutcome::Redraw
             }
             Action::NavExpand => {
-                self.nav.expand();
+                if !self.filter.engaged() {
+                    self.nav.expand();
+                }
+                EventOutcome::Redraw
+            }
+            Action::NavEsc => {
+                // The layered Esc (050 Q5): arbitrate optimistically set the focus
+                // to the pane. First press clears an engaged filter and stays in
+                // Nav; only an *idle* Nav actually returns to the pane.
+                if self.filter.engaged() {
+                    self.filter.clear();
+                    self.focus = Focus::Nav;
+                }
+                EventOutcome::Redraw
+            }
+            Action::FilterEnter => {
+                // Refresh the ranked projection on entry (the fleet may have moved
+                // since the last edit); the needle/toggles are preserved.
+                self.filter.reproject(&self.fleet);
+                EventOutcome::Redraw
+            }
+            Action::FilterEdit(edit) => {
+                // Fold the edit in, re-rank, and snap to the top row (fzf — the
+                // leaf's Notes: keep the cursor on the top match as it re-ranks).
+                self.filter.apply(edit);
+                self.filter.reproject(&self.fleet);
+                self.filter.select_top();
+                EventOutcome::Redraw
+            }
+            Action::FilterAccept => {
+                // arbitrate already returned to Nav; the criteria stay engaged so
+                // the nav now browses the ranked list. Nothing more to do.
+                EventOutcome::Redraw
+            }
+            Action::FilterClear => {
+                // arbitrate already returned to Nav; drop every dimension so the
+                // nav reverts to its grouped shape.
+                self.filter.clear();
                 EventOutcome::Redraw
             }
             Action::DetailUp => {
@@ -828,6 +889,31 @@ impl App {
         Ok(())
     }
 
+    /// Enter on the filter mode's ranked-selected row (the engaged-Nav counterpart
+    /// of the grouped [`Action::NavSelect`] branch). arbitrate optimistically set
+    /// the focus to the pane; a live grove opens/focuses there, while a seed (no
+    /// harness until 070) or an empty result set reverts to Nav.
+    async fn select_ranked(&mut self) {
+        match self.filter.selected().cloned() {
+            Some(r) if r.lifecycle == Lifecycle::Seed => {
+                self.focus = Focus::Nav; // inert until 070 wires confirm-and-start
+            }
+            Some(r) => {
+                let item = NavItem {
+                    repo_root: r.repo_root,
+                    name: r.name,
+                    label: r.label,
+                    lifecycle: r.lifecycle,
+                };
+                if let Err(e) = self.open_or_focus(&item).await {
+                    let _ = e; // opening must never kill the TUI (no stderr here)
+                }
+                self.rebuild_detail();
+            }
+            None => self.focus = Focus::Nav, // no matches — nothing to open
+        }
+    }
+
     /// Re-scan the fleet and rebuild the nav (groves appearing/retiring),
     /// keeping the selection on the same grove where it survives. Uses the
     /// warning-collecting scan so no stderr noise corrupts the alt screen.
@@ -835,6 +921,10 @@ impl App {
         let (fleet, _warnings) = MultiRepoView::scan_with_warnings(&self.repo_roots);
         self.fleet = fleet;
         self.nav.rebuild(&self.fleet);
+        // The filter's ranked list is projected off the fleet too; re-rank it,
+        // preserving the selected grove by identity (a background refresh must
+        // not yank the cursor). A no-op-ish pass when idle (criteria default).
+        self.filter.reproject(&self.fleet);
         // The focused grove's task tree / inbox may have changed (a leaf retired,
         // an observation captured); re-point detail off the fresh scan too.
         self.rebuild_detail();
@@ -1084,6 +1174,7 @@ impl App {
                 crate::tui::footer::render_footer(
                     &self.focus,
                     &self.leader,
+                    self.filter.engaged(),
                     area,
                     frame.buffer_mut(),
                 );
@@ -1134,8 +1225,19 @@ impl App {
                 }
             }
             Focus::Nav => {
-                self.nav.render(area, buf);
+                // Engaged → the flat ranked list (+ criteria line); idle → the
+                // grouped nav. `false`: not actively typing, so no caret.
+                if self.filter.engaged() {
+                    self.filter.render(area, buf, false);
+                } else {
+                    self.nav.render(area, buf);
+                }
                 None
+            }
+            Focus::Filter => {
+                // Actively typing: the ranked list with the live needle prompt and
+                // its caret (returned so the App places the hardware cursor).
+                self.filter.render(area, buf, true)
             }
             Focus::Modal { kind, .. } => {
                 // The landmark proof point: draw the composed layout (harness +
@@ -1265,7 +1367,8 @@ fn composed_layout(area: Rect, side_count: usize) -> ComposedLayout {
 fn surface_shows_pane(focus: &Focus) -> bool {
     match focus {
         Focus::Pane | Focus::Detail | Focus::Modal { .. } => true,
-        Focus::Nav => false,
+        // Nav and its `/` filter sub-mode are flip-to surfaces that hide the pane.
+        Focus::Nav | Focus::Filter => false,
         Focus::LeaderPending { prior } => surface_shows_pane(prior),
     }
 }

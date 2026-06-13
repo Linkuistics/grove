@@ -33,16 +33,29 @@ pub fn leader_menu() -> String {
 ///
 /// - [`Focus::LeaderPending`] → the live [`leader_menu`].
 /// - The home [`Focus::Pane`] → how to open the gate.
-/// - [`Focus::Detail`]/[`Focus::Nav`] → their in-surface keys + the gate.
+/// - [`Focus::Detail`] → its in-surface keys + the gate.
+/// - [`Focus::Nav`] → its keys; when a filter is `engaged` the hint swaps fold →
+///   `/` re-filter and Esc → clear (the layered Esc's first rung, 050 Q5).
+/// - [`Focus::Filter`] → the in-mode key hints (toggles + accept/clear).
 /// - [`Focus::Modal`] → `None`: the modal draws its own title hints, and its
 ///   bottom row is its content — a footer there would collide.
-pub fn footer_text(focus: &Focus, leader: &Leader) -> Option<String> {
+///
+/// `engaged` is the App's [`FilterMode::engaged`](crate::tui::filter_mode::FilterMode::engaged)
+/// — the table can't carry it (it is mutable App state), so it rides in here to
+/// pick the Nav hint variant.
+pub fn footer_text(focus: &Focus, leader: &Leader, engaged: bool) -> Option<String> {
     let lead = leader.label();
     match focus {
         Focus::LeaderPending { .. } => Some(leader_menu()),
         Focus::Pane => Some(format!("{lead} leader")),
         Focus::Detail => Some(format!("↑/↓ select · x reject · m move · ⎋ pane · {lead} leader")),
-        Focus::Nav => Some(format!("↑/↓ move · h/l fold · ⏎ open · ⎋ pane · {lead} leader")),
+        Focus::Nav if engaged => {
+            Some(format!("↑/↓ move · ⏎ open · / filter · ⎋ clear · {lead} leader"))
+        }
+        Focus::Nav => Some(format!("↑/↓ move · h/l fold · / filter · ⏎ open · ⎋ pane · {lead} leader")),
+        Focus::Filter => {
+            Some("type to filter · ^i inbox · ^l lifecycle · ^s sort · ⏎ accept · ⎋ clear".to_string())
+        }
         Focus::Modal { .. } => None,
     }
 }
@@ -51,8 +64,8 @@ pub fn footer_text(focus: &Focus, leader: &Leader) -> Option<String> {
 /// toast — proper row-reservation is 050's composed layout). The leader menu
 /// renders with an accent background so the open gate is unmistakable; surface
 /// hints are dim. A no-op when [`footer_text`] yields `None`.
-pub fn render_footer(focus: &Focus, leader: &Leader, area: Rect, buf: &mut Buffer) {
-    let Some(text) = footer_text(focus, leader) else {
+pub fn render_footer(focus: &Focus, leader: &Leader, engaged: bool, area: Rect, buf: &mut Buffer) {
+    let Some(text) = footer_text(focus, leader, engaged) else {
         return;
     };
     if area.height == 0 || area.width == 0 {
@@ -103,7 +116,7 @@ mod tests {
 
     #[test]
     fn pending_text_is_the_leader_menu() {
-        let text = footer_text(&pending(), &leader()).expect("pending has a footer");
+        let text = footer_text(&pending(), &leader(), false).expect("pending has a footer");
         for token in [
             "g nav", "d detail", "c capture", "t term", "y yazi", "v vcs", "e editor", "q quit",
             "cancel",
@@ -114,14 +127,14 @@ mod tests {
 
     #[test]
     fn pane_text_shows_how_to_open_the_gate() {
-        let text = footer_text(&Focus::Pane, &leader()).expect("pane has a footer");
+        let text = footer_text(&Focus::Pane, &leader(), false).expect("pane has a footer");
         assert!(text.contains("⌥g"), "pane hint names the leader: {text}");
         assert!(text.contains("leader"), "pane hint labels the gate: {text}");
     }
 
     #[test]
     fn detail_text_offers_grooming_and_the_pane_return() {
-        let text = footer_text(&Focus::Detail, &leader()).expect("detail has a footer");
+        let text = footer_text(&Focus::Detail, &leader(), false).expect("detail has a footer");
         assert!(text.contains("select"), "detail hint shows select: {text}");
         assert!(text.contains("reject"), "detail hint shows reject: {text}");
         assert!(text.contains("move"), "detail hint shows move: {text}");
@@ -131,14 +144,34 @@ mod tests {
 
     #[test]
     fn nav_text_lists_its_in_surface_keys() {
-        let text = footer_text(&Focus::Nav, &leader()).expect("nav has a footer");
+        let text = footer_text(&Focus::Nav, &leader(), false).expect("nav has a footer");
         assert!(text.contains("move"), "nav hint shows move: {text}");
         assert!(text.contains("open"), "nav hint shows open: {text}");
+        assert!(text.contains("/ filter"), "nav hint advertises the `/` mode: {text}");
+        assert!(text.contains("fold"), "idle nav still offers fold: {text}");
+    }
+
+    #[test]
+    fn engaged_nav_swaps_fold_for_filter_clear() {
+        // With a filter engaged, fold is meaningless (the ranked list has no
+        // headers) and Esc clears rather than returning to the pane (layer one).
+        let text = footer_text(&Focus::Nav, &leader(), true).expect("nav has a footer");
+        assert!(!text.contains("fold"), "engaged nav drops the fold hint: {text}");
+        assert!(text.contains("clear"), "engaged nav offers Esc → clear: {text}");
+        assert!(text.contains("/ filter"), "engaged nav offers `/` re-filter: {text}");
+    }
+
+    #[test]
+    fn filter_mode_lists_its_in_mode_keys() {
+        let text = footer_text(&Focus::Filter, &leader(), false).expect("filter has a footer");
+        for token in ["filter", "^i inbox", "^l lifecycle", "^s sort", "accept", "clear"] {
+            assert!(text.contains(token), "filter hint missing {token:?}: {text}");
+        }
     }
 
     #[test]
     fn modal_has_no_footer() {
-        assert_eq!(footer_text(&capture(), &leader()), None);
+        assert_eq!(footer_text(&capture(), &leader(), false), None);
     }
 
     // --- render_footer (headless buffer) -----------------------------------
@@ -149,7 +182,7 @@ mod tests {
         // past 80 cols — on a narrower terminal the tail simply truncates).
         let area = Rect::new(0, 0, 100, 6);
         let mut buf = Buffer::empty(area);
-        render_footer(&pending(), &leader(), area, &mut buf);
+        render_footer(&pending(), &leader(), false, area, &mut buf);
         let row = bottom_row(&buf);
         assert!(row.contains("g nav"), "menu painted on the bottom row: {row}");
         assert!(row.contains("t term"), "aux toggles painted on the bottom row: {row}");
@@ -160,7 +193,7 @@ mod tests {
     fn render_paints_the_surface_hint_when_not_pending() {
         let area = Rect::new(0, 0, 80, 6);
         let mut buf = Buffer::empty(area);
-        render_footer(&Focus::Nav, &leader(), area, &mut buf);
+        render_footer(&Focus::Nav, &leader(), false, area, &mut buf);
         assert!(bottom_row(&buf).contains("move"), "nav hint painted on the bottom row");
     }
 
@@ -168,7 +201,7 @@ mod tests {
     fn render_paints_nothing_for_a_modal() {
         let area = Rect::new(0, 0, 80, 6);
         let mut buf = Buffer::empty(area);
-        render_footer(&capture(), &leader(), area, &mut buf);
+        render_footer(&capture(), &leader(), false, area, &mut buf);
         let row = bottom_row(&buf);
         assert!(row.trim().is_empty(), "modal leaves the footer row blank: {row:?}");
     }

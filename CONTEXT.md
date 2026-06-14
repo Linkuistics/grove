@@ -160,8 +160,11 @@ plus a transient `LeaderPending` (`src/tui/focus.rs`). **`Pane`** is any focused
 foreign rmux pane (the [[harness pane]], or the aux term/yazi/vcs panes — `self.focused`
 says which, so aux panes need no new variant); **`Detail`** is the grove-drawn
 [[detail widget]] peer (`leader → d`; `j`/`k` scroll); **`Nav`** is the
-[[nav surface]]; **`Modal`** is a focus overlay that captures all keys and restores
-the prior focus on cancel/submit (the capture modal). The [[leader]] opens
+[[nav surface]]; **`Modal(kind)`** is a focus overlay that captures all keys and
+restores the prior focus on cancel/submit — the `kind` selects the overlay:
+`Capture` (a text buffer), `MovePicker` (the inbox move-target grove list), or
+`Confirm` (the seed-start y/n prompt, `Enter` on a [[Seed]] row → `grove do
+<name>`). The [[leader]] opens
 `LeaderPending`, and the next key dispatches to a surface; the [[whichkey footer]]
 renders the live menu while pending. Pane addressing is the app's `name → PaneDriver`
 map + `focused` key (ADR-0028 E3), not the focus state. The pure transition table

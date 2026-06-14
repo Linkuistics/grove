@@ -48,9 +48,8 @@ pub struct NavItem {
     pub name: String,
     /// What the row shows (see the struct doc for the two shapes).
     pub label: String,
-    /// Live (worktree exists) or seed (inbox only). Enter on a seed is inert
-    /// until 070 wires the confirm-and-start flow; here seeds just exist in
-    /// the model, visually marked.
+    /// Live (worktree exists) or seed (inbox only). Enter on a live grove opens
+    /// its harness; Enter on a seed opens the confirm-and-start prompt (070).
     pub lifecycle: Lifecycle,
 }
 

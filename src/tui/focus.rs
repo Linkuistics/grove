@@ -63,6 +63,13 @@ pub enum ModalKind {
     /// The move/re-route target picker (a selectable grove list, 040 grooming):
     /// pick which grove the selected observation moves to.
     MovePicker,
+    /// The seed-start confirm (rmux-tui-polish 070): a y/n prompt over the nav,
+    /// shown when `Enter` lands on a **seed** row. `y`/`Enter` confirm (spawn
+    /// `grove do <name>`, landing on the new harness pane); `n`/`Esc` cancel back
+    /// to the nav. It owns focus while up (like every modal), and unlike the
+    /// other two it carries no buffer/list — the seed to start rides in the App's
+    /// `pending_start`, armed when the modal opens.
+    Confirm,
 }
 
 /// How a [`Focus::Detail`] was entered — the seam the 060 live preview needs so
@@ -193,6 +200,13 @@ pub enum Action {
     /// Commit the move: send the pending observation to the picker's selected
     /// grove (`inbox-add --body-file`) then drop it here, under `spawn_blocking`.
     MovePickerSelect,
+    /// Confirm the seed-start (`y`/`Enter` in the [`ModalKind::Confirm`] modal,
+    /// 070): spawn `grove do <name>` for the armed seed, focus its new harness
+    /// pane, and re-scan so the row flips Seed → Live. arbitrate optimistically
+    /// lands on [`Focus::Pane`] (the harness it spawns); the app reverts to
+    /// [`Focus::Nav`] if the spawn fails or nothing is armed (the [`NavSelect`]
+    /// revert precedent). Cancel reuses [`Action::ModalCancel`] (drops the arm).
+    ConfirmStart,
     /// A grove surface changed; the app should redraw.
     Redraw,
     /// Insert literal text into the focused modal's buffer.
@@ -227,6 +241,7 @@ pub fn arbitrate(focus: &Focus, leader: &Leader, ev: &Event) -> (Focus, Action) 
         Focus::Filter => arbitrate_filter(ev),
         Focus::Modal { kind: ModalKind::Capture, prior } => arbitrate_modal(prior, ev),
         Focus::Modal { kind: ModalKind::MovePicker, prior } => arbitrate_move_picker(prior, ev),
+        Focus::Modal { kind: ModalKind::Confirm, prior } => arbitrate_confirm(prior, ev),
         Focus::LeaderPending { prior } => arbitrate_pending(prior, ev),
     }
 }
@@ -524,6 +539,38 @@ fn arbitrate_move_picker(prior: &Focus, ev: &Event) -> (Focus, Action) {
             KeyCode::Enter => (prior.clone(), Action::MovePickerSelect),
             KeyCode::Up | KeyCode::Char('k') => stay(Action::MovePickerUp),
             KeyCode::Down | KeyCode::Char('j') => stay(Action::MovePickerDown),
+            _ => stay(Action::Ignore),
+        },
+        _ => stay(Action::Ignore),
+    }
+}
+
+/// The seed-start confirm (070): a y/n prompt over the nav. `y`/`Enter` confirm
+/// — spawn the grove, landing optimistically on the pane the harness will fill
+/// ([`Action::ConfirmStart`]); `n`/`Esc` cancel back to `prior` (the nav),
+/// reusing [`Action::ModalCancel`] to drop the armed seed. The leader and every
+/// other key are swallowed — the modal owns focus while up.
+fn arbitrate_confirm(prior: &Focus, ev: &Event) -> (Focus, Action) {
+    let stay = |action| {
+        (
+            Focus::Modal {
+                kind: ModalKind::Confirm,
+                prior: Box::new(prior.clone()),
+            },
+            action,
+        )
+    };
+    match ev {
+        Event::Key(key) if is_press(key) => match key.code {
+            // Confirm: land on the pane the spawned harness will own (the app
+            // reverts to Nav on a spawn failure / nothing armed).
+            KeyCode::Char('y') | KeyCode::Char('Y') | KeyCode::Enter => {
+                (Focus::Pane, Action::ConfirmStart)
+            }
+            // Cancel: back to the nav, dropping the armed seed.
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
+                (prior.clone(), Action::ModalCancel)
+            }
             _ => stay(Action::Ignore),
         },
         _ => stay(Action::Ignore),
@@ -915,6 +962,71 @@ mod tests {
         let prior = detail(DetailOrigin::Pane);
         let (focus, action) = arbitrate(&move_picker_over(prior.clone()), &leader(), &leader_ev());
         assert_eq!(focus, move_picker_over(prior));
+        assert_eq!(action, Action::Ignore);
+    }
+
+    // --- Confirm modal (the 070 seed-start y/n prompt) ---------------------
+
+    fn confirm_over(prior: Focus) -> Focus {
+        Focus::Modal {
+            kind: ModalKind::Confirm,
+            prior: Box::new(prior),
+        }
+    }
+
+    #[test]
+    fn confirm_y_and_enter_start_the_grove_landing_on_the_pane() {
+        // Both `y` and Enter confirm; the focus lands optimistically on the pane
+        // the spawned harness will own (the app reverts on failure).
+        for code in [KeyCode::Char('y'), KeyCode::Char('Y'), KeyCode::Enter] {
+            let (focus, action) = arbitrate(
+                &confirm_over(Focus::Nav),
+                &leader(),
+                &key_ev(code, KeyModifiers::NONE),
+            );
+            assert_eq!(focus, Focus::Pane, "{code:?} lands on the pane");
+            assert_eq!(action, Action::ConfirmStart, "{code:?} confirms the start");
+        }
+    }
+
+    #[test]
+    fn confirm_n_and_esc_cancel_back_to_the_nav() {
+        // `n` and Esc both cancel, restoring the nav we opened the confirm over
+        // and dropping the armed seed (ModalCancel).
+        for code in [KeyCode::Char('n'), KeyCode::Char('N'), KeyCode::Esc] {
+            let (focus, action) = arbitrate(
+                &confirm_over(Focus::Nav),
+                &leader(),
+                &key_ev(code, KeyModifiers::NONE),
+            );
+            assert_eq!(focus, Focus::Nav, "{code:?} returns to the nav");
+            assert_eq!(action, Action::ModalCancel, "{code:?} drops the armed seed");
+        }
+    }
+
+    #[test]
+    fn confirm_swallows_the_leader_and_other_keys() {
+        // The modal owns focus: the leader and any unmapped key are inert (the
+        // prompt stays up rather than acting or leaking to a surface).
+        let prior = Focus::Nav;
+        let (focus, action) = arbitrate(&confirm_over(prior.clone()), &leader(), &leader_ev());
+        assert_eq!(focus, confirm_over(prior.clone()));
+        assert_eq!(action, Action::Ignore);
+        let (focus, action) = arbitrate(
+            &confirm_over(prior.clone()),
+            &leader(),
+            &key_ev(KeyCode::Char('z'), KeyModifiers::NONE),
+        );
+        assert_eq!(focus, confirm_over(prior));
+        assert_eq!(action, Action::Ignore);
+    }
+
+    #[test]
+    fn confirm_ignores_key_release() {
+        // A kitty release of `y` must not be mistaken for a confirm.
+        let start = confirm_over(Focus::Nav);
+        let (focus, action) = arbitrate(&start, &leader(), &release_ev(KeyCode::Char('y')));
+        assert_eq!(focus, start);
         assert_eq!(action, Action::Ignore);
     }
 

@@ -175,6 +175,10 @@ struct App {
     /// pressed, committed on Enter, cleared on cancel. `None` when no move is in
     /// flight.
     pending_move: Option<PathBuf>,
+    /// The seed armed while the [`ModalKind::Confirm`] prompt is up (070) —
+    /// captured when `Enter` lands on a seed row, spawned on `y`/`Enter`, dropped
+    /// on cancel. `None` when no seed-start is in flight.
+    pending_start: Option<NavItem>,
     /// A transient capture result, shown briefly after submit and cleared on the
     /// next keypress (the modal has already closed by then — E4 restores prior
     /// focus on Enter).
@@ -308,6 +312,7 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
         capture: CaptureModal::new(),
         move_picker: Nav::default(),
         pending_move: None,
+        pending_start: None,
         toast: None,
         grove_exe,
         size: (cols, rows),
@@ -482,17 +487,17 @@ impl App {
                 if self.filter.engaged() {
                     self.select_ranked().await;
                 } else {
-                    match self.nav.selected_row().cloned() {
-                        Some(NavRow::Header { .. }) => {
+                    // The pure row-kind resolution (the table can't see it); the
+                    // app then applies the I/O half of whichever it returns.
+                    match nav_enter(self.nav.selected_row()) {
+                        NavEnter::ToggleFold => {
                             self.nav.toggle_fold();
                             self.focus = Focus::Nav;
                         }
-                        Some(NavRow::Grove(item)) if item.lifecycle == Lifecycle::Seed => {
-                            // Inert until 070 wires confirm-and-start; a seed has
-                            // no harness to land on, so stay in the nav.
-                            self.focus = Focus::Nav;
-                        }
-                        Some(NavRow::Grove(item)) => {
+                        // A seed has no harness yet — arm the confirm modal (070);
+                        // `y` spawns `grove do <name>`, `n` cancels.
+                        NavEnter::StartSeed(item) => self.begin_start(item),
+                        NavEnter::Open(item) => {
                             if let Err(e) = self.open_or_focus(&item).await {
                                 // Opening must never kill the TUI; fall back to the
                                 // prior harness. (No stderr — we're on the alt screen.)
@@ -501,7 +506,7 @@ impl App {
                             // The focused grove changed; re-point the detail panel.
                             self.rebuild_detail();
                         }
-                        None => {}
+                        NavEnter::Ignore => {}
                     }
                 }
                 EventOutcome::Redraw
@@ -606,6 +611,10 @@ impl App {
                 self.commit_move().await;
                 EventOutcome::Redraw
             }
+            Action::ConfirmStart => {
+                self.confirm_start().await;
+                EventOutcome::Redraw
+            }
             Action::Redraw => EventOutcome::Redraw,
             Action::ModalInsert(text) => {
                 self.capture.insert(&text);
@@ -620,10 +629,11 @@ impl App {
                 EventOutcome::Redraw
             }
             Action::ModalCancel => {
-                // One cancel path for both modals: discard the capture buffer and
-                // any in-flight move (whichever modal was up).
+                // One cancel path for every modal: discard the capture buffer, any
+                // in-flight move, and any armed seed-start (whichever was up).
                 self.capture.clear();
                 self.pending_move = None;
+                self.pending_start = None;
                 EventOutcome::Redraw
             }
             Action::OpenEditor => EventOutcome::OpenEditor,
@@ -769,6 +779,44 @@ impl App {
         self.refresh_fleet();
     }
 
+    /// Arm the seed-start confirm prompt (070): `Enter` landed on a seed row, so
+    /// open the [`ModalKind::Confirm`] modal over the nav and remember the seed.
+    /// `y`/`Enter` then spawns it ([`Self::confirm_start`]); `n`/`Esc` drops the
+    /// arm (the shared [`Action::ModalCancel`] path). The modal restores the nav
+    /// on cancel, so `prior` is Nav regardless of whether the seed came from the
+    /// grouped list or the ranked filter.
+    fn begin_start(&mut self, seed: NavItem) {
+        self.focus = Focus::Modal {
+            kind: ModalKind::Confirm,
+            prior: Box::new(Focus::Nav),
+        };
+        self.pending_start = Some(seed);
+    }
+
+    /// Confirm the seed-start (`y`/`Enter`, 070): spawn `grove do <name>` for the
+    /// armed seed and focus its new harness pane, then re-scan so the row flips
+    /// Seed → Live (the rebuild re-finds the selection by name). arbitrate landed
+    /// the focus on the pane optimistically; revert to Nav when nothing is armed
+    /// or the spawn fails (the open-must-never-kill-the-TUI posture —
+    /// [`Self::open_or_focus`]). For a seed the worktree does not exist yet, so
+    /// `open_or_focus` runs `grove do` from the repo root, where it creates the
+    /// worktree + branch + bootstrap session.
+    async fn confirm_start(&mut self) {
+        let Some(seed) = self.pending_start.take() else {
+            self.focus = Focus::Nav; // nothing armed — back to the nav
+            return;
+        };
+        if let Err(e) = self.open_or_focus(&seed).await {
+            let _ = e; // spawn failed; no stderr on the alt screen
+            self.focus = Focus::Nav;
+            return;
+        }
+        // The seed is now a live grove: re-scan so the nav row flips Seed → Live
+        // (selection preserved by name) and the detail panel re-points.
+        self.refresh_fleet();
+        self.rebuild_detail();
+    }
+
     /// The open-in-editor drop (040, D-B/D-E): capture the focused harness
     /// pane's full *rendered* history via stock `rmux capture-pane`, suspend the
     /// TUI + pause the input reader so the `$EDITOR` child owns the terminal,
@@ -887,7 +935,15 @@ impl App {
             return Ok(());
         }
 
-        let cwd = crate::repo::grove_worktree(&item.repo_root, &item.name);
+        // `grove do <name>` resolves its repo from the cwd's git root. A live
+        // grove's worktree works; a **seed** has no worktree yet (070), so spawn
+        // from the repo root, where `grove do` creates the worktree + branch.
+        let worktree = crate::repo::grove_worktree(&item.repo_root, &item.name);
+        let cwd = if worktree.is_dir() {
+            worktree
+        } else {
+            item.repo_root.clone()
+        };
         let argv = vec![self.grove_exe.clone(), "do".to_string(), item.name.clone()];
         let window = self
             .session
@@ -939,7 +995,13 @@ impl App {
     async fn select_ranked(&mut self) {
         match self.filter.selected().cloned() {
             Some(r) if r.lifecycle == Lifecycle::Seed => {
-                self.focus = Focus::Nav; // inert until 070 wires confirm-and-start
+                // Arm the seed-start confirm (070), as the grouped-nav branch does.
+                self.begin_start(NavItem {
+                    repo_root: r.repo_root,
+                    name: r.name,
+                    label: r.label,
+                    lifecycle: r.lifecycle,
+                });
             }
             Some(r) => {
                 let item = NavItem {
@@ -1388,6 +1450,16 @@ impl App {
                         self.move_picker.render(popup, buf);
                         None
                     }
+                    ModalKind::Confirm => {
+                        // The seed-start y/n prompt (070), naming the armed seed.
+                        let label = self
+                            .pending_start
+                            .as_ref()
+                            .map(|s| s.name.as_str())
+                            .unwrap_or("(no grove)");
+                        crate::tui::capture::render_confirm(label, area, buf);
+                        None
+                    }
                 }
             }
             // Unwrapped by the caller; rendering its `prior` instead.
@@ -1508,6 +1580,37 @@ fn surface_shows_pane(focus: &Focus) -> bool {
         Focus::Modal { prior, .. } | Focus::LeaderPending { prior } => surface_shows_pane(prior),
         // Nav and its `/` filter sub-mode are flip-to surfaces that hide the pane.
         Focus::Nav | Focus::Filter => false,
+    }
+}
+
+/// What `Enter` on the grouped nav resolves to — the **pure** half of the
+/// `NavSelect` resolution ([`arbitrate`] optimistically lands on the pane and
+/// can't see the row kind, so the app classifies it here, then applies the I/O).
+/// Mirrored loosely by [`App::select_ranked`] for the engaged filter (the ranked
+/// list has no headers, so only the seed/live split applies there).
+#[derive(Debug, PartialEq, Eq)]
+enum NavEnter {
+    /// The cursor sits on a repo section header → toggle its fold (stay in Nav).
+    ToggleFold,
+    /// A **seed** row → arm the seed-start confirm prompt (070).
+    StartSeed(NavItem),
+    /// A **live** grove row → open/focus its harness pane.
+    Open(NavItem),
+    /// Nothing selected (empty list) → no-op.
+    Ignore,
+}
+
+/// Classify `Enter` on the grouped nav's selected row (070): a header folds, a
+/// seed opens the confirm prompt, a live grove opens its harness, an empty list
+/// is inert. Pure so the seed-row → confirm wiring is headless-testable.
+fn nav_enter(row: Option<&NavRow>) -> NavEnter {
+    match row {
+        Some(NavRow::Header { .. }) => NavEnter::ToggleFold,
+        Some(NavRow::Grove(item)) if item.lifecycle == Lifecycle::Seed => {
+            NavEnter::StartSeed(item.clone())
+        }
+        Some(NavRow::Grove(item)) => NavEnter::Open(item.clone()),
+        None => NavEnter::Ignore,
     }
 }
 
@@ -1749,6 +1852,48 @@ mod tests {
         assert_eq!(aux_argv(PaneRole::Vcs), vec!["lazygit".to_string()]);
         // term is a single-element argv (the shell), whatever $SHELL resolves to.
         assert_eq!(aux_argv(PaneRole::Term).len(), 1);
+    }
+
+    // --- nav_enter: the pure Enter-on-a-row resolution (070) ----------------
+
+    fn grove_row(name: &str, lifecycle: Lifecycle) -> NavRow {
+        NavRow::Grove(NavItem {
+            repo_root: PathBuf::from("/repo"),
+            name: name.to_string(),
+            label: name.to_string(),
+            lifecycle,
+        })
+    }
+
+    #[test]
+    fn nav_enter_on_a_seed_arms_the_confirm_start() {
+        // The 070 wiring: Enter on a seed row resolves to StartSeed (which the app
+        // turns into the confirm modal), not Open and not a silent no-op.
+        let row = grove_row("newgrove", Lifecycle::Seed);
+        match nav_enter(Some(&row)) {
+            NavEnter::StartSeed(item) => assert_eq!(item.name, "newgrove"),
+            other => panic!("seed Enter should arm the confirm, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nav_enter_on_a_live_grove_opens_it() {
+        let row = grove_row("alpha", Lifecycle::Live);
+        match nav_enter(Some(&row)) {
+            NavEnter::Open(item) => assert_eq!(item.name, "alpha"),
+            other => panic!("live Enter should open, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn nav_enter_on_a_header_toggles_the_fold_and_empty_is_inert() {
+        let header = NavRow::Header {
+            repo_root: PathBuf::from("/repo"),
+            label: "repo".into(),
+            folded: false,
+        };
+        assert_eq!(nav_enter(Some(&header)), NavEnter::ToggleFold);
+        assert_eq!(nav_enter(None), NavEnter::Ignore);
     }
 
     #[test]

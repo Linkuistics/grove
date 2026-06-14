@@ -113,6 +113,32 @@ impl CaptureModal {
     }
 }
 
+/// Paint the **seed-start confirm** modal (070): a small centered y/n prompt over
+/// the nav, naming the seed and spelling out the side effect (`grove do <name>`
+/// creates the worktree + branch). Pure — like the capture modal, it is a
+/// headless `Clear` + bordered widget over `area`, drawn while
+/// [`ModalKind::Confirm`](crate::tui::focus::ModalKind::Confirm) is up. No cursor
+/// (it has no text buffer — the answer is a single keypress).
+pub fn render_confirm(name: &str, area: Rect, buf: &mut Buffer) {
+    let popup = centered_rect(60, 30, area);
+    Clear.render(popup, buf);
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" start grove ")
+        .border_style(Style::default().fg(Color::Cyan));
+    let inner = block.inner(popup);
+    block.render(popup, buf);
+    if inner.width == 0 || inner.height == 0 {
+        return;
+    }
+    let body = format!(
+        "start grove {name}?\ncreates worktree + branch\n\ny start \u{b7} n cancel"
+    );
+    Paragraph::new(body)
+        .wrap(Wrap { trim: false })
+        .render(inner, buf);
+}
+
 /// The result of a TUI action that shells out, surfaced briefly as a toast after
 /// the action completes (the app clears it on the next keypress). Covers capture
 /// (the modal submit) and the 040 inbox **grooming** actions (reject / move).
@@ -323,6 +349,24 @@ mod tests {
         CaptureModal::new().render(area, &mut buf, "g");
         // Dead center is inside the popup interior; it must not still read "X".
         assert_ne!(buf[(20, 10)].symbol(), "X", "pane bled through the modal");
+    }
+
+    // --- the seed-start confirm modal (070) ----------------------------------
+
+    #[test]
+    fn confirm_modal_names_the_seed_and_spells_out_the_side_effect() {
+        // Drawn over a live pane, the confirm prompt names the grove, states the
+        // worktree+branch side effect, and offers the y/n keys.
+        let area = Rect::new(0, 0, 50, 20);
+        let mut buf = Buffer::empty(area);
+        render_pane(&filled_pane(50, 20, 'X'), area, &mut buf);
+        render_confirm("newgrove", area, &mut buf);
+        let text = buffer_text(&buf);
+        assert!(text.contains("start grove newgrove"), "names the seed:\n{text}");
+        assert!(text.contains("worktree"), "states the side effect:\n{text}");
+        assert!(text.contains("y start") && text.contains("n cancel"), "offers y/n:\n{text}");
+        // The pane shows through at the corners (centered overlay).
+        assert_eq!(buf[(0, 0)].symbol(), "X", "pane shows through outside the popup");
     }
 
     // --- buffer editing ------------------------------------------------------

@@ -17,14 +17,10 @@ paths: "**/*.rs"
 - If approaching this limit, consider refactoring into a configuration struct
 
 ## Error Handling
-- Use `thiserror` for error types with `#[derive(Error)]`
-- Use `anyhow` for application-level error handling, and `thiserror` for library-level error types
-- Provide descriptive error messages
-- Avoid using `unwrap` or `expect` in production code; handle errors gracefully
-- Use `?` operator for propagating errors when appropriate
-- Consider using `Result` types for functions that can fail, and avoid panicking unless absolutely necessary
-- When defining custom error types, include relevant context and information to aid in debugging and error handling
-- When handling errors, consider the user experience and provide actionable feedback when possible, rather than just logging the error or returning a generic message
+- Use `thiserror` (`#[derive(Error)]`) for library error types; `anyhow` for application-level handling
+- Return `Result` for fallible functions; avoid `unwrap`/`expect`/`panic!` in production code
+- Propagate with the `?` operator
+- Make error messages descriptive and actionable, carrying enough context to debug
 
 ## Async Code
 - Use Tokio runtime

@@ -5,8 +5,6 @@ description: Guidelines for designing LLM-friendly command-line tools — struct
 
 # CLI Design Guidelines for LLM Agents
 
-Instructions for an LLM tasked with writing, auditing, or refactoring a CLI tool so that other LLM agents can use it reliably and efficiently.
-
 ## Core principle
 
 LLM-friendliness is not a feature you bolt on with a special command. It is a property of the entire CLI surface — help text, flag conventions, output formats, error messages, exit codes, defaults. An agent's experience of your tool is dominated by what it sees the first time it runs `--help` and what it sees when something goes wrong. Optimise those, in that order, before anything else.
@@ -217,11 +215,3 @@ anti-patterns, or planning a backwards-compatible refactor, load the
 companion reference: [references/auditing-and-refactoring.md](references/auditing-and-refactoring.md).
 It contains the full audit checklist, the anti-pattern catalogue, and the
 ordered refactoring sequence.
-
----
-
-## Summary
-
-The single highest-leverage change is **structured output with a stable schema, on every data command.** The second is **examples in every `--help`.** The third is **actionable error messages with stable error codes.** Everything else compounds on top of those three.
-
-A tool that does those three things well is more agent-friendly than one with an elaborate `llm-instructions` command and inconsistent everything else.

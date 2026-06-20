@@ -2,79 +2,86 @@
 
 ## Goal
 
-Refactor grove down to its **irreducible self-extension core** (the
-self-extending task tree + the loop that walks it) and drive it on a **workflow
-substrate** that automates the per-task fresh-context loop — instead of grove's
-bespoke `grove do` launcher, rmux TUI, and per-worktree install. Candidate
-substrate: **Archon** (https://archon.diy), the open-source workflow-engine /
-harness-builder; under active reconsideration against self-driven alternatives
-(see D8). The guiding directive throughout: **less in grove.**
+Refactor grove down to its **irreducible self-extension core** (the self-extending
+task tree + the loop that walks it) plus its **proven methodology**, and drive it
+on a **self-driving loop** that automates the per-task fresh-context crank —
+shedding grove's *machinery* (TUI, inbox/grove-meta, install/materialise). The
+guiding directive: **less in grove** — meaning less *machinery*, not less *wisdom*
+(030 D6).
+
+**Substrate decided (was the open fork; now settled):** a thin, stateless,
+grove-owned **self-driving shell loop**, **not** Archon — chosen on the 020 spike's
+evidence (**ADR-0032**). The grove's name now misdescribes the outcome; kept as a
+historical label (the spike reversing its own premise is the spike working).
 
 ## Done when
 
-- The loop substrate is chosen on evidence and the loop runs one grove task per
-  fresh context until the tree is empty, hosting both work and grilling tasks,
-  restart-safe.
-- grove is shed to its core: TUI deleted; methodology → third-party skills;
-  worktree/fresh-context/approval → the substrate; inbox/grove-meta + install
-  machinery removed; distribution → a single global skill + `grove-llm`.
-- The task-id scheme is migrated to flat dotted-decimal (D4/D5).
+- The loop runs one grove task per fresh context until the tree is empty, hosting
+  both work and grilling tasks, restart-safe. [substrate decided; built in 040]
+- grove is shed to its core + methodology: TUI deleted (080); inbox/grove-meta +
+  install machinery removed (090); distribution → a single global skill +
+  `brew install grove` (070). The methodology is **retained**, not shed.
+- The task-id scheme is migrated to flat dotted-decimal (050) with a transitional
+  bridge + one-time migration (060).
 
 ## Decomposition
 
-Live leaves (current `NNN-slug` scheme — the dotted scheme is what we're
-*building*):
+Retired (in `done/`): `010-plan` (foundations D1–D8); `020-loop-substrate-spike`
+(the cited options doc); `030-substrate-decision` (the substrate choice + this
+leaf set).
 
-- `020-loop-substrate-spike` (research) — cited options doc deciding nothing;
-  gates everything below. → `docs/research/loop-substrate-options.md`.
-- `030-substrate-decision` (planning, placeholder) — choose the substrate from
-  020's evidence, then grow the implementation leaves.
+Live leaves (current `NNN-slug` scheme — the dotted scheme is what 050 *builds*):
 
-Deferred (grown by `030` or later, lazily — not yet ripe): dotted-decimal
-numbering + verb changes; global-skill + `grove-llm` distribution with
-backwards-compat; shed-the-TUI; shed inbox/grove-meta + install machinery;
-substrate wiring (the workflow / loop-driver); migration.
+- `040-substrate-wiring` (work) — **critical path**: the loop driver + signal verb
+  + kill + interrupt semantics + PoC (ADR-0032).
+- `050-dotted-decimal-numbering` (planning) — the flat scheme + comparator + verbs.
+- `060-backwards-compat-migration` (work) — dual-format reader + `grove migrate`.
+- `070-global-skill-homebrew-distribution` (work) — `brew install grove` + global
+  skill provisioning.
+- `080-shed-tui` (work) — delete the rmux/ratatui TUI + Fleet.
+- `090-shed-inbox-and-install-machinery` (work) — delete inbox/grove-meta +
+  install/materialise.
+
+Sequencing: 040 first (prove the loop); 050→060 (numbering before migration); 070
+(distribution); 080/090 sheds last (don't delete the old runtime before the new
+one works).
 
 ## Pointers
 
-- Archon: https://archon.diy · https://github.com/coleam00/Archon (README,
-  docs, `.archon/workflows/` examples, issues). Today's identity: "the first
-  open-source harness builder for AI coding."
-- grove's process-machinery history (evidence for "which complexity to own"):
-  ADR-0028 (rmux substrate / trellis deletion) and the rmux glossary section in
-  `CONTEXT.md`.
-- Full grilling rationale: the retired `010-plan` running log (D1–D8) in
+- Substrate evidence: `docs/research/loop-substrate-options.md` (020 spike).
+- Decisions: **ADR-0031** (shed machinery, keep core + methodology) and
+  **ADR-0032** (self-driving shell loop, not Archon). Full rationale: the retired
+  `010-plan` (D1–D8) and `030-substrate-decision` (D1–D6) running logs in
   `.grove/done/`.
+- grove's process-machinery history ("which complexity to own"): ADR-0028 (rmux
+  substrate / trellis deletion) and the rmux glossary section in `CONTEXT.md`.
 
 ## Notes
 
-### Settled decisions (condensed — full rationale in retired `010-plan`)
+### Settled decisions (condensed — full rationale in the retired running logs)
 
-- **D1** Archon = archon.diy, the workflow-engine/harness-builder (not the older
-  MCP knowledge-base framing).
-- **D2** End-state (A): replace grove's runtime, keep its self-extension *brain*,
-  shed aggressively, **kill the TUI**.
-- **D3** Core boundary — *survives:* task tree + `pick` walk + grow verbs + the
-  two task kinds + minimal loop; *sheds to skills:* grilling, driving habits,
-  CONTEXT/ADR/PRD format guides, TDD/review/debugging; *sheds to substrate:*
-  worktree lifecycle, fresh-context looping, approval, multi-surface; *deleted:*
-  rmux/ratatui TUI + Fleet, **inbox/grove-meta**, **install/materialise +
-  VERSION drift**.
-- **D4/D5** Task ids → **flat dotted-decimal**, legible sequential integers, a
-  numeric version-sort comparator (infinite width + DFS order), renumber-on-
-  reorder accepted, **mark-done-in-place** (no `done/` directory).
-- **D6/D7** Execution = a **continuous loop**, fresh context per task,
-  **resume-safe by construction** (the loop body is stateless + self-locating,
-  so Archon's run-durability is made irrelevant); target shape (iii), degrades
-  to repeated runs, upgrades to one long run.
-- **D8** Substrate **reopened**: Archon is one *measured* candidate vs
-  self-driven (iTerm-trigger / PTY-wrap / headless / harness-native), decided by
-  the `020` spike on three gates (fresh-context-per-task; interactive-grilling-
-  in-loop; restart-safety). Distribution → **global skill + `grove-llm`** with
-  backwards-compat for old trees. Named hypothesis to test: Archon's conditional
-  logic may express restart + loop-until-empty in one declarative `pick`.
+From `010-plan` (foundations): **D1** Archon = the workflow-engine. **D2/D3**
+end-state = replace the runtime, keep the self-extension brain, shed aggressively.
+**D4/D5** task ids → flat dotted-decimal, version-sort comparator,
+mark-done-in-place. **D6/D7** execution = a continuous fresh-context loop,
+resume-safe by construction, the engine (not the human) turns the crank. **D8**
+substrate reopened → the 020 spike.
+
+From `030-substrate-decision` (the substrate, decided on the spike's evidence):
+**substrate = self-driving shell loop, NOT Archon** (ADR-0032; Archon's
+`interactive` fails gate D, the restart hypothesis is refuted, DB walk-away cost,
+a ~10-week-old rewrite). **Native foreground `claude`**; an out-of-band `grove-llm`
+signal triggers an external kill (lean: self-spawned delayed killer); `pick` is
+the loop condition; **relaunch is opt-in** so interrupts stay stopped; restart ≡
+continuation. **Distribution = `brew install grove` sole gesture**, one binary that
+provisions the global skill (dissolves `VERSION.md` drift). **Backwards-compat =
+transitional dual-format + one-time `grove migrate`, then drop** (ephemeral trees
+drain). **"Less in grove" = less machinery, not less wisdom — the methodology is
+RETAINED** (ADR-0031, D6).
 
 ### ADRs
 
-None yet — the design is still firming. D2/D3 and the substrate choice are the
-likely first ADRs, written in `030` once the substrate is settled.
+- **ADR-0031** — grove sheds its machinery to a self-extension core that keeps its
+  methodology.
+- **ADR-0032** — the loop substrate is a self-driving shell loop, not an Archon
+  workflow.

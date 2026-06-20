@@ -3,7 +3,10 @@
 The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
 file is about *how* to drive it well — the moves a human collaborator makes
 that turn the loop into productive design work. It is a field guide, not a
-specification; treat it as a starting set of habits, not a checklist.
+specification; treat it as a starting set of habits, not a checklist. Most of
+it concerns *planning* sessions — research and grilling — but the last two
+sections are habits for *work* sessions too: grounding framework decisions in
+the source, and doubting a decision before it stands.
 
 The dogfood reference throughout this doc is the
 `capture-issues-for-later-groves` workstream in the grove project's own
@@ -184,6 +187,81 @@ directions: the research doc gets a section pointing forward at the
 ADRs its findings landed in, and each ADR has a rationale section
 citing the survey by primary source. A future reader of either
 artifact can trace the evidence chain without re-doing the research.
+
+<!-- The two sections below are adapted (paraphrased into grove's voice, not
+     bundled verbatim) from addyosmani/agent-skills@13e43f23 —
+     skills/source-driven-development and skills/doubt-driven-development.
+     MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
+
+## Verifying framework decisions against the source
+
+The research-leaf discipline — a citation per claim, primary sources, and a
+note for what you *couldn't* verify — is not only for research. It applies to
+**work tasks** too, whenever you write framework- or library-specific code
+whose correctness depends on the version. Training data goes stale; an API you
+"remember" may have been deprecated two releases ago.
+
+For that kind of code — and only that kind, not version-invariant logic,
+renames, or plumbing:
+
+- **Read the manifest first.** `Cargo.toml`, `package.json`, `pyproject.toml`,
+  `go.mod` — whatever pins the version. The version decides which pattern is
+  correct, so guessing it defeats the exercise.
+- **Fetch the official source, not your memory.** Context7
+  (`resolve-library-id` → `query-docs`) or `WebFetch` against the project's own
+  docs or changelog — docs.rs for a crate, the framework's reference for a
+  framework. Official docs and changelogs outrank Stack Overflow, blog posts,
+  and training data. This is reading, not running: constraint 2 is satisfied.
+- **Cite at the decision site.** A one-line code comment with the source URL
+  next to the non-obvious call, so the next reader can check it without you. A
+  citation that lives only in the chat evaporates; one in the code is
+  walk-away-able.
+- **Flag what you couldn't verify.** "No official source found; based on
+  training data, verify before relying on it" beats false confidence — and, as
+  with the research-leaf "no primary source found" note, the absence is itself
+  a finding.
+
+When the decision is also hard to reverse, this pairs with the doubt pass
+below: cite the source *and* have a fresh context try to break it.
+
+## Doubting a decision before it stands
+
+"Ask the LLM WDYT" and "ask for pushback" are the cheap version of doubt: the
+same context second-guessing itself. But a long session turns its own
+assumptions into "facts," and the context that produced a decision shares its
+blind spots. The stronger move is to materialise a reviewer that **never saw
+your reasoning** and ask it to *disprove*, not approve.
+
+Reach for it when a decision clears the bar that already governs ADRs — hard to
+reverse, surprising, or a real trade-off — *or* when it asserts a correctness
+property the compiler can't check for you: thread-safety, ordering,
+idempotence, an invariant. One trigger, two consequences: such a decision may
+deserve an ADR, and it deserves a doubt pass before it stands. Don't doubt
+every keystroke — that is theatre, the runaway cousin of the runaway tree.
+
+The pass:
+
+1. **State the claim** in two or three lines, plus why it matters. If you can't
+   write it that compactly, you have a vibe, not a decision.
+2. **Extract the smallest reviewable unit** — the diff, or the proposal plus
+   the constraints it must satisfy. Strip your reasoning out of it.
+3. **Spawn a fresh-context reviewer** — a harness subagent (`code-reviewer`, or
+   a plain `Explore`) — and hand it the artifact and the contract *but not your
+   conclusion*; passing the conclusion biases it toward agreeing. Frame it
+   adversarially: "find what's wrong; assume the author is overconfident." A
+   mid-session subagent is fine under constraint 2 — read-don't-run governs
+   *bootstrap*, not the tools you reach for while working.
+4. **Reconcile.** Each finding is one of: a contract you stated unclearly (fix
+   the contract), a real issue (fix the artifact), a real trade-off (accept it,
+   visibly), or noise raised for want of context (note it, move on). You are
+   still the one deciding — a fresh reviewer can be wrong precisely because it
+   is fresh.
+5. **Stop** when a pass turns up only trivia, or after three rounds. Three
+   unresolved rounds is information about the artifact, not a reason to grind a
+   fourth.
+
+This is in-flight doubt, before the commit — not the post-hoc review of a
+finished branch, by which point course-correction is expensive.
 
 ## Anti-patterns
 

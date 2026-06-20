@@ -1,1 +1,1 @@
-Continue this grove — use the grove skill (Bootstrap drains the inbox first).
+Continue this grove — use the grove skill (Bootstrap drains the inbox first). When the task is committed + retired, run `grove-llm complete` as your last step to hand back to the self-driving loop (or, if `pick` is empty, propose the finish cycle instead — don't signal).

@@ -32,12 +32,13 @@ flowchart TD
     commit["Commit — one task = one focused commit"]
     retire{"parent chain — any node now empty?"}
     ret["Ask user; promote context up; mv subtree to done/"]
+    signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
     exec -->|planning| plan --> commit
     exec -->|work| work --> commit
     commit --> retire
     retire -->|yes| ret --> retire
-    retire -->|no| pick
+    retire -->|no| signal --> pick
   end
 ```
 
@@ -67,6 +68,8 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove. The grove's task tree lives at `.grove/` inside that worktree.
 
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove do <name>` is the **sole lifecycle entry verb** — for a brand-new grove it creates the worktree, branches off the default branch, and opens a bootstrap session; for an existing grove it resumes (re-attaching the worktree first if the branch is present but the worktree is gone). It pre-names the harness session, so the rename ritual is unnecessary in the common case.
+
+`grove do <name>` drives the **whole loop**, not one task (ADR-0032). It is a thin, stateless **self-driving loop**: launch one fresh foreground `claude` (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do <name>`. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
 If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
 
@@ -158,6 +161,16 @@ leaves or you reach the grove root. Archived in-grove, never deleted while the
 grove is live. The cascade walk and the brief-promotion-upward stay prose
 deliberately: both are judgement steps (does this node retire? what survives
 upward?) with no stable input/output shape that would justify a verb.
+
+**Signal.** Once the task is committed and retired (and any parent-chain cascade
+is settled), run **`grove-llm complete`** as your **last action — then do nothing
+else**. This is how the self-driving loop ends this session and starts the next
+task with fresh context: the verb writes the relaunch flag and forks a detached
+killer that ends this `claude` after a short grace (so the call itself returns
+first). It reads its env handles from the loop driver (`GROVE_CLAUDE_PID`,
+`GROVE_SIGNAL_FILE`); run outside `grove do` it is a safe no-op that just tells
+you to exit manually. **Do not run it for the finish cycle below** — finishing
+*ends* the loop, it does not relaunch, so it deliberately leaves no signal.
 
 **Finish.** A grove is ready to finish when it has no live leaves —
 `grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is

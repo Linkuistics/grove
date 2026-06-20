@@ -1,8 +1,9 @@
 # 32. The loop substrate is a self-driving shell loop, not an Archon workflow
 
 - Status: **accepted** (decided in `refactor-to-archon` 030-substrate-decision;
-  the mechanism is built and proven by leaf 040-substrate-wiring, whose PoC gates
-  the final kill-realisation choice)
+  mechanism built in leaf 040-substrate-wiring — kill-realisation **(b) the
+  self-spawned delayed killer**, validated by 040's automated PoC; the
+  interactive TUI verification is handed to the operator)
 - Date: 2026-06-20
 - Deciders: Antony Blakey (with grove `refactor-to-archon` 020-loop-substrate-spike
   + 030-substrate-decision)
@@ -72,10 +73,19 @@ loop that grove owns.** Mechanism:
 - grove's runtime becomes: a shell loop + a `grove-llm` signal verb + the global
   skill. **No external engine, no DB, no PTY wrapper, no portable-pty dependency.**
 - Restart-safety is structural (constraint 1), not a feature to configure.
-- Leaf **040-substrate-wiring** builds and proves it: the loop driver, the signal
-  verb, the kill realisation (a/b), the **interrupt/stop semantics** (relaunch
-  opt-in), and the PoC (foreground claude + the kill + clean relaunch, grilling
-  intact). The substrate's correctness rides on that leaf; if the PoC surfaces a
-  blocker, it escalates here.
+- Leaf **040-substrate-wiring** built and proved it: the loop driver (`grove do`
+  → `src/loop_driver.rs`), the signal verb (`grove-llm complete` →
+  `src/complete.rs`), the kill realisation — **(b) the self-spawned delayed
+  killer** (SIGTERM after a grace, SIGKILL fallback; the agent receives `claude`'s
+  PID via the `exec`-preserves-PID trick exported as `GROVE_CLAUDE_PID`), the
+  **interrupt/stop semantics** (relaunch opt-in via a signal file; the driver
+  ignores SIGINT so it survives the human's Ctrl-C), and the PoC. The
+  **automated PoC passes** — Rust tests (`tests/complete.rs`,
+  `tests/loop_driver.rs`) plus an end-to-end run of the real `grove do` against a
+  fake `claude` that calls the real `grove-llm complete`: the PID handle reaches
+  the agent, the out-of-band kill ends the session, and relaunch happens *only*
+  on the completion signal. The **interactive PoC** (real `claude` TUI:
+  multi-turn grilling, resize, Ctrl-C, terminal reset) is the operator's to run.
+  No blocker surfaced, so option **(a) the file-watch daemon stays unbuilt**.
 - The grove's *name* (`refactor-to-archon`) now misdescribes the outcome — kept as
   a historical label; the spike reversing its own premise is the spike working.

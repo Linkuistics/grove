@@ -35,33 +35,41 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
     launch_existing(args, "continue")
 }
 
-/// State-dispatching launcher: the sole lifecycle entry verb. It works
-/// whether the named grove has been started yet, is currently live, or is
-/// orphaned (branch present, worktree gone). The new-grove path honours
-/// `--start-point`; the continue paths ignore it (the branch already exists).
-/// The launched harness session handles any in-context judgement — including
-/// proposing the complete finish cycle once the grove has no live leaves
-/// left; this verb only dispatches.
+/// State-dispatching launcher: the sole lifecycle entry verb. It ensures the
+/// worktree exists (creating a new grove, re-attaching an orphaned one, or
+/// using a live one), then drives the **whole self-driving loop** (ADR-0032):
+/// one fresh foreground `claude` per task, relaunching on each completion
+/// signal until the agent stops signalling (empty `pick` → finish, or a human
+/// interrupt). The new-grove path honours `--start-point`; resume paths ignore
+/// it (the branch already exists). The launched sessions handle all in-context
+/// judgement — including proposing the complete finish cycle once the grove has
+/// no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
     let repo_path = repo::resolve(None)?;
-    let cont = NameArgs {
-        name: args.name.clone(),
-        harness: args.harness.clone(),
-        no_launch: args.no_launch,
-    };
+    let harness = harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
+
     let worktree = repo::grove_worktree(&repo_path, &args.name);
-    if worktree.is_dir() {
-        return continue_grove(&cont);
-    }
-    if repo::branch_exists(&repo_path, &args.name)? {
+    let worktree = if worktree.is_dir() {
+        worktree
+    } else if repo::branch_exists(&repo_path, &args.name)? {
         let attached = repo::attach_grove_worktree(&repo_path, &args.name)?;
         eprintln!(
             "grove: re-attached worktree at {} (branch existed but worktree was gone)",
             attached.display()
         );
-        return continue_grove(&cont);
+        attached
+    } else {
+        let wt = repo::create_grove_worktree(&repo_path, &args.name, args.start_point.as_deref())?;
+        harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
+        wt
+    };
+
+    if args.no_launch {
+        eprintln!("grove: worktree ready at {} (no-launch)", worktree.display());
+        return Ok(());
     }
-    start(args)
+
+    crate::loop_driver::run(harness, &repo_path, &worktree, &args.name)
 }
 
 pub fn takeover(args: &NameArgs) -> Result<()> {
@@ -126,7 +134,7 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
     exec_harness(harness, &repo_path, &worktree, name, &prompt)
 }
 
-fn load_prompt(main_repo: &Path, harness: &Harness, verb: &str) -> Result<String> {
+pub(crate) fn load_prompt(main_repo: &Path, harness: &Harness, verb: &str) -> Result<String> {
     let prompt_path = harness
         .install_path(main_repo)
         .join("prompts")

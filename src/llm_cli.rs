@@ -9,6 +9,7 @@
 
 use crate::brief_chain;
 use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs, InboxRemoveArgs};
+use crate::complete;
 use crate::inboxes;
 use crate::leaf;
 use crate::leaf_ops;
@@ -99,6 +100,33 @@ pub enum Command {
     /// stays prose. Prints the destination path on stdout. Working-tree
     /// change only — no commit.
     LeafRetire(LeafRetireArgs),
+    /// Signal task completion to the self-driving loop (ADR-0032). Run this as
+    /// the **last step** of a task, after commit + retire — it is how the loop
+    /// ends this `claude` session and starts the next task with fresh context.
+    ///
+    /// Writes the relaunch flag, then forks a detached killer that ends this
+    /// session after a short grace (so this very call returns first). Do
+    /// nothing else after running it. Defaults come from the loop driver's
+    /// environment (`GROVE_CLAUDE_PID`, `GROVE_SIGNAL_FILE`); when those are
+    /// absent (a session not under `grove do`) it is a safe near-no-op that
+    /// just tells you to exit manually.
+    Complete(CompleteArgs),
+}
+
+#[derive(Parser)]
+pub struct CompleteArgs {
+    /// PID of the `claude` session to end. Default: `$GROVE_CLAUDE_PID`.
+    #[arg(long)]
+    pub pid: Option<i32>,
+    /// Relaunch-signal file the loop driver polls. Default: `$GROVE_SIGNAL_FILE`.
+    #[arg(long = "signal-file")]
+    pub signal_file: Option<PathBuf>,
+    /// Seconds before SIGTERM. Default: `$GROVE_KILL_GRACE` or 2.
+    #[arg(long)]
+    pub grace: Option<f64>,
+    /// Seconds after SIGTERM before SIGKILL. Default: `$GROVE_KILL_GRACE_KILL` or 5.
+    #[arg(long = "kill-grace")]
+    pub kill_grace: Option<f64>,
 }
 
 #[derive(Parser)]
@@ -167,7 +195,18 @@ pub fn run() -> Result<()> {
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
+        Command::Complete(args) => cmd_complete(&args),
     }
+}
+
+fn cmd_complete(args: &CompleteArgs) -> Result<()> {
+    let opts = complete::resolve_opts(
+        args.pid,
+        args.signal_file.clone(),
+        args.grace,
+        args.kill_grace,
+    );
+    complete::signal_complete(&opts)
 }
 
 fn cmd_inbox_add(args: &InboxAddArgs) -> Result<()> {

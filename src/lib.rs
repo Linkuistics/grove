@@ -1,5 +1,6 @@
 pub mod brief_chain;
 pub mod cli;
+pub mod complete;
 pub mod extract;
 pub mod fetch;
 pub mod fleet;
@@ -11,6 +12,7 @@ pub mod launch;
 pub mod leaf;
 pub mod leaf_ops;
 pub mod llm_cli;
+pub mod loop_driver;
 pub mod meta;
 pub mod multi_repo_view;
 pub mod pick;

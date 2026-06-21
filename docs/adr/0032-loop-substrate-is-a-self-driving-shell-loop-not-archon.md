@@ -2,8 +2,8 @@
 
 - Status: **accepted** (decided in `refactor-to-archon` 030-substrate-decision;
   mechanism built in leaf 040-substrate-wiring — kill-realisation **(b) the
-  self-spawned delayed killer**, validated by 040's automated PoC; the
-  interactive TUI verification is handed to the operator)
+  self-spawned delayed killer**, validated by 040's automated PoC *and* the
+  operator's interactive `claude`-TUI PoC, 2026-06-21)
 - Date: 2026-06-20
 - Deciders: Antony Blakey (with grove `refactor-to-archon` 020-loop-substrate-spike
   + 030-substrate-decision)
@@ -85,7 +85,8 @@ loop that grove owns.** Mechanism:
   fake `claude` that calls the real `grove-llm complete`: the PID handle reaches
   the agent, the out-of-band kill ends the session, and relaunch happens *only*
   on the completion signal. The **interactive PoC** (real `claude` TUI:
-  multi-turn grilling, resize, Ctrl-C, terminal reset) is the operator's to run.
-  No blocker surfaced, so option **(a) the file-watch daemon stays unbuilt**.
+  multi-turn grilling, resize, Ctrl-C, terminal reset, kill + clean relaunch,
+  non-signalled exit stops the loop) **passed** — operator-run on 2026-06-21. No
+  blocker surfaced, so option **(a) the file-watch daemon stays unbuilt**.
 - The grove's *name* (`refactor-to-archon`) now misdescribes the outcome — kept as
   a historical label; the spike reversing its own premise is the spike working.

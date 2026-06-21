@@ -12,6 +12,7 @@ pub mod launch;
 pub mod leaf;
 pub mod leaf_grow;
 pub mod leaf_id;
+pub mod leaf_lifecycle;
 pub mod leaf_ops;
 pub mod leaf_read;
 pub mod llm_cli;

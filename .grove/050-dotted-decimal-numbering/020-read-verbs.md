@@ -1,0 +1,39 @@
+# 020-read-verbs
+
+**Kind:** work
+
+## Goal
+
+Implement the new-format **read verbs** on the 010 id model: `pick`, `brief-chain`,
+and the new `resolve`. New, isolated code (D9) — not wired in as the live verbs.
+
+## Context
+
+Read **ADR-0033** and the parent BRIEF's running log **D4** (`pick` is a pure
+per-file filter; `brief-chain` ascends prefix-ids) and **D7** (`resolve`). Depends
+on **010** (the parsed type + comparator). Current old-format implementations:
+`src/pick.rs`, `src/brief_chain.rs` (directory-based); `resolve` is brand new.
+
+## Done when
+
+- **pick**: walk the flat `.grove/` list version-sorted (010 comparator), skip
+  every `.BRIEF` and every `.DONE`, return the first live leaf; empty when none
+  (the finish signal); lenient on foreign files (D2/D4). Never reads brief
+  contents.
+- **brief-chain**: for a leaf at position `[a,b,c]`, collect the `BRIEF.md` at each
+  proper-prefix position (`[a,b]`, `[a]`, then root `BRIEF.md`), in root→leaf
+  order. Briefs are found by **id-prefix**, not directory ascent; a brief is never
+  `.DONE` (D4).
+- **resolve `<ref>`** (D7): `[n]` or `n` → the unique keyed file (live or `.DONE`),
+  print its path; `[n]-slug` → same (slug decorative); bare slug → 0 ⇒ not found,
+  1 ⇒ print, >1 ⇒ list every match with its `[n]` on stderr so the caller
+  re-queries by key; not-found ⇒ empty stdout + stderr diagnostic (pick-style); a
+  `.DONE` target ⇒ stderr note that the referenced task is retired.
+- Tested against new-format fixtures (flat trees with nodes, children, done
+  leaves, multi-level subtrees). **Not** wired as the live verbs.
+
+## Notes
+
+- Depends on 010. The key behavioural shift from today: `brief-chain` resolves
+  ancestors by position-prefix in a flat namespace rather than walking parent
+  directories.

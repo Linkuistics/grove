@@ -1,0 +1,37 @@
+# 040-lifecycle-verbs
+
+**Kind:** work
+
+## Goal
+
+Implement the new-format **lifecycle verbs**: `root-init`, `leaf-decompose`,
+`leaf-retire`. New, isolated code (D9) — not wired in as the live verbs.
+
+## Context
+
+Read **ADR-0033** and the parent BRIEF's running log **D3** (`.DONE` marker), **D4**
+(decompose enforces a first child; retire is leaves-only; node-done is implicit),
+and **D6** (decompose **preserves** the node's key). Depends on **010** (model +
+next-key). Current old-format logic: `src/root_init.rs`, `src/leaf_ops.rs`
+(decompose → directory; retire → `done/`). The flat scheme drops both the
+directory and `done/`.
+
+## Done when
+
+- **root-init `[<slug>]`**: create the root `BRIEF.md` (the one unkeyed singleton)
+  + the first leaf `1-[1]-<slug>.md`. Refuses to clobber an existing `.grove/`.
+- **leaf-decompose `<leaf-path> <first-child-slug>`**: `git mv` the leaf
+  `<id>-[k]-<slug>.md` → `<id>-[k]-<slug>.BRIEF.md` (**preserve the key `[k]`** —
+  the entity that was `[k]` becomes node `[k]`), retitle the `# …` header with
+  `— brief`, **and** create the first child `<id>.1-[new]-<first-child-slug>.md`
+  atomically (D4 enforce-first-child — a node is never childless).
+- **leaf-retire `<leaf-path>`**: rename `<id>-[k]-<slug>.md` →
+  `<id>-[k]-<slug>.DONE.md`; refuse a `BRIEF.md` and an already-`.DONE` leaf (D3/D4).
+- Tested against new-format fixtures. **Not** wired as the live verbs.
+
+## Notes
+
+- Depends on 010. Decompose no longer creates a directory (flat scheme) — it adds
+  the `.BRIEF` marker in place and grows the first child; this is also where the
+  ADR-0011 "every node has a live first leaf" contract is enforced for non-root
+  nodes.

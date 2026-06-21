@@ -1,0 +1,42 @@
+# 030-grow-verbs-renumber
+
+**Kind:** work
+
+## Goal
+
+Implement `leaf-add` and `leaf-insert` on the new flat scheme, **including the
+subtree-cascade renumber** — the hardest piece of the whole scheme. New, isolated
+code (D9) — not wired in as the live verbs.
+
+## Context
+
+Read **ADR-0033** and the parent BRIEF's running log **D5** (verb surface +
+renumber cascade) and **D6** (keys are preserved on renumber; a fresh key is
+assigned on add/insert). Depends on **010** (model + next-key). Current old-format
+logic is `src/leaf.rs` (`add`, `insert`, `surface_cross_refs`) — a single-directory
++10 shift; the new `insert` generalises this to a dotted **subtree** cascade. Reuse
+the highest-first ordering trick from the old `insert`.
+
+## Done when
+
+- **leaf-add `<parent-id> <slug>`**: append a child at `<parent-id>.<next>`
+  (`<next>` = max existing child index + 1, gapless), assigning a **fresh key**
+  (010 next-key). Root parent is `.` (→ `1-[k]-<slug>.md`).
+- **leaf-insert `<target-id> <slug>`**: create a new leaf at exactly `<target-id>`
+  with a fresh key, shifting the current occupant and all later siblings up by one.
+  The renumber **cascades through whole subtrees**: rewrite the k-th position
+  segment of every id whose path starts `<parent>.<j>` for j ≥ position.
+  Highest-first (intermediate FS state stays collision-free), `git mv` each, and
+  rewrite the **position** in both filenames and `# …` headers — **never the key
+  or slug**.
+- **stray *positional* cross-references** (`2.2`-style) surfaced on stderr as a
+  lint; **not** auto-rewritten (D6 — durable refs should use `[n]`).
+- Tested hard: multi-level subtrees, collision-free highest-first ordering,
+  key + slug preserved across renumber, position-only header rewrite, root-level
+  insert, the degenerate no-siblings-to-shift case. **Not** wired as live verbs.
+
+## Notes
+
+- Depends on 010. The renumber must touch **only** the position prefix — a bug
+  that rewrites a `[key]` would break the very reference-stability D6 exists to
+  guarantee, so test that explicitly.

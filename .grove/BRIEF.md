@@ -39,9 +39,13 @@ leaves built and fixture-tested; inert for this live tree, which still flips at 
 
 Live leaves (this grove is still an old `NNN-slug` tree; the flip happens at 070):
 
-- `070-global-skill-homebrew-distribution` (work — **the flip**, ADR-0034): binary-
-  provisioned global skill + new-scheme prose in `content/` + remove the
-  project-local skill mirrors + `brew install grove` + the install/handoff.
+- `070-global-skill-homebrew-distribution/` (node — **the flip**, ADR-0034):
+  binary-provisioned global skill + new-scheme prose + `brew install grove` sole
+  gesture + remove project-local mirrors + the live install/flip. Decomposed
+  (5 leaves, safety-ordered — provision before removing mirrors; flip last +
+  user-gated): `010-embed-skill-and-provision` → `020-new-scheme-prose` →
+  `030-homebrew-sole-gesture` → `040-install-and-flip` (user-gated) →
+  `050-remove-project-skill-mirrors`.
 - `080-shed-tui` (work) — delete the rmux/ratatui TUI + Fleet.
 - `090-shed-inbox-and-install-machinery` (work) — delete inbox/grove-meta +
   install/materialise.

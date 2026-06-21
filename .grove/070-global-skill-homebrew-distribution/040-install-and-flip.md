@@ -1,0 +1,44 @@
+# 040-install-and-flip
+
+**Kind:** work — **USER-GATED** (confirm before the live flip)
+
+## Goal
+
+The live flip (ADR-0034). Build + install the new binary, then let the next
+`grove do <this-grove>` **adoption-migrate** this old `NNN-slug` tree to
+dotted-decimal (060/030) and **extract the global skill** (010); verify and hand
+off. This is the single step where the world goes new-format.
+
+## Context
+
+- ADR-0034 §3 (this grove is flipped, reversing finish-old) + §4 (the flip is
+  localized to the install step; `restart ≡ continuation` still holds).
+- The migration is `grove migrate` / migrate-on-adoption, built and fixture-tested
+  in 060 (`src/migrate.rs`, `src/loop_driver.rs`). It is a single **reviewable,
+  revertable** git commit.
+- Prerequisites that must already be landed and green: 010 (embed+extract), 020
+  (new-scheme prose), 030 (formula). Build + stage everything first.
+- `grove-general-improvements` (also old-format) flips by the **same** adoption on
+  its *own* next `grove do` — not driven from here, just expected.
+
+## Done when
+
+- The new binary is built and installed (replacing the Homebrew old one, or a
+  reviewed local install).
+- A reviewed run adoption-migrates this grove's `.grove/` to new-format — one
+  reviewable commit, order / done-ness / brief-chain preserved, fresh permanent keys.
+- The global skill is extracted and **live** at `~/.claude/skills/grove/`, matching
+  the new binary.
+- This grove continues new-format; a re-run of `grove do` **re-derives** state (no
+  second migration — idempotent).
+
+## Notes
+
+- **USER-GATED**: confirm with the user before installing + first real
+  adoption-migrate — it swaps the running binary and migrates a live tree. The
+  migration commit is revertable; build + stage 010–030 first, flip as a deliberate
+  reviewed step.
+- Do **not** remove the project-local mirrors here — that is 050, *after* the global
+  skill is confirmed live (provision-before-remove).
+- After this leaf the tree is renumbered to dotted-decimal: the remaining leaves
+  (050 here, plus 080/090/100) take new ids. Re-`pick` re-derives position.

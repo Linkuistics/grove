@@ -1,0 +1,49 @@
+# 020-new-scheme-prose
+
+**Kind:** work
+
+## Goal
+
+Rewrite grove's `content/` prose so it describes the new **flat dotted-decimal**
+scheme (ADR-0033) and the **migrate-on-adoption** flip (ADR-0034), replacing the
+old `NNN-slug` + gap-10-insert language. This is the prose the 050-numbering leaf /
+the old rollout deferred — now due because the binary will embed and ship it (010).
+
+## Context
+
+Files carrying scheme language (rewrite):
+- `content/SKILL.md` (the loop + the verbs + the numbering walk: "depth-first,
+  numeric-prefix order", `leaf-add`/`leaf-insert`/`leaf-decompose` with three-digit
+  prefixes and "shift siblings up by 10").
+- `content/prompts/*` (`start.md`, `continue.md`, `takeover.md`, `retire.md`).
+- `content/TASK-FORMAT.md` + `content/BRIEF-FORMAT.md` ("numeric prefix in tens",
+  `010-`).
+
+The **new verb surface** to document (id-addressed, from 060/010 + ADR-0033):
+`leaf-add <parent-id> <slug>`, `leaf-insert <target-id> <slug>`,
+`leaf-decompose <leaf> <first-child-slug>`, `resolve <ref>`, plus dotted-decimal
+positions with **permanent keys**. `grove do` now **migrates an old tree on
+adoption** (ADR-0034) — describe that, and that there is no transitional dual reader.
+
+Largely scheme-agnostic — touch only where they mention numbering:
+`content/grilling.md`, `content/driving.md`, `content/CONTEXT-FORMAT.md`,
+`content/ADR-FORMAT.md`.
+
+## Done when
+
+- SKILL.md + prompts + the two format guides describe dotted-decimal ids, permanent
+  keys, and migrate-on-adoption; no stale `NNN-slug` / gap-10-insertion language
+  remains in scheme-describing sections.
+- The new id-addressed verb signatures are documented.
+- The prose still reads as one coherent methodology (constraint 7: the loop fits a
+  page).
+
+## Notes
+
+- This prose is exactly what 010 embeds and 040 ships — land it **before** the flip
+  so the installed new binary provisions correct prose.
+- Inbox/TUI sections may still describe machinery 080/090 remove — **acceptable**:
+  because the skill is binary-embedded (010), each later shed re-provisions a
+  matching skill, so that prose cleans incrementally (ADR-0034). Do not pre-clean it
+  here.
+- **Inert for this grove** until 040.

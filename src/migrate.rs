@@ -146,6 +146,55 @@ pub fn migrate(worktree: &Path) -> Result<Outcome> {
     }
 }
 
+/// Adoption-migrate (060/030, ADR-0034): the step `grove do` runs **before
+/// driving** so the loop only ever sees a new-format tree. It detects the format
+/// via [`migrate`]; if the tree was old it converts it **and commits** the
+/// conversion as one clear, reviewable commit, then driving proceeds new-format.
+/// A new-format / empty / absent `.grove/` is a clean no-op — no commit, no churn
+/// — so `grove do` calls this unconditionally on every adoption.
+///
+/// Idempotent and safe under `restart ≡ continuation` (ADR-0032): the conversion
+/// itself is re-runnable, and the commit makes the old→new boundary crisp, so a
+/// re-run after a completed migrate sees a new-format tree ([`Outcome::AlreadyNew`])
+/// and does nothing. This is the **only** place adoption auto-commits to the grove
+/// branch — every other commit the loop makes is the agent's own.
+pub fn migrate_on_adoption(worktree: &Path, name: &str) -> Result<Outcome> {
+    let outcome = migrate(worktree)?;
+    if let Outcome::Migrated(_) = &outcome {
+        commit_migration(worktree, name)?;
+    }
+    Ok(outcome)
+}
+
+/// Commit the adoption migration as one isolated, self-describing commit. Staging
+/// is scoped to `.grove/` so an unrelated dirty file elsewhere in the worktree is
+/// never swept in, and a plain `git add` is required because the post-`git mv`
+/// header rewrites left each renamed file modified-after-staging.
+fn commit_migration(worktree: &Path, name: &str) -> Result<()> {
+    git(worktree, &["add", "-A", "--", ".grove"])?;
+    let msg = format!("grove({name}): migrate task tree to dotted-decimal scheme");
+    git(worktree, &["commit", "-q", "-m", &msg])?;
+    Ok(())
+}
+
+/// Run `git -C <dir> <args>`, bailing with stderr on a non-zero exit.
+fn git(dir: &Path, args: &[&str]) -> Result<()> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .with_context(|| format!("running git {}", args.join(" ")))?;
+    if !out.status.success() {
+        bail!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
+    Ok(())
+}
+
 /// The `grove migrate [path]` CLI handler. `path` is the worktree whose `.grove/`
 /// to migrate (default: the current worktree). Prints a rename summary.
 pub fn run(args: &MigrateArgs) -> Result<()> {

@@ -62,6 +62,20 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         wt
     };
 
+    // Adoption-migrate (ADR-0034): before driving, flip an old-format `.grove/`
+    // to the new dotted-decimal scheme in one reviewable commit, so every task
+    // the loop launches sees only new format. A no-op on a new/empty/absent tree,
+    // so it is safe on every `grove do` (idempotent; restart ≡ continuation).
+    if let crate::migrate::Outcome::Migrated(renames) =
+        crate::migrate::migrate_on_adoption(&worktree, &args.name)?
+    {
+        eprintln!(
+            "grove: migrated {} task-tree file{} to the dotted-decimal scheme (committed for review)",
+            renames.len(),
+            if renames.len() == 1 { "" } else { "s" }
+        );
+    }
+
     if args.no_launch {
         eprintln!(
             "grove: worktree ready at {} (no-launch)",

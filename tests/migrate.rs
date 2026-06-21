@@ -60,6 +60,16 @@ fn head(repo: &Path) -> String {
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
+fn head_subject(repo: &Path) -> String {
+    let out = Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["log", "-1", "--format=%s"])
+        .output()
+        .unwrap();
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
 fn porcelain(repo: &Path) -> String {
     let out = Pcmd::new("git")
         .arg("-C")
@@ -403,5 +413,111 @@ fn grove_llm_binary_does_not_expose_migrate() {
     assert!(
         !s.contains("migrate"),
         "grove-llm --help leaked migrate: {s}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// adoption (060/030): `grove do` migrates an old tree on adoption, committing the
+// conversion as one reviewable commit *before* driving — so the loop sees only
+// new format. `migrate::migrate_on_adoption` is the unit the loop driver calls;
+// these tests exercise its commit + idempotency contract directly.
+
+#[test]
+fn adoption_migrates_and_commits_an_old_tree() {
+    let repo = init_repo();
+    build_old_fixture(repo.path());
+    stage_commit(repo.path());
+    let before = head(repo.path());
+
+    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    assert!(
+        matches!(outcome, grove::migrate::Outcome::Migrated(_)),
+        "old tree should report Migrated, got {outcome:?}"
+    );
+
+    // The tree is converted to the new flat scheme...
+    assert_eq!(
+        tree(repo.path()),
+        expected_new_tree(),
+        "migrated tree shape"
+    );
+    // ...and the conversion is committed (head advanced, working tree clean).
+    assert_ne!(head(repo.path()), before, "adoption must create a commit");
+    assert!(
+        porcelain(repo.path()).trim().is_empty(),
+        "adoption commit must leave a clean working tree"
+    );
+    // The commit is clear and self-describing (names the grove + the scheme).
+    assert_eq!(
+        head_subject(repo.path()),
+        "grove(demo): migrate task tree to dotted-decimal scheme"
+    );
+}
+
+#[test]
+fn adopted_tree_drives_under_pick() {
+    // After adoption, the committed new-format tree drives correctly: `pick`
+    // returns the first live leaf in the new version-sort order.
+    let repo = init_repo();
+    build_old_fixture(repo.path());
+    stage_commit(repo.path());
+    grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+
+    let out = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(repo.path())
+        .arg("pick")
+        .output()
+        .unwrap();
+    let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    assert!(
+        picked.ends_with("/.grove/2.2-[4]-live-child.md"),
+        "adopted tree should drive under pick, got {picked:?}"
+    );
+}
+
+#[test]
+fn adoption_is_a_noop_on_an_already_new_tree() {
+    let repo = init_repo();
+    build_old_fixture(repo.path());
+    stage_commit(repo.path());
+    // First adoption migrates + commits.
+    assert!(matches!(
+        grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap(),
+        grove::migrate::Outcome::Migrated(_)
+    ));
+    let before = head(repo.path());
+
+    // Second adoption: already new-format → no commit, no churn.
+    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    assert!(
+        matches!(outcome, grove::migrate::Outcome::AlreadyNew),
+        "new tree should report AlreadyNew, got {outcome:?}"
+    );
+    assert_eq!(head(repo.path()), before, "no second commit on a new tree");
+    assert!(
+        porcelain(repo.path()).trim().is_empty(),
+        "no churn on a new tree"
+    );
+}
+
+#[test]
+fn adoption_is_a_noop_when_no_grove_dir() {
+    // A worktree with no `.grove/` at all (e.g. a freshly-created grove before
+    // root-init) is a clean no-op — adoption never spuriously commits.
+    let repo = init_repo();
+    fs::write(repo.path().join("README"), b"r\n").unwrap();
+    stage_commit(repo.path());
+    let before = head(repo.path());
+
+    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    assert!(
+        matches!(outcome, grove::migrate::Outcome::NothingToMigrate),
+        "absent .grove/ should report NothingToMigrate, got {outcome:?}"
+    );
+    assert_eq!(
+        head(repo.path()),
+        before,
+        "no commit when nothing to migrate"
     );
 }

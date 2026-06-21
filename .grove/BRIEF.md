@@ -21,8 +21,8 @@ historical label (the spike reversing its own premise is the spike working).
 - grove is shed to its core + methodology: TUI deleted (080); inbox/grove-meta +
   install machinery removed (090); distribution → a single global skill +
   `brew install grove` (070). The methodology is **retained**, not shed.
-- The task-id scheme is migrated to flat dotted-decimal (050) with a transitional
-  bridge + one-time migration (060).
+- The task-id scheme is migrated to flat dotted-decimal (050), wired live with a
+  migrate-on-adoption flip (060 + 070, ADR-0034) — no transitional dual reader.
 
 ## Decomposition
 
@@ -30,21 +30,31 @@ Retired (in `done/`): `010-plan` (foundations D1–D8); `020-loop-substrate-spik
 (the cited options doc); `030-substrate-decision` (the substrate choice + this
 leaf set).
 
-Live leaves (current `NNN-slug` scheme — the dotted scheme is what 050 *builds*):
+Also retired (in `done/`): `040-substrate-wiring` (the loop driver + signal/kill +
+interrupt semantics + PoC, ADR-0032); `050-dotted-decimal-numbering` (the flat
+scheme + comparator + the eight new-format verbs, ADR-0033 — built isolated, now
+wired live by 060).
 
-- `040-substrate-wiring` (work) — **critical path**: the loop driver + signal verb
-  + kill + interrupt semantics + PoC (ADR-0032).
-- `050-dotted-decimal-numbering` (planning) — the flat scheme + comparator + verbs.
-- `060-backwards-compat-migration` (work) — dual-format reader + `grove migrate`.
-- `070-global-skill-homebrew-distribution` (work) — `brew install grove` + global
-  skill provisioning.
+Live leaves (this grove is still an old `NNN-slug` tree; the flip happens at 070):
+
+- `060-backwards-compat-migration/` (node — **the engine**, ADR-0034): new-format
+  verbs live + `grove migrate` + migrate-on-adoption, fixture-tested.
+  - `010-verbs-live` (work) — wire the 050 modules into the live `grove-llm`
+    dispatch with the new id-addressed signatures; retire the old verb wiring.
+  - `020-grove-migrate` (work) — `grove migrate` (old→new), fixture-tested *hard*.
+  - `030-migrate-on-adoption` (work) — `grove do` migrates an old tree before driving.
+- `070-global-skill-homebrew-distribution` (work — **the flip**, ADR-0034): binary-
+  provisioned global skill + new-scheme prose in `content/` + remove the
+  project-local skill mirrors + `brew install grove` + the install/handoff.
 - `080-shed-tui` (work) — delete the rmux/ratatui TUI + Fleet.
 - `090-shed-inbox-and-install-machinery` (work) — delete inbox/grove-meta +
   install/materialise.
+- `100-complete-terminate-signal` (work) — `grove-llm complete --done` to end the
+  loop cleanly (loop-runtime, position-independent; must land before release).
 
-Sequencing: 040 first (prove the loop); 050→060 (numbering before migration); 070
-(distribution); 080/090 sheds last (don't delete the old runtime before the new
-one works).
+Sequencing: 060 (engine) → 070 (flip — world goes new-format here) → 080/090 sheds
++ 100, now running **in the new world** (don't delete the old runtime before the
+new one works). 100 is independent and may land any time before the release.
 
 ## Pointers
 
@@ -79,20 +89,28 @@ transitional dual-format + one-time `grove migrate`, then drop** (ephemeral tree
 drain). **"Less in grove" = less machinery, not less wisdom — the methodology is
 RETAINED** (ADR-0031, D6).
 
-### Rollout (decided 2026-06-21)
+### Rollout (REVERSED 2026-06-21 — ADR-0034)
 
-**This workstream runs to completion on the *current* (old) installed grove
-binary — we do NOT switch the active binary or migrate this grove mid-flight.**
-When everything (050–090) is done, we cut a **new major release** and install it
-via **homebrew**; the new dotted-decimal scheme + the self-driving loop only go
-live *then*, not during the refactor. Consequences: the new-scheme verbs (050) are
-built as isolated, separately-tested code that never touches the live verb path
-(050 D9); `grove migrate` + the dual-format reader (060) are built and verified
-against a **fixture**, *not* dogfooded on this grove (which finishes old); the
-methodology-prose / format-guide / `CONTEXT.md`-glossary rewrites for the new
-scheme land with the release, not inline now. The "keep reading the old format
-during the transition" dogfood (ADR-0031) still holds — this grove *is* an old
-tree the old verbs keep driving — but the "migrate this grove" step is dropped.
+**Superseded.** The original rollout ("this grove finishes on the *old* scheme;
+do NOT switch the active binary or migrate this grove; ship the new scheme only at
+a later release; build 060 as a transitional dual-format reader") is **reversed**
+by **ADR-0034**. New rollout:
+
+**We flip this grove into the new world.** There is **no transitional dual-format
+reader** — `grove do` **migrates an old tree on adoption** (a reviewable, committed
+git change) and then drives it new-format, so the verbs are **new-format-only**
+(the 050 modules become the live verb path) and the only surviving old-format code
+is the parser the migration consumes once. Sequence: build the **engine** (060 —
+verbs-live + `grove migrate` + migrate-on-adoption, fixture-tested *hard* before it
+touches a real tree), then the **flip** (070 — binary-provisioned global skill +
+new-scheme prose in `content/` + remove the project-local skill mirrors + install
+the new binary). All source changes before the new-binary install are **inert for
+this grove** (it is driven by the *installed old* binary until then); the world
+flips at exactly the 070 install step, after which the next `grove do` migrates
+this tree and the rest of the refactor (080/090/100) runs **in the new world**.
+`grove-general-improvements` (also old-format) flips by the same adoption mechanism
+on its next `grove do`. Dogfood per ADR-0031, reversed on merit (no sunk cost):
+050's isolated verbs are now *used*, not wasted.
 
 ### ADRs
 
@@ -100,3 +118,7 @@ tree the old verbs keep driving — but the "migrate this grove" step is dropped
   methodology.
 - **ADR-0032** — the loop substrate is a self-driving shell loop, not an Archon
   workflow.
+- **ADR-0033** — task ids are flat dotted-decimal positions with permanent keys
+  (the scheme 050 built).
+- **ADR-0034** — grove flips to the new scheme by migrate-on-adoption (no
+  transitional dual reader); this grove is itself flipped. Reverses the rollout.

@@ -1,0 +1,58 @@
+# 020-grove-migrate
+
+**Kind:** work
+
+## Goal
+
+Build **`grove migrate`**: a one-time, in-place conversion of an old `NNN-slug/` +
+`done/` directory tree to the new flat `<position>-[<key>]-<slug>` scheme
+(ADR-0033/0034). A **reviewable git change** (`git mv` + header rewrites, no
+commit — the human reviews), preserving order, done-ness, and brief-chain
+structure, assigning fresh permanent keys. **Fixture-tested hard** — correctness
+here gates the adoption flip (030).
+
+## Context
+
+Read **ADR-0033** (the target scheme: position vector, `[key]`, `.BRIEF`/`.DONE`
+markers, comparator) and **ADR-0034** (migrate is the *only* old-format reader).
+Old-format structure to consume: nodes are directories `NNN-slug/` with a
+`BRIEF.md` + child leaves `NNN-slug.md`; retired leaves live under a `done/`
+directory mirroring the live path; `pick` walks depth-first by zero-padded `NNN`.
+Old parsing helpers: `src/leaf.rs` (`split_prefix` etc.), `src/pick.rs`. New model
++ renderer: `src/leaf_id.rs` (`LeafId`, `filename()`, `next_key`). `grove migrate`
+is a **human** verb (noun-less flat verb on the `grove` binary, like `grove do`).
+
+## Done when
+
+- `grove migrate [path]` converts the `.grove/` of the current worktree (or
+  `[path]`) old→new in place; refuses / no-ops cleanly on an already-new tree and
+  on a missing/foreign `.grove/`.
+- Mapping is faithful:
+  - directory node `NNN-slug/BRIEF.md` → `<position>-[<key>]-slug.BRIEF.md`;
+  - live leaf `NNN-slug.md` → `<position>-[<key>]-slug.md`;
+  - `done/.../NNN-slug.md` → the same `<position>` it would have had live, with
+    `.DONE` appended (done-ness preserved as the in-place marker, D3);
+  - the depth-first **order** is preserved: old zero-padded `NNN` ordering maps to
+    the new numeric position segments (so the new version-sort reproduces the old
+    walk);
+  - the root `BRIEF.md` stays `BRIEF.md` (unkeyed);
+  - **keys** are assigned fresh (a per-tree creation serial), deterministically,
+    so the result is stable and re-runnable in tests.
+- Brief-chain structure is preserved (a node's brief still heads its subtree under
+  the new position-prefix rule).
+- Emitted as `git mv`s + first-line `# …` header rewrites; **no commit** (the
+  human reviews the diff). Prints a summary of the renames.
+- **Fixtures**: multi-level nodes, `done/` leaves at several depths, mixed
+  live/done siblings, a node whose only remaining children are done, foreign files
+  (left untouched), and an already-migrated tree (no-op). Round-trip / golden-tree
+  assertions.
+
+## Notes
+
+- Reuse old-format parsing read-only; do not resurrect the old *write* verbs.
+- Order-preservation is the subtle part: define the old→new position mapping
+  explicitly and test it against the old `pick` walk order on the fixtures.
+- Decide key-assignment order (e.g. DFS pre-order) and document it — tests depend
+  on determinism.
+- This verb is exercised on real trees by 030 (adoption) and by the 070 flip; it
+  must be right *before* either runs on a live tree.

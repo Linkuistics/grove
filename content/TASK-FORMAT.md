@@ -2,8 +2,11 @@
 
 # TASK-FORMAT — the leaf task file
 
-A **leaf** in a grove is a single `.md` task file, named with a numeric prefix
-in tens (`010-`, `020-`, …). One task is one session (constraint: one task per
+A **leaf** in a grove is a single `.md` task file, named
+`<position>-[<key>]-<slug>.md`: a dotted-decimal **position** in the tree
+(`1`, `2.3.1`), a bracketed **permanent key** (`[7]` — stable identity, assigned
+once, never reused), and a human **slug** — e.g. `1-[1]-plan.md`,
+`2.3.1-[7]-extract.md`. One task is one session (constraint: one task per
 session). The file is freeform markdown — a guide follows, not a schema.
 
 ## The two kinds
@@ -14,8 +17,9 @@ Every task file states its **kind**. There are two:
   (`driving.md` carries the work-session habits: cite framework decisions to the
   source, and doubt a hard-to-reverse decision before it stands.)
 - **planning** — grills, sharpens the glossary, may raise an ADR or a PRD, and
-  **grows the tree**: replaces an oversized leaf with a node directory of child
-  briefs and ordered leaves. The deliverable is *more tree*.
+  **grows the tree**: turns an oversized leaf into a node — a `.BRIEF.md` plus
+  ordered child leaves, flat in `.grove/` with no directory nesting. The
+  deliverable is *more tree*.
 
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
@@ -23,7 +27,7 @@ decompose, not to do.
 ## Suggested shape
 
 ```markdown
-# <NNN-task-name>
+# <position>-[<key>]-<slug>
 
 **Kind:** work          (or: planning)
 

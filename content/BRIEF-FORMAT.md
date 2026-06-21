@@ -2,14 +2,18 @@
 
 # BRIEF-FORMAT — the node briefing
 
-Every node directory in a grove carries a `BRIEF.md`. It is **process
-scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision log
-(`docs/adr/`). It exists so that a session executing a leaf can read *three*
-ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
-project's documented decisions.
+Every node in a grove carries a brief — the root as `BRIEF.md`, every other
+node as `<position>-[<key>]-<slug>.BRIEF.md` (the file the leaf became when it
+was decomposed, keeping its permanent key). It is **process scaffolding** —
+neither the glossary (`CONTEXT.md`) nor a decision log (`docs/adr/`). It exists
+so that a session executing a leaf can read *three* ADRs, not fifty: the brief
+chain, root→leaf, is the curated path into the project's documented decisions.
 
-A `BRIEF.md` is written by the planning task that creates its node, and is
-retired (moved into `done/`) together with its subtree.
+A brief is written by the planning task that creates its node. Because a brief
+is context, not a task, it is **never** marked `.DONE`: a node is done
+*implicitly*, when no live leaf remains in its subtree, and its brief stays in
+place. On that completion, anything still live in the brief is promoted upward
+(see SKILL.md, "Retire").
 
 ## Suggested shape
 
@@ -28,8 +32,8 @@ The done-criteria rollup for the subtree — the conditions under which every
 child is complete and the node retires.
 
 ## Decomposition
-Why this node is split the way it is, and what the numeric child ordering
-encodes (dependencies, natural sequence). One line per child is enough.
+Why this node is split the way it is, and what the child ordering (the dotted
+positions) encodes (dependencies, natural sequence). One line per child is enough.
 
 ## Pointers
 - ADRs a session here must read: docs/adr/NNNN-*.md, …

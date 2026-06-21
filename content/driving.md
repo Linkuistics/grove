@@ -48,7 +48,7 @@ The single most leveraged move is to **name the downstream questions the
 research must answer**, leaf by leaf. The researcher doesn't have to
 guess what's load-bearing.
 
-The 050 leaf's brief (now in `done/`) put it this way:
+The 050 leaf's brief (since retired) put it this way:
 
 > The audience is four open planning leaves: 060, 070, 080, 090. Each
 > system section ends with a *takeaway for grove* pointing at the

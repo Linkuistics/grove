@@ -18,6 +18,7 @@ pub mod leaf_read;
 pub mod llm_cli;
 pub mod loop_driver;
 pub mod meta;
+pub mod migrate;
 pub mod multi_repo_view;
 pub mod pick;
 pub mod repo;

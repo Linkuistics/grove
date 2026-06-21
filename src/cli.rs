@@ -29,6 +29,13 @@ pub enum Command {
     /// re-attach the worktree and continue. When the grove has no live
     /// leaves left, the in-session loop proposes the complete finish cycle.
     Do(StartArgs),
+    /// Migrate this worktree's `.grove/` from the old `NNN-slug/` + `done/`
+    /// directory format to the new flat dotted-decimal scheme (ADR-0033/0034),
+    /// in place. A reviewable git change (`git mv` + `# …` header rewrites, no
+    /// commit) — review the diff, then commit. No-op on an already-migrated tree
+    /// or a missing/foreign `.grove/`. `grove do` runs this automatically on
+    /// adoption; invoke it explicitly to migrate a tree by hand.
+    Migrate(MigrateArgs),
     /// Orient on an unfamiliar grove without picking a task.
     Takeover(NameArgs),
     /// Retire a done node (promote brief, mv into done/).
@@ -285,6 +292,13 @@ pub struct StartArgs {
 }
 
 #[derive(Parser)]
+pub struct MigrateArgs {
+    /// Worktree whose `.grove/` to migrate (default: the current worktree, via
+    /// `git rev-parse --show-toplevel`).
+    pub path: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 pub struct NameArgs {
     pub name: String,
     #[arg(long = "harness")]
@@ -310,6 +324,7 @@ pub fn run() -> anyhow::Result<()> {
         Command::Uninstall(args) => crate::uninstall::run(&args),
         Command::Status(args) => crate::status::run(&args),
         Command::Do(args) => crate::launch::do_grove(&args),
+        Command::Migrate(args) => crate::migrate::run(&args),
         Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args) => crate::launch::retire(&args),
         Command::Inbox(args) => match args.command {

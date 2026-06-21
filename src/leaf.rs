@@ -306,8 +306,11 @@ fn read_siblings(node_dir: &Path) -> Result<Vec<Sibling>> {
     Ok(v)
 }
 
-/// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`.
-fn split_prefix(name: &str) -> Option<(u32, &str)> {
+/// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`. The
+/// old-format prefix parser; `pub(crate)` so `grove migrate` (060/020) can reuse
+/// it read-only to consume an old `NNN-slug` tree (it is the *only* surviving
+/// consumer of the old format — ADR-0034).
+pub(crate) fn split_prefix(name: &str) -> Option<(u32, &str)> {
     if name.len() < 4 {
         return None;
     }

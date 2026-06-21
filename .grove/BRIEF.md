@@ -33,16 +33,12 @@ leaf set).
 Also retired (in `done/`): `040-substrate-wiring` (the loop driver + signal/kill +
 interrupt semantics + PoC, ADR-0032); `050-dotted-decimal-numbering` (the flat
 scheme + comparator + the eight new-format verbs, ADR-0033 — built isolated, now
-wired live by 060).
+wired live by 060); `060-backwards-compat-migration/` (node — **the engine**,
+ADR-0034: new-format verbs live + `grove migrate` + migrate-on-adoption, all three
+leaves built and fixture-tested; inert for this live tree, which still flips at 070).
 
 Live leaves (this grove is still an old `NNN-slug` tree; the flip happens at 070):
 
-- `060-backwards-compat-migration/` (node — **the engine**, ADR-0034): new-format
-  verbs live + `grove migrate` + migrate-on-adoption, fixture-tested.
-  - `010-verbs-live` (work) — wire the 050 modules into the live `grove-llm`
-    dispatch with the new id-addressed signatures; retire the old verb wiring.
-  - `020-grove-migrate` (work) — `grove migrate` (old→new), fixture-tested *hard*.
-  - `030-migrate-on-adoption` (work) — `grove do` migrates an old tree before driving.
 - `070-global-skill-homebrew-distribution` (work — **the flip**, ADR-0034): binary-
   provisioned global skill + new-scheme prose in `content/` + remove the
   project-local skill mirrors + `brew install grove` + the install/handoff.
@@ -111,6 +107,22 @@ this tree and the rest of the refactor (080/090/100) runs **in the new world**.
 `grove-general-improvements` (also old-format) flips by the same adoption mechanism
 on its next `grove do`. Dogfood per ADR-0031, reversed on merit (no sunk cost):
 050's isolated verbs are now *used*, not wasted.
+
+### Dead code to sweep (after 060, for 080/090)
+
+060 fully unwired the old verb path. These now-dead modules are **not** the TUI
+(080) or inbox/install (090), so a shed must claim them explicitly — fold into 090
+or a dedicated cleanup leaf:
+
+- `src/pick.rs`, `src/brief_chain.rs`, `src/root_init.rs`, `src/leaf_ops.rs` —
+  dead (only comment references remain in `repo_view.rs`/`migrate.rs`). Delete
+  wholesale, and drop their `pub mod` lines + their old-format integration tests
+  (rewritten in 060/010 to drive the new surface).
+- `src/leaf.rs` — delete the old-format reader/grower (`add`, `insert`,
+  `surface_cross_refs`, `write_template`, the old `NNN-slug`/`done` parsing &
+  header rewriting). **Keep `split_prefix`** (now the old-format reader that
+  `migrate.rs` consumes once) and **`Kind`** (live: the new grow/lifecycle verbs
+  + `llm_cli`). `migrate.rs` itself is shed-able only once no old tree can exist.
 
 ### ADRs
 

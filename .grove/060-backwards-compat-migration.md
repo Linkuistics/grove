@@ -27,7 +27,8 @@ working while the refactor proceeds.
   brief-chain structure.
 - A deprecation path is recorded for **dropping** old-format reading once trees
   convert (so the dual-read code does not become permanent).
-- Verified against at least one real old-format tree (this grove, or a fixture).
+- Verified against a **fixture** old-format tree — **not** this grove (per the
+  rollout decision in the root BRIEF, this grove finishes on the old scheme).
 
 ## Notes
 
@@ -35,5 +36,8 @@ working while the refactor proceeds.
 - Keep the reader's format-discrimination logic in `grove-llm` (and described in
   the skill prose), per the spike's distribution finding — nothing in the skill
   model prevents one skill reading two on-disk formats.
-- Migration of *this* grove can be done deliberately as part of dogfooding once
-  050/060 land.
+- **Do not migrate this grove.** Per the rollout decision (root BRIEF), this
+  workstream runs to completion on the *old* installed grove; the new scheme ships
+  in a new major release installed via homebrew. `grove migrate` + the dual-format
+  reader are therefore built and verified against a fixture, and only exercised on
+  real old trees (the user's other groves) *post-release*.

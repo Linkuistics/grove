@@ -79,6 +79,21 @@ transitional dual-format + one-time `grove migrate`, then drop** (ephemeral tree
 drain). **"Less in grove" = less machinery, not less wisdom — the methodology is
 RETAINED** (ADR-0031, D6).
 
+### Rollout (decided 2026-06-21)
+
+**This workstream runs to completion on the *current* (old) installed grove
+binary — we do NOT switch the active binary or migrate this grove mid-flight.**
+When everything (050–090) is done, we cut a **new major release** and install it
+via **homebrew**; the new dotted-decimal scheme + the self-driving loop only go
+live *then*, not during the refactor. Consequences: the new-scheme verbs (050) are
+built as isolated, separately-tested code that never touches the live verb path
+(050 D9); `grove migrate` + the dual-format reader (060) are built and verified
+against a **fixture**, *not* dogfooded on this grove (which finishes old); the
+methodology-prose / format-guide / `CONTEXT.md`-glossary rewrites for the new
+scheme land with the release, not inline now. The "keep reading the old format
+during the transition" dogfood (ADR-0031) still holds — this grove *is* an old
+tree the old verbs keep driving — but the "migrate this grove" step is dropped.
+
 ### ADRs
 
 - **ADR-0031** — grove sheds its machinery to a self-extension core that keeps its

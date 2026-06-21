@@ -16,6 +16,11 @@ static CWD_LOCK: Mutex<()> = Mutex::new(());
 
 fn init_repo_with_grove_installed() -> TempDir {
     let tmp = TempDir::new().unwrap();
+    // `do_grove` now provisions the global skill on launch (070/010). Point that
+    // at a throwaway dir inside the repo so the suite never writes into the real
+    // ~/.claude/skills/grove. Safe under CWD_LOCK (all callers serialize), and a
+    // no-op for the non-`do` paths (start/continue) that never provision.
+    std::env::set_var("GROVE_SKILL_DIR", tmp.path().join("global-skill"));
     Command::new("git")
         .args(["init", "-b", "main"])
         .arg(tmp.path())
@@ -113,6 +118,33 @@ fn do_starts_when_grove_is_unknown() {
     .unwrap();
 
     assert!(repo.path().join(".grove-worktrees/fresh").is_dir());
+}
+
+#[test]
+fn do_provisions_the_global_skill_on_launch() {
+    // `grove do` extracts the binary-embedded methodology to the global personal
+    // skill dir (070/010), so the launched session's skill matches the binary.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo_with_grove_installed();
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    // The helper points GROVE_SKILL_DIR at <repo>/global-skill; it should not
+    // exist until `do` provisions it.
+    let skill_dir = repo.path().join("global-skill");
+    assert!(!skill_dir.exists(), "skill dir absent before `do`");
+
+    launch::do_grove(&StartArgs {
+        name: "prov".into(),
+        start_point: Some("main".into()),
+        harness: None,
+        no_launch: true,
+    })
+    .unwrap();
+
+    assert!(
+        skill_dir.join("SKILL.md").is_file(),
+        "do provisions the embedded methodology to the global skill dir"
+    );
 }
 
 #[test]

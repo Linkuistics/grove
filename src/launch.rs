@@ -42,6 +42,12 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
 /// judgement — including proposing the complete finish cycle once the grove has
 /// no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
+    // Provision the global skill from the embedded methodology (ADR-0031/0034):
+    // extract content/ to ~/.claude/skills/grove/ idempotently, so the skill the
+    // launched session reads can never drift from this binary. `grove do` is the
+    // entry the human always hits; a warm dir is a cheap no-op.
+    crate::provision::provision_global_skill()?;
+
     let repo_path = repo::resolve(None)?;
     let harness =
         harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;

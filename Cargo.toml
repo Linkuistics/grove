@@ -41,6 +41,14 @@ path = "src/lib.rs"
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 flate2 = "1.0"
+# Embed the full `content/` methodology tree into the `grove` binary at compile
+# time (ADR-0031/0034, leaf 070/010). `grove do` extracts this embed to the
+# global personal skill dir (`~/.claude/skills/grove/`), so the skill can never
+# drift from the binary — replacing the old fetch-tarball + materialise +
+# `VERSION.md` model (whose deletion is 090). Paired with `build.rs`, which emits
+# `rerun-if-changed` for every content file: on stable Rust the macro does not
+# register its reads with Cargo, so an edit would otherwise leave a stale embed.
+include_dir = "0.7"
 # `poll(2)` on the proxy's (socket, stdin) fds so a single-threaded relay loop
 # stops reading stdin while an `$EDITOR` child owns the tty (ADR-0017). Already
 # in the tree transitively; declared here for the proxy's direct use.

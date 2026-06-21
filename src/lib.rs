@@ -21,6 +21,7 @@ pub mod meta;
 pub mod migrate;
 pub mod multi_repo_view;
 pub mod pick;
+pub mod provision;
 pub mod repo;
 pub mod repo_view;
 pub mod root_init;

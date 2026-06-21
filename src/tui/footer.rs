@@ -54,15 +54,19 @@ pub fn footer_text(focus: &Focus, leader: &Leader, engaged: bool) -> Option<Stri
                 DetailOrigin::Pane => "pane",
                 DetailOrigin::Nav => "nav",
             };
-            Some(format!("↑/↓ select · x reject · m move · ⎋ {back} · {lead} leader"))
+            Some(format!(
+                "↑/↓ select · x reject · m move · ⎋ {back} · {lead} leader"
+            ))
         }
-        Focus::Nav if engaged => {
-            Some(format!("↑/↓ move · ⏎ open · / filter · ⎋ clear · {lead} leader"))
-        }
-        Focus::Nav => Some(format!("↑/↓ move · h/l fold · / filter · ⏎ open · ⎋ pane · {lead} leader")),
-        Focus::Filter => {
-            Some("type to filter · ^i inbox · ^l lifecycle · ^s sort · ⏎ accept · ⎋ clear".to_string())
-        }
+        Focus::Nav if engaged => Some(format!(
+            "↑/↓ move · ⏎ open · / filter · ⎋ clear · {lead} leader"
+        )),
+        Focus::Nav => Some(format!(
+            "↑/↓ move · h/l fold · / filter · ⏎ open · ⎋ pane · {lead} leader"
+        )),
+        Focus::Filter => Some(
+            "type to filter · ^i inbox · ^l lifecycle · ^s sort · ⏎ accept · ⎋ clear".to_string(),
+        ),
         Focus::Modal { .. } => None,
     }
 }
@@ -87,7 +91,9 @@ pub fn render_footer(focus: &Focus, leader: &Leader, engaged: bool, area: Rect, 
     } else {
         Style::default().fg(Color::DarkGray)
     };
-    Paragraph::new(format!(" {text} ")).style(style).render(row, buf);
+    Paragraph::new(format!(" {text} "))
+        .style(style)
+        .render(row, buf);
 }
 
 #[cfg(test)]
@@ -115,7 +121,11 @@ mod tests {
     fn bottom_row(buf: &Buffer) -> String {
         let area = buf.area;
         (0..area.width)
-            .map(|x| buf[(area.x + x, area.y + area.height - 1)].symbol().to_string())
+            .map(|x| {
+                buf[(area.x + x, area.y + area.height - 1)]
+                    .symbol()
+                    .to_string()
+            })
             .collect()
     }
 
@@ -125,7 +135,14 @@ mod tests {
     fn pending_text_is_the_leader_menu() {
         let text = footer_text(&pending(), &leader(), false).expect("pending has a footer");
         for token in [
-            "g nav", "d detail", "c capture", "t term", "y yazi", "v vcs", "e editor", "q quit",
+            "g nav",
+            "d detail",
+            "c capture",
+            "t term",
+            "y yazi",
+            "v vcs",
+            "e editor",
+            "q quit",
             "cancel",
         ] {
             assert!(text.contains(token), "menu missing {token:?}: {text}");
@@ -141,18 +158,39 @@ mod tests {
 
     #[test]
     fn detail_text_offers_grooming_and_the_origin_aware_return() {
-        let pane = footer_text(&Focus::Detail { origin: DetailOrigin::Pane }, &leader(), false)
-            .expect("detail has a footer");
+        let pane = footer_text(
+            &Focus::Detail {
+                origin: DetailOrigin::Pane,
+            },
+            &leader(),
+            false,
+        )
+        .expect("detail has a footer");
         assert!(pane.contains("select"), "detail hint shows select: {pane}");
         assert!(pane.contains("reject"), "detail hint shows reject: {pane}");
         assert!(pane.contains("move"), "detail hint shows move: {pane}");
-        assert!(pane.contains("⎋ pane"), "pane-entered detail offers ⎋ pane: {pane}");
-        assert!(pane.contains("⌥g"), "detail hint still names the leader: {pane}");
+        assert!(
+            pane.contains("⎋ pane"),
+            "pane-entered detail offers ⎋ pane: {pane}"
+        );
+        assert!(
+            pane.contains("⌥g"),
+            "detail hint still names the leader: {pane}"
+        );
 
         // The 060 live preview returns to the nav, and the hint says so.
-        let nav = footer_text(&Focus::Detail { origin: DetailOrigin::Nav }, &leader(), false)
-            .expect("detail has a footer");
-        assert!(nav.contains("⎋ nav"), "nav-entered detail offers ⎋ nav: {nav}");
+        let nav = footer_text(
+            &Focus::Detail {
+                origin: DetailOrigin::Nav,
+            },
+            &leader(),
+            false,
+        )
+        .expect("detail has a footer");
+        assert!(
+            nav.contains("⎋ nav"),
+            "nav-entered detail offers ⎋ nav: {nav}"
+        );
     }
 
     #[test]
@@ -160,7 +198,10 @@ mod tests {
         let text = footer_text(&Focus::Nav, &leader(), false).expect("nav has a footer");
         assert!(text.contains("move"), "nav hint shows move: {text}");
         assert!(text.contains("open"), "nav hint shows open: {text}");
-        assert!(text.contains("/ filter"), "nav hint advertises the `/` mode: {text}");
+        assert!(
+            text.contains("/ filter"),
+            "nav hint advertises the `/` mode: {text}"
+        );
         assert!(text.contains("fold"), "idle nav still offers fold: {text}");
     }
 
@@ -169,16 +210,35 @@ mod tests {
         // With a filter engaged, fold is meaningless (the ranked list has no
         // headers) and Esc clears rather than returning to the pane (layer one).
         let text = footer_text(&Focus::Nav, &leader(), true).expect("nav has a footer");
-        assert!(!text.contains("fold"), "engaged nav drops the fold hint: {text}");
-        assert!(text.contains("clear"), "engaged nav offers Esc → clear: {text}");
-        assert!(text.contains("/ filter"), "engaged nav offers `/` re-filter: {text}");
+        assert!(
+            !text.contains("fold"),
+            "engaged nav drops the fold hint: {text}"
+        );
+        assert!(
+            text.contains("clear"),
+            "engaged nav offers Esc → clear: {text}"
+        );
+        assert!(
+            text.contains("/ filter"),
+            "engaged nav offers `/` re-filter: {text}"
+        );
     }
 
     #[test]
     fn filter_mode_lists_its_in_mode_keys() {
         let text = footer_text(&Focus::Filter, &leader(), false).expect("filter has a footer");
-        for token in ["filter", "^i inbox", "^l lifecycle", "^s sort", "accept", "clear"] {
-            assert!(text.contains(token), "filter hint missing {token:?}: {text}");
+        for token in [
+            "filter",
+            "^i inbox",
+            "^l lifecycle",
+            "^s sort",
+            "accept",
+            "clear",
+        ] {
+            assert!(
+                text.contains(token),
+                "filter hint missing {token:?}: {text}"
+            );
         }
     }
 
@@ -197,9 +257,18 @@ mod tests {
         let mut buf = Buffer::empty(area);
         render_footer(&pending(), &leader(), false, area, &mut buf);
         let row = bottom_row(&buf);
-        assert!(row.contains("g nav"), "menu painted on the bottom row: {row}");
-        assert!(row.contains("t term"), "aux toggles painted on the bottom row: {row}");
-        assert!(row.contains("cancel"), "menu painted on the bottom row: {row}");
+        assert!(
+            row.contains("g nav"),
+            "menu painted on the bottom row: {row}"
+        );
+        assert!(
+            row.contains("t term"),
+            "aux toggles painted on the bottom row: {row}"
+        );
+        assert!(
+            row.contains("cancel"),
+            "menu painted on the bottom row: {row}"
+        );
     }
 
     #[test]
@@ -207,7 +276,10 @@ mod tests {
         let area = Rect::new(0, 0, 80, 6);
         let mut buf = Buffer::empty(area);
         render_footer(&Focus::Nav, &leader(), false, area, &mut buf);
-        assert!(bottom_row(&buf).contains("move"), "nav hint painted on the bottom row");
+        assert!(
+            bottom_row(&buf).contains("move"),
+            "nav hint painted on the bottom row"
+        );
     }
 
     #[test]
@@ -216,6 +288,9 @@ mod tests {
         let mut buf = Buffer::empty(area);
         render_footer(&capture(), &leader(), false, area, &mut buf);
         let row = bottom_row(&buf);
-        assert!(row.trim().is_empty(), "modal leaves the footer row blank: {row:?}");
+        assert!(
+            row.trim().is_empty(),
+            "modal leaves the footer row blank: {row:?}"
+        );
     }
 }

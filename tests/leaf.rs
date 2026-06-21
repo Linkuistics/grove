@@ -17,8 +17,15 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
@@ -28,7 +35,12 @@ fn init_repo() -> TempDir {
 }
 
 fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+    Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .status()
+        .unwrap();
 }
 
 fn touch(p: &Path, body: &str) {
@@ -58,7 +70,10 @@ fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
 }
 
 fn rel_path(stdout: &str, repo: &Path) -> PathBuf {
-    let line = stdout.lines().next().expect("expected new leaf path on stdout");
+    let line = stdout
+        .lines()
+        .next()
+        .expect("expected new leaf path on stdout");
     let abs = PathBuf::from(line).canonicalize().unwrap();
     let root = repo.canonicalize().unwrap();
     abs.strip_prefix(&root).unwrap().to_path_buf()
@@ -99,8 +114,14 @@ fn add_to_nonempty_node_uses_next_free_prefix() {
     let tmp = init_repo();
     let node = tmp.path().join(".grove/020-target");
     touch(&node.join("BRIEF.md"), "# 020-target — brief\n");
-    touch(&node.join("010-first.md"), "# 010-first\n\n**Kind:** work\n");
-    touch(&node.join("020-second.md"), "# 020-second\n\n**Kind:** work\n");
+    touch(
+        &node.join("010-first.md"),
+        "# 010-first\n\n**Kind:** work\n",
+    );
+    touch(
+        &node.join("020-second.md"),
+        "# 020-second\n\n**Kind:** work\n",
+    );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
@@ -124,7 +145,14 @@ fn add_with_explicit_prefix_to_free_slot_succeeds() {
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-add", "explicit", "--prefix", "050", "--node", ".grove/020-target"],
+        &[
+            "leaf-add",
+            "explicit",
+            "--prefix",
+            "050",
+            "--node",
+            ".grove/020-target",
+        ],
     );
     assert!(ok);
     assert_eq!(
@@ -143,7 +171,14 @@ fn add_with_explicit_prefix_collision_errors() {
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-add", "boom", "--prefix", "010", "--node", ".grove/020-target"],
+        &[
+            "leaf-add",
+            "boom",
+            "--prefix",
+            "010",
+            "--node",
+            ".grove/020-target",
+        ],
     );
     assert!(!ok);
     assert!(
@@ -181,7 +216,14 @@ fn add_with_planning_kind_writes_planning_in_template() {
 
     let (_, _, ok) = run(
         tmp.path(),
-        &["leaf-add", "design", "--kind", "planning", "--node", ".grove/020-target"],
+        &[
+            "leaf-add",
+            "design",
+            "--kind",
+            "planning",
+            "--node",
+            ".grove/020-target",
+        ],
     );
     assert!(ok);
     let body = read(tmp.path(), ".grove/020-target/010-design.md");
@@ -318,10 +360,7 @@ fn insert_shifts_directory_siblings_and_their_brief_headers() {
         &node.join("030-decomposed/BRIEF.md"),
         "# 030-decomposed — brief\n\nbody\n",
     );
-    touch(
-        &node.join("030-decomposed/010-inner.md"),
-        "# 010-inner\n",
-    );
+    touch(&node.join("030-decomposed/010-inner.md"), "# 010-inner\n");
     stage_all(tmp.path());
 
     let (_, _, ok) = run(
@@ -367,7 +406,10 @@ fn insert_overflow_at_990_errors_without_any_renames() {
         "expected overflow diagnostic, got {stderr:?}"
     );
     // Both originals must still be in place — refuse-before-rename.
-    assert!(tmp.path().join(".grove/020-target/980-near-cap.md").is_file());
+    assert!(tmp
+        .path()
+        .join(".grove/020-target/980-near-cap.md")
+        .is_file());
     assert!(tmp.path().join(".grove/020-target/990-cap.md").is_file());
 }
 
@@ -394,8 +436,14 @@ fn insert_surfaces_cross_references_on_stderr() {
     );
     // The brief contains references to both old prefixes (040, 050) — both
     // should appear in the surfaced output.
-    assert!(stderr.contains("040-"), "expected 040- in stderr, got {stderr:?}");
-    assert!(stderr.contains("050-"), "expected 050- in stderr, got {stderr:?}");
+    assert!(
+        stderr.contains("040-"),
+        "expected 040- in stderr, got {stderr:?}"
+    );
+    assert!(
+        stderr.contains("050-"),
+        "expected 050- in stderr, got {stderr:?}"
+    );
 }
 
 #[test]
@@ -416,7 +464,10 @@ fn insert_without_node_defaults_to_grove_root() {
     );
     // The pre-existing sibling shifted up by ten, inside `.grove/`.
     assert!(tmp.path().join(".grove/020-alpha.md").is_file());
-    assert!(!tmp.path().join("010-zero.md").exists(), "leaf leaked to worktree root");
+    assert!(
+        !tmp.path().join("010-zero.md").exists(),
+        "leaf leaked to worktree root"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -457,5 +508,8 @@ fn grove_binary_does_not_expose_leaf_verbs() {
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(!s.contains("leaf-add"), "grove --help leaked leaf-add: {s}");
-    assert!(!s.contains("leaf-insert"), "grove --help leaked leaf-insert: {s}");
+    assert!(
+        !s.contains("leaf-insert"),
+        "grove --help leaked leaf-insert: {s}"
+    );
 }

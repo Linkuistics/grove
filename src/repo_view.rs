@@ -169,7 +169,11 @@ impl RepoView {
 
         for name in all {
             let is_live = live_names.contains(&name);
-            let lifecycle = if is_live { Lifecycle::Live } else { Lifecycle::Seed };
+            let lifecycle = if is_live {
+                Lifecycle::Live
+            } else {
+                Lifecycle::Seed
+            };
 
             let (task_tree, live_leaves, retired_leaves) = if is_live {
                 let task_root = worktrees_dir.join(&name).join(".grove");
@@ -222,7 +226,11 @@ impl RepoView {
             });
             details.insert(
                 name.clone(),
-                GroveDetail { name, task_tree, inbox },
+                GroveDetail {
+                    name,
+                    task_tree,
+                    inbox,
+                },
             );
         }
 
@@ -445,7 +453,11 @@ mod inline_tests {
 
     fn write_version_md(dir: &Path, version: &str) {
         fs::create_dir_all(dir).unwrap();
-        fs::write(dir.join("VERSION.md"), format!("| version | `{}` |\n", version)).unwrap();
+        fs::write(
+            dir.join("VERSION.md"),
+            format!("| version | `{}` |\n", version),
+        )
+        .unwrap();
     }
 
     #[test]
@@ -463,7 +475,10 @@ mod inline_tests {
         let view = RepoView::scan(repo).unwrap();
 
         assert_eq!(view.cli_version(), crate::status::CLI_VERSION);
-        assert_eq!(view.repo_versions().get("claude"), Some(&Some("4.0.0".to_string())));
+        assert_eq!(
+            view.repo_versions().get("claude"),
+            Some(&Some("4.0.0".to_string()))
+        );
         let alpha = view.groves().iter().find(|g| g.name == "alpha").unwrap();
         assert_eq!(
             alpha.worktree_versions.get("claude"),
@@ -479,7 +494,12 @@ mod inline_tests {
             .args(args)
             .output()
             .unwrap();
-        assert!(out.status.success(), "git {:?} failed in {}", args, dir.display());
+        assert!(
+            out.status.success(),
+            "git {:?} failed in {}",
+            args,
+            dir.display()
+        );
     }
 
     #[test]
@@ -500,7 +520,11 @@ mod inline_tests {
                 .args(["log", "-1", "--format=%ct"])
                 .output()
                 .unwrap();
-            String::from_utf8(out.stdout).unwrap().trim().parse().unwrap()
+            String::from_utf8(out.stdout)
+                .unwrap()
+                .trim()
+                .parse()
+                .unwrap()
         };
         assert_eq!(alpha.last_commit, Some(expected));
     }

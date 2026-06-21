@@ -12,8 +12,15 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
@@ -23,7 +30,12 @@ fn init_repo() -> TempDir {
 }
 
 fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+    Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .status()
+        .unwrap();
 }
 
 #[test]
@@ -38,8 +50,11 @@ fn help_lists_only_llm_verbs() {
     assert!(s.contains("inbox-drain"), "missing inbox-drain: {s}");
     // Launcher and admin verbs must not bleed into grove-llm's surface.
     for forbidden in ["start", "continue", "takeover", "install", "update", "meta"] {
-        assert!(!s.contains(&format!(" {} ", forbidden)),
-                "grove-llm --help should not list `{}`: {s}", forbidden);
+        assert!(
+            !s.contains(&format!(" {} ", forbidden)),
+            "grove-llm --help should not list `{}`: {s}",
+            forbidden
+        );
     }
 }
 
@@ -51,11 +66,20 @@ fn grove_help_no_longer_lists_inbox_add_or_drain() {
         .output()
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(!s.contains("inbox-add"), "grove --help leaked inbox-add: {s}");
-    assert!(!s.contains("inbox-drain"), "grove --help leaked inbox-drain: {s}");
+    assert!(
+        !s.contains("inbox-add"),
+        "grove --help leaked inbox-add: {s}"
+    );
+    assert!(
+        !s.contains("inbox-drain"),
+        "grove --help leaked inbox-drain: {s}"
+    );
     // The diagnostic verb stays on the human surface as a nested noun-verb
     // cluster (`grove inbox show`), not flattened.
-    assert!(s.contains(" inbox "), "grove --help should still list the `inbox` cluster: {s}");
+    assert!(
+        s.contains(" inbox "),
+        "grove --help should still list the `inbox` cluster: {s}"
+    );
 }
 
 #[test]
@@ -121,7 +145,10 @@ fn inbox_edit_dispatches_through_grove_llm() {
         .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("md"))
         .collect();
     assert_eq!(obs.len(), 1, "edit must not add a file, got {obs:?}");
-    assert_eq!(fs::read_to_string(&obs[0]).unwrap(), "rewritten via grove-llm");
+    assert_eq!(
+        fs::read_to_string(&obs[0]).unwrap(),
+        "rewritten via grove-llm"
+    );
 }
 
 #[test]
@@ -162,5 +189,8 @@ fn inbox_drain_enumerate_and_finalize_dispatch_through_grove_llm() {
         .filter_map(|e| e.ok())
         .filter(|e| e.file_name().to_string_lossy().ends_with(".md"))
         .collect();
-    assert!(remaining.is_empty(), "expected empty inbox after drain, got {remaining:?}");
+    assert!(
+        remaining.is_empty(),
+        "expected empty inbox after drain, got {remaining:?}"
+    );
 }

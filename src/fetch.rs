@@ -53,7 +53,10 @@ fn parse_semver(tag: &str) -> Option<SemverParts> {
 
 impl Fetcher for GithubFetcher {
     fn latest_version(&self) -> Result<String> {
-        let url = format!("{}/repos/Linkuistics/grove/tags?per_page=100", self.base_url);
+        let url = format!(
+            "{}/repos/Linkuistics/grove/tags?per_page=100",
+            self.base_url
+        );
         let tags: Vec<Tag> = ureq::get(&url)
             .set("User-Agent", "grove-cli")
             .call()

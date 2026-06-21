@@ -131,12 +131,21 @@ mod tests {
         // Capture/reject/move resolve the target grove from the focused key, so
         // every role pane of a grove must report that grove; the shell reports
         // none.
-        for role in [PaneRole::Harness, PaneRole::Term, PaneRole::Yazi, PaneRole::Vcs] {
+        for role in [
+            PaneRole::Harness,
+            PaneRole::Term,
+            PaneRole::Yazi,
+            PaneRole::Vcs,
+        ] {
             let key = PaneKey::Grove {
                 grove: "alpha".into(),
                 role,
             };
-            assert_eq!(key.grove(), Some("alpha"), "{role:?} should recover the grove");
+            assert_eq!(
+                key.grove(),
+                Some("alpha"),
+                "{role:?} should recover the grove"
+            );
         }
         assert_eq!(PaneKey::Shell.grove(), None, "the shell has no grove");
     }

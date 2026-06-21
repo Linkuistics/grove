@@ -12,7 +12,11 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
     Pcmd::new("git")
         .args(["-C"])
         .arg(tmp.path())
@@ -63,7 +67,10 @@ fn picks_first_root_level_leaf_in_prefix_order() {
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
-    assert_eq!(rel(&stdout, tmp.path()), PathBuf::from(".grove/010-first.md"));
+    assert_eq!(
+        rel(&stdout, tmp.path()),
+        PathBuf::from(".grove/010-first.md")
+    );
 }
 
 #[test]
@@ -124,7 +131,10 @@ fn fully_retired_grove_prints_diagnostic_and_exits_zero() {
 
     let (stdout, stderr, ok) = pick_stdout(tmp.path());
     assert!(ok, "expected success exit; stderr={stderr}");
-    assert!(stdout.trim().is_empty(), "expected empty stdout, got {stdout:?}");
+    assert!(
+        stdout.trim().is_empty(),
+        "expected empty stdout, got {stdout:?}"
+    );
     assert!(
         stderr.contains("no live leaves"),
         "expected diagnostic, got {stderr:?}"
@@ -141,7 +151,10 @@ fn non_numeric_prefixed_files_sort_last() {
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
-    assert_eq!(rel(&stdout, tmp.path()), PathBuf::from(".grove/010-first.md"));
+    assert_eq!(
+        rel(&stdout, tmp.path()),
+        PathBuf::from(".grove/010-first.md")
+    );
 }
 
 #[test]
@@ -200,4 +213,3 @@ fn grove_help_does_not_list_pick() {
         "grove --help leaked pick from the LLM surface: {s}"
     );
 }
-

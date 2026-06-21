@@ -95,7 +95,9 @@ impl CaptureModal {
         Clear.render(popup, buf);
         let block = Block::default()
             .borders(Borders::ALL)
-            .title(format!(" capture \u{2192} {target_label}  (Enter: save \u{b7} Esc: cancel) "))
+            .title(format!(
+                " capture \u{2192} {target_label}  (Enter: save \u{b7} Esc: cancel) "
+            ))
             .border_style(Style::default().fg(Color::Yellow));
         let inner = block.inner(popup);
         block.render(popup, buf);
@@ -131,9 +133,7 @@ pub fn render_confirm(name: &str, area: Rect, buf: &mut Buffer) {
     if inner.width == 0 || inner.height == 0 {
         return;
     }
-    let body = format!(
-        "start grove {name}?\ncreates worktree + branch\n\ny start \u{b7} n cancel"
-    );
+    let body = format!("start grove {name}?\ncreates worktree + branch\n\ny start \u{b7} n cancel");
     Paragraph::new(body)
         .wrap(Wrap { trim: false })
         .render(inner, buf);
@@ -329,14 +329,24 @@ mod tests {
 
         // The pane shows through at the corners (the popup is centered, 70%×50%).
         assert_eq!(buf[(0, 0)].symbol(), "X", "top-left pane cell covered");
-        assert_eq!(buf[(39, 19)].symbol(), "X", "bottom-right pane cell covered");
+        assert_eq!(
+            buf[(39, 19)].symbol(),
+            "X",
+            "bottom-right pane cell covered"
+        );
         // The modal border + title are painted in the center band.
         let text = buffer_text(&buf);
         assert!(text.contains("capture \u{2192} demo-grove"), "got:\n{text}");
-        assert!(text.contains('\u{250c}'), "modal has a top-left border corner");
+        assert!(
+            text.contains('\u{250c}'),
+            "modal has a top-left border corner"
+        );
         // The cursor lands inside the (centered) box, never at the origin.
         let (cx, cy) = cursor.expect("cursor placed");
-        assert!(cx > area.x && cy > area.y, "cursor {cx},{cy} inside the box");
+        assert!(
+            cx > area.x && cy > area.y,
+            "cursor {cx},{cy} inside the box"
+        );
     }
 
     #[test]
@@ -362,11 +372,21 @@ mod tests {
         render_pane(&filled_pane(50, 20, 'X'), area, &mut buf);
         render_confirm("newgrove", area, &mut buf);
         let text = buffer_text(&buf);
-        assert!(text.contains("start grove newgrove"), "names the seed:\n{text}");
+        assert!(
+            text.contains("start grove newgrove"),
+            "names the seed:\n{text}"
+        );
         assert!(text.contains("worktree"), "states the side effect:\n{text}");
-        assert!(text.contains("y start") && text.contains("n cancel"), "offers y/n:\n{text}");
+        assert!(
+            text.contains("y start") && text.contains("n cancel"),
+            "offers y/n:\n{text}"
+        );
         // The pane shows through at the corners (centered overlay).
-        assert_eq!(buf[(0, 0)].symbol(), "X", "pane shows through outside the popup");
+        assert_eq!(
+            buf[(0, 0)].symbol(),
+            "X",
+            "pane shows through outside the popup"
+        );
     }
 
     // --- buffer editing ------------------------------------------------------
@@ -411,11 +431,18 @@ mod tests {
         // Callers prefix their own context; render_toast shows the message verbatim.
         let area = Rect::new(0, 0, 50, 6);
         let mut buf = Buffer::empty(area);
-        render_toast(&CaptureOutcome::Failed("capture failed: no such repo".into()), area, &mut buf);
+        render_toast(
+            &CaptureOutcome::Failed("capture failed: no such repo".into()),
+            area,
+            &mut buf,
+        );
         let bottom: String = (0..area.width)
             .map(|x| buf[(x, area.height - 1)].symbol().to_string())
             .collect();
-        assert!(bottom.contains("capture failed: no such repo"), "got: {bottom}");
+        assert!(
+            bottom.contains("capture failed: no such repo"),
+            "got: {bottom}"
+        );
     }
 
     #[test]

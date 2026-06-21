@@ -48,15 +48,18 @@ pub fn decompose(leaf_path: &Path) -> Result<PathBuf> {
     }
     let dst = new_dir.join("BRIEF.md");
 
-    let src_rel = leaf_abs
-        .strip_prefix(&worktree)
-        .with_context(|| format!("leaf {} is not under worktree {}", leaf_abs.display(), worktree.display()))?;
+    let src_rel = leaf_abs.strip_prefix(&worktree).with_context(|| {
+        format!(
+            "leaf {} is not under worktree {}",
+            leaf_abs.display(),
+            worktree.display()
+        )
+    })?;
     let dst_rel = dst
         .strip_prefix(&worktree)
         .expect("dst is constructed under the worktree");
 
-    std::fs::create_dir_all(&new_dir)
-        .with_context(|| format!("creating {}", new_dir.display()))?;
+    std::fs::create_dir_all(&new_dir).with_context(|| format!("creating {}", new_dir.display()))?;
     git_mv(&worktree, src_rel, dst_rel)?;
     rewrite_decomposed_header(&dst)?;
 
@@ -73,15 +76,13 @@ pub fn retire(leaf_path: &Path) -> Result<PathBuf> {
     let (worktree, grove_root, leaf_abs) = resolve_leaf(leaf_path)?;
     require_md_leaf(&leaf_abs)?;
 
-    let rel_under_grove = leaf_abs
-        .strip_prefix(&grove_root)
-        .with_context(|| {
-            format!(
-                "leaf {} is not under grove root {}",
-                leaf_abs.display(),
-                grove_root.display()
-            )
-        })?;
+    let rel_under_grove = leaf_abs.strip_prefix(&grove_root).with_context(|| {
+        format!(
+            "leaf {} is not under grove root {}",
+            leaf_abs.display(),
+            grove_root.display()
+        )
+    })?;
     if rel_under_grove
         .components()
         .next()
@@ -151,7 +152,8 @@ fn resolve_leaf(leaf: &Path) -> Result<(PathBuf, PathBuf, PathBuf)> {
                 return Ok((worktree, grove_root, abs));
             }
             Err(e) => {
-                last_err = Some(anyhow::Error::new(e).context(format!("resolving {}", c.display())));
+                last_err =
+                    Some(anyhow::Error::new(e).context(format!("resolving {}", c.display())));
             }
         }
     }
@@ -179,13 +181,7 @@ fn git_mv(worktree: &Path, src_rel: &Path, dst_rel: &Path) -> Result<()> {
         .arg(src_rel)
         .arg(dst_rel)
         .output()
-        .with_context(|| {
-            format!(
-                "running git mv {} {}",
-                src_rel.display(),
-                dst_rel.display()
-            )
-        })?;
+        .with_context(|| format!("running git mv {} {}", src_rel.display(), dst_rel.display()))?;
     if !out.status.success() {
         bail!(
             "git mv {} -> {} failed: {}",

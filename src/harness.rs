@@ -73,11 +73,7 @@ pub fn detect_in_repo(repo: &Path) -> Vec<&'static Harness> {
 /// - If neither yields anything: error.
 /// - If `mode` is `Single` and more than one harness is detected (with no
 ///   `explicit` override), error and ask the user to disambiguate.
-pub fn select(
-    repo: &Path,
-    explicit: &[String],
-    mode: SelectMode,
-) -> Result<Vec<&'static Harness>> {
+pub fn select(repo: &Path, explicit: &[String], mode: SelectMode) -> Result<Vec<&'static Harness>> {
     if !explicit.is_empty() {
         let mut out = Vec::new();
         let mut seen = HashSet::new();

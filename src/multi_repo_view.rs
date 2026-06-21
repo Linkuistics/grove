@@ -48,9 +48,8 @@ impl MultiRepoView {
             handles
                 .into_iter()
                 .map(|h| {
-                    h.join().unwrap_or_else(|_| {
-                        Err(anyhow::anyhow!("scan thread panicked"))
-                    })
+                    h.join()
+                        .unwrap_or_else(|_| Err(anyhow::anyhow!("scan thread panicked")))
                 })
                 .collect()
         });
@@ -135,8 +134,7 @@ impl MultiRepoView {
     /// `Err` and leaves the existing view **unchanged** — a transient I/O error
     /// must not drop a repo out of the fleet mid-session or reorder the rest.
     pub fn rescan_repo(&mut self, repo_root: &Path) -> anyhow::Result<bool> {
-        let Some(slot) = self.repos.iter_mut().find(|r| r.repo_root == repo_root)
-        else {
+        let Some(slot) = self.repos.iter_mut().find(|r| r.repo_root == repo_root) else {
             return Ok(false);
         };
         let fresh = RepoView::scan(repo_root)?;
@@ -295,7 +293,11 @@ mod tests {
 
         // A new grove lands in r1 on disk; an event *under r1* fires.
         add_grove(&r1, "delta");
-        let event = r1.join(".grove-worktrees").join("delta").join(".grove").join("010-x.md");
+        let event = r1
+            .join(".grove-worktrees")
+            .join("delta")
+            .join(".grove")
+            .join("010-x.md");
         assert!(view.rescan_for_event_path(&event).unwrap());
 
         let groups: Vec<_> = view.groups().collect();
@@ -314,7 +316,9 @@ mod tests {
         let r1 = make_repo(tmp.path(), "one", &["alpha"]);
         let (mut view, _) = MultiRepoView::scan_with_warnings(&[r1.clone()]);
         // A stray path under no fleet repo: reported not-found, nothing re-scanned.
-        assert!(!view.rescan_for_event_path(&tmp.path().join("elsewhere/x")).unwrap());
+        assert!(!view
+            .rescan_for_event_path(&tmp.path().join("elsewhere/x"))
+            .unwrap());
     }
 
     /// A repo whose scan errors is dropped from the fleet with a breadcrumb,

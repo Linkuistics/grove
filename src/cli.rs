@@ -2,7 +2,11 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "grove", version, about = "Grove: hierarchical workstream tool for AI agents")]
+#[command(
+    name = "grove",
+    version,
+    about = "Grove: hierarchical workstream tool for AI agents"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -305,13 +309,13 @@ pub fn run() -> anyhow::Result<()> {
         Command::Install(args) => crate::install::run(&args),
         Command::Uninstall(args) => crate::uninstall::run(&args),
         Command::Status(args) => crate::status::run(&args),
-        Command::Do(args)       => crate::launch::do_grove(&args),
+        Command::Do(args) => crate::launch::do_grove(&args),
         Command::Takeover(args) => crate::launch::takeover(&args),
-        Command::Retire(args)   => crate::launch::retire(&args),
-        Command::Inbox(args)    => match args.command {
+        Command::Retire(args) => crate::launch::retire(&args),
+        Command::Inbox(args) => match args.command {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
-        Command::Meta(args)     => crate::meta::run(&args),
-        Command::Tui(args)      => crate::tui::run(&args),
+        Command::Meta(args) => crate::meta::run(&args),
+        Command::Tui(args) => crate::tui::run(&args),
     }
 }

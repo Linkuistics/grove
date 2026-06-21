@@ -4,8 +4,8 @@
 // semantics this module implements.
 
 use crate::cli::{
-    MetaArgs, MetaCommand, MetaInitArgs, MetaRemoteAddArgs, MetaRemoteCommand,
-    MetaRemoteListArgs, MetaRemoteRemoveArgs, MetaSyncArgs,
+    MetaArgs, MetaCommand, MetaInitArgs, MetaRemoteAddArgs, MetaRemoteCommand, MetaRemoteListArgs,
+    MetaRemoteRemoveArgs, MetaSyncArgs,
 };
 use crate::inboxes;
 use crate::repo;
@@ -44,7 +44,11 @@ fn cmd_init(args: &MetaInitArgs) -> Result<()> {
 pub fn init(repo: &Path) -> Result<()> {
     inboxes::materialise(repo)?;
     let wt = inboxes::worktree_dir(repo);
-    println!("grove-meta: branch={} worktree={}", inboxes::BRANCH, wt.display());
+    println!(
+        "grove-meta: branch={} worktree={}",
+        inboxes::BRANCH,
+        wt.display()
+    );
     Ok(())
 }
 
@@ -107,8 +111,7 @@ pub fn remote_add(repo: &Path, url: &str) -> Result<()> {
             );
         }
         None => {
-            run_git(&wt, &["remote", "add", REMOTE_NAME, url])
-                .context("running git remote add")?;
+            run_git(&wt, &["remote", "add", REMOTE_NAME, url]).context("running git remote add")?;
         }
     }
 
@@ -282,7 +285,9 @@ fn get_remote_url(wt: &Path, remote: &str) -> Result<Option<String>> {
     if !out.status.success() {
         return Ok(None);
     }
-    Ok(Some(String::from_utf8_lossy(&out.stdout).trim().to_string()))
+    Ok(Some(
+        String::from_utf8_lossy(&out.stdout).trim().to_string(),
+    ))
 }
 
 fn get_config(wt: &Path, key: &str) -> Result<Option<String>> {
@@ -297,7 +302,9 @@ fn get_config(wt: &Path, key: &str) -> Result<Option<String>> {
     if !out.status.success() {
         return Ok(None);
     }
-    Ok(Some(String::from_utf8_lossy(&out.stdout).trim().to_string()))
+    Ok(Some(
+        String::from_utf8_lossy(&out.stdout).trim().to_string(),
+    ))
 }
 
 /// Unset a config key. Treats git's exit-5 ("key not found") as a benign

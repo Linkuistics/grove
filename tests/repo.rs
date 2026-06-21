@@ -13,7 +13,10 @@ fn resolve_uses_explicit_arg_when_provided() {
     init_git_repo(tmp.path());
 
     let resolved = resolve(Some(tmp.path())).unwrap();
-    assert_eq!(resolved.canonicalize().unwrap(), tmp.path().canonicalize().unwrap());
+    assert_eq!(
+        resolved.canonicalize().unwrap(),
+        tmp.path().canonicalize().unwrap()
+    );
 }
 
 #[test]

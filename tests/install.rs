@@ -21,9 +21,16 @@ fn git(repo: &Path, args: &[&str]) -> std::process::Output {
 
 fn init_repo_with(claude: bool, codex: bool) -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Command::new("git").arg("init").arg(tmp.path()).status().unwrap();
+    Command::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
     // Local identity so the auto-commit can succeed regardless of global config.
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     // Disable hooks that might run (e.g. host pre-commit).
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
@@ -80,7 +87,10 @@ fn install_writes_content_and_version() {
     run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
     let dest = repo.path().join(".claude/skills/grove");
-    assert_eq!(fs::read_to_string(dest.join("SKILL.md")).unwrap(), "# SKILL");
+    assert_eq!(
+        fs::read_to_string(dest.join("SKILL.md")).unwrap(),
+        "# SKILL"
+    );
     assert!(dest.join("VERSION.md").exists());
     assert!(dest.join("prompts/start.md").exists());
 }
@@ -184,7 +194,10 @@ fn message_flag_overrides_default() {
 
     run_with_fetcher(&args, &fetcher_at("v0.1.0")).unwrap();
 
-    assert_eq!(last_subject(repo.path()), "chore(deps): bump grove skill to v0.1.0");
+    assert_eq!(
+        last_subject(repo.path()),
+        "chore(deps): bump grove skill to v0.1.0"
+    );
 }
 
 #[test]
@@ -201,7 +214,10 @@ fn unrelated_dirty_state_is_preserved() {
     // The unrelated file is still staged and was NOT swept into the grove commit.
     let status = git(repo.path(), &["diff", "--cached", "--name-only"]);
     let staged = String::from_utf8_lossy(&status.stdout);
-    assert!(staged.contains("other.txt"), "expected other.txt still staged, got: {staged}");
+    assert!(
+        staged.contains("other.txt"),
+        "expected other.txt still staged, got: {staged}"
+    );
 
     let show = git(repo.path(), &["show", "--name-only", "--pretty=", "HEAD"]);
     let touched = String::from_utf8_lossy(&show.stdout);
@@ -221,8 +237,7 @@ fn pre_existing_staged_install_scope_is_refused() {
 
     // Idempotent install still refuses when the scope has pre-existing staged
     // changes — the one case where an auto-commit could bundle in-flight work.
-    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0"))
-        .unwrap_err();
+    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("pre-existing staged"),
@@ -243,8 +258,14 @@ fn multi_harness_install_produces_single_combined_commit() {
     assert_eq!(head_count(repo.path()), 1);
     let show = git(repo.path(), &["show", "--name-only", "--pretty=", "HEAD"]);
     let touched = String::from_utf8_lossy(&show.stdout);
-    assert!(touched.contains(".claude/skills/grove/SKILL.md"), "{touched}");
-    assert!(touched.contains(".codex/skills/grove/SKILL.md"), "{touched}");
+    assert!(
+        touched.contains(".claude/skills/grove/SKILL.md"),
+        "{touched}"
+    );
+    assert!(
+        touched.contains(".codex/skills/grove/SKILL.md"),
+        "{touched}"
+    );
 }
 
 #[test]
@@ -263,13 +284,18 @@ fn commit_failure_leaves_materialisation_in_place() {
         fs::set_permissions(&hook, perms).unwrap();
     }
     // Point hooksPath at our hook dir (overriding the /dev/null disable in init_repo_with).
-    git(repo.path(), &["config", "core.hooksPath", hooks.to_str().unwrap()]);
+    git(
+        repo.path(),
+        &["config", "core.hooksPath", hooks.to_str().unwrap()],
+    );
 
-    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0"))
-        .unwrap_err();
+    let err = run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("git commit failed"), "got: {msg}");
-    assert!(msg.contains("git commit -- "), "follow-up not in msg: {msg}");
+    assert!(
+        msg.contains("git commit -- "),
+        "follow-up not in msg: {msg}"
+    );
 
     // Materialisation is on disk despite the failure.
     assert!(repo.path().join(".claude/skills/grove/SKILL.md").exists());

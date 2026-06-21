@@ -13,7 +13,11 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
     Pcmd::new("git")
         .args(["-C"])
         .arg(tmp.path())
@@ -146,7 +150,10 @@ fn no_arg_form_on_fully_retired_grove_prints_diagnostic() {
 
     let (stdout, stderr, ok) = brief_chain(tmp.path(), &[]);
     assert!(ok, "expected success exit; stderr={stderr}");
-    assert!(stdout.trim().is_empty(), "expected empty stdout, got {stdout:?}");
+    assert!(
+        stdout.trim().is_empty(),
+        "expected empty stdout, got {stdout:?}"
+    );
     assert!(
         stderr.contains("no live leaves"),
         "expected diagnostic, got {stderr:?}"

@@ -70,7 +70,10 @@ fn render(repo_path: &Path) -> Result<String> {
 
     let mut out = String::new();
     if repo_versions.is_empty() {
-        out.push_str(&format!("grove: not installed in {}\n", repo_path.display()));
+        out.push_str(&format!(
+            "grove: not installed in {}\n",
+            repo_path.display()
+        ));
         return Ok(out);
     }
 
@@ -397,7 +400,10 @@ mod tests {
             "grove row missing leaves/worktree:\n{out}"
         );
         // Single harness => no `[harness]` prefix.
-        assert!(!out.contains("[claude]"), "unexpected harness prefix:\n{out}");
+        assert!(
+            !out.contains("[claude]"),
+            "unexpected harness prefix:\n{out}"
+        );
     }
 
     #[test]
@@ -442,8 +448,14 @@ mod tests {
         install_worktree(repo, "alpha", "codex", CLI_VERSION);
 
         let out = render(repo).unwrap();
-        assert!(out.contains("[claude] alpha → leaves:"), "claude row missing:\n{out}");
-        assert!(out.contains("[codex] alpha → leaves:"), "codex row missing:\n{out}");
+        assert!(
+            out.contains("[claude] alpha → leaves:"),
+            "claude row missing:\n{out}"
+        );
+        assert!(
+            out.contains("[codex] alpha → leaves:"),
+            "codex row missing:\n{out}"
+        );
     }
 
     #[test]

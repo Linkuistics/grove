@@ -72,11 +72,7 @@ pub fn add(
         Some(p) => {
             validate_prefix(p)?;
             if siblings.iter().any(|s| s.prefix == p) {
-                bail!(
-                    "prefix {:03} is already taken in {}",
-                    p,
-                    node_dir.display()
-                );
+                bail!("prefix {:03} is already taken in {}", p, node_dir.display());
             }
             p
         }
@@ -191,7 +187,9 @@ pub fn surface_cross_refs(
     // Every `.md` directly under `node_dir` — picks up `BRIEF.md`, untouched
     // sibling leaves, and the freshly-written new leaf so its body is also
     // scrubbed for stale references the LLM may have typed.
-    for entry in std::fs::read_dir(node_dir).with_context(|| format!("reading {}", node_dir.display()))? {
+    for entry in
+        std::fs::read_dir(node_dir).with_context(|| format!("reading {}", node_dir.display()))?
+    {
         let entry = entry?;
         let p = entry.path();
         if p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("md") {
@@ -265,7 +263,9 @@ fn validate_prefix(p: u32) -> Result<()> {
 
 fn read_siblings(node_dir: &Path) -> Result<Vec<Sibling>> {
     let mut v = Vec::new();
-    for entry in std::fs::read_dir(node_dir).with_context(|| format!("reading {}", node_dir.display()))? {
+    for entry in
+        std::fs::read_dir(node_dir).with_context(|| format!("reading {}", node_dir.display()))?
+    {
         let entry = entry?;
         let name = match entry.file_name().to_str() {
             Some(s) => s.to_string(),
@@ -371,8 +371,8 @@ fn rewrite_header(path: &Path, new_prefix: u32, is_dir: bool) -> Result<()> {
     if !target.is_file() {
         return Ok(());
     }
-    let body =
-        std::fs::read_to_string(&target).with_context(|| format!("reading {}", target.display()))?;
+    let body = std::fs::read_to_string(&target)
+        .with_context(|| format!("reading {}", target.display()))?;
     let (first, rest) = match body.split_once('\n') {
         Some((f, r)) => (f, Some(r)),
         None => (body.as_str(), None),
@@ -414,8 +414,7 @@ fn write_template(path: &Path, prefix: u32, slug: &str, kind: Kind) -> Result<()
         slug = slug,
         kind = kind.label(),
     );
-    std::fs::write(path, body.as_bytes())
-        .with_context(|| format!("writing {}", path.display()))?;
+    std::fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
     Ok(())
 }
 
@@ -430,7 +429,10 @@ fn find_prefix_tokens(line: &str) -> Vec<u32> {
         if bytes[i..i + 3].iter().all(|b| b.is_ascii_digit()) && bytes[i + 3] == b'-' {
             let prev_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
             if prev_ok {
-                if let Ok(p) = std::str::from_utf8(&bytes[i..i + 3]).unwrap().parse::<u32>() {
+                if let Ok(p) = std::str::from_utf8(&bytes[i..i + 3])
+                    .unwrap()
+                    .parse::<u32>()
+                {
                     out.push(p);
                     i += 4;
                     continue;
@@ -477,10 +479,7 @@ mod inline_tests {
     #[test]
     fn find_prefix_tokens_extracts_NNN_dash_starts() {
         assert_eq!(find_prefix_tokens("see 050-foo for details"), vec![50]);
-        assert_eq!(
-            find_prefix_tokens("040- and 050-bar"),
-            vec![40, 50]
-        );
+        assert_eq!(find_prefix_tokens("040- and 050-bar"), vec![40, 50]);
         // Embedded digits (e.g. inside a year) should not match.
         assert_eq!(find_prefix_tokens("2026-05-28"), Vec::<u32>::new());
     }

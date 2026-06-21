@@ -108,15 +108,10 @@ pub enum Focus {
     /// are typing a filter.
     Filter,
     /// A focus overlay; restores `prior` on cancel/submit.
-    Modal {
-        kind: ModalKind,
-        prior: Box<Focus>,
-    },
+    Modal { kind: ModalKind, prior: Box<Focus> },
     /// The transient leader-dispatch gate: the next key dispatches, then we leave.
     /// `prior` is the surface we leadered from, restored on cancel.
-    LeaderPending {
-        prior: Box<Focus>,
-    },
+    LeaderPending { prior: Box<Focus> },
 }
 
 /// What the app should do in response to one input event. The transition table
@@ -239,9 +234,18 @@ pub fn arbitrate(focus: &Focus, leader: &Leader, ev: &Event) -> (Focus, Action) 
         Focus::Detail { origin } => arbitrate_detail(*origin, leader, ev),
         Focus::Nav => arbitrate_nav(leader, ev),
         Focus::Filter => arbitrate_filter(ev),
-        Focus::Modal { kind: ModalKind::Capture, prior } => arbitrate_modal(prior, ev),
-        Focus::Modal { kind: ModalKind::MovePicker, prior } => arbitrate_move_picker(prior, ev),
-        Focus::Modal { kind: ModalKind::Confirm, prior } => arbitrate_confirm(prior, ev),
+        Focus::Modal {
+            kind: ModalKind::Capture,
+            prior,
+        } => arbitrate_modal(prior, ev),
+        Focus::Modal {
+            kind: ModalKind::MovePicker,
+            prior,
+        } => arbitrate_move_picker(prior, ev),
+        Focus::Modal {
+            kind: ModalKind::Confirm,
+            prior,
+        } => arbitrate_confirm(prior, ev),
         Focus::LeaderPending { prior } => arbitrate_pending(prior, ev),
     }
 }
@@ -645,16 +649,22 @@ mod tests {
 
     #[test]
     fn pane_forwards_plain_char_as_text() {
-        let (focus, action) =
-            arbitrate(&Focus::Pane, &leader(), &key_ev(KeyCode::Char('a'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Pane,
+            &leader(),
+            &key_ev(KeyCode::Char('a'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Pane);
         assert_eq!(action, Action::SendText("a".into()));
     }
 
     #[test]
     fn pane_forwards_special_key_as_token() {
-        let (_, action) =
-            arbitrate(&Focus::Pane, &leader(), &key_ev(KeyCode::Up, KeyModifiers::CONTROL));
+        let (_, action) = arbitrate(
+            &Focus::Pane,
+            &leader(),
+            &key_ev(KeyCode::Up, KeyModifiers::CONTROL),
+        );
         assert_eq!(action, Action::SendKey("C-Up".into()));
     }
 
@@ -667,8 +677,11 @@ mod tests {
 
     #[test]
     fn pane_paste_is_forwarded_wrapped() {
-        let (focus, action) =
-            arbitrate(&Focus::Pane, &leader(), &Event::Paste("line1\nline2".into()));
+        let (focus, action) = arbitrate(
+            &Focus::Pane,
+            &leader(),
+            &Event::Paste("line1\nline2".into()),
+        );
         assert_eq!(focus, Focus::Pane);
         assert_eq!(action, Action::SendPaste("line1\nline2".into()));
     }
@@ -779,7 +792,11 @@ mod tests {
                 &leader(),
                 &key_ev(KeyCode::Char(ch), KeyModifiers::NONE),
             );
-            assert_eq!(focus, Focus::Pane, "{ch} lands on the pane regardless of prior");
+            assert_eq!(
+                focus,
+                Focus::Pane,
+                "{ch} lands on the pane regardless of prior"
+            );
             assert_eq!(action, Action::ToggleAux(role), "{ch} toggles {role:?}");
         }
     }
@@ -791,7 +808,11 @@ mod tests {
             &leader(),
             &key_ev(KeyCode::Esc, KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Nav, "cancel restores the surface we leadered from");
+        assert_eq!(
+            focus,
+            Focus::Nav,
+            "cancel restores the surface we leadered from"
+        );
         assert_eq!(action, Action::Redraw, "redraw to clear the menu footer");
     }
 
@@ -832,7 +853,11 @@ mod tests {
             &leader(),
             &key_ev(KeyCode::Esc, KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Pane, "pane-entered detail Esc's back to the pane");
+        assert_eq!(
+            focus,
+            Focus::Pane,
+            "pane-entered detail Esc's back to the pane"
+        );
         assert_eq!(action, Action::Redraw);
     }
 
@@ -845,7 +870,11 @@ mod tests {
             &leader(),
             &key_ev(KeyCode::Esc, KeyModifiers::NONE),
         );
-        assert_eq!(focus, Focus::Nav, "nav-entered detail Esc's back to the nav");
+        assert_eq!(
+            focus,
+            Focus::Nav,
+            "nav-entered detail Esc's back to the nav"
+        );
         assert_eq!(action, Action::Redraw);
     }
 
@@ -867,9 +896,15 @@ mod tests {
     #[test]
     fn detail_x_rejects_the_selected_observation_in_place() {
         let here = detail(DetailOrigin::Nav);
-        let (focus, action) =
-            arbitrate(&here, &leader(), &key_ev(KeyCode::Char('x'), KeyModifiers::NONE));
-        assert_eq!(focus, here, "reject stays in the detail panel (preserving origin)");
+        let (focus, action) = arbitrate(
+            &here,
+            &leader(),
+            &key_ev(KeyCode::Char('x'), KeyModifiers::NONE),
+        );
+        assert_eq!(
+            focus, here,
+            "reject stays in the detail panel (preserving origin)"
+        );
         assert_eq!(action, Action::DetailReject);
     }
 
@@ -896,8 +931,11 @@ mod tests {
     fn detail_swallows_other_unmapped_keys() {
         // A key with no in-surface meaning is inert (not forwarded to the pane).
         let here = detail(DetailOrigin::Pane);
-        let (focus, action) =
-            arbitrate(&here, &leader(), &key_ev(KeyCode::Char('z'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &here,
+            &leader(),
+            &key_ev(KeyCode::Char('z'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, here);
         assert_eq!(action, Action::Ignore);
     }
@@ -1044,16 +1082,22 @@ mod tests {
         // The table can't see whether a filter is engaged (App state), so Esc
         // optimistically lands on the pane and emits NavEsc; the App reverts to
         // Nav + clears when a filter *was* engaged (layer one), else stays.
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Esc, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Esc, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Pane);
         assert_eq!(action, Action::NavEsc);
     }
 
     #[test]
     fn nav_slash_enters_filter_mode() {
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('/'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Char('/'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Filter);
         assert_eq!(action, Action::FilterEnter);
     }
@@ -1061,12 +1105,14 @@ mod tests {
     #[test]
     fn nav_arrows_and_jk_move_the_selection() {
         for code in [KeyCode::Up, KeyCode::Char('k')] {
-            let (focus, action) = arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
+            let (focus, action) =
+                arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
             assert_eq!(focus, Focus::Nav);
             assert_eq!(action, Action::NavUp);
         }
         for code in [KeyCode::Down, KeyCode::Char('j')] {
-            let (focus, action) = arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
+            let (focus, action) =
+                arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
             assert_eq!(focus, Focus::Nav);
             assert_eq!(action, Action::NavDown);
         }
@@ -1074,8 +1120,11 @@ mod tests {
 
     #[test]
     fn nav_h_collapses_staying_in_nav() {
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('h'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Char('h'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Nav);
         assert_eq!(action, Action::NavCollapse);
     }
@@ -1085,24 +1134,33 @@ mod tests {
         // `l` is row-kind-dependent (060): the pure table lands on Detail{Nav}
         // and emits NavPeekOrExpand; the app keeps the preview on a grove row or
         // reverts to Nav + expands on a header.
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Char('l'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Char('l'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, detail(DetailOrigin::Nav));
         assert_eq!(action, Action::NavPeekOrExpand);
     }
 
     #[test]
     fn nav_tab_enters_the_detail_live_preview() {
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Tab, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Tab, KeyModifiers::NONE),
+        );
         assert_eq!(focus, detail(DetailOrigin::Nav));
         assert_eq!(action, Action::NavPeek);
     }
 
     #[test]
     fn nav_enter_selects_and_lands_on_pane() {
-        let (focus, action) =
-            arbitrate(&Focus::Nav, &leader(), &key_ev(KeyCode::Enter, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Nav,
+            &leader(),
+            &key_ev(KeyCode::Enter, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Pane);
         assert_eq!(action, Action::NavSelect);
     }
@@ -1112,9 +1170,14 @@ mod tests {
         // c / e / q moved onto the dispatch gate; in Nav they are plain,
         // unhandled keys now (the gate owns those routes).
         for code in [KeyCode::Char('c'), KeyCode::Char('e'), KeyCode::Char('q')] {
-            let (focus, action) = arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
+            let (focus, action) =
+                arbitrate(&Focus::Nav, &leader(), &key_ev(code, KeyModifiers::NONE));
             assert_eq!(focus, Focus::Nav);
-            assert_eq!(action, Action::Ignore, "{code:?} should be inert in Nav now");
+            assert_eq!(
+                action,
+                Action::Ignore,
+                "{code:?} should be inert in Nav now"
+            );
         }
     }
 
@@ -1126,16 +1189,22 @@ mod tests {
 
     #[test]
     fn filter_plain_char_extends_the_needle_and_stays() {
-        let (focus, action) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Char('a'), KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Char('a'), KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Filter);
         assert_eq!(action, Action::FilterEdit(FilterEdit::Insert("a".into())));
     }
 
     #[test]
     fn filter_backspace_trims_the_needle() {
-        let (focus, action) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Backspace, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Backspace, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Filter);
         assert_eq!(action, Action::FilterEdit(FilterEdit::Backspace));
     }
@@ -1146,8 +1215,11 @@ mod tests {
         // terminals, so both must drive the inbox toggle in mode.
         let (_, via_ctrl) = arbitrate(&Focus::Filter, &leader(), &ctrl('i'));
         assert_eq!(via_ctrl, Action::FilterEdit(FilterEdit::ToggleInbox));
-        let (focus, via_tab) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Tab, KeyModifiers::NONE));
+        let (focus, via_tab) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Tab, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Filter);
         assert_eq!(via_tab, Action::FilterEdit(FilterEdit::ToggleInbox));
     }
@@ -1162,26 +1234,39 @@ mod tests {
 
     #[test]
     fn filter_arrows_move_the_ranked_cursor_without_leaving_the_needle() {
-        let (focus, down) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Down, KeyModifiers::NONE));
+        let (focus, down) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Down, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Filter, "still typing — the needle stays");
         assert_eq!(down, Action::NavDown);
-        let (_, up) = arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Up, KeyModifiers::NONE));
+        let (_, up) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Up, KeyModifiers::NONE),
+        );
         assert_eq!(up, Action::NavUp);
     }
 
     #[test]
     fn filter_enter_accepts_back_to_nav_keeping_the_criteria() {
-        let (focus, action) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Enter, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Enter, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Nav, "accept returns to the nav surface");
         assert_eq!(action, Action::FilterAccept);
     }
 
     #[test]
     fn filter_esc_clears_back_to_nav() {
-        let (focus, action) =
-            arbitrate(&Focus::Filter, &leader(), &key_ev(KeyCode::Esc, KeyModifiers::NONE));
+        let (focus, action) = arbitrate(
+            &Focus::Filter,
+            &leader(),
+            &key_ev(KeyCode::Esc, KeyModifiers::NONE),
+        );
         assert_eq!(focus, Focus::Nav);
         assert_eq!(action, Action::FilterClear);
     }

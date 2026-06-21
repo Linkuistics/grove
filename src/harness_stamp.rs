@@ -19,8 +19,7 @@ pub fn resolve_for_launch(
     explicit: Option<&str>,
 ) -> Result<&'static Harness> {
     if let Some(name) = explicit {
-        return harness::by_name(name)
-            .ok_or_else(|| anyhow::anyhow!("unknown harness: {}", name));
+        return harness::by_name(name).ok_or_else(|| anyhow::anyhow!("unknown harness: {}", name));
     }
     let stamp = path(repo, name);
     if stamp.exists() {
@@ -46,11 +45,7 @@ pub fn resolve_for_launch(
 
 /// Write `<repo>/.grove-stamps/<name>` only when needed for disambiguation
 /// (multi-harness repo). In a single-harness repo, no-op.
-pub fn maybe_stamp(
-    repo: &Path,
-    name: &str,
-    chosen: &'static Harness,
-) -> Result<()> {
+pub fn maybe_stamp(repo: &Path, name: &str, chosen: &'static Harness) -> Result<()> {
     let detected = harness::detect_in_repo(repo);
     if detected.len() < 2 {
         return Ok(()); // single-harness repo; no disambiguation needed

@@ -8,7 +8,11 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Command::new("git").arg("init").arg(tmp.path()).status().unwrap();
+    Command::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
     fs::create_dir_all(tmp.path().join(".claude/skills/grove")).unwrap();
     fs::write(tmp.path().join(".claude/skills/grove/SKILL.md"), "x").unwrap();
     tmp

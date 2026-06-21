@@ -28,7 +28,6 @@ use anyhow::{Context, Result};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use ratatui::backend::CrosstermBackend;
 use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
 use ratatui::crossterm::event::{
     self, DisableBracketedPaste, DisableMouseCapture, EnableBracketedPaste, EnableMouseCapture,
     Event,
@@ -37,6 +36,7 @@ use ratatui::crossterm::execute;
 use ratatui::crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use ratatui::layout::Rect;
 use ratatui::Terminal;
 use ratatui_rmux::PaneState;
 use rmux_sdk::{
@@ -46,6 +46,7 @@ use tokio::sync::mpsc;
 
 use crate::cli::TuiArgs;
 use crate::multi_repo_view::MultiRepoView;
+use crate::repo_view::Lifecycle;
 use crate::tui::capture::{CaptureModal, CaptureOutcome, CaptureTarget};
 use crate::tui::config::{resolve_leader, Leader};
 use crate::tui::detail::Detail;
@@ -54,7 +55,6 @@ use crate::tui::editor;
 use crate::tui::filter_mode::FilterMode;
 use crate::tui::focus::{arbitrate, Action, DetailOrigin, Focus, ModalKind};
 use crate::tui::launch;
-use crate::repo_view::Lifecycle;
 use crate::tui::nav::{Nav, NavItem, NavRow};
 use crate::tui::pane::{render_pane, PaneKey, PaneRole};
 
@@ -97,7 +97,10 @@ impl AuxVisibility {
 
     /// Mark `grove`'s `role` aux pane shown (idempotent).
     fn show(&mut self, grove: &str, role: PaneRole) {
-        self.by_grove.entry(grove.to_string()).or_default().insert(role);
+        self.by_grove
+            .entry(grove.to_string())
+            .or_default()
+            .insert(role);
     }
 
     /// Mark `grove`'s `role` aux pane hidden — the pty stays warm (hide-not-
@@ -114,7 +117,10 @@ impl AuxVisibility {
         let Some(set) = self.by_grove.get(grove) else {
             return Vec::new();
         };
-        AUX_STACK_ORDER.into_iter().filter(|r| set.contains(r)).collect()
+        AUX_STACK_ORDER
+            .into_iter()
+            .filter(|r| set.contains(r))
+            .collect()
     }
 }
 
@@ -255,7 +261,10 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     let pane_vp = composed_layout(Rect::new(0, 0, cols, rows), 1).pane;
     let _ = driver
         .pane()
-        .resize(TerminalSizeSpec::new(pane_vp.width.max(1), pane_vp.height.max(1)))
+        .resize(TerminalSizeSpec::new(
+            pane_vp.width.max(1),
+            pane_vp.height.max(1),
+        ))
         .await;
     driver
         .spawn_render_task(process.key.clone(), render_tx.clone())
@@ -290,8 +299,13 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     // capture feeds click-to-focus (E5).
     enable_raw_mode().context("enabling raw mode")?;
     let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture, EnableBracketedPaste)
-        .context("entering alternate screen")?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        EnableMouseCapture,
+        EnableBracketedPaste
+    )
+    .context("entering alternate screen")?;
     let mut terminal =
         Terminal::new(CrosstermBackend::new(stdout)).context("creating the ratatui terminal")?;
 
@@ -321,7 +335,13 @@ pub async fn run_app(args: &TuiArgs) -> Result<()> {
     // Point the detail panel at the initially-focused grove before the first draw.
     app.rebuild_detail();
     let result = app
-        .run(&mut terminal, &mut render_rx, &mut input_rx, &mut watch_rx, &input_pause)
+        .run(
+            &mut terminal,
+            &mut render_rx,
+            &mut input_rx,
+            &mut watch_rx,
+            &input_pause,
+        )
         .await;
 
     // --- teardown (always, even on error) ---
@@ -420,7 +440,11 @@ impl App {
             let (pw, ph) = self.pane_viewport();
             for (key, entry) in &self.panes {
                 if !key.is_aux() {
-                    let _ = entry.driver.pane().resize(TerminalSizeSpec::new(pw, ph)).await;
+                    let _ = entry
+                        .driver
+                        .pane()
+                        .resize(TerminalSizeSpec::new(pw, ph))
+                        .await;
                 }
             }
             self.resize_visible_aux().await;
@@ -452,7 +476,9 @@ impl App {
                 // Wrap in bracketed-paste markers so multi-line pastes don't
                 // execute line-by-line (claude multi-line / vim paste-mode).
                 if let Some(pane) = self.focused_pane() {
-                    pane.send_text(format!("\x1b[200~{text}\x1b[201~")).await.ok();
+                    pane.send_text(format!("\x1b[200~{text}\x1b[201~"))
+                        .await
+                        .ok();
                 }
                 EventOutcome::Nothing
             }
@@ -851,7 +877,9 @@ impl App {
                 return;
             }
             Err(e) => {
-                self.toast = Some(CaptureOutcome::Failed(format!("capture task panicked: {e}")));
+                self.toast = Some(CaptureOutcome::Failed(format!(
+                    "capture task panicked: {e}"
+                )));
                 return;
             }
         };
@@ -885,7 +913,9 @@ impl App {
         let mut argv = editor::resolve_editor();
         argv.push(tmp.path().to_string_lossy().into_owned());
         let status = tokio::task::spawn_blocking(move || {
-            std::process::Command::new(&argv[0]).args(&argv[1..]).status()
+            std::process::Command::new(&argv[0])
+                .args(&argv[1..])
+                .status()
         })
         .await;
 
@@ -920,7 +950,9 @@ impl App {
     /// `Pane` handle is cheap to clone) keeps the `panes`/`focused` borrow short,
     /// so the input forward `.await` doesn't hold a borrow of `self` across it.
     fn focused_pane(&self) -> Option<rmux_sdk::Pane> {
-        self.panes.get(&self.focused).map(|e| e.driver.pane().clone())
+        self.panes
+            .get(&self.focused)
+            .map(|e| e.driver.pane().clone())
     }
 
     /// Open the selected grove's harness pane if absent, else focus the existing
@@ -1100,7 +1132,8 @@ impl App {
     /// terminal. The harness/shell panes are resized to this; aux panes size to
     /// their own side-column slot (resize-on-show, 050/030).
     fn pane_viewport(&self) -> (u16, u16) {
-        let pane = composed_layout(Rect::new(0, 0, self.size.0, self.size.1), self.side_count()).pane;
+        let pane =
+            composed_layout(Rect::new(0, 0, self.size.0, self.size.1), self.side_count()).pane;
         (pane.width.max(1), pane.height.max(1))
     }
 
@@ -1181,7 +1214,10 @@ impl App {
             // No stderr on the alt screen; a hard spawn failure stays put silently
             // (mirrors `open_or_focus`'s open-must-never-kill-the-TUI posture).
             if !self.panes.contains_key(&key)
-                && self.spawn_aux(&grove, role, &target.repo_root).await.is_err()
+                && self
+                    .spawn_aux(&grove, role, &target.repo_root)
+                    .await
+                    .is_err()
             {
                 return;
             }
@@ -1273,7 +1309,12 @@ impl App {
     /// its slot) when an aux pane holds focus, so the caller can place the real
     /// cursor there; `None` otherwise. The caller decides whether to use it (only
     /// when a [`Focus::Pane`] is focused, not detail/modal).
-    fn render_side_column(&self, slots: &[Rect], buf: &mut Buffer, detail_focused: bool) -> Option<(u16, u16)> {
+    fn render_side_column(
+        &self,
+        slots: &[Rect],
+        buf: &mut Buffer,
+        detail_focused: bool,
+    ) -> Option<(u16, u16)> {
         let Some((detail_slot, aux_slots)) = slots.split_first() else {
             return None; // floored at 1 in composed_layout, but stay panic-free
         };
@@ -1298,10 +1339,7 @@ impl App {
     ///
     /// Whichkey is a single footer the `App` draws (050/010 verdict): one draw
     /// loop, one footer, so ADR-0019's single-hint-owner holds by construction.
-    fn draw(
-        &self,
-        terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
-    ) -> Result<()> {
+    fn draw(&self, terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) -> Result<()> {
         terminal
             .draw(|frame| {
                 let area = frame.area();
@@ -1737,7 +1775,10 @@ fn select_initial_process(
 /// `pause` (D-E) lets the open-in-editor drop hand stdin to the `$EDITOR` child:
 /// while set, the thread does **not** poll/read the terminal, so it never races
 /// the editor for keystrokes. It resumes (and the screen repaints) on restore.
-fn spawn_input_reader(stop: Arc<AtomicBool>, pause: Arc<AtomicBool>) -> mpsc::UnboundedReceiver<Event> {
+fn spawn_input_reader(
+    stop: Arc<AtomicBool>,
+    pause: Arc<AtomicBool>,
+) -> mpsc::UnboundedReceiver<Event> {
     let (tx, rx) = mpsc::unbounded_channel();
     std::thread::spawn(move || loop {
         if stop.load(Ordering::Relaxed) {
@@ -1776,7 +1817,11 @@ fn spawn_fs_watch(
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         if let Ok(ev) = res {
             // Ignore pure git-internal churn (below-seam fleet helper).
-            if ev.paths.iter().all(|p| crate::fleet::path_is_git_internal(p)) {
+            if ev
+                .paths
+                .iter()
+                .all(|p| crate::fleet::path_is_git_internal(p))
+            {
                 return;
             }
             let _ = tx.send(());
@@ -1809,7 +1854,10 @@ mod tests {
         assert!(v.is_visible("a", PaneRole::Term));
         // Toggling one grove leaves another untouched — visibility is per-grove,
         // so switching groves restores *that* grove's set.
-        assert!(!v.is_visible("b", PaneRole::Term), "visibility is per-grove");
+        assert!(
+            !v.is_visible("b", PaneRole::Term),
+            "visibility is per-grove"
+        );
         v.hide("a", PaneRole::Term);
         assert!(!v.is_visible("a", PaneRole::Term), "hide stops drawing it");
     }
@@ -1923,7 +1971,11 @@ mod tests {
     fn side_count_maps_one_to_one_to_side_slots() {
         let area = Rect::new(0, 0, 200, 60);
         for n in 1..=5 {
-            assert_eq!(composed_layout(area, n).side.len(), n, "{n} members → {n} slots");
+            assert_eq!(
+                composed_layout(area, n).side.len(),
+                n,
+                "{n} members → {n} slots"
+            );
         }
         // Floored at 1 so detail always has a slot even if a caller passes 0.
         assert_eq!(composed_layout(area, 0).side.len(), 1);
@@ -1936,8 +1988,14 @@ mod tests {
         let area = Rect::new(0, 0, 200, 61); // 60 content rows / 3 = 20 each
         let layout = composed_layout(area, 3);
         let s = &layout.side;
-        assert_eq!(s[0].y, layout.pane.y, "detail sits at the top of the column");
-        assert!(s[0].y < s[1].y && s[1].y < s[2].y, "stacked top-to-bottom: {s:?}");
+        assert_eq!(
+            s[0].y, layout.pane.y,
+            "detail sits at the top of the column"
+        );
+        assert!(
+            s[0].y < s[1].y && s[1].y < s[2].y,
+            "stacked top-to-bottom: {s:?}"
+        );
         // Contiguous: each slot begins where the previous ends.
         assert_eq!(s[1].y, s[0].y + s[0].height);
         assert_eq!(s[2].y, s[1].y + s[1].height);

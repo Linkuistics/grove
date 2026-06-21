@@ -9,23 +9,20 @@ use std::process::Command;
 
 pub fn start(args: &StartArgs) -> Result<()> {
     let repo_path = repo::resolve(None)?;
-    let harness = harness_stamp::resolve_for_launch(
-        &repo_path,
-        &args.name,
-        args.harness.as_deref(),
-    )?;
+    let harness =
+        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
 
-    let worktree = repo::create_grove_worktree(
-        &repo_path,
-        &args.name,
-        args.start_point.as_deref(),
-    )?;
+    let worktree =
+        repo::create_grove_worktree(&repo_path, &args.name, args.start_point.as_deref())?;
     harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
 
     let prompt = load_prompt(&repo_path, harness, "start")?;
 
     if args.no_launch {
-        eprintln!("grove: worktree ready at {} (no-launch)", worktree.display());
+        eprintln!(
+            "grove: worktree ready at {} (no-launch)",
+            worktree.display()
+        );
         return Ok(());
     }
     exec_harness(harness, &repo_path, &worktree, &args.name, &prompt)
@@ -46,7 +43,8 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
 /// no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
     let repo_path = repo::resolve(None)?;
-    let harness = harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
+    let harness =
+        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
 
     let worktree = repo::grove_worktree(&repo_path, &args.name);
     let worktree = if worktree.is_dir() {
@@ -65,7 +63,10 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     };
 
     if args.no_launch {
-        eprintln!("grove: worktree ready at {} (no-launch)", worktree.display());
+        eprintln!(
+            "grove: worktree ready at {} (no-launch)",
+            worktree.display()
+        );
         return Ok(());
     }
 
@@ -78,11 +79,8 @@ pub fn takeover(args: &NameArgs) -> Result<()> {
 
 fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
     let repo_path = repo::resolve(None)?;
-    let harness = harness_stamp::resolve_for_launch(
-        &repo_path,
-        &args.name,
-        args.harness.as_deref(),
-    )?;
+    let harness =
+        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
 
     let worktree = repo::grove_worktree(&repo_path, &args.name);
     if !worktree.is_dir() {
@@ -109,26 +107,21 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         .path
         .split_once('/')
         .ok_or_else(|| anyhow::anyhow!("expected <name>/<node-path>, got `{}`", args.path))?;
-    let harness = harness_stamp::resolve_for_launch(
-        &repo_path,
-        name,
-        args.harness.as_deref(),
-    )?;
+    let harness = harness_stamp::resolve_for_launch(&repo_path, name, args.harness.as_deref())?;
 
     let worktree = repo::grove_worktree(&repo_path, name);
     if !worktree.is_dir() {
-        anyhow::bail!(
-            "no worktree for grove '{}' at {}",
-            name,
-            worktree.display()
-        );
+        anyhow::bail!("no worktree for grove '{}' at {}", name, worktree.display());
     }
 
     let prompt = load_prompt(&repo_path, harness, "retire")?;
     let prompt = substitute(&prompt, &[("NODE_PATH", node_path)]);
 
     if args.no_launch {
-        eprintln!("grove: would exec {} for retire (no-launch)", harness.exec_bin);
+        eprintln!(
+            "grove: would exec {} for retire (no-launch)",
+            harness.exec_bin
+        );
         return Ok(());
     }
     exec_harness(harness, &repo_path, &worktree, name, &prompt)
@@ -150,7 +143,6 @@ fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
     }
     out
 }
-
 
 fn exec_harness(
     harness: &Harness,

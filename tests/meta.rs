@@ -28,8 +28,15 @@ fn git_ok(repo: &Path, args: &[&str]) {
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Command::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Command::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
@@ -85,7 +92,10 @@ fn init_is_idempotent_when_already_materialised() {
 
     let out = git(repo.path(), &["rev-list", "--count", "grove-meta"]);
     let n: usize = String::from_utf8_lossy(&out.stdout).trim().parse().unwrap();
-    assert_eq!(n, 1, "expected 1 commit on grove-meta after re-init, got {n}");
+    assert_eq!(
+        n, 1,
+        "expected 1 commit on grove-meta after re-init, got {n}"
+    );
 }
 
 #[test]
@@ -300,10 +310,8 @@ fn two_machine_sim_a_captures_b_syncs_drain_sees() {
     inboxes::capture(a.path(), "yum", "observation from A", None).unwrap();
 
     // Bare now has the grove-meta branch with A's capture commit.
-    let bare_branches = String::from_utf8_lossy(
-        &git(bare.path(), &["branch", "--list"]).stdout,
-    )
-    .into_owned();
+    let bare_branches =
+        String::from_utf8_lossy(&git(bare.path(), &["branch", "--list"]).stdout).into_owned();
     assert!(
         bare_branches.contains("grove-meta"),
         "bare should have grove-meta after A's capture; branches: {bare_branches}"
@@ -337,7 +345,11 @@ fn two_machine_sim_a_captures_b_syncs_drain_sees() {
 
     // drain enumerate on B sees A's observation.
     let pending = inboxes::drain_enumerate(&b, "yum").unwrap();
-    assert_eq!(pending.len(), 1, "expected 1 pending on B, got: {pending:?}");
+    assert_eq!(
+        pending.len(),
+        1,
+        "expected 1 pending on B, got: {pending:?}"
+    );
     let body = fs::read_to_string(&pending[0]).unwrap();
     assert!(
         body.contains("observation from A"),

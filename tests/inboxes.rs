@@ -16,8 +16,15 @@ fn git(repo: &Path, args: &[&str]) -> std::process::Output {
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Command::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Command::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     // Initial commit so the repo has a HEAD; not strictly required by the
@@ -65,7 +72,10 @@ fn materialise_creates_branch_and_worktree() {
     // Branch exists locally.
     let out = git(repo.path(), &["branch", "--list", "grove-meta"]);
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("grove-meta"), "expected grove-meta branch in: {s}");
+    assert!(
+        s.contains("grove-meta"),
+        "expected grove-meta branch in: {s}"
+    );
 
     // Main repo's branch is unchanged.
     assert_eq!(current_branch(repo.path()), main_branch);
@@ -117,7 +127,12 @@ fn capture_writes_one_file_per_observation_with_gitkeep_on_first_write() {
     assert!(dir.join(".gitkeep").is_file(), ".gitkeep missing");
 
     let obs = list_obs(&dir);
-    assert_eq!(obs.len(), 1, "expected one observation file, got {}", obs.len());
+    assert_eq!(
+        obs.len(),
+        1,
+        "expected one observation file, got {}",
+        obs.len()
+    );
     let name = obs[0].file_name().unwrap().to_string_lossy().to_string();
     assert!(name.ends_with(".md"), "filename: {name}");
     // <UTC-iso8601-seconds>Z-<slug>-<hash8>.md — components separated by `-`.
@@ -134,9 +149,15 @@ fn capture_writes_one_file_per_observation_with_gitkeep_on_first_write() {
     assert!(s.contains("inbox: capture to future-grove"), "log: {s}");
 
     // Main branch untouched.
-    let main_log = git(repo.path(), &["log", "--oneline", &current_branch(repo.path())]);
+    let main_log = git(
+        repo.path(),
+        &["log", "--oneline", &current_branch(repo.path())],
+    );
     let m = String::from_utf8_lossy(&main_log.stdout);
-    assert!(!m.contains("inbox:"), "main branch should not see inbox commits: {m}");
+    assert!(
+        !m.contains("inbox:"),
+        "main branch should not see inbox commits: {m}"
+    );
 }
 
 #[test]
@@ -149,7 +170,12 @@ fn two_captures_produce_two_files_on_disjoint_paths() {
 
     let dir = repo.path().join(".grove-meta/inboxes/g");
     let obs = list_obs(&dir);
-    assert_eq!(obs.len(), 2, "expected two observation files, got {}", obs.len());
+    assert_eq!(
+        obs.len(),
+        2,
+        "expected two observation files, got {}",
+        obs.len()
+    );
 
     let bodies: Vec<String> = obs.iter().map(|p| fs::read_to_string(p).unwrap()).collect();
     assert!(bodies.contains(&"first observation".to_string()));
@@ -205,21 +231,39 @@ fn legacy_single_file_inbox_is_migrated_on_first_capture() {
     let legacy = wt.join("inboxes/legacy.md");
     fs::write(&legacy, "old appended content\n").unwrap();
     let out = git(&wt, &["add", "inboxes/legacy.md"]);
-    assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     git(&wt, &["commit", "-m", "legacy single-file inbox"]);
 
     // Now do a fresh capture against the same grove name.
-    inboxes::capture(repo.path(), "legacy", "new entry under directory shape", None).unwrap();
+    inboxes::capture(
+        repo.path(),
+        "legacy",
+        "new entry under directory shape",
+        None,
+    )
+    .unwrap();
 
     // Legacy file is gone; directory exists with migrated entry + new entry +
     // .gitkeep.
-    assert!(!legacy.exists(), "legacy single-file inbox should have been removed");
+    assert!(
+        !legacy.exists(),
+        "legacy single-file inbox should have been removed"
+    );
     let dir = wt.join("inboxes/legacy");
     assert!(dir.is_dir());
     assert!(dir.join(".gitkeep").is_file());
 
     let obs = list_obs(&dir);
-    assert_eq!(obs.len(), 2, "expected migrated entry + new entry, got {}", obs.len());
+    assert_eq!(
+        obs.len(),
+        2,
+        "expected migrated entry + new entry, got {}",
+        obs.len()
+    );
 
     // One of the entries is the legacy migration (name contains `-legacy-`),
     // body matches the original.
@@ -229,19 +273,28 @@ fn legacy_single_file_inbox_is_migrated_on_first_capture() {
         let name = p.file_name().unwrap().to_string_lossy().to_string();
         let body = fs::read_to_string(p).unwrap();
         if name.contains("-legacy-") {
-            assert!(body.contains("old appended content"), "legacy body: {body:?}");
+            assert!(
+                body.contains("old appended content"),
+                "legacy body: {body:?}"
+            );
             found_legacy = true;
         } else {
             assert_eq!(body, "new entry under directory shape");
             found_new = true;
         }
     }
-    assert!(found_legacy && found_new, "missing legacy or new entry: {obs:?}");
+    assert!(
+        found_legacy && found_new,
+        "missing legacy or new entry: {obs:?}"
+    );
 
     // A dedicated migration commit precedes the capture commit.
     let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
-    assert!(s.contains("migrate inbox legacy to directory shape"), "log: {s}");
+    assert!(
+        s.contains("migrate inbox legacy to directory shape"),
+        "log: {s}"
+    );
     assert!(s.contains("inbox: capture to legacy"), "log: {s}");
 
     // Migration runs once: a follow-up capture must not re-trigger it.
@@ -357,8 +410,15 @@ fn drain_enumerate_returns_observation_paths_in_chronological_order() {
     inboxes::capture(repo.path(), "g", "gamma", None).unwrap();
 
     let paths = inboxes::drain_enumerate(repo.path(), "g").unwrap();
-    assert_eq!(paths.len(), 3, "expected 3 pending observations, got {paths:?}");
-    assert!(paths.iter().all(|p| p.is_absolute()), "paths must be absolute: {paths:?}");
+    assert_eq!(
+        paths.len(),
+        3,
+        "expected 3 pending observations, got {paths:?}"
+    );
+    assert!(
+        paths.iter().all(|p| p.is_absolute()),
+        "paths must be absolute: {paths:?}"
+    );
 
     // Filenames sort lexicographically — the UTC-iso8601 prefix gives
     // chronological order.
@@ -371,7 +431,10 @@ fn drain_enumerate_returns_observation_paths_in_chronological_order() {
         .iter()
         .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
         .collect();
-    assert!(!names.iter().any(|n| n == ".gitkeep"), "got .gitkeep in: {names:?}");
+    assert!(
+        !names.iter().any(|n| n == ".gitkeep"),
+        "got .gitkeep in: {names:?}"
+    );
 }
 
 #[test]
@@ -382,7 +445,10 @@ fn drain_enumerate_on_missing_inbox_returns_empty_no_commit() {
     let paths = inboxes::drain_enumerate(repo.path(), "never-existed").unwrap();
     assert!(paths.is_empty());
     // Enumerate must not create the inbox dir — capture is the creation path.
-    assert!(!repo.path().join(".grove-meta/inboxes/never-existed").exists());
+    assert!(!repo
+        .path()
+        .join(".grove-meta/inboxes/never-existed")
+        .exists());
 
     // Only the initial empty-tree commit on the branch.
     assert_eq!(rev_count(repo.path(), "grove-meta"), 1);
@@ -411,8 +477,14 @@ fn drain_finalize_deletes_listed_paths_and_commits_with_disposition_counts() {
 
     let dir = repo.path().join(".grove-meta/inboxes/g");
     assert!(dir.is_dir(), "inbox dir should persist after drain");
-    assert!(dir.join(".gitkeep").is_file(), ".gitkeep should survive drain");
-    assert!(list_obs(&dir).is_empty(), "observation files should be gone after drain");
+    assert!(
+        dir.join(".gitkeep").is_file(),
+        ".gitkeep should survive drain"
+    );
+    assert!(
+        list_obs(&dir).is_empty(),
+        "observation files should be gone after drain"
+    );
 
     let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
@@ -433,18 +505,15 @@ fn drain_finalize_partial_disposition_only_deletes_named_paths() {
 
     // Only "alpha" is incorporated; "beta" is left in the inbox (e.g. a
     // concurrent add that the session chose not to triage this round).
-    inboxes::drain_finalize(
-        repo.path(),
-        "g",
-        &[paths[0].clone()],
-        &[],
-        &[],
-    )
-    .unwrap();
+    inboxes::drain_finalize(repo.path(), "g", &[paths[0].clone()], &[], &[]).unwrap();
 
     let dir = repo.path().join(".grove-meta/inboxes/g");
     let remaining = list_obs(&dir);
-    assert_eq!(remaining.len(), 1, "expected beta still present: {remaining:?}");
+    assert_eq!(
+        remaining.len(),
+        1,
+        "expected beta still present: {remaining:?}"
+    );
     assert_eq!(remaining[0], paths[1]);
 
     let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
@@ -462,19 +531,10 @@ fn drain_finalize_rejects_paths_outside_inbox() {
     inboxes::capture(repo.path(), "g", "alpha", None).unwrap();
 
     let outside = repo.path().join("README");
-    let err = inboxes::drain_finalize(
-        repo.path(),
-        "g",
-        std::slice::from_ref(&outside),
-        &[],
-        &[],
-    )
-    .unwrap_err();
+    let err = inboxes::drain_finalize(repo.path(), "g", std::slice::from_ref(&outside), &[], &[])
+        .unwrap_err();
     let msg = err.to_string();
-    assert!(
-        msg.contains("not inside the inbox directory"),
-        "got: {msg}"
-    );
+    assert!(msg.contains("not inside the inbox directory"), "got: {msg}");
 
     // Inbox state is unchanged — no deletion happened before the rejection.
     let dir = repo.path().join(".grove-meta/inboxes/g");
@@ -486,7 +546,10 @@ fn drain_finalize_rejects_dispositionless_calls() {
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
     let err = inboxes::drain_finalize(repo.path(), "g", &[], &[], &[]).unwrap_err();
-    assert!(err.to_string().contains("no paths in any disposition"), "got: {err}");
+    assert!(
+        err.to_string().contains("no paths in any disposition"),
+        "got: {err}"
+    );
 }
 
 #[test]
@@ -497,7 +560,10 @@ fn drain_finalize_rejects_gitkeep() {
 
     let gitkeep = repo.path().join(".grove-meta/inboxes/g/.gitkeep");
     let err = inboxes::drain_finalize(repo.path(), "g", &[gitkeep], &[], &[]).unwrap_err();
-    assert!(err.to_string().contains(".gitkeep cannot be drained"), "got: {err}");
+    assert!(
+        err.to_string().contains(".gitkeep cannot be drained"),
+        "got: {err}"
+    );
 }
 
 #[test]
@@ -516,7 +582,10 @@ fn edit_rewrites_body_renames_to_new_hash_preserving_stamp_and_slug() {
         .rsplit_once('-')
         .map(|(head, _)| head.to_string())
         .unwrap();
-    assert!(prefix.contains("Z-my-note"), "unexpected name shape: {old_name}");
+    assert!(
+        prefix.contains("Z-my-note"),
+        "unexpected name shape: {old_name}"
+    );
 
     inboxes::edit(repo.path(), &before[0], "rewritten body").unwrap();
 
@@ -532,7 +601,10 @@ fn edit_rewrites_body_renames_to_new_hash_preserving_stamp_and_slug() {
         new_name.starts_with(&prefix),
         "stamp+slug prefix should survive: old={old_name} new={new_name}"
     );
-    assert_ne!(new_name, old_name, "hash suffix should change with the body");
+    assert_ne!(
+        new_name, old_name,
+        "hash suffix should change with the body"
+    );
     // New suffix is the content hash of the *new* body — i.e. a fresh capture
     // of the edited body would dedup against this file, not create a duplicate.
     inboxes::capture(repo.path(), "g", "rewritten body", None).unwrap();
@@ -598,13 +670,19 @@ fn remove_deletes_inbox_dir_including_gitkeep_when_empty() {
     inboxes::drain_finalize(repo.path(), "g", &[paths[0].clone()], &[], &[]).unwrap();
 
     let dir = repo.path().join(".grove-meta/inboxes/g");
-    assert!(dir.is_dir() && dir.join(".gitkeep").is_file(), "precondition");
+    assert!(
+        dir.is_dir() && dir.join(".gitkeep").is_file(),
+        "precondition"
+    );
 
     inboxes::remove(repo.path(), "g").unwrap();
 
     // Whole directory gone — .gitkeep and all — so `repo_view::scan` no longer
     // classifies `g` as a seed.
-    assert!(!dir.exists(), "inbox dir should be removed entirely: {dir:?}");
+    assert!(
+        !dir.exists(),
+        "inbox dir should be removed entirely: {dir:?}"
+    );
 
     let log = git(repo.path(), &["log", "--oneline", "grove-meta"]);
     let s = String::from_utf8_lossy(&log.stdout);
@@ -625,12 +703,19 @@ fn remove_refuses_when_observations_pending() {
     let err = inboxes::remove(repo.path(), "g").unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("pending observation"), "got: {msg}");
-    assert!(msg.contains("inbox-drain"), "error should point at draining: {msg}");
+    assert!(
+        msg.contains("inbox-drain"),
+        "error should point at draining: {msg}"
+    );
 
     // Refusal is total — the observation and the dir are untouched.
     let dir = repo.path().join(".grove-meta/inboxes/g");
     assert!(dir.is_dir(), "inbox dir must survive a refused remove");
-    assert_eq!(list_obs(&dir).len(), 1, "pending observation must not be lost");
+    assert_eq!(
+        list_obs(&dir).len(),
+        1,
+        "pending observation must not be lost"
+    );
 }
 
 #[test]
@@ -643,7 +728,10 @@ fn remove_is_idempotent_when_inbox_absent() {
     // is what makes the state-checked finish resume safe to re-run.
     inboxes::remove(repo.path(), "never-seeded").unwrap();
 
-    assert!(!repo.path().join(".grove-meta/inboxes/never-seeded").exists());
+    assert!(!repo
+        .path()
+        .join(".grove-meta/inboxes/never-seeded")
+        .exists());
     assert_eq!(
         rev_count(repo.path(), "grove-meta"),
         before,
@@ -667,8 +755,16 @@ fn finished_grove_does_not_appear_as_seed_after_remove() {
     // No worktree was ever created → the orphaned inbox is exactly the
     // "finished grove looks like a seed" symptom this leaf fixes.
     let before = RepoView::scan(repo.path()).unwrap();
-    let seed = before.groves().iter().find(|g| g.name == "done-grove").unwrap();
-    assert_eq!(seed.lifecycle, Lifecycle::Seed, "precondition: orphaned inbox shows as seed");
+    let seed = before
+        .groves()
+        .iter()
+        .find(|g| g.name == "done-grove")
+        .unwrap();
+    assert_eq!(
+        seed.lifecycle,
+        Lifecycle::Seed,
+        "precondition: orphaned inbox shows as seed"
+    );
 
     inboxes::remove(repo.path(), "done-grove").unwrap();
 

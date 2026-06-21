@@ -11,8 +11,7 @@ pub fn extract_content(tarball: &[u8], dest: &Path) -> Result<()> {
     let gz = GzDecoder::new(Cursor::new(tarball));
     let mut archive = Archive::new(gz);
 
-    fs::create_dir_all(dest)
-        .with_context(|| format!("creating dest dir {}", dest.display()))?;
+    fs::create_dir_all(dest).with_context(|| format!("creating dest dir {}", dest.display()))?;
 
     for entry in archive.entries().context("reading tar entries")? {
         let mut entry = entry.context("reading tar entry")?;
@@ -38,9 +37,10 @@ pub fn extract_content(tarball: &[u8], dest: &Path) -> Result<()> {
             fs::create_dir_all(parent).ok();
         }
         let mut bytes = Vec::new();
-        entry.read_to_end(&mut bytes).context("reading entry bytes")?;
-        fs::write(&out_path, bytes)
-            .with_context(|| format!("writing {}", out_path.display()))?;
+        entry
+            .read_to_end(&mut bytes)
+            .context("reading entry bytes")?;
+        fs::write(&out_path, bytes).with_context(|| format!("writing {}", out_path.display()))?;
     }
     Ok(())
 }

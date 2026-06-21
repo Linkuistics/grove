@@ -31,7 +31,9 @@ pub fn inbox_dir(repo: &Path, name: &str) -> PathBuf {
 /// Legacy single-file path. Present only during the one-time migration on
 /// first capture to a previously single-file inbox.
 fn legacy_inbox_file(repo: &Path, name: &str) -> PathBuf {
-    worktree_dir(repo).join(INBOXES_SUBDIR).join(format!("{}.md", name))
+    worktree_dir(repo)
+        .join(INBOXES_SUBDIR)
+        .join(format!("{}.md", name))
 }
 
 /// Materialise the `grove-meta` branch and the `.grove-meta/` worktree
@@ -83,7 +85,12 @@ pub fn materialise(repo: &Path) -> Result<()> {
 /// configured, push best-effort after commit, with one auto-fetch + replay
 /// retry on non-ff. On non-network failure the push error is reported but
 /// the local commit stands.
-pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option<&str>) -> Result<()> {
+pub fn capture(
+    repo: &Path,
+    name: &str,
+    observation: &str,
+    slug_override: Option<&str>,
+) -> Result<()> {
     if observation.trim().is_empty() {
         anyhow::bail!("empty observation; pass body via --body, --body-file, or --body-stdin");
     }
@@ -114,8 +121,7 @@ pub fn capture(repo: &Path, name: &str, observation: &str, slug_override: Option
     let mut to_stage = vec![format!("{}/{}/{}", INBOXES_SUBDIR, name, filename)];
     if !dir_existed {
         let gitkeep = dir.join(GITKEEP);
-        std::fs::write(&gitkeep, b"")
-            .with_context(|| format!("writing {}", gitkeep.display()))?;
+        std::fs::write(&gitkeep, b"").with_context(|| format!("writing {}", gitkeep.display()))?;
         to_stage.push(format!("{}/{}/{}", INBOXES_SUBDIR, name, GITKEEP));
     }
 
@@ -261,8 +267,7 @@ pub fn drain_finalize(
     for rel in &rel_paths {
         let abs = wt.join(rel);
         if abs.exists() {
-            std::fs::remove_file(&abs)
-                .with_context(|| format!("removing {}", abs.display()))?;
+            std::fs::remove_file(&abs).with_context(|| format!("removing {}", abs.display()))?;
         }
     }
 
@@ -345,17 +350,25 @@ pub fn remove(repo: &Path, name: &str) -> Result<()> {
 /// We tolerate non-existent files because the caller may have already
 /// removed them in a partial earlier run — but we still verify the
 /// (notional) parent matches `inbox_dir`.
-fn validate_path_inside_inbox(worktree: &Path, inbox_dir: &Path, candidate: &Path) -> Result<String> {
+fn validate_path_inside_inbox(
+    worktree: &Path,
+    inbox_dir: &Path,
+    candidate: &Path,
+) -> Result<String> {
     let abs = if candidate.is_absolute() {
         candidate.to_path_buf()
     } else {
-        std::env::current_dir().context("getting cwd")?.join(candidate)
+        std::env::current_dir()
+            .context("getting cwd")?
+            .join(candidate)
     };
 
     let canon_abs = canonical_parent_plus_file(&abs)?;
     let canon_inbox = inbox_dir
         .canonicalize()
-        .or_else(|_| canonical_parent_plus_file(inbox_dir).map(|p| p.parent().unwrap().to_path_buf()))
+        .or_else(|_| {
+            canonical_parent_plus_file(inbox_dir).map(|p| p.parent().unwrap().to_path_buf())
+        })
         .with_context(|| format!("resolving inbox dir {}", inbox_dir.display()))?;
 
     let parent = canon_abs
@@ -384,9 +397,11 @@ fn validate_path_inside_inbox(worktree: &Path, inbox_dir: &Path, candidate: &Pat
     }
 
     let rel = canon_abs
-        .strip_prefix(worktree.canonicalize().with_context(|| {
-            format!("canonicalising worktree {}", worktree.display())
-        })?)
+        .strip_prefix(
+            worktree
+                .canonicalize()
+                .with_context(|| format!("canonicalising worktree {}", worktree.display()))?,
+        )
         .with_context(|| {
             format!(
                 "path {} is not inside the inbox worktree {}",
@@ -409,7 +424,9 @@ fn validate_observation_path(worktree: &Path, candidate: &Path) -> Result<(Strin
     let abs = if candidate.is_absolute() {
         candidate.to_path_buf()
     } else {
-        std::env::current_dir().context("getting cwd")?.join(candidate)
+        std::env::current_dir()
+            .context("getting cwd")?
+            .join(candidate)
     };
     let canon_abs = canonical_parent_plus_file(&abs)?;
     let canon_wt = worktree
@@ -746,7 +763,12 @@ fn run_git_add(wt: &Path, paths: &[String]) -> Result<()> {
 
 fn run_git_commit(wt: &Path, paths: &[String], message: &str) -> Result<()> {
     let mut cmd = Command::new("git");
-    cmd.arg("-C").arg(wt).arg("commit").arg("-m").arg(message).arg("--");
+    cmd.arg("-C")
+        .arg(wt)
+        .arg("commit")
+        .arg("-m")
+        .arg(message)
+        .arg("--");
     for p in paths {
         cmd.arg(p);
     }
@@ -776,10 +798,7 @@ fn branch_exists(repo: &Path, branch: &str) -> Result<bool> {
 fn create_empty_branch(repo: &Path, branch: &str) -> Result<()> {
     let empty_tree = git_capture(repo, &["mktree"])?;
     let empty_tree = empty_tree.trim();
-    let commit = git_capture(
-        repo,
-        &["commit-tree", empty_tree, "-m", "init grove-meta"],
-    )?;
+    let commit = git_capture(repo, &["commit-tree", empty_tree, "-m", "init grove-meta"])?;
     let commit = commit.trim();
 
     let status = Command::new("git")
@@ -824,7 +843,11 @@ fn stage_and_commit(worktree: &Path, paths: &[String], message: &str) -> Result<
     // staged but a re-`add` of the absent path would otherwise error with
     // "did not match any files").
     let mut add = Command::new("git");
-    add.arg("-C").arg(worktree).arg("add").arg("--all").arg("--");
+    add.arg("-C")
+        .arg(worktree)
+        .arg("add")
+        .arg("--all")
+        .arg("--");
     for p in paths {
         add.arg(p);
     }
@@ -837,7 +860,12 @@ fn stage_and_commit(worktree: &Path, paths: &[String], message: &str) -> Result<
     }
 
     let mut diff = Command::new("git");
-    diff.arg("-C").arg(worktree).arg("diff").arg("--cached").arg("--quiet").arg("--");
+    diff.arg("-C")
+        .arg(worktree)
+        .arg("diff")
+        .arg("--cached")
+        .arg("--quiet")
+        .arg("--");
     for p in paths {
         diff.arg(p);
     }
@@ -847,11 +875,19 @@ fn stage_and_commit(worktree: &Path, paths: &[String], message: &str) -> Result<
     }
 
     let mut commit = Command::new("git");
-    commit.arg("-C").arg(worktree).arg("commit").arg("-m").arg(message).arg("--");
+    commit
+        .arg("-C")
+        .arg(worktree)
+        .arg("commit")
+        .arg("-m")
+        .arg(message)
+        .arg("--");
     for p in paths {
         commit.arg(p);
     }
-    let commit_out = commit.output().context("running git commit in inbox worktree")?;
+    let commit_out = commit
+        .output()
+        .context("running git commit in inbox worktree")?;
     if !commit_out.status.success() {
         anyhow::bail!(
             "git commit failed: {}",
@@ -1079,7 +1115,10 @@ fn sanitize_slug(input: &str) -> String {
 /// Hinnant's `civil_from_days`. Inlined so grove avoids depending on
 /// `chrono` / `time` for one timestamp format.
 fn utc_iso8601_seconds(now: SystemTime) -> String {
-    let secs = now.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0) as i64;
+    let secs = now
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0) as i64;
     let days = secs.div_euclid(86400);
     let sod = secs.rem_euclid(86400);
     let (y, mo, d) = civil_from_days(days);
@@ -1137,11 +1176,7 @@ pub(crate) fn sync_push(worktree: &Path) -> Result<()> {
                     );
                     Ok(())
                 }
-                Err(e) => anyhow::bail!(
-                    "{} push rejected after fetch+ff+retry: {:?}",
-                    BRANCH,
-                    e
-                ),
+                Err(e) => anyhow::bail!("{} push rejected after fetch+ff+retry: {:?}", BRANCH, e),
             }
         }
         Err(PushError::Other(msg)) => anyhow::bail!("git push failed: {}", msg.trim()),
@@ -1156,7 +1191,9 @@ mod inline_tests {
     fn slug_from_plain_text_takes_first_words() {
         let s = derive_slug("noticed a bug in the racket expander where Pair has wrong arity");
         assert!(s.starts_with("noticed-a-bug"), "got: {s}");
-        assert!(s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'));
+        assert!(s
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'));
     }
 
     #[test]

@@ -222,7 +222,9 @@ fn push_brief_chain(lines: &mut Vec<Line<'static>>, detail: &GroveDetail) {
 
 /// The first live leaf depth-first (entries are already in `pick` order and carry
 /// `is_retired`), skipping retired material — the grove's current pick.
-fn first_live_leaf(entries: &[crate::repo_view::TaskEntry]) -> Option<&crate::repo_view::TaskEntry> {
+fn first_live_leaf(
+    entries: &[crate::repo_view::TaskEntry],
+) -> Option<&crate::repo_view::TaskEntry> {
     use crate::repo_view::TaskKind;
     for entry in entries {
         if entry.is_retired {
@@ -322,7 +324,10 @@ fn push_entry(lines: &mut Vec<Line<'static>>, entry: &crate::repo_view::TaskEntr
 /// A bold section header line.
 fn header_line(text: &str) -> Line<'static> {
     use ratatui::style::{Modifier, Style};
-    Line::styled(text.to_string(), Style::default().add_modifier(Modifier::BOLD))
+    Line::styled(
+        text.to_string(),
+        Style::default().add_modifier(Modifier::BOLD),
+    )
 }
 
 /// A plain content line.
@@ -438,8 +443,12 @@ mod tests {
                     .contains("005-old")
             })
             .expect("005-old row present");
-        let dimmed = (0..area.width)
-            .any(|x| buf[(x, old_row)].style().add_modifier.contains(Modifier::DIM));
+        let dimmed = (0..area.width).any(|x| {
+            buf[(x, old_row)]
+                .style()
+                .add_modifier
+                .contains(Modifier::DIM)
+        });
         assert!(dimmed, "retired leaf row should be dimmed");
     }
 
@@ -558,7 +567,11 @@ mod tests {
         let area = Rect::new(0, 0, 40, 12);
         let mut buf = Buffer::empty(area);
         detail.render(area, &mut buf, false);
-        assert!(buffer_text(&buf).contains("detail: g"), "got:\n{}", buffer_text(&buf));
+        assert!(
+            buffer_text(&buf).contains("detail: g"),
+            "got:\n{}",
+            buffer_text(&buf)
+        );
     }
 
     #[test]
@@ -697,19 +710,35 @@ mod tests {
     fn nav_moves_the_inbox_selection_within_bounds() {
         let (_tmp, view) = grove_view_with_inbox(
             &["010-x.md"],
-            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+            &[
+                "2026-06-08-1-a.md",
+                "2026-06-08-2-b.md",
+                "2026-06-08-3-c.md",
+            ],
         );
         let mut detail = Detail::new();
         detail.show(Some("g"), view.grove("g"));
         // Defaults to the first pending observation.
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-1-a.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-1-a.md"
+        );
         detail.nav_down();
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-2-b.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-2-b.md"
+        );
         detail.nav_down();
         detail.nav_down(); // already at the last — saturates, no overshoot.
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-3-c.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-3-c.md"
+        );
         detail.nav_up();
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-2-b.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-2-b.md"
+        );
     }
 
     #[test]
@@ -734,9 +763,16 @@ mod tests {
                     .contains("second.md")
             })
             .expect("second.md row present");
-        let highlighted = (1..area.width - 1)
-            .any(|x| buf[(x, row)].style().add_modifier.contains(Modifier::REVERSED));
-        assert!(highlighted, "the selected observation row is reversed when focused");
+        let highlighted = (1..area.width - 1).any(|x| {
+            buf[(x, row)]
+                .style()
+                .add_modifier
+                .contains(Modifier::REVERSED)
+        });
+        assert!(
+            highlighted,
+            "the selected observation row is reversed when focused"
+        );
 
         // The unselected row is not highlighted.
         let first_row = (0..area.height)
@@ -747,9 +783,16 @@ mod tests {
                     .contains("first.md")
             })
             .expect("first.md row present");
-        let first_highlighted = (1..area.width - 1)
-            .any(|x| buf[(x, first_row)].style().add_modifier.contains(Modifier::REVERSED));
-        assert!(!first_highlighted, "unselected observation row is not highlighted");
+        let first_highlighted = (1..area.width - 1).any(|x| {
+            buf[(x, first_row)]
+                .style()
+                .add_modifier
+                .contains(Modifier::REVERSED)
+        });
+        assert!(
+            !first_highlighted,
+            "unselected observation row is not highlighted"
+        );
     }
 
     #[test]
@@ -764,7 +807,10 @@ mod tests {
         );
         let mut detail = Detail::new();
         detail.show(Some("g"), view.grove("g"));
-        assert!(detail.selected_observation().is_none(), "empty inbox: nothing selected");
+        assert!(
+            detail.selected_observation().is_none(),
+            "empty inbox: nothing selected"
+        );
 
         let area = Rect::new(0, 0, 40, 8);
         let mut top_before = Buffer::empty(area);
@@ -775,16 +821,26 @@ mod tests {
         let mut top_after = Buffer::empty(area);
         detail.render(area, &mut top_after, true);
         let row = |b: &Buffer| -> String {
-            (0..area.width).map(|x| b[(x, 1)].symbol().to_string()).collect()
+            (0..area.width)
+                .map(|x| b[(x, 1)].symbol().to_string())
+                .collect()
         };
-        assert_ne!(row(&top_before), row(&top_after), "empty-inbox nav scrolled the content");
+        assert_ne!(
+            row(&top_before),
+            row(&top_after),
+            "empty-inbox nav scrolled the content"
+        );
     }
 
     #[test]
     fn refreshing_clamps_the_selection_when_the_inbox_shrinks() {
         let (_tmp, view3) = grove_view_with_inbox(
             &["010-x.md"],
-            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+            &[
+                "2026-06-08-1-a.md",
+                "2026-06-08-2-b.md",
+                "2026-06-08-3-c.md",
+            ],
         );
         let mut detail = Detail::new();
         detail.show(Some("g"), view3.grove("g"));
@@ -795,22 +851,32 @@ mod tests {
         // the stale index 2 clamps onto the one remaining row, never past it.
         let (_tmp2, view1) = grove_view_with_inbox(&["010-x.md"], &["2026-06-08-9-only.md"]);
         detail.show(Some("g"), view1.grove("g"));
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-9-only.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-9-only.md"
+        );
     }
 
     #[test]
     fn switching_groves_resets_the_inbox_selection() {
         let (_tmp, view) = grove_view_with_inbox(
             &["010-x.md"],
-            &["2026-06-08-1-a.md", "2026-06-08-2-b.md", "2026-06-08-3-c.md"],
+            &[
+                "2026-06-08-1-a.md",
+                "2026-06-08-2-b.md",
+                "2026-06-08-3-c.md",
+            ],
         );
         let mut detail = Detail::new();
         detail.show(Some("g"), view.grove("g"));
         detail.nav_down();
         detail.nav_down(); // selection on the third
-        // A different grove name resets the selection to the first observation.
+                           // A different grove name resets the selection to the first observation.
         detail.show(Some("g2"), view.grove("g"));
-        assert_eq!(obs_name(detail.selected_observation().unwrap()), "2026-06-08-1-a.md");
+        assert_eq!(
+            obs_name(detail.selected_observation().unwrap()),
+            "2026-06-08-1-a.md"
+        );
     }
 
     #[test]

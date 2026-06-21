@@ -64,7 +64,6 @@ fn write_root_brief(path: &Path, name: &str) -> Result<()> {
         "# {name} — brief\n\n## Goal\n\n## Done when\n\n## Decomposition\n\n## Pointers\n\n## Notes\n",
         name = name,
     );
-    std::fs::write(path, body.as_bytes())
-        .with_context(|| format!("writing {}", path.display()))?;
+    std::fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
     Ok(())
 }

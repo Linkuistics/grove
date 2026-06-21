@@ -362,7 +362,10 @@ impl Nav {
         for (i, row) in self.rows.iter().enumerate().skip(offset).take(height) {
             let rect = Rect::new(inner.x, inner.y + (i - offset) as u16, inner.width, 1);
             let (marker, sel_style) = if i == self.selected {
-                ("\u{203a} ", Style::default().add_modifier(Modifier::REVERSED))
+                (
+                    "\u{203a} ",
+                    Style::default().add_modifier(Modifier::REVERSED),
+                )
             } else {
                 ("  ", Style::default())
             };
@@ -383,7 +386,9 @@ impl Nav {
                     (format!("{marker}{indent}{}{suffix}", item.label), style)
                 }
             };
-            Paragraph::new(Line::from(text)).style(style).render(rect, buf);
+            Paragraph::new(Line::from(text))
+                .style(style)
+                .render(rect, buf);
         }
     }
 }
@@ -506,7 +511,9 @@ mod tests {
         nav.collapse();
         // The repo under the cursor folded; the cursor sits on its header.
         match nav.selected_row().unwrap() {
-            NavRow::Header { repo_root, folded, .. } => {
+            NavRow::Header {
+                repo_root, folded, ..
+            } => {
                 assert_eq!(repo_root, &r2);
                 assert!(folded);
             }
@@ -561,7 +568,10 @@ mod tests {
         let text = render_to_text(&nav, 30, 6);
         assert!(text.contains("sprout (seed)"), "got:\n{text}");
         // Live groves are unchanged at N=1: bare label, no marker.
-        assert!(text.contains("alpha\n") || text.contains("alpha "), "got:\n{text}");
+        assert!(
+            text.contains("alpha\n") || text.contains("alpha "),
+            "got:\n{text}"
+        );
         assert!(!text.contains("alpha (seed)"), "got:\n{text}");
     }
 
@@ -689,7 +699,10 @@ mod tests {
         // the "one" header.
         let text = render_to_text(&nav, 30, 8);
         assert!(text.contains("\u{25b8} one"), "got:\n{text}");
-        assert!(!text.contains("aardvark"), "folded section stays hidden:\n{text}");
+        assert!(
+            !text.contains("aardvark"),
+            "folded section stays hidden:\n{text}"
+        );
         match nav.selected_row().unwrap() {
             NavRow::Header { repo_root, .. } => assert_eq!(repo_root, &r1),
             other => panic!("expected header, got {other:?}"),
@@ -711,7 +724,10 @@ mod tests {
         // The dropped grove is gone from the list entirely.
         nav.remove(&r, "alpha");
         nav.remove(&r, "beta");
-        assert!(nav.selected().is_none(), "removing every item empties the picker");
+        assert!(
+            nav.selected().is_none(),
+            "removing every item empties the picker"
+        );
     }
 
     #[test]

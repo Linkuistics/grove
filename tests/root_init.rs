@@ -20,8 +20,15 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
@@ -31,7 +38,12 @@ fn init_repo() -> TempDir {
 }
 
 fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+    Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .status()
+        .unwrap();
 }
 
 fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
@@ -70,8 +82,14 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
     assert!(ok, "root-init failed");
 
     // stdout: BRIEF.md first, then the leaf.
-    assert_eq!(rel_line(&stdout, tmp.path(), 0), PathBuf::from(".grove/BRIEF.md"));
-    assert_eq!(rel_line(&stdout, tmp.path(), 1), PathBuf::from(".grove/010-plan.md"));
+    assert_eq!(
+        rel_line(&stdout, tmp.path(), 0),
+        PathBuf::from(".grove/BRIEF.md")
+    );
+    assert_eq!(
+        rel_line(&stdout, tmp.path(), 1),
+        PathBuf::from(".grove/010-plan.md")
+    );
 
     // Both exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
@@ -79,14 +97,26 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
     let brief = read(tmp.path(), ".grove/BRIEF.md");
-    assert!(brief.contains("— brief\n"), "brief missing `— brief` title: {brief:?}");
+    assert!(
+        brief.contains("— brief\n"),
+        "brief missing `— brief` title: {brief:?}"
+    );
     assert!(brief.contains("## Goal\n"), "brief missing Goal: {brief:?}");
-    assert!(brief.contains("## Done when\n"), "brief missing Done when: {brief:?}");
+    assert!(
+        brief.contains("## Done when\n"),
+        "brief missing Done when: {brief:?}"
+    );
 
     // The first leaf is a planning task per the fresh-grove contract.
     let leaf = read(tmp.path(), ".grove/010-plan.md");
-    assert!(leaf.starts_with("# 010-plan\n"), "leaf header wrong: {leaf:?}");
-    assert!(leaf.contains("**Kind:** planning\n"), "leaf not planning: {leaf:?}");
+    assert!(
+        leaf.starts_with("# 010-plan\n"),
+        "leaf header wrong: {leaf:?}"
+    );
+    assert!(
+        leaf.contains("**Kind:** planning\n"),
+        "leaf not planning: {leaf:?}"
+    );
 }
 
 #[test]
@@ -94,7 +124,10 @@ fn root_init_default_slug_is_plan() {
     let tmp = init_repo();
     let (stdout, _, ok) = run(tmp.path(), &["root-init"]);
     assert!(ok);
-    assert_eq!(rel_line(&stdout, tmp.path(), 1), PathBuf::from(".grove/010-plan.md"));
+    assert_eq!(
+        rel_line(&stdout, tmp.path(), 1),
+        PathBuf::from(".grove/010-plan.md")
+    );
 }
 
 #[test]
@@ -120,7 +153,10 @@ fn root_init_rejects_invalid_slug_without_creating_grove() {
         "expected slug validation error, got {stderr:?}"
     );
     // No stray `.grove/` left behind — validation happens before any mkdir.
-    assert!(!tmp.path().join(".grove").exists(), "left a stray .grove/ behind");
+    assert!(
+        !tmp.path().join(".grove").exists(),
+        "left a stray .grove/ behind"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -130,7 +166,11 @@ fn root_init_rejects_invalid_slug_without_creating_grove() {
 fn root_init_refuses_when_grove_already_exists() {
     let tmp = init_repo();
     fs::create_dir_all(tmp.path().join(".grove")).unwrap();
-    fs::write(tmp.path().join(".grove/BRIEF.md"), "# existing — brief\n".as_bytes()).unwrap();
+    fs::write(
+        tmp.path().join(".grove/BRIEF.md"),
+        "# existing — brief\n".as_bytes(),
+    )
+    .unwrap();
     git(tmp.path(), &["add", "-A"]);
     git(tmp.path(), &["commit", "-m", "pre-existing grove"]);
 
@@ -141,7 +181,10 @@ fn root_init_refuses_when_grove_already_exists() {
         "expected already-exists diagnostic, got {stderr:?}"
     );
     // The existing brief is untouched.
-    assert_eq!(read(tmp.path(), ".grove/BRIEF.md"), "# existing — brief\n".to_string());
+    assert_eq!(
+        read(tmp.path(), ".grove/BRIEF.md"),
+        "# existing — brief\n".to_string()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +231,10 @@ fn root_init_makes_no_commit() {
         .args(["rev-parse", "HEAD"])
         .output()
         .unwrap();
-    assert_eq!(before.stdout, after.stdout, "root-init unexpectedly committed");
+    assert_eq!(
+        before.stdout, after.stdout,
+        "root-init unexpectedly committed"
+    );
     // The scaffold is present but untracked — the first session's commit folds it in.
     let status = Pcmd::new("git")
         .arg("-C")
@@ -197,7 +243,10 @@ fn root_init_makes_no_commit() {
         .output()
         .unwrap();
     let s = String::from_utf8_lossy(&status.stdout);
-    assert!(s.contains(".grove/"), "expected untracked .grove/ in status, got {s:?}");
+    assert!(
+        s.contains(".grove/"),
+        "expected untracked .grove/ in status, got {s:?}"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -222,5 +271,8 @@ fn grove_binary_does_not_expose_root_init() {
         .output()
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
-    assert!(!s.contains("root-init"), "grove --help leaked root-init: {s}");
+    assert!(
+        !s.contains("root-init"),
+        "grove --help leaked root-init: {s}"
+    );
 }

@@ -28,8 +28,12 @@ fn init_repo_with_grove_installed() -> TempDir {
         .unwrap();
     Command::new("git")
         .args([
-            "-C", tmp.path().to_str().unwrap(),
-            "commit", "-m", "init", "--no-verify",
+            "-C",
+            tmp.path().to_str().unwrap(),
+            "commit",
+            "-m",
+            "init",
+            "--no-verify",
         ])
         .status()
         .unwrap();

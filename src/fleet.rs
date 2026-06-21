@@ -62,8 +62,12 @@ fn manifest_path_from(xdg: Option<String>, home: Option<String>) -> Option<PathB
     if let Some(xdg) = xdg.filter(|s| !s.is_empty()) {
         return Some(PathBuf::from(xdg).join("grove").join("fleet.toml"));
     }
-    home.filter(|s| !s.is_empty())
-        .map(|home| PathBuf::from(home).join(".config").join("grove").join("fleet.toml"))
+    home.filter(|s| !s.is_empty()).map(|home| {
+        PathBuf::from(home)
+            .join(".config")
+            .join("grove")
+            .join("fleet.toml")
+    })
 }
 
 /// Injected inputs to the resolver, kept separate from the environment so the
@@ -159,14 +163,13 @@ impl Discovery {
 /// git root is consulted (ADR-0027). The canonical, deduped repo list is
 /// returned; breadcrumbs go to stderr.
 pub fn resolve(repo_flags: &[PathBuf]) -> Vec<PathBuf> {
-    let manifest = default_manifest_path()
-        .and_then(|p| match FleetManifest::load(&p) {
-            Ok(m) => m,
-            Err(e) => {
-                eprintln!("grove fleet: ignoring unreadable manifest: {e:#}");
-                None
-            }
-        });
+    let manifest = default_manifest_path().and_then(|p| match FleetManifest::load(&p) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("grove fleet: ignoring unreadable manifest: {e:#}");
+            None
+        }
+    });
     Discovery {
         repo_flags: repo_flags.to_vec(),
         manifest,
@@ -216,7 +219,9 @@ pub fn path_is_git_internal(path: &Path) -> bool {
 /// whole components, so `/work/alpha` never falsely owns `/work/alpha-two`.
 /// The watch uses this to re-scan only the owning repo's `RepoView` (070 Q6).
 pub fn owning_repo(event_path: &Path, repo_roots: &[PathBuf]) -> Option<usize> {
-    repo_roots.iter().position(|root| event_path.starts_with(root))
+    repo_roots
+        .iter()
+        .position(|root| event_path.starts_with(root))
 }
 
 /// The directories the fleet fs-watch registers: each repo's two grove-state
@@ -487,7 +492,9 @@ mod tests {
             "/r/.grove-worktrees/feat/.git/refs/heads/main"
         )));
         // The `.git` directory itself counts too (an event on the dir node).
-        assert!(path_is_git_internal(Path::new("/r/.grove-worktrees/feat/.git")));
+        assert!(path_is_git_internal(Path::new(
+            "/r/.grove-worktrees/feat/.git"
+        )));
         // The nested-worktree `.git` file/dir at a repo root.
         assert!(path_is_git_internal(Path::new("/r/.git/index")));
     }
@@ -503,18 +510,20 @@ mod tests {
             "/r/.grove-meta/inboxes/feat/obs.md"
         )));
         // A directory that merely *contains* the substring "git" is not `.git`.
-        assert!(!path_is_git_internal(Path::new("/r/.grove-worktrees/digit/.grove/x.md")));
+        assert!(!path_is_git_internal(Path::new(
+            "/r/.grove-worktrees/digit/.grove/x.md"
+        )));
     }
 
     #[test]
     fn owning_repo_prefix_matches_the_right_repo() {
-        let roots = vec![
-            PathBuf::from("/work/alpha"),
-            PathBuf::from("/work/beta"),
-        ];
+        let roots = vec![PathBuf::from("/work/alpha"), PathBuf::from("/work/beta")];
         // An event under beta resolves to index 1.
         assert_eq!(
-            owning_repo(Path::new("/work/beta/.grove-worktrees/x/.grove/010.md"), &roots),
+            owning_repo(
+                Path::new("/work/beta/.grove-worktrees/x/.grove/010.md"),
+                &roots
+            ),
             Some(1),
         );
         // An event under alpha resolves to index 0.
@@ -542,10 +551,7 @@ mod tests {
 
     #[test]
     fn fleet_watch_dirs_are_two_roots_per_repo_in_order() {
-        let roots = vec![
-            PathBuf::from("/work/alpha"),
-            PathBuf::from("/work/beta"),
-        ];
+        let roots = vec![PathBuf::from("/work/alpha"), PathBuf::from("/work/beta")];
         let dirs = fleet_watch_dirs(&roots);
         assert_eq!(
             dirs,

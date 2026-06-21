@@ -152,7 +152,10 @@ mod tests {
     #[test]
     fn editor_falls_back_to_vi_when_both_unset() {
         assert_eq!(resolve_editor_from(None, None), vec!["vi"]);
-        assert_eq!(resolve_editor_from(Some("".into()), Some("".into())), vec!["vi"]);
+        assert_eq!(
+            resolve_editor_from(Some("".into()), Some("".into())),
+            vec!["vi"]
+        );
     }
 
     #[test]

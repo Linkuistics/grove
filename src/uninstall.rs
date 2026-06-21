@@ -29,8 +29,7 @@ fn uninstall_one(repo_path: &Path, harness: &Harness, force: bool) -> Result<()>
         );
     }
 
-    fs::remove_dir_all(&dest)
-        .with_context(|| format!("removing {}", dest.display()))?;
+    fs::remove_dir_all(&dest).with_context(|| format!("removing {}", dest.display()))?;
     eprintln!("grove: removed {}", dest.display());
     Ok(())
 }

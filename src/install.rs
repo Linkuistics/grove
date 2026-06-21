@@ -28,8 +28,10 @@ pub fn run_with_fetcher(args: &InstallArgs, fetcher: &dyn Fetcher) -> Result<()>
     eprintln!("grove: target {} @ {}", repo_path.display(), target);
 
     // The install scope: every install-path we're about to touch, combined.
-    let install_paths: Vec<PathBuf> =
-        harnesses.iter().map(|h| h.install_path(&repo_path)).collect();
+    let install_paths: Vec<PathBuf> = harnesses
+        .iter()
+        .map(|h| h.install_path(&repo_path))
+        .collect();
 
     // Pre-flight: refuse if anything is already staged inside the install scope.
     // Unrelated staged changes elsewhere are fine and left untouched.
@@ -101,12 +103,7 @@ fn outcome_phrase(prior: Option<&str>, canonical: &str) -> String {
     }
 }
 
-fn materialise_one(
-    repo: &Path,
-    harness: &Harness,
-    tarball: &[u8],
-    version: &str,
-) -> Result<()> {
+fn materialise_one(repo: &Path, harness: &Harness, tarball: &[u8], version: &str) -> Result<()> {
     let dest = harness.install_path(repo);
     if dest.exists() {
         std::fs::remove_dir_all(&dest)
@@ -221,7 +218,10 @@ fn commit_install_scope(
             "git commit failed (exit {}). The materialisation is in place and the install-scope \
              paths are staged. Resolve the issue (e.g. fix a pre-commit hook), then run:\n  \
              git commit -- {}",
-            status.code().map(|c| c.to_string()).unwrap_or_else(|| "?".into()),
+            status
+                .code()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "?".into()),
             joined
         );
     }

@@ -211,13 +211,21 @@ fn cmd_complete(args: &CompleteArgs) -> Result<()> {
 
 fn cmd_inbox_add(args: &InboxAddArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
-    let observation = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
+    let observation = read_body(
+        args.body.as_deref(),
+        args.body_file.as_deref(),
+        args.body_stdin,
+    )?;
     inboxes::capture(&repo_path, &args.to, &observation, args.slug.as_deref())
 }
 
 fn cmd_inbox_edit(args: &InboxEditArgs) -> Result<()> {
     let repo_path = repo::resolve(args.repo.as_deref())?;
-    let body = read_body(args.body.as_deref(), args.body_file.as_deref(), args.body_stdin)?;
+    let body = read_body(
+        args.body.as_deref(),
+        args.body_file.as_deref(),
+        args.body_stdin,
+    )?;
     inboxes::edit(&repo_path, &args.path, &body)
 }
 
@@ -316,11 +324,7 @@ fn cmd_brief_chain(leaf_path: Option<&std::path::Path>) -> Result<()> {
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let node = resolve_node(args.node.as_deref())?;
     let kind = leaf::Kind::parse(&args.kind)?;
-    let explicit = args
-        .prefix
-        .as_deref()
-        .map(parse_prefix_arg)
-        .transpose()?;
+    let explicit = args.prefix.as_deref().map(parse_prefix_arg).transpose()?;
     let path = leaf::add(&node, &args.slug, explicit, kind)?;
     println!("{}", path.display());
     Ok(())
@@ -337,7 +341,10 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     println!("{}", path.display());
     let mut stderr = std::io::stderr();
     if renumbers.is_empty() {
-        eprintln!("leaf-insert {:03}-{}: no siblings to renumber", prefix, slug);
+        eprintln!(
+            "leaf-insert {:03}-{}: no siblings to renumber",
+            prefix, slug
+        );
     } else {
         eprintln!(
             "leaf-insert {:03}-{}: renumbered {} sibling{}:",
@@ -347,7 +354,10 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
             if renumbers.len() == 1 { "" } else { "s" }
         );
         for r in &renumbers {
-            eprintln!("  {:03} -> {:03}  ({})", r.old_prefix, r.new_prefix, r.new_name);
+            eprintln!(
+                "  {:03} -> {:03}  ({})",
+                r.old_prefix, r.new_prefix, r.new_name
+            );
         }
         eprintln!("cross-references to review (verb does not auto-rewrite):");
         leaf::surface_cross_refs(&node, &renumbers, &mut stderr)?;
@@ -451,7 +461,9 @@ fn read_body(
     }
     if body_stdin {
         let mut s = String::new();
-        std::io::stdin().read_to_string(&mut s).context("reading body from stdin")?;
+        std::io::stdin()
+            .read_to_string(&mut s)
+            .context("reading body from stdin")?;
         return Ok(s);
     }
     anyhow::bail!("provide observation via --body, --body-file, or --body-stdin");

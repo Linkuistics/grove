@@ -41,7 +41,11 @@ fn zero_groves_returns_empty_view() {
 #[test]
 fn live_grove_with_mixed_live_and_retired_leaves() {
     let tmp = repo();
-    let grove_root = tmp.path().join(".grove-worktrees").join("alpha").join(".grove");
+    let grove_root = tmp
+        .path()
+        .join(".grove-worktrees")
+        .join("alpha")
+        .join(".grove");
     touch(&grove_root.join("BRIEF.md"), "# alpha\n");
     touch(&grove_root.join("010-first.md"), "# 010-first\n");
     touch(&grove_root.join("020-node/BRIEF.md"), "# 020-node\n");
@@ -74,7 +78,11 @@ fn live_grove_with_mixed_live_and_retired_leaves() {
     match &done.kind {
         TaskKind::Node { children, .. } => {
             for child in children {
-                assert!(child.is_retired, "descendant of done/ is retired: {}", child.name);
+                assert!(
+                    child.is_retired,
+                    "descendant of done/ is retired: {}",
+                    child.name
+                );
             }
         }
         _ => panic!("done/ should be a Node"),
@@ -87,7 +95,9 @@ fn live_grove_with_mixed_live_and_retired_leaves() {
         TaskKind::Node { brief, children } => {
             assert!(brief.is_some());
             assert_eq!(children.len(), 2);
-            assert!(children.iter().all(|c| matches!(c.kind, TaskKind::Leaf) && !c.is_retired));
+            assert!(children
+                .iter()
+                .all(|c| matches!(c.kind, TaskKind::Leaf) && !c.is_retired));
         }
         _ => panic!("020-node/ should be a Node"),
     }
@@ -96,7 +106,11 @@ fn live_grove_with_mixed_live_and_retired_leaves() {
 #[test]
 fn seed_lifecycle_when_inbox_has_no_worktree() {
     let tmp = repo();
-    let inbox = tmp.path().join(".grove-meta").join("inboxes").join("racket-bugs");
+    let inbox = tmp
+        .path()
+        .join(".grove-meta")
+        .join("inboxes")
+        .join("racket-bugs");
     mkdir(&inbox);
     touch(&inbox.join(".gitkeep"), "");
 
@@ -120,7 +134,12 @@ fn grove_with_pending_inbox_observations() {
     let tmp = repo();
     // Make it live too, so we can also confirm Live + non-empty inbox
     // composes (the parallel-handoff use case from the parent brief).
-    mkdir(&tmp.path().join(".grove-worktrees").join("beta").join(".grove"));
+    mkdir(
+        &tmp.path()
+            .join(".grove-worktrees")
+            .join("beta")
+            .join(".grove"),
+    );
     let inbox = tmp.path().join(".grove-meta").join("inboxes").join("beta");
     touch(&inbox.join(".gitkeep"), "");
     touch(
@@ -160,8 +179,18 @@ fn grove_with_pending_inbox_observations() {
 #[test]
 fn live_and_seed_coexist_and_sort_by_name() {
     let tmp = repo();
-    mkdir(&tmp.path().join(".grove-worktrees").join("zeta").join(".grove"));
-    mkdir(&tmp.path().join(".grove-meta").join("inboxes").join("alpha-seed"));
+    mkdir(
+        &tmp.path()
+            .join(".grove-worktrees")
+            .join("zeta")
+            .join(".grove"),
+    );
+    mkdir(
+        &tmp.path()
+            .join(".grove-meta")
+            .join("inboxes")
+            .join("alpha-seed"),
+    );
 
     let view = RepoView::scan(tmp.path()).unwrap();
     let names: Vec<&str> = view.groves().iter().map(|g| g.name.as_str()).collect();

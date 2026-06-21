@@ -68,7 +68,9 @@ fn binary_resolves(
     if let Some(p) = env_path {
         return exists(p);
     }
-    path_dirs.iter().any(|d| exists(&d.join(DAEMON_BINARY_NAME)))
+    path_dirs
+        .iter()
+        .any(|d| exists(&d.join(DAEMON_BINARY_NAME)))
 }
 
 /// Resolve the bundled daemon as a sibling of `current_exe()` and set
@@ -161,8 +163,7 @@ mod tests {
     #[test]
     fn resolves_via_path_when_env_unset() {
         let path_dirs = vec![PathBuf::from("/sbin"), PathBuf::from("/usr/local/bin")];
-        assert!(binary_resolves(None, &path_dirs, |p| p
-            == Path::new("/usr/local/bin/rmux")));
+        assert!(binary_resolves(None, &path_dirs, |p| p == Path::new("/usr/local/bin/rmux")));
     }
 
     #[test]

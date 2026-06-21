@@ -14,8 +14,15 @@ use tempfile::TempDir;
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    Pcmd::new("git").arg("init").arg(tmp.path()).status().unwrap();
-    git(tmp.path(), &["config", "user.email", "grove-test@example.com"]);
+    Pcmd::new("git")
+        .arg("init")
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    git(
+        tmp.path(),
+        &["config", "user.email", "grove-test@example.com"],
+    );
     git(tmp.path(), &["config", "user.name", "Grove Test"]);
     git(tmp.path(), &["config", "core.hooksPath", "/dev/null"]);
     fs::write(tmp.path().join("README"), b"r\n").unwrap();
@@ -25,7 +32,12 @@ fn init_repo() -> TempDir {
 }
 
 fn git(repo: &Path, args: &[&str]) {
-    Pcmd::new("git").arg("-C").arg(repo).args(args).status().unwrap();
+    Pcmd::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .status()
+        .unwrap();
 }
 
 fn touch(p: &Path, body: &str) {
@@ -55,7 +67,10 @@ fn run(repo: &Path, args: &[&str]) -> (String, String, bool) {
 }
 
 fn rel_path(stdout: &str, repo: &Path) -> PathBuf {
-    let line = stdout.lines().next().expect("expected destination path on stdout");
+    let line = stdout
+        .lines()
+        .next()
+        .expect("expected destination path on stdout");
     let abs = PathBuf::from(line).canonicalize().unwrap();
     let root = repo.canonicalize().unwrap();
     abs.strip_prefix(&root).unwrap().to_path_buf()
@@ -113,10 +128,7 @@ fn decompose_accepts_path_relative_to_grove_root() {
     touch(&node.join("030-leaf.md"), "# 030-leaf\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(
-        tmp.path(),
-        &["leaf-decompose", "020-target/030-leaf.md"],
-    );
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-decompose", "020-target/030-leaf.md"]);
     assert!(ok, "expected success, got nothing");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
@@ -249,20 +261,14 @@ fn retire_preserves_relative_path_for_nested_leaf() {
         PathBuf::from(".grove/done/020-outer/030-inner/050-deep.md")
     );
     // Body content is preserved.
-    let moved = read(
-        tmp.path(),
-        ".grove/done/020-outer/030-inner/050-deep.md",
-    );
+    let moved = read(tmp.path(), ".grove/done/020-outer/030-inner/050-deep.md");
     assert!(moved.contains("body\n"));
     // Original is gone; the intermediate directories were created under done/.
     assert!(!tmp
         .path()
         .join(".grove/020-outer/030-inner/050-deep.md")
         .exists());
-    assert!(tmp
-        .path()
-        .join(".grove/done/020-outer/030-inner")
-        .is_dir());
+    assert!(tmp.path().join(".grove/done/020-outer/030-inner").is_dir());
 }
 
 #[test]
@@ -308,10 +314,7 @@ fn retire_refuses_a_leaf_already_under_done() {
     touch(&grove.join("done/010-already.md"), "# 010-already\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(
-        tmp.path(),
-        &["leaf-retire", ".grove/done/010-already.md"],
-    );
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/done/010-already.md"]);
     assert!(!ok);
     assert!(
         stderr.contains("done"),

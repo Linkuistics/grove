@@ -103,9 +103,7 @@ pub fn parse_leader(spec: &str) -> Result<Leader, String> {
         return Err("leader is empty".to_string());
     }
     let parts: Vec<&str> = spec.split('-').collect();
-    let (key_name, modifier_names) = parts
-        .split_last()
-        .expect("non-empty after the empty check");
+    let (key_name, modifier_names) = parts.split_last().expect("non-empty after the empty check");
     if key_name.is_empty() {
         return Err(format!("leader `{spec}` has no key after its modifiers"));
     }
@@ -173,8 +171,8 @@ impl TuiConfig {
         }
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("reading tui config {}", path.display()))?;
-        let config: TuiConfig =
-            toml::from_str(&text).with_context(|| format!("parsing tui config {}", path.display()))?;
+        let config: TuiConfig = toml::from_str(&text)
+            .with_context(|| format!("parsing tui config {}", path.display()))?;
         Ok(Some(config))
     }
 
@@ -203,8 +201,12 @@ fn config_path_from(xdg: Option<String>, home: Option<String>) -> Option<PathBuf
     if let Some(xdg) = xdg.filter(|s| !s.is_empty()) {
         return Some(PathBuf::from(xdg).join("grove").join("tui.toml"));
     }
-    home.filter(|s| !s.is_empty())
-        .map(|home| PathBuf::from(home).join(".config").join("grove").join("tui.toml"))
+    home.filter(|s| !s.is_empty()).map(|home| {
+        PathBuf::from(home)
+            .join(".config")
+            .join("grove")
+            .join("tui.toml")
+    })
 }
 
 /// Resolve the active leader from the environment: load the XDG config if

@@ -84,16 +84,26 @@ exit 0
         .map(|l| l.split('\t').collect())
         .collect();
 
-    assert_eq!(rows.len(), 3, "loop should run 3 times then stop (log: {log:?})");
+    assert_eq!(
+        rows.len(),
+        3,
+        "loop should run 3 times then stop (log: {log:?})"
+    );
 
     // The exec-PID trick: the handle the child sees equals the child's own pid.
     for row in &rows {
-        assert_eq!(row[1], row[2], "GROVE_CLAUDE_PID must equal the session's own pid (row: {row:?})");
+        assert_eq!(
+            row[1], row[2],
+            "GROVE_CLAUDE_PID must equal the session's own pid (row: {row:?})"
+        );
     }
 
     // start→continue switch: first iteration has no `.grove/` (start), the rest
     // do (continue).
-    assert_eq!(rows[0][3], "START PROMPT", "first iteration bootstraps via start");
+    assert_eq!(
+        rows[0][3], "START PROMPT",
+        "first iteration bootstraps via start"
+    );
     assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
     assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
 }

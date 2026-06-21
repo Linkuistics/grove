@@ -256,13 +256,25 @@ mod tests {
 
     #[test]
     fn each_dimension_alone_engages() {
-        let c = Criteria { needle: "a".into(), ..Criteria::default() };
+        let c = Criteria {
+            needle: "a".into(),
+            ..Criteria::default()
+        };
         assert!(c.engaged());
-        let c = Criteria { inbox_only: true, ..Criteria::default() };
+        let c = Criteria {
+            inbox_only: true,
+            ..Criteria::default()
+        };
         assert!(c.engaged());
-        let c = Criteria { lifecycle: LifecycleFilter::Live, ..Criteria::default() };
+        let c = Criteria {
+            lifecycle: LifecycleFilter::Live,
+            ..Criteria::default()
+        };
         assert!(c.engaged());
-        let c = Criteria { sort: SortOrder::Recency, ..Criteria::default() };
+        let c = Criteria {
+            sort: SortOrder::Recency,
+            ..Criteria::default()
+        };
         assert!(c.engaged());
     }
 
@@ -305,7 +317,10 @@ mod tests {
     #[test]
     fn needle_ranks_contiguous_match_above_scattered() {
         let rows = vec![row("a1b2c3"), row("abc-grove")];
-        let c = Criteria { needle: "abc".into(), ..Criteria::default() };
+        let c = Criteria {
+            needle: "abc".into(),
+            ..Criteria::default()
+        };
         let out = rank(rows, &c);
         assert_eq!(names(&out), vec!["abc-grove", "a1b2c3"]);
     }
@@ -313,7 +328,10 @@ mod tests {
     #[test]
     fn needle_drops_non_matching_rows() {
         let rows = vec![row("alpha"), row("beta")];
-        let c = Criteria { needle: "alp".into(), ..Criteria::default() };
+        let c = Criteria {
+            needle: "alp".into(),
+            ..Criteria::default()
+        };
         let out = rank(rows, &c);
         assert_eq!(names(&out), vec!["alpha"]);
     }
@@ -321,7 +339,10 @@ mod tests {
     #[test]
     fn needle_is_case_insensitive() {
         let rows = vec![row("Alpha")];
-        let c = Criteria { needle: "alp".into(), ..Criteria::default() };
+        let c = Criteria {
+            needle: "alp".into(),
+            ..Criteria::default()
+        };
         assert_eq!(rank(rows, &c).len(), 1);
     }
 
@@ -333,14 +354,20 @@ mod tests {
         old.last_commit = Some(100);
         let mut new = row("ab-x");
         new.last_commit = Some(200);
-        let needle = Criteria { needle: "ab".into(), ..Criteria::default() };
+        let needle = Criteria {
+            needle: "ab".into(),
+            ..Criteria::default()
+        };
 
         // Name sort (default): label decides the tie.
         let out = rank(vec![new.clone(), old.clone()], &needle);
         assert_eq!(names(&out), vec!["ab-a", "ab-x"]);
 
         // Recency sort: the newer row wins the tie despite name order.
-        let c = Criteria { sort: SortOrder::Recency, ..needle };
+        let c = Criteria {
+            sort: SortOrder::Recency,
+            ..needle
+        };
         let out = rank(vec![old, new], &c);
         assert_eq!(names(&out), vec!["ab-x", "ab-a"]);
     }
@@ -355,7 +382,10 @@ mod tests {
         let mut c_row = row("gamma");
         c_row.inbox_pending = 3;
         // Empty needle + engaged toggle: still ranks, stable under name sort.
-        let c = Criteria { inbox_only: true, ..Criteria::default() };
+        let c = Criteria {
+            inbox_only: true,
+            ..Criteria::default()
+        };
         let out = rank(vec![c_row, b, a], &c);
         assert_eq!(names(&out), vec!["alpha", "gamma"]);
     }
@@ -367,15 +397,24 @@ mod tests {
         seed.lifecycle = Lifecycle::Seed;
         let rows = || vec![live.clone(), seed.clone()];
 
-        let c = Criteria { lifecycle: LifecycleFilter::Live, ..Criteria::default() };
+        let c = Criteria {
+            lifecycle: LifecycleFilter::Live,
+            ..Criteria::default()
+        };
         assert_eq!(names(&rank(rows(), &c)), vec!["alpha"]);
 
-        let c = Criteria { lifecycle: LifecycleFilter::Seed, ..Criteria::default() };
+        let c = Criteria {
+            lifecycle: LifecycleFilter::Seed,
+            ..Criteria::default()
+        };
         assert_eq!(names(&rank(rows(), &c)), vec!["sprout"]);
 
         // All keeps both; engaged via another dimension is irrelevant here —
         // rank() just applies criteria.
-        let c = Criteria { lifecycle: LifecycleFilter::All, ..Criteria::default() };
+        let c = Criteria {
+            lifecycle: LifecycleFilter::All,
+            ..Criteria::default()
+        };
         assert_eq!(names(&rank(rows(), &c)), vec!["alpha", "sprout"]);
     }
 
@@ -396,7 +435,10 @@ mod tests {
         b.last_commit = Some(200);
         let mut seed = row("sprout");
         seed.lifecycle = Lifecycle::Seed; // no branch → no datum
-        let c = Criteria { sort: SortOrder::Recency, ..Criteria::default() };
+        let c = Criteria {
+            sort: SortOrder::Recency,
+            ..Criteria::default()
+        };
         let out = rank(vec![a, seed, b], &c);
         assert_eq!(names(&out), vec!["beta", "alpha", "sprout"]);
     }
@@ -410,7 +452,10 @@ mod tests {
         let g = row("gamma"); // 0 pending: listed, just last
         let mut z = row("zeta");
         z.inbox_pending = 3;
-        let c = Criteria { sort: SortOrder::InboxPending, ..Criteria::default() };
+        let c = Criteria {
+            sort: SortOrder::InboxPending,
+            ..Criteria::default()
+        };
         let out = rank(vec![z, g, a, b], &c);
         assert_eq!(names(&out), vec!["beta", "zeta", "alpha", "gamma"]);
     }
@@ -480,7 +525,10 @@ mod tests {
         assert_eq!(sprout.last_commit, None);
 
         // Lifecycle filtering reaches seeds through the projection too.
-        let c = Criteria { lifecycle: LifecycleFilter::Seed, ..Criteria::default() };
+        let c = Criteria {
+            lifecycle: LifecycleFilter::Seed,
+            ..Criteria::default()
+        };
         let out = project(&fleet_of(&[r]), &c);
         assert_eq!(names(&out), vec!["sprout"]);
     }
@@ -492,7 +540,10 @@ mod tests {
         let r2 = make_repo(tmp.path(), "two", &["alpha"]);
         // The repo name distinguishes same-named groves: `<repo>/<grove>` is
         // the haystack (010-plan Q3).
-        let c = Criteria { needle: "two/al".into(), ..Criteria::default() };
+        let c = Criteria {
+            needle: "two/al".into(),
+            ..Criteria::default()
+        };
         let out = project(&fleet_of(&[r1, r2]), &c);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].label, "two/alpha");

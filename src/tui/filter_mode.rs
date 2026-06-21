@@ -222,7 +222,10 @@ impl FilterMode {
         for (i, row) in self.ranked.iter().enumerate().skip(offset).take(list_h) {
             let rect = Rect::new(inner.x, list_y + (i - offset) as u16, inner.width, 1);
             let (marker, sel_style) = if i == self.selected {
-                ("\u{203a} ", Style::default().add_modifier(Modifier::REVERSED))
+                (
+                    "\u{203a} ",
+                    Style::default().add_modifier(Modifier::REVERSED),
+                )
             } else {
                 ("  ", Style::default())
             };
@@ -316,7 +319,10 @@ mod tests {
         fm.apply(FilterEdit::ToggleInbox);
         fm.apply(FilterEdit::CycleLifecycle); // live
         fm.apply(FilterEdit::CycleSort); // recency
-        assert_eq!(fm.summary().as_deref(), Some("inbox \u{00b7} live \u{00b7} \u{2193}recency"));
+        assert_eq!(
+            fm.summary().as_deref(),
+            Some("inbox \u{00b7} live \u{00b7} \u{2193}recency")
+        );
     }
 
     // --- needle editing ------------------------------------------------------
@@ -397,7 +403,11 @@ mod tests {
         fm.apply(FilterEdit::Insert("a".into()));
         fm.reproject(&fleet_of(&[r]));
         fm.select_top();
-        assert_eq!(fm.selected().unwrap().name, "alpha", "needle snaps the cursor to the top");
+        assert_eq!(
+            fm.selected().unwrap().name,
+            "alpha",
+            "needle snaps the cursor to the top"
+        );
     }
 
     #[test]
@@ -414,7 +424,11 @@ mod tests {
         fs::create_dir_all(&task_root).unwrap();
         fs::write(task_root.join("010-x.md"), "# 010-x\n").unwrap();
         fm.reproject(&fleet_of(&[r]));
-        assert_eq!(fm.selected().unwrap().name, "beta", "background refresh keeps identity");
+        assert_eq!(
+            fm.selected().unwrap().name,
+            "beta",
+            "background refresh keeps identity"
+        );
     }
 
     #[test]
@@ -426,7 +440,11 @@ mod tests {
         for _ in 0..5 {
             fm.select_down();
         }
-        assert_eq!(fm.selected().unwrap().name, "gamma", "saturates at the bottom");
+        assert_eq!(
+            fm.selected().unwrap().name,
+            "gamma",
+            "saturates at the bottom"
+        );
         // Narrow the needle so only alpha survives; the cursor clamps into range.
         fm.apply(FilterEdit::Insert("alp".into()));
         fm.reproject(&fleet_of(&[r]));
@@ -445,7 +463,10 @@ mod tests {
         let text = render_to_text(&fm, 30, 8, true);
         assert!(text.contains("/al"), "the needle prompt renders: {text}");
         assert!(text.contains("alpha"), "the match renders: {text}");
-        assert!(!text.contains("beta"), "the non-match is filtered out: {text}");
+        assert!(
+            !text.contains("beta"),
+            "the non-match is filtered out: {text}"
+        );
     }
 
     #[test]
@@ -466,7 +487,10 @@ mod tests {
         let mut idle = FilterMode::new();
         idle.reproject(&fleet);
         let text = render_to_text(&idle, 40, 6, false);
-        assert!(!text.contains("inbox"), "idle shows no criteria chips: {text}");
+        assert!(
+            !text.contains("inbox"),
+            "idle shows no criteria chips: {text}"
+        );
     }
 
     #[test]
@@ -494,6 +518,9 @@ mod tests {
         fm.apply(FilterEdit::Insert("zzz".into()));
         fm.reproject(&fleet_of(&[r]));
         let text = render_to_text(&fm, 30, 6, true);
-        assert!(text.contains("no matches"), "empty result set is explicit: {text}");
+        assert!(
+            text.contains("no matches"),
+            "empty result set is explicit: {text}"
+        );
     }
 }

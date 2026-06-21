@@ -43,7 +43,11 @@ pub fn leaf_add(grove_root: &Path, parent_id: &str, slug: &str, kind: Kind) -> R
     // A non-root parent must exist as a *node* (a brief at that position). Root
     // (`.`) is always valid — it is the grove dir itself. This guards typos and
     // refuses adding a child under a bare leaf (decompose it first).
-    if !parent.is_empty() && !entries.iter().any(|(id, _)| id.is_brief && id.position == parent) {
+    if !parent.is_empty()
+        && !entries
+            .iter()
+            .any(|(id, _)| id.is_brief && id.position == parent)
+    {
         bail!("parent node {parent_id} not found (no brief at that position)");
     }
 
@@ -261,8 +265,8 @@ fn scan(grove_root: &Path) -> Result<Vec<(LeafId, String)>> {
         bail!("grove root not found: {}", grove_root.display());
     }
     let mut entries: Vec<(LeafId, String)> = Vec::new();
-    for entry in
-        std::fs::read_dir(grove_root).with_context(|| format!("reading {}", grove_root.display()))?
+    for entry in std::fs::read_dir(grove_root)
+        .with_context(|| format!("reading {}", grove_root.display()))?
     {
         let entry = entry?;
         match entry.file_type() {
@@ -450,7 +454,12 @@ mod tests {
     }
 
     fn run_git(repo: &Path, args: &[&str]) {
-        let out = Command::new("git").arg("-C").arg(repo).args(args).output().unwrap();
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
         assert!(
             out.status.success(),
             "git {args:?} failed: {}",
@@ -632,7 +641,10 @@ mod tests {
         let (_t, g) = grove();
         let missing = g.join("nope");
         let err = leaf_add(&missing, ".", "y", Kind::Work).unwrap_err();
-        assert!(err.to_string().contains("grove root not found"), "got {err}");
+        assert!(
+            err.to_string().contains("grove root not found"),
+            "got {err}"
+        );
     }
 
     // ---- leaf-insert --------------------------------------------------------
@@ -647,7 +659,10 @@ mod tests {
         stage_all(&g);
         let (path, renums) = leaf_insert(&g, "2.3", "c", Kind::Work).unwrap();
         assert_eq!(name_of(&path), "2.3-[4]-c.md");
-        assert!(renums.is_empty(), "nothing at/after 2.3 to shift; got {renums:?}");
+        assert!(
+            renums.is_empty(),
+            "nothing at/after 2.3 to shift; got {renums:?}"
+        );
     }
 
     #[test]
@@ -661,10 +676,22 @@ mod tests {
         let (path, _renums) = leaf_insert(&g, "2", "new", Kind::Work).unwrap();
         assert_eq!(name_of(&path), "2-[4]-new.md"); // fresh key, not a reused one
         let files = list(&g);
-        assert!(files.contains(&"1-[1]-a.md".to_string()), "pos 1 < 2, unchanged");
-        assert!(files.contains(&"2-[4]-new.md".to_string()), "the inserted leaf");
-        assert!(files.contains(&"3-[2]-b.md".to_string()), "b: 2->3, key [2] kept");
-        assert!(files.contains(&"4-[3]-c.md".to_string()), "c: 3->4, key [3] kept");
+        assert!(
+            files.contains(&"1-[1]-a.md".to_string()),
+            "pos 1 < 2, unchanged"
+        );
+        assert!(
+            files.contains(&"2-[4]-new.md".to_string()),
+            "the inserted leaf"
+        );
+        assert!(
+            files.contains(&"3-[2]-b.md".to_string()),
+            "b: 2->3, key [2] kept"
+        );
+        assert!(
+            files.contains(&"4-[3]-c.md".to_string()),
+            "c: 3->4, key [3] kept"
+        );
         assert!(!files.contains(&"2-[2]-b.md".to_string()), "old name gone");
     }
 
@@ -683,8 +710,14 @@ mod tests {
         let (path, renums) = leaf_insert(&g, "2.2", "new", Kind::Work).unwrap();
         assert_eq!(name_of(&path), "2.2-[7]-new.md");
         let files = list(&g);
-        assert!(files.contains(&"2.1-[2]-a.md".to_string()), "sibling at seg 1 < 2: unchanged");
-        assert!(files.contains(&"2.2-[7]-new.md".to_string()), "new leaf in the vacated slot");
+        assert!(
+            files.contains(&"2.1-[2]-a.md".to_string()),
+            "sibling at seg 1 < 2: unchanged"
+        );
+        assert!(
+            files.contains(&"2.2-[7]-new.md".to_string()),
+            "new leaf in the vacated slot"
+        );
         // node `mid` and its children all dragged from 2.2.* to 2.3.*, keys+slugs kept:
         assert!(files.contains(&"2.3-[3]-mid.BRIEF.md".to_string()));
         assert!(files.contains(&"2.3.1-[4]-x.md".to_string()));
@@ -710,12 +743,19 @@ mod tests {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md");
         touch_body(&g, "2-[1]-build.BRIEF.md", "# 2-[1]-build — brief\n");
-        touch_body(&g, "2.2-[3]-mid.BRIEF.md", "# 2.2-[3]-mid — brief\n\nbody\n");
+        touch_body(
+            &g,
+            "2.2-[3]-mid.BRIEF.md",
+            "# 2.2-[3]-mid — brief\n\nbody\n",
+        );
         touch_body(&g, "2.2.1-[4]-x.md", "# 2.2.1-[4]-x\n\nbody\n");
         stage_all(&g);
         leaf_insert(&g, "2.2", "new", Kind::Work).unwrap();
         assert_eq!(
-            body(&g.join("2.3-[3]-mid.BRIEF.md")).lines().next().unwrap(),
+            body(&g.join("2.3-[3]-mid.BRIEF.md"))
+                .lines()
+                .next()
+                .unwrap(),
             "# 2.3-[3]-mid — brief",
             "brief: position bumped, key/slug/suffix intact"
         );
@@ -777,10 +817,22 @@ mod tests {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md");
         stage_all(&g);
-        assert!(leaf_insert(&g, "1", "BRIEF", Kind::Work).is_err(), "reserved slug");
-        assert!(leaf_insert(&g, ".", "x", Kind::Work).is_err(), "target must be concrete");
-        assert!(leaf_insert(&g, "1..2", "x", Kind::Work).is_err(), "malformed id");
-        assert!(leaf_insert(&g, "0", "x", Kind::Work).is_err(), "zero segment");
+        assert!(
+            leaf_insert(&g, "1", "BRIEF", Kind::Work).is_err(),
+            "reserved slug"
+        );
+        assert!(
+            leaf_insert(&g, ".", "x", Kind::Work).is_err(),
+            "target must be concrete"
+        );
+        assert!(
+            leaf_insert(&g, "1..2", "x", Kind::Work).is_err(),
+            "malformed id"
+        );
+        assert!(
+            leaf_insert(&g, "0", "x", Kind::Work).is_err(),
+            "zero segment"
+        );
     }
 
     #[test]
@@ -788,7 +840,10 @@ mod tests {
         let (_t, g) = git_grove();
         let missing = g.join("nope");
         let err = leaf_insert(&missing, "1", "x", Kind::Work).unwrap_err();
-        assert!(err.to_string().contains("grove root not found"), "got {err}");
+        assert!(
+            err.to_string().contains("grove root not found"),
+            "got {err}"
+        );
     }
 
     // ---- rewrite_header_line (position-only, key/slug preserved) -------------
@@ -840,7 +895,10 @@ mod tests {
 
     #[test]
     fn tokens_extracts_dotted_positions() {
-        assert_eq!(find_position_tokens("see 2.2 for details"), vec![vec![2, 2]]);
+        assert_eq!(
+            find_position_tokens("see 2.2 for details"),
+            vec![vec![2, 2]]
+        );
         assert_eq!(
             find_position_tokens("1.2.3 and 2.2"),
             vec![vec![1, 2, 3], vec![2, 2]]
@@ -850,7 +908,10 @@ mod tests {
     #[test]
     fn tokens_trims_a_trailing_sentence_dot() {
         // `see 2.2.` (end of sentence) still yields [2,2], not a reject.
-        assert_eq!(find_position_tokens("renumbered from 2.2."), vec![vec![2, 2]]);
+        assert_eq!(
+            find_position_tokens("renumbered from 2.2."),
+            vec![vec![2, 2]]
+        );
     }
 
     #[test]
@@ -909,7 +970,10 @@ mod tests {
         let out = surfaced(&g, &[renum(&[2, 2], &[2, 3])]);
         assert!(out.contains("1-[1]-a.md"), "names the file: {out:?}");
         assert!(out.contains("2.2"), "shows the stale position: {out:?}");
-        assert!(out.contains(":3:"), "1-based line number of the body ref: {out:?}");
+        assert!(
+            out.contains(":3:"),
+            "1-based line number of the body ref: {out:?}"
+        );
     }
 
     #[test]
@@ -930,13 +994,21 @@ mod tests {
         let out = surfaced(&g, &[renum(&[3], &[4]), renum(&[3, 1], &[4, 1])]);
         assert!(out.contains("3.1"), "multi-segment ref surfaced: {out:?}");
         // The bare `3` line is reported only for `3.1`; `3` alone is not a hit.
-        assert_eq!(out.lines().count(), 1, "exactly one hit (3.1), not bare 3: {out:?}");
+        assert_eq!(
+            out.lines().count(),
+            1,
+            "exactly one hit (3.1), not bare 3: {out:?}"
+        );
     }
 
     #[test]
     fn surface_does_not_match_dates_or_versions_as_moved_positions() {
         let (_t, g) = grove();
-        touch_body(&g, "1-[1]-a.md", "# 1-[1]-a\n\nreleased 2.0.1 on 2026-06-21\n");
+        touch_body(
+            &g,
+            "1-[1]-a.md",
+            "# 1-[1]-a\n\nreleased 2.0.1 on 2026-06-21\n",
+        );
         // The renumber moved [2,2]; neither the date nor the version equals it.
         assert_eq!(surfaced(&g, &[renum(&[2, 2], &[2, 3])]), "");
     }
@@ -946,8 +1018,14 @@ mod tests {
         let (_t, g) = grove();
         touch_body(&g, "BRIEF.md", "# root\n\nthe plan lives at 2.2\n");
         touch_body(&g, "1-[1]-a.md", "# 1-[1]-a\n\nalso points at 2.2.1\n");
-        let out = surfaced(&g, &[renum(&[2, 2], &[2, 3]), renum(&[2, 2, 1], &[2, 3, 1])]);
+        let out = surfaced(
+            &g,
+            &[renum(&[2, 2], &[2, 3]), renum(&[2, 2, 1], &[2, 3, 1])],
+        );
         assert!(out.contains("BRIEF.md") && out.contains("2.2"), "{out:?}");
-        assert!(out.contains("1-[1]-a.md") && out.contains("2.2.1"), "{out:?}");
+        assert!(
+            out.contains("1-[1]-a.md") && out.contains("2.2.1"),
+            "{out:?}"
+        );
     }
 }

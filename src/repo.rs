@@ -2,7 +2,6 @@ use anyhow::{anyhow, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-
 /// Resolve the repo path: if `arg` is Some, use it; otherwise use cwd's git root.
 pub fn resolve(arg: Option<&Path>) -> Result<PathBuf> {
     if let Some(p) = arg {

@@ -51,3 +51,22 @@ not flip here.
   defer to the 080/090 sheds).
 - The actual flip (install the new binary, migrate this grove + grove-general-
   improvements, go global, remove project-local mirrors) is **070**, not here.
+
+### Dead old modules after 010-verbs-live (for 020 to consume / 080/090 to sweep)
+
+010 unwired the old verb path from `src/llm_cli.rs`; the modules still compile
+(all `pub`, so no dead-code warnings) but are now unreachable from the live
+binary. Their old-format integration tests were rewritten in place to drive the
+**new** binary surface (`tests/{pick,brief_chain,root_init,leaf,leaf_ops}.rs`
+plus the new `tests/resolve.rs`), so the old library fns
+(`pick::next_leaf`, `brief_chain::chain_for`, `leaf::{add,insert,surface_cross_refs}`,
+`leaf_ops::{decompose,retire}`, `root_init::init`) are now **untested and
+unreferenced** in the live build:
+
+- `src/pick.rs`, `src/brief_chain.rs`, `src/root_init.rs`, `src/leaf_ops.rs` —
+  fully dead; nothing in 060 needs them. **Delete in the 080/090 sheds.**
+- `src/leaf.rs` — `Kind` is **still live** (used by `llm_cli` + the new
+  `leaf_grow`/`leaf_lifecycle`); the rest (`add`/`insert`/`surface_cross_refs`/
+  `write_template` + the old `NNN-slug`/`done/` parsing & header rewriting) is the
+  **old-format reader** `020-grove-migrate` should consume, then 080/090 sweep
+  whatever 020 leaves. Keep `Kind` regardless.

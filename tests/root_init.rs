@@ -1,10 +1,11 @@
-// Fixture-driven tests for `grove-llm root-init`. Each test stands up a real
-// git repo so `git rev-parse --show-toplevel` resolves to the fixture path,
-// then runs the verb against a worktree that has *no* `.grove/` yet — the
-// fresh-grove case the verb exists to scaffold.
+// Fixture-driven tests for `grove-llm root-init` on the **new flat
+// dotted-decimal scheme** (ADR-0033/0034). Each test stands up a real git repo
+// so `git rev-parse --show-toplevel` resolves to the fixture path, then runs the
+// verb against a worktree that has *no* `.grove/` yet — the fresh-grove case the
+// verb exists to scaffold.
 //
 // The verb's output contract:
-// - stdout: two absolute paths, BRIEF.md first then the first leaf.
+// - stdout: two absolute paths, BRIEF.md first then the first leaf `1-[1]-<slug>.md`.
 // - refuses (non-zero exit) if `.grove/` already exists.
 //
 // The load-bearing invariant (root BRIEF brief evidence item 4): after
@@ -88,12 +89,12 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/010-plan.md")
+        PathBuf::from(".grove/1-[1]-plan.md")
     );
 
     // Both exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
-    assert!(tmp.path().join(".grove/010-plan.md").is_file());
+    assert!(tmp.path().join(".grove/1-[1]-plan.md").is_file());
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
     let brief = read(tmp.path(), ".grove/BRIEF.md");
@@ -108,9 +109,9 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
     );
 
     // The first leaf is a planning task per the fresh-grove contract.
-    let leaf = read(tmp.path(), ".grove/010-plan.md");
+    let leaf = read(tmp.path(), ".grove/1-[1]-plan.md");
     assert!(
-        leaf.starts_with("# 010-plan\n"),
+        leaf.starts_with("# 1-[1]-plan\n"),
         "leaf header wrong: {leaf:?}"
     );
     assert!(
@@ -126,7 +127,7 @@ fn root_init_default_slug_is_plan() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/010-plan.md")
+        PathBuf::from(".grove/1-[1]-plan.md")
     );
 }
 
@@ -137,9 +138,9 @@ fn root_init_custom_slug_names_the_first_leaf() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/010-design-the-api.md")
+        PathBuf::from(".grove/1-[1]-design-the-api.md")
     );
-    let leaf = read(tmp.path(), ".grove/010-design-the-api.md");
+    let leaf = read(tmp.path(), ".grove/1-[1]-design-the-api.md");
     assert!(leaf.contains("**Kind:** planning\n"), "got {leaf:?}");
 }
 
@@ -201,7 +202,7 @@ fn after_root_init_pick_returns_the_new_leaf_not_done() {
     // pick must name the leaf on stdout...
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/010-plan.md"),
+        PathBuf::from(".grove/1-[1]-plan.md"),
         "pick did not return the scaffolded leaf"
     );
     // ...and must NOT report the grove as done (the empty-but-briefed trap).

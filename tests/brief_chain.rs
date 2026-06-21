@@ -1,9 +1,8 @@
-// Fixture-driven tests for `grove-llm brief-chain`. Exercises the three shapes
-// the leaf's brief calls out explicitly (leaf at grove root, leaf two levels
-// deep, leaf whose intermediate node has no BRIEF.md), plus the no-arg form
-// composing with `pick`, the relative-path acceptance, and the audience-split
-// assertion (verb on grove-llm, not on grove). Each test stands up a real git
-// repo so `git rev-parse --show-toplevel` resolves to the fixture.
+// Fixture-driven tests for `grove-llm brief-chain` on the **new flat
+// dotted-decimal scheme** (ADR-0033/0034). A leaf's brief chain is collected by
+// **id-prefix** in the flat namespace, not by directory ascent: a leaf at
+// position `[a,b,c]` pulls the briefs at `[]` (root `BRIEF.md`), `[a]`, and
+// `[a,b]`, root→leaf. A missing brief at any level is skipped silently.
 
 use assert_cmd::Command;
 use std::fs;
@@ -27,20 +26,18 @@ fn init_repo() -> TempDir {
     tmp
 }
 
-fn touch(p: &Path) {
-    if let Some(parent) = p.parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
-    fs::write(p, b"# stub\n").unwrap();
+fn touch(root: &Path, name: &str) {
+    fs::create_dir_all(root).unwrap();
+    fs::write(root.join(name), b"# stub\n").unwrap();
 }
 
-fn brief_chain(cwd: &Path, args: &[&str]) -> (String, String, bool) {
-    let mut cmd = Command::cargo_bin("grove-llm").unwrap();
-    cmd.current_dir(cwd).arg("brief-chain");
-    for a in args {
-        cmd.arg(a);
-    }
-    let out = cmd.output().unwrap();
+fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
+    let out = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(cwd)
+        .args(args)
+        .output()
+        .unwrap();
     (
         String::from_utf8_lossy(&out.stdout).into_owned(),
         String::from_utf8_lossy(&out.stderr).into_owned(),
@@ -48,171 +45,89 @@ fn brief_chain(cwd: &Path, args: &[&str]) -> (String, String, bool) {
     )
 }
 
-fn rel_lines(stdout: &str, root: &Path) -> Vec<PathBuf> {
-    let root = root.canonicalize().unwrap();
+/// The chain's filenames, root→leaf, for terse assertions.
+fn names(stdout: &str) -> Vec<String> {
     stdout
         .lines()
-        .map(|line| {
-            let abs = PathBuf::from(line).canonicalize().unwrap();
-            abs.strip_prefix(&root).unwrap().to_path_buf()
+        .map(|l| {
+            PathBuf::from(l)
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .into_owned()
         })
         .collect()
 }
 
 #[test]
-fn leaf_at_grove_root_returns_only_root_brief() {
+fn leaf_at_root_returns_only_root_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    touch(&grove.join("010-leaf.md"));
+    touch(&grove, "BRIEF.md");
+    touch(&grove, "1-[1]-leaf.md");
 
-    let leaf = grove.join("010-leaf.md");
-    let leaf_s = leaf.to_string_lossy().into_owned();
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[&leaf_s]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
-    assert_eq!(rels, vec![PathBuf::from(".grove/BRIEF.md")]);
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1-[1]-leaf.md"]);
+    assert!(ok);
+    assert_eq!(names(&stdout), vec!["BRIEF.md"]);
 }
 
 #[test]
-fn leaf_two_levels_deep_returns_root_middle_node_briefs() {
+fn leaf_two_levels_deep_returns_root_and_ancestor_node_briefs() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    touch(&grove.join("020-mid/BRIEF.md"));
-    touch(&grove.join("020-mid/030-node/BRIEF.md"));
-    touch(&grove.join("020-mid/030-node/040-leaf.md"));
+    touch(&grove, "BRIEF.md");
+    touch(&grove, "1-[1]-outer.BRIEF.md");
+    touch(&grove, "1.1-[2]-inner.BRIEF.md");
+    touch(&grove, "1.1.1-[3]-leaf.md");
 
-    let leaf = grove.join("020-mid/030-node/040-leaf.md");
-    let leaf_s = leaf.to_string_lossy().into_owned();
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[&leaf_s]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1.1.1-[3]-leaf.md"]);
+    assert!(ok);
     assert_eq!(
-        rels,
-        vec![
-            PathBuf::from(".grove/BRIEF.md"),
-            PathBuf::from(".grove/020-mid/BRIEF.md"),
-            PathBuf::from(".grove/020-mid/030-node/BRIEF.md"),
-        ]
+        names(&stdout),
+        vec!["BRIEF.md", "1-[1]-outer.BRIEF.md", "1.1-[2]-inner.BRIEF.md"]
     );
 }
 
 #[test]
-fn intermediate_directory_without_brief_is_skipped_silently() {
+fn missing_intermediate_brief_is_skipped_silently() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    // Mid-level directory has no BRIEF.md — mid-decomposition transient state.
-    touch(&grove.join("020-mid/030-node/BRIEF.md"));
-    touch(&grove.join("020-mid/030-node/040-leaf.md"));
+    touch(&grove, "BRIEF.md");
+    // No brief at position [1] — the [1] level is simply absent from the chain.
+    touch(&grove, "1.1-[2]-inner.BRIEF.md");
+    touch(&grove, "1.1.1-[3]-leaf.md");
 
-    let leaf = grove.join("020-mid/030-node/040-leaf.md");
-    let leaf_s = leaf.to_string_lossy().into_owned();
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[&leaf_s]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
-    assert_eq!(
-        rels,
-        vec![
-            PathBuf::from(".grove/BRIEF.md"),
-            PathBuf::from(".grove/020-mid/030-node/BRIEF.md"),
-        ]
-    );
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1.1.1-[3]-leaf.md"]);
+    assert!(ok);
+    assert_eq!(names(&stdout), vec!["BRIEF.md", "1.1-[2]-inner.BRIEF.md"]);
 }
 
 #[test]
 fn no_arg_form_uses_picks_next_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    touch(&grove.join("020-mid/BRIEF.md"));
-    touch(&grove.join("020-mid/030-leaf.md"));
+    touch(&grove, "BRIEF.md");
+    touch(&grove, "1-[1]-node.BRIEF.md");
+    touch(&grove, "1.1-[2]-first.md");
 
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
-    assert_eq!(
-        rels,
-        vec![
-            PathBuf::from(".grove/BRIEF.md"),
-            PathBuf::from(".grove/020-mid/BRIEF.md"),
-        ]
-    );
-}
-
-#[test]
-fn no_arg_form_on_fully_retired_grove_prints_diagnostic() {
-    let tmp = init_repo();
-    let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    touch(&grove.join("done/010-retired.md"));
-
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[]);
-    assert!(ok, "expected success exit; stderr={stderr}");
-    assert!(
-        stdout.trim().is_empty(),
-        "expected empty stdout, got {stdout:?}"
-    );
-    assert!(
-        stderr.contains("no live leaves"),
-        "expected diagnostic, got {stderr:?}"
-    );
-}
-
-#[test]
-fn accepts_grove_root_relative_leaf_path() {
-    let tmp = init_repo();
-    let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    touch(&grove.join("020-mid/BRIEF.md"));
-    touch(&grove.join("020-mid/030-leaf.md"));
-
-    // Pass `020-mid/030-leaf.md` (no `.grove/` prefix) — must be interpreted
-    // relative to grove root.
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &["020-mid/030-leaf.md"]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
-    assert_eq!(
-        rels,
-        vec![
-            PathBuf::from(".grove/BRIEF.md"),
-            PathBuf::from(".grove/020-mid/BRIEF.md"),
-        ]
-    );
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain"]);
+    assert!(ok);
+    // pick's next leaf is 1.1; its chain is the root brief + the node-1 brief.
+    assert_eq!(names(&stdout), vec!["BRIEF.md", "1-[1]-node.BRIEF.md"]);
 }
 
 #[test]
 fn missing_root_brief_yields_empty_chain() {
-    // The grove root has no BRIEF.md yet (mid-bootstrap transient). The verb
-    // must not error; it returns an empty chain.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("020-mid/BRIEF.md"));
-    touch(&grove.join("020-mid/030-leaf.md"));
+    // No root BRIEF.md.
+    touch(&grove, "1-[1]-leaf.md");
 
-    let leaf = grove.join("020-mid/030-leaf.md");
-    let leaf_s = leaf.to_string_lossy().into_owned();
-    let (stdout, stderr, ok) = brief_chain(tmp.path(), &[&leaf_s]);
-    assert!(ok, "stderr={stderr}");
-    let rels = rel_lines(&stdout, tmp.path());
-    assert_eq!(rels, vec![PathBuf::from(".grove/020-mid/BRIEF.md")]);
-}
-
-#[test]
-fn errors_when_leaf_outside_grove_root() {
-    let tmp = init_repo();
-    let grove = tmp.path().join(".grove");
-    touch(&grove.join("BRIEF.md"));
-    let stray = tmp.path().join("stray.md");
-    touch(&stray);
-
-    let stray_s = stray.to_string_lossy().into_owned();
-    let (_, stderr, ok) = brief_chain(tmp.path(), &[&stray_s]);
-    assert!(!ok, "expected error exit");
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1-[1]-leaf.md"]);
+    assert!(ok);
     assert!(
-        stderr.contains("not under grove root"),
-        "expected diagnostic, got {stderr:?}"
+        stdout.trim().is_empty(),
+        "expected empty chain, got {stdout:?}"
     );
 }
 

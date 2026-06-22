@@ -13,6 +13,14 @@
 - Amended (2026-06-22, while building the id model — leaf `id-grammar`, key 24): the
   permanent key is written **`-k<key>`**, not the `[<key>]` this ADR first drafted
   (see §1's *key delimiter* note for the rationale).
+- Amended (2026-06-22, while building the grow/lifecycle verbs — leaf
+  `grow-lifecycle-verbs`, key 26): a task file's in-file `# …` header is the
+  **position-free handle** `# <slug>-k<key>` (`# <slug>-k<key> — brief` for a node) —
+  the mutable per-level position `NN` lives only in the filename, never in the body.
+  This is the body-level corollary of §5 (reference by stable handle, never by
+  position) and is what makes the renumber a pure `git mv` with **zero content
+  rewrites** (§2's "cheap restructure"). The v1→v2 migration rewrites old
+  `# <dotted>-[<key>]-<slug>` headers down to this handle.
 - Pairs with: **ADR-0031** (the self-extension core), **ADR-0034** (migrate-on-
   adoption — the mechanism this change rides to flip live trees).
 

@@ -71,3 +71,20 @@ reshapeable — this is a planning brief, not a contract.
   option is dropping the brackets in favour of a different stable-id delimiter.
 - Migration source is **bimodal once** here (v1-flat OR old `NNN-slug/`), then the
   reader collapses to v2-only — same shape as ADR-0034's one-time old reader.
+
+### Settled at `grow-lifecycle-verbs` (key 26) — inherit downstream
+
+- **Position-free in-file header** (`# <slug>-k<key>`, `# … — brief` for a node;
+  ADR-0035 amendment). The `NN` lives only in the filename, so renumber/move is a
+  pure `git mv` with zero content rewrites. **`migrate-v1-to-v2` (k27)** must rewrite
+  every v1 `# <dotted>-[<key>]-<slug>` header down to this handle; **prose (k28)**
+  documents it; the `# <name> — brief` root brief is unchanged.
+- **The v2 verb core is path-addressed**, not dotted-id-addressed (v1's
+  `<parent-id>`/`<target-id>` strings are gone). `tree_grow::leaf_add` takes a
+  *parent directory* path (the grove root for a root-level leaf); `leaf_insert` takes
+  the path of the **existing entry to displace** (insert-at-end is `leaf_add`'s job);
+  `tree_lifecycle` decompose/retire take a leaf-file path. **`install-and-reflip`
+  (k29)** wires the CLI: map `<parent-id>`/`<target-id>` args (a `resolve`-able key or
+  a path) to those paths, mirroring how `pick`/`resolve` already print paths.
+- `surface_cross_refs` now lints the **old position-prefixed name** (`05-mid-k14`) in
+  bodies, not dotted positions — a stable `<slug>-k<key>` reference never goes stale.

@@ -13,8 +13,7 @@ them. This is the finish-side counterpart of ADR-0011's start-side fix: both mak
 a grove's lifecycle state legible on the seed/done axis.
 
 ## Status
-accepted (extends ADR-0010 `0010-in-session-finish-cycle.md`, which defined the
-five-step cycle this adds a sixth step to)
+superseded by ADR-0031 `0031-shed-machinery-keep-self-extension-core-and-methodology.md` — the inbox is deleted, so the finish cycle no longer has an inbox to clean up (it returns to the five-step cycle of ADR-0010).
 
 ## Decision 1 — refuse-and-instruct on a non-empty inbox, do not silently delete
 [[Drain]] runs only at `grove do`, so by finish time another grove may have

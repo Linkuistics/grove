@@ -308,20 +308,6 @@ fn commit_failure_leaves_materialisation_in_place() {
 }
 
 #[test]
-fn install_materialises_inbox_worktree_and_branch() {
-    let repo = init_repo_with(true, false);
-    run_with_fetcher(&args_for(repo.path()), &fetcher_at("v0.1.0")).unwrap();
-
-    // The inbox worktree exists at the canonical path.
-    assert!(repo.path().join(".grove-meta/inboxes").is_dir());
-
-    // The grove-meta branch exists locally.
-    let out = git(repo.path(), &["branch", "--list", "grove-meta"]);
-    let s = String::from_utf8_lossy(&out.stdout);
-    assert!(s.contains("grove-meta"), "expected grove-meta branch: {s}");
-}
-
-#[test]
 fn version_pin_is_idempotent_then_updates() {
     let repo = init_repo_with(true, false);
     let mut args = args_for(repo.path());

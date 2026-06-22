@@ -3,7 +3,7 @@
 An [[Inbox]] is the directory `inboxes/<name>/` on the `grove-meta` branch, containing one markdown file per observation named `<UTC-iso8601-seconds>Z-<slug>-<content-hash-8>.md`. Capture writes a new file; drain deletes triaged files in one session-commit; the directory's existence (preserved by a `.gitkeep`) remains the "this grove is known" signal. This supersedes the single-file-per-grove shape (`inboxes/<name>.md`) described in ADR-0002.
 
 ## Status
-accepted (supersedes the inbox-shape portion of ADR-0002 `0002-grove-meta-branch-and-inbox-model.md`)
+superseded by ADR-0031 `0031-shed-machinery-keep-self-extension-core-and-methodology.md` — the inbox subsystem is deleted as part of shedding grove's machinery.
 
 ## Why this shape, in one paragraph
 Under the single-file shape, two writers (parallel groves on one machine, or one grove on two machines) appending to `inboxes/<name>.md` produce a non-ff push on the second writer and a merge-conflict-prone reconcile. The directory-of-files shape places every capture on a disjoint filesystem path, so the same two writers produce two unrelated commits that fast-forward cleanly when either machine pulls. The convergence in the broader industry is decisive on this point — see the rationale section below.

@@ -107,19 +107,8 @@ bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
 collects the brief at each ancestor of the picked leaf (every proper-prefix
 position of its dotted id) up to the grove root and prints one absolute brief
 path per line, root→leaf (a missing brief at any level is skipped silently —
-some nodes do not yet carry one); the task file. Then **drain the inbox** by
-running `grove-llm inbox-drain --for=<name>` — this fetches the latest state
-(when a remote is configured) and prints one absolute path per pending
-observation. Read each, triage as **incorporate** (use it in this task),
-**defer** (write a follow-up leaf, or re-capture to another grove via
-`grove-llm inbox-add --to=<other-name>`), or **reject** (out of scope).
-Finalize with `grove-llm inbox-drain --for=<name>
---incorporated=<path>... --deferred=<path>... --rejected=<path>...`: the CLI deletes the triaged
-files in one commit named with the disposition counts and pushes when
-configured. Drain runs at every `grove do`; the
-LLM never touches the inbox branch directly. That assembled context —
-read material plus drained inbox — is the session's entire mandate; read
-nothing else by reflex.
+some nodes do not yet carry one); the task file. That assembled context is the
+session's entire mandate; read nothing else by reflex.
 
 **Execute.** The task file states its kind (`TASK-FORMAT.md`):
 - A **work task** produces code, docs, or tests.
@@ -195,7 +184,7 @@ you to exit manually. **Do not run it for the finish cycle below** — finishing
 `grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
 done" on stderr. The **complete finish cycle** is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
-confirmation before any teardown** — never run steps 2–6 unprompted, so a
+confirmation before any teardown** — never run steps 2–5 unprompted, so a
 headless run with no human present simply reports the plan and stops. On
 confirmation, run:
 
@@ -206,34 +195,22 @@ confirmation, run:
 3. **Merge** into the default branch: `git -C <repo> merge <name>` —
    fast-forwards when the default has not advanced, makes a merge commit when it
    has. (Stop and resolve if it conflicts.)
-4. **Clean up the inbox** (ADR-0012). Re-drain any observations that arrived
-   since this session's bootstrap (`grove-llm inbox-drain --for=<name>`, then
-   triage — at finish the dispositions narrow to **re-seed elsewhere** or
-   **reject**, since there is no later leaf to defer to — and finalize). Then
-   `grove-llm inbox-remove --for=<name>` removes `inboxes/<name>/` so the
-   finished grove stops showing as a **Seed** in `grove status`. The
-   verb **refuses** while any observation is still pending — a stray un-triaged
-   one stops the cycle rather than being silently deleted — and is a no-op when
-   the grove was never seeded.
-5. **Remove the worktree**: `git -C <repo> worktree remove <worktree>`.
-6. **Delete the branch**: `git -C <repo> branch -d <name>` — safe delete,
+4. **Remove the worktree**: `git -C <repo> worktree remove <worktree>`.
+5. **Delete the branch**: `git -C <repo> branch -d <name>` — safe delete,
    succeeds only because step 3 merged it.
 
-Steps 3, 5 and 6 run `git -C <repo>` against the **main repo**, not the worktree
-(the session's cwd is inside the worktree it removes); step 4 writes to the
-`grove-meta` worktree via `grove-llm` and so must run **before** step 5 while cwd
-is still valid. Worktree-remove precedes branch-delete because git refuses to
-delete a branch checked out in a live worktree. The default branch never carries
-any grove's local state; the history of completed groves lives in git's commit
-graph, not in retained directories.
+Steps 3, 4 and 5 run `git -C <repo>` against the **main repo**, not the worktree
+(the session's cwd is inside the worktree it removes). Worktree-remove precedes
+branch-delete because git refuses to delete a branch checked out in a live
+worktree. The default branch never carries any grove's local state; the history
+of completed groves lives in git's commit graph, not in retained directories.
 
 **Resume is state-checked, never a marker file** (constraint 1). `grove do` into
 a half-finished grove resumes from the first incomplete step: if `.grove/` is
 already gone (`grove-llm pick` errors with "grove root not found") skip 1–2; if
-`git -C <repo> merge-base --is-ancestor <name> <default>` passes skip 3; if
-`inboxes/<name>/` is already gone skip 4 (the verb is idempotent, so re-running
-it is also safe); if the worktree is gone skip 5; if the branch is gone skip 6;
-if all are done, report "already finished" and stop.
+`git -C <repo> merge-base --is-ancestor <name> <default>` passes skip 3; if the
+worktree is gone skip 4; if the branch is gone skip 5; if all are done, report
+"already finished" and stop.
 
 ## Artifacts
 
@@ -247,7 +224,6 @@ standard artifact that outlives grove (constraint 6).
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step before merging |
-| `grove-meta` branch | `<repo>/.grove-meta/inboxes/<name>/<entry>.md` | cross-grove inbox files; capture observations to another grove via `grove-llm inbox-add --to=<name>`, drained on every bootstrap (ADRs `0002-grove-meta-branch-and-inbox-model.md`, `0003-cross-repo-inbox-handoff.md`, `0004-inbox-as-directory-of-observation-files.md`, `0005-grove-meta-sync-semantics.md`, `0006-grove-llm-binary-separation.md`). Materialised by `grove install`; for repos that pre-date the feature, or whose worktree was removed, run `grove meta init`. |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
@@ -260,19 +236,6 @@ else — terse definitions, aliases-to-avoid, no implementation detail
 **Briefs vs. the glossary.** A bounded context is a *domain* partition; a
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
 is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
-
-**Inboxes and capture.** When during any task you notice an observation
-belonging to a *different* grove — future, currently running, or already
-finished — capture it via `grove-llm inbox-add --to=<name> --body=...`
-(or `--body-file=` / `--body-stdin`) and keep going. Same-repo and
-cross-repo writes use the same gesture; the LLM never edits the
-`grove-meta` branch directly. `grove-llm` is the LLM-driven sibling
-binary that ships alongside `grove` (ADR-0006); the human `grove`
-binary still exposes `grove inbox show <name>` as a diagnostic. The
-grove project's own repo carries a worked example: its `CONTEXT.md`
-records the canonical `Inbox`, `Seed`, `Drain`, and `grove-meta branch`
-entries that any repo adopting the convention should copy or paraphrase
-into its own glossary.
 
 ## PRDs
 

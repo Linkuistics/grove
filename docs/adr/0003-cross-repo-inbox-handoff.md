@@ -3,7 +3,7 @@
 A grove session in repo A that wants to capture an observation belonging to a grove `Y` in repo B writes to `<repo-B>/.grove-meta/inboxes/Y/...` — the same gesture as a same-repo write, against repo B's `grove-meta` worktree on disk. The rule requires repo B to be checked out locally with its `grove-meta` worktree materialised; **how** the writer locates that path (user config, CLAUDE.md hint, workspace convention) is deliberately left unspecified for v1.
 
 ## Status
-accepted
+superseded by ADR-0031 `0031-shed-machinery-keep-self-extension-core-and-methodology.md` — cross-repo inbox handoff is removed with the inbox / `grove-meta` subsystem.
 
 ## Why this is the same write as same-repo capture
 The inbox-model ADR (`0002-grove-meta-branch-and-inbox-model.md`) defines capture as a write to `<repo>/.grove-meta/inboxes/<name>/...` via the `grove inbox` verb (the original "one file per grove" shape is superseded by the directory-per-grove shape of ADR-0004; the cross-repo argument is unaffected). Cross-repo capture is the identical operation with `<repo>` resolved to a different path on the same disk. There is no second mechanism, no second format, no second routing layer; the cross-repo case reduces to the same-repo case the moment the writer knows the target path. Reusing the local-worktree gesture also reuses every property the inbox model already earns — walk-away-ability, CLI-mediated correctness, drain-as-bootstrap — without restating any of them here.

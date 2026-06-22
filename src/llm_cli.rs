@@ -14,9 +14,7 @@
 // There is no transitional dual-format reader — `grove migrate` (060/020) is the
 // only thing that reads the old `NNN-slug` directory format, once, on adoption.
 
-use crate::cli::{InboxAddArgs, InboxDrainArgs, InboxEditArgs, InboxRemoveArgs};
 use crate::complete;
-use crate::inboxes;
 use crate::leaf::Kind;
 use crate::leaf_grow;
 use crate::leaf_lifecycle;
@@ -24,7 +22,6 @@ use crate::leaf_read;
 use crate::repo;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use std::io::Read;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
@@ -43,23 +40,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Append an observation to the inbox of `<name>` on the `grove-meta` branch.
-    InboxAdd(InboxAddArgs),
-    /// Drain the inbox of `<name>`: two-phase. No disposition flags →
-    /// enumerate pending observation paths. Any
-    /// `--incorporated`/`--deferred`/`--rejected` paths → finalize by
-    /// deleting the triaged files in one commit.
-    InboxDrain(InboxDrainArgs),
-    /// Rewrite the body of an existing observation on the `grove-meta` branch.
-    /// Recomputes the filename's content-hash suffix (so capture-dedup stays
-    /// correct) while preserving the capture timestamp and slug; commits and
-    /// pushes best-effort. The addressed grove is read off the path.
-    InboxEdit(InboxEditArgs),
-    /// Remove the inbox of `<name>` entirely (the finish-cycle cleanup step,
-    /// ADR-0012) so a finished grove stops showing as a seed. Refuses if any
-    /// observation is still pending — drain first. Idempotent when the inbox
-    /// is already absent. Commits and pushes best-effort.
-    InboxRemove(InboxRemoveArgs),
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
     /// `BRIEF.md` stub, and lay down a first planning leaf `1-[<key>]-<slug>.md`
     /// (default slug `plan`). After this, `grove-llm pick` returns the new
@@ -199,10 +179,6 @@ pub struct LeafRetireArgs {
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::InboxAdd(args) => cmd_inbox_add(&args),
-        Command::InboxDrain(args) => cmd_inbox_drain(&args),
-        Command::InboxEdit(args) => cmd_inbox_edit(&args),
-        Command::InboxRemove(args) => cmd_inbox_remove(&args),
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
@@ -223,64 +199,6 @@ fn cmd_complete(args: &CompleteArgs) -> Result<()> {
         args.kill_grace,
     );
     complete::signal_complete(&opts)
-}
-
-fn cmd_inbox_add(args: &InboxAddArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    let observation = read_body(
-        args.body.as_deref(),
-        args.body_file.as_deref(),
-        args.body_stdin,
-    )?;
-    inboxes::capture(&repo_path, &args.to, &observation, args.slug.as_deref())
-}
-
-fn cmd_inbox_edit(args: &InboxEditArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    let body = read_body(
-        args.body.as_deref(),
-        args.body_file.as_deref(),
-        args.body_stdin,
-    )?;
-    inboxes::edit(&repo_path, &args.path, &body)
-}
-
-fn cmd_inbox_remove(args: &InboxRemoveArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    inboxes::remove(&repo_path, &args.for_grove)
-}
-
-fn cmd_inbox_drain(args: &InboxDrainArgs) -> Result<()> {
-    let repo_path = repo::resolve(args.repo.as_deref())?;
-    let name = &args.for_grove;
-    let has_dispositions =
-        !args.incorporated.is_empty() || !args.deferred.is_empty() || !args.rejected.is_empty();
-
-    if has_dispositions {
-        return inboxes::drain_finalize(
-            &repo_path,
-            name,
-            &args.incorporated,
-            &args.deferred,
-            &args.rejected,
-        );
-    }
-
-    let paths = inboxes::drain_enumerate(&repo_path, name)?;
-    for p in &paths {
-        println!("{}", p.display());
-    }
-    if paths.is_empty() {
-        eprintln!("inbox {}: no pending observations", name);
-    } else {
-        eprintln!(
-            "inbox {}: {} pending observation{}",
-            name,
-            paths.len(),
-            if paths.len() == 1 { "" } else { "s" }
-        );
-    }
-    Ok(())
 }
 
 fn cmd_root_init(args: &RootInitArgs) -> Result<()> {
@@ -458,29 +376,4 @@ fn dotted(position: &[u32]) -> String {
         .map(u32::to_string)
         .collect::<Vec<_>>()
         .join(".")
-}
-
-/// Shared body-input plumbing for the inbox write verbs (`inbox-add`,
-/// `inbox-edit`): exactly one of `--body` / `--body-file` / `--body-stdin`
-/// (clap enforces mutual exclusion; this enforces presence).
-fn read_body(
-    body: Option<&str>,
-    body_file: Option<&std::path::Path>,
-    body_stdin: bool,
-) -> Result<String> {
-    if let Some(b) = body {
-        return Ok(b.to_string());
-    }
-    if let Some(p) = body_file {
-        return std::fs::read_to_string(p)
-            .with_context(|| format!("reading body file {}", p.display()));
-    }
-    if body_stdin {
-        let mut s = String::new();
-        std::io::stdin()
-            .read_to_string(&mut s)
-            .context("reading body from stdin")?;
-        return Ok(s);
-    }
-    anyhow::bail!("provide observation via --body, --body-file, or --body-stdin");
 }

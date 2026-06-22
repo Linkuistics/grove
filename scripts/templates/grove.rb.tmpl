@@ -23,15 +23,12 @@ class Grove < Formula
   end
 
   def install
-    # rmux is the bundled stock daemon/CLI (ADR-0030); grove tui resolves it as
-    # a sibling of its own executable, so all three must land in the same bin/.
-    #
     # The methodology skill is NOT fetched or installed here. The `grove` binary
     # embeds the full `content/` tree (ADR-0031/0034) and provisions it to
     # ~/.claude/skills/grove/ on the first `grove do`, so the skill can never
     # drift from the binary. Do NOT reintroduce a content/ download into this
     # formula or the release tarball — `brew install grove` is the sole gesture.
-    bin.install "grove", "grove-llm", "rmux"
+    bin.install "grove", "grove-llm"
   end
 
   def caveats
@@ -47,7 +44,5 @@ class Grove < Formula
   test do
     assert_match "grove @VERSION@", shell_output("#{bin}/grove --version")
     assert_match "grove-llm @VERSION@", shell_output("#{bin}/grove-llm --version")
-    # rmux mirrors tmux's terse CLI: version is `-V`, not GNU `--version`.
-    assert_match "rmux", shell_output("#{bin}/rmux -V")
   end
 end

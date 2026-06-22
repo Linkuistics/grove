@@ -1,6 +1,12 @@
 # 30. grove bundles a from-source, version-locked stock rmux daemon; the TUI redirects to it via one env var
 
-- Status: **accepted**
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record.
 - Date: 2026-06-09
 - Deciders: Antony Blakey (with grove `rmux-substrate` 050-plan-rebuild/060-daemon-launch)
 - Builds on / closes: ADR-0028 (rmux substrate) — whose Consequences said "bundling

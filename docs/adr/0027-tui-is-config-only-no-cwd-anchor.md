@@ -1,10 +1,17 @@
 # 27. The TUI is config-only — the cwd git-repo anchor is removed
 
-- Status: accepted — **survives; realisation amended** by
-  [ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4
-  (rmux substrate, 2026-06-10). The config-only, no-cwd-anchor model is **untouched**;
-  the singleton fleet session it set (`grove-fleet`, §4 below) is now realised as a
-  persistent **rmux** session (`CreateOrReuse`) rather than a zellij one. Not superseded.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: accepted —
+  **survives; realisation amended** by
+  [ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4,
+  rmux substrate, 2026-06-10. The config-only, no-cwd-anchor model was **untouched**;
+  the singleton fleet session it set, `grove-fleet`, §4 below, was realised as a
+  persistent **rmux** session, `CreateOrReuse`, rather than a zellij one.)
 - Date: 2026-06-05
 - Deciders: Antony Blakey (grove `fleet-only-tui` 010-plan grilling)
 - Amends: ADR-0025 §3 (current repo always included) — removed; ADR-0026

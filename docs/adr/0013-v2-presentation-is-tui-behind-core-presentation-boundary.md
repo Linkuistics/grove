@@ -9,7 +9,15 @@ the `RepoView`/`MultiRepoView` data layer, harness driving, and shell-out writes
 preserved option, not a rejected one.
 
 ## Status
-accepted — **amended (not superseded) by [ADR-0028](0028-rmux-substrate.md)** (rmux
+**superseded** (was accepted) — Superseded by [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md)
+(grove sheds its machinery to a self-extension core) and [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md)
+(the loop substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower
+this ADR belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+history. The decision is retained here as record. The core↔presentation boundary this ADR
+defined is now **moot**: the only presentation it was ever drawn against — the TUI — is
+deleted, so there is no surviving presentation for the boundary to separate from the core.
+
+Original status (retained verbatim): accepted — **amended (not superseded) by [ADR-0028](0028-rmux-substrate.md)** (rmux
 substrate, 2026-06-10). The core↔presentation boundary **survives and is
 strengthened**: ADR-0028 E2 promotes it from "module placement + review" to a literal
 directory wall (`src/tui/` may import ratatui/rmux/tokio; nothing outside may), and E1

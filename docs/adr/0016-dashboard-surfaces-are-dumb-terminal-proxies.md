@@ -1,9 +1,16 @@
 # 16. Dashboard surfaces are dumb-terminal proxies to one controlling process
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — the dumb-terminal-proxy / controlling-process /
-  socket-seam model dissolves: grove draws its own surfaces as ratatui widgets,
-  with no controller↔proxy wire. Premise + mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 — the
+  dumb-terminal-proxy / controlling-process / socket-seam model dissolves: grove draws
+  its own surfaces as ratatui widgets, with no controller↔proxy wire. Premise +
+  mechanism gone.)
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove 060 design)
 - Refines: ADR-0015 (grove-owned zellij substrate)

@@ -1,9 +1,7 @@
 # grove is a single-package cargo workspace (the root `grove` package / CLI).
-# The TUI substrate is being rebuilt on rmux (grove `rmux-substrate`): the
-# vendored trellis zellij-fork and the shelved `harness-pane` crate were both
-# removed in `020-rip-out`, so the workspace currently has no extra members.
-# 030/040 may re-add path members here (e.g. a vendored rmux fork) as that work
-# lands.
+# The TUI tower (rmux/ratatui app + Fleet) was deleted in leaf `080-shed-tui`
+# (ADR-0031/0032), so the workspace has no extra members and gains none — grove's
+# runtime is now the self-driving loop driver + the tree verbs.
 [workspace]
 members = []
 
@@ -49,50 +47,18 @@ flate2 = "1.0"
 # `rerun-if-changed` for every content file: on stable Rust the macro does not
 # register its reads with Cargo, so an edit would otherwise leave a stale embed.
 include_dir = "0.7"
-# `poll(2)` on the proxy's (socket, stdin) fds so a single-threaded relay loop
-# stops reading stdin while an `$EDITOR` child owns the tty (ADR-0017). Already
-# in the tree transitively; declared here for the proxy's direct use.
+# Used by the self-driving loop substrate (ADR-0032): `loop_driver.rs` ignores
+# SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
+# `isatty` before launching, and the `grove-llm complete` signal verb's
+# self-spawned delayed killer detaches via `libc::setsid`.
 libc = "0.2"
-notify = "6"
-ratatui = "0.29"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# SIGWINCH detection in the dumb dashboard proxy (`grove __dash-proxy`,
-# ADR-0016). The proxy forwards *raw* stdin up to the controller rather than
-# using crossterm's event reader, so it needs an independent resize-signal path.
-# Already in the tree transitively (via crossterm); declared here for the proxy.
-signal-hook = "0.3"
 sha2 = "0.10"
 tar = "0.4"
 tempfile = "3.10"
 thiserror = "1.0"
-# Parse the fleet manifest (`~/.config/grove/fleet.toml`) — the user-facing,
-# hand-edited config listing explicit `repos` and `scan_roots` for the
-# multi-repo fleet view (ADR-0025, leaf 070/010). Below the presentation
-# boundary; the manifest is a plain, walk-away-legible artifact.
-toml = "0.8"
 ureq = { version = "2.10", features = ["json"] }
-
-# The rmux TUI substrate (grove `rmux-substrate`, 030-engine). grove is now a
-# plain ratatui app that owns its own draw loop and embeds harness/tool panes:
-#   - `ratatui-rmux` renders a pane `PaneSnapshot` into the ratatui buffer
-#     (`PaneWidget` over `PaneState`);
-#   - `rmux-sdk` drives/observes panes asynchronously (session/pane handles,
-#     `render_stream` push updates) against an rmux daemon that owns the ptys.
-# These crates are *only* imported under `src/tui/` — the presentation boundary
-# (ADR-0013) is a literal directory wall (E2). 030 targets the **published**
-# 0.5.0 crates; 040 switches the dep to the rendered-history fork (E6/D7).
-ratatui-rmux = "0.5"
-rmux-sdk = "0.5"
-# Fuzzy ranking for the nav's filter mode (rmux-tui-polish 040). Chosen over
-# `fuzzy-matcher` (skim's, dormant since 2023) for active maintenance (it is
-# Helix's matcher) and a tiny dependency footprint. Only imported under
-# `src/tui/` like the other presentation deps.
-nucleo-matcher = "0.3"
-# Async runtime for the TUI draw loop only (E1: async is confined above the
-# presentation seam; the sync core never imports tokio). Multi-thread so each
-# visible pane's `render_stream` task can run on its own worker.
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"

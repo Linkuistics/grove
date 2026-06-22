@@ -285,9 +285,8 @@ pub fn drain_finalize(
 
 /// Remove the entire inbox directory `inboxes/<name>/` (including its
 /// `.gitkeep`) on the `grove-meta` branch — the finish-cycle cleanup step that
-/// stops a *finished* grove from masquerading as a [[Seed]] in `grove status` /
-/// the TUI (whose seed classification is "inbox dir present, worktree absent",
-/// see `repo_view::scan`). ADR-0012.
+/// stops a *finished* grove from masquerading as a [[Seed]] in `grove status`
+/// (whose seed classification is "inbox dir present, worktree absent"). ADR-0012.
 ///
 /// Refuses (Option A — mirroring ADR-0005's non-ff refuse-and-instruct) if any
 /// pending `.md` observation remains: finish must drain/triage first so no

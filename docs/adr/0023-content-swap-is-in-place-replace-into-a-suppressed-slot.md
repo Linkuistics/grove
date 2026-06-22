@@ -1,10 +1,17 @@
 # 23. Content-swap is in-place `replace_pane` into a `suppressed_panes` slot
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4; mechanism-dissolved) — the `suppressed_panes` +
-  in-place `replace_pane` park machinery has **no analogue**: under rmux a pane in
-  a detached window stays alive in the daemon whether or not grove draws it, so
-  "park" is just "don't draw it this frame". The mechanism evaporates wholesale.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4,
+  mechanism-dissolved — the `suppressed_panes` + in-place `replace_pane` park machinery
+  has **no analogue**: under rmux a pane in a detached window stays alive in the daemon
+  whether or not grove draws it, so "park" is just "don't draw it this frame". The
+  mechanism evaporates wholesale.)
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/130/010 spike)
 - Builds on: ADR-0022 (constant nav + swapped content region — this ADR fixes the

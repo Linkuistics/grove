@@ -1,9 +1,15 @@
 # 18. Harness workspaces are zellij tabs, navigated by a plugin nav
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — no zellij tabs and no WASM plugin nav: grove
-  draws a native ratatui nav surface and owns its layout directly. Premise +
-  mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 — no
+  zellij tabs and no WASM plugin nav: grove draws a native ratatui nav surface and owns
+  its layout directly. Premise + mechanism gone.)
 - Date: 2026-06-02
 - Deciders: Antony Blakey (with grove 060 design)
 - Amends: ADR-0016 (dashboard surfaces are dumb-terminal proxies — no longer

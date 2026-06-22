@@ -1,8 +1,15 @@
 # 14. Harness backend is an in-process pty embedded in Ratatui
 
-- Status: superseded by ADR-0015 — and the entire substrate tower this began
-  (ADR-0014→0026) is dissolved by [ADR-0028](0028-rmux-substrate.md), the rmux
-  substrate (2026-06-10, rmux-substrate 070-teardown, D4)
+- Status: **superseded** (was: superseded by ADR-0015) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  ADR-0015 — and the entire substrate tower this began, ADR-0014→0026, dissolved by
+  [ADR-0028](0028-rmux-substrate.md), the rmux substrate, 2026-06-10, rmux-substrate
+  070-teardown, D4.)
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove spike 050)
 

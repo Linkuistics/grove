@@ -1,10 +1,16 @@
 # 20. Fork zellij into grove's own TUI framework (deep hard fork, extract-later)
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — the deep zellij hard-fork (trellis) is **retired
-  entirely**; grove depends on stock published rmux 0.5.0 (no fork) and
-  `crates/trellis/` is deleted. This is the fork the grove exists to retire.
-  Premise + mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 — the
+  deep zellij hard-fork, trellis, was **retired entirely**; grove depended on stock
+  published rmux 0.5.0, no fork, and `crates/trellis/` was deleted. This is the fork the
+  grove existed to retire. Premise + mechanism gone.)
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/090 planning)
 - Supersedes: ADR-0015 (owned but **unmodified, installed** zellij)

@@ -1,10 +1,16 @@
 # 24. Embedded-tool exit observability reuses suppress/restore + a host-pane signal
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4; mechanism-dissolved) — suppress/restore
-  exit-observability evaporates with the park machinery (ADR-0023). The *concern*
-  — knowing when a wrapped tool exits — survives via the SDK (`render_stream`
-  closing / `Pane::wait_exit()`), not suppress/restore.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4,
+  mechanism-dissolved — suppress/restore exit-observability evaporates with the park
+  machinery, ADR-0023. The *concern* — knowing when a wrapped tool exits — survives via
+  the SDK, `render_stream` closing / `Pane::wait_exit()`, not suppress/restore.)
 - Date: 2026-06-04
 - Deciders: Antony Blakey (with grove 060/040/130/030 build)
 - Builds on: ADR-0020 §6 (first-class observability of wrapped tools — this is its

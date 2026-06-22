@@ -1,9 +1,16 @@
 # 26. trellis is the only TUI — local dashboard and `trellis-seam` gate removed
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — trellis itself is removed (`crates/trellis/`
-  deleted), so "trellis is the only TUI" is moot: rmux is the substrate and grove
-  draws a native nav. Premise + mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 —
+  trellis itself was removed, `crates/trellis/` deleted, so "trellis is the only TUI"
+  is moot: rmux is the substrate and grove draws a native nav. Premise + mechanism
+  gone.)
 - Date: 2026-06-05
 - Deciders: Antony Blakey (grove `grove-always-starts-in-local-mode`)
 - Amends: ADR-0020 / ADR-0021 (trellis as the native, supported TUI) — by

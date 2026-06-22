@@ -1,5 +1,4 @@
 use grove::inboxes;
-use grove::repo_view::{Lifecycle, RepoView};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -677,8 +676,8 @@ fn remove_deletes_inbox_dir_including_gitkeep_when_empty() {
 
     inboxes::remove(repo.path(), "g").unwrap();
 
-    // Whole directory gone — .gitkeep and all — so `repo_view::scan` no longer
-    // classifies `g` as a seed.
+    // Whole directory gone — .gitkeep and all — so a finished grove is no
+    // longer classified as a seed.
     assert!(
         !dir.exists(),
         "inbox dir should be removed entirely: {dir:?}"
@@ -742,8 +741,10 @@ fn remove_is_idempotent_when_inbox_absent() {
 #[test]
 fn finished_grove_does_not_appear_as_seed_after_remove() {
     // The end-to-end contract of leaf 030: once the finish cycle removes a
-    // grove's inbox, `repo_view::scan` (the data layer behind `grove status`
-    // and the TUI) no longer classifies it as a seed.
+    // grove's inbox, nothing remains to classify it as a seed. (Originally
+    // asserted via the TUI's `repo_view::scan` data layer; that surface was
+    // deleted in 080-shed-tui, so we assert the underlying state directly — the
+    // presence then absence of the `inboxes/<name>/` directory the seed view read.)
     let repo = init_repo();
     inboxes::materialise(repo.path()).unwrap();
     inboxes::capture(repo.path(), "done-grove", "an observation", None).unwrap();
@@ -752,27 +753,19 @@ fn finished_grove_does_not_appear_as_seed_after_remove() {
     let paths = inboxes::drain_enumerate(repo.path(), "done-grove").unwrap();
     inboxes::drain_finalize(repo.path(), "done-grove", &[paths[0].clone()], &[], &[]).unwrap();
 
-    // No worktree was ever created → the orphaned inbox is exactly the
+    // No worktree was ever created → the orphaned inbox dir is exactly the
     // "finished grove looks like a seed" symptom this leaf fixes.
-    let before = RepoView::scan(repo.path()).unwrap();
-    let seed = before
-        .groves()
-        .iter()
-        .find(|g| g.name == "done-grove")
-        .unwrap();
-    assert_eq!(
-        seed.lifecycle,
-        Lifecycle::Seed,
-        "precondition: orphaned inbox shows as seed"
+    let inbox_dir = repo.path().join(".grove-meta/inboxes/done-grove");
+    assert!(
+        inbox_dir.is_dir(),
+        "precondition: orphaned inbox dir present (the seed symptom)"
     );
 
     inboxes::remove(repo.path(), "done-grove").unwrap();
 
-    let after = RepoView::scan(repo.path()).unwrap();
     assert!(
-        after.groves().iter().all(|g| g.name != "done-grove"),
-        "a finished grove must not appear as a seed after inbox removal: {:?}",
-        after.groves().iter().map(|g| &g.name).collect::<Vec<_>>()
+        !inbox_dir.exists(),
+        "a finished grove's inbox dir must be gone after removal: {inbox_dir:?}"
     );
 }
 

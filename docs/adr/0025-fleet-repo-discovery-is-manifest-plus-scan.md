@@ -1,9 +1,16 @@
 # 25. Fleet repo discovery is a manifest file plus optional scan roots
 
-- Status: accepted — **survives untouched** under the rmux substrate
-  ([ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4):
-  fleet repo discovery lives **below** the presentation boundary (it feeds
-  `MultiRepoView`), so the substrate swap does not touch it. Not superseded.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: accepted —
+  **survived untouched** under the rmux substrate,
+  [ADR-0028](0028-rmux-substrate.md) / [ADR-0030](0030-grove-bundles-a-from-source-stock-rmux-daemon.md) §4:
+  fleet repo discovery lived **below** the presentation boundary, feeding
+  `MultiRepoView`, so the substrate swap did not touch it.)
 - Date: 2026-06-04
 - Deciders: Antony Blakey (with grove 070 fleet-view planning)
 - Builds on: ADR-0013 (presentation boundary — discovery lives below it, feeding

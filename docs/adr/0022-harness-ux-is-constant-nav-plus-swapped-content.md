@@ -1,8 +1,15 @@
 # 22. Harness UX is a constant nav + a swapped content region (no tab-per-grove)
 
-- Status: accepted — **mechanism superseded by [ADR-0028](0028-rmux-substrate.md);
-  UX intent survives** (rmux substrate, 2026-06-10, 070-teardown D4; per the
-  050-plan-rebuild/050-working-set verdict)
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: accepted —
+  **mechanism superseded by [ADR-0028](0028-rmux-substrate.md); UX intent survives**,
+  rmux substrate, 2026-06-10, 070-teardown D4; per the 050-plan-rebuild/050-working-set
+  verdict.)
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/130 decompose)
 - Supersedes: the **tab-per-grove realisation** of ADR-0018 (grove = zellij tab,

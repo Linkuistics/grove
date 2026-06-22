@@ -1,11 +1,18 @@
 # 28. The TUI substrate is rmux: grove owns its draw loop and embeds panes (inversion)
 
-- Status: **accepted** (drafted in 030-engine/010-draw-loop-pane, finalized in
-  030-engine/040-capture-modal per D4: the landmark ADR is authored *within* the
-  engine leaves, not as a separate leaf). Accepted now because the engine
-  milestone is demonstrated end-to-end — a harness pane renders + takes input, a
-  minimal nav lists/opens groves, and the **centered capture modal works over the
-  live pane** (the motivating bug, fixed; verified headlessly).
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: **accepted**,
+  drafted in 030-engine/010-draw-loop-pane, finalized in 030-engine/040-capture-modal
+  per D4: the landmark ADR is authored *within* the engine leaves, not as a separate
+  leaf. Accepted then because the engine milestone was demonstrated end-to-end — a
+  harness pane renders + takes input, a minimal nav lists/opens groves, and the
+  **centered capture modal works over the live pane**, the motivating bug, fixed;
+  verified headlessly.)
 - Date: 2026-06-08
 - Deciders: Antony Blakey (with grove `rmux-substrate` 010-plan + 030-engine)
 - Supersedes (at the thesis level — the per-ADR `Superseded` marking sweep is the

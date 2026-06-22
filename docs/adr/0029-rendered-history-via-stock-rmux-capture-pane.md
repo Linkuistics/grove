@@ -1,6 +1,12 @@
 # 29. Rendered history via stock `rmux capture-pane` (D7 fork abandoned)
 
-- Status: **accepted**
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record.
 - Date: 2026-06-08
 - Deciders: Antony Blakey (with grove `rmux-substrate` 040-rmux-history)
 - Amends: ADR-0028 (rmux substrate) — extends E1's shell-out-below-the-seam idiom to

@@ -211,7 +211,7 @@ confirmation, run:
    triage — at finish the dispositions narrow to **re-seed elsewhere** or
    **reject**, since there is no later leaf to defer to — and finalize). Then
    `grove-llm inbox-remove --for=<name>` removes `inboxes/<name>/` so the
-   finished grove stops showing as a **Seed** in `grove status` / the TUI. The
+   finished grove stops showing as a **Seed** in `grove status`. The
    verb **refuses** while any observation is still pending — a stray un-triaged
    one stops the cycle rather than being silently deleted — and is a no-op when
    the grove was never seeded.

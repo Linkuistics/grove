@@ -1,9 +1,15 @@
 # 21. trellis hosting-API is library-you-link (grove owns `main`)
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — there is no trellis hosting API to link: grove
-  owns `main` and its own ratatui draw loop, and rmux (a separate daemon) owns
-  the ptys. Premise + mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 —
+  there is no trellis hosting API to link: grove owns `main` and its own ratatui draw
+  loop, and rmux, a separate daemon, owns the ptys. Premise + mechanism gone.)
 - Date: 2026-06-03
 - Deciders: Antony Blakey (with grove 060/040/100/030 spike)
 - Builds on: ADR-0020 (deep hard fork; this resolves the hosting-API shape that

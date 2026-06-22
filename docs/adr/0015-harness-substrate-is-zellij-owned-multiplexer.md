@@ -1,9 +1,15 @@
 # 15. Harness/presentation substrate is a grove-owned zellij multiplexer
 
-- Status: **superseded by [ADR-0028](0028-rmux-substrate.md)** (rmux substrate,
-  2026-06-10, 070-teardown D4) — the grove-owned zellij multiplexer is replaced
-  wholesale: under rmux a separate daemon owns the ptys and grove owns its own
-  ratatui draw loop. Premise + mechanism gone.
+- Status: **superseded** (was accepted) — Superseded by
+  [ADR-0031](0031-shed-machinery-keep-self-extension-core-and-methodology.md) (grove
+  sheds its machinery to a self-extension core) and
+  [ADR-0032](0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md) (the loop
+  substrate is a self-driving shell loop). The rmux/ratatui TUI + Fleet tower this ADR
+  belongs to is **deleted** in leaf `080-shed-tui`; its runtime lives only in git
+  history. The decision is retained here as record. (Prior status: superseded by
+  [ADR-0028](0028-rmux-substrate.md), rmux substrate, 2026-06-10, 070-teardown D4 — the
+  grove-owned zellij multiplexer was replaced wholesale: under rmux a separate daemon
+  owns the ptys and grove owns its own ratatui draw loop. Premise + mechanism gone.)
 - Date: 2026-05-31
 - Deciders: Antony Blakey (with grove spike 060/020)
 - Supersedes: ADR-0014 (in-process pty embed)

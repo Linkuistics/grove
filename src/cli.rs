@@ -47,21 +47,6 @@ pub enum Command {
     Inbox(InboxArgs),
     /// Manage the `grove-meta` branch (init, remote, sync).
     Meta(MetaArgs),
-    /// Launch the grove dashboard — a ratatui app on the rmux substrate (grove
-    /// `rmux-substrate`, ADR-0028) that embeds one live harness pane. 020-engine
-    /// scope: the pane renders + takes input through grove's leader-gated focus
-    /// model — type into it as a normal terminal; the leader (`Alt-g` by default,
-    /// set `leader` in `~/.config/grove/tui.toml`) reaches grove's nav/capture
-    /// surfaces (stubs this leaf). Real nav/capture-modal arrive in 030/040.
-    Tui(TuiArgs),
-}
-
-#[derive(Parser)]
-pub struct TuiArgs {
-    /// Additive fleet repo root (ADR-0027 §2). Repeatable — `--repo .
-    /// --repo ../other`. With none given, the cwd's repo is used.
-    #[arg(long = "repo")]
-    pub repo: Vec<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -331,6 +316,5 @@ pub fn run() -> anyhow::Result<()> {
             InboxCommand::Show(a) => crate::inboxes::cmd_show(&a),
         },
         Command::Meta(args) => crate::meta::run(&args),
-        Command::Tui(args) => crate::tui::run(&args),
     }
 }

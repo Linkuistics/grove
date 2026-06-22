@@ -279,6 +279,4 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
-- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `takeover.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
-- `VERSION.md` — which grove version this is and how to update it (present only
-  in a materialised copy; written by the materialise script).
+- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.

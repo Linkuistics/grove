@@ -29,8 +29,6 @@ pub enum Command {
     /// or a missing/foreign `.grove/`. `grove do` runs this automatically on
     /// adoption; invoke it explicitly to migrate a tree by hand.
     Migrate(MigrateArgs),
-    /// Orient on an unfamiliar grove without picking a task.
-    Takeover(NameArgs),
     /// Retire a done node (promote brief, mv into done/).
     Retire(RetireArgs),
 }
@@ -79,7 +77,6 @@ pub fn run() -> anyhow::Result<()> {
     match cli.command {
         Command::Do(args) => crate::launch::do_grove(&args),
         Command::Migrate(args) => crate::migrate::run(&args),
-        Command::Takeover(args) => crate::launch::takeover(&args),
         Command::Retire(args) => crate::launch::retire(&args),
     }
 }

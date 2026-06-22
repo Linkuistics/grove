@@ -52,27 +52,27 @@ Second, grove exec'd the harness inside that worktree with grove's start prompt 
 claude -n "orders-api: add-rate-limiting grove" <prompt>
 ```
 
-— where `<prompt>` is rendered from `.claude/skills/grove/prompts/start.md` with `{{NAME}}` substituted. The session name follows the `<repo>: <name> grove` convention so groves show up identifiably in harness UIs.
+— where `<prompt>` is read from the binary-provisioned global skill at `~/.claude/skills/grove/prompts/start.md`. The session name follows the `<repo>: <name> grove` convention so groves show up identifiably in harness UIs.
 
 ## The bootstrap session
 
-The harness session that just opened is the **bootstrap session** — the first session on the new branch. It is part of the grove, but it is *not* what `grove do` itself did; the CLI's job ended at `exec_harness`. Following the start prompt, the session will:
+The harness session that just opened is the **bootstrap session** — the first session on the new branch, and the first iteration of the **self-driving loop** that `grove do` started. The CLI provisioned the global skill, created the worktree, and launched this session; from here the methodology drives, and the loop relaunches a fresh session for each subsequent task. Following the start prompt, the session will:
 
 1. Run a grilling pass on your goal, sharpening any new terminology into `CONTEXT.md` inline.
 2. Propose a root [`BRIEF.md`](../../content/BRIEF-FORMAT.md) for the grove and a small initial decomposition — usually one or two leaves, no more.
-3. Commit that brief (and any `CONTEXT.md` edits) as the first commit on the `add-rate-limiting` branch.
+3. Commit that brief (and any `CONTEXT.md` edits) as the first commit on the `add-rate-limiting` branch, then fire its completion signal so the loop relaunches into the first leaf.
 
 After the bootstrap session commits, `.grove/` looks something like:
 
 ```
 $ tree -L 1 .grove-worktrees/add-rate-limiting/.grove
 .grove-worktrees/add-rate-limiting/.grove
-├── 010-design-token-bucket.md
-├── 020-implement.md
+├── 01-design-token-bucket-k1.md
+├── 02-implement-k2.md
 └── BRIEF.md
 ```
 
-That brief and its first leaves are produced by the bootstrap session — `grove do` itself does not write a `BRIEF.md`. Keep the bootstrap planning small; the decomposition will grow as later planning tasks discover what is actually there.
+Each leaf is `NN-<slug>-k<key>.md`: a 2-digit per-level position (`01`, `02`), a slug, and a permanent key (`-k1`, `-k2`) that never changes once assigned. That brief and its first leaves are produced by the bootstrap session — `grove do` itself does not write a `BRIEF.md`. Keep the bootstrap planning small; the decomposition will grow as later planning tasks discover what is actually there.
 
 ## Variation: branching from somewhere other than origin's HEAD
 
@@ -93,7 +93,7 @@ When you want the worktree and branch but not the interactive session — for in
 ```
 $ grove do add-rate-limiting --no-launch
 Preparing worktree (new branch 'add-rate-limiting')
-HEAD is now at 1a2b3c4 Install grove v2.0.0
+HEAD is now at 1a2b3c4 Add idempotency keys to orders
 grove: worktree ready at /Users/you/code/acme/orders-api/.grove-worktrees/add-rate-limiting (no-launch)
 ```
 
@@ -114,8 +114,8 @@ $ cat .grove-stamps/add-rate-limiting
 claude
 ```
 
-Later verbs (`grove do`, `grove takeover`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos the stamp is not written — there's nothing to disambiguate.
+Later verbs (`grove do`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos the stamp is not written — there's nothing to disambiguate.
 
 ## Codex harness
 
-The flow is identical with `--harness codex`; only the exec'd binary changes. The worktree path (`.grove-worktrees/add-rate-limiting/`), branch name (`add-rate-limiting`), and session-name convention (`orders-api: add-rate-limiting grove`) are the same. The bootstrap session reads its prompt from `.codex/skills/grove/prompts/start.md` rather than `.claude/skills/grove/prompts/start.md`; the prompt body is identical.
+The flow is identical with `--harness codex`; only the exec'd binary changes. The worktree path (`.grove-worktrees/add-rate-limiting/`), branch name (`add-rate-limiting`), and session-name convention (`orders-api: add-rate-limiting grove`) are the same. The prompt is read from the same binary-provisioned global skill (`~/.claude/skills/grove/prompts/start.md`) whichever harness runs — the methodology is provisioned once, globally, not per harness.

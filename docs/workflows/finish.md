@@ -6,25 +6,24 @@ Close out a completed grove. There is no `grove finish` verb: `grove do` is the 
 
 ## Starting state
 
-We pick up where [`multi-step.md`](multi-step.md) left off, several sessions further on: every leaf under `.grove/` has now been retired, the last node has been collapsed, and only `BRIEF.md` plus a fully populated `done/` remain.
+We pick up where [`multi-step.md`](multi-step.md) left off, several sessions further on: every leaf under `.grove/` has now been retired in place (each carries a `DONE` infix), and the design node's brief has been promoted upward. The tree still shows its full shape — done-ness and all — because nothing was moved into a separate folder.
 
 ```
 $ cd acme/orders-api/.grove-worktrees/add-rate-limiting
 $ tree .grove
 .grove
-├── BRIEF.md
-└── done
-    ├── 010-spike-token-bucket.md
-    ├── 020-design-token-bucket
-    │   ├── 010-record-policy-adr.md
-    │   └── BRIEF.md
-    └── 030-implement.md
+├── 01-DONE-spike-token-bucket-k1.md
+├── 02-design-token-bucket-k2
+│   ├── 01-DONE-record-policy-adr-k4.md
+│   └── BRIEF.md
+├── 03-DONE-implement-k3.md
+└── BRIEF.md
 
 $ git log --oneline -5
-a9b8c7d chore(grove): retire 030-implement
+a9b8c7d chore(grove): retire implement-k3
 8e7d6c5 feat(rate-limit): wire token-bucket middleware
-e1d0c9b chore(grove): retire 020-design-token-bucket — promote design intent
-b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
+e1d0c9b chore(grove): retire design-token-bucket-k2 — promote design intent into root brief
+b2a1d9c chore(grove): retire record-policy-adr-k4
 3e2f1a0 docs(adr): 0002 token-bucket policy
 ```
 
@@ -75,7 +74,7 @@ The session commits the promotion(s) as one or more focused commits before movin
 ```
 $ git log --oneline -2
 4f3e2d1 docs: record rate-limiting design intent in docs/specs/rate-limiting.md
-a9b8c7d chore(grove): retire 030-implement
+a9b8c7d chore(grove): retire implement-k3
 ```
 
 If `.grove/` carried nothing worth promoting (a small grove whose conclusions were entirely captured in its commits and ADRs as it went), this step produces no commits at all — just an explicit check that nothing was left behind. Because promotion is normal reviewable work, it happens *before* the confirmation gate: the diff is there to inspect when you decide whether to proceed.
@@ -138,10 +137,10 @@ After a fast-forward merge, the grove's history appears on the default branch as
 $ git -C ~/code/acme/orders-api log --oneline main -8
 b6a5f4e chore: remove grove scaffolding
 4f3e2d1 docs: record rate-limiting design intent in docs/specs/rate-limiting.md
-a9b8c7d chore(grove): retire 030-implement
+a9b8c7d chore(grove): retire implement-k3
 8e7d6c5 feat(rate-limit): wire token-bucket middleware
-e1d0c9b chore(grove): retire 020-design-token-bucket — promote design intent
-b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
+e1d0c9b chore(grove): retire design-token-bucket-k2 — promote design intent into root brief
+b2a1d9c chore(grove): retire record-policy-adr-k4
 3e2f1a0 docs(adr): 0002 token-bucket policy
 2c4d5e6 Bootstrap add-rate-limiting: root brief + initial leaves
 ```
@@ -197,4 +196,4 @@ The grove is gone. Its durable output — code, ADRs, design docs, glossary entr
 
 ## Codex harness
 
-Identical flow. Finishing is an in-session step driven by the same methodology, so there is no per-harness finish prompt to differ — the Codex session reads its loop from `.codex/skills/grove/SKILL.md` rather than `.claude/skills/grove/SKILL.md`, and the body is identical. The trigger (empty `grove-llm pick`), the five steps, the single confirmation gate, the plain merge, and the post-finish state of the default branch are all the same.
+Identical flow. Finishing is an in-session step driven by the same methodology, so there is no per-harness finish prompt to differ — every session reads its loop from the one binary-provisioned global skill (`~/.claude/skills/grove/SKILL.md`) whichever harness runs. The trigger (empty `grove-llm pick`), the five steps, the single confirmation gate, the plain merge, and the post-finish state of the default branch are all the same.

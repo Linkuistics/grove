@@ -28,7 +28,7 @@ When a project splits into multiple **[bounded contexts](concepts.md#bounded-con
 
 Artifacts are **lazy and optional**. An [ADR](concepts.md#adr) is raised only when a decision is hard to reverse, surprising, or a real trade-off — not because a step demands one. A [PRD](concepts.md#prd) is written only at a genuine human-facing agreement point. A brief is created only when a node is needed. Nothing is produced speculatively.
 
-Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the materialised skill and `.grove/` is still a legible folder of notes.
+Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the grove skill and `.grove/` is still a legible folder of notes.
 
 grove operates under **seven constraints** — the non-negotiable rules that keep it from becoming brittle machinery. They are not restated here; see [`content/SKILL.md`](../content/SKILL.md) for the list and their rationale.
 
@@ -43,45 +43,30 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-This puts the `grove` command on `$PATH`. It is not yet wired into any project — that's what `grove install` does, below.
+That is the whole installation. The `grove` binary **embeds its full methodology** — `SKILL.md`, the format references, the grilling and driving guides, the launcher prompts — and provisions it to your **personal** global skill directory, `~/.claude/skills/grove/`, on the first `grove do`. The extraction is idempotent against a content-hash stamp and re-runs only when the binary changes, so the skill an agent reads can never drift from the installed binary (ADR-0031/0034). There is no per-repo install step, no files to commit into a consuming repo, and nothing to keep in sync; `grove --version` reports the binary's version, and the methodology version *is* the binary version.
 
-### grove is materialised into each repo, not installed globally as a skill
-
-`grove` the CLI is global, but the methodology files it operates on — `SKILL.md`, the format references, the prompt templates — are copied into each consuming repo's harness directory (`.claude/skills/grove/` for Claude Code, `.codex/skills/grove/` for Codex). This is **materialisation**, not installation, and the distinction is deliberate.
-
-A project with many concurrent, long-lived workstreams needs each to be reproducible across its many sessions — and different projects need to pin different grove methodology versions independently. A globally-installed skill is one version per machine; it cannot satisfy that. Per-project materialisation gives offline reproducibility, version pinning to the project's own git history, and no runtime dependency on an external installer. The pin *is* the project's own git history; `git log .claude/skills/grove/` is the update history.
-
-From a project repo:
-
-```
-grove install [<repo>]            # create or refresh the .<harness>/skills/grove/ tree (idempotent)
-grove uninstall [<repo>]          # remove it (refuses if live groves exist; --force overrides)
-grove status [<repo>]             # cli/repo/worktree versions, drift, and per-grove summary
-```
-
-`grove status` is the canonical visibility surface: it reports the CLI version, each harness's installed (`repo`) version, and every grove worktree's materialised version with drift markers — superseding the former `grove list` and `grove version` (removed in v4.0.0). For the CLI version alone, `grove --version`.
-
-All file-system verbs auto-detect the harness from the repo's `.claude/` and `.codex/` directories. In a multi-harness repo every detected harness is operated on; pass `--harness <name>` (repeatable) to target specific ones. Commit the materialised `.{claude,codex}/skills/grove/` as part of the repo — that commit is the methodology version pin.
+Provisioning to Claude Code's **personal** skill dir is deliberate: Claude Code resolves skills enterprise > personal > project, so the binary-provisioned copy takes precedence over any same-named project skill and always wins. That precedence is the reason grove does not also drop a per-repo copy — a project-local mirror would be dead, shadowed code that could only mislead a contributor into editing the wrong file. To change the methodology, edit `content/` in the grove repo and rebuild; the new binary reprovisions the global skill on its next `grove do`.
 
 ### Updating
 
-`grove install` is idempotent (ADR-0008), so refreshing is the same verb: re-run `grove install` (optionally `--version <tag>` to pin) and it updates in place when the bundled version differs, or no-ops when it matches — printing a per-harness outcome line either way. By discipline, record version bumps in an ADR (`docs/adr/`) so the update decision is traceable — `VERSION.md` only carries the current version, not the history.
+Upgrading the binary upgrades the methodology. `brew upgrade grove` installs a new binary, and the next `grove do` re-provisions the global skill from it — the content-hash stamp makes a matching skill a no-op and a changed one a refresh. There is no separate update verb and no per-project version to pin: the binary on your `$PATH` is the single source of truth.
 
 ## Driving a grove
 
-A grove lives in three places — the CLI binary (Homebrew, used from anywhere); the materialised methodology at `<repo>/.<harness>/skills/grove/`, committed as part of the repo and serving as the version pin; and the grove itself, which is a **git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>`. The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/.grove-worktrees/<name>/.grove/`, committed to the `<name>` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
+A grove lives in two places — the CLI binary (Homebrew, used from anywhere, carrying the embedded methodology it provisions to `~/.claude/skills/grove/`); and the grove itself, which is a **git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>`. The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/.grove-worktrees/<name>/.grove/`, committed to the `<name>` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
 
-Different groves in the same repo run in separate worktrees on separate branches in parallel. Worktrees all share the same committed `.<harness>/skills/grove/`, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
+Different groves in the same repo run in separate worktrees on separate branches in parallel. They all read the one binary-provisioned global skill, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
 
 If a multi-harness repo (both `.claude/` and `.codex/`) launches a grove, the CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` so later verbs know which harness this grove is bound to. Single-harness repos skip the stamp entirely.
 
 ```
 grove do <name>                   # the sole lifecycle entry verb: start a new grove, or continue an existing one
-grove takeover <name>             # orient on an unfamiliar grove without picking a task
-grove retire <name>/<node-path>   # promote brief upward, mv node into done/
+grove retire <name>/<node-path>   # promote a finished node's brief upward (its leaves stay marked done in place)
 ```
 
-`grove do` is the sole lifecycle entry verb — it inspects the grove's state and dispatches: no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch present but worktree gone → re-attach and continue. (The former `grove start` and `grove continue` are removed; `do` already covered both. Finishing is in-session — see above — so there is no `grove finish` verb.)
+`grove do` is the sole lifecycle entry verb — it inspects the grove's state and dispatches: no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch present but worktree gone → re-attach and continue. (The former `grove start` and `grove continue` are removed; `do` already covered both. Finishing is in-session — see above — so there is no `grove finish` verb.) If the grove's `.grove/` is still in an older on-disk format, `grove do` migrates it to the current directory scheme first — one reviewable, committed change — before driving (ADR-0034).
+
+Once driving, `grove do` runs the **self-driving loop** (ADR-0032): it launches a fresh, clean-context session per task and relaunches automatically each time a session fires its completion signal (`grove-llm complete`), walking the tree until no live leaf is left — at which point the loop proposes the in-session finish cycle. Any non-signalling exit — your `/exit`, a Ctrl-C, or a crash — stops the loop; re-running `grove do <name>` resumes it, because the loop holds no state of its own and re-derives its position from the tree each iteration.
 
 Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (set up the worktree but skip exec'ing the harness — useful for inspection or scripting). On a brand-new grove `grove do` also takes `--start-point <ref>` to branch from somewhere other than origin's HEAD.
 
@@ -91,21 +76,19 @@ For end-to-end walkthroughs of each verb in context, see [`workflows/`](workflow
 
 ### What each verb tells the harness
 
-The CLI doesn't gate or enforce — it composes a prompt and execs the harness in the worktree. The prompts are in `content/prompts/*.md` in this repo and live in `.<harness>/skills/grove/prompts/` after materialisation:
+The CLI doesn't gate or enforce — it composes a prompt and execs the harness in the worktree. The prompts are in `content/prompts/*.md` in the grove repo, ship inside the binary, and are provisioned to `~/.claude/skills/grove/prompts/`:
 
 - `start` — grill on the goal, sharpen new terminology into `CONTEXT.md` inline, propose the root `BRIEF.md` and one or two initial leaves. Don't over-plan.
-- `continue` — pick the next live leaf depth-first, bootstrap by reading, execute, commit, judge retirement.
-- `takeover` — read `CONTEXT.md`, the root `BRIEF.md`, skim recent activity. Report state; don't pick a task.
-- `retire` — promote anything still relevant from the node's `BRIEF.md` upward, `mv` the subtree into `done/`.
-- `finish` — promote anything from the grove's briefs that should outlive the grove, merge per project convention, remove the worktree, delete the branch.
+- `continue` — pick the next live leaf depth-first, bootstrap by reading, execute, commit, signal completion, judge retirement. This is the per-task prompt the self-driving loop relaunches.
+- `retire` — promote anything still relevant from the node's `BRIEF.md` upward; its leaves stay marked done in place, so nothing moves.
 
-You can edit those prompts in a materialised repo to taste — grove guides, it does not gate. Anything you can do via a verb you can also do by launching the harness by hand inside the worktree and giving it a free-form prompt.
+There is no `finish` prompt: finishing is an in-session step of the loop, not a launched verb — the running session proposes the finish cycle when `pick` comes up empty. To change any prompt or the methodology, edit `content/` and rebuild; grove guides, it does not gate. Anything you can do via a verb you can also do by launching the harness by hand inside the worktree and giving it a free-form prompt.
 
 ### Steering a planning session
 
 A planning session opens with a grilling — the LLM asks one question at a time, walks down a design tree, and sharpens vocabulary as it goes. The user's job is not to anticipate the agenda but to **redirect it as concerns surface**. Most planning sessions of any depth end up touching subjects neither party started with: a name that lies about its scope, a sync semantics that was silently assumed, a class of failure modes that prior tools have already mapped. These concerns rarely arrive in the order the LLM is grilling them, and they should not wait — the cost of capturing a foundational concern mid-session is one renumber; the cost of capturing it later is a migration.
 
-The pattern the methodology is built around: **new concerns are captured as leaves at the moment they surface**. The planning task that was originally `050-x` may end up renumbered to `070-x` (or further) as foundational concerns are inserted ahead of it, while still being the leaf that gets picked when its turn comes. The numeric prefixes carry the *resolved* dependency order, not the order in which concerns came up. The parent `BRIEF.md`'s notes section records why each insertion happened; that is the durable audit trail, and it is the place future readers go to understand the shape.
+The pattern the methodology is built around: **new concerns are captured as leaves at the moment they surface**. The planning task that was originally `05-x-k12` may end up renumbered to `07-x-k12` (or further) as foundational concerns are inserted ahead of it, while still being the leaf that gets picked when its turn comes. The per-level position numbers carry the *resolved* dependency order, not the order in which concerns came up — and each leaf's permanent `-k<key>` rides through every renumber unchanged, so references stay valid. The parent `BRIEF.md`'s notes section records why each insertion happened; that is the durable audit trail, and it is the place future readers go to understand the shape.
 
 Three directions worth giving explicitly during planning:
 
@@ -119,7 +102,7 @@ For a longer field guide on driving grove well — when to commission prior-art 
 
 ### One-off and exploratory use
 
-There is no global, ambient grove — a globally-installed skill would conflict with the per-project materialised copy and re-introduce the drift problem grove exists to prevent. Even for a single short workstream, run `grove install` in the target repo. The cost is one command and one commit; the benefit is that the experiment is still reproducible weeks later. If the work truly does not warrant a commit, run it freeform without grove at all — that is a more honest choice than a globally-unpinned grove.
+There is no per-repo install gesture to skip: the binary already carries the methodology and provisions it globally, so `grove do <name>` is all it takes to start even a single short workstream. The cost is one command; the benefit is that the experiment runs under the same loop and leaves the same legible `.grove/` notes as any other grove. If the work truly does not warrant a worktree and a branch, run the harness freeform without grove at all — that is a more honest choice than bending grove around a task too small for it.
 
 ## License
 

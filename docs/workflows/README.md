@@ -5,7 +5,7 @@ End-to-end, per-verb walks through grove's main flows: each shows the command(s)
 ## The three flows
 
 1. [**`start.md`**](start.md) — open a new grove with `grove do` (its new-grove path): worktree creation, branching, the harness exec, and the bootstrap session that writes the root `BRIEF.md`.
-2. [**`multi-step.md`**](multi-step.md) — the inner loop across several sessions: `grove do` cadence, leaf-vs-node retirement, the manual `grove retire <name>/<node-path>` verb, and `grove takeover` for orientation.
+2. [**`multi-step.md`**](multi-step.md) — the inner loop across several sessions: the single-`grove do` self-driving loop, leaf-vs-node retirement, and the manual `grove retire <name>/<node-path>` verb.
 3. [**`finish.md`**](finish.md) — close out a completed grove: the **in-session** complete finish cycle (there is no `grove finish` verb) — triggered by an empty `grove-llm pick`, gated by one confirmation, it promotes durable content out of `.grove/`, deletes the scaffolding, merges to the default branch, and removes the worktree and branch.
 
 There is no install walkthrough: `brew install grove` is the whole installation, and the binary provisions its embedded methodology to the global skill dir on the first `grove do` (see [`../../README.md`](../../README.md)).
@@ -18,7 +18,7 @@ Terms used across these pages are defined in [`../../CONTEXT.md`](../../CONTEXT.
 
 ## What's not here
 
-`grove takeover` and `grove retire` *are* walked through, but as subsections of [`multi-step.md`](multi-step.md), because they live inside the inner-loop flow rather than constituting a flow of their own. For the flag surface of every verb, see [`../../README.md`](../../README.md) and `grove --help`.
+`grove retire` *is* walked through, but as a subsection of [`multi-step.md`](multi-step.md), because it lives inside the inner-loop flow rather than constituting a flow of its own. For the flag surface of every verb, see [`../../README.md`](../../README.md) and `grove --help`.
 
 ## House style (for editors and new walkthrough authors)
 

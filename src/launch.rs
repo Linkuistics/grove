@@ -92,10 +92,6 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     crate::loop_driver::run(harness, &repo_path, &worktree, &args.name)
 }
 
-pub fn takeover(args: &NameArgs) -> Result<()> {
-    launch_existing(args, "takeover")
-}
-
 fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
     let repo_path = repo::resolve(None)?;
     let harness =

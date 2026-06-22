@@ -1,6 +1,6 @@
 # Multi-step grove — walkthrough
 
-The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through four sessions: a work leaf, a planning leaf that grew the tree, a work leaf inside the new subtree, and a `grove retire` invocation that collapsed the completed subtree into `.grove/done/`.
+The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through four sessions — a work leaf, a planning leaf that grew the tree, a work leaf inside the new subtree, and the implementation leaf — all driven automatically by a **single `grove do`**, plus one out-of-band `grove retire` to promote a completed subtree's brief upward.
 
 > This page is about driving the **grove CLI** through the inner loop. For *what the loop is and why*, see [`../../content/SKILL.md`](../../content/SKILL.md); for *how a single session conducts itself*, follow the SKILL file. This walkthrough shows the **CLI cadence and the on-disk evolution** — not session-internal UX.
 
@@ -10,154 +10,125 @@ The sequence below is one plausible shape, not a template. Real groves vary: a g
 
 ## Starting state
 
-We pick up where [`start.md`](start.md) left off. The bootstrap session has committed a root `BRIEF.md` and two initial leaves:
+We pick up where [`start.md`](start.md) left off. The bootstrap session has committed a root `BRIEF.md` and — for this walkthrough — three initial leaves (imagine the bootstrap had emitted a quick spike ahead of the design):
 
 ```
 $ cd acme/orders-api/.grove-worktrees/add-rate-limiting
 $ tree .grove
 .grove
-├── 010-design-token-bucket.md
-├── 020-implement.md
+├── 01-spike-token-bucket-k1.md
+├── 02-design-token-bucket-k2.md
+├── 03-implement-k3.md
 └── BRIEF.md
 
 $ git log --oneline
 2c4d5e6 Bootstrap add-rate-limiting: root brief + initial leaves
-1a2b3c4 Install grove v2.0.0
+1a2b3c4 Add idempotency keys to orders
 ```
 
-`010-design-token-bucket.md` is a **planning** leaf — the bootstrap session declared the design open enough that the next move is to grill, not to code. `020-implement.md` is a **work** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further.
+`01-spike-token-bucket-k1.md` is a **work** leaf — a quick experimental spike. `02-design-token-bucket-k2.md` is a **planning** leaf: the bootstrap session declared the design open enough that the move is to grill, not to code. `03-implement-k3.md` is a **work** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further. Each name is `NN-<slug>-k<key>`: the `NN` is the per-level position (the sort order), and the trailing `-k<key>` is the permanent identity that never changes — not under renumber, not under a slug edit.
 
-For this walkthrough we'll insert a deliberately small work leaf ahead of the planning task — a quick spike. Imagine the bootstrap session had emitted `010-spike-token-bucket.md` (work), `020-design-token-bucket.md` (planning), `030-implement.md` (work). The shape doesn't matter; the cadence does.
-
-## Session 1: resume on a work leaf
+## One `grove do` drives the whole loop
 
 ```
 $ grove do add-rate-limiting
 ```
 
-The harness opens in the worktree with grove's continue prompt. It picks the first live leaf depth-first — `010-spike-token-bucket.md` — reads `CONTEXT.md`, the root `BRIEF.md`, and the leaf itself, and gets to work. The session produces a small experimental implementation under `src/`, commits it as one focused commit, and retires the leaf by moving it into `.grove/done/`.
+That single command drives the **self-driving loop** (ADR-0032), not one task. It launches a fresh, clean-context session on the first live leaf; when that session finishes its task and fires `grove-llm complete` as its last step, the loop relaunches a new session on the *next* live leaf — and so on until `grove-llm pick` comes up empty. You run `grove do` once and watch the tree drain.
 
-### `grove do` is just a launcher — three equivalent ways to drive a task
+The CLI's role is small: it provisions the global skill, exec's a fresh harness session pre-named `<repo>: <name> grove` with the continue prompt, and relaunches on each completion signal. The methodology is in the prompt, not the binary. A session that exits *without* signalling — your `/exit`, a Ctrl-C, a crash — **stops** the loop instead of relaunching; re-running `grove do add-rate-limiting` resumes from wherever the tree stands, because the loop keeps no state of its own and re-derives its position from `pick` every iteration (restart ≡ continuation).
 
-The CLI does one thing: exec a fresh harness session in the worktree, pre-named `<repo>: <name> grove`, with `prompts/continue.md` (a one-line "Do the next task in .grove/…") as the first prompt. The methodology is in the prompt, not the binary. That means there are three equivalent ways to drive the next task once a grove is running:
+The sections below trace the loop's iterations one at a time, showing how each kind of session moves the tree on disk.
 
-- **`grove do add-rate-limiting`** — what we just ran. Always a fresh session, always pre-named, always fed the continue prompt. The canonical move.
-- **Keep going in an open session.** If a session is already running in the worktree (often the one `grove do` opened, or one from a prior `grove do` you never closed), the next task is just the same continue prompt again. In Claude Code that's a single up-arrow — the harness's command history recalls your last prompt; re-typing or re-pasting is rarely necessary. No new exec is needed; the harness history carries forward and the session keeps its name. The trade-off is context bleed: the prior task's working memory is still in the session, which is occasionally useful and occasionally noise.
-- **`/clear` then re-prompt.** In an existing harness session, `/clear` (Claude Code) wipes the context window to give you the fresh-session benefit without spawning a new one. Up-arrow again to recall the continue prompt. *Gotcha:* `/clear` also clears the session name — the `<repo>: <name> grove` label is gone until you re-set it with `/rename`. Sessions still show up identifiably in `grove do` invocations, just not in the one you `/clear`-ed.
+## Iteration 1: a work leaf
 
-The rest of this walkthrough writes `grove do add-rate-limiting` for clarity, but read it as "run the continue prompt by whichever of the three routes suits you."
+The loop's first session picks the first live leaf depth-first — `01-spike-token-bucket-k1.md` — reads `CONTEXT.md`, the root `BRIEF.md`, and the leaf itself, and gets to work. It produces a small experimental implementation under `src/`, commits it as one focused commit, retires the leaf **in place** by adding a `DONE` infix, and fires its completion signal:
 
 ```
 $ tree .grove
 .grove
-├── 020-design-token-bucket.md
-├── 030-implement.md
-├── BRIEF.md
-└── done
-    └── 010-spike-token-bucket.md
+├── 01-DONE-spike-token-bucket-k1.md
+├── 02-design-token-bucket-k2.md
+├── 03-implement-k3.md
+└── BRIEF.md
 
 $ git log --oneline -3
-9f8e7d6 chore(grove): retire 010-spike-token-bucket
+9f8e7d6 chore(grove): retire spike-token-bucket-k1
 6a5b4c3 feat(rate-limit): spike token-bucket counter
 2c4d5e6 Bootstrap add-rate-limiting: root brief + initial leaves
 ```
 
-Two commits per session is grove's usual rhythm when retirement is a clean rename — the deliverable (`feat: spike ...`) and the housekeeping (`chore(grove): retire ...`) are separable concerns, so they get separable commits.
+Retirement is a rename **in place** — `01-spike-token-bucket-k1.md` → `01-DONE-spike-token-bucket-k1.md` — not a move into a separate folder. The leaf keeps its position (`01`) and key (`-k1`); the `DONE` infix right after the position is what `pick` skips. So `ls .grove` always shows the *complete* state, done leaves included, with zero file reads.
 
-## Session 2: resume on a planning leaf
+Two commits per session is grove's usual rhythm — the deliverable (`feat: spike …`) and the housekeeping (`chore(grove): retire …`) are separable concerns, so they get separable commits. Note the naming convention in the housekeeping subject: a work item is named by its stable `<slug>-k<key>` handle (`spike-token-bucket-k1`), never by its mutable position or path (ADR-0035 §5).
 
-```
-$ grove do add-rate-limiting
-```
+## Iteration 2: a planning leaf grows the tree
 
-This time the first live leaf is `020-design-token-bucket.md`, marked **Kind: planning**. The continue prompt is the same; the leaf's kind tells the session to open with a grilling pass before doing anything else. Through the grilling, the session sharpens any new terminology into `CONTEXT.md` inline, decides the design is too big for one focused session, and **grows the tree**: the leaf is replaced by a node directory containing its own `BRIEF.md` and one or more ordered child leaves.
+The loop relaunches. The first live leaf is now `02-design-token-bucket-k2.md`, marked **Kind: planning**. The continue prompt is the same; the leaf's kind tells the session to open with a grilling pass before doing anything else. Through the grilling, the session sharpens any new terminology into `CONTEXT.md` inline, decides the design is too big for one focused session, and **grows the tree**: the leaf is *decomposed* into a node — its file becomes a **directory** holding its own `BRIEF.md` and one or more ordered child leaves.
 
 ```
 $ tree .grove
 .grove
-├── 020-design-token-bucket
-│   ├── 010-record-policy-adr.md
+├── 01-DONE-spike-token-bucket-k1.md
+├── 02-design-token-bucket-k2
+│   ├── 01-record-policy-adr-k4.md
 │   └── BRIEF.md
-├── 030-implement.md
-├── BRIEF.md
-└── done
-    └── 010-spike-token-bucket.md
+├── 03-implement-k3.md
+└── BRIEF.md
 
 $ git log --oneline -1
-4d3c2b1 plan(rate-limit): decompose token-bucket design into one ADR leaf
+4d3c2b1 plan(rate-limit): decompose design-token-bucket-k2 into one ADR leaf
 ```
 
-Note what *didn't* happen: the planning session did not retire anything. The original `020-design-token-bucket.md` file did not move to `done/`; it became a directory in place. The leaf-to-node promotion is `git mv` (path-wise) but semantically it is *replacement*, not retirement. The completed planning work is the new node's `BRIEF.md`; the leaf existed only to license the planning effort.
+Note what *didn't* happen: the planning session did not retire anything. The leaf `02-design-token-bucket-k2.md` became the directory `02-design-token-bucket-k2/` **in place** — same position, same key. The leaf-to-node promotion is a `git mv` (file → directory), but semantically it is *replacement*, not retirement: the completed planning work is the new node's `BRIEF.md`, and the leaf existed only to license the planning effort. The node keeps the planning leaf's key (`-k2`); its first child gets a fresh key (`-k4` — the next free key in the tree, since `-k3` already belongs to `03-implement`).
 
-## Session 3: resume on a leaf inside the new subtree
+## Iteration 3: a leaf inside the new subtree
 
-```
-$ grove do add-rate-limiting
-```
-
-Depth-first pick descends into the new node and lands on `020-design-token-bucket/010-record-policy-adr.md` — a work leaf. The session reads the ancestor briefs (root → `020-design-token-bucket/BRIEF.md`) plus the leaf, authors `docs/adr/0002-token-bucket-policy.md`, commits it, and retires the leaf:
+The loop relaunches, and the depth-first pick descends into the new node, landing on `02-design-token-bucket-k2/01-record-policy-adr-k4.md` — a work leaf. The session reads the ancestor briefs (root `BRIEF.md` → `02-design-token-bucket-k2/BRIEF.md`) plus the leaf, authors `docs/adr/0002-token-bucket-policy.md`, commits it, and retires the leaf in place:
 
 ```
 $ tree .grove
 .grove
-├── 020-design-token-bucket
+├── 01-DONE-spike-token-bucket-k1.md
+├── 02-design-token-bucket-k2
+│   ├── 01-DONE-record-policy-adr-k4.md
 │   └── BRIEF.md
-├── 030-implement.md
-├── BRIEF.md
-└── done
-    ├── 010-spike-token-bucket.md
-    └── 020-design-token-bucket
-        └── 010-record-policy-adr.md
+├── 03-implement-k3.md
+└── BRIEF.md
 
 $ git log --oneline -3
-b2a1d9c chore(grove): retire 020-design-token-bucket/010-record-policy-adr
+b2a1d9c chore(grove): retire record-policy-adr-k4
 3e2f1a0 docs(adr): 0002 token-bucket policy
-4d3c2b1 plan(rate-limit): decompose token-bucket design into one ADR leaf
+4d3c2b1 plan(rate-limit): decompose design-token-bucket-k2 into one ADR leaf
 ```
 
-Two things to notice. First, `.grove/done/` mirrors the live tree's shape — retired leaves keep their `<node>/<leaf>` relative paths, so a future reader can see *where* each completed leaf belonged. Second, `020-design-token-bucket/` now contains only its `BRIEF.md` — the node's last live leaf is gone. The grove is at the cusp of node-level retirement.
+Two things to notice. First, the retired leaf stays exactly where it lived — `02-design-token-bucket-k2/01-DONE-record-policy-adr-k4.md` — marked with the `DONE` infix, so the tree shows *where* each completed leaf belonged without any parallel shadow tree. Second, `02-design-token-bucket-k2/` now has no live leaf: its only child is done. The node is **implicitly** done — a brief is context, not a task, so a node is never marked `DONE`; its done-ness *is* the absence of any live leaf in its subtree.
 
 ## A node-level retirement is asked, not assumed
 
-When `020-design-token-bucket/`'s last live leaf retired, the *judge retirement* step at the end of session 3 walked the parent chain, noticed the node was empty, and **asked the user** before retiring it — a confirmation gives them a moment to add a follow-up leaf if the node is not actually done. In this walkthrough, the user said *not yet* and ended the session. Node-level retirement is deliberate, not automatic — grove guides, it does not gate.
+When `02-design-token-bucket-k2/`'s last live leaf retired, the session's *judge retirement* step walked the parent chain, noticed the node had no live leaf left, and **asked the user** before treating it as done — a confirmation gives them a moment to add a follow-up leaf if the node is not actually finished. In this walkthrough the user said *not yet*, so the session fired its completion signal and the loop moved on to `03-implement-k3.md`. Node-level retirement is deliberate, not automatic — grove guides, it does not gate.
 
-To retire the node later — or whenever a prior session forgot to ask — the user runs `grove retire`:
-
-```
-$ grove retire add-rate-limiting/020-design-token-bucket
-```
-
-`grove retire` launches a focused harness session in the worktree with a prompt that does exactly two things: promote anything still relevant from the node's `BRIEF.md` upward (to the parent brief, an ADR, or the glossary), then `mv` the subtree into `done/` preserving its relative path. One focused commit. (Inside a regular `grove do` session, the same prompt path runs implicitly when the user confirms the asked retirement, and the same cascade continues up the parent chain.)
+Retiring a node moves nothing on disk (there is no `done/` to move into): its leaves are already marked done in place, and its `BRIEF.md` stays where it is. What retirement *does* is **promote** anything from the node's brief that future siblings should still see — up to the parent brief, an ADR, or the glossary — so it stays in the brief chain after the node goes quiet. To do that out of band — or whenever a prior session forgot to ask — the user runs `grove retire`:
 
 ```
-$ tree .grove
-.grove
-├── 030-implement.md
-├── BRIEF.md
-└── done
-    ├── 010-spike-token-bucket.md
-    └── 020-design-token-bucket
-        ├── BRIEF.md
-        └── 010-record-policy-adr.md
+$ grove retire add-rate-limiting/02-design-token-bucket-k2
+```
 
+`grove retire` launches a focused harness session whose prompt does exactly that: promote anything still relevant from the node's `BRIEF.md` upward (to the parent brief, an ADR, or the glossary), in one focused commit. The node directory and its `DONE` leaf stay put.
+
+```
 $ git log --oneline -1
-e1d0c9b chore(grove): retire 020-design-token-bucket — promote design intent into root BRIEF
+e1d0c9b chore(grove): retire design-token-bucket-k2 — promote design intent into root brief
 ```
 
-The promoted text from the node's brief is now part of an ancestor — `030-implement.md`'s next session can read it from the root `BRIEF.md` without descending into a dead subtree.
+The promoted text from the node's brief is now part of an ancestor — `03-implement-k3`'s session can read it from the root `BRIEF.md` without descending into a quiet subtree. (Inside the regular loop, the same promotion runs implicitly when the user confirms the asked retirement, and the same cascade continues up the parent chain.)
 
-If the node's `BRIEF.md` carried nothing worth promoting (the work was a tactical step whose conclusions live entirely in the code or ADR it produced), the retire session simply moves the subtree across. The discipline is to *consider* promotion, not to always perform it.
+If the node's `BRIEF.md` carried nothing worth promoting (the work was a tactical step whose conclusions live entirely in the code or ADR it produced), the retire session simply records that nothing needed promoting. The discipline is to *consider* promotion, not to always perform it.
 
-## Orienting on a grove without picking a task
+## Iteration 4: the implementation leaf
 
-Late in a grove's life — or when handing it off — it's often useful to take stock without committing to the next step. `grove takeover <name>` opens a session whose prompt explicitly says *don't pick a task*: read `CONTEXT.md`, the root `BRIEF.md`, and a recent slice of `git log -- .grove/`, then report what's done, what's open, what the next task would be, and any open questions in the briefs. Use it when picking up a grove you didn't start, or when you want a status read before deciding whether to continue, retire, or finish.
-
-```
-$ grove takeover add-rate-limiting
-```
-
-It produces no commits. If the report convinces you to keep going, run `grove do add-rate-limiting` afterward.
+The loop's next session picks `03-implement-k3.md`, wires the token-bucket middleware, commits, and retires the leaf in place (`03-DONE-implement-k3.md`). With that, every leaf is done — `grove-llm pick` comes up empty, and the loop switches from "do the next task" to proposing the **complete finish cycle**. That hand-off is the subject of [`finish.md`](finish.md).
 
 ## Codex harness
 
-The CLI surface is identical: `grove do add-rate-limiting`, `grove retire add-rate-limiting/<node-path>`, `grove takeover add-rate-limiting`. The harness exec'd is whichever was chosen at `grove do` time (recorded in `.grove-stamps/<name>` for multi-harness repos, auto-detected otherwise); the prompts are read from `.codex/skills/grove/prompts/` instead of `.claude/skills/grove/prompts/` but their content is identical. `git log` and `tree` on `.grove/` look exactly the same — the on-disk evolution is the same shape for either harness.
+The CLI surface is identical: `grove do add-rate-limiting`, `grove retire add-rate-limiting/<node-path>`. The harness exec'd is whichever was chosen at `grove do` time (recorded in `.grove-stamps/<name>` for multi-harness repos, auto-detected otherwise); the methodology and prompts come from the same binary-provisioned global skill (`~/.claude/skills/grove/`) whichever harness runs. `git log` and `tree` on `.grove/` look exactly the same — the on-disk evolution is the same shape for either harness.

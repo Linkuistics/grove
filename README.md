@@ -17,8 +17,7 @@ That is the whole installation. The `grove` binary embeds its full methodology a
 
 ```
 grove do <name>                   # the sole lifecycle entry verb: start a new grove or continue an existing one
-grove takeover <name>             # orient on an unfamiliar grove without picking a task
-grove retire <name>/<node-path>   # promote brief upward, mv node into done/
+grove retire <name>/<node-path>   # promote a finished node's brief upward (its leaves stay marked done in place)
 ```
 
 `grove do` is the **sole lifecycle entry verb**: it inspects the grove's state and dispatches — no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch exists but worktree gone → re-attach and continue. The former `grove start` and `grove continue` are removed (`do` already covered both); on a brand-new grove `do` accepts `--start-point <ref>` to branch from somewhere other than origin's HEAD. The former `grove finish` is also removed: a grove is now finished **in-session** — when it has no live leaves left, the running loop proposes the complete finish cycle (delete `.grove/`, merge to the default branch, delete the branch and worktree). See the methodology's *Finish* step.

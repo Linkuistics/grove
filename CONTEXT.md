@@ -44,7 +44,7 @@ _Avoid_: moving a retired leaf into a separate folder or list — retirement is 
 ## Flagged ambiguities
 
 **"grove"** is overloaded across this codebase. It can mean:
-1. The **CLI tool** / Rust crate published as `grove` — the verbs `do`, `migrate`, `takeover`, `retire`, etc.
+1. The **CLI tool** / Rust crate published as `grove` — the verbs `do`, `migrate`, `retire`, etc.
 2. The **methodology** embedded in `content/SKILL.md` and provisioned to the global skill dir.
 3. A single **workstream** — one named task tree under `.grove-worktrees/<name>/.grove/`. `grove do` operates on this sense.
 

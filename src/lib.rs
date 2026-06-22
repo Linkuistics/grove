@@ -1,4 +1,3 @@
-pub mod brief_chain;
 pub mod cli;
 pub mod complete;
 pub mod harness;
@@ -8,12 +7,9 @@ pub mod leaf;
 pub mod leaf_grow;
 pub mod leaf_id;
 pub mod leaf_lifecycle;
-pub mod leaf_ops;
 pub mod leaf_read;
 pub mod llm_cli;
 pub mod loop_driver;
 pub mod migrate;
-pub mod pick;
 pub mod provision;
 pub mod repo;
-pub mod root_init;

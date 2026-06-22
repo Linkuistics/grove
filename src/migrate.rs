@@ -25,7 +25,7 @@
 // The old format it consumes (read-only): a node is a directory `NNN-slug/` with
 // a `BRIEF.md` plus child leaves `NNN-slug.md`; a retired entity lives under a
 // single top-level `done/` directory whose path **mirrors the entity's live
-// path** (`leaf_ops::retire`); the root `BRIEF.md` is the unkeyed singleton. The
+// path**; the root `BRIEF.md` is the unkeyed singleton. The
 // subtle case is a **partially-retired node**: its `BRIEF.md` and some children
 // are live while sibling children sit in `done/<node>/…` — migration merges the
 // live and `done/` mirrors by logical path into one unified subtree.

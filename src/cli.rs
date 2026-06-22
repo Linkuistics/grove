@@ -14,13 +14,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Materialise grove into <repo>'s .<harness>/skills/grove/ (idempotent:
-    /// installs if absent, updates if a different version, no-ops if current).
-    Install(InstallArgs),
-    /// Remove grove from <repo>.
-    Uninstall(UninstallArgs),
-    /// Show grove install + grove tree state in <repo>.
-    Status(RepoArgs),
     /// Start or continue a grove — the sole lifecycle entry verb.
     ///
     /// Inspects the grove's state and dispatches: no grove by that name →
@@ -40,41 +33,6 @@ pub enum Command {
     Takeover(NameArgs),
     /// Retire a done node (promote brief, mv into done/).
     Retire(RetireArgs),
-}
-
-#[derive(Parser)]
-pub struct InstallArgs {
-    /// Target repo (defaults to cwd's git root).
-    pub repo: Option<PathBuf>,
-    /// Harness(es) to target. Repeatable. Default: auto-detect.
-    #[arg(long = "harness")]
-    pub harnesses: Vec<String>,
-    /// Content version tag (default: latest).
-    #[arg(long)]
-    pub version: Option<String>,
-    /// Skip the auto-commit; leaves the materialised files unstaged.
-    #[arg(long = "no-commit")]
-    pub no_commit: bool,
-    /// Override the default commit message.
-    #[arg(long = "message", short = 'm')]
-    pub message: Option<String>,
-}
-
-#[derive(Parser)]
-pub struct UninstallArgs {
-    /// Target repo (defaults to cwd's git root).
-    pub repo: Option<PathBuf>,
-    #[arg(long = "harness")]
-    pub harnesses: Vec<String>,
-    /// Remove even if live groves exist.
-    #[arg(long)]
-    pub force: bool,
-}
-
-#[derive(Parser)]
-pub struct RepoArgs {
-    /// Target repo (defaults to cwd's git root).
-    pub repo: Option<PathBuf>,
 }
 
 #[derive(Parser)]
@@ -119,9 +77,6 @@ pub struct RetireArgs {
 pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Command::Install(args) => crate::install::run(&args),
-        Command::Uninstall(args) => crate::uninstall::run(&args),
-        Command::Status(args) => crate::status::run(&args),
         Command::Do(args) => crate::launch::do_grove(&args),
         Command::Migrate(args) => crate::migrate::run(&args),
         Command::Takeover(args) => crate::launch::takeover(&args),

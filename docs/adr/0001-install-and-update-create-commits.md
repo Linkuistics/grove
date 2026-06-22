@@ -3,7 +3,7 @@
 `grove install` and `grove update` materialise the skill into the target repo by writing files. Historically the user had to `git add` and `git commit` afterward — empirically they did, e.g., `e674ea9 Install grove v2.0.0`. We now make commit-creation default behavior: both verbs produce a single **path-scoped commit** covering the **install scope** (every targeted harness path, combined). `--no-commit` opts out; `--message <text>` overrides the default message.
 
 ## Status
-accepted
+superseded by ADR-0031 — the `install`/`update` materialise machinery (and its path-scoped commit over the install scope) was deleted in leaf 090; distribution is now the binary-embedded global skill, provisioned on `grove do`.
 
 ## Why default-on
 The manual step is forgettable and the existing pattern shows users already commit by hand. Default-on removes ceremony and keeps materialisation traceable.

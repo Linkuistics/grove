@@ -1,11 +1,8 @@
 pub mod brief_chain;
 pub mod cli;
 pub mod complete;
-pub mod extract;
-pub mod fetch;
 pub mod harness;
 pub mod harness_stamp;
-pub mod install;
 pub mod launch;
 pub mod leaf;
 pub mod leaf_grow;
@@ -20,6 +17,3 @@ pub mod pick;
 pub mod provision;
 pub mod repo;
 pub mod root_init;
-pub mod status;
-pub mod uninstall;
-pub mod version_md;

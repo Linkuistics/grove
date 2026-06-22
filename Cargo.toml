@@ -36,12 +36,11 @@ path = "src/lib.rs"
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
-flate2 = "1.0"
 # Embed the full `content/` methodology tree into the `grove` binary at compile
 # time (ADR-0031/0034, leaf 070/010). `grove do` extracts this embed to the
 # global personal skill dir (`~/.claude/skills/grove/`), so the skill can never
 # drift from the binary — replacing the old fetch-tarball + materialise +
-# `VERSION.md` model (whose deletion is 090). Paired with `build.rs`, which emits
+# `VERSION.md` model (deleted in 090). Paired with `build.rs`, which emits
 # `rerun-if-changed` for every content file: on stable Rust the macro does not
 # register its reads with Cargo, so an edit would otherwise leave a stale embed.
 include_dir = "0.7"
@@ -50,13 +49,9 @@ include_dir = "0.7"
 # `isatty` before launching, and the `grove-llm complete` signal verb's
 # self-spawned delayed killer detaches via `libc::setsid`.
 libc = "0.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 sha2 = "0.10"
-tar = "0.4"
 tempfile = "3.10"
 thiserror = "1.0"
-ureq = { version = "2.10", features = ["json"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"

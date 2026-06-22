@@ -31,11 +31,20 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
-    // Prompts the loop's load_prompt will read.
-    let prompts = repo_path.join(".claude/skills/grove/prompts");
+    // Prompts the loop's load_prompt must read — from the GLOBAL skill dir the
+    // binary provisions (`$GROVE_SKILL_DIR`), NOT any repo-local mirror (the 9.3
+    // repoint). Plant a stale mirror in the old `install_path` location to prove
+    // the loop ignores it: a regression to the old read would log "STALE …".
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
     fs::create_dir_all(&prompts).unwrap();
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let stale = repo_path.join(".claude/skills/grove/prompts");
+    fs::create_dir_all(&stale).unwrap();
+    fs::write(stale.join("start.md"), "STALE START").unwrap();
+    fs::write(stale.join("continue.md"), "STALE CONTINUE").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
     fs::create_dir_all(&worktree).unwrap();
@@ -66,12 +75,14 @@ exit 0
     let harness = harness::by_name("claude").unwrap();
 
     std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
     std::env::set_var("GROVE_TEST_COUNTER", &counter);
     std::env::set_var("GROVE_TEST_LOG", &log);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
 
     std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
     std::env::remove_var("GROVE_TEST_COUNTER");
     std::env::remove_var("GROVE_TEST_LOG");
 

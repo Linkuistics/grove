@@ -3,7 +3,7 @@
 `grove install` and `grove update` previously differed only in a pre-flight safety check — `install` refused if grove was already present, `update` refused if it was absent — over the same `InstallArgs` and the same backing function. We collapse them into a single idempotent verb: `grove install` installs when absent, no-ops when the bundled version already matches, and updates when it differs. `grove update` is removed outright, with no deprecated alias. The decision is recorded because the mode split was load-bearing for years and a future reader will otherwise wonder why a deliberate create-only guard was dropped.
 
 ## Status
-accepted
+superseded by ADR-0031 — `grove install`/`grove update` were deleted in leaf 090; the binary now provisions the global skill idempotently (content-hash stamp) on `grove do` instead.
 
 ## Why idempotent, not two guarded verbs
 

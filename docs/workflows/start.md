@@ -6,7 +6,7 @@ Begin a new workstream. `grove do` is the sole lifecycle entry verb; this page s
 
 ## Starting state
 
-We pick up where [`install.md`](install.md) left off: the repo is on its default branch with grove materialised under `.claude/skills/grove/`, and no groves exist yet.
+The repo is on its default branch, `grove` is installed via Homebrew (the binary provisions its embedded skill to the global `~/.claude/skills/grove/` on the first `grove do` — no per-repo install step), and no groves exist yet.
 
 ```
 $ cd acme/orders-api
@@ -25,7 +25,7 @@ We want to add request rate limiting to the API — a project we expect to span 
 ```
 $ grove do add-rate-limiting
 Preparing worktree (new branch 'add-rate-limiting')
-HEAD is now at 1a2b3c4 Install grove v2.0.0
+HEAD is now at 1a2b3c4 Add idempotency keys to orders
 ```
 
 Two things happened on disk, then a third in your terminal.
@@ -101,7 +101,7 @@ The worktree and branch exist exactly as in the default flow; `.grove/` is still
 
 ## Multi-harness repos
 
-If `acme/orders-api` has both `.claude/` and `.codex/` directories — i.e. grove is materialised under each — `grove do` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
+If `acme/orders-api` has both `.claude/` and `.codex/` directories — i.e. both harnesses have been used in this repo — `grove do` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
 
 ```
 $ grove do add-rate-limiting --harness claude

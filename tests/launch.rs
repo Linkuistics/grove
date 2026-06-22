@@ -1,8 +1,4 @@
-mod common;
-
-use common::{fixture_tarball, StubFetcher};
-use grove::cli::{InstallArgs, NameArgs, StartArgs};
-use grove::install::run_with_fetcher;
+use grove::cli::{NameArgs, StartArgs};
 use grove::launch;
 use std::fs;
 use std::process::Command;
@@ -14,12 +10,14 @@ use tempfile::TempDir;
 // repo::resolve(None) call.
 static CWD_LOCK: Mutex<()> = Mutex::new(());
 
-fn init_repo_with_grove_installed() -> TempDir {
+fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    // `do_grove` now provisions the global skill on launch (070/010). Point that
-    // at a throwaway dir inside the repo so the suite never writes into the real
-    // ~/.claude/skills/grove. Safe under CWD_LOCK (all callers serialize), and a
-    // no-op for the non-`do` paths (start/continue) that never provision.
+    // `do_grove` provisions the global skill on launch (070/010); `load_prompt`
+    // reads its launcher prompts from that same global dir (the 9.3 repoint).
+    // Point both at a throwaway dir inside the repo so the suite never touches
+    // the real ~/.claude/skills/grove. Safe under CWD_LOCK (all callers
+    // serialize), and unprovisioned until a `do` runs (so the provision test can
+    // assert it is created).
     std::env::set_var("GROVE_SKILL_DIR", tmp.path().join("global-skill"));
     Command::new("git")
         .args(["init", "-b", "main"])
@@ -44,35 +42,13 @@ fn init_repo_with_grove_installed() -> TempDir {
         .unwrap();
 
     fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    let fetcher = StubFetcher {
-        latest: "v0.1.0".into(),
-        tarball: fixture_tarball(
-            "0.1.0",
-            &[
-                ("content/SKILL.md", b"x"),
-                ("content/prompts/start.md", b"start {{NAME}}"),
-                ("content/prompts/continue.md", b"continue {{NAME}}"),
-            ],
-        ),
-    };
-    run_with_fetcher(
-        &InstallArgs {
-            repo: Some(tmp.path().to_path_buf()),
-            harnesses: vec![],
-            version: Some("v0.1.0".into()),
-            no_commit: true,
-            message: None,
-        },
-        &fetcher,
-    )
-    .unwrap();
     tmp
 }
 
 #[test]
 fn start_creates_worktree_in_no_launch_mode() {
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     launch::start(&StartArgs {
@@ -89,7 +65,7 @@ fn start_creates_worktree_in_no_launch_mode() {
 #[test]
 fn continue_errors_when_no_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     let err = launch::continue_grove(&NameArgs {
@@ -104,7 +80,7 @@ fn continue_errors_when_no_worktree() {
 #[test]
 fn do_starts_when_grove_is_unknown() {
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     // `do` is the sole entry verb; on an unknown grove it takes the start
@@ -125,7 +101,7 @@ fn do_provisions_the_global_skill_on_launch() {
     // `grove do` extracts the binary-embedded methodology to the global personal
     // skill dir (070/010), so the launched session's skill matches the binary.
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     // The helper points GROVE_SKILL_DIR at <repo>/global-skill; it should not
@@ -150,7 +126,7 @@ fn do_provisions_the_global_skill_on_launch() {
 #[test]
 fn do_continues_when_worktree_is_live() {
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     launch::start(&StartArgs {
@@ -178,7 +154,7 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
     // before driving — even in no-launch mode, which runs the adoption setup then
     // returns without launching a session.
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     // Stand up a live worktree, then plant an old-format tree in it and commit.
@@ -237,7 +213,7 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
 #[test]
 fn do_reattaches_orphaned_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo_with_grove_installed();
+    let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
     launch::start(&StartArgs {

@@ -16,8 +16,6 @@ pub fn start(args: &StartArgs) -> Result<()> {
         repo::create_grove_worktree(&repo_path, &args.name, args.start_point.as_deref())?;
     harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
 
-    let prompt = load_prompt(&repo_path, harness, "start")?;
-
     if args.no_launch {
         eprintln!(
             "grove: worktree ready at {} (no-launch)",
@@ -25,6 +23,7 @@ pub fn start(args: &StartArgs) -> Result<()> {
         );
         return Ok(());
     }
+    let prompt = load_prompt("start")?;
     exec_harness(harness, &repo_path, &worktree, &args.name, &prompt)
 }
 
@@ -112,12 +111,11 @@ fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
         );
     }
 
-    let prompt = load_prompt(&repo_path, harness, verb)?;
-
     if args.no_launch {
         eprintln!("grove: would exec {} (no-launch)", harness.exec_bin);
         return Ok(());
     }
+    let prompt = load_prompt(verb)?;
     exec_harness(harness, &repo_path, &worktree, &args.name, &prompt)
 }
 
@@ -134,9 +132,6 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         anyhow::bail!("no worktree for grove '{}' at {}", name, worktree.display());
     }
 
-    let prompt = load_prompt(&repo_path, harness, "retire")?;
-    let prompt = substitute(&prompt, &[("NODE_PATH", node_path)]);
-
     if args.no_launch {
         eprintln!(
             "grove: would exec {} for retire (no-launch)",
@@ -144,12 +139,18 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         );
         return Ok(());
     }
+    let prompt = load_prompt("retire")?;
+    let prompt = substitute(&prompt, &[("NODE_PATH", node_path)]);
     exec_harness(harness, &repo_path, &worktree, name, &prompt)
 }
 
-pub(crate) fn load_prompt(main_repo: &Path, harness: &Harness, verb: &str) -> Result<String> {
-    let prompt_path = harness
-        .install_path(main_repo)
+/// Read a launcher prompt from the **global** skill dir the binary provisions
+/// (`~/.claude/skills/grove/prompts/`), not any repo-local mirror. `grove do`
+/// provisions that dir at the top of [`do_grove`], so the loop always launches
+/// off the *current* embedded prompts — the repoint that retired the old
+/// `harness.install_path`-rooted read, which silently served stale mirrors.
+pub(crate) fn load_prompt(verb: &str) -> Result<String> {
+    let prompt_path = crate::provision::global_skill_dir()?
         .join("prompts")
         .join(format!("{}.md", verb));
     fs::read_to_string(&prompt_path)

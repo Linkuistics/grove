@@ -78,7 +78,7 @@ pub fn run_loop(
         } else {
             "start"
         };
-        let prompt = crate::launch::load_prompt(repo_path, harness, verb)?;
+        let prompt = crate::launch::load_prompt(verb)?;
 
         launch_session(harness, worktree, &session_name, &prompt, &signal_file)?;
 

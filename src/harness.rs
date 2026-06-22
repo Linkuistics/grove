@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 /// Whether a verb wants one harness or all detected ones.
 ///
-/// - `Multi` is for file-system verbs (`install`, `update`, `uninstall`):
-///   operating on every detected harness is the intent (e.g. `grove install` in
-///   a repo with both `.claude/` and `.codex/` installs into both).
+/// - `Multi` operates on every detected harness (e.g. a repo with both
+///   `.claude/` and `.codex/`). Retained for callers that fan out across all
+///   harnesses; the live launch path uses `Single`.
 /// - `Single` is for session-launching verbs (`start`, `continue`, ...): one
 ///   grove session runs in one harness, so an ambiguous repo without
 ///   `--harness` is an error rather than a silent dual-launch.
@@ -50,10 +50,6 @@ pub fn by_name(name: &str) -> Option<&'static Harness> {
 }
 
 impl Harness {
-    pub fn install_path(&self, repo: &Path) -> PathBuf {
-        repo.join(self.project_dir).join("skills").join("grove")
-    }
-
     pub fn project_dir_path(&self, repo: &Path) -> PathBuf {
         repo.join(self.project_dir)
     }

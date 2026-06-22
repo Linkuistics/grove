@@ -7,9 +7,12 @@
 - Supersedes: the **structure** of **ADR-0033** — its "flat list of files in
   `.grove/`" with dotted-decimal positions encoded into every filename — and the
   in-flight 2-digit-flat / `00`-root / `tree/`-subdir refinements explored during
-  this grilling. **Keeps** ADR-0033's durable ideas: the permanent `[key]`,
+  this grilling. **Keeps** ADR-0033's durable ideas: the permanent key,
   reference-by-key (`resolve`), the numeric comparator, renumber-on-reorder, and
   done-ness marked in place (no `done/` directory).
+- Amended (2026-06-22, while building the id model — leaf `id-grammar`, key 24): the
+  permanent key is written **`-k<key>`**, not the `[<key>]` this ADR first drafted
+  (see §1's *key delimiter* note for the rationale).
 - Pairs with: **ADR-0031** (the self-extension core), **ADR-0034** (migrate-on-
   adoption — the mechanism this change rides to flip live trees).
 
@@ -56,44 +59,52 @@ carried by the filesystem.
 ```
 .grove/
   BRIEF.md                       ← root brief (plain; heads .grove/)
-  01-DONE-plan-[1].md            ← retired leaf
-  05-dotted-decimal-[5]/         ← node = directory; key rides in the dir name
+  01-DONE-plan-k1.md             ← retired leaf
+  05-dotted-decimal-k5/          ← node = directory; key rides in the dir name
     BRIEF.md
-    01-DONE-id-model-[6].md
-    04-DONE-lifecycle-[9].md
-  07-distribution-[14]/
+    01-DONE-id-model-k6.md
+    04-DONE-lifecycle-k9.md
+  07-distribution-k14/
     BRIEF.md
-    04-DONE-install-[18].md
-    05-remove-mirrors-[19].md    ← live leaf
-  08-shed-tui-[20].md            ← live leaf
-  10-complete-signal-[22].md
+    04-DONE-install-k18.md
+    05-remove-mirrors-k19.md     ← live leaf
+  08-shed-tui-k20.md             ← live leaf
+  10-complete-signal-k22.md
 ```
 
 1. **Naming grammar**, fields ordered by *human relevance* (sort key first,
    user-facing state next, machine handle last):
-   - **Leaf:** `NN-[DONE-]<slug>-[<key>].md`
-   - **Node:** directory `NN-<slug>-[<key>]/` containing `BRIEF.md` + children
+   - **Leaf:** `NN-[DONE-]<slug>-k<key>.md`
+   - **Node:** directory `NN-<slug>-k<key>/` containing `BRIEF.md` + children
    - **Root brief:** `.grove/BRIEF.md` (plain, unkeyed — the root dir's charter)
+   - **Key delimiter** — the permanent key is written `-k<key>` (resolved
+     2026-06-22 building leaf `id-grammar`, key 24; this ADR first drafted `[<key>]`).
+     Brackets are shell-glob metacharacters, so `[<key>]` forced escaping in
+     `ls`/`cd`/copy-paste; `-k<key>` is glob-safe. It stays unambiguous because
+     the key is mandatory and always the **terminal** token — parse peels the
+     trailing `-k<digits>`, so `05-task-k9-k3.md` is slug `task-k9`, key `3`. The
+     `[DONE-]` above is metalanguage (the *optional* `DONE-` infix), not bracket
+     syntax. All examples in this ADR use the `-k<key>` form.
 2. **Position `NN` is a 2-digit zero-padded decimal, per level** (not a global
    dotted vector). It is the *mutable locator*: lexical == numeric == DFS within a
    level, locale-robust (pure digits), and gives ~99 siblings/level. A node's full
    position is its directory path; reorder/insert renames only the affected
-   *level's* sibling dirs (`git mv 07-…-[14]/ 08-…-[14]/`), and the whole subtree
+   *level's* sibling dirs (`git mv 07-…-k14/ 08-…-k14/`), and the whole subtree
    — child names and keys — rides along untouched.
-3. **`[key]` is the permanent stable id** (kept from ADR-0033): assigned once
-   (`max [n] in tree + 1`), never rewritten by renumber or decompose, the **last**
-   token before the extension / trailing slash. The keys in the names *are* the
+3. **The key (`-k<key>`) is the permanent stable id** (kept from ADR-0033):
+   assigned once (`max key in tree + 1`), never rewritten by renumber or decompose,
+   the **last** token before the extension / trailing slash. The keys in the names *are* the
    counter (no counter file); `.DONE` leaves stay in the tree so the max is always
    visible. **References resolve by key** — `resolve [k]` / `resolve <slug>` finds
    the current path wherever the entity moved.
 4. **Done is marked in place as a `DONE` infix** right after the position
-   (`NN-DONE-<slug>-[<key>].md`), leaves only. A brief/node is never marked done —
+   (`NN-DONE-<slug>-k<key>.md`), leaves only. A brief/node is never marked done —
    node done-ness is implicit (no live leaf in its subtree). The `DONE` infix sits
-   at a **fixed column** (the position is fixed-width, the variable-width `[key]`
+   at a **fixed column** (the position is fixed-width, the variable-width `-k<key>`
    is exiled to the end), so a directory's done-prefix scans cleanly.
-5. **Commit messages and prose name a work item by `<slug>-[<key>]`** — never by
+5. **Commit messages and prose name a work item by `<slug>-k<key>`** — never by
    its position or directory path. The position/path is mutable (renumber, move);
-   the `<slug>-[<key>]` handle is stable, so the historical record stays meaningful
+   the `<slug>-k<key>` handle is stable, so the historical record stays meaningful
    after restructures. This is a grove-skill instruction (see Consequences); it
    replaces the current inconsistent `070/030`-style path references (sometimes
    full path, sometimes elided).
@@ -136,7 +147,7 @@ directories (subtrees ride along).
   user-gated install-and-reflip (mirroring 070/040). The migration is fixture-
   tested before it touches a real tree and lands as one reviewable commit.
 - **Methodology prose gains the commit-naming instruction** (content/SKILL.md):
-  "reference a work item by `<slug>-[<key>]`, not by its position/path." Because the
+  "reference a work item by `<slug>-k<key>`, not by its position/path." Because the
   global skill is binary-embedded and re-extracted on launch (ADR-0034), the prose
   ships with the v2 binary.
 - ADR-0033 stays in history as the flat scheme it was; this ADR supersedes its

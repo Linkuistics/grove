@@ -19,13 +19,14 @@
 // `render_resolution` are deliberately re-defined here (not reused from
 // `leaf_read`) to keep the v2 surface self-contained for that later swap.
 //
-// `resolve`'s **reference grammar** is held byte-identical to v1 (`[n]` / `n` /
-// `[n]-slug` / bare slug) on purpose — the task's contract is "keep behaviour
-// identical so the loop and prompts are unaffected; only the walk changes". One
-// deferred question travels to 11.5 (prose + commit-convention): ADR-0035 §5
-// makes `<slug>-k<key>` the canonical handle for commits/prose, so `resolve`
-// should probably *also* accept that handle as a key reference — decided there,
-// alongside establishing the handle, not unilaterally widened here.
+// `resolve`'s **reference grammar** keeps v1's `[n]` / `n` / `[n]-slug` / bare-slug
+// forms verbatim, and 11.5 adds exactly one form: the full `<slug>-k<key>` handle
+// that ADR-0035 §5 makes canonical for commits and prose. The deferred question
+// 11.2 left for here ("should resolve also accept the handle, now that the handle
+// is established?") is **resolved yes**: `handle_key` peels the handle's terminal
+// `-k<key>`, and the slug branch falls back to it only when no bare slug matched —
+// so every v1 reference still resolves identically (a literal slug ending in
+// `-k<digits>` is matched as a slug first), and the §5 handle round-trips to a path.
 
 use crate::tree_id::{parse, sort_key, Entry};
 use anyhow::{bail, Context, Result};
@@ -171,6 +172,9 @@ pub struct AmbiguousMatch {
 ///   * `[n]-slug` → same; the slug part is decorative (ignored).
 ///   * bare slug → resolve by slug: 0 ⇒ `NotFound`; 1 ⇒ `Found`; >1 ⇒
 ///     `Ambiguous` (every match with its key, so the caller re-queries by key).
+///   * `<slug>-k<key>` → the full canonical handle (ADR-0035 §5): same as `[n]`
+///     via its terminal `-k<key>`, the slug decorative. Tried only after the bare
+///     slug fails to match, so a literal slug ending in `-k<digits>` still wins.
 ///
 /// The root brief (`BRIEF.md`, the one unkeyed singleton) is unreferenceable.
 pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
@@ -180,17 +184,20 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
     let mut all = Vec::new();
     collect_all(grove_root, &mut all)?;
 
+    // Keys are unique tree-wide → at most one match; a node resolves to its
+    // directory path (the dir name carries the key).
+    let find_by_key = |key: u32| -> Resolution {
+        all.iter().find(|(e, _)| e.key() == Some(key)).map_or(
+            Resolution::NotFound,
+            |(e, path)| Resolution::Found {
+                path: path.clone(),
+                retired: e.is_done(),
+            },
+        )
+    };
+
     match parse_ref(reference)? {
-        Ref::Key(key) => {
-            // Keys are unique tree-wide → at most one match.
-            Ok(all.iter().find(|(e, _)| e.key() == Some(key)).map_or(
-                Resolution::NotFound,
-                |(e, path)| Resolution::Found {
-                    path: path.clone(),
-                    retired: e.is_done(),
-                },
-            ))
-        }
+        Ref::Key(key) => Ok(find_by_key(key)),
         Ref::Slug(slug) => {
             // The brief (key None) is excluded — it is unreferenceable.
             let matches: Vec<AmbiguousMatch> = all
@@ -205,7 +212,15 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
                 })
                 .collect();
             Ok(match matches.as_slice() {
-                [] => Resolution::NotFound,
+                // No slug match: retry as the full `<slug>-k<key>` handle (ADR-0035
+                // §5's canonical commit/prose form), reading its terminal
+                // `-k<digits>` as the key. Slugs are matched first, so a real slug
+                // that itself ends in `-k<digits>` still wins — the fallback only
+                // fires when the slug matched nothing.
+                [] => match handle_key(&slug) {
+                    Some(key) => find_by_key(key),
+                    None => Resolution::NotFound,
+                },
                 [m] => Resolution::Found {
                     path: m.path.clone(),
                     retired: m.retired,
@@ -244,6 +259,25 @@ fn parse_ref(reference: &str) -> Result<Ref> {
     } else {
         Ok(Ref::Slug(reference.to_string()))
     }
+}
+
+/// Peel the terminal `-k<digits>` of a full `<slug>-k<key>` handle (ADR-0035 §5's
+/// canonical commit/prose reference) into its key, or `None` when the reference is
+/// not handle-shaped. Mirrors the filename grammar's "the key is the terminal
+/// `-k<digits>`" rule (`src/tree_id.rs`), so a handle and a filename peel the key
+/// identically — `migrate-v1-to-v2-k27` → `27`, `build` → `None`.
+fn handle_key(reference: &str) -> Option<u32> {
+    let digits_start = reference.len()
+        - reference
+            .bytes()
+            .rev()
+            .take_while(|b| b.is_ascii_digit())
+            .count();
+    if digits_start == reference.len() {
+        return None; // no trailing digits → not a handle
+    }
+    reference[..digits_start].strip_suffix("-k")?;
+    reference[digits_start..].parse().ok()
 }
 
 /// Render a [`Resolution`] to the `(stdout, stderr)` the `resolve` verb emits
@@ -845,6 +879,79 @@ mod tests {
             err.to_string().contains("grove root not found"),
             "got {err}"
         );
+    }
+
+    // ---- resolve: the full `<slug>-k<key>` handle (ADR-0035 §5) --------------
+
+    #[test]
+    fn resolve_by_full_slug_handle_finds_by_terminal_key() {
+        // §5's canonical commit/prose handle is `<slug>-k<key>`; resolve accepts it
+        // directly — the terminal `-k<key>` is read as the key, the slug decorative
+        // — so the handle round-trips back to a path.
+        let (_t, g) = resolve_fixture();
+        match resolve(&g, "build-k5").unwrap() {
+            Resolution::Found { path, retired } => {
+                assert_eq!(name_of(&path), "03-build-k5.md");
+                assert!(!retired);
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_full_handle_disambiguates_what_a_bare_slug_could_not() {
+        // The bare slug `add` is ambiguous (two matches); the full handle `add-k2`
+        // names exactly the nested live leaf via its key.
+        let (_t, g) = resolve_fixture();
+        match resolve(&g, "add-k2").unwrap() {
+            Resolution::Found { path, .. } => {
+                assert_eq!(name_of(&path), "01-add-k2.md");
+                assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_handle_of_a_node_resolves_to_its_directory() {
+        // A node's handle (`design-k1`) resolves to the node directory, like its key.
+        let (_t, g) = resolve_fixture();
+        match resolve(&g, "design-k1").unwrap() {
+            Resolution::Found { path, .. } => {
+                assert_eq!(name_of(&path), "01-design-k1");
+                assert!(path.is_dir());
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_prefers_a_real_slug_over_the_handle_fallback() {
+        // A bare slug that itself ends in `-k<digits>` resolves as a slug first; the
+        // key fallback fires only when the slug match is empty. So a slug `foo-k5`
+        // (key 7) wins over a *different* entity that happens to hold key 5.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md");
+        touch(&g, "01-foo-k5-k7.md"); // slug "foo-k5", key 7
+        touch(&g, "02-other-k5.md"); // slug "other", key 5
+        match resolve(&g, "foo-k5").unwrap() {
+            Resolution::Found { path, .. } => {
+                assert_eq!(
+                    name_of(&path),
+                    "01-foo-k5-k7.md",
+                    "the real slug match must win over the key-5 handle fallback"
+                );
+            }
+            other => panic!("expected Found (slug), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_handle_shaped_but_unmatched_is_not_found() {
+        // A handle whose key matches nothing is NotFound (not an error), like any
+        // unmatched reference.
+        let (_t, g) = resolve_fixture();
+        assert_eq!(resolve(&g, "ghost-k99").unwrap(), Resolution::NotFound);
     }
 
     // ---- render_resolution --------------------------------------------------

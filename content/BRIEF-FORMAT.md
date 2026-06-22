@@ -2,15 +2,17 @@
 
 # BRIEF-FORMAT — the node briefing
 
-Every node in a grove carries a brief — the root as `BRIEF.md`, every other
-node as `<position>-[<key>]-<slug>.BRIEF.md` (the file the leaf became when it
-was decomposed, keeping its permanent key). It is **process scaffolding** —
-neither the glossary (`CONTEXT.md`) nor a decision log (`docs/adr/`). It exists
-so that a session executing a leaf can read *three* ADRs, not fifty: the brief
-chain, root→leaf, is the curated path into the project's documented decisions.
+Every node in a grove is a **directory**, and each carries a brief as the
+`BRIEF.md` inside it — the root node `.grove/` as `.grove/BRIEF.md`, every other
+node as the `BRIEF.md` in its directory `NN-<slug>-k<key>/` (the directory the
+leaf became when it was decomposed, keeping its permanent key). It is **process
+scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision log
+(`docs/adr/`). It exists so that a session executing a leaf can read *three*
+ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
+project's documented decisions.
 
 A brief is written by the planning task that creates its node. Because a brief
-is context, not a task, it is **never** marked `.DONE`: a node is done
+is context, not a task, it is **never** marked done: a node is done
 *implicitly*, when no live leaf remains in its subtree, and its brief stays in
 place. On that completion, anything still live in the brief is promoted upward
 (see SKILL.md, "Retire").
@@ -22,7 +24,7 @@ if a section is missing, reordered, or renamed. Include a section only when it
 earns its place (constraint 4).
 
 ```markdown
-# <node name> — brief
+# <slug>-k<key> — brief        (the root brief is titled `# <grove name> — brief`)
 
 ## Goal
 One or two sentences: what this subtree delivers, and why.
@@ -32,7 +34,7 @@ The done-criteria rollup for the subtree — the conditions under which every
 child is complete and the node retires.
 
 ## Decomposition
-Why this node is split the way it is, and what the child ordering (the dotted
+Why this node is split the way it is, and what the child ordering (the per-level
 positions) encodes (dependencies, natural sequence). One line per child is enough.
 
 ## Pointers

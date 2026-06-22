@@ -1,4 +1,4 @@
-# 050-dotted-decimal-numbering — brief
+# 5-[5]-dotted-decimal-numbering — brief
 
 **Kind:** planning
 

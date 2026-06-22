@@ -1,4 +1,4 @@
-# 030-substrate-decision
+# 3-[3]-substrate-decision
 
 **Kind:** planning
 

@@ -1,4 +1,4 @@
-# 070-global-skill-homebrew-distribution — brief
+# 7-[14]-global-skill-homebrew-distribution — brief
 
 **Kind:** planning (node)
 

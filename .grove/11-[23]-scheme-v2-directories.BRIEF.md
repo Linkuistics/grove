@@ -38,8 +38,8 @@ single `git mv` of a directory, and gives native file-manager tree navigation.
 ## Decomposition
 
 Ordered as the original scheme work was (id → read → grow/lifecycle → migrate →
-prose → flip); the live re-flip is last and **user-gated**. Leaves are
-reshapeable — this is a planning brief, not a contract.
+prose → **rationalise docs** → flip); the live re-flip is last and **user-gated**.
+Leaves are reshapeable — this is a planning brief, not a contract.
 
 - `11.1-[24]-id-grammar` — the v2 id model: parse/render node-dir names + leaf
   names (2-digit per-level position, `DONE` infix, `[key]` last), the per-level
@@ -56,9 +56,15 @@ reshapeable — this is a planning brief, not a contract.
   guides, prompts) to the dir scheme; add the **commit-naming instruction**:
   reference a work item by `<slug>-[<key>]`, never by position/path (ADR-0035 §5).
   Update `CONTEXT.md` glossary terms.
-- `11.6-[29]-install-and-reflip-v2` (work, **USER-GATED**) — build + install the
-  v2 binary; re-flip this grove (and `grove-general-improvements`) v1→v2 by
-  adoption; verify the global skill + idempotency. Mirrors 070/040.
+- `11.6-[34]-rationalise-adrs-and-docs` (work) — pre-release pass over the ADRs +
+  other docs: an accurate Status on every ADR, the live set legible, stale/reversed
+  prose reconciled, README/specs/research/PRDs aligned with the shipped reality.
+  Inserted ahead of the flip (operator, 2026-06-22) so the release ships clean docs.
+- `11.7-[29]-install-and-reflip-v2` (work, **USER-GATED**) — the live v2 flip via
+  the **release pipeline** (merge to `main` → push → major release → bump the
+  Homebrew tap → `brew upgrade grove`), not a local build+install; the released
+  binary then adoption-migrates this grove (and `grove-general-improvements`)
+  v1→v2 and ships the matching global skill. Mirrors 070/040's adoption mechanics.
 
 ## Notes
 

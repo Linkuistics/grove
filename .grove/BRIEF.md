@@ -47,8 +47,13 @@ Live leaves (this grove is still an old `NNN-slug` tree; the flip happens at 070
   `030-homebrew-sole-gesture` → `040-install-and-flip` (user-gated) →
   `050-remove-project-skill-mirrors`.
 - `080-shed-tui` (work) — delete the rmux/ratatui TUI + Fleet.
-- `090-shed-inbox-and-install-machinery` (work) — delete inbox/grove-meta +
-  install/materialise.
+- `090-shed-inbox-and-install-machinery` (now a **node**, decomposed 2026-06-22) —
+  delete inbox/grove-meta + install/materialise + `grove status`. Grilling settled:
+  inbox deleted but **seeds migrated first** (4 live seeds); `grove status` deleted
+  entirely (dead VERSION.md + old `done/` counting); ADR-0006 survives. 4 children:
+  `migrate-seeds` → `shed-inbox-grove-meta` → `shed-install-and-status` (incl. the
+  latent `load_prompt`→global-skill repoint) → `sweep-dead-old-verb-modules` (the
+  "Dead code to sweep" sweep, folded in here).
 - `100-complete-terminate-signal` (work) — `grove-llm complete --done` to end the
   loop cleanly (loop-runtime, position-independent; must land before release).
 - `scheme-v2-directories` (node, **ADR-0035**) — reverse ADR-0033's flat structure

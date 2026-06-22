@@ -25,7 +25,23 @@ class Grove < Formula
   def install
     # rmux is the bundled stock daemon/CLI (ADR-0030); grove tui resolves it as
     # a sibling of its own executable, so all three must land in the same bin/.
+    #
+    # The methodology skill is NOT fetched or installed here. The `grove` binary
+    # embeds the full `content/` tree (ADR-0031/0034) and provisions it to
+    # ~/.claude/skills/grove/ on the first `grove do`, so the skill can never
+    # drift from the binary. Do NOT reintroduce a content/ download into this
+    # formula or the release tarball — `brew install grove` is the sole gesture.
     bin.install "grove", "grove-llm", "rmux"
+  end
+
+  def caveats
+    <<~EOS
+      grove ships its methodology inside the binary. The first
+        grove do <name>
+      provisions the global skill at ~/.claude/skills/grove/ — there is no
+      separate install step. The skill re-provisions automatically the next time
+      you run `grove do` after upgrading the formula.
+    EOS
   end
 
   test do

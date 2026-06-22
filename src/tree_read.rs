@@ -187,13 +187,12 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
     // Keys are unique tree-wide → at most one match; a node resolves to its
     // directory path (the dir name carries the key).
     let find_by_key = |key: u32| -> Resolution {
-        all.iter().find(|(e, _)| e.key() == Some(key)).map_or(
-            Resolution::NotFound,
-            |(e, path)| Resolution::Found {
+        all.iter()
+            .find(|(e, _)| e.key() == Some(key))
+            .map_or(Resolution::NotFound, |(e, path)| Resolution::Found {
                 path: path.clone(),
                 retired: e.is_done(),
-            },
-        )
+            })
     };
 
     match parse_ref(reference)? {

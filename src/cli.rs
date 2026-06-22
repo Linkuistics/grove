@@ -22,14 +22,16 @@ pub enum Command {
     /// re-attach the worktree and continue. When the grove has no live
     /// leaves left, the in-session loop proposes the complete finish cycle.
     Do(StartArgs),
-    /// Migrate this worktree's `.grove/` from the old `NNN-slug/` + `done/`
-    /// directory format to the new flat dotted-decimal scheme (ADR-0033/0034),
-    /// in place. A reviewable git change (`git mv` + `# …` header rewrites, no
-    /// commit) — review the diff, then commit. No-op on an already-migrated tree
-    /// or a missing/foreign `.grove/`. `grove do` runs this automatically on
-    /// adoption; invoke it explicitly to migrate a tree by hand.
+    /// Migrate this worktree's `.grove/` to the v2 **directory** scheme
+    /// (ADR-0035) in place — from either the v1-flat `<dotted>-[<key>]-<slug>`
+    /// format or the old `NNN-slug/` + `done/` directory format. A reviewable git
+    /// change (`git mv` + `# …` header rewrites, no commit) — review the diff,
+    /// then commit. No-op on an already-v2 tree or a missing/foreign `.grove/`.
+    /// `grove do` runs this automatically on adoption; invoke it explicitly to
+    /// migrate a tree by hand.
     Migrate(MigrateArgs),
-    /// Retire a done node (promote brief, mv into done/).
+    /// Launch a session to retire a done node by hand (the loop normally retires
+    /// leaves itself mid-session).
     Retire(RetireArgs),
 }
 
@@ -76,7 +78,7 @@ pub fn run() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Do(args) => crate::launch::do_grove(&args),
-        Command::Migrate(args) => crate::migrate::run(&args),
+        Command::Migrate(args) => crate::tree_migrate::run(&args),
         Command::Retire(args) => crate::launch::retire(&args),
     }
 }

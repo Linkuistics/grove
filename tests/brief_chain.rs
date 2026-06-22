@@ -1,8 +1,14 @@
-// Fixture-driven tests for `grove-llm brief-chain` on the **new flat
-// dotted-decimal scheme** (ADR-0033/0034). A leaf's brief chain is collected by
-// **id-prefix** in the flat namespace, not by directory ascent: a leaf at
-// position `[a,b,c]` pulls the briefs at `[]` (root `BRIEF.md`), `[a]`, and
-// `[a,b]`, root→leaf. A missing brief at any level is skipped silently.
+// Fixture-driven tests for `grove-llm brief-chain` on the **v2 directory scheme**
+// (ADR-0035). The tree is a real directory tree under `.grove/`: a node is a
+// directory `NN-<slug>-k<key>/` holding a `BRIEF.md` + numbered children; leaves
+// are files `NN-[DONE-]<slug>-k<key>.md`. A leaf's brief chain is collected by
+// **directory ascent**: the `BRIEF.md` of each of the leaf's ancestor
+// directories, from the grove root down to the leaf's containing directory,
+// root→leaf order. A directory level with no `BRIEF.md` is skipped silently.
+// Every brief is named `BRIEF.md`, so the assertions key on the **parent
+// directory name** of each printed path (mirroring the unit tests in
+// src/tree_read.rs). Each test stands up a real git repo so
+// `git rev-parse --show-toplevel` resolves to the fixture path.
 
 use assert_cmd::Command;
 use std::fs;
@@ -26,9 +32,17 @@ fn init_repo() -> TempDir {
     tmp
 }
 
-fn touch(root: &Path, name: &str) {
-    fs::create_dir_all(root).unwrap();
-    fs::write(root.join(name), b"# stub\n").unwrap();
+/// Write a leaf/brief file (creating parent dirs as needed).
+fn touch(dir: &Path, name: &str) {
+    fs::create_dir_all(dir).unwrap();
+    fs::write(dir.join(name), b"# stub\n").unwrap();
+}
+
+/// Create a node directory, returning its path (for nesting children inside).
+fn mknode(dir: &Path, name: &str) -> PathBuf {
+    let p = dir.join(name);
+    fs::create_dir_all(&p).unwrap();
+    p
 }
 
 fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
@@ -45,12 +59,23 @@ fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
     )
 }
 
-/// The chain's filenames, root→leaf, for terse assertions.
-fn names(stdout: &str) -> Vec<String> {
+/// The chain's **parent directory names**, root→leaf, for terse assertions.
+/// Every brief is named `BRIEF.md`, so the containing directory is what
+/// distinguishes them.
+fn parent_names(stdout: &str) -> Vec<String> {
     stdout
         .lines()
         .map(|l| {
-            PathBuf::from(l)
+            let p = PathBuf::from(l);
+            // The file itself is always `BRIEF.md`; sanity-check it here so a
+            // wrong filename surfaces loudly rather than as a parent mismatch.
+            assert_eq!(
+                p.file_name().unwrap().to_string_lossy(),
+                "BRIEF.md",
+                "every chain entry must be a BRIEF.md; got {l:?}"
+            );
+            p.parent()
+                .unwrap()
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
@@ -64,11 +89,11 @@ fn leaf_at_root_returns_only_root_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    touch(&grove, "1-[1]-leaf.md");
+    touch(&grove, "01-leaf-k1.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1-[1]-leaf.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-leaf-k1.md"]);
     assert!(ok);
-    assert_eq!(names(&stdout), vec!["BRIEF.md"]);
+    assert_eq!(parent_names(&stdout), vec![".grove"]);
 }
 
 #[test]
@@ -76,15 +101,24 @@ fn leaf_two_levels_deep_returns_root_and_ancestor_node_briefs() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    touch(&grove, "1-[1]-outer.BRIEF.md");
-    touch(&grove, "1.1-[2]-inner.BRIEF.md");
-    touch(&grove, "1.1.1-[3]-leaf.md");
+    let outer = mknode(&grove, "01-outer-k1");
+    touch(&outer, "BRIEF.md");
+    let inner = mknode(&outer, "01-inner-k2");
+    touch(&inner, "BRIEF.md");
+    touch(&inner, "01-leaf-k3.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1.1.1-[3]-leaf.md"]);
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &[
+            "brief-chain",
+            ".grove/01-outer-k1/01-inner-k2/01-leaf-k3.md",
+        ],
+    );
     assert!(ok);
+    // Directory ascent, root→leaf: the root, then each ancestor node dir.
     assert_eq!(
-        names(&stdout),
-        vec!["BRIEF.md", "1-[1]-outer.BRIEF.md", "1.1-[2]-inner.BRIEF.md"]
+        parent_names(&stdout),
+        vec![".grove", "01-outer-k1", "01-inner-k2"]
     );
 }
 
@@ -93,13 +127,21 @@ fn missing_intermediate_brief_is_skipped_silently() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    // No brief at position [1] — the [1] level is simply absent from the chain.
-    touch(&grove, "1.1-[2]-inner.BRIEF.md");
-    touch(&grove, "1.1.1-[3]-leaf.md");
+    // No BRIEF.md in `01-outer` — that level is simply absent from the chain.
+    let outer = mknode(&grove, "01-outer-k1");
+    let inner = mknode(&outer, "01-inner-k2");
+    touch(&inner, "BRIEF.md");
+    touch(&inner, "01-leaf-k3.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1.1.1-[3]-leaf.md"]);
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &[
+            "brief-chain",
+            ".grove/01-outer-k1/01-inner-k2/01-leaf-k3.md",
+        ],
+    );
     assert!(ok);
-    assert_eq!(names(&stdout), vec!["BRIEF.md", "1.1-[2]-inner.BRIEF.md"]);
+    assert_eq!(parent_names(&stdout), vec![".grove", "01-inner-k2"]);
 }
 
 #[test]
@@ -107,13 +149,15 @@ fn no_arg_form_uses_picks_next_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    touch(&grove, "1-[1]-node.BRIEF.md");
-    touch(&grove, "1.1-[2]-first.md");
+    let node = mknode(&grove, "01-node-k1");
+    touch(&node, "BRIEF.md");
+    touch(&node, "01-first-k2.md");
 
     let (stdout, _, ok) = run(tmp.path(), &["brief-chain"]);
     assert!(ok);
-    // pick's next leaf is 1.1; its chain is the root brief + the node-1 brief.
-    assert_eq!(names(&stdout), vec!["BRIEF.md", "1-[1]-node.BRIEF.md"]);
+    // pick's next live leaf is the node's first child; its chain is the root
+    // brief + the node-1 brief.
+    assert_eq!(parent_names(&stdout), vec![".grove", "01-node-k1"]);
 }
 
 #[test]
@@ -121,9 +165,9 @@ fn missing_root_brief_yields_empty_chain() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     // No root BRIEF.md.
-    touch(&grove, "1-[1]-leaf.md");
+    touch(&grove, "01-leaf-k1.md");
 
-    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/1-[1]-leaf.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["brief-chain", ".grove/01-leaf-k1.md"]);
     assert!(ok);
     assert!(
         stdout.trim().is_empty(),

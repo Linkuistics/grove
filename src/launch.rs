@@ -67,15 +67,16 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         wt
     };
 
-    // Adoption-migrate (ADR-0034): before driving, flip an old-format `.grove/`
-    // to the new dotted-decimal scheme in one reviewable commit, so every task
-    // the loop launches sees only new format. A no-op on a new/empty/absent tree,
-    // so it is safe on every `grove do` (idempotent; restart ≡ continuation).
-    if let crate::migrate::Outcome::Migrated(renames) =
-        crate::migrate::migrate_on_adoption(&worktree, &args.name)?
+    // Adoption-migrate (ADR-0034/0035): before driving, flip an old-format
+    // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
+    // reviewable commit, so every task the loop launches sees only v2. A no-op on
+    // a v2/empty/absent tree, so it is safe on every `grove do` (idempotent;
+    // restart ≡ continuation).
+    if let crate::tree_migrate::Outcome::Migrated(renames) =
+        crate::tree_migrate::migrate_on_adoption(&worktree, &args.name)?
     {
         eprintln!(
-            "grove: migrated {} task-tree file{} to the dotted-decimal scheme (committed for review)",
+            "grove: migrated {} task-tree file{} to the v2 directory scheme (committed for review)",
             renames.len(),
             if renames.len() == 1 { "" } else { "s" }
         );

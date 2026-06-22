@@ -1,12 +1,16 @@
 // Fixture-driven tests for `grove-llm leaf-add` and `grove-llm leaf-insert` on
-// the **new flat dotted-decimal scheme** (ADR-0033/0034). Nodes are addressed by
-// their dotted **id**, not a directory path:
+// the **v2 directory scheme** (ADR-0035). A parent/target is addressed by its
+// permanent **key** (`[n]` / `n` / `<slug>-k<key>`) or its **path** — not a
+// dotted id:
 //
-//   - `leaf-add <parent-id> <slug>`  appends a child at `<parent-id>.<next>`
-//     (root parent `.`) with a fresh permanent key.
-//   - `leaf-insert <target-id> <slug>` inserts at exactly `<target-id>`, shifting
-//     the occupant and later siblings up by one — and the shift cascades through
-//     whole subtrees, rewriting only the position (filename + `# …` header).
+//   - `leaf-add <parent> <slug>`  appends a child under the node directory at the
+//     next gapless per-level position (root parent `.`) with a fresh key.
+//   - `leaf-insert <target> <slug>` inserts at the slot the existing target holds,
+//     shifting the target and later siblings up one position. Because the
+//     hierarchy lives in directories, a shift is a `git mv` of each sibling
+//     directory + the subtree riding along, and in-file headers are position-free
+//     (`# <slug>-k<key>`), so the renumber rewrites **zero file contents**.
+//     (Appending past the last sibling is `leaf-add`'s job — target must exist.)
 //
 // Each test stands up a real git repo so the verb's `git mv` calls have tracked
 // files to operate on.
@@ -48,11 +52,20 @@ fn git(repo: &Path, args: &[&str]) {
         .unwrap();
 }
 
+/// Write a leaf/brief file (creating parents).
 fn touch(p: &Path, body: &str) {
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent).unwrap();
     }
     fs::write(p, body.as_bytes()).unwrap();
+}
+
+/// Create a node directory holding a `BRIEF.md`, returning the directory path.
+fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
+    let p = dir.join(name);
+    fs::create_dir_all(&p).unwrap();
+    fs::write(p.join("BRIEF.md"), format!("# {handle} — brief\n")).unwrap();
+    p
 }
 
 fn stage_all(repo: &Path) {
@@ -106,45 +119,63 @@ fn add_to_empty_root_uses_position_one() {
     assert!(ok, "leaf-add failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/1-[1]-first-step.md")
+        PathBuf::from(".grove/01-first-step-k1.md")
     );
-    let body = read(tmp.path(), ".grove/1-[1]-first-step.md");
-    assert!(body.starts_with("# 1-[1]-first-step\n"), "header: {body:?}");
+    let body = read(tmp.path(), ".grove/01-first-step-k1.md");
+    // The in-file header is the position-free handle `# <slug>-k<key>`.
+    assert!(body.starts_with("# first-step-k1\n"), "header: {body:?}");
     assert!(body.contains("**Kind:** work\n"));
     assert!(body.contains("## Goal\n"));
 }
 
 #[test]
-fn add_to_nonempty_root_uses_next_gapless_position_and_fresh_key() {
+fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
-    touch(&grove.join("1-[1]-existing.md"), "# 1-[1]-existing\n");
+    touch(&grove.join("01-existing-k1.md"), "# existing-k1\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "second"]);
     assert!(ok);
-    // Next root child is position 2; fresh key is max key (1) + 1 = 2.
+    // Next root child is position 02; fresh key is max key (1) + 1 = 2.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/2-[2]-second.md")
+        PathBuf::from(".grove/02-second-k2.md")
     );
 }
 
 #[test]
-fn add_under_a_node_uses_dotted_child_position() {
+fn add_under_a_node_by_key_uses_child_position() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-node.BRIEF.md"), "# 1-[1]-node — brief\n");
-    touch(&grove.join("1.1-[2]-child.md"), "# 1.1-[2]-child\n");
+    let node = mknode(&grove, "01-node-k1", "node-k1");
+    touch(&node.join("01-child-k2.md"), "# child-k2\n");
     stage_all(tmp.path());
 
+    // Parent referenced by its permanent key `1`.
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "1", "second"]);
     assert!(ok);
-    // Next child under node 1 is 1.2; fresh key is max (2) + 1 = 3.
+    // Next child under the node is position 02; fresh key is max (2) + 1 = 3.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/1.2-[3]-second.md")
+        PathBuf::from(".grove/01-node-k1/02-second-k3.md")
+    );
+}
+
+#[test]
+fn add_under_a_node_by_path() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    mknode(&grove, "01-node-k1", "node-k1");
+    stage_all(tmp.path());
+
+    // Parent referenced by its grove-root-relative directory path.
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "01-node-k1", "only"]);
+    assert!(ok, "leaf-add by path failed");
+    assert_eq!(
+        rel_path(&stdout, tmp.path()),
+        PathBuf::from(".grove/01-node-k1/01-only-k2.md")
     );
 }
 
@@ -186,11 +217,13 @@ fn add_under_nonexistent_parent_errors() {
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
+    // Key 9 resolves to nothing (not a path, not a key) → the ref-or-path mapping
+    // reports it could not be resolved.
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", "9", "orphan"]);
     assert!(!ok, "expected error adding under a nonexistent parent");
     assert!(
-        stderr.contains("parent node 9 not found"),
-        "expected parent-not-found diagnostic, got {stderr:?}"
+        stderr.contains("no entry matches") && stderr.contains('9'),
+        "expected not-found diagnostic, got {stderr:?}"
     );
 }
 
@@ -201,28 +234,29 @@ fn add_under_nonexistent_parent_errors() {
 fn insert_at_start_shifts_root_siblings_up_by_one() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-a.md"), "# 1-[1]-a\n");
-    touch(&grove.join("2-[2]-b.md"), "# 2-[2]-b\n");
+    touch(&grove.join("01-a-k1.md"), "# a-k1\n");
+    touch(&grove.join("02-b-k2.md"), "# b-k2\n");
     stage_all(tmp.path());
 
+    // Target the entry holding key 1 (leaf `a`).
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
     assert!(ok, "leaf-insert failed: {stderr}");
-    // New leaf lands at position 1 with a fresh key (max 2 + 1 = 3).
+    // New leaf lands at position 01 with a fresh key (max 2 + 1 = 3).
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/1-[3]-fresh.md")
+        PathBuf::from(".grove/01-fresh-k3.md")
     );
     // The occupant and its later sibling each shift up by one; keys preserved.
     assert!(
-        exists(tmp.path(), ".grove/2-[1]-a.md"),
-        "a not shifted to 2"
+        exists(tmp.path(), ".grove/02-a-k1.md"),
+        "a not shifted to 02"
     );
     assert!(
-        exists(tmp.path(), ".grove/3-[2]-b.md"),
-        "b not shifted to 3"
+        exists(tmp.path(), ".grove/03-b-k2.md"),
+        "b not shifted to 03"
     );
     assert!(
-        !exists(tmp.path(), ".grove/1-[1]-a.md"),
+        !exists(tmp.path(), ".grove/01-a-k1.md"),
         "old a still present"
     );
     // Renumber summary goes to stderr (stdout stays just the new path).
@@ -233,60 +267,60 @@ fn insert_at_start_shifts_root_siblings_up_by_one() {
 }
 
 #[test]
-fn insert_cascades_through_whole_subtree() {
+fn insert_cascades_a_node_subtree_with_position_free_headers() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-node.BRIEF.md"), "# 1-[1]-node — brief\n");
-    touch(&grove.join("1.1-[2]-inner.md"), "# 1.1-[2]-inner\n");
-    touch(&grove.join("2-[3]-outer.md"), "# 2-[3]-outer\n");
+    let node = mknode(&grove, "01-node-k1", "node-k1");
+    touch(&node.join("01-inner-k2.md"), "# inner-k2\n");
+    touch(&grove.join("02-outer-k3.md"), "# outer-k3\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
     assert!(ok, "leaf-insert failed: {stderr}");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/1-[4]-fresh.md")
+        PathBuf::from(".grove/01-fresh-k4.md")
     );
-    // node 1 → 2 drags its child 1.1 → 2.1; the unrelated sibling 2 → 3.
+    // node 01 → 02 drags its whole subtree (the child rides along, name and key
+    // unchanged); the unrelated sibling 02 → 03.
     assert!(
-        exists(tmp.path(), ".grove/2-[1]-node.BRIEF.md"),
-        "node not bumped"
-    );
-    assert!(
-        exists(tmp.path(), ".grove/2.1-[2]-inner.md"),
-        "child not dragged"
+        exists(tmp.path(), ".grove/02-node-k1/01-inner-k2.md"),
+        "node dir + child not moved as a unit"
     );
     assert!(
-        exists(tmp.path(), ".grove/3-[3]-outer.md"),
+        exists(tmp.path(), ".grove/03-outer-k3.md"),
         "outer not bumped"
     );
-    // The dragged brief's `# …` header position is rewritten to match.
-    let brief = read(tmp.path(), ".grove/2-[1]-node.BRIEF.md");
     assert!(
-        brief.starts_with("# 2-[1]-node"),
-        "brief header position not rewritten: {brief:?}"
+        !exists(tmp.path(), ".grove/01-node-k1"),
+        "old node dir still present"
+    );
+    // The renumber rewrites ZERO file contents — the dragged brief's position-free
+    // header is byte-identical (v2's "cascade collapse", ADR-0035).
+    assert_eq!(
+        read(tmp.path(), ".grove/02-node-k1/BRIEF.md"),
+        "# node-k1 — brief\n",
+        "position-free header must not be rewritten on renumber"
     );
 }
 
 #[test]
-fn insert_at_end_degenerates_to_add() {
+fn insert_requires_an_existing_target() {
+    // In v2, inserting past the last sibling is `leaf-add`'s job — `leaf-insert`'s
+    // target must exist. A nonexistent target is an error (not a silent append).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-a.md"), "# 1-[1]-a\n");
+    touch(&grove.join("01-a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "2", "tail"]);
-    assert!(ok);
-    assert_eq!(
-        rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/2-[2]-tail.md")
-    );
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-insert", "9", "tail"]);
+    assert!(!ok, "leaf-insert at a nonexistent target should error");
     assert!(
-        stderr.contains("no siblings to renumber"),
-        "expected empty-renumber note, got {stderr:?}"
+        stderr.contains("no entry matches"),
+        "expected not-found diagnostic, got {stderr:?}"
     );
     // The pre-existing leaf is untouched.
-    assert!(exists(tmp.path(), ".grove/1-[1]-a.md"));
+    assert!(exists(tmp.path(), ".grove/01-a-k1.md"));
 }
 
 // ---------------------------------------------------------------------------

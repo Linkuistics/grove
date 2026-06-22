@@ -51,6 +51,11 @@ Live leaves (this grove is still an old `NNN-slug` tree; the flip happens at 070
   install/materialise.
 - `100-complete-terminate-signal` (work) — `grove-llm complete --done` to end the
   loop cleanly (loop-runtime, position-independent; must land before release).
+- `scheme-v2-directories` (node, **ADR-0035**) — reverse ADR-0033's flat structure
+  to real directories (node = dir with `BRIEF.md` + numbered children); keeps the
+  permanent `[key]`, reference-by-key, numeric order, done-in-place. Surfaced by
+  dogfooding the 070/040 flip. Independent of 080/090/100; reorder ahead of them if
+  v2 should precede the sheds.
 
 Sequencing: 060 (engine) → 070 (flip — world goes new-format here) → 080/090 sheds
 + 100, now running **in the new world** (don't delete the old runtime before the
@@ -138,3 +143,6 @@ or a dedicated cleanup leaf:
   (the scheme 050 built).
 - **ADR-0034** — grove flips to the new scheme by migrate-on-adoption (no
   transitional dual reader); this grove is itself flipped. Reverses the rollout.
+- **ADR-0035** — the task tree is real **directories** with stable-keyed names,
+  reversing ADR-0033's *flat* structure (keeps the `[key]`, numeric order,
+  done-in-place). Built by node `scheme-v2-directories`.

@@ -1,13 +1,14 @@
 // Fixture-driven tests for `grove-llm leaf-decompose` and `grove-llm
-// leaf-retire` on the **new flat dotted-decimal scheme** (ADR-0033/0034):
+// leaf-retire` on the **v2 directory scheme** (ADR-0035):
 //
-//   - `leaf-decompose <leaf-path> <first-child-slug>` flips a live leaf
-//     `<id>-[k]-<slug>.md` into a node brief `<id>-[k]-<slug>.BRIEF.md`
-//     (**key preserved**) and atomically grows the first child
-//     `<id>.1-[new]-<first-child-slug>.md` so a node is never childless.
-//   - `leaf-retire <leaf-path>` renames in place, appending `.DONE`
-//     (`<id>-[k]-<slug>.md` → `…DONE.md`), keeping the retired leaf in the flat
-//     version-sorted list (no `done/` directory).
+//   - `leaf-decompose <leaf-path> <first-child-slug>` converts a live leaf file
+//     `NN-<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
+//     preserved**), `git mv`ing the leaf body in as the node's `BRIEF.md` (its
+//     `# <slug>-k<key>` header retitled ` — brief`) and atomically growing a
+//     first child `01-<first-child-slug>-k<new>.md` so a node is never childless.
+//   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
+//     (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`), keeping the retired
+//     leaf in its directory (no `done/` directory); the file body is untouched.
 //
 // Each test stands up a real git repo so the verb's `git mv` calls have tracked
 // files to operate on.
@@ -46,11 +47,20 @@ fn git(repo: &Path, args: &[&str]) {
         .unwrap();
 }
 
+/// Write a leaf/brief file (creating parent dirs as needed).
 fn touch(p: &Path, body: &str) {
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent).unwrap();
     }
     fs::write(p, body.as_bytes()).unwrap();
+}
+
+/// Create a node directory holding a `BRIEF.md`, returning the directory path.
+fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
+    let p = dir.join(name);
+    fs::create_dir_all(&p).unwrap();
+    fs::write(p.join("BRIEF.md"), format!("# {handle} — brief\n")).unwrap();
+    p
 }
 
 fn stage_all(repo: &Path) {
@@ -91,55 +101,60 @@ fn exists(repo: &Path, rel: &str) -> bool {
 // leaf-decompose
 
 #[test]
-fn decompose_converts_leaf_into_node_brief_with_first_child() {
+fn decompose_converts_leaf_into_node_directory_with_first_child() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("1-[1]-target.md"),
-        "# 1-[1]-target\n\n**Kind:** planning\n\nbody body\n",
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** planning\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/1-[1]-target.md", "sub"],
+        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
 
-    // stdout: the new brief path, then the first child path.
+    // stdout: the new node brief path, then the first child path.
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/1-[1]-target.BRIEF.md")
+        PathBuf::from(".grove/01-target-k1/BRIEF.md")
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/1.1-[2]-sub.md")
+        PathBuf::from(".grove/01-target-k1/01-sub-k2.md")
     );
 
-    // The leaf became a node brief, **key preserved** ([1]); the old leaf is gone.
-    assert!(exists(tmp.path(), ".grove/1-[1]-target.BRIEF.md"));
-    assert!(!exists(tmp.path(), ".grove/1-[1]-target.md"));
+    // The leaf became a node directory, **key preserved** (k1); the old leaf
+    // file is gone, replaced by the directory + its BRIEF.md.
+    assert!(exists(tmp.path(), ".grove/01-target-k1/BRIEF.md"));
+    assert!(!exists(tmp.path(), ".grove/01-target-k1.md"));
     // The first child exists so the node is never childless.
-    assert!(exists(tmp.path(), ".grove/1.1-[2]-sub.md"));
+    assert!(exists(tmp.path(), ".grove/01-target-k1/01-sub-k2.md"));
 
-    // The brief header is retitled with ` — brief`.
-    let brief = read(tmp.path(), ".grove/1-[1]-target.BRIEF.md");
+    // The brief's position-free handle header is retitled with ` — brief`; the
+    // rest of the body carries over verbatim.
+    let brief = read(tmp.path(), ".grove/01-target-k1/BRIEF.md");
     assert!(
-        brief.starts_with("# 1-[1]-target — brief\n"),
+        brief.starts_with("# target-k1 — brief\n"),
         "brief not retitled: {brief:?}"
     );
+    assert!(brief.contains("body body"), "brief body lost: {brief:?}");
 }
 
 #[test]
 fn decompose_rejects_a_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-node.BRIEF.md"), "# 1-[1]-node — brief\n");
+    // A node directory's BRIEF.md is the brief — decomposing it is nonsensical
+    // (it is already a node).
+    mknode(&grove, "01-node-k1", "node-k1");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/1-[1]-node.BRIEF.md", "x"],
+        &["leaf-decompose", ".grove/01-node-k1/BRIEF.md", "x"],
     );
     assert!(!ok, "decompose must refuse a brief");
     assert!(
@@ -152,16 +167,16 @@ fn decompose_rejects_a_brief() {
 fn decompose_rejects_a_retired_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-old.DONE.md"), "# 1-[1]-old\n");
+    touch(&grove.join("01-DONE-old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/1-[1]-old.DONE.md", "x"],
+        &["leaf-decompose", ".grove/01-DONE-old-k1.md", "x"],
     );
     assert!(!ok, "decompose must refuse a retired leaf");
     assert!(
-        stderr.contains("retired") || stderr.contains(".DONE"),
+        stderr.contains("retired") || stderr.contains("DONE"),
         "expected retired diagnostic, got {stderr:?}"
     );
 }
@@ -170,30 +185,35 @@ fn decompose_rejects_a_retired_leaf() {
 // leaf-retire
 
 #[test]
-fn retire_appends_done_marker_in_place() {
+fn retire_adds_done_infix_in_place() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-target.md"), "# 1-[1]-target\n");
+    touch(&grove.join("01-target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/1-[1]-target.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-target-k1.md"]);
     assert!(ok, "leaf-retire failed");
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/1-[1]-target.DONE.md")
+        PathBuf::from(".grove/01-DONE-target-k1.md")
     );
-    assert!(exists(tmp.path(), ".grove/1-[1]-target.DONE.md"));
-    assert!(!exists(tmp.path(), ".grove/1-[1]-target.md"));
+    assert!(exists(tmp.path(), ".grove/01-DONE-target-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-target-k1.md"));
+    // The DONE infix is filename-only — the body is byte-identical.
+    assert_eq!(
+        read(tmp.path(), ".grove/01-DONE-target-k1.md"),
+        "# target-k1\n"
+    );
 }
 
 #[test]
 fn retire_refuses_a_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-node.BRIEF.md"), "# 1-[1]-node — brief\n");
+    mknode(&grove, "01-node-k1", "node-k1");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/1-[1]-node.BRIEF.md"]);
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-node-k1/BRIEF.md"]);
     assert!(!ok, "retire must refuse a brief");
     assert!(
         stderr.contains("brief"),
@@ -205,13 +225,13 @@ fn retire_refuses_a_brief() {
 fn retire_refuses_an_already_done_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("1-[1]-old.DONE.md"), "# 1-[1]-old\n");
+    touch(&grove.join("01-DONE-old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/1-[1]-old.DONE.md"]);
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-DONE-old-k1.md"]);
     assert!(!ok, "retire must refuse an already-retired leaf");
     assert!(
-        stderr.contains("already retired") || stderr.contains(".DONE"),
+        stderr.contains("already retired") || stderr.contains("DONE"),
         "expected already-retired diagnostic, got {stderr:?}"
     );
 }

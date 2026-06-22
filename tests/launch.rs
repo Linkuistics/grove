@@ -150,9 +150,9 @@ fn do_continues_when_worktree_is_live() {
 
 #[test]
 fn do_migrates_an_old_tree_on_adoption_before_driving() {
-    // `grove do` must flip an old-format `.grove/` to the new scheme (committed)
-    // before driving — even in no-launch mode, which runs the adoption setup then
-    // returns without launching a session.
+    // `grove do` must flip an old-format `.grove/` to the v2 directory scheme
+    // (committed) before driving — even in no-launch mode, which runs the adoption
+    // setup then returns without launching a session.
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
@@ -195,18 +195,19 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
     })
     .unwrap();
 
-    // The old directory layout is gone; the new flat keyed files are present.
+    // The old directory layout is gone; the v2 keyed files are present (keys
+    // assigned in DFS pre-order: the retired `old` leaf k1, the live one k2).
     assert!(
         !worktree.join(".grove/done").exists(),
         "old done/ dir should be migrated away"
     );
     assert!(
-        worktree.join(".grove/1-[1]-old.DONE.md").exists(),
-        "retired leaf should be migrated to its new flat name"
+        worktree.join(".grove/01-DONE-old-k1.md").exists(),
+        "retired leaf should be migrated to its v2 name"
     );
     assert!(
-        worktree.join(".grove/2-[2]-live.md").exists(),
-        "live leaf should be migrated to its new flat name"
+        worktree.join(".grove/02-live-k2.md").exists(),
+        "live leaf should be migrated to its v2 name"
     );
 }
 

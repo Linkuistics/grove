@@ -1,10 +1,14 @@
-// End-to-end tests for the human verb `grove migrate` (060/020): the one-time,
-// in-place conversion of an old `NNN-slug/` + `done/` tree to the new flat
-// dotted-decimal scheme (ADR-0033/0034). These drive the real `grove` binary on
-// a real git repo, so they exercise what the in-process unit tests in
-// `src/migrate.rs` cannot: the `git mv`s, the on-disk header rewrites, the
-// no-commit contract, the empty-directory cleanup, idempotency, and that the
-// migrated tree drives correctly under `grove-llm pick` / `brief-chain`.
+// End-to-end tests for the human verb `grove migrate` and the adoption hook
+// `tree_migrate::migrate_on_adoption`: the one-time, in-place conversion of an
+// old tree to the **v2 directory scheme** (ADR-0035). The migration accepts the
+// old `NNN-slug/` + `done/` directory format (exercised here) and the v1-flat
+// `<dotted>-[<key>]-<slug>` format alike, lowering both to v2 node directories +
+// `NN-[DONE-]<slug>-k<key>.md` leaves. These drive the real `grove` binary on a
+// real git repo, so they exercise what the in-process unit tests in
+// `src/tree_migrate.rs` cannot: the `git mv`s, the on-disk header rewrites to the
+// position-free `# <slug>-k<key>` handle, the no-commit contract, the
+// empty-directory cleanup, idempotency, and that the migrated tree drives
+// correctly under `grove-llm pick` / `brief-chain`.
 
 use assert_cmd::Command;
 use std::fs;
@@ -128,9 +132,10 @@ fn tree(repo: &Path) -> Vec<String> {
     out
 }
 
-/// Stand up a representative old-format fixture exercising every shape: a retired
-/// root leaf, a partially-retired node (brief live + one live + one done child),
-/// a fully-retired node (brief in `done/`), a live root leaf, and a foreign file.
+/// Stand up a representative old `NNN-slug/` + `done/` fixture exercising every
+/// shape: a retired root leaf, a partially-retired node (brief live + one live +
+/// one done child), a fully-retired node (brief in `done/`), a live root leaf, and
+/// a foreign file.
 fn build_old_fixture(repo: &Path) {
     let g = repo.join(".grove");
     touch(&g.join("BRIEF.md"), "# proj — brief\n\n## Goal\n");
@@ -159,19 +164,21 @@ fn build_old_fixture(repo: &Path) {
     touch(&g.join("README.md"), "not a grove file\n");
 }
 
-/// The new flat tree the fixture migrates to (`BRIEF.md` stays; foreign README
-/// stays; everything else is renamed flat with positions, keys, and markers).
+/// The v2 directory tree the fixture migrates to (`BRIEF.md` stays; foreign
+/// README stays; every node becomes a directory holding its `BRIEF.md`; positions
+/// are 2-digit per-level, keys are assigned in DFS pre-order, retired leaves carry
+/// the `DONE` infix).
 fn expected_new_tree() -> Vec<String> {
     let mut v: Vec<String> = [
         "BRIEF.md",
         "README.md",
-        "1-[1]-first.DONE.md",
-        "2-[2]-second.BRIEF.md",
-        "2.1-[3]-done-child.DONE.md",
-        "2.2-[4]-live-child.md",
-        "3-[5]-old-node.BRIEF.md",
-        "3.1-[6]-grandchild.DONE.md",
-        "4-[7]-last.md",
+        "01-DONE-first-k1.md",
+        "02-second-k2/BRIEF.md",
+        "02-second-k2/01-DONE-done-child-k3.md",
+        "02-second-k2/02-live-child-k4.md",
+        "03-old-node-k5/BRIEF.md",
+        "03-old-node-k5/01-DONE-grandchild-k6.md",
+        "04-last-k7.md",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -202,7 +209,7 @@ fn migrate_converts_the_full_tree_in_place() {
         "expected a summary, got {stdout:?}"
     );
     assert!(
-        stdout.contains("1-[1]-first.DONE.md"),
+        stdout.contains("01-DONE-first-k1.md"),
         "summary should list renames, got {stdout:?}"
     );
 }
@@ -214,24 +221,24 @@ fn migrate_rewrites_headers_and_preserves_bodies() {
     stage_commit(repo.path());
     assert!(run_migrate(repo.path()).2);
 
-    // A retired leaf: header retitled to its new stem (no `.DONE` in the header),
-    // body byte-preserved.
+    // A retired leaf: header rewritten to the position-free `# <slug>-k<key>`
+    // handle (no `DONE`/position in the header), body byte-preserved.
     assert_eq!(
-        read(repo.path(), "1-[1]-first.DONE.md"),
-        "# 1-[1]-first\n\nbody one\n"
+        read(repo.path(), "01-DONE-first-k1.md"),
+        "# first-k1\n\nbody one\n"
     );
-    // A node brief: ` — brief` tail preserved.
+    // A node brief: now a directory's `BRIEF.md`; handle + ` — brief` tail.
     assert_eq!(
-        read(repo.path(), "2-[2]-second.BRIEF.md")
+        read(repo.path(), "02-second-k2/BRIEF.md")
             .lines()
             .next()
             .unwrap(),
-        "# 2-[2]-second — brief"
+        "# second-k2 — brief"
     );
     // A live leaf.
     assert_eq!(
-        read(repo.path(), "4-[7]-last.md"),
-        "# 4-[7]-last\n\nlast body\n"
+        read(repo.path(), "04-last-k7.md"),
+        "# last-k7\n\nlast body\n"
     );
     // The root brief is untouched (unkeyed singleton).
     assert_eq!(
@@ -269,12 +276,14 @@ fn migrate_removes_emptied_directories_but_keeps_foreign_files() {
     stage_commit(repo.path());
     assert!(run_migrate(repo.path()).2);
 
-    // Old node dirs are gone; the live root README stays.
+    // Old node dirs are gone; the new node directories took their place.
     assert!(
         !exists(repo.path(), "020-second"),
         "old node dir should be removed"
     );
     assert!(!exists(repo.path(), "030-old-node"));
+    assert!(exists(repo.path(), "02-second-k2"), "new node dir present");
+    assert!(exists(repo.path(), "03-old-node-k5"));
     assert!(exists(repo.path(), "README.md"), "foreign root file kept");
     // The done mirror survives only because it still holds the foreign notes.txt.
     assert!(
@@ -284,7 +293,7 @@ fn migrate_removes_emptied_directories_but_keeps_foreign_files() {
 }
 
 #[test]
-fn migrate_is_idempotent_noop_on_an_already_new_tree() {
+fn migrate_is_idempotent_noop_on_an_already_v2_tree() {
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
@@ -296,13 +305,13 @@ fn migrate_is_idempotent_noop_on_an_already_new_tree() {
     let (_stdout, stderr, ok) = run_migrate(repo.path());
     assert!(ok, "second migrate should succeed");
     assert!(
-        stderr.contains("already new-format"),
-        "expected already-new diagnostic, got {stderr:?}"
+        stderr.contains("already v2"),
+        "expected already-v2 diagnostic, got {stderr:?}"
     );
     assert_eq!(head(repo.path()), before);
     assert!(
         porcelain(repo.path()).trim().is_empty(),
-        "no changes on a new tree"
+        "no changes on a v2 tree"
     );
 }
 
@@ -327,8 +336,8 @@ fn migrated_tree_drives_correctly_under_pick_and_brief_chain() {
     stage_commit(repo.path());
     assert!(run_migrate(repo.path()).2);
 
-    // pick returns the first live leaf in the new version-sort order: position
-    // [2,2] (the live child) precedes [4] (the live root leaf).
+    // pick returns the first live leaf in pre-order: the live child inside the
+    // node `02-second-k2` precedes the live root leaf `04-last-k7`.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(repo.path())
@@ -337,11 +346,12 @@ fn migrated_tree_drives_correctly_under_pick_and_brief_chain() {
         .unwrap();
     let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
     assert!(
-        picked.ends_with("/.grove/2.2-[4]-live-child.md"),
+        picked.ends_with("/.grove/02-second-k2/02-live-child-k4.md"),
         "pick should return the first live leaf, got {picked:?}"
     );
 
-    // brief-chain for that leaf is root brief → the node's brief.
+    // brief-chain for that leaf is root brief → the node's brief. Both files are
+    // named BRIEF.md, so distinguish them by their parent directory.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(repo.path())
@@ -351,14 +361,17 @@ fn migrated_tree_drives_correctly_under_pick_and_brief_chain() {
     let chain: Vec<String> = String::from_utf8_lossy(&out.stdout)
         .lines()
         .map(|l| {
-            Path::new(l)
+            let p = Path::new(l);
+            assert_eq!(p.file_name().unwrap().to_string_lossy(), "BRIEF.md");
+            p.parent()
+                .unwrap()
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
                 .into_owned()
         })
         .collect();
-    assert_eq!(chain, vec!["BRIEF.md", "2-[2]-second.BRIEF.md"]);
+    assert_eq!(chain, vec![".grove", "02-second-k2"]);
 }
 
 // ---------------------------------------------------------------------------
@@ -417,10 +430,10 @@ fn grove_llm_binary_does_not_expose_migrate() {
 }
 
 // ---------------------------------------------------------------------------
-// adoption (060/030): `grove do` migrates an old tree on adoption, committing the
-// conversion as one reviewable commit *before* driving — so the loop sees only
-// new format. `migrate::migrate_on_adoption` is the unit the loop driver calls;
-// these tests exercise its commit + idempotency contract directly.
+// adoption (ADR-0034/0035): `grove do` migrates an old tree on adoption,
+// committing the conversion as one reviewable commit *before* driving — so the
+// loop sees only v2. `tree_migrate::migrate_on_adoption` is the unit the loop
+// driver calls; these tests exercise its commit + idempotency contract directly.
 
 #[test]
 fn adoption_migrates_and_commits_an_old_tree() {
@@ -429,13 +442,13 @@ fn adoption_migrates_and_commits_an_old_tree() {
     stage_commit(repo.path());
     let before = head(repo.path());
 
-    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    let outcome = grove::tree_migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
     assert!(
-        matches!(outcome, grove::migrate::Outcome::Migrated(_)),
+        matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)),
         "old tree should report Migrated, got {outcome:?}"
     );
 
-    // The tree is converted to the new flat scheme...
+    // The tree is converted to the v2 directory scheme...
     assert_eq!(
         tree(repo.path()),
         expected_new_tree(),
@@ -450,18 +463,18 @@ fn adoption_migrates_and_commits_an_old_tree() {
     // The commit is clear and self-describing (names the grove + the scheme).
     assert_eq!(
         head_subject(repo.path()),
-        "grove(demo): migrate task tree to dotted-decimal scheme"
+        "grove(demo): migrate task tree to v2 directory scheme"
     );
 }
 
 #[test]
 fn adopted_tree_drives_under_pick() {
-    // After adoption, the committed new-format tree drives correctly: `pick`
-    // returns the first live leaf in the new version-sort order.
+    // After adoption, the committed v2 tree drives correctly: `pick` returns the
+    // first live leaf in pre-order.
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
-    grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    grove::tree_migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
 
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -471,33 +484,33 @@ fn adopted_tree_drives_under_pick() {
         .unwrap();
     let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
     assert!(
-        picked.ends_with("/.grove/2.2-[4]-live-child.md"),
+        picked.ends_with("/.grove/02-second-k2/02-live-child-k4.md"),
         "adopted tree should drive under pick, got {picked:?}"
     );
 }
 
 #[test]
-fn adoption_is_a_noop_on_an_already_new_tree() {
+fn adoption_is_a_noop_on_an_already_v2_tree() {
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
     // First adoption migrates + commits.
     assert!(matches!(
-        grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap(),
-        grove::migrate::Outcome::Migrated(_)
+        grove::tree_migrate::migrate_on_adoption(repo.path(), "demo").unwrap(),
+        grove::tree_migrate::Outcome::Migrated(_)
     ));
     let before = head(repo.path());
 
-    // Second adoption: already new-format → no commit, no churn.
-    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    // Second adoption: already v2 → no commit, no churn.
+    let outcome = grove::tree_migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
     assert!(
-        matches!(outcome, grove::migrate::Outcome::AlreadyNew),
-        "new tree should report AlreadyNew, got {outcome:?}"
+        matches!(outcome, grove::tree_migrate::Outcome::AlreadyV2),
+        "v2 tree should report AlreadyV2, got {outcome:?}"
     );
-    assert_eq!(head(repo.path()), before, "no second commit on a new tree");
+    assert_eq!(head(repo.path()), before, "no second commit on a v2 tree");
     assert!(
         porcelain(repo.path()).trim().is_empty(),
-        "no churn on a new tree"
+        "no churn on a v2 tree"
     );
 }
 
@@ -510,9 +523,9 @@ fn adoption_is_a_noop_when_no_grove_dir() {
     stage_commit(repo.path());
     let before = head(repo.path());
 
-    let outcome = grove::migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
+    let outcome = grove::tree_migrate::migrate_on_adoption(repo.path(), "demo").unwrap();
     assert!(
-        matches!(outcome, grove::migrate::Outcome::NothingToMigrate),
+        matches!(outcome, grove::tree_migrate::Outcome::NothingToMigrate),
         "absent .grove/ should report NothingToMigrate, got {outcome:?}"
     );
     assert_eq!(

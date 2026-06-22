@@ -1,12 +1,16 @@
-// Fixture-driven tests for `grove-llm root-init` on the **new flat
-// dotted-decimal scheme** (ADR-0033/0034). Each test stands up a real git repo
-// so `git rev-parse --show-toplevel` resolves to the fixture path, then runs the
-// verb against a worktree that has *no* `.grove/` yet — the fresh-grove case the
-// verb exists to scaffold.
+// Fixture-driven tests for `grove-llm root-init` on the **v2 directory scheme**
+// (ADR-0035). Each test stands up a real git repo so `git rev-parse
+// --show-toplevel` resolves to the fixture path, then runs the verb against a
+// worktree that has *no* `.grove/` yet — the fresh-grove case the verb exists to
+// scaffold.
 //
 // The verb's output contract:
-// - stdout: two absolute paths, BRIEF.md first then the first leaf `1-[1]-<slug>.md`.
+// - stdout: two absolute paths, the root `BRIEF.md` first then the first leaf
+//   `01-<slug>-k1.md` (default slug `plan`, so `01-plan-k1.md`).
+// - working-tree change only — makes NO git commit; the scaffold is left
+//   untracked for the first session's commit to fold in.
 // - refuses (non-zero exit) if `.grove/` already exists.
+// - rejects an invalid slug before any mkdir, so no stray `.grove/` is left.
 //
 // The load-bearing invariant (root BRIEF brief evidence item 4): after
 // `root-init`, `grove-llm pick` must return the new leaf — NOT report the
@@ -82,19 +86,19 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
     let (stdout, _, ok) = run(tmp.path(), &["root-init"]);
     assert!(ok, "root-init failed");
 
-    // stdout: BRIEF.md first, then the leaf.
+    // stdout: the root BRIEF.md first, then the leaf.
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
         PathBuf::from(".grove/BRIEF.md")
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/1-[1]-plan.md")
+        PathBuf::from(".grove/01-plan-k1.md")
     );
 
     // Both exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
-    assert!(tmp.path().join(".grove/1-[1]-plan.md").is_file());
+    assert!(tmp.path().join(".grove/01-plan-k1.md").is_file());
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
     let brief = read(tmp.path(), ".grove/BRIEF.md");
@@ -108,10 +112,11 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
         "brief missing Done when: {brief:?}"
     );
 
-    // The first leaf is a planning task per the fresh-grove contract.
-    let leaf = read(tmp.path(), ".grove/1-[1]-plan.md");
+    // The first leaf is a planning task per the fresh-grove contract. Its header
+    // is the position-free handle `# <slug>-k<key>` (the v2 form `leaf_add` writes).
+    let leaf = read(tmp.path(), ".grove/01-plan-k1.md");
     assert!(
-        leaf.starts_with("# 1-[1]-plan\n"),
+        leaf.starts_with("# plan-k1\n"),
         "leaf header wrong: {leaf:?}"
     );
     assert!(
@@ -127,7 +132,7 @@ fn root_init_default_slug_is_plan() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/1-[1]-plan.md")
+        PathBuf::from(".grove/01-plan-k1.md")
     );
 }
 
@@ -138,9 +143,9 @@ fn root_init_custom_slug_names_the_first_leaf() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/1-[1]-design-the-api.md")
+        PathBuf::from(".grove/01-design-the-api-k1.md")
     );
-    let leaf = read(tmp.path(), ".grove/1-[1]-design-the-api.md");
+    let leaf = read(tmp.path(), ".grove/01-design-the-api-k1.md");
     assert!(leaf.contains("**Kind:** planning\n"), "got {leaf:?}");
 }
 
@@ -202,7 +207,7 @@ fn after_root_init_pick_returns_the_new_leaf_not_done() {
     // pick must name the leaf on stdout...
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/1-[1]-plan.md"),
+        PathBuf::from(".grove/01-plan-k1.md"),
         "pick did not return the scaffolded leaf"
     );
     // ...and must NOT report the grove as done (the empty-but-briefed trap).
@@ -247,6 +252,12 @@ fn root_init_makes_no_commit() {
     assert!(
         s.contains(".grove/"),
         "expected untracked .grove/ in status, got {s:?}"
+    );
+    // The `.grove` entries show as untracked (`??`), confirming nothing was committed.
+    assert!(
+        s.lines()
+            .any(|l| l.starts_with("??") && l.contains(".grove/")),
+        "expected .grove/ to be untracked (?? in status), got {s:?}"
     );
 }
 

@@ -19,11 +19,24 @@
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
 
+use crate::complete::{self, Disposition};
 use crate::harness::Harness;
 use anyhow::{Context, Result};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// Why the loop stopped — the loop's terminal disposition, made first-class so
+/// a clean whole-grove finish is distinguishable from an abnormal stop (rather
+/// than both looking like "the loop just ended").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoopOutcome {
+    /// The grove finished cleanly: a session signalled `complete --done`.
+    Finished,
+    /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
+    /// crash); resumable by re-running `grove do <name>`.
+    Stopped,
+}
 
 /// Relaunch-signal file path for a grove. Lives in the temp dir (ephemeral
 /// loop IPC, not durable grove state); name-keyed so concurrent groves don't
@@ -44,19 +57,21 @@ pub fn signal_file_path(name: &str) -> PathBuf {
 
 /// Entry point: install the interrupt guard, then run the loop. The real
 /// `grove do` path calls this; tests call [`run_loop`] directly to avoid the
-/// process-global signal change.
+/// process-global signal change. The outcome is already reported on stderr by
+/// the loop body, so the caller can discard it.
 pub fn run(harness: &'static Harness, repo_path: &Path, worktree: &Path, name: &str) -> Result<()> {
     ignore_interrupts();
-    run_loop(harness, repo_path, worktree, name)
+    run_loop(harness, repo_path, worktree, name).map(|_| ())
 }
 
-/// The loop body, free of process-global side effects.
+/// The loop body, free of process-global side effects. Returns why it stopped
+/// ([`LoopOutcome`]) so a clean finish is distinguishable from an abnormal exit.
 pub fn run_loop(
     harness: &'static Harness,
     repo_path: &Path,
     worktree: &Path,
     name: &str,
-) -> Result<()> {
+) -> Result<LoopOutcome> {
     let signal_file = signal_file_path(name);
     let repo_name = repo_path
         .file_name()
@@ -86,18 +101,25 @@ pub fn run_loop(
         // screen; reset before relaunching (and on the way out).
         reset_terminal();
 
-        if signal_file.exists() {
-            // Completion signal fired → relaunch with fresh context.
-            continue;
+        match complete::read_signal(&signal_file) {
+            // Per-task completion signal → relaunch with fresh context.
+            Some(Disposition::Relaunch) => continue,
+            // `complete --done` (the Finish cycle's last action) → stop clean.
+            Some(Disposition::Done) => {
+                eprintln!("grove: grove finished — loop complete.");
+                let _ = std::fs::remove_file(&signal_file);
+                return Ok(LoopOutcome::Finished);
+            }
+            // Human `/exit`/Ctrl-C, or a crash: no signal → stop. Re-running
+            // `grove do <name>` resumes from `grove-llm pick`.
+            None => {
+                eprintln!("grove: session ended without a completion signal — loop stopped.");
+                eprintln!("       Re-run `grove do {name}` to resume (restart ≡ continuation).");
+                let _ = std::fs::remove_file(&signal_file);
+                return Ok(LoopOutcome::Stopped);
+            }
         }
-        // Human `/exit`/Ctrl-C, or a crash: no signal → stop. Re-running
-        // `grove do <name>` resumes from `grove-llm pick`.
-        eprintln!("grove: session ended without a completion signal — loop stopped.");
-        eprintln!("       Re-run `grove do {name}` to resume (restart ≡ continuation).");
-        break;
     }
-    let _ = std::fs::remove_file(&signal_file);
-    Ok(())
 }
 
 /// Launch one fresh foreground `claude` owning the real TTY. The

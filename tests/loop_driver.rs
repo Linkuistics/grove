@@ -7,7 +7,7 @@
 // exists.
 
 use grove::harness;
-use grove::loop_driver;
+use grove::loop_driver::{self, LoopOutcome};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
@@ -86,7 +86,11 @@ exit 0
     std::env::remove_var("GROVE_TEST_COUNTER");
     std::env::remove_var("GROVE_TEST_LOG");
 
-    result.unwrap();
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Stopped,
+        "a non-signalled exit stops the loop (resume with `grove do`), not a clean finish"
+    );
 
     let log = fs::read_to_string(&log).unwrap();
     let rows: Vec<Vec<&str>> = log
@@ -117,4 +121,66 @@ exit 0
     );
     assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
     assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
+}
+
+#[test]
+fn loop_finishes_clean_on_a_done_signal() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/loopgrove");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let counter = repo_path.join("counter");
+    let log = repo_path.join("log");
+
+    // Fake claude: fire the *done* signal (the finish cycle's last teardown
+    // action) on the first iteration. The loop must run exactly once and stop
+    // with a clean finish — not relaunch, and not the no-signal stop.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '%s\n' "$n" >> "$GROVE_TEST_LOG"
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Finished,
+        "a `done` signal must end the loop with a clean finish"
+    );
+
+    let log = fs::read_to_string(&log).unwrap();
+    let count = log.lines().filter(|l| !l.is_empty()).count();
+    assert_eq!(
+        count, 1,
+        "the loop must run exactly once then finish — no relaunch (log: {log:?})"
+    );
 }

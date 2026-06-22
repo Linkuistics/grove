@@ -102,17 +102,24 @@ pub enum Command {
     /// the **last step** of a task, after commit + retire — it is how the loop
     /// ends this `claude` session and starts the next task with fresh context.
     ///
-    /// Writes the relaunch flag, then forks a detached killer that ends this
-    /// session after a short grace (so this very call returns first). Do
-    /// nothing else after running it. Defaults come from the loop driver's
-    /// environment (`GROVE_CLAUDE_PID`, `GROVE_SIGNAL_FILE`); when those are
-    /// absent (a session not under `grove do`) it is a safe near-no-op that
-    /// just tells you to exit manually.
+    /// Writes the disposition flag (relaunch by default, or finish with
+    /// `--done`), then forks a detached killer that ends this session after a
+    /// short grace (so this very call returns first). Do nothing else after
+    /// running it. The default relaunches the loop for the next task; `--done`
+    /// — the Finish cycle's last action — stops it cleanly. Defaults come from
+    /// the loop driver's environment (`GROVE_CLAUDE_PID`, `GROVE_SIGNAL_FILE`);
+    /// when those are absent (a session not under `grove do`) it is a safe
+    /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
 }
 
 #[derive(Parser)]
 pub struct CompleteArgs {
+    /// Finish the whole grove instead of relaunching: signal the loop to stop
+    /// cleanly. Use as the **last** action of the Finish cycle. Without it
+    /// (the per-task default) the loop relaunches with fresh context.
+    #[arg(long)]
+    pub done: bool,
     /// PID of the `claude` session to end. Default: `$GROVE_CLAUDE_PID`.
     #[arg(long)]
     pub pid: Option<i32>,
@@ -192,11 +199,17 @@ pub fn run() -> Result<()> {
 }
 
 fn cmd_complete(args: &CompleteArgs) -> Result<()> {
+    let disposition = if args.done {
+        complete::Disposition::Done
+    } else {
+        complete::Disposition::Relaunch
+    };
     let opts = complete::resolve_opts(
         args.pid,
         args.signal_file.clone(),
         args.grace,
         args.kill_grace,
+        disposition,
     );
     complete::signal_complete(&opts)
 }

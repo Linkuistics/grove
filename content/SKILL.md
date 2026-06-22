@@ -177,14 +177,16 @@ task with fresh context: the verb writes the relaunch flag and forks a detached
 killer that ends this `claude` after a short grace (so the call itself returns
 first). It reads its env handles from the loop driver (`GROVE_CLAUDE_PID`,
 `GROVE_SIGNAL_FILE`); run outside `grove do` it is a safe no-op that just tells
-you to exit manually. **Do not run it for the finish cycle below** — finishing
-*ends* the loop, it does not relaunch, so it deliberately leaves no signal.
+you to exit manually. Plain `complete` signals a **relaunch**; the **Finish**
+cycle below ends instead with **`grove-llm complete --done`**, which signals a
+clean *stop*. The loop tells the three cases apart by the signal: a relaunch
+flag, a `--done` flag, or no flag at all (a crash / Ctrl-C, which stops).
 
 **Finish.** A grove is ready to finish when it has no live leaves —
 `grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
 done" on stderr. The **complete finish cycle** is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
-confirmation before any teardown** — never run steps 2–5 unprompted, so a
+confirmation before any teardown** — never run steps 2–6 unprompted, so a
 headless run with no human present simply reports the plan and stops. On
 confirmation, run:
 
@@ -198,12 +200,22 @@ confirmation, run:
 4. **Remove the worktree**: `git -C <repo> worktree remove <worktree>`.
 5. **Delete the branch**: `git -C <repo> branch -d <name>` — safe delete,
    succeeds only because step 3 merged it.
+6. **End the loop cleanly**: run **`grove-llm complete --done`** as the **very
+   last** action, then do nothing else. This signals the self-driving loop to
+   *stop* (vs the per-task `complete`, which relaunches), so a clean finish is
+   distinct from a crash or Ctrl-C. It must come last: like the per-task signal
+   it ends this session after a short grace, so running it any earlier would cut
+   teardown short. It writes only the loop's signal file (in the temp dir) and
+   uses `$GROVE_CLAUDE_PID` — nothing in the now-removed worktree — so run it
+   from any valid directory. Outside `grove do` (no loop to stop) it is a safe
+   no-op: just exit.
 
-Steps 3, 4 and 5 run `git -C <repo>` against the **main repo**, not the worktree
-(the session's cwd is inside the worktree it removes). Worktree-remove precedes
-branch-delete because git refuses to delete a branch checked out in a live
-worktree. The default branch never carries any grove's local state; the history
-of completed groves lives in git's commit graph, not in retained directories.
+Steps 3–5 run `git -C <repo>` against the **main repo**, and step 6 against the
+loop's global handles — none touch the worktree (the session's cwd is inside the
+worktree it removes). Worktree-remove precedes branch-delete because git refuses
+to delete a branch checked out in a live worktree. The default branch never
+carries any grove's local state; the history of completed groves lives in git's
+commit graph, not in retained directories.
 
 **Resume is state-checked, never a marker file** (constraint 1). `grove do` into
 a half-finished grove resumes from the first incomplete step: if `.grove/` is

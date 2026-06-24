@@ -9,6 +9,11 @@
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
       "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI design."
+    },
+    {
+      "name": "testanyware",
+      "source": "./plugins/testanyware",
+      "description": "TestAnyware GUI-testing skill: drive GUI apps in isolated macOS/Linux/Windows VMs for host-isolation, cross-platform testing, UI experiments, and documentation screenshots/recordings."
     }
   ]
 }

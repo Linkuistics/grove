@@ -21,6 +21,19 @@ A suite of agent **skills** that load lazily — only when relevant to the file 
 
 Each skill's one-line `description` is the only standing context cost; the body loads on demand. In Claude Code the `paths:` frontmatter makes language skills auto-load deterministically by file type. Other harnesses ignore `paths:` and fall back to the `description`.
 
+## Also in this marketplace
+
+The **`testanyware`** plugin ships one skill, `using-testanyware`, that makes
+driving GUI apps inside isolated macOS/Linux/Windows VMs (via the `testanyware`
+CLI) standard practice — run, test, screenshot, or record a GUI app without it
+touching your host, or reach a Windows/Linux environment from macOS. It installs
+independently:
+
+```
+/plugin marketplace add Linkuistics/skills
+/plugin install testanyware@linkuistics
+```
+
 ## Install — Claude Code
 
 ```

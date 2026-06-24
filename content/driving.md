@@ -4,9 +4,10 @@ The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
 file is about *how* to drive it well — the moves a human collaborator makes
 that turn the loop into productive design work. It is a field guide, not a
 specification; treat it as a starting set of habits, not a checklist. Most of
-it concerns *planning* sessions — research and grilling — but the last two
+it concerns *planning* sessions — research and grilling — but the later
 sections are habits for *work* sessions too: grounding framework decisions in
-the source, and doubting a decision before it stands.
+the source, doubting a decision before it stands, and externalizing surfaced
+work into new leaves rather than absorbing it.
 
 The dogfood reference throughout this doc is the
 `capture-issues-for-later-groves` workstream in the grove project's own
@@ -237,7 +238,7 @@ reverse, surprising, or a real trade-off — *or* when it asserts a correctness
 property the compiler can't check for you: thread-safety, ordering,
 idempotence, an invariant. One trigger, two consequences: such a decision may
 deserve an ADR, and it deserves a doubt pass before it stands. Don't doubt
-every keystroke — that is theatre, the runaway cousin of the runaway tree.
+every keystroke — that is theatre.
 
 The pass:
 
@@ -263,6 +264,41 @@ The pass:
 This is in-flight doubt, before the commit — not the post-hoc review of a
 finished branch, by which point course-correction is expensive.
 
+## Externalizing surfaced work
+
+grove's value is many small, low-context sessions — each leaf picked up fresh,
+driven, and retired before the next begins. That value leaks away the moment a
+session quietly absorbs work that should have been its own leaf: context fills
+with half-related threads, the session swells past one focused unit, and the
+clean fresh-relaunch boundary the loop is built on is gone. So when work
+surfaces mid-session, the **default is to externalize it as a new leaf**, not to
+fold it in. `SKILL.md`'s Decompose step states the rule; this is the habit that
+honours it.
+
+Two triggers, two verbs:
+
+- **A new concern surfaces** — the human raises something, or a tangent appears
+  that does not serve *this leaf's stated goal*. Append it to the tree with
+  `leaf-add` (or `leaf-insert` when it must sequence ahead of live leaves) and
+  keep driving the current leaf. The pull to handle it "while you're here" is
+  exactly the pull to resist.
+- **The current leaf proves bigger** than its brief assumed. Decompose it with
+  `leaf-decompose` and do only the first child this session; the remaining
+  children are leaves a later session picks up with fresh context.
+
+How to tell inline from externalize: the test is **"does this still fit *this*
+session," not "can I finish it."** You almost always *can* finish it — that's
+the trap that grows a runaway session. Ask instead whether the work still serves
+this leaf's stated goal *and* stays inside one focused, low-context session. If
+either answer is no, externalize.
+
+Externalizing is cheap, so spend it freely. A permanent key never moves, a
+renumber is a single `git mv` that rewrites zero file contents, and `leaf-insert`
+exists precisely so a late-surfacing concern can slot ahead of queued work
+without disturbing it. A tree that keeps sprouting small, concrete leaves is the
+system working as intended — lazy means *just-in-time, not few* (`SKILL.md`
+constraint 4), so don't ration leaves to keep the tree looking tidy.
+
 ## Anti-patterns
 
 - **The wizard.** A capture verb that opens an interactive prompt
@@ -283,13 +319,6 @@ finished branch, by which point course-correction is expensive.
   want it executed, you don't need a grilling session — that's a
   work task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
-- **The runaway tree.** Decomposition is meant to be lazy
-  (constraint 4). If a planning session grows new child leaves
-  faster than you can settle the current question, stop and ask
-  whether the parent question was the wrong unit. The 020 subtree
-  rolled its renumber four times — that pattern is exactly the
-  signal that motivated the `grove leaf insert` CLI verb candidate
-  in leaf 080.
 
 ## The shortest version
 

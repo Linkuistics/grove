@@ -59,7 +59,9 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown. The format files are guides; nothing validates them.
 4. **Lazy and optional.** Every artifact — brief, ADR, PRD, glossary entry — is
-   created only when it earns its place, never because a step demands it.
+   created only when it earns its place, never because a step demands it. Lazy
+   means *just-in-time, not few*: a tree that keeps sprouting small, concrete
+   leaves is healthy, not a smell.
 5. **grove guides, it does not gate.** grove never refuses to proceed. A task
    may be done by hand, reordered, or skipped.
 6. **Walk-away-able.** Delete this skill and `.grove/` is still a legible
@@ -125,9 +127,24 @@ session's entire mandate; read nothing else by reflex.
   that make grilling and research-leaf commissioning productive (WDYT,
   pushback, running decision log, citation discipline).
 
-**Decompose.** When a leaf is too big for one focused session, a planning task
-turns the leaf into a node — a brief (`BRIEF-FORMAT.md`) and ordered child
-leaves — lazily, only when needed. The tree is a real **directory tree** under
+**Decompose.** When work surfaces mid-session, default to **externalizing it as
+a new leaf** rather than absorbing it into the current session — grove's value is
+many small, low-context sessions, and that value is lost the moment a session
+quietly grows to cover work that should have been its own leaf. Two triggers,
+two verbs:
+- **A new concern** — the human raises it, or a tangent appears that does not
+  serve *this leaf's stated goal* — goes to the tree with `leaf-add` (or
+  `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
+- **The current item proves bigger** than its brief assumed — turn the leaf into
+  a node (a brief, `BRIEF-FORMAT.md`, and ordered child leaves) with
+  `leaf-decompose`, doing **only the first child** this session.
+
+Continue inline **only** while the work still serves this leaf's stated goal
+*and* fits one focused, low-context session — the bar is *"fits this session,"
+not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
+just-in-time, at the genuine seam, never speculatively.
+
+The tree is a real **directory tree** under
 `.grove/`: a node is a **directory** `NN-<slug>-k<key>/` holding a `BRIEF.md`
 charter plus its numbered children (`01-…`, `02-…`); the filesystem carries the
 hierarchy, and `.grove/` is itself the root node. Convert the leaf by running

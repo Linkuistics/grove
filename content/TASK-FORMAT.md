@@ -17,7 +17,8 @@ Every task file states its **kind**. There are two:
 
 - **work** — produces code, docs, or tests. The deliverable is an artifact.
   (`driving.md` carries the work-session habits: cite framework decisions to the
-  source, and doubt a hard-to-reverse decision before it stands.)
+  source, doubt a hard-to-reverse decision before it stands, and externalize
+  surfaced work into new leaves rather than absorbing it.)
 - **planning** — grills, sharpens the glossary, may raise an ADR or a PRD, and
   **grows the tree**: turns an oversized leaf into a node — a **directory**
   `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child leaves. The

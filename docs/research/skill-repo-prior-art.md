@@ -2505,3 +2505,29 @@ worktree**. Ranked: actionable first, validation-only last.
   `doubt-driven-development` (C3, three-source-validated), optionally with diverse-lens
   compositions and sandboxed cross-model review; add a bootstrap confabulation guard; and wire
   completion-claim steps to `verification-before-completion` where available.
+
+### Disposition decisions (2026-06-25, post-synthesis)
+
+Recorded per the root brief's done-when ("greenlit findings become authoring leaves, *or* an
+explicit recorded decision not to author each"). Confirmed with the user at the survey-node
+retire cascade.
+
+**Authored as leaves** (grown at the grove root):
+- `author-authoring-conventions-k14` — the house authoring-conventions note + the ⚑
+  description-shape decision (Synthesis AUTHOR #3 + the convention cluster).
+- `author-codebase-design-k15` — the `codebase-design` craft skill (AUTHOR #1).
+- `author-doubt-driven-development-k16` — the `doubt-driven-development` skill (AUTHOR #2).
+- `author-guardrail-hooks-k17` — the guardrail / `PreToolUse`-hook skill class (AUTHOR #4).
+
+**Decided not to author now** (deferred, recorded; revisit if a sibling leaf needs them):
+- `/learn`-style distill-from-session authoring skill (AUTHOR #5, hermes-S1) — presupposes we
+  want agent-authored skills in a curated marketplace; deferred behind the higher-value four.
+- `domain-modeling` (AUTHOR #6, mattpocock-S2) — carries `CONTEXT.md` + `docs/adr/` coupling;
+  pair with `codebase-design` only if k15 finds it essential.
+- De-JS-ified `api-and-interface-design` / `observability-and-instrumentation` (AUTHOR #7,
+  addyosmani-S3) — real language-neutralizing work; not now.
+- All packaging items remain **[LINT]/[RECORD]** as written above (adopt as the corpus grows;
+  no leaf).
+
+**Grove findings** → `grove-handoff-k18` extracts them into a standalone, grove-repo-ready
+recommendation doc (recommendations only; implemented later in `Linkuistics/grove`).

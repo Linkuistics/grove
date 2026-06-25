@@ -2141,3 +2141,367 @@ reviewer, the `review`/`debug` presets spawn several, each on a named failure-ax
 optional doubt-pass pattern, complementing the doubt-pass findings already gathered
 (gstack-G2/G3, superpowers-G4, addyosmani-G1) on the composition side. Nothing here touches
 grove's loop, decomposition, or retire/finish cycle.
+
+## Synthesis
+
+_By `synthesis-k13`, 2026-06-25. Folds the ten deep-dives (§gstack…§wshobson) and the
+eight §1b "examined but not deep-dived" notes into a single ranked, deduplicated
+disposition list per target. Citations use the in-doc finding handles (`gstack-S2`,
+`addyosmani-G1`, …); each handle resolves to a quoted primary source in the dive above.
+Every item carries a **disposition** and a one-line walk-away. The cross-survey questions
+(skills Q1–3, grove Q4–6) are answered inline and recapped at the end._
+
+### The convergence map (why dedup is the headline)
+
+The survey's defining result is not any single novel mechanism — it is that independent,
+popular codebases keep landing on the **same** small set of ideas. Three patterns recur so
+widely that they are stated once here and cited (not re-argued) in the lists below:
+
+- **C1 — Description-discipline.** *The skill description is the only standing context cost;
+  keep it a one-sentence capability + when-to-use, never a workflow/step summary.* Reached
+  independently by **seven of the nine deep-dives** — gstack-S2, superpowers-S2,
+  addyosmani-S4, hermes-S2, openclaw-S1, mattpocock-S4, anthropics-S2 — and validated by
+  awesome-cursorrules (§1b: `description` + `globs` + `alwaysApply`). It is *our own README
+  axiom*, externally corroborated to the point of near-unanimity.
+- **C2 — "A competitor bolts on the state grove's spine makes free."** Every system that
+  keeps a long-lived session re-invents a status/handoff/rollback artifact that grove's
+  one-task-one-session + artifacts-not-state + git-is-history spine removes: gstack-G7
+  (sidecar JSONL logs), superpowers-G1 (SDD's `progress.md` ledger), hermes-G1/G2 (SQLite
+  session store + shadow-git checkpoints), task-master-G1/G3 (JSON store + `state.json`
+  cursor + an 1,860-line dependency-integrity module), openclaw-G2 (SQLite index + dreaming
+  daemon), wshobson-G1 (`state.json` + `.full-stack-feature/` step files), mattpocock-G3
+  (ephemeral `handoff` doc), plus moai-adk's `progress.md` (§1b). **Eight independent
+  instances**, grove's side deliberate every time.
+- **C3 — Don't-bias-the-reviewer doubt.** The in-flight adversarial-verify posture, with the
+  load-bearing rule *"pass the artifact, not your conclusion."* addyosmani-G1
+  (`doubt-driven-development`), gstack-G2/G3 (the "User Challenge" template + cross-model
+  independence), superpowers-G4 (never pre-judge the spawned reviewer), wshobson-G2 (preset
+  diverse-lens compositions), plannotator (§1b: a human-in-the-loop plan-review gate). **Four
+  deep-dives + one §1b**, converging on one protocol.
+
+A fourth, weaker convergence — **C4, the unattended-loop posture** (do maximal autonomous
+work, surface the human once/late with a decision-ready brief) — appears in gstack-G1
+(`autoplan` Mechanical/Taste/User-Challenge), addyosmani-G4 (`/build auto`), hermes-G4
+(routines), mattpocock-G4 (the *"push right"* name), and moai-adk (§1b). Four deep-dives
+naming one design.
+
+---
+
+### Skills project — ranked dispositions
+
+Dispositions: **[AUTHOR]** grow an authoring leaf here · **[CONVENTION]** fold into one
+house *authoring-conventions* note, not a standalone skill · **[LINT]** a cheap CI/lint to
+add as the corpus grows · **[RECORD]** decided *not* to adopt, kept as prior-art reference.
+
+#### New skill content (skills Q1) — ranked by marketplace value
+
+1. **[AUTHOR] `codebase-design` — a language-neutral deep-module design vocabulary.**
+   _Sources: mattpocock-S1._ The clear #1 content win: Ousterhout (deep modules) + Feathers
+   (seams) as a *scale-agnostic* craft vocabulary, with checkable tests (the deletion test,
+   "two adapters means a real seam"). *Walk-away:* fills a genuine gap — we ship language
+   style guides (`coding-style-*`) and `cli-tool-design` but **no design-craft skill**; it
+   occupies exactly the neutral-craft niche `cli-tool-design` already proves works, and
+   survives uninstalling its source pack (self-contained, two optional `references/`).
+
+2. **[AUTHOR] `doubt-driven-development` — in-flight, per-decision adversarial verify.**
+   _Sources: addyosmani-S1 (skills), convergent C3._ A CLAIM→EXTRACT→DOUBT→RECONCILE→STOP
+   cycle with a fresh-context reviewer biased to *disprove*, distinct from a post-hoc
+   `/review`. *Walk-away:* neither our marketplace nor superpowers (which ships only
+   *post-hoc* `requesting/receiving-code-review`) has an *in-flight* doubt skill; the one
+   cost is it must spawn a subagent (a main-session skill, not a persona). **Dual-target:**
+   the *same* protocol is grove's headline Q6 recommendation (addyosmani-G1) — author it here
+   as a skill, recommend it there as the doubt-pass spec.
+
+3. **[AUTHOR] A house *authoring-conventions* note (encodes C1 + the convention cluster
+   below).** _Sources: superpowers-S2/S3/S4/S5, mattpocock-S3/S4, anthropics-S2/S3/S4/S5/S6,
+   gstack-S2, addyosmani-S4, hermes-S2/S3._ Every authoring source ships a `writing-skills`
+   /`writing-great-skills`/`skill-creator` meta-skill — **but we already depend on
+   superpowers' `writing-skills`** (superpowers-S1), so the right artifact is a *thin house
+   delta* (a `CONVENTION`-style reference or a small `disable-model-invocation` user-invoked
+   skill), **not** a fork of any upstream meta-skill. It records the C1 description rule, the
+   description-shape *decision* (see ⚑ below), Match-the-Form-to-the-Failure, the
+   micro-test-against-a-control, the progressive-disclosure thresholds, and the
+   user/model-invoked lever. *Walk-away:* one place to point future skill authors; positive
+   walk-away value because it becomes *ours*, not a stale copy of upstream.
+
+4. **[AUTHOR] A hook-installing *guardrail* skill class (`careful`/`freeze`/`guard`-style).**
+   _Sources: gstack-S5._ A `SKILL.md` can ship a session-scoped `PreToolUse` hook that
+   returns `permissionDecision:"ask"` on destructive commands or edits outside a chosen
+   directory — a *composable skill class none of our 9 use*. *Walk-away:* genuinely new and
+   cheap to author; the `freeze` directory-boundary is especially relevant to
+   sandboxed/agentic editing. Candidate, second tier only because it is a smaller win than
+   1–3.
+
+5. **[AUTHOR, lower] `/learn`-style "distill what we just did into a `SKILL.md`."**
+   _Sources: hermes-S1; convergent with continue's `create_rule_block` (§1b)._ The
+   create-a-skill-*from-the-current-conversation* angle no other source covers — and it is
+   *a prompt plus a write tool*, no engine. *Walk-away:* needs a small skill-write
+   convention; valuable but presupposes we want agent-authored skills in a curated
+   marketplace — defer behind 1–4.
+
+6. **[AUTHOR, lower / pair] `domain-modeling` — active ubiquitous-language discipline.**
+   _Sources: mattpocock-S2._ Novel for the skills project, but adopting it means adopting the
+   `CONTEXT.md` + `docs/adr/` convention it assumes (real coupling), and it is *the very
+   discipline grove already froze into `grilling.md`*. *Walk-away:* pair with `codebase-design`
+   if authored (one names seams, the other names the domain); lower priority for the coupling.
+
+7. **[AUTHOR, lower] De-JS-ified `api-and-interface-design` / `observability-and-instrumentation`.**
+   _Sources: addyosmani-S3._ Senior-grade craft skills, but JS/TS/REST-flavored and aimed at
+   cross-cutting concerns. *Walk-away:* candidate *new-domain* skills **only after** rewriting
+   language-neutral (the way `cli-tool-design` is) — real authoring work, not a fork.
+
+8. **[CONVENTION, not a skill] `source-driven-development` — cite-your-sources.**
+   _Sources: addyosmani-S2._ Overlaps our existing `claude-api` skill + Context7 MCP path.
+   *Walk-away:* lift only the *source-authority hierarchy* + the explicit **UNVERIFIED**
+   contract into the authoring-conventions note; don't author a standalone skill.
+
+> ⚑ **One decision the survey forces (skills Q2).** Our corpus is *split* on description
+> shape: the marketplace skills use anthropics' *"what + when, pushy"* form, while **grove's
+> own skill** uses superpowers' *"when-only, never a workflow"* form (anthropics-S2). The two
+> reconcile — superpowers' failure case was a description that summarized the *multi-step
+> workflow*; anthropics' "what it does" means the *capability*, not the steps. **House
+> convention to adopt and apply uniformly:** `description` = one-sentence **capability** +
+> explicit **"Use when"** triggers, pushy enough to beat undertriggering, **never** a
+> step-by-step process summary. (hermes-S2's ≤60-char hard cap is too tight for our routing
+> sentences — our descriptions run ≤470 chars under a 1024 spec limit; keep the *shape* rule,
+> not the byte cap.) This is the highest-leverage authoring action and the only one needing a
+> real decision rather than a future lint.
+
+#### Authoring conventions (skills Q2) — all fold into the item-3 note
+
+- **[CONVENTION] Description-discipline (C1).** _gstack-S2, superpowers-S2, addyosmani-S4,
+  hermes-S2, openclaw-S1, mattpocock-S4, anthropics-S2; + cursorrules §1b._ Push every "when
+  to use" clause out of a one-sentence capability and into the body. Highest-convergence
+  finding in the survey.
+- **[CONVENTION] Match the Form to the Failure + the prohibition caveat.** _superpowers-S3
+  (experimental), addyosmani-S4 (anatomy: Rationalizations/Red-Flags/Verification),
+  anthropics-S4 (explain-*why* over heavy MUSTs)._ Use anti-rationalization tables for genuine
+  *discipline* skills; use positive *recipes* for output-shaping (a "don't X" prohibition
+  measurably backfired vs a recipe). "Explain why" is the default voice, not an absolute.
+- **[CONVENTION] TDD-for-skills, cheap tier.** _superpowers-S4, anthropics-S6._ Adopt the
+  **micro-test-against-a-no-skill-control** (and, for any skill suspected of *undertriggering*,
+  a handful of should-trigger/should-not-trigger near-miss queries) as the default; reserve
+  full subagent pressure-testing for real discipline skills.
+- **[CONVENTION] Progressive-disclosure playbook (skills Q2).** _superpowers-S5, anthropics-S5
+  (the numeric thresholds: <500-line body, >300-line ref → ToC, one-level-deep), mattpocock-S4
+  (leading words, the no-op pruning test, the info-hierarchy ladder), gstack-S1 (factor shared
+  boilerplate)._ Latent today (most of our 9 skills are correctly self-contained;
+  `cli-tool-design` already does the one-level `references/` split); the ready-made playbook
+  the moment a skill outgrows one file. **No `@path` links** (force-loads 200k+ context).
+- **[CONVENTION] The user-invoked vs model-invoked lever (skills Q2/Q3).** _mattpocock-S3._
+  All 9 of our skills are model-invoked, which is *correct* for reference/style guides that
+  should auto-fire on language match. But a *future* hand-only skill (an orchestrator, the
+  item-3 authoring note) should set `disable-model-invocation: true` and pay **zero** context
+  load. Frames "description = standing cost" from axiom into a *choice*.
+- **[CONVENTION, contextual] Tool-name framing.** _hermes-S3, wshobson-S4._ Our skills'
+  dense "Use the `Read` tool" phrasing is *correct* for a Claude-Code-only marketplace and
+  becomes a defect **only** if we target a non-Claude harness — record it as the single most
+  concrete change going multi-harness would force, not a change to make now.
+
+#### Packaging / distribution (skills Q3)
+
+- **[RECORD] Stay Claude-Code-only — our authoring is already the correct source format.**
+  _wshobson-S1 (the definitive answer), gstack-S4, addyosmani-S5, hermes-S5._ Multi-harness
+  generators (adapter frameworks, macro emitters, copy-per-harness) are all *pure cost that
+  pays off only beyond one harness*, and wshobson's source-of-truth is the very Claude-Code
+  markdown we already write — so the upgrade path *if* we ever go multi-harness is "add
+  adapters, keep authoring," never rewrite. Recorded, not adopted.
+- **[RECORD] Spec conformance is already met.** _anthropics-S1._ Our 9 skills conform to the
+  six canonical Agent-Skills frontmatter fields and to progressive disclosure; `paths:` is a
+  Claude-Code extension beyond spec (a latent portability cost, fine while single-harness).
+- **[LINT] Mechanical corpus gates (adopt as the marketplace grows).** _Convergent: gstack-S3
+  (per-skill size-budget regression), anthropics-S1 (`skills-ref validate` spec conformance),
+  wshobson-S5 (global skill/command name-collision check across our two plugins — the one with
+  a concrete *present-day* hazard), mattpocock-S5 (manifest↔README invariant)._ The shared
+  lesson: catch drift with a number in CI, not reviewer vigilance.
+- **[CONVENTION] Lifecycle buckets.** _mattpocock-S5._ Keep `in-progress/`/`deprecated/`
+  skills in the repo but out of the manifest — a clean home for WIP without paying catalog
+  cost. Cheap to adopt the moment we draft or retire a skill.
+- **[RECORD, maybe] `llms.txt` capability roster.** _gstack-S4; disciplined variant in
+  wshobson-S2/S3._ A generated single-file roster of skills+descriptions an agent reads to
+  discover the marketplace; only if a generated artifact ever enters the repo (and then:
+  commit only the index, verify against the real consumer).
+- **[RECORD] Registry/telemetry machinery beyond our scale.** skills.sh (mattpocock), ClawHub
+  (openclaw-S2), agentskills.io Hub + optional-tier (hermes-S5), the usage-telemetry Curator
+  (hermes-S4, "sidecar not frontmatter"), the `sha256` re-read marker (openclaw-S1). All ride
+  registry/corpus infrastructure heavier than our two-plugin `marketplace.json`.
+- **[RECORD] Do not fork process/router packs.** _superpowers-S1 (we already depend on it; a
+  fork is a stale duplicate), addyosmani-S5 (two meta-routers collide — the repo's own
+  comparison doc proves it)._ Cherry-pick individual skills à la carte; never the pack/router.
+
+---
+
+### Grove project — ranked recommendations
+
+Recommendations only — carried to `Linkuistics/grove`, **never implemented from this
+worktree**. Ranked: actionable first, validation-only last.
+
+1. **Specify the doubt pass from `doubt-driven-development` (Q6) — the richest grove carry.**
+   _Sources: addyosmani-G1 (the full protocol), C3 convergence: gstack-G2/G3, superpowers-G4,
+   wshobson-G2, plannotator §1b, moai-adk's auditors §1b._ grove's `driving.md` names a doubt
+   step as a one-line instinct; this is it fully specified — **bias control** (pass
+   ARTIFACT + CONTRACT, never the CLAIM), **reviewer-output-is-data** with a precedence
+   classifier, a **bounded 3-cycle loop that decomposes rather than lifts the bound** (rhymes
+   exactly with grove's `leaf-decompose`), and a checkable **doubt-theater guard**. *Compose
+   in:* wshobson-G2's **preset diverse-lens compositions** (N reviewers each on a named
+   failure-axis: security/perf/architecture, or competing hypotheses) as an *optional* upgrade
+   when a decision can fail multiple ways; and, *if* grove ever adds cross-model doubt,
+   addyosmani-G2's safety discipline (opt-in per cycle, re-authorized each call, read-only
+   sandbox — grove's own briefs/task-files are exactly the instruction-like text a doubt
+   artifact would carry). *Walk-away:* a ready-made, three-source-validated shape for grove's
+   weakest-specified step.
+
+2. **Design an opt-in *unattended grove mode* (Q5).** _Sources: C4 convergence — gstack-G1
+   (`autoplan`'s Mechanical/Taste/User-Challenge classification + encoded decision
+   principles + bias-to-action), addyosmani-G4 (`/build auto`: approve-plan-once, keep
+   per-step verification, pause on risk), hermes-G4 (routines, weakest), mattpocock-G4 (the
+   *"push right"* posture), moai-adk §1b._ grove's loop is human-in-the-loop at grilling; four
+   independent systems show the recipe for running it *unattended*: encode the human's
+   auto-answers as named principles, auto-proceed on **mechanical** leaf decisions (a clear
+   next leaf, a routine retire), and **push the human checkpoint right** — surface once, late,
+   with a decision-ready brief (which grove already has the artifact for: `BRIEF.md`). *Walk-
+   away:* the strongest loop-shaped opportunity; honest cost — grove's leaves are coarser than
+   these systems' tasks, so under-powering a planning leaf is a real risk → default off.
+
+3. **Add a confabulation/degenerate-input guard at bootstrap (Q6).** _Sources: gstack-G4
+   (refuse-rather-than-narrate on degenerate input), wshobson-G1 ("halt on failure, do NOT
+   silently continue")._ If `pick`/`brief-chain` returns something empty or degenerate
+   unexpectedly, **stop, don't improvise** — the same instinct as grove's "no live leaves"
+   Finish gate, generalized. *Walk-away:* cheap, directly protects the self-driving loop from
+   confidently-wrong continuation.
+
+4. **Wire retire/finish to invoke `verification-before-completion` *if available* (Q6).**
+   _Sources: superpowers-G5._ Because grove sessions can also load superpowers, grove's
+   *completion-claim* steps (`leaf-retire`, the commit, the Finish merge) can point at the
+   existing upstream discipline skill rather than reimplementing a bespoke rule. *Walk-away:*
+   cheapest possible win, but keep it an "if installed, invoke" pointer — never a hard
+   dependency — to preserve grove's walk-away property.
+
+5. **Offer model-by-leaf-kind as an opt-in loop knob, defaulted off (Q5).** _Sources:
+   superpowers-G3._ The task file already declares its kind (planning vs work), so the
+   launcher *could* pick a model per leaf. *Walk-away:* savings are smaller than SDD's
+   (grove's leaves are whole sessions, not single functions) and under-powering a planning
+   leaf is the risk — recommend, don't default.
+
+6. **The dependency-edges question, answered NO (Q5) — record the decision with its cost.**
+   _Sources: task-master-G3 (the 1,860-line integrity module + `fix-dependencies` repair +
+   per-mutation re-validation), mattpocock-G1 (decision-mapping's `Blocked by:` edges)._
+   Explicit edges buy DAG expressiveness — the one thing grove genuinely cannot state is a
+   **cross-subtree prerequisite** — at the price of a graph-integrity subsystem grove pays
+   *nothing* of. *Walk-away:* rare to need under grove's *lazy* growth (you decompose at the
+   seam you've reached, so upstream prerequisites are already DONE earlier in the walk);
+   positional ordering + `leaf-insert` is the deliberate, cheaper trade. Carry as a recorded
+   "considered and declined," not an action.
+
+7. **Borrowable conventions/notes (small, mostly `driving.md` lines).**
+   - **Articulate the *why* behind read-don't-paste bootstrap** (superpowers-G2): pasted
+     context is re-read every turn, so hand work over as file paths. Sharpens constraint 2.
+   - **Trust-levels for fetched-vs-tree inputs** (addyosmani-G3, openclaw-G3): a `BRIEF.md`/ADR
+     in the tree is trusted; a doc a research-leaf *fetched* is untrusted, instruction-like
+     data. One line in `driving.md`'s citation discipline.
+   - **Budget-truncation-as-distill-signal** (openclaw-G3): if assembled bootstrap (glossary +
+     briefs + ADRs) grows large, that signals *distill a brief / retire a node*, not read less.
+   - **Source-file staleness check** (gstack-G5): any sourced/bundled artifact that cites a
+     file should be flagged when the file vanishes — the discipline grove's own memory-recall
+     rule already demands, and exactly the gap behind the `grilling.md` drift (next item).
+   - **Inline Planning Pattern** (addyosmani-G5): the shape for a planning-leaf's mid-session
+     "here's the next decomposition — redirect or I proceed" checkpoint.
+   - **`[SILENT]` notify convention** (hermes-G4): only surface when there's something to
+     report — for a future grove unattended/notify mode.
+
+8. **The one concrete grove-the-skill edit: annotate the `grilling.md` bundle drift (Q4).**
+   _Sources: mattpocock-G2._ grove bundles `mattpocock/skills@b8be62ff`'s `grill-with-docs`
+   *fused* with inline domain-model discipline; upstream has since **split** that discipline
+   into a standalone `domain-modeling` skill. grove has *no skill-to-skill invocation*, so
+   re-syncing the split would be cosmetic — the right move is to **own the fusion
+   deliberately**: add a one-line "bundled-from / intentionally-fused; upstream has since
+   split" annotation, turning accidental staleness into a recorded decision. *Walk-away:* the
+   only narrow, concrete change; it lands in the grove repo, not here.
+
+9. **Validation-only — grove's spine is convergently confirmed (Q4/Q5; cite, don't act).**
+   _The C2 cluster — eight independent instances._ The most-starred self-improving agent
+   (hermes-G1, a SQLite store marketed as "the agent that grows with you") and the closest
+   task-tree analog (task-master) both bet the entire opposite way from grove's constraint 1,
+   and each pays a machinery bill — a shadow-git (hermes-G2), a JSON store + `state.json`
+   cursor (task-master-G1), an SQLite index + dreaming daemon once scope grew unbounded
+   (openclaw-G2) — for state grove gets free from one-task-one-commit. The closest analog *by
+   philosophy*, mattpocock's `decision-mapping` (G1), independently reinvents fog-of-war (=
+   lazy extension), git-tracked compact markdown (= artifacts-not-state), and
+   one-ticket-one-session — diverging only on flat-DAG-vs-tree and whole-map-vs-ancestor-path
+   context. openclaw-G3/G4 settle the auto-load-vs-on-demand question by *relevance-
+   boundedness*: grove can front-load completely because the brief-chain **is** the bounded,
+   complete relevant set, so it needs neither search nor a running-notes tier. gstack-G6 and
+   hermes-G4's `--script` split independently validate grove's deterministic-CLI-vs-prompt
+   architecture; task-master-G5 validates the human-confirmed parent roll-up. *Walk-away:* no
+   mechanism to import — a deep bench of citations for when grove's core bets are questioned.
+   The two genuine *gaps* the validation surfaces, both real but out of current scope:
+   **cross-workspace / cross-agent handoff** (gstack-G7's `/context-restore`, mattpocock-G3's
+   `handoff`, pchalasani §1b) which grove's single-worktree model sidesteps; and
+   task-master's richer status set (`review`/`deferred`/`cancelled`) grove's binary live/DONE
+   infix deliberately omits.
+
+---
+
+### §1b sources — promote or drop (recorded silence honored)
+
+- **continuedev/continue → PROMOTE (both targets, as notes).** Rules-inclusion model
+  (`description`/`globs`/`alwaysApply`) corroborates C1 (cost model); `create_rule_block`
+  (agent authors its own rule mid-session) is convergent with hermes-S1/grove's grow-verbs on
+  self-authoring. Caveat: README says read-only/unmaintained → prior-art reference, not a live
+  target.
+- **modu-ai/moai-adk → PROMOTE (grove).** Plan→Run→Sync + `plan-auditor`/`sync-auditor`
+  feed the doubt pass (item G-1); its `progress.md` resume is another C2 instance (contrast
+  with artifacts-not-state); conceptually overlaps gstack, so folded, not separately ranked.
+- **backnotprop/plannotator → PROMOTE (grove).** The human-in-the-loop plan-review gate
+  (intercepts `ExitPlanMode`, structured approve/deny) is a concrete mechanism under C3 /
+  item G-1's doubt pass.
+- **Aider-AI/aider → PROMOTE (both, minor).** `CONVENTIONS.md` read-only + prompt-cache-
+  eligible = immutable standing rules separated from mutable context (a skills-packaging note,
+  convergent with C1); `repo-map` = cheap re-orientation for a long work-leaf (a minor grove
+  note, subordinate to grove's tree-derived position).
+- **PatrickJS/awesome-cursorrules → DROP to a note.** Validates C1's cost model; the value is
+  the corpus + taxonomy, no new mechanism. Recorded, not actioned.
+- **trailofbits/skills → DROP (out of scope).** ~40 security/audit skills with a Verification
+  cluster — a candidate new-*domain* source and authoring-quality benchmark, but security sits
+  outside our coding-craft niche. Note as a future-domain pointer only.
+- **K-Dense-AI/scientific-agent-skills → DROP (out of scope).** 147 scientific `SKILL.md`s;
+  domain out of scope. Mine for authoring/structure samples only if needed.
+- **pchalasani/claude-code-tools → DROP to a note (grove).** Session-search / cross-agent
+  handoff / agent-tunnel tooling — points at the same cross-agent-handoff gap as item G-9, but
+  tooling-heavy and lower-leverage than task-master/hermes/openclaw.
+
+---
+
+### Cross-survey questions answered
+
+**Skills project**
+- **Q1 (what kinds of skill should we author?)** Three with positive walk-away value:
+  `codebase-design` (design-craft, the top win), `doubt-driven-development` (in-flight verify),
+  and the guardrail-hook class — plus `domain-modeling`/de-JS-ified craft skills as lower-tier
+  candidates. The whole **process/workflow class is *not* ours to author** — superpowers
+  already ships it and we depend on it (superpowers-S1); our niche is language/craft skills,
+  which we already fill.
+- **Q2 (authoring techniques to adopt?)** The C1 description rule (with the ⚑ shape decision),
+  Match-the-Form-to-the-Failure + the prohibition caveat, the micro-test-against-a-control,
+  the progressive-disclosure thresholds, and the user/model-invoked lever — all into one
+  house authoring-conventions note rather than forking any upstream meta-skill.
+- **Q3 (packaging — does anything beat ours?)** No. Stay Claude-Code-only; our native
+  authoring *is* the correct source format (wshobson-S1) and we are spec-conformant
+  (anthropics-S1). Add mechanical CI lints (size-budget, spec-validate, name-collision,
+  manifest-invariant) and lifecycle buckets as the corpus grows.
+
+**Grove project**
+- **Q4 (long-horizon / memory / resumability)?** grove's artifacts-not-state + git-is-history
+  spine is convergently validated as the right bet for *bounded* task-trees (C2, openclaw-G2's
+  "no hidden state" ideal + its gravitational pull away at unbounded scale, hermes-G1 as the
+  canonical counter-example). grove needs no memory store, no running-notes tier, no index —
+  the brief-chain is the bounded, complete relevant set. Borrow only disciplines, never
+  mechanisms (trust-levels, budget-as-distill-signal, source-file staleness).
+- **Q5 (staged-pipeline / multi-agent patterns)?** The biggest opportunity is an **opt-in
+  unattended mode** (C4, four sources). Dependency edges between leaves are **declined** with
+  their cost quantified (task-master-G3). The deterministic-CLI-vs-prompt split and
+  human-confirmed roll-up are validated, not changed.
+- **Q6 (doubt / review / verification)?** The headline carry: specify the doubt pass from
+  `doubt-driven-development` (C3, three-source-validated), optionally with diverse-lens
+  compositions and sandboxed cross-model review; add a bootstrap confabulation guard; and wire
+  completion-claim steps to `verification-before-completion` where available.

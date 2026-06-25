@@ -1227,3 +1227,239 @@ concurrency isolation task-master must hand-build as tags + cross-tag move valid
 mechanism to import — task-master **validates** grove's core bets (edgeless positional ordering,
 filesystem-as-state, lazy recursive decomposition, human-confirmed roll-up) by being the
 well-built, popular system that took every opposite road and paid the machinery bill for it.
+
+## openclaw/openclaw
+
+_Deep-dive by `dive-openclaw-k9`, 2026-06-25. Shortlist rank #6 (skills Low / grove
+High). Primary sources are the repo's own concept/reference docs and the `git/trees`
+listing (`raw.githubusercontent.com/openclaw/openclaw/main/docs/...`, 2026-06-25), quoted
+by `docs/...:line` — not the README's marketing framing, per the brief. This is a
+**personal-AI-assistant control plane, not a skills repo**; the dive's mandate (node brief
++ task) is grove **Q4** — map openclaw's tiered file-based memory onto grove's artifacts,
+and answer the sharp question: openclaw front-loads recent notes while grove reads the
+brief-chain — which discipline wins for long-horizon work, and is there anything grove
+should borrow **without reintroducing hidden state?**_
+
+**Verified facts (GitHub API + raw docs, 2026-06-25).** `openclaw/openclaw` — *"Your own
+personal AI assistant. Any OS. Any Platform. The lobster way. 🦞"* — is real at
+**380,324★** (`default_branch: main`, `pushed_at: 2026-06-25`, **TypeScript**, license
+`NOASSERTION`; created 2025-11-24; the task brief read 380,319 the same day — +5 drift
+confirms counts are point-in-time). It is a **20,597-blob** monorepo (a gateway, desktop +
+Android apps, ~40 extensions, a messaging-channel control plane) — so the brief's
+instruction holds: **adopt the memory architecture, not files.** The named memory files
+and tools all exist and were read first-party: `docs/concepts/{memory,memory-builtin,
+active-memory,memory-search,soul}.md`, `docs/concepts/system-prompt.md`,
+`docs/concepts/agent-workspace.md`, plus the `extensions/memory-core/` and
+`extensions/active-memory/` implementations and 41 `.agents/skills/*/SKILL.md` files.
+
+**⚠ Two corrections to the brief's framing, from the primary source.**
+(a) The brief (echoing `docs/concepts/memory.md:19-23`) said today+yesterday daily notes
+are *"loaded automatically."* The system-prompt doc is more precise: *"`memory/*.md` daily
+files are **not** part of the normal bootstrap Project Context. On ordinary turns they are
+accessed on demand via the `memory_search` and `memory_get` tools… Bare `/new` and
+`/reset` turns are the exception: the runtime can prepend recent daily memory as a one-shot
+startup-context block for that first turn"* (`docs/concepts/system-prompt.md:206-208`). So
+the daily tier is **session-start one-shot + on-demand**, not every-turn front-load — which
+sharpens the whole auto-load-vs-on-demand comparison below.
+(b) The brief took *"no hidden state — memory is files on disk"* at face value. It is the
+stated **ideal** for the durable layer (`docs/concepts/memory.md:9-11`), but the matured
+system has visibly accreted derived/hidden state around it (see G2): a SQLite index, a
+*"hidden background pass"* for commitments, an *"untrusted prompt prefix"* from active
+memory, and a dreaming store. Carry both corrections to synthesis.
+
+### Findings — skills project
+
+**S1 [skills] — openclaw independently reaches *our exact* "description is the only
+standing cost" marketplace model — and adds one borrowable technique: a content-hash
+`<version>` that triggers re-read (skills Q2/Q3).** Its system prompt injects a compact
+`<available_skills>` list of `<name>/<description>/<location>/<version>` and *"instructs
+the model to use `read` to load the SKILL.md at the listed location… and to re-read a skill
+when its `<version>` differs from a previous turn"* (`docs/concepts/system-prompt.md:255-262`),
+where `<version>` is a `sha256:` content hash (`:281-290`); *"This keeps the base prompt
+small while still enabling targeted skill usage"* (`:292`), with a dedicated budget
+`skills.limits.maxSkillsPromptChars` (`:294-297`). *Walk-away:* **positive, mostly
+convergent validation.** This is our README philosophy — *"each skill's one-line
+description is the only standing context cost"* — reached independently (a fifth source
+after gstack-S2 / superpowers-S2 / addyosmani-S4 / hermes-S2 on description discipline,
+here applied to *loading* rather than authoring). The one genuinely new mechanism is the
+**`sha256` version marker in the listing that tells the agent to reload a changed skill
+mid-session** — relevant if our marketplace ever ships skills that mutate within a session,
+but low-value for our static-install model where a skill's body doesn't change underfoot.
+Record the technique; the model itself is already ours.
+
+**S2 [skills] — recorded silence: openclaw uses `SKILL.md` heavily, but every one is
+*self-maintenance* — nothing for our craft/language niche (confirms skills-Low).** The 41
+`.agents/skills/` are all openclaw's own dev automation — `autoreview`, `openclaw-debugging`,
+`openclaw-pr-maintainer`, `release-openclaw-*`, `security-triage`, `clawsweeper` — i.e. a
+project's internal agent runbooks, not reusable coding-craft skills. The workspace also
+supports a `skills/` tier (*"Workspace-specific skills. Highest-precedence skill location…
+Overrides project agent skills, personal agent skills, managed skills, bundled skills"*,
+`docs/concepts/agent-workspace.md:93-95`) and a registry, **ClawHub** (`clawhub.ai`), for
+*"skills discovery"* (`docs/concepts/system-prompt.md:318`). *Walk-away:* **negative for
+forking content.** There is no language/craft/design skill to lift — the value of this
+source is entirely the memory architecture (grove). The five-tier skill **precedence**
+(workspace > project > personal > managed > bundled) and ClawHub are registry/precedence
+machinery heavier than our `marketplace.json` and irrelevant to a small curated Claude-Code
+marketplace; recorded, not adopted. (Thematic echo only: `SOUL.md`'s authoring voice —
+*"Short beats long. Sharp beats vague"*, anti-"corporate mush", `docs/concepts/soul.md:33,86-92`
+— rhymes with the description-discipline thread but is about *agent persona*, not skill
+descriptions; not a new datapoint.)
+
+### Findings — grove project
+
+**G1 [grove] — the tiered memory maps cleanly onto grove's artifacts, and the one tier
+with *no* openclaw analog is the load-bearing difference (the headline Q4 finding).**
+openclaw's durable memory is three lifetimes of plain Markdown
+(`docs/concepts/memory.md:15-26`, `agent-workspace.md:62-99`):
+(i) an **identity/operating tier** injected *every* session and held above the prompt-cache
+boundary as *"Project Context"* — `SOUL.md` (voice), `IDENTITY.md` (name/vibe), `AGENTS.md`
+(*"Operating instructions… Loaded at the start of every session"*), `USER.md`, `TOOLS.md`
+(`system-prompt.md:72-78,167-180`);
+(ii) a **durable-curated tier** — `MEMORY.md`, *"the compact, curated layer… durable facts,
+preferences, standing decisions… not… a raw transcript, daily log, or exhaustive archive"*
+(`memory.md:31-34`), injected every session but bounded by a budget (G3);
+(iii) a **daily working tier** — `memory/YYYY-MM-DD.md`, *"detailed daily notes,
+observations, session summaries… not injected into the normal bootstrap prompt"*
+(`memory.md:37-39`), reached on demand.
+*Mapping onto grove:* tier (ii) `MEMORY.md` is strikingly **convergent with grove's
+`CONTEXT.md` glossary** — both are compact, hand-curated, read every session, explicitly
+*"not… implementation detail"* / *"not… a raw transcript"*. Tier (i)'s every-session
+operating layer is partly grove's **spine + the grove skill itself** (the loop rules read
+each session), with no per-grove persona by design. But the tier that **carries grove's
+real difference has no openclaw analog: the `BRIEF.md` chain.** openclaw organizes durable
+context by *recency + semantic similarity*; grove organizes it by **process-tree position**,
+delivered by `brief-chain` (root→leaf). openclaw has no structural "this context belongs to
+*this* unit of work" axis at all — which is exactly why it needs search and grove does not
+(G3). *Walk-away:* grove's memory is the same files-on-disk bet *plus* a structural index
+(the tree) openclaw lacks — and that structure is what lets grove front-load completely
+where openclaw must retrieve.
+
+**G2 [grove] — "no hidden state — memory is files on disk" is grove's constraint 1 reached
+independently by the most-starred memory system — *and* a live demonstration of the
+gravitational pull away from it (the richest grove finding, Q4).** openclaw states the
+ideal verbatim: *"OpenClaw remembers things by writing **plain Markdown files**… The model
+only 'remembers' what gets saved to disk — there is no hidden state"*
+(`docs/concepts/memory.md:9-11`), and even recommends the *same* durability mechanism grove
+uses — *"Treat the workspace as private memory. Put it in a **private** git repo"*
+(`agent-workspace.md:118-120`). **But** the matured system has grown exactly the derived /
+hidden layers that ideal disclaims:
+- a **SQLite index** of the memory files — *"stores your memory index in a per-agent SQLite
+  database"*, chunked ~400 tokens, FTS5 + vectors (`memory-builtin.md:9-10,84-94`);
+- **inferred commitments** — *"OpenClaw infers them in a hidden background pass"*
+  (`memory.md:104-106`);
+- **active memory** — *"injects a hidden untrusted prompt prefix for the model"*
+  (`active-memory.md:123-125`);
+- **dreaming** — a background consolidation pass over a short-term store under
+  `memory/.dreams/` that promotes into `MEMORY.md` (`memory.md:218-243`).
+*Walk-away:* **dual — validation and warning, both load-bearing for grove.** The
+*validation*: the single most-starred file-based-memory system converges on grove's
+constraint 1 (*"the directory tree under `.grove/` is the only state; git is the history"*)
+as its explicit design ideal — cite when grove's artifacts-not-state spine is questioned.
+The *warning*: openclaw shows the ideal **does not hold for free at unbounded scale** — once
+an always-on assistant accumulates months of unstructured memory, you grow an index, a
+hidden inference pass, an injected prefix, and a consolidation daemon to manage it. grove's
+constraint 1 holds **because grove's scope stays bounded** (one task-tree, single worktree);
+openclaw is the proof of what the same ideal costs when scope grows open-ended. The crucial
+honest distinction: openclaw's SQLite is a *derived cache* rebuildable from the canonical
+Markdown (`openclaw memory index --force`, `memory-builtin.md:94`), so the files stay the
+source of truth — *that* discipline (any index must be derived and rebuildable, never
+authoritative) is the one piece grove could keep **if** it ever needed search, without
+breaking constraint 1.
+
+**G3 [grove] — the sharp question answered: auto-load vs read-on-demand is settled by
+*relevance-boundedness*, and openclaw needs a third mode (proactive pre-fetch) grove
+doesn't (Q4).** openclaw runs **all three** disciplines, tiered by a hard budget: it
+front-loads only the small identity+curated layer (capped at `bootstrapMaxChars` 20000/file,
+`bootstrapTotalMaxChars` 60000 total, with truncation + a warning notice,
+`system-prompt.md:210-217`); it retrieves everything older on demand via
+`memory_search`/`memory_get` (`memory.md:109-117`); and — because pure on-demand is too
+late — it adds a **proactive pre-fetch**: active memory exists *"because most memory systems
+are capable but reactive… By then, the moment where memory would have made the reply feel
+natural has already passed. Active memory gives the system one bounded chance to surface
+relevant memory before the main reply"* (`active-memory.md:10-20`). grove front-loads the
+**structurally-complete** set (glossary + brief-chain + cited ADRs) and *"read[s] nothing
+else by reflex."* *Walk-away:* **neither discipline wins absolutely — each fits a different
+relevance boundary, and grove sits on the side where front-load is complete.** openclaw must
+retrieve because its relevant context is *unbounded and unstructured* — for any chat turn
+the pertinent note could be any of months of memory, so front-loading it all blows the
+budget. grove can front-load because its relevant context is *bounded and structurally
+determined* — the brief-chain **is**, by construction, the complete context for this leaf,
+so there is nothing left to search for and nothing to pre-fetch (active memory's whole
+reason-to-exist is moot when the relevant set is already, deterministically, the entire
+front-loaded set). The borrow without hidden state is the **budget-and-truncation-as-signal
+discipline** (`system-prompt.md:218-225`: truncation *"is not data loss… distill it into a
+shorter durable summary"*): if grove's assembled bootstrap (glossary + briefs + ADRs) ever
+grows large, that is a signal to **distill a brief or retire a node**, not to read less —
+a discipline, not a mechanism. Note also that openclaw treats retrieved/active memory as
+**untrusted** (*"untrusted prompt prefix"*, `active-memory.md:123`) — convergent with
+addyosmani-G3's trust-levels (trust tree-files, distrust fetched content); grove's analog is
+that a `BRIEF.md`/ADR in the tree is trusted, a doc a research-leaf *fetched* is not.
+
+**G4 [grove] — "does grove need a running-notes tier?" — No, and openclaw shows *why* the
+omission is sound, not a gap (the brief's explicit Q4 sub-question).** openclaw's daily
+tier is a **staging buffer**: raw notes land in `memory/YYYY-MM-DD.md`, and *"over time, the
+agent is expected to distill useful material from daily notes into `MEMORY.md` and remove
+stale long-term entries"* (`memory.md:41-44`), a flow the dreaming pass automates
+(`memory.md:218-235`). grove has **no** such tier (constraint 1: *"No phase file, no session
+log, no status file"*). *Walk-away:* the omission is **deliberate and justified by
+structure.** openclaw needs a running-notes buffer because (a) it is an always-on assistant
+ingesting unstructured, home-less context (chats across many channels) that must be captured
+*somewhere* before it can be distilled, and (b) it has no task structure to attach that
+context to. grove has neither problem: every durable thing has a *destination by
+construction* — a finding goes to a `BRIEF.md`, an ADR, or the glossary, not to an
+undifferentiated daily log. openclaw's distill-daily→`MEMORY.md` is grove's retire-step
+**promote-brief→parent-brief/ADR/glossary** — the *same* distillation discipline, but
+grove's has a home for each item up front, so it never needs the staging tier openclaw's
+home-less ingest forces. A running-notes tier in grove would be precisely the session-log
+constraint 1 forbids, *and* redundant, because the tree already gives every note a place.
+
+**G5 [grove] — git-backed memory + the durable-in-git / ephemeral-outside split validates
+"git is the history" a fourth time (Q4).** openclaw recommends version-controlling the
+memory workspace — *"Treat the workspace as private memory. Put it in a **private** git
+repo so it is backed up and recoverable"* (`agent-workspace.md:118-120`) — and is explicit
+about what stays **out** of that git surface: config, auth profiles, and
+**`~/.openclaw/agents/<id>/sessions/` (session transcripts), managed skills**
+(`agent-workspace.md:105-116`). *Walk-away:* **validation.** This is grove's exact split —
+durable artifacts in git, ephemeral/derived session state outside — reached independently,
+the same shape as hermes-G2 (a shadow-git for rollback) and the gstack-G7 / superpowers-G1
+thread, but here the competitor *agrees with grove's side*: it puts the curated Markdown in
+real git and keeps transcripts/indexes out. The honest difference is grove gets the split
+for free from its commit-per-task loop (every leaf is already a git diff), whereas openclaw
+bolts git on around a workspace whose canonical memory is otherwise just loose files with a
+SQLite cache beside it. No mechanism to import — a confidence signal that grove's
+"git is the history" is the convergent choice for durable agent memory.
+
+### Takeaways
+
+**Takeaway for skills.** Essentially **none for content, and that is the correct recorded
+result** for a personal-assistant control plane. The one carry is **S1**: openclaw reaches
+*our own* "description is the only standing cost / load the body on demand" marketplace
+model independently (a fifth convergent source on description discipline), and contributes
+one borrowable technique — a **`sha256` `<version>` marker in the skills listing that
+triggers re-reading a changed skill mid-session** — worth recording though low-value for our
+static-install setup. **S2** is recorded silence: its 41 `SKILL.md` files are all openclaw
+self-maintenance runbooks (no craft/language skill to fork), and its five-tier skill
+precedence + ClawHub registry are heavier packaging than our `marketplace.json`. skills-Low
+confirmed; the value of this source is entirely on the grove side.
+
+**Takeaway for grove.** The survey's clearest **memory-architecture mirror**, and on every
+axis grove's bet is the validated one. **G2** is the headline: the most-starred file-based
+memory system states grove's constraint 1 verbatim (*"no hidden state… memory is files on
+disk"*, even *"put the workspace in a git repo"*) as its design ideal — strong external
+validation — *and* demonstrates the gravitational pull away from it, having accreted a SQLite
+index, a hidden inference pass, an untrusted injected prefix, and a dreaming daemon once
+scope grew unbounded; grove's constraint 1 holds because grove's scope stays bounded. **G1**
+maps the tiers (openclaw's `MEMORY.md` ≈ grove's `CONTEXT.md`; the every-session identity
+layer ≈ grove's spine) and isolates the one tier with no openclaw analog — the `BRIEF.md`
+chain — as grove's structural index that makes search unnecessary. **G3** settles the
+auto-load-vs-on-demand question by *relevance-boundedness*: openclaw must retrieve (and even
+pre-fetch via active memory, because reactive recall is "too late") because its relevant
+context is unbounded and unstructured; grove front-loads completely because the brief-chain
+*is* the bounded, complete relevant set — borrow only the budget-truncation-as-distill-signal
+discipline, never an index. **G4** answers the running-notes-tier question against: grove
+needs none because every note has a structural home (promote at retire), where openclaw's
+home-less ingest forces a daily staging buffer. **G5** is a fourth convergent validation of
+"git is the history" — openclaw git-backs the curated Markdown and keeps transcripts/indexes
+out, grove's exact durable-vs-ephemeral split. Carry the **⚠ corrections** to synthesis:
+the daily tier is session-start-one-shot + on-demand (not every-turn auto-load), and "no
+hidden state" is openclaw's *aspiration*, not its *runtime* — the gap itself is the finding.

@@ -1727,3 +1727,183 @@ automates (convergent hygiene rule, divergent ephemerality — the gstack-G7 / s
 shape again, grove's side deliberate). **G4** gives the unattended-mode posture a name —
 **"push right"** — a fourth convergent vote for an unattended grove mode that defers the human
 checkpoint to the next genuine fork and presents a decision-ready brief.
+
+## anthropics/skills
+
+_Deep-dive by `dive-anthropics-skills-k11`, 2026-06-25. Shortlist rank #8 (skills-High,
+grove-Low). **Scoped to the authoring layer** per the leaf brief: the Agent Skills
+spec, the `template/`, and the `skill-creator` skill — the document/design domain skills
+(docx, pptx, xlsx, pdf, algorithmic-art, canvas-design) are deliberately **skipped** as
+out of scope for our coding-craft marketplace. Primary sources are the repo's own files
+(`spec/agent-skills-spec.md`, `template/SKILL.md`, `skills/skill-creator/SKILL.md`, fetched
+from `raw.githubusercontent.com/anthropics/skills/main`, 2026-06-25) plus the live spec the
+repo now redirects to, quoted by `file:line` and by spec section — not a README framing._
+
+**Verified facts (GitHub API + raw files, 2026-06-25).** `anthropics/skills` — *"Public
+repository for Agent Skills"* — is real at **154,843★** (`default_branch: main`,
+`pushed_at: 2026-06-09`; the shortlist read 154,814 — drift confirms counts are
+point-in-time). Note the `pushed_at` is ~2 weeks staler than the other dived sources: this
+repo is a **reference/spec artifact**, not an actively-iterated workflow tool. No repo-level
+`license` (the `skill-creator` ships its own `LICENSE.txt`). The authoring layer is exactly
+three things: `spec/` (one file), `template/SKILL.md`, and `skills/skill-creator/`
+(`SKILL.md` + `agents/{analyzer,comparator,grader}.md` + `references/schemas.md` +
+`scripts/*.py` + an `eval-viewer/`).
+
+**⚠ Scoping correction (recorded silence).** The brief said "read `spec/`". The primary
+source shows `spec/agent-skills-spec.md` is now a **3-line redirect stub**: *"The spec is
+now located at <https://agentskills.io/specification>"* (`spec/agent-skills-spec.md:3`). The
+canonical Agent Skills spec has **moved out of the anthropics repo** to a standalone,
+harness-neutral site (`agentskills.io`), with a reference validator `skills-ref` at
+`github.com/agentskills/agentskills`. Implication worth recording: "the authoritative
+authoring reference" is no longer an anthropics-repo file but a **multi-vendor standard**.
+This dive reads the live spec at `agentskills.io/specification`.
+
+### Findings — skills project
+
+**S1 [skills] — the canonical frontmatter is exactly six fields, and our `paths:` is a
+Claude-Code extension *beyond* the spec.** The spec's frontmatter table
+(`agentskills.io/specification` §Frontmatter): `name` (req — *"Max 64 characters. Lowercase
+letters, numbers, and hyphens only. Must not start or end with a hyphen… Must not contain
+consecutive hyphens… **Must match the parent directory name**"*), `description` (req — *"Max
+1024 characters… Describes what the skill does and when to use it"*), `license`,
+`compatibility` (*"Max 500 characters"*), `metadata` (str→str map), `allowed-tools`
+(*"space-separated… Experimental"*). **There is no `paths` field.** Our 8 `coding-style-*`
+skills carry `paths:` globs (`coding-style-bash/SKILL.md`: `paths: ["**/*.sh","**/*.bash"]`)
+— a **Claude-Code plugin auto-activation** convention the canonical spec does not define; the
+spec's only activation channel is the model reading the `description` at startup. Conformance
+check of our corpus (verified 2026-06-25): all 9 `name`s match their directory and the
+charset rule; every `description` is ≤470 chars (max is `using-testanyware` at 470), far
+under 1024. *Walk-away:* **positive** — we are spec-conformant on the canonical fields; keep
+it. Two records: (a) `paths:` ties those 8 skills to Claude Code — fine while we're
+Claude-Code-only, a portability cost the moment we or a consumer target a spec-only harness;
+(b) the spec ships a validator — `skills-ref validate ./skill` — a drop-in CI lint for
+name/charset/length/dir-match conformance, the anthropics analog to gstack-S3's size-budget
+gate but for *spec* conformance rather than byte size. Cheap to wire once the corpus grows.
+
+**S2 [skills] — two authoritative sources now *disagree* on what a `description` must
+contain, and our own corpus is already split down that seam (the load-bearing finding).**
+anthropics `skill-creator` is explicit: the description must include *"both what the skill
+does AND specific contexts for when to use it. All 'when to use' info goes here, not in the
+body"* and should be *"a little bit 'pushy'"* to fight undertriggering — its worked example
+literally appends *"Make sure to use this skill whenever the user mentions dashboards, data
+visualization, internal metrics… even if they don't explicitly ask for a 'dashboard'"*
+(`skill-creator/SKILL.md:67`). superpowers' `writing-skills` (this survey's **superpowers-S2**)
+says the opposite for the *what*: description = when-to-use, **NEVER** a workflow summary,
+because a summarizing description made an agent follow the description instead of reading the
+skill. Our corpus straddles both conventions *right now*: the marketplace skills use
+anthropics' shape (`cli-tool-design`: *"Guidelines for designing LLM-friendly command-line
+tools — … **Use when** designing, writing, auditing, or refactoring a CLI tool"*), while
+**grove's own skill uses the superpowers shape** — pure when-to-use, no what-it-does clause
+(*"Use when driving a long, multi-session workstream that cannot be planned exhaustively
+upfront…"*, `~/.claude/skills/grove/SKILL.md:3`). *Walk-away:* the two rules **reconcile** —
+superpowers' failure case was a description that summarized the *multi-step workflow*;
+anthropics' "what it does" means the *capability*, not the steps. The house convention to
+adopt: `description` = one-sentence **capability** + explicit **"Use when"** triggers, pushy
+enough to beat undertriggering, but **never** a step-by-step process summary. Convergent with
+**gstack-S2**. This is the highest-leverage authoring finding from this source — and the one
+that needs an actual decision, since our corpus is presently inconsistent.
+
+**S3 [skills] — the official template is deliberately bare and the spec mandates *zero* body
+structure — so every "fixed skill anatomy" finding elsewhere in this survey is a *convention*,
+not the spec.** `template/SKILL.md` is four content lines: `name`, `description`, and
+*"# Insert instructions below"* (`template/SKILL.md:1-6`). The spec on the body: *"There are
+no format restrictions. Write whatever helps agents perform the task effectively"*, with only
+**recommended** sections (step-by-step instructions, examples, edge cases)
+(`agentskills.io/specification` §Body content). *Walk-away:* a clarifying **negative** — the
+fixed Overview/When/Process/Rationalizations/Red-Flags/Verification anatomy (**addyosmani-S4**)
+and superpowers' prohibition-tables (**superpowers-S3**) are *house styles*, and the official
+spec endorses **none** of them. We should choose our own body conventions deliberately, never
+inherit one believing it is required.
+
+**S4 [skills] — anthropics' house writing voice is "explain the *why*, not heavy MUSTs" —
+independently convergent with superpowers' *experimental* result against prohibitions.**
+`skill-creator` twice: *"explain to the model why things are important in lieu of heavy-handed
+musty MUSTs"* (`skill-creator/SKILL.md:139`) and *"If you find yourself writing ALWAYS or
+NEVER in all caps, or using super rigid structures, that's a yellow flag — if possible,
+reframe and explain the reasoning… a more humane, powerful, and effective approach"*
+(`:302`). This **agrees** with **superpowers-S3**'s head-to-head finding (a "don't X"
+prohibition produced *more* of the unwanted output than a positive recipe) — two independent
+Anthropic-adjacent sources landing on "explain why > rigid MUST." *Walk-away:* **positive,
+convergent** authoring convention, with the nuance superpowers-S3 supplies: prohibitions still
+win for genuine *discipline* skills (a rule skipped under pressure), so "explain why" is the
+**default, not an absolute**. A concrete lens for auditing our skills — and grove's own
+prose — for gratuitous ALL-CAPS MUSTs that would read better as a stated rationale.
+
+**S5 [skills] — progressive disclosure, stated with spec-precise numbers — and we already do
+it.** The spec's three tiers: **metadata** (~100 tokens, always loaded for all skills) /
+**instructions** (*"< 5000 tokens recommended"*, *"Keep your main SKILL.md under 500 lines"*)
+/ **resources** (loaded on demand); file references *"one level deep from SKILL.md… Avoid
+deeply nested reference chains"*, relative paths from the skill root, and reference files
+should be kept focused (`agentskills.io/specification` §Progressive disclosure, §File
+references — echoed in `skill-creator/SKILL.md:96,98` with the *">300 lines → table of
+contents"* rule). `skill-creator` adds the **domain-organization** variant: one
+`references/<variant>.md` per framework, *"Claude reads only the relevant reference file"*
+(`:100-109`). Our corpus already exercises this: `cli-tool-design/SKILL.md:215` links
+`references/auditing-and-refactoring.md` — one level deep, load-on-demand, exactly the pattern
+— while the other 8 are correctly self-contained single files. *Walk-away:* **positive,
+latent** — convergent with **superpowers-S5** and **mattpocock-S4**; the spec is simply the
+cleanest statement of the numeric thresholds (<500 lines body, >300-line refs get a ToC,
+one-level-deep). No action now beyond keeping the convention; the ready-made playbook the
+moment any skill outgrows one file.
+
+**S6 [skills] — `skill-creator` is an empirical eval + automated description-optimizer loop:
+anthropics' analog to superpowers' TDD-for-skills, with one genuinely novel piece.** The
+authoring loop (`skill-creator/SKILL.md:169-321`): draft → 2-3 *realistic* test prompts →
+spawn **with-skill AND a no-skill baseline** subagent in the same turn → grade assertions →
+`benchmark.json` with mean±stddev, variance and timing → human `eval-viewer` → iterate. Bolted
+on is a standalone **description optimizer** (`scripts/run_loop.py`, `:333-404`): generate ~20
+**should-trigger / should-not-trigger near-miss** queries (the negatives that *share keywords
+but shouldn't fire* are the valuable ones, `:354-358`), split 60/40 train/test, run each query
+**3× for a reliable trigger rate**, iterate the description up to 5×, *"selected by test score
+rather than train score to avoid overfitting"* (`:394`) — plus a useful triggering mental
+model: *"Claude only consults skills for tasks it can't easily handle on its own… simple,
+one-step queries… may not trigger a skill even if the description matches perfectly"*
+(`:398`). *Walk-away:* **mostly heavy machinery** (Python scripts, subagents, browser viewer)
+we won't adopt wholesale — convergent with **superpowers-S4** (subagent pressure-test against a
+control). The cheap, portable pieces: (a) the **no-skill baseline as the control** when
+sanity-checking whether a skill earns its keep; (b) for any skill we suspect *undertriggers*, a
+handful of **should-trigger / should-not-trigger near-miss queries** — a poor-man's `run_loop`
+without the harness, and the only finding here aimed at a *measurable* skill-quality problem.
+
+### Findings — grove project
+
+**G1 [grove] — essentially none (as the shortlist predicted); one validation note.** The
+authoring layer yields **no** loop / decomposition / memory / verification finding for grove —
+this source is about *writing and packaging skills*, not driving multi-session work. The one
+legitimate grove-*project* observation (grove the skill lives at `~/.claude/skills/grove`): its
+own packaging is **already spec-conformant progressive disclosure** — `name: grove` matches its
+directory, the description is well-formed when-to-use prose, and it bundles 6 reference `.md`
+files (`driving.md`, `grilling.md`, `BRIEF-FORMAT.md`, `TASK-FORMAT.md`, `ADR-FORMAT.md`,
+`CONTEXT-FORMAT.md`) plus `prompts/` at the skill root — **one level deep, load-on-demand**,
+matching the spec's file-reference and progressive-disclosure rules
+(`agentskills.io/specification`). *Walk-away:* a confidence signal, not an action — grove's
+skill bundle is spec-aligned. The only spec discipline grove doesn't yet apply is hygiene, not
+design: a `skills-ref validate` lint on grove's own `SKILL.md`, and the spec's *>300-line → add
+a table of contents* rule for its longer bundled files if they keep growing. Tag this a
+**skills-hygiene** note carried *about* grove, not a grove-loop recommendation.
+
+### Takeaways
+
+**Takeaway for skills.** anthropics/skills is the **authoritative authoring/packaging
+reference**, so this dive's job was conformance + convention, not new skill content — and the
+verdict is we are already in good shape. (1) We're spec-conformant on the six canonical
+frontmatter fields and on progressive disclosure (`cli-tool-design`'s `references/`), so there
+is **no remediation** — only two records: adopt `skills-ref validate` as a CI lint (S1), and
+note that `paths:` is a Claude-Code extension beyond spec (a latent portability cost). (2) The
+one finding that needs an actual **decision** is S2: our corpus is split between anthropics'
+"what + when, pushy" description shape (the marketplace skills) and superpowers' "when-only,
+never workflow" shape (grove's own skill) — resolve it into a single house convention
+(*capability + explicit triggers, pushy, never a process summary*) and apply it uniformly. (3)
+Everything else folds into the **authoring-conventions note** that superpowers-S2/S3 and
+mattpocock-S4 already pointed at: no mandated body anatomy (S3), explain-why-over-MUSTs as the
+default voice (S4, convergent with superpowers' experiment), the spec's numeric
+progressive-disclosure thresholds (S5), and the cheap no-skill-baseline + near-miss
+trigger-query check for any skill suspected of undertriggering (S6). **No new *skill* to author
+from this source** — it is all convention plus one validator tool.
+
+**Takeaway for grove.** **None of substance**, exactly as the shortlist's grove-Low rank
+predicted. The authoring layer touches grove only as **validation**: grove's own skill bundle
+is already spec-conformant progressive disclosure (G1). Carry nothing to the grove repo from
+this source except, optionally, two pieces of *skills-hygiene* — running `skills-ref validate`
+on grove's `SKILL.md`, and watching the spec's >300-line-ToC threshold on its longer bundled
+references — neither of which is loop or decomposition design.

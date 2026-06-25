@@ -305,3 +305,249 @@ clear, deliberate **divergence** is G7: gstack threads pipeline state through
 sidecar JSONL logs that grove's artifacts-not-state spine forbids — adopt only the
 narrow, honest mechanism inside it (G5's source-file staleness check), never the
 log itself.
+
+## obra/superpowers
+
+_Deep-dive by `dive-superpowers-k5`, 2026-06-25. Shortlist rank #2 (dual-high).
+Primary sources are the **installed plugin files** (`~/.claude/plugins/cache/
+claude-plugins-official/superpowers/6.0.3/`), quoted by `skill/file:line` — not the
+README. This is the one survey source **we already depend on**: this very session
+loaded its `using-superpowers` skill, so the dive's question is "which of its skills
+do we fork/adapt, and which do we already get for free?" — not "discover it."_
+
+**Verified facts (GitHub API + installed files, 2026-06-25).** `obra/superpowers`
+— *"An agentic skills framework & software development methodology that works"* — is
+real at **237,886★** (`default_branch: main`, `pushed_at: 2026-06-25`; the shortlist
+read 237,866 the same day — +20 drift confirms counts are point-in-time). Latest
+release **v6.0.3** (published 2026-06-18) is the installed version. The plugin ships
+**14 skills** (`brainstorming`, `dispatching-parallel-agents`, `executing-plans`,
+`finishing-a-development-branch`, `receiving-code-review`, `requesting-code-review`,
+`subagent-driven-development`, `systematic-debugging`, `test-driven-development`,
+`using-git-worktrees`, `using-superpowers`, `verification-before-completion`,
+`writing-plans`, `writing-skills`), MIT-licensed, authored by Jesse Vincent
+(`.claude-plugin/plugin.json`). It is a **process/workflow skill library plus a
+skill-authoring meta-skill** — zero language- or domain-specific skills by design.
+
+**The dependency is mechanized (and it is why this session has "superpowers").**
+`hooks/hooks.json` registers a `SessionStart` hook (`matcher: "startup|clear|
+compact"`) running `hooks/session-start`, which `cat`s `using-superpowers/SKILL.md`
+and injects it as an `<EXTREMELY_IMPORTANT>` context block every session
+(`session-start:11,32`) — verbatim the block at the top of *this* transcript. That
+entry skill then routes to the other 13 via the Skill tool. So "we depend on
+superpowers" is concrete: the plugin is installed and force-loads `using-superpowers`
+into every conversation. **This frames every finding below** — anything superpowers
+already ships, we already have; forking it buys a stale copy that drifts from the
+tested upstream.
+
+### Findings — skills project
+
+**S1 [skills] — the skills-Q1 verdict is "depend, don't fork": the entire
+workflow/process class is already ours, and our marketplace fills the gap superpowers
+leaves empty.** superpowers ships the whole process-skill class we lack — TDD,
+systematic-debugging, brainstorming, writing/executing-plans, verification, code-review,
+parallel-agents, worktrees, finishing-a-branch — and the SessionStart hook above makes
+all of it loadable in any session for free. **Recorded silence:** it ships **zero**
+language-specific or craft/design skills; `writing-skills` is explicit that triggers
+stay *"technology-agnostic unless the skill itself is technology-specific"*
+(`writing-skills/SKILL.md:178`). Our marketplace's `coding-style-{rust,python,swift,
+typescript,elixir,bash}`, `cli-tool-design`, and `coding-style` occupy exactly that
+deliberately-empty niche. *Walk-away:* **negative** for forking any process skill —
+we would own a stale duplicate of a file we already load, drifting from upstream's
+pressure-tested original. The Q1 answer: leave the process class an upstream
+dependency; author here only what superpowers does not ship (language/craft skills,
+which we already do). This is the load-bearing finding — it reframes Q1 from "which to
+adopt" to "which not to duplicate."
+
+**S2 [skills] — import the *convention*, not the skill: "description = when-to-use,
+NEVER what-it-does," with a cited failure mode.** `writing-skills/SKILL.md:150-172`
+turns our own README philosophy ("each skill's one-line description is the only standing
+context cost") into a precise rule backed by an observed failure: *"when a description
+summarizes the skill's workflow, an agent may follow the description instead of reading
+the full skill content. A description saying 'code review between tasks' caused an agent
+to do ONE review, even though the skill's flowchart clearly showed TWO reviews… When the
+description was changed to just 'Use when executing implementation plans…' (no workflow
+summary), the agent correctly read the flowchart and followed the two-stage review"*
+(`:154-156`). *Walk-away:* **positive** — this is a portable authoring convention that
+survives uninstalling superpowers because it becomes *ours*. It is gstack's S2
+(description discipline) reached independently — convergent evidence it is real.
+Candidate follow-up: audit our 9 skills' `description:` fields for any that summarize
+process rather than state triggers.
+
+**S3 [skills] — "Match the Form to the Failure": the most novel authoring technique,
+with experimental backing.** `writing-skills/SKILL.md:459-474` says: before writing
+guidance, classify the baseline failure, then pick the matching form — rule-skipped-
+under-pressure → prohibition + rationalization table + red-flags; wrong-shaped-output →
+positive *recipe/contract* (state what the output IS); omitted-element → a structural
+`REQUIRED` slot in the template; conditional-behavior → a conditional keyed to an
+*observable predicate*. The non-obvious empirical result: *"In head-to-head wording
+tests on dispatch-prompt guidance, the prohibition arm produced clearly more of the
+unwanted content than the recipe arm (fully separated distributions), and trended worse
+than even the no-guidance control"* (`:470`) — i.e. for shaping problems, a "don't X"
+prohibition **backfires**. Two corollaries: *"No nuance clauses"* — *"Don't X unless it
+matters' reopens the negotiation"* (`:473`); and *"Exemption clauses don't scope"* —
+*"'this limit doesn't apply to code blocks' still suppresses code blocks"* (`:474`).
+*Walk-away:* **positive** — a testable lens for writing or auditing *any* skill (and
+grove's own prose-and-prohibition-heavy skill) that nothing in our marketplace has been
+checked against. Highest-novelty skills-Q2 finding.
+
+**S4 [skills] — skill authoring is itself TDD, gated by subagent pressure-testing.**
+The Iron Law: *"NO SKILL WITHOUT A FAILING TEST FIRST"* (`writing-skills/SKILL.md:374`),
+where a "test" is a pressure scenario run on a fresh subagent *without* the skill (RED —
+watch it fail and record rationalizations verbatim), then *with* it (GREEN), then
+refactor to close each new loophole (`testing-skills-with-subagents.md`, full
+RED-GREEN-REFACTOR mapping + pressure-type table at `:128-140`). It also specifies a
+cheap pre-gate, the **micro-test** (`writing-skills/SKILL.md:576-585`): one fresh-context
+sample per call, **always a no-guidance control**, 5+ reps, *"manually read every
+flagged match"*, and *"variance is a metric"* (five different interpretations = the
+wording isn't binding). *Walk-away:* **positive but selective** — a real authoring
+*process* we lack, but its own scope note says pure-reference skills don't need it
+(`:55-59`), and full pressure-runs are expensive. Most of our skills are reference/style
+guides; adopt the **micro-test-against-a-control** as a cheap default for any
+behavior-shaping wording, reserve full pressure-testing for genuine discipline skills.
+
+**S5 [skills] — progressive disclosure, fully worked: three patterns + "no @-links" +
+a vendored official reference.** The `references/` splitting the brief named is codified
+twice. (a) `writing-skills` gives the file-organization tiers — self-contained /
++reusable-tool / +heavy-reference (`:347-372`) — and the load-on-demand rule: cross-
+reference other skills by name, **never** `@path`, because *"`@` syntax force-loads files
+immediately, consuming 200k+ context before you need them"* (`:286-289`). The live
+example is `using-superpowers/references/` — six per-harness tool files
+(`claude-code-tools.md`, `codex-tools.md`, …) loaded only when the running platform needs
+them. (b) The bundled `writing-skills/anthropic-best-practices.md` (1150 lines, the
+official Anthropic authoring guide vendored straight in) names three progressive-
+disclosure patterns — high-level-guide-with-references, domain-specific-organization,
+conditional-details (`:269,297,332`) — plus *"avoid deeply nested references"* (`:353`)
+and *"structure longer reference files with a table of contents"* (`:383`). And
+`persuasion-principles.md` grounds the whole bulletproofing toolkit in research:
+*"Meincke et al. (2025) tested 7 persuasion principles with N=28,000 AI conversations.
+Persuasion techniques more than doubled compliance rates (33% → 72%)"* (`:8`), mapping
+Authority/Commitment/Social-Proof to discipline skills and warning **off** Liking
+(*"creates sycophancy… DON'T USE for compliance"*, `:118-124`). *Walk-away:* **positive,
+latent** — our skills are small enough that most are correctly self-contained today, but
+the moment one needs a 100+ line reference, this is the ready-made playbook (ToC in long
+refs, no @-links, gerund naming, persuasion-by-skill-type).
+
+### Findings — grove project
+
+**G1 [grove] — subagent-driven-development is grove's loop *inverted*, and the
+inversion is the finding.** SDD keeps **all** tasks in **one** controller session,
+dispatching a fresh implementer subagent per task (`subagent-driven-development/
+SKILL.md:8-12`). grove keeps **one** task per session, relaunching fresh context per
+leaf (`grove do`). Same core insight — fresh context per task beats accumulated context
+— opposite structure, and the consequence *is* the finding: because SDD's controller is
+long-lived, it hits compaction and must bolt on a **Durable Progress** ledger —
+*"Conversation memory does not survive compaction. In real sessions, controllers that
+lost their place have re-dispatched entire completed task sequences — the single most
+expensive failure observed"* (`:248-251`) → a `.superpowers/sdd/progress.md` **state
+file**. grove *structurally avoids* this: each task is a fresh short session, position
+re-derived from the artifact tree by `grove-llm pick`, so there is no long session to
+compact and no ledger to keep (constraint 1, artifacts-not-state). *Walk-away:* strong
+external **validation** of grove's one-task-one-session spine — SDD independently
+rediscovered the fresh-context win but, by keeping a single controller, had to add the
+very state-file grove's architecture makes unnecessary. The exact shape of gstack's G7
+(a competitor threads state through a sidecar file grove forbids); grove's side is again
+the deliberate, validated one. Cite when grove's "why not one session with subagents?"
+is questioned.
+
+**G2 [grove] — file-handoff hygiene: the *rationale* grove's read-don't-paste bootstrap
+states only as mechanism.** SDD's File Handoffs: *"Everything you paste into a dispatch
+prompt — and everything a subagent prints back — stays resident in your context for the
+rest of the session and is re-read on every later turn. Hand artifacts over as files"*
+(`:220-223`), with a measured failure — *"a real session's dispatch hit 42k chars of
+which 99% was pasted history"* (`:191-193`). grove already does this (bootstrap *reads*
+the brief chain and task file; it never pastes them forward, and `.grove/` *is* the
+handoff surface), but states it as a rule, not a reason. *Walk-away:* **positive, cheap**
+— borrow the articulation as the explicit "why" behind grove's read-don't-run bootstrap
+(constraint 2): pasted context is re-read every turn, so hand work over as file paths.
+Sharpens existing doctrine; no new mechanism.
+
+**G3 [grove] — model-by-task-kind: a knob grove's self-driving loop doesn't turn.**
+SDD's Model Selection (`:99-131`): *"Use the least powerful model that can handle each
+role"* — cheap/transcription model for mechanical tasks, standard for integration,
+most-capable for architecture and the final review — and *"Always specify the model
+explicitly… An omitted model inherits your session's model — often the most expensive —
+which silently defeats this."* grove's `grove do` launches one foreground `claude` per
+task at the session model regardless of leaf kind: a grilling/planning leaf and a
+one-line mechanical work leaf get the same model. *Walk-away:* a genuine grove
+enhancement candidate — the task file already declares its kind (planning vs work,
+`TASK-FORMAT.md`), so the launcher *could* pick a model per leaf kind. Honest cost:
+grove's leaves are coarser than SDD tasks (a whole session, not one function), so savings
+are smaller and the risk of under-powering a planning session is real. Recommend to the
+grove repo as an **opt-in loop knob, defaulted off** — not actionable here.
+
+**G4 [grove] — never pre-judge the doubt-pass reviewer.** SDD's "Constructing Reviewer
+Prompts" (`:159-202`) + Red Flags (`:381-383`) forbid biasing the reviewer you spawn:
+*"never instruct a reviewer to ignore or not flag a specific issue… If the prompt you are
+writing contains 'do not flag,' 'don't treat X as a defect,' 'at most Minor,' or 'the
+plan chose' — stop: you are pre-judging, usually to spare yourself a review loop"*
+(`:168-173`); and a finding that conflicts with the plan is *"the human's decision…
+present the finding and the plan text, ask which governs"* (`:198-202`) — never silently
+dismiss it. *Walk-away:* grove's doubt pass (`driving.md`, "Doubting a decision before it
+stands") spawns one fresh reviewer; this adds the discipline that the *spawning prompt*
+must not bias it — hand the reviewer the decision and its context, never your preferred
+verdict. Borrowable one-liner; complements gstack G2/G3 (independence of the second
+opinion) from the prompt-construction side.
+
+**G5 [grove] — the framing unique to this source: *invoke the upstream skill*, don't
+reimplement it.** Because grove sessions can *also* load superpowers, some grove needs
+are met not by new grove machinery but by pointing grove's steps at an existing skill.
+Two concrete cases: (a) `verification-before-completion` is a discipline skill —
+*"NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE"*, a 5-step gate
+(`verification-before-completion/SKILL.md:19,26-38`), incl. *"Agent reports success →
+Check VCS diff → Verify changes"* (`:49`). grove's `leaf-retire`, its commit step, and
+its Finish-cycle merge are all *completion claims*; (b) `receiving-code-review` exists
+for *"technical rigor and verification, not performative agreement or blind
+implementation"* — the posture grove's doubt pass wants. *Walk-away:* the grove-side
+action is **wire grove's retire/finish steps to invoke `verification-before-completion`**
+rather than writing a bespoke grove rule — cheaper, and it reuses the dependency. This is
+the inverse of gstack G4, where grove had to *specify* a confabulation guard itself;
+here the guard already exists upstream and grove just needs to point at it. (Caveat:
+makes grove softly depend on superpowers being installed — keep it a "if available,
+invoke" pointer, not a hard requirement, to preserve grove's walk-away property.)
+
+**G6 [grove] — flat-complete-plan vs self-extending-tree: a deliberate Q5 divergence
+that *composes*.** superpowers' pipeline is plan-once-then-execute: `writing-plans`
+produces a **complete, flat, ordered** task list with "No Placeholders" — *"'TBD',
+'TODO', 'implement later'… these are plan failures — never write them"* (`writing-plans/
+SKILL.md:128-137`) — and execution (SDD / `executing-plans`) follows it task-by-task
+without re-planning. grove's tree is the opposite: lazily self-extending, where planning
+tasks grow the tree as understanding deepens and a leaf that proves bigger decomposes
+mid-stream (grove constraint 4; `leaf-decompose`). *Walk-away:* two coherent answers to
+the same staged-pipeline problem, fit to different horizons — superpowers targets a
+*single feature knowable upfront* (front-load the plan, forbid placeholders, execute
+heads-down), grove targets *multi-session, multi-month* work where exhaustive upfront
+planning is impossible (plan incrementally, decompose at the seam). Not an action item: a
+confidence signal that grove's lazy-tree fits *its* horizon — and a reminder that the two
+**compose**, since for a well-understood single feature *inside* one grove work-leaf, the
+superpowers write-a-complete-plan-then-SDD-it flow is the better tool. grove and
+superpowers are complementary, not competing.
+
+### Takeaways
+
+**Takeaway for skills.** superpowers' gift to the skills project is **authoring craft,
+not skill content** — because we already depend on it (S1's SessionStart hook), every
+process skill it ships is ours for free and forking any has *negative* walk-away value.
+What is worth importing is the `writing-skills` discipline *as our conventions*: the
+description = when-to-use rule (S2, convergent with gstack S2), the experimentally-backed
+"Match the Form to the Failure" lens (S3), TDD-for-skills with the cheap
+micro-test-against-a-control as a default for behavior-shaping wording (S4), and the
+progressive-disclosure playbook for when a skill outgrows one file (S5). The one content
+gap superpowers leaves — language/craft-specific skills — our marketplace already fills
+(`coding-style-*`, `cli-tool-design`); keep authoring there, never in the process class.
+Candidate authoring leaf: a `writing-skills`-style **authoring-conventions** note for
+this repo encoding S2+S3 (and S4's micro-test) — the one artifact with positive
+walk-away value worth creating here.
+
+**Takeaway for grove.** The headline is structural **validation**: SDD independently
+rediscovered "fresh context per task" but, by keeping one controller session, had to bolt
+on a progress-ledger *state file* that grove's one-task-one-session + artifacts-not-state
+spine makes unnecessary (G1) — the same shape as gstack's G7, grove's side again the
+deliberate one. Carry to the grove repo: G3 (model-by-leaf-kind as an opt-in loop knob),
+G4 (never pre-judge the doubt-pass reviewer), and the framing **unique to this source** —
+because grove sessions can *also* load superpowers, several grove needs are better met by
+*invoking the upstream skill* than reimplementing: wire retire/finish to
+`verification-before-completion` (G5), and borrow file-handoff hygiene as the stated
+rationale for read-don't-paste bootstrap (G2). G6 records the deliberate plan-shape
+divergence (flat-complete vs self-extending) and that the two **compose** — superpowers'
+write-a-complete-plan-then-execute is the right tool *inside* a well-understood grove
+work-leaf.

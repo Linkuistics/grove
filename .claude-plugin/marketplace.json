@@ -8,7 +8,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI and deep-module design."
+      "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI and deep-module design, plus an in-flight adversarial-verify discipline."
     },
     {
       "name": "testanyware",

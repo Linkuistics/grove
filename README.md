@@ -21,6 +21,7 @@ A suite of agent **skills** that load lazily — only when relevant to the file 
 | `codebase-design` | by description | deep-module design vocabulary — Ousterhout depth + Feathers seams, language-neutral |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
+| `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze") |
 
 Each skill's one-line `description` is the only standing context cost; the body loads on demand. In Claude Code the `paths:` frontmatter makes language skills auto-load deterministically by file type. Other harnesses ignore `paths:` and fall back to the `description`.
 

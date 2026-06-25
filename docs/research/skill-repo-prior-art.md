@@ -1,7 +1,7 @@
 # Skill / Agent Repo Prior-Art Survey
 
 Survey of major/popular skill & agent-workflow repos, extracting **incorporable
-findings** split by two extraction targets (see `CONTEXT.md`):
+findings** split by two extraction targets:
 
 - **skills project** — this repo (`Linkuistics/skills`). A finding here becomes a
   candidate `SKILL.md` (new skill, authoring technique, or packaging change).

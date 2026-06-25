@@ -791,3 +791,229 @@ borrow: trust-levels for fetched-vs-tree inputs. G4 records that the SDLC taxono
 `/build auto` is a **third** convergent unattended-pipeline design reinforcing gstack-G1's
 "unattended grove mode." G5 is a third convergent validation of `driving.md`'s grilling
 posture, with the Inline Planning Pattern as a borrowable checkpoint shape.
+
+## NousResearch/hermes-agent
+
+_Deep-dive by `dive-hermes-agent-k7`, 2026-06-25. Shortlist rank #4 (named seed; skills
+Med / grove High). Primary sources are the repo's own Python modules and `AGENTS.md`,
+fetched from `raw.githubusercontent.com/NousResearch/hermes-agent/main` and quoted by
+`file:line` — not the README's marketing framing, per the brief's ⚠ ("earlier recon used a
+fast summarizer; quote primary files for any mechanism claim"). This dive treated that
+warning as its first job: verify the named mechanisms exist before repeating any claim._
+
+**Verified facts (GitHub API + raw files, 2026-06-25).** `NousResearch/hermes-agent` —
+*"The agent that grows with you"* — is real at **202,171★** (`default_branch: main`,
+`pushed_at: 2026-06-25`, **MIT**, Python; the task brief read 202,144 the same day — +27
+drift confirms counts are point-in-time). It is **not** a Claude-Code skills repo: it is a
+standalone **5,504-file** Python *agent framework* — a TUI plus a messaging gateway
+(Telegram/Discord/Slack/WhatsApp/Signal), 90+ tools, six terminal backends, subagents,
+cron, and a desktop app (`git/trees/main?recursive=1`). So the brief's instruction holds:
+**adopt ideas, not files.** The named mechanism files all exist and were read first-party:
+`hermes_state.py` (222 KB), `trajectory_compressor.py` (69 KB), `agent/learn_prompt.py`,
+`agent/skill_commands.py`, `tools/skill_manager_tool.py`, `tools/skill_usage.py`,
+`tools/memory_tool.py`, `tools/checkpoint_manager.py`, `agent/memory_manager.py`, `cron/`.
+
+**⚠ Correction to the brief's framing.** The brief listed `trajectory_compressor.py` under
+"procedural memory." The primary source disproves this: it is a **training-data**
+post-processor — *"Post-processes completed agent trajectories to compress them within a
+target token budget while preserving training signal quality"* (`trajectory_compressor.py:4-6`),
+run **offline** over JSONL dirs (`python trajectory_compressor.py --input=data/my_run`,
+`:24-37`). `hermes_state.py` confirms the split from the other side: *"Batch runner and RL
+trajectories are NOT stored here (separate systems)"* (`hermes_state.py:11`). Runtime
+context compression is a separate `/compress` command. Carry this correction to synthesis:
+trajectory compression is **research/datagen infrastructure, not the agent's memory.**
+
+### Findings — skills project
+
+**S1 [skills] — `/learn`: skill-creation-from-experience is *one prompt*, no engine (the
+headline skills-Q2 finding, and the angle no prior source gave us).** `agent/learn_prompt.py`
+is a single prompt-builder; the mechanism is to instruct the **live agent** to (1) gather
+whatever the user named *"using the tools it already has (`read_file`/`search_files` for
+dirs, `web_extract` for URLs, **the current conversation for 'what I just did'**, the user's
+text for pasted material)"* and (2) *"Author a single `SKILL.md` via `skill_manage`"*
+(`agent/learn_prompt.py:8-16`). The load-bearing design note: *"There is no separate
+distillation engine and no model-tool footprint: the agent does the work with its existing
+toolset, so this works identically on local, Docker, and remote terminal backends"*
+(`:19-22`); when the request is empty it defaults to *"the workflow we just went through in
+this conversation — review the steps taken and distill them into a reusable skill"*
+(`:86-89`). *Walk-away:* **positive, genuinely new technique.** This is the *create-from-a-
+session* angle the survey lacked: gstack's `skillify` codifies only browser-scrapes
+(gstack §dive), anthropics' `skill-creator` is an interactive scaffolder, and superpowers'
+`writing-skills` is author-driven — none distills *the conversation that just happened* into
+a `SKILL.md`. A candidate skills-project artifact: a `/learn`-style authoring skill (or a
+`writing-skills` companion) that turns "what we just did" into a `SKILL.md` via our write
+tooling. Cost: needs a skill-write convention/tool; the technique itself is just a prompt.
+
+**S2 [skills] — the `AGENTS.md` "HARDLINE" standards: a *fourth* independent source for
+description-discipline, in its sharpest enforceable form.** *"`description` ≤ 60 characters,
+one sentence, ends with a period… State the capability, not the implementation. No marketing
+words ('powerful', 'comprehensive', 'seamless', 'advanced'). Don't repeat the skill name"* —
+backed by a copy-paste **CI assertion** (`assert len(m.group(1)) <= 60`) (`AGENTS.md:859-871`),
+plus a fixed *"modern section order"* (`When to Use / Prerequisites / How to Run / Quick
+Reference / Procedure / Pitfalls / Verification`, target ~100 lines simple / ~200 complex,
+`:904-911`) and scripts/references/templates separation (`:913-917`). `learn_prompt.py`
+embeds the same rules so the agent authors *"the way a maintainer would by hand"*
+(`:29-69`). *Walk-away:* **positive, strongly convergent.** Description-as-capability-in-one-
+sentence-no-marketing is now agreed by **four** independent sources (gstack-S2, superpowers-
+S2, addyosmani-S4-anatomy, hermes-S2). Hermes contributes the two most *enforceable*
+specifics: a **≤60-char hard cap with a banned-marketing-words list and an executable
+assertion**, and a **fixed section order**. Adopt both as authoring conventions — and audit
+our 9 skills, whose descriptions run well over 60 chars (they are routing sentences); the
+hermes rule would push that routing prose into a `When to Use` body section (exactly
+gstack-S2's split), keeping only the capability in the listing.
+
+**S3 [skills] — "tool-name framing": write skills in the harness's tool vocabulary, never
+raw shell.** *"Tools referenced in SKILL.md prose must be native Hermes tools… point at the
+proper tool by name in backticks… Do NOT name shell utilities the agent already has wrapped —
+`grep` → `search_files`, `cat`/`head`/`tail` → `read_file`, `sed`/`awk` → `patch`"*
+(`AGENTS.md:873-885`). *Walk-away:* **positive but contextual.** The specific vocabulary is
+Hermes', but the principle transfers: a skill should speak in the agent's *actual* tool names
+so the model invokes the wrapped tool (with its approval gates, output limits) rather than
+shelling out — relevant to our own skills that currently say "run `grep`" where they mean the
+Grep tool. A minor authoring-convention note, not a new skill.
+
+**S4 [skills] — the "Curator": skills as a usage-telemetry-managed lifecycle (a corpus-scale
+mechanism, recorded not adopted).** `tools/skill_usage.py` tracks per-skill use in a
+**sidecar** `~/.hermes/skills/.usage.json` driving an `active → stale → archived → pinned`
+lifecycle (*"unused > stale_after_days… unused > archive_after_days; moved to `.archive/`"*,
+`tools/skill_usage.py:18-22`), with the explicit design choice *"Sidecar, not frontmatter.
+Keeps operational telemetry out of user-authored `SKILL.md` content"* (`:8-10`). *Walk-away:*
+**negative for our scale.** This is gstack-S3's budget-gate idea aimed at *staleness* rather
+than *size*, and it only earns its cost for a large, agent-grown corpus; our 9 hand-curated
+skills don't accrete stale entries. Worth recording as the pattern to reach for *if* the
+marketplace ever grows large — and the "sidecar, not frontmatter" rule is a clean instance of
+keeping operational state out of authored content (the same instinct as gstack-G7).
+
+**S5 [skills] — packaging (skills-Q3): same open standard as anthropics, plus a Hub and an
+"optional/lazy-install" tier.** Hermes is *"Compatible with the [agentskills.io] open
+standard"* (`README.md:26`) — the same spec anthropics/skills publishes — and adds a registry
+(`hermes skills browse/search/install`, official-first) with an **optional tier**: skills that
+*"ship with the hermes-agent repository but are not copied to `~/.hermes/skills/` during
+setup… By keeping them optional, we keep the default skill set lean"* (`optional-skills/
+DESCRIPTION.md:5-24`). *Walk-away:* **recorded, not adopted.** The optional-tier *idea* is our
+own standing-cost philosophy applied to distribution (ship many, activate few), but it rides a
+hub/registry that is heavier than our `marketplace.json`, and we are a small curated Claude-
+Code marketplace, not a registry. The transferable note: a "bundled-but-inactive" tier could
+let us ship niche skills without paying their standing description cost until installed.
+
+### Findings — grove project
+
+**G1 [grove] — hermes is the stateful agent grove's spine deliberately rejects — and it is the
+most-starred one (the survey's clearest articulation of grove's road-not-taken, Q4).**
+`hermes_state.py` is a **SQLite state store** (WAL + FTS5 full-text search) that *"Provides
+persistent session storage… replacing the per-session JSONL file approach. Stores session
+metadata, full message history, and model configuration"* (`hermes_state.py:3-6`) — i.e. they
+deliberately moved **from plain files to a database**, with *"Compression-triggered session
+splitting via parent_session_id chains"* (`:10`) forming a persisted session tree. Around it
+sit file-backed cross-session memory (`tools/memory_tool.py:3-5`, *"Persistent Curated
+Memory… persists across sessions"*), the Curator (S4), and checkpoints (G2). The README sells
+this as the headline: *"builds a deepening model of who you are across sessions"* /
+*"the agent that grows with you"* (`README.md:19`). grove's **constraint 1** is the opposite
+bet — *"No phase file, no session log, no status file. The directory tree under `.grove/` is
+the only state; git is the history."* *Walk-away:* **not an adopt — the canonical counter-
+example.** This is the direct answer to the brief's question ("does hermes keep *state*, and
+is that a feature or the anti-pattern grove avoids?"): hermes keeps state aggressively and
+deliberately, as its marquee feature. And every reason it *needs* a state store is a property
+grove's bounded model lacks: (a) a **concurrent multi-platform gateway** (Telegram+Discord+
+Slack at once) forces *"WAL mode for concurrent readers + one writer"* (`hermes_state.py:8`) —
+grove is single-session, single-worktree; (b) **cross-session recall** needs *"FTS5… for fast
+text search across all session messages"* (`:9`) — grove re-derives position from the artifact
+tree and never searches history; (c) a **persistent user-model** is user-scoped — grove is
+task-scoped. So grove's stateless bet is a deliberate fit to *its* horizon (bounded task-trees,
+not an always-on personal assistant), not a missing feature. Cite hermes when "why doesn't
+grove keep memory/state?" is raised — the most popular self-improving agent bet the whole way
+the other direction, for reasons that don't apply to grove.
+
+**G2 [grove] — checkpoints are a *shadow git*; grove gets the same rollback from *real* git
+for free (validation of "git is the history").** `tools/checkpoint_manager.py` is *"Transparent
+filesystem snapshots via a single shared shadow git store. Creates automatic snapshots of
+working directories before file-mutating operations… triggered once per conversation turn.
+Provides rollback to any previous checkpoint. This is NOT a tool — the LLM never sees it"*
+(`tools/checkpoint_manager.py:1-9`), storing a *"single bare-ish git repo"* under
+`~/.hermes/checkpoints/store/`. *Walk-away:* **strong validation.** Because hermes sessions are
+not themselves git commits, it had to **reinvent a parallel git** to get per-turn rollback.
+grove's one-task-one-commit means *real* git already provides rollback-to-any-prior-state
+(constraint 1, "git is the history") with zero extra machinery. Same shape as gstack-G7 /
+superpowers-G1 / SDD: a competitor bolts on the very thing grove's spine makes free — grove's
+side again the deliberate, lower-machinery one.
+
+**G3 [grove] — hermes' three-way knowledge taxonomy locates grove precisely (Q4).** Hermes
+splits durable knowledge three ways with explicit routing rules: **facts** →
+`memory_tool` (*"Save durable facts… injected into every future turn, so keep entries compact
+and high-signal"*; *"save proactively when the user states a preference, correction, or
+personal detail"*, `tools/memory_tool.py:1008-1027`); **procedures** → `skill_manager`
+(*"Skills are the agent's procedural memory: they capture *how to do a specific type of task*…
+General memory (MEMORY.md, USER.md) is broad and declarative. Skills are narrow and
+actionable"*, `tools/skill_manager_tool.py:5-12`); **task-progress/logs** → the session-search
+DB (the memory schema explicitly excludes *"task progress, completed-work logs, temporary TODO
+state (use session_search for those)"* and *"Reusable procedures belong in a skill, not
+memory"*, `tools/memory_tool.py:1025-1027`). *Walk-away:* a clarifying lens for grove. grove's
+`CONTEXT.md` is strikingly **convergent with hermes' *memory* store** — bounded, hand-curated,
+high-signal, read every session, *"keep entries compact"* ≈ grove's *"terse definitions… no
+implementation detail."* grove has **no** equivalent of the *procedural-memory skills* (grove
+*drives* skills; it doesn't author procedural memory from experience) and **deliberately no**
+equivalent of the *task-log DB* — that is the artifacts-not-state divergence, grove's task
+progress living in the tree + git, never a queryable log. The borrowable validation: hermes'
+own rule that *task progress must not go in the durable memory store* is the same instinct
+behind grove keeping `CONTEXT.md` a pure glossary — two independent designs agreeing that the
+durable-knowledge store and the task-state must stay separate.
+
+**G4 [grove] — routines/cron: a fourth (weakest-fit) unattended-mode precedent, whose
+`--script` split re-validates grove's architecture (Q5).** `hermes cron create "<cron>"
+"<prompt>" --script <py> --skills a,b --deliver telegram` runs a scheduled prompt unattended;
+its **script pre-processing** is the notable piece — *"Run a Python script *before* the
+agent. The script's stdout becomes context. The script handles mechanical work (fetching,
+diffing, computing); the agent handles reasoning"* (`hermes-already-has-routines.md:73-83`),
+plus a `[SILENT]` convention so *"you only get notified when something actually happens"*
+(`:83`) and multi-skill chaining (`:86-94`). *Walk-away:* **mostly validation.** hermes
+routines are *single-shot scheduled prompts*, not grove's multi-session decomposition tree —
+no decomposition, no retire/finish — so as an "unattended grove mode" precedent this is the
+**weakest** of four (gstack-G1 `autoplan`, addyosmani-G4 `/build auto`, hermes routines), good
+only for the "fire a prompt on a schedule" slice. The genuinely useful carry is the
+`--script` **deterministic-work-then-agent-judgment** split, which is grove's exact
+architecture (gstack-G6: tested verbs do the mechanical tree-walk, the prompt does judgment) —
+a further independent instance of that boundary. The `[SILENT]` "only surface when there's
+something to report" is a minor borrow for any future grove unattended/notify mode.
+
+**G5 [grove] — a candid self-authoring datapoint for grove's own grow-verbs.** Hermes lets the
+agent author its own skills (`skill_manage` actions `create/edit/patch/delete/write_file`,
+`tools/skill_manager_tool.py:14-20`), and its security scan on agent-created skills is **off
+by default**, with a frank rationale: *"the agent can already execute the same code paths via
+`terminal()` with no gate, so the scan adds friction without meaningful security"*
+(`tools/skill_manager_tool.py:61-67`). *Walk-away:* **minor, convergent.** grove's grow-verbs
+(`leaf-add`/`leaf-insert`/`leaf-decompose`) let the agent extend its own task tree; hermes'
+parallel (agent extends its own skill corpus) reached the same posture grove encodes as
+constraint 5 ("guides, it does not gate") — don't add a guard the agent's existing powers make
+moot. Not an action item; a note that grove's no-gate instinct has independent company.
+
+### Takeaways
+
+**Takeaway for skills.** hermes earns its **Med** skills rating with one genuinely new
+technique and strong convergent validation. The new technique is **S1**: `/learn` shows that
+"create a skill from experience" is *a prompt plus a write tool*, not an engine — and uniquely
+distills *the conversation that just happened* (the angle gstack/anthropics/superpowers don't
+cover). That is the one candidate worth authoring here: a `/learn`-style "distill what we just
+did into a `SKILL.md`" authoring skill. **S2** makes hermes the **fourth** independent source
+on description-discipline and contributes its most enforceable form — a **≤60-char cap +
+banned-marketing-words + an executable assertion + a fixed section order** — which should
+become an authoring convention *and* trigger an audit of our over-length skill descriptions.
+S3 (tool-name framing), S4 (the usage-telemetry Curator), and S5 (the agentskills.io Hub +
+optional/lazy-install tier) are context and notes, not adopts — corpus/registry machinery
+beyond a small curated Claude-Code marketplace.
+
+**Takeaway for grove.** hermes is the survey's most valuable **counter-example**, justifying
+its **High** grove rating not by what to copy but by what it proves about grove's road-not-
+taken. **G1** is the headline: the most-starred self-improving agent bets the entire opposite
+way from grove's constraint 1 — a SQLite session store that *replaced* plain JSONL files, file
+memory, a Curator, a shadow-git checkpoint store, all marketed as *"the agent that grows with
+you"* — and every reason it needs that state (concurrent multi-platform gateway, cross-session
+FTS recall, a persistent user-model) is a property grove's bounded single-worktree task-tree
+doesn't have, making grove's stateless bet a deliberate horizon-fit, not a gap. **G2**
+validates "git is the history": hermes reinvented a *shadow git* to get per-turn rollback that
+grove gets free from one-task-one-commit. **G3** maps the facts/procedures/task-log taxonomy
+and shows grove's `CONTEXT.md` is convergent with hermes' bounded *memory* store while grove
+deliberately omits the *task-log DB* (the divergence). **G4** records routines/cron as the
+weakest of four convergent unattended-mode precedents, but its `--script` preprocessing
+re-validates grove's deterministic-verb / prose-judgment split. And carry the **⚠ correction**
+to synthesis: `trajectory_compressor.py` is *training-data* infrastructure, not runtime
+procedural memory — the seed-brief framing should be amended.

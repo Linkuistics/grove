@@ -1463,3 +1463,267 @@ home-less ingest forces a daily staging buffer. **G5** is a fourth convergent va
 out, grove's exact durable-vs-ephemeral split. Carry the **⚠ corrections** to synthesis:
 the daily tier is session-start-one-shot + on-demand (not every-turn auto-load), and "no
 hidden state" is openclaw's *aspiration*, not its *runtime* — the gap itself is the finding.
+
+## mattpocock/skills
+
+_Deep-dive by `dive-mattpocock-skills-k10`, 2026-06-25. Shortlist rank #7 (skills High /
+grove Med). Primary sources are the repo's own `SKILL.md` bodies + `README.md` / `CLAUDE.md`
+/ `docs/invocation.md`, fetched from `raw.githubusercontent.com/mattpocock/skills/main` and
+quoted by `path:line` — not the README's marketing framing, per the brief. This is the one
+survey source **grove has already partially absorbed** (see the lineage note below), so per
+the leaf brief the dive's job is **compare, don't rediscover** — the highest-value findings
+are where upstream has *moved since the snapshot grove froze*._
+
+**Verified facts (GitHub API + raw files, 2026-06-25).** `mattpocock/skills` — *"Skills for
+Real Engineers. Straight from my .claude directory."* — is real at **145,074★**
+(`default_branch: main`, `pushed_at: 2026-06-24`, **MIT**, authored by Matt Pocock / Total
+TypeScript; the shortlist read 144,986 the same day — +88 drift confirms counts are
+point-in-time). The `git/trees/main?recursive=1` listing has **35** `SKILL.md` files across
+**six lifecycle buckets** — `engineering/` (14), `productivity/` (5), `misc/` (4),
+`personal/` (2), `in-progress/` (6), `deprecated/` (4) — of which only **17** ship (the
+`.claude-plugin/plugin.json` enumerates exactly the engineering/productivity/misc set;
+`CLAUDE.md:10` makes the exclusion an invariant: *"Skills in `personal/`, `in-progress/`, and
+`deprecated/` must not appear"* in the README or plugin manifest). It is distributed via the
+third-party **skills.sh** registry (`npx skills@latest add mattpocock/skills`,
+`README.md:30`), not a Claude-Code plugin marketplace. The repo positions itself explicitly
+**against process-owning frameworks** — *"Approaches like GSD, BMAD, and Spec-Kit try to help
+by owning the process. But while doing so, they take away your control and make bugs in the
+process hard to resolve… These skills are designed to be small, easy to adapt, and
+composable"* (`README.md:17-19`) — the opposite design stance from gstack's 55-command
+pipeline.
+
+**⚠ Lineage note — grove already bundles this source, and the bundle has drifted.** grove's
+`grilling.md` carries the header *"bundled in grove from mattpocock/skills@b8be62ff… (`skills/
+engineering/grill-with-docs/SKILL.md`, with `skills/productivity/grill-me/SKILL.md` as the
+terser variant)"*, and grove's `CONTEXT-FORMAT.md` / `ADR-FORMAT.md` are the same provenance.
+So grove's planning-task grilling + glossary + ADR machinery **is** mattpocock's, frozen at
+an old commit. The primary source shows upstream has since **refactored that exact code**:
+`grill-with-docs/SKILL.md` is now a five-line pointer — *"Run a `/grilling` session, using the
+`/domain-modeling` skill"* (`:7`) — and the domain-model discipline grove's `grilling.md`
+carries inline (the "Domain awareness / During the session / Offer ADRs sparingly" block) has
+been **extracted into a standalone model-invoked `domain-modeling` skill** any skill can reach.
+grove fused what upstream has since split. This drift is itself the dive's most actionable
+grove finding (G2).
+
+### Findings — skills project
+
+**S1 [skills] — `codebase-design`: a language-neutral deep-module design vocabulary our
+marketplace lacks (the headline skills-Q1 finding).** A model-invoked skill supplying *"shared
+discipline and vocabulary for designing deep modules: a lot of behaviour behind a small
+interface, placed at a clean seam, testable through that interface"* (`codebase-design/
+SKILL.md:8`), grounded in Ousterhout (*A Philosophy of Software Design*) and Feathers (seams).
+Its glossary is precise and **deliberately scale-agnostic** — *"**Module** — anything with an
+interface and an implementation… a function, class, package, or tier-spanning slice. _Avoid_:
+unit, component, service"* (`:14`); *"**Interface** — everything a caller must know to use the
+module correctly: the type signature, but also invariants, ordering constraints, error modes,
+required configuration, and performance characteristics. _Avoid_: API, signature (too
+narrow)"* (`:16`); *"**Seam** _(Michael Feathers)_ — a place where you can alter behaviour
+without editing in that place"* (`:22`) — plus crisp checkable principles: *"The deletion
+test… If complexity reappears across N callers, it was earning its keep"* (`:63`), *"The
+interface is the test surface"* (`:64`), *"One adapter means a hypothetical seam. Two adapters
+means a real one"* (`:65`), and it **rejects** the Ousterhout depth-as-line-ratio framing
+because it *"rewards padding the implementation"* (`:107`). *Walk-away:* **positive, highest-
+value content finding.** Our marketplace ships language style guides (`coding-style-*`) +
+`cli-tool-design` but **no design-craft vocabulary skill** — and this one is genuinely
+language-neutral (its TS snippets are illustrative; the vocabulary is not), occupying exactly
+the neutral-craft niche `cli-tool-design` already proves works here. It survives uninstalling
+the rest of the pack (self-contained, model-invoked, two optional `references/` —
+`DEEPENING.md`, `DESIGN-IT-TWICE.md`). Strongest candidate new skill from this source.
+
+**S2 [skills] — `domain-modeling`: the *active* ubiquitous-language discipline as a standalone
+skill (skills-Q1) — novel for the skills project, but it is the very thing grove already
+bundled.** *"Actively build and sharpen the project's domain model… challenging terms,
+inventing edge-case scenarios, and writing the glossary and decisions down the moment they
+crystallise. (Merely *reading* `CONTEXT.md` for vocabulary is not this skill — that's a
+one-line habit any skill can do.)"* (`domain-modeling/SKILL.md:8`) — with the same "offer ADRs
+sparingly" three-gate (hard-to-reverse / surprising / real-trade-off, `:66-74`) and *"`CONTEXT.md`
+… is a glossary and nothing else"* (`:64`) that grove's own `CONTEXT-FORMAT.md` enforces.
+*Walk-away:* **positive but lineage-entangled.** As a *skills-project* skill it is novel (we
+have no ubiquitous-language skill), but adopting it means adopting the whole `CONTEXT.md` +
+`docs/adr/` convention it assumes — real coupling, not a drop-in. And note the irony: this is
+the discipline grove froze into `grilling.md`; the skills project and grove would, if both
+adopt it, converge on the same DDD machinery from two directions. Lower priority than S1
+because it carries that convention-adoption cost; record as a candidate, pair it with S1 if
+authored (codebase-design names the seams, domain-modeling names the domain).
+
+**S3 [skills] — the user-invoked vs model-invoked split, and the *context-load vs cognitive-
+load* framing behind it (the headline skills-Q2/Q3 finding).** mattpocock splits every skill on
+*"one axis — who can invoke them"* (`README.md:144`): a **model-invoked** skill keeps a
+description so *"the agent can fire it autonomously _and_ other skills can reach it… It
+contributes to **context load** — the description sits in the window every turn"*; a
+**user-invoked** skill *(`disable-model-invocation: true`)* *"strips the description from the
+agent's reach… Zero context load, but it spends **cognitive load**: _you_ are the index that
+must remember it exists"* (`writing-great-skills/SKILL.md:15-16`). The composition rule falls
+out of the mechanism: *"a user-invoked skill may invoke model-invoked skills, but it can never
+reach another user-invoked skill"* (`docs/invocation.md:8`) — because a user-invoked skill has
+no description for anything but the human to match — and *"When user-invoked skills multiply
+past what you can remember, that piled-up cognitive load is cured by a **router skill**"*
+(`writing-great-skills/SKILL.md:20`, realised as `ask-matt`). *Walk-away:* **positive, a lever
+our marketplace doesn't use.** All 9 of our skills are model-invoked (verified: **zero**
+`disable-model-invocation` in `plugins/`), and for reference/style guides that auto-reach when
+the language matches, that is *correct* — they should fire autonomously. But the framing
+sharpens our own "description = standing cost" axiom from an *axiom* into a *choice*: a future
+**orchestrator** or **author-time** skill (e.g. the `doubt-driven-development` from addyosmani-S1,
+or an authoring-conventions note) that only ever fires by hand should set
+`disable-model-invocation` and pay **zero** context load. The convergent test from
+`docs/invocation.md:6` — *"could the model usefully reach for this autonomously? (Reuse is the
+reason to extract a skill, not the test.)"* — is the cleanest one-line rule for the call.
+
+**S4 [skills] — `writing-great-skills`: a deep authoring meta-skill, convergent-but-distinct
+from superpowers' `writing-skills` (skills-Q2).** Built on a stated root virtue —
+*"**Predictability** — the agent taking the same _process_ every run… is the root virtue"*
+(`writing-great-skills/SKILL.md:7`) — it contributes three levers our survey hadn't recorded.
+(a) **Leading words**: *"a compact concept already living in the model's pretraining that the
+agent thinks with while running the skill (e.g. _lesson_, _fog of war_, _tracer bullets_)"*
+(`:63`), used to *collapse* restatements into one pretrained token — *'"fast, deterministic,
+low-overhead" -> _tight_'*, *'"a loop you believe in" -> _red_'* (`:69-70`). (b) The
+**information-hierarchy ladder** — in-skill step → in-skill reference → external reference,
+*"ranked by how immediately the agent needs the material"* (`:32-36`), with progressive
+disclosure defined as *"the move down the ladder."* (c) A **failure-mode vocabulary** for
+*diagnosing* a misbehaving skill — premature completion, duplication, **sediment** (*"stale
+layers that settle because adding feels safe and removing feels risky"*), **sprawl**, and
+**no-op**, the last with a sharp pruning test: *"does it change behaviour versus the default?…
+A weak leading word (_be thorough_ when the agent is already thorough-ish) is a no-op"*
+(`:78-82`). It also lands superpowers-S5's no-`@`-links rule independently: *"Dependencies are
+expressed as **`/skill`-style prose invocation**… not deep `../other-skill/FILE.md`
+cross-references"* (`docs/invocation.md:14`). *Walk-away:* **positive, complementary.** Where
+superpowers' `writing-skills` gives the *experimental* lens ("Match the Form to the Failure",
+this survey's superpowers-S3), mattpocock gives the *editing/pruning* lens — leading words +
+the no-op test + the ladder are the borrowable conventions, and they compose with, rather than
+duplicate, the superpowers craft we already get for free. Third independent source (with
+gstack-S2, superpowers-S2) confirming the description-discipline; first to name the *cognitive-
+load* half of the cost.
+
+**S5 [skills] — packaging hygiene: enforced manifest invariants + lifecycle buckets + single
+router (skills-Q3).** Three portable conventions, none requiring a build step. (a) **Manifest
+invariants as a checked rule**: *"Every skill in `engineering/`, `productivity/`, or `misc/`
+must have a reference in the top-level `README.md` and an entry in `.claude-plugin/
+plugin.json`"* (`CLAUDE.md:10`) — catalog and manifest can't silently diverge. (b) **Lifecycle
+buckets**: `personal/` (setup-specific), `in-progress/` (drafts), and `deprecated/` are kept
+*in the repo* but excluded from the manifest, so WIP and retired skills stay version-controlled
+and readable without paying catalog/context cost — a clean answer to "where do half-built
+skills live?" (c) **One router, never two**: `ask-matt` is *"a router over the user-invoked
+skills"* (`README.md:152`), and the user→model-only composition rule (S3) structurally prevents
+the two-router collision addyosmani-S5 warned about. *Walk-away:* **mixed.** The **skills.sh**
+distribution layer is **recorded, not adopted** — like gstack-S4/wshobson, a cross-harness
+registry only earns its cost beyond a single harness, and we're Claude-Code-only with a native
+marketplace. But the **lifecycle-bucket convention** and the **manifest-invariant** are cheap,
+portable wins the moment our marketplace grows a draft or retires a skill; adopt as repo
+conventions.
+
+### Findings — grove project
+
+**G1 [grove] — `decision-mapping` is a second independent analog to grove's task-tree (after
+task-master), and philosophically the closest in the survey (Q4/Q5).** An in-progress
+user-invoked skill *"invoked when a loose idea requires more than one agent session to turn
+into a plan. It creates a stateful decision map in a markdown file, and drives the user through
+a sequence of tickets to resolve the open questions"* (`decision-mapping/SKILL.md:7`). Four of
+grove's load-bearing choices appear independently: (a) **git-tracked markdown as the canonical
+artifact** — *"a single compact Markdown file… git-tracked alongside the project… the canonical
+artifact"* (`:11-12`) ≈ grove's artifacts-not-state; (b) **one-ticket-one-session** — *"Each
+ticket must be sized to one 100K token agent session"* (`:34`) ≈ grove's one-task-one-session;
+(c) **lazy frontier extension** — *"**Fog of war**… The map is _deliberately_ incomplete beyond
+the frontier… Push back the fog of war, one node at a time"* (`:44-46`) ≈ grove's lazy
+self-extending tree (constraint 4, `leaf-decompose`/`leaf-add` at the seam); (d) **bootstrap vs
+resume** with *"Map-building is one session's work; do not also resolve tickets"* (`:60`) ≈
+grove's `root-init` + "do only the first child." But the **divergences are the instructive
+part**: decision-mapping is a **flat DAG** (numbered tickets with explicit `Blocked by:` edges,
+`:19-24`) where grove is a **hierarchical tree** (directory nesting carries the structure); and
+it **loads the entire map into every session** — *"the **whole map is loaded as context into
+every session**, so it must stay compact"* (`:12`) — where grove loads only the **ancestor
+brief-chain + the picked leaf**, never the whole tree. *Walk-away:* the dual of task-master's
+G-findings (this survey's `dive-task-master-k8`). task-master is the closest analog *by
+machinery* (persisted task files, dependency graph, "next task"); decision-mapping is the
+closest *by philosophy* (fog-of-war = lazy extension; compact git-tracked markdown =
+artifacts-not-state; one-ticket-one-session). The two contrasts to carry to the grove repo:
+(1) **flat-DAG vs hierarchical-tree** — decision-mapping's `Blocked by:` edges express
+cross-cutting dependencies grove's tree can't (a tree has no sibling-dependency edges); grove
+trades that expressiveness for a position-derivable depth-first `pick`. (2) **whole-map vs
+ancestor-path context** — decision-mapping pays full-map context every session to give each one
+global decision visibility; grove's brief-chain pays only the path, scaling to large trees but
+seeing only ancestors. Both are deliberate; grove's bet is that a *tree* with *path-context*
+scales where a *DAG* with *whole-map-context* must "stay compact" by fiat (`:12`).
+
+**G2 [grove] — the bundled-grilling drift: grove froze a fused snapshot upstream has since
+split (Q4).** As the lineage note establishes, grove's `grilling.md` is mattpocock's
+`grill-with-docs` + inline domain-model discipline at an old commit; upstream now factors that
+discipline into a standalone model-invoked `domain-modeling` skill, leaving `grill-with-docs` a
+pointer (*"Run a `/grilling` session, using the `/domain-modeling` skill"*, `grill-with-docs/
+SKILL.md:7`). *Walk-away:* a concrete, narrow recommendation for the grove repo with two honest
+options. **(i) Re-sync** — re-bundle from current upstream, which would mean grove tracking the
+split (a `grilling.md` that is just the interview loop + a separate domain-model reference) — but
+grove has *no skill-to-skill invocation*, so the split's payoff (reuse across `improve-codebase-
+architecture`, `decision-mapping`) doesn't exist in grove; the factor would be cosmetic. **(ii)
+Consciously own the fusion** — grove's grilling is a *planning-task procedure*, read top-to-
+bottom in one session, not a composable library entry; a single fused file is arguably the right
+shape for that context, and the snapshot drift is harmless *as long as it's deliberate*. The
+finding is that the drift currently looks *accidental* (a frozen bundle, no note that upstream
+moved). Recommend grove add a one-line "bundled-from / intentionally-fused; upstream has since
+split" annotation so the divergence is a recorded decision, not silent staleness — the exact
+discipline grove's own G5-from-gstack staleness check demands of any sourced artifact.
+
+**G3 [grove] — `handoff` is the manual version of what grove's tree automates; its hygiene rule
+is grove's, its ephemerality is grove's inverse (Q4).** `handoff` (user-invoked) *"compact[s]
+the current conversation into a handoff document so another agent can continue the work"*
+(`README.md:175`), and two of its rules map straight onto grove. *Convergent:* *"Do not
+duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits,
+diffs). Reference them by path or URL instead"* (`handoff/SKILL.md:12`) **is** grove's
+read-don't-paste / file-handoff hygiene (this survey's superpowers-G2). *Divergent:* handoff
+*"Save[s] to the temporary directory of the user's OS - not the current workspace"* (`:8`) — an
+**ephemeral, single-use** doc — where grove's handoff surface is the **durable, git-tracked**
+`.grove/` tree re-read by `brief-chain` every session. *Walk-away:* the same shape as gstack-G7
+and superpowers-G1 (a competitor needs an explicit handoff/state artifact that grove's
+fresh-session-per-leaf + position-from-tree makes structural and automatic), and grove's side is
+again the deliberate one. handoff exists because mattpocock's sessions are *long single
+conversations* that lose context at compaction; grove's loop never builds one. The one case
+handoff covers that grove's single-worktree-per-grove doesn't: ad-hoc **cross-agent** handoff
+*outside* a structured loop — the same gap gstack-G7's cross-workspace `/context-restore`
+flagged. Record as confirmation, not an action item; its "suggested skills" section (`:10`) is a
+small borrowable nicety if grove ever emits a handoff.
+
+**G4 [grove] — `loop-me`'s "push right" names the unattended-mode posture three prior dives
+converged on (Q5).** The in-progress `loop-me` skill defines, for human-in-the-loop checkpoints:
+*"**Push right** — defer the checkpoint as far as it will go. Do maximal work before involving
+the human, so they are asked once, late, with everything prepared"* and *"**Brief** — what a
+checkpoint presents: a tight, decision-ready summary… never the raw output"* (`loop-me/
+SKILL.md:22-23`). *Walk-away:* not a new mechanism — a sharp **name** for the design gstack-G1
+(*Mechanical/Taste/User-Challenge* + bias-to-action), addyosmani-G4 (`/build auto`), and hermes'
+self-loop all reached: an unattended loop does maximal autonomous work and surfaces the human
+*once, late, with a decision-ready brief*. "Push right" is the borrowable framing for grove's
+prospective unattended mode — auto-proceed on mechanical leaf decisions, push the human
+checkpoint as far right as the next genuine taste-fork, and present a brief (which grove already
+has the artifact for: the `BRIEF.md`). Fourth convergent source on the same posture; the value
+is the vocabulary, not a new design.
+
+### Takeaways
+
+**Takeaway for skills.** mattpocock's gift is **one genuinely new craft skill plus a sharper
+authoring vocabulary** — not a pipeline. Author **`codebase-design`** (S1): a language-neutral
+deep-module design vocabulary (Ousterhout + Feathers) our marketplace has no equivalent for,
+self-contained and in exactly the neutral-craft niche `cli-tool-design` proves works; pair it
+with **`domain-modeling`** (S2) only if we also adopt the `CONTEXT.md` + `docs/adr/` convention
+it assumes (real coupling, lower priority). Import as **conventions**: the user-invoked vs
+model-invoked split with its **context-load vs cognitive-load** framing (S3) — a lever our all-
+model-invoked marketplace doesn't use, decisive for any *future* hand-only orchestrator/authoring
+skill — and `writing-great-skills`' editing levers (S4: leading words, the no-op pruning test,
+the information-hierarchy ladder), which **complement** rather than duplicate the superpowers
+`writing-skills` craft we already load. Adopt the cheap packaging hygiene (S5: manifest
+invariants, lifecycle buckets); **record, don't adopt** skills.sh (Claude-Code-only). Net: one
+skill to write (`codebase-design`), one maybe (`domain-modeling`), three conventions to fold
+into an authoring-conventions note.
+
+**Takeaway for grove.** This is the source grove **already absorbed**, so the findings are
+diffs, not discoveries. The richest is **G1**: `decision-mapping` independently reinvents grove's
+task-tree and is the survey's closest analog *by philosophy* (fog-of-war = lazy extension,
+git-tracked compact markdown = artifacts-not-state, one-ticket-one-session) — its two deliberate
+contrasts with grove (flat-DAG-with-`Blocked by`-edges vs hierarchical tree; whole-map-context
+vs ancestor-path bootstrap) are the sharpest external lens on grove's structural bets, the dual
+of `dive-task-master-k8`'s machinery comparison. **G2** is the one concrete action: grove's
+bundled `grilling.md` has silently drifted from an upstream that factored `domain-modeling` out —
+recommend grove annotate the bundle as *intentionally fused* (grove has no skill-to-skill
+invocation, so re-syncing the split would be cosmetic), turning accidental staleness into a
+recorded decision. **G3** records `handoff` as the manual version of what grove's tree
+automates (convergent hygiene rule, divergent ephemerality — the gstack-G7 / superpowers-G1
+shape again, grove's side deliberate). **G4** gives the unattended-mode posture a name —
+**"push right"** — a fourth convergent vote for an unattended grove mode that defers the human
+checkpoint to the next genuine fork and presents a decision-ready brief.

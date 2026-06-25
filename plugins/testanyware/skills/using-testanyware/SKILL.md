@@ -1,6 +1,6 @@
 ---
 name: using-testanyware
-description: Use when you need to run, launch, test, drive, screenshot, or screen-record a GUI / desktop / windowed application — especially when its windows would grab focus, move the mouse, or otherwise interfere with your own machine, or when the app needs a Windows or Linux environment you are not running. Also covers experimenting with a UI, or capturing screenshots / videos of a running app for documentation. Not for headless services or pure-logic / unit tests with no UI.
+description: Drives GUI / desktop / windowed apps inside isolated macOS / Linux / Windows VMs. Use when you need to run, launch, test, drive, screenshot, or screen-record a GUI / desktop / windowed application — especially when its windows would grab focus, move the mouse, or otherwise interfere with your own machine, or when the app needs a Windows or Linux environment you are not running. Also covers experimenting with a UI, or capturing screenshots / videos of a running app for documentation. Not for headless services or pure-logic / unit tests with no UI.
 ---
 
 # Using TestAnyware

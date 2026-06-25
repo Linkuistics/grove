@@ -18,6 +18,7 @@ A suite of agent **skills** that load lazily — only when relevant to the file 
 | `coding-style-swift` | `*.swift` | |
 | `coding-style-typescript` | `*.ts`, `*.tsx` | |
 | `cli-tool-design` | by description | checklist in `SKILL.md`, audit detail in `references/` |
+| `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 
 Each skill's one-line `description` is the only standing context cost; the body loads on demand. In Claude Code the `paths:` frontmatter makes language skills auto-load deterministically by file type. Other harnesses ignore `paths:` and fall back to the `description`.
 

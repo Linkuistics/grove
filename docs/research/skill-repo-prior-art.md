@@ -1017,3 +1017,213 @@ weakest of four convergent unattended-mode precedents, but its `--script` prepro
 re-validates grove's deterministic-verb / prose-judgment split. And carry the **⚠ correction**
 to synthesis: `trajectory_compressor.py` is *training-data* infrastructure, not runtime
 procedural memory — the seed-brief framing should be amended.
+
+## eyaltoledano/claude-task-master
+
+_Deep-dive by `dive-task-master-k8`, 2026-06-25. Shortlist rank #5 (skills Low /
+grove High). This is the **closest external analog to grove's task-tree**, so the dive is a
+*direct design comparison* (grove Q4/Q5), not a feature tour. Primary sources are the repo's
+own source modules and docs (`raw.githubusercontent.com/eyaltoledano/claude-task-master/main`,
+2026-06-25), quoted by `file:line` — not the README's marketing framing, per the brief. The
+goal per the node brief: find *where grove diverges and why*, and honestly weigh the one
+borrow the brief named — dependency edges between leaves._
+
+**Verified facts (GitHub API + raw files, 2026-06-25).** `eyaltoledano/claude-task-master` —
+*"An AI-powered task-management system you can drop into Cursor, Lovable, Windsurf, Roo, and
+others"* — is real at **27,683★** (`default_branch: main`, **MIT** with an attribution header
+*"Task Master License… Copyright (c) 2025 — Eyal Toledano, Ralph Khreish"*; the task brief read
+27,683 the same day — an exact match, no drift). It is a **1,522-file** JavaScript **MCP server
++ CLI**, *not* a skills repo — which is why it ranks skills-Low. **⚠ Maintenance note:** unlike
+the other four dives' sources (all `pushed_at` within a day of 2026-06-25), this repo's
+`pushed_at` is **2026-04-28** — ~2 months stale. The design is settled and well-documented, so
+it remains a sound design comparator, but it is not as live a target as the rest of the survey.
+
+### Findings — skills project
+
+**S1 [skills] — the one transferable authoring idea: each unit of work carries its own
+inline verification contract (`testStrategy`).** Every task and subtask schema includes a
+`testStrategy` field — *"Verification approach (Example: 'Deploy and call endpoint to confirm
+Hello World response.')"* (`docs/task-structure.md:18,238-242`) — sitting beside `details` so
+the *how-to-verify* travels with the *what-to-do* in the same record. *Walk-away:* **positive
+but thin, and convergent.** This is the same instinct as addyosmani-S4's fixed **Verification**
+anatomy slot and superpowers' `verification-before-completion` — "state the evidence that
+proves this unit done, next to the unit itself." For the skills project it is at most a minor
+authoring convention (a behavior-shaping skill could carry an explicit "verify by…" line per
+step), not a new skill. Recorded as the single skills-side carry; everything else here is grove.
+
+**Recorded silence (skills).** task-master ships **zero** `SKILL.md` content — it is an
+MCP/CLI tool, so there is nothing to fork for the process or craft skill classes (its value is
+entirely the *task-model design* mined under grove below). Its multi-harness reach (*"drop into
+Cursor, Lovable, Windsurf, Roo"*) is achieved by **per-harness rule/integration files copied in**
+(`docs/` ships `claude-code-integration.md`, `providers/*`, Cursor/Windsurf/Roo glue), i.e. the
+*copy-the-instructions-per-tool* distribution model this survey already judged inferior to a
+single-source generator (addyosmani-S5, wshobson-S/dive) — and irrelevant to us as a
+Claude-Code-only marketplace. No packaging finding (skills Q3); no progressive-disclosure or
+frontmatter technique (skills Q2) beyond S1. The shortlist's skills-Low rating holds.
+
+### Findings — grove project
+
+**G1 [grove] — the store is a single tags-keyed `tasks.json` + a `state.json` cursor; grove's
+is the filesystem itself (the sharpest artifacts-vs-state contrast in the survey, Q4).**
+task-master persists **all** tasks in one document, `.taskmaster/tasks/tasks.json`, now keyed by
+*tag* (named context): *"`{ "master": { "tasks": [...] }, "feature-branch": { "tasks": [...] } }`"*
+(`docs/task-structure.md:151-166`), and tracks the active context in a separate
+`.taskmaster/state.json` — *"`{ "currentTag": "master", "lastSwitched": …, "migrationNoticeShown":
+true }`"*, *"automatically created… should not be manually edited"* (`docs/configuration.md:181-195`).
+So its task-tree lives *inside a JSON value* (`subtasks[]` nested in `tasks[]` nested in a tag
+object) and its "where am I" pointer lives in a dedicated state file. grove's **constraint 1** is
+the opposite bet — *"No phase file, no session log, no status file. The directory tree under
+`.grove/` is the only state; git is the history"* — and grove derives the active context not from
+a `currentTag` field but from the **worktree/branch it is checked out in**. *Walk-away:* the
+closest analog makes grove's directory-tree choice concrete: grove's state is `find .grove`
+(every node visible as a file, every change a per-leaf git diff, no parser/serializer); task-master
+must read → migrate → mutate → re-serialize a JSON doc on every operation and keeps a `state.json`
+cursor grove's spine forbids. The honest counter-credit: a single JSON file is itself trivially
+greppable and diffable, and avoids grove's many-small-files sprawl — but it loses per-leaf git
+history and forces the whole-document read/rewrite cycle. Validation of grove's filesystem-as-tree,
+with eyes open to what the single-file model buys.
+
+**G2 [grove] — next-task: a dependency-gated priority-sort vs grove's depth-first
+first-live-leaf — and a real convergence underneath the divergence (Q5, the headline
+comparison).** `find-next-task.js` computes the frontier as a *filter-then-multi-key-sort*:
+*"Prefer an eligible SUBTASK that belongs to any parent task whose own status is `in-progress`…
+If no such subtask exists, fall back to the best top-level task"* (`find-next-task.js:4-9`), where
+"eligible" = status ∈ {pending, in-progress} **and all dependencies are in the completed set**
+(`:65-67,109-114`), then *"sort by priority → dep-count → parent-id → sub-id"* (`:83-97,118-128`).
+The doc restates it: *"Identifies tasks that are pending/in-progress and have all dependencies
+satisfied; Prioritizes by priority level, dependency count, and task ID"* (`docs/task-structure.md:99-101`);
+the surface is `task-master next` / *"What's the next task I should work on?"* (`README.md:231,280`).
+grove's `grove-llm pick` is a pure **structural depth-first pre-order, first-live-leaf** walk — no
+priority field, no dependency gate. *Walk-away:* **divergence with a convergence inside it.** The
+*convergence*: both **recompute the frontier on demand and store no "current task" pointer** —
+task-master's `state.json` persists the current *tag*, never the next *task*, which `next` derives
+fresh each call exactly as `pick` re-derives position from the tree. Both reject a persisted task
+cursor in favour of re-derivation (this is why grove's "restart ≡ continuation" and task-master's
+statelessness-of-`next` coincide). The *divergence*: task-master's ordering is **semantic**
+(priority + a dependency DAG), grove's is **positional** (tree pre-order *is* the author's intended
+sequence). task-master can answer *"what is unblocked AND highest-priority across a non-linear
+graph"*; grove answers *"what is next in the authored walk."* grove deliberately pushes all ordering
+into tree position + the human's `leaf-insert`, so it needs neither a priority field (position
+already encodes it) nor a dependency solver.
+
+**G3 [grove] — the cost of explicit edges: an entire 1,860-line integrity module + a
+`fix-dependencies` repair command, which grove pays *nothing* of (Q5; the strongest
+deliberate-divergence finding here, and the heaviest instance of the survey's recurring thread).**
+Because dependencies are explicit ID arrays, task-master must continuously police the graph:
+`dependency-manager.js` is **1,860 lines** of nothing-but-integrity — `isCircularDependency` (a
+recursive DFS cycle-detector, `:379`), `validateTaskDependencies` (self-deps, dangling refs,
+cycles, `:436`), `removeDuplicateDependencies`/`cleanupSubtaskDependencies`, an interactive
+**`fixDependenciesCommand`** — *"Fixes invalid dependencies in tasks.json"* (`:723`) — and a whole
+**cross-tag dependency** subsystem (`findCrossTagDependencies`, `validateCrossTagMove`,
+`canMoveWithDependencies`, `:1376-1760`) just to move a task between tags without breaking edges.
+The integrity tax is *per-mutation*: `setTaskStatus` re-runs `validateTaskDependencies(data.tasks)`
+after **every** status change (`set-task-status.js:125-127`). grove has **none** of this — with no
+edges there are no cycles to detect, no dangling refs to repair, no cross-context move to validate;
+sequencing is structural, so it is correct by construction. *Walk-away:* this is the brief's named
+question — *"would grove benefit from dependency edges between leaves?"* — answered against, with
+the cost quantified. The same shape as gstack-G7, superpowers-G1 (SDD's progress ledger), and
+hermes-G2 (the shadow-git store) — *a competitor bolts on the very machinery grove's spine makes
+free* — but task-master is the **heaviest** instance (a 1,860-line module + a repair command),
+fitting because it is the closest analog. The one expressiveness grove genuinely cannot state: a
+**cross-subtree prerequisite** ("leaf B in subtree X needs leaf A in subtree Y first" when X and Y
+aren't in walk order) — task-master's DAG captures it, grove can only reposition. Honest verdict:
+rare under grove's *lazy* growth (you decompose at the seam you've reached, so upstream
+prerequisites are already DONE earlier in the walk), so the DAG's expressiveness rarely pays for
+its integrity subsystem. Recommend recording, not adopting: edges buy DAG expressiveness at the
+price of a graph-integrity module + repair command; grove's positional model is the deliberate,
+cheaper trade.
+
+**G4 [grove] — decomposition: front-loaded PRD-parse + an `update` patch-loop vs grove's lazy,
+recursive, just-in-time growth (Q5; the strongest version of the superpowers-G6 fork).**
+task-master's flow front-loads the plan: `parse-prd <prd> <numTasks>` generates a fixed
+`numTasks` count of top-level tasks in **one AI pass** (`parse-prd-config.js:53-56`), then
+`analyze-complexity` AI-scores each task 1-10 and *"Recommends optimal number of subtasks…
+Generates tailored prompts for expanding each task"* (`docs/task-structure.md:43-56`), then
+`expand --id=N` *"Expand[s] a task into subtasks"* (`expand-task.js:27-28`). The model is
+**exactly two levels** (task → `subtasks[]`; the subtask schema has no `subtasks` field,
+`docs/task-structure.md:258-282`) — no arbitrary depth. And because a front-loaded plan drifts,
+task-master *bolts on a patch-loop*: `update`/`update-task`/`update-subtask`, advertised as
+*"If your implementation diverges from the plan, use the update command to keep future tasks
+aligned with your current approach"* (`docs/task-structure.md:131`). grove's decomposition is the
+opposite on every axis: **lazy** (grow the tree session by session, constraint 4), **interactive**
+(grilling, not a one-shot PRD parse), **arbitrarily deep** (`leaf-decompose` recurses a leaf into
+a node at any level), and **drift-proof by construction** (you never plan far enough ahead to go
+stale). *Walk-away:* same fork as superpowers-G6 (flat-complete-plan vs self-extending-tree), but
+task-master is the **sharper** example because it had to *add machinery* (`update-*`) to repair the
+stale front-loaded plan — precisely the cost grove's lazy growth never incurs — and because its
+2-level cap is a real limitation grove's recursive tree lacks. The borrowable *signal* (not
+mechanism): `analyze-complexity`'s "score each item, expand the complex ones" is a cue for *when*
+to decompose; grove keeps that judgment with the human at the seam (cheaper, no AI scoring pass),
+but it's worth noting as the automated counterpart to grove's `leaf-decompose` instinct.
+
+**G5 [grove] — done-ness: a manual parent roll-up that *prompts* the human vs grove's
+implicit-via-absence that *asks* the human — convergent on "never auto-complete the parent," and
+grove's model can't drift (Q5).** task-master stores status as a **mutable 6-value field** —
+`pending | done | in-progress | review | deferred | cancelled` (`src/constants/task-status.js:16-23`).
+When the last subtask of a parent goes `done`, it **does not auto-complete the parent** — it
+*suggests*: *"All subtasks of parent task N are now marked as done… Consider updating the parent
+task status with: task-master set-status --id=N --status=done"* (`update-single-task-status.js:78-85`).
+grove marks a leaf done with a filename infix (`NN-DONE-slug-kKEY.md`), and a *node's* done-ness is
+**implicit** — the absence of any live child — but the retire cascade **asks the user before
+treating the node as done**. *Walk-away:* a clean **convergence** — the closest analog independently
+reaches grove's exact instinct that *a parent/node being "done" because its children are is a
+human-confirmed judgment, not an automatic transition* (validates the retire-step's "ask the user").
+But the *mechanism* diverges in grove's favour on integrity: task-master stores the parent's done
+*state as a separate field that can disagree with its children* (a parent sits `pending` with all
+subtasks `done` until the human updates it — two sources of truth that can drift); grove's node
+done-ness **is** the absence of a live child, so it can never disagree with its children — there is
+no second field to fall out of sync. The honest credit to task-master: its richer status set
+(`review`, `deferred`, `cancelled`) expresses lifecycle states grove's binary live/DONE cannot — a
+grove leaf is either live or retired, with no stored "in review" or "deferred." grove keeps *review*
+as an in-session doubt step, not a persisted state; that omission is deliberate (constraint 1), but
+note it as the one expressiveness task-master's status field has that grove's infix doesn't.
+
+**G6 [grove] — concurrency isolation: tags-in-one-store + a `currentTag` pointer vs grove's
+one-worktree-per-grove; git does the isolation grove never has to code (Q5).** task-master
+multiplexes parallel workstreams *inside one store* via **tags** — isolated task-lists per
+branch/phase, *"completely isolated… Each tag has its own task ID sequence starting from 1"*
+(`docs/task-structure.md:361-365`), with the active one held in `state.json`'s `currentTag` and a
+roadmap note for *"Git branch-based tag switching"* (`:359`). grove isolates concurrent groves with
+**separate git worktrees** (one worktree+branch per grove; the skill is explicit that new worktrees
+are *"for separating concurrent groves, not… tasks within a grove"*). *Walk-away:* same problem
+(isolate concurrent workstreams), opposite mechanism — task-master multiplexes contexts in one file
+and therefore *must build* tag-isolation, a `currentTag` cursor, and the **cross-tag dependency-move
+validation** of G3 (`canMoveWithDependencies` et al.); grove delegates isolation to git/the
+filesystem, so "which context am I in" is answered by `pwd`/branch, with zero isolation code and no
+cross-context move problem to solve. A further instance of grove's "let git do it" paying off — the
+cross-tag machinery in `dependency-manager.js` is the concrete *cost* of in-store multiplexing that
+grove's separate-worktree model never incurs.
+
+### Takeaways
+
+**Takeaway for skills.** Essentially **none — and that is the correct, recorded result** for an
+MCP/CLI task tool with no `SKILL.md` content. The single thin carry is **S1**: `testStrategy`
+travels inline with each task, the same "verification contract beside the unit of work" instinct as
+addyosmani-S4 / superpowers' `verification-before-completion` — at most a minor authoring convention
+for our behavior-shaping skills, not a new skill. Its multi-harness distribution is the
+copy-rules-per-tool model already judged inferior (addyosmani-S5 / wshobson) and moot for our
+Claude-Code-only marketplace. The shortlist's skills-Low rating is confirmed; the value of this
+source is entirely on the grove side.
+
+**Takeaway for grove.** The richest *design comparator* in the survey, because it is the closest
+analog — and on every axis grove's divergence is the deliberate, lower-machinery one. **G3** is the
+headline and the brief's named question answered: explicit dependency edges would buy DAG
+expressiveness (cross-subtree prerequisites grove can't state) at the cost of an **1,860-line
+graph-integrity module + a `fix-dependencies` repair command + per-mutation re-validation** that
+grove's edgeless, positional model needs *none* of — the heaviest instance of the survey's recurring
+"competitor bolts on what grove's spine makes free" thread (gstack-G7, superpowers-G1, hermes-G2),
+and rare-to-pay under grove's lazy growth. **G1** sharpens artifacts-vs-state: task-master's tree
+lives inside a JSON document with a `state.json` cursor, grove's *is* the filesystem with the active
+context derived from the worktree. **G2** records the next-task fork (semantic priority+DAG sort vs
+positional first-live-leaf) *and* the convergence beneath it — both recompute the frontier on demand
+and store no task cursor. **G4** is the strongest version of the front-loaded-plan-vs-lazy-tree fork
+(superpowers-G6): task-master had to add an `update-*` patch-loop to repair its stale one-shot PRD
+parse, and caps at two levels, where grove grows lazily and recurses without limit. **G5** is a
+convergence — both refuse to auto-complete a parent and defer to the human — with grove's implicit
+done-ness unable to drift from its children where task-master's status *field* can; carry the honest
+note that task-master's `review`/`deferred`/`cancelled` express lifecycle states grove's binary
+infix deliberately omits. **G6** adds that grove's one-worktree-per-grove lets git do the
+concurrency isolation task-master must hand-build as tags + cross-tag move validation. Net: no
+mechanism to import — task-master **validates** grove's core bets (edgeless positional ordering,
+filesystem-as-state, lazy recursive decomposition, human-confirmed roll-up) by being the
+well-built, popular system that took every opposite road and paid the machinery bill for it.

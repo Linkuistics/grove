@@ -34,7 +34,7 @@ $ git log --oneline
 $ grove do add-rate-limiting
 ```
 
-That single command drives the **self-driving loop** (ADR-0032), not one task. It launches a fresh, clean-context session on the first live leaf; when that session finishes its task and fires `grove-llm complete` as its last step, the loop relaunches a new session on the *next* live leaf — and so on until `grove-llm pick` comes up empty. You run `grove do` once and watch the tree drain.
+That single command drives the **self-driving loop** (self-driving-loop), not one task. It launches a fresh, clean-context session on the first live leaf; when that session finishes its task and fires `grove-llm complete` as its last step, the loop relaunches a new session on the *next* live leaf — and so on until `grove-llm pick` comes up empty. You run `grove do` once and watch the tree drain.
 
 The CLI's role is small: it provisions the global skill, exec's a fresh harness session pre-named `<repo>: <name> grove` with the continue prompt, and relaunches on each completion signal. The methodology is in the prompt, not the binary. A session that exits *without* signalling — your `/exit`, a Ctrl-C, a crash — **stops** the loop instead of relaunching; re-running `grove do add-rate-limiting` resumes from wherever the tree stands, because the loop keeps no state of its own and re-derives its position from `pick` every iteration (restart ≡ continuation).
 
@@ -60,7 +60,7 @@ $ git log --oneline -3
 
 Retirement is a rename **in place** — `01-spike-token-bucket-k1.md` → `01-DONE-spike-token-bucket-k1.md` — not a move into a separate folder. The leaf keeps its position (`01`) and key (`-k1`); the `DONE` infix right after the position is what `pick` skips. So `ls .grove` always shows the *complete* state, done leaves included, with zero file reads.
 
-Two commits per session is grove's usual rhythm — the deliverable (`feat: spike …`) and the housekeeping (`chore(grove): retire …`) are separable concerns, so they get separable commits. Note the naming convention in the housekeeping subject: a work item is named by its stable `<slug>-k<key>` handle (`spike-token-bucket-k1`), never by its mutable position or path (ADR-0035 §5).
+Two commits per session is grove's usual rhythm — the deliverable (`feat: spike …`) and the housekeeping (`chore(grove): retire …`) are separable concerns, so they get separable commits. Note the naming convention in the housekeeping subject: a work item is named by its stable `<slug>-k<key>` handle (`spike-token-bucket-k1`), never by its mutable position or path (task-tree-scheme §5).
 
 ## Iteration 2: a planning leaf grows the tree
 
@@ -84,7 +84,7 @@ Note what *didn't* happen: the planning session did not retire anything. The lea
 
 ## Iteration 3: a leaf inside the new subtree
 
-The loop relaunches, and the depth-first pick descends into the new node, landing on `02-design-token-bucket-k2/01-record-policy-adr-k4.md` — a work leaf. The session reads the ancestor briefs (root `BRIEF.md` → `02-design-token-bucket-k2/BRIEF.md`) plus the leaf, authors `docs/adr/0002-token-bucket-policy.md`, commits it, and retires the leaf in place:
+The loop relaunches, and the depth-first pick descends into the new node, landing on `02-design-token-bucket-k2/01-record-policy-adr-k4.md` — a work leaf. The session reads the ancestor briefs (root `BRIEF.md` → `02-design-token-bucket-k2/BRIEF.md`) plus the leaf, authors `docs/adr/token-bucket-policy.md`, commits it, and retires the leaf in place:
 
 ```
 $ tree .grove

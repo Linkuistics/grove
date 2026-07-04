@@ -5,7 +5,7 @@
 //     file's `**Kind:**` line. Live: the new dotted-decimal grow/lifecycle
 //     verbs (`leaf_grow` / `leaf_lifecycle`) and the `grove-llm` CLI surface
 //     (`llm_cli`) parse and carry it.
-//   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per ADR-0034 the
+//   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per task-tree-scheme the
 //     *only* surviving consumer of the old format is `grove migrate`, which
 //     reads an old tree exactly once on adoption; this is the reader it leans on.
 //
@@ -34,7 +34,7 @@ impl Kind {
 /// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`. The
 /// old-format prefix parser; `pub(crate)` so `grove migrate` (060/020) can reuse
 /// it read-only to consume an old `NNN-slug` tree (it is the *only* surviving
-/// consumer of the old format — ADR-0034).
+/// consumer of the old format — task-tree-scheme).
 pub(crate) fn split_prefix(name: &str) -> Option<(u32, &str)> {
     if name.len() < 4 {
         return None;

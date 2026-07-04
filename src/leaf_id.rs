@@ -1,6 +1,6 @@
 // The new-format **id model**: the foundational parsed-filename type plus the
 // pure functions every dotted-decimal verb (020 read / 030 grow / 040 lifecycle)
-// consumes. Implements the grammar settled in ADR-0033 and the 050 brief's
+// consumes. Implements the grammar settled in task-tree-scheme and the 050 brief's
 // running log D1/D2/D3/D6:
 //
 //     <position>-[<key>]-<slug>[.BRIEF|.DONE].md      (root brief: BRIEF.md)

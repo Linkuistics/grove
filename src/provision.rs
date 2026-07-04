@@ -1,6 +1,6 @@
 //! Provision the global grove skill from the methodology embedded in the binary.
 //!
-//! ADR-0031/0034: distribution collapses to one binary that carries grove's full
+//! self-extension-core-and-methodology / task-tree-scheme: distribution collapses to one binary that carries grove's full
 //! retained methodology and extracts it to the global personal skill dir
 //! (`~/.claude/skills/grove/`) on `grove do`. Because the skill travels inside
 //! the binary, it can never drift from it — this replaces the old fetch-tarball +
@@ -29,7 +29,7 @@ pub const STAMP_FILE: &str = ".grove-content-hash";
 
 /// Provision the global skill into `~/.claude/skills/grove/` (idempotent),
 /// logging only when it actually (re)writes. This is the `grove do` provisioning
-/// point — the entry the human always hits (ADR-0034).
+/// point — the entry the human always hits (task-tree-scheme).
 pub fn provision_global_skill() -> Result<()> {
     let dest = global_skill_dir()?;
     if provision_into(&dest)? {

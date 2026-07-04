@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm leaf-decompose` and `grove-llm
-// leaf-retire` on the **v2 directory scheme** (ADR-0035):
+// leaf-retire` on the **v2 directory scheme** (task-tree-scheme):
 //
 //   - `leaf-decompose <leaf-path> <first-child-slug>` converts a live leaf file
 //     `NN-<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key

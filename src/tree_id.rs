@@ -1,4 +1,4 @@
-// The **v2 id model** (ADR-0035): the parsed tree-entry-name type plus the pure
+// The **v2 id model** (task-tree-scheme): the parsed tree-entry-name type plus the pure
 // functions every directory-based verb (11.2 read / 11.3 grow+lifecycle / 11.4
 // migrate) consumes. Replaces `leaf_id`'s flat dotted-decimal-*vector* model.
 //
@@ -16,7 +16,7 @@
 // after the position (leaves only — a node is never marked done; its done-ness is
 // the absence of a live leaf in its subtree).
 //
-// The `-k<key>` delimiter (resolved at 11.1, amending ADR-0035's `[<key>]`):
+// The `-k<key>` delimiter (resolved at 11.1, amending task-tree-scheme's `[<key>]`):
 // brackets are shell-glob metacharacters; `-k<key>` is glob-safe, and it stays
 // unambiguous because the key is mandatory and always rendered last — parse takes
 // the terminal `-k<digits>`, so `05-task-k9-k3.md` is slug `task-k9`, key `3`.

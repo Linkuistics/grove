@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm leaf-add` and `grove-llm leaf-insert` on
-// the **v2 directory scheme** (ADR-0035). A parent/target is addressed by its
+// the **v2 directory scheme** (task-tree-scheme). A parent/target is addressed by its
 // permanent **key** (`[n]` / `n` / `<slug>-k<key>`) or its **path** — not a
 // dotted id:
 //
@@ -296,7 +296,7 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
         "old node dir still present"
     );
     // The renumber rewrites ZERO file contents — the dragged brief's position-free
-    // header is byte-identical (v2's "cascade collapse", ADR-0035).
+    // header is byte-identical (v2's "cascade collapse", task-tree-scheme).
     assert_eq!(
         read(tmp.path(), ".grove/02-node-k1/BRIEF.md"),
         "# node-k1 — brief\n",

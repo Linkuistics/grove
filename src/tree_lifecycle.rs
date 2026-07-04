@@ -1,7 +1,7 @@
-// The **v2 lifecycle verbs** (ADR-0035) — `root-init`, `leaf-decompose`, and
+// The **v2 lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`, and
 // `leaf-retire` — re-expressed against the real **directory tree**, built on the
 // 11.1 id model (`src/tree_id.rs`) and the 11.3 grow verbs (`src/tree_grow.rs`).
-// Keeps ADR-0033's *semantics* (a fresh grove starts with a planning leaf so it is
+// Keeps task-tree-scheme's *semantics* (a fresh grove starts with a planning leaf so it is
 // never mistaken for finished; decompose enforces a first child; retire is
 // leaves-only and done-ness is marked in place) and changes the *mechanics* to the
 // filesystem's shape:

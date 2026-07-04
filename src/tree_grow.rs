@@ -1,6 +1,6 @@
-// The **v2 grow verbs** (ADR-0035) — `leaf-add` and `leaf-insert` —
+// The **v2 grow verbs** (task-tree-scheme) — `leaf-add` and `leaf-insert` —
 // re-expressed against the real **directory tree**, built on the 11.1 id model
-// (`src/tree_id.rs`). Keeps ADR-0033's *semantics* (append a gapless child with a
+// (`src/tree_id.rs`). Keeps task-tree-scheme's *semantics* (append a gapless child with a
 // fresh permanent key; insert shifts the occupant + later siblings up by one) and
 // changes the *mechanics* to the filesystem's shape:
 //
@@ -10,12 +10,12 @@
 //   * v2 carries the hierarchy in directories (a node is a *directory* holding
 //     `BRIEF.md` + children), so a renumber is a single **`git mv` of a directory**
 //     and the subtree — child names *and* keys — rides along untouched. The shift
-//     is O(siblings at one level), the "cascade collapse" ADR-0035 celebrates.
+//     is O(siblings at one level), the "cascade collapse" task-tree-scheme celebrates.
 //
 // **Position-free headers (decided 11.3, with the post-flip grilling).** A task
 // file's first-line `# …` header is the *stable handle* `# <slug>-k<key>` — the
 // per-level position `NN` lives only in the filename, never in the body. This is
-// the faithful realization of ADR-0035 §5 ("reference a work item by `<slug>-k<key>`,
+// the faithful realization of task-tree-scheme §5 ("reference a work item by `<slug>-k<key>`,
 // never by its position/path") and it makes the renumber a **pure `git mv` with
 // zero content rewrites**: shifting `05-mid-k14/`→`06-mid-k14/` changes one
 // directory name and nothing else — the moved node's own `BRIEF.md` header
@@ -156,7 +156,7 @@ pub fn leaf_insert(
 }
 
 /// Surface stray **position-prefixed** cross-references left stale by a
-/// `leaf_insert` renumber, as a lint on stderr — never an auto-rewrite (ADR-0035
+/// `leaf_insert` renumber, as a lint on stderr — never an auto-rewrite (task-tree-scheme
 /// §5: durable references should use the stable `<slug>-k<key>` handle, which a
 /// renumber never changes, so the operator reviews each occurrence). Scans every
 /// `.md` body in the tree (recursively) for the **old on-disk name** of each

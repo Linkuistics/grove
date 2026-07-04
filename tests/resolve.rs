@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm resolve <ref>` on the **v2 directory
-// scheme** (ADR-0035). The tree is a real directory tree under `.grove/`: a node
+// scheme** (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node
 // is a directory `NN-<slug>-k<key>/` holding a `BRIEF.md` + numbered children;
 // leaves are files `NN-[DONE-]<slug>-k<key>.md`. `resolve` turns a reference into
 // the current path of the entity it names, searching the whole tree — live
@@ -205,7 +205,7 @@ fn resolve_finds_retired_leaf_with_note() {
 
 #[test]
 fn resolve_by_full_slug_handle_finds_by_terminal_key() {
-    // ADR-0035 §5's canonical commit/prose handle is `<slug>-k<key>`; resolve
+    // task-tree-scheme §5's canonical commit/prose handle is `<slug>-k<key>`; resolve
     // accepts it directly — the terminal `-k<key>` is read as the key, the slug
     // decorative — so the handle round-trips back to a path.
     let tmp = init_repo();

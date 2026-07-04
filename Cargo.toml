@@ -1,6 +1,6 @@
 # grove is a single-package cargo workspace (the root `grove` package / CLI).
 # The TUI tower (rmux/ratatui app + Fleet) was deleted in leaf `080-shed-tui`
-# (ADR-0031/0032), so the workspace has no extra members and gains none — grove's
+# (self-extension-core-and-methodology / self-driving-loop), so the workspace has no extra members and gains none — grove's
 # runtime is now the self-driving loop driver + the tree verbs.
 [workspace]
 members = []
@@ -23,7 +23,7 @@ name = "grove"
 path = "src/main.rs"
 
 # Second binary: the verbs the LLM driving a grove invokes mid-session.
-# Audience-split per ADR-0006 — the human's `grove --help` shows none of
+# Audience-split per cli-binary-split — the human's `grove --help` shows none of
 # these. Shares all internal logic with `grove` via the [lib] below.
 [[bin]]
 name = "grove-llm"
@@ -37,14 +37,14 @@ path = "src/lib.rs"
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 # Embed the full `content/` methodology tree into the `grove` binary at compile
-# time (ADR-0031/0034, leaf 070/010). `grove do` extracts this embed to the
+# time (self-extension-core-and-methodology / task-tree-scheme, leaf 070/010). `grove do` extracts this embed to the
 # global personal skill dir (`~/.claude/skills/grove/`), so the skill can never
 # drift from the binary — replacing the old fetch-tarball + materialise +
 # `VERSION.md` model (deleted in 090). Paired with `build.rs`, which emits
 # `rerun-if-changed` for every content file: on stable Rust the macro does not
 # register its reads with Cargo, so an edit would otherwise leave a stale embed.
 include_dir = "0.7"
-# Used by the self-driving loop substrate (ADR-0032): `loop_driver.rs` ignores
+# Used by the self-driving loop substrate (self-driving-loop): `loop_driver.rs` ignores
 # SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
 # `isatty` before launching, and the `grove-llm complete` signal verb's
 # self-spawned delayed killer detaches via `libc::setsid`.

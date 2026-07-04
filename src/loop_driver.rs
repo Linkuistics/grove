@@ -1,4 +1,4 @@
-// The self-driving loop — grove's runtime (ADR-0032).
+// The self-driving loop — grove's runtime (self-driving-loop).
 //
 // `grove do <name>` drives the *whole loop*, not one task: it launches a fresh
 // foreground `claude` per grove task, and relaunches with fresh context each

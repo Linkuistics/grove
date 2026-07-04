@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm root-init` on the **v2 directory scheme**
-// (ADR-0035). Each test stands up a real git repo so `git rev-parse
+// (task-tree-scheme). Each test stands up a real git repo so `git rev-parse
 // --show-toplevel` resolves to the fixture path, then runs the verb against a
 // worktree that has *no* `.grove/` yet — the fresh-grove case the verb exists to
 // scaffold.

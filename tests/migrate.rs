@@ -1,6 +1,6 @@
 // End-to-end tests for the human verb `grove migrate` and the adoption hook
 // `tree_migrate::migrate_on_adoption`: the one-time, in-place conversion of an
-// old tree to the **v2 directory scheme** (ADR-0035). The migration accepts the
+// old tree to the **v2 directory scheme** (task-tree-scheme). The migration accepts the
 // old `NNN-slug/` + `done/` directory format (exercised here) and the v1-flat
 // `<dotted>-[<key>]-<slug>` format alike, lowering both to v2 node directories +
 // `NN-[DONE-]<slug>-k<key>.md` leaves. These drive the real `grove` binary on a
@@ -430,7 +430,7 @@ fn grove_llm_binary_does_not_expose_migrate() {
 }
 
 // ---------------------------------------------------------------------------
-// adoption (ADR-0034/0035): `grove do` migrates an old tree on adoption,
+// adoption (task-tree-scheme): `grove do` migrates an old tree on adoption,
 // committing the conversion as one reviewable commit *before* driving — so the
 // loop sees only v2. `tree_migrate::migrate_on_adoption` is the unit the loop
 // driver calls; these tests exercise its commit + idempotency contract directly.

@@ -372,7 +372,7 @@ Materially better than iTerm2's plist hiding.
 
 A small but **real** supervisor that **re-grows exactly the terminal/process
 machinery grove just SHED.** grove migrated *off* a forked terminal multiplexer
-(trellis/zellij-fork → rmux, [ADR-0028](../adr/0028-rmux-substrate.md)) to reduce
+(trellis/zellij-fork → rmux, ADR-0028) to reduce
 this surface; a pty-wrap re-introduces a slice of it — raw-mode passthrough,
 SIGWINCH/resize, signal forwarding, escape-char handling, corruption-free stream
 scanning, child restart. Less than a full multiplexer, and legible grove code —
@@ -563,7 +563,7 @@ load-bearing promises and on the trade that matters:
   ~10-week-old, pre-1.0, actively-breaking TypeScript rewrite, *plus* a SQLite/
   Postgres DB holding load-bearing run state (a walk-away regression) — set
   against grove's documented history of *shedding* process machinery
-  ([ADR-0028](../adr/0028-rmux-substrate.md)) and its "less in grove" directive.
+  (ADR-0028) and its "less in grove" directive.
   Adopting Archon adds complexity in the exact dimension grove is trying to remove.
 
 **2. Do not adopt a pure-autonomous substrate (headless `claude -p`, native

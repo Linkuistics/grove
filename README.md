@@ -9,7 +9,7 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-That is the whole installation. The `grove` binary embeds its full methodology and provisions it to your **personal** skill dir (`~/.claude/skills/grove/`) on the first `grove do` — idempotent against a content-hash stamp, re-provisioned whenever the binary changes (ADR-0031/0034). There is no per-repo install step and nothing to keep in sync; `grove --version` reports the binary's version.
+That is the whole installation. The `grove` binary embeds its full methodology and provisions it to your **personal** skill dir (`~/.claude/skills/grove/`) on the first `grove do` — idempotent against a content-hash stamp, re-provisioned whenever the binary changes (self-extension-core-and-methodology / task-tree-scheme). There is no per-repo install step and nothing to keep in sync; `grove --version` reports the binary's version.
 
 ## Prerequisite
 

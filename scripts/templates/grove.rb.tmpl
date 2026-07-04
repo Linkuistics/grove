@@ -24,7 +24,7 @@ class Grove < Formula
 
   def install
     # The methodology skill is NOT fetched or installed here. The `grove` binary
-    # embeds the full `content/` tree (ADR-0031/0034) and provisions it to
+    # embeds the full `content/` tree (self-extension-core-and-methodology / task-tree-scheme) and provisions it to
     # ~/.claude/skills/grove/ on the first `grove do`, so the skill can never
     # drift from the binary. Do NOT reintroduce a content/ download into this
     # formula or the release tarball — `brew install grove` is the sole gesture.

@@ -33,7 +33,7 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
 
 /// State-dispatching launcher: the sole lifecycle entry verb. It ensures the
 /// worktree exists (creating a new grove, re-attaching an orphaned one, or
-/// using a live one), then drives the **whole self-driving loop** (ADR-0032):
+/// using a live one), then drives the **whole self-driving loop** (self-driving-loop):
 /// one fresh foreground `claude` per task, relaunching on each completion
 /// signal until the agent stops signalling (empty `pick` → finish, or a human
 /// interrupt). The new-grove path honours `--start-point`; resume paths ignore
@@ -41,7 +41,7 @@ pub fn continue_grove(args: &NameArgs) -> Result<()> {
 /// judgement — including proposing the complete finish cycle once the grove has
 /// no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
-    // Provision the global skill from the embedded methodology (ADR-0031/0034):
+    // Provision the global skill from the embedded methodology (self-extension-core-and-methodology / task-tree-scheme):
     // extract content/ to ~/.claude/skills/grove/ idempotently, so the skill the
     // launched session reads can never drift from this binary. `grove do` is the
     // entry the human always hits; a warm dir is a cheap no-op.
@@ -67,7 +67,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         wt
     };
 
-    // Adoption-migrate (ADR-0034/0035): before driving, flip an old-format
+    // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
     // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
     // reviewable commit, so every task the loop launches sees only v2. A no-op on
     // a v2/empty/absent tree, so it is safe on every `grove do` (idempotent;

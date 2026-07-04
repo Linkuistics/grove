@@ -1,4 +1,4 @@
-// The `grove-llm complete` verb — the in-loop completion signal (ADR-0032).
+// The `grove-llm complete` verb — the in-loop completion signal (self-driving-loop).
 //
 // The agent runs this as its **last step** of a task (after commit + retire).
 // It is the "external exit" an interactive `claude` cannot perform on itself:
@@ -24,7 +24,7 @@ const DEFAULT_KILL_GRACE: f64 = 5.0;
 
 /// What a finished session tells the self-driving loop to do next. The agent
 /// picks this when it signals; the loop driver reads it back from the signal
-/// file (ADR-0032). The third case — *no* signal at all (human `/exit`/Ctrl-C
+/// file (self-driving-loop). The third case — *no* signal at all (human `/exit`/Ctrl-C
 /// or a crash) — is the *absence* of a [`Disposition`], represented by
 /// [`read_signal`] returning `None`, so the loop can tell a clean finish from
 /// an abnormal exit.

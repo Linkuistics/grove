@@ -1,6 +1,6 @@
-// The **v2 read verbs** (ADR-0035) — `pick`, `brief-chain`, `resolve` —
+// The **v2 read verbs** (task-tree-scheme) — `pick`, `brief-chain`, `resolve` —
 // re-expressed against the real **directory tree**, built on the 11.1 id model
-// (`src/tree_id.rs`). Keeps ADR-0033's *semantics* (first live leaf in DFS
+// (`src/tree_id.rs`). Keeps task-tree-scheme's *semantics* (first live leaf in DFS
 // pre-order; ancestor briefs root→leaf; reference-by-permanent-key) and changes
 // only the **walk**: in v1 the whole tree was encoded into flat filenames, so a
 // verb was a single `read_dir` + version-sort over `.grove/`; in v2 the
@@ -21,7 +21,7 @@
 //
 // `resolve`'s **reference grammar** keeps v1's `[n]` / `n` / `[n]-slug` / bare-slug
 // forms verbatim, and 11.5 adds exactly one form: the full `<slug>-k<key>` handle
-// that ADR-0035 §5 makes canonical for commits and prose. The deferred question
+// that task-tree-scheme §5 makes canonical for commits and prose. The deferred question
 // 11.2 left for here ("should resolve also accept the handle, now that the handle
 // is established?") is **resolved yes**: `handle_key` peels the handle's terminal
 // `-k<key>`, and the slug branch falls back to it only when no bare slug matched —
@@ -172,7 +172,7 @@ pub struct AmbiguousMatch {
 ///   * `[n]-slug` → same; the slug part is decorative (ignored).
 ///   * bare slug → resolve by slug: 0 ⇒ `NotFound`; 1 ⇒ `Found`; >1 ⇒
 ///     `Ambiguous` (every match with its key, so the caller re-queries by key).
-///   * `<slug>-k<key>` → the full canonical handle (ADR-0035 §5): same as `[n]`
+///   * `<slug>-k<key>` → the full canonical handle (task-tree-scheme §5): same as `[n]`
 ///     via its terminal `-k<key>`, the slug decorative. Tried only after the bare
 ///     slug fails to match, so a literal slug ending in `-k<digits>` still wins.
 ///
@@ -211,7 +211,7 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
                 })
                 .collect();
             Ok(match matches.as_slice() {
-                // No slug match: retry as the full `<slug>-k<key>` handle (ADR-0035
+                // No slug match: retry as the full `<slug>-k<key>` handle (task-tree-scheme
                 // §5's canonical commit/prose form), reading its terminal
                 // `-k<digits>` as the key. Slugs are matched first, so a real slug
                 // that itself ends in `-k<digits>` still wins — the fallback only
@@ -260,7 +260,7 @@ fn parse_ref(reference: &str) -> Result<Ref> {
     }
 }
 
-/// Peel the terminal `-k<digits>` of a full `<slug>-k<key>` handle (ADR-0035 §5's
+/// Peel the terminal `-k<digits>` of a full `<slug>-k<key>` handle (task-tree-scheme §5's
 /// canonical commit/prose reference) into its key, or `None` when the reference is
 /// not handle-shaped. Mirrors the filename grammar's "the key is the terminal
 /// `-k<digits>`" rule (`src/tree_id.rs`), so a handle and a filename peel the key
@@ -880,7 +880,7 @@ mod tests {
         );
     }
 
-    // ---- resolve: the full `<slug>-k<key>` handle (ADR-0035 §5) --------------
+    // ---- resolve: the full `<slug>-k<key>` handle (task-tree-scheme §5) --------------
 
     #[test]
     fn resolve_by_full_slug_handle_finds_by_terminal_key() {

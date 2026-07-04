@@ -1,5 +1,5 @@
-// The LLM-driven CLI surface — `grove-llm`. See ADR-0006
-// (`docs/adr/0006-grove-llm-binary-separation.md`) for the audience-split
+// The LLM-driven CLI surface — `grove-llm`. See cli-binary-split
+// (`docs/adr/cli-binary-split.md`) for the audience-split
 // rationale: every verb here exists for the LLM driving a grove session to
 // invoke deterministically, not for a human at a terminal.
 //
@@ -9,7 +9,7 @@
 //
 // The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
 // `leaf-insert` / `leaf-decompose` / `leaf-retire` / `root-init`) speak the
-// **v2 directory scheme** (ADR-0035): they dispatch to the directory-based
+// **v2 directory scheme** (task-tree-scheme): they dispatch to the directory-based
 // modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is no
 // transitional dual-format reader — `grove migrate` (`tree_migrate`) is the only
 // thing that reads an old (v1-flat or `NNN-slug`) tree, once, on adoption.
@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
     version,
     about = "Grove: LLM-driven verbs for mid-session use",
     long_about = "Verbs the LLM driving a grove session invokes deterministically. \
-Audience-split from the human-facing `grove` binary per ADR-0006; \
+Audience-split from the human-facing `grove` binary per cli-binary-split; \
 none of these verbs are meant for direct human use."
 )]
 pub struct Cli {
@@ -68,7 +68,7 @@ pub enum Command {
     /// (`[n]` or bare `n`, optionally `[n]-slug`) resolves the unique keyed
     /// entry; a bare slug resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒
     /// ambiguous, listing each match's key so you re-query by key); the full
-    /// `<slug>-k<key>` handle (ADR-0035 §5) resolves by its terminal key. A node
+    /// `<slug>-k<key>` handle (task-tree-scheme §5) resolves by its terminal key. A node
     /// resolves to its **directory** path (append `/BRIEF.md` to read its
     /// charter). Prints the path on stdout; a not-found or ambiguous reference
     /// prints a diagnostic on stderr and still exits zero.
@@ -107,7 +107,7 @@ pub enum Command {
     /// brief and an already-retired leaf. Prints the retired file's absolute
     /// path on stdout. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
-    /// Signal task completion to the self-driving loop (ADR-0032). Run this as
+    /// Signal task completion to the self-driving loop (self-driving-loop). Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
     /// ends this `claude` session and starts the next task with fresh context.
     ///

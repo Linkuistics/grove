@@ -23,7 +23,7 @@ pub enum Command {
     /// leaves left, the in-session loop proposes the complete finish cycle.
     Do(StartArgs),
     /// Migrate this worktree's `.grove/` to the v2 **directory** scheme
-    /// (ADR-0035) in place — from either the v1-flat `<dotted>-[<key>]-<slug>`
+    /// (task-tree-scheme) in place — from either the v1-flat `<dotted>-[<key>]-<slug>`
     /// format or the old `NNN-slug/` + `done/` directory format. A reviewable git
     /// change (`git mv` + `# …` header rewrites, no commit) — review the diff,
     /// then commit. No-op on an already-v2 tree or a missing/foreign `.grove/`.

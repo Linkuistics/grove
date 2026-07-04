@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm brief-chain` on the **v2 directory scheme**
-// (ADR-0035). The tree is a real directory tree under `.grove/`: a node is a
+// (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node is a
 // directory `NN-<slug>-k<key>/` holding a `BRIEF.md` + numbered children; leaves
 // are files `NN-[DONE-]<slug>-k<key>.md`. A leaf's brief chain is collected by
 // **directory ascent**: the `BRIEF.md` of each of the leaf's ancestor

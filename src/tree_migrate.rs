@@ -1,7 +1,7 @@
-// The **v2 migration** (ADR-0035): the one-time, in-place conversion of a task
+// The **v2 migration** (task-tree-scheme): the one-time, in-place conversion of a task
 // tree to the v2 **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
 // `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It reuses
-// ADR-0034's migrate-on-adoption mechanism (the same one the v1 `migrate.rs`
+// task-tree-scheme's migrate-on-adoption mechanism (the same one the v1 `migrate.rs`
 // rides) but targets the directory shape, and it accepts **two** source formats:
 //
 //   * **v1-flat** (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`, the scheme this
@@ -9,7 +9,7 @@
 //   * the **old `NNN-slug/` + `done/`** directory tree — for any grove that never
 //     opened since 070/040, converted straight to v2 (no v1-flat way-station).
 //
-// Per ADR-0035 §5 / the 11.3 settled note, a v2 task file's first-line header is
+// Per task-tree-scheme §5 / the 11.3 settled note, a v2 task file's first-line header is
 // the **position-free handle** `# <slug>-k<key>` (`# … — brief` for a node), so the
 // migration rewrites every old header (`# <dotted>-[<key>]-<slug>` or `# NNN-slug`)
 // down to that handle while preserving any ` — brief` tail.
@@ -133,13 +133,13 @@ pub fn migrate(worktree: &Path) -> Result<Outcome> {
     }
 }
 
-/// Adoption-migrate (ADR-0034, wired live by 11.6): the step `grove do` runs
+/// Adoption-migrate (task-tree-scheme, wired live by 11.6): the step `grove do` runs
 /// **before driving** so the loop only ever sees a v2 tree. It detects the format
 /// via [`migrate`]; if the tree was migratable it converts it **and commits** the
 /// conversion as one clear, reviewable commit, then driving proceeds v2.
 /// A v2 / empty / absent `.grove/` is a clean no-op — no commit, no churn.
 ///
-/// Idempotent and safe under `restart ≡ continuation` (ADR-0032): the conversion
+/// Idempotent and safe under `restart ≡ continuation` (self-driving-loop): the conversion
 /// is re-runnable, and the commit makes the old→v2 boundary crisp, so a re-run
 /// after a completed migrate sees a v2 tree ([`Outcome::AlreadyV2`]) and does
 /// nothing.

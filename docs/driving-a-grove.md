@@ -45,7 +45,7 @@ the Archon workflow engine) was exactly the kind of load-bearing
 assumption that deserved evidence before commitment. The spike was
 inserted *before* the `substrate-decision` planning leaf that would
 choose, and its findings reversed the premise: Archon was rejected,
-and the decision (ADR-0031/0032) landed on a thin, grove-owned loop
+and the decision (self-extension-core-and-methodology / self-driving-loop) landed on a thin, grove-owned loop
 instead.
 
 ## How to write a research-leaf brief
@@ -78,7 +78,7 @@ about Archon" would.
 complexity to own* — an external dependency (Archon) vs. brittle
 terminal automation vs. a small but real supervisor vs. autonomy-only
 — and told the researcher to weigh grove's own documented history of
-shedding process machinery (ADR-0028) against the cost of a new
+shedding process machinery against the cost of a new
 dependency. It also flagged that training-data recall of Archon was
 known-stale (the project had been rewritten ground-up), so the
 evidence had to come from primary sources, not memory. The resulting
@@ -101,7 +101,7 @@ The brief required every capability claim to cite a primary source by
 URL and quote the load-bearing bits; the resulting options doc cited
 Archon's own docs and workflow schema directly. When you later sit
 down to write the ADR, those citations *are* the ADR's rationale
-section — ADR-0032's "Rationale (from the spike)" is built from them.
+section — self-driving-loop's "Rationale (from the spike)" is built from them.
 
 **Acknowledge missing sources.** When the researcher searches and
 finds silence, that's a finding too. The brief said to record "no
@@ -217,14 +217,14 @@ with a forward pointer.
 
 The substrate spike is the bridge in action: its findings reversed
 the refactor's founding premise, so they are cited directly in
-**ADR-0032**'s rationale — "Archon fails the make-or-break gate D,"
+**self-driving-loop**'s rationale — "Archon fails the make-or-break gate D,"
 "the named hypothesis is refuted," and "walk-away regression" each
-trace back to the options doc, which ADR-0032 names as its evidence.
+trace back to the options doc, which self-driving-loop names as its evidence.
 A future reader of either artifact can trace the evidence chain
 without re-doing the research.
 
 See `docs/research/loop-substrate-options.md` (the spike) and
-`docs/adr/0032-loop-substrate-is-a-self-driving-shell-loop-not-archon.md`'s
+`docs/adr/self-driving-loop.md`'s
 rationale section for the worked end-to-end.
 
 ## Anti-patterns

@@ -1,6 +1,6 @@
 // Smoke test for the `grove-llm` binary's clap wiring: the LLM-driven verbs
 // are enumerated by `grove-llm --help`, and the human-facing launcher/admin
-// verbs do not bleed into that surface (the audience-split of ADR-0006).
+// verbs do not bleed into that surface (the audience-split of cli-binary-split).
 
 use assert_cmd::Command;
 

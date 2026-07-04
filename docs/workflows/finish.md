@@ -2,7 +2,7 @@
 
 Close out a completed grove. There is no `grove finish` verb: `grove do` is the sole lifecycle entry verb, and finishing is an **in-session** step. When a grove has no live leaves left, the running session proposes the **complete finish cycle** and, on one confirmation, carries it out end to end. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, the scaffolding has been deleted in a focused commit, the branch has been merged into `acme/orders-api`'s default branch, and the worktree and branch are gone. The default branch shows the grove's history as a contiguous run of commits — no `.grove/` left behind.
 
-> This page is about driving the **grove CLI** through its finish step. For *why a finished grove must not leave its scaffolding on the default branch*, see [`../grove.md`](../grove.md); for the canonical step-by-step the session follows, the source of truth is the **Finish** step of the methodology in [`../../content/SKILL.md`](../../content/SKILL.md) (provisioned to the global `~/.claude/skills/grove/SKILL.md`), with the step-level design rationale in [`../adr/0010-in-session-finish-cycle.md`](../adr/0010-in-session-finish-cycle.md).
+> This page is about driving the **grove CLI** through its finish step. For *why a finished grove must not leave its scaffolding on the default branch*, see [`../grove.md`](../grove.md); for the canonical step-by-step the session follows, the source of truth is the **Finish** step of the methodology in [`../../content/SKILL.md`](../../content/SKILL.md) (provisioned to the global `~/.claude/skills/grove/SKILL.md`), with the step-level design rationale in [`../adr/in-session-finish-cycle.md`](../adr/in-session-finish-cycle.md).
 
 ## Starting state
 

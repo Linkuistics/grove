@@ -1,5 +1,19 @@
 # Changelog
 
+## v9.0.0
+
+This release reworks grove's decision-record methodology and prunes grove's own ADR corpus to a minimum coherent set. The CLI surface and task-tree behaviour are unchanged; the entire delta is in the embedded methodology (`content/`, extracted to `~/.claude/skills/grove/`) and grove's own `docs/adr/`.
+
+### Breaking
+
+- **The ADR philosophy is no longer bundled — grove now names the `linkuistics` plugin as a prerequisite.** Through v8 grove shipped a self-contained ADR guide (`content/ADR-FORMAT.md`, bundled from `mattpocock/skills`) carrying the format, the template, and the when-to-write test. That guidance now lives in the **`linkuistics:decision-records`** skill, and `ADR-FORMAT.md` shrinks to a grove-specific **placement** note (where ADRs live — slug-named `docs/adr/<slug>.md` — and multi-context placement under a root `CONTEXT-MAP.md`). `content/SKILL.md` now declares the `linkuistics` plugin a **documented prerequisite** for raising or reworking ADRs. The dependency is documentation-level, not install-enforced, and everything else grove needs stays self-contained (constraint 6) — but the long-standing "ADR guidance travels inside grove" guarantee is deliberately dropped. (`self-extension-core-and-methodology`)
+
+### Changed
+
+- **ADRs are a slug-named minimum coherent set reworked in place — not an append-only numbered log.** Records move from sequential `docs/adr/NNNN-slug.md` to **`docs/adr/<slug>.md`**; the slug *is* the record's identity and is cited by slug/title, never by number. The methodology now treats `docs/adr/` as a **minimum coherent set describing the current design**: when a decision changes, the set is reworked *in place* — merge / split / delete — and the briefs and ADRs that cite it are reconciled, rather than a superseding ADR being appended (git holds the history). Both the planning **Discover** step (grilling) and the **Retire** step of the loop gain an explicit ADR-set-reconciliation moment. (`task-tree-scheme`, deferring to `linkuistics:decision-records`)
+- **grove's own `docs/adr/` reduced from 35 numbered records to 7 slug-named survivors.** The obsolete TUI/multiplexer/inbox tower — the `0013`–`0030` trellis/rmux ADRs and the `grove-meta` inbox-model records — described machinery already shed across the v6→v8 refactors and no longer reflected the current design; it is deleted. The surviving coherent set is `cli-binary-split`, `do-is-sole-lifecycle-verb`, `fresh-grove-start-contract`, `in-session-finish-cycle`, `self-driving-loop`, `self-extension-core-and-methodology`, and `task-tree-scheme`.
+- **All numeric ADR citations reconciled to stable slugs across code, tests, and content.** References such as `ADR-0032`, `ADR-0011`, and `ADR-0035` in `src/`, `tests/`, and `content/` are rewritten to their survivor slugs (`self-driving-loop`, `fresh-grove-start-contract`, `task-tree-scheme`), so citations remain valid under the number-free slug scheme and survive future reorders.
+
 ## v6.2.1
 
 ### Fixed

@@ -27,8 +27,8 @@ Most repos have a single context:
 ├── CONTEXT.md
 ├── docs/
 │   └── adr/
-│       ├── 0001-event-sourced-orders.md
-│       └── 0002-postgres-for-write-model.md
+│       ├── event-sourced-orders.md
+│       └── postgres-for-write-model.md
 └── src/
 ```
 
@@ -76,12 +76,9 @@ When a term is resolved, update `CONTEXT.md` right there. Don't batch these up �
 
 ### Offer ADRs sparingly
 
-Only offer to create an ADR when all three are true:
-
-1. **Hard to reverse** — the cost of changing your mind later is meaningful
-2. **Surprising without context** — a future reader will wonder "why did they do it this way?"
-3. **The result of a real trade-off** — there were genuine alternatives and you picked one for specific reasons
-
-If any of the three is missing, skip the ADR. Use the format in [ADR-FORMAT.md](./ADR-FORMAT.md).
+Offer to create an ADR only when the `linkuistics:decision-records` when-to-write
+test holds (hard to reverse · surprising without context · the result of a real
+trade-off — all three). That skill owns the test, format, and template;
+[ADR-FORMAT.md](./ADR-FORMAT.md) adds grove's placement conventions.
 
 </supporting-info>

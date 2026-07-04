@@ -1,0 +1,153 @@
+# The task tree is real directories with stable-keyed names
+
+grove's task tree is a real directory tree under `.grove/`. The uniform rule:
+
+> A node is a **directory** holding a `BRIEF.md` (its charter) plus its numbered
+> children. The grove root `.grove/` is itself such a directory.
+
+The hierarchy is carried by the filesystem — there is no flat dotted-decimal position
+baked into filenames and no special root-brief sentinel.
+
+```
+.grove/
+  BRIEF.md                       ← root brief (plain; heads .grove/)
+  01-DONE-plan-k1.md             ← retired leaf
+  05-dotted-decimal-k5/          ← node = directory; key rides in the dir name
+    BRIEF.md
+    01-DONE-id-model-k6.md
+    04-DONE-lifecycle-k9.md
+  07-distribution-k14/
+    BRIEF.md
+    04-DONE-install-k18.md
+    05-remove-mirrors-k19.md     ← live leaf
+  08-shed-tui-k20.md             ← live leaf
+  10-complete-signal-k22.md
+```
+
+## Naming grammar
+
+Fields are ordered by human relevance — sort key first, user-facing state next,
+machine handle last:
+
+- **Leaf:** `NN-[DONE-]<slug>-k<key>.md`
+- **Node:** directory `NN-<slug>-k<key>/` containing `BRIEF.md` + children
+- **Root brief:** `.grove/BRIEF.md` (plain, unkeyed — the root dir's charter)
+
+Three parts do the work:
+
+1. **Position `NN`** — a 2-digit zero-padded decimal, *per level* (not a global
+   dotted vector). It is the **mutable locator**: lexical == numeric == DFS order
+   within a level, locale-robust because it is pure digits, and gives ~99
+   siblings/level. A node's full position is its directory path; reorder/insert
+   renames only the affected *level's* sibling directories (`git mv 07-…-k14/
+   08-…-k14/`), and the whole subtree — child names and keys — rides along untouched.
+2. **Key `-k<key>`** — the **permanent stable id**. Assigned once (`max key in tree +
+   1`), never rewritten by renumber or decompose, always the terminal token before the
+   extension or trailing slash. The keys in the names *are* the counter — there is no
+   counter file, and `DONE` leaves stay in the tree so the max is always visible.
+   References resolve by key: `resolve [k]` / `resolve <slug>` finds the current path
+   wherever the entity moved. The key is written `-k<key>` rather than the bracketed
+   `[<key>]`, because brackets are shell-glob metacharacters that force escaping in
+   `ls` / `cd` / copy-paste; `-k<key>` is glob-safe and stays unambiguous because the
+   key is mandatory and terminal (parse peels the trailing `-k<digits>`, so
+   `05-task-k9-k3.md` is slug `task-k9`, key `3`).
+3. **Done** is marked in place as a `DONE` infix right after the position
+   (`NN-DONE-<slug>-k<key>.md`), leaves only. A node is never marked done — node
+   done-ness is implicit (no live leaf in its subtree). The infix sits at a fixed
+   column (position is fixed-width, the variable-width `-k<key>` is exiled to the end),
+   so a directory's done-prefix scans cleanly.
+
+A task file's in-file `# …` header is the **position-free handle** `# <slug>-k<key>`
+(`# <slug>-k<key> — brief` for a node): the mutable `NN` lives only in the filename,
+never in the body. That is what makes a renumber a pure `git mv` with **zero content
+rewrites**.
+
+## Reference a work item by its stable handle
+
+Commit messages and prose name a work item by `<slug>-k<key>` — never by its position
+or directory path. The position/path is mutable (renumber, move); the `<slug>-k<key>`
+handle is stable, so the historical record stays meaningful after restructures.
+
+## Comparator and verbs
+
+The comparator is numeric per-level order, so a node's brief heads its own subtree and
+the DFS pre-order is the sort order. The verbs express this against the directory
+structure: `pick` is a recursive DFS walk returning the first live leaf; `brief-chain`
+walks parent directories collecting each `BRIEF.md`; `resolve` searches directories by
+key; `leaf-decompose` turns a leaf file into a node *directory* (keeping its key);
+`leaf-retire` adds the `DONE` infix in place; and `leaf-insert` `git mv`s sibling
+directories, subtrees riding along.
+
+## Rationale
+
+- **Honesty.** The parent/child relationship is the filesystem's job; directories
+  state it directly, dissolving the false-sibling problem of a positionless root brief
+  and the numbering tricks a flat encoding forces (`00` sentinels, low-ASCII prefixes,
+  a `tree/` subdir).
+- **Cheap restructure.** Moving or inserting a node is a single `git mv` of its
+  directory; the subtree and all keys come along. A flat filename encoding paid
+  O(subtree) renames for the same edit, because each leaf baked its full path into its
+  name. Insertions and reorderings are first-class operations, so this matters.
+- **Native navigation.** `ls` / yazi / Finder render a real collapsible indented tree;
+  `find .grove` shows complete state — shape plus `DONE` — with zero file reads.
+- **Locale- and filesystem-robust.** The environment is case-insensitive (`1A`/`1a`
+  collide, so any base-36/62 letter-as-digit scheme is unsafe) and only low-ASCII
+  digits collate predictably across locale, C, and natural/version sort. Pure 2-digit
+  decimal per level needs no letters and no punctuation-collation gamble; it sorts
+  identically under byte, locale, and natural sort.
+
+### Prior art
+
+- **Adopted:** outline / legal section numbering (renumber-on-insert with DFS
+  pre-order); ASN.1 / OID object identifiers (a dotted hierarchical id ordered by
+  per-component numeric compare); the materialized-path tree encoding (flat storage of
+  a tree whose lexical/version sort yields pre-order); and natural / version sort
+  (`sort -V`, SemVer precedence) for the comparator.
+- **Rejected — and why renumber-on-reorder is accepted:** LexoRank (Jira) and the
+  fractional-indexing family (Figma; the CRDT list-position schemes Logoot / LSEQ /
+  Treedoc) allow insertion *without* renumbering, but produce a **flat total order,
+  not a tree**, with **illegible keys**. grove pays renumber-on-reorder to keep
+  legible integers that *are* the tree and that a file manager renders. Reorder is
+  rare; append and decompose — the common ops — stay cheap.
+
+Two supporting choices:
+
+- **Integer key, not a uuid.** A grove tree is single-worktree, single-writer, so a
+  uuid's decentralized-generation property buys nothing while costing legibility (`k4`
+  readable and ordered vs an opaque hash).
+- **Filename `DONE` marker, not frontmatter.** Keeping the entire state in the filename
+  means `pick` reads no file contents and `ls` shows done-ness. Frontmatter would force
+  `pick` to open and parse every file and hide done-ness from `ls`.
+
+## Migration: `grove do` migrates on adoption
+
+The live verbs are **current-format-only** — there is no transitional dual-format
+reader threaded through every verb. Instead, `grove do` **migrates an old-format
+`.grove/` on adoption**, before driving:
+
+- The migration is a **reviewable single git commit**, **idempotent** on a
+  current-format tree, and **fixture-tested hard before it ever touches a real tree**
+  (a migration bug could corrupt a live tree; the single reviewable commit is
+  revertable).
+- `grove migrate` also exists as an explicit human verb (see
+  *do-is-sole-lifecycle-verb* for the lifecycle surface).
+- The migration reads **two** legacy shapes: the v1-flat
+  `<dotted>-[<key>]-<slug>` filenames, and the original `NNN-slug/` directories with a
+  `done/` subdirectory. Old-format code shrinks to the parser the migration consumes
+  once.
+
+Migrate-on-adoption is strictly less code than a dual reader plus a migration, and it
+avoids a bimodal, flagless CLI spanning two argument grammars. Its whole value — keep
+in-flight groves working — is delivered by a one-time, reviewable rename, with no
+permanent two-format surface. Because `grove do` re-derives state every run
+(restart ≡ continuation; see *self-driving-loop*), a re-run after a partial migration
+is safe.
+
+## Consequences
+
+- The scheme is part of the self-extension core (see
+  *self-extension-core-and-methodology*); the grove methodology prose carries the
+  reference-by-handle instruction, and because the global skill is binary-embedded and
+  re-extracted on launch, that prose ships with the binary.
+- Reversible in principle (the scheme lives in names plus git history), expensive once
+  trees migrate — it clears the ADR bar as a durable trade-off.

@@ -122,10 +122,16 @@ session's entire mandate; read nothing else by reflex.
   interview the user one question at a time, propose a recommended answer for
   each, walk down the design tree until shared understanding is reached.
   Through that grilling, update `CONTEXT.md` *inline* as terms resolve, raise
-  ADRs *sparingly* (`ADR-FORMAT.md`), MAY write a PRD at a genuine agreement
-  point, and **grow the tree**. See `driving.md` for the field-guide habits
-  that make grilling and research-leaf commissioning productive (WDYT,
-  pushback, running decision log, citation discipline).
+  ADRs *sparingly* (`ADR-FORMAT.md` for placement; the
+  `linkuistics:decision-records` skill for the philosophy, format, and
+  when-to-write test), MAY write a PRD at a genuine agreement point, and **grow
+  the tree**. Treat the ADR set as a **minimum coherent set describing the
+  current design**: when grilling *changes* a decision an ADR already records,
+  **rework the set in place** — merge / split / delete — and reconcile the
+  briefs that cite it; never append a superseding ADR (git holds the history).
+  See `driving.md` for the field-guide habits that make grilling and
+  research-leaf commissioning productive (WDYT, pushback, running decision log,
+  citation discipline).
 
 **Decompose.** When work surfaces mid-session, default to **externalizing it as
 a new leaf** rather than absorbing it into the current session — grove's value is
@@ -193,7 +199,12 @@ leaf if the node is not actually finished. On
 confirmation, promote anything still relevant from the node's brief upward — to
 the parent brief, an ADR, or the glossary — so it stays in the brief chain of
 future siblings; the brief and its now-`DONE` leaves stay exactly where they
-are (nothing moves). That may leave the next ancestor with no live leaf either;
+are (nothing moves). Retirement is also the moment to **reconcile the ADR set**
+with what the finished work established: edit it in place to keep it a minimum
+coherent set (merge / split / delete), and fix any citation the rework leaves
+dangling — in the briefs, the other ADRs, or `docs/`; never append a superseding
+ADR (`linkuistics:decision-records`). That may leave the next ancestor with no
+live leaf either;
 re-check, ask again, recurse, until a node still has a live leaf or you reach the
 grove root. Done branches stay in the tree, marked in place, never deleted while
 the grove is live — so a recursive view of `.grove/` (`find .grove`, or a
@@ -264,7 +275,7 @@ standard artifact that outlives grove (constraint 6).
 | Artifact | Path | Role |
 |---|---|---|
 | Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — read every session, appended inline |
-| ADRs | `docs/adr/NNNN-*.md` | atomic decisions: hard to reverse, surprising, or a real trade-off |
+| ADRs | `docs/adr/<slug>.md` | the design's current state as a **minimum coherent set** — slug-named, edited in place; philosophy per `linkuistics:decision-records` |
 | PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
 | Design specs | `docs/specs/*-design.md` | workstream-level technical design |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step before merging |
@@ -293,7 +304,15 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `BRIEF-FORMAT.md` — the `BRIEF.md` shape.
 - `TASK-FORMAT.md` — the task-file shape and the two task kinds.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
-- `ADR-FORMAT.md` — the ADR format (bundled from `mattpocock/skills`).
+- `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
+
+**Prerequisite — the `linkuistics` plugin.** grove's ADR philosophy is no longer
+bundled: it lives in the `linkuistics:decision-records` skill, and grove
+**requires** the `linkuistics` plugin as a prerequisite (self-containment is not a
+constraint for the ADR guidance — `ADR-FORMAT.md` keeps only grove's placement
+conventions). A session raising or reworking an ADR should consult that skill. The
+dependency is documentation-level, not install-enforced; everything else grove
+needs stays self-contained (constraint 6).

@@ -181,13 +181,43 @@ The rule of thumb: a research finding that *changed a decision* gets
 cited in the relevant ADR's rationale section. A research finding
 that *confirmed an existing decision* gets a "validated here against
 …" note in the relevant ADR, or stays in the research doc with a
-forward pointer.
+forward pointer. Either way you are editing the ADR **in place** — the
+set is current-state, so a finding that overturns a recorded decision
+rewrites (or merges / deletes) that ADR rather than spawning a
+superseding one; see *Reworking ADRs and briefs* below.
 
 The 060 grilling's "Findings adopted" pattern is the bridge in both
 directions: the research doc gets a section pointing forward at the
 ADRs its findings landed in, and each ADR has a rationale section
 citing the survey by primary source. A future reader of either
 artifact can trace the evidence chain without re-doing the research.
+
+## Reworking ADRs and briefs as understanding shifts
+
+An ADR set is a **minimum coherent set describing the current design**, not a
+changelog (`linkuistics:decision-records`). So when a later leaf's work *changes*
+a decision an earlier ADR recorded, the move is **not** to add a new ADR that
+supersedes the old one — that grows exactly the chronology grove rejects (it is
+constraint 1 again: the artifacts hold the present, git holds the past, now
+applied to `docs/adr/`). Instead:
+
+- **Edit in place.** Rewrite the affected ADR to state what *now* binds and why.
+  Merge two ADRs whose decisions have converged; split one that turned out to
+  cover two independent calls; delete one whose decision no longer holds (git
+  keeps it). No `superseded by`, no status line.
+- **Keep the set minimal.** After the edit, the set should be the fewest ADRs
+  that coherently explain the current design. A rework that leaves both the old
+  ADR *and* a new one live has failed the test.
+- **Reconcile every citation.** An ADR you merged or deleted leaves dangling
+  references behind. Grep its slug across the briefs, the other ADRs, and
+  `docs/`; fix or drop each pointer. A dangling citation is a defect, not
+  acceptable collateral — and when the rework is big enough that you might miss a
+  caller, run the doubt pass (below) over the reconciled set.
+
+The natural checkpoints are the two the loop already has: a **grilling session**
+that changes a recorded decision, and **retiring** a leaf or node (`SKILL.md`'s
+Plan and Retire steps), where you promote brief material upward and reconcile the
+ADR set in the same pass.
 
 <!-- The two sections below are adapted (paraphrased into grove's voice, not
      bundled verbatim) from addyosmani/agent-skills@13e43f23 —

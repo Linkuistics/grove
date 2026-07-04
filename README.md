@@ -11,6 +11,10 @@ brew install grove
 
 That is the whole installation. The `grove` binary embeds its full methodology and provisions it to your **personal** skill dir (`~/.claude/skills/grove/`) on the first `grove do` — idempotent against a content-hash stamp, re-provisioned whenever the binary changes (ADR-0031/0034). There is no per-repo install step and nothing to keep in sync; `grove --version` reports the binary's version.
 
+## Prerequisite
+
+grove's ADR guidance defers to the **`linkuistics:decision-records`** skill (from the `linkuistics` plugin) for the decision-record philosophy, format, and when-to-write test — grove's bundled `ADR-FORMAT.md` keeps only grove's own placement conventions. A grove session that raises or reworks an ADR consults that skill, so install the `linkuistics` plugin alongside grove. The dependency is documentation-level (grove does not enforce it at install time); everything else grove needs is embedded in the binary.
+
 ## Use
 
 **Drive a grove workstream:**

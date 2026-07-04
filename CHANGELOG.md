@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added the `decision-records` skill — ADRs as a **minimum coherent set**
+  describing the design's current state (current-state over changelog,
+  edit/merge/split/delete in place, identity by slug not number, the
+  when-to-write test, a minimal template). The minimal template, the three-part
+  when-to-write test, and the qualifying examples are distilled from
+  `mattpocock/skills`' ADR-format material (MIT); the coherent-set framing is
+  original. Updated the `linkuistics` manifest description/keywords and the
+  README skills table.
 - grove moved to its own repo (`Linkuistics/grove`) and is now distributed via
   `brew tap Linkuistics/taps && brew install grove`. The `grove/` directory and
   `scripts/materialise-grove.sh` were removed from this repo; `docs/grove.md`

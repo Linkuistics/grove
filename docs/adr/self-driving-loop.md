@@ -49,3 +49,6 @@ primary-source citations is in `docs/research/loop-substrate-options.md`.
 - Restart-safety is structural (the loop holds no state), not a feature to configure.
 - The driver ignores SIGINT so it survives the human's Ctrl-C; relaunch is gated by a
   signal file the completion verb writes.
+- The driver also selects each session's **launch model by the picked leaf's
+  kind** (planning vs work), via native `claude --model` — see
+  *model-per-task-kind*.

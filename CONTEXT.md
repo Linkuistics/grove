@@ -16,6 +16,18 @@ The bootstrap of a brand-new grove (worktree + branch exist, but no `.grove/` tr
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
+**Per-kind model selection** (`GROVE_PLANNING_MODEL` / `GROVE_WORK_MODEL`):
+The self-driving loop launches each task's `claude` session on a model chosen by
+the picked [[Leaf]]'s kind — `planning` vs `work` — via Claude Code's native
+`--model` flag (no router, no proxy). The driver peeks the kind (`grove-llm
+kind`), reads the matching env var, and passes `--model` **only if that var is
+set** (unset ⇒ inherit the user's own default; never clobber `ANTHROPIC_MODEL`).
+The launched value is a *default*, not a lock: in-session `/model` is higher
+priority and overrides it, but that override **does not persist across relaunch**
+(the next task is re-keyed on its own kind). See ADR *model-per-task-kind*.
+_Avoid_: calling this "model routing" — that implies a multi-provider proxy;
+this is single-provider launch-flag selection on the same (e.g. Max) subscription.
+
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
 **Node directory** / **node**:

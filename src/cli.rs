@@ -1,6 +1,25 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+/// Extra `grove do --help` section documenting the per-kind model-selection env
+/// vars (model-per-task-kind). The rationale lives in the ADR; this is the
+/// discoverable how-to.
+const MODEL_ENV_HELP: &str = "\
+Environment variables:
+  GROVE_PLANNING_MODEL  Model for planning leaves (grilling / design).
+  GROVE_WORK_MODEL      Model for work leaves (code / docs / tests).
+
+The loop passes the matching value via Claude Code's native `--model` at each
+task launch, keyed on the picked leaf's kind. Unset ⇒ no `--model`: the session
+inherits your own default (ANTHROPIC_MODEL / Claude Code settings), so grove is
+a no-op until you opt in and never clobbers a default you already set. Setting
+only one variable is fine — the other kind still inherits. An in-session
+`/model` switch overrides the launch model but does NOT persist across relaunch
+(each task is a fresh session launched on its kind's default).
+
+Example:
+  GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do <name>";
+
 #[derive(Parser)]
 #[command(
     name = "grove",
@@ -36,6 +55,7 @@ pub enum Command {
 }
 
 #[derive(Parser)]
+#[command(after_long_help = MODEL_ENV_HELP)]
 pub struct StartArgs {
     pub name: String,
     /// Branch start point (default: origin's HEAD or `main`).

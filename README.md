@@ -29,3 +29,25 @@ grove retire <name>/<node-path>   # promote a finished node's brief upward (its 
 Each verb takes optional `--harness <name>` and respects auto-detection from the repo's `.claude/` and `.codex/` directories. Session launchers stamp `.grove-stamps/<name>` only when needed for disambiguation in multi-harness repos. Worktrees live at `.grove-worktrees/<name>/`; the task tree itself is `.grove/` inside that worktree.
 
 See `grove --help` for flag details. For end-to-end walkthroughs of each verb in context, see [`docs/workflows/`](docs/workflows/).
+
+## Configuration
+
+`grove do` picks each task session's model by the **kind** of the leaf it's
+about to launch, so planning can run on a stronger reasoning model and
+mechanical work on a cheaper/faster one:
+
+```
+GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do <name>
+```
+
+| Variable | Applies to |
+|---|---|
+| `GROVE_PLANNING_MODEL` | planning leaves (grilling, design) |
+| `GROVE_WORK_MODEL` | work leaves (code, docs, tests) |
+
+The loop passes the matching value via Claude Code's native `--model` at each launch. Two things to know:
+
+- **Unset ⇒ inherit your own default.** Leave a variable unset and grove passes no `--model` for that kind — the session runs on your own default (`ANTHROPIC_MODEL` or your Claude Code settings). So grove is a no-op until you opt in, and it never clobbers a default you already have; setting only one variable is fine (the other kind still inherits).
+- **The launch model is a default, not a lock.** An in-session `/model` switch overrides it (native Claude Code, higher priority than `--model`) but **does not persist across relaunch** — each task is a fresh session the loop launches on its kind's default, so a mid-session `/model` change applies to that one session only.
+
+See [`docs/adr/model-per-task-kind.md`](docs/adr/model-per-task-kind.md) for the rationale (why native `--model` rather than a router/proxy).

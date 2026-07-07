@@ -185,7 +185,10 @@ fn read_kind(leaf_path: &Path) -> Result<Kind> {
             )
         })?;
         return Kind::parse(token).with_context(|| {
-            format!("task file {} has an invalid `**Kind:**` line", leaf_path.display())
+            format!(
+                "task file {} has an invalid `**Kind:**` line",
+                leaf_path.display()
+            )
         });
     }
     bail!(
@@ -843,7 +846,10 @@ mod tests {
         let leaf = touch(&g, "01-a-k1.md");
         let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
         assert!(err.contains("no `**Kind:**` line"), "got {err}");
-        assert!(err.contains("01-a-k1.md"), "error must name the file: {err}");
+        assert!(
+            err.contains("01-a-k1.md"),
+            "error must name the file: {err}"
+        );
     }
 
     #[test]
@@ -852,7 +858,10 @@ mod tests {
         let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** bogus\n");
         let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
         assert!(err.contains("invalid `**Kind:**` line"), "got {err}");
-        assert!(err.contains("01-a-k1.md"), "error must name the file: {err}");
+        assert!(
+            err.contains("01-a-k1.md"),
+            "error must name the file: {err}"
+        );
     }
 
     #[test]

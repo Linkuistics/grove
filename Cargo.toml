@@ -7,7 +7,7 @@ members = []
 
 [package]
 name = "grove"
-version = "9.0.0"
+version = "9.1.0"
 edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"

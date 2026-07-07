@@ -29,6 +29,18 @@ impl Kind {
             other => bail!("--kind must be `work` or `planning`, got {:?}", other),
         }
     }
+
+    /// The lowercase label written into a task file's `**Kind:**` line and
+    /// printed by `grove-llm kind` — the inverse of [`Kind::parse`], so the two
+    /// round-trip. The single source of truth for the label direction: both the
+    /// grow verbs' leaf template (`tree_grow`) and the `kind` verb print through
+    /// it, so the two can never disagree on the spelling.
+    pub fn label(self) -> &'static str {
+        match self {
+            Kind::Work => "work",
+            Kind::Planning => "planning",
+        }
+    }
 }
 
 /// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`. The
@@ -73,5 +85,14 @@ mod inline_tests {
         assert_eq!(Kind::parse("planning").unwrap(), Kind::Planning);
         assert!(Kind::parse("bogus").is_err());
         assert!(Kind::parse("").is_err());
+    }
+
+    #[test]
+    fn kind_label_round_trips_through_parse() {
+        for k in [Kind::Work, Kind::Planning] {
+            assert_eq!(Kind::parse(k.label()).unwrap(), k);
+        }
+        assert_eq!(Kind::Work.label(), "work");
+        assert_eq!(Kind::Planning.label(), "planning");
     }
 }

@@ -424,10 +424,7 @@ fn git_mv(dir: &Path, src: &str, dst: &str) -> Result<()> {
 /// **position-free handle** `# <slug>-k<key>` (decided 11.3) — the mutable per-level
 /// position lives only in the filename, so a later renumber never rewrites this.
 fn write_template(path: &Path, slug: &str, key: u32, kind: Kind) -> Result<()> {
-    let kind_label = match kind {
-        Kind::Work => "work",
-        Kind::Planning => "planning",
-    };
+    let kind_label = kind.label();
     let body = format!(
         "# {slug}-k{key}\n\n**Kind:** {kind_label}\n\n## Goal\n\n## Context\n\n## Done when\n\n## Notes\n",
     );

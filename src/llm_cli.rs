@@ -63,6 +63,18 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
+    /// Print a leaf's task **kind** — `planning` or `work` — read from its
+    /// `**Kind:**` line. With no argument the kind is read for `pick`'s next
+    /// live leaf; on an empty grove it prints the standard "no live leaves"
+    /// diagnostic on stderr (mirroring `brief-chain`) and exits 0. The output
+    /// is a single lowercase token + newline. The self-driving loop calls this
+    /// to choose each session's launch model by the picked leaf's kind
+    /// (model-per-task-kind).
+    Kind {
+        /// Optional leaf path. Absolute, or relative to the grove root
+        /// (`.grove/`). If absent, uses `pick`'s next live leaf.
+        leaf_path: Option<PathBuf>,
+    },
     /// Resolve a reference to its current file path, searching live **and**
     /// retired (`DONE`) entries across the whole directory tree. A permanent key
     /// (`[n]` or bare `n`, optionally `[n]-slug`) resolves the unique keyed
@@ -199,6 +211,7 @@ pub fn run() -> Result<()> {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
+        Command::Kind { leaf_path } => cmd_kind(leaf_path.as_deref()),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
@@ -267,6 +280,22 @@ fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     let chain = tree_read::brief_chain(&grove_root, &leaf)?;
     for p in &chain {
         println!("{}", p.display());
+    }
+    Ok(())
+}
+
+fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
+    let (worktree, grove_root) = grove_paths()?;
+    // Normalize a cwd-relative path to what `tree_read::kind` accepts (absolute
+    // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
+    // stays `None` so the verb defaults to `pick`'s next live leaf.
+    let leaf = leaf_path.map(normalize_leaf_path);
+    match tree_read::kind(&grove_root, leaf.as_deref())? {
+        Some(k) => println!("{}", k.label()),
+        None => eprintln!(
+            "grove {}: no live leaves; this grove is done",
+            label(&worktree)
+        ),
     }
     Ok(())
 }

@@ -28,6 +28,7 @@
 // so every v1 reference still resolves identically (a literal slug ending in
 // `-k<digits>` is matched as a slug first), and the §5 handle round-trips to a path.
 
+use crate::leaf::Kind;
 use crate::tree_id::{parse, sort_key, Entry};
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -137,6 +138,61 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
         }
     }
     Ok(chain)
+}
+
+/// `kind [<leaf>]`: the task kind (`work` / `planning`) the loop driver keys
+/// model selection on (model-per-task-kind). With `leaf_path = Some`, read that
+/// leaf's `**Kind:**` line; with `None`, default to [`pick`]'s next live leaf and
+/// return `Ok(None)` on an empty grove — the same "no live leaves" signal `pick`
+/// gives (the CLI renders it as the standard stderr diagnostic, mirroring
+/// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`. Parsing
+/// goes through [`Kind::parse`] (the single source of truth) — a missing or
+/// garbled `**Kind:**` line is an actionable error naming the file, never a
+/// panic.
+pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
+    if !grove_root.is_dir() {
+        bail!("grove root not found: {}", grove_root.display());
+    }
+    let leaf = match leaf_path {
+        Some(p) if p.is_absolute() => p.to_path_buf(),
+        Some(p) => grove_root.join(p),
+        None => match pick(grove_root)? {
+            Some(p) => p,
+            None => return Ok(None),
+        },
+    };
+    read_kind(&leaf).map(Some)
+}
+
+/// Read a leaf task file's declared kind from its `**Kind:** <work|planning>`
+/// line (`content/TASK-FORMAT.md`). Takes the first line that begins with the
+/// `**Kind:**` marker and parses the first whitespace token after it through
+/// [`Kind::parse`] — so trailing commentary (`**Kind:** work   (or: planning)`)
+/// is tolerated. Every failure path is actionable and names the file: an
+/// unreadable file, a file with no `**Kind:**` line, and a line whose token is
+/// not one of the two labels.
+fn read_kind(leaf_path: &Path) -> Result<Kind> {
+    let text = fs::read_to_string(leaf_path)
+        .with_context(|| format!("reading task file {}", leaf_path.display()))?;
+    for line in text.lines() {
+        let Some(rest) = line.trim_start().strip_prefix("**Kind:**") else {
+            continue;
+        };
+        let token = rest.split_whitespace().next().with_context(|| {
+            format!(
+                "task file {} has an empty `**Kind:**` line",
+                leaf_path.display()
+            )
+        })?;
+        return Kind::parse(token).with_context(|| {
+            format!("task file {} has an invalid `**Kind:**` line", leaf_path.display())
+        });
+    }
+    bail!(
+        "task file {} has no `**Kind:**` line \
+         (expected `**Kind:** work` or `**Kind:** planning`)",
+        leaf_path.display()
+    );
 }
 
 /// The outcome of resolving a reference. The CLI maps this to stdout/stderr via
@@ -713,6 +769,97 @@ mod tests {
         let (_t, g) = grove();
         let missing = g.join("nope");
         let err = brief_chain(&missing, Path::new("01-a-k1.md")).unwrap_err();
+        assert!(
+            err.to_string().contains("grove root not found"),
+            "got {err}"
+        );
+    }
+
+    // ---- kind ---------------------------------------------------------------
+
+    /// Write a leaf whose body carries `body_after_header` verbatim after the
+    /// `# <slug>` header, returning its absolute path — so a test can set (or
+    /// omit, or garble) the `**Kind:**` line.
+    fn touch_body(dir: &Path, name: &str, body_after_header: &str) -> PathBuf {
+        let p = dir.join(name);
+        fs::write(&p, format!("# stub\n\n{body_after_header}").as_bytes()).unwrap();
+        p
+    }
+
+    #[test]
+    fn kind_reads_a_work_leaf() {
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work\n\n## Goal\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+    }
+
+    #[test]
+    fn kind_reads_a_planning_leaf() {
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** planning\n\n## Goal\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Planning));
+    }
+
+    #[test]
+    fn kind_no_arg_defaults_to_picks_next_leaf() {
+        let (_t, g) = grove();
+        touch(&g, "01-DONE-old-k1.md"); // skipped by pick
+        touch_body(&g, "02-live-k2.md", "**Kind:** planning\n");
+        // No leaf arg ⇒ pick's next live leaf (02-live), whose kind is planning.
+        assert_eq!(kind(&g, None).unwrap(), Some(Kind::Planning));
+    }
+
+    #[test]
+    fn kind_none_on_empty_grove() {
+        // No live leaves ⇒ Ok(None), the same signal pick gives (the CLI renders
+        // the "no live leaves" diagnostic).
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md");
+        assert_eq!(kind(&g, None).unwrap(), None);
+    }
+
+    #[test]
+    fn kind_accepts_a_grove_root_relative_path() {
+        let (_t, g) = grove();
+        let node = mknode(&g, "01-design-k1");
+        touch(&node, "BRIEF.md");
+        touch_body(&node, "01-leaf-k2.md", "**Kind:** work\n");
+        let got = kind(&g, Some(Path::new("01-design-k1/01-leaf-k2.md"))).unwrap();
+        assert_eq!(got, Some(Kind::Work));
+    }
+
+    #[test]
+    fn kind_tolerates_trailing_commentary_on_the_kind_line() {
+        // TASK-FORMAT's own example writes `**Kind:** work   (or: planning)`.
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work          (or: planning)\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+    }
+
+    #[test]
+    fn kind_errors_on_a_missing_kind_line_naming_the_file() {
+        let (_t, g) = grove();
+        // `touch` writes only `# stub` — no `**Kind:**` line.
+        let leaf = touch(&g, "01-a-k1.md");
+        let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
+        assert!(err.contains("no `**Kind:**` line"), "got {err}");
+        assert!(err.contains("01-a-k1.md"), "error must name the file: {err}");
+    }
+
+    #[test]
+    fn kind_errors_on_a_garbled_kind_token_naming_the_file() {
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** bogus\n");
+        let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
+        assert!(err.contains("invalid `**Kind:**` line"), "got {err}");
+        assert!(err.contains("01-a-k1.md"), "error must name the file: {err}");
+    }
+
+    #[test]
+    fn kind_errors_when_grove_root_absent() {
+        let (_t, g) = grove();
+        let missing = g.join("nope");
+        let err = kind(&missing, None).unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"

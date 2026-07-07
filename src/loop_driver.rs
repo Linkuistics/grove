@@ -8,20 +8,30 @@
 // state and re-derives position from `grove-llm pick`).
 //
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
-// (constraint 6, walk-away-able):
+// (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
+// a kind→model lookup before the launch:
 //
 //     sig="$TMPDIR/grove-loop-<name>.signal"
 //     while :; do
 //       rm -f "$sig"
+//       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
+//       case "$kind" in
+//         planning) model="$GROVE_PLANNING_MODEL" ;;
+//         work)     model="$GROVE_WORK_MODEL" ;;
+//         *)        model="" ;;                       # empty grove → no --model
+//       esac
+//       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" \
-//         sh -c 'export GROVE_CLAUDE_PID=$$; exec claude "$@"' sh "$prompt"
+//         sh -c 'export GROVE_CLAUDE_PID=$$; exec claude "$@"' sh "$@"
 //       stty sane 2>/dev/null
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
 
 use crate::complete::{self, Disposition};
 use crate::harness::Harness;
+use crate::leaf::Kind;
 use anyhow::{Context, Result};
+use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -95,7 +105,18 @@ pub fn run_loop(
         };
         let prompt = crate::launch::load_prompt(verb)?;
 
-        launch_session(harness, worktree, &session_name, &prompt, &signal_file)?;
+        // Pick the launch model by the picked leaf's kind (model-per-task-kind);
+        // `None` ⇒ no `--model`, so the session inherits the user's own default.
+        let model = select_model(harness, worktree, verb);
+
+        launch_session(
+            harness,
+            worktree,
+            &session_name,
+            &prompt,
+            &signal_file,
+            model.as_deref(),
+        )?;
 
         // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
         // screen; reset before relaunching (and on the way out).
@@ -133,6 +154,7 @@ fn launch_session(
     session_name: &str,
     prompt: &str,
     signal_file: &Path,
+    model: Option<&str>,
 ) -> Result<()> {
     let bin = std::env::var("GROVE_HARNESS_BIN").unwrap_or_else(|_| harness.exec_bin.to_string());
 
@@ -144,6 +166,15 @@ fn launch_session(
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(session_name);
     }
+    // Model selection (model-per-task-kind): the per-harness flag template + the
+    // chosen model, before the positional prompt. `select_model` only yields
+    // `Some` when `model_args` is non-empty, but guard so this stays correct in
+    // isolation.
+    if let Some(model) = model {
+        if !harness.model_args.is_empty() {
+            cmd.args(harness.model_args).arg(model);
+        }
+    }
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
@@ -152,6 +183,114 @@ fn launch_session(
     // path, not an error. The signal file — not the exit code — decides relaunch.
     let _ = cmd.status().context("launching the harness session")?;
     Ok(())
+}
+
+/// Choose the launch model for the next session by the picked leaf's **kind**
+/// (model-per-task-kind). Returns the model string for `--model`, or `None` to
+/// launch on the user's own default (no `--model` at all).
+///
+/// The load-bearing rule: a kind whose env var is **unset** yields `None`, so
+/// grove never clobbers a user's `ANTHROPIC_MODEL`/settings default — it opts in
+/// per kind. When neither env var is set (the common case) this returns `None`
+/// with no `grove-llm` call, so the launch is byte-for-byte the pre-feature one.
+///
+/// Kind resolution mirrors the loop's start/continue split:
+///   * `start` — a brand-new grove whose first leaf is planning by construction
+///     (fresh-grove-start-contract), so no peek is needed.
+///   * `continue` — peek the next live leaf's kind via `grove-llm kind`. This is
+///     a driver-side `pick` peek: within one iteration it resolves the *same*
+///     leaf the launched agent will pick (deterministic pick over the same
+///     tree), so the read-then-launch window is a non-issue.
+fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String> {
+    // A harness with no model-flag template opts out entirely (codex today).
+    if harness.model_args.is_empty() {
+        return None;
+    }
+    let planning = env_model("GROVE_PLANNING_MODEL");
+    let work = env_model("GROVE_WORK_MODEL");
+    // Neither kind configured ⇒ nothing to select; skip the kind peek so the
+    // common path stays a zero-subprocess, byte-for-byte-unchanged launch.
+    if planning.is_none() && work.is_none() {
+        return None;
+    }
+    let kind = if verb == "start" {
+        Kind::Planning
+    } else {
+        resolve_kind(worktree)?
+    };
+    match kind {
+        Kind::Planning => planning,
+        Kind::Work => work,
+    }
+}
+
+/// Read a model env var, treating empty as unset.
+fn env_model(var: &str) -> Option<String> {
+    std::env::var(var).ok().filter(|s| !s.is_empty())
+}
+
+/// Peek the next live leaf's kind by running `grove-llm kind` against the
+/// worktree — the same verb (and code path) the launched agent would call.
+/// Model selection is an enhancement, never a reason to jam the loop, so any
+/// failure (binary missing, non-zero exit, unparseable output) degrades to
+/// `None` (launch on the default) with a diagnostic. An empty grove (no live
+/// leaf — the finish-cycle iteration) also yields `None`, silently: with no leaf
+/// there is no kind to key a model on.
+fn resolve_kind(worktree: &Path) -> Option<Kind> {
+    let out = Command::new(grove_llm_bin())
+        .arg("kind")
+        .current_dir(worktree)
+        .output();
+    match out {
+        Ok(o) if o.status.success() => {
+            let token = String::from_utf8_lossy(&o.stdout);
+            let token = token.trim();
+            if token.is_empty() {
+                return None; // empty grove: no kind to select on
+            }
+            match Kind::parse(token) {
+                Ok(k) => Some(k),
+                Err(_) => {
+                    eprintln!(
+                        "grove: unrecognized task kind {token:?} from `grove-llm kind`; \
+                         launching on the default model"
+                    );
+                    None
+                }
+            }
+        }
+        Ok(o) => {
+            eprintln!(
+                "grove: `grove-llm kind` failed ({}); launching on the default model",
+                String::from_utf8_lossy(&o.stderr).trim()
+            );
+            None
+        }
+        Err(e) => {
+            eprintln!(
+                "grove: could not run grove-llm for model selection ({e}); \
+                 launching on the default model"
+            );
+            None
+        }
+    }
+}
+
+/// Locate the `grove-llm` binary. `GROVE_LLM_BIN` overrides (the test seam,
+/// parallel to `GROVE_HARNESS_BIN`); otherwise prefer the sibling of the running
+/// executable (`grove` and `grove-llm` install together), falling back to PATH.
+fn grove_llm_bin() -> OsString {
+    if let Some(bin) = std::env::var_os("GROVE_LLM_BIN") {
+        return bin;
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(sibling) = exe.parent().map(|d| d.join("grove-llm")) {
+            if sibling.is_file() {
+                return sibling.into_os_string();
+            }
+        }
+    }
+    OsString::from("grove-llm")
 }
 
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,

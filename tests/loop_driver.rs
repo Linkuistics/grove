@@ -184,3 +184,183 @@ exit 0
         "the loop must run exactly once then finish — no relaunch (log: {log:?})"
     );
 }
+
+// Model selection (model-per-task-kind): the driver launches each session on a
+// model chosen by the picked leaf's **kind**. The start path is planning by
+// construction (fresh-grove-start-contract); the continue path peeks the next
+// live leaf's kind via the real `grove-llm kind` binary (wired in via the
+// `GROVE_LLM_BIN` seam, run against a real git worktree so `kind` resolves the
+// grove root). Asserts the exact `--model` per iteration.
+#[test]
+fn loop_selects_model_by_kind() {
+    let _g = ENV_LOCK.lock().unwrap();
+    // A real git repo *is* the worktree, so the real `grove-llm kind` (which
+    // finds the grove root via `git rev-parse --show-toplevel`) resolves `.grove/`.
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // Fake claude: log the full argv per iteration. On the first (start) run,
+    // materialise a `.grove/` with one live **work** leaf so the second run
+    // takes the continue path and `grove-llm kind` resolves it to `work`. Fire
+    // the completion signal only on the first run, so the loop stops after two.
+    let fake = worktree.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+fi
+if [ "$n" -lt 2 ]; then
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+    std::env::set_var("GROVE_PLANNING_MODEL", "opus");
+    std::env::set_var("GROVE_WORK_MODEL", "sonnet");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "modelgrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_LLM_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        rows.len(),
+        2,
+        "loop should run twice then stop (log: {log:?})"
+    );
+
+    // Iteration 1 — start path ⇒ planning ⇒ GROVE_PLANNING_MODEL.
+    assert!(
+        rows[0].contains("--model opus"),
+        "start (planning) session must launch on the planning model (argv: {:?})",
+        rows[0]
+    );
+    assert!(
+        !rows[0].contains("sonnet"),
+        "start session must not use the work model (argv: {:?})",
+        rows[0]
+    );
+    // Iteration 2 — continue path ⇒ work leaf ⇒ GROVE_WORK_MODEL.
+    assert!(
+        rows[1].contains("--model sonnet"),
+        "continue (work) session must launch on the work model (argv: {:?})",
+        rows[1]
+    );
+}
+
+// The load-bearing rule: with neither model env var set, the driver passes no
+// `--model` at all — byte-for-byte the pre-feature launch, so a user's own
+// `ANTHROPIC_MODEL`/settings default is never clobbered.
+#[test]
+fn loop_omits_model_flag_when_env_unset() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/loopgrove");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let counter = repo_path.join("counter");
+    let log = repo_path.join("log");
+
+    // Fake claude: log full argv; create `.grove/` on the first run so the
+    // second run takes the continue path too (both paths must stay `--model`-free
+    // when the env is unset); stop after two iterations.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+mkdir -p "$PWD/.grove"
+if [ "$n" -lt 2 ]; then
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    // Guard against leakage from another test in the same process.
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        rows.len(),
+        2,
+        "loop should run twice then stop (log: {log:?})"
+    );
+    for row in &rows {
+        assert!(
+            !row.contains("--model"),
+            "no env set ⇒ no --model flag (argv: {row:?})"
+        );
+    }
+}

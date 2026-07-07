@@ -26,6 +26,12 @@ pub struct Harness {
     /// For claude: ["-n", "<name>"]. For codex: see codex docs; default
     /// matches claude's pattern until verified.
     pub name_args: &'static [&'static str],
+    /// CLI flag template for selecting the launch model (model-per-task-kind),
+    /// parallel to `name_args`: *how* to pass a model is per-harness, while the
+    /// *value* comes from `GROVE_PLANNING_MODEL` / `GROVE_WORK_MODEL`. For claude:
+    /// `["--model"]`. An **empty** template means "this harness opts out of model
+    /// selection" — the loop driver skips passing any model flag for it.
+    pub model_args: &'static [&'static str],
 }
 
 pub const HARNESSES: &[Harness] = &[
@@ -34,6 +40,7 @@ pub const HARNESSES: &[Harness] = &[
         project_dir: ".claude",
         exec_bin: "claude",
         name_args: &["-n"],
+        model_args: &["--model"],
     },
     Harness {
         name: "codex",
@@ -42,6 +49,10 @@ pub const HARNESSES: &[Harness] = &[
         // Verified during implementation against `codex --help`; if codex
         // doesn't support a session-name flag, leave empty and skip pre-naming.
         name_args: &["--name"],
+        // Best-effort/lazy: codex's model flag/names aren't verified here, so it
+        // opts out of model selection (empty template ⇒ no `--model`). Wire when
+        // verified; one grove runs one harness.
+        model_args: &[],
     },
 ];
 

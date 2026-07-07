@@ -1,5 +1,14 @@
 # Changelog
 
+## v9.1.0
+
+This release adds per-kind model selection to the self-driving loop: `grove do` launches planning and work sessions on different models via Claude Code's native `--model`. Additive and backward compatible — with neither new env var set, grove launches exactly as in v9.0.0 (no `--model`).
+
+### Added
+
+- **Per-kind model selection — planning and work leaves launch on different models.** Before each task launch the self-driving loop peeks the next live leaf's kind (`planning` vs `work`) and starts its `claude` session on the model named by `GROVE_PLANNING_MODEL` or `GROVE_WORK_MODEL` — so a grove can run planning (grilling, design) on a stronger reasoning model and mechanical work (code, docs, tests) on a cheaper/faster one. Selection uses Claude Code's **native `--model` flag** on the same subscription — no router, no proxy (a multi-provider proxy was rejected: it needs an API key and breaks or drains Max billing, whereas native `--model` does Opus↔Sonnet routing on the subscription for free). The kind is re-derived from the filesystem every iteration, so the loop stays stateless and restart ≡ continuation is preserved (`self-driving-loop`). Two load-bearing rules: an **unset variable ⇒ no `--model`** for that kind — the session inherits the user's own `ANTHROPIC_MODEL`/settings default, so grove is a no-op until you opt in, never clobbers a default you already have, and setting only one variable is fine (the other kind still inherits); and **the launch model is a default, not a lock** — an in-session `/model` switch overrides it but does *not* persist across relaunch, since the next task is a fresh session re-keyed on its own kind. The brand-new-grove `start` path is planning by construction (its first leaf is always planning, `fresh-grove-start-contract`), so it uses `GROVE_PLANNING_MODEL` unconditionally. Configured via `grove do --help`, README (`## Configuration`), and CONTEXT.md. (ADR `model-per-task-kind`)
+- **`grove-llm kind [<leaf>]` — resolve a leaf's task kind from its task file.** A new verb on the `grove-llm` surface that reads the `**Kind:**` line via `leaf::Kind::parse` and prints a single lowercase token (`planning` or `work`). With no argument it resolves `pick`'s next live leaf; on a done grove it prints the standard "no live leaves" diagnostic on stderr and exits 0 (mirroring `brief-chain`). This is the peek the loop driver uses to select each launch model; `pick`'s bare-path output is unchanged.
+
 ## v9.0.0
 
 This release reworks grove's decision-record methodology and prunes grove's own ADR corpus to a minimum coherent set. The CLI surface and task-tree behaviour are unchanged; the entire delta is in the embedded methodology (`content/`, extracted to `~/.claude/skills/grove/`) and grove's own `docs/adr/`.

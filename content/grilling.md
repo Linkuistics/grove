@@ -1,4 +1,5 @@
-<!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c (skills/engineering/grill-with-docs/SKILL.md, with skills/productivity/grill-me/SKILL.md as the terser variant) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
+<!-- bundled in grove from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3 (skills/productivity/grilling/SKILL.md + skills/engineering/domain-modeling/SKILL.md) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
+<!-- intentionally fused — upstream split them; grove has no skill-to-skill invocation, so the split would be cosmetic -->
 
 # Grilling — the planning-task interrogation procedure
 
@@ -6,9 +7,11 @@
 
 Interview me relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
 
-Ask the questions one at a time, waiting for feedback on each question before continuing.
+Ask the questions one at a time, waiting for feedback on each question before continuing. Asking multiple questions at once is bewildering.
 
-If a question can be answered by exploring the codebase, explore the codebase instead.
+If a *fact* can be found by exploring the codebase, look it up rather than asking me. The *decisions*, though, are mine — put each one to me and wait for my answer.
+
+Do not commit decisions or grow the tree until I confirm we have reached a shared understanding.
 
 </what-to-do>
 

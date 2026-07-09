@@ -1,6 +1,6 @@
 # grove
 
-grove is a tool for driving long, multi-session workstreams as a git-tracked tree of task files — one task per session, where planning tasks grow the tree as understanding deepens and completed branches retire to an archive. It builds on two established ideas, not de-novo invention: Matt Pocock's [`grill-with-docs`](https://github.com/mattpocock/skills) — whose grilling procedure and `CONTEXT.md` / `ADR-FORMAT.md` conventions grove bundles wholesale — and Domain-Driven Design's **Ubiquitous Language** and **bounded contexts**. This document covers why it exists, how it works, how to install it, and how the CLI's verbs map onto the methodology.
+grove is a tool for driving long, multi-session workstreams as a git-tracked tree of task files — one task per session, where planning tasks grow the tree as understanding deepens and completed branches retire to an archive. It builds on two established ideas, not de-novo invention: Matt Pocock's [`skills`](https://github.com/mattpocock/skills) repo — whose `grilling` procedure and `CONTEXT.md` / `ADR-FORMAT.md` conventions (from the `grilling` and `domain-modeling` skills) grove bundles wholesale — and Domain-Driven Design's **Ubiquitous Language** and **bounded contexts**. This document covers why it exists, how it works, how to install it, and how the CLI's verbs map onto the methodology.
 
 The methodology itself — the loop, the seven constraints, the BRIEF/CONTEXT/ADR/TASK formats, the grilling procedure — lives in [`content/SKILL.md`](../content/SKILL.md) and its sibling files. This doc is the *project-level* introduction; `SKILL.md` is what an agent reads at runtime.
 
@@ -20,7 +20,7 @@ A grove is one workstream as a **git-tracked tree of task files** at `.grove/` (
 
 One task = one session = one focused commit. Planning tasks, which may grow the tree rather than produce code, are first-class — not an awkward edge case but a named kind with a defined procedure.
 
-Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (**opens with a grilling session** — using `grilling.md`, the procedure bundled from Matt's `grill-with-docs` — to interrogate the design one question at a time, then through the grilling sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
+Task files are one of two kinds: **work** (produces code, docs, or tests) or **planning** (**opens with a grilling session** — using `grilling.md`, the procedure bundled from Matt's `grilling` and `domain-modeling` skills — to interrogate the design one question at a time, then through the grilling sharpens vocabulary, may raise an ADR, and grows the tree by replacing a leaf with a node of child briefs and ordered leaves). A task too big for one focused session *is* a planning task — its job is to decompose, not to do.
 
 The **[Ubiquitous Language](concepts.md#ubiquitous-language)** — DDD's term for the project's shared domain vocabulary — lives in `CONTEXT.md` at the repo root: a terse glossary of domain terms, aliases-to-avoid, and nothing else. It is read at the start of every session and appended *inline* whenever a term is resolved during a session. This is the forcing function against terminology drift: the glossary is always live, always current, and always the first thing a session reads.
 
@@ -106,4 +106,4 @@ There is no per-repo install gesture to skip: the binary already carries the met
 
 ## License
 
-grove is licensed under [Apache-2.0](../LICENSE). The bundled grilling procedure and ADR/CONTEXT format guides originate in Matt Pocock's `grill-with-docs` skill (MIT); that upstream licence is preserved at `content/LICENSES/mattpocock-skills.LICENSE`.
+grove is licensed under [Apache-2.0](../LICENSE). The bundled grilling procedure and ADR/CONTEXT format guides originate in Matt Pocock's `grilling` and `domain-modeling` skills (MIT); that upstream licence is preserved at `content/LICENSES/mattpocock-skills.LICENSE`.

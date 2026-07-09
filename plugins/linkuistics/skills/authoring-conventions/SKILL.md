@@ -74,6 +74,12 @@ our house position.
   *backfires* on shaping problems — it trended worse than even the no-guidance control.
   Most of our skills are reference/style guides (neither failure mode), so they need
   neither apparatus.
+- **Negation** (`mattpocock/skills` `writing-great-skills/GLOSSARY.md` § Negation).
+  Generalises the bullet above: a bare prohibition drags the forbidden behaviour into
+  context and makes it *more* available, not less — "don't write verbose comments"
+  primes verbosity, the thing just read. Cure: state the positive target instead.
+  Reserve `never`/`don't` for guardrails you truly cannot phrase positively, and even
+  then pair it with the positive so attention lands on what to do.
 - **Test the wording, cheaply** (`superpowers-S4`, `anthropics-S6`). For any
   behaviour-shaping wording, micro-test it against a **no-skill control** (5+ reps; if the
   control doesn't exhibit the failure, there is nothing to fix — stop). Reserve full
@@ -86,11 +92,16 @@ our house position.
   other skills by **name**, not path. Today every one of our skills is correctly
   self-contained (only `cli-tool-design` splits a `references/` file, one level deep);
   this is the playbook for when one outgrows a single file.
+- **Hunt no-ops sentence by sentence, not just line by line** (`mattpocock/skills`
+  `aa7ed40`). Run the no-op test — does this change behaviour versus the
+  no-skill default? — on each *sentence* in isolation; when one fails, delete the
+  whole sentence rather than trim words from it. Be aggressive: most prose that
+  fails the test should go, not be rewritten.
 
 ## House lever: user-invoked vs model-invoked
 
 A skill is **model-invoked** by default — its `description` sits in context every session
-so the agent can auto-fire it on a match. All nine of our shipped skills are
+so the agent can auto-fire it on a match. Eleven of our thirteen shipped skills are
 model-invoked, which is **correct**: they are reference/style guides that *should*
 auto-fire on a language or task match (`mattpocock-S3`).
 
@@ -100,6 +111,16 @@ instead set `disable-model-invocation: true`. It is then invokable only by a hum
 dogfoods that (see its own frontmatter). Reach for the lever whenever a skill is
 authoring/operator guidance a human runs deliberately, not a capability the agent should
 reach for on its own.
+
+**Name the two costs the lever trades** (`mattpocock/skills` `writing-great-skills/
+{SKILL,GLOSSARY}.md`). A model-invoked skill spends **context load** — its description
+sits in the window every turn, whether or not this session needs it. A hand-only skill
+spends **cognitive load** instead — the human is the index, holding in their head which
+hand-only skills exist and when to reach for one. At two hand-only skills (this note and
+`guardrail`) that's still trivial; the cure once hand-only skills multiply past what's
+easy to remember is a **router skill** — one user-invoked skill that names the others
+and when to reach for each, never firing them itself (a user-invoked skill has no
+description, so nothing but the human can reach it).
 
 ## House convention: cite sources, flag the unverified
 

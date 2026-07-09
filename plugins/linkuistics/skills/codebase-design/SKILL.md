@@ -167,6 +167,17 @@ caller. Then compare the candidates on **depth** (leverage per unit of interface
 it, and whether two adapters justify it). Pick deliberately, or compose the strongest
 elements into a hybrid. (After Ousterhout's "design it twice".)
 
+**Running it as parallel sub-agents.** For a candidate substantial enough to warrant it,
+spawn 3-4 sub-agents in parallel, each given the module's constraints, its dependency
+categories (see the table above), and a single divergent design pressure: minimise the
+interface (1-3 entry points, maximum leverage per one); maximise flexibility (many use
+cases, extension points); optimise for the most common caller (make the default case
+trivial); and, when a real ports-and-adapters seam is in play, design around it. Each
+returns an interface, a usage example, what it hides behind the seam, its dependency
+strategy, and its trade-offs. Present the candidates sequentially so they can be absorbed
+one at a time, then compare and recommend as above — be opinionated, the point is a
+strong read, not a menu (`mattpocock/skills` `codebase-design/DESIGN-IT-TWICE.md`).
+
 ## Relationships
 
 - A **module** has exactly one **interface** — the surface it presents to callers and

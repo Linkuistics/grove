@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- `authoring-conventions`: added **Negation** (steering by prohibition drags the
+  forbidden behaviour into context and makes it more available, not less; state the
+  positive target, reserve `never`/`don't` for guardrails that can't be phrased
+  positively), the **context load / cognitive load** vocabulary for the user-invoked vs
+  model-invoked lever plus the **router skill** cure for cognitive-load pile-up, and a
+  **sentence-level no-op hunt** (test each sentence against the no-skill default; delete
+  failing sentences outright rather than trim words). All three are drawn from
+  `mattpocock/skills`' `writing-great-skills` skill (MIT), which postdates this repo's
+  prior-art survey. `codebase-design`: added the concrete parallel-sub-agent "design it
+  twice" procedure (divergent per-agent briefs: minimize-interface / maximize-flexibility
+  / optimize-common-caller / ports-and-adapters), from the same upstream's
+  `DESIGN-IT-TWICE.md`. Refreshed the prior-art survey's mattpocock citations with a dated
+  note pointing at `writing-great-skills/{SKILL,GLOSSARY}.md` @ `d574778` as the current
+  canonical source.
 - Added the `decision-records` skill — ADRs as a **minimum coherent set**
   describing the design's current state (current-state over changelog,
   edit/merge/split/delete in place, identity by slug not number, the

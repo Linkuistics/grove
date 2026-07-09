@@ -1611,6 +1611,15 @@ marketplace. But the **lifecycle-bucket convention** and the **manifest-invarian
 portable wins the moment our marketplace grows a draft or retires a skill; adopt as repo
 conventions.
 
+> **Citation refresh — 2026-07-09.** S3/S4 above quote `writing-great-skills/SKILL.md` as
+> read on 2026-06-25. Upstream has since extended `GLOSSARY.md` with a named **Negation**
+> failure mode — steering by prohibition drags the forbidden behaviour into context and
+> makes it *more* available, not less (added `0847bb3`/`af6d692`, 2026-07-06) — alongside
+> the Leitwort/leading-word and information-hierarchy terms S4 already paraphrases.
+> `writing-great-skills/{SKILL,GLOSSARY}.md` @ `d574778` (v1.1) is now the current
+> canonical source for this material; the S1-S5 dive below is left as the historical
+> record of the 2026-06-25 snapshot, not rewritten.
+
 ### Findings — grove project
 
 **G1 [grove] — `decision-mapping` is a second independent analog to grove's task-tree (after

@@ -31,7 +31,7 @@ flowchart TD
     pick["Pick — first live leaf: depth-first walk, skip briefs + DONE"]
     boot["Bootstrap — read glossary, ancestor BRIEFs, cited ADRs, the task"]
     exec{"planning or work?"}
-    plan["Planning — grill; glossary inline; ADRs sparingly; maybe a PRD; grow the tree"]
+    plan["Planning — grill; glossary inline; ADRs sparingly; maybe a spec; grow the tree"]
     work["Work — produce code / docs / tests"]
     commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
     retire{"parent chain — node now has no live leaf?"}
@@ -58,7 +58,7 @@ These seven rules are non-negotiable; everything below is subordinate to them.
    a separate maintenance action and may use a script — see `VERSION.md`.)
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown. The format files are guides; nothing validates them.
-4. **Lazy and optional.** Every artifact — brief, ADR, PRD, glossary entry — is
+4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is
    created only when it earns its place, never because a step demands it. Lazy
    means *just-in-time, not few*: a tree that keeps sprouting small, concrete
    leaves is healthy, not a smell.
@@ -124,11 +124,13 @@ session's entire mandate; read nothing else by reflex.
   Through that grilling, update `CONTEXT.md` *inline* as terms resolve, raise
   ADRs *sparingly* (`ADR-FORMAT.md` for placement; the
   `linkuistics:decision-records` skill for the philosophy, format, and
-  when-to-write test), MAY write a PRD at a genuine agreement point, and **grow
-  the tree**. Treat the ADR set as a **minimum coherent set describing the
+  when-to-write test), MAY write a spec at a genuine agreement point
+  (`SPEC-FORMAT.md`), and **grow the tree**. Treat the ADR set as a **minimum
+  coherent set describing the
   current design**: when grilling *changes* a decision an ADR already records,
   **rework the set in place** — merge / split / delete — and reconcile the
   briefs that cite it; never append a superseding ADR (git holds the history).
+  The same rule governs `docs/specs/`, one grain coarser.
   See `driving.md` for the field-guide habits that make grilling and
   research-leaf commissioning productive (WDYT, pushback, running decision log,
   citation discipline).
@@ -275,9 +277,8 @@ standard artifact that outlives grove (constraint 6).
 | Artifact | Path | Role |
 |---|---|---|
 | Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — read every session, appended inline |
-| ADRs | `docs/adr/<slug>.md` | the design's current state as a **minimum coherent set** — slug-named, edited in place; philosophy per `linkuistics:decision-records` |
-| PRDs | `docs/prd/` | human-facing agreement checkpoints; committed, never retired |
-| Design specs | `docs/specs/*-design.md` | workstream-level technical design |
+| ADRs | `docs/adr/<slug>.md` | one decision each, as a **minimum coherent set** — slug-named, edited in place; philosophy per `linkuistics:decision-records` |
+| Specs | `docs/specs/<slug>.md` | how an area works — the human-facing agreement point, also a **minimum coherent set** (`SPEC-FORMAT.md`) |
 | Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step before merging |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
@@ -292,12 +293,20 @@ else — terse definitions, aliases-to-avoid, no implementation detail
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
 is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
 
-## PRDs
+## Specs
 
-A **PRD** is the human-facing, team-shareable face of a planning increment,
+A **spec** is the human-facing, team-shareable design of an area of the system,
 produced lazily by a planning task *when the increment is a genuine agreement
-point*. The flow there: grill → PRD (review & agree) → decompose → execute.
-PRDs live in `docs/prd/`, are committed, and are never retired.
+point*. The flow there: grill → spec (review & agree) → decompose → execute.
+Specs live in `docs/specs/<slug>.md` and, like ADRs, are a **minimum coherent
+set describing the current design**: edited, merged, split in place; deleted when
+one no longer describes anything (constraint 1 — git holds the past).
+
+Two rules keep the set honest. **Membership:** would a session on an unrelated
+future grove need to read this? If not, it is a `BRIEF.md` and it dies with
+`.grove/`. **Grain:** an ADR records one decision and its trade-off; a spec
+describes how an area works, and *cites* the ADRs in its area rather than
+restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 
 ## Reference files
 
@@ -305,14 +314,17 @@ PRDs live in `docs/prd/`, are committed, and are never retired.
 - `TASK-FORMAT.md` — the task-file shape and the two task kinds.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
+- `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.
 - `grilling.md` — the grilling procedure for planning tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
 
-**Prerequisite — the `linkuistics` plugin.** grove's ADR philosophy is no longer
-bundled: it lives in the `linkuistics:decision-records` skill, and grove
-**requires** the `linkuistics` plugin as a prerequisite (self-containment is not a
-constraint for the ADR guidance — `ADR-FORMAT.md` keeps only grove's placement
-conventions). A session raising or reworking an ADR should consult that skill. The
-dependency is documentation-level, not install-enforced; everything else grove
-needs stays self-contained (constraint 6).
+**Prerequisite — the `linkuistics` plugin.** Two bodies of guidance grove used to
+carry now live outside it, and grove **requires** the `linkuistics` plugin as a
+prerequisite: ADR philosophy in `linkuistics:decision-records`, and what a test
+seam is and how to judge one in `linkuistics:codebase-design`. Self-containment is
+not a constraint for either — `ADR-FORMAT.md` and `SPEC-FORMAT.md` keep only
+grove's placement and recording conventions. A session raising or reworking an ADR,
+or sketching a spec's test seams, should consult the matching skill. The dependency
+is documentation-level, not install-enforced; everything else grove needs stays
+self-contained (constraint 6).

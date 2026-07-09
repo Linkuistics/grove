@@ -28,6 +28,25 @@ priority and overrides it, but that override **does not persist across relaunch*
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;
 this is single-provider launch-flag selection on the same (e.g. Max) subscription.
 
+**Spec** (`docs/specs/<slug>.md`):
+The human-facing, team-shareable design of an *area* of the system — problem,
+solution, settled decisions, agreed test seams, out-of-scope — written lazily by a
+planning task at a genuine agreement point (grill → spec → decompose → execute).
+Slug-named, never dated or numbered. Like `docs/adr/`, `docs/specs/` is a **minimum
+coherent set describing the design's current state**: edited, merged and split in
+place, and deleted once a spec describes nothing (constraint 1 — git holds the
+past). Two rules bound the set. The **membership test**: *would a session on an
+unrelated future grove need to read this?* If not it is a [[Node directory]]'s
+`BRIEF.md`, and it dies with `.grove/` — work-orders and disposition tables are
+briefs. The **grain rule**: an ADR records *one decision and its trade-off*, a spec
+describes *how an area works*, and a spec **cites** the ADRs in its area rather than
+restating them (restate one and the two sets will disagree, after which neither
+binds). Shape and the seam-recording rule: `content/SPEC-FORMAT.md`; what a seam
+*is*: `linkuistics:codebase-design`.
+_Avoid_: "PRD" — grove names no product-requirements artifact. _Avoid_ a
+`## Decomposition` section inside a spec: that is brief material, dead when the
+grove finishes.
+
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
 **Node directory** / **node**:

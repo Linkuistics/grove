@@ -84,4 +84,15 @@ test holds (hard to reverse · surprising without context · the result of a rea
 trade-off — all three). That skill owns the test, format, and template;
 [ADR-FORMAT.md](./ADR-FORMAT.md) adds grove's placement conventions.
 
+### Agree the test seams
+
+When the increment covers code that will be tested, sketch the seams the work will
+be tested through and put them to the user before the design is committed: "these
+are the seams — do they match what you expected?" Prefer existing seams to new
+ones, propose any new seam at the highest point you can, and drive the count down —
+the ideal number is one. Record the agreement in the spec's `## Test seams`, or,
+when the increment writes no spec, in the node's `BRIEF.md`
+([SPEC-FORMAT.md](./SPEC-FORMAT.md)). For what a seam is and how to judge one, use
+the `linkuistics:codebase-design` skill.
+
 </supporting-info>

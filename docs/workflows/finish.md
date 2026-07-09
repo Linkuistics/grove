@@ -64,7 +64,7 @@ Step 1 is ordinary, reviewable session work — its edits land in the diff like 
 This is the highest-stakes step. Anything load-bearing that *only* lives in `.grove/`'s briefs must find a permanent home before deletion. Typical candidates:
 
 - **Decisions** that were hard to reverse or that traded something off → a new ADR under `docs/adr/`.
-- **Design intent or rationale** that future contributors will want to know → `docs/grove.md`, `docs/specs/<area>-design.md`, or the README depending on audience.
+- **Design intent or rationale** that future contributors will want to know → `docs/grove.md`, `docs/specs/<slug>.md`, or the README depending on audience.
 - **Glossary terms** that emerged during the grove → `CONTEXT.md` (or the relevant per-bounded-context glossary). In a disciplined grove these landed inline at the moment they were resolved, so this is usually a no-op double-check, not new work.
 
 What is *not* promoted: process scaffolding. Decomposition rationale, planning notes, the order in which things were tackled — those are exactly what `.grove/` exists to hold, and they exit when the directory exits. If the discipline of "what to promote vs. what to delete" feels unclear, the litmus is: would a reader who never opens `.grove/` ever need this? If yes, promote; if no, let it go.

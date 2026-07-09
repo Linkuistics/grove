@@ -38,9 +38,10 @@ Why this node is split the way it is, and what the child ordering (the per-level
 positions) encodes (dependencies, natural sequence). One line per child is enough.
 
 ## Pointers
-- ADRs a session here must read: docs/adr/NNNN-*.md, …
+- ADRs a session here must read: docs/adr/<slug>.md, …
 - Glossary terms in play: <term>, <term> (see CONTEXT.md)
-- Design specs: docs/specs/*-design.md
+- Specs covering this area: docs/specs/<slug>.md
+- Test seams this subtree's leaves share: <seam> (see SPEC-FORMAT.md)
 
 ## Notes
 Anything a session needs that is not yet an ADR or a glossary entry. On

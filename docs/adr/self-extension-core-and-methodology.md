@@ -7,7 +7,7 @@ grove is two things and nothing else:
    `leaf-retire` / `brief-chain` / `resolve`), the two task kinds, and the minimal
    loop skeleton.
 2. **Its distinctive methodology** — grilling, the `driving.md` habits, the loop
-   discipline, and the CONTEXT / ADR / PRD format guides.
+   discipline, and the CONTEXT / ADR / SPEC format guides.
 
 Both are **bundled in a single global skill**. Distribution is one
 `brew install grove` binary that embeds the methodology `content/` and provisions the

@@ -26,7 +26,7 @@ The **[Ubiquitous Language](concepts.md#ubiquitous-language)** — DDD's term fo
 
 When a project splits into multiple **[bounded contexts](concepts.md#bounded-context)** — DDD's term for distinct domain partitions, each with its own vocabulary — each gets its own `CONTEXT.md`, linked by a root [`CONTEXT-MAP.md`](concepts.md#context-map). A bounded context (a *domain* partition) is orthogonal to a task-tree node (a *process* partition): the glossary is per-bounded-context; a node carries a `BRIEF.md`, not a glossary. The two axes don't compete.
 
-Artifacts are **lazy and optional**. An [ADR](concepts.md#adr) is raised only when a decision is hard to reverse, surprising, or a real trade-off — not because a step demands one. A [PRD](concepts.md#prd) is written only at a genuine human-facing agreement point. A brief is created only when a node is needed. Nothing is produced speculatively.
+Artifacts are **lazy and optional**. An [ADR](concepts.md#adr) is raised only when a decision is hard to reverse, surprising, or a real trade-off — not because a step demands one. A [spec](concepts.md#spec) is written only at a genuine human-facing agreement point. A brief is created only when a node is needed. Nothing is produced speculatively.
 
 Bootstrap is **read-only**: a session reads the glossary, the ADRs cited by the briefs, the `BRIEF.md` chain from root to the current leaf, and the task file itself. No script must succeed before work begins. Delete the grove skill and `.grove/` is still a legible folder of notes.
 

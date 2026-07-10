@@ -52,12 +52,12 @@ The methodology grove leans on borrows vocabulary from older traditions — **Do
 
 **Definition.** An Architecture Decision Record (ADR) is a short document that captures one architecturally-significant decision: its context, the choice made, the alternatives considered, and the consequences. It exists so a future reader can reconstruct *why* the code looks the way it does without having to interview the original team.
 
-**How grove uses it.** ADRs live in `docs/adr/` as `NNNN-slug.md`, one decision per file, numbered sequentially. Planning sessions offer them **sparingly** — only when the decision is (1) hard to reverse, (2) surprising without context, and (3) the result of a real trade-off. If any of the three is missing, no ADR. Briefs cite the ADRs a leaf-executing session must read; the brief chain root→leaf is the curated path into the project's ADR set.
+**How grove uses it.** ADRs live in `docs/adr/`, one file per decision, **slug-named** (`docs/adr/<slug>.md`) — the slug is the ADR's identity; cite it by slug or title, never by number. Planning sessions offer them sparingly, and treat the set as a **minimum coherent set describing grove's current design**, not an append-only chronology: when a later decision changes what an earlier ADR recorded, the move is to edit that ADR in place — merge, split, or delete as understanding shifts — never to append a superseding record (git holds what used to be true). Briefs cite the ADRs a leaf-executing session must read; the brief chain root→leaf is the curated path into the project's ADR set. The `linkuistics:decision-records` skill owns the philosophy, format, minimal template, and the when-to-write test that decides whether a decision earns an ADR at all.
 
 **References.**
 - Michael Nygard, ["Documenting Architecture Decisions"](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) (2011) — the original convention.
 - [MADR](https://adr.github.io/madr/) — a widely-used template if you want more structure.
-- [`../content/ADR-FORMAT.md`](../content/ADR-FORMAT.md) — grove's preferred shape.
+- [`../content/ADR-FORMAT.md`](../content/ADR-FORMAT.md) — grove's placement conventions (where ADRs live, one set per bounded context); the `linkuistics:decision-records` skill owns the format and template.
 
 ## Spec
 

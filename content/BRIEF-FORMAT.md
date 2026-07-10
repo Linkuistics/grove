@@ -17,6 +17,18 @@ is context, not a task, it is **never** marked done: a node is done
 place. On that completion, anything still live in the brief is promoted upward
 (see SKILL.md, "Retire").
 
+**Durable content.** The same durability that governs a node's *identity*
+(the permanent `-k<key>`, unmoved by renumber or reorder) should govern a
+node's *content*: state behavioural contracts and named types — what a
+component does, what it guarantees — rather than file paths or line numbers,
+which go stale within a session or two as the tree and the code around it
+both move.
+
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/triage/AGENT-BRIEF.md, "Durability over precision")
+     — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
+
 ## Suggested shape
 
 A guide, not a schema (constraint 3). Nothing validates a brief; nothing breaks
@@ -42,6 +54,11 @@ positions) encodes (dependencies, natural sequence). One line per child is enoug
 - Glossary terms in play: <term>, <term> (see CONTEXT.md)
 - Specs covering this area: docs/specs/<slug>.md
 - Test seams this subtree's leaves share: <seam> (see SPEC-FORMAT.md)
+
+## On the horizon
+Foreseen work too dim to leaf yet — a question you can already state
+precisely, not one you can already answer (see driving.md, "Recording fog
+without pre-slicing it"). Once precise, `leaf-add` it and drop the line here.
 
 ## Notes
 Anything a session needs that is not yet an ADR or a glossary entry. On

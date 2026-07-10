@@ -145,7 +145,8 @@ two verbs:
   `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
 - **The current item proves bigger** than its brief assumed — turn the leaf into
   a node (a brief, `BRIEF-FORMAT.md`, and ordered child leaves) with
-  `leaf-decompose`, doing **only the first child** this session.
+  `leaf-decompose`, doing **only the first child** this session, each child
+  shaped as a vertical slice that stands demoable on its own (`driving.md`).
 
 Continue inline **only** while the work still serves this leaf's stated goal
 *and* fits one focused, low-context session — the bar is *"fits this session,"

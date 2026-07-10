@@ -1,4 +1,11 @@
-<!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
+<!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c
+     — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. Deliberately NOT
+     re-synced to upstream's later trim (which removed the example-dialogue,
+     relationships, and flagged-ambiguities rules) — grove keeps the richer
+     pre-trim superset. One rule below is a further deliberate addition past
+     that pin, from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/productivity/teach/GLOSSARY-FORMAT.md). -->
+
 # CONTEXT.md Format
 
 ## Structure
@@ -28,6 +35,7 @@ _Avoid_: Client, buyer, account
 - **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
 - **Flag conflicts explicitly.** If a term is used ambiguously, call it out in "Flagged ambiguities" with a clear resolution.
 - **Keep definitions tight.** One or two sentences max. Define what it IS, not what it does.
+- **Use the glossary's own terms inside definitions.** Once a term is in the glossary, prefer it everywhere — including inside other definitions. This is what makes complex terms easier to grasp on a later read.
 - **Show relationships.** Use bold term names and express cardinality where obvious.
 - **Only include terms specific to this project's context.** General programming concepts (timeouts, error types, utility patterns) don't belong even if the project uses them extensively. Before adding a term, ask: is this a concept unique to this context, or a general programming concept? Only the former belongs.
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.

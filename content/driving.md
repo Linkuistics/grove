@@ -15,6 +15,22 @@ repo, which is the worked example for every pattern below. Paths point at
 artifacts in that workstream so a reader can trace a real chain
 end-to-end.
 
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/wayfinder/SKILL.md, "Chart the map" step 2's no-fog
+     early exit) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
+
+## When not to start a grove
+
+Before reaching for `root-init`, check that the journey actually needs a map.
+If a first planning session surfaces no real fog — the path to done is
+already clear and the whole thing fits in one sitting — do the work directly
+instead: a grove would only wrap it in a tree, a brief chain, and a relaunch
+cycle it doesn't need. Reach for `root-init` once genuine session-to-session
+fog shows up — work whose shape you can't see past the next session or two.
+`root-init` will always mint a first planning leaf on request; that
+mechanical fact is not itself the signal to run it.
+
 ## When to commission prior-art research
 
 A planning leaf is the right unit for a grilling session when the design
@@ -328,6 +344,53 @@ exists precisely so a late-surfacing concern can slot ahead of queued work
 without disturbing it. A tree that keeps sprouting small, concrete leaves is the
 system working as intended — lazy means *just-in-time, not few* (`SKILL.md`
 constraint 4), so don't ration leaves to keep the tree looking tidy.
+
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules and the
+     wide-refactor expand-contract exception) — MIT licensed; see
+     LICENSES/mattpocock-skills.LICENSE. -->
+
+## What a good child leaf looks like
+
+Externalizing tells you *when* to split; this is what the split should
+produce. A good child leaf is a **vertical slice**: it cuts a narrow but
+complete path through everything its goal touches, not a horizontal layer
+that sits dead until its siblings land. The test is independence — can this
+leaf's work be demoed or verified on its own, without waiting on a sibling? A
+leaf that fails this test needs its lines redrawn, even if it still fits one
+session. This is a second axis alongside "fits this session" (`SKILL.md`'s
+Decompose step), not a replacement for it.
+
+**Wide refactors are the exception.** A mechanical change whose blast radius
+fans across the whole codebase — rename a shared column, retype a symbol
+every caller touches — breaks too many call sites at once for any vertical
+slice to land green. Sequence it **expand → contract** instead, each stage
+its own leaf, added in order with `leaf-add`: first a leaf that adds the new
+form beside the old so nothing breaks; then a leaf per migration batch (sized
+by blast radius — per package, per directory), each keeping CI green because
+the old form still exists alongside the new; finally a leaf that deletes the
+old form once no caller remains.
+
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
+     specified") — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
+
+## Recording fog without pre-slicing it
+
+grove's laziness (`SKILL.md` constraint 4) means a leaf either exists or it
+doesn't — there's nowhere to keep the dim view of work you can see coming but
+can't yet leaf-shape. A brief's **On the horizon** note (`BRIEF-FORMAT.md`)
+is that place: a line or two recording foreseen work without pre-slicing it
+into a leaf.
+
+The line between a horizon note and a leaf is the **fog-or-ticket test**: can
+you state the question precisely right now — not whether you can answer it.
+A question you can already phrase precisely earns a leaf immediately with
+`leaf-add`, even if it's blocked and unanswerable today. A question still too
+dim to phrase that precisely stays a horizon note until a later session
+sharpens it enough to graduate.
 
 ## Anti-patterns
 

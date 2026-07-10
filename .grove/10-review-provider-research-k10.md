@@ -1,9 +1,6 @@
 # review-provider-research-k10
 
-**Kind:** work
-
-<!-- re-kind to `research` once task-kinds-impl-k9 lands; the enum does not yet
-     accept the label, so `leaf-add --kind research` would have errored. -->
+**Kind:** research
 
 ## Goal
 

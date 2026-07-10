@@ -144,6 +144,60 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
 }
 
 #[test]
+fn decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind() {
+    // task-kind-taxonomy: the first child inherits the decomposed leaf's own
+    // kind (here `research`) when `--kind` is not given.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** research\n\nbody body\n",
+    );
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+    );
+    assert!(ok, "leaf-decompose failed");
+    let child = rel_line(&stdout, tmp.path(), 1);
+    let body = read(tmp.path(), child.to_str().unwrap());
+    assert!(
+        body.contains("**Kind:** research"),
+        "child must inherit the parent leaf's kind, got {body:?}"
+    );
+}
+
+#[test]
+fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** research\n\nbody body\n",
+    );
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &[
+            "leaf-decompose",
+            ".grove/01-target-k1.md",
+            "sub",
+            "--kind",
+            "review",
+        ],
+    );
+    assert!(ok, "leaf-decompose failed");
+    let child = rel_line(&stdout, tmp.path(), 1);
+    let body = read(tmp.path(), child.to_str().unwrap());
+    assert!(
+        body.contains("**Kind:** review"),
+        "--kind must override the parent leaf's kind, got {body:?}"
+    );
+}
+
+#[test]
 fn decompose_rejects_a_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");

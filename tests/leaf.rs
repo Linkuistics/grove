@@ -196,6 +196,37 @@ fn add_with_planning_kind_writes_planning_in_template() {
 }
 
 #[test]
+fn add_with_review_kind_succeeds() {
+    // task-kind-taxonomy: `review` is one of the five, not just `work`/`planning`.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "review"]);
+    assert!(ok);
+    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(body.contains("**Kind:** review\n"), "got {body:?}");
+}
+
+#[test]
+fn add_rejects_an_unrecognised_kind_listing_the_five() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "reserch"]);
+    assert!(!ok, "an unrecognised --kind must be rejected at write time");
+    for label in ["planning", "research", "prototype", "work", "review"] {
+        assert!(
+            stderr.contains(label),
+            "error must list {label:?}, got {stderr:?}"
+        );
+    }
+}
+
+#[test]
 fn add_rejects_invalid_slug() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");

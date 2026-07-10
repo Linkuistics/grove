@@ -6,16 +6,24 @@ use std::path::PathBuf;
 /// discoverable how-to.
 const MODEL_ENV_HELP: &str = "\
 Environment variables:
-  GROVE_PLANNING_MODEL  Model for planning leaves (grilling / design).
-  GROVE_WORK_MODEL      Model for work leaves (code / docs / tests).
+  GROVE_PLANNING_MODEL   Model for planning leaves (grilling / design).
+  GROVE_RESEARCH_MODEL   Model for research leaves (produces docs/research/*.md).
+  GROVE_PROTOTYPE_MODEL  Model for prototype leaves (a cheap throwaway artifact).
+  GROVE_WORK_MODEL       Model for work leaves (code / docs / tests).
+  GROVE_REVIEW_MODEL     Model for review leaves (fresh-context adversarial read).
 
 The loop passes the matching value via Claude Code's native `--model` at each
 task launch, keyed on the picked leaf's kind. Unset ⇒ no `--model`: the session
 inherits your own default (ANTHROPIC_MODEL / Claude Code settings), so grove is
 a no-op until you opt in and never clobbers a default you already set. Setting
-only one variable is fine — the other kind still inherits. An in-session
-`/model` switch overrides the launch model but does NOT persist across relaunch
-(each task is a fresh session launched on its kind's default).
+only some of the five is fine — an unconfigured kind still inherits.
+
+An in-session `/model` switch outranks the launch `--model` for that one
+session. Whether it persists into the *next* task depends on the switched
+kind's env var: if it is set, the driver passes `--model` again next launch and
+the override does NOT persist; if it is unset, interactive `/model` saves as
+your own default, so the override DOES persist into every subsequent
+unconfigured session.
 
 Example:
   GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do <name>";

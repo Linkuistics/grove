@@ -43,11 +43,14 @@ GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do <name>
 | Variable | Applies to |
 |---|---|
 | `GROVE_PLANNING_MODEL` | planning leaves (grilling, design) |
+| `GROVE_RESEARCH_MODEL` | research leaves (citation-disciplined surveys) |
+| `GROVE_PROTOTYPE_MODEL` | prototype leaves (a cheap throwaway artifact) |
 | `GROVE_WORK_MODEL` | work leaves (code, docs, tests) |
+| `GROVE_REVIEW_MODEL` | review leaves (fresh-context adversarial read) |
 
 The loop passes the matching value via Claude Code's native `--model` at each launch. Two things to know:
 
-- **Unset ⇒ inherit your own default.** Leave a variable unset and grove passes no `--model` for that kind — the session runs on your own default (`ANTHROPIC_MODEL` or your Claude Code settings). So grove is a no-op until you opt in, and it never clobbers a default you already have; setting only one variable is fine (the other kind still inherits).
-- **The launch model is a default, not a lock.** An in-session `/model` switch overrides it (native Claude Code, higher priority than `--model`) but **does not persist across relaunch** — each task is a fresh session the loop launches on its kind's default, so a mid-session `/model` change applies to that one session only.
+- **Unset ⇒ inherit your own default.** Leave a variable unset and grove passes no `--model` for that kind — the session runs on your own default (`ANTHROPIC_MODEL` or your Claude Code settings). So grove is a no-op until you opt in, and it never clobbers a default you already have; setting only some of the five is fine (an unconfigured kind still inherits).
+- **The launch model is a default, not a lock.** An in-session `/model` switch outranks `--model` for that one session (native Claude Code). Whether it persists into the *next* task depends on the switched kind's env var: **set** ⇒ the driver passes `--model` again on the next launch and the override does not persist; **unset** ⇒ interactive `/model` saves as your own default, so the override *does* persist into every subsequent unconfigured session.
 
 See [`docs/adr/model-per-task-kind.md`](docs/adr/model-per-task-kind.md) for the rationale (why native `--model` rather than a router/proxy).

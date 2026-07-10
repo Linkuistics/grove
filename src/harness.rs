@@ -28,9 +28,11 @@ pub struct Harness {
     pub name_args: &'static [&'static str],
     /// CLI flag template for selecting the launch model (model-per-task-kind),
     /// parallel to `name_args`: *how* to pass a model is per-harness, while the
-    /// *value* comes from `GROVE_PLANNING_MODEL` / `GROVE_WORK_MODEL`. For claude:
-    /// `["--model"]`. An **empty** template means "this harness opts out of model
-    /// selection" — the loop driver skips passing any model flag for it.
+    /// *value* comes from the picked leaf's kind's env var (one of
+    /// `GROVE_PLANNING_MODEL` / `GROVE_RESEARCH_MODEL` / `GROVE_PROTOTYPE_MODEL`
+    /// / `GROVE_WORK_MODEL` / `GROVE_REVIEW_MODEL`). For claude: `["--model"]`.
+    /// An **empty** template means "this harness opts out of model selection" —
+    /// the loop driver skips passing any model flag for it.
     pub model_args: &'static [&'static str],
 }
 

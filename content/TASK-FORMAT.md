@@ -11,28 +11,46 @@ right after the position: `03-DONE-extract-k7.md`. One task is one session
 (constraint: one task per session). The file is freeform markdown — a guide
 follows, not a schema.
 
-## The two kinds
+## The five kinds
 
-Every task file states its **kind**. There are two:
+Every task file states its **kind**, drawn from a closed set of five (ADR
+`task-kind-taxonomy`). Adding a sixth is a deliberate change to grove's code
+and docs, not a free-text label a leaf may coin. Each is marked **HITL**
+(resolves through live exchange with a human who speaks for themselves) or
+**AFK** (driven by the agent alone) — a HITL leaf reached by an unattended
+relaunch of the self-driving loop simply waits for a human, which is correct
+behaviour, not a fault:
 
-- **work** — produces code, docs, or tests. The deliverable is an artifact.
-  (`driving.md` carries the work-session habits: cite framework decisions to the
-  source, doubt a hard-to-reverse decision before it stands, and externalize
-  surfaced work into new leaves rather than absorbing it.)
-- **planning** — grills, sharpens the glossary, may raise an ADR or a spec, and
-  **grows the tree**: turns an oversized leaf into a node — a **directory**
-  `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child leaves. The
-  deliverable is *more tree*.
+- **planning** (HITL) — grills, sharpens the glossary, may raise an ADR or a
+  spec, and **grows the tree**: turns an oversized leaf into a node — a
+  **directory** `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child
+  leaves. The deliverable is *more tree*. The only kind with methodological
+  force — the sole branch in the loop's Execute step.
+- **research** (AFK) — a citation-disciplined literature/prior-art survey.
+  Produces `docs/research/<slug>.md`; no grilling, no tree growth.
+- **prototype** (HITL) — a cheap, deliberately throwaway artifact built to
+  react to, not to ship. The point is the reaction it provokes, not the code's
+  survival.
+- **work** (AFK) — produces code, docs, or tests. The deliverable is an
+  artifact. (`driving.md` carries the work-session habits: cite framework
+  decisions to the source, doubt a hard-to-reverse decision before it stands,
+  and externalize surfaced work into new leaves rather than absorbing it.)
+- **review** (AFK) — a fresh-context adversarial read of already-done work.
+  Produces findings, not a fix.
 
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
+
+`leaf-decompose` gives a node's first child the kind of the leaf it just
+decomposed, unless `--kind` overrides it — a research leaf that proves bigger
+becomes a research node by default.
 
 ## Suggested shape
 
 ```markdown
 # <slug>-k<key>
 
-**Kind:** work          (or: planning)
+**Kind:** work          (or: planning, research, prototype, review)
 
 ## Goal
 What this one session must deliver.

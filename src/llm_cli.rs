@@ -63,12 +63,16 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Print a leaf's task **kind** — `planning` or `work` — read from its
-    /// `**Kind:**` line. With no argument the kind is read for `pick`'s next
-    /// live leaf; on an empty grove it prints the standard "no live leaves"
-    /// diagnostic on stderr (mirroring `brief-chain`) and exits 0. The output
-    /// is a single lowercase token + newline. The self-driving loop calls this
-    /// to choose each session's launch model by the picked leaf's kind
+    /// Print a leaf's task **kind** — one of the closed five (`planning`,
+    /// `research`, `prototype`, `work`, `review` — ADR `task-kind-taxonomy`) —
+    /// read from its `**Kind:**` line. With no argument the kind is read for
+    /// `pick`'s next live leaf; on an empty grove it prints the standard "no
+    /// live leaves" diagnostic on stderr (mirroring `brief-chain`) and exits 0.
+    /// A missing or unrecognised `**Kind:**` line **degrades**: it warns on
+    /// stderr and prints `work` rather than erroring, so a hand-edited or
+    /// foreign task file can never jam the self-driving loop. The output is a
+    /// single lowercase token + newline. The self-driving loop calls this to
+    /// choose each session's launch model by the picked leaf's kind
     /// (model-per-task-kind).
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
@@ -109,8 +113,10 @@ pub enum Command {
     /// becomes the node `k<key>`), `git mv`ing the leaf body in as the node's
     /// `BRIEF.md` (its `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child `01-<first-child-slug>-k<new>.md` so the
-    /// node is never childless. Prints the brief's absolute path then the first
-    /// child's, one per line. Working-tree change only — no commit.
+    /// node is never childless. The first child **inherits the decomposed
+    /// leaf's own kind** (task-kind-taxonomy) unless `--kind` overrides it.
+    /// Prints the brief's absolute path then the first child's, one per line.
+    /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
     /// Mark a live leaf retired in place by adding a `DONE` infix
     /// (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`) — no `done/`
@@ -170,7 +176,9 @@ pub struct LeafAddArgs {
     pub parent: String,
     /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
     pub slug: String,
-    /// Leaf kind, written into the templated `**Kind:**` line.
+    /// Leaf kind — one of `planning`, `research`, `prototype`, `work`,
+    /// `review` (task-kind-taxonomy) — written into the templated `**Kind:**`
+    /// line. An unrecognised value errors, listing the five.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
 }
@@ -182,7 +190,9 @@ pub struct LeafInsertArgs {
     pub target: String,
     /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
     pub slug: String,
-    /// Leaf kind, written into the templated `**Kind:**` line.
+    /// Leaf kind — one of `planning`, `research`, `prototype`, `work`,
+    /// `review` (task-kind-taxonomy) — written into the templated `**Kind:**`
+    /// line. An unrecognised value errors, listing the five.
     #[arg(long = "kind", default_value = "work")]
     pub kind: String,
 }
@@ -194,9 +204,11 @@ pub struct LeafDecomposeArgs {
     /// Slug for the node's first child (lowercase ASCII letters, digits,
     /// dashes).
     pub first_child_slug: String,
-    /// First child's kind, written into its templated `**Kind:**` line.
-    #[arg(long = "kind", default_value = "work")]
-    pub kind: String,
+    /// Override the first child's kind — one of `planning`, `research`,
+    /// `prototype`, `work`, `review` (task-kind-taxonomy). Default: inherit
+    /// the leaf being decomposed's own kind.
+    #[arg(long = "kind")]
+    pub kind: Option<String>,
 }
 
 #[derive(Parser)]
@@ -360,10 +372,16 @@ fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
-    let kind = Kind::parse(&args.kind)?;
+    // `None` (the default) inherits the decomposed leaf's own kind; `--kind`
+    // overrides it (task-kind-taxonomy).
+    let kind_override = args.kind.as_deref().map(Kind::parse).transpose()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
-    let (brief_path, child_path) =
-        tree_lifecycle::leaf_decompose(&grove_root, &leaf_path, &args.first_child_slug, kind)?;
+    let (brief_path, child_path) = tree_lifecycle::leaf_decompose(
+        &grove_root,
+        &leaf_path,
+        &args.first_child_slug,
+        kind_override,
+    )?;
     println!("{}", brief_path.display());
     println!("{}", child_path.display());
     Ok(())

@@ -190,7 +190,9 @@ exit 0
 // construction (fresh-grove-start-contract); the continue path peeks the next
 // live leaf's kind via the real `grove-llm kind` binary (wired in via the
 // `GROVE_LLM_BIN` seam, run against a real git worktree so `kind` resolves the
-// grove root). Asserts the exact `--model` per iteration.
+// grove root). Asserts the exact `--model` per iteration, across three of the
+// five kinds — planning (start), then two non-binary continue kinds (work,
+// review) — proving the scheme is a real five-way lookup, not just a binary.
 #[test]
 fn loop_selects_model_by_kind() {
     let _g = ENV_LOCK.lock().unwrap();
@@ -219,9 +221,11 @@ fn loop_selects_model_by_kind() {
     let log = worktree.join("log");
 
     // Fake claude: log the full argv per iteration. On the first (start) run,
-    // materialise a `.grove/` with one live **work** leaf so the second run
-    // takes the continue path and `grove-llm kind` resolves it to `work`. Fire
-    // the completion signal only on the first run, so the loop stops after two.
+    // materialise a `.grove/` with one live leaf kinded **work**, so the second
+    // run takes the continue path and `grove-llm kind` resolves it to `work`;
+    // that run then rewrites the same leaf's kind to **review** in place, so the
+    // third run's peek resolves to `review`. Fire the completion signal on the
+    // first two runs only, so the loop stops after three.
     let fake = worktree.join("fake-claude.sh");
     write_exec(
         &fake,
@@ -235,7 +239,10 @@ if [ "$n" -eq 1 ]; then
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
   printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
 fi
-if [ "$n" -lt 2 ]; then
+if [ "$n" -eq 2 ]; then
+  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+fi
+if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -251,6 +258,7 @@ exit 0
     std::env::set_var("GROVE_TEST_LOG", &log);
     std::env::set_var("GROVE_PLANNING_MODEL", "opus");
     std::env::set_var("GROVE_WORK_MODEL", "sonnet");
+    std::env::set_var("GROVE_REVIEW_MODEL", "haiku");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "modelgrove");
 
@@ -261,6 +269,7 @@ exit 0
     std::env::remove_var("GROVE_TEST_LOG");
     std::env::remove_var("GROVE_PLANNING_MODEL");
     std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -268,8 +277,8 @@ exit 0
     let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
     assert_eq!(
         rows.len(),
-        2,
-        "loop should run twice then stop (log: {log:?})"
+        3,
+        "loop should run three times then stop (log: {log:?})"
     );
 
     // Iteration 1 — start path ⇒ planning ⇒ GROVE_PLANNING_MODEL.
@@ -279,8 +288,8 @@ exit 0
         rows[0]
     );
     assert!(
-        !rows[0].contains("sonnet"),
-        "start session must not use the work model (argv: {:?})",
+        !rows[0].contains("sonnet") && !rows[0].contains("haiku"),
+        "start session must use only the planning model (argv: {:?})",
         rows[0]
     );
     // Iteration 2 — continue path ⇒ work leaf ⇒ GROVE_WORK_MODEL.
@@ -288,6 +297,13 @@ exit 0
         rows[1].contains("--model sonnet"),
         "continue (work) session must launch on the work model (argv: {:?})",
         rows[1]
+    );
+    // Iteration 3 — continue path ⇒ review leaf ⇒ GROVE_REVIEW_MODEL, proving a
+    // non-binary kind resolves correctly, not just planning/work.
+    assert!(
+        rows[2].contains("--model haiku"),
+        "continue (review) session must launch on the review model (argv: {:?})",
+        rows[2]
     );
 }
 
@@ -335,7 +351,10 @@ exit 0
 
     // Guard against leakage from another test in the same process.
     std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_RESEARCH_MODEL");
+    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
     std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
     std::env::set_var("GROVE_HARNESS_BIN", &fake);
     std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
     std::env::set_var("GROVE_TEST_COUNTER", &counter);

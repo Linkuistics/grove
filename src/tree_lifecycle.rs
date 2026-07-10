@@ -64,14 +64,19 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
 /// preserved**) holding a `BRIEF.md` (seeded from the leaf body, its `# <handle>`
 /// header retitled `# <handle> — brief`) and a first child
 /// `01-<first-child-slug>-k<new>.md` grown atomically so the node is never
-/// childless. `kind` is the first child's kind. Refuses a brief, a node, and an
-/// already-`DONE` leaf. Returns `(brief_path, first_child_path)`. Working-tree
-/// only — no commit.
+/// childless. Refuses a brief, a node, and an already-`DONE` leaf. Returns
+/// `(brief_path, first_child_path)`. Working-tree only — no commit.
+///
+/// `kind_override` is `--kind`'s *override* of the first child's kind
+/// (task-kind-taxonomy): `None` inherits the leaf being decomposed's own kind —
+/// read via [`crate::tree_read::read_kind`], which degrades to `work` rather
+/// than erroring, so a leaf with a garbled `**Kind:**` line can still be
+/// decomposed — `Some(k)` uses `k` regardless of the parent's kind.
 pub fn leaf_decompose(
     grove_root: &Path,
     leaf_path: &Path,
     first_child_slug: &str,
-    kind: Kind,
+    kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
     // Validate the child slug up front, before any filesystem mutation, so a bad
     // slug leaves the leaf un-decomposed (no half-built childless node directory).
@@ -94,6 +99,13 @@ pub fn leaf_decompose(
             bail!("cannot decompose a node (it already has children): {name}")
         }
         None => bail!("not a v2 leaf: {name}"),
+    };
+
+    // Inherit the parent leaf's own kind unless overridden — read before the
+    // `git mv` below moves it out from under this path.
+    let kind = match kind_override {
+        Some(k) => k,
+        None => crate::tree_read::read_kind(&parent_abs.join(&name))?,
     };
 
     // The entity that was leaf k becomes node directory k: same position, key, and
@@ -453,7 +465,7 @@ mod tests {
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
         let (brief, _child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Kind::Work).unwrap();
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Some(Kind::Work)).unwrap();
         // The entity that was leaf k3 becomes node k3 — a directory holding BRIEF.md.
         assert_eq!(name_of(&brief), "BRIEF.md");
         assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
@@ -476,7 +488,7 @@ mod tests {
         touch_body(&g, "02-build-k3.md", "# build-k3\n\n## Goal\nship it\n");
         stage_all(&g);
         let (brief, _child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Kind::Work).unwrap();
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Some(Kind::Work)).unwrap();
         let text = body(&brief);
         assert_eq!(
             text.lines().next().unwrap(),
@@ -496,7 +508,7 @@ mod tests {
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
         let (_brief, child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Kind::Work).unwrap();
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Some(Kind::Work)).unwrap();
         assert_eq!(name_of(&child), "01-step-k4.md");
         assert_eq!(name_of(child.parent().unwrap()), "02-build-k3");
         assert!(g.join("02-build-k3").join("01-step-k4.md").is_file());
@@ -509,7 +521,7 @@ mod tests {
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
         let (_brief, child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Kind::Work).unwrap();
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Some(Kind::Work)).unwrap();
         let text = body(&child);
         assert!(text.starts_with("# step-k4\n"), "got {text:?}");
         assert!(text.contains("**Kind:** work"), "got {text:?}");
@@ -522,8 +534,39 @@ mod tests {
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
         let (_brief, child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "design", Kind::Planning).unwrap();
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "design", Some(Kind::Planning)).unwrap();
         assert!(body(&child).contains("**Kind:** planning"));
+    }
+
+    #[test]
+    fn decompose_with_no_override_inherits_the_parent_leafs_own_kind() {
+        // task-kind-taxonomy: `leaf-decompose` gives the first child the leaf
+        // being decomposed's own kind when `--kind` is not given.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch_body(&g, "02-build-k3.md", "# build-k3\n\n**Kind:** research\n");
+        stage_all(&g);
+        let (_brief, child) = leaf_decompose(&g, Path::new("02-build-k3.md"), "step", None).unwrap();
+        assert!(
+            body(&child).contains("**Kind:** research"),
+            "got {:?}",
+            body(&child)
+        );
+    }
+
+    #[test]
+    fn decompose_override_wins_over_the_parent_leafs_kind() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch_body(&g, "02-build-k3.md", "# build-k3\n\n**Kind:** research\n");
+        stage_all(&g);
+        let (_brief, child) =
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", Some(Kind::Review)).unwrap();
+        assert!(
+            body(&child).contains("**Kind:** review"),
+            "got {:?}",
+            body(&child)
+        );
     }
 
     #[test]
@@ -534,7 +577,7 @@ mod tests {
         touch(&build, "02-mid-k5.md", "mid-k5");
         stage_all(&g);
         let (brief, child) =
-            leaf_decompose(&g, &build.join("02-mid-k5.md"), "first", Kind::Work).unwrap();
+            leaf_decompose(&g, &build.join("02-mid-k5.md"), "first", Some(Kind::Work)).unwrap();
         assert_eq!(
             name_of(brief.parent().unwrap()),
             "02-mid-k5",
@@ -553,7 +596,7 @@ mod tests {
         let (_t, g) = git_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         stage_all(&g);
-        let err = leaf_decompose(&g, &node.join("BRIEF.md"), "x", Kind::Work).unwrap_err();
+        let err = leaf_decompose(&g, &node.join("BRIEF.md"), "x", Some(Kind::Work)).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -562,7 +605,7 @@ mod tests {
         let (_t, g) = git_grove();
         let node = mknode(&g, "02-build-k3", "build-k3");
         stage_all(&g);
-        let err = leaf_decompose(&g, &node, "x", Kind::Work).unwrap_err();
+        let err = leaf_decompose(&g, &node, "x", Some(Kind::Work)).unwrap_err();
         assert!(err.to_string().contains("node"), "got {err}");
     }
 
@@ -573,7 +616,7 @@ mod tests {
         touch(&g, "02-DONE-build-k3.md", "build-k3");
         stage_all(&g);
         let err =
-            leaf_decompose(&g, Path::new("02-DONE-build-k3.md"), "x", Kind::Work).unwrap_err();
+            leaf_decompose(&g, Path::new("02-DONE-build-k3.md"), "x", Some(Kind::Work)).unwrap_err();
         assert!(
             err.to_string().to_lowercase().contains("done") || err.to_string().contains("retired"),
             "got {err}"
@@ -585,7 +628,7 @@ mod tests {
         let (_t, g) = git_grove();
         touch(&g, "README.md", "readme");
         stage_all(&g);
-        let err = leaf_decompose(&g, Path::new("README.md"), "x", Kind::Work).unwrap_err();
+        let err = leaf_decompose(&g, Path::new("README.md"), "x", Some(Kind::Work)).unwrap_err();
         assert!(err.to_string().contains("leaf"), "got {err}");
     }
 
@@ -597,7 +640,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
-        assert!(leaf_decompose(&g, Path::new("02-build-k3.md"), "Bad Slug", Kind::Work).is_err());
+        assert!(leaf_decompose(&g, Path::new("02-build-k3.md"), "Bad Slug", Some(Kind::Work)).is_err());
         let files = list(&g);
         assert!(
             files.contains(&"02-build-k3.md".to_string()),
@@ -616,7 +659,7 @@ mod tests {
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
         let abs = g.join("02-build-k3.md");
-        let (brief, _child) = leaf_decompose(&g, &abs, "step", Kind::Work).unwrap();
+        let (brief, _child) = leaf_decompose(&g, &abs, "step", Some(Kind::Work)).unwrap();
         assert_eq!(name_of(brief.parent().unwrap()), "02-build-k3");
     }
 
@@ -625,7 +668,7 @@ mod tests {
         let (_t, g) = git_grove();
         let missing = g.join("nope");
         let err =
-            leaf_decompose(&missing, Path::new("02-build-k3.md"), "x", Kind::Work).unwrap_err();
+            leaf_decompose(&missing, Path::new("02-build-k3.md"), "x", Some(Kind::Work)).unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"

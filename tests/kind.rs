@@ -1,12 +1,16 @@
 // Fixture-driven tests for `grove-llm kind` on the **v2 directory scheme**
-// (task-tree-scheme). `kind` prints a leaf's task kind — `planning` or `work` —
-// read from its `**Kind:**` line through `leaf::Kind::parse` (the single source
-// of truth). It is the primitive the self-driving loop uses to choose each
-// session's launch model by the picked leaf's kind (model-per-task-kind). With
-// no argument it reads `pick`'s next live leaf; on an empty grove it emits the
-// standard "no live leaves" diagnostic on stderr and exits 0 (mirroring
-// `brief-chain`). Each test stands up a real git repo so
-// `git rev-parse --show-toplevel` resolves to the fixture path.
+// (task-tree-scheme). `kind` prints a leaf's task kind — one of the closed five
+// (`planning`, `research`, `prototype`, `work`, `review` — ADR
+// `task-kind-taxonomy`) — read from its `**Kind:**` line through
+// `leaf::Kind::parse` (the single source of truth). It is the primitive the
+// self-driving loop uses to choose each session's launch model by the picked
+// leaf's kind (model-per-task-kind). With no argument it reads `pick`'s next
+// live leaf; on an empty grove it emits the standard "no live leaves"
+// diagnostic on stderr and exits 0 (mirroring `brief-chain`). Reading
+// **degrades**: a missing or unrecognised `**Kind:**` line warns on stderr and
+// is treated as `work` rather than erroring (write still gates — see
+// `tests/leaf.rs`'s invalid-`--kind` coverage). Each test stands up a real git
+// repo so `git rev-parse --show-toplevel` resolves to the fixture path.
 
 use assert_cmd::Command;
 use std::fs;
@@ -90,6 +94,22 @@ fn kind_of_a_planning_leaf() {
 }
 
 #[test]
+fn kind_of_the_three_newer_kinds() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    for (name, label) in [
+        ("01-a-k1.md", "research"),
+        ("02-b-k2.md", "prototype"),
+        ("03-c-k3.md", "review"),
+    ] {
+        touch_leaf(&grove, name, label);
+        let (stdout, _, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);
+        assert!(ok);
+        assert_eq!(stdout, format!("{label}\n"));
+    }
+}
+
+#[test]
 fn no_arg_form_reads_picks_next_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
@@ -120,16 +140,20 @@ fn empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero() {
 }
 
 #[test]
-fn missing_kind_line_errors_and_names_the_file() {
+fn missing_kind_line_degrades_to_work_with_a_warning() {
+    // Read degrades (task-kind-taxonomy): a leaf with no `**Kind:**` line at
+    // all is treated as `work`, warning on stderr but still exiting 0, so a
+    // hand-edited or foreign task file can never jam the self-driving loop.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "01-broken-k1.md"); // `# stub` only — no `**Kind:**` line
 
-    let (_, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
-    assert!(!ok, "a malformed task file must be an error, not a panic");
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
+    assert!(ok, "a missing Kind line must degrade, not error");
+    assert_eq!(stdout, "work\n");
     assert!(
-        stderr.contains("**Kind:**") && stderr.contains("01-broken-k1.md"),
-        "error must be actionable and name the file, got {stderr:?}"
+        stderr.contains("01-broken-k1.md"),
+        "warning must name the file, got {stderr:?}"
     );
     assert!(
         !stderr.contains("panicked"),
@@ -138,17 +162,31 @@ fn missing_kind_line_errors_and_names_the_file() {
 }
 
 #[test]
-fn garbled_kind_token_errors_and_names_the_file() {
+fn garbled_kind_token_degrades_to_work_with_a_warning() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch_leaf(&grove, "01-broken-k1.md", "sideways");
 
-    let (_, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
-    assert!(!ok);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
+    assert!(ok, "an unrecognised kind token must degrade, not error");
+    assert_eq!(stdout, "work\n");
     assert!(
         stderr.contains("01-broken-k1.md"),
-        "error must name the file, got {stderr:?}"
+        "warning must name the file, got {stderr:?}"
     );
+}
+
+#[test]
+fn a_kind_hand_edited_to_reserch_degrades_to_work_with_exit_zero() {
+    // The Done-when example verbatim: a typo'd kind must never error.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch_leaf(&grove, "01-broken-k1.md", "reserch");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
+    assert!(ok, "exit 0 even on a typo'd kind");
+    assert_eq!(stdout, "work\n");
+    assert!(!stderr.is_empty(), "a warning must still be printed");
 }
 
 #[test]

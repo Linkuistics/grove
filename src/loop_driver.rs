@@ -16,9 +16,12 @@
 //       rm -f "$sig"
 //       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
 //       case "$kind" in
-//         planning) model="$GROVE_PLANNING_MODEL" ;;
-//         work)     model="$GROVE_WORK_MODEL" ;;
-//         *)        model="" ;;                       # empty grove → no --model
+//         planning)  model="$GROVE_PLANNING_MODEL" ;;
+//         research)  model="$GROVE_RESEARCH_MODEL" ;;
+//         prototype) model="$GROVE_PROTOTYPE_MODEL" ;;
+//         work)      model="$GROVE_WORK_MODEL" ;;
+//         review)    model="$GROVE_REVIEW_MODEL" ;;
+//         *)         model="" ;;                      # empty grove → no --model
 //       esac
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" \
@@ -207,10 +210,13 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
         return None;
     }
     let planning = env_model("GROVE_PLANNING_MODEL");
+    let research = env_model("GROVE_RESEARCH_MODEL");
+    let prototype = env_model("GROVE_PROTOTYPE_MODEL");
     let work = env_model("GROVE_WORK_MODEL");
-    // Neither kind configured ⇒ nothing to select; skip the kind peek so the
-    // common path stays a zero-subprocess, byte-for-byte-unchanged launch.
-    if planning.is_none() && work.is_none() {
+    let review = env_model("GROVE_REVIEW_MODEL");
+    // None of the five kinds configured ⇒ nothing to select; skip the kind peek
+    // so the common path stays a zero-subprocess, byte-for-byte-unchanged launch.
+    if planning.is_none() && research.is_none() && prototype.is_none() && work.is_none() && review.is_none() {
         return None;
     }
     let kind = if verb == "start" {
@@ -220,7 +226,10 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
     };
     match kind {
         Kind::Planning => planning,
+        Kind::Research => research,
+        Kind::Prototype => prototype,
         Kind::Work => work,
+        Kind::Review => review,
     }
 }
 

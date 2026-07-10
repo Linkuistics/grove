@@ -140,15 +140,17 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
     Ok(chain)
 }
 
-/// `kind [<leaf>]`: the task kind (`work` / `planning`) the loop driver keys
-/// model selection on (model-per-task-kind). With `leaf_path = Some`, read that
-/// leaf's `**Kind:**` line; with `None`, default to [`pick`]'s next live leaf and
+/// `kind [<leaf>]`: the task's kind — one of the closed five
+/// (task-kind-taxonomy) — the loop driver keys model selection on
+/// (model-per-task-kind). With `leaf_path = Some`, read that leaf's
+/// `**Kind:**` line; with `None`, default to [`pick`]'s next live leaf and
 /// return `Ok(None)` on an empty grove — the same "no live leaves" signal `pick`
 /// gives (the CLI renders it as the standard stderr diagnostic, mirroring
-/// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`. Parsing
-/// goes through [`Kind::parse`] (the single source of truth) — a missing or
-/// garbled `**Kind:**` line is an actionable error naming the file, never a
-/// panic.
+/// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`. Reading
+/// goes through [`read_kind`], which **degrades** rather than errors on a
+/// missing or unrecognised `**Kind:**` line (warns to stderr, treated as
+/// `work`) — so a hand-edited or foreign task file can never jam the
+/// self-driving loop.
 pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
@@ -164,38 +166,53 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
     read_kind(&leaf).map(Some)
 }
 
-/// Read a leaf task file's declared kind from its `**Kind:** <work|planning>`
-/// line (`content/TASK-FORMAT.md`). Takes the first line that begins with the
+/// Read a leaf task file's declared kind from its `**Kind:** <kind>` line
+/// (`content/TASK-FORMAT.md`). Takes the first line that begins with the
 /// `**Kind:**` marker and parses the first whitespace token after it through
 /// [`Kind::parse`] — so trailing commentary (`**Kind:** work   (or: planning)`)
-/// is tolerated. Every failure path is actionable and names the file: an
-/// unreadable file, a file with no `**Kind:**` line, and a line whose token is
-/// not one of the two labels.
-fn read_kind(leaf_path: &Path) -> Result<Kind> {
+/// is tolerated.
+///
+/// **Read degrades** (task-kind-taxonomy, the counterpart to [`Kind::parse`]'s
+/// write-side gate): a missing `**Kind:**` line, an empty one, or a token
+/// [`Kind::parse`] does not recognise — hand-edited, or written by a future
+/// grove version — warns to stderr, naming the file, and is treated as
+/// `Kind::Work`. This function never errors on the content of the line; only
+/// a genuine I/O failure (the file cannot be read at all) still returns `Err`.
+/// Reading must degrade because the self-driving loop relaunches unattended: a
+/// typo in a task file must never jam it (constraint 5). `leaf_decompose`
+/// reuses this to inherit a leaf's kind, so the same degrade applies there.
+pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
     let text = fs::read_to_string(leaf_path)
         .with_context(|| format!("reading task file {}", leaf_path.display()))?;
     for line in text.lines() {
         let Some(rest) = line.trim_start().strip_prefix("**Kind:**") else {
             continue;
         };
-        let token = rest.split_whitespace().next().with_context(|| {
-            format!(
-                "task file {} has an empty `**Kind:**` line",
+        let Some(token) = rest.split_whitespace().next() else {
+            eprintln!(
+                "grove: task file {} has an empty `**Kind:**` line; treating as `work`",
                 leaf_path.display()
-            )
-        })?;
-        return Kind::parse(token).with_context(|| {
-            format!(
-                "task file {} has an invalid `**Kind:**` line",
-                leaf_path.display()
-            )
+            );
+            return Ok(Kind::Work);
+        };
+        return Ok(match Kind::parse(token) {
+            Ok(k) => k,
+            Err(_) => {
+                eprintln!(
+                    "grove: task file {} has an unrecognised `**Kind:**` token {:?}; \
+                     treating as `work`",
+                    leaf_path.display(),
+                    token
+                );
+                Kind::Work
+            }
         });
     }
-    bail!(
-        "task file {} has no `**Kind:**` line \
-         (expected `**Kind:** work` or `**Kind:** planning`)",
+    eprintln!(
+        "grove: task file {} has no `**Kind:**` line; treating as `work`",
         leaf_path.display()
     );
+    Ok(Kind::Work)
 }
 
 /// The outcome of resolving a reference. The CLI maps this to stdout/stderr via
@@ -804,6 +821,19 @@ mod tests {
     }
 
     #[test]
+    fn kind_reads_the_three_newer_kinds() {
+        let (_t, g) = grove();
+        for (name, label, want) in [
+            ("01-a-k1.md", "research", Kind::Research),
+            ("02-b-k2.md", "prototype", Kind::Prototype),
+            ("03-c-k3.md", "review", Kind::Review),
+        ] {
+            let leaf = touch_body(&g, name, &format!("**Kind:** {label}\n"));
+            assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(want));
+        }
+    }
+
+    #[test]
     fn kind_no_arg_defaults_to_picks_next_leaf() {
         let (_t, g) = grove();
         touch(&g, "01-DONE-old-k1.md"); // skipped by pick
@@ -840,28 +870,20 @@ mod tests {
     }
 
     #[test]
-    fn kind_errors_on_a_missing_kind_line_naming_the_file() {
+    fn kind_degrades_to_work_on_a_missing_kind_line() {
+        // Read degrades (task-kind-taxonomy): a leaf with no `**Kind:**` line at
+        // all — `touch` writes only `# stub` — is treated as `work`, never an
+        // error, so a hand-edited leaf can never jam the self-driving loop.
         let (_t, g) = grove();
-        // `touch` writes only `# stub` — no `**Kind:**` line.
         let leaf = touch(&g, "01-a-k1.md");
-        let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
-        assert!(err.contains("no `**Kind:**` line"), "got {err}");
-        assert!(
-            err.contains("01-a-k1.md"),
-            "error must name the file: {err}"
-        );
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
     }
 
     #[test]
-    fn kind_errors_on_a_garbled_kind_token_naming_the_file() {
+    fn kind_degrades_to_work_on_a_garbled_kind_token() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** bogus\n");
-        let err = kind(&g, Some(&leaf)).unwrap_err().to_string();
-        assert!(err.contains("invalid `**Kind:**` line"), "got {err}");
-        assert!(
-            err.contains("01-a-k1.md"),
-            "error must name the file: {err}"
-        );
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
     }
 
     #[test]

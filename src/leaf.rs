@@ -1,10 +1,11 @@
 // Shared leaf vocabulary that outlived the old-format reader/grower (swept in
 // 090/9.4 once the 060 migration unwired the old verb path). Two items survive:
 //
-//   * `Kind` — the leaf-kind enum (`work` / `planning`) written into a task
-//     file's `**Kind:**` line. Live: the new dotted-decimal grow/lifecycle
-//     verbs (`leaf_grow` / `leaf_lifecycle`) and the `grove-llm` CLI surface
-//     (`llm_cli`) parse and carry it.
+//   * `Kind` — the leaf-kind enum, a **closed set of five** (`planning`,
+//     `research`, `prototype`, `work`, `review` — ADR `task-kind-taxonomy`)
+//     written into a task file's `**Kind:**` line. Live: the new
+//     dotted-decimal grow/lifecycle verbs (`leaf_grow` / `leaf_lifecycle`) and
+//     the `grove-llm` CLI surface (`llm_cli`) parse and carry it.
 //   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per task-tree-scheme the
 //     *only* surviving consumer of the old format is `grove migrate`, which
 //     reads an old tree exactly once on adoption; this is the reader it leans on.
@@ -15,18 +16,38 @@
 
 use anyhow::{bail, Result};
 
+/// A leaf's declared session kind — a closed set (ADR `task-kind-taxonomy`):
+/// adding a sixth is a deliberate code change, never a free-text label a leaf
+/// may coin. Only `Planning` carries methodological force (the loop's sole
+/// Execute branch, the only kind that grows the tree); the other four are
+/// work-shaped sessions differing in discipline and model bucket
+/// (`model-per-task-kind`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    Work,
     Planning,
+    Research,
+    Prototype,
+    Work,
+    Review,
 }
 
 impl Kind {
+    /// Write gates (task-kind-taxonomy): a grow verb rejects an unrecognised
+    /// `--kind` with an error listing the five, so a typo is caught at
+    /// authoring time, when a human is present to fix it. Read degrades
+    /// instead — see `tree_read::read_kind`, the read-path counterpart that
+    /// never bails through this error.
     pub fn parse(s: &str) -> Result<Kind> {
         match s {
-            "work" => Ok(Kind::Work),
             "planning" => Ok(Kind::Planning),
-            other => bail!("--kind must be `work` or `planning`, got {:?}", other),
+            "research" => Ok(Kind::Research),
+            "prototype" => Ok(Kind::Prototype),
+            "work" => Ok(Kind::Work),
+            "review" => Ok(Kind::Review),
+            other => bail!(
+                "--kind must be one of `planning`, `research`, `prototype`, `work`, `review`, got {:?}",
+                other
+            ),
         }
     }
 
@@ -37,8 +58,11 @@ impl Kind {
     /// it, so the two can never disagree on the spelling.
     pub fn label(self) -> &'static str {
         match self {
-            Kind::Work => "work",
             Kind::Planning => "planning",
+            Kind::Research => "research",
+            Kind::Prototype => "prototype",
+            Kind::Work => "work",
+            Kind::Review => "review",
         }
     }
 }
@@ -80,19 +104,39 @@ mod inline_tests {
     }
 
     #[test]
-    fn kind_parses_the_two_valid_labels_and_rejects_others() {
-        assert_eq!(Kind::parse("work").unwrap(), Kind::Work);
+    fn kind_parses_the_five_valid_labels_and_rejects_others() {
         assert_eq!(Kind::parse("planning").unwrap(), Kind::Planning);
+        assert_eq!(Kind::parse("research").unwrap(), Kind::Research);
+        assert_eq!(Kind::parse("prototype").unwrap(), Kind::Prototype);
+        assert_eq!(Kind::parse("work").unwrap(), Kind::Work);
+        assert_eq!(Kind::parse("review").unwrap(), Kind::Review);
         assert!(Kind::parse("bogus").is_err());
         assert!(Kind::parse("").is_err());
     }
 
     #[test]
+    fn kind_parse_error_lists_all_five() {
+        let err = Kind::parse("reserch").unwrap_err().to_string();
+        for label in ["planning", "research", "prototype", "work", "review"] {
+            assert!(err.contains(label), "error {err:?} missing {label:?}");
+        }
+    }
+
+    #[test]
     fn kind_label_round_trips_through_parse() {
-        for k in [Kind::Work, Kind::Planning] {
+        for k in [
+            Kind::Planning,
+            Kind::Research,
+            Kind::Prototype,
+            Kind::Work,
+            Kind::Review,
+        ] {
             assert_eq!(Kind::parse(k.label()).unwrap(), k);
         }
-        assert_eq!(Kind::Work.label(), "work");
         assert_eq!(Kind::Planning.label(), "planning");
+        assert_eq!(Kind::Research.label(), "research");
+        assert_eq!(Kind::Prototype.label(), "prototype");
+        assert_eq!(Kind::Work.label(), "work");
+        assert_eq!(Kind::Review.label(), "review");
     }
 }

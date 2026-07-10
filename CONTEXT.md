@@ -16,17 +16,49 @@ The bootstrap of a brand-new grove (worktree + branch exist, but no `.grove/` tr
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
-**Per-kind model selection** (`GROVE_PLANNING_MODEL` / `GROVE_WORK_MODEL`):
+**Task kind** (`**Kind:**`):
+The one-word session-shape declaration on a [[Leaf]]'s task file, drawn from a
+closed set of five: **planning** (grills, grows the tree), **research** (produces
+`docs/research/<slug>.md`), **prototype** (a cheap throwaway artifact to react to),
+**work** (produces code, docs, tests), **review** (fresh-context adversarial read;
+produces findings). `planning` is the only kind with methodological force — it is
+the sole branch in the loop's Execute step, and the only kind that grows the tree;
+the other four are work-shaped sessions that differ in discipline and in
+[[Per-kind model selection]]. grove **gates on write** (a grow verb rejects an
+unknown `--kind`, where a human is present to fix it) and **degrades on read** (an
+unrecognised `**Kind:**` line warns and is treated as `work`, so a hand-edited leaf
+can never jam the loop — constraint 5). `leaf-decompose` gives the first child its
+parent leaf's kind, so a research leaf that proves bigger becomes a research node.
+See ADR *task-kind-taxonomy*.
+_Avoid_: adding a kind that carries no behaviour beyond a name — a kind must earn
+its place with a distinct discipline, and a sixth is a change to this closed set,
+not a free-text label.
+
+**HITL** / **AFK**:
+Whether a [[Task kind]] resolves through live exchange with a human who speaks for
+themselves (`planning`, `prototype`) or is driven by the agent alone (`research`,
+`work`, `review`). A HITL leaf reached by an unattended relaunch of the self-driving
+loop stalls until a human arrives; that is correct, not a fault.
+_Avoid_: an agent answering its own HITL questions — a `planning` session that
+grills itself has broken the distinction (`grilling.md`).
+
+**Per-kind model selection** (`GROVE_<KIND>_MODEL`):
 The self-driving loop launches each task's `claude` session on a model chosen by
-the picked [[Leaf]]'s kind — `planning` vs `work` — via Claude Code's native
-`--model` flag (no router, no proxy). The driver peeks the kind (`grove-llm
-kind`), reads the matching env var, and passes `--model` **only if that var is
-set** (unset ⇒ inherit the user's own default; never clobber `ANTHROPIC_MODEL`).
-The launched value is a *default*, not a lock: in-session `/model` is higher
-priority and overrides it, but that override **does not persist across relaunch**
-(the next task is re-keyed on its own kind). See ADR *model-per-task-kind*.
+the picked [[Leaf]]'s [[Task kind]] — one env var per kind
+(`GROVE_PLANNING_MODEL`, `GROVE_RESEARCH_MODEL`, `GROVE_PROTOTYPE_MODEL`,
+`GROVE_WORK_MODEL`, `GROVE_REVIEW_MODEL`) — via Claude Code's native `--model`
+flag (no router, no proxy). The driver peeks the kind (`grove-llm kind`), reads
+that kind's var, and passes `--model` **only if it is set**. There is **no
+fallback chain**: an unset var means no flag at all, so the session inherits the
+user's own default rather than a model grove picked for a kind the user never
+configured. The launched value is a *default*, not a lock — in-session `/model`
+outranks `--model` for that session. See ADR *model-per-task-kind*.
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;
 this is single-provider launch-flag selection on the same (e.g. Max) subscription.
+_Avoid_: "an in-session `/model` never survives relaunch" — unqualified, that is
+false. Interactive `/model` saves as the user's default, so it survives into the
+next session of any kind whose var is **unset** (grove passes no `--model`, and
+the saved default governs); a configured kind's `--model` overrides it.
 
 **Spec** (`docs/specs/<slug>.md`):
 The human-facing, team-shareable design of an *area* of the system — problem,

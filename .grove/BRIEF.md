@@ -45,7 +45,15 @@ user 2026-07-09:
    on merit.
 5. `task-kinds-model-selection-k6` [planning] — kinds beyond planning/work +
    per-kind models; after k5.
-6. `decomposition-craft-k7` [work] — G4+G5 prose enrichments; after k5.
+6. `task-kinds-impl-k9` [work] — the CLI + docs for k6's five-kind taxonomy;
+   inserted *ahead* of k7 so the prose lands on a settled taxonomy.
+7. `decomposition-craft-k7` [work] — G4+G5 prose enrichments; after k5.
+8. `concepts-adr-refresh-k8` [work] — `docs/concepts.md` ADR section; surfaced
+   during k4.
+9. `review-provider-research-k10` [research] — can a `review` leaf run on
+   another model family (GLM via `ANTHROPIC_BASE_URL`, or codex-as-harness)?
+10. `review-provider-design-k11` [planning] — grill k10 to a route, or to a
+    recorded rejection.
 
 ## Pointers
 
@@ -66,7 +74,9 @@ user 2026-07-09:
   CONTEXT-FORMAT re-sync (upstream delta purely subtractive); no ADR-FORMAT
   change (byte-identical move; numbering rejected per
   `linkuistics:decision-records`); no vendoring of wayfinder / research /
-  implement / prototype skills; **no move of `.grove/` onto GitHub issues or
+  implement / prototype skills — note this is unchanged by `k6` adopting
+  `research` and `prototype` as **task kinds**: the disciplines earned a place,
+  the skills did not; **no move of `.grove/` onto GitHub issues or
   any tracker** — grilled to a `stay` in `issues-substrate-brainstorm-k5`, so
   `task-kinds-model-selection-k6` and `decomposition-craft-k7` proceed against
   the directory-tree substrate exactly as briefed.

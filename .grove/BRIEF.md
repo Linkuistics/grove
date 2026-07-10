@@ -66,4 +66,7 @@ user 2026-07-09:
   CONTEXT-FORMAT re-sync (upstream delta purely subtractive); no ADR-FORMAT
   change (byte-identical move; numbering rejected per
   `linkuistics:decision-records`); no vendoring of wayfinder / research /
-  implement / prototype skills.
+  implement / prototype skills; **no move of `.grove/` onto GitHub issues or
+  any tracker** — grilled to a `stay` in `issues-substrate-brainstorm-k5`, so
+  `task-kinds-model-selection-k6` and `decomposition-craft-k7` proceed against
+  the directory-tree substrate exactly as briefed.

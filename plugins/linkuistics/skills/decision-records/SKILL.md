@@ -134,6 +134,14 @@ made and *why* — not in filling out sections.
 Add a section **only when it earns its place** — most ADRs need none:
 
 - **Considered options** — when the rejected alternatives are worth remembering.
+  Each rejected alternative should also name **what would reopen it** — the
+  condition under which the path becomes live again. Without one, a rejection is a
+  **tombstone**; with one, it's a **gate with a key** — a future reader can test the
+  trigger against present conditions instead of re-litigating the decision from
+  scratch, which is the entire reason the entry exists. Not every rejection has a
+  meaningful trigger — some are closed forever, a naming call or a dead technology —
+  and "nothing would reopen this" is a legitimate answer; the point is asking the
+  question, not manufacturing a trigger that isn't there.
 - **Consequences** — when non-obvious downstream effects need calling out.
 
 Do **not** add a `Status` line (`proposed | accepted | deprecated | superseded

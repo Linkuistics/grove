@@ -8,11 +8,11 @@
 // drops context.
 //
 // The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
-// `leaf-insert` / `leaf-decompose` / `leaf-retire` / `root-init`) speak the
-// **v2 directory scheme** (task-tree-scheme): they dispatch to the directory-based
-// modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is no
-// transitional dual-format reader — `grove migrate` (`tree_migrate`) is the only
-// thing that reads an old (v1-flat or `NNN-slug`) tree, once, on adoption.
+// `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init`)
+// speak the **v2 directory scheme** (task-tree-scheme): they dispatch to the
+// directory-based modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is
+// no transitional dual-format reader — `grove migrate` (`tree_migrate`) is the
+// only thing that reads an old (v1-flat or `NNN-slug`) tree, once, on adoption.
 
 use crate::complete;
 use crate::leaf::Kind;
@@ -125,6 +125,25 @@ pub enum Command {
     /// brief and an already-retired leaf. Prints the retired file's absolute
     /// path on stdout. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
+    /// Mark abandoned work `ABANDONED` in place (ADR *pruning*). **HITL: only
+    /// call this after explicit human confirmation** — grove never abandons
+    /// planned work on its own (constraint 5: grove guides, it does not gate —
+    /// the gate is yours, not the CLI's). `<path>` is a live leaf file **or** a
+    /// node directory (absolute, or relative to the grove root):
+    ///
+    ///   * given a **leaf**, marks it directly — refuses a brief, an
+    ///     already-`DONE` leaf, and an already-`ABANDONED` leaf;
+    ///   * given a **node**, marks every *live* leaf in its subtree
+    ///     (recursively) — leaving `DONE` leaves untouched, since that work
+    ///     really was done — and refuses the grove root itself (abandoning a
+    ///     whole workstream is a branch-delete, not a tree mark).
+    ///
+    /// The `ABANDONED` infix is filename-only — every marked leaf's
+    /// `# <slug>-k<key>` header stays byte-identical. Prints each newly-marked
+    /// leaf's absolute path on stdout, one per line; any already-`DONE` leaves
+    /// found and left alone are reported on stderr. Working-tree change only —
+    /// no commit.
+    LeafPrune(LeafPruneArgs),
     /// Signal task completion to the self-driving loop (self-driving-loop). Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
     /// ends this `claude` session and starts the next task with fresh context.
@@ -217,6 +236,12 @@ pub struct LeafRetireArgs {
     pub leaf_path: PathBuf,
 }
 
+#[derive(Parser)]
+pub struct LeafPruneArgs {
+    /// Leaf or node path. Absolute, or relative to the grove root (`.grove/`).
+    pub path: PathBuf,
+}
+
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
@@ -229,6 +254,7 @@ pub fn run() -> Result<()> {
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
+        Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::Complete(args) => cmd_complete(&args),
     }
 }
@@ -392,6 +418,29 @@ fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     let leaf_path = normalize_leaf_path(&args.leaf_path);
     let dst = tree_lifecycle::leaf_retire(&grove_root, &leaf_path)?;
     println!("{}", dst.display());
+    Ok(())
+}
+
+fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
+    let (_, grove_root) = grove_paths()?;
+    let path = normalize_leaf_path(&args.path);
+    let result = tree_lifecycle::leaf_prune(&grove_root, &path)?;
+    for p in &result.marked {
+        println!("{}", p.display());
+    }
+    if result.marked.is_empty() {
+        eprintln!("leaf-prune: nothing live to mark");
+    }
+    if !result.left_done.is_empty() {
+        eprintln!(
+            "leaf-prune: left {} already-DONE leaf{} untouched:",
+            result.left_done.len(),
+            if result.left_done.len() == 1 { "" } else { "s" }
+        );
+        for p in &result.left_done {
+            eprintln!("  {}", p.display());
+        }
+    }
     Ok(())
 }
 

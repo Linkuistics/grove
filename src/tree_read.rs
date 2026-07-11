@@ -29,7 +29,7 @@
 // `-k<digits>` is matched as a slug first), and the §5 handle round-trips to a path.
 
 use crate::leaf::Kind;
-use crate::tree_id::{parse, sort_key, Entry};
+use crate::tree_id::{parse, sort_key, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -39,11 +39,11 @@ use std::path::{Path, PathBuf};
 /// visited in per-level order (the charter brief first — and skipped — then by
 /// numeric position): a live leaf returns immediately; a node directory is
 /// descended in place (pre-order, so a node at an earlier position is fully
-/// explored before a later sibling leaf); a `DONE` leaf, the brief, and foreign
-/// names are skipped. `Ok(None)` means no live leaf anywhere — the loop's finish
-/// signal (the CLI renders it as empty stdout + a "no live leaves" stderr
-/// diagnostic). Lenient on foreign/malformed names (a stray `README.md` never
-/// jams the loop). Never reads file contents.
+/// explored before a later sibling leaf); a `DONE` leaf, an `ABANDONED` leaf
+/// (ADR *pruning*), the brief, and foreign names are skipped. `Ok(None)` means no
+/// live leaf anywhere — the loop's finish signal (the CLI renders it as empty
+/// stdout + a "no live leaves" stderr diagnostic). Lenient on foreign/malformed
+/// names (a stray `README.md` never jams the loop). Never reads file contents.
 pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
@@ -57,7 +57,10 @@ fn pick_in(dir: &Path) -> Result<Option<PathBuf>> {
     for (entry, path) in read_level(dir)? {
         match entry {
             // The first live leaf in pre-order is the answer.
-            Entry::Leaf { is_done: false, .. } => return Ok(Some(path)),
+            Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            } => return Ok(Some(path)),
             // Descend a node in place; its first live leaf (if any) wins before
             // any later sibling at this level is considered.
             Entry::Node { .. } => {
@@ -65,8 +68,15 @@ fn pick_in(dir: &Path) -> Result<Option<PathBuf>> {
                     return Ok(Some(found));
                 }
             }
-            // The charter brief and retired (`DONE`) leaves are skipped.
-            Entry::Brief | Entry::Leaf { is_done: true, .. } => {}
+            // The charter brief and terminal (`DONE` / `ABANDONED`) leaves are
+            // skipped — a grove whose only remaining leaves are abandoned reports
+            // "no live leaves; this grove is done", correctly: the work is
+            // settled, however it settled (ADR *pruning*).
+            Entry::Brief
+            | Entry::Leaf {
+                outcome: Outcome::Done | Outcome::Abandoned,
+                ..
+            } => {}
         }
     }
     Ok(None)
@@ -506,6 +516,17 @@ mod tests {
     }
 
     #[test]
+    fn pick_skips_abandoned_leaves() {
+        // Symmetric with DONE (ADR *pruning*): an abandoned leaf is a terminal
+        // state, skipped exactly like a retired one.
+        let (_t, g) = grove();
+        touch(&g, "01-ABANDONED-a-k1.md");
+        touch(&g, "02-b-k2.md");
+        let got = pick(&g).unwrap().unwrap();
+        assert_eq!(name_of(&got), "02-b-k2.md");
+    }
+
+    #[test]
     fn pick_descends_a_node_in_preorder() {
         // A node at an earlier position is fully explored before a later sibling
         // leaf: the node's first live child wins.
@@ -543,6 +564,20 @@ mod tests {
     }
 
     #[test]
+    fn pick_falls_through_a_pruned_node_to_a_later_live_leaf() {
+        // A node whose only leaf was pruned yields no live leaf either — the
+        // grove's two terminal leaf states (DONE, ABANDONED) behave identically
+        // for the walk (ADR *pruning*).
+        let (_t, g) = grove();
+        let node = mknode(&g, "01-dead-node-k1");
+        touch(&node, "BRIEF.md");
+        touch(&node, "01-ABANDONED-child-k2.md");
+        touch(&g, "02-live-k3.md");
+        let got = pick(&g).unwrap().unwrap();
+        assert_eq!(name_of(&got), "02-live-k3.md");
+    }
+
+    #[test]
     fn pick_descends_nested_nodes() {
         let (_t, g) = grove();
         let n1 = mknode(&g, "01-outer-k1");
@@ -561,6 +596,20 @@ mod tests {
         let node = mknode(&g, "01-node-k1");
         touch(&node, "BRIEF.md");
         touch(&node, "01-DONE-child-k2.md");
+        assert_eq!(pick(&g).unwrap(), None);
+    }
+
+    #[test]
+    fn pick_none_when_every_remaining_leaf_is_abandoned() {
+        // A grove whose only remaining leaves are abandoned reports "no live
+        // leaves" — correct: the work is settled, however it settled.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md");
+        touch(&g, "01-ABANDONED-a-k1.md");
+        let node = mknode(&g, "02-node-k2");
+        touch(&node, "BRIEF.md");
+        touch(&node, "01-DONE-b-k3.md");
+        touch(&node, "02-ABANDONED-c-k4.md");
         assert_eq!(pick(&g).unwrap(), None);
     }
 
@@ -945,6 +994,29 @@ mod tests {
             Resolution::Found { path, retired } => {
                 assert_eq!(name_of(&path), "02-DONE-add-k4.md");
                 assert!(retired, "the key-4 task is DONE");
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_finds_a_pruned_leaf_by_key() {
+        // ADR *pruning*: an abandoned leaf's key must stay resolvable — durable
+        // cross-references to it (commit messages, ADRs, briefs) are precisely
+        // what the ADR protects.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md");
+        touch(&g, "01-ABANDONED-spike-k1.md");
+        match resolve(&g, "[1]").unwrap() {
+            Resolution::Found { path, .. } => {
+                assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
+            }
+            other => panic!("expected Found, got {other:?}"),
+        }
+        // The full `<slug>-k<key>` handle resolves it too.
+        match resolve(&g, "spike-k1").unwrap() {
+            Resolution::Found { path, .. } => {
+                assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
             }
             other => panic!("expected Found, got {other:?}"),
         }

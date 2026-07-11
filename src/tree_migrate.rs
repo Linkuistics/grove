@@ -391,7 +391,15 @@ fn render(grove_root: &Path, logicals: &[Logical]) -> Result<Vec<PlannedMove>> {
                 position: per_level,
                 slug: l.id.slug.clone(),
                 key,
-                is_done: l.id.is_done,
+                // A migrated v1 tree never contains an abandoned mark (that
+                // concept postdates v1) — only `is_done` survives the crossing.
+                // Qualified (not imported bare) because this module's own
+                // `Outcome` (the migration result) already owns that name.
+                outcome: if l.id.is_done {
+                    tree_id::Outcome::Done
+                } else {
+                    tree_id::Outcome::Live
+                },
             };
             dest.push(leaf.name());
         }

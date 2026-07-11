@@ -5,16 +5,17 @@
 // In v2 the task tree is real **directories** — the filesystem carries the
 // hierarchy, so a name encodes only its *per-level* position, not a global path:
 //
-//     leaf       NN-[DONE-]<slug>-k<key>.md
+//     leaf       NN-[DONE-|ABANDONED-]<slug>-k<key>.md
 //     node dir   NN-<slug>-k<key>             (a directory holding BRIEF.md + children)
 //     brief      BRIEF.md                     (the containing node's charter)
 //
 // Three orthogonal parts: the per-level **position** `NN` (a 2-digit zero-padded
 // decimal; the sole sort input *within one directory*; rewritten on renumber), the
 // permanent **key** (stable identity, assigned once, never rewritten, always the
-// terminal `-k<key>` token), and the human **slug**. `DONE` is an infix right
-// after the position (leaves only — a node is never marked done; its done-ness is
-// the absence of a live leaf in its subtree).
+// terminal `-k<key>` token), and the human **slug**. A leaf's **outcome** — live,
+// `DONE`, or `ABANDONED` (ADR *pruning*) — is an infix right after the position,
+// the two marks mutually exclusive by construction (`Outcome`). A node is never
+// marked either way — its done-ness is the absence of a live leaf in its subtree.
 //
 // The `-k<key>` delimiter (resolved at 11.1, amending task-tree-scheme's `[<key>]`):
 // brackets are shell-glob metacharacters; `-k<key>` is glob-safe, and it stays
@@ -27,6 +28,22 @@
 // are swept. Pure functions only, dependency-free of the verb modules.
 
 use anyhow::{bail, Result};
+
+/// A leaf's outcome (ADR *pruning*): live, retired (`DONE`), or abandoned
+/// (`ABANDONED`) — mutually exclusive by construction (an enum, not two
+/// independent bools, so the impossible fourth state is unrepresentable). A node
+/// directory never carries an outcome at all; its done-ness is the absence of a
+/// live leaf in its subtree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Outcome {
+    /// Not yet retired or abandoned — what `pick` returns.
+    Live,
+    /// Work completed — the `DONE` infix.
+    Done,
+    /// Work rejected, closed, not going to happen — the `ABANDONED` infix
+    /// (ADR *pruning*). The *why* lives in the ADR set, not the filename.
+    Abandoned,
+}
 
 /// A parsed tree-entry name — the three on-disk shapes a node directory holds:
 /// its own `BRIEF.md` charter, leaf-file children, and node-directory children.
@@ -41,12 +58,12 @@ pub enum Entry {
     /// heads its directory. Every node directory (including the root `.grove/`)
     /// holds exactly one.
     Brief,
-    /// `NN-[DONE-]<slug>-k<key>.md` — a leaf child (a unit of work).
+    /// `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` — a leaf child (a unit of work).
     Leaf {
         position: u32,
         slug: String,
         key: u32,
-        is_done: bool,
+        outcome: Outcome,
     },
     /// `NN-<slug>-k<key>` — a child node directory (rendered without a trailing
     /// slash, matching `read_dir`'s `file_name`).
@@ -84,7 +101,24 @@ impl Entry {
 
     /// `true` only for a retired (`DONE`) leaf.
     pub fn is_done(&self) -> bool {
-        matches!(self, Entry::Leaf { is_done: true, .. })
+        matches!(
+            self,
+            Entry::Leaf {
+                outcome: Outcome::Done,
+                ..
+            }
+        )
+    }
+
+    /// `true` only for an abandoned (`ABANDONED`) leaf (ADR *pruning*).
+    pub fn is_abandoned(&self) -> bool {
+        matches!(
+            self,
+            Entry::Leaf {
+                outcome: Outcome::Abandoned,
+                ..
+            }
+        )
     }
 
     /// `true` for the `BRIEF.md` charter.
@@ -97,9 +131,16 @@ impl Entry {
         matches!(self, Entry::Node { .. })
     }
 
-    /// A *live leaf* is the only thing `pick` returns: a leaf that is not retired.
+    /// A *live leaf* is the only thing `pick` returns: a leaf that is neither
+    /// retired nor abandoned.
     pub fn is_live_leaf(&self) -> bool {
-        matches!(self, Entry::Leaf { is_done: false, .. })
+        matches!(
+            self,
+            Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            }
+        )
     }
 
     /// Render this entry back to its on-disk name. Inverse of [`parse`] for any
@@ -112,10 +153,14 @@ impl Entry {
                 position,
                 slug,
                 key,
-                is_done,
+                outcome,
             } => {
-                let done = if *is_done { "DONE-" } else { "" };
-                format!("{:02}-{}{}-k{}.md", position, done, slug, key)
+                let infix = match outcome {
+                    Outcome::Live => "",
+                    Outcome::Done => "DONE-",
+                    Outcome::Abandoned => "ABANDONED-",
+                };
+                format!("{:02}-{}{}-k{}.md", position, infix, slug, key)
             }
             Entry::Node {
                 position,
@@ -139,18 +184,18 @@ pub fn parse(name: &str) -> Option<Entry> {
     }
 
     if let Some(stem) = name.strip_suffix(".md") {
-        // A leaf file: the `DONE` infix is permitted here.
-        let (position, is_done, slug, key) = parse_parts(stem, true)?;
+        // A leaf file: the `DONE`/`ABANDONED` outcome infix is permitted here.
+        let (position, outcome, slug, key) = parse_parts(stem, true)?;
         Some(Entry::Leaf {
             position,
             slug,
             key,
-            is_done,
+            outcome,
         })
     } else {
-        // A node directory: no extension, and never a `DONE` infix.
+        // A node directory: no extension, and never an outcome infix.
         let stem = name.strip_suffix('/').unwrap_or(name);
-        let (position, _is_done, slug, key) = parse_parts(stem, false)?;
+        let (position, _outcome, slug, key) = parse_parts(stem, false)?;
         Some(Entry::Node {
             position,
             slug,
@@ -159,26 +204,36 @@ pub fn parse(name: &str) -> Option<Entry> {
     }
 }
 
-/// Parse the inner `NN-[DONE-]<slug>-k<key>` of a stem (a leaf's part before
-/// `.md`, or a node's bare directory name). `allow_done` gates the optional
-/// `DONE-` infix — leaves only, since a node is never marked done. Returns
-/// `(position, is_done, slug, key)`, or `None` for any non-well-formed shape.
-fn parse_parts(stem: &str, allow_done: bool) -> Option<(u32, bool, String, u32)> {
+/// Parse the inner `NN-[DONE-|ABANDONED-]<slug>-k<key>` of a stem (a leaf's part
+/// before `.md`, or a node's bare directory name). `allow_outcome_infix` gates the
+/// optional outcome infix — leaves only, since a node is never marked done or
+/// abandoned. Returns `(position, outcome, slug, key)`, or `None` for any
+/// non-well-formed shape.
+fn parse_parts(stem: &str, allow_outcome_infix: bool) -> Option<(u32, Outcome, String, u32)> {
     // The position is the leading digit run, ended by the first `-` (the position
     // is pure digits, so the first dash is its unambiguous boundary).
     let dash = stem.find('-')?;
     let position = parse_position(&stem[..dash])?;
     let mut rest = &stem[dash + 1..];
 
-    // The optional `DONE-` infix sits immediately after the position. `DONE` is
-    // uppercase and slugs are lowercase-only, so it never collides with a slug.
-    let is_done = match rest.strip_prefix("DONE-") {
-        Some(r) if allow_done => {
-            rest = r;
-            true
+    // The optional outcome infix sits immediately after the position, and the two
+    // marks are mutually exclusive by construction (`strip_prefix` on `rest` — a
+    // leaf can carry at most one). Both tokens are uppercase and slugs are
+    // lowercase-only, so neither ever collides with a slug.
+    let outcome = if let Some(r) = rest.strip_prefix("DONE-") {
+        if !allow_outcome_infix {
+            return None; // a node directory may not carry an outcome infix
         }
-        Some(_) => return None, // a node directory may not carry the DONE infix
-        None => false,
+        rest = r;
+        Outcome::Done
+    } else if let Some(r) = rest.strip_prefix("ABANDONED-") {
+        if !allow_outcome_infix {
+            return None;
+        }
+        rest = r;
+        Outcome::Abandoned
+    } else {
+        Outcome::Live
     };
 
     // The key is the terminal `-k<digits>`: take the trailing digit run, which
@@ -198,7 +253,7 @@ fn parse_parts(stem: &str, allow_done: bool) -> Option<(u32, bool, String, u32)>
     let slug = rest[..digits_start].strip_suffix("-k")?;
     validate_slug(slug).ok()?;
 
-    Some((position, is_done, slug.to_string(), key))
+    Some((position, outcome, slug.to_string(), key))
 }
 
 /// Parse a per-level position string (`05`) into its integer. **Lenient on
@@ -245,14 +300,14 @@ where
 }
 
 /// Validate a slug: non-empty, lowercase ASCII + digits + `-`, no leading/trailing
-/// `-`, and not the reserved words `BRIEF` / `DONE`. The character set already
-/// excludes everything that could blur a name boundary (`.`, `/`, `[`, `]`), and
-/// being lowercase keeps it clear of the uppercase `DONE` infix.
+/// `-`, and not the reserved words `BRIEF` / `DONE` / `ABANDONED`. The character
+/// set already excludes everything that could blur a name boundary (`.`, `/`,
+/// `[`, `]`), and being lowercase keeps it clear of the uppercase outcome infixes.
 pub fn validate_slug(slug: &str) -> Result<()> {
     if slug.is_empty() {
         bail!("slug must not be empty");
     }
-    if slug == "BRIEF" || slug == "DONE" {
+    if slug == "BRIEF" || slug == "DONE" || slug == "ABANDONED" {
         bail!("slug {:?} is reserved", slug);
     }
     if slug.starts_with('-') || slug.ends_with('-') {
@@ -278,7 +333,7 @@ mod tests {
             position,
             slug: slug.to_string(),
             key,
-            is_done: false,
+            outcome: Outcome::Live,
         }
     }
 
@@ -287,7 +342,16 @@ mod tests {
             position,
             slug: slug.to_string(),
             key,
-            is_done: true,
+            outcome: Outcome::Done,
+        }
+    }
+
+    fn abandoned_leaf(position: u32, slug: &str, key: u32) -> Entry {
+        Entry::Leaf {
+            position,
+            slug: slug.to_string(),
+            key,
+            outcome: Outcome::Abandoned,
         }
     }
 
@@ -320,6 +384,14 @@ mod tests {
     #[test]
     fn parse_done_leaf() {
         assert_eq!(parse("05-DONE-add-k4.md"), Some(done_leaf(5, "add", 4)));
+    }
+
+    #[test]
+    fn parse_abandoned_leaf() {
+        assert_eq!(
+            parse("05-ABANDONED-add-k4.md"),
+            Some(abandoned_leaf(5, "add", 4))
+        );
     }
 
     #[test]
@@ -420,6 +492,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_node_with_abandoned_infix_is_none() {
+        // Symmetric with DONE: a node directory is never marked abandoned either —
+        // its state is "no live leaf in the subtree", however that came about.
+        assert_eq!(parse("05-ABANDONED-x-k1"), None);
+    }
+
+    #[test]
     fn parse_slug_with_dot_or_bracket_is_none() {
         assert_eq!(parse("01-a.b-k1.md"), None);
         assert_eq!(parse("01-a[b-k1.md"), None);
@@ -430,6 +509,20 @@ mod tests {
         // Only one `DONE-` is peeled; a second leaks into the slug (uppercase),
         // which `validate_slug` rejects.
         assert_eq!(parse("05-DONE-DONE-x-k1.md"), None);
+    }
+
+    #[test]
+    fn parse_double_abandoned_infix_is_none() {
+        assert_eq!(parse("05-ABANDONED-ABANDONED-x-k1.md"), None);
+    }
+
+    #[test]
+    fn parse_done_and_abandoned_infixes_do_not_combine() {
+        // The two marks are mutually exclusive by construction: only the first
+        // (`DONE-`) is peeled as the outcome infix, so `ABANDONED-` leaks into the
+        // slug (uppercase), which `validate_slug` rejects.
+        assert_eq!(parse("05-DONE-ABANDONED-x-k1.md"), None);
+        assert_eq!(parse("05-ABANDONED-DONE-x-k1.md"), None);
     }
 
     // ---- comparator (per-level) ---------------------------------------------
@@ -489,6 +582,15 @@ mod tests {
     }
 
     #[test]
+    fn next_key_counts_abandoned_leaves() {
+        // The whole point of ADR *pruning*: a pruned leaf's key stays visible in
+        // the tree, so a future `leaf-add` never re-issues it. `next_key` already
+        // maxes over every parsed name regardless of outcome — asserted here so a
+        // future refactor cannot quietly regress the property the ADR rests on.
+        assert_eq!(next_key(["01-ABANDONED-a-k3.md", "02-b-k2.md"]), 4);
+    }
+
+    #[test]
     fn next_key_counts_node_directories() {
         // A node lives as a bare directory name — its key still counts.
         assert_eq!(next_key(["05-node-k3", "01-b-k2.md"]), 4);
@@ -512,6 +614,13 @@ mod tests {
     fn round_trip_done_leaf() {
         let e = done_leaf(5, "add", 4);
         assert_eq!(e.name(), "05-DONE-add-k4.md");
+        assert_eq!(parse(&e.name()), Some(e));
+    }
+
+    #[test]
+    fn round_trip_abandoned_leaf() {
+        let e = abandoned_leaf(5, "add", 4);
+        assert_eq!(e.name(), "05-ABANDONED-add-k4.md");
         assert_eq!(parse(&e.name()), Some(e));
     }
 
@@ -558,6 +667,7 @@ mod tests {
     fn is_live_leaf_true_only_for_live_leaves() {
         assert!(parse("01-a-k1.md").unwrap().is_live_leaf());
         assert!(!parse("01-DONE-a-k1.md").unwrap().is_live_leaf());
+        assert!(!parse("01-ABANDONED-a-k1.md").unwrap().is_live_leaf());
         assert!(!parse("01-a-k1").unwrap().is_live_leaf()); // node dir
         assert!(!parse("BRIEF.md").unwrap().is_live_leaf());
     }
@@ -568,6 +678,26 @@ mod tests {
         assert!(parse("01-a-k1").unwrap().is_node());
         assert!(parse("01-DONE-a-k1.md").unwrap().is_done());
         assert!(!parse("01-a-k1.md").unwrap().is_done());
+    }
+
+    #[test]
+    fn is_abandoned_true_only_for_abandoned_leaves() {
+        assert!(parse("01-ABANDONED-a-k1.md").unwrap().is_abandoned());
+        assert!(!parse("01-DONE-a-k1.md").unwrap().is_abandoned());
+        assert!(!parse("01-a-k1.md").unwrap().is_abandoned());
+        assert!(!parse("01-a-k1").unwrap().is_abandoned()); // node dir
+        assert!(!parse("BRIEF.md").unwrap().is_abandoned());
+    }
+
+    #[test]
+    fn done_and_abandoned_are_mutually_exclusive() {
+        // The outcome is a single enum, not two independent bools — the
+        // impossible fourth state (both marks at once) is unrepresentable, so
+        // this is really just confirming the accessors agree with each other.
+        let done = parse("01-DONE-a-k1.md").unwrap();
+        assert!(done.is_done() && !done.is_abandoned());
+        let abandoned = parse("01-ABANDONED-a-k1.md").unwrap();
+        assert!(abandoned.is_abandoned() && !abandoned.is_done());
     }
 
     #[test]
@@ -597,6 +727,7 @@ mod tests {
     fn validate_slug_rejects_reserved_words() {
         assert!(validate_slug("BRIEF").is_err());
         assert!(validate_slug("DONE").is_err());
+        assert!(validate_slug("ABANDONED").is_err());
     }
 
     #[test]

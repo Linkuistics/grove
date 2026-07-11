@@ -29,7 +29,7 @@
 // leaf in this node can break the v1-flat grove that is driving itself.
 
 use crate::leaf::Kind;
-use crate::tree_id::{next_key, parse, validate_slug, Entry};
+use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ pub fn leaf_add(grove_root: &Path, parent_dir: &Path, slug: &str, kind: Kind) ->
         position,
         slug: slug.to_string(),
         key,
-        is_done: false,
+        outcome: Outcome::Live,
     };
     let path = parent_abs.join(entry.name());
     if path.exists() {
@@ -141,7 +141,7 @@ pub fn leaf_insert(
         position: pos,
         slug: slug.to_string(),
         key: new_key,
-        is_done: false,
+        outcome: Outcome::Live,
     };
     let path = parent_abs.join(entry.name());
     if path.exists() {
@@ -371,12 +371,12 @@ fn collect_md_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 fn bumped(entry: &Entry, new_position: u32) -> Entry {
     match entry {
         Entry::Leaf {
-            slug, key, is_done, ..
+            slug, key, outcome, ..
         } => Entry::Leaf {
             position: new_position,
             slug: slug.clone(),
             key: *key,
-            is_done: *is_done,
+            outcome: *outcome,
         },
         Entry::Node { slug, key, .. } => Entry::Node {
             position: new_position,
@@ -580,6 +580,19 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-DONE-x-k3.md", "x-k3");
+        let got = leaf_add(&g, &node, "y", Kind::Work).unwrap();
+        assert_eq!(name_of(&got), "02-y-k4.md");
+    }
+
+    #[test]
+    fn add_counts_abandoned_children_so_a_pruned_slot_is_never_reused() {
+        // Symmetric with DONE: an `ABANDONED` child still occupies its position
+        // and its key (ADR *pruning*'s key-reuse defect) — the next child is 02
+        // and its key is 4, not a reused 3.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-ABANDONED-x-k3.md", "x-k3");
         let got = leaf_add(&g, &node, "y", Kind::Work).unwrap();
         assert_eq!(name_of(&got), "02-y-k4.md");
     }

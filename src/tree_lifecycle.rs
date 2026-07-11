@@ -1,10 +1,11 @@
-// The **v2 lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`, and
-// `leaf-retire` — re-expressed against the real **directory tree**, built on the
-// 11.1 id model (`src/tree_id.rs`) and the 11.3 grow verbs (`src/tree_grow.rs`).
-// Keeps task-tree-scheme's *semantics* (a fresh grove starts with a planning leaf so it is
-// never mistaken for finished; decompose enforces a first child; retire is
-// leaves-only and done-ness is marked in place) and changes the *mechanics* to the
-// filesystem's shape:
+// The **v2 lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`,
+// `leaf-retire`, and `leaf-prune` — re-expressed against the real **directory
+// tree**, built on the 11.1 id model (`src/tree_id.rs`) and the 11.3 grow verbs
+// (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
+// starts with a planning leaf so it is never mistaken for finished; decompose
+// enforces a first child; retire is leaves-only and done-ness is marked in
+// place; prune marks abandonment in place, ADR *pruning*) and changes the
+// *mechanics* to the filesystem's shape:
 //
 //   * `root-init` writes the root `BRIEF.md` (the one unkeyed singleton) and a
 //     first planning leaf `01-<slug>-k1.md` — a 2-digit per-level position;
@@ -14,12 +15,16 @@
 //     and growing a first child atomically so a node is never childless;
 //   * `leaf-retire` adds a `DONE` infix in place (`NN-<slug>-k<key>.md` →
 //     `NN-DONE-<slug>-k<key>.md`), keeping the retired leaf in its directory at its
-//     position — no `done/` directory.
+//     position — no `done/` directory;
+//   * `leaf-prune` adds an `ABANDONED` infix in place, symmetric with retire, but
+//     — per ADR *pruning*'s D6 — accepts a **node** too: marking every *live* leaf
+//     in the subtree (bulk, since one decision can kill many leaves at once),
+//     leaving `DONE` leaves alone.
 //
 // **Position-free headers (11.3):** a leaf/brief header is the stable handle
-// `# <slug>-k<key>` (`# … — brief` for a node), so `leaf-retire` leaves the file's
-// content byte-identical (the `DONE` infix is filename-only) and `leaf-decompose`
-// only appends ` — brief` to the handle.
+// `# <slug>-k<key>` (`# … — brief` for a node), so `leaf-retire`/`leaf-prune`
+// leave the file's content byte-identical (the outcome infix is filename-only)
+// and `leaf-decompose` only appends ` — brief` to the handle.
 //
 // Built **isolated**, mirroring `tree_id` / `tree_read` / `tree_grow`: this module
 // does NOT touch the live v1 verb path (`leaf_lifecycle` and the `llm_cli` dispatch
@@ -27,7 +32,7 @@
 
 use crate::leaf::Kind;
 use crate::tree_grow::leaf_add;
-use crate::tree_id::{parse, validate_slug, Entry};
+use crate::tree_id::{parse, sort_key, validate_slug, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -86,14 +91,19 @@ pub fn leaf_decompose(
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
     let (position, slug, key) = match parse(&name) {
         Some(Entry::Leaf {
-            is_done: false,
+            outcome: Outcome::Live,
             position,
             slug,
             key,
         }) => (position, slug, key),
-        Some(Entry::Leaf { is_done: true, .. }) => {
-            bail!("cannot decompose a retired (DONE) leaf: {name}")
-        }
+        Some(Entry::Leaf {
+            outcome: Outcome::Done,
+            ..
+        }) => bail!("cannot decompose a retired (DONE) leaf: {name}"),
+        Some(Entry::Leaf {
+            outcome: Outcome::Abandoned,
+            ..
+        }) => bail!("cannot decompose an abandoned (ABANDONED) leaf: {name}"),
         Some(Entry::Brief) => bail!("cannot decompose a brief (it is already a node): {name}"),
         Some(Entry::Node { .. }) => {
             bail!("cannot decompose a node (it already has children): {name}")
@@ -145,7 +155,7 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
     let done_name = match parse(&name) {
         Some(Entry::Leaf {
-            is_done: false,
+            outcome: Outcome::Live,
             position,
             slug,
             key,
@@ -153,10 +163,17 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
             position,
             slug,
             key,
-            is_done: true,
+            outcome: Outcome::Done,
         }
         .name(),
-        Some(Entry::Leaf { is_done: true, .. }) => bail!("leaf is already retired (DONE): {name}"),
+        Some(Entry::Leaf {
+            outcome: Outcome::Done,
+            ..
+        }) => bail!("leaf is already retired (DONE): {name}"),
+        Some(Entry::Leaf {
+            outcome: Outcome::Abandoned,
+            ..
+        }) => bail!("cannot retire an abandoned (ABANDONED) leaf: {name}"),
         Some(Entry::Brief) => bail!("cannot retire a brief (briefs are never done): {name}"),
         Some(Entry::Node { .. }) => {
             bail!("cannot retire a node (nodes are never marked done): {name}")
@@ -171,6 +188,160 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
     // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
     git_mv(&parent_abs, &name, &done_name)?;
     Ok(done_path)
+}
+
+/// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`
+/// (its new path), and every already-`DONE` leaf found in scope and left
+/// untouched (ADR *pruning*: that work really was done). A single-leaf call
+/// marks exactly one entry and finds nothing to leave alone; a node call is
+/// bulk — the arity asymmetry with `leaf-retire` is deliberate (D6).
+#[derive(Debug)]
+pub struct PruneResult {
+    pub marked: Vec<PathBuf>,
+    pub left_done: Vec<PathBuf>,
+}
+
+/// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (ADR *pruning*).
+/// `path` is a live leaf file **or** a node directory (absolute, or relative to
+/// the grove root):
+///   * given a **leaf**, marks it directly — refuses a brief, an already-`DONE`
+///     leaf, and an already-`ABANDONED` leaf;
+///   * given a **node**, marks every *live* leaf in its subtree (recursively),
+///     leaving `DONE` leaves untouched — refuses the grove root itself
+///     (abandoning a whole workstream is a branch-delete, not a tree mark).
+///
+/// The `ABANDONED` infix is filename-only — every marked leaf's `# <handle>`
+/// header stays byte-identical. Working-tree only — no commit.
+///
+/// **HITL (ADR *pruning*, D7):** this verb does not itself gate on human
+/// confirmation — constraint 5 is "grove guides, it does not gate" — so the
+/// caller (the LLM driving the session) must already have explicit human
+/// confirmation before calling this at all.
+pub fn leaf_prune(grove_root: &Path, path: &Path) -> Result<PruneResult> {
+    let grove_abs = canonical_grove_root(grove_root)?;
+    let target_abs = resolve_entry(&grove_abs, path)?;
+
+    if target_abs.is_dir() {
+        if target_abs == grove_abs {
+            bail!(
+                "cannot prune the grove root (abandoning a whole grove is a \
+                 branch-delete, not a tree mark): {}",
+                target_abs.display()
+            );
+        }
+        let name = entry_name(&target_abs)?;
+        if !matches!(parse(&name), Some(Entry::Node { .. })) {
+            bail!("not a node directory: {}", target_abs.display());
+        }
+        let mut result = PruneResult {
+            marked: Vec::new(),
+            left_done: Vec::new(),
+        };
+        prune_subtree(&target_abs, &mut result)?;
+        Ok(result)
+    } else {
+        let name = entry_name(&target_abs)?;
+        let parent_abs = target_abs
+            .parent()
+            .with_context(|| format!("path {} has no parent", target_abs.display()))?
+            .to_path_buf();
+        let marked = prune_one(&parent_abs, &name)?;
+        Ok(PruneResult {
+            marked: vec![marked],
+            left_done: Vec::new(),
+        })
+    }
+}
+
+/// Mark the single live leaf `name` (in `parent_abs`) `ABANDONED` in place,
+/// returning its new absolute path. Refuses a brief, a node, an already-`DONE`
+/// leaf, and an already-`ABANDONED` leaf.
+fn prune_one(parent_abs: &Path, name: &str) -> Result<PathBuf> {
+    let abandoned_name = match parse(name) {
+        Some(Entry::Leaf {
+            outcome: Outcome::Live,
+            position,
+            slug,
+            key,
+        }) => Entry::Leaf {
+            position,
+            slug,
+            key,
+            outcome: Outcome::Abandoned,
+        }
+        .name(),
+        Some(Entry::Leaf {
+            outcome: Outcome::Done,
+            ..
+        }) => bail!("cannot prune a retired (DONE) leaf: {name}"),
+        Some(Entry::Leaf {
+            outcome: Outcome::Abandoned,
+            ..
+        }) => bail!("leaf is already pruned (ABANDONED): {name}"),
+        Some(Entry::Brief) => bail!("cannot prune a brief (briefs are never marked): {name}"),
+        Some(Entry::Node { .. }) => bail!(
+            "cannot prune a node directory as a leaf (pass the directory itself \
+             to prune its subtree): {name}"
+        ),
+        None => bail!("not a v2 leaf: {name}"),
+    };
+
+    let abandoned_path = parent_abs.join(&abandoned_name);
+    if abandoned_path.exists() {
+        bail!("destination already exists: {}", abandoned_path.display());
+    }
+    // The `ABANDONED` infix is filename-only — the `# <handle>` header is
+    // byte-identical.
+    git_mv(parent_abs, name, &abandoned_name)?;
+    Ok(abandoned_path)
+}
+
+/// Recursively mark every *live* leaf under `dir` `ABANDONED`, collecting each
+/// already-`DONE` leaf found along the way into `result.left_done` untouched.
+/// Already-`ABANDONED` leaves are left silently alone (already terminal).
+/// Visits children in the per-level comparator order for a deterministic report.
+fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
+    let mut entries: Vec<(String, Entry, PathBuf)> = Vec::new();
+    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(parsed) = parse(&name) else { continue };
+        let is_dir = match entry.file_type() {
+            Ok(t) => t.is_dir(),
+            Err(_) => continue,
+        };
+        let kind_ok = match parsed {
+            Entry::Node { .. } => is_dir,
+            Entry::Brief | Entry::Leaf { .. } => !is_dir,
+        };
+        if kind_ok {
+            entries.push((name, parsed, entry.path()));
+        }
+    }
+    entries.sort_by(|a, b| sort_key(&a.0).cmp(&sort_key(&b.0)));
+
+    for (name, entry, path) in entries {
+        match entry {
+            Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            } => {
+                let marked = prune_one(dir, &name)?;
+                result.marked.push(marked);
+            }
+            Entry::Leaf {
+                outcome: Outcome::Done,
+                ..
+            } => result.left_done.push(path),
+            Entry::Leaf {
+                outcome: Outcome::Abandoned,
+                ..
+            } => {}
+            Entry::Node { .. } => prune_subtree(&path, result)?,
+            Entry::Brief => {}
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -229,6 +400,36 @@ fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, Str
         .with_context(|| format!("leaf path {} has no filename", abs.display()))?
         .to_string();
     Ok((parent, name))
+}
+
+/// Resolve `path` (absolute, or relative to the grove root) to an existing
+/// absolute path under the grove root — a leaf **file** or a node **directory**
+/// alike ([`leaf_prune`]'s arity, unlike [`resolve_leaf_file`]'s files-only).
+fn resolve_entry(grove_abs: &Path, path: &Path) -> Result<PathBuf> {
+    let candidate = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        grove_abs.join(path)
+    };
+    let abs = candidate
+        .canonicalize()
+        .with_context(|| format!("resolving path {}", candidate.display()))?;
+    if !abs.starts_with(grove_abs) {
+        bail!(
+            "path {} is not under grove root {}",
+            abs.display(),
+            grove_abs.display()
+        );
+    }
+    Ok(abs)
+}
+
+/// The path's final component as an owned `String`.
+fn entry_name(path: &Path) -> Result<String> {
+    path.file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .with_context(|| format!("path {} has no filename", path.display()))
 }
 
 /// `git mv <src> <dst>` run with `git -C <dir>` (src/dst relative to `dir`).
@@ -533,8 +734,13 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
-        let (_brief, child) =
-            leaf_decompose(&g, Path::new("02-build-k3.md"), "design", Some(Kind::Planning)).unwrap();
+        let (_brief, child) = leaf_decompose(
+            &g,
+            Path::new("02-build-k3.md"),
+            "design",
+            Some(Kind::Planning),
+        )
+        .unwrap();
         assert!(body(&child).contains("**Kind:** planning"));
     }
 
@@ -546,7 +752,8 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch_body(&g, "02-build-k3.md", "# build-k3\n\n**Kind:** research\n");
         stage_all(&g);
-        let (_brief, child) = leaf_decompose(&g, Path::new("02-build-k3.md"), "step", None).unwrap();
+        let (_brief, child) =
+            leaf_decompose(&g, Path::new("02-build-k3.md"), "step", None).unwrap();
         assert!(
             body(&child).contains("**Kind:** research"),
             "got {:?}",
@@ -615,12 +822,28 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-DONE-build-k3.md", "build-k3");
         stage_all(&g);
-        let err =
-            leaf_decompose(&g, Path::new("02-DONE-build-k3.md"), "x", Some(Kind::Work)).unwrap_err();
+        let err = leaf_decompose(&g, Path::new("02-DONE-build-k3.md"), "x", Some(Kind::Work))
+            .unwrap_err();
         assert!(
             err.to_string().to_lowercase().contains("done") || err.to_string().contains("retired"),
             "got {err}"
         );
+    }
+
+    #[test]
+    fn decompose_refuses_an_abandoned_leaf() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-ABANDONED-build-k3.md", "build-k3");
+        stage_all(&g);
+        let err = leaf_decompose(
+            &g,
+            Path::new("02-ABANDONED-build-k3.md"),
+            "x",
+            Some(Kind::Work),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("abandoned"), "got {err}");
     }
 
     #[test]
@@ -640,7 +863,13 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "02-build-k3.md", "build-k3");
         stage_all(&g);
-        assert!(leaf_decompose(&g, Path::new("02-build-k3.md"), "Bad Slug", Some(Kind::Work)).is_err());
+        assert!(leaf_decompose(
+            &g,
+            Path::new("02-build-k3.md"),
+            "Bad Slug",
+            Some(Kind::Work)
+        )
+        .is_err());
         let files = list(&g);
         assert!(
             files.contains(&"02-build-k3.md".to_string()),
@@ -667,8 +896,8 @@ mod tests {
     fn decompose_errors_when_grove_root_absent() {
         let (_t, g) = git_grove();
         let missing = g.join("nope");
-        let err =
-            leaf_decompose(&missing, Path::new("02-build-k3.md"), "x", Some(Kind::Work)).unwrap_err();
+        let err = leaf_decompose(&missing, Path::new("02-build-k3.md"), "x", Some(Kind::Work))
+            .unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"
@@ -752,6 +981,18 @@ mod tests {
     }
 
     #[test]
+    fn retire_refuses_an_abandoned_leaf() {
+        // A missing flag must degrade to something harmless, never to the
+        // opposite outcome (ADR *pruning*): retiring an abandoned leaf would
+        // silently assert the rejected work was finished.
+        let (_t, g) = git_grove();
+        touch(&g, "02-ABANDONED-add-k4.md", "add-k4");
+        stage_all(&g);
+        let err = leaf_retire(&g, Path::new("02-ABANDONED-add-k4.md")).unwrap_err();
+        assert!(err.to_string().contains("abandoned"), "got {err}");
+    }
+
+    #[test]
     fn retire_refuses_a_foreign_file() {
         let (_t, g) = git_grove();
         touch(&g, "README.md", "readme");
@@ -779,5 +1020,203 @@ mod tests {
             err.to_string().contains("grove root not found"),
             "got {err}"
         );
+    }
+
+    // ---- leaf-prune (ADR *pruning*) ------------------------------------------
+
+    #[test]
+    fn prune_leaf_adds_abandoned_infix_keeping_position_and_key() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "02-add-k4.md", "add-k4");
+        stage_all(&g);
+        let result = leaf_prune(&g, Path::new("02-add-k4.md")).unwrap();
+        assert_eq!(result.marked.len(), 1);
+        assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-add-k4.md");
+        assert!(result.left_done.is_empty());
+        let files = list(&g);
+        assert!(files.contains(&"02-ABANDONED-add-k4.md".to_string()));
+        assert!(
+            !files.contains(&"02-add-k4.md".to_string()),
+            "old name gone"
+        );
+    }
+
+    #[test]
+    fn prune_leaf_does_not_rewrite_the_header_or_body() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch_body(&g, "02-add-k4.md", "# add-k4\n\nbody\n");
+        stage_all(&g);
+        let result = leaf_prune(&g, Path::new("02-add-k4.md")).unwrap();
+        assert_eq!(
+            body(&result.marked[0]),
+            "# add-k4\n\nbody\n",
+            "content byte-identical"
+        );
+    }
+
+    #[test]
+    fn prune_leaf_works_on_a_nested_leaf() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let design = mknode(&g, "01-design-k1", "design-k1");
+        touch(&design, "02-add-k4.md", "add-k4");
+        stage_all(&g);
+        let result = leaf_prune(&g, &design.join("02-add-k4.md")).unwrap();
+        assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-add-k4.md");
+        assert_eq!(name_of(result.marked[0].parent().unwrap()), "01-design-k1");
+    }
+
+    #[test]
+    fn prune_leaf_refuses_a_node_brief() {
+        let (_t, g) = git_grove();
+        let node = mknode(&g, "02-build-k3", "build-k3");
+        stage_all(&g);
+        let err = leaf_prune(&g, &node.join("BRIEF.md")).unwrap_err();
+        assert!(err.to_string().contains("brief"), "got {err}");
+    }
+
+    #[test]
+    fn prune_leaf_refuses_the_root_brief() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        stage_all(&g);
+        let err = leaf_prune(&g, Path::new("BRIEF.md")).unwrap_err();
+        assert!(err.to_string().contains("brief"), "got {err}");
+    }
+
+    #[test]
+    fn prune_leaf_refuses_an_already_done_leaf() {
+        let (_t, g) = git_grove();
+        touch(&g, "02-DONE-add-k4.md", "add-k4");
+        stage_all(&g);
+        let err = leaf_prune(&g, Path::new("02-DONE-add-k4.md")).unwrap_err();
+        assert!(err.to_string().contains("DONE"), "got {err}");
+    }
+
+    #[test]
+    fn prune_leaf_refuses_an_already_abandoned_leaf() {
+        let (_t, g) = git_grove();
+        touch(&g, "02-ABANDONED-add-k4.md", "add-k4");
+        stage_all(&g);
+        let err = leaf_prune(&g, Path::new("02-ABANDONED-add-k4.md")).unwrap_err();
+        assert!(err.to_string().contains("already"), "got {err}");
+    }
+
+    #[test]
+    fn prune_leaf_refuses_a_foreign_file() {
+        let (_t, g) = git_grove();
+        touch(&g, "README.md", "readme");
+        stage_all(&g);
+        let err = leaf_prune(&g, Path::new("README.md")).unwrap_err();
+        assert!(err.to_string().contains("leaf"), "got {err}");
+    }
+
+    #[test]
+    fn prune_leaf_accepts_an_absolute_path() {
+        let (_t, g) = git_grove();
+        touch(&g, "02-add-k4.md", "add-k4");
+        stage_all(&g);
+        let abs = g.join("02-add-k4.md");
+        let result = leaf_prune(&g, &abs).unwrap();
+        assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-add-k4.md");
+    }
+
+    #[test]
+    fn prune_errors_when_grove_root_absent() {
+        let (_t, g) = git_grove();
+        let missing = g.join("nope");
+        let err = leaf_prune(&missing, Path::new("02-add-k4.md")).unwrap_err();
+        assert!(
+            err.to_string().contains("grove root not found"),
+            "got {err}"
+        );
+    }
+
+    // ---- leaf-prune on a node: bulk arity (ADR *pruning*, D6) ---------------
+
+    #[test]
+    fn prune_node_marks_every_live_leaf_in_the_subtree() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-a-k3.md", "a-k3");
+        touch(&node, "02-b-k4.md", "b-k4");
+        stage_all(&g);
+        let result = leaf_prune(&g, &node).unwrap();
+        let names: Vec<String> = result.marked.iter().map(|p| name_of(p)).collect();
+        assert_eq!(names, vec!["01-ABANDONED-a-k3.md", "02-ABANDONED-b-k4.md"]);
+        assert!(result.left_done.is_empty());
+    }
+
+    #[test]
+    fn prune_node_leaves_done_leaves_untouched() {
+        // That work really was done — a bulk abandon does not retroactively
+        // un-finish it.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-DONE-a-k3.md", "a-k3");
+        touch(&node, "02-b-k4.md", "b-k4");
+        stage_all(&g);
+        let result = leaf_prune(&g, &node).unwrap();
+        assert_eq!(result.marked.len(), 1);
+        assert_eq!(name_of(&result.marked[0]), "02-ABANDONED-b-k4.md");
+        assert_eq!(result.left_done.len(), 1);
+        assert_eq!(name_of(&result.left_done[0]), "01-DONE-a-k3.md");
+        // The DONE leaf's name (and so its position and key) is untouched.
+        assert!(node.join("01-DONE-a-k3.md").is_file());
+    }
+
+    #[test]
+    fn prune_node_recurses_into_a_grandchild_node() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let outer = mknode(&g, "01-outer-k1", "outer-k1");
+        let inner = mknode(&outer, "01-inner-k2", "inner-k2");
+        touch(&inner, "01-deep-k3.md", "deep-k3");
+        stage_all(&g);
+        let result = leaf_prune(&g, &outer).unwrap();
+        assert_eq!(result.marked.len(), 1);
+        assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-deep-k3.md");
+        assert_eq!(
+            name_of(result.marked[0].parent().unwrap()),
+            "01-inner-k2",
+            "the grandchild's own directory is untouched — only the leaf file is marked"
+        );
+    }
+
+    #[test]
+    fn prune_node_with_nothing_live_marks_nothing() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-DONE-a-k3.md", "a-k3");
+        stage_all(&g);
+        let result = leaf_prune(&g, &node).unwrap();
+        assert!(result.marked.is_empty());
+        assert_eq!(result.left_done.len(), 1);
+    }
+
+    #[test]
+    fn prune_refuses_the_grove_root() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-a-k1.md", "a-k1");
+        stage_all(&g);
+        let err = leaf_prune(&g, &g).unwrap_err();
+        assert!(err.to_string().contains("grove root"), "got {err}");
+        // Nothing was touched.
+        assert!(g.join("01-a-k1.md").is_file());
+    }
+
+    #[test]
+    fn prune_refuses_the_grove_root_given_as_a_relative_dot_path() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        stage_all(&g);
+        let err = leaf_prune(&g, Path::new(".")).unwrap_err();
+        assert!(err.to_string().contains("grove root"), "got {err}");
     }
 }

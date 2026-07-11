@@ -296,11 +296,50 @@ fn prune_one(parent_abs: &Path, name: &str) -> Result<PathBuf> {
     Ok(abandoned_path)
 }
 
-/// Recursively mark every *live* leaf under `dir` `ABANDONED`, collecting each
-/// already-`DONE` leaf found along the way into `result.left_done` untouched.
-/// Already-`ABANDONED` leaves are left silently alone (already terminal).
-/// Visits children in the per-level comparator order for a deterministic report.
+/// One leaf discovered while planning a subtree prune (see [`prune_subtree`]): a
+/// live leaf slated to be marked `ABANDONED`, or an already-`DONE` leaf that will
+/// be left untouched and reported as such.
+enum PlannedLeaf {
+    ToMark { dir: PathBuf, name: String },
+    LeftDone { path: PathBuf },
+}
+
+/// Mark every *live* leaf under `dir` `ABANDONED`, collecting each already-`DONE`
+/// leaf found along the way into `result.left_done` untouched (already-`ABANDONED`
+/// leaves are left silently alone — already terminal). **Two-phase**: first
+/// [`plan_subtree`] walks the whole subtree read-only, then every leaf slated to
+/// be marked is validated *before any of them are mutated* — so a leaf that would
+/// fail its `git mv` (e.g. an untracked sibling added earlier in the same
+/// uncommitted session, the same class of gotcha already filed as issue #3 for
+/// `leaf-insert`) fails the whole call with nothing renamed, instead of leaving
+/// every leaf visited before it already marked while the operator sees only the
+/// trailing `git mv` error. Visits children in the per-level comparator order for
+/// a deterministic report.
 fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
+    let mut plan = Vec::new();
+    plan_subtree(dir, &mut plan)?;
+
+    // Validate every leaf slated for marking before mutating any of them — the
+    // phase that makes a failure a clean no-op.
+    for entry in &plan {
+        if let PlannedLeaf::ToMark { dir, name } = entry {
+            validate_prunable(dir, name)?;
+        }
+    }
+
+    for entry in plan {
+        match entry {
+            PlannedLeaf::ToMark { dir, name } => result.marked.push(prune_one(&dir, &name)?),
+            PlannedLeaf::LeftDone { path } => result.left_done.push(path),
+        }
+    }
+    Ok(())
+}
+
+/// The read-only first phase of [`prune_subtree`]: recursively collect every leaf
+/// in `dir`'s subtree that `leaf-prune` will act on, in the per-level comparator
+/// order, without mutating the filesystem.
+fn plan_subtree(dir: &Path, plan: &mut Vec<PlannedLeaf>) -> Result<()> {
     let mut entries: Vec<(String, Entry, PathBuf)> = Vec::new();
     for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
         let entry = entry?;
@@ -325,21 +364,55 @@ fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
             Entry::Leaf {
                 outcome: Outcome::Live,
                 ..
-            } => {
-                let marked = prune_one(dir, &name)?;
-                result.marked.push(marked);
-            }
+            } => plan.push(PlannedLeaf::ToMark {
+                dir: dir.to_path_buf(),
+                name,
+            }),
             Entry::Leaf {
                 outcome: Outcome::Done,
                 ..
-            } => result.left_done.push(path),
+            } => plan.push(PlannedLeaf::LeftDone { path }),
             Entry::Leaf {
                 outcome: Outcome::Abandoned,
                 ..
             } => {}
-            Entry::Node { .. } => prune_subtree(&path, result)?,
+            Entry::Node { .. } => plan_subtree(&path, plan)?,
             Entry::Brief => {}
         }
+    }
+    Ok(())
+}
+
+/// Check that a live leaf `name` (in `dir`) is actually prunable: its `ABANDONED`
+/// destination is free, and it is tracked in git's index — the precondition
+/// `git mv` needs to succeed. Run over every leaf in scope before
+/// [`prune_subtree`] mutates any of them.
+fn validate_prunable(dir: &Path, name: &str) -> Result<()> {
+    let Some(Entry::Leaf {
+        outcome: Outcome::Live,
+        position,
+        slug,
+        key,
+    }) = parse(name)
+    else {
+        bail!("not a live leaf: {name}");
+    };
+    let abandoned_name = Entry::Leaf {
+        position,
+        slug,
+        key,
+        outcome: Outcome::Abandoned,
+    }
+    .name();
+    let abandoned_path = dir.join(&abandoned_name);
+    if abandoned_path.exists() {
+        bail!("destination already exists: {}", abandoned_path.display());
+    }
+    if !is_tracked(dir, name) {
+        bail!(
+            "cannot prune {name}: not tracked in git's index (run `git add` first): {}",
+            dir.join(name).display()
+        );
     }
     Ok(())
 }
@@ -430,6 +503,21 @@ fn entry_name(path: &Path) -> Result<String> {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .with_context(|| format!("path {} has no filename", path.display()))
+}
+
+/// Whether `name` (a file directly inside `dir`) is tracked in git's index —
+/// `git mv`'s precondition. An untracked file (e.g. a leaf added earlier in the
+/// same uncommitted session, before `git add`) is the failure `validate_prunable`
+/// exists to catch ahead of any mutation.
+fn is_tracked(dir: &Path, name: &str) -> bool {
+    Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(["ls-files", "--error-unmatch", "--"])
+        .arg(name)
+        .output()
+        .map(|out| out.status.success())
+        .unwrap_or(false)
 }
 
 /// `git mv <src> <dst>` run with `git -C <dir>` (src/dst relative to `dir`).
@@ -1184,6 +1272,39 @@ mod tests {
             name_of(result.marked[0].parent().unwrap()),
             "01-inner-k2",
             "the grandchild's own directory is untouched — only the leaf file is marked"
+        );
+    }
+
+    #[test]
+    fn prune_node_is_atomic_bails_clean_on_an_untracked_sibling() {
+        // ADR *pruning*: a `git mv` failure partway through the subtree walk must
+        // not leave earlier leaves already marked while the operator sees only
+        // the trailing error. An untracked sibling (added but never `git add`ed
+        // — the same class of gotcha already filed as issue #3 for
+        // `leaf-insert`) is exactly the repro: without the two-phase
+        // validate-before-mutate walk, the first two leaves below would already
+        // be renamed `ABANDONED` by the time the untracked third leaf's
+        // `git mv` failed.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-a-k3.md", "a-k3");
+        touch(&node, "02-b-k4.md", "b-k4");
+        stage_all(&g);
+        // A third sibling leaf, deliberately left untracked.
+        touch(&node, "03-c-k5.md", "c-k5");
+
+        let err = leaf_prune(&g, &node).unwrap_err();
+        assert!(err.to_string().contains("not tracked"), "got {err}");
+
+        // Nothing was mutated: every original name is untouched, none marked.
+        let names = list(&node);
+        assert!(names.contains(&"01-a-k3.md".to_string()), "got {names:?}");
+        assert!(names.contains(&"02-b-k4.md".to_string()), "got {names:?}");
+        assert!(names.contains(&"03-c-k5.md".to_string()), "got {names:?}");
+        assert!(
+            !names.iter().any(|n| n.contains("ABANDONED")),
+            "a validation failure must leave the whole subtree untouched: {names:?}"
         );
     }
 

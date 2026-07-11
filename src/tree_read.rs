@@ -231,8 +231,13 @@ pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
 /// the v2 surface self-contained for the 11.6 swap.)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Resolution {
-    /// Exactly one entry matched. `retired` is `true` for a `DONE` leaf.
-    Found { path: PathBuf, retired: bool },
+    /// Exactly one entry matched. `outcome` is the matched leaf's own
+    /// live/`DONE`/`ABANDONED` state (ADR *pruning*) — so an abandoned match
+    /// is distinguishable from both a live and a `DONE` one, not folded into a
+    /// single `retired` bit. A matched node reports `Outcome::Live`: a node
+    /// carries no terminal state of its own, its done-ness is the absence of a
+    /// live leaf in its subtree.
+    Found { path: PathBuf, outcome: Outcome },
     /// No entry matched the reference (pick-style: not an error).
     NotFound,
     /// A bare-slug reference matched more than one entry. Each carries its
@@ -245,7 +250,17 @@ pub enum Resolution {
 pub struct AmbiguousMatch {
     pub key: u32,
     pub path: PathBuf,
-    pub retired: bool,
+    pub outcome: Outcome,
+}
+
+/// The [`Outcome`] `resolve` reports for a matched entry: a leaf's own
+/// live/`DONE`/`ABANDONED` state, or `Outcome::Live` for a node (a node has no
+/// terminal state of its own — see [`Resolution::Found`]).
+fn entry_outcome(e: &Entry) -> Outcome {
+    match e {
+        Entry::Leaf { outcome, .. } => *outcome,
+        Entry::Node { .. } | Entry::Brief => Outcome::Live,
+    }
 }
 
 /// `resolve <ref>`: turn a reference into the current path of the entity it
@@ -277,7 +292,7 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
             .find(|(e, _)| e.key() == Some(key))
             .map_or(Resolution::NotFound, |(e, path)| Resolution::Found {
                 path: path.clone(),
-                retired: e.is_done(),
+                outcome: entry_outcome(e),
             })
     };
 
@@ -292,7 +307,7 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
                     (e.slug() == Some(slug.as_str())).then(|| AmbiguousMatch {
                         key,
                         path: path.clone(),
-                        retired: e.is_done(),
+                        outcome: entry_outcome(e),
                     })
                 })
                 .collect();
@@ -308,7 +323,7 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
                 },
                 [m] => Resolution::Found {
                     path: m.path.clone(),
-                    retired: m.retired,
+                    outcome: m.outcome,
                 },
                 _ => Resolution::Ambiguous(matches),
             })
@@ -371,15 +386,21 @@ fn handle_key(reference: &str) -> Option<u32> {
 /// untouched.
 pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, String) {
     match resolution {
-        Resolution::Found { path, retired } => {
+        Resolution::Found { path, outcome } => {
             let stdout = format!("{}\n", path.display());
-            let stderr = if *retired {
-                format!(
+            let stderr = match outcome {
+                Outcome::Live => String::new(),
+                Outcome::Done => format!(
                     "note: referenced task is retired (DONE): {}\n",
                     path.display()
-                )
-            } else {
-                String::new()
+                ),
+                // The abandoned counterpart of the DONE note above (ADR
+                // *pruning*): `resolve` must not let a pruned dead end look
+                // live, the same failure mode the ADR exists to prevent.
+                Outcome::Abandoned => format!(
+                    "note: referenced task is abandoned (ABANDONED): {}\n",
+                    path.display()
+                ),
             };
             (stdout, stderr)
         }
@@ -391,12 +412,12 @@ pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, S
             let mut stderr =
                 format!("resolve: reference {reference:?} is ambiguous; re-query by key:\n");
             for m in matches {
-                stderr.push_str(&format!(
-                    "  [{}] {}{}\n",
-                    m.key,
-                    m.path.display(),
-                    if m.retired { " (retired)" } else { "" }
-                ));
+                let tag = match m.outcome {
+                    Outcome::Live => "",
+                    Outcome::Done => " (retired)",
+                    Outcome::Abandoned => " (abandoned)",
+                };
+                stderr.push_str(&format!("  [{}] {}{}\n", m.key, m.path.display(), tag));
             }
             (String::new(), stderr)
         }
@@ -978,10 +999,10 @@ mod tests {
     fn resolve_by_bracket_key_finds_a_nested_leaf() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[2]").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "01-add-k2.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -991,9 +1012,9 @@ mod tests {
     fn resolve_by_bare_number_finds_a_done_leaf() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "4").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "02-DONE-add-k4.md");
-                assert!(retired, "the key-4 task is DONE");
+                assert_eq!(outcome, Outcome::Done, "the key-4 task is DONE");
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1003,32 +1024,45 @@ mod tests {
     fn resolve_finds_a_pruned_leaf_by_key() {
         // ADR *pruning*: an abandoned leaf's key must stay resolvable — durable
         // cross-references to it (commit messages, ADRs, briefs) are precisely
-        // what the ADR protects.
+        // what the ADR protects. And `resolve` must not let the match *look*
+        // live: `outcome` must come back `Abandoned`, not just the right path —
+        // this is the exact failure mode ADR *pruning* exists to prevent ("a
+        // tree that hides its dead ends lies"), here in `resolve` rather than
+        // the tree itself.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
         touch(&g, "01-ABANDONED-spike-k1.md");
         match resolve(&g, "[1]").unwrap() {
-            Resolution::Found { path, .. } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
+                assert_eq!(outcome, Outcome::Abandoned);
             }
             other => panic!("expected Found, got {other:?}"),
         }
         // The full `<slug>-k<key>` handle resolves it too.
         match resolve(&g, "spike-k1").unwrap() {
-            Resolution::Found { path, .. } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
+                assert_eq!(outcome, Outcome::Abandoned);
             }
             other => panic!("expected Found, got {other:?}"),
         }
+        // And the CLI-facing render carries the same note a DONE match gets,
+        // in its own wording.
+        let (_out, err) = render_resolution("[1]", &resolve(&g, "[1]").unwrap());
+        assert!(
+            err.contains("abandoned") && err.contains("ABANDONED"),
+            "got {err:?}"
+        );
     }
 
     #[test]
     fn resolve_bracket_key_ignores_decorative_slug() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[5]-whatever").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "03-build-k5.md");
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1040,10 +1074,10 @@ mod tests {
         // node resolves to the directory path (append /BRIEF.md to read it).
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[1]").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "01-design-k1");
                 assert!(path.is_dir());
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1059,9 +1093,9 @@ mod tests {
     fn resolve_bare_slug_unique_across_dirs() {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "03-build-k5.md");
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1072,10 +1106,10 @@ mod tests {
         // `remove` lives only inside the node directory — slug search recurses.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "remove").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "02-remove-k3.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1097,10 +1131,10 @@ mod tests {
                 assert_eq!(matches.len(), 2);
                 assert_eq!(matches[0].key, 2);
                 assert_eq!(name_of(&matches[0].path), "01-add-k2.md");
-                assert!(!matches[0].retired);
+                assert_eq!(matches[0].outcome, Outcome::Live);
                 assert_eq!(matches[1].key, 4);
                 assert_eq!(name_of(&matches[1].path), "02-DONE-add-k4.md");
-                assert!(matches[1].retired);
+                assert_eq!(matches[1].outcome, Outcome::Done);
             }
             other => panic!("expected Ambiguous, got {other:?}"),
         }
@@ -1139,9 +1173,9 @@ mod tests {
         // — so the handle round-trips back to a path.
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build-k5").unwrap() {
-            Resolution::Found { path, retired } => {
+            Resolution::Found { path, outcome } => {
                 assert_eq!(name_of(&path), "03-build-k5.md");
-                assert!(!retired);
+                assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
         }
@@ -1209,7 +1243,7 @@ mod tests {
     fn render_found_prints_path_no_stderr() {
         let r = Resolution::Found {
             path: PathBuf::from("/g/.grove/03-build-k5.md"),
-            retired: false,
+            outcome: Outcome::Live,
         };
         let (out, err) = render_resolution("[5]", &r);
         assert_eq!(out, "/g/.grove/03-build-k5.md\n");
@@ -1220,11 +1254,26 @@ mod tests {
     fn render_found_retired_notes_on_stderr_but_still_prints_path() {
         let r = Resolution::Found {
             path: PathBuf::from("/g/.grove/02-DONE-add-k4.md"),
-            retired: true,
+            outcome: Outcome::Done,
         };
         let (out, err) = render_resolution("4", &r);
         assert_eq!(out, "/g/.grove/02-DONE-add-k4.md\n");
         assert!(err.contains("retired"), "got {err:?}");
+    }
+
+    #[test]
+    fn render_found_abandoned_notes_on_stderr_but_still_prints_path() {
+        // The abandoned counterpart of the DONE case above: a resolved
+        // `ABANDONED` entry must get its own stderr note, not silence
+        // (silence is what a live match gets) and not the DONE wording.
+        let r = Resolution::Found {
+            path: PathBuf::from("/g/.grove/01-ABANDONED-spike-k1.md"),
+            outcome: Outcome::Abandoned,
+        };
+        let (out, err) = render_resolution("1", &r);
+        assert_eq!(out, "/g/.grove/01-ABANDONED-spike-k1.md\n");
+        assert!(err.contains("abandoned"), "got {err:?}");
+        assert!(!err.contains("retired"), "got {err:?}");
     }
 
     #[test]
@@ -1241,12 +1290,12 @@ mod tests {
             AmbiguousMatch {
                 key: 2,
                 path: PathBuf::from("/g/.grove/01-design-k1/01-add-k2.md"),
-                retired: false,
+                outcome: Outcome::Live,
             },
             AmbiguousMatch {
                 key: 4,
                 path: PathBuf::from("/g/.grove/02-DONE-add-k4.md"),
-                retired: true,
+                outcome: Outcome::Done,
             },
         ]);
         let (out, err) = render_resolution("add", &r);
@@ -1258,6 +1307,20 @@ mod tests {
         assert!(err.contains("[2]"), "got {err:?}");
         assert!(err.contains("[4]"), "got {err:?}");
         assert!(err.contains("retired"), "got {err:?}");
+    }
+
+    #[test]
+    fn render_ambiguous_tags_an_abandoned_match() {
+        let r = Resolution::Ambiguous(vec![AmbiguousMatch {
+            key: 1,
+            path: PathBuf::from("/g/.grove/01-ABANDONED-spike-k1.md"),
+            outcome: Outcome::Abandoned,
+        }]);
+        let (_out, err) = render_resolution("spike", &r);
+        assert!(
+            err.contains("[1]") && err.contains("(abandoned)"),
+            "got {err:?}"
+        );
     }
 
     // ---- pick + brief-chain together ----------------------------------------

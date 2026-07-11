@@ -50,8 +50,9 @@ pub enum Command {
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
     /// is a directory holding `BRIEF.md` + numbered children), returning the
-    /// first live leaf and skipping briefs and retired (`DONE`) leaves. Empty
-    /// stdout (and a diagnostic on stderr) when the grove has no live leaves.
+    /// first live leaf and skipping briefs and terminal leaves — retired
+    /// (`DONE`) and abandoned (`ABANDONED`, ADR *pruning*) alike. Empty stdout
+    /// (and a diagnostic on stderr) when the grove has no live leaves.
     Pick,
     /// Print the BRIEF.md chain for a leaf, root→leaf, one absolute path per
     /// line — the `BRIEF.md` of each of the leaf's ancestor **directories**,
@@ -79,15 +80,18 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Resolve a reference to its current file path, searching live **and**
-    /// retired (`DONE`) entries across the whole directory tree. A permanent key
-    /// (`[n]` or bare `n`, optionally `[n]-slug`) resolves the unique keyed
-    /// entry; a bare slug resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒
-    /// ambiguous, listing each match's key so you re-query by key); the full
-    /// `<slug>-k<key>` handle (task-tree-scheme §5) resolves by its terminal key. A node
-    /// resolves to its **directory** path (append `/BRIEF.md` to read its
-    /// charter). Prints the path on stdout; a not-found or ambiguous reference
-    /// prints a diagnostic on stderr and still exits zero.
+    /// Resolve a reference to its current file path, searching live, retired
+    /// (`DONE`), **and** abandoned (`ABANDONED`, ADR *pruning*) entries alike
+    /// across the whole directory tree. A permanent key (`[n]` or bare `n`,
+    /// optionally `[n]-slug`) resolves the unique keyed entry; a bare slug
+    /// resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒ ambiguous, listing
+    /// each match's key so you re-query by key); the full `<slug>-k<key>` handle
+    /// (task-tree-scheme §5) resolves by its terminal key. A node resolves to
+    /// its **directory** path (append `/BRIEF.md` to read its charter). Prints
+    /// the path on stdout; a `DONE` or `ABANDONED` match also prints its own
+    /// note on stderr (so the two are distinguishable — a resolved dead end
+    /// never looks live); a not-found or ambiguous reference prints a
+    /// diagnostic on stderr instead. Either way it still exits zero.
     Resolve {
         /// The reference: `[n]` / `n` / `[n]-slug` / `<slug>-k<key>` (by
         /// permanent key) or a bare slug.
@@ -122,7 +126,8 @@ pub enum Command {
     /// (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`) — no `done/`
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
-    /// brief and an already-retired leaf. Prints the retired file's absolute
+    /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
+    /// (`ABANDONED`, ADR *pruning*) leaf. Prints the retired file's absolute
     /// path on stdout. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
     /// Mark abandoned work `ABANDONED` in place (ADR *pruning*). **HITL: only

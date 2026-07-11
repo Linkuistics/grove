@@ -1,5 +1,15 @@
 # Changelog
 
+## v10.0.2
+
+A bug fix: the self-driving loop swallowed the one warning that explains a model downgrade, so an unrecognised task kind quietly launched its leaf on the cheapest model.
+
+### Fixed
+
+- **An unrecognised `**Kind:**` line no longer downgrades a leaf's model in silence.** Reading a kind *degrades* rather than errors — an unrecognised token (a typo, a hand-edited file, or a tree written by a newer grove) warns and is treated as `work` (ADR `task-kind-taxonomy`), so a typo can never jam an unattended relaunch. But the warning rides a **zero exit**: `grove-llm kind` prints it on stderr and exits 0. The loop driver ran that peek through `Command::output()`, which *captures* stderr, and only read it back on the failure branches — so on the degrade path the warning was discarded outright. The leaf then launched on `GROVE_WORK_MODEL`, which in a typical configuration is the *cheapest* model, with nothing on screen to say why. Because the degrade always lands on `work`, the failure was always in the cheap direction, and so never announced itself as a failure. `resolve_kind` now **inherits** the child's stderr instead of capturing it, so every `grove-llm kind` diagnostic — this warning and any future one — reaches the operator; the failure branch drops its now-redundant echo. The degrade itself is unchanged: the kind still resolves to `work` and the leaf still launches, because model selection must never be a reason to stop the loop. (Issue #2's sibling, issue #4)
+
+  **On the symptom that prompted this.** Issue #4 reported research leaves launching on Sonnet. That observation was a **version skew, not a dispatch bug, and it needs no fix**: those leaves lived in the grove that was *building* the five-kind taxonomy, driven by the then-installed v9.1.0 — whose `Kind` was `{Work, Planning}` and which had no degrade-on-read at all, so `grove-llm kind` simply failed on `**Kind:** research`, `resolve_kind` degraded to `None`, no `--model` was passed, and the session inherited the harness's own default. Dispatch on v10 is correct and verified end-to-end. What the investigation *did* surface is the defect fixed above — and the reason it was hard to find in-session is precisely that the diagnostic was being thrown away.
+
 ## v10.0.1
 
 A documentation fix. Two files still described grove's task kinds as a binary after v10.0.0 made them a closed set of five. The binary is unchanged apart from the embedded methodology it carries.

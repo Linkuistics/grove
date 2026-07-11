@@ -37,7 +37,7 @@ use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -245,10 +245,22 @@ fn env_model(var: &str) -> Option<String> {
 /// `None` (launch on the default) with a diagnostic. An empty grove (no live
 /// leaf — the finish-cycle iteration) also yields `None`, silently: with no leaf
 /// there is no kind to key a model on.
+///
+/// Every degrade is **loud**, and that is the point: an unrecognised kind is
+/// treated as `work` (task-kind-taxonomy), which is typically the cheapest model,
+/// so a swallowed warning reads as a silent downgrade. The child's stderr is
+/// inherited, not captured — see the note on the spawn below.
 fn resolve_kind(worktree: &Path) -> Option<Kind> {
     let out = Command::new(grove_llm_bin())
         .arg("kind")
         .current_dir(worktree)
+        // Inherit stderr rather than capture it. `kind` *degrades* on an
+        // unrecognised `**Kind:**` line — it warns and prints `work`, on a
+        // **zero** exit — so the warning rides the success path. Capturing would
+        // swallow it and silently launch the leaf on the work model, which in a
+        // typical config is the cheapest one: a silent downgrade with no way to
+        // see why. Inheriting surfaces every diagnostic, warning or error.
+        .stderr(Stdio::inherit())
         .output();
     match out {
         Ok(o) if o.status.success() => {
@@ -268,11 +280,9 @@ fn resolve_kind(worktree: &Path) -> Option<Kind> {
                 }
             }
         }
-        Ok(o) => {
-            eprintln!(
-                "grove: `grove-llm kind` failed ({}); launching on the default model",
-                String::from_utf8_lossy(&o.stderr).trim()
-            );
+        Ok(_) => {
+            // The child's own diagnostic already reached stderr (inherited above).
+            eprintln!("grove: `grove-llm kind` failed; launching on the default model");
             None
         }
         Err(e) => {

@@ -307,6 +307,99 @@ exit 0
     );
 }
 
+// Degrade-on-read must be **loud** (task-kind-taxonomy). An unrecognised
+// `**Kind:**` line — a typo, a hand-edited file, or a tree written by a newer
+// grove — is treated as `work`, which in a typical config is the *cheapest*
+// model: a silent downgrade. `grove-llm kind` warns on stderr but exits 0, so
+// the warning rides the **success** path; a driver that captures the child's
+// stderr swallows exactly the diagnostic that explains the downgrade.
+//
+// Runs the real `grove` binary as a subprocess (the only way to observe what the
+// operator actually sees on stderr) and asserts both halves: the warning reaches
+// them, *and* the leaf still launches — degrading, never jamming the loop.
+#[test]
+fn unrecognised_kind_warns_the_operator_and_still_launches() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let git = |args: &[&str]| {
+        assert!(
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(repo_path)
+                .status()
+                .unwrap()
+                .success(),
+            "git {args:?} failed"
+        );
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["config", "user.email", "t@example.com"]);
+    git(&["config", "user.name", "t"]);
+
+    // `.claude/` so the harness is detected; a committed `.grove/` whose live
+    // leaf carries a kind this binary does not know, so the continue path's peek
+    // hits the degrade branch.
+    fs::create_dir_all(repo_path.join(".claude")).unwrap();
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** reserch\n",
+    )
+    .unwrap();
+    git(&["add", "-A"]);
+    git(&["commit", "-qm", "tree with an unrecognised kind"]);
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let log = repo_path.join("log");
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
+        .args(["do", "kindgrove"])
+        .current_dir(repo_path)
+        .env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .env("GROVE_SKILL_DIR", &skill_dir)
+        .env("GROVE_TEST_LOG", &log)
+        .env("GROVE_WORK_MODEL", "sonnet")
+        // The degrade lands on `work`; the other four must not be in play.
+        .env_remove("GROVE_PLANNING_MODEL")
+        .env_remove("GROVE_RESEARCH_MODEL")
+        .env_remove("GROVE_PROTOTYPE_MODEL")
+        .env_remove("GROVE_REVIEW_MODEL")
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(
+        stderr.contains("unrecognised") && stderr.contains("reserch"),
+        "the operator must SEE why the leaf was downgraded — `grove-llm kind`'s \
+         degrade warning rides a zero exit, so capturing the child's stderr \
+         swallows it (stderr: {stderr:?})"
+    );
+
+    let argv = fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        argv.contains("--model sonnet"),
+        "an unrecognised kind degrades to `work` and still launches — a typo must \
+         never jam the unattended loop (argv: {argv:?})"
+    );
+}
+
 // The load-bearing rule: with neither model env var set, the driver passes no
 // `--model` at all — byte-for-byte the pre-feature launch, so a user's own
 // `ANTHROPIC_MODEL`/settings default is never clobbered.

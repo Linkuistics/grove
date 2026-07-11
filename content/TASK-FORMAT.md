@@ -3,13 +3,16 @@
 # TASK-FORMAT — the leaf task file
 
 A **leaf** in a grove is a single `.md` task file, named
-`NN-[DONE-]<slug>-k<key>.md`: a 2-digit per-level **position** `NN` (its place
-among its directory's children), a human **slug**, and a permanent **key**
-`-k<key>` (stable identity, the terminal token, assigned once, never reused) —
-e.g. `01-plan-k1.md`, `03-extract-k7.md`. A retired leaf carries a `DONE` infix
-right after the position: `03-DONE-extract-k7.md`. One task is one session
-(constraint: one task per session). The file is freeform markdown — a guide
-follows, not a schema.
+`NN-[DONE-|ABANDONED-]<slug>-k<key>.md`: a 2-digit per-level **position** `NN`
+(its place among its directory's children), a human **slug**, and a permanent
+**key** `-k<key>` (stable identity, the terminal token, assigned once, never
+reused) — e.g. `01-plan-k1.md`, `03-extract-k7.md`. A leaf ends one of two
+ways, marked in place right after the position: retired work carries a `DONE`
+infix (`03-DONE-extract-k7.md`); a path decided against carries an `ABANDONED`
+infix (`03-ABANDONED-extract-k7.md`, `leaf-prune`, ADR *pruning*) — pruning is
+**HITL**, never an agent's own call. One task is one session (constraint: one
+task per session). The file is freeform markdown — a guide follows, not a
+schema.
 
 ## The five kinds
 

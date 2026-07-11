@@ -6,7 +6,7 @@ holds the verbs a human at a terminal invokes — the lifecycle set `do` /
 `migrate` / `retire`. **`grove-llm`** holds the verbs the LLM driving a grove
 session invokes mid-session to perform deterministic mechanics — `root-init`,
 `pick`, `brief-chain`, `resolve`, `leaf-add`, `leaf-insert`, `leaf-decompose`,
-`leaf-retire`, `complete`.
+`leaf-retire`, `leaf-prune`, `complete`.
 
 ## Why split the surface at all
 

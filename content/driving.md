@@ -392,6 +392,35 @@ A question you can already phrase precisely earns a leaf immediately with
 dim to phrase that precisely stays a horizon note until a later session
 sharpens it enough to graduate.
 
+## Prune, reorder, or file an issue — the triage a status word would hide
+
+A leaf whose place in the tree is in doubt — surfacing new, or already sitting
+there under a doubted premise — tempts a status word: `blocked`, `deferred`,
+`superseded`. Resist it; that is exactly the taxonomy ADR *pruning* rejects,
+and reaching for a fourth state is how a tree starts lying about what is still
+live. The doubt always resolves to one of three existing mechanisms:
+
+- **Not now, but still ours** → a **reorder**. The work is good and belongs in
+  this tree, just not next: leave the leaf live and `leaf-insert` something
+  ahead of it (or reorder by hand). Nothing is decided against — `pick` will
+  still return it in its turn.
+- **Not ours at all** → a **GitHub issue**, not a leaf. Work that belongs to a
+  different repo, owner, or workstream gets filed and dropped rather than grown
+  into this tree — this grove's own charter (issue #2) is the worked example.
+  If the concern already has a leaf here, prune it once it's filed: the work
+  still needs doing, just not in this grove.
+- **Decided against** → a **prune** (`grove-llm leaf-prune`, HITL, `SKILL.md`
+  "Retire"). The path was considered on its merits and rejected; the leaf
+  stays in the tree `ABANDONED`, and the *why* goes to the ADR set, not the
+  filename (ADR *pruning*).
+
+Misfiling any of the three corrupts the tree in a different way: reordering a
+decided-against leaf keeps a dead end reading as "still coming"; pruning a
+not-yet-due leaf erases work nobody rejected; leafing a not-ours concern grows
+the tree with work this grove will never do. When a leaf's status is in doubt,
+name which of the three sentences above is actually true before reaching for
+the CLI — the sentence picks the verb.
+
 ## Anti-patterns
 
 - **The wizard.** A capture verb that opens an interactive prompt

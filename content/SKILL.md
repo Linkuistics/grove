@@ -35,7 +35,7 @@ flowchart TD
     work["Work — produce code / docs / tests"]
     commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
     retire{"parent chain — node now has no live leaf?"}
-    ret["Ask user; promote brief up; leaves already DONE in place"]
+    ret["Ask user; promote brief up; leaves already marked (done/abandoned) in place"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
     exec -->|planning| plan --> commit
@@ -188,20 +188,40 @@ path** — positions and paths move under renumber and reorder, but the
 `<slug>-k<key>` handle is permanent, so the historical record stays meaningful
 after restructures (task-tree-scheme §5).
 
-**Retire.** After committing the task, retire the just-finished leaf by
+**Retire.** A leaf ends one of two ways — **done** (the work was completed) or
+**abandoned** (the path was decided against); grove's own metaphor: a done leaf
+is *harvested*, an abandoned one is *pruned*. Both mark the leaf **in place**,
+neither ever deletes it, and both are skipped by `pick`.
+
+The common case: after committing the task, retire the just-finished leaf by
 running `grove-llm leaf-retire <leaf-path>` — the verb marks it done **in place**
 by adding a `DONE` infix (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`);
 there is no `done/` directory, and the leaf keeps its position and key in its
 directory. The infix is filename-only — the file's contents (including its
 `# <slug>-k<key>` header) are untouched. Mechanical bookkeeping, no need to ask.
-Then walk the parent chain: if a node now has no live leaf left in its subtree it
-is **implicitly done** — a brief is context, not a task, so it is never marked
-done; its done-ness *is* the absence of a live child. **Ask the user before
+
+The other case: a session finds the leaf's path decided against, not done. This
+is **pruning**, and it is **HITL — an agent never prunes on its own**: an AFK
+session (research / work / review) that discovers this says so and stops; the
+loop stalling on an abandonment decision is the system working, not a fault.
+Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
+or a node — given a node it marks every live leaf in the subtree, leaving
+`DONE` ones alone, and refuses the grove root) to mark it `ABANDONED` in place.
+`.grove/` dies at the finish cycle, so the mark records only *that* the path
+closed — the durable *why* (what was rejected, why, and what would reopen it)
+goes to the **ADR set**, the positive fact the abandonment establishes, if it
+clears the when-to-write bar; otherwise the mark and the commit message suffice
+(ADR *pruning*).
+
+Then walk the parent chain: if a node now has no live leaf left in its subtree —
+however its leaves finished — it is **implicitly done** — a brief is context,
+not a task, so it is never marked done; its done-ness *is* the absence of a
+live child. **Ask the user before
 treating it as done** — the confirmation gives them a moment to add a follow-up
 leaf if the node is not actually finished. On
 confirmation, promote anything still relevant from the node's brief upward — to
 the parent brief, an ADR, or the glossary — so it stays in the brief chain of
-future siblings; the brief and its now-`DONE` leaves stay exactly where they
+future siblings; the brief and its now-terminal leaves stay exactly where they
 are (nothing moves). Retirement is also the moment to **reconcile the ADR set**
 with what the finished work established: edit it in place to keep it a minimum
 coherent set (merge / split / delete), and fix any citation the rework leaves
@@ -209,9 +229,9 @@ dangling — in the briefs, the other ADRs, or `docs/`; never append a supersedi
 ADR (`linkuistics:decision-records`). That may leave the next ancestor with no
 live leaf either;
 re-check, ask again, recurse, until a node still has a live leaf or you reach the
-grove root. Done branches stay in the tree, marked in place, never deleted while
-the grove is live — so a recursive view of `.grove/` (`find .grove`, or a
-tree-style file manager) shows the whole state, done-ness included.
+grove root. Terminal branches stay in the tree, marked in place, never deleted
+while the grove is live — so a recursive view of `.grove/` (`find .grove`, or a
+tree-style file manager) shows the whole state, done and abandoned alike.
 The cascade walk and the brief-promotion-upward stay prose deliberately: both are
 judgement steps (is this node done? what survives upward?) with no stable
 input/output shape that would justify a verb.

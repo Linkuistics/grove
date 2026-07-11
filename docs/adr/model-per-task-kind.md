@@ -77,21 +77,46 @@ surprises, so it is called out in the user-facing docs.
   (github.com/NousResearch/hermes-agent/issues/40014). For Opus↔Sonnet on a Max sub,
   native `--model` does the identical routing on the subscription for free — a
   router is the wrong tool and adds a proxy grove would have to own.
-- **codex as the review harness (Route B, rejected).** For cross-family review
-  specifically, a second option is to launch the `review` leaf under `codex` rather
-  than redirect `claude`'s endpoint. Rejected: it costs ~ten changes (research doc,
-  Q5), one of which — `--sandbox danger-full-access` — exists *only* to defeat
-  codex's Seatbelt policy (`(allow signal (target same-sandbox))`), which would
-  otherwise make grove's completion `kill -TERM <parent>` return `EPERM`. grove
-  would adopt a second harness and immediately disable the one property that
-  distinguishes it, plus a second skill location (`~/.agents/skills/`), a second
-  instruction-file convention (`AGENTS.md`), and a terminal-reset obligation (codex
-  installs no `SIGTERM` handler). And codex reaches other providers itself
-  (`model_providers.<id>` + `base_url`), so Route B buys nothing the provider
-  profile above does not. Its only independent merit — wanting codex *itself* as the
-  reviewer — is a different question, not this one. (An unrelated defect this
-  surfaced, grove's stale codex `name_args: &["--name"]`, is tracked as
-  `Linkuistics/grove#1`.)
+- **Cross-family (multi-provider) selection — rejected; the kind is the key, the
+  *family* is not.** A `review` leaf gains most from a reviewer that does not share
+  the author's family-level style prior (self-preference bias is causally
+  established and family-level — Panickssery et al., NeurIPS 2024), so the obvious
+  extension is to let a kind select a whole *provider*, not just a tier. Two routes
+  were costed in full (`docs/research/cross-family-review-providers.md`); **both are
+  rejected, and the mechanism above stays single-provider.**
+  - *Redirect `claude`'s endpoint* (`ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` per
+    kind, `--model <vendor-id>` passed through verbatim). This is not a
+    model-selection change — it is a **credential and provider-configuration surface
+    grove does not have**: a live secret to hold and never persist, an *undocumented*
+    collision between `settings.json`'s `env` block and a `Command::env` child
+    environment (community evidence says the `env` block silently wins —
+    `claude-agent-sdk-typescript#217`), an open interactive-auth bug against the one
+    variable it must use (`anthropics/claude-code#7855`, `has repro` — and grove's
+    sessions are interactive and TTY-owning), and a subagent-alias trap. That is
+    infrastructure, and it earns a design of its own before any of it is bolted onto
+    the launch path.
+  - *codex as the review harness.* ~Ten changes (research doc, Q5), one of which —
+    `--sandbox danger-full-access` — exists *only* to defeat codex's Seatbelt policy
+    (`(allow signal (target same-sandbox))`), which would otherwise make grove's
+    completion `kill -TERM <parent>` return `EPERM`. grove would adopt a second
+    harness and immediately disable the one property that distinguishes it, plus a
+    second skill location (`~/.agents/skills/`), a second instruction-file convention
+    (`AGENTS.md`), and a terminal-reset obligation (codex installs no `SIGTERM`
+    handler). Wanting codex *itself* as the reviewer is a different question, not
+    this one. (An unrelated defect this surfaced, grove's stale codex
+    `name_args: &["--name"]`, is tracked as `Linkuistics/grove#1`.)
+
+  What is *not* the reason: cost (~$18/mo — trivial) or fidelity (the loop, skills,
+  subagents and the `complete` handshake all survive a redirected endpoint). The
+  reason is that the payoff is **unquantified — no study isolates same-family
+  fresh-context vs different-family review on the same artifacts** (research doc,
+  Q6) — while the cost is a provider/credential layer grove would have to own. A
+  cheap bet is still a bad trade when it is paid for in infrastructure. The
+  best-evidenced review lever is an **external deterministic verifier** (build,
+  tests, static analysis as an oracle): orthogonal to provider choice, and cheaper.
+  What would reopen this: a coherent provider/credential design for grove, or
+  evidence that actually measures the cross-family increment in defect-detection
+  recall.
 - **Agent self-switch via `/model` (rejected as the mechanism).** Having the launched
   agent read its own kind and `/model`-switch at session start needs no driver
   change, but the bootstrap context already ran on the wrong model, it depends on the
@@ -114,88 +139,3 @@ surprises, so it is called out in the user-facing docs.
   alongside the `/model`-persistence asymmetry above.
 - Backward compatible: with no env var set, grove launches exactly as before (no
   `--model`), so existing groves are unaffected.
-
-## Cross-family provider profiles
-
-The same mechanism extends from *tier within one family* to *a different family*.
-A `review` leaf gains most from a reviewer that does **not** share the author's
-family-level style prior: self-preference bias is causally established and
-family-level (Panickssery et al., NeurIPS 2024; Wataoka et al.), so a fresh
-same-family context cannot remove it, whereas a different family changes the prior.
-The evidence base is `docs/research/cross-family-review-providers.md`.
-
-**A per-kind provider profile.** `GROVE_<KIND>_MODEL` gains two optional siblings,
-`GROVE_<KIND>_BASE_URL` and `GROVE_<KIND>_AUTH_TOKEN`. The **base-URL is the
-activation key**:
-
-- **No base-URL** — the existing same-family behaviour above, unchanged: a bare
-  `GROVE_<KIND>_MODEL` selects a tier on the user's own subscription.
-- **base-URL present** — the driver exports `ANTHROPIC_BASE_URL` +
-  `ANTHROPIC_AUTH_TOKEN` **to the child process only** (`Command::env`), alongside
-  `--model <vendor-id>`. Claude Code passes `--model` through verbatim to a
-  non-Anthropic endpoint (model-config docs), reads the base-URL and token fresh
-  from the environment at launch, and the gateway token (auth precedence rank 2)
-  outranks the Max OAuth (rank 6) for that one process — an off-subscription review
-  session, with the loop, subagents, and the grove skill all intact (the skill
-  loads from the filesystem, endpoint-independent).
-
-**Partial profiles extend the no-fallback rule.** With base-URL present the
-**triad** (model + base-URL + auth-token) must be complete. An incomplete triad
-yields **no cross-family override at all** — grove must not send a foreign model ID
-to the Max endpoint (a hard-400, or a silent wrong-model run), so it degrades to
-the user's own default. As everywhere in the loop, this **degrades with a
-diagnostic, never gates** the launch (constraint 5; the taxonomy's read-degrades
-rule). A profile is thus all-or-nothing per kind, on top of the model-only path.
-
-**The secret lives in the env var, read at launch, never persisted.** Not
-`apiKeyHelper` (a durable helper script is state, fighting constraints 1 and 6);
-and specifically **`ANTHROPIC_AUTH_TOKEN`, never `ANTHROPIC_API_KEY`** — the latter
-persists an approval fingerprint into `~/.claude.json` in interactive mode, leaving
-residue in the user's config. Unsetting the token returns cleanly to the Max
-subscription (the OAuth login persists underneath, merely unselected).
-
-**Two hazards bound the mechanism, and both are real, not theoretical.**
-
-1. **The `settings.json` `env` block may silently win.** grove sets the child
-   environment via `Command::env`; whether `~/.claude/settings.json`'s `env` block
-   overrides a variable already in the process environment is **undocumented by
-   Anthropic**, and community evidence (including the exact `Command::env`
-   analogue, `claude-agent-sdk-typescript#217`) reports the `env` block wins in
-   v2.x — which would silently redirect the review onto the wrong endpoint, the
-   precise failure the feature exists to prevent. grove **detects and warns** (a
-   four-file JSON read across managed → local → project → user scope for a
-   colliding `ANTHROPIC_*` key) **only when a profile is active**; it does not
-   refuse (constraint 5), and does not nag on the common no-profile path.
-2. **The subagent-alias trap.** A subagent launched with an explicit `model` alias
-   (`opus`/`sonnet`/…) resolves that alias *client-side* against Anthropic's table
-   before the request leaves, so it hard-fails against a foreign endpoint. This
-   matters because `linkuistics:doubt-driven-development` tells a review session to
-   spawn a fresh-context reviewer subagent: under a cross-family profile that
-   subagent must **inherit** (the documented default), not pin. grove documents
-   "cross-family review subagents must inherit" rather than exporting the four
-   `ANTHROPIC_DEFAULT_*_MODEL` remap vars, keeping the surface small.
-
-**Empirical gate.** One open bug can invalidate the whole route:
-`anthropics/claude-code#7855` (open, `has repro`) reports that
-`ANTHROPIC_AUTH_TOKEN` breaks *interactive* sessions with auth errors — and grove's
-sessions are interactive and TTY-owning. Combined with hazard 1's undocumented
-precedence, the route is verified by a `prototype` spike *before* the driver code
-is written; if #7855 reproduces on grove's launch, cross-family Route A is blocked
-and this section is reworked to record that rejection.
-
-**A cross-family review leaf's brief carries more.** The reviewer loses server-side
-`WebSearch` (client-side `WebFetch` survives) and reads `CONTEXT.md` conventions
-less fluently than a same-family model, so a review leaf run off a foreign endpoint
-should carry more of its own context. This is a brief-authoring habit, not a
-`TASK-FORMAT.md` schema change — cross-family review is opt-in and unproven, so the
-schema stays as is.
-
-**What this route does *not* buy, recorded so it is not re-litigated.** The
-increment cross-family adds *on top of* fresh context, for the single-reviewer
-code-review case, is **measured nowhere** — no study isolates same-family
-fresh-context vs different-family review on the same artifacts (research doc, Q6).
-Cross-family review is therefore a cheap bet (~$18/mo, ~30 lines of driver) on a
-plausible, causally-grounded, but unquantified mechanism — defensible, not a
-demonstrated requirement. The best-evidenced review lever is an **external
-deterministic verifier** (build, tests, static analysis as an oracle), which is
-orthogonal to this route and cheaper; it is left to a separate future decision.

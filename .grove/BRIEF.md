@@ -53,7 +53,9 @@ user 2026-07-09:
 9. `review-provider-research-k10` [research] — can a `review` leaf run on
    another model family (GLM via `ANTHROPIC_BASE_URL`, or codex-as-harness)?
 10. `review-provider-design-k11` [planning] — grill k10 to a route, or to a
-    recorded rejection.
+    recorded rejection. **Landed as a rejection** (see Notes): the spike and
+    impl leaves it grew (`review-provider-spike-k12`,
+    `review-provider-impl-k13`) were abandoned unrun, before any code.
 
 ## Pointers
 
@@ -79,4 +81,14 @@ user 2026-07-09:
   the skills did not; **no move of `.grove/` onto GitHub issues or
   any tracker** — grilled to a `stay` in `issues-substrate-brainstorm-k5`, so
   `task-kinds-model-selection-k6` and `decomposition-craft-k7` proceed against
-  the directory-tree substrate exactly as briefed.
+  the directory-tree substrate exactly as briefed; **no cross-family
+  (multi-provider) review** — grove stays single-provider (user decision
+  2026-07-11: *it needs more infrastructure thinking*).
+  `review-provider-design-k11` had taken Route A gated on a spike; the user
+  abandoned the effort before the spike ran, and the two leaves it grew
+  (`review-provider-spike-k12`, `review-provider-impl-k13`) were dropped unrun,
+  before any code. The rejection and its reasons are in ADR `model-per-task-kind`
+  → *Considered options*; the evidence survives in
+  `docs/research/cross-family-review-providers.md`, which names the two triggers
+  that would reopen it. Per-kind model selection *within* one family
+  (`GROVE_<KIND>_MODEL`) is unaffected and shipped.

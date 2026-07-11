@@ -32,29 +32,37 @@ Prices are dated; they move.
 
 ---
 
-## Findings adopted
+## Outcome — both routes rejected (2026-07-11)
 
-`review-provider-design-k11` grilled this document to a decision (2026-07-10). The
-outcome, and where each finding landed:
+**grove stays single-provider.** `review-provider-design-k11` grilled this document
+and initially took Route A gated on a spike; on reflection the user **abandoned the
+multi-provider effort entirely** before that spike ran, on the grounds that it
+*needs more infrastructure thinking*. The rejection — and the reasons, which are
+this document's — is recorded in ADR *model-per-task-kind* → *Considered options*.
+The ADR describes no cross-family mechanism; there is nothing to un-ship, because
+the walk-away check below held and no code was ever written.
 
-- **Route A adopted, Route B rejected, null route rejected.** Recorded in ADR
-  *model-per-task-kind* → *Cross-family provider profiles* (the mechanism, the
-  partial-profile rule, the two hazards, the empirical gate) and → *Considered
-  options* (Route B's rejection). That ADR's former "clean additive extension …
-  two caveats" paragraph — which this document's *Synthesis → ADR reconciliation
-  owed* flagged as understating the env surface — has been reworked in place to the
-  accurate five-item cost surface.
-- **The empirical gate** (Q3's `claude-code#7855`, Q4's undocumented
-  `settings.json`-`env` precedence) became a `prototype` leaf,
-  `review-provider-spike-k12`, run *before* the driver code.
-- **The driver mechanism** (Q1e, Q3, Q4) became a `work` leaf,
-  `review-provider-impl-k13`, gated on the spike.
-- **The external-verifier lever** (Q6) is recorded as orthogonal and out of scope
-  for the provider decision — a candidate future improvement to the `review` kind,
-  not grown in this workstream.
+The reason is **not** cost (~$18/mo) and **not** fidelity (Q1: the loop, skills,
+subagents and the `complete` handshake all survive a redirected endpoint). It is
+that Route A is not a model-selection change at all — it is a **credential and
+provider-configuration surface grove does not have** (a live secret; the
+undocumented `settings.json`-`env` precedence of Q4; the open interactive-auth bug
+of Q3; the subagent-alias trap of Q1d) — bought for a payoff that is **measured
+nowhere** (Q6). That trade is bad while the infrastructure is unowned, and it earns
+a design of its own before any of it is bolted onto the launch path.
 
-The evidence classes, quotes, and *Missing sources* below remain the rationale
-those artifacts cite; nothing here is superseded.
+**What this document is now for.** It is the standing evidence base for that
+decision, and the thing to re-read if the question reopens — which it would on
+either of the two triggers in *What would change grove's mind*: a coherent
+provider/credential design for grove, or evidence that actually measures the
+cross-family increment in defect-detection recall. Prices and version-pinned
+observations are dated; the *Missing sources* list still stops a future reader
+re-running the same fruitless searches. Note that the one lever this research rates
+highest — an **external deterministic verifier** for the `review` kind (Q6) — is
+orthogonal to provider choice, cheaper than any of it, and remains unbuilt.
+
+`review` itself is unaffected: it earns its place as a task kind on fresh-context
+adversarial reading alone (ADR *task-kind-taxonomy*).
 
 ---
 
@@ -702,11 +710,11 @@ record it as one.
 4. Should `review` gain an external-verifier obligation *before* it gains a provider
    profile?
 
-### ADR reconciliation owed
+### ADR reconciliation — discharged
 
-ADR *model-per-task-kind*'s final consequence states cross-provider selection is "a
-clean additive extension" bounded by "two caveats." That is now known to understate
-the env surface (items 2–5 above). **This research does not edit the ADR** — the brief
-scopes decisions to k11, and characterising the caveats *is* the design call. k11 must
-rework that paragraph in place when it lands, per `linkuistics:decision-records`, and
-add a *Findings adopted* pointer back to this document.
+This section recorded a debt: ADR *model-per-task-kind* called cross-provider
+selection "a clean additive extension" bounded by "two caveats," which understates
+the env surface (items 2–5 above). The debt is **paid, and by rejection rather than
+by correction** — see *Outcome* at the head of this document. The ADR no longer
+describes any cross-family mechanism to understate; the five-item cost surface above
+is now the *evidence for* the rejection recorded in its *Considered options*.

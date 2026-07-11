@@ -38,13 +38,19 @@ what binds). The rest is execution, ordered by dependency:
   `linkuistics:decision-records`. It is a fact about good ADRs, not a grove-local habit.
 - `review-k6` — fresh-context adversarial read of the whole change. Earned: this
   alters the tree's grammar, and it asserts a property no compiler checks (the key
-  counter is monotonic).
+  counter is monotonic). The design held; it found three implementation gaps,
+  grown as `prune-review-fixes-k8`.
+- `prune-review-fixes-k8` — fix what `review-k6` found: `resolve` doesn't flag an
+  abandoned leaf as non-live (only checks `is_done()`), `leaf-prune <node>` isn't
+  atomic (a mid-walk `git mv` failure leaves earlier leaves already marked with
+  nothing reported), and three CLI `--help` texts never mention `ABANDONED`.
 - `release-k5` — cut the release, **verify the live binary's behaviour**, close #2.
   The methodology is inert until this runs — the binary embeds `content/`.
 
-(`release-k5` sits at position 06: it was added before `review-k6` and shifted down
-when the review leaf was inserted ahead of it. The key stayed put — that is the
-scheme working.)
+(`release-k5` sits at position 07: added before `review-k6`, shifted to 06 when
+review was inserted ahead of it, then to 07 when `prune-review-fixes-k8` was
+inserted ahead of *that*. Keys stay put across both shifts — the scheme
+working twice over.)
 
 ## Pointers
 

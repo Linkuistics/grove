@@ -29,7 +29,7 @@ baked into filenames and no special root-brief sentinel.
 Fields are ordered by human relevance — sort key first, user-facing state next,
 machine handle last:
 
-- **Leaf:** `NN-[DONE-]<slug>-k<key>.md`
+- **Leaf:** `NN-[DONE-|ABANDONED-]<slug>-k<key>.md`
 - **Node:** directory `NN-<slug>-k<key>/` containing `BRIEF.md` + children
 - **Root brief:** `.grove/BRIEF.md` (plain, unkeyed — the root dir's charter)
 
@@ -44,18 +44,23 @@ Three parts do the work:
 2. **Key `-k<key>`** — the **permanent stable id**. Assigned once (`max key in tree +
    1`), never rewritten by renumber or decompose, always the terminal token before the
    extension or trailing slash. The keys in the names *are* the counter — there is no
-   counter file, and `DONE` leaves stay in the tree so the max is always visible.
+   counter file, and **every finished leaf stays in the tree, `DONE` or `ABANDONED`
+   alike**, so the max is always visible. That is why abandonment is marked rather
+   than deleted: removing a name lowers the max and the next `leaf-add` re-issues a
+   live key (*pruning*).
    References resolve by key: `resolve [k]` / `resolve <slug>` finds the current path
    wherever the entity moved. The key is written `-k<key>` rather than the bracketed
    `[<key>]`, because brackets are shell-glob metacharacters that force escaping in
    `ls` / `cd` / copy-paste; `-k<key>` is glob-safe and stays unambiguous because the
    key is mandatory and terminal (parse peels the trailing `-k<digits>`, so
    `05-task-k9-k3.md` is slug `task-k9`, key `3`).
-3. **Done** is marked in place as a `DONE` infix right after the position
-   (`NN-DONE-<slug>-k<key>.md`), leaves only. A node is never marked done — node
-   done-ness is implicit (no live leaf in its subtree). The infix sits at a fixed
-   column (position is fixed-width, the variable-width `-k<key>` is exiled to the end),
-   so a directory's done-prefix scans cleanly.
+3. **Outcome** is marked in place as an infix right after the position, **leaves
+   only**: `DONE` for work completed, `ABANDONED` for a path decided against
+   (*pruning*). Both are skipped by `pick`; neither is ever removed from the tree. A
+   node is never marked — node done-ness is implicit (no live leaf in its subtree),
+   however its leaves finished. The infix sits at a fixed column per mark (position is
+   fixed-width, the variable-width `-k<key>` is exiled to the end), so a directory's
+   outcome column scans cleanly.
 
 A task file's in-file `# …` header is the **position-free handle** `# <slug>-k<key>`
 (`# <slug>-k<key> — brief` for a node): the mutable `NN` lives only in the filename,

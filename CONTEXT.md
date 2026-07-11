@@ -86,23 +86,51 @@ A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding a `BRIEF.
 _Avoid_: calling a node a "file" — a node is always a directory.
 
 **Leaf**:
-A single unit of work — a file `NN-[DONE-]<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf (one with no `DONE` infix).
+A single unit of work — a file `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
 **Position** (`NN`):
 The **mutable** 2-digit zero-padded per-level locator of an entry among its directory's siblings — the sort input within one directory (lexical == numeric == DFS), rewritten on insert/reorder. It is a locator, **not** an identity.
 _Avoid_: using a position (or a directory path) as a durable cross-reference — it moves under renumber. Reference by the [[Permanent key]] or [[Work-item handle]] instead.
 
 **Permanent key** / **stable id** (`-k<key>`):
-The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; `DONE` leaves stay in the tree so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
+The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
 _Avoid_: "position" as identity; reusing a retired key.
+_Avoid_: `git rm`-ing a leaf to abandon it — that lowers the max and the next `leaf-add` re-issues a live key. Use [[Pruning]] (`leaf-prune`); the mark is what keeps the counter monotonic.
 
 **Work-item handle** / **title** (`<slug>-k<key>`):
 The position-free in-file `# …` header of a task or brief (`# <slug>-k<key>`, or `# <slug>-k<key> — brief` for a node; the root brief is `# <grove name> — brief`) **and** the canonical way to name a work item in commit messages and prose (task-tree-scheme §5). Stable across renumber, because it omits the mutable position. `resolve` also accepts the full handle, not just the bare key.
 _Avoid_: naming a work item by its position or directory path in a commit message.
 
 **DONE infix**:
-The in-place retirement marker: the literal `DONE` placed right after the position in a retired leaf's filename (`NN-DONE-<slug>-k<key>.md`), at a fixed column. Leaves only — a node is never marked done (its done-ness is the absence of a live leaf in its subtree). The leaf keeps its position and key, and its file contents are untouched.
+The in-place retirement marker: the literal `DONE` placed right after the position in a retired leaf's filename (`NN-DONE-<slug>-k<key>.md`), at a fixed column. Written by `leaf-retire`. Leaves only — a node is never marked done (its done-ness is the absence of a live leaf in its subtree, however those leaves finished). The leaf keeps its position and key, and its file contents are untouched. Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf states.
 _Avoid_: moving a retired leaf into a separate folder or list — retirement is in place, so the tree always shows complete state.
+
+**Pruning** / **ABANDONED infix** (`leaf-prune`):
+Marking a work path **decided against** — as opposed to done. `grove-llm leaf-prune`
+writes an `ABANDONED` infix in place (`NN-ABANDONED-<slug>-k<key>.md`), exactly as
+`leaf-retire` writes `DONE`; `pick` skips both, and neither ever leaves the tree.
+grove's metaphor names the pair: a `DONE` leaf is **harvested**, an abandoned one is
+**pruned**. Deciding against a path is a normal outcome of exploration, not an
+exception — but it is **[[HITL]]**: an agent never prunes on its own, and an AFK
+session that finds a leaf dead says so and stops.
+Given a **node**, `leaf-prune` marks every *live* leaf in that subtree (leaving
+`DONE` ones alone) and refuses the grove root. The arity asymmetry with `leaf-retire`
+is deliberate: retirement is *incremental* (one leaf per session, as work completes),
+abandonment is *bulk by nature* (one decision kills N leaves at once).
+Because `.grove/` dies at the [[Complete finish cycle]], the mark records only *that*
+a path was closed; the durable *why* goes to the **ADR set** — the positive fact the
+abandonment establishes ("we rejected cross-family review" *is* "grove is
+single-provider"), with the rejection as a *Considered options* entry stating what was
+rejected, why, and **what would reopen it**. Too small to clear the ADR when-to-write
+bar? Then nothing durable is written; the mark and the commit message suffice. See ADR
+*pruning*.
+_Avoid_: reading "pruned" in git's sense (`git remote prune` = *delete*) — a pruned
+leaf **stays in the tree**; that is the entire point, since the keys in the names are
+the counter ([[Permanent key]]).
+_Avoid_: a taxonomy of outcomes (`blocked` / `deferred` / `superseded`). `blocked` is
+expressed by **ordering** and would break the finish trigger if `pick` skipped it (a
+blocked leaf is *live* work); `deferred` is a reorder or a GitHub issue; `superseded`
+differs only in *reason*, which is prose and belongs in the ADR, not the filename.
 
 ## Flagged ambiguities
 

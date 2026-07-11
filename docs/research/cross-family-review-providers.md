@@ -32,6 +32,32 @@ Prices are dated; they move.
 
 ---
 
+## Findings adopted
+
+`review-provider-design-k11` grilled this document to a decision (2026-07-10). The
+outcome, and where each finding landed:
+
+- **Route A adopted, Route B rejected, null route rejected.** Recorded in ADR
+  *model-per-task-kind* → *Cross-family provider profiles* (the mechanism, the
+  partial-profile rule, the two hazards, the empirical gate) and → *Considered
+  options* (Route B's rejection). That ADR's former "clean additive extension …
+  two caveats" paragraph — which this document's *Synthesis → ADR reconciliation
+  owed* flagged as understating the env surface — has been reworked in place to the
+  accurate five-item cost surface.
+- **The empirical gate** (Q3's `claude-code#7855`, Q4's undocumented
+  `settings.json`-`env` precedence) became a `prototype` leaf,
+  `review-provider-spike-k12`, run *before* the driver code.
+- **The driver mechanism** (Q1e, Q3, Q4) became a `work` leaf,
+  `review-provider-impl-k13`, gated on the spike.
+- **The external-verifier lever** (Q6) is recorded as orthogonal and out of scope
+  for the provider decision — a candidate future improvement to the `review` kind,
+  not grown in this workstream.
+
+The evidence classes, quotes, and *Missing sources* below remain the rationale
+those artifacts cite; nothing here is superseded.
+
+---
+
 ## Q1 — Route A fidelity
 
 **Route A**: same `claude` harness, different endpoint. `ANTHROPIC_BASE_URL` +

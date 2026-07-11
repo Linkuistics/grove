@@ -16,7 +16,7 @@
 //
 // **Structure** mirrors `migrate.rs`: a pure `plan` (reads the directory shape,
 // mutates nothing — unit-testable without a git repo) and an impure `execute`
-// (`git mv` + header rewrites, **no commit** — a reviewable git change). Both
+// (renames + header rewrites, **no commit** — a reviewable git change). Both
 // source readers lower to one intermediate — `Logical` (a `LeafId`-shaped id + the
 // source path + the old header token) — and a single `render` maps that to v2
 // directory destinations. So the only format-specific code is the two readers; the
@@ -40,6 +40,7 @@ use crate::leaf::split_prefix;
 use crate::leaf_id::{self, LeafId};
 use crate::repo;
 use crate::tree_id::{self, Entry};
+use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
 use std::fs;
@@ -153,8 +154,9 @@ pub fn migrate_on_adoption(worktree: &Path, name: &str) -> Result<Outcome> {
 
 /// Commit the adoption migration as one isolated, self-describing commit. Staging
 /// is scoped to `.grove/` so an unrelated dirty file elsewhere is never swept in,
-/// and a plain `git add` is required because the post-`git mv` header rewrites left
-/// each renamed file modified-after-staging.
+/// and a plain `git add` is required because the post-rename header rewrites left
+/// each renamed file modified-after-staging (and an untracked v1 leaf, renamed
+/// without touching the index, needs adding regardless).
 fn commit_migration(worktree: &Path, name: &str) -> Result<()> {
     git(worktree, &["add", "-A", "--", ".grove"])?;
     let msg = format!("grove({name}): migrate task tree to v2 directory scheme");
@@ -673,10 +675,10 @@ fn rewrite_header_file(path: &Path, old_token: &str, new_handle: &str) -> Result
 }
 
 // ---------------------------------------------------------------------------
-// execution (impure: git mv + header rewrites)
+// execution (impure: renames + header rewrites)
 
 /// Apply each planned move: ensure the destination directory exists (v2 node dirs
-/// are created on the fly), `git mv` the file to its new v2 path, then rewrite its
+/// are created on the fly), rename the file to its new v2 path, then rewrite its
 /// first-line header. Aborts (leaving the partial change for the human to reset) if
 /// a destination file already exists. No commit.
 fn execute(grove_root: &Path, moves: &[PlannedMove]) -> Result<Vec<Rename>> {
@@ -692,7 +694,7 @@ fn execute(grove_root: &Path, moves: &[PlannedMove]) -> Result<Vec<Rename>> {
         if let Some(parent) = dst_abs.parent() {
             fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
         }
-        git_mv(grove_root, &m.from_rel, &m.to_rel)?;
+        rename_entry(grove_root, &m.from_rel, &m.to_rel)?;
         rewrite_header_file(&dst_abs, &m.old_token, &m.new_handle)?;
         renames.push(Rename {
             from_rel: m.from_rel.clone(),
@@ -700,28 +702,6 @@ fn execute(grove_root: &Path, moves: &[PlannedMove]) -> Result<Vec<Rename>> {
         });
     }
     Ok(renames)
-}
-
-/// `git -C <grove_root> mv <from_rel> <to_rel>` — a tracked move so the human's
-/// review and the enclosing commit fold it in cleanly.
-fn git_mv(grove_root: &Path, from_rel: &Path, to_rel: &Path) -> Result<()> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(grove_root)
-        .arg("mv")
-        .arg(from_rel)
-        .arg(to_rel)
-        .output()
-        .with_context(|| format!("running git mv {} {}", from_rel.display(), to_rel.display()))?;
-    if !out.status.success() {
-        bail!(
-            "git mv {} -> {} failed: {}",
-            from_rel.display(),
-            to_rel.display(),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(())
 }
 
 /// Remove directories left empty by the migration (the old `NNN-slug/` node dirs
@@ -1395,7 +1375,7 @@ mod tests {
         );
     }
 
-    // ---- execute (git mv + header rewrite + cleanup) ------------------------
+    // ---- execute (renames + header rewrite + cleanup) -----------------------
 
     /// A `.grove/` inside a real git repo, with `files` written and committed.
     fn git_grove(files: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) {

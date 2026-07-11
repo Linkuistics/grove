@@ -8,7 +8,7 @@
 //     `2.2` rewrote `2.2.1`→`2.3.1`… across the **whole subtree** — O(subtree)
 //     filename + header rewrites.
 //   * v2 carries the hierarchy in directories (a node is a *directory* holding
-//     `BRIEF.md` + children), so a renumber is a single **`git mv` of a directory**
+//     `BRIEF.md` + children), so a renumber is a single **rename of a directory**
 //     and the subtree — child names *and* keys — rides along untouched. The shift
 //     is O(siblings at one level), the "cascade collapse" task-tree-scheme celebrates.
 //
@@ -16,7 +16,7 @@
 // file's first-line `# …` header is the *stable handle* `# <slug>-k<key>` — the
 // per-level position `NN` lives only in the filename, never in the body. This is
 // the faithful realization of task-tree-scheme §5 ("reference a work item by `<slug>-k<key>`,
-// never by its position/path") and it makes the renumber a **pure `git mv` with
+// never by its position/path") and it makes the renumber a **pure rename with
 // zero content rewrites**: shifting `05-mid-k14/`→`06-mid-k14/` changes one
 // directory name and nothing else — the moved node's own `BRIEF.md` header
 // (`# mid-k14 — brief`) and every descendant file stay byte-identical. (Carried to
@@ -30,10 +30,10 @@
 
 use crate::leaf::Kind;
 use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
+use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// Append a child leaf under the node directory `parent_dir` at the next gapless
 /// per-level position, with a fresh permanent key. `parent_dir` is the grove root
@@ -77,11 +77,12 @@ pub struct Renumber {
 /// Insert a new leaf at the slot currently held by `target`, shifting `target`
 /// and every later sibling in its directory up by one position. `target` is an
 /// existing entry — a leaf file or a node directory (absolute, or relative to the
-/// grove root). Each shift is a single `git mv` whose source and destination
-/// differ only in the leading `NN`; a node directory carries its whole subtree
-/// along. Renames run **highest-position-first** so each destination is already
-/// vacated. The new leaf gets a fresh key. (Inserting past the last sibling is
-/// `leaf_add`'s job — `target` must exist.) Working-tree only — no commit.
+/// grove root). Each shift is a single rename whose source and destination differ
+/// only in the leading `NN`; a node directory carries its whole subtree along.
+/// Renames run **highest-position-first** so each destination is already vacated.
+/// The new leaf gets a fresh key. (Inserting past the last sibling is `leaf_add`'s
+/// job — `target` must exist.) Working-tree only — no commit; siblings grown this
+/// session are untracked and rename fine ([`crate::tree_rename`]).
 ///
 /// Returns the new leaf's path and the renumber log (ascending by new position);
 /// pass the log to [`surface_cross_refs`] to lint stray position-prefixed refs.
@@ -115,7 +116,7 @@ pub fn leaf_insert(
         .into_iter()
         .filter(|(e, _)| e.position().is_some_and(|p| p >= pos))
         .collect();
-    // Highest position first so each `git mv`'s destination is already vacated:
+    // Highest position first so each rename's destination is already vacated:
     // a sibling's destination differs from its source only in `NN`, where it is
     // larger, so it sorts later and was moved first (collision-free).
     affected.sort_by(|a, b| b.0.position().cmp(&a.0.position()));
@@ -126,7 +127,7 @@ pub fn leaf_insert(
         let new_position = old_position + 1;
         let old_name = file_name(path)?;
         let new_name = bumped(entry, new_position).name();
-        git_mv(&parent_abs, &old_name, &new_name)?;
+        rename_entry(&parent_abs, &old_name, &new_name)?;
         renumbers.push(Renumber {
             old_position,
             new_position,
@@ -401,25 +402,6 @@ fn stem(name: &str) -> &str {
     name.strip_suffix(".md").unwrap_or(name)
 }
 
-/// `git mv <src> <dst>` run with `git -C <dir>` (src/dst relative to `dir`).
-/// Renames are tracked moves so the enclosing task's commit folds them in cleanly;
-/// a node directory's whole subtree rides along untouched.
-fn git_mv(dir: &Path, src: &str, dst: &str) -> Result<()> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["mv", src, dst])
-        .output()
-        .with_context(|| format!("running git mv {src} {dst}"))?;
-    if !out.status.success() {
-        bail!(
-            "git mv {src} -> {dst} failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(())
-}
-
 /// Write a freshly-created leaf's template. The first-line header is the
 /// **position-free handle** `# <slug>-k<key>` (decided 11.3) — the mutable per-level
 /// position lives only in the filename, so a later renumber never rewrites this.
@@ -447,8 +429,9 @@ mod tests {
         (tmp, root)
     }
 
-    /// A `.grove/` inside a real git repo — `leaf_insert` renames via `git mv`,
-    /// which needs tracked files (call [`stage_all`] before inserting).
+    /// A `.grove/` inside a real git repo. Entries rename whether or not git is
+    /// tracking them ([`crate::tree_rename`]); call [`stage_all`] when a test wants
+    /// the *tracked* branch (the rename moves git's index entry too).
     fn git_grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().to_path_buf();
@@ -474,7 +457,8 @@ mod tests {
         );
     }
 
-    /// Stage everything under the grove so `git mv` sees tracked files.
+    /// Stage everything under the grove, putting the entries in git's index — the
+    /// state in which a rename goes through `git mv` and carries the index along.
     fn stage_all(root: &Path) {
         run_git(root.parent().unwrap(), &["add", "-A"]);
     }
@@ -515,6 +499,25 @@ mod tests {
             .unwrap()
             .filter_map(|e| e.ok())
             .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        v.sort();
+        v
+    }
+
+    /// The names git has **in its index** for the grove, lexically sorted. Distinct
+    /// from [`list`] (what is on disk): a rename that went through `git mv` moves the
+    /// index entry and shows here under the new name; a plain rename of an untracked
+    /// file shows in neither index state.
+    fn indexed(root: &Path) -> Vec<String> {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["ls-files", "--", "."])
+            .output()
+            .unwrap();
+        let mut v: Vec<String> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|s| s.to_string())
             .collect();
         v.sort();
         v
@@ -777,7 +780,7 @@ mod tests {
     #[test]
     fn insert_collision_free_for_a_dense_run_of_siblings() {
         // Stress the highest-first ordering: insert at the head of five siblings;
-        // a wrong order would make a `git mv` collide and lose a file.
+        // a wrong order would make a rename collide and lose a file.
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         for i in 1..=5 {
@@ -871,6 +874,87 @@ mod tests {
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"
+        );
+    }
+
+    // ---- insert over untracked entries (issue #3) ----------------------------
+    //
+    // The grow verbs are working-tree-only by design — `leaf_add` writes an
+    // *untracked* file and the enclosing task's commit folds it in. So the
+    // ordinary rhythm of a planning session (grow several leaves, then realise
+    // one must sequence earlier) hands `leaf_insert` siblings that are not in
+    // git's index. Renaming those is `fs::rename`'s job, not `git mv`'s.
+
+    #[test]
+    fn insert_ahead_of_an_untracked_sibling_added_this_session() {
+        // Issue #3 verbatim: `leaf_add` then `leaf_insert` ahead of what it made,
+        // with no `git add` in between — the ordinary planning-session sequence.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let release = leaf_add(&g, &g, "release", Kind::Work).unwrap();
+        assert_eq!(name_of(&release), "01-release-k1.md");
+
+        // No stage_all: the leaf is untracked, exactly as `leaf_add` left it.
+        let (path, renums) = leaf_insert(&g, &release, "review", Kind::Work).unwrap();
+
+        assert_eq!(name_of(&path), "01-review-k2.md");
+        let files = list(&g);
+        assert!(
+            files.contains(&"02-release-k1.md".to_string()),
+            "the untracked sibling shifted 01->02, key preserved (files: {files:?})"
+        );
+        assert!(
+            !files.contains(&"01-release-k1.md".to_string()),
+            "old name gone (files: {files:?})"
+        );
+        assert_eq!(renums.len(), 1, "one sibling shifted");
+    }
+
+    #[test]
+    fn insert_renumbers_a_mix_of_tracked_and_untracked_siblings() {
+        // The realistic mid-session tree: some leaves committed by earlier tasks,
+        // some grown just now. One insert must renumber straight through both.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-a-k1.md", "a-k1");
+        touch(&g, "02-b-k2.md", "b-k2");
+        stage_all(&g); // a and b are tracked
+        touch(&g, "03-c-k3.md", "c-k3"); // c is not
+
+        let (path, renums) = leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Work).unwrap();
+
+        assert_eq!(name_of(&path), "01-new-k4.md");
+        let files = list(&g);
+        for expected in ["02-a-k1.md", "03-b-k2.md", "04-c-k3.md"] {
+            assert!(
+                files.contains(&expected.to_string()),
+                "every sibling shifted up one, tracked or not: missing {expected} (files: {files:?})"
+            );
+        }
+        assert_eq!(renums.len(), 3, "all three siblings shifted");
+    }
+
+    #[test]
+    fn insert_moves_the_index_entry_for_a_tracked_sibling() {
+        // The other half of the contract: a *tracked* entry still moves through
+        // `git mv`, so the rename is staged and the operator's `git status` shows a
+        // rename rather than a delete + an untracked file. Guards against
+        // "simplify" ing the primitive down to a bare `fs::rename` everywhere.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-a-k1.md", "a-k1");
+        stage_all(&g);
+
+        leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Work).unwrap();
+
+        let idx = indexed(&g);
+        assert!(
+            idx.contains(&"02-a-k1.md".to_string()),
+            "the tracked sibling's index entry moved to the new name (index: {idx:?})"
+        );
+        assert!(
+            !idx.contains(&"01-a-k1.md".to_string()),
+            "the old index entry is gone — a staged rename, not a stale entry (index: {idx:?})"
         );
     }
 

@@ -11,7 +11,7 @@
 //     first planning leaf `01-<slug>-k1.md` — a 2-digit per-level position;
 //   * `leaf-decompose` turns the leaf *file* `NN-<slug>-k<key>.md` into a node
 //     *directory* `NN-<slug>-k<key>/` (**key preserved** — the entity that was the
-//     leaf becomes the node), `git mv`ing the leaf body in as the node's `BRIEF.md`
+//     leaf becomes the node), renaming the leaf body in as the node's `BRIEF.md`
 //     and growing a first child atomically so a node is never childless;
 //   * `leaf-retire` adds a `DONE` infix in place (`NN-<slug>-k<key>.md` →
 //     `NN-DONE-<slug>-k<key>.md`), keeping the retired leaf in its directory at its
@@ -33,10 +33,10 @@
 use crate::leaf::Kind;
 use crate::tree_grow::leaf_add;
 use crate::tree_id::{parse, sort_key, validate_slug, Entry, Outcome};
+use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
 /// `BRIEF.md` (the one unkeyed singleton) and a first **planning** leaf
@@ -112,7 +112,7 @@ pub fn leaf_decompose(
     };
 
     // Inherit the parent leaf's own kind unless overridden — read before the
-    // `git mv` below moves it out from under this path.
+    // rename below moves it out from under this path.
     let kind = match kind_override {
         Some(k) => k,
         None => crate::tree_read::read_kind(&parent_abs.join(&name))?,
@@ -132,9 +132,9 @@ pub fn leaf_decompose(
     }
     fs::create_dir(&node_dir).with_context(|| format!("creating {}", node_dir.display()))?;
 
-    // `git mv` the leaf file into the new directory as its charter `BRIEF.md`; the
+    // Rename the leaf file into the new directory as its charter `BRIEF.md`; the
     // leaf body is carried in verbatim, then its `# <handle>` header retitled.
-    git_mv(&parent_abs, &name, &format!("{node_name}/BRIEF.md"))?;
+    rename_entry(&parent_abs, &name, format!("{node_name}/BRIEF.md"))?;
     let brief_path = node_dir.join("BRIEF.md");
     append_brief_suffix_in_file(&brief_path, &slug, key)?;
 
@@ -186,7 +186,7 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
         bail!("destination already exists: {}", done_path.display());
     }
     // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
-    git_mv(&parent_abs, &name, &done_name)?;
+    rename_entry(&parent_abs, &name, &done_name)?;
     Ok(done_path)
 }
 
@@ -292,7 +292,7 @@ fn prune_one(parent_abs: &Path, name: &str) -> Result<PathBuf> {
     }
     // The `ABANDONED` infix is filename-only — the `# <handle>` header is
     // byte-identical.
-    git_mv(parent_abs, name, &abandoned_name)?;
+    rename_entry(parent_abs, name, &abandoned_name)?;
     Ok(abandoned_path)
 }
 
@@ -308,13 +308,11 @@ enum PlannedLeaf {
 /// leaf found along the way into `result.left_done` untouched (already-`ABANDONED`
 /// leaves are left silently alone — already terminal). **Two-phase**: first
 /// [`plan_subtree`] walks the whole subtree read-only, then every leaf slated to
-/// be marked is validated *before any of them are mutated* — so a leaf that would
-/// fail its `git mv` (e.g. an untracked sibling added earlier in the same
-/// uncommitted session, the same class of gotcha already filed as issue #3 for
-/// `leaf-insert`) fails the whole call with nothing renamed, instead of leaving
-/// every leaf visited before it already marked while the operator sees only the
-/// trailing `git mv` error. Visits children in the per-level comparator order for
-/// a deterministic report.
+/// be marked is validated *before any of them are mutated* — so a leaf that cannot
+/// be marked (its `ABANDONED` name is already taken) fails the whole call with
+/// nothing renamed, instead of leaving every leaf visited before it already marked
+/// while the operator sees only a trailing rename error. Visits children in the
+/// per-level comparator order for a deterministic report.
 fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
     let mut plan = Vec::new();
     plan_subtree(dir, &mut plan)?;
@@ -384,9 +382,10 @@ fn plan_subtree(dir: &Path, plan: &mut Vec<PlannedLeaf>) -> Result<()> {
 }
 
 /// Check that a live leaf `name` (in `dir`) is actually prunable: its `ABANDONED`
-/// destination is free, and it is tracked in git's index — the precondition
-/// `git mv` needs to succeed. Run over every leaf in scope before
-/// [`prune_subtree`] mutates any of them.
+/// destination is free. Run over every leaf in scope before [`prune_subtree`]
+/// mutates any of them, so a collision partway down a subtree fails the whole call
+/// with nothing renamed. (Tracked-ness is *not* checked: an untracked leaf renames
+/// perfectly well — see [`crate::tree_rename`].)
 fn validate_prunable(dir: &Path, name: &str) -> Result<()> {
     let Some(Entry::Leaf {
         outcome: Outcome::Live,
@@ -408,12 +407,6 @@ fn validate_prunable(dir: &Path, name: &str) -> Result<()> {
     if abandoned_path.exists() {
         bail!("destination already exists: {}", abandoned_path.display());
     }
-    if !is_tracked(dir, name) {
-        bail!(
-            "cannot prune {name}: not tracked in git's index (run `git add` first): {}",
-            dir.join(name).display()
-        );
-    }
     Ok(())
 }
 
@@ -432,7 +425,7 @@ fn canonical_grove_root(grove_root: &Path) -> Result<PathBuf> {
 
 /// Resolve a leaf path (absolute, or relative to the grove root) to
 /// `(parent_dir, name)`. The resolved entry must be a real **file** under the grove
-/// root — a node directory or a foreign path is rejected here for `git mv` safety
+/// root — a node directory or a foreign path is rejected here for rename safety
 /// (the kind/format is then refined by `parse` in the caller).
 fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, String)> {
     let candidate = if leaf_path.is_absolute() {
@@ -453,7 +446,7 @@ fn resolve_leaf_file(grove_abs: &Path, leaf_path: &Path) -> Result<(PathBuf, Str
     if !abs.is_file() {
         // A node directory is the common mistake — name it specifically; any other
         // non-file (a leaf-named directory, a symlink) falls through to the generic
-        // guard, which also keeps `git mv` off anything that is not a real leaf file.
+        // guard, which also keeps the rename off anything that is not a real leaf file.
         let n = abs.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if abs.is_dir() && matches!(parse(n), Some(Entry::Node { .. })) {
             bail!(
@@ -503,38 +496,6 @@ fn entry_name(path: &Path) -> Result<String> {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .with_context(|| format!("path {} has no filename", path.display()))
-}
-
-/// Whether `name` (a file directly inside `dir`) is tracked in git's index —
-/// `git mv`'s precondition. An untracked file (e.g. a leaf added earlier in the
-/// same uncommitted session, before `git add`) is the failure `validate_prunable`
-/// exists to catch ahead of any mutation.
-fn is_tracked(dir: &Path, name: &str) -> bool {
-    Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["ls-files", "--error-unmatch", "--"])
-        .arg(name)
-        .output()
-        .map(|out| out.status.success())
-        .unwrap_or(false)
-}
-
-/// `git mv <src> <dst>` run with `git -C <dir>` (src/dst relative to `dir`).
-fn git_mv(dir: &Path, src: &str, dst: &str) -> Result<()> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(["mv", src, dst])
-        .output()
-        .with_context(|| format!("running git mv {src} {dst}"))?;
-    if !out.status.success() {
-        bail!(
-            "git mv {src} -> {dst} failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(())
 }
 
 /// The grove's name is the worktree directory's basename (it equals the branch
@@ -594,7 +555,7 @@ mod tests {
     use tempfile::TempDir;
 
     /// A bare worktree dir with **no** `.grove/` yet — for `root_init`, which
-    /// creates the grove itself and needs no git (it never `git mv`s).
+    /// creates the grove itself and needs no git (it never renames an entry).
     fn worktree() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let wt = tmp.path().join("my-grove");
@@ -602,8 +563,9 @@ mod tests {
         (tmp, wt)
     }
 
-    /// A `.grove/` inside a real git repo — `decompose`/`retire` rename via
-    /// `git mv`, which needs tracked files (call [`stage_all`] before operating).
+    /// A `.grove/` inside a real git repo. Entries rename whether or not git is
+    /// tracking them ([`crate::tree_rename`]); call [`stage_all`] when a test wants
+    /// the *tracked* branch (the rename moves git's index entry too).
     fn git_grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let repo = tmp.path().to_path_buf();
@@ -629,7 +591,8 @@ mod tests {
         );
     }
 
-    /// Stage everything under the grove so `git mv` sees tracked files.
+    /// Stage everything under the grove, putting the entries in git's index — the
+    /// state in which a rename goes through `git mv` and carries the index along.
     fn stage_all(root: &Path) {
         run_git(root.parent().unwrap(), &["add", "-A"]);
     }
@@ -945,7 +908,7 @@ mod tests {
 
     #[test]
     fn decompose_rejects_a_bad_child_slug_without_touching_the_leaf() {
-        // Atomicity: the child slug is validated BEFORE the git mv, so a bad slug
+        // Atomicity: the child slug is validated BEFORE the rename, so a bad slug
         // leaves the leaf un-decomposed (no half-built node directory).
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
@@ -1108,6 +1071,55 @@ mod tests {
             err.to_string().contains("grove root not found"),
             "got {err}"
         );
+    }
+
+    // ---- lifecycle over untracked leaves (issue #3's root cause) -------------
+    //
+    // Same defect as `leaf-insert`'s, in the lifecycle verbs: a leaf grown this
+    // session is untracked until the enclosing task commits, and `git mv` has no
+    // index entry to move. Retiring one is not exotic — a task that grows a leaf
+    // and finishes it in the same session hits it head-on.
+
+    #[test]
+    fn retire_an_untracked_leaf_added_this_session() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "ship", Kind::Work).unwrap();
+        // No stage_all: `leaf_add` leaves it untracked, by design.
+        let done = leaf_retire(&g, &leaf).unwrap();
+        assert_eq!(name_of(&done), "01-DONE-ship-k1.md");
+        assert!(
+            done.is_file(),
+            "the retired leaf is on disk under its DONE name"
+        );
+        assert!(!leaf.exists(), "the live name is gone");
+    }
+
+    #[test]
+    fn decompose_an_untracked_leaf_added_this_session() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "big", Kind::Work).unwrap();
+        // "The current item proving bigger" — the canonical mid-session decompose.
+        let (brief, child) = leaf_decompose(&g, &leaf, "first", None).unwrap();
+        assert_eq!(name_of(&brief), "BRIEF.md");
+        assert_eq!(name_of(&child), "01-first-k2.md");
+        assert!(g.join("01-big-k1").is_dir(), "the leaf became a node dir");
+        assert!(
+            !leaf.exists(),
+            "the leaf file is gone (it became the BRIEF)"
+        );
+    }
+
+    #[test]
+    fn prune_an_untracked_leaf_added_this_session() {
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "dead", Kind::Work).unwrap();
+        let result = leaf_prune(&g, &leaf).unwrap();
+        assert_eq!(result.marked.len(), 1);
+        assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-dead-k1.md");
+        assert!(!leaf.exists(), "the live name is gone");
     }
 
     // ---- leaf-prune (ADR *pruning*) ------------------------------------------
@@ -1276,34 +1288,67 @@ mod tests {
     }
 
     #[test]
-    fn prune_node_is_atomic_bails_clean_on_an_untracked_sibling() {
-        // ADR *pruning*: a `git mv` failure partway through the subtree walk must
-        // not leave earlier leaves already marked while the operator sees only
-        // the trailing error. An untracked sibling (added but never `git add`ed
-        // — the same class of gotcha already filed as issue #3 for
-        // `leaf-insert`) is exactly the repro: without the two-phase
-        // validate-before-mutate walk, the first two leaves below would already
-        // be renamed `ABANDONED` by the time the untracked third leaf's
-        // `git mv` failed.
+    fn prune_node_marks_a_subtree_mixing_tracked_and_untracked_leaves() {
+        // The bulk analogue of `prune_an_untracked_leaf_added_this_session`: one
+        // decision kills a subtree whose leaves were grown across several sessions,
+        // so some are committed and some are still working-tree-only. Every live
+        // leaf is marked regardless — trackedness is not a precondition of a rename.
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-a-k3.md", "a-k3");
         touch(&node, "02-b-k4.md", "b-k4");
-        stage_all(&g);
-        // A third sibling leaf, deliberately left untracked.
+        stage_all(&g); // a and b are tracked
+        touch(&node, "03-c-k5.md", "c-k5"); // c is not
+
+        let result = leaf_prune(&g, &node).unwrap();
+
+        assert_eq!(result.marked.len(), 3, "every live leaf marked");
+        let names = list(&node);
+        for expected in [
+            "01-ABANDONED-a-k3.md",
+            "02-ABANDONED-b-k4.md",
+            "03-ABANDONED-c-k5.md",
+        ] {
+            assert!(
+                names.contains(&expected.to_string()),
+                "missing {expected} (names: {names:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn prune_node_is_atomic_bails_clean_on_a_taken_destination() {
+        // ADR *pruning*: a rename failure partway through the subtree walk must not
+        // leave earlier leaves already marked while the operator sees only the
+        // trailing error. The two-phase validate-before-mutate walk is what prevents
+        // it; a leaf whose `ABANDONED` name is already taken (a botched earlier
+        // prune) is the repro. Without the up-front validation the first two leaves
+        // would already be renamed by the time the third one's rename failed.
+        let (_t, g) = git_grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-a-k3.md", "a-k3");
+        touch(&node, "02-b-k4.md", "b-k4");
         touch(&node, "03-c-k5.md", "c-k5");
+        // c's destination is already occupied — the one precondition left.
+        touch(&node, "03-ABANDONED-c-k5.md", "c-k5");
+        stage_all(&g);
 
         let err = leaf_prune(&g, &node).unwrap_err();
-        assert!(err.to_string().contains("not tracked"), "got {err}");
+        assert!(
+            err.to_string().contains("destination already exists"),
+            "got {err}"
+        );
 
-        // Nothing was mutated: every original name is untouched, none marked.
+        // Nothing was mutated: every live name is untouched, none newly marked.
         let names = list(&node);
         assert!(names.contains(&"01-a-k3.md".to_string()), "got {names:?}");
         assert!(names.contains(&"02-b-k4.md".to_string()), "got {names:?}");
         assert!(names.contains(&"03-c-k5.md".to_string()), "got {names:?}");
         assert!(
-            !names.iter().any(|n| n.contains("ABANDONED")),
+            !names.contains(&"01-ABANDONED-a-k3.md".to_string())
+                && !names.contains(&"02-ABANDONED-b-k4.md".to_string()),
             "a validation failure must leave the whole subtree untouched: {names:?}"
         );
     }

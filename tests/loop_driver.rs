@@ -476,3 +476,114 @@ exit 0
         );
     }
 }
+
+// The codex harness declaration (issue #1). Two independent defects, both
+// observable only in the launched argv, which is what this drives:
+//
+//   * `name_args: &["--name"]` — codex has no such flag (checked against
+//     codex-cli 0.144.1: zero `--name` matches in `--help`). Session names exist
+//     in codex but are assigned *after* start, via `/rename`. A launch would die
+//     in codex's argument parser before any session began.
+//   * `model_args: &[]` — codex opted out of model-per-task-kind, but it does
+//     accept `-m, --model <MODEL>`, so the opt-out cost it the feature for no
+//     reason.
+//
+// Latent until now only because `select` runs in `SelectMode::Single` and no
+// grove drives codex; it fires the first time anyone runs `grove do` in a repo
+// with a `.codex/` directory.
+#[test]
+fn codex_launches_with_no_name_flag_and_a_model_flag() {
+    let _g = ENV_LOCK.lock().unwrap();
+    // A real git repo *is* the worktree, so the real `grove-llm kind` resolves the
+    // leaf the second (continue) iteration peeks at.
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // Fake codex: log the full argv. The first (start) run materialises a `.grove/`
+    // holding one live **work** leaf, so the second run takes the continue path and
+    // `grove-llm kind` resolves it to `work`. Signal only on the first, so the loop
+    // stops after two.
+    let fake = worktree.join("fake-codex.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("codex").unwrap();
+
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_RESEARCH_MODEL");
+    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
+    std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+    std::env::set_var("GROVE_WORK_MODEL", "gpt-5");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_LLM_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+    std::env::remove_var("GROVE_WORK_MODEL");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        rows.len(),
+        2,
+        "loop should run twice then stop (log: {log:?})"
+    );
+
+    // No launch-time session-name flag: codex would abort on an unknown `--name`.
+    for row in &rows {
+        assert!(
+            !row.contains("--name"),
+            "codex has no launch-time session-name flag (argv: {row:?})"
+        );
+    }
+    // ...and the model *is* selected: codex accepts `-m, --model <MODEL>`, so the
+    // continue iteration's `work` leaf launches on GROVE_WORK_MODEL.
+    assert!(
+        rows[1].contains("--model gpt-5"),
+        "codex must honour model-per-task-kind (argv: {:?})",
+        rows[1]
+    );
+}

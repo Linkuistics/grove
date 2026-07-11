@@ -22,9 +22,10 @@ pub struct Harness {
     pub project_dir: &'static str,
     /// Binary name to exec (resolved via PATH at runtime).
     pub exec_bin: &'static str,
-    /// CLI arg used by the harness to set the session name.
-    /// For claude: ["-n", "<name>"]. For codex: see codex docs; default
-    /// matches claude's pattern until verified.
+    /// CLI flag template for pre-naming the session at launch. For claude:
+    /// `["-n"]`. An **empty** template means the harness has no launch-time
+    /// name flag (codex — it names sessions after start, via `/rename`), and the
+    /// launch paths skip pre-naming rather than passing a flag it would reject.
     pub name_args: &'static [&'static str],
     /// CLI flag template for selecting the launch model (model-per-task-kind),
     /// parallel to `name_args`: *how* to pass a model is per-harness, while the
@@ -48,13 +49,16 @@ pub const HARNESSES: &[Harness] = &[
         name: "codex",
         project_dir: ".codex",
         exec_bin: "codex",
-        // Verified during implementation against `codex --help`; if codex
-        // doesn't support a session-name flag, leave empty and skip pre-naming.
-        name_args: &["--name"],
-        // Best-effort/lazy: codex's model flag/names aren't verified here, so it
-        // opts out of model selection (empty template ⇒ no `--model`). Wire when
-        // verified; one grove runs one harness.
-        model_args: &[],
+        // codex has **no launch-time session-name flag** (checked against
+        // codex-cli 0.144.1: `codex --help` has zero `--name` matches). Session
+        // names do exist, but are assigned *after* start — `codex resume` takes a
+        // "session id (UUID) or session name", and the name is set in-session via
+        // `/rename`. Naming at launch is an open upstream request (openai/codex
+        // #22526, #4163). Empty ⇒ the launch paths skip pre-naming.
+        name_args: &[],
+        // codex accepts `-m, --model <MODEL>`, so it takes part in
+        // model-per-task-kind on the same terms as claude.
+        model_args: &["--model"],
     },
 ];
 

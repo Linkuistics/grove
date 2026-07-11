@@ -216,7 +216,12 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
     let review = env_model("GROVE_REVIEW_MODEL");
     // None of the five kinds configured ⇒ nothing to select; skip the kind peek
     // so the common path stays a zero-subprocess, byte-for-byte-unchanged launch.
-    if planning.is_none() && research.is_none() && prototype.is_none() && work.is_none() && review.is_none() {
+    if planning.is_none()
+        && research.is_none()
+        && prototype.is_none()
+        && work.is_none()
+        && review.is_none()
+    {
         return None;
     }
     let kind = if verb == "start" {

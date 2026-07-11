@@ -332,7 +332,7 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 ## Reference files
 
 - `BRIEF-FORMAT.md` — the `BRIEF.md` shape.
-- `TASK-FORMAT.md` — the task-file shape and the two task kinds.
+- `TASK-FORMAT.md` — the task-file shape and the closed task-kind taxonomy.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
 - `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.

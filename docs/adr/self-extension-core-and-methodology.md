@@ -4,8 +4,8 @@ grove is two things and nothing else:
 
 1. **A self-extension core** — the `.grove/` task tree as data, the `pick` walk, the
    grow verbs (`root-init` / `leaf-add` / `leaf-insert` / `leaf-decompose` /
-   `leaf-retire` / `brief-chain` / `resolve`), the two task kinds, and the minimal
-   loop skeleton.
+   `leaf-retire` / `brief-chain` / `resolve`), the closed task-kind taxonomy (ADR
+   *task-kind-taxonomy*), and the minimal loop skeleton.
 2. **Its distinctive methodology** — grilling, the `driving.md` habits, the loop
    discipline, and the CONTEXT / ADR / SPEC format guides.
 

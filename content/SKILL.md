@@ -71,16 +71,23 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 ## The loop
 
-One task is one session. All sessions of one grove run in the **same git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>` — new worktrees are for separating *concurrent groves*, not for separating tasks within a grove. The grove's task tree lives at `.grove/` inside that worktree.
+One task is one session. A grove runs in **a git working tree the user
+provides** — any working tree, linked worktree or main checkout, on any
+branch, anywhere on disk; grove reads no branch anywhere (user-owned-worktrees).
+The grove's name is that working tree's directory basename, and its task tree
+lives at `.grove/` inside it.
 
-Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): `grove do <name>` is the **sole lifecycle entry verb** — for a brand-new grove it creates the worktree, branches off the default branch, and opens a bootstrap session; for an existing grove it resumes (re-attaching the worktree first if the branch is present but the worktree is gone). It pre-names the harness session, so the rename ritual is unnecessary in the common case. If the grove's `.grove/` is in an older format — the original `NNN-slug/` directories, or the v1 flat dotted-decimal scheme — the first `grove do` **migrates it to the current directory scheme** — one reviewable, committed change — before driving; the migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
+Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **argument-less `grove do`** from inside the working tree. `do` is the **sole lifecycle entry verb** — it inspects the state on disk and dispatches: no `.grove/` yet → a bootstrap session; a live tree → the loop continues; no live leaves left → the session proposes the complete finish cycle (do-is-sole-lifecycle-verb). It pre-names the harness session, so the rename ritual is unnecessary in the common case. If the grove's `.grove/` is in an older format — the original `NNN-slug/` directories, or the v1 flat dotted-decimal scheme — the first `grove do` **migrates it to the current directory scheme** — one reviewable, committed change — before driving; the migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
-`grove do <name>` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground `claude` (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do <name>`. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
+`grove do` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground `claude` (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do` from the same working tree. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
-If a session was started without the helpers and the session name doesn't already match `<repo>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the worktree's branch (`git rev-parse --abbrev-ref HEAD`), `<repo-basename>` from `git rev-parse --show-toplevel`'s parent (the worktree's path is `<repo>/.grove-worktrees/<name>/`).
+If a session was started without the helpers and the session name doesn't already match `<repo-basename>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the working tree's own basename (`git rev-parse --show-toplevel`), `<repo-basename>` from the **main repo**'s basename (`git rev-parse --git-common-dir`'s parent — the repo a linked worktree belongs to, not the worktree's own path).
 
-**Starting a new grove.** `grove do <name>` on a brand-new grove creates the
-worktree and branch but no `.grove/` tree yet — and every step below assumes
+**Starting a new grove.** Provide a git working tree by whatever means you
+like — `git init`, `git clone`, a plain checkout, or a linked worktree from
+your own tooling (e.g. [worktrunk](https://github.com/max-sixty/worktrunk)) —
+then run argument-less `grove do` from inside it. A brand-new grove has a
+working tree but no `.grove/` tree yet — and every step below assumes
 `.grove/` already exists. Resolve that chicken-and-egg first: a rootless grove
 has nothing for `grove-llm pick` to walk (it errors `grove root not found`), and
 the tree-growing verbs (`leaf-add` and friends) all need a root too. Run
@@ -252,43 +259,33 @@ flag, a `--done` flag, or no flag at all (a crash / Ctrl-C, which stops).
 `grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
 done" on stderr. The **complete finish cycle** is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
-confirmation before any teardown** — never run steps 2–6 unprompted, so a
+confirmation before any teardown** — never run steps 2–3 unprompted, so a
 headless run with no human present simply reports the plan and stops. On
 confirmation, run:
 
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op
    when decisions landed inline as they were made.
-2. **Delete `.grove/` in one focused commit** on the grove branch.
-3. **Merge** into the default branch: `git -C <repo> merge <name>` —
-   fast-forwards when the default has not advanced, makes a merge commit when it
-   has. (Stop and resolve if it conflicts.)
-4. **Remove the worktree**: `git -C <repo> worktree remove <worktree>`.
-5. **Delete the branch**: `git -C <repo> branch -d <name>` — safe delete,
-   succeeds only because step 3 merged it.
-6. **End the loop cleanly**: run **`grove-llm complete --done`** as the **very
+2. **Delete `.grove/` in one focused commit.**
+3. **End the loop cleanly**: run **`grove-llm complete --done`** as the **very
    last** action, then do nothing else. This signals the self-driving loop to
    *stop* (vs the per-task `complete`, which relaunches), so a clean finish is
    distinct from a crash or Ctrl-C. It must come last: like the per-task signal
    it ends this session after a short grace, so running it any earlier would cut
    teardown short. It writes only the loop's signal file (in the temp dir) and
-   uses `$GROVE_CLAUDE_PID` — nothing in the now-removed worktree — so run it
+   uses `$GROVE_CLAUDE_PID` — nothing about the working tree — so run it
    from any valid directory. Outside `grove do` (no loop to stop) it is a safe
    no-op: just exit.
 
-Steps 3–5 run `git -C <repo>` against the **main repo**, and step 6 against the
-loop's global handles — none touch the worktree (the session's cwd is inside the
-worktree it removes). Worktree-remove precedes branch-delete because git refuses
-to delete a branch checked out in a live worktree. The default branch never
-carries any grove's local state; the history of completed groves lives in git's
-commit graph, not in retained directories.
+Nothing after: integrating the grove's branch and tearing down the working tree
+are **not** grove workflow — both belong to plain git/gh, or the user's own
+worktree tooling (user-owned-worktrees). Whoever integrates does so after step
+2, so the integrated history never carries `.grove/`.
 
 **Resume is state-checked, never a marker file** (constraint 1). `grove do` into
 a half-finished grove resumes from the first incomplete step: if `.grove/` is
-already gone (`grove-llm pick` errors with "grove root not found") skip 1–2; if
-`git -C <repo> merge-base --is-ancestor <name> <default>` passes skip 3; if the
-worktree is gone skip 4; if the branch is gone skip 5; if all are done, report
-"already finished" and stop.
+already gone (`grove-llm pick` errors with "grove root not found"), promotion
+and deletion are already done — report "already finished" and stop.
 
 ## Artifacts
 
@@ -300,7 +297,7 @@ standard artifact that outlives grove (constraint 6).
 | Glossary | `CONTEXT.md` (+ `CONTEXT-MAP.md`) | the Ubiquitous Language — read every session, appended inline |
 | ADRs | `docs/adr/<slug>.md` | one decision each, as a **minimum coherent set** — slug-named, edited in place; philosophy per `linkuistics:decision-records` |
 | Specs | `docs/specs/<slug>.md` | how an area works — the human-facing agreement point, also a **minimum coherent set** (`SPEC-FORMAT.md`) |
-| Task tree | `.grove/` (inside the grove's worktree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step before merging |
+| Task tree | `.grove/` (inside the grove's working tree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step |
 
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,

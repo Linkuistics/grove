@@ -4,9 +4,9 @@ End-to-end, per-verb walks through grove's main flows: each shows the command(s)
 
 ## The three flows
 
-1. [**`start.md`**](start.md) — open a new grove with `grove do` (its new-grove path): worktree creation, branching, the harness exec, and the bootstrap session that writes the root `BRIEF.md`.
-2. [**`multi-step.md`**](multi-step.md) — the inner loop across several sessions: the single-`grove do` self-driving loop, leaf-vs-node retirement, and the manual `grove retire <name>/<node-path>` verb.
-3. [**`finish.md`**](finish.md) — close out a completed grove: the **in-session** complete finish cycle (there is no `grove finish` verb) — triggered by an empty `grove-llm pick`, gated by one confirmation, it promotes durable content out of `.grove/`, deletes the scaffolding, merges to the default branch, and removes the worktree and branch.
+1. [**`start.md`**](start.md) — open a new grove, `grove do`'s new-grove path: create your own working tree, run argument-less `grove do` inside it, the harness exec, and the bootstrap session that writes the root `BRIEF.md`.
+2. [**`multi-step.md`**](multi-step.md) — the inner loop across several sessions: the single-`grove do` self-driving loop, leaf-vs-node retirement, and the manual `grove retire <node-path>` verb.
+3. [**`finish.md`**](finish.md) — close out a completed grove: the **in-session** complete finish cycle (there is no `grove finish` verb) — triggered by an empty `grove-llm pick`, gated by one confirmation, it promotes durable content out of `.grove/` and deletes the scaffolding in a focused commit. Integrating the branch and tearing down the working tree are the user's own git/gh from there, not part of the cycle.
 
 There is no install walkthrough: `brew install grove` is the whole installation, and the binary provisions its embedded methodology to the global skill dir on the first `grove do` (see [`../../README.md`](../../README.md)).
 

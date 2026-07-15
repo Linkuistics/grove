@@ -142,6 +142,6 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 **"grove"** is overloaded across this codebase. It can mean:
 1. The **CLI tool** / Rust crate published as `grove` — the verbs `do`, `migrate`, `retire`, etc.
 2. The **methodology** embedded in `content/SKILL.md` and provisioned to the global skill dir.
-3. A single **workstream** — one named task tree under `.grove-worktrees/<name>/.grove/`. `grove do` operates on this sense.
+3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. `grove do` operates on this sense.
 
 When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove".

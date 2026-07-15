@@ -53,24 +53,24 @@ Upgrading the binary upgrades the methodology. `brew upgrade grove` installs a n
 
 ## Driving a grove
 
-A grove lives in two places — the CLI binary (Homebrew, used from anywhere, carrying the embedded methodology it provisions to `~/.claude/skills/grove/`); and the grove itself, which is a **git worktree** at `<repo>/.grove-worktrees/<name>/` on branch `<name>`. The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that worktree, at `<repo>/.grove-worktrees/<name>/.grove/`, committed to the `<name>` branch. All sessions of a single grove share that one worktree continuously; there is no per-session worktree.
+A grove lives in two places — the CLI binary (Homebrew, used from anywhere, carrying the embedded methodology it provisions to `~/.claude/skills/grove/`); and the grove itself, which is **any git working tree you provide** — created however you like (`git worktree add`, `git init`, a plain checkout, or a dedicated tool such as [worktrunk](https://github.com/max-sixty/worktrunk)), on any branch, anywhere on disk (user-owned-worktrees). The task tree — the `.grove/` directory of briefs and leaves that the methodology talks about — lives **inside** that working tree, committed to whatever branch it's on. All sessions of a single grove share that one working tree continuously; there is no per-session worktree, and grove reads no branch anywhere.
 
-Different groves in the same repo run in separate worktrees on separate branches in parallel. They all read the one binary-provisioned global skill, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and merges the branch into the default branch. The default branch never carries any grove's local state; the history of completed groves lives in git's commit graph, not in retained directories.
+Different groves — including several against the same repo — run in separate working trees in parallel, each on whatever branch its owner gave it. They all read the one binary-provisioned global skill, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and signals the loop to stop. That is the whole cycle — grove creates no git topology, so it merges none and deletes none either (user-owned-worktrees): integrating the branch and tearing down the working tree are the user's own git/gh, or their worktree tooling, done after `.grove/` is already gone.
 
 If a multi-harness repo (both `.claude/` and `.codex/`) launches a grove, the CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` so later verbs know which harness this grove is bound to. Single-harness repos skip the stamp entirely.
 
 ```
-grove do <name>                   # the sole lifecycle entry verb: start a new grove, or continue an existing one
-grove retire <name>/<node-path>   # promote a finished node's brief upward (its leaves stay marked done in place)
+grove do                   # the sole lifecycle entry verb, run from inside your working tree
+grove retire <node-path>   # promote a finished node's brief upward (its leaves stay marked done in place)
 ```
 
-`grove do` is the sole lifecycle entry verb — it inspects the grove's state and dispatches: no grove by that name → create the worktree and open a bootstrap session; live worktree → continue; branch present but worktree gone → re-attach and continue. (The former `grove start` and `grove continue` are removed; `do` already covered both. Finishing is in-session — see above — so there is no `grove finish` verb.) If the grove's `.grove/` is still in an older on-disk format, `grove do` migrates it to the current directory scheme first — one reviewable, committed change — before driving (task-tree-scheme).
+`grove do` is **argument-less** and run from inside the working tree you're standing in — it inspects the state on disk and dispatches: no `.grove/` yet → open a bootstrap session; a live tree → continue; no live leaves left → propose the complete finish cycle. (The former `grove start`, `grove continue`, and `grove finish` are removed; `do` covers all three — do-is-sole-lifecycle-verb.) If `.grove/` is still in an older on-disk format, `grove do` migrates it to the current directory scheme first — one reviewable, committed change — before driving (task-tree-scheme).
 
-Once driving, `grove do` runs the **self-driving loop** (self-driving-loop): it launches a fresh, clean-context session per task and relaunches automatically each time a session fires its completion signal (`grove-llm complete`), walking the tree until no live leaf is left — at which point the loop proposes the in-session finish cycle. Any non-signalling exit — your `/exit`, a Ctrl-C, or a crash — stops the loop; re-running `grove do <name>` resumes it, because the loop holds no state of its own and re-derives its position from the tree each iteration.
+Once driving, `grove do` runs the **self-driving loop** (self-driving-loop): it launches a fresh, clean-context session per task and relaunches automatically each time a session fires its completion signal (`grove-llm complete`), walking the tree until no live leaf is left — at which point the loop proposes the in-session finish cycle. Any non-signalling exit — your `/exit`, a Ctrl-C, or a crash — stops the loop; re-running `grove do` from the same working tree resumes it, because the loop holds no state of its own and re-derives its position from the tree each iteration.
 
-Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (set up the worktree but skip exec'ing the harness — useful for inspection or scripting). On a brand-new grove `grove do` also takes `--start-point <ref>` to branch from somewhere other than origin's HEAD.
+Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (report readiness but skip exec'ing the harness — useful for inspection or scripting).
 
-The exec'd session is pre-named `<repo>: <name> grove` and the worktree carries a `.harness` stamp only when needed to disambiguate in multi-harness repos.
+The exec'd session is pre-named `<repo-basename>: <name> grove`, where `<name>` is the working tree's own basename; a one-line stamp at `<repo>/.grove-stamps/<name>` records the harness binding only when needed to disambiguate in multi-harness repos.
 
 For end-to-end walkthroughs of each verb in context, see [`workflows/`](workflows/).
 
@@ -102,7 +102,7 @@ For a longer field guide on driving grove well — when to commission prior-art 
 
 ### One-off and exploratory use
 
-There is no per-repo install gesture to skip: the binary already carries the methodology and provisions it globally, so `grove do <name>` is all it takes to start even a single short workstream. The cost is one command; the benefit is that the experiment runs under the same loop and leaves the same legible `.grove/` notes as any other grove. If the work truly does not warrant a worktree and a branch, run the harness freeform without grove at all — that is a more honest choice than bending grove around a task too small for it.
+There is no per-repo install gesture to skip: the binary already carries the methodology and provisions it globally, so a working tree plus argument-less `grove do` is all it takes to start even a single short workstream. The cost is one command; the benefit is that the experiment runs under the same loop and leaves the same legible `.grove/` notes as any other grove. If the work truly does not warrant its own working tree, run the harness freeform without grove at all — that is a more honest choice than bending grove around a task too small for it.
 
 ## License
 

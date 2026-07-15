@@ -11,8 +11,9 @@ grove is two things and nothing else:
 
 Both are **bundled in a single global skill**. Distribution is one
 `brew install grove` binary that embeds the methodology `content/` and provisions the
-global skill on launch. grove owns no runtime machinery: worktree lifecycle,
-fresh-context looping, and the human-as-scheduler crank are supplied by the
+global skill on launch. grove owns no runtime machinery: worktree lifecycle belongs
+to the user's own tooling (see *user-owned-worktrees*); fresh-context looping and
+the human-as-scheduler crank are supplied by the
 self-driving loop (see *self-driving-loop*); generic engineering skills (TDD, review,
 debugging) are deferred to third-party collections grove never had superior versions
 of.

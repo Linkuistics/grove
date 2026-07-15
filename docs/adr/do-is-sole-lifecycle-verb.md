@@ -1,11 +1,13 @@
 # `grove do` is the sole lifecycle entry verb
 
-A grove is opened with `grove do <name>` from any state. `do` inspects the grove's
-state on disk and dispatches: a new grove gets a worktree + branch and a bootstrap
-session; a live grove resumes; an orphaned grove (branch present, worktree gone) is
-re-attached and resumed. Finishing happens *inside* the session (see the
-*in-session-finish-cycle* decision), not through a launched verb. The whole
-lifecycle surface is `do` / `migrate` / `retire`.
+A grove is opened by running `grove do` — argument-less — from inside its working
+tree, from any state. `do` inspects the state on disk and dispatches: no `.grove/`
+yet → a bootstrap session (fresh-grove start); a live tree → the loop continues;
+no live leaves left → the session proposes the complete finish cycle. Finishing
+happens *inside* the session (see the *in-session-finish-cycle* decision), not
+through a launched verb. The whole lifecycle surface is `do` / `migrate` /
+`retire`, every one addressed by the working tree it runs in — you are where your
+grove is (*user-owned-worktrees*).
 
 ## Why one verb, not a cluster
 
@@ -18,12 +20,6 @@ grove or `continue` on an unknown one was relying on the verb to guess an intent
 others removes three-spellings-of-one-operation and the standing risk that separate
 entry points drift from the dispatch logic. This clears the ADR bar because the
 removal is a breaking change a future reader would otherwise question.
-
-## `--start-point` lives on `do`
-
-Branching from somewhere other than the default branch's HEAD is preserved by
-`grove do <name> --start-point <ref>`. The flag is meaningful only on the new-grove
-path; the resume and re-attach paths ignore it (the branch already exists).
 
 ## Why finishing is not a launched verb
 
@@ -41,3 +37,8 @@ explicit retire-first path is clearer than a force-finish affordance.
 - **Remove `start` / `continue`, keep a launched `grove finish`.** Rejected: with
   finishing in-session, a launched `finish` is a redundant second trigger. One
   trigger — empty `pick` — is simpler than two.
+- **Re-split `start` / `continue` when `do` lost its name argument.** Rejected in
+  the *user-owned-worktrees* grilling: the start/continue distinction is fully
+  derivable from on-disk state, so splitting it would reintroduce wrong-verb
+  errors and weaken restart ≡ continuation. Nothing would reopen this while the
+  dispatch stays state-derived.

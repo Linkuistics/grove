@@ -1,6 +1,6 @@
 # A fresh grove is scaffolded by `grove-llm root-init`, which creates the root brief *and* a first planning leaf
 
-A brand-new grove has a worktree and branch but no `.grove/` tree yet, and every step
+A brand-new grove has a working tree (user-provided — *user-owned-worktrees*) but no `.grove/` tree yet, and every step
 of the loop assumes `.grove/` is already present (`grove-llm pick` on a treeless grove
 errors "grove root not found"). **`grove-llm root-init [<slug>]`** (default slug
 `plan`) resolves that: it creates `.grove/`, writes the root `BRIEF.md` stub, and lays

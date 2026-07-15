@@ -11,7 +11,7 @@ session invokes mid-session to perform deterministic mechanics — `root-init`,
 ## Why split the surface at all
 
 Two distinct audiences exercise the CLI, and they barely overlap. A human types
-`grove do auth-redesign` once at the terminal and forgets about it. The LLM inside
+`grove do` once in the worktree and forgets about it. The LLM inside
 that grove's session, by contrast, calls verbs every loop to *drive* the process —
 pick the next leaf, walk the brief chain, grow the tree, signal completion. Mixing
 both sets on one binary produces a `--help` that confuses both audiences: the human

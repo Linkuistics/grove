@@ -15,7 +15,7 @@ external workflow engine. The mechanism:
   perform on itself. The agent receives `claude`'s PID via `GROVE_CLAUDE_PID`.
 - **Relaunch is opt-in.** The loop relaunches **only** when the completion signal
   fired. Any other exit — human `/exit` or Ctrl-C, or a crash — **stops** the loop,
-  resumable later by re-running `grove do <name>`.
+  resumable later by re-running `grove do`.
 - **Restart ≡ continuation by construction.** The loop body holds zero engine state
   and re-derives its position from `grove-llm pick` every iteration. Re-invoking the
   loop *is* resuming it; a crashed mid-task leaf is simply re-picked and redone,

@@ -34,10 +34,11 @@ class Grove < Formula
   def caveats
     <<~EOS
       grove ships its methodology inside the binary. The first
-        grove do <name>
-      provisions the global skill at ~/.claude/skills/grove/ — there is no
-      separate install step. The skill re-provisions automatically the next time
-      you run `grove do` after upgrading the formula.
+        grove do
+      run from inside your working tree provisions the global skill at
+      ~/.claude/skills/grove/ — there is no separate install step. The skill
+      re-provisions automatically the next time you run `grove do` after
+      upgrading the formula.
     EOS
   end
 

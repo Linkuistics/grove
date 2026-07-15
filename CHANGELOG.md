@@ -1,5 +1,21 @@
 # Changelog
 
+## v11.0.0
+
+grove exits the git-topology business. Through v10.0.3, `grove do <name>` owned a canonical layout — it created `<repo>/.grove-worktrees/<name>/` on a same-named branch, re-attached it if orphaned, and the finish cycle merged that branch to the default, removed the worktree, and deleted the branch. That layout fights any tool that wants to own worktree placement itself (e.g. [worktrunk](https://github.com/max-sixty/worktrunk)): grove and the tool each assume they control creation, naming, and teardown. grove now owns none of it — the workflow's one precondition is *a git working tree*, user-provided, on any branch, anywhere on disk; grove reads no branch, ever. (ADR `user-owned-worktrees`)
+
+### Breaking
+
+- **`grove do` loses its `<name>` argument and `--start-point`.** Run it argument-less, from inside the working tree you've already created (`git init`, `git clone`, a plain checkout, or a linked worktree from your own tooling). It still inspects state on disk and dispatches exactly as before — no `.grove/` yet → bootstrap; a live tree → continue; no live leaves → propose the finish cycle — the state-dispatch logic is unchanged, only where the worktree itself comes from (ADR `do-is-sole-lifecycle-verb`, reworked in place: the creation and orphan-reattach dispatch arms are gone, since there is no longer a canonical location to create or re-attach).
+- **The grove's name is now the working tree's own directory basename**, read via `git rev-parse --show-toplevel` — never derived from a branch or a canonical path. It names the root brief, the harness session (`<repo-basename>: <name> grove`), and the harness stamp (`<repo>/.grove-stamps/<name>`), exactly as before; only the source of the name changed.
+- **`grove retire` addresses a node as `grove retire <node-path>`, in-worktree** — the old two-part `<name>/<node-path>` addressing is gone with the canonical layout, since `<name>` is no longer a lookup key, just the label the current working tree happens to carry.
+- **The complete finish cycle shrinks from six steps to three.** It now ends at *promote → delete `.grove/` in one commit → signal `complete --done`*; the old merge / worktree-remove / branch-delete steps are gone (ADR `in-session-finish-cycle`, reworked in place). Integrating the branch and tearing down the working tree are the user's own git/gh (or worktree tool) from here — grove creates no topology, so symmetrically it merges and deletes none. Resume logic shrinks to match: a half-finished grove resumes at "promote" if `.grove/` still exists, or reports "already finished" if it's already gone — the old merge-base / worktree / branch resume checks no longer apply.
+- **No topology convenience verbs.** An earlier design for this release sketched `grove create <name>` / `grove remove <name>` as opt-in utilities outside the main workflow; both were eliminated in the same grilling that settled the inversion; nothing in the CLI surface replaces the worktree/branch handling that's gone. The surface is now exactly `do` / `migrate` / `retire`.
+
+### Migrating an existing grove
+
+Nothing needs to move. A worktree already sitting at `<repo>/.grove-worktrees/<name>/` on branch `<name>` is just an ordinary git working tree now — `cd` into it and run argument-less `grove do`; `.grove-worktrees/` carries no special meaning to grove any more, so leaving it in place or relocating it with plain `git worktree move` are equally fine. A new grove needs a working tree you make yourself before the first `grove do`.
+
 ## v10.0.3
 
 Two bug fixes, each filed against a precondition that was false or never examined: grove could not rename a task-tree entry it had not yet committed, and the codex harness declared a command-line flag codex does not have.

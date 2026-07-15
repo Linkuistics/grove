@@ -498,9 +498,9 @@ fn entry_name(path: &Path) -> Result<String> {
         .with_context(|| format!("path {} has no filename", path.display()))
 }
 
-/// The grove's name is the worktree directory's basename (it equals the branch
-/// name; the worktree lives at `<repo>/.grove-worktrees/<name>/`). Used as the root
-/// brief's `# <name> — brief` title.
+/// The grove's name is the worktree directory's basename (user-owned-worktrees
+/// — grove reads no branch, ever). Used as the root brief's `# <name> — brief`
+/// title.
 fn grove_name(worktree: &Path) -> String {
     worktree
         .file_name()

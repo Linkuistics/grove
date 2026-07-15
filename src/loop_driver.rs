@@ -1,11 +1,11 @@
 // The self-driving loop — grove's runtime (self-driving-loop).
 //
-// `grove do <name>` drives the *whole loop*, not one task: it launches a fresh
+// `grove do` drives the *whole loop*, not one task: it launches a fresh
 // foreground `claude` per grove task, and relaunches with fresh context each
 // time the agent fires the completion signal (`grove-llm complete`). Any other
 // exit — human `/exit`/Ctrl-C, or a crash — stops the loop, resumable later by
-// re-running `grove do <name>` (restart ≡ continuation, the loop body holds zero
-// state and re-derives position from `grove-llm pick`).
+// re-running `grove do` from the same working tree (restart ≡ continuation, the
+// loop body holds zero state and re-derives position from `grove-llm pick`).
 //
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
@@ -47,7 +47,7 @@ pub enum LoopOutcome {
     /// The grove finished cleanly: a session signalled `complete --done`.
     Finished,
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
-    /// crash); resumable by re-running `grove do <name>`.
+    /// crash); resumable by re-running `grove do` from the same working tree.
     Stopped,
 }
 
@@ -135,10 +135,12 @@ pub fn run_loop(
                 return Ok(LoopOutcome::Finished);
             }
             // Human `/exit`/Ctrl-C, or a crash: no signal → stop. Re-running
-            // `grove do <name>` resumes from `grove-llm pick`.
+            // `grove do` from the same working tree resumes from `grove-llm pick`.
             None => {
                 eprintln!("grove: session ended without a completion signal — loop stopped.");
-                eprintln!("       Re-run `grove do {name}` to resume (restart ≡ continuation).");
+                eprintln!(
+                    "       Re-run `grove do` from this working tree to resume (restart ≡ continuation)."
+                );
                 let _ = std::fs::remove_file(&signal_file);
                 return Ok(LoopOutcome::Stopped);
             }

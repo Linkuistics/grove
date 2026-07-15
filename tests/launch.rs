@@ -1,4 +1,4 @@
-use grove::cli::{NameArgs, StartArgs};
+use grove::cli::{RetireArgs, StartArgs};
 use grove::launch;
 use std::fs;
 use std::process::Command;
@@ -46,54 +46,45 @@ fn init_repo() -> TempDir {
 }
 
 #[test]
-fn start_creates_worktree_in_no_launch_mode() {
+fn do_reports_readiness_in_no_launch_mode() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
-    launch::start(&StartArgs {
-        name: "auth".into(),
-        start_point: Some("main".into()),
-        harness: None,
-        no_launch: true,
-    })
-    .unwrap();
-
-    assert!(repo.path().join(".grove-worktrees/auth").is_dir());
-}
-
-#[test]
-fn continue_errors_when_no_worktree() {
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-
-    let err = launch::continue_grove(&NameArgs {
-        name: "ghost".into(),
-        harness: None,
-        no_launch: true,
-    })
-    .unwrap_err();
-    assert!(err.to_string().contains("no worktree for grove"));
-}
-
-#[test]
-fn do_starts_when_grove_is_unknown() {
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-
-    // `do` is the sole entry verb; on an unknown grove it takes the start
-    // path and honours --start-point (StartArgs.start_point).
+    // `do` never creates or touches git topology (user-owned-worktrees) — cwd's
+    // toplevel *is* the worktree, and the grove name is its basename.
     launch::do_grove(&StartArgs {
-        name: "fresh".into(),
-        start_point: Some("main".into()),
         harness: None,
         no_launch: true,
     })
     .unwrap();
+}
 
-    assert!(repo.path().join(".grove-worktrees/fresh").is_dir());
+#[test]
+fn do_runs_from_a_linked_worktree() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+
+    // Precondition is "any git working tree" (user-owned-worktrees): a linked
+    // worktree the test creates itself, not a `.grove-worktrees/<name>/` grove
+    // ever provisions.
+    let linked = repo.path().join("scratch-worktree");
+    let status = Command::new("git")
+        .args(["-C", repo.path().to_str().unwrap(), "worktree", "add"])
+        .arg(&linked)
+        .arg("-b")
+        .arg("feature")
+        .status()
+        .unwrap();
+    assert!(status.success(), "git worktree add failed");
+
+    std::env::set_current_dir(&linked).unwrap();
+
+    launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .unwrap();
 }
 
 #[test]
@@ -110,8 +101,6 @@ fn do_provisions_the_global_skill_on_launch() {
     assert!(!skill_dir.exists(), "skill dir absent before `do`");
 
     launch::do_grove(&StartArgs {
-        name: "prov".into(),
-        start_point: Some("main".into()),
         harness: None,
         no_launch: true,
     })
@@ -124,24 +113,19 @@ fn do_provisions_the_global_skill_on_launch() {
 }
 
 #[test]
-fn do_continues_when_worktree_is_live() {
+fn do_is_idempotent_on_the_same_working_tree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
-    launch::start(&StartArgs {
-        name: "alive".into(),
-        start_point: Some("main".into()),
+    // `do` is the sole entry verb for every state (do-is-sole-lifecycle-verb):
+    // running it again from the same working tree must still succeed.
+    launch::do_grove(&StartArgs {
         harness: None,
         no_launch: true,
     })
     .unwrap();
-
-    // Worktree exists; `do` must succeed (the continue path in no-launch
-    // mode is a no-op past the worktree presence check).
     launch::do_grove(&StartArgs {
-        name: "alive".into(),
-        start_point: None,
         harness: None,
         no_launch: true,
     })
@@ -157,15 +141,7 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
-    // Stand up a live worktree, then plant an old-format tree in it and commit.
-    launch::start(&StartArgs {
-        name: "legacy".into(),
-        start_point: Some("main".into()),
-        harness: None,
-        no_launch: true,
-    })
-    .unwrap();
-    let worktree = repo.path().join(".grove-worktrees/legacy");
+    let worktree = repo.path();
     fs::create_dir_all(worktree.join(".grove/done")).unwrap();
     fs::write(worktree.join(".grove/BRIEF.md"), "# proj — brief\n").unwrap();
     fs::write(worktree.join(".grove/done/010-old.md"), "# 010-old\n").unwrap();
@@ -188,8 +164,6 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
         .unwrap();
 
     launch::do_grove(&StartArgs {
-        name: "legacy".into(),
-        start_point: None,
         harness: None,
         no_launch: true,
     })
@@ -212,35 +186,18 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
 }
 
 #[test]
-fn do_reattaches_orphaned_worktree() {
+fn retire_resolves_a_bare_node_path_in_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
 
-    launch::start(&StartArgs {
-        name: "orphan".into(),
-        start_point: Some("main".into()),
+    // `retire` takes a bare in-worktree node path — no `<name>/` prefix. The
+    // two-part `<name>/<node-path>` addressing died with the canonical
+    // `.grove-worktrees/<name>/` layout (user-owned-worktrees).
+    launch::retire(&RetireArgs {
+        path: "03-some-leaf-k3".into(),
         harness: None,
         no_launch: true,
     })
     .unwrap();
-
-    // Simulate user manually deleting the worktree: drop the directory
-    // and prune git's stale worktree entry.
-    fs::remove_dir_all(repo.path().join(".grove-worktrees/orphan")).unwrap();
-    Command::new("git")
-        .args(["-C", repo.path().to_str().unwrap(), "worktree", "prune"])
-        .status()
-        .unwrap();
-    assert!(!repo.path().join(".grove-worktrees/orphan").exists());
-
-    launch::do_grove(&StartArgs {
-        name: "orphan".into(),
-        start_point: None,
-        harness: None,
-        no_launch: true,
-    })
-    .unwrap();
-
-    assert!(repo.path().join(".grove-worktrees/orphan").is_dir());
 }

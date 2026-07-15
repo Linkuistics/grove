@@ -369,7 +369,7 @@ exit 0
     );
 
     let out = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
-        .args(["do", "kindgrove"])
+        .args(["do"])
         .current_dir(repo_path)
         .env("GROVE_HARNESS_BIN", &fake)
         .env("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))

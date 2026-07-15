@@ -1,4 +1,4 @@
-use crate::cli::{NameArgs, RetireArgs, StartArgs};
+use crate::cli::{RetireArgs, StartArgs};
 use crate::harness::Harness;
 use crate::harness_stamp;
 use crate::repo;
@@ -7,39 +7,15 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-pub fn start(args: &StartArgs) -> Result<()> {
-    let repo_path = repo::resolve(None)?;
-    let harness =
-        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
-
-    let worktree =
-        repo::create_grove_worktree(&repo_path, &args.name, args.start_point.as_deref())?;
-    harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
-
-    if args.no_launch {
-        eprintln!(
-            "grove: worktree ready at {} (no-launch)",
-            worktree.display()
-        );
-        return Ok(());
-    }
-    let prompt = load_prompt("start")?;
-    exec_harness(harness, &repo_path, &worktree, &args.name, &prompt)
-}
-
-pub fn continue_grove(args: &NameArgs) -> Result<()> {
-    launch_existing(args, "continue")
-}
-
-/// State-dispatching launcher: the sole lifecycle entry verb. It ensures the
-/// worktree exists (creating a new grove, re-attaching an orphaned one, or
-/// using a live one), then drives the **whole self-driving loop** (self-driving-loop):
-/// one fresh foreground `claude` per task, relaunching on each completion
-/// signal until the agent stops signalling (empty `pick` → finish, or a human
-/// interrupt). The new-grove path honours `--start-point`; resume paths ignore
-/// it (the branch already exists). The launched sessions handle all in-context
-/// judgement — including proposing the complete finish cycle once the grove has
-/// no live leaves left.
+/// State-dispatching launcher: the sole lifecycle entry verb, run from inside
+/// the working tree (user-owned-worktrees) — grove never creates, attaches, or
+/// relocates it. The worktree is `git rev-parse --show-toplevel` of cwd, and
+/// the grove name is its basename. Once resolved, it drives the **whole
+/// self-driving loop** (self-driving-loop): one fresh foreground `claude` per
+/// task, relaunching on each completion signal until the agent stops
+/// signalling (empty `pick` → finish, or a human interrupt). The launched
+/// sessions handle all in-context judgement — including proposing the
+/// complete finish cycle once the grove has no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
     // Provision the global skill from the embedded methodology (self-extension-core-and-methodology / task-tree-scheme):
     // extract content/ to ~/.claude/skills/grove/ idempotently, so the skill the
@@ -47,25 +23,12 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     // entry the human always hits; a warm dir is a cheap no-op.
     crate::provision::provision_global_skill()?;
 
-    let repo_path = repo::resolve(None)?;
-    let harness =
-        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
+    let worktree = repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?;
+    let name = worktree_name(&worktree);
 
-    let worktree = repo::grove_worktree(&repo_path, &args.name);
-    let worktree = if worktree.is_dir() {
-        worktree
-    } else if repo::branch_exists(&repo_path, &args.name)? {
-        let attached = repo::attach_grove_worktree(&repo_path, &args.name)?;
-        eprintln!(
-            "grove: re-attached worktree at {} (branch existed but worktree was gone)",
-            attached.display()
-        );
-        attached
-    } else {
-        let wt = repo::create_grove_worktree(&repo_path, &args.name, args.start_point.as_deref())?;
-        harness_stamp::maybe_stamp(&repo_path, &args.name, harness)?;
-        wt
-    };
+    let repo_path = repo::resolve(None)?;
+    let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
+    harness_stamp::maybe_stamp(&repo_path, &name, harness)?;
 
     // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
     // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
@@ -73,7 +36,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     // a v2/empty/absent tree, so it is safe on every `grove do` (idempotent;
     // restart ≡ continuation).
     if let crate::tree_migrate::Outcome::Migrated(renames) =
-        crate::tree_migrate::migrate_on_adoption(&worktree, &args.name)?
+        crate::tree_migrate::migrate_on_adoption(&worktree, &name)?
     {
         eprintln!(
             "grove: migrated {} task-tree file{} to the v2 directory scheme (committed for review)",
@@ -83,51 +46,19 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     }
 
     if args.no_launch {
-        eprintln!(
-            "grove: worktree ready at {} (no-launch)",
-            worktree.display()
-        );
+        eprintln!("grove: ready in {} (no-launch)", worktree.display());
         return Ok(());
     }
 
-    crate::loop_driver::run(harness, &repo_path, &worktree, &args.name)
-}
-
-fn launch_existing(args: &NameArgs, verb: &str) -> Result<()> {
-    let repo_path = repo::resolve(None)?;
-    let harness =
-        harness_stamp::resolve_for_launch(&repo_path, &args.name, args.harness.as_deref())?;
-
-    let worktree = repo::grove_worktree(&repo_path, &args.name);
-    if !worktree.is_dir() {
-        anyhow::bail!(
-            "no worktree for grove '{}' at {} — run `grove do {}` first",
-            args.name,
-            worktree.display(),
-            args.name
-        );
-    }
-
-    if args.no_launch {
-        eprintln!("grove: would exec {} (no-launch)", harness.exec_bin);
-        return Ok(());
-    }
-    let prompt = load_prompt(verb)?;
-    exec_harness(harness, &repo_path, &worktree, &args.name, &prompt)
+    crate::loop_driver::run(harness, &repo_path, &worktree, &name)
 }
 
 pub fn retire(args: &RetireArgs) -> Result<()> {
-    let repo_path = repo::resolve(None)?;
-    let (name, node_path) = args
-        .path
-        .split_once('/')
-        .ok_or_else(|| anyhow::anyhow!("expected <name>/<node-path>, got `{}`", args.path))?;
-    let harness = harness_stamp::resolve_for_launch(&repo_path, name, args.harness.as_deref())?;
+    let worktree = repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?;
+    let name = worktree_name(&worktree);
 
-    let worktree = repo::grove_worktree(&repo_path, name);
-    if !worktree.is_dir() {
-        anyhow::bail!("no worktree for grove '{}' at {}", name, worktree.display());
-    }
+    let repo_path = repo::resolve(None)?;
+    let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
 
     if args.no_launch {
         eprintln!(
@@ -137,8 +68,16 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         return Ok(());
     }
     let prompt = load_prompt("retire")?;
-    let prompt = substitute(&prompt, &[("NODE_PATH", node_path)]);
-    exec_harness(harness, &repo_path, &worktree, name, &prompt)
+    let prompt = substitute(&prompt, &[("NODE_PATH", &args.path)]);
+    exec_harness(harness, &repo_path, &worktree, &name, &prompt)
+}
+
+/// The grove name is the worktree directory's basename (user-owned-worktrees).
+fn worktree_name(worktree: &Path) -> String {
+    worktree
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "grove".to_string())
 }
 
 /// Read a launcher prompt from the **global** skill dir the binary provisions

@@ -26,7 +26,7 @@ your own default, so the override DOES persist into every subsequent
 unconfigured session.
 
 Example:
-  GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do <name>";
+  GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do";
 
 #[derive(Parser)]
 #[command(
@@ -41,12 +41,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// Start or continue a grove — the sole lifecycle entry verb.
+    /// Start or continue a grove — the sole lifecycle entry verb, run from
+    /// inside the working tree (any git working tree; the grove name is its
+    /// basename — user-owned-worktrees).
     ///
-    /// Inspects the grove's state and dispatches: no grove by that name →
-    /// create the worktree and open a bootstrap session; live worktree →
-    /// continue; branch exists but worktree gone (orphaned or finished) →
-    /// re-attach the worktree and continue. When the grove has no live
+    /// Inspects the grove's state and dispatches: no `.grove/` yet → open a
+    /// bootstrap session; a live tree → continue. When the grove has no live
     /// leaves left, the in-session loop proposes the complete finish cycle.
     Do(StartArgs),
     /// Migrate this worktree's `.grove/` to the v2 **directory** scheme
@@ -65,13 +65,9 @@ pub enum Command {
 #[derive(Parser)]
 #[command(after_long_help = MODEL_ENV_HELP)]
 pub struct StartArgs {
-    pub name: String,
-    /// Branch start point (default: origin's HEAD or `main`).
-    #[arg(long = "start-point")]
-    pub start_point: Option<String>,
     #[arg(long = "harness")]
     pub harness: Option<String>,
-    /// Set up the worktree but don't exec the harness.
+    /// Report readiness but don't exec the harness.
     #[arg(long = "no-launch")]
     pub no_launch: bool,
 }
@@ -84,17 +80,8 @@ pub struct MigrateArgs {
 }
 
 #[derive(Parser)]
-pub struct NameArgs {
-    pub name: String,
-    #[arg(long = "harness")]
-    pub harness: Option<String>,
-    #[arg(long = "no-launch")]
-    pub no_launch: bool,
-}
-
-#[derive(Parser)]
 pub struct RetireArgs {
-    /// `<name>/<node-path>` (e.g. `auth/003-session-store`).
+    /// Node path within the current worktree's `.grove/` (e.g. `003-session-store`).
     pub path: String,
     #[arg(long = "harness")]
     pub harness: Option<String>,

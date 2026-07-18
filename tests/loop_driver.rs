@@ -690,3 +690,158 @@ exit 0
         rows[1]
     );
 }
+
+// Per-kind harness routing: GROVE_REVIEW_HARNESS=pi must launch review leaves
+// on pi even in a codex-stamped grove — the trial's "K3 reviews everywhere"
+// invariant. Proven with two distinct fake binaries wired through the
+// per-harness bin seam, so the argv log shows *which* harness ran each leaf.
+#[test]
+fn review_leaf_reroutes_to_the_review_harness() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // Fake codex: tags rows "codex"; run 1 (start/planning) materialises a
+    // *review* leaf + signal, so run 2 is a review continue.
+    let fake_codex = worktree.join("fake-codex.sh");
+    write_exec(
+        &fake_codex,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf 'codex\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+    // Fake pi: tags rows "pi"; never signals, so the loop stops after it.
+    let fake_pi = worktree.join("fake-pi.sh");
+    write_exec(
+        &fake_pi,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf 'pi\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("codex").unwrap();
+
+    std::env::set_var("GROVE_HARNESS_BIN_CODEX", &fake_codex);
+    std::env::set_var("GROVE_HARNESS_BIN_PI", &fake_pi);
+    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+    std::env::set_var("GROVE_REVIEW_HARNESS", "pi");
+    std::env::set_var("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh");
+    std::env::set_var("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN_CODEX");
+    std::env::remove_var("GROVE_HARNESS_BIN_PI");
+    std::env::remove_var("GROVE_LLM_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+    std::env::remove_var("GROVE_REVIEW_HARNESS");
+    std::env::remove_var("GROVE_CODEX_PLANNING_MODEL");
+    std::env::remove_var("GROVE_PI_REVIEW_MODEL");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<Vec<&str>> = log
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.splitn(2, '\t').collect())
+        .collect();
+    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+
+    // Planning leaf: the stamped harness (codex) with its scoped profile.
+    assert_eq!(rows[0][0], "codex", "planning stays on the stamped harness");
+    assert!(
+        rows[0][1].contains("--profile sol-xhigh"),
+        "codex planning launches on its scoped profile (argv: {:?})",
+        rows[0][1]
+    );
+    // Review leaf: rerouted to pi, with pi's scoped model — the launch flag
+    // template must be the *post-override* harness's (--model, not --profile).
+    assert_eq!(
+        rows[1][0], "pi",
+        "review must reroute to GROVE_REVIEW_HARNESS"
+    );
+    assert!(
+        rows[1][1].contains("--model kimi-code/k3"),
+        "the rerouted review leaf resolves models against pi (argv: {:?})",
+        rows[1][1]
+    );
+}
+
+// An unknown override value must fail loudly at launch — a typo'd harness
+// name that silently fell back to the stamped harness would run reviews on
+// the wrong (and possibly self-reviewing) model for a whole trial.
+#[test]
+fn unknown_review_harness_fails_loudly() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+
+    // Start path ⇒ kind is Planning by construction; route planning to a typo.
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_PLANNING_HARNESS", "lemur");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "typogrove");
+
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_PLANNING_HARNESS");
+
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("GROVE_PLANNING_HARNESS") && err.contains("lemur"),
+        "the error must name the variable and the bad value (err: {err})"
+    );
+    assert!(
+        err.contains("claude") && err.contains("codex") && err.contains("pi"),
+        "the error must list the known harnesses (err: {err})"
+    );
+}

@@ -108,12 +108,13 @@ pub fn run_loop(
         };
         let prompt = crate::launch::load_prompt(verb)?;
 
-        // Pick the launch model by the picked leaf's kind (model-per-task-kind);
-        // `None` ⇒ no `--model`, so the session inherits the user's own default.
-        let model = select_model(harness, worktree, verb);
+        // Route the launch by the picked leaf's kind: per-kind harness
+        // override first (GROVE_<KIND>_HARNESS), then model-per-task-kind
+        // against whichever harness actually launches.
+        let (launch_harness, model) = resolve_launch(harness, worktree, verb)?;
 
         launch_session(
-            harness,
+            launch_harness,
             worktree,
             &session_name,
             &prompt,
@@ -162,7 +163,7 @@ fn launch_session(
     signal_file: &Path,
     model: Option<&str>,
 ) -> Result<()> {
-    let bin = std::env::var("GROVE_HARNESS_BIN").unwrap_or_else(|_| harness.exec_bin.to_string());
+    let bin = harness_bin(harness);
 
     let mut cmd = Command::new("sh");
     cmd.arg("-c")
@@ -189,6 +190,15 @@ fn launch_session(
     // path, not an error. The signal file — not the exit code — decides relaunch.
     let _ = cmd.status().context("launching the harness session")?;
     Ok(())
+}
+
+/// The binary to exec for a harness: `GROVE_HARNESS_BIN_<NAME>` (the
+/// per-harness test seam — kind routing can launch two different harnesses in
+/// one loop) beats the legacy global `GROVE_HARNESS_BIN`, beats `exec_bin`.
+fn harness_bin(harness: &Harness) -> String {
+    std::env::var(format!("GROVE_HARNESS_BIN_{}", harness.name.to_uppercase()))
+        .or_else(|_| std::env::var("GROVE_HARNESS_BIN"))
+        .unwrap_or_else(|_| harness.exec_bin.to_string())
 }
 
 /// Env-name suffixes for the five kinds, in taxonomy order. Shared by the
@@ -225,40 +235,63 @@ fn any_model_env(harness: &Harness) -> bool {
     })
 }
 
-/// Choose the launch model for the next session by the picked leaf's **kind**
-/// (model-per-task-kind). Returns the model string for `--model`, or `None` to
-/// launch on the user's own default (no `--model` at all).
-///
-/// The load-bearing rule: a kind whose env var is **unset** yields `None`, so
-/// grove never clobbers a user's `ANTHROPIC_MODEL`/settings default — it opts in
-/// per kind. When no var is set for the harness (the common case) this returns
-/// `None` with no `grove-llm` call, so the launch is byte-for-byte the
-/// pre-feature one. When a var *is* configured, the lookup is scoped-then-base:
-/// `GROVE_<HARNESS>_<KIND>_MODEL` beats `GROVE_<KIND>_MODEL`.
-///
-/// Kind resolution mirrors the loop's start/continue split:
-///   * `start` — a brand-new grove whose first leaf is planning by construction
-///     (fresh-grove-start-contract), so no peek is needed.
-///   * `continue` — peek the next live leaf's kind via `grove-llm kind`. This is
-///     a driver-side `pick` peek: within one iteration it resolves the *same*
-///     leaf the launched agent will pick (deterministic pick over the same
-///     tree), so the read-then-launch window is a non-issue.
-fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String> {
-    // A harness with no model-flag template opts out entirely.
-    if harness.model_args.is_empty() {
-        return None;
+/// The per-kind harness override: `GROVE_<KIND>_HARNESS` names the harness
+/// that runs leaves of that kind, whatever the grove is stamped to (the
+/// trial's "K3 reviews everywhere": GROVE_REVIEW_HARNESS=pi). Unknown names
+/// fail loudly — a typo that silently fell back would misroute every review.
+fn harness_override(kind: Kind) -> Result<Option<&'static Harness>> {
+    let var = format!("GROVE_{}_HARNESS", env_suffix(kind));
+    match std::env::var(&var) {
+        Ok(name) if !name.is_empty() => {
+            let h = crate::harness::by_name(&name).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "{var}={name}: unknown harness. Known: {}",
+                    crate::harness::known_names()
+                )
+            })?;
+            Ok(Some(h))
+        }
+        _ => Ok(None),
     }
-    // Nothing configured ⇒ nothing to select; skip the kind peek so the
-    // common path stays a zero-subprocess, byte-for-byte-unchanged launch.
-    if !any_model_env(harness) {
-        return None;
+}
+
+/// Whether any per-kind harness override is set — like `any_model_env`, the
+/// gate that decides whether the kind peek is worth a subprocess.
+fn any_harness_override_env() -> bool {
+    KIND_SUFFIXES
+        .iter()
+        .any(|s| std::env::var(format!("GROVE_{s}_HARNESS")).is_ok_and(|v| !v.is_empty()))
+}
+
+/// Resolve where and on what the next session launches: peek the picked
+/// leaf's kind (only when some routing env makes it matter), apply the
+/// per-kind harness override, then resolve the model against the
+/// *post-override* harness — so `GROVE_PI_REVIEW_MODEL` governs a review
+/// rerouted to pi, not the stamped harness's vars.
+fn resolve_launch(
+    stamped: &'static Harness,
+    worktree: &Path,
+    verb: &str,
+) -> Result<(&'static Harness, Option<String>)> {
+    if !any_harness_override_env() && !any_model_env(stamped) {
+        return Ok((stamped, None));
     }
     let kind = if verb == "start" {
-        Kind::Planning
+        Some(Kind::Planning)
     } else {
-        resolve_kind(worktree)?
+        resolve_kind(worktree)
     };
-    model_for(harness, kind)
+    let Some(kind) = kind else {
+        // No kind (empty grove / peek degraded): no basis to route or select.
+        return Ok((stamped, None));
+    };
+    let launch = harness_override(kind)?.unwrap_or(stamped);
+    let model = if launch.model_args.is_empty() {
+        None
+    } else {
+        model_for(launch, kind)
+    };
+    Ok((launch, model))
 }
 
 /// Read a model env var, treating empty as unset.

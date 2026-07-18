@@ -686,7 +686,7 @@ and the trial runs both sides concurrently from one shell environment."
   - Test seam: `GROVE_HARNESS_BIN_<NAME>` (e.g. `GROVE_HARNESS_BIN_PI`) beats `GROVE_HARNESS_BIN` beats `exec_bin`.
   - `fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Result<(&'static Harness, Option<String>)>`
 
-- [ ] **Step 1: Write the failing reroute test**
+- [x] **Step 1: Write the failing reroute test**
 
 Append to `tests/loop_driver.rs`:
 
@@ -844,12 +844,12 @@ fn unknown_review_harness_fails_loudly() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
-Run: `cargo test --test loop_driver review_leaf_reroutes unknown_review_harness`
+Run: `cargo test --test loop_driver review` (`cargo test` takes a single TESTNAME filter, not two; `review` is a substring match for both new tests)
 Expected: FAIL — reroute test: both rows tagged from the default `exec_bin` path (or the launch errors because real `codex` isn't the fake); typo test: no error raised.
 
-- [ ] **Step 3: Implement in `src/loop_driver.rs`**
+- [x] **Step 3: Implement in `src/loop_driver.rs`**
 
 Add helpers (near `model_for`):
 
@@ -951,12 +951,12 @@ fn harness_bin(harness: &Harness) -> String {
 }
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS — including all pre-existing loop tests (they use the global `GROVE_HARNESS_BIN` fallback and no override envs). If `unrecognised_kind_warns_the_operator_and_still_launches` runs the real `grove` binary, it inherits no override envs — confirm it still passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/loop_driver.rs tests/loop_driver.rs

@@ -11,8 +11,8 @@ use std::process::Command;
 /// the working tree (user-owned-worktrees) — grove never creates, attaches, or
 /// relocates it. The worktree is `git rev-parse --show-toplevel` of cwd, and
 /// the grove name is its basename. Once resolved, it drives the **whole
-/// self-driving loop** (self-driving-loop): one fresh foreground `claude` per
-/// task, relaunching on each completion signal until the agent stops
+/// self-driving loop** (self-driving-loop): one fresh foreground harness
+/// session per task, relaunching on each completion signal until the agent stops
 /// signalling (empty `pick` → finish, or a human interrupt). The launched
 /// sessions handle all in-context judgement — including proposing the
 /// complete finish cycle once the grove has no live leaves left.

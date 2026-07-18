@@ -1,7 +1,7 @@
 // The self-driving loop — grove's runtime (self-driving-loop).
 //
 // `grove do` drives the *whole loop*, not one task: it launches a fresh
-// foreground `claude` per grove task, and relaunches with fresh context each
+// foreground harness session per grove task, and relaunches with fresh context each
 // time the agent fires the completion signal (`grove-llm complete`). Any other
 // exit — human `/exit`/Ctrl-C, or a crash — stops the loop, resumable later by
 // re-running `grove do` from the same working tree (restart ≡ continuation, the
@@ -149,7 +149,7 @@ pub fn run_loop(
     }
 }
 
-/// Launch one fresh foreground `claude` owning the real TTY. The
+/// Launch one fresh foreground harness session owning the real TTY. The
 /// `sh -c 'export GROVE_HARNESS_PID=$$; exec "$@"'` wrapper hands the agent
 /// the harness session's own PID: `exec` preserves the PID, so `$$` (captured
 /// before exec) is the final harness PID, inherited by the agent's Bash tool

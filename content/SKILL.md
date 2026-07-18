@@ -79,7 +79,7 @@ lives at `.grove/` inside it.
 
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **argument-less `grove do`** from inside the working tree. `do` is the **sole lifecycle entry verb** — it inspects the state on disk and dispatches: no `.grove/` yet → a bootstrap session; a live tree → the loop continues; no live leaves left → the session proposes the complete finish cycle (do-is-sole-lifecycle-verb). It pre-names the harness session, so the rename ritual is unnecessary in the common case. If the grove's `.grove/` is in an older format — the original `NNN-slug/` directories, or the v1 flat dotted-decimal scheme — the first `grove do` **migrates it to the current directory scheme** — one reviewable, committed change — before driving; the migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
-`grove do` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground `claude` (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do` from the same working tree. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
+`grove do` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do` from the same working tree. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
 If a session was started without the helpers and the session name doesn't already match `<repo-basename>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the working tree's own basename (`git rev-parse --show-toplevel`), `<repo-basename>` from the **main repo**'s basename (`git rev-parse --git-common-dir`'s parent — the repo a linked worktree belongs to, not the worktree's own path).
 
@@ -243,9 +243,9 @@ upward?) with no stable input/output shape that would justify a verb.
 is settled), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts
 the next task with fresh context: the verb writes the relaunch flag and forks a
-detached killer that ends this `claude` after a short grace (so the call itself
-returns first). It reads its env handles from the loop driver
-(`GROVE_CLAUDE_PID`, `GROVE_SIGNAL_FILE`); run outside `grove do` it is a safe
+detached killer that ends this harness session after a short grace (so the call
+itself returns first). It reads its env handles from the loop driver
+(`GROVE_HARNESS_PID`, `GROVE_SIGNAL_FILE`); run outside `grove do` it is a safe
 no-op that just tells you to exit manually. Plain `complete` signals a
 **relaunch**; the **Finish** cycle below ends instead with **`grove-llm complete
 --done`**, which signals a clean *stop*. The loop tells the three cases apart by
@@ -270,7 +270,7 @@ confirmation, run:
    distinct from a crash or Ctrl-C. It must come last: like the per-task signal
    it ends this session after a short grace, so running it any earlier would cut
    teardown short. It writes only the loop's signal file (in the temp dir) and
-   uses `$GROVE_CLAUDE_PID` — nothing about the working tree — so run it
+   uses `$GROVE_HARNESS_PID` — nothing about the working tree — so run it
    from any valid directory. Outside `grove do` (no loop to stop) it is a safe
    no-op: just exit.
 

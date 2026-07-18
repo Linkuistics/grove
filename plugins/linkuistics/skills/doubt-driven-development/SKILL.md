@@ -24,6 +24,9 @@ a post-hoc gate runs, the wrong direction is already load-bearing.
 > don't-bias-the-reviewer rule. The core that transfers is the *discipline*, not
 > the upstream's ecosystem scaffolding.
 
+Harness-specific spawn commands (codex ↔ pi ↔ claude, cross-model):
+see `references/harness-spawns.md`.
+
 ## When to use
 
 A decision is **non-trivial** when at least one is true:

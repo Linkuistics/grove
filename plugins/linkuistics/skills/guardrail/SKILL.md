@@ -1,6 +1,6 @@
 ---
 name: guardrail
-description: Session-scoped safety guardrails — a user-invoked PreToolUse permission gate that pauses for confirmation before destructive shell commands (rm -rf, force-push, git reset --hard, DROP/TRUNCATE, mkfs, dd to a device) and before edits or writes outside the project boundary (a "freeze"). Use when running agentic or semi-autonomous edits, working in an unfamiliar or production-adjacent repo, or any session where you want a deliberate confirm-before-damage net; user-invoked — turn it on by hand with /guardrail.
+description: Session-scoped safety guardrails — a user-invoked PreToolUse permission gate that pauses for confirmation before destructive shell commands (rm -rf, force-push, git reset --hard, DROP/TRUNCATE, mkfs, dd to a device) and before edits or writes outside the project boundary (a "freeze"). Use when running agentic or semi-autonomous edits, working in an unfamiliar or production-adjacent repo, or any session where you want a deliberate confirm-before-damage net; user-invoked — turn it on by hand with /guardrail. Claude Code only — the frontmatter hook this skill installs is a no-op on other harnesses.
 disable-model-invocation: true
 hooks:
   PreToolUse:
@@ -17,6 +17,13 @@ hooks:
 ---
 
 # Guardrail — a confirm-before-damage net you turn on
+
+> **Claude Code only.** The mechanism is a `SKILL.md`-frontmatter `PreToolUse`
+> hook, `${CLAUDE_PLUGIN_ROOT}`/`CLAUDE_PROJECT_DIR`, and a `/guardrail`
+> slash-command invocation — all Claude Code specific. On codex, pi, or any
+> other harness the frontmatter `hooks:` block is inert: nothing installs,
+> `/guardrail` fires nothing, and no gate appears. There is no equivalent
+> here yet for other harnesses' own pre-tool confirmation mechanisms, if any.
 
 This skill installs a **session-scoped `PreToolUse` permission gate**. While it is
 active, Claude Code runs `scripts/guardrail-hook.sh` *before* every shell command

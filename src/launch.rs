@@ -28,7 +28,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
 
     let repo_path = repo::resolve(None)?;
     let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
-    harness_stamp::maybe_stamp(&repo_path, &name, harness)?;
+    harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
     // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
     // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one

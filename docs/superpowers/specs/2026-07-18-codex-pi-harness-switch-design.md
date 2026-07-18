@@ -163,9 +163,11 @@ export GROVE_REVIEW_HARNESS=pi
 Bare `GROVE_*_MODEL` vars are removed (unset → grove skips the model flag →
 harness default, existing semantics).
 
-`~/.codex/config.toml` — add `[profiles.sol-xhigh]` and `[profiles.sol-high]`
-binding `model = "gpt-5.6-sol"` + `model_reasoning_effort`. Top-level
-defaults untouched.
+`~/.codex/sol-xhigh.config.toml` and `~/.codex/sol-high.config.toml` — one
+file per profile (this codex build's `--profile` layers
+`$CODEX_HOME/<name>.config.toml`, not a `[profiles.<name>]` table in
+`config.toml`), each binding `model = "gpt-5.6-sol"` +
+`model_reasoning_effort`. `config.toml` untouched.
 
 Pi — install `pi-provider-kimi-code`, set its API key env (and
 `KIMI_CODE_PROTOCOL` if needed); one live round-trip before any grove is

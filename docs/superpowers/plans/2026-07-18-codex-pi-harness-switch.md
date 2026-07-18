@@ -1403,17 +1403,25 @@ git commit -m "docs: cut the v12.0.0 changelog entry"
 ### Task 9: Codex profiles (user config)
 
 **Files:**
-- Modify: `~/.codex/config.toml` (append; do NOT touch existing keys)
+- Create: `~/.codex/sol-xhigh.config.toml`
+- Create: `~/.codex/sol-high.config.toml`
 
-- [ ] **Step 1: Append the profile blocks**
+This codex build's `--profile <name>` (`CONFIG_PROFILE_V2`) layers
+`$CODEX_HOME/<name>.config.toml` on top of the base `config.toml` — it no
+longer reads `[profiles.<name>]` tables from `config.toml` and errors out if
+one is present (`codex exec --help` documents the current mechanism; treat it
+as authoritative over this plan). Do not touch `config.toml`.
 
+- [ ] **Step 1: Write the profile files**
+
+`~/.codex/sol-xhigh.config.toml`:
 ```toml
-
-[profiles.sol-xhigh]
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+```
 
-[profiles.sol-high]
+`~/.codex/sol-high.config.toml`:
+```toml
 model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 ```
@@ -1423,7 +1431,9 @@ model_reasoning_effort = "high"
 Run: `codex exec --profile sol-high "Reply with exactly: profile-ok" 2>&1 | tail -5`
 Expected: output containing `profile-ok` (sub-billed, no API-key errors).
 Run the same for `--profile sol-xhigh`.
-If `codex exec` rejects `--profile`, check `codex exec --help` for the current flag spelling and record any deviation in the trial notes — the grove env values must match whatever codex accepts.
+If `codex exec` rejects `--profile` differently than described above, check
+`codex exec --help` for the current mechanism and record any deviation in the
+trial notes — the grove env values must match whatever codex accepts.
 
 ---
 

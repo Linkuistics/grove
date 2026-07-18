@@ -15,7 +15,7 @@ members = ["codex-bridge"]
 
 [package]
 name = "grove"
-version = "11.0.0"
+version = "12.0.0"
 edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"

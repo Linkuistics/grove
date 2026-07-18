@@ -20,6 +20,10 @@ pub enum SelectMode {
 pub struct Harness {
     pub name: &'static str,
     pub project_dir: &'static str,
+    /// Home-relative path of this harness's **global skills dir** — the
+    /// provisioning target for the embedded methodology. A field (not derived
+    /// from `project_dir`) because pi nests its skills under `agent/`.
+    pub skills_dir: &'static str,
     /// Binary name to exec (resolved via PATH at runtime).
     pub exec_bin: &'static str,
     /// CLI flag template for pre-naming the session at launch. For claude:
@@ -41,6 +45,7 @@ pub const HARNESSES: &[Harness] = &[
     Harness {
         name: "claude",
         project_dir: ".claude",
+        skills_dir: ".claude/skills",
         exec_bin: "claude",
         name_args: &["-n"],
         model_args: &["--model"],
@@ -48,6 +53,7 @@ pub const HARNESSES: &[Harness] = &[
     Harness {
         name: "codex",
         project_dir: ".codex",
+        skills_dir: ".codex/skills",
         exec_bin: "codex",
         // codex has **no launch-time session-name flag** (checked against
         // codex-cli 0.144.1: `codex --help` has zero `--name` matches). Session
@@ -56,14 +62,39 @@ pub const HARNESSES: &[Harness] = &[
         // `/rename`. Naming at launch is an open upstream request (openai/codex
         // #22526, #4163). Empty ⇒ the launch paths skip pre-naming.
         name_args: &[],
-        // codex accepts `-m, --model <MODEL>`, so it takes part in
-        // model-per-task-kind on the same terms as claude.
+        // codex model-per-task-kind values name **profiles** (`--profile`), not
+        // models: a profile binds model + reasoning effort together
+        // (e.g. sol-xhigh / sol-high), which bare `-m` cannot express.
+        model_args: &["--profile"],
+    },
+    Harness {
+        name: "pi",
+        // Opt-in detection marker; pi does not create repo-local `.pi/` dirs,
+        // so explicit `--harness pi` + the stamp is the normal binding route.
+        project_dir: ".pi",
+        skills_dir: ".pi/agent/skills",
+        exec_bin: "pi",
+        // pi has no launch-time session-name flag (pi --help, checked
+        // 2026-07-18); empty ⇒ the launch paths skip pre-naming.
+        name_args: &[],
+        // pi accepts `--model <pattern>` incl. "provider/id" ids, so it takes
+        // part in model-per-task-kind on the same terms as claude.
         model_args: &["--model"],
     },
 ];
 
 pub fn by_name(name: &str) -> Option<&'static Harness> {
     HARNESSES.iter().find(|h| h.name == name)
+}
+
+/// The registry's names, comma-joined — the single source for "known:" error
+/// text, so adding a harness never leaves a stale hardcoded list behind.
+pub fn known_names() -> String {
+    HARNESSES
+        .iter()
+        .map(|h| h.name)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 impl Harness {
@@ -95,7 +126,7 @@ pub fn select(repo: &Path, explicit: &[String], mode: SelectMode) -> Result<Vec<
                 continue;
             }
             let h = by_name(name)
-                .ok_or_else(|| anyhow!("unknown harness: {name}. Known: claude, codex"))?;
+                .ok_or_else(|| anyhow!("unknown harness: {name}. Known: {}", known_names()))?;
             out.push(h);
         }
         return Ok(out);

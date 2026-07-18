@@ -486,7 +486,8 @@ exit 0
 //     in codex's argument parser before any session began.
 //   * `model_args: &[]` — codex opted out of model-per-task-kind, but it does
 //     accept `-m, --model <MODEL>`, so the opt-out cost it the feature for no
-//     reason.
+//     reason. It now participates via `--profile`, since profiles are the
+//     only way to bind reasoning effort to the launch.
 //
 // Latent until now only because `select` runs in `SelectMode::Single` and no
 // grove drives codex; it fires the first time anyone runs `grove do` in a repo
@@ -551,7 +552,7 @@ exit 0
     std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
     std::env::set_var("GROVE_TEST_COUNTER", &counter);
     std::env::set_var("GROVE_TEST_LOG", &log);
-    std::env::set_var("GROVE_WORK_MODEL", "gpt-5");
+    std::env::set_var("GROVE_WORK_MODEL", "sol-high");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
 
@@ -579,11 +580,11 @@ exit 0
             "codex has no launch-time session-name flag (argv: {row:?})"
         );
     }
-    // ...and the model *is* selected: codex accepts `-m, --model <MODEL>`, so the
-    // continue iteration's `work` leaf launches on GROVE_WORK_MODEL.
+    // ...and the profile *is* selected: codex model-per-task-kind values name
+    // profiles (`--profile`), which bind model + reasoning effort.
     assert!(
-        rows[1].contains("--model gpt-5"),
-        "codex must honour model-per-task-kind (argv: {:?})",
+        rows[1].contains("--profile sol-high"),
+        "codex must honour model-per-task-kind via --profile (argv: {:?})",
         rows[1]
     );
 }

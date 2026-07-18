@@ -3,10 +3,39 @@ use std::fs;
 use tempfile::TempDir;
 
 #[test]
-fn registry_contains_claude_and_codex() {
+fn registry_contains_claude_codex_and_pi() {
     assert!(by_name("claude").is_some());
     assert!(by_name("codex").is_some());
+    assert!(by_name("pi").is_some());
     assert!(by_name("nonsense").is_none());
+}
+
+#[test]
+fn harness_rows_carry_the_launch_and_skills_contract() {
+    let claude = by_name("claude").unwrap();
+    assert_eq!(claude.skills_dir, ".claude/skills");
+    assert_eq!(claude.model_args, &["--model"]);
+
+    // codex: profiles bind model + reasoning effort, so the model-per-task-kind
+    // value names a *profile*.
+    let codex = by_name("codex").unwrap();
+    assert_eq!(codex.skills_dir, ".codex/skills");
+    assert_eq!(codex.model_args, &["--profile"]);
+    assert!(codex.name_args.is_empty());
+
+    // pi (verified against pi --help): --model, no name flag, skills under
+    // ~/.pi/agent/skills (structurally unlike the other two — hence a field).
+    let pi = by_name("pi").unwrap();
+    assert_eq!(pi.project_dir, ".pi");
+    assert_eq!(pi.exec_bin, "pi");
+    assert_eq!(pi.skills_dir, ".pi/agent/skills");
+    assert_eq!(pi.model_args, &["--model"]);
+    assert!(pi.name_args.is_empty());
+}
+
+#[test]
+fn known_names_lists_every_registry_row() {
+    assert_eq!(grove::harness::known_names(), "claude, codex, pi");
 }
 
 #[test]
@@ -27,6 +56,16 @@ fn detect_finds_both_when_both_present() {
 
     let detected = detect_in_repo(tmp.path());
     assert_eq!(detected.len(), 2);
+}
+
+#[test]
+fn detect_finds_pi_when_dot_pi_present() {
+    let tmp = TempDir::new().unwrap();
+    fs::create_dir_all(tmp.path().join(".pi")).unwrap();
+
+    let detected = detect_in_repo(tmp.path());
+    assert_eq!(detected.len(), 1);
+    assert_eq!(detected[0].name, "pi");
 }
 
 #[test]

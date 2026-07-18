@@ -1551,7 +1551,7 @@ Expected: exactly the ten vars above; no `GROVE_PLANNING_MODEL=fable` survivors.
 
 Commit in `~/Development/skills` ONLY — never in `~/.claude/plugins/marketplaces/` (disposable mirror).
 
-- [ ] **Step 1: Write the reference**
+- [x] **Step 1: Write the reference**
 
 `references/harness-spawns.md`:
 
@@ -1585,10 +1585,11 @@ Use a fresh Task subagent (built-in), or either spawn above for a
 cross-model read.
 
 Model ids/profiles here match the grove trial config (~/.zshenv,
-~/.codex/config.toml); update this file if those move.
+~/.codex/sol-xhigh.config.toml, ~/.codex/sol-high.config.toml); update this
+file if those move.
 ```
 
-- [ ] **Step 2: Add the SKILL.md pointer**
+- [x] **Step 2: Add the SKILL.md pointer**
 
 After the paragraph ending "The core that transfers is the *discipline*, not" (its sentence completes around line 25), append on a new paragraph:
 
@@ -1597,7 +1598,7 @@ Harness-specific spawn commands (codex ↔ pi ↔ claude, cross-model):
 see `references/harness-spawns.md`.
 ```
 
-- [ ] **Step 3: Commit (in the skills repo)**
+- [x] **Step 3: Commit (in the skills repo)**
 
 ```bash
 cd ~/Development/skills

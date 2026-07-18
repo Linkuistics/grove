@@ -119,7 +119,7 @@ pub fn leaf_insert(
     // Highest position first so each rename's destination is already vacated:
     // a sibling's destination differs from its source only in `NN`, where it is
     // larger, so it sorts later and was moved first (collision-free).
-    affected.sort_by(|a, b| b.0.position().cmp(&a.0.position()));
+    affected.sort_by_key(|b| std::cmp::Reverse(b.0.position()));
 
     let mut renumbers = Vec::with_capacity(affected.len());
     for (entry, path) in &affected {
@@ -322,7 +322,7 @@ fn read_children(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
             entries.push((name, parsed, entry.path()));
         }
     }
-    entries.sort_by(|a, b| crate::tree_id::sort_key(&a.0).cmp(&crate::tree_id::sort_key(&b.0)));
+    entries.sort_by_key(|a| crate::tree_id::sort_key(&a.0));
     Ok(entries.into_iter().map(|(_, e, p)| (e, p)).collect())
 }
 

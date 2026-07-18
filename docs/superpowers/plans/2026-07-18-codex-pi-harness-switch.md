@@ -1378,15 +1378,23 @@ selection becomes harness-scoped — the shape needed to drive two harnesses
   plain `grove do`.
 ```
 
-- [ ] **Step 2: Full verification**
+- [x] **Step 1: Write the changelog entry**
+
+- [x] **Step 2: Full verification**
 
 Run: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`
 Expected: all clean/PASS. Fix anything surfaced before committing.
 
-- [ ] **Step 3: Commit**
+Clippy (current toolchain) surfaced 5 pre-existing lints unrelated to the
+changelog — a doc-comment indentation nit in `src/leaf_id.rs`, plus four
+`sort_by` closures in `src/tree_grow.rs`, `src/tree_lifecycle.rs`, and
+`src/tree_read.rs` clippy now prefers as `sort_by_key`. Fixed inline (same
+commit) so `-D warnings` stays clean; no behaviour change.
+
+- [x] **Step 3: Commit**
 
 ```bash
-git add CHANGELOG.md
+git add CHANGELOG.md src/leaf_id.rs src/tree_grow.rs src/tree_lifecycle.rs src/tree_read.rs
 git commit -m "docs: cut the v12.0.0 changelog entry"
 ```
 

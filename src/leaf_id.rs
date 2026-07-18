@@ -168,7 +168,7 @@ pub fn sort_key(name: &str) -> (bool, Vec<u32>, String) {
 
 /// The next permanent key for a tree: `max([n] over all files, live AND .DONE)
 /// + 1`, or `1` for an empty tree. `.DONE` files stay in the tree (D3/D6) so the
-/// max is always visible and keys are never reused — there is no counter file.
+///   max is always visible and keys are never reused — there is no counter file.
 pub fn next_key<I, S>(names: I) -> u32
 where
     I: IntoIterator<Item = S>,

@@ -1306,8 +1306,8 @@ with
 
 - [ ] **Step 4: Verify no stragglers, run the suite**
 
-Run: `grep -rn "GROVE_CLAUDE_PID" src/ content/ tests/`
-Expected: exactly two functional survivors — the compat co-export in `src/loop_driver.rs` (wrapper string) and the fallback read in `src/complete.rs` (plus their compat comments and the compat test in `tests/complete.rs`). Anything else: fix it.
+Run: `grep -rn "GROVE_CLAUDE_PID" src/ content/ tests/ docs/ README.md`
+Expected: exactly two functional survivors — the compat co-export in `src/loop_driver.rs` (wrapper string) and the fallback read in `src/complete.rs` (plus their compat comments and the compat test in `tests/complete.rs`) — plus the dated research artifact `docs/research/cross-family-review-providers.md`. Anything else: fix it. (`docs/` was a structural blind spot in an earlier verification pass — see `review-fix-docs-k19`.)
 
 Run: `grep -rn "fresh foreground \`claude\`" src/ content/`
 Expected: no matches.

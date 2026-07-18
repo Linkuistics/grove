@@ -23,7 +23,8 @@ Environment variables:
 The loop passes the value via the harness's launch flag at each task launch,
 keyed on the picked leaf's kind: `--model` for claude and pi (pi accepts
 provider/id patterns), `--profile` for codex (a codex profile binds model +
-reasoning effort — define profiles in ~/.codex/config.toml). Unset ⇒ no flag:
+reasoning effort — define profiles as $CODEX_HOME/<name>.config.toml files,
+not a [profiles.<name>] table in config.toml). Unset ⇒ no flag:
 the session inherits the harness's own default, so grove is a no-op until you
 opt in and never clobbers a default you already set. Setting only some kinds
 is fine — an unconfigured kind still inherits.
@@ -74,6 +75,10 @@ pub enum Command {
 #[derive(Parser)]
 #[command(after_long_help = MODEL_ENV_HELP)]
 pub struct StartArgs {
+    /// Harness to launch: claude, codex, or pi (default: auto-detected from
+    /// the repo's harness directories). Writes a lasting binding to
+    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
+    /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     /// Report readiness but don't exec the harness.
@@ -92,6 +97,10 @@ pub struct MigrateArgs {
 pub struct RetireArgs {
     /// Node path within the current worktree's `.grove/` (e.g. `003-session-store`).
     pub path: String,
+    /// Harness to launch: claude, codex, or pi (default: auto-detected from
+    /// the repo's harness directories). Writes a lasting binding to
+    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
+    /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     #[arg(long = "no-launch")]

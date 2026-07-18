@@ -126,7 +126,7 @@ As its very last action, the session runs:
 $ grove-llm complete --done
 ```
 
-This is what distinguishes a clean finish from a crash or a Ctrl-C: the per-task signal (`grove-llm complete`, no flag) tells the self-driving loop to *relaunch* into the next task; `--done` tells it to *stop* instead. It touches nothing about the working tree — it writes only the loop's own signal file and reads `$GROVE_CLAUDE_PID` from the environment `grove do` set up — so it can run from anywhere, but it must come **last**: like the per-task signal it ends the session after a short grace period, so anything after it would be cut short.
+This is what distinguishes a clean finish from a crash or a Ctrl-C: the per-task signal (`grove-llm complete`, no flag) tells the self-driving loop to *relaunch* into the next task; `--done` tells it to *stop* instead. It touches nothing about the working tree — it writes only the loop's own signal file and reads `$GROVE_HARNESS_PID` from the environment `grove do` set up — so it can run from anywhere, but it must come **last**: like the per-task signal it ends the session after a short grace period, so anything after it would be cut short.
 
 ## Resume is read from state, never a marker file
 

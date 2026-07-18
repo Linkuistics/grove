@@ -98,7 +98,7 @@ $ cat ~/code/acme/orders-api/.grove-stamps/add-rate-limiting
 claude
 ```
 
-Note the stamp lives under `orders-api` (the main repo), not under `add-rate-limiting` (this grove's own working tree) — later verbs resolve the main repo the same way (`git rev-parse --git-common-dir`'s parent) regardless of which working tree they run from, so the binding is found however the grove is addressed. Later verbs (`grove do`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos the stamp is not written — there's nothing to disambiguate.
+Note the stamp lives under `orders-api` (the main repo), not under `add-rate-limiting` (this grove's own working tree) — later verbs resolve the main repo the same way (`git rev-parse --git-common-dir`'s parent) regardless of which working tree they run from, so the binding is found however the grove is addressed. Later verbs (`grove do`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos relying on auto-detection, the stamp is not written — there's nothing to disambiguate. Passing `--harness` explicitly always writes the stamp, even in a single-harness repo, so a deliberate binding survives the next plain `grove do`.
 
 ## Codex harness
 

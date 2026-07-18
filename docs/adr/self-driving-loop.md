@@ -12,7 +12,8 @@ external workflow engine. The mechanism:
 - The agent's **last step** (after commit + retire) runs the `grove-llm complete`
   signal verb. It forks a **self-spawned delayed killer** — SIGTERM after a short
   grace, SIGKILL fallback — to perform the out-of-band exit the agent cannot cleanly
-  perform on itself. The agent receives `claude`'s PID via `GROVE_CLAUDE_PID`.
+  perform on itself. The agent receives the harness session's PID via
+  `GROVE_HARNESS_PID`.
 - **Relaunch is opt-in.** The loop relaunches **only** when the completion signal
   fired. Any other exit — human `/exit` or Ctrl-C, or a crash — **stops** the loop,
   resumable later by re-running `grove do`.

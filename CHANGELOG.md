@@ -11,7 +11,8 @@ selection becomes harness-scoped — the shape needed to drive two harnesses
 
 - **codex launches use `--profile`, not `--model`.** A codex profile binds
   model + reasoning effort, which a bare model flag cannot; model-per-task-kind
-  values for codex now name profiles you define in `~/.codex/config.toml`.
+  values for codex now name profiles defined as `$CODEX_HOME/<name>.config.toml`
+  files (not a `[profiles.<name>]` table in `config.toml`).
 - **`GROVE_HARNESS_PID` replaces `GROVE_CLAUDE_PID`.** The loop wrapper still
   co-exports the old name and `grove-llm complete` still reads it as a
   fallback — for this release only.

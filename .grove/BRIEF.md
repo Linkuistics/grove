@@ -14,9 +14,16 @@ the Anthropic subscription is cancelled; the trial clock is running.
 ## Decomposition
 Positions 02-09 are the grove code changes (one plan task each: TDD, one
 focused commit). 10-12 are machine config, 13 the skills-repo reviewer
-reference, 14 a fresh-context review of the whole branch, 15 release + stamp +
-live verification. Order encodes dependencies: registry before stamp/routing,
-routing before config, everything before review, review before release.
+reference, 14 a fresh-context review of the whole branch, then the review's
+four fix leaves, then release + stamp + live verification. Order encodes
+dependencies: registry before stamp/routing, routing before config, everything
+before review, review's fixes before release.
+
+branch-review-k14 found the branch not release-ready — including a failing
+test suite on the trial machine and a model-routing path that can send a codex
+profile name to pi. Its four fix leaves are sequenced ahead of
+release-stamp-trial-k15; the tests leaf comes first because nothing else is
+verifiable until the suite is trustworthy.
 - 02 harness-registry — pi row, codex --profile, skills_dir, known_names (plan Task 1)
 - 03 stamp-explicit — persist explicit --harness in the stamp (plan Task 2)
 - 04 harness-pid — GROVE_HARNESS_PID rename + one-release fallback (plan Task 3)
@@ -30,7 +37,11 @@ routing before config, everything before review, review before release.
 - 12 zshenv-cutover — GROVE_* env rewrite from 11's recorded model id (plan Task 11)
 - 13 reviewer-spawns-skill — doubt-driven-development spawn reference (plan Task 12)
 - 14 branch-review — fresh-context adversarial read of the branch vs spec+plan
-- 15 release-stamp-trial — merge, release, live-verify, stamp, cancel (plan Task 13)
+- review-fix-tests-k16 — green + honest suite (B1, T1-T8); blocks the rest
+- review-fix-routing-k17 — model/harness routing defects (B2, B5, B6, B7)
+- review-fix-provision-stamp-k18 — write-ordering + blast radius (B3-B4, B8-B10, D5)
+- review-fix-docs-k19 — docs that would misdirect the runbook user (D1-D4)
+- release-stamp-trial-k15 — merge, release, live-verify, stamp, cancel (plan Task 13)
 
 ## Pointers
 - Spec: docs/superpowers/specs/2026-07-18-codex-pi-harness-switch-design.md

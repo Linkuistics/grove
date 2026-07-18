@@ -482,7 +482,7 @@ co-exports the old name and complete reads it as a fallback for one release."
   - `fn model_for(harness: &Harness, kind: Kind) -> Option<String>` — specific-then-base lookup
   - `fn any_model_env(harness: &Harness) -> bool`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/loop_driver.rs` (same shape as `loop_selects_model_by_kind`, two iterations):
 
@@ -537,6 +537,15 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
+    // Guard against leakage from another test in the same process, and from
+    // the outer shell — this repo dogfoods per-kind model envs (BRIEF.md
+    // Notes), so a session driving this very test suite may already have
+    // GROVE_PLANNING_MODEL etc. set.
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_RESEARCH_MODEL");
+    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
     std::env::set_var("GROVE_HARNESS_BIN", &fake);
     std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
     std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
@@ -581,12 +590,12 @@ exit 0
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test loop_driver per_harness_model_env_beats_the_base_var`
 Expected: FAIL — row 1 argv contains `--model sonnet` (base var used, scoped var ignored).
 
-- [ ] **Step 3: Implement in `src/loop_driver.rs`**
+- [x] **Step 3: Implement in `src/loop_driver.rs`**
 
 Replace `select_model` (lines 209-241) and `env_model` stays as-is; add helpers:
 
@@ -646,12 +655,12 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
 
 Keep the existing doc comment on `select_model`, amending the lookup sentence to name the scoped-then-base order.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS (existing base-var tests still pass — base lookup is the fallback).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/loop_driver.rs tests/loop_driver.rs

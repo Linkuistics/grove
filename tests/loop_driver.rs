@@ -588,3 +588,105 @@ exit 0
         rows[1]
     );
 }
+
+// Per-harness model envs: GROVE_<HARNESS>_<KIND>_MODEL beats GROVE_<KIND>_MODEL.
+// One shared kind env can't serve two harnesses at once (a codex profile name is
+// garbage to pi and vice versa), so each harness gets a scoped override.
+#[test]
+fn per_harness_model_env_beats_the_base_var() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // Fake harness: run 1 (start/planning) materialises a work leaf + signal;
+    // run 2 (continue/work) stops.
+    let fake = worktree.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    // Guard against leakage from another test in the same process, and from
+    // the outer shell — this repo dogfoods per-kind model envs (BRIEF.md
+    // Notes), so a session driving this very test suite may already have
+    // GROVE_PLANNING_MODEL etc. set.
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_RESEARCH_MODEL");
+    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
+    std::env::set_var("GROVE_HARNESS_BIN", &fake);
+    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
+    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
+    std::env::set_var("GROVE_TEST_COUNTER", &counter);
+    std::env::set_var("GROVE_TEST_LOG", &log);
+    // Scoped override for the launching harness + a base var it must beat;
+    // an override for a *different* harness that must be ignored.
+    std::env::set_var("GROVE_CLAUDE_WORK_MODEL", "kimi-k3");
+    std::env::set_var("GROVE_WORK_MODEL", "sonnet");
+    std::env::set_var("GROVE_PI_PLANNING_MODEL", "must-not-leak");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "envgrove");
+
+    std::env::remove_var("GROVE_HARNESS_BIN");
+    std::env::remove_var("GROVE_LLM_BIN");
+    std::env::remove_var("GROVE_SKILL_DIR");
+    std::env::remove_var("GROVE_TEST_COUNTER");
+    std::env::remove_var("GROVE_TEST_LOG");
+    std::env::remove_var("GROVE_CLAUDE_WORK_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_PI_PLANNING_MODEL");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+
+    // Start/planning: no CLAUDE planning override and no base planning var ⇒
+    // no --model; the pi-scoped var must not leak across harnesses.
+    assert!(
+        !rows[0].contains("--model"),
+        "another harness's scoped var must not select a model (argv: {:?})",
+        rows[0]
+    );
+    // Continue/work: the claude-scoped var beats the base var.
+    assert!(
+        rows[1].contains("--model kimi-k3") && !rows[1].contains("sonnet"),
+        "GROVE_CLAUDE_WORK_MODEL must beat GROVE_WORK_MODEL (argv: {:?})",
+        rows[1]
+    );
+}

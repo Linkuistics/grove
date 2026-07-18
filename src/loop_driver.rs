@@ -191,14 +191,50 @@ fn launch_session(
     Ok(())
 }
 
+/// Env-name suffixes for the five kinds, in taxonomy order. Shared by the
+/// model lookup and (task-routing) the harness override.
+const KIND_SUFFIXES: [&str; 5] = ["PLANNING", "RESEARCH", "PROTOTYPE", "WORK", "REVIEW"];
+
+fn env_suffix(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Planning => "PLANNING",
+        Kind::Research => "RESEARCH",
+        Kind::Prototype => "PROTOTYPE",
+        Kind::Work => "WORK",
+        Kind::Review => "REVIEW",
+    }
+}
+
+/// The model value for a kind on a harness: the harness-scoped var
+/// (`GROVE_<HARNESS>_<KIND>_MODEL`) beats the base (`GROVE_<KIND>_MODEL`).
+/// Scoped because one shared value cannot serve two harnesses — a codex
+/// profile name is garbage to pi and vice versa.
+fn model_for(harness: &Harness, kind: Kind) -> Option<String> {
+    let h = harness.name.to_uppercase();
+    let s = env_suffix(kind);
+    env_model(&format!("GROVE_{h}_{s}_MODEL")).or_else(|| env_model(&format!("GROVE_{s}_MODEL")))
+}
+
+/// Whether any model env var (scoped-to-this-harness or base) is set — the
+/// gate that keeps the common unconfigured path a zero-subprocess launch.
+fn any_model_env(harness: &Harness) -> bool {
+    let h = harness.name.to_uppercase();
+    KIND_SUFFIXES.iter().any(|s| {
+        env_model(&format!("GROVE_{h}_{s}_MODEL")).is_some()
+            || env_model(&format!("GROVE_{s}_MODEL")).is_some()
+    })
+}
+
 /// Choose the launch model for the next session by the picked leaf's **kind**
 /// (model-per-task-kind). Returns the model string for `--model`, or `None` to
 /// launch on the user's own default (no `--model` at all).
 ///
 /// The load-bearing rule: a kind whose env var is **unset** yields `None`, so
 /// grove never clobbers a user's `ANTHROPIC_MODEL`/settings default — it opts in
-/// per kind. When neither env var is set (the common case) this returns `None`
-/// with no `grove-llm` call, so the launch is byte-for-byte the pre-feature one.
+/// per kind. When no var is set for the harness (the common case) this returns
+/// `None` with no `grove-llm` call, so the launch is byte-for-byte the
+/// pre-feature one. When a var *is* configured, the lookup is scoped-then-base:
+/// `GROVE_<HARNESS>_<KIND>_MODEL` beats `GROVE_<KIND>_MODEL`.
 ///
 /// Kind resolution mirrors the loop's start/continue split:
 ///   * `start` — a brand-new grove whose first leaf is planning by construction
@@ -208,23 +244,13 @@ fn launch_session(
 ///     leaf the launched agent will pick (deterministic pick over the same
 ///     tree), so the read-then-launch window is a non-issue.
 fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String> {
-    // A harness with no model-flag template opts out entirely (codex today).
+    // A harness with no model-flag template opts out entirely.
     if harness.model_args.is_empty() {
         return None;
     }
-    let planning = env_model("GROVE_PLANNING_MODEL");
-    let research = env_model("GROVE_RESEARCH_MODEL");
-    let prototype = env_model("GROVE_PROTOTYPE_MODEL");
-    let work = env_model("GROVE_WORK_MODEL");
-    let review = env_model("GROVE_REVIEW_MODEL");
-    // None of the five kinds configured ⇒ nothing to select; skip the kind peek
-    // so the common path stays a zero-subprocess, byte-for-byte-unchanged launch.
-    if planning.is_none()
-        && research.is_none()
-        && prototype.is_none()
-        && work.is_none()
-        && review.is_none()
-    {
+    // Nothing configured ⇒ nothing to select; skip the kind peek so the
+    // common path stays a zero-subprocess, byte-for-byte-unchanged launch.
+    if !any_model_env(harness) {
         return None;
     }
     let kind = if verb == "start" {
@@ -232,13 +258,7 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
     } else {
         resolve_kind(worktree)?
     };
-    match kind {
-        Kind::Planning => planning,
-        Kind::Research => research,
-        Kind::Prototype => prototype,
-        Kind::Work => work,
-        Kind::Review => review,
-    }
+    model_for(harness, kind)
 }
 
 /// Read a model env var, treating empty as unset.

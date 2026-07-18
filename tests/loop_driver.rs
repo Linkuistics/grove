@@ -196,6 +196,105 @@ exit 0
     );
 }
 
+// Signal-file identity (signal-file-identity-k6): two `grove do` loops with
+// the *same grove name* but *different worktrees* must not interfere, even
+// running truly concurrently. Pre-fix, `signal_file_path` derived the path
+// from `name` alone (`$TMPDIR/grove-loop-<name>.signal`), so two worktrees
+// that happen to share a basename (generic names like "bugs"/"plan"/"docs"
+// are the norm) collided on one file.
+//
+// Runs two `run_loop`s on real OS threads at the same time, both named
+// "samegrove": an "attacker" loop whose fake harness signals `done`
+// immediately then hangs (the driver must still kill *its own* child — a
+// sanity check this test also covers), and a "victim" loop whose fake
+// harness never touches its own signal file and just outlives the
+// attacker's entire kill sequence before exiting cleanly on its own.
+// Pre-fix, the attacker's `done` write would land in the file the victim's
+// watcher was *also* polling (same name ⇒ same path), killing the victim
+// early and reporting a phantom clean finish from content it never wrote.
+//
+// Both loops share one fake-harness script (env vars like GROVE_HARNESS_BIN
+// are process-global, so two literal scripts can't be threaded through two
+// concurrent in-process loops) that branches on a marker file in its own
+// `$PWD` — safe because `current_dir` is set per spawned `Command`, unlike
+// env vars, so it genuinely differs between the two loops' children.
+#[test]
+fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_interfere() {
+    let _g = support::lock_env(&ENV_LOCK);
+
+    let repo_a = TempDir::new().unwrap();
+    let worktree_a = repo_a.path().join("wt");
+    fs::create_dir_all(&worktree_a).unwrap();
+    fs::write(worktree_a.join("ROLE_ATTACKER"), "").unwrap();
+
+    let repo_b = TempDir::new().unwrap();
+    let worktree_b = repo_b.path().join("wt");
+    fs::create_dir_all(&worktree_b).unwrap();
+
+    let skill_dir = repo_a.path().join("skill");
+    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
+    fs::write(skill_dir.join("prompts/start.md"), "START PROMPT").unwrap();
+
+    let fake = repo_a.path().join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+if [ -f "$PWD/ROLE_ATTACKER" ]; then
+  printf 'done\n' > "$GROVE_SIGNAL_FILE"
+  exec sleep 30
+else
+  sleep 1.5
+  exit 0
+fi
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_KILL_GRACE", "0.2")
+        .set("GROVE_KILL_GRACE_KILL", "0.2");
+
+    let repo_a_path = repo_a.path().to_path_buf();
+    let repo_b_path = repo_b.path().to_path_buf();
+    let started = Instant::now();
+    let attacker = std::thread::spawn(move || {
+        loop_driver::run_loop(harness, &repo_a_path, &worktree_a, "samegrove")
+    });
+    let victim = std::thread::spawn(move || {
+        loop_driver::run_loop(harness, &repo_b_path, &worktree_b, "samegrove")
+    });
+
+    let attacker_result = attacker.join().unwrap().unwrap();
+    let victim_result = victim.join().unwrap().unwrap();
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        attacker_result,
+        LoopOutcome::Finished,
+        "sanity check: the attacker's own `done` signal still ends its own loop"
+    );
+    assert_eq!(
+        victim_result,
+        LoopOutcome::Stopped,
+        "the victim's session ended without ever signalling anything of its \
+         own — a foreign `done` from the other worktree's loop must not be \
+         mistaken for its own completion signal"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(1200),
+        "the victim must run its full ~1.5s session, not be cut short by the \
+         attacker's early SIGTERM (elapsed: {elapsed:?})"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "sanity bound: neither loop should hang (elapsed: {elapsed:?})"
+    );
+}
+
 // Driver-side kill (driver-side-kill-k2): the loop driver, not the agent,
 // ends the harness session once the completion signal fires. These three
 // tests stand in for a `claude` session whose turn is still wrapping up when

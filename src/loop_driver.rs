@@ -20,7 +20,7 @@
 // (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
 // a kind→model lookup before the launch:
 //
-//     sig="$TMPDIR/grove-loop-<name>.signal"
+//     sig="$TMPDIR/grove-loop-<name>-<worktree-identity-hash>.signal"
 //     while :; do
 //       rm -f "$sig"
 //       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
@@ -47,7 +47,9 @@ use crate::complete::{self, Disposition};
 use crate::harness::Harness;
 use crate::leaf::Kind;
 use anyhow::{Context, Result};
+use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsString;
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -66,9 +68,16 @@ pub enum LoopOutcome {
 }
 
 /// Relaunch-signal file path for a grove. Lives in the temp dir (ephemeral
-/// loop IPC, not durable grove state); name-keyed so concurrent groves don't
-/// collide. Cleared at the start of every iteration.
-pub fn signal_file_path(name: &str) -> PathBuf {
+/// loop IPC, not durable grove state — signal-file-identity-k6) — keyed on
+/// `name` **and** the worktree's identity, so two `grove do` loops in
+/// different repos whose worktree basenames happen to collide (generic names
+/// like `bugs`/`plan`/`docs` are the norm) never share a file: a foreign
+/// write from one would otherwise be read as the other's own completion
+/// signal, SIGTERM its session mid-work, and misdirect the relaunch decision.
+/// `name` alone stays in the filename for operator legibility (`ls $TMPDIR`
+/// still reads as grove names); the hash is what actually disambiguates.
+/// Cleared at the start of every iteration.
+pub fn signal_file_path(worktree: &Path, name: &str) -> PathBuf {
     let safe: String = name
         .chars()
         .map(|c| {
@@ -79,7 +88,17 @@ pub fn signal_file_path(name: &str) -> PathBuf {
             }
         })
         .collect();
-    std::env::temp_dir().join(format!("grove-loop-{}.signal", safe))
+    // Canonicalise so the same worktree reached by two different paths (a
+    // symlink, a relative vs. absolute cwd) still hashes identically; fall
+    // back to the raw path on failure (e.g. a test fixture that races the
+    // directory's own creation) rather than erroring the whole loop over a
+    // signal-file naming nicety.
+    let identity = worktree
+        .canonicalize()
+        .unwrap_or_else(|_| worktree.to_path_buf());
+    let mut hasher = DefaultHasher::new();
+    identity.hash(&mut hasher);
+    std::env::temp_dir().join(format!("grove-loop-{safe}-{:016x}.signal", hasher.finish()))
 }
 
 /// Entry point: install the interrupt guard, then run the loop. The real
@@ -99,7 +118,7 @@ pub fn run_loop(
     worktree: &Path,
     name: &str,
 ) -> Result<LoopOutcome> {
-    let signal_file = signal_file_path(name);
+    let signal_file = signal_file_path(worktree, name);
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -644,5 +663,33 @@ mod tests {
     fn a_sane_grace_is_passed_through_untouched() {
         assert_eq!(sanitise_grace(Some(0.25), 2.0), Duration::from_millis(250));
         assert_eq!(sanitise_grace(None, 2.0), Duration::from_secs(2));
+    }
+
+    // signal-file-identity-k6: two worktrees whose *basenames* collide
+    // (generic grove names like "bugs"/"plan"/"docs" are the norm) must not
+    // resolve to the same signal file just because `name` matches — that was
+    // the whole bug (path derived from `name` alone).
+    #[test]
+    fn same_name_different_worktrees_get_different_signal_files() {
+        let a = tempfile::tempdir().unwrap();
+        let b = tempfile::tempdir().unwrap();
+        assert_ne!(
+            signal_file_path(a.path(), "bugs"),
+            signal_file_path(b.path(), "bugs"),
+            "distinct worktrees sharing a grove name must never share a signal file"
+        );
+    }
+
+    // The identity half must be stable, not just distinguishing — the same
+    // worktree is polled for the *same* file every iteration of one loop
+    // (signal_file_path is called fresh each time round the `loop {}`).
+    #[test]
+    fn same_worktree_and_name_is_stable_across_calls() {
+        let a = tempfile::tempdir().unwrap();
+        assert_eq!(
+            signal_file_path(a.path(), "bugs"),
+            signal_file_path(a.path(), "bugs"),
+            "the same worktree+name must resolve to the same path every time"
+        );
     }
 }

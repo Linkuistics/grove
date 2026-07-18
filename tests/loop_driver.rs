@@ -430,6 +430,73 @@ exit 0
     );
 }
 
+// watcher-test-hardening-k7, mutant 1: dropping the `signal_file.exists()`
+// guard makes the watcher SIGTERM *every* session `grace` after launch,
+// signalled or not — every fixture above either exits immediately or
+// signals-then-hangs, so none proves the driver leaves an un-signalled
+// session alone. (`concurrent_loops_with_the_same_grove_name_...` above
+// happens to also fail under this mutant, as a side effect of proving
+// signal-file identity, but only by ~180ms out of its 1.2s margin — too
+// tight to trust as this property's real coverage.) `exec sleep 1.5`, not a
+// plain one, for the same reason as the sibling kill tests: same pid, no
+// orphaned grandchild.
+#[test]
+fn driver_leaves_an_unsignalled_session_alone() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/killgrove4");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // Never touches `$GROVE_SIGNAL_FILE`; just runs ~1.5s then exits on its
+    // own. Small graces so a wrongly-early kill (guard dropped ⇒ SIGTERM at
+    // ~grace, SIGKILL at ~grace+kill_grace) lands in well under a second —
+    // unambiguously short of the full 1.5s.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+exec sleep 1.5
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_KILL_GRACE", "0.2")
+        .set("GROVE_KILL_GRACE_KILL", "0.2");
+
+    let started = Instant::now();
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove4");
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Stopped,
+        "a session that never signals must stop the loop, not relaunch"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(1400),
+        "the watcher must leave an un-signalled session alone — a dropped \
+         `signal_file.exists()` guard would SIGTERM it ~0.2-0.7s after \
+         launch, far short of its own ~1.5s natural completion \
+         (elapsed: {elapsed:?})"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "sanity bound: the session should not hang (elapsed: {elapsed:?})"
+    );
+}
+
 #[test]
 fn driver_escalates_to_sigkill_when_the_session_ignores_sigterm() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -444,20 +511,38 @@ fn driver_escalates_to_sigkill_when_the_session_ignores_sigterm() {
     let worktree = repo_path.join(".grove-worktrees/killgrove3");
     fs::create_dir_all(&worktree).unwrap();
 
-    // A session that traps and ignores SIGTERM — the driver must escalate to
-    // SIGKILL rather than waiting forever (BRIEF.md Notes: "Keep
-    // TERM-before-KILL"). `exec sleep 30`, not a plain `sleep 30`: an ignored
-    // disposition survives `exec` (POSIX), so `sleep` keeps ignoring SIGTERM
-    // under the shell's own pid — and, as in the sibling tests, avoids
-    // orphaning a grandchild once the driver's SIGKILL lands.
+    let term_marker = repo_path.join("term-received");
+
+    // watcher-test-hardening-k7, mutant 2: traps SIGTERM and *records*
+    // receipt rather than only ignoring it — a bare `trap '' TERM` fixture
+    // passes whether or not TERM is ever actually sent (the escalation to
+    // SIGKILL happens either way), so it cannot distinguish real
+    // TERM-then-KILL from a driver that sends KILL from the start
+    // (BRIEF.md Notes: "Keep TERM-before-KILL"). This fixture still never
+    // exits on its own — forcing the SIGKILL escalation the test name
+    // promises — but the marker file only appears if a real, catchable
+    // SIGTERM landed first. No `exec sleep 30` here: a caught disposition
+    // does not survive `exec` (POSIX preserves only SIG_IGN across it), so
+    // the trap must run in the script's own shell process — which is why
+    // this sleeps in short increments rather than one blocking `sleep 30`:
+    // a signal delivered to a shell blocked on one long foreground child is
+    // not guaranteed to be handled until that child exits, but a signal
+    // between/within short sleeps is.
     let fake = repo_path.join("fake-claude.sh");
     write_exec(
         &fake,
-        r#"#!/bin/sh
-trap '' TERM
+        &format!(
+            r#"#!/bin/sh
+trap 'printf term > "{marker}"' TERM
 printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exec sleep 30
+i=0
+while [ "$i" -lt 300 ]; do
+  sleep 0.1
+  i=$((i + 1))
+done
 "#,
+            marker = term_marker.display()
+        ),
     );
 
     let harness = harness::by_name("claude").unwrap();
@@ -481,7 +566,81 @@ exec sleep 30
     assert!(
         elapsed < Duration::from_secs(10),
         "the driver must escalate to SIGKILL rather than waiting out the \
-         30s sleep (elapsed: {elapsed:?})"
+         30s loop (elapsed: {elapsed:?})"
+    );
+    assert!(
+        term_marker.exists(),
+        "the session must have received a real, catchable SIGTERM before \
+         the SIGKILL landed — a driver that sent SIGKILL from the start \
+         (skipping TERM) would kill it just as fast, with the trap never \
+         firing (watcher-test-hardening-k7)"
+    );
+}
+
+// watcher-test-hardening-k7, mutant 3: dropping the grace guard fires the
+// kill the instant the signal file appears — every timing assertion in this
+// file so far is an upper bound (`elapsed < 10s`); none pins a *lower*
+// bound, so a regression to grace≈0 is invisible. The grace exists so
+// `complete`'s Bash-tool call can return and the agent's own turn can end
+// before its session dies (BRIEF.md); this proves the watcher actually
+// waits for it. `GROVE_KILL_GRACE=3.0` — well above `POLL_INTERVAL` (500ms)
+// — so a dropped-guard instant kill (bounded to ~2 poll intervals,
+// independent of the configured grace) and a correctly-honoured 3s grace
+// land unambiguously on opposite sides of the threshold below.
+#[test]
+fn driver_waits_the_grace_before_sending_sigterm() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/killgrove5");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // Signals `done` immediately then hangs, same as the sibling kill tests
+    // — `exec sleep 30` so the pid the driver signals is the sleeping
+    // process itself.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exec sleep 30
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_KILL_GRACE", "3.0")
+        .set("GROVE_KILL_GRACE_KILL", "0.3");
+
+    let started = Instant::now();
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove5");
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Finished,
+        "a `done` signal must still end the loop cleanly"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(2500),
+        "the watcher must honour the configured grace before its first \
+         SIGTERM — a dropped grace guard would kill within ~2 poll \
+         intervals of the signal file appearing, independent of the \
+         configured grace (elapsed: {elapsed:?})"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "sanity bound: the driver must not hang (elapsed: {elapsed:?})"
     );
 }
 

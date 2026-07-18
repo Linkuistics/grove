@@ -49,3 +49,27 @@ pins the grace. Re-run the mutations to confirm rather than asserting the tests
 Mutation-testing the suite is the check that caught this — worth repeating on
 any future change to the watcher, and worth a line in the grove's own review
 habits if it keeps paying off.
+
+**Outcome.** All three re-verified by hand-applying each mutant and
+confirming the new/modified test fails, then restoring and confirming the
+full suite (23 tests in `tests/loop_driver.rs`, 287+ across the workspace)
+passes clean:
+
+- Mutant 1 (guard dropped) — new `driver_leaves_an_unsignalled_session_alone`
+  (a long-running, never-signalling fixture with a lower-bound timing
+  assertion). Also confirmed via `cargo-mutants` on `293:31: ... with true`.
+  Note: the existing `concurrent_loops_...` test's victim already caught this
+  mutant too, but only by ~180ms out of its 1.2s margin — too tight to trust
+  as this property's real coverage, hence the dedicated fixture.
+- Mutant 2 (SIGTERM→SIGKILL swap) — `driver_escalates_to_sigkill_when_the_
+  session_ignores_sigterm` reworked: the fixture now traps and *records*
+  SIGTERM (rather than `trap '' TERM` ignoring it) so a marker file only
+  appears if a real, catchable SIGTERM landed before the SIGKILL. Not an
+  auto-generated `cargo-mutants` mutation (it doesn't swap sibling
+  constants); verified by hand-editing the literal and confirming the test
+  fails, then restoring.
+- Mutant 3 (grace guard dropped) — new
+  `driver_waits_the_grace_before_sending_sigterm` (large configured grace +
+  a lower-bound timing assertion that separates "waited the grace" from
+  "killed within ~2 poll intervals regardless of grace"). Confirmed via
+  `cargo-mutants` on `294:37: ... with true`.

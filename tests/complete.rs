@@ -180,3 +180,32 @@ fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
     );
     assert_eq!(opts.pid, Some(222));
 }
+
+#[test]
+fn resolve_opts_rejects_a_non_positive_pid_from_env() {
+    // B10: GROVE_HARNESS_PID=-1 must never reach `kill -TERM -1` — that
+    // signals every process the user can signal. `GROVE_CLAUDE_PID` shares
+    // the same fallback, so it must be guarded too.
+    let _g = support::lock_env(&ENV_LOCK);
+    let mut env = EnvGuard::new();
+    env.set("GROVE_HARNESS_PID", "-1")
+        .remove("GROVE_CLAUDE_PID");
+
+    let opts = complete::resolve_opts(None, None, None, None, Disposition::Relaunch);
+    assert_eq!(
+        opts.pid, None,
+        "a negative PID must be rejected, not passed through to the killer"
+    );
+
+    env.set("GROVE_HARNESS_PID", "0");
+    let opts = complete::resolve_opts(None, None, None, None, Disposition::Relaunch);
+    assert_eq!(opts.pid, None, "PID 0 must also be rejected");
+}
+
+#[test]
+fn resolve_opts_rejects_an_explicit_non_positive_pid() {
+    // The guard applies wherever the three sources converge, not just the
+    // env fallbacks — an explicit --pid is not exempt.
+    let opts = complete::resolve_opts(Some(-1), None, None, None, Disposition::Relaunch);
+    assert_eq!(opts.pid, None);
+}

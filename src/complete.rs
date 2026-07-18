@@ -98,7 +98,11 @@ pub fn resolve_opts(
         pid: pid
             .or_else(|| env_parse("GROVE_HARNESS_PID"))
             // One release of fallback for the pre-rename handle.
-            .or_else(|| env_parse("GROVE_CLAUDE_PID")),
+            .or_else(|| env_parse("GROVE_CLAUDE_PID"))
+            // A non-positive PID must never reach `kill`: 0 or a negative
+            // value signals a process group or every process the caller can
+            // signal, not one specific session (B10).
+            .filter(|p| *p > 0),
         signal_file: signal_file
             .or_else(|| std::env::var_os("GROVE_SIGNAL_FILE").map(PathBuf::from)),
         grace: grace

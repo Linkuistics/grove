@@ -6,6 +6,7 @@
 use grove::harness::by_name;
 use grove::harness_stamp::{maybe_stamp, path, resolve_for_launch};
 use std::fs;
+use std::process::Command;
 use tempfile::TempDir;
 
 #[test]
@@ -78,6 +79,38 @@ fn unknown_name_in_the_stamp_file_fails_loudly() {
     assert!(
         err.contains("claude") && err.contains("codex") && err.contains("pi"),
         "the error must list the known harnesses (err: {err})"
+    );
+}
+
+// D5: `.grove-stamps/` must not dirty `git status` in every migrated repo —
+// runbook step 6 mandates one explicit `grove do --harness` per grove, which
+// creates it, and that now happens in the *main* repo, where the user is
+// likely mid-work.
+#[test]
+fn grove_stamps_dir_is_gitignored_by_the_projects_own_gitignore() {
+    let gitignore = fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/.gitignore")).unwrap();
+
+    let repo = TempDir::new().unwrap();
+    Command::new("git")
+        .args(["init", "-q"])
+        .arg(repo.path())
+        .status()
+        .unwrap();
+    fs::write(repo.path().join(".gitignore"), &gitignore).unwrap();
+    fs::create_dir_all(repo.path().join(".grove-stamps")).unwrap();
+    fs::write(repo.path().join(".grove-stamps/some-grove"), "pi\n").unwrap();
+
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo.path())
+        .args(["status", "--porcelain"])
+        .output()
+        .unwrap();
+    let status = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        !status.contains(".grove-stamps"),
+        ".grove-stamps/ must be gitignored, not reported as untracked (status: {status})"
     );
 }
 

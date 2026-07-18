@@ -22,7 +22,6 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
 
     let repo_path = repo::resolve(None)?;
     let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
-    harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
     // Provision the global skill from the embedded methodology for every
     // installed harness (and the launching one unconditionally), so the skill
@@ -49,7 +48,28 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         return Ok(());
     }
 
+    // The stamp is written only here, after provisioning and the no-launch
+    // check have both already succeeded: a documented dry run must never
+    // permanently rebind the grove (B3), and a provisioning failure — or a
+    // harness whose binary isn't installed — must never leave a stamp with
+    // no recovery path (B4).
+    if !exec_bin_on_path(harness.exec_bin) {
+        anyhow::bail!(
+            "{} is not on PATH — install it before binding this grove to \"{}\" \
+             (nothing was stamped; run again once it's installed)",
+            harness.exec_bin,
+            harness.name
+        );
+    }
+    harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
+
     crate::loop_driver::run(harness, &repo_path, &worktree, &name)
+}
+
+fn exec_bin_on_path(bin: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
+        .unwrap_or(false)
 }
 
 pub fn retire(args: &RetireArgs) -> Result<()> {

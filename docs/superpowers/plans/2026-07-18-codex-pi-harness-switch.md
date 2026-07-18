@@ -227,7 +227,7 @@ error list from the registry so it can never go stale."
 - Consumes: `harness::by_name`, `harness::known_names` (Task 1).
 - Produces: `pub fn maybe_stamp(repo: &Path, name: &str, chosen: &'static Harness, explicit: bool) -> Result<()>` — Task 13's migration relies on `grove do --harness <h>` sticking.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/harness_stamp.rs`:
 
@@ -291,12 +291,12 @@ fn multi_harness_repo_still_stamps_without_explicit() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test harness_stamp`
 Expected: FAIL to compile — `maybe_stamp` takes 3 arguments.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/harness_stamp.rs` replace `maybe_stamp`:
 
@@ -306,6 +306,7 @@ In `src/harness_stamp.rs` replace `maybe_stamp`:
 ///     survive into the next plain `grove do`, even in a repo where detection
 ///     would pick something else (e.g. a stray `.claude/` after a switch).
 ///   * multi-harness repo — disambiguation, as before.
+///
 /// A single-harness repo with no explicit flag stays stamp-free: detection is
 /// already deterministic there.
 pub fn maybe_stamp(
@@ -347,12 +348,12 @@ In `src/launch.rs:31` update the caller:
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/harness_stamp.rs src/launch.rs tests/harness_stamp.rs

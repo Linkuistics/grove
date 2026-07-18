@@ -1822,3 +1822,110 @@ exit 0
         "empty GROVE_PLANNING_HARNESS must stay on the stamped harness (log: {log:?})"
     );
 }
+
+// harness-spawn-preflight-k8: `do_grove`'s pre-flight used to validate only
+// the stamped harness's binary, so `GROVE_REVIEW_HARNESS=pi` against a
+// codex-stamped grove with no `pi` installed sailed through pre-flight, ran
+// for however long, and only died the moment a review leaf was finally
+// picked. `preflight_check` must catch that up front — resolved through the
+// same `GROVE_HARNESS_BIN_<NAME>` seam `harness_bin` uses for the real
+// launch, here pointed at a path that plain does not exist (the leaf's own
+// Notes ask for exactly this).
+#[test]
+fn preflight_check_catches_a_missing_per_kind_override_binary() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+
+    let fake_claude = tmp.path().join("fake-claude.sh");
+    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
+    let missing_pi = tmp.path().join("no-such-pi");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_HARNESS_BIN_PI", &missing_pi)
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    let err = loop_driver::preflight_check(stamped).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("GROVE_REVIEW_HARNESS"),
+        "diagnostic must name the override var (got: {msg:?})"
+    );
+    assert!(
+        msg.contains(&missing_pi.display().to_string()),
+        "diagnostic must name the missing binary (got: {msg:?})"
+    );
+}
+
+// The stamped harness is still checked exactly as before — a missing
+// per-kind override is an addition to pre-flight, not a replacement of its
+// original job.
+#[test]
+fn preflight_check_still_catches_a_missing_stamped_binary() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let missing_claude = tmp.path().join("no-such-claude");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &missing_claude);
+
+    let err = loop_driver::preflight_check(stamped).unwrap_err();
+    assert!(
+        err.to_string()
+            .contains(&missing_claude.display().to_string()),
+        "diagnostic must name the missing stamped binary (got: {err})"
+    );
+}
+
+// A configured override that resolves fine must not block pre-flight — only
+// a genuinely missing binary should.
+#[test]
+fn preflight_check_passes_when_every_configured_harness_resolves() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+
+    let fake_claude = tmp.path().join("fake-claude.sh");
+    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
+    let fake_pi = tmp.path().join("fake-pi.sh");
+    write_exec(&fake_pi, "#!/bin/sh\nexit 0\n");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    loop_driver::preflight_check(stamped).unwrap();
+}
+
+// An unknown harness name in a per-kind override must fail loudly at
+// pre-flight too, not just once `resolve_launch` hits it mid-loop — same
+// typo-safety contract, just moved earlier.
+#[test]
+fn preflight_check_rejects_an_unknown_harness_override_name() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let fake_claude = tmp.path().join("fake-claude.sh");
+    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_PLANNING_HARNESS", "lemur");
+
+    let err = loop_driver::preflight_check(stamped).unwrap_err();
+    assert!(
+        err.to_string().contains("unknown harness"),
+        "an unknown per-kind override name must fail loudly (got: {err})"
+    );
+}

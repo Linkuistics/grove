@@ -30,6 +30,19 @@ driver: an in-agent self-kill cannot be trusted under every harness sandbox.
   straight to `Duration::from_secs_f64`, which panics on them: `inf` or `1e300`
   took the whole loop down. Non-finite values now fall back to the default and
   finite ones clamp into `[0, 3600]`.
+- **`grove do`'s pre-flight now checks every harness a per-kind override could
+  route to, not just the stamped one.** Dropping the `sh -c` wrapper (above)
+  changed a missing harness binary's failure mode: a genuinely unspawnable
+  binary now aborts `grove do` with a loud `ENOENT`, rather than the old
+  `sh`-absorbed exit 126 that looked like a friendly "the human exited" stop.
+  Loud-over-silent is right, but pre-flight validated only
+  `resolve_for_launch`'s stamped harness — so `GROVE_REVIEW_HARNESS=pi`
+  against a grove stamped to `codex` passed pre-flight with `pi` not
+  installed, ran for however long, and only aborted once a review leaf was
+  finally picked. Pre-flight now resolves and checks every configured
+  `GROVE_<KIND>_HARNESS` override too (through the same
+  `GROVE_HARNESS_BIN`/`GROVE_HARNESS_BIN_<NAME>` resolution the real launch
+  uses), naming the offending override var and binary in the diagnostic.
 
 ## v12.0.0
 

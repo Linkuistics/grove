@@ -462,6 +462,49 @@ fn validate_all_harness_overrides() -> Result<()> {
     Ok(())
 }
 
+/// Pre-flight: verify every harness this grove's launch might actually need
+/// resolves to a real binary — the stamped harness, plus any harness named by
+/// a configured per-kind override (`GROVE_<KIND>_HARNESS`) — before `do_grove`
+/// commits to anything (harness-spawn-preflight-k8). Checking only the
+/// stamped harness let a rerouted-but-uninstalled one (e.g.
+/// `GROVE_REVIEW_HARNESS=pi` against a codex-stamped grove with no `pi`
+/// installed) pass pre-flight, run happily for however long, and only die
+/// mid-loop the moment a leaf of that kind was finally picked. Each harness
+/// is resolved through [`harness_bin`] — the same effective-binary lookup
+/// `launch_session` actually execs — so a `GROVE_HARNESS_BIN` /
+/// `GROVE_HARNESS_BIN_<NAME>` test-seam override pointing at a nonexistent
+/// path is caught here too, not just a harness with no override at all.
+pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
+    let stamped_bin = harness_bin(stamped, false);
+    if !crate::harness::exec_bin_on_path(&stamped_bin) {
+        anyhow::bail!(
+            "{} is not on PATH — install it before binding this grove to \"{}\" \
+             (nothing was stamped; run again once it's installed)",
+            stamped_bin,
+            stamped.name
+        );
+    }
+    validate_all_harness_overrides()?;
+    for suffix in KIND_SUFFIXES {
+        let Some(overridden) = checked_harness_override(suffix)? else {
+            continue;
+        };
+        let rerouted = overridden.name != stamped.name;
+        let bin = harness_bin(overridden, rerouted);
+        if !crate::harness::exec_bin_on_path(&bin) {
+            anyhow::bail!(
+                "GROVE_{suffix}_HARNESS={}: {} is not on PATH — install it before \
+                 this grove can run {} leaves on it (nothing was stamped; run \
+                 again once it's installed)",
+                overridden.name,
+                bin,
+                suffix.to_lowercase(),
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Resolve where and on what the next session launches: peek the picked
 /// leaf's kind (only when some routing env makes it matter), apply the
 /// per-kind harness override, then resolve the model against the

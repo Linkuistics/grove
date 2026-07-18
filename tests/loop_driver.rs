@@ -6,17 +6,22 @@
 // completion signal, and the start→continue prompt switch happens once `.grove/`
 // exists.
 
+mod support;
+
 use grove::harness;
 use grove::loop_driver::{self, LoopOutcome};
 use grove::provision::STAMP_FILE;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
+use support::EnvGuard;
 use tempfile::TempDir;
 
 // The loop launch reads several process-global env vars (the harness-bin
 // override + the fake's bookkeeping handles); serialize so cargo's parallel
-// runner doesn't cross test wires.
+// runner doesn't cross test wires. A prior test's panic mid-mutation poisons
+// this lock; `support::lock_env` tolerates that (`EnvGuard`'s `Drop` already
+// restored the env before the panic unwound past it — see B1/T7).
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn write_exec(path: &std::path::Path, body: &str) {
@@ -28,7 +33,7 @@ fn write_exec(path: &std::path::Path, body: &str) {
 
 #[test]
 fn loop_relaunches_on_signal_and_stops_without_one() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
@@ -53,9 +58,12 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
 
-    // Fake claude: log <iter>\t<own-pid>\t<inherited-handle>\t<prompt>; create
-    // `.grove/` after the first iteration so the loop switches start→continue;
-    // fire the completion signal for the first two iterations, then stop.
+    // Fake claude: log <iter>\t<own-pid>\t<inherited-handle>\t<co-exported-legacy-handle>\t<prompt>;
+    // create `.grove/` after the first iteration so the loop switches
+    // start→continue; fire the completion signal for the first two
+    // iterations, then stop. Logs both `GROVE_HARNESS_PID` and the legacy
+    // `GROVE_CLAUDE_PID` co-export (T6): a content/agent that still reads the
+    // old name for one release must see the same handle.
     let fake = repo_path.join("fake-claude.sh");
     write_exec(
         &fake,
@@ -64,7 +72,7 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
-printf '%s\t%s\t%s\t%s\n' "$n" "$$" "$GROVE_HARNESS_PID" "$prompt" >> "$GROVE_TEST_LOG"
+printf '%s\t%s\t%s\t%s\t%s\n' "$n" "$$" "$GROVE_HARNESS_PID" "$GROVE_CLAUDE_PID" "$prompt" >> "$GROVE_TEST_LOG"
 mkdir -p "$PWD/.grove"
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
@@ -75,17 +83,14 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
 
     assert_eq!(
         result.unwrap(),
@@ -106,27 +111,33 @@ exit 0
         "loop should run 3 times then stop (log: {log:?})"
     );
 
-    // The exec-PID trick: the handle the child sees equals the child's own pid.
+    // The exec-PID trick: the handle the child sees equals the child's own
+    // pid, on both the new name and the co-exported legacy name.
     for row in &rows {
         assert_eq!(
             row[1], row[2],
             "GROVE_HARNESS_PID must equal the session's own pid (row: {row:?})"
+        );
+        assert_eq!(
+            row[1], row[3],
+            "GROVE_CLAUDE_PID must be co-exported with the same handle, for one \
+             release of backward compatibility (row: {row:?})"
         );
     }
 
     // start→continue switch: first iteration has no `.grove/` (start), the rest
     // do (continue).
     assert_eq!(
-        rows[0][3], "START PROMPT",
+        rows[0][4], "START PROMPT",
         "first iteration bootstraps via start"
     );
-    assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
-    assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
+    assert_eq!(rows[1][4], "CONTINUE PROMPT", "second iteration continues");
+    assert_eq!(rows[2][4], "CONTINUE PROMPT", "third iteration continues");
 }
 
 #[test]
 fn loop_finishes_clean_on_a_done_signal() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
@@ -160,17 +171,14 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
 
     assert_eq!(
         result.unwrap(),
@@ -196,7 +204,7 @@ exit 0
 // review) — proving the scheme is a real five-way lookup, not just a binary.
 #[test]
 fn loop_selects_model_by_kind() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     // A real git repo *is* the worktree, so the real `grove-llm kind` (which
     // finds the grove root via `git rev-parse --show-toplevel`) resolves `.grove/`.
     let worktree_dir = TempDir::new().unwrap();
@@ -252,25 +260,23 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
-    std::env::set_var("GROVE_PLANNING_MODEL", "opus");
-    std::env::set_var("GROVE_WORK_MODEL", "sonnet");
-    std::env::set_var("GROVE_REVIEW_MODEL", "haiku");
+    // clear_grove_env is load-bearing here, not just hygiene: this repo
+    // dogfoods per-kind model + harness routing envs (BRIEF.md Notes), and
+    // this very test suite may be running *inside* a rerouted review session
+    // — ambient `GROVE_REVIEW_HARNESS`/`GROVE_PI_REVIEW_MODEL` would silently
+    // reroute iteration 3 (B1).
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_PLANNING_MODEL", "opus")
+        .set("GROVE_WORK_MODEL", "sonnet")
+        .set("GROVE_REVIEW_MODEL", "haiku");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "modelgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_LLM_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
-    std::env::remove_var("GROVE_PLANNING_MODEL");
-    std::env::remove_var("GROVE_WORK_MODEL");
-    std::env::remove_var("GROVE_REVIEW_MODEL");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -320,7 +326,7 @@ exit 0
 // them, *and* the leaf still launches — degrading, never jamming the loop.
 #[test]
 fn unrecognised_kind_warns_the_operator_and_still_launches() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
@@ -376,19 +382,22 @@ exit 0
 "#,
     );
 
-    let out = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
-        .args(["do"])
-        .current_dir(repo_path)
+    // A subprocess inherits this test process's *whole* ambient environment
+    // unless each var is explicitly overridden or removed — `.env(...)` alone
+    // does not isolate it. Scrub the full routing/model surface before layering
+    // the scenario's own vars, or this repo's own dogfooded `~/.zshenv` (or a
+    // session running these tests under itself) can steer the subprocess.
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    cmd.args(["do"]).current_dir(repo_path);
+    for name in support::grove_env_names() {
+        cmd.env_remove(name);
+    }
+    let out = cmd
         .env("GROVE_HARNESS_BIN", &fake)
         .env("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
         .env("GROVE_SKILL_DIR", &skill_dir)
         .env("GROVE_TEST_LOG", &log)
         .env("GROVE_WORK_MODEL", "sonnet")
-        // The degrade lands on `work`; the other four must not be in play.
-        .env_remove("GROVE_PLANNING_MODEL")
-        .env_remove("GROVE_RESEARCH_MODEL")
-        .env_remove("GROVE_PROTOTYPE_MODEL")
-        .env_remove("GROVE_REVIEW_MODEL")
         .output()
         .unwrap();
 
@@ -413,7 +422,7 @@ exit 0
 // `ANTHROPIC_MODEL`/settings default is never clobbered.
 #[test]
 fn loop_omits_model_flag_when_env_unset() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
@@ -450,23 +459,14 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
-    // Guard against leakage from another test in the same process.
-    std::env::remove_var("GROVE_PLANNING_MODEL");
-    std::env::remove_var("GROVE_RESEARCH_MODEL");
-    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
-    std::env::remove_var("GROVE_WORK_MODEL");
-    std::env::remove_var("GROVE_REVIEW_MODEL");
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -483,6 +483,54 @@ exit 0
             "no env set ⇒ no --model flag (argv: {row:?})"
         );
     }
+}
+
+// T6: an *empty-string* model var must behave exactly like an unset one — a
+// blank `GROVE_WORK_MODEL=` (e.g. from a shell template that didn't fill in a
+// value) must never reach the harness as a literal empty `--model`.
+#[test]
+fn loop_omits_model_flag_when_env_is_empty_string() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/loopgrove");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let log = repo_path.join("log");
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_PLANNING_MODEL", "");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let argv = fs::read_to_string(&log).unwrap();
+    assert!(
+        !argv.contains("--model"),
+        "an empty-string model var must be treated as unset, never passed \
+         through as a literal empty --model (argv: {argv:?})"
+    );
 }
 
 // The codex harness declaration (issue #1). Two independent defects, both
@@ -502,7 +550,7 @@ exit 0
 // with a `.codex/` directory.
 #[test]
 fn codex_launches_with_no_name_flag_and_a_model_flag() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     // A real git repo *is* the worktree, so the real `grove-llm kind` resolves the
     // leaf the second (continue) iteration peeks at.
     let worktree_dir = TempDir::new().unwrap();
@@ -551,25 +599,16 @@ exit 0
 
     let harness = harness::by_name("codex").unwrap();
 
-    std::env::remove_var("GROVE_PLANNING_MODEL");
-    std::env::remove_var("GROVE_RESEARCH_MODEL");
-    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
-    std::env::remove_var("GROVE_REVIEW_MODEL");
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
-    std::env::set_var("GROVE_WORK_MODEL", "sol-high");
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_WORK_MODEL", "sol-high");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_LLM_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
-    std::env::remove_var("GROVE_WORK_MODEL");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -602,7 +641,7 @@ exit 0
 // garbage to pi and vice versa), so each harness gets a scoped override.
 #[test]
 fn per_harness_model_env_beats_the_base_var() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let worktree_dir = TempDir::new().unwrap();
     let worktree = worktree_dir.path();
     assert!(
@@ -647,36 +686,23 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
-    // Guard against leakage from another test in the same process, and from
-    // the outer shell — this repo dogfoods per-kind model envs (BRIEF.md
-    // Notes), so a session driving this very test suite may already have
-    // GROVE_PLANNING_MODEL etc. set.
-    std::env::remove_var("GROVE_PLANNING_MODEL");
-    std::env::remove_var("GROVE_RESEARCH_MODEL");
-    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
-    std::env::remove_var("GROVE_WORK_MODEL");
-    std::env::remove_var("GROVE_REVIEW_MODEL");
-    std::env::set_var("GROVE_HARNESS_BIN", &fake);
-    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
-    // Scoped override for the launching harness + a base var it must beat;
-    // an override for a *different* harness that must be ignored.
-    std::env::set_var("GROVE_CLAUDE_WORK_MODEL", "kimi-k3");
-    std::env::set_var("GROVE_WORK_MODEL", "sonnet");
-    std::env::set_var("GROVE_PI_PLANNING_MODEL", "must-not-leak");
+    let mut env = EnvGuard::new();
+    // clear_grove_env first (this repo dogfoods per-kind model envs — BRIEF.md
+    // Notes — so a session driving this very test suite may already have
+    // GROVE_PLANNING_MODEL etc. set), then layer the scenario's own vars:
+    // a scoped override for the launching harness + a base var it must beat,
+    // and an override for a *different* harness that must be ignored.
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_CLAUDE_WORK_MODEL", "kimi-k3")
+        .set("GROVE_WORK_MODEL", "sonnet")
+        .set("GROVE_PI_PLANNING_MODEL", "must-not-leak");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "envgrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN");
-    std::env::remove_var("GROVE_LLM_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
-    std::env::remove_var("GROVE_CLAUDE_WORK_MODEL");
-    std::env::remove_var("GROVE_WORK_MODEL");
-    std::env::remove_var("GROVE_PI_PLANNING_MODEL");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -685,13 +711,18 @@ exit 0
     assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
 
     // Start/planning: no CLAUDE planning override and no base planning var ⇒
-    // no --model; the pi-scoped var must not leak across harnesses.
+    // no --model. This is a structural guarantee, not a live-risk assertion —
+    // `model_for` only ever interpolates *this* harness's own name into the
+    // env-var it reads (src/loop_driver.rs `model_for`), so a pi-scoped var
+    // has no code path that could consult it; kept as documentation of that
+    // intent, alongside the genuinely discriminating precedence check below.
     assert!(
         !rows[0].contains("--model"),
         "another harness's scoped var must not select a model (argv: {:?})",
         rows[0]
     );
-    // Continue/work: the claude-scoped var beats the base var.
+    // Continue/work: the claude-scoped var beats the base var — the
+    // discriminating assertion (precedence, not cross-harness isolation).
     assert!(
         rows[1].contains("--model kimi-k3") && !rows[1].contains("sonnet"),
         "GROVE_CLAUDE_WORK_MODEL must beat GROVE_WORK_MODEL (argv: {:?})",
@@ -703,9 +734,20 @@ exit 0
 // on pi even in a codex-stamped grove — the trial's "K3 reviews everywhere"
 // invariant. Proven with two distinct fake binaries wired through the
 // per-harness bin seam, so the argv log shows *which* harness ran each leaf.
+//
+// NOTE (T4): this deliberately still routes both fakes' prompts through one
+// shared `GROVE_SKILL_DIR` (see `provision::provision_all`'s doc: the env
+// override "collapses the sweep to that single dir", by design, regardless of
+// harness). That makes this test structurally blind to B7 (`load_prompt`
+// reads the *stamped* harness's prompt copy, not the post-reroute launch
+// harness's) — proving that would need real per-harness skill dirs under a
+// scratch `$HOME`, and asserting on which copy was read would go red today,
+// since B7 is unfixed. B7 is `review-fix-routing-k17`'s to fix; that leaf
+// must upgrade this test's skill-dir setup alongside the fix, or the fix
+// ships unverified.
 #[test]
 fn review_leaf_reroutes_to_the_review_harness() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let worktree_dir = TempDir::new().unwrap();
     let worktree = worktree_dir.path();
     assert!(
@@ -762,27 +804,19 @@ exit 0
 
     let harness = harness::by_name("codex").unwrap();
 
-    std::env::set_var("GROVE_HARNESS_BIN_CODEX", &fake_codex);
-    std::env::set_var("GROVE_HARNESS_BIN_PI", &fake_pi);
-    std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_TEST_COUNTER", &counter);
-    std::env::set_var("GROVE_TEST_LOG", &log);
-    std::env::set_var("GROVE_REVIEW_HARNESS", "pi");
-    std::env::set_var("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh");
-    std::env::set_var("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN_CODEX", &fake_codex)
+        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_REVIEW_HARNESS", "pi")
+        .set("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh")
+        .set("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
-
-    std::env::remove_var("GROVE_HARNESS_BIN_CODEX");
-    std::env::remove_var("GROVE_HARNESS_BIN_PI");
-    std::env::remove_var("GROVE_LLM_BIN");
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_TEST_COUNTER");
-    std::env::remove_var("GROVE_TEST_LOG");
-    std::env::remove_var("GROVE_REVIEW_HARNESS");
-    std::env::remove_var("GROVE_CODEX_PLANNING_MODEL");
-    std::env::remove_var("GROVE_PI_REVIEW_MODEL");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -816,10 +850,14 @@ exit 0
 
 // An unknown override value must fail loudly at launch — a typo'd harness
 // name that silently fell back to the stamped harness would run reviews on
-// the wrong (and possibly self-reviewing) model for a whole trial.
+// the wrong (and possibly self-reviewing) model for a whole trial. The start
+// path takes a shortcut straight to `Kind::Planning` (fresh-grove-start-
+// contract) without ever calling `resolve_kind`, so this alone cannot prove
+// the *continue* path's peek honours the same contract — see the sibling
+// test below for that (T3).
 #[test]
 fn unknown_review_harness_fails_loudly() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
@@ -835,13 +873,12 @@ fn unknown_review_harness_fails_loudly() {
     let harness = harness::by_name("claude").unwrap();
 
     // Start path ⇒ kind is Planning by construction; route planning to a typo.
-    std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
-    std::env::set_var("GROVE_PLANNING_HARNESS", "lemur");
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_PLANNING_HARNESS", "lemur");
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "typogrove");
-
-    std::env::remove_var("GROVE_SKILL_DIR");
-    std::env::remove_var("GROVE_PLANNING_HARNESS");
 
     let err = result.unwrap_err().to_string();
     assert!(
@@ -851,5 +888,113 @@ fn unknown_review_harness_fails_loudly() {
     assert!(
         err.contains("claude") && err.contains("codex") && err.contains("pi"),
         "the error must list the known harnesses (err: {err})"
+    );
+}
+
+// T3: the continue path's kind peek must honour the same
+// unknown-override-fails-loudly contract as the start path above — that path
+// short-circuits to `Kind::Planning` and never calls `resolve_kind`
+// (src/loop_driver.rs:279-281), so it cannot exercise `GROVE_REVIEW_HARNESS`
+// at all. This drives a real `.grove/` with a **review** leaf through the
+// continue path (real `grove-llm kind`) so `resolve_kind` genuinely runs.
+#[test]
+fn unknown_review_harness_fails_loudly_on_the_continue_path() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        worktree.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** review\n",
+    )
+    .unwrap();
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_REVIEW_HARNESS", "lemur");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "typogrove2");
+
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("GROVE_REVIEW_HARNESS") && err.contains("lemur"),
+        "the error must name the variable and the bad value (err: {err})"
+    );
+    assert!(
+        err.contains("claude") && err.contains("codex") && err.contains("pi"),
+        "the error must list the known harnesses (err: {err})"
+    );
+}
+
+// T6: an empty-string `GROVE_<KIND>_HARNESS` must be treated as unset (like
+// the empty-string model var), not as a route to an empty-named harness —
+// `harness_override` already guards this (`!name.is_empty()`); this proves it
+// end-to-end rather than trusting the guard is reached.
+#[test]
+fn empty_string_kind_harness_override_is_treated_as_unset() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let log = repo_path.join("log");
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf 'claude\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_PLANNING_HARNESS", "");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptyharnessgrove");
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Stopped,
+        "an empty override must not error, and must not hang looking for an \
+         empty-named harness"
+    );
+
+    let log = fs::read_to_string(&log).unwrap();
+    assert!(
+        log.starts_with("claude\t"),
+        "empty GROVE_PLANNING_HARNESS must stay on the stamped harness (log: {log:?})"
     );
 }

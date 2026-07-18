@@ -4,10 +4,13 @@
 // (relaunch the next task, or finish the whole grove) is encoded in the signal
 // file and read back by the loop driver.
 
+mod support;
+
 use grove::complete::{self, CompleteOpts, Disposition};
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use support::EnvGuard;
 use tempfile::TempDir;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -146,11 +149,16 @@ fn signal_complete_kills_the_target_pid_out_of_band() {
 
 #[test]
 fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
+    // T7: this test used to `remove_var` both names unconditionally at the
+    // end, destroying whatever was ambiently there — on a session running
+    // these tests under `grove do` itself, that is a real, *inherited*
+    // `GROVE_CLAUDE_PID`, not test fixture. `EnvGuard` restores it.
+    let mut env = EnvGuard::new();
 
     // New name wins when both are set.
-    std::env::set_var("GROVE_HARNESS_PID", "111");
-    std::env::set_var("GROVE_CLAUDE_PID", "222");
+    env.set("GROVE_HARNESS_PID", "111")
+        .set("GROVE_CLAUDE_PID", "222");
     let opts = grove::complete::resolve_opts(
         None,
         None,
@@ -162,7 +170,7 @@ fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
 
     // Old name still resolves alone — one release of backward compatibility
     // for content/agents that captured the old handle.
-    std::env::remove_var("GROVE_HARNESS_PID");
+    env.remove("GROVE_HARNESS_PID");
     let opts = grove::complete::resolve_opts(
         None,
         None,
@@ -171,6 +179,4 @@ fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
         grove::complete::Disposition::Relaunch,
     );
     assert_eq!(opts.pid, Some(222));
-
-    std::env::remove_var("GROVE_CLAUDE_PID");
 }

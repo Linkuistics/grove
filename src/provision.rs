@@ -92,8 +92,16 @@ pub fn provision_into(dest: &Path) -> Result<bool> {
 pub fn provision_target(dest: &Path) -> Result<bool> {
     if let Ok(meta) = std::fs::symlink_metadata(dest) {
         if meta.file_type().is_symlink() {
-            // Order matters: remove the LINK first. remove_dir_all through a
-            // symlink would delete the target's contents.
+            // Unlink explicitly rather than falling through to
+            // `provision_into`: `sync_to_stamp` treats a matching stamp as
+            // warm-and-done, and a symlink's target (today's cross-harness
+            // link farm) is almost always already stamped — so without this
+            // the symlink would never be replaced. (`remove_dir_all` would
+            // also be safe here: it `lstat`s a top-level symlink argument and
+            // unlinks rather than recursing, on every platform grove ships
+            // for — stable since 1.0.0, see its docs' TOCTOU section — so
+            // this unlink isn't working around a symlink-following footgun,
+            // just forcing replacement past the stamp shortcut above.)
             std::fs::remove_file(dest)
                 .with_context(|| format!("removing symlink {}", dest.display()))?;
         } else if meta.is_dir()
@@ -176,10 +184,23 @@ mod tests {
 
     static ENV_LOCK_FOR_HOME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    /// Restores `HOME` on drop, so a failing `assert_eq!` between the
+    /// override and the restore (which unwinds, it does not abort) cannot
+    /// leave `HOME` clobbered for whichever test runs next in this binary.
+    struct HomeGuard(Option<std::ffi::OsString>);
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+    }
+
     #[test]
     fn skill_dirs_follow_each_harness_layout() {
-        let _lock = ENV_LOCK_FOR_HOME.lock().unwrap();
-        let old_home = std::env::var_os("HOME");
+        let _lock = ENV_LOCK_FOR_HOME.lock().unwrap_or_else(|e| e.into_inner());
+        let _home_guard = HomeGuard(std::env::var_os("HOME"));
         std::env::remove_var("GROVE_SKILL_DIR");
         std::env::set_var("HOME", "/home/x");
         assert_eq!(
@@ -190,10 +211,6 @@ mod tests {
             skill_dir_for(crate::harness::by_name("pi").unwrap()).unwrap(),
             Path::new("/home/x/.pi/agent/skills/grove")
         );
-        match old_home {
-            Some(h) => std::env::set_var("HOME", h),
-            None => std::env::remove_var("HOME"),
-        }
     }
 
     #[test]

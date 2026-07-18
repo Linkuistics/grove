@@ -1,4 +1,4 @@
-use grove::harness::{by_name, detect_in_repo, select, SelectMode};
+use grove::harness::{by_name, detect_in_repo, select, SelectMode, HARNESSES};
 use std::fs;
 use tempfile::TempDir;
 
@@ -33,9 +33,26 @@ fn harness_rows_carry_the_launch_and_skills_contract() {
     assert!(pi.name_args.is_empty());
 }
 
+// T1: this used to assert a copy-pasted literal ("claude, codex, pi") against
+// another literal, so hardcoding `known_names()`'s own body — exactly the
+// derivation-vs-hardcode distinction its name claims to check — left it
+// green (mutation-verified). That specific mutation turns out to be
+// unfalsifiable by *any* runtime assertion: `HARNESSES` is a fixed `const`
+// with no test-time seam to vary its contents, so a hardcode and a real
+// derivation are byte-identical in their output today, whichever one
+// `known_names()` actually does. What *is* real, and now covered: `HARNESSES`
+// gaining or losing a row (as this branch's own `pi` row did) without a
+// hand-maintained `known_names()` being updated to match. Deriving the
+// expectation from `HARNESSES` here, rather than copying its current value,
+// makes that drift a compile-and-run failure instead of a silent mismatch.
 #[test]
 fn known_names_lists_every_registry_row() {
-    assert_eq!(grove::harness::known_names(), "claude, codex, pi");
+    let expected = HARNESSES
+        .iter()
+        .map(|h| h.name)
+        .collect::<Vec<_>>()
+        .join(", ");
+    assert_eq!(grove::harness::known_names(), expected);
 }
 
 #[test]

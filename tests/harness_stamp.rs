@@ -55,3 +55,46 @@ fn multi_harness_repo_still_stamps_without_explicit() {
         "codex"
     );
 }
+
+// T6: an unknown name in the stamp *file* itself (hand-edited, or written by a
+// newer grove with a harness this binary doesn't know) must fail loudly, not
+// silently fall through to detection.
+#[test]
+fn unknown_name_in_the_stamp_file_fails_loudly() {
+    let repo = TempDir::new().unwrap();
+    fs::create_dir_all(repo.path().join(".claude")).unwrap();
+    let stamp = path(repo.path(), "g");
+    fs::create_dir_all(stamp.parent().unwrap()).unwrap();
+    fs::write(&stamp, "lemur\n").unwrap();
+
+    let err = resolve_for_launch(repo.path(), "g", None)
+        .unwrap_err()
+        .to_string();
+
+    assert!(
+        err.contains("lemur") && err.contains(stamp.to_string_lossy().as_ref()),
+        "the error must name the bad stamp value and the stamp file (err: {err})"
+    );
+    assert!(
+        err.contains("claude") && err.contains("codex") && err.contains("pi"),
+        "the error must list the known harnesses (err: {err})"
+    );
+}
+
+// T6: an unknown name via the explicit `--harness` flag must fail loudly too
+// — the same contract as an unknown stamp, on the other input to
+// `resolve_for_launch`.
+#[test]
+fn unknown_name_via_explicit_harness_fails_loudly() {
+    let repo = TempDir::new().unwrap();
+
+    let err = resolve_for_launch(repo.path(), "g", Some("lemur"))
+        .unwrap_err()
+        .to_string();
+
+    assert!(err.contains("lemur"), "err must name the bad value: {err}");
+    assert!(
+        err.contains("claude") && err.contains("codex") && err.contains("pi"),
+        "the error must list the known harnesses (err: {err})"
+    );
+}

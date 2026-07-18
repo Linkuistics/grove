@@ -5,10 +5,13 @@
 // scenarios named in the leaf brief: extract-fresh, extract-idempotent,
 // extract-on-change (self-extension-core-and-methodology / task-tree-scheme, 070/010).
 
+mod support;
+
 use grove::provision::provision_target;
 use grove::provision::{provision_into, STAMP_FILE};
 use std::fs;
 use std::sync::Mutex;
+use support::EnvGuard;
 use tempfile::TempDir;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
@@ -90,12 +93,27 @@ fn provision_replaces_a_symlinked_grove_entry_with_a_real_dir() {
 
     let wrote = provision_target(&linked).unwrap();
 
+    // `real` already carries a matching stamp (from `provision_into` above),
+    // so this is the property that's actually load-bearing here: a symlink
+    // must be unconditionally replaced even when its *target* looks warm —
+    // `sync_to_stamp`'s own stamp comparison would otherwise treat a
+    // stamp-matching symlink as already-done and never replace it, which
+    // would leave the cross-harness link farm in place forever.
     assert!(wrote, "a symlinked entry is replaced, not treated as warm");
     let meta = fs::symlink_metadata(&linked).unwrap();
     assert!(meta.is_dir(), "the symlink becomes a real directory");
     assert!(linked.join("SKILL.md").is_file());
-    // CRITICAL: replacing the link must not have reached through it — the
-    // original target keeps its content.
+    // Regression guard, not a live-risk check (T2): removing the symlink must
+    // never affect `real`'s own content. This can't currently be violated by
+    // *how* the symlink is removed — `std::fs::remove_dir_all` documents
+    // (see its "TOCTOU race conditions" section, stable since 1.0.0) that on
+    // every platform except Miri/QNX/Redox/VxWorks (none grove targets) it
+    // `lstat`s a top-level symlink argument and unlinks rather than
+    // recursing, exactly like `remove_file` — verified against this repo's
+    // own std (rustc 1.97.1, `sys/fs/unix.rs::remove_dir_all_modern` and the
+    // `sys/fs/common.rs` fallback both special-case it). So `rust-version`
+    // (1.74) needs no bump for this: the guarantee predates it. Kept as
+    // documentation of the invariant, not as a mutation-resistant check.
     assert!(
         real.join("SKILL.md").is_file(),
         "replacing the symlink must never delete through it"
@@ -111,8 +129,12 @@ fn provision_refuses_a_foreign_directory() {
 
     let err = provision_target(&dest).unwrap_err().to_string();
 
+    // T8: the message interpolates `dest`, never the offending file's own
+    // name — an `err.contains("precious")` disjunct here would never be true
+    // and silently widen the assertion; assert only the clause the message
+    // actually satisfies.
     assert!(
-        err.contains("precious") || err.contains("not a grove-provisioned"),
+        err.contains("not a grove-provisioned"),
         "must refuse to clobber a dir grove didn't write (err: {err})"
     );
     assert!(
@@ -123,23 +145,21 @@ fn provision_refuses_a_foreign_directory() {
 
 #[test]
 fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
-    let _g = ENV_LOCK.lock().unwrap();
+    let _g = support::lock_env(&ENV_LOCK);
     let home = TempDir::new().unwrap();
     // Installed roots: claude and pi. codex is absent. pi is also the primary.
     fs::create_dir_all(home.path().join(".claude")).unwrap();
     fs::create_dir_all(home.path().join(".pi")).unwrap();
 
-    let old_home = std::env::var_os("HOME");
-    std::env::set_var("HOME", home.path());
-    std::env::remove_var("GROVE_SKILL_DIR");
+    // T7: restoring `HOME` while unconditionally *removing* `GROVE_SKILL_DIR`
+    // (never restoring whatever it held before) left the ambient env
+    // asymmetrically clobbered; `EnvGuard` restores both the same way.
+    let mut env = EnvGuard::new();
+    env.set("HOME", home.path()).remove("GROVE_SKILL_DIR");
 
     let pi = grove::harness::by_name("pi").unwrap();
     let result = grove::provision::provision_all(pi);
 
-    match old_home {
-        Some(h) => std::env::set_var("HOME", h),
-        None => std::env::remove_var("HOME"),
-    }
     result.unwrap();
 
     assert!(

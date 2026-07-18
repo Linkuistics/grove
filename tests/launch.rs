@@ -186,6 +186,66 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
 }
 
 #[test]
+fn no_launch_does_not_stamp_the_grove() {
+    // B3: `--no-launch` is documented as "report readiness, don't exec" — a
+    // dry run. It must not durably rebind the grove, even with an explicit
+    // `--harness` (the one case that would otherwise always stamp).
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let name = repo
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+
+    launch::do_grove(&StartArgs {
+        harness: Some("claude".into()),
+        no_launch: true,
+    })
+    .unwrap();
+
+    assert!(
+        !grove::harness_stamp::path(repo.path(), &name).exists(),
+        "a documented dry run must not permanently rebind the grove"
+    );
+}
+
+#[test]
+fn a_failed_provision_never_leaves_a_permanent_stamp() {
+    // B4: the stamp must only be written once every step that could bail
+    // (provisioning, PATH resolution) has already succeeded — otherwise a
+    // failed bind is permanent, with no verb to clear it.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let name = repo
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+
+    // init_repo() points GROVE_SKILL_DIR at <repo>/global-skill; pre-populate
+    // it with foreign, unstamped content so provisioning refuses to touch it.
+    let skill_dir = repo.path().join("global-skill");
+    fs::create_dir_all(&skill_dir).unwrap();
+    fs::write(skill_dir.join("precious.txt"), "not ours").unwrap();
+
+    let result = launch::do_grove(&StartArgs {
+        harness: Some("claude".into()),
+        no_launch: false,
+    });
+
+    assert!(result.is_err(), "a foreign skill dir must still bail");
+    assert!(
+        !grove::harness_stamp::path(repo.path(), &name).exists(),
+        "a failed provision must not leave a permanent bad binding (B4)"
+    );
+}
+
+#[test]
 fn retire_resolves_a_bare_node_path_in_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();

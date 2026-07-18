@@ -12,21 +12,31 @@ Environment variables:
   GROVE_WORK_MODEL       Model for work leaves (code / docs / tests).
   GROVE_REVIEW_MODEL     Model for review leaves (fresh-context adversarial read).
 
-The loop passes the matching value via Claude Code's native `--model` at each
-task launch, keyed on the picked leaf's kind. Unset ⇒ no `--model`: the session
-inherits your own default (ANTHROPIC_MODEL / Claude Code settings), so grove is
-a no-op until you opt in and never clobbers a default you already set. Setting
-only some of the five is fine — an unconfigured kind still inherits.
+  GROVE_<HARNESS>_<KIND>_MODEL   Harness-scoped override (CLAUDE / CODEX / PI),
+                         e.g. GROVE_PI_REVIEW_MODEL. Beats the base var for
+                         that harness. Use when two harnesses run concurrently
+                         and need different values for the same kind.
+  GROVE_<KIND>_HARNESS   Route leaves of one kind to another harness,
+                         e.g. GROVE_REVIEW_HARNESS=pi runs every review leaf
+                         on pi whatever the grove's own harness is.
 
-An in-session `/model` switch outranks the launch `--model` for that one
-session. Whether it persists into the *next* task depends on the switched
-kind's env var: if it is set, the driver passes `--model` again next launch and
-the override does NOT persist; if it is unset, interactive `/model` saves as
-your own default, so the override DOES persist into every subsequent
-unconfigured session.
+The loop passes the value via the harness's launch flag at each task launch,
+keyed on the picked leaf's kind: `--model` for claude and pi (pi accepts
+provider/id patterns), `--profile` for codex (a codex profile binds model +
+reasoning effort — define profiles as $CODEX_HOME/<name>.config.toml files,
+not a [profiles.<name>] table in config.toml). Unset ⇒ no flag:
+the session inherits the harness's own default, so grove is a no-op until you
+opt in and never clobbers a default you already set. Setting only some kinds
+is fine — an unconfigured kind still inherits.
+
+An in-session model switch outranks the launch flag for that one session
+only; whether it persists into the next task depends on whether the next
+launch passes a flag again (configured kind: yes, override gone; unconfigured
+kind: the harness's own persistence rules apply).
 
 Example:
-  GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do";
+  GROVE_CODEX_WORK_MODEL=sol-high GROVE_REVIEW_HARNESS=pi \\
+  GROVE_PI_REVIEW_MODEL=kimi-code/k3 grove do";
 
 #[derive(Parser)]
 #[command(
@@ -65,6 +75,10 @@ pub enum Command {
 #[derive(Parser)]
 #[command(after_long_help = MODEL_ENV_HELP)]
 pub struct StartArgs {
+    /// Harness to launch: claude, codex, or pi (default: auto-detected from
+    /// the repo's harness directories). Writes a lasting binding to
+    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
+    /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     /// Report readiness but don't exec the harness.
@@ -83,6 +97,10 @@ pub struct MigrateArgs {
 pub struct RetireArgs {
     /// Node path within the current worktree's `.grove/` (e.g. `003-session-store`).
     pub path: String,
+    /// Harness to launch: claude, codex, or pi (default: auto-detected from
+    /// the repo's harness directories). Writes a lasting binding to
+    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
+    /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     #[arg(long = "no-launch")]

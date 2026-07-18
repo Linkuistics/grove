@@ -28,7 +28,7 @@
 
 **Files:** none (git only)
 
-- [ ] **Step 1: Create the working branch**
+- [x] **Step 1: Create the working branch**
 
 ```bash
 cd /Users/antony/Development/grove
@@ -53,7 +53,7 @@ Expected: `Switched to a new branch 'codex-pi-harness'`.
   - `pub fn known_names() -> String` — `"claude, codex, pi"`. Tasks 2 and 5 use it in error messages.
   - `by_name("pi")` returns the pi row.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/harness.rs`, replace `registry_contains_claude_and_codex` and add two tests:
 
@@ -109,12 +109,12 @@ fn detect_finds_pi_when_dot_pi_present() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test harness`
 Expected: FAIL — `skills_dir` field does not exist, `known_names` not found, `by_name("pi")` is `None`.
 
-- [ ] **Step 3: Implement in `src/harness.rs`**
+- [x] **Step 3: Implement in `src/harness.rs`**
 
 Add the field to the struct (after `project_dir`):
 
@@ -175,7 +175,7 @@ and in `select` replace the lookup error:
             })?;
 ```
 
-- [ ] **Step 4: Update the codex argv integration test**
+- [x] **Step 4: Update the codex argv integration test**
 
 In `tests/loop_driver.rs`, test `codex_launches_with_no_name_flag_and_a_model_flag`: change the env value and both assertions —
 
@@ -197,12 +197,12 @@ and
 
 (also update `.env("GROVE_WORK_MODEL", ...)`/`remove_var` value sites and the test's header comment: the second defect bullet now reads "codex participates via `--profile`, since profiles are the only way to bind reasoning effort to the launch").
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS (all tests, including the untouched stamp/loop tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/harness.rs tests/harness.rs tests/loop_driver.rs
@@ -227,7 +227,7 @@ error list from the registry so it can never go stale."
 - Consumes: `harness::by_name`, `harness::known_names` (Task 1).
 - Produces: `pub fn maybe_stamp(repo: &Path, name: &str, chosen: &'static Harness, explicit: bool) -> Result<()>` — Task 13's migration relies on `grove do --harness <h>` sticking.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/harness_stamp.rs`:
 
@@ -291,12 +291,12 @@ fn multi_harness_repo_still_stamps_without_explicit() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test harness_stamp`
 Expected: FAIL to compile — `maybe_stamp` takes 3 arguments.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/harness_stamp.rs` replace `maybe_stamp`:
 
@@ -306,6 +306,7 @@ In `src/harness_stamp.rs` replace `maybe_stamp`:
 ///     survive into the next plain `grove do`, even in a repo where detection
 ///     would pick something else (e.g. a stray `.claude/` after a switch).
 ///   * multi-harness repo — disambiguation, as before.
+///
 /// A single-harness repo with no explicit flag stays stamp-free: detection is
 /// already deterministic there.
 pub fn maybe_stamp(
@@ -347,12 +348,12 @@ In `src/launch.rs:31` update the caller:
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/harness_stamp.rs src/launch.rs tests/harness_stamp.rs
@@ -481,7 +482,7 @@ co-exports the old name and complete reads it as a fallback for one release."
   - `fn model_for(harness: &Harness, kind: Kind) -> Option<String>` — specific-then-base lookup
   - `fn any_model_env(harness: &Harness) -> bool`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/loop_driver.rs` (same shape as `loop_selects_model_by_kind`, two iterations):
 
@@ -536,6 +537,15 @@ exit 0
 
     let harness = harness::by_name("claude").unwrap();
 
+    // Guard against leakage from another test in the same process, and from
+    // the outer shell — this repo dogfoods per-kind model envs (BRIEF.md
+    // Notes), so a session driving this very test suite may already have
+    // GROVE_PLANNING_MODEL etc. set.
+    std::env::remove_var("GROVE_PLANNING_MODEL");
+    std::env::remove_var("GROVE_RESEARCH_MODEL");
+    std::env::remove_var("GROVE_PROTOTYPE_MODEL");
+    std::env::remove_var("GROVE_WORK_MODEL");
+    std::env::remove_var("GROVE_REVIEW_MODEL");
     std::env::set_var("GROVE_HARNESS_BIN", &fake);
     std::env::set_var("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"));
     std::env::set_var("GROVE_SKILL_DIR", &skill_dir);
@@ -580,12 +590,12 @@ exit 0
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test loop_driver per_harness_model_env_beats_the_base_var`
 Expected: FAIL — row 1 argv contains `--model sonnet` (base var used, scoped var ignored).
 
-- [ ] **Step 3: Implement in `src/loop_driver.rs`**
+- [x] **Step 3: Implement in `src/loop_driver.rs`**
 
 Replace `select_model` (lines 209-241) and `env_model` stays as-is; add helpers:
 
@@ -645,12 +655,12 @@ fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String
 
 Keep the existing doc comment on `select_model`, amending the lookup sentence to name the scoped-then-base order.
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS (existing base-var tests still pass — base lookup is the fallback).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/loop_driver.rs tests/loop_driver.rs
@@ -676,7 +686,7 @@ and the trial runs both sides concurrently from one shell environment."
   - Test seam: `GROVE_HARNESS_BIN_<NAME>` (e.g. `GROVE_HARNESS_BIN_PI`) beats `GROVE_HARNESS_BIN` beats `exec_bin`.
   - `fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Result<(&'static Harness, Option<String>)>`
 
-- [ ] **Step 1: Write the failing reroute test**
+- [x] **Step 1: Write the failing reroute test**
 
 Append to `tests/loop_driver.rs`:
 
@@ -834,12 +844,12 @@ fn unknown_review_harness_fails_loudly() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
-Run: `cargo test --test loop_driver review_leaf_reroutes unknown_review_harness`
+Run: `cargo test --test loop_driver review` (`cargo test` takes a single TESTNAME filter, not two; `review` is a substring match for both new tests)
 Expected: FAIL — reroute test: both rows tagged from the default `exec_bin` path (or the launch errors because real `codex` isn't the fake); typo test: no error raised.
 
-- [ ] **Step 3: Implement in `src/loop_driver.rs`**
+- [x] **Step 3: Implement in `src/loop_driver.rs`**
 
 Add helpers (near `model_for`):
 
@@ -941,12 +951,12 @@ fn harness_bin(harness: &Harness) -> String {
 }
 ```
 
-- [ ] **Step 4: Run the full suite**
+- [x] **Step 4: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS — including all pre-existing loop tests (they use the global `GROVE_HARNESS_BIN` fallback and no override envs). If `unrecognised_kind_warns_the_operator_and_still_launches` runs the real `grove` binary, it inherits no override envs — confirm it still passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/loop_driver.rs tests/loop_driver.rs
@@ -1201,12 +1211,12 @@ Callers: `launch.rs:70` → `load_prompt(harness, "retire")`; `loop_driver.rs:10
 - [ ] **Step 5: Run the full suite**
 
 Run: `cargo test`
-Expected: PASS. The loop tests pass because `GROVE_SKILL_DIR` short-circuits `skill_dir_for`.
+Expected: PASS. The loop tests pass because `GROVE_SKILL_DIR` short-circuits `skill_dir_for` — **except** `tests/loop_driver.rs::unrecognised_kind_warns_the_operator_and_still_launches`, the one loop test that drives the real `grove` binary end-to-end (`Command::new(env!("CARGO_BIN_EXE_grove"))`, not in-process `run_loop`) and therefore hits `provision_all` for real. It pre-seeds `global-skill/prompts/{start,continue}.md` by hand to simulate a warm dir, with no `STAMP_FILE` alongside — exactly the signature `provision_target`'s new foreign-dir guard now refuses (a non-empty, unstamped directory). Fix: write `STAMP_FILE` (any value — a mismatch just re-extracts the real embedded prompts, which the test never inspects) into that `skill_dir` alongside the fixture files, mirroring what a genuinely grove-provisioned dir looks like. `tests/provision.rs` gains a `use grove::provision::STAMP_FILE;` import for this.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/provision.rs src/launch.rs src/loop_driver.rs tests/provision.rs
+git add src/provision.rs src/launch.rs src/loop_driver.rs tests/provision.rs tests/loop_driver.rs CONTEXT.md
 git commit -m "feat: provision the skill for every installed harness
 
 The embedded methodology now extracts to each harness's own skills dir
@@ -1296,8 +1306,8 @@ with
 
 - [ ] **Step 4: Verify no stragglers, run the suite**
 
-Run: `grep -rn "GROVE_CLAUDE_PID" src/ content/ tests/`
-Expected: exactly two functional survivors — the compat co-export in `src/loop_driver.rs` (wrapper string) and the fallback read in `src/complete.rs` (plus their compat comments and the compat test in `tests/complete.rs`). Anything else: fix it.
+Run: `grep -rn "GROVE_CLAUDE_PID" src/ content/ tests/ docs/ README.md`
+Expected: exactly two functional survivors — the compat co-export in `src/loop_driver.rs` (wrapper string) and the fallback read in `src/complete.rs` (plus their compat comments and the compat test in `tests/complete.rs`) — plus the dated research artifact `docs/research/cross-family-review-providers.md`. Anything else: fix it. (`docs/` was a structural blind spot in an earlier verification pass — see `review-fix-docs-k19`.)
 
 Run: `grep -rn "fresh foreground \`claude\`" src/ content/`
 Expected: no matches.
@@ -1368,15 +1378,23 @@ selection becomes harness-scoped — the shape needed to drive two harnesses
   plain `grove do`.
 ```
 
-- [ ] **Step 2: Full verification**
+- [x] **Step 1: Write the changelog entry**
+
+- [x] **Step 2: Full verification**
 
 Run: `cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test`
 Expected: all clean/PASS. Fix anything surfaced before committing.
 
-- [ ] **Step 3: Commit**
+Clippy (current toolchain) surfaced 5 pre-existing lints unrelated to the
+changelog — a doc-comment indentation nit in `src/leaf_id.rs`, plus four
+`sort_by` closures in `src/tree_grow.rs`, `src/tree_lifecycle.rs`, and
+`src/tree_read.rs` clippy now prefers as `sort_by_key`. Fixed inline (same
+commit) so `-D warnings` stays clean; no behaviour change.
+
+- [x] **Step 3: Commit**
 
 ```bash
-git add CHANGELOG.md
+git add CHANGELOG.md src/leaf_id.rs src/tree_grow.rs src/tree_lifecycle.rs src/tree_read.rs
 git commit -m "docs: cut the v12.0.0 changelog entry"
 ```
 
@@ -1385,17 +1403,25 @@ git commit -m "docs: cut the v12.0.0 changelog entry"
 ### Task 9: Codex profiles (user config)
 
 **Files:**
-- Modify: `~/.codex/config.toml` (append; do NOT touch existing keys)
+- Create: `~/.codex/sol-xhigh.config.toml`
+- Create: `~/.codex/sol-high.config.toml`
 
-- [ ] **Step 1: Append the profile blocks**
+This codex build's `--profile <name>` (`CONFIG_PROFILE_V2`) layers
+`$CODEX_HOME/<name>.config.toml` on top of the base `config.toml` — it no
+longer reads `[profiles.<name>]` tables from `config.toml` and errors out if
+one is present (`codex exec --help` documents the current mechanism; treat it
+as authoritative over this plan). Do not touch `config.toml`.
 
+- [ ] **Step 1: Write the profile files**
+
+`~/.codex/sol-xhigh.config.toml`:
 ```toml
-
-[profiles.sol-xhigh]
 model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
+```
 
-[profiles.sol-high]
+`~/.codex/sol-high.config.toml`:
+```toml
 model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 ```
@@ -1405,7 +1431,9 @@ model_reasoning_effort = "high"
 Run: `codex exec --profile sol-high "Reply with exactly: profile-ok" 2>&1 | tail -5`
 Expected: output containing `profile-ok` (sub-billed, no API-key errors).
 Run the same for `--profile sol-xhigh`.
-If `codex exec` rejects `--profile`, check `codex exec --help` for the current flag spelling and record any deviation in the trial notes — the grove env values must match whatever codex accepts.
+If `codex exec` rejects `--profile` differently than described above, check
+`codex exec --help` for the current mechanism and record any deviation in the
+trial notes — the grove env values must match whatever codex accepts.
 
 ---
 
@@ -1414,24 +1442,74 @@ If `codex exec` rejects `--profile`, check `codex exec --help` for the current f
 **Files:**
 - Modify: pi settings via `pi install` (no manual file edits)
 
-- [ ] **Step 1: Install the provider package**
+- [x] **Step 1: Install the provider package**
 
 Run: `pi install npm:pi-provider-kimi-code`
 Expected: install success. (If the source spec differs, follow https://github.com/Leechael/pi-provider-kimi-code README — it documents the exact `pi install` source and required env vars.)
 
-- [ ] **Step 2: Configure the Kimi Code API key**
+- [x] **Step 2: Authenticate against the Kimi Code Plan subscription**
 
-Per the package README, export the key it expects (from kimi.com → Kimi Code API key) in `~/.zshenv`, e.g. `export KIMI_CODE_API_KEY=sk-...` — use the README's exact variable name.
+DEVIATION (found 2026-07-18): the package has no `KIMI_CODE_API_KEY` env var.
+Its README documents two distinct auth paths, and only one bills the
+subscription:
 
-- [ ] **Step 3: Discover the exact model id**
+- `/login kimi-coding` — interactive OAuth device-code flow inside pi,
+  reusing the Kimi Code Plan the human is subscribed to on kimi.com. This is
+  the sub-billed path the trial needs.
+- `KIMI_API_KEY` — a static platform API key. The README labels this
+  explicitly "for CI or pay-per-token use" — separate, metered billing, not
+  the flat-rate subscription. Wrong for this trial's goal.
+
+So: the human runs `pi` interactively (e.g. `! pi` from a Claude Code
+session) and executes `/login kimi-coding`, completing the browser
+device-code flow against their kimi.com account. This is HITL — no
+`~/.zshenv` edit and no headless equivalent; pi persists the resulting
+credential at `~/.pi/agent/auth.json` (and syncs it to
+`~/.kimi-code/credentials/kimi-code.json` if that dir exists).
+
+- [x] **Step 3: Discover the exact model id**
 
 Run: `pi --list-models kimi`
-Expected: the provider's K3 entry, e.g. `kimi-code/k3`. **Record the exact id — Task 11 uses it verbatim.**
+Expected: the provider's K3 entry. **Confirmed 2026-07-18 (static catalog,
+resolves pre-login): `kimi-coding/k3`** — not `kimi-code/k3` as originally
+guessed; the provider name the package registers is `kimi-coding`, matching
+its existing `/login kimi-coding` command and its three published IDs
+(`kimi-coding/kimi-for-coding`, `kimi-coding/kimi-for-coding-highspeed`,
+`kimi-coding/k3`). **Task 11/12 use `kimi-coding/k3` verbatim.**
 
-- [ ] **Step 4: Live round-trip on the sub**
+- [x] **Step 4: Live round-trip on the sub**
 
-Run: `pi -p --model <recorded-id> "Reply with exactly: kimi-ok"`
-Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com usage dashboard shows the call). If the endpoint rejects pi, set the protocol env the README documents (`KIMI_CODE_PROTOCOL=anthropic`) and retry; if it still fails, STOP and report — the fallback (Kimi CLI as reviewer shell) is a design change requiring sign-off.
+Run: `pi -p --model kimi-coding/k3 "Reply with exactly: kimi-ok"`
+Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com
+usage dashboard shows the call). If the endpoint rejects pi, set the protocol
+env the README documents (`KIMI_CODE_PROTOCOL=anthropic`) and retry; if it
+still fails, STOP and report — the fallback (Kimi CLI as reviewer shell) is a
+design change requiring sign-off.
+
+DEVIATION (found 2026-07-18): `pi --list-models kimi` post-login lists only
+`kimi-for-coding`, not `k3`, and a request against `kimi-coding/k3` warns
+`Model "k3" not found for provider "kimi-coding". Using custom model id.`
+This is a mismatch inside `pi-provider-kimi-code`, not a real access
+problem: the extension gates a model two ways — a membership-rank check
+(`isKimiModelAvailableForMembership`, which for `LEVEL_STANDARD`/Moderato
+correctly allows K3), and a separate intersection against whatever
+`/v1/models` returns from Kimi's API at login (this account's response
+apparently omits `k3` from that listing, even though the account's
+kimi.com dashboard confirms Moderato + K3 available). The listing gap does
+not block the request: passed explicitly, `k3` goes through as a raw model
+id and the completions endpoint served a real, coherent reply with real
+token/cost usage tagged `model: k3` in the pi session transcript — no
+`KIMI_API_KEY` was set, so this was OAuth-subscription-billed. Confirmed via
+the kimi.com usage dashboard (human check, 2026-07-18): both round-trip
+calls made during this task appear there.
+
+Also confirmed: Moderato caps K3's context window at 256K
+(`KIMI_K3_MODERATO_CONTEXT_WINDOW`, applied by
+`applyKimiMembershipLimitsToModel` below the Allegretto rank) — expected,
+documented behavior (README: "Moderato: 256K context; Allegretto and above:
+up to 1M"), not a defect. Worth keeping in mind for the trial (K3 sessions
+on the pi side of the trial cap out around Claude's own ~200K, well short of
+codex/sol's context), but not a blocker for this task.
 
 ---
 
@@ -1440,9 +1518,9 @@ Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com us
 **Files:**
 - Modify: `~/.zshenv:5-9` (the five `GROVE_*_MODEL` lines)
 
-- [ ] **Step 1: Replace the grove model block**
+- [x] **Step 1: Replace the grove model block**
 
-Delete lines 5-9 (`GROVE_PLANNING_MODEL=fable` … `GROVE_REVIEW_MODEL=opus`) and insert, using the model id recorded in Task 10 step 3 wherever `kimi-code/k3` appears:
+Delete lines 5-9 (`GROVE_PLANNING_MODEL=fable` … `GROVE_REVIEW_MODEL=opus`) and insert, using the model id confirmed in Task 10 step 3 (`kimi-coding/k3`):
 
 ```sh
 # grove model routing — codex+sol vs pi+K3 trial (2026-07)
@@ -1450,18 +1528,18 @@ export GROVE_CODEX_PLANNING_MODEL=sol-xhigh
 export GROVE_CODEX_RESEARCH_MODEL=sol-xhigh
 export GROVE_CODEX_PROTOTYPE_MODEL=sol-high
 export GROVE_CODEX_WORK_MODEL=sol-high
-export GROVE_PI_PLANNING_MODEL=kimi-code/k3
-export GROVE_PI_RESEARCH_MODEL=kimi-code/k3
-export GROVE_PI_PROTOTYPE_MODEL=kimi-code/k3
-export GROVE_PI_WORK_MODEL=kimi-code/k3
-export GROVE_PI_REVIEW_MODEL=kimi-code/k3
+export GROVE_PI_PLANNING_MODEL=kimi-coding/k3
+export GROVE_PI_RESEARCH_MODEL=kimi-coding/k3
+export GROVE_PI_PROTOTYPE_MODEL=kimi-coding/k3
+export GROVE_PI_WORK_MODEL=kimi-coding/k3
+export GROVE_PI_REVIEW_MODEL=kimi-coding/k3
 export GROVE_REVIEW_HARNESS=pi
 ```
 
-- [ ] **Step 2: Verify in a fresh shell**
+- [x] **Step 2: Verify in a fresh shell**
 
 Run: `zsh -c 'env | grep GROVE_ | sort'`
-Expected: exactly the ten vars above (plus any `KIMI_CODE_*` from Task 10); no `GROVE_PLANNING_MODEL=fable` survivors.
+Expected: exactly the ten vars above; no `GROVE_PLANNING_MODEL=fable` survivors. (No `KIMI_CODE_*`/`KIMI_API_KEY` line — Task 10 step 2 authenticates via OAuth login, not an env var.)
 
 ---
 
@@ -1473,7 +1551,7 @@ Expected: exactly the ten vars above (plus any `KIMI_CODE_*` from Task 10); no `
 
 Commit in `~/Development/skills` ONLY — never in `~/.claude/plugins/marketplaces/` (disposable mirror).
 
-- [ ] **Step 1: Write the reference**
+- [x] **Step 1: Write the reference**
 
 `references/harness-spawns.md`:
 
@@ -1489,7 +1567,7 @@ self-review cannot.
 
 Spawn pi headless in the worktree; it can read files and run commands:
 
-    pi -p --model kimi-code/k3 "<adversarial review prompt>"
+    pi -p --model kimi-coding/k3 "<adversarial review prompt>"
 
 pi persists the session, so a finding worth interrogating can be resumed
 interactively afterwards (`pi --resume`).
@@ -1507,10 +1585,11 @@ Use a fresh Task subagent (built-in), or either spawn above for a
 cross-model read.
 
 Model ids/profiles here match the grove trial config (~/.zshenv,
-~/.codex/config.toml); update this file if those move.
+~/.codex/sol-xhigh.config.toml, ~/.codex/sol-high.config.toml); update this
+file if those move.
 ```
 
-- [ ] **Step 2: Add the SKILL.md pointer**
+- [x] **Step 2: Add the SKILL.md pointer**
 
 After the paragraph ending "The core that transfers is the *discipline*, not" (its sentence completes around line 25), append on a new paragraph:
 
@@ -1519,7 +1598,7 @@ Harness-specific spawn commands (codex ↔ pi ↔ claude, cross-model):
 see `references/harness-spawns.md`.
 ```
 
-- [ ] **Step 3: Commit (in the skills repo)**
+- [x] **Step 3: Commit (in the skills repo)**
 
 ```bash
 cd ~/Development/skills

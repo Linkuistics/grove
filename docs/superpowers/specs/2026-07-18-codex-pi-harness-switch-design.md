@@ -1,7 +1,8 @@
 # Codex/Pi harness switch — design
 
 **Date:** 2026-07-18
-**Status:** approved (design); implementation pending
+**Status:** live — shipped in grove v12.0.0; trial running 2026-07-18 to
+~2026-08-18
 
 ## Context and goals
 
@@ -110,8 +111,13 @@ Resolved per picked leaf, per iteration:
   harness's exec_bin/args are used for the launch instead of the stamped one.
   Unknown name → hard error naming the variable and known harnesses.
 - **Per-harness model env**: model resolution for kind K on harness H checks
-  `GROVE_<H>_<K>_MODEL` before `GROVE_<K>_MODEL`. Resolution runs against the
-  post-override harness, so the seams compose.
+  `GROVE_<H>_<K>_MODEL` before `GROVE_<K>_MODEL` — but the base var only
+  applies when H is the *stamped* harness. A per-kind override that reroutes
+  to a different harness skips the base var entirely: it was written with the
+  stamped harness in mind (a codex profile name is garbage to pi and vice
+  versa), so it must not follow the leaf across a reroute. With no scoped var
+  set, a rerouted leaf launches with no `--model` flag at all. Resolution
+  runs against the post-override harness, so the seams compose.
 - **`GROVE_CLAUDE_PID` → `GROVE_HARNESS_PID`**: required for namespace
   coherence with the new `GROVE_<H>_*` scheme. The wrapper exports both for
   one release; readers (`complete.rs`, `llm_cli.rs`) try new-then-old.
@@ -163,9 +169,11 @@ export GROVE_REVIEW_HARNESS=pi
 Bare `GROVE_*_MODEL` vars are removed (unset → grove skips the model flag →
 harness default, existing semantics).
 
-`~/.codex/config.toml` — add `[profiles.sol-xhigh]` and `[profiles.sol-high]`
-binding `model = "gpt-5.6-sol"` + `model_reasoning_effort`. Top-level
-defaults untouched.
+`~/.codex/sol-xhigh.config.toml` and `~/.codex/sol-high.config.toml` — one
+file per profile (this codex build's `--profile` layers
+`$CODEX_HOME/<name>.config.toml`, not a `[profiles.<name>]` table in
+`config.toml`), each binding `model = "gpt-5.6-sol"` +
+`model_reasoning_effort`. `config.toml` untouched.
 
 Pi — install `pi-provider-kimi-code`, set its API key env (and
 `KIMI_CODE_PROTOCOL` if needed); one live round-trip before any grove is
@@ -196,6 +204,14 @@ disposable).
 8. Cancel Anthropic (`~/.claude/` stays on disk; grove's claude harness entry
    remains for other users).
 9. Month trial → flip losing stamps → cancel losing sub.
+
+## Trial log
+
+- **2026-07-18** — grove v12.0.0 released; codex-side and pi-side groves
+  stamped. Trial clock starts here. Compare quality, quota pressure, and
+  wall-clock across sides through the end date below.
+- **Trial end: ~2026-08-18.** At that point, flip the losing side's stamps
+  to the winner and cancel the losing subscription.
 
 ## Error handling
 

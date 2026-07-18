@@ -1,7 +1,7 @@
 // The self-driving loop — grove's runtime (self-driving-loop).
 //
 // `grove do` drives the *whole loop*, not one task: it launches a fresh
-// foreground `claude` per grove task, and relaunches with fresh context each
+// foreground harness session per grove task, and relaunches with fresh context each
 // time the agent fires the completion signal (`grove-llm complete`). Any other
 // exit — human `/exit`/Ctrl-C, or a crash — stops the loop, resumable later by
 // re-running `grove do` from the same working tree (restart ≡ continuation, the
@@ -25,7 +25,7 @@
 //       esac
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" \
-//         sh -c 'export GROVE_CLAUDE_PID=$$; exec claude "$@"' sh "$@"
+//         sh -c 'export GROVE_HARNESS_PID=$$; exec "$harness_bin" "$@"' sh "$@"
 //       stty sane 2>/dev/null
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
@@ -106,18 +106,23 @@ pub fn run_loop(
         } else {
             "start"
         };
-        let prompt = crate::launch::load_prompt(verb)?;
 
-        // Pick the launch model by the picked leaf's kind (model-per-task-kind);
-        // `None` ⇒ no `--model`, so the session inherits the user's own default.
-        let model = select_model(harness, worktree, verb);
+        // Route the launch by the picked leaf's kind: per-kind harness
+        // override first (GROVE_<KIND>_HARNESS), then model-per-task-kind
+        // against whichever harness actually launches. Resolved *before*
+        // loading the prompt (B7): the prompt must come from the harness that
+        // actually launches, not the stamped one — reading it first would
+        // silently serve the wrong harness's copy whenever a reroute happens.
+        let (launch_harness, model, rerouted) = resolve_launch(harness, worktree, verb)?;
+        let prompt = crate::launch::load_prompt(launch_harness, verb)?;
 
         launch_session(
-            harness,
+            launch_harness,
             worktree,
             &session_name,
             &prompt,
             &signal_file,
+            rerouted,
             model.as_deref(),
         )?;
 
@@ -148,24 +153,42 @@ pub fn run_loop(
     }
 }
 
-/// Launch one fresh foreground `claude` owning the real TTY. The
-/// `sh -c 'export GROVE_CLAUDE_PID=$$; exec "$@"'` wrapper hands the agent
-/// `claude`'s own PID: `exec` preserves the PID, so `$$` (captured before exec)
-/// is the final `claude` PID, inherited by the agent's Bash tool. `GROVE_HARNESS_BIN`
+/// Launch one fresh foreground harness session owning the real TTY. The
+/// `sh -c 'export GROVE_HARNESS_PID=$$; exec "$@"'` wrapper hands the agent
+/// the harness session's own PID: `exec` preserves the PID, so `$$` (captured
+/// before exec) is the final harness PID, inherited by the agent's Bash tool
+/// (`GROVE_CLAUDE_PID` is co-exported for one release). `GROVE_HARNESS_BIN`
 /// overrides the binary (testing / wrapping `claude`).
+///
+/// `rerouted` says whether `harness` differs from the grove's stamped one
+/// (a per-kind `GROVE_<KIND>_HARNESS` override fired) — threaded through to
+/// [`harness_bin`], which must not let the legacy unscoped `GROVE_HARNESS_BIN`
+/// leak into a rerouted launch (B5).
+///
+/// Prints one diagnostic line naming the resolved `(harness, model)` on every
+/// launch, routed or not: the trial's central invariant ("K3 reviews
+/// everywhere") is otherwise unobservable at runtime, and a typo in a var
+/// *name* (e.g. `GROVE_REVIEWS_HARNESS`) would silently produce zero routing
+/// effect for a whole month with nothing to notice.
 fn launch_session(
     harness: &Harness,
     worktree: &Path,
     session_name: &str,
     prompt: &str,
     signal_file: &Path,
+    rerouted: bool,
     model: Option<&str>,
 ) -> Result<()> {
-    let bin = std::env::var("GROVE_HARNESS_BIN").unwrap_or_else(|_| harness.exec_bin.to_string());
+    let bin = harness_bin(harness, rerouted);
+    eprintln!(
+        "grove: launching {} (model: {})",
+        harness.name,
+        model.unwrap_or("default")
+    );
 
     let mut cmd = Command::new("sh");
     cmd.arg("-c")
-        .arg(r#"export GROVE_CLAUDE_PID=$$; exec "$@""#)
+        .arg(r#"export GROVE_HARNESS_PID=$$ GROVE_CLAUDE_PID=$$; exec "$@""#)
         .arg("sh") // $0 for the inner shell
         .arg(&bin); // $1 = the harness binary
     if !harness.name_args.is_empty() {
@@ -190,74 +213,208 @@ fn launch_session(
     Ok(())
 }
 
-/// Choose the launch model for the next session by the picked leaf's **kind**
-/// (model-per-task-kind). Returns the model string for `--model`, or `None` to
-/// launch on the user's own default (no `--model` at all).
-///
-/// The load-bearing rule: a kind whose env var is **unset** yields `None`, so
-/// grove never clobbers a user's `ANTHROPIC_MODEL`/settings default — it opts in
-/// per kind. When neither env var is set (the common case) this returns `None`
-/// with no `grove-llm` call, so the launch is byte-for-byte the pre-feature one.
-///
-/// Kind resolution mirrors the loop's start/continue split:
-///   * `start` — a brand-new grove whose first leaf is planning by construction
-///     (fresh-grove-start-contract), so no peek is needed.
-///   * `continue` — peek the next live leaf's kind via `grove-llm kind`. This is
-///     a driver-side `pick` peek: within one iteration it resolves the *same*
-///     leaf the launched agent will pick (deterministic pick over the same
-///     tree), so the read-then-launch window is a non-issue.
-fn select_model(harness: &Harness, worktree: &Path, verb: &str) -> Option<String> {
-    // A harness with no model-flag template opts out entirely (codex today).
-    if harness.model_args.is_empty() {
-        return None;
+/// The binary to exec for a harness: `GROVE_HARNESS_BIN_<NAME>` (the
+/// per-harness test seam — kind routing can launch two different harnesses in
+/// one loop) always wins. The legacy unscoped `GROVE_HARNESS_BIN` beats
+/// `exec_bin` only when `harness` is the one the grove is stamped to
+/// (`!rerouted`) — once a per-kind override reroutes to a *different*
+/// harness, a single global bin override is incoherent (B5: it would exec the
+/// stamped harness's wrapper under the rerouted harness's flag template), so
+/// a reroute falls straight to `exec_bin` instead. Both env seams treat `""`
+/// as unset via [`env_nonempty`], like every other var in this file.
+fn harness_bin(harness: &Harness, rerouted: bool) -> String {
+    let scoped = env_nonempty(&format!(
+        "GROVE_HARNESS_BIN_{}",
+        harness.name.to_uppercase()
+    ));
+    if rerouted {
+        return scoped.unwrap_or_else(|| harness.exec_bin.to_string());
     }
-    let planning = env_model("GROVE_PLANNING_MODEL");
-    let research = env_model("GROVE_RESEARCH_MODEL");
-    let prototype = env_model("GROVE_PROTOTYPE_MODEL");
-    let work = env_model("GROVE_WORK_MODEL");
-    let review = env_model("GROVE_REVIEW_MODEL");
-    // None of the five kinds configured ⇒ nothing to select; skip the kind peek
-    // so the common path stays a zero-subprocess, byte-for-byte-unchanged launch.
-    if planning.is_none()
-        && research.is_none()
-        && prototype.is_none()
-        && work.is_none()
-        && review.is_none()
-    {
-        return None;
-    }
-    let kind = if verb == "start" {
-        Kind::Planning
-    } else {
-        resolve_kind(worktree)?
-    };
+    scoped
+        .or_else(|| env_nonempty("GROVE_HARNESS_BIN"))
+        .unwrap_or_else(|| harness.exec_bin.to_string())
+}
+
+/// Env-name suffixes for the five kinds, in taxonomy order. Shared by the
+/// model lookup and (task-routing) the harness override.
+const KIND_SUFFIXES: [&str; 5] = ["PLANNING", "RESEARCH", "PROTOTYPE", "WORK", "REVIEW"];
+
+fn env_suffix(kind: Kind) -> &'static str {
     match kind {
-        Kind::Planning => planning,
-        Kind::Research => research,
-        Kind::Prototype => prototype,
-        Kind::Work => work,
-        Kind::Review => review,
+        Kind::Planning => "PLANNING",
+        Kind::Research => "RESEARCH",
+        Kind::Prototype => "PROTOTYPE",
+        Kind::Work => "WORK",
+        Kind::Review => "REVIEW",
     }
 }
 
-/// Read a model env var, treating empty as unset.
-fn env_model(var: &str) -> Option<String> {
+/// The model value for a kind on a harness: the harness-scoped var
+/// (`GROVE_<HARNESS>_<KIND>_MODEL`) beats the base (`GROVE_<KIND>_MODEL`) —
+/// but only when `harness` is the one the grove is stamped to (`!rerouted`).
+/// Scoped because one shared value cannot serve two harnesses — a codex
+/// profile name is garbage to pi and vice versa (B2) — and that is exactly
+/// what a reroute puts at risk: the base var was written with *some* harness
+/// in mind (typically the stamped one), so once a per-kind override sends
+/// this kind to a *different* harness, the base var must not follow it there.
+/// A rerouted launch with no scoped var set gets no `--model` at all, never
+/// the base var's value.
+fn model_for(harness: &Harness, kind: Kind, rerouted: bool) -> Option<String> {
+    let h = harness.name.to_uppercase();
+    let s = env_suffix(kind);
+    let scoped = env_nonempty(&format!("GROVE_{h}_{s}_MODEL"));
+    if rerouted {
+        return scoped;
+    }
+    scoped.or_else(|| env_nonempty(&format!("GROVE_{s}_MODEL")))
+}
+
+/// Whether any model env var (scoped-to-this-harness or base) is set — the
+/// gate that keeps the common unconfigured path a zero-subprocess launch.
+fn any_model_env(harness: &Harness) -> bool {
+    let h = harness.name.to_uppercase();
+    KIND_SUFFIXES.iter().any(|s| {
+        env_nonempty(&format!("GROVE_{h}_{s}_MODEL")).is_some()
+            || env_nonempty(&format!("GROVE_{s}_MODEL")).is_some()
+    })
+}
+
+/// Validate and resolve one `GROVE_<SUFFIX>_HARNESS` var. Shared by
+/// `harness_override` (the picked kind's var, used to route) and
+/// `validate_all_harness_overrides` (every kind's var, used only to fail
+/// loudly on a typo). Unknown names fail loudly — a typo that silently fell
+/// back would misroute every review.
+fn checked_harness_override(suffix: &str) -> Result<Option<&'static Harness>> {
+    let var = format!("GROVE_{suffix}_HARNESS");
+    let Some(name) = env_nonempty(&var) else {
+        return Ok(None);
+    };
+    crate::harness::by_name(&name).map(Some).ok_or_else(|| {
+        anyhow::anyhow!(
+            "{var}={name}: unknown harness. Known: {}",
+            crate::harness::known_names()
+        )
+    })
+}
+
+/// The per-kind harness override: `GROVE_<KIND>_HARNESS` names the harness
+/// that runs leaves of that kind, whatever the grove is stamped to (the
+/// trial's "K3 reviews everywhere": GROVE_REVIEW_HARNESS=pi).
+fn harness_override(kind: Kind) -> Result<Option<&'static Harness>> {
+    checked_harness_override(env_suffix(kind))
+}
+
+/// Whether any per-kind harness override is set — like `any_model_env`, the
+/// gate that decides whether the kind peek is worth a subprocess.
+fn any_harness_override_env() -> bool {
+    KIND_SUFFIXES
+        .iter()
+        .any(|s| env_nonempty(&format!("GROVE_{s}_HARNESS")).is_some())
+}
+
+/// Validate every `GROVE_<KIND>_HARNESS` override up front, not just the
+/// picked leaf's kind — a typo in a var for a *different* kind (e.g.
+/// `GROVE_PLANNING_HARNESS=lemur` while today's leaf is `work`) would
+/// otherwise pass silently and only surface hours later, once a planning leaf
+/// is finally picked. `any_harness_override_env` already sweeps all five
+/// suffixes to decide whether routing applies at all, so validating them here
+/// too is nearly free.
+fn validate_all_harness_overrides() -> Result<()> {
+    for suffix in KIND_SUFFIXES {
+        checked_harness_override(suffix)?;
+    }
+    Ok(())
+}
+
+/// Resolve where and on what the next session launches: peek the picked
+/// leaf's kind (only when some routing env makes it matter), apply the
+/// per-kind harness override, then resolve the model against the
+/// *post-override* harness — so `GROVE_PI_REVIEW_MODEL` governs a review
+/// rerouted to pi, not the stamped harness's vars. Returns whether a reroute
+/// happened (`launch` differs from `stamped`), threaded through to
+/// `harness_bin`/`model_for` so neither lets a stamped-harness-scoped
+/// fallback leak into the rerouted launch.
+fn resolve_launch(
+    stamped: &'static Harness,
+    worktree: &Path,
+    verb: &str,
+) -> Result<(&'static Harness, Option<String>, bool)> {
+    if !any_harness_override_env() && !any_model_env(stamped) {
+        return Ok((stamped, None, false));
+    }
+    validate_all_harness_overrides()?;
+    let kind = if verb == "start" {
+        KindPeek::Kind(Kind::Planning)
+    } else {
+        resolve_kind(worktree)
+    };
+    let kind = match kind {
+        KindPeek::Kind(k) => k,
+        // Empty grove (no live leaf — the finish-cycle iteration): no leaf to
+        // route, silently launch on the stamped harness. Legitimately nothing
+        // to select on, unlike a degraded peek below.
+        KindPeek::Empty => return Ok((stamped, None, false)),
+        // The peek itself failed (missing grove-llm, non-zero exit,
+        // unparseable output) — genuinely unknown, not "nothing to route".
+        // With a harness override active, silently launching on the stamped
+        // harness would be exactly the silent misroute `harness_override`'s
+        // unknown-name case already refuses (B6) — so refuse here too rather
+        // than possibly running e.g. a review on the harness it was routed
+        // *away* from. Model-only configs (no harness override) still
+        // degrade gracefully: a missing model selection is a nicety, not a
+        // routing-safety issue.
+        KindPeek::Degraded => {
+            if any_harness_override_env() {
+                anyhow::bail!(
+                    "grove: the next leaf's kind could not be determined (see the \
+                     diagnostic above), and a per-kind harness override \
+                     (GROVE_<KIND>_HARNESS) is configured — refusing to silently \
+                     launch on the stamped harness, which could run this leaf on \
+                     the wrong harness for the whole iteration. Fix `grove-llm kind` \
+                     and re-run."
+                );
+            }
+            return Ok((stamped, None, false));
+        }
+    };
+    let launch = harness_override(kind)?.unwrap_or(stamped);
+    let rerouted = launch.name != stamped.name;
+    let model = if launch.model_args.is_empty() {
+        None
+    } else {
+        model_for(launch, kind, rerouted)
+    };
+    Ok((launch, model, rerouted))
+}
+
+/// Read an env var, treating an empty string as unset — the convention every
+/// env seam in this file follows (`GROVE_HARNESS_BIN` was the one holdout,
+/// B5).
+fn env_nonempty(var: &str) -> Option<String> {
     std::env::var(var).ok().filter(|s| !s.is_empty())
+}
+
+/// The outcome of peeking the next live leaf's kind — three genuinely
+/// different situations `resolve_launch` must not conflate (B6): `Empty` has
+/// no leaf to route *on purpose* (the finish-cycle iteration), while
+/// `Degraded` means the peek itself failed and the kind is simply unknown. A
+/// harness override active during `Degraded` cannot be silently honoured
+/// *or* silently dropped by guessing — `resolve_launch` refuses instead.
+enum KindPeek {
+    Kind(Kind),
+    Empty,
+    Degraded,
 }
 
 /// Peek the next live leaf's kind by running `grove-llm kind` against the
 /// worktree — the same verb (and code path) the launched agent would call.
-/// Model selection is an enhancement, never a reason to jam the loop, so any
-/// failure (binary missing, non-zero exit, unparseable output) degrades to
-/// `None` (launch on the default) with a diagnostic. An empty grove (no live
-/// leaf — the finish-cycle iteration) also yields `None`, silently: with no leaf
-/// there is no kind to key a model on.
-///
-/// Every degrade is **loud**, and that is the point: an unrecognised kind is
-/// treated as `work` (task-kind-taxonomy), which is typically the cheapest model,
-/// so a swallowed warning reads as a silent downgrade. The child's stderr is
-/// inherited, not captured — see the note on the spawn below.
-fn resolve_kind(worktree: &Path) -> Option<Kind> {
+/// Never a reason to jam the loop on its own, so any failure (binary missing,
+/// non-zero exit, unparseable output) yields [`KindPeek::Degraded`] with a
+/// diagnostic, rather than erroring here — `resolve_launch` decides what a
+/// degrade means (silently default, or refuse) since only it knows whether a
+/// harness override is at stake. The child's stderr is inherited, not
+/// captured — see the note on the spawn below.
+fn resolve_kind(worktree: &Path) -> KindPeek {
     let out = Command::new(grove_llm_bin())
         .arg("kind")
         .current_dir(worktree)
@@ -274,30 +431,27 @@ fn resolve_kind(worktree: &Path) -> Option<Kind> {
             let token = String::from_utf8_lossy(&o.stdout);
             let token = token.trim();
             if token.is_empty() {
-                return None; // empty grove: no kind to select on
+                return KindPeek::Empty; // empty grove: no kind to select on
             }
             match Kind::parse(token) {
-                Ok(k) => Some(k),
+                Ok(k) => KindPeek::Kind(k),
                 Err(_) => {
-                    eprintln!(
-                        "grove: unrecognized task kind {token:?} from `grove-llm kind`; \
-                         launching on the default model"
-                    );
-                    None
+                    // Not expected from a real `grove-llm kind` (it self-degrades
+                    // unparseable task-file tokens to `work` before printing) —
+                    // this guards against a mismatched/stale `grove-llm` binary.
+                    eprintln!("grove: unrecognized task kind {token:?} from `grove-llm kind`");
+                    KindPeek::Degraded
                 }
             }
         }
         Ok(_) => {
             // The child's own diagnostic already reached stderr (inherited above).
-            eprintln!("grove: `grove-llm kind` failed; launching on the default model");
-            None
+            eprintln!("grove: `grove-llm kind` failed");
+            KindPeek::Degraded
         }
         Err(e) => {
-            eprintln!(
-                "grove: could not run grove-llm for model selection ({e}); \
-                 launching on the default model"
-            );
-            None
+            eprintln!("grove: could not run grove-llm for model/harness selection ({e})");
+            KindPeek::Degraded
         }
     }
 }

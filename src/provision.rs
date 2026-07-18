@@ -11,6 +11,7 @@
 //! not the crate version — is the stamp, so even an edit at the same version
 //! (the dogfooding case) re-provisions.
 
+use crate::harness::{Harness, HARNESSES};
 use anyhow::{Context, Result};
 use include_dir::{include_dir, Dir, DirEntry};
 use sha2::{Digest, Sha256};
@@ -27,15 +28,72 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
-/// Provision the global skill into `~/.claude/skills/grove/` (idempotent),
-/// logging only when it actually (re)writes. This is the `grove do` provisioning
-/// point — the entry the human always hits (task-tree-scheme).
-pub fn provision_global_skill() -> Result<()> {
-    let dest = global_skill_dir()?;
-    if provision_into(&dest)? {
-        eprintln!("grove: provisioned the global skill at {}", dest.display());
+/// Provision the embedded methodology for every harness on this machine:
+/// `primary` (the harness about to launch) unconditionally, plus every other
+/// harness whose home root (`~/.claude`, `~/.codex`, `~/.pi`) exists. Logging
+/// only when a target actually (re)writes. With `$GROVE_SKILL_DIR` set (the
+/// test/dev seam) the sweep collapses to that single dir.
+///
+/// The primary provisions first and its failure still bails — the contract's
+/// "refuse a foreign dir" applies in full to the harness actually about to
+/// launch. Every other harness is best-effort: a foreign dir under an
+/// unrelated harness is reported on stderr and skipped, never propagated, so
+/// one harness's directory state can never block another's launch (B9).
+pub fn provision_all(primary: &'static Harness) -> Result<()> {
+    if std::env::var_os("GROVE_SKILL_DIR").is_some() {
+        let dest = skill_dir_for(primary)?; // the override wins inside
+        if provision_target(&dest)? {
+            eprintln!("grove: provisioned the skill at {}", dest.display());
+        }
+        return Ok(());
+    }
+    let home = home_dir()?;
+
+    let primary_dest = home.join(primary.skills_dir).join("grove");
+    if provision_target(&primary_dest)? {
+        eprintln!(
+            "grove: provisioned the {} skill at {}",
+            primary.name,
+            primary_dest.display()
+        );
+    }
+
+    for h in HARNESSES {
+        if h.name == primary.name || !home.join(h.project_dir).is_dir() {
+            continue; // the primary is already handled; an absent root is skipped, never created
+        }
+        let dest = home.join(h.skills_dir).join("grove");
+        match provision_target(&dest) {
+            Ok(true) => eprintln!(
+                "grove: provisioned the {} skill at {}",
+                h.name,
+                dest.display()
+            ),
+            Ok(false) => {}
+            Err(e) => eprintln!(
+                "grove: skipping the {} skill at {} — {:#}",
+                h.name,
+                dest.display(),
+                e
+            ),
+        }
     }
     Ok(())
+}
+
+/// A harness's global skill dir: `$GROVE_SKILL_DIR` override (test/dev seam),
+/// else `$HOME/<harness.skills_dir>/grove`.
+pub fn skill_dir_for(harness: &Harness) -> Result<PathBuf> {
+    if let Some(dir) = std::env::var_os("GROVE_SKILL_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
+    Ok(home_dir()?.join(harness.skills_dir).join("grove"))
+}
+
+fn home_dir() -> Result<PathBuf> {
+    let home = std::env::var_os("HOME")
+        .ok_or_else(|| anyhow::anyhow!("$HOME is not set; cannot locate the global skill dirs"))?;
+    Ok(PathBuf::from(home))
 }
 
 /// Idempotently extract the embedded methodology into `dest`. Returns whether it
@@ -49,29 +107,50 @@ pub fn provision_into(dest: &Path) -> Result<bool> {
     })
 }
 
-/// The global personal skill dir Claude Code reads live. `$GROVE_SKILL_DIR`
-/// overrides it (a test/dev seam, mirroring `GROVE_HARNESS_BIN`); otherwise it
-/// is `$HOME/.claude/skills/grove`.
-pub fn global_skill_dir() -> Result<PathBuf> {
-    if let Some(dir) = std::env::var_os("GROVE_SKILL_DIR") {
-        return Ok(PathBuf::from(dir));
+/// Guarded single-target provisioning. Replaces `dest` only when it is ours
+/// to replace: a symlink (today's cross-harness link farm — removed as a
+/// *link*, never through it), a grove-provisioned dir (stamp present), or
+/// absent/empty. Anything else is someone's real content: bail.
+pub fn provision_target(dest: &Path) -> Result<bool> {
+    if let Ok(meta) = std::fs::symlink_metadata(dest) {
+        if meta.file_type().is_symlink() {
+            // Unlink explicitly rather than falling through to
+            // `provision_into`: `sync_to_stamp` treats a matching stamp as
+            // warm-and-done, and a symlink's target (today's cross-harness
+            // link farm) is almost always already stamped — so without this
+            // the symlink would never be replaced. (`remove_dir_all` would
+            // also be safe here: it `lstat`s a top-level symlink argument and
+            // unlinks rather than recursing, on every platform grove ships
+            // for — stable since 1.0.0, see its docs' TOCTOU section — so
+            // this unlink isn't working around a symlink-following footgun,
+            // just forcing replacement past the stamp shortcut above.)
+            std::fs::remove_file(dest)
+                .with_context(|| format!("removing symlink {}", dest.display()))?;
+        } else if meta.is_dir()
+            && !dest.join(STAMP_FILE).exists()
+            && std::fs::read_dir(dest)?.next().is_some()
+        {
+            anyhow::bail!(
+                "refusing to overwrite {} — it exists but is not a \
+                 grove-provisioned dir (no {} stamp); move it aside and re-run",
+                dest.display(),
+                STAMP_FILE
+            );
+        }
     }
-    let home = std::env::var_os("HOME").ok_or_else(|| {
-        anyhow::anyhow!(
-            "$HOME is not set; cannot locate the global skill dir (~/.claude/skills/grove)"
-        )
-    })?;
-    Ok(skill_dir_under_home(Path::new(&home)))
-}
-
-fn skill_dir_under_home(home: &Path) -> PathBuf {
-    home.join(".claude").join("skills").join("grove")
+    provision_into(dest)
 }
 
 /// Write `dest` via `write_files` only when its stamp differs from `want_hash`;
-/// a matching stamp is a no-op (the warm launch). On a mismatch the dir is
-/// cleared first, so files dropped by an older embed do not linger. Returns
-/// whether it (re)wrote.
+/// a matching stamp is a no-op (the warm launch). Returns whether it (re)wrote.
+///
+/// Writes land in a sibling staging dir first, and only a `rename` ever
+/// touches `dest` itself — so an interrupt (Ctrl-C, SIGTERM, ENOSPC) mid-write
+/// leaves `dest` exactly as it was (absent, or the old warm dir), never
+/// non-empty-without-a-stamp. That half-written state used to be
+/// indistinguishable from a foreign directory to `provision_target`'s guard,
+/// wedging every later `grove do` (B8) — a regression from the pre-stamp path,
+/// which self-healed.
 fn sync_to_stamp(
     dest: &Path,
     want_hash: &str,
@@ -81,15 +160,30 @@ fn sync_to_stamp(
     if have.as_deref() == Some(want_hash) {
         return Ok(false);
     }
+    let parent = dest
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("{} has no parent directory", dest.display()))?;
+    std::fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+    let staging = tempfile::Builder::new()
+        .prefix(".grove-provision-staging-")
+        .tempdir_in(parent)
+        .with_context(|| format!("creating a staging dir beside {}", dest.display()))?;
+    write_files(staging.path())?;
+    std::fs::write(staging.path().join(STAMP_FILE), want_hash)
+        .with_context(|| format!("writing skill stamp to {}", staging.path().display()))?;
+
     if dest.exists() {
         std::fs::remove_dir_all(dest)
             .with_context(|| format!("clearing stale skill dir {}", dest.display()))?;
     }
-    std::fs::create_dir_all(dest)
-        .with_context(|| format!("creating skill dir {}", dest.display()))?;
-    write_files(dest)?;
-    std::fs::write(dest.join(STAMP_FILE), want_hash)
-        .with_context(|| format!("writing skill stamp to {}", dest.display()))?;
+    let staging_path = staging.keep();
+    std::fs::rename(&staging_path, dest).with_context(|| {
+        format!(
+            "moving staged skill from {} into {}",
+            staging_path.display(),
+            dest.display()
+        )
+    })?;
     Ok(true)
 }
 
@@ -131,11 +225,34 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    static ENV_LOCK_FOR_HOME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Restores `HOME` on drop, so a failing `assert_eq!` between the
+    /// override and the restore (which unwinds, it does not abort) cannot
+    /// leave `HOME` clobbered for whichever test runs next in this binary.
+    struct HomeGuard(Option<std::ffi::OsString>);
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            match &self.0 {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+    }
+
     #[test]
-    fn skill_dir_is_under_dot_claude_skills_grove() {
+    fn skill_dirs_follow_each_harness_layout() {
+        let _lock = ENV_LOCK_FOR_HOME.lock().unwrap_or_else(|e| e.into_inner());
+        let _home_guard = HomeGuard(std::env::var_os("HOME"));
+        std::env::remove_var("GROVE_SKILL_DIR");
+        std::env::set_var("HOME", "/home/x");
         assert_eq!(
-            skill_dir_under_home(Path::new("/home/x")),
+            skill_dir_for(crate::harness::by_name("claude").unwrap()).unwrap(),
             Path::new("/home/x/.claude/skills/grove")
+        );
+        assert_eq!(
+            skill_dir_for(crate::harness::by_name("pi").unwrap()).unwrap(),
+            Path::new("/home/x/.pi/agent/skills/grove")
         );
     }
 
@@ -189,6 +306,40 @@ mod tests {
         })
         .unwrap();
         assert!(!wrote, "matching stamp is a no-op");
+    }
+
+    #[test]
+    fn interrupted_extraction_leaves_dest_untouched_and_the_next_call_self_heals() {
+        let parent = TempDir::new().unwrap();
+        let dest = parent.path().join("grove");
+
+        // Simulate an interrupt mid-extract: the writer starts dropping files
+        // into place, then fails before the stamp is ever written — exactly the
+        // Ctrl-C / SIGTERM / ENOSPC case (B8). `dest` itself must never be left
+        // non-empty-without-a-stamp: that state is indistinguishable from a
+        // foreign directory to `provision_target`'s guard, and wedges every
+        // later `grove do`.
+        let result = sync_to_stamp(&dest, "hash1", |d| {
+            std::fs::write(d.join("partial.txt"), "oops").unwrap();
+            anyhow::bail!("simulated interrupt")
+        });
+
+        assert!(result.is_err(), "the simulated interrupt must propagate");
+        assert!(
+            !dest.exists(),
+            "an interrupted extract must never leave dest in a partial state"
+        );
+
+        // The very next call must succeed cleanly — no foreign-dir bail, no
+        // manual cleanup required (the pre-regression behaviour: self-heals).
+        let wrote = sync_to_stamp(&dest, "hash1", |d| {
+            std::fs::write(d.join("real.txt"), "content")?;
+            Ok(())
+        })
+        .unwrap();
+        assert!(wrote, "the next call re-extracts cleanly");
+        assert!(dest.join("real.txt").is_file());
+        assert!(dest.join(STAMP_FILE).is_file());
     }
 
     #[test]

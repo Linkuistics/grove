@@ -1,5 +1,45 @@
 # Changelog
 
+## v12.0.0
+
+grove learns to route: a `pi` harness joins claude and codex, leaves can be
+routed per **kind** to a different harness than the grove's own, and model
+selection becomes harness-scoped — the shape needed to drive two harnesses
+(two subscriptions) concurrently and still send every review to one reviewer.
+
+### Breaking
+
+- **codex launches use `--profile`, not `--model`.** A codex profile binds
+  model + reasoning effort, which a bare model flag cannot; model-per-task-kind
+  values for codex now name profiles defined as `$CODEX_HOME/<name>.config.toml`
+  files (not a `[profiles.<name>]` table in `config.toml`).
+- **`GROVE_HARNESS_PID` replaces `GROVE_CLAUDE_PID`.** The loop wrapper still
+  co-exports the old name and `grove-llm complete` still reads it as a
+  fallback — for this release only.
+- **Skill provisioning is multi-harness.** `grove do` extracts the embedded
+  methodology into every installed harness's skills dir (`~/.claude/skills/grove`,
+  `~/.codex/skills/grove`, `~/.pi/agent/skills/grove`), replacing symlinked
+  `grove` entries with real dirs (links are removed as links, never followed).
+  A `grove` entry that is neither a symlink nor grove-provisioned is refused.
+
+### Added
+
+- **`pi` harness** (`--harness pi`): launches `pi` with `--model` (pi accepts
+  `provider/id` patterns), no session pre-naming (pi has no launch-time name
+  flag), skills under `~/.pi/agent/skills`.
+- **`GROVE_<KIND>_HARNESS`** — route leaves of one kind to another harness at
+  launch (e.g. `GROVE_REVIEW_HARNESS=pi`). Model resolution follows the
+  post-override harness. Unknown names fail loudly.
+- **`GROVE_<HARNESS>_<KIND>_MODEL`** — harness-scoped model vars
+  (e.g. `GROVE_PI_REVIEW_MODEL`) that beat the base `GROVE_<KIND>_MODEL`.
+
+### Fixed
+
+- **Explicit `--harness` now always persists** to `.grove-stamps/<name>`.
+  Previously only multi-harness repos stamped, so an explicit choice in a
+  repo with a single (different) harness dir silently reverted on the next
+  plain `grove do`.
+
 ## v11.0.0
 
 grove exits the git-topology business. Through v10.0.3, `grove do <name>` owned a canonical layout — it created `<repo>/.grove-worktrees/<name>/` on a same-named branch, re-attached it if orphaned, and the finish cycle merged that branch to the default, removed the worktree, and deleted the branch. That layout fights any tool that wants to own worktree placement itself (e.g. [worktrunk](https://github.com/max-sixty/worktrunk)): grove and the tool each assume they control creation, naming, and teardown. grove now owns none of it — the workflow's one precondition is *a git working tree*, user-provided, on any branch, anywhere on disk; grove reads no branch, ever. (ADR `user-owned-worktrees`)

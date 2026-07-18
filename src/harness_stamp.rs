@@ -19,16 +19,23 @@ pub fn resolve_for_launch(
     explicit: Option<&str>,
 ) -> Result<&'static Harness> {
     if let Some(name) = explicit {
-        return harness::by_name(name).ok_or_else(|| anyhow::anyhow!("unknown harness: {}", name));
+        return harness::by_name(name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "unknown harness: {}. Known: {}",
+                name,
+                harness::known_names()
+            )
+        });
     }
     let stamp = path(repo, name);
     if stamp.exists() {
         let s = fs::read_to_string(&stamp)?.trim().to_string();
         return harness::by_name(&s).ok_or_else(|| {
             anyhow::anyhow!(
-                "{} contents do not match any known harness: {}",
+                "{} contents do not match any known harness: {}. Known: {}",
                 stamp.display(),
-                s
+                s,
+                harness::known_names()
             )
         });
     }
@@ -43,12 +50,23 @@ pub fn resolve_for_launch(
     }
 }
 
-/// Write `<repo>/.grove-stamps/<name>` only when needed for disambiguation
-/// (multi-harness repo). In a single-harness repo, no-op.
-pub fn maybe_stamp(repo: &Path, name: &str, chosen: &'static Harness) -> Result<()> {
+/// Write `<repo>/.grove-stamps/<name>`. Two triggers:
+///   * `explicit` — the user passed `--harness`; a deliberate binding must
+///     survive into the next plain `grove do`, even in a repo where detection
+///     would pick something else (e.g. a stray `.claude/` after a switch).
+///   * multi-harness repo — disambiguation, as before.
+///
+/// A single-harness repo with no explicit flag stays stamp-free: detection is
+/// already deterministic there.
+pub fn maybe_stamp(
+    repo: &Path,
+    name: &str,
+    chosen: &'static Harness,
+    explicit: bool,
+) -> Result<()> {
     let detected = harness::detect_in_repo(repo);
-    if detected.len() < 2 {
-        return Ok(()); // single-harness repo; no disambiguation needed
+    if !explicit && detected.len() < 2 {
+        return Ok(());
     }
     let stamp = path(repo, name);
     if let Some(parent) = stamp.parent() {

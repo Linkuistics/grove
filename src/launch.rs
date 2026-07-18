@@ -11,24 +11,22 @@ use std::process::Command;
 /// the working tree (user-owned-worktrees) — grove never creates, attaches, or
 /// relocates it. The worktree is `git rev-parse --show-toplevel` of cwd, and
 /// the grove name is its basename. Once resolved, it drives the **whole
-/// self-driving loop** (self-driving-loop): one fresh foreground `claude` per
-/// task, relaunching on each completion signal until the agent stops
+/// self-driving loop** (self-driving-loop): one fresh foreground harness
+/// session per task, relaunching on each completion signal until the agent stops
 /// signalling (empty `pick` → finish, or a human interrupt). The launched
 /// sessions handle all in-context judgement — including proposing the
 /// complete finish cycle once the grove has no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
-    // Provision the global skill from the embedded methodology (self-extension-core-and-methodology / task-tree-scheme):
-    // extract content/ to ~/.claude/skills/grove/ idempotently, so the skill the
-    // launched session reads can never drift from this binary. `grove do` is the
-    // entry the human always hits; a warm dir is a cheap no-op.
-    crate::provision::provision_global_skill()?;
-
     let worktree = repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?;
     let name = worktree_name(&worktree);
 
     let repo_path = repo::resolve(None)?;
     let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
-    harness_stamp::maybe_stamp(&repo_path, &name, harness)?;
+
+    // Provision the global skill from the embedded methodology for every
+    // installed harness (and the launching one unconditionally), so the skill
+    // any session reads can never drift from this binary.
+    crate::provision::provision_all(harness)?;
 
     // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
     // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
@@ -50,7 +48,28 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         return Ok(());
     }
 
+    // The stamp is written only here, after provisioning and the no-launch
+    // check have both already succeeded: a documented dry run must never
+    // permanently rebind the grove (B3), and a provisioning failure — or a
+    // harness whose binary isn't installed — must never leave a stamp with
+    // no recovery path (B4).
+    if !exec_bin_on_path(harness.exec_bin) {
+        anyhow::bail!(
+            "{} is not on PATH — install it before binding this grove to \"{}\" \
+             (nothing was stamped; run again once it's installed)",
+            harness.exec_bin,
+            harness.name
+        );
+    }
+    harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
+
     crate::loop_driver::run(harness, &repo_path, &worktree, &name)
+}
+
+fn exec_bin_on_path(bin: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
+        .unwrap_or(false)
 }
 
 pub fn retire(args: &RetireArgs) -> Result<()> {
@@ -67,7 +86,7 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
         );
         return Ok(());
     }
-    let prompt = load_prompt("retire")?;
+    let prompt = load_prompt(harness, "retire")?;
     let prompt = substitute(&prompt, &[("NODE_PATH", &args.path)]);
     exec_harness(harness, &repo_path, &worktree, &name, &prompt)
 }
@@ -81,12 +100,13 @@ fn worktree_name(worktree: &Path) -> String {
 }
 
 /// Read a launcher prompt from the **global** skill dir the binary provisions
-/// (`~/.claude/skills/grove/prompts/`), not any repo-local mirror. `grove do`
-/// provisions that dir at the top of [`do_grove`], so the loop always launches
-/// off the *current* embedded prompts — the repoint that retired the old
-/// `harness.install_path`-rooted read, which silently served stale mirrors.
-pub(crate) fn load_prompt(verb: &str) -> Result<String> {
-    let prompt_path = crate::provision::global_skill_dir()?
+/// for `harness` (`~/.claude/skills/grove/prompts/`, or the equivalent
+/// per-harness dir), not any repo-local mirror. `grove do` provisions every
+/// installed harness's dir at the top of [`do_grove`], so the loop always
+/// launches off the *current* embedded prompts — the repoint that retired the
+/// old `harness.install_path`-rooted read, which silently served stale mirrors.
+pub(crate) fn load_prompt(harness: &Harness, verb: &str) -> Result<String> {
+    let prompt_path = crate::provision::skill_dir_for(harness)?
         .join("prompts")
         .join(format!("{}.md", verb));
     fs::read_to_string(&prompt_path)

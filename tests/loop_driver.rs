@@ -735,18 +735,146 @@ exit 0
 // invariant. Proven with two distinct fake binaries wired through the
 // per-harness bin seam, so the argv log shows *which* harness ran each leaf.
 //
-// NOTE (T4): this deliberately still routes both fakes' prompts through one
-// shared `GROVE_SKILL_DIR` (see `provision::provision_all`'s doc: the env
-// override "collapses the sweep to that single dir", by design, regardless of
-// harness). That makes this test structurally blind to B7 (`load_prompt`
-// reads the *stamped* harness's prompt copy, not the post-reroute launch
-// harness's) — proving that would need real per-harness skill dirs under a
-// scratch `$HOME`, and asserting on which copy was read would go red today,
-// since B7 is unfixed. B7 is `review-fix-routing-k17`'s to fix; that leaf
-// must upgrade this test's skill-dir setup alongside the fix, or the fix
-// ships unverified.
+// T4/B7: uses **real per-harness skill dirs under a scratch `$HOME`**, not a
+// shared `GROVE_SKILL_DIR` override — that override "collapses the sweep to
+// that single dir" (`provision::provision_all`'s doc) regardless of harness,
+// which makes a shared-dir fixture structurally blind to B7 (`load_prompt`
+// reading the *stamped* harness's prompt copy, not the post-reroute launch
+// harness's): both harnesses would read the identical file either way. With
+// distinct codex/pi prompt copies, this test also proves B7 directly — the
+// rerouted review session must read *pi's* continue prompt, not codex's.
 #[test]
 fn review_leaf_reroutes_to_the_review_harness() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    // Real per-harness skill dirs under a scratch $HOME (T4) — see the
+    // function doc above for why a shared GROVE_SKILL_DIR can't prove B7.
+    let home = worktree.join("scratch-home");
+    let codex_prompts = home.join(".codex/skills/grove/prompts");
+    let pi_prompts = home.join(".pi/agent/skills/grove/prompts");
+    fs::create_dir_all(&codex_prompts).unwrap();
+    fs::create_dir_all(&pi_prompts).unwrap();
+    fs::write(codex_prompts.join("start.md"), "CODEX START PROMPT").unwrap();
+    fs::write(codex_prompts.join("continue.md"), "CODEX CONTINUE PROMPT").unwrap();
+    fs::write(pi_prompts.join("continue.md"), "PI CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // Fake codex: tags rows "codex"; run 1 (start/planning) materialises a
+    // *review* leaf + signal, so run 2 is a review continue. Logs the prompt
+    // it received (the last positional arg) so the test can tell which
+    // harness's copy `load_prompt` actually read.
+    let fake_codex = worktree.join("fake-codex.sh");
+    write_exec(
+        &fake_codex,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+for a in "$@"; do prompt="$a"; done
+printf 'codex\t%s\t%s\n' "$*" "$prompt" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+    // Fake pi: tags rows "pi"; never signals, so the loop stops after it.
+    let fake_pi = worktree.join("fake-pi.sh");
+    write_exec(
+        &fake_pi,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+for a in "$@"; do prompt="$a"; done
+printf 'pi\t%s\t%s\n' "$*" "$prompt" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("codex").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("HOME", &home)
+        .set("GROVE_HARNESS_BIN_CODEX", &fake_codex)
+        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_REVIEW_HARNESS", "pi")
+        .set("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh")
+        .set("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<Vec<&str>> = log
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.splitn(3, '\t').collect())
+        .collect();
+    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+
+    // Planning leaf: the stamped harness (codex) with its scoped profile,
+    // reading codex's own start prompt.
+    assert_eq!(rows[0][0], "codex", "planning stays on the stamped harness");
+    assert!(
+        rows[0][1].contains("--profile sol-xhigh"),
+        "codex planning launches on its scoped profile (argv: {:?})",
+        rows[0][1]
+    );
+    assert_eq!(
+        rows[0][2], "CODEX START PROMPT",
+        "the planning session must read codex's own start prompt"
+    );
+
+    // Review leaf: rerouted to pi, with pi's scoped model — the launch flag
+    // template must be the *post-override* harness's (--model, not --profile)
+    // — and pi's own continue prompt, not codex's (B7).
+    assert_eq!(
+        rows[1][0], "pi",
+        "review must reroute to GROVE_REVIEW_HARNESS"
+    );
+    assert!(
+        rows[1][1].contains("--model kimi-code/k3"),
+        "the rerouted review leaf resolves models against pi (argv: {:?})",
+        rows[1][1]
+    );
+    assert_eq!(
+        rows[1][2], "PI CONTINUE PROMPT",
+        "the rerouted review session must read pi's own continue prompt, not \
+         codex's (B7: load_prompt must read the launching harness's copy)"
+    );
+}
+
+// B2: the harness-agnostic base var must not survive a reroute — a codex
+// profile name (or any value meant for the *stamped* harness) is garbage on
+// the harness a per-kind override reroutes to. Only the harness-scoped var
+// may supply a model once a reroute has happened; with it unset, the
+// rerouted leaf must launch with no `--model` at all, never the base var's
+// value.
+#[test]
+fn base_model_var_does_not_survive_a_reroute() {
     let _g = support::lock_env(&ENV_LOCK);
     let worktree_dir = TempDir::new().unwrap();
     let worktree = worktree_dir.path();
@@ -770,8 +898,6 @@ fn review_leaf_reroutes_to_the_review_harness() {
     let counter = worktree.join("counter");
     let log = worktree.join("log");
 
-    // Fake codex: tags rows "codex"; run 1 (start/planning) materialises a
-    // *review* leaf + signal, so run 2 is a review continue.
     let fake_codex = worktree.join("fake-codex.sh");
     write_exec(
         &fake_codex,
@@ -789,14 +915,10 @@ fi
 exit 0
 "#,
     );
-    // Fake pi: tags rows "pi"; never signals, so the loop stops after it.
     let fake_pi = worktree.join("fake-pi.sh");
     write_exec(
         &fake_pi,
         r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
 printf 'pi\t%s\n' "$*" >> "$GROVE_TEST_LOG"
 exit 0
 "#,
@@ -813,10 +935,11 @@ exit 0
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_REVIEW_HARNESS", "pi")
-        .set("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh")
-        .set("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
+        // The base var — a codex profile name, meaningless to pi — with no
+        // GROVE_PI_REVIEW_MODEL set to beat it.
+        .set("GROVE_REVIEW_MODEL", "sol-high");
 
-    let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
+    let result = loop_driver::run_loop(harness, worktree, worktree, "basemodelgrove");
 
     assert_eq!(result.unwrap(), LoopOutcome::Stopped);
 
@@ -828,23 +951,274 @@ exit 0
         .collect();
     assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
 
-    // Planning leaf: the stamped harness (codex) with its scoped profile.
-    assert_eq!(rows[0][0], "codex", "planning stays on the stamped harness");
+    assert_eq!(rows[1][0], "pi", "review must reroute to pi");
     assert!(
-        rows[0][1].contains("--profile sol-xhigh"),
-        "codex planning launches on its scoped profile (argv: {:?})",
-        rows[0][1]
-    );
-    // Review leaf: rerouted to pi, with pi's scoped model — the launch flag
-    // template must be the *post-override* harness's (--model, not --profile).
-    assert_eq!(
-        rows[1][0], "pi",
-        "review must reroute to GROVE_REVIEW_HARNESS"
-    );
-    assert!(
-        rows[1][1].contains("--model kimi-code/k3"),
-        "the rerouted review leaf resolves models against pi (argv: {:?})",
+        !rows[1][1].contains("--model"),
+        "the base GROVE_REVIEW_MODEL (a codex profile name) must not reach \
+         pi across a reroute — no scoped GROVE_PI_REVIEW_MODEL means no \
+         --model at all (argv: {:?})",
         rows[1][1]
+    );
+}
+
+// B5: the legacy unscoped `GROVE_HARNESS_BIN` must not leak into a
+// per-kind-rerouted launch — once one loop can launch two harnesses, a
+// single global bin override is incoherent (it would exec the *stamped*
+// harness's wrapper under the *rerouted* harness's flag template). Proven by
+// putting a distinctly-named `pi` executable on PATH (the `exec_bin`
+// fallback) and asserting the reroute reaches *that*, not the unscoped
+// wrapper meant for the stamped harness.
+#[test]
+fn unscoped_harness_bin_does_not_leak_across_a_reroute() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    // The unscoped legacy wrapper: correct for the *stamped* harness (codex,
+    // no GROVE_HARNESS_BIN_CODEX set), wrong for anything rerouted to.
+    let wrapper = worktree.join("wrapper.sh");
+    write_exec(
+        &wrapper,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf 'wrapper\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    // The real fallback for pi: a dedicated executable literally named `pi`
+    // (harness::exec_bin), reached only via PATH — proving `harness_bin` fell
+    // through to `exec_bin`, not the unscoped wrapper.
+    let bindir = worktree.join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    write_exec(
+        &bindir.join("pi"),
+        r#"#!/bin/sh
+printf 'realpi\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+    let path = format!(
+        "{}:{}",
+        bindir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    let harness = harness::by_name("codex").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("PATH", &path)
+        .set("GROVE_HARNESS_BIN", &wrapper)
+        .set("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "binleakgrove");
+
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<Vec<&str>> = log
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| l.splitn(2, '\t').collect())
+        .collect();
+    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+
+    assert_eq!(
+        rows[0][0], "wrapper",
+        "the stamped harness (codex, no scoped bin) still uses the legacy \
+         unscoped GROVE_HARNESS_BIN (argv: {:?})",
+        rows[0]
+    );
+    assert_eq!(
+        rows[1][0], "realpi",
+        "the rerouted review leaf must not run the stamped harness's \
+         unscoped wrapper — it must fall through to pi's own exec_bin \
+         (argv: {:?})",
+        rows[1]
+    );
+}
+
+// B5: an empty-string `GROVE_HARNESS_BIN` must behave like unset — parallel
+// to the model-var and kind-harness-override empty-string guards (env_model,
+// harness_override) — not like a literal empty-string binary path, which
+// would fail every launch (`harness_bin` was the only env seam in the file
+// treating `""` as set).
+#[test]
+fn empty_string_harness_bin_is_treated_as_unset() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // A fake `claude` (harness::exec_bin) on PATH, so an empty
+    // GROVE_HARNESS_BIN falling through to exec_bin is observable without
+    // depending on the real `claude` CLI being installed on this machine.
+    let bindir = repo_path.join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    let log = repo_path.join("log");
+    write_exec(
+        &bindir.join("claude"),
+        &format!(
+            r#"#!/bin/sh
+printf 'ran\n' >> "{log}"
+exit 0
+"#,
+            log = log.display()
+        ),
+    );
+    let path = format!(
+        "{}:{}",
+        bindir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("PATH", &path)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_HARNESS_BIN", "");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptybingrove");
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Stopped,
+        "an empty GROVE_HARNESS_BIN must fall through to exec_bin, not be \
+         attempted as a literal empty-string binary path"
+    );
+    assert_eq!(
+        fs::read_to_string(&log).unwrap(),
+        "ran\n",
+        "the fallback exec_bin (`claude`) must actually have run"
+    );
+}
+
+// B6: a degraded kind peek (grove-llm missing/failing/unparseable) must not
+// silently cancel an active per-kind harness override by launching on the
+// stamped harness — that is exactly the "K3 reviews everywhere" invariant a
+// silent fallback here would defeat. `harness_override`'s own doc already
+// makes this argument for an unknown *value*; this proves it also holds for
+// a degraded *peek*.
+#[test]
+fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        worktree.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** review\n",
+    )
+    .unwrap();
+
+    let harness = harness::by_name("codex").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        // A nonexistent grove-llm binary: the spawn itself fails ⇒ a
+        // degraded peek (Err(e) arm), not a parse error.
+        .set("GROVE_LLM_BIN", worktree.join("no-such-grove-llm"))
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    let result = loop_driver::run_loop(harness, worktree, worktree, "degradedgrove");
+
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("harness override") && err.contains("stamped harness"),
+        "a degraded kind peek with an active harness override must fail \
+         loudly rather than silently launching on the stamped harness \
+         (err: {err})"
+    );
+}
+
+// Notes: `any_harness_override_env` already sweeps all five suffixes to
+// decide whether routing applies at all; validating every
+// `GROVE_<KIND>_HARNESS` value at that same point (not just the picked
+// leaf's kind) means a typo in an *off-kind* var is caught immediately, not
+// only once that kind's leaf is finally picked.
+#[test]
+fn an_off_kind_harness_override_typo_is_caught_immediately() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+
+    // The start path resolves straight to Planning, never touching
+    // GROVE_REVIEW_HARNESS — yet the typo there must still fail loudly right
+    // away, not once a review leaf happens to be picked.
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_REVIEW_HARNESS", "lemur");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "offkindgrove");
+
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("GROVE_REVIEW_HARNESS") && err.contains("lemur"),
+        "a typo in an off-kind override must fail at the very next launch, \
+         not only once a review leaf is picked (err: {err})"
     );
 }
 

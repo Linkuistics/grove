@@ -110,8 +110,13 @@ Resolved per picked leaf, per iteration:
   harness's exec_bin/args are used for the launch instead of the stamped one.
   Unknown name → hard error naming the variable and known harnesses.
 - **Per-harness model env**: model resolution for kind K on harness H checks
-  `GROVE_<H>_<K>_MODEL` before `GROVE_<K>_MODEL`. Resolution runs against the
-  post-override harness, so the seams compose.
+  `GROVE_<H>_<K>_MODEL` before `GROVE_<K>_MODEL` — but the base var only
+  applies when H is the *stamped* harness. A per-kind override that reroutes
+  to a different harness skips the base var entirely: it was written with the
+  stamped harness in mind (a codex profile name is garbage to pi and vice
+  versa), so it must not follow the leaf across a reroute. With no scoped var
+  set, a rerouted leaf launches with no `--model` flag at all. Resolution
+  runs against the post-override harness, so the seams compose.
 - **`GROVE_CLAUDE_PID` → `GROVE_HARNESS_PID`**: required for namespace
   coherence with the new `GROVE_<H>_*` scheme. The wrapper exports both for
   one release; readers (`complete.rs`, `llm_cli.rs`) try new-then-old.

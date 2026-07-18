@@ -25,7 +25,7 @@
 //       esac
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" \
-//         sh -c 'export GROVE_CLAUDE_PID=$$; exec claude "$@"' sh "$@"
+//         sh -c 'export GROVE_HARNESS_PID=$$; exec "$harness_bin" "$@"' sh "$@"
 //       stty sane 2>/dev/null
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
@@ -149,9 +149,10 @@ pub fn run_loop(
 }
 
 /// Launch one fresh foreground `claude` owning the real TTY. The
-/// `sh -c 'export GROVE_CLAUDE_PID=$$; exec "$@"'` wrapper hands the agent
-/// `claude`'s own PID: `exec` preserves the PID, so `$$` (captured before exec)
-/// is the final `claude` PID, inherited by the agent's Bash tool. `GROVE_HARNESS_BIN`
+/// `sh -c 'export GROVE_HARNESS_PID=$$; exec "$@"'` wrapper hands the agent
+/// the harness session's own PID: `exec` preserves the PID, so `$$` (captured
+/// before exec) is the final harness PID, inherited by the agent's Bash tool
+/// (`GROVE_CLAUDE_PID` is co-exported for one release). `GROVE_HARNESS_BIN`
 /// overrides the binary (testing / wrapping `claude`).
 fn launch_session(
     harness: &Harness,
@@ -165,7 +166,7 @@ fn launch_session(
 
     let mut cmd = Command::new("sh");
     cmd.arg("-c")
-        .arg(r#"export GROVE_CLAUDE_PID=$$; exec "$@""#)
+        .arg(r#"export GROVE_HARNESS_PID=$$ GROVE_CLAUDE_PID=$$; exec "$@""#)
         .arg("sh") // $0 for the inner shell
         .arg(&bin); // $1 = the harness binary
     if !harness.name_args.is_empty() {

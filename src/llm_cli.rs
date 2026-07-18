@@ -151,14 +151,14 @@ pub enum Command {
     LeafPrune(LeafPruneArgs),
     /// Signal task completion to the self-driving loop (self-driving-loop). Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
-    /// ends this `claude` session and starts the next task with fresh context.
+    /// ends this harness session and starts the next task with fresh context.
     ///
     /// Writes the disposition flag (relaunch by default, or finish with
     /// `--done`), then forks a detached killer that ends this session after a
     /// short grace (so this very call returns first). Do nothing else after
     /// running it. The default relaunches the loop for the next task; `--done`
     /// — the Finish cycle's last action — stops it cleanly. Defaults come from
-    /// the loop driver's environment (`GROVE_CLAUDE_PID`, `GROVE_SIGNAL_FILE`);
+    /// the loop driver's environment (`GROVE_HARNESS_PID`, `GROVE_SIGNAL_FILE`);
     /// when those are absent (a session not under `grove do`) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
@@ -171,7 +171,7 @@ pub struct CompleteArgs {
     /// (the per-task default) the loop relaunches with fresh context.
     #[arg(long)]
     pub done: bool,
-    /// PID of the `claude` session to end. Default: `$GROVE_CLAUDE_PID`.
+    /// PID of the `claude` session to end. Default: `$GROVE_HARNESS_PID`.
     #[arg(long)]
     pub pid: Option<i32>,
     /// Relaunch-signal file the loop driver polls. Default: `$GROVE_SIGNAL_FILE`.

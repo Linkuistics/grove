@@ -6,8 +6,11 @@
 
 use grove::complete::{self, CompleteOpts, Disposition};
 use std::process::Command;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn resolve_opts_passes_explicit_values_through() {
@@ -139,4 +142,35 @@ fn signal_complete_kills_the_target_pid_out_of_band() {
     }
     let _ = child.wait();
     assert!(died, "the target pid must be killed by the detached killer");
+}
+
+#[test]
+fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
+    let _g = ENV_LOCK.lock().unwrap();
+
+    // New name wins when both are set.
+    std::env::set_var("GROVE_HARNESS_PID", "111");
+    std::env::set_var("GROVE_CLAUDE_PID", "222");
+    let opts = grove::complete::resolve_opts(
+        None,
+        None,
+        None,
+        None,
+        grove::complete::Disposition::Relaunch,
+    );
+    assert_eq!(opts.pid, Some(111));
+
+    // Old name still resolves alone — one release of backward compatibility
+    // for content/agents that captured the old handle.
+    std::env::remove_var("GROVE_HARNESS_PID");
+    let opts = grove::complete::resolve_opts(
+        None,
+        None,
+        None,
+        None,
+        grove::complete::Disposition::Relaunch,
+    );
+    assert_eq!(opts.pid, Some(222));
+
+    std::env::remove_var("GROVE_CLAUDE_PID");
 }

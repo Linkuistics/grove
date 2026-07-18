@@ -63,7 +63,7 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
-printf '%s\t%s\t%s\t%s\n' "$n" "$$" "$GROVE_CLAUDE_PID" "$prompt" >> "$GROVE_TEST_LOG"
+printf '%s\t%s\t%s\t%s\n' "$n" "$$" "$GROVE_HARNESS_PID" "$prompt" >> "$GROVE_TEST_LOG"
 mkdir -p "$PWD/.grove"
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
@@ -109,7 +109,7 @@ exit 0
     for row in &rows {
         assert_eq!(
             row[1], row[2],
-            "GROVE_CLAUDE_PID must equal the session's own pid (row: {row:?})"
+            "GROVE_HARNESS_PID must equal the session's own pid (row: {row:?})"
         );
     }
 

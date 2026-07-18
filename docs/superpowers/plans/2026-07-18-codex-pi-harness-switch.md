@@ -28,7 +28,7 @@
 
 **Files:** none (git only)
 
-- [ ] **Step 1: Create the working branch**
+- [x] **Step 1: Create the working branch**
 
 ```bash
 cd /Users/antony/Development/grove
@@ -53,7 +53,7 @@ Expected: `Switched to a new branch 'codex-pi-harness'`.
   - `pub fn known_names() -> String` — `"claude, codex, pi"`. Tasks 2 and 5 use it in error messages.
   - `by_name("pi")` returns the pi row.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/harness.rs`, replace `registry_contains_claude_and_codex` and add two tests:
 
@@ -109,12 +109,12 @@ fn detect_finds_pi_when_dot_pi_present() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo test --test harness`
 Expected: FAIL — `skills_dir` field does not exist, `known_names` not found, `by_name("pi")` is `None`.
 
-- [ ] **Step 3: Implement in `src/harness.rs`**
+- [x] **Step 3: Implement in `src/harness.rs`**
 
 Add the field to the struct (after `project_dir`):
 
@@ -175,7 +175,7 @@ and in `select` replace the lookup error:
             })?;
 ```
 
-- [ ] **Step 4: Update the codex argv integration test**
+- [x] **Step 4: Update the codex argv integration test**
 
 In `tests/loop_driver.rs`, test `codex_launches_with_no_name_flag_and_a_model_flag`: change the env value and both assertions —
 
@@ -197,12 +197,12 @@ and
 
 (also update `.env("GROVE_WORK_MODEL", ...)`/`remove_var` value sites and the test's header comment: the second defect bullet now reads "codex participates via `--profile`, since profiles are the only way to bind reasoning effort to the launch").
 
-- [ ] **Step 5: Run the full suite**
+- [x] **Step 5: Run the full suite**
 
 Run: `cargo test`
 Expected: PASS (all tests, including the untouched stamp/loop tests).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/harness.rs tests/harness.rs tests/loop_driver.rs

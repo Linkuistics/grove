@@ -14,6 +14,7 @@ use grove::provision::STAMP_FILE;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use support::EnvGuard;
 use tempfile::TempDir;
 
@@ -58,12 +59,13 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
 
-    // Fake claude: log <iter>\t<own-pid>\t<inherited-handle>\t<co-exported-legacy-handle>\t<prompt>;
+    // Fake claude: log <iter>\t<harness-pid-handle>\t<claude-pid-handle>\t<prompt>;
     // create `.grove/` after the first iteration so the loop switches
     // start→continue; fire the completion signal for the first two
-    // iterations, then stop. Logs both `GROVE_HARNESS_PID` and the legacy
-    // `GROVE_CLAUDE_PID` co-export (T6): a content/agent that still reads the
-    // old name for one release must see the same handle.
+    // iterations, then stop. Logs whether `GROVE_HARNESS_PID`/`GROVE_CLAUDE_PID`
+    // are set at all (driver-side-kill-k2): the driver no longer exports
+    // either — the agent never needs its own PID, since the driver kills its
+    // own child directly.
     let fake = repo_path.join("fake-claude.sh");
     write_exec(
         &fake,
@@ -72,7 +74,7 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
-printf '%s\t%s\t%s\t%s\t%s\n' "$n" "$$" "$GROVE_HARNESS_PID" "$GROVE_CLAUDE_PID" "$prompt" >> "$GROVE_TEST_LOG"
+printf '%s\t%s\t%s\t%s\n' "$n" "${GROVE_HARNESS_PID:-unset}" "${GROVE_CLAUDE_PID:-unset}" "$prompt" >> "$GROVE_TEST_LOG"
 mkdir -p "$PWD/.grove"
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
@@ -111,28 +113,27 @@ exit 0
         "loop should run 3 times then stop (log: {log:?})"
     );
 
-    // The exec-PID trick: the handle the child sees equals the child's own
-    // pid, on both the new name and the co-exported legacy name.
+    // Neither PID handle is exported any more: the driver kills its own
+    // child directly, so the agent never needs its own PID (driver-side-kill-k2).
     for row in &rows {
         assert_eq!(
-            row[1], row[2],
-            "GROVE_HARNESS_PID must equal the session's own pid (row: {row:?})"
+            row[1], "unset",
+            "GROVE_HARNESS_PID must no longer be exported to the harness (row: {row:?})"
         );
         assert_eq!(
-            row[1], row[3],
-            "GROVE_CLAUDE_PID must be co-exported with the same handle, for one \
-             release of backward compatibility (row: {row:?})"
+            row[2], "unset",
+            "GROVE_CLAUDE_PID must no longer be exported to the harness (row: {row:?})"
         );
     }
 
     // start→continue switch: first iteration has no `.grove/` (start), the rest
     // do (continue).
     assert_eq!(
-        rows[0][4], "START PROMPT",
+        rows[0][3], "START PROMPT",
         "first iteration bootstraps via start"
     );
-    assert_eq!(rows[1][4], "CONTINUE PROMPT", "second iteration continues");
-    assert_eq!(rows[2][4], "CONTINUE PROMPT", "third iteration continues");
+    assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
+    assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
 }
 
 #[test]
@@ -191,6 +192,196 @@ exit 0
     assert_eq!(
         count, 1,
         "the loop must run exactly once then finish — no relaunch (log: {log:?})"
+    );
+}
+
+// Driver-side kill (driver-side-kill-k2): the loop driver, not the agent,
+// ends the harness session once the completion signal fires. These three
+// tests stand in for a `claude` session whose turn is still wrapping up when
+// `complete` writes the signal file — a fake that signals then keeps running
+// (a 30s `sleep`) rather than exiting on its own, so the *only* way `run_loop`
+// returns quickly is if the watcher actually killed it. Small
+// `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` values keep the tests fast
+// without a new test seam (BRIEF.md Notes).
+
+#[test]
+fn driver_kills_a_hung_session_that_signalled_done() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/killgrove");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // `exec sleep 30`, not a plain `sleep 30`: exec replaces the shell's own
+    // process image (same pid), so the pid the driver signals *is* the
+    // sleeping process — a plain `sleep 30` would run as the shell's child,
+    // leaving it orphaned (and still asleep for the full 30s) once the driver
+    // kills the shell around it.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exec sleep 30
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_KILL_GRACE", "0.2")
+        .set("GROVE_KILL_GRACE_KILL", "0.3");
+
+    let started = Instant::now();
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove");
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Finished,
+        "a `done` signal must still end the loop cleanly even though the \
+         session hung instead of exiting on its own"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "the driver must kill the hung session promptly, not wait out its \
+         30s sleep (elapsed: {elapsed:?})"
+    );
+}
+
+#[test]
+fn driver_kills_a_hung_session_that_signalled_relaunch() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/killgrove2");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let counter = repo_path.join("counter");
+
+    // Iteration 1 signals a relaunch then hangs (must be killed by the
+    // driver); iteration 2 materialises `.grove/` and exits immediately with
+    // no signal of its own, so the loop stops there rather than looping on
+    // the same hang forever. `exec sleep 30` (not a plain `sleep 30`) so the
+    // hang takes over the shell's own pid rather than orphaning a grandchild
+    // once the driver kills it (see the sibling test above).
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+mkdir -p "$PWD/.grove"
+if [ "$n" -eq 1 ]; then
+  : > "$GROVE_SIGNAL_FILE"
+  exec sleep 30
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_KILL_GRACE", "0.2")
+        .set("GROVE_KILL_GRACE_KILL", "0.3");
+
+    let started = Instant::now();
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove2");
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Stopped,
+        "the first (hung) session's relaunch signal must still be honoured \
+         once the driver kills it; the second session then stops the loop \
+         with no signal of its own"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "the driver must kill the hung first session promptly, not wait out \
+         its 30s sleep (elapsed: {elapsed:?})"
+    );
+    assert_eq!(
+        fs::read_to_string(&counter).unwrap().trim(),
+        "2",
+        "both iterations must have run — the kill did not just abort the loop"
+    );
+}
+
+#[test]
+fn driver_escalates_to_sigkill_when_the_session_ignores_sigterm() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/killgrove3");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // A session that traps and ignores SIGTERM — the driver must escalate to
+    // SIGKILL rather than waiting forever (BRIEF.md Notes: "Keep
+    // TERM-before-KILL"). `exec sleep 30`, not a plain `sleep 30`: an ignored
+    // disposition survives `exec` (POSIX), so `sleep` keeps ignoring SIGTERM
+    // under the shell's own pid — and, as in the sibling tests, avoids
+    // orphaning a grandchild once the driver's SIGKILL lands.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+trap '' TERM
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exec sleep 30
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_KILL_GRACE", "0.2")
+        .set("GROVE_KILL_GRACE_KILL", "0.3");
+
+    let started = Instant::now();
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove3");
+    let elapsed = started.elapsed();
+
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Finished,
+        "SIGKILL must end a session that ignores SIGTERM"
+    );
+    assert!(
+        elapsed < Duration::from_secs(10),
+        "the driver must escalate to SIGKILL rather than waiting out the \
+         30s sleep (elapsed: {elapsed:?})"
     );
 }
 

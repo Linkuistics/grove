@@ -10,10 +10,11 @@ external workflow engine. The mechanism:
   interactive grilling, resize, and Ctrl-C are 100% native — **no PTY wrapper, no
   passthrough code**.
 - The agent's **last step** (after commit + retire) runs the `grove-llm complete`
-  signal verb. It forks a **self-spawned delayed killer** — SIGTERM after a short
-  grace, SIGKILL fallback — to perform the out-of-band exit the agent cannot cleanly
-  perform on itself. The agent receives the harness session's PID via
-  `GROVE_HARNESS_PID`.
+  signal verb, which only writes the disposition into a signal file. The **loop
+  driver** — the harness's own parent process, and so always able to signal its
+  child — watches for that file while the harness runs and performs the
+  out-of-band exit itself: grace → SIGTERM → kill-grace → SIGKILL (driver-side
+  watcher).
 - **Relaunch is opt-in.** The loop relaunches **only** when the completion signal
   fired. Any other exit — human `/exit` or Ctrl-C, or a crash — **stops** the loop,
   resumable later by re-running `grove do`.
@@ -38,6 +39,21 @@ why grove owns a shell loop rather than an engine plus a database:
 - **Wrong complexity to own.** Adopting it adds an external dependency *and* a DB in
   the exact dimension grove is shedding (see *self-extension-core-and-methodology*).
 
+A second, later option was also tried and rejected — not against the engine, but
+within the shell-loop design itself:
+
+- **In-agent self-spawned killer (rejected).** The first cut had `grove-llm
+  complete` fork its own detached killer, from inside the agent, to end its own
+  harness session — SIGTERM after a grace, SIGKILL fallback. It worked under
+  claude's default sandbox, but codex's Seatbelt sandbox denies a same-sandbox
+  process from signalling its own session (`(allow signal (target
+  same-sandbox))`): the kill silently failed (its `2>/dev/null` hid the
+  `EPERM`), so a codex-driven loop never relaunched on its own. The loop driver
+  is outside any harness sandbox and is the harness's own parent, so it can
+  always signal its child — moving the kill there is strictly more capable and
+  adds no new moving part, since the driver already owns the launch and the
+  relaunch decision.
+
 The self-driving loop delivers what the engine falsely promised — restart≡
 continuation and loop-until-empty — for free, both falling out of one `grove-llm pick`
 evaluation with near-zero machinery and full git legibility. Full evidence with
@@ -48,8 +64,10 @@ primary-source citations is in `docs/research/loop-substrate-options.md`.
 - grove's runtime is a shell loop + a `grove-llm` signal verb + the global skill. No
   external engine, no DB, no PTY wrapper, no portable-pty dependency.
 - Restart-safety is structural (the loop holds no state), not a feature to configure.
-- The driver ignores SIGINT so it survives the human's Ctrl-C; relaunch is gated by a
-  signal file the completion verb writes.
+- The driver ignores SIGINT so it survives the human's Ctrl-C; it watches for the
+  completion signal file while its harness child runs and kills that child
+  itself once the file appears — relaunch is gated on the same file. No PID is
+  ever exported to the agent.
 - The driver also selects each session's **launch model by the picked leaf's
   kind** (planning vs work), via native `claude --model` — see
   *model-per-task-kind*.

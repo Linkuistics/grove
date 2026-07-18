@@ -7,6 +7,15 @@
 // re-running `grove do` from the same working tree (restart ≡ continuation, the
 // loop body holds zero state and re-derives position from `grove-llm pick`).
 //
+// The driver spawns the harness directly — no shell, no PID-export trick; the
+// spawned `Child` already carries its own pid — and watches it while it runs:
+// poll `try_wait` alongside the completion-signal file, and once the file
+// appears, apply grace → SIGTERM → kill-grace → SIGKILL to the child itself
+// (driver-side watcher — self-driving-loop). The driver is the harness's own
+// parent process, outside whatever sandbox the harness runs under, so it can
+// always signal its child — unlike the in-agent self-kill this replaces,
+// which codex's Seatbelt sandbox silently denied.
+//
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
 // a kind→model lookup before the launch:
@@ -24,8 +33,12 @@
 //         *)         model="" ;;                      # empty grove → no --model
 //       esac
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
-//       GROVE_SIGNAL_FILE="$sig" \
-//         sh -c 'export GROVE_HARNESS_PID=$$; exec "$harness_bin" "$@"' sh "$@"
+//       GROVE_SIGNAL_FILE="$sig" "$harness_bin" "$@" &
+//       pid=$!
+//       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
+//       # sleep $GROVE_KILL_GRACE, kill -TERM $pid, sleep
+//       # $GROVE_KILL_GRACE_KILL, kill -KILL $pid
+//       wait "$pid"
 //       stty sane 2>/dev/null
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
@@ -37,7 +50,8 @@ use anyhow::{Context, Result};
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -153,12 +167,11 @@ pub fn run_loop(
     }
 }
 
-/// Launch one fresh foreground harness session owning the real TTY. The
-/// `sh -c 'export GROVE_HARNESS_PID=$$; exec "$@"'` wrapper hands the agent
-/// the harness session's own PID: `exec` preserves the PID, so `$$` (captured
-/// before exec) is the final harness PID, inherited by the agent's Bash tool
-/// (`GROVE_CLAUDE_PID` is co-exported for one release). `GROVE_HARNESS_BIN`
-/// overrides the binary (testing / wrapping `claude`).
+/// Launch one fresh foreground harness session owning the real TTY, then
+/// watch it while it runs (see [`wait_with_watcher`]). Spawned directly — no
+/// shell, no PID-export trick; the `Child` already carries its own pid, and
+/// the driver signals it directly once the completion file appears.
+/// `GROVE_HARNESS_BIN` overrides the binary (testing / wrapping `claude`).
 ///
 /// `rerouted` says whether `harness` differs from the grove's stamped one
 /// (a per-kind `GROVE_<KIND>_HARNESS` override fired) — threaded through to
@@ -186,11 +199,7 @@ fn launch_session(
         model.unwrap_or("default")
     );
 
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(r#"export GROVE_HARNESS_PID=$$ GROVE_CLAUDE_PID=$$; exec "$@""#)
-        .arg("sh") // $0 for the inner shell
-        .arg(&bin); // $1 = the harness binary
+    let mut cmd = Command::new(&bin);
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(session_name);
     }
@@ -206,11 +215,101 @@ fn launch_session(
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
+    // Neither handle is exported any more (driver-side-kill-k2) — the agent
+    // never needs its own PID, since the driver kills its own child directly.
+    // Scrub rather than simply not-setting: a `grove do` launched from inside
+    // a session that itself inherited one of these (e.g. nested groves) must
+    // not leak a stale, unrelated PID into the new harness session.
+    cmd.env_remove("GROVE_HARNESS_PID");
+    cmd.env_remove("GROVE_CLAUDE_PID");
 
-    // A completion kill makes `claude` exit non-zero; that is the normal exit
-    // path, not an error. The signal file — not the exit code — decides relaunch.
-    let _ = cmd.status().context("launching the harness session")?;
-    Ok(())
+    let child = cmd.spawn().context("launching the harness session")?;
+    wait_with_watcher(child, signal_file)
+}
+
+/// The watcher's state machine: idle until the completion signal file
+/// appears, then timed toward SIGTERM and finally SIGKILL.
+enum Watch {
+    Running,
+    Signalled(Instant),
+    Terminated(Instant),
+}
+
+/// How often the watcher checks the child's liveness and the signal file.
+/// Not a tunable seam — `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` below are
+/// the only knobs a test (or an operator) needs.
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Default seconds after the completion signal file appears before the
+/// watcher sends SIGTERM (lets the agent's `complete` Bash-tool call return,
+/// and the agent's turn end, before its session dies).
+const DEFAULT_GRACE: f64 = 2.0;
+/// Default seconds after SIGTERM before the watcher escalates to SIGKILL.
+const DEFAULT_KILL_GRACE: f64 = 5.0;
+
+/// Watch a spawned harness session while it runs: poll for the completion
+/// signal file alongside the child's own exit (`try_wait`), and once the file
+/// appears, apply grace → SIGTERM → kill-grace → SIGKILL — the out-of-band
+/// kill an interactive harness cannot perform on itself (self-driving-loop).
+/// This is the *driver's* job, not the agent's: the driver is the harness's
+/// own parent process, outside whatever sandbox the harness runs under, so it
+/// can always signal its child — codex's Seatbelt sandbox, for one, denies a
+/// same-sandbox process from signalling its own session, which is why the
+/// previous in-agent self-kill silently failed there.
+fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
+    let (grace, kill_grace) = kill_graces();
+    let mut watch = Watch::Running;
+    loop {
+        if child
+            .try_wait()
+            .context("waiting on the harness session")?
+            .is_some()
+        {
+            // A completion kill makes the harness exit non-zero (or via
+            // signal); that is the normal exit path, not an error. The signal
+            // file — not the exit status — decides relaunch.
+            return Ok(());
+        }
+        watch = match watch {
+            Watch::Running if signal_file.exists() => Watch::Signalled(Instant::now()),
+            Watch::Signalled(at) if at.elapsed() >= grace => {
+                // SAFETY: kill(2) on a pid this process itself spawned. A
+                // failure (e.g. ESRCH, the child already exited) is ignored,
+                // same as the shell `kill ... 2>/dev/null` this replaces —
+                // the next `try_wait` above will catch that exit anyway.
+                unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+                Watch::Terminated(Instant::now())
+            }
+            Watch::Terminated(at) if at.elapsed() >= kill_grace => {
+                unsafe { libc::kill(child.id() as i32, libc::SIGKILL) };
+                child.wait().context("reaping the killed harness session")?;
+                return Ok(());
+            }
+            other => other,
+        };
+        std::thread::sleep(POLL_INTERVAL);
+    }
+}
+
+/// Read `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL`, falling back to the
+/// built-in defaults — the two knobs a test (or an operator) has to keep the
+/// watcher's timing fast or tunable. Negative values are clamped to zero
+/// rather than reaching `Duration::from_secs_f64`, which panics on them.
+fn kill_graces() -> (Duration, Duration) {
+    let grace = env_parse_f64("GROVE_KILL_GRACE")
+        .unwrap_or(DEFAULT_GRACE)
+        .max(0.0);
+    let kill_grace = env_parse_f64("GROVE_KILL_GRACE_KILL")
+        .unwrap_or(DEFAULT_KILL_GRACE)
+        .max(0.0);
+    (
+        Duration::from_secs_f64(grace),
+        Duration::from_secs_f64(kill_grace),
+    )
+}
+
+fn env_parse_f64(key: &str) -> Option<f64> {
+    std::env::var(key).ok().and_then(|s| s.trim().parse().ok())
 }
 
 /// The binary to exec for a harness: `GROVE_HARNESS_BIN_<NAME>` (the

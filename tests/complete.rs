@@ -1,42 +1,24 @@
-// Tests for the `grove-llm complete` verb core (src/complete.rs): the in-loop
-// completion signal — write the loop-disposition flag + fork the detached
-// delayed killer (030 D4 option (b)). The disposition the agent chose
-// (relaunch the next task, or finish the whole grove) is encoded in the signal
-// file and read back by the loop driver.
-
-mod support;
+// Tests for the `grove-llm complete` verb core (src/complete.rs): writing the
+// loop-disposition signal file. The out-of-band kill itself is the loop
+// driver's job now (src/loop_driver.rs, driver-side-kill-k2) — `complete`
+// only ever writes a file; see tests/loop_driver.rs for the kill half.
 
 use grove::complete::{self, CompleteOpts, Disposition};
-use std::process::Command;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
-use support::EnvGuard;
 use tempfile::TempDir;
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn resolve_opts_passes_explicit_values_through() {
-    let o = complete::resolve_opts(
-        Some(42),
-        Some("/tmp/relaunch.signal".into()),
-        Some(0.5),
-        Some(0.7),
-        Disposition::Relaunch,
-    );
-    assert_eq!(o.pid, Some(42));
+    let o = complete::resolve_opts(Some("/tmp/relaunch.signal".into()), Disposition::Relaunch);
     assert_eq!(
         o.signal_file.as_deref(),
         Some(std::path::Path::new("/tmp/relaunch.signal"))
     );
-    assert_eq!(o.grace, 0.5);
-    assert_eq!(o.kill_grace, 0.7);
     assert_eq!(o.disposition, Disposition::Relaunch);
 }
 
 #[test]
 fn resolve_opts_carries_the_done_disposition() {
-    let o = complete::resolve_opts(None, None, None, None, Disposition::Done);
+    let o = complete::resolve_opts(None, Disposition::Done);
     assert_eq!(
         o.disposition,
         Disposition::Done,
@@ -48,12 +30,8 @@ fn resolve_opts_carries_the_done_disposition() {
 fn relaunch_signal_is_read_back_as_relaunch() {
     let tmp = TempDir::new().unwrap();
     let sig = tmp.path().join("loop.signal");
-    // No pid → no kill; we only assert the signal the loop driver reads back.
     let opts = CompleteOpts {
-        pid: None,
         signal_file: Some(sig.clone()),
-        grace: 0.1,
-        kill_grace: 0.1,
         disposition: Disposition::Relaunch,
     };
 
@@ -72,10 +50,7 @@ fn done_signal_is_read_back_as_done() {
     let tmp = TempDir::new().unwrap();
     let sig = tmp.path().join("loop.signal");
     let opts = CompleteOpts {
-        pid: None,
         signal_file: Some(sig.clone()),
-        grace: 0.1,
-        kill_grace: 0.1,
         disposition: Disposition::Done,
     };
 
@@ -108,104 +83,4 @@ fn unrecognised_signal_content_is_treated_as_relaunch() {
     let sig = tmp.path().join("loop.signal");
     std::fs::write(&sig, "complete\n").unwrap();
     assert_eq!(complete::read_signal(&sig), Some(Disposition::Relaunch));
-}
-
-#[test]
-fn signal_complete_kills_the_target_pid_out_of_band() {
-    // Stand-in for the `claude` session: a process that would otherwise run for
-    // 30s. The detached killer must terminate it within the grace window. The
-    // out-of-band kill is identical for both dispositions — only the loop's
-    // relaunch-vs-finish decision differs.
-    let mut child = Command::new("sleep").arg("30").spawn().unwrap();
-    let pid = child.id() as i32;
-
-    let tmp = TempDir::new().unwrap();
-    let opts = CompleteOpts {
-        pid: Some(pid),
-        signal_file: Some(tmp.path().join("loop.signal")),
-        grace: 0.3,
-        kill_grace: 0.5,
-        disposition: Disposition::Relaunch,
-    };
-
-    // Must return immediately — the kill happens out-of-band, after a grace.
-    complete::signal_complete(&opts).unwrap();
-
-    let deadline = Instant::now() + Duration::from_secs(5);
-    let mut died = false;
-    while Instant::now() < deadline {
-        if child.try_wait().unwrap().is_some() {
-            died = true;
-            break;
-        }
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    if !died {
-        let _ = child.kill();
-    }
-    let _ = child.wait();
-    assert!(died, "the target pid must be killed by the detached killer");
-}
-
-#[test]
-fn resolve_opts_prefers_harness_pid_and_falls_back_to_the_old_name() {
-    let _g = support::lock_env(&ENV_LOCK);
-    // T7: this test used to `remove_var` both names unconditionally at the
-    // end, destroying whatever was ambiently there — on a session running
-    // these tests under `grove do` itself, that is a real, *inherited*
-    // `GROVE_CLAUDE_PID`, not test fixture. `EnvGuard` restores it.
-    let mut env = EnvGuard::new();
-
-    // New name wins when both are set.
-    env.set("GROVE_HARNESS_PID", "111")
-        .set("GROVE_CLAUDE_PID", "222");
-    let opts = grove::complete::resolve_opts(
-        None,
-        None,
-        None,
-        None,
-        grove::complete::Disposition::Relaunch,
-    );
-    assert_eq!(opts.pid, Some(111));
-
-    // Old name still resolves alone — one release of backward compatibility
-    // for content/agents that captured the old handle.
-    env.remove("GROVE_HARNESS_PID");
-    let opts = grove::complete::resolve_opts(
-        None,
-        None,
-        None,
-        None,
-        grove::complete::Disposition::Relaunch,
-    );
-    assert_eq!(opts.pid, Some(222));
-}
-
-#[test]
-fn resolve_opts_rejects_a_non_positive_pid_from_env() {
-    // B10: GROVE_HARNESS_PID=-1 must never reach `kill -TERM -1` — that
-    // signals every process the user can signal. `GROVE_CLAUDE_PID` shares
-    // the same fallback, so it must be guarded too.
-    let _g = support::lock_env(&ENV_LOCK);
-    let mut env = EnvGuard::new();
-    env.set("GROVE_HARNESS_PID", "-1")
-        .remove("GROVE_CLAUDE_PID");
-
-    let opts = complete::resolve_opts(None, None, None, None, Disposition::Relaunch);
-    assert_eq!(
-        opts.pid, None,
-        "a negative PID must be rejected, not passed through to the killer"
-    );
-
-    env.set("GROVE_HARNESS_PID", "0");
-    let opts = complete::resolve_opts(None, None, None, None, Disposition::Relaunch);
-    assert_eq!(opts.pid, None, "PID 0 must also be rejected");
-}
-
-#[test]
-fn resolve_opts_rejects_an_explicit_non_positive_pid() {
-    // The guard applies wherever the three sources converge, not just the
-    // env fallbacks — an explicit --pid is not exempt.
-    let opts = complete::resolve_opts(Some(-1), None, None, None, Disposition::Relaunch);
-    assert_eq!(opts.pid, None);
 }

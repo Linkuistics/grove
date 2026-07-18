@@ -1,5 +1,31 @@
 # Changelog
 
+## v13.0.0
+
+The self-driving loop's session-end kill moves from the agent to the loop
+driver: an in-agent self-kill cannot be trusted under every harness sandbox.
+
+### Breaking
+
+- **`GROVE_HARNESS_PID` and `GROVE_CLAUDE_PID` are gone.** The loop driver no
+  longer exports either — it spawns the harness session directly (no `sh -c
+  export…exec` wrapper) and kills its own child itself, so the agent never
+  needs its own PID. `grove-llm complete`'s `--pid`, `--grace`, and
+  `--kill-grace` flags are gone with them; `GROVE_KILL_GRACE` and
+  `GROVE_KILL_GRACE_KILL` are now read by the driver instead of by `complete`.
+
+### Fixed
+
+- **`grove-llm complete` now actually ends a codex session.** codex's
+  Seatbelt sandbox denies a same-sandbox process signalling its own session
+  (`(allow signal (target same-sandbox))`), so the previous self-spawned
+  delayed killer's `kill -TERM`/`kill -KILL` silently failed under codex (the
+  `EPERM` was hidden by `2>/dev/null`) — a codex-driven loop never relaunched
+  on its own. The loop driver, running outside any harness sandbox and always
+  able to signal its own child, now watches for the completion signal itself
+  and applies the same grace → SIGTERM → kill-grace → SIGKILL sequence to the
+  session it spawned.
+
 ## v12.0.0
 
 grove learns to route: a `pi` harness joins claude and codex, leaves can be

@@ -106,7 +106,7 @@ pub fn run_loop(
         } else {
             "start"
         };
-        let prompt = crate::launch::load_prompt(verb)?;
+        let prompt = crate::launch::load_prompt(harness, verb)?;
 
         // Route the launch by the picked leaf's kind: per-kind harness
         // override first (GROVE_<KIND>_HARNESS), then model-per-task-kind

@@ -1211,12 +1211,12 @@ Callers: `launch.rs:70` → `load_prompt(harness, "retire")`; `loop_driver.rs:10
 - [ ] **Step 5: Run the full suite**
 
 Run: `cargo test`
-Expected: PASS. The loop tests pass because `GROVE_SKILL_DIR` short-circuits `skill_dir_for`.
+Expected: PASS. The loop tests pass because `GROVE_SKILL_DIR` short-circuits `skill_dir_for` — **except** `tests/loop_driver.rs::unrecognised_kind_warns_the_operator_and_still_launches`, the one loop test that drives the real `grove` binary end-to-end (`Command::new(env!("CARGO_BIN_EXE_grove"))`, not in-process `run_loop`) and therefore hits `provision_all` for real. It pre-seeds `global-skill/prompts/{start,continue}.md` by hand to simulate a warm dir, with no `STAMP_FILE` alongside — exactly the signature `provision_target`'s new foreign-dir guard now refuses (a non-empty, unstamped directory). Fix: write `STAMP_FILE` (any value — a mismatch just re-extracts the real embedded prompts, which the test never inspects) into that `skill_dir` alongside the fixture files, mirroring what a genuinely grove-provisioned dir looks like. `tests/provision.rs` gains a `use grove::provision::STAMP_FILE;` import for this.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/provision.rs src/launch.rs src/loop_driver.rs tests/provision.rs
+git add src/provision.rs src/launch.rs src/loop_driver.rs tests/provision.rs tests/loop_driver.rs CONTEXT.md
 git commit -m "feat: provision the skill for every installed harness
 
 The embedded methodology now extracts to each harness's own skills dir

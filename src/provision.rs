@@ -11,6 +11,7 @@
 //! not the crate version — is the stamp, so even an edit at the same version
 //! (the dogfooding case) re-provisions.
 
+use crate::harness::{Harness, HARNESSES};
 use anyhow::{Context, Result};
 use include_dir::{include_dir, Dir, DirEntry};
 use sha2::{Digest, Sha256};
@@ -27,15 +28,50 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
-/// Provision the global skill into `~/.claude/skills/grove/` (idempotent),
-/// logging only when it actually (re)writes. This is the `grove do` provisioning
-/// point — the entry the human always hits (task-tree-scheme).
-pub fn provision_global_skill() -> Result<()> {
-    let dest = global_skill_dir()?;
-    if provision_into(&dest)? {
-        eprintln!("grove: provisioned the global skill at {}", dest.display());
+/// Provision the embedded methodology for every harness on this machine:
+/// `primary` (the harness about to launch) unconditionally, plus every other
+/// harness whose home root (`~/.claude`, `~/.codex`, `~/.pi`) exists. Logging
+/// only when a target actually (re)writes. With `$GROVE_SKILL_DIR` set (the
+/// test/dev seam) the sweep collapses to that single dir.
+pub fn provision_all(primary: &'static Harness) -> Result<()> {
+    if std::env::var_os("GROVE_SKILL_DIR").is_some() {
+        let dest = skill_dir_for(primary)?; // the override wins inside
+        if provision_target(&dest)? {
+            eprintln!("grove: provisioned the skill at {}", dest.display());
+        }
+        return Ok(());
+    }
+    let home = home_dir()?;
+    for h in HARNESSES {
+        let installed = home.join(h.project_dir).is_dir();
+        if h.name != primary.name && !installed {
+            continue; // absent harness root: skip, never create
+        }
+        let dest = home.join(h.skills_dir).join("grove");
+        if provision_target(&dest)? {
+            eprintln!(
+                "grove: provisioned the {} skill at {}",
+                h.name,
+                dest.display()
+            );
+        }
     }
     Ok(())
+}
+
+/// A harness's global skill dir: `$GROVE_SKILL_DIR` override (test/dev seam),
+/// else `$HOME/<harness.skills_dir>/grove`.
+pub fn skill_dir_for(harness: &Harness) -> Result<PathBuf> {
+    if let Some(dir) = std::env::var_os("GROVE_SKILL_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
+    Ok(home_dir()?.join(harness.skills_dir).join("grove"))
+}
+
+fn home_dir() -> Result<PathBuf> {
+    let home = std::env::var_os("HOME")
+        .ok_or_else(|| anyhow::anyhow!("$HOME is not set; cannot locate the global skill dirs"))?;
+    Ok(PathBuf::from(home))
 }
 
 /// Idempotently extract the embedded methodology into `dest`. Returns whether it
@@ -49,23 +85,30 @@ pub fn provision_into(dest: &Path) -> Result<bool> {
     })
 }
 
-/// The global personal skill dir Claude Code reads live. `$GROVE_SKILL_DIR`
-/// overrides it (a test/dev seam, mirroring `GROVE_HARNESS_BIN`); otherwise it
-/// is `$HOME/.claude/skills/grove`.
-pub fn global_skill_dir() -> Result<PathBuf> {
-    if let Some(dir) = std::env::var_os("GROVE_SKILL_DIR") {
-        return Ok(PathBuf::from(dir));
+/// Guarded single-target provisioning. Replaces `dest` only when it is ours
+/// to replace: a symlink (today's cross-harness link farm — removed as a
+/// *link*, never through it), a grove-provisioned dir (stamp present), or
+/// absent/empty. Anything else is someone's real content: bail.
+pub fn provision_target(dest: &Path) -> Result<bool> {
+    if let Ok(meta) = std::fs::symlink_metadata(dest) {
+        if meta.file_type().is_symlink() {
+            // Order matters: remove the LINK first. remove_dir_all through a
+            // symlink would delete the target's contents.
+            std::fs::remove_file(dest)
+                .with_context(|| format!("removing symlink {}", dest.display()))?;
+        } else if meta.is_dir()
+            && !dest.join(STAMP_FILE).exists()
+            && std::fs::read_dir(dest)?.next().is_some()
+        {
+            anyhow::bail!(
+                "refusing to overwrite {} — it exists but is not a \
+                 grove-provisioned dir (no {} stamp); move it aside and re-run",
+                dest.display(),
+                STAMP_FILE
+            );
+        }
     }
-    let home = std::env::var_os("HOME").ok_or_else(|| {
-        anyhow::anyhow!(
-            "$HOME is not set; cannot locate the global skill dir (~/.claude/skills/grove)"
-        )
-    })?;
-    Ok(skill_dir_under_home(Path::new(&home)))
-}
-
-fn skill_dir_under_home(home: &Path) -> PathBuf {
-    home.join(".claude").join("skills").join("grove")
+    provision_into(dest)
 }
 
 /// Write `dest` via `write_files` only when its stamp differs from `want_hash`;
@@ -131,12 +174,26 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    static ENV_LOCK_FOR_HOME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
-    fn skill_dir_is_under_dot_claude_skills_grove() {
+    fn skill_dirs_follow_each_harness_layout() {
+        let _lock = ENV_LOCK_FOR_HOME.lock().unwrap();
+        let old_home = std::env::var_os("HOME");
+        std::env::remove_var("GROVE_SKILL_DIR");
+        std::env::set_var("HOME", "/home/x");
         assert_eq!(
-            skill_dir_under_home(Path::new("/home/x")),
+            skill_dir_for(crate::harness::by_name("claude").unwrap()).unwrap(),
             Path::new("/home/x/.claude/skills/grove")
         );
+        assert_eq!(
+            skill_dir_for(crate::harness::by_name("pi").unwrap()).unwrap(),
+            Path::new("/home/x/.pi/agent/skills/grove")
+        );
+        match old_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
     }
 
     #[test]

@@ -5,9 +5,13 @@
 // scenarios named in the leaf brief: extract-fresh, extract-idempotent,
 // extract-on-change (self-extension-core-and-methodology / task-tree-scheme, 070/010).
 
+use grove::provision::provision_target;
 use grove::provision::{provision_into, STAMP_FILE};
 use std::fs;
+use std::sync::Mutex;
 use tempfile::TempDir;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn extract_fresh_writes_the_full_content_tree() {
@@ -68,5 +72,88 @@ fn extract_re_extracts_and_clears_stale_files_when_the_stamp_mismatches() {
     assert!(
         dest.path().join("SKILL.md").is_file(),
         "the current embed is re-written"
+    );
+}
+
+#[test]
+fn provision_replaces_a_symlinked_grove_entry_with_a_real_dir() {
+    let tmp = TempDir::new().unwrap();
+    // Simulate today's layout: a real provisioned dir + a skills entry that
+    // symlinks to it (the current ~/.codex/skills/grove and
+    // ~/.pi/agent/skills/grove setups).
+    let real = tmp.path().join("claude-skills/grove");
+    fs::create_dir_all(&real).unwrap();
+    provision_into(&real).unwrap();
+    let linked = tmp.path().join("codex-skills/grove");
+    fs::create_dir_all(linked.parent().unwrap()).unwrap();
+    std::os::unix::fs::symlink(&real, &linked).unwrap();
+
+    let wrote = provision_target(&linked).unwrap();
+
+    assert!(wrote, "a symlinked entry is replaced, not treated as warm");
+    let meta = fs::symlink_metadata(&linked).unwrap();
+    assert!(meta.is_dir(), "the symlink becomes a real directory");
+    assert!(linked.join("SKILL.md").is_file());
+    // CRITICAL: replacing the link must not have reached through it — the
+    // original target keeps its content.
+    assert!(
+        real.join("SKILL.md").is_file(),
+        "replacing the symlink must never delete through it"
+    );
+}
+
+#[test]
+fn provision_refuses_a_foreign_directory() {
+    let tmp = TempDir::new().unwrap();
+    let dest = tmp.path().join("skills/grove");
+    fs::create_dir_all(&dest).unwrap();
+    fs::write(dest.join("precious.txt"), "user data, not ours").unwrap();
+
+    let err = provision_target(&dest).unwrap_err().to_string();
+
+    assert!(
+        err.contains("precious") || err.contains("not a grove-provisioned"),
+        "must refuse to clobber a dir grove didn't write (err: {err})"
+    );
+    assert!(
+        dest.join("precious.txt").is_file(),
+        "the foreign content must be untouched"
+    );
+}
+
+#[test]
+fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
+    let _g = ENV_LOCK.lock().unwrap();
+    let home = TempDir::new().unwrap();
+    // Installed roots: claude and pi. codex is absent. pi is also the primary.
+    fs::create_dir_all(home.path().join(".claude")).unwrap();
+    fs::create_dir_all(home.path().join(".pi")).unwrap();
+
+    let old_home = std::env::var_os("HOME");
+    std::env::set_var("HOME", home.path());
+    std::env::remove_var("GROVE_SKILL_DIR");
+
+    let pi = grove::harness::by_name("pi").unwrap();
+    let result = grove::provision::provision_all(pi);
+
+    match old_home {
+        Some(h) => std::env::set_var("HOME", h),
+        None => std::env::remove_var("HOME"),
+    }
+    result.unwrap();
+
+    assert!(
+        home.path().join(".claude/skills/grove/SKILL.md").is_file(),
+        "installed claude root is provisioned"
+    );
+    assert!(
+        home.path()
+            .join(".pi/agent/skills/grove/SKILL.md")
+            .is_file(),
+        "the primary (pi) is provisioned — note agent/ nesting"
+    );
+    assert!(
+        !home.path().join(".codex").exists(),
+        "an absent harness root is skipped, not created"
     );
 }

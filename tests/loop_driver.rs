@@ -8,6 +8,7 @@
 
 use grove::harness;
 use grove::loop_driver::{self, LoopOutcome};
+use grove::provision::STAMP_FILE;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Mutex;
@@ -352,11 +353,18 @@ fn unrecognised_kind_warns_the_operator_and_still_launches() {
     git(&["add", "-A"]);
     git(&["commit", "-qm", "tree with an unrecognised kind"]);
 
+    // This test drives the real `grove do` binary, so provisioning is live
+    // (unlike the in-process `run_loop` tests above, which never reach
+    // `provision_all`). Stamp the dir so the foreign-dir guard
+    // (`provision_target`) treats it as grove's own — a mismatched hash still
+    // re-extracts the real embedded prompts, which is fine: this test only
+    // asserts on stderr and the logged argv, never on prompt content.
     let skill_dir = repo_path.join("global-skill");
     let prompts = skill_dir.join("prompts");
     fs::create_dir_all(&prompts).unwrap();
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
 
     let log = repo_path.join("log");
     let fake = repo_path.join("fake-claude.sh");

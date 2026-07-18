@@ -1442,24 +1442,74 @@ trial notes — the grove env values must match whatever codex accepts.
 **Files:**
 - Modify: pi settings via `pi install` (no manual file edits)
 
-- [ ] **Step 1: Install the provider package**
+- [x] **Step 1: Install the provider package**
 
 Run: `pi install npm:pi-provider-kimi-code`
 Expected: install success. (If the source spec differs, follow https://github.com/Leechael/pi-provider-kimi-code README — it documents the exact `pi install` source and required env vars.)
 
-- [ ] **Step 2: Configure the Kimi Code API key**
+- [x] **Step 2: Authenticate against the Kimi Code Plan subscription**
 
-Per the package README, export the key it expects (from kimi.com → Kimi Code API key) in `~/.zshenv`, e.g. `export KIMI_CODE_API_KEY=sk-...` — use the README's exact variable name.
+DEVIATION (found 2026-07-18): the package has no `KIMI_CODE_API_KEY` env var.
+Its README documents two distinct auth paths, and only one bills the
+subscription:
 
-- [ ] **Step 3: Discover the exact model id**
+- `/login kimi-coding` — interactive OAuth device-code flow inside pi,
+  reusing the Kimi Code Plan the human is subscribed to on kimi.com. This is
+  the sub-billed path the trial needs.
+- `KIMI_API_KEY` — a static platform API key. The README labels this
+  explicitly "for CI or pay-per-token use" — separate, metered billing, not
+  the flat-rate subscription. Wrong for this trial's goal.
+
+So: the human runs `pi` interactively (e.g. `! pi` from a Claude Code
+session) and executes `/login kimi-coding`, completing the browser
+device-code flow against their kimi.com account. This is HITL — no
+`~/.zshenv` edit and no headless equivalent; pi persists the resulting
+credential at `~/.pi/agent/auth.json` (and syncs it to
+`~/.kimi-code/credentials/kimi-code.json` if that dir exists).
+
+- [x] **Step 3: Discover the exact model id**
 
 Run: `pi --list-models kimi`
-Expected: the provider's K3 entry, e.g. `kimi-code/k3`. **Record the exact id — Task 11 uses it verbatim.**
+Expected: the provider's K3 entry. **Confirmed 2026-07-18 (static catalog,
+resolves pre-login): `kimi-coding/k3`** — not `kimi-code/k3` as originally
+guessed; the provider name the package registers is `kimi-coding`, matching
+its existing `/login kimi-coding` command and its three published IDs
+(`kimi-coding/kimi-for-coding`, `kimi-coding/kimi-for-coding-highspeed`,
+`kimi-coding/k3`). **Task 11/12 use `kimi-coding/k3` verbatim.**
 
-- [ ] **Step 4: Live round-trip on the sub**
+- [x] **Step 4: Live round-trip on the sub**
 
-Run: `pi -p --model <recorded-id> "Reply with exactly: kimi-ok"`
-Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com usage dashboard shows the call). If the endpoint rejects pi, set the protocol env the README documents (`KIMI_CODE_PROTOCOL=anthropic`) and retry; if it still fails, STOP and report — the fallback (Kimi CLI as reviewer shell) is a design change requiring sign-off.
+Run: `pi -p --model kimi-coding/k3 "Reply with exactly: kimi-ok"`
+Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com
+usage dashboard shows the call). If the endpoint rejects pi, set the protocol
+env the README documents (`KIMI_CODE_PROTOCOL=anthropic`) and retry; if it
+still fails, STOP and report — the fallback (Kimi CLI as reviewer shell) is a
+design change requiring sign-off.
+
+DEVIATION (found 2026-07-18): `pi --list-models kimi` post-login lists only
+`kimi-for-coding`, not `k3`, and a request against `kimi-coding/k3` warns
+`Model "k3" not found for provider "kimi-coding". Using custom model id.`
+This is a mismatch inside `pi-provider-kimi-code`, not a real access
+problem: the extension gates a model two ways — a membership-rank check
+(`isKimiModelAvailableForMembership`, which for `LEVEL_STANDARD`/Moderato
+correctly allows K3), and a separate intersection against whatever
+`/v1/models` returns from Kimi's API at login (this account's response
+apparently omits `k3` from that listing, even though the account's
+kimi.com dashboard confirms Moderato + K3 available). The listing gap does
+not block the request: passed explicitly, `k3` goes through as a raw model
+id and the completions endpoint served a real, coherent reply with real
+token/cost usage tagged `model: k3` in the pi session transcript — no
+`KIMI_API_KEY` was set, so this was OAuth-subscription-billed. Confirmed via
+the kimi.com usage dashboard (human check, 2026-07-18): both round-trip
+calls made during this task appear there.
+
+Also confirmed: Moderato caps K3's context window at 256K
+(`KIMI_K3_MODERATO_CONTEXT_WINDOW`, applied by
+`applyKimiMembershipLimitsToModel` below the Allegretto rank) — expected,
+documented behavior (README: "Moderato: 256K context; Allegretto and above:
+up to 1M"), not a defect. Worth keeping in mind for the trial (K3 sessions
+on the pi side of the trial cap out around Claude's own ~200K, well short of
+codex/sol's context), but not a blocker for this task.
 
 ---
 
@@ -1470,7 +1520,7 @@ Expected: `kimi-ok`, billed to the Kimi Code subscription (check the kimi.com us
 
 - [ ] **Step 1: Replace the grove model block**
 
-Delete lines 5-9 (`GROVE_PLANNING_MODEL=fable` … `GROVE_REVIEW_MODEL=opus`) and insert, using the model id recorded in Task 10 step 3 wherever `kimi-code/k3` appears:
+Delete lines 5-9 (`GROVE_PLANNING_MODEL=fable` … `GROVE_REVIEW_MODEL=opus`) and insert, using the model id confirmed in Task 10 step 3 (`kimi-coding/k3`):
 
 ```sh
 # grove model routing — codex+sol vs pi+K3 trial (2026-07)
@@ -1478,18 +1528,18 @@ export GROVE_CODEX_PLANNING_MODEL=sol-xhigh
 export GROVE_CODEX_RESEARCH_MODEL=sol-xhigh
 export GROVE_CODEX_PROTOTYPE_MODEL=sol-high
 export GROVE_CODEX_WORK_MODEL=sol-high
-export GROVE_PI_PLANNING_MODEL=kimi-code/k3
-export GROVE_PI_RESEARCH_MODEL=kimi-code/k3
-export GROVE_PI_PROTOTYPE_MODEL=kimi-code/k3
-export GROVE_PI_WORK_MODEL=kimi-code/k3
-export GROVE_PI_REVIEW_MODEL=kimi-code/k3
+export GROVE_PI_PLANNING_MODEL=kimi-coding/k3
+export GROVE_PI_RESEARCH_MODEL=kimi-coding/k3
+export GROVE_PI_PROTOTYPE_MODEL=kimi-coding/k3
+export GROVE_PI_WORK_MODEL=kimi-coding/k3
+export GROVE_PI_REVIEW_MODEL=kimi-coding/k3
 export GROVE_REVIEW_HARNESS=pi
 ```
 
 - [ ] **Step 2: Verify in a fresh shell**
 
 Run: `zsh -c 'env | grep GROVE_ | sort'`
-Expected: exactly the ten vars above (plus any `KIMI_CODE_*` from Task 10); no `GROVE_PLANNING_MODEL=fable` survivors.
+Expected: exactly the ten vars above; no `GROVE_PLANNING_MODEL=fable` survivors. (No `KIMI_CODE_*`/`KIMI_API_KEY` line — Task 10 step 2 authenticates via OAuth login, not an env var.)
 
 ---
 
@@ -1517,7 +1567,7 @@ self-review cannot.
 
 Spawn pi headless in the worktree; it can read files and run commands:
 
-    pi -p --model kimi-code/k3 "<adversarial review prompt>"
+    pi -p --model kimi-coding/k3 "<adversarial review prompt>"
 
 pi persists the session, so a finding worth interrogating can be resumed
 interactively afterwards (`pi --resume`).

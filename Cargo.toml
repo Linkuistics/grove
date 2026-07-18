@@ -54,8 +54,8 @@ clap = { version = "4", features = ["derive"] }
 include_dir = "0.7"
 # Used by the self-driving loop substrate (self-driving-loop): `loop_driver.rs` ignores
 # SIGINT (`libc::signal`) so the driver survives the human's Ctrl-C and checks
-# `isatty` before launching, and the `grove-llm complete` signal verb's
-# self-spawned delayed killer detaches via `libc::setsid`.
+# `isatty` before launching, and its session watcher ends a signalled session
+# with `libc::kill` (SIGTERM, then SIGKILL).
 libc = "0.2"
 sha2 = "0.10"
 tempfile = "3.10"

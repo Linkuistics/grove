@@ -2,9 +2,10 @@
 //
 // Drives the *real* loop against a **fake `claude`** (a shell script wired in
 // via the `GROVE_HARNESS_BIN` seam) so the mechanism is proven end-to-end with
-// no real TUI: the PID handle reaches the child, relaunch is gated on the
-// completion signal, and the start→continue prompt switch happens once `.grove/`
-// exists.
+// no real TUI: no PID handle is exported to the child (the driver kills its
+// own child instead — driver-side watcher), the driver ends a session that
+// signalled and then hung, relaunch is gated on the completion signal, and the
+// start→continue prompt switch happens once `.grove/` exists.
 
 mod support;
 

@@ -291,21 +291,39 @@ fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
     }
 }
 
+/// Upper bound on either grace. A session-end grace beyond this is operator
+/// error, not intent, and letting one through would hang the loop for the rest
+/// of the day with no diagnostic — the cap keeps a typo recoverable.
+const MAX_GRACE_SECS: f64 = 3600.0;
+
 /// Read `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL`, falling back to the
 /// built-in defaults — the two knobs a test (or an operator) has to keep the
-/// watcher's timing fast or tunable. Negative values are clamped to zero
-/// rather than reaching `Duration::from_secs_f64`, which panics on them.
+/// watcher's timing fast or tunable. See [`grace_secs`] for why the value is
+/// sanitised rather than passed straight to `Duration::from_secs_f64`.
 fn kill_graces() -> (Duration, Duration) {
-    let grace = env_parse_f64("GROVE_KILL_GRACE")
-        .unwrap_or(DEFAULT_GRACE)
-        .max(0.0);
-    let kill_grace = env_parse_f64("GROVE_KILL_GRACE_KILL")
-        .unwrap_or(DEFAULT_KILL_GRACE)
-        .max(0.0);
     (
-        Duration::from_secs_f64(grace),
-        Duration::from_secs_f64(kill_grace),
+        grace_secs("GROVE_KILL_GRACE", DEFAULT_GRACE),
+        grace_secs("GROVE_KILL_GRACE_KILL", DEFAULT_KILL_GRACE),
     )
+}
+
+fn grace_secs(key: &str, default: f64) -> Duration {
+    sanitise_grace(env_parse_f64(key), default)
+}
+
+/// One operator-supplied grace, sanitised into a `Duration`.
+/// `Duration::from_secs_f64` panics on NaN, on negatives, *and* on values too
+/// large to represent — so a bare `.max(0.0)` clamp is not enough: it lets
+/// `GROVE_KILL_GRACE=inf` (or `1e300`) through to panic the driver mid-loop.
+/// Non-finite input falls back to the default (it expresses no intent); finite
+/// input is clamped into `[0, MAX_GRACE_SECS]`. Split from the env read so the
+/// sanitising is testable without process-global `set_var`.
+fn sanitise_grace(value: Option<f64>, default: f64) -> Duration {
+    let secs = value
+        .filter(|s| s.is_finite())
+        .unwrap_or(default)
+        .clamp(0.0, MAX_GRACE_SECS);
+    Duration::from_secs_f64(secs)
 }
 
 fn env_parse_f64(key: &str) -> Option<f64> {
@@ -591,5 +609,40 @@ fn reset_terminal() {
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `Duration::from_secs_f64` panics on NaN, negatives, and unrepresentably
+    // large values. An operator typo in `GROVE_KILL_GRACE` must never take the
+    // whole loop down with it, so every one of those falls back or clamps.
+    #[test]
+    fn a_grace_the_operator_typoed_never_panics_the_driver() {
+        for bad in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+            assert_eq!(
+                sanitise_grace(Some(bad), 2.0),
+                Duration::from_secs_f64(2.0),
+                "non-finite {bad} expresses no intent — fall back to the default"
+            );
+        }
+        assert_eq!(
+            sanitise_grace(Some(1e300), 2.0),
+            Duration::from_secs_f64(MAX_GRACE_SECS),
+            "a finite but absurd grace clamps to the cap"
+        );
+        assert_eq!(
+            sanitise_grace(Some(-1.0), 2.0),
+            Duration::ZERO,
+            "a negative grace clamps to zero (kill immediately)"
+        );
+    }
+
+    #[test]
+    fn a_sane_grace_is_passed_through_untouched() {
+        assert_eq!(sanitise_grace(Some(0.25), 2.0), Duration::from_millis(250));
+        assert_eq!(sanitise_grace(None, 2.0), Duration::from_secs(2));
     }
 }

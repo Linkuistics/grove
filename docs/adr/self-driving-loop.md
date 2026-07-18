@@ -3,10 +3,12 @@
 grove runs its one-task-per-session loop with a stateless shell loop it owns, not an
 external workflow engine. The mechanism:
 
-- A trivial **loop driver**: `while grove-llm pick has work: launch claude; on exit,
-  relaunch only if the completion signal fired`. `grove-llm pick` is the loop
-  condition — empty output means the grove is done.
-- Each task runs as a **normal foreground `claude` child** owning the real TTY, so
+- A trivial **loop driver**: `loop { launch a harness session; on exit, relaunch
+  only if the completion signal fired }`. The **completion signal is the driver's
+  loop condition** — the driver never runs `grove-llm pick` itself. `pick` is the
+  *agent's* loop condition, evaluated in-session: empty output means the grove is
+  done, and that session proposes the finish cycle and signals `complete --done`.
+- Each task runs as a **normal foreground harness child** owning the real TTY, so
   interactive grilling, resize, and Ctrl-C are 100% native — **no PTY wrapper, no
   passthrough code**.
 - The agent's **last step** (after commit + retire) runs the `grove-llm complete`

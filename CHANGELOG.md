@@ -25,6 +25,11 @@ driver: an in-agent self-kill cannot be trusted under every harness sandbox.
   able to signal its own child, now watches for the completion signal itself
   and applies the same grace → SIGTERM → kill-grace → SIGKILL sequence to the
   session it spawned.
+- **An out-of-range `GROVE_KILL_GRACE` no longer panics the driver.** The
+  watcher clamped negatives but passed non-finite and absurdly large values
+  straight to `Duration::from_secs_f64`, which panics on them: `inf` or `1e300`
+  took the whole loop down. Non-finite values now fall back to the default and
+  finite ones clamp into `[0, 3600]`.
 
 ## v12.0.0
 

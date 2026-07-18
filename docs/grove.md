@@ -57,7 +57,7 @@ A grove lives in two places — the CLI binary (Homebrew, used from anywhere, ca
 
 Different groves — including several against the same repo — run in separate working trees in parallel, each on whatever branch its owner gave it. They all read the one binary-provisioned global skill, so parallel groves never drift in methodology version. Finishing a grove is an **in-session** step (there is no `grove finish` verb): when the grove has no live leaves left, the running loop first promotes anything from the grove's briefs that should outlive it (ADRs, docs, glossary entries), then **deletes `.grove/` in a focused commit** and signals the loop to stop. That is the whole cycle — grove creates no git topology, so it merges none and deletes none either (user-owned-worktrees): integrating the branch and tearing down the working tree are the user's own git/gh, or their worktree tooling, done after `.grove/` is already gone.
 
-The CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` whenever `--harness` is passed explicitly, and also when a multi-harness repo (both `.claude/` and `.codex/`) launches a grove, so later verbs know which harness this grove is bound to. A single-harness repo relying on auto-detection stays stamp-free — there's nothing to disambiguate.
+The CLI writes a one-line stamp at `<repo>/.grove-stamps/<name>` whenever `--harness` is passed explicitly, and also when a multi-harness repo (two or more of `.claude/`, `.codex/`, `.pi/`) launches a grove, so later verbs know which harness this grove is bound to. A single-harness repo relying on auto-detection stays stamp-free — there's nothing to disambiguate.
 
 ```
 grove do                   # the sole lifecycle entry verb, run from inside your working tree

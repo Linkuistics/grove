@@ -85,7 +85,7 @@ grove: ready in /Users/you/code/acme/add-rate-limiting (no-launch)
 
 ## Multi-harness repos
 
-If `acme/orders-api` has both `.claude/` and `.codex/` directories — i.e. both harnesses have been used in this repo — `grove do` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
+If `acme/orders-api` has directories for more than one harness (e.g. both `.claude/` and `.codex/`) — i.e. more than one harness has been used in this repo — `grove do` cannot guess which harness this grove should be bound to. Pass `--harness` once at start time:
 
 ```
 $ grove do --harness claude

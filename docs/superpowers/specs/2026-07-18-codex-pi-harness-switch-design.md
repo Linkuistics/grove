@@ -1,7 +1,8 @@
 # Codex/Pi harness switch — design
 
 **Date:** 2026-07-18
-**Status:** approved (design); implementation pending
+**Status:** live — shipped in grove v12.0.0; trial running 2026-07-18 to
+~2026-08-18
 
 ## Context and goals
 
@@ -203,6 +204,14 @@ disposable).
 8. Cancel Anthropic (`~/.claude/` stays on disk; grove's claude harness entry
    remains for other users).
 9. Month trial → flip losing stamps → cancel losing sub.
+
+## Trial log
+
+- **2026-07-18** — grove v12.0.0 released; codex-side and pi-side groves
+  stamped. Trial clock starts here. Compare quality, quota pressure, and
+  wall-clock across sides through the end date below.
+- **Trial end: ~2026-08-18.** At that point, flip the losing side's stamps
+  to the winner and cancel the losing subscription.
 
 ## Error handling
 

@@ -41,6 +41,8 @@ verifiable until the suite is trustworthy.
 - review-fix-routing-k17 — model/harness routing defects (B2, B5, B6, B7)
 - review-fix-provision-stamp-k18 — write-ordering + blast radius (B3-B4, B8-B10, D5)
 - review-fix-docs-k19 — docs that would misdirect the runbook user (D1-D4)
+- docs-pi-harness-mentions-k20 — judge/fix the `pi`-omitting multi-harness
+  docs surfaced mid-k19, not itself a branch-review finding
 - release-stamp-trial-k15 — merge, release, live-verify, stamp, cancel (plan Task 13)
 
 ## Pointers

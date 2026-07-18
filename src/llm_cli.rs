@@ -154,12 +154,17 @@ pub enum Command {
     /// ends this harness session and starts the next task with fresh context.
     ///
     /// Writes the disposition flag (relaunch by default, or finish with
-    /// `--done`), then forks a detached killer that ends this session after a
-    /// short grace (so this very call returns first). Do nothing else after
-    /// running it. The default relaunches the loop for the next task; `--done`
-    /// — the Finish cycle's last action — stops it cleanly. Defaults come from
-    /// the loop driver's environment (`GROVE_HARNESS_PID`, `GROVE_SIGNAL_FILE`);
-    /// when those are absent (a session not under `grove do`) it is a safe
+    /// `--done`) to the signal file and returns immediately. Ending the
+    /// session is the loop driver's job, not this verb's: the driver launched
+    /// this session and is watching for the signal file while it runs, so it
+    /// applies grace → SIGTERM → kill-grace → SIGKILL to its own child once
+    /// the file appears (driver-side watcher) — the driver can always signal
+    /// its child, unlike an in-agent self-kill, which some harness sandboxes
+    /// (e.g. codex's Seatbelt) silently deny. Do nothing else after running
+    /// it. The default relaunches the loop for the next task; `--done` — the
+    /// Finish cycle's last action — stops it cleanly. The signal-file default
+    /// comes from the loop driver's environment (`GROVE_SIGNAL_FILE`); when
+    /// that is absent (a session not under `grove do`) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
 }
@@ -171,18 +176,9 @@ pub struct CompleteArgs {
     /// (the per-task default) the loop relaunches with fresh context.
     #[arg(long)]
     pub done: bool,
-    /// PID of the `claude` session to end. Default: `$GROVE_HARNESS_PID`.
-    #[arg(long)]
-    pub pid: Option<i32>,
-    /// Relaunch-signal file the loop driver polls. Default: `$GROVE_SIGNAL_FILE`.
+    /// Relaunch-signal file the loop driver watches for. Default: `$GROVE_SIGNAL_FILE`.
     #[arg(long = "signal-file")]
     pub signal_file: Option<PathBuf>,
-    /// Seconds before SIGTERM. Default: `$GROVE_KILL_GRACE` or 2.
-    #[arg(long)]
-    pub grace: Option<f64>,
-    /// Seconds after SIGTERM before SIGKILL. Default: `$GROVE_KILL_GRACE_KILL` or 5.
-    #[arg(long = "kill-grace")]
-    pub kill_grace: Option<f64>,
 }
 
 #[derive(Parser)]
@@ -270,13 +266,7 @@ fn cmd_complete(args: &CompleteArgs) -> Result<()> {
     } else {
         complete::Disposition::Relaunch
     };
-    let opts = complete::resolve_opts(
-        args.pid,
-        args.signal_file.clone(),
-        args.grace,
-        args.kill_grace,
-        disposition,
-    );
+    let opts = complete::resolve_opts(args.signal_file.clone(), disposition);
     complete::signal_complete(&opts)
 }
 

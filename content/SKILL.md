@@ -242,11 +242,15 @@ upward?) with no stable input/output shape that would justify a verb.
 **Signal.** Once the task is committed and retired (and any parent-chain cascade
 is settled), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts
-the next task with fresh context: the verb writes the relaunch flag and forks a
-detached killer that ends this harness session after a short grace (so the call
-itself returns first). It reads its env handles from the loop driver
-(`GROVE_HARNESS_PID`, `GROVE_SIGNAL_FILE`); run outside `grove do` it is a safe
-no-op that just tells you to exit manually. Plain `complete` signals a
+the next task with fresh context: the verb only writes the relaunch flag to a
+signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the session is the **loop
+driver's** job, not this verb's — the driver launched this session and is
+watching for the signal file while it runs, so it applies grace → SIGTERM →
+kill-grace → SIGKILL to its own child once the file appears (driver-side
+watcher: the driver can always signal its child, unlike an in-agent self-kill,
+which some harness sandboxes — e.g. codex's Seatbelt — silently deny). Run
+outside `grove do` (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just tells
+you to exit manually. Plain `complete` signals a
 **relaunch**; the **Finish** cycle below ends instead with **`grove-llm complete
 --done`**, which signals a clean *stop*. The loop tells the three cases apart by
 the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
@@ -268,11 +272,11 @@ confirmation, run:
    last** action, then do nothing else. This signals the self-driving loop to
    *stop* (vs the per-task `complete`, which relaunches), so a clean finish is
    distinct from a crash or Ctrl-C. It must come last: like the per-task signal
-   it ends this session after a short grace, so running it any earlier would cut
-   teardown short. It writes only the loop's signal file (in the temp dir) and
-   uses `$GROVE_HARNESS_PID` — nothing about the working tree — so run it
-   from any valid directory. Outside `grove do` (no loop to stop) it is a safe
-   no-op: just exit.
+   it ends this session after a short grace (applied by the loop driver, which
+   is watching for the signal file — not this verb), so running it any earlier
+   would cut teardown short. It writes only the loop's signal file (in the temp
+   dir) — nothing about the working tree — so run it from any valid directory.
+   Outside `grove do` (no loop to stop) it is a safe no-op: just exit.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to plain git/gh, or the user's own

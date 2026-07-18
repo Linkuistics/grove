@@ -87,6 +87,17 @@ pub fn by_name(name: &str) -> Option<&'static Harness> {
     HARNESSES.iter().find(|h| h.name == name)
 }
 
+/// Whether `bin` resolves to something executable. Searches `PATH` for a bare
+/// command name (the common case); also correctly validates an absolute
+/// override (the `GROVE_HARNESS_BIN`/`GROVE_HARNESS_BIN_<NAME>` test seams
+/// pass a path, not a bare name) with the same loop, since joining an
+/// absolute path onto any `PATH` entry yields that absolute path unchanged.
+pub fn exec_bin_on_path(bin: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(bin).is_file()))
+        .unwrap_or(false)
+}
+
 /// The registry's names, comma-joined — the single source for "known:" error
 /// text, so adding a harness never leaves a stale hardcoded list behind.
 pub fn known_names() -> String {

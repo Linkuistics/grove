@@ -1,6 +1,9 @@
+mod support;
+
 use grove::cli::{RetireArgs, StartArgs};
 use grove::launch;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 use std::sync::Mutex;
 use tempfile::TempDir;
@@ -242,6 +245,58 @@ fn a_failed_provision_never_leaves_a_permanent_stamp() {
     assert!(
         !grove::harness_stamp::path(repo.path(), &name).exists(),
         "a failed provision must not leave a permanent bad binding (B4)"
+    );
+}
+
+#[test]
+fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
+    // harness-spawn-preflight-k8: the pre-flight check used to validate only
+    // the stamped harness's binary. A per-kind `GROVE_<KIND>_HARNESS`
+    // override whose binary is missing must now fail *here* — before the
+    // loop starts — not mid-loop on the first leaf of that kind.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let name = repo
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+
+    let fake_claude = repo.path().join("fake-claude.sh");
+    fs::write(&fake_claude, "#!/bin/sh\nexit 0\n").unwrap();
+    let mut perms = fs::metadata(&fake_claude).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&fake_claude, perms).unwrap();
+
+    let missing_pi = repo.path().join("no-such-pi");
+
+    let mut env = support::EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_HARNESS_BIN_PI", &missing_pi)
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    let result = launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: false,
+    });
+
+    let err = result.expect_err("a missing rerouted harness binary must fail pre-flight");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("GROVE_REVIEW_HARNESS"),
+        "diagnostic must name the override var (got: {msg:?})"
+    );
+    assert!(
+        msg.contains(&missing_pi.display().to_string()),
+        "diagnostic must name the missing binary (got: {msg:?})"
+    );
+
+    assert!(
+        !grove::harness_stamp::path(repo.path(), &name).exists(),
+        "a pre-flight failure must not leave a permanent stamp (B4)"
     );
 }
 

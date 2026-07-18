@@ -7,11 +7,20 @@
 // re-running `grove do` from the same working tree (restart ≡ continuation, the
 // loop body holds zero state and re-derives position from `grove-llm pick`).
 //
+// The driver spawns the harness directly — no shell, no PID-export trick; the
+// spawned `Child` already carries its own pid — and watches it while it runs:
+// poll `try_wait` alongside the completion-signal file, and once the file
+// appears, apply grace → SIGTERM → kill-grace → SIGKILL to the child itself
+// (driver-side watcher — self-driving-loop). The driver is the harness's own
+// parent process, outside whatever sandbox the harness runs under, so it can
+// always signal its child — unlike the in-agent self-kill this replaces,
+// which codex's Seatbelt sandbox silently denied.
+//
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
 // (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
 // a kind→model lookup before the launch:
 //
-//     sig="$TMPDIR/grove-loop-<name>.signal"
+//     sig="$TMPDIR/grove-loop-<name>-<worktree-identity-hash>.signal"
 //     while :; do
 //       rm -f "$sig"
 //       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
@@ -24,8 +33,12 @@
 //         *)         model="" ;;                      # empty grove → no --model
 //       esac
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
-//       GROVE_SIGNAL_FILE="$sig" \
-//         sh -c 'export GROVE_HARNESS_PID=$$; exec "$harness_bin" "$@"' sh "$@"
+//       GROVE_SIGNAL_FILE="$sig" "$harness_bin" "$@" &
+//       pid=$!
+//       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
+//       # sleep $GROVE_KILL_GRACE, kill -TERM $pid, sleep
+//       # $GROVE_KILL_GRACE_KILL, kill -KILL $pid
+//       wait "$pid"
 //       stty sane 2>/dev/null
 //       [ -f "$sig" ] || break        # no completion signal → stop
 //     done
@@ -34,10 +47,13 @@ use crate::complete::{self, Disposition};
 use crate::harness::Harness;
 use crate::leaf::Kind;
 use anyhow::{Context, Result};
+use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsString;
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
+use std::time::{Duration, Instant};
 
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
 /// a clean whole-grove finish is distinguishable from an abnormal stop (rather
@@ -52,9 +68,16 @@ pub enum LoopOutcome {
 }
 
 /// Relaunch-signal file path for a grove. Lives in the temp dir (ephemeral
-/// loop IPC, not durable grove state); name-keyed so concurrent groves don't
-/// collide. Cleared at the start of every iteration.
-pub fn signal_file_path(name: &str) -> PathBuf {
+/// loop IPC, not durable grove state — signal-file-identity-k6) — keyed on
+/// `name` **and** the worktree's identity, so two `grove do` loops in
+/// different repos whose worktree basenames happen to collide (generic names
+/// like `bugs`/`plan`/`docs` are the norm) never share a file: a foreign
+/// write from one would otherwise be read as the other's own completion
+/// signal, SIGTERM its session mid-work, and misdirect the relaunch decision.
+/// `name` alone stays in the filename for operator legibility (`ls $TMPDIR`
+/// still reads as grove names); the hash is what actually disambiguates.
+/// Cleared at the start of every iteration.
+pub fn signal_file_path(worktree: &Path, name: &str) -> PathBuf {
     let safe: String = name
         .chars()
         .map(|c| {
@@ -65,7 +88,17 @@ pub fn signal_file_path(name: &str) -> PathBuf {
             }
         })
         .collect();
-    std::env::temp_dir().join(format!("grove-loop-{}.signal", safe))
+    // Canonicalise so the same worktree reached by two different paths (a
+    // symlink, a relative vs. absolute cwd) still hashes identically; fall
+    // back to the raw path on failure (e.g. a test fixture that races the
+    // directory's own creation) rather than erroring the whole loop over a
+    // signal-file naming nicety.
+    let identity = worktree
+        .canonicalize()
+        .unwrap_or_else(|_| worktree.to_path_buf());
+    let mut hasher = DefaultHasher::new();
+    identity.hash(&mut hasher);
+    std::env::temp_dir().join(format!("grove-loop-{safe}-{:016x}.signal", hasher.finish()))
 }
 
 /// Entry point: install the interrupt guard, then run the loop. The real
@@ -85,7 +118,7 @@ pub fn run_loop(
     worktree: &Path,
     name: &str,
 ) -> Result<LoopOutcome> {
-    let signal_file = signal_file_path(name);
+    let signal_file = signal_file_path(worktree, name);
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -153,12 +186,11 @@ pub fn run_loop(
     }
 }
 
-/// Launch one fresh foreground harness session owning the real TTY. The
-/// `sh -c 'export GROVE_HARNESS_PID=$$; exec "$@"'` wrapper hands the agent
-/// the harness session's own PID: `exec` preserves the PID, so `$$` (captured
-/// before exec) is the final harness PID, inherited by the agent's Bash tool
-/// (`GROVE_CLAUDE_PID` is co-exported for one release). `GROVE_HARNESS_BIN`
-/// overrides the binary (testing / wrapping `claude`).
+/// Launch one fresh foreground harness session owning the real TTY, then
+/// watch it while it runs (see [`wait_with_watcher`]). Spawned directly — no
+/// shell, no PID-export trick; the `Child` already carries its own pid, and
+/// the driver signals it directly once the completion file appears.
+/// `GROVE_HARNESS_BIN` overrides the binary (testing / wrapping `claude`).
 ///
 /// `rerouted` says whether `harness` differs from the grove's stamped one
 /// (a per-kind `GROVE_<KIND>_HARNESS` override fired) — threaded through to
@@ -186,11 +218,7 @@ fn launch_session(
         model.unwrap_or("default")
     );
 
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c")
-        .arg(r#"export GROVE_HARNESS_PID=$$ GROVE_CLAUDE_PID=$$; exec "$@""#)
-        .arg("sh") // $0 for the inner shell
-        .arg(&bin); // $1 = the harness binary
+    let mut cmd = Command::new(&bin);
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(session_name);
     }
@@ -206,11 +234,119 @@ fn launch_session(
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
+    // Neither handle is exported any more (driver-side-kill-k2) — the agent
+    // never needs its own PID, since the driver kills its own child directly.
+    // Scrub rather than simply not-setting: a `grove do` launched from inside
+    // a session that itself inherited one of these (e.g. nested groves) must
+    // not leak a stale, unrelated PID into the new harness session.
+    cmd.env_remove("GROVE_HARNESS_PID");
+    cmd.env_remove("GROVE_CLAUDE_PID");
 
-    // A completion kill makes `claude` exit non-zero; that is the normal exit
-    // path, not an error. The signal file — not the exit code — decides relaunch.
-    let _ = cmd.status().context("launching the harness session")?;
-    Ok(())
+    let child = cmd.spawn().context("launching the harness session")?;
+    wait_with_watcher(child, signal_file)
+}
+
+/// The watcher's state machine: idle until the completion signal file
+/// appears, then timed toward SIGTERM and finally SIGKILL.
+enum Watch {
+    Running,
+    Signalled(Instant),
+    Terminated(Instant),
+}
+
+/// How often the watcher checks the child's liveness and the signal file.
+/// Not a tunable seam — `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` below are
+/// the only knobs a test (or an operator) needs.
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Default seconds after the completion signal file appears before the
+/// watcher sends SIGTERM (lets the agent's `complete` Bash-tool call return,
+/// and the agent's turn end, before its session dies).
+const DEFAULT_GRACE: f64 = 2.0;
+/// Default seconds after SIGTERM before the watcher escalates to SIGKILL.
+const DEFAULT_KILL_GRACE: f64 = 5.0;
+
+/// Watch a spawned harness session while it runs: poll for the completion
+/// signal file alongside the child's own exit (`try_wait`), and once the file
+/// appears, apply grace → SIGTERM → kill-grace → SIGKILL — the out-of-band
+/// kill an interactive harness cannot perform on itself (self-driving-loop).
+/// This is the *driver's* job, not the agent's: the driver is the harness's
+/// own parent process, outside whatever sandbox the harness runs under, so it
+/// can always signal its child — codex's Seatbelt sandbox, for one, denies a
+/// same-sandbox process from signalling its own session, which is why the
+/// previous in-agent self-kill silently failed there.
+fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
+    let (grace, kill_grace) = kill_graces();
+    let mut watch = Watch::Running;
+    loop {
+        if child
+            .try_wait()
+            .context("waiting on the harness session")?
+            .is_some()
+        {
+            // A completion kill makes the harness exit non-zero (or via
+            // signal); that is the normal exit path, not an error. The signal
+            // file — not the exit status — decides relaunch.
+            return Ok(());
+        }
+        watch = match watch {
+            Watch::Running if signal_file.exists() => Watch::Signalled(Instant::now()),
+            Watch::Signalled(at) if at.elapsed() >= grace => {
+                // SAFETY: kill(2) on a pid this process itself spawned. A
+                // failure (e.g. ESRCH, the child already exited) is ignored,
+                // same as the shell `kill ... 2>/dev/null` this replaces —
+                // the next `try_wait` above will catch that exit anyway.
+                unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+                Watch::Terminated(Instant::now())
+            }
+            Watch::Terminated(at) if at.elapsed() >= kill_grace => {
+                unsafe { libc::kill(child.id() as i32, libc::SIGKILL) };
+                child.wait().context("reaping the killed harness session")?;
+                return Ok(());
+            }
+            other => other,
+        };
+        std::thread::sleep(POLL_INTERVAL);
+    }
+}
+
+/// Upper bound on either grace. A session-end grace beyond this is operator
+/// error, not intent, and letting one through would hang the loop for the rest
+/// of the day with no diagnostic — the cap keeps a typo recoverable.
+const MAX_GRACE_SECS: f64 = 3600.0;
+
+/// Read `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL`, falling back to the
+/// built-in defaults — the two knobs a test (or an operator) has to keep the
+/// watcher's timing fast or tunable. See [`grace_secs`] for why the value is
+/// sanitised rather than passed straight to `Duration::from_secs_f64`.
+fn kill_graces() -> (Duration, Duration) {
+    (
+        grace_secs("GROVE_KILL_GRACE", DEFAULT_GRACE),
+        grace_secs("GROVE_KILL_GRACE_KILL", DEFAULT_KILL_GRACE),
+    )
+}
+
+fn grace_secs(key: &str, default: f64) -> Duration {
+    sanitise_grace(env_parse_f64(key), default)
+}
+
+/// One operator-supplied grace, sanitised into a `Duration`.
+/// `Duration::from_secs_f64` panics on NaN, on negatives, *and* on values too
+/// large to represent — so a bare `.max(0.0)` clamp is not enough: it lets
+/// `GROVE_KILL_GRACE=inf` (or `1e300`) through to panic the driver mid-loop.
+/// Non-finite input falls back to the default (it expresses no intent); finite
+/// input is clamped into `[0, MAX_GRACE_SECS]`. Split from the env read so the
+/// sanitising is testable without process-global `set_var`.
+fn sanitise_grace(value: Option<f64>, default: f64) -> Duration {
+    let secs = value
+        .filter(|s| s.is_finite())
+        .unwrap_or(default)
+        .clamp(0.0, MAX_GRACE_SECS);
+    Duration::from_secs_f64(secs)
+}
+
+fn env_parse_f64(key: &str) -> Option<f64> {
+    std::env::var(key).ok().and_then(|s| s.trim().parse().ok())
 }
 
 /// The binary to exec for a harness: `GROVE_HARNESS_BIN_<NAME>` (the
@@ -322,6 +458,49 @@ fn any_harness_override_env() -> bool {
 fn validate_all_harness_overrides() -> Result<()> {
     for suffix in KIND_SUFFIXES {
         checked_harness_override(suffix)?;
+    }
+    Ok(())
+}
+
+/// Pre-flight: verify every harness this grove's launch might actually need
+/// resolves to a real binary — the stamped harness, plus any harness named by
+/// a configured per-kind override (`GROVE_<KIND>_HARNESS`) — before `do_grove`
+/// commits to anything (harness-spawn-preflight-k8). Checking only the
+/// stamped harness let a rerouted-but-uninstalled one (e.g.
+/// `GROVE_REVIEW_HARNESS=pi` against a codex-stamped grove with no `pi`
+/// installed) pass pre-flight, run happily for however long, and only die
+/// mid-loop the moment a leaf of that kind was finally picked. Each harness
+/// is resolved through [`harness_bin`] — the same effective-binary lookup
+/// `launch_session` actually execs — so a `GROVE_HARNESS_BIN` /
+/// `GROVE_HARNESS_BIN_<NAME>` test-seam override pointing at a nonexistent
+/// path is caught here too, not just a harness with no override at all.
+pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
+    let stamped_bin = harness_bin(stamped, false);
+    if !crate::harness::exec_bin_on_path(&stamped_bin) {
+        anyhow::bail!(
+            "{} is not on PATH — install it before binding this grove to \"{}\" \
+             (nothing was stamped; run again once it's installed)",
+            stamped_bin,
+            stamped.name
+        );
+    }
+    validate_all_harness_overrides()?;
+    for suffix in KIND_SUFFIXES {
+        let Some(overridden) = checked_harness_override(suffix)? else {
+            continue;
+        };
+        let rerouted = overridden.name != stamped.name;
+        let bin = harness_bin(overridden, rerouted);
+        if !crate::harness::exec_bin_on_path(&bin) {
+            anyhow::bail!(
+                "GROVE_{suffix}_HARNESS={}: {} is not on PATH — install it before \
+                 this grove can run {} leaves on it (nothing was stamped; run \
+                 again once it's installed)",
+                overridden.name,
+                bin,
+                suffix.to_lowercase(),
+            );
+        }
     }
     Ok(())
 }
@@ -492,5 +671,68 @@ fn reset_terminal() {
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // `Duration::from_secs_f64` panics on NaN, negatives, and unrepresentably
+    // large values. An operator typo in `GROVE_KILL_GRACE` must never take the
+    // whole loop down with it, so every one of those falls back or clamps.
+    #[test]
+    fn a_grace_the_operator_typoed_never_panics_the_driver() {
+        for bad in [f64::INFINITY, f64::NEG_INFINITY, f64::NAN] {
+            assert_eq!(
+                sanitise_grace(Some(bad), 2.0),
+                Duration::from_secs_f64(2.0),
+                "non-finite {bad} expresses no intent — fall back to the default"
+            );
+        }
+        assert_eq!(
+            sanitise_grace(Some(1e300), 2.0),
+            Duration::from_secs_f64(MAX_GRACE_SECS),
+            "a finite but absurd grace clamps to the cap"
+        );
+        assert_eq!(
+            sanitise_grace(Some(-1.0), 2.0),
+            Duration::ZERO,
+            "a negative grace clamps to zero (kill immediately)"
+        );
+    }
+
+    #[test]
+    fn a_sane_grace_is_passed_through_untouched() {
+        assert_eq!(sanitise_grace(Some(0.25), 2.0), Duration::from_millis(250));
+        assert_eq!(sanitise_grace(None, 2.0), Duration::from_secs(2));
+    }
+
+    // signal-file-identity-k6: two worktrees whose *basenames* collide
+    // (generic grove names like "bugs"/"plan"/"docs" are the norm) must not
+    // resolve to the same signal file just because `name` matches — that was
+    // the whole bug (path derived from `name` alone).
+    #[test]
+    fn same_name_different_worktrees_get_different_signal_files() {
+        let a = tempfile::tempdir().unwrap();
+        let b = tempfile::tempdir().unwrap();
+        assert_ne!(
+            signal_file_path(a.path(), "bugs"),
+            signal_file_path(b.path(), "bugs"),
+            "distinct worktrees sharing a grove name must never share a signal file"
+        );
+    }
+
+    // The identity half must be stable, not just distinguishing — the same
+    // worktree is polled for the *same* file every iteration of one loop
+    // (signal_file_path is called fresh each time round the `loop {}`).
+    #[test]
+    fn same_worktree_and_name_is_stable_across_calls() {
+        let a = tempfile::tempdir().unwrap();
+        assert_eq!(
+            signal_file_path(a.path(), "bugs"),
+            signal_file_path(a.path(), "bugs"),
+            "the same worktree+name must resolve to the same path every time"
+        );
     }
 }

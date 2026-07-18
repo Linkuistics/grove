@@ -255,10 +255,11 @@ renames, or plumbing:
   `go.mod` — whatever pins the version. The version decides which pattern is
   correct, so guessing it defeats the exercise.
 - **Fetch the official source, not your memory.** Context7
-  (`resolve-library-id` → `query-docs`) or `WebFetch` against the project's own
-  docs or changelog — docs.rs for a crate, the framework's reference for a
-  framework. Official docs and changelogs outrank Stack Overflow, blog posts,
-  and training data. This is reading, not running: constraint 2 is satisfied.
+  (`resolve-library-id` → `query-docs`) or your harness's web-fetch tool
+  against the project's own docs or changelog — docs.rs for a crate, the
+  framework's reference for a framework. Official docs and changelogs outrank
+  Stack Overflow, blog posts, and training data. This is reading, not running:
+  constraint 2 is satisfied.
 - **Cite at the decision site.** A one-line code comment with the source URL
   next to the non-obvious call, so the next reader can check it without you. A
   citation that lives only in the chat evaporates; one in the code is

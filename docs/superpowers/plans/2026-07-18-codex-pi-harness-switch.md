@@ -1518,7 +1518,7 @@ codex/sol's context), but not a blocker for this task.
 **Files:**
 - Modify: `~/.zshenv:5-9` (the five `GROVE_*_MODEL` lines)
 
-- [ ] **Step 1: Replace the grove model block**
+- [x] **Step 1: Replace the grove model block**
 
 Delete lines 5-9 (`GROVE_PLANNING_MODEL=fable` … `GROVE_REVIEW_MODEL=opus`) and insert, using the model id confirmed in Task 10 step 3 (`kimi-coding/k3`):
 
@@ -1536,7 +1536,7 @@ export GROVE_PI_REVIEW_MODEL=kimi-coding/k3
 export GROVE_REVIEW_HARNESS=pi
 ```
 
-- [ ] **Step 2: Verify in a fresh shell**
+- [x] **Step 2: Verify in a fresh shell**
 
 Run: `zsh -c 'env | grep GROVE_ | sort'`
 Expected: exactly the ten vars above; no `GROVE_PLANNING_MODEL=fable` survivors. (No `KIMI_CODE_*`/`KIMI_API_KEY` line — Task 10 step 2 authenticates via OAuth login, not an env var.)

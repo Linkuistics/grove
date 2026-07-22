@@ -20,6 +20,12 @@ two new skills exist by now — `using-jujutsu`, `git-to-jj-mapping`):
   jj 0.43 actually has — verify with `jj git push --help` before writing
   the regex; do not invent flags. Keep the hook's existing style (tab-
   separated pattern + reason) and run the test suite.
+- **using-jujutsu** (discovered during `build-git-to-jj-mapping-k5`'s
+  verification) — jj 0.43 documents the rebase/duplicate/revert destination
+  flag as `-o/--onto`; `-d/--destination` still parses but is gone from the
+  help. Update the human-gated table's `jj rebase -d` row to `jj rebase -o`,
+  and make any guardrail jj pattern that matches a destination flag cover
+  both spellings.
 - **decision-records** — generalise the "git holds the past/history"
   phrasing to the VCS at all 6 sites (`SKILL.md` lines 12, 36, 56, 69,
   157, 162), e.g. "ADRs hold the present; the VCS holds the past." Keep

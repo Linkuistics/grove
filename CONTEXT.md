@@ -1,8 +1,6 @@
 # skills — jj adoption context
 
-Terms for the workstream that makes agents prefer Jujutsu over git. The skill
-names below are working names until `skill-design-k3` settles the canonical
-ones.
+Terms for the workstream that makes agents prefer Jujutsu over git.
 
 ## Language
 
@@ -13,29 +11,33 @@ the primary VCS interface.
 _Avoid_: jj-aware, jj-capable, "has jj" (ambiguous with the binary being
 installed)
 
-**Colocation offer**:
-The once-per-session suggestion to run `jj git init --colocate` in a repo
-that is not jj-enabled while the jj binary is installed. An offer, never a
-silent conversion.
-_Avoid_: auto-colocation, conversion
+**Symmetric VCS rule**:
+The repo's state alone picks the interface: jj-enabled → jj is the
+interface; not jj-enabled → git, silently. The skills never convert a repo
+or offer to — no `jj git init`, regardless of whether jj is installed.
+_Avoid_: colocation offer (a dropped earlier design — the skills no longer
+propose conversion)
 
-**Workflow skill**:
-The skill that auto-fires on VCS work, detects whether the repo is
+**using-jujutsu**:
+The workflow skill: auto-fires on VCS work, detects whether the repo is
 jj-enabled, and teaches jj's native model (working-copy-as-commit,
-`jj new`/`jj describe`, bookmarks, op-log undo). Working name.
-_Avoid_: the jj skill (ambiguous with the Mapping skill)
+`jj new`/`jj describe`, bookmarks, op-log undo). Harness-neutral core with
+per-harness enforcement recipes.
+_Avoid_: the jj skill (ambiguous with git-to-jj-mapping), Workflow skill
+(pre-settlement working name)
 
-**Mapping skill**:
+**git-to-jj-mapping**:
 The on-demand git→jj reference skill — command and concept translation,
-loaded only when needed so the table costs no standing context. Working name.
-_Avoid_: translation table (that's its content, not the skill)
+loaded only when needed so the table costs no standing context.
+_Avoid_: translation table (that's its content, not the skill), Mapping
+skill (pre-settlement working name)
 
 ## Example dialogue
 
 > **Dev:** The repo has jj installed, so the agent should commit with `jj`.
 > **Expert:** Installed isn't the trigger — is the repo *jj-enabled*? If
-> there's no `.jj/`, the Workflow skill only makes a *colocation offer*; until
-> that's accepted, git remains the interface.
+> there's no `.jj/`, the *symmetric VCS rule* says git remains the
+> interface, silently; `using-jujutsu` never offers to convert.
 > **Dev:** And if the agent forgets what `git stash` becomes?
-> **Expert:** That's the Mapping skill's job — pulled in on demand, not
+> **Expert:** That's `git-to-jj-mapping`'s job — pulled in on demand, not
 > resident.

@@ -33,10 +33,10 @@ existing skills that mention git:
 ## Pointers
 
 - Settled behaviour semantics (see CONTEXT.md for terms):
-  - **jj-enabled repo** (`.jj/` present) → jj is the primary VCS interface.
-  - jj installed but repo not jj-enabled → offer `jj git init --colocate`
-    once per session; never convert silently.
-  - no jj binary → skills stay silent.
+  - **Symmetric VCS rule** (reworked during `skill-design-k3` grilling —
+    the earlier colocation-offer design is dropped): jj-enabled repo
+    (`.jj/` present) → jj is the primary VCS interface; not jj-enabled →
+    git, silently. The skills never convert a repo or offer to.
 - Reconciliation surface (as of planning): `guardrail` (git commands in its
   destructive-pattern list), `decision-records` ("git holds the history"
   phrasing), `cli-tool-design` (glancing mention).

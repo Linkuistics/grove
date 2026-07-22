@@ -9,7 +9,7 @@ An **Architecture Decision Record (ADR)** captures one design decision — what 
 decided and why it binds. The set of ADRs under `docs/adr/` is **the minimum
 coherent set describing the design's current state**: as few records as coherently
 explain what the design *is* today, its still-binding constraints, and the
-alternatives rejected for a reason. **ADRs hold the present; git holds the past.**
+alternatives rejected for a reason. **ADRs hold the present; the VCS holds the past.**
 
 > The minimal template, the three-part when-to-write test, and the qualifying
 > examples below are distilled from the ADR-format material in `mattpocock/skills`
@@ -33,7 +33,7 @@ and everything else follows from them:
   never the path taken to get there. There is no `superseded by`, no
   `Status: deprecated` chain, no record of the decision you changed your mind
   about. The decision you reversed is not "superseded history" to preserve; it is
-  simply *gone from the current design*, and **git already holds it**. A commit
+  simply *gone from the current design*, and **the VCS already holds it**. A commit
   that edits or deletes an ADR is the audit trail.
 
 This is the same discipline a task tree or a source tree lives by — the artifact
@@ -53,7 +53,7 @@ Write the **distilled lesson**, not the meeting minutes. Keep three things:
 
 Discard the narrative of *how the team arrived there*: who argued what, which
 options were floated and dropped, the order of the reasoning. That story is real,
-but it belongs to git, not to the record of the current design.
+but it belongs to the VCS, not to the record of the current design.
 
 ## Keep the set minimal and coherent
 
@@ -66,7 +66,7 @@ maintenance, not an exceptional event:
   belongs folded into a surviving record.
 - **Split** an ADR when it has quietly grown to hold two independent decisions.
 - **Delete** an ADR when its decision no longer describes the current design.
-  Deleting is not losing it — git holds it.
+  Deleting is not losing it — the VCS holds it.
 
 After any rework, **reconcile every citation** to the surviving records. A merge
 or delete that leaves a dangling reference is a defect, not acceptable collateral.
@@ -154,9 +154,9 @@ marked "superseded."
 - **Sequential numbering (`0001-…`, `0002-…`).** Bakes creation order — chronology
   — into the filename. Use a slug.
 - **`superseded by` / `deprecated` status chains.** Reconstructs a changelog inside
-  the set. Edit or delete the record; git holds the prior version.
+  the set. Edit or delete the record; the VCS holds the prior version.
 - **One new ADR per revised decision.** Grows an append-only log, the opposite of a
   minimum coherent set. Rework the existing ADR in place.
 - **A complete decision archive.** The goal is the *smallest coherent* description
   of the current design, not the *complete* record of every decision — that record
-  is the git history.
+  is the VCS history.

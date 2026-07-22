@@ -170,7 +170,7 @@ only when the user explicitly asks:
 |---|---|
 | `jj abandon` | throws a change away — and on a conflicted commit, throws away the conflict state |
 | `jj op restore` | rewinds the whole repo to an earlier operation, discarding everything after |
-| `jj rebase -d` | rewrites history onto a new destination |
+| `jj rebase -o` | rewrites history onto a new destination |
 | `jj bookmark delete` + push | deletes the branch on the remote |
 
 ## Colocated repos: git is read-only

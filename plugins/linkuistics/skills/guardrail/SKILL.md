@@ -65,6 +65,8 @@ catches genuinely irreversible / data-losing operations:
 | `git push --force` / `-f` / `--force-with-lease` | rewrites remote history |
 | `git reset --hard` | discards working-tree changes |
 | `git clean -f…` | deletes untracked files |
+| `jj abandon` | discards revisions |
+| `jj op restore` / `jj operation restore` | rewinds the repo to an earlier operation |
 | `DROP` / `TRUNCATE TABLE\|DATABASE\|SCHEMA` | destructive SQL |
 | `mkfs…` | formats a filesystem |
 | `dd … of=/dev/…`, `> /dev/sd…` | overwrites a raw device |

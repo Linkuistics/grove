@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Added the `using-jujutsu` and `git-to-jj-mapping` skills. `using-jujutsu`
+  auto-fires on version-control work: in a jj-enabled repo (a `.jj/` directory
+  exists) it drives everything through Jujutsu's native model
+  (working-copy-as-commit, `jj new`/`jj describe`, bookmarks, op-log undo);
+  otherwise git remains the interface, silently — the skills never convert a
+  repo or offer to. `git-to-jj-mapping` is the on-demand git→jj command and
+  concept reference, loaded only when a translation is needed. Reconciled the
+  existing skills with the jj design: `guardrail` now also gates `jj abandon`
+  and `jj op restore` (hook pattern list, SKILL.md table, and test suite; jj
+  0.43 has no force-push flag to gate — pushes are lease-checked by default,
+  pinned by a defer test), and `decision-records` generalises its "git holds
+  the past/history" phrasing to "the VCS holds …" at all six sites. Updated
+  the `linkuistics` manifest description/keywords and the README skills table.
 - `authoring-conventions`: added **Negation** (steering by prohibition drags the
   forbidden behaviour into context and makes it more available, not less; state the
   positive target, reserve `never`/`don't` for guardrails that can't be phrased

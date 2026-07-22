@@ -82,6 +82,8 @@ DANGER=(
   $'git[[:space:]]+push([[:space:]].*)?[[:space:]](-f|--force|--force-with-lease)([[:space:]]|$)\tforce push — rewrites remote history'
   $'git[[:space:]]+reset[[:space:]].*--hard\tgit reset --hard — discards working-tree changes'
   $'git[[:space:]]+clean[[:space:]]+-[a-z]*f\tgit clean -f — deletes untracked files'
+  $'jj[[:space:]]+abandon\tjj abandon — discards revisions'
+  $'jj[[:space:]]+op(eration)?[[:space:]]+restore\tjj op restore — rewinds the repo to an earlier operation'
   $'(^|[^[:alnum:]_])(drop|truncate)[[:space:]]+(table|database|schema)\tdestructive SQL (DROP/TRUNCATE)'
   $'(^|[^[:alnum:]_])mkfs(\\.| )\tmkfs — formats a filesystem'
   $'(^|[^[:alnum:]_])dd[[:space:]].*[[:space:]]of=/dev/\tdd writing to a raw device'

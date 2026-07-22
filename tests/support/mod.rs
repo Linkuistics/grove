@@ -47,6 +47,20 @@ pub fn grove_env_names() -> Vec<String> {
     names
 }
 
+/// The value following `--add-dir` in a space-joined argv log line (the
+/// fake-harness scripts log `$*`), or `None` when the flag is absent.
+/// Whitespace-splitting is safe here: every fixture path is a `TempDir`
+/// path with no spaces.
+pub fn add_dir_value(argv: &str) -> Option<&str> {
+    let mut tokens = argv.split_whitespace();
+    while let Some(token) = tokens.next() {
+        if token == "--add-dir" {
+            return tokens.next();
+        }
+    }
+    None
+}
+
 /// Save/restore an arbitrary set of env vars across a test via `Drop`, so a
 /// failing `assert!` — which unwinds, it does not abort — cannot leak a
 /// mutated or removed value into a later test sharing the same process.

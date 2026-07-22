@@ -112,6 +112,28 @@ fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
     out
 }
 
+/// codex-gitdir-grant: codex's `workspace-write` sandbox carves the
+/// repository gitdir out read-only, so `git commit` — and with it grove's
+/// mandatory Commit and Retire steps — would fail inside the session. Every
+/// codex launch therefore grants the gitdir back by appending
+/// `--add-dir <absolutized git-common-dir>`: one path covers both repo
+/// shapes (a linked worktree's gitdir is a subpath of the common dir; a
+/// plain checkout's common dir *is* `.git`), grants are additive so the
+/// default writable roots stay intact, and the flag is harmless when the
+/// sandbox is off. No other harness is touched. The value is dynamic —
+/// derived from the worktree per launch — which is why it lives here at the
+/// assembly sites rather than in `harness.rs`'s static flag templates.
+pub(crate) fn append_codex_gitdir_grant(
+    cmd: &mut Command,
+    harness: &Harness,
+    worktree: &Path,
+) -> Result<()> {
+    if harness.name == "codex" {
+        cmd.arg("--add-dir").arg(repo::git_common_dir(worktree)?);
+    }
+    Ok(())
+}
+
 fn exec_harness(
     harness: &Harness,
     repo_path: &Path,
@@ -130,6 +152,7 @@ fn exec_harness(
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(&session_name);
     }
+    append_codex_gitdir_grant(&mut cmd, harness, worktree)?;
     cmd.arg(prompt);
 
     let status = cmd

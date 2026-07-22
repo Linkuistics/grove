@@ -301,6 +301,64 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
 }
 
 #[test]
+fn retire_on_codex_grants_the_gitdir_via_add_dir() {
+    // codex-gitdir-grant applies to *every* codex launch, not just the loop's:
+    // a `grove retire` session commits too, and would hit the same read-only
+    // gitdir carve-out. `exec_harness` has no bin seam — it execs
+    // `harness.exec_bin` through PATH — so plant a fake `codex` there.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    let bindir = repo.path().join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    let log = repo.path().join("log");
+    let fake = bindir.join("codex");
+    fs::write(
+        &fake,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"{}\"\nexit 0\n",
+            log.display()
+        ),
+    )
+    .unwrap();
+    let mut perms = fs::metadata(&fake).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&fake, perms).unwrap();
+
+    // `retire` (unlike `do`) does not provision; plant its prompt by hand in
+    // the global skill dir init_repo pointed GROVE_SKILL_DIR at.
+    let prompts = repo.path().join("global-skill/prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("retire.md"), "RETIRE {{NODE_PATH}}").unwrap();
+
+    let path_var = format!(
+        "{}:{}",
+        bindir.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+    let mut env = support::EnvGuard::new();
+    env.set("PATH", &path_var);
+
+    launch::retire(&RetireArgs {
+        path: "01-x-k1".into(),
+        harness: Some("codex".into()),
+        no_launch: false,
+    })
+    .unwrap();
+
+    let argv = fs::read_to_string(&log).unwrap();
+    let granted = support::add_dir_value(&argv).unwrap_or_else(|| {
+        panic!("a codex retire launch must carry --add-dir <gitdir> (argv: {argv:?})")
+    });
+    assert_eq!(
+        std::path::Path::new(granted).canonicalize().unwrap(),
+        repo.path().join(".git").canonicalize().unwrap(),
+        "the retire session's grant is the checkout's own `.git` (argv: {argv:?})"
+    );
+}
+
+#[test]
 fn retire_resolves_a_bare_node_path_in_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();

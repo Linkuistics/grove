@@ -74,9 +74,10 @@ pub const HARNESSES: &[Harness] = &[
         project_dir: ".pi",
         skills_dir: ".pi/agent/skills",
         exec_bin: "pi",
-        // pi has no launch-time session-name flag (pi --help, checked
-        // 2026-07-18); empty ⇒ the launch paths skip pre-naming.
-        name_args: &[],
+        // pi pre-names sessions at launch: `--name, -n <name>` — "Set session
+        // display name" (pi 0.80.10; verified live, options-before-prompt per
+        // `pi [options] [@files...] [messages...]`).
+        name_args: &["-n"],
         // pi accepts `--model <pattern>` incl. "provider/id" ids, so it takes
         // part in model-per-task-kind on the same terms as claude.
         model_args: &["--model"],

@@ -23,14 +23,15 @@ fn harness_rows_carry_the_launch_and_skills_contract() {
     assert_eq!(codex.model_args, &["--profile"]);
     assert!(codex.name_args.is_empty());
 
-    // pi (verified against pi --help): --model, no name flag, skills under
-    // ~/.pi/agent/skills (structurally unlike the other two — hence a field).
+    // pi (verified against pi 0.80.10): --model, `-n` for the session display
+    // name, skills under ~/.pi/agent/skills (structurally unlike the other
+    // two — hence a field).
     let pi = by_name("pi").unwrap();
     assert_eq!(pi.project_dir, ".pi");
     assert_eq!(pi.exec_bin, "pi");
     assert_eq!(pi.skills_dir, ".pi/agent/skills");
     assert_eq!(pi.model_args, &["--model"]);
-    assert!(pi.name_args.is_empty());
+    assert_eq!(pi.name_args, &["-n"]);
 }
 
 // T1: this used to assert a copy-pasted literal ("claude, codex, pi") against

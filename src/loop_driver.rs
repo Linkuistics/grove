@@ -22,6 +22,8 @@
 //
 //     sig="$TMPDIR/grove-loop-<name>-<worktree-identity-hash>.signal"
 //     while :; do
+//       v=$(grove-llm --version | awk '{print $NF}')     # version-skew guard
+//       [ -n "$v" ] && [ "$v" != "<own compiled-in version>" ] && break
 //       rm -f "$sig"
 //       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
 //       case "$kind" in
@@ -63,7 +65,9 @@ pub enum LoopOutcome {
     /// The grove finished cleanly: a session signalled `complete --done`.
     Finished,
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
-    /// crash); resumable by re-running `grove do` from the same working tree.
+    /// crash), or a pre-launch guard declined to start the next session (a
+    /// version-skewed `grove-llm` — driver-version-skew-k11); resumable by
+    /// re-running `grove do` from the same working tree.
     Stopped,
 }
 
@@ -126,6 +130,28 @@ pub fn run_loop(
     let session_name = format!("{}: {} grove", repo_name, name);
 
     loop {
+        // Version-skew guard (driver-version-skew-k11): before anything else,
+        // confirm the `grove-llm` the agent would invoke still matches this
+        // driver. Per session, not per driver start — a `brew upgrade`
+        // *mid-loop* is exactly the case a start-time check misses.
+        if let Some(theirs) = version_skew() {
+            eprintln!(
+                "grove: version skew — this running driver is grove {DRIVER_VERSION}, but the \
+                 `grove-llm` the agent would invoke is {theirs} (the grove binary moved on \
+                 disk while this loop was running, e.g. `brew upgrade`)."
+            );
+            eprintln!(
+                "       A skewed driver/agent pair can hang at the completion signal, so the \
+                 loop is stopping before the next session."
+            );
+            eprintln!(
+                "       Re-run `grove do` from this working tree to continue on the new \
+                 binary (restart ≡ continuation)."
+            );
+            let _ = std::fs::remove_file(&signal_file);
+            return Ok(LoopOutcome::Stopped);
+        }
+
         // Clear any stale signal from the previous iteration.
         let _ = std::fs::remove_file(&signal_file);
 
@@ -231,6 +257,9 @@ fn launch_session(
             cmd.args(harness.model_args).arg(model);
         }
     }
+    // codex-gitdir-grant: reopen the sandbox's read-only gitdir carve-out so
+    // the session can commit; a no-op for every other harness.
+    crate::launch::append_codex_gitdir_grant(&mut cmd, harness, worktree)?;
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
@@ -652,6 +681,73 @@ fn grove_llm_bin() -> OsString {
     OsString::from("grove-llm")
 }
 
+/// The driver's own compiled-in version — what this process's text segment
+/// was built as, however the `grove` on disk has moved since.
+const DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// The version-skew guard (driver-version-skew-k11). A long-running driver
+/// keeps executing the text segment it started with — `brew upgrade` replaces
+/// (or deletes) the binary on disk without touching it — while the agent's
+/// `grove-llm` is resolved through PATH afresh at every invocation. That skew
+/// splits the signal protocol's two halves: observed as a pre-watcher driver
+/// paired with a watcher-era `grove-llm`, every session hanging at its
+/// completion signal with nothing ever relaunching and no diagnostic.
+///
+/// Returns the agent-side version on a confirmed disagreement; `None` means
+/// launch normally — either the versions agree, or the version could not be
+/// read at all (missing binary, failed run, unparseable output), which warns
+/// and continues. Only a successfully read, definitely different version may
+/// stop the loop (constraint 5 — guide, don't gate: a check that jammed on a
+/// missing `grove-llm` would be worse than no check).
+fn version_skew() -> Option<String> {
+    match agent_grove_llm_version() {
+        Ok(v) if v == DRIVER_VERSION => None,
+        Ok(v) => Some(v),
+        Err(why) => {
+            eprintln!("grove: skipping the version-skew check — {why}");
+            None
+        }
+    }
+}
+
+/// `grove-llm --version` as the *agent* would resolve the binary: the
+/// `GROVE_LLM_BIN` seam if set, else bare `grove-llm` through PATH —
+/// deliberately not [`grove_llm_bin`]'s prefer-the-sibling rule, because next
+/// to a stale driver sits an equally stale sibling: the check would compare
+/// the old release against itself and miss exactly the skew it exists to
+/// catch. `Err` carries a human-readable reason for the degrade diagnostic.
+fn agent_grove_llm_version() -> Result<String, String> {
+    let bin = std::env::var_os("GROVE_LLM_BIN").unwrap_or_else(|| OsString::from("grove-llm"));
+    let display = bin.to_string_lossy().into_owned();
+    let out = Command::new(&bin)
+        .arg("--version")
+        .output()
+        .map_err(|e| format!("could not run `{display} --version` ({e})"))?;
+    if !out.status.success() {
+        return Err(format!("`{display} --version` failed ({})", out.status));
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    parse_version(&stdout).map(str::to_string).ok_or_else(|| {
+        format!(
+            "unrecognised `{display} --version` output {:?}",
+            stdout.trim()
+        )
+    })
+}
+
+/// The version token out of `--version` output (`grove-llm 13.0.0` →
+/// `13.0.0`): the last whitespace-separated token of the first line, and only
+/// if it looks like one (leading ASCII digit) — free text must degrade the
+/// check, never be "compared" and stop the loop over a phantom mismatch.
+fn parse_version(stdout: &str) -> Option<&str> {
+    stdout
+        .lines()
+        .next()?
+        .split_whitespace()
+        .next_back()
+        .filter(|t| t.starts_with(|c: char| c.is_ascii_digit()))
+}
+
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
 /// (headless / test runs).
@@ -721,6 +817,18 @@ mod tests {
             signal_file_path(b.path(), "bugs"),
             "distinct worktrees sharing a grove name must never share a signal file"
         );
+    }
+
+    // The version-skew guard may only ever act on a token that *is* a
+    // version. Anything else — an empty read, a shell's own error text, a
+    // dev-build tag — must parse to `None` and degrade the check, because a
+    // "mismatch" against free text would stop the loop over a phantom skew.
+    #[test]
+    fn version_parsing_accepts_a_version_and_rejects_free_text() {
+        assert_eq!(parse_version("grove-llm 13.0.0\n"), Some("13.0.0"));
+        assert_eq!(parse_version(""), None);
+        assert_eq!(parse_version("zsh: command not found\n"), None);
+        assert_eq!(parse_version("grove-llm dev-build\n"), None);
     }
 
     // The identity half must be stable, not just distinguishing — the same

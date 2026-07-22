@@ -62,6 +62,29 @@ The non-goals, and the deliberate non-actions with the reason each was rejected.
 Optional: user stories (`As an <actor>, I want <feature>, so that <benefit>`)
 where the area has distinct actors whose needs would otherwise go unstated.
 
+<!-- The requirements language below is adapted in grove from OpenSpec
+     (Fission-AI/OpenSpec, <https://openspec.dev/>) — the requirement/scenario
+     spec language only, none of its delta headers, validation, or
+     change-folder machinery — MIT licensed; see LICENSES/openspec.LICENSE. -->
+
+Optional: a `## Requirements` section, where the area has a behavioural
+surface whose acceptance criteria would otherwise stay vague (like every
+section: include it when it earns its place, not because the shape names it):
+
+```markdown
+## Requirements
+### Requirement: <title>
+The <system> SHALL <specific behavior>.
+
+#### Scenario: <short description>
+- **WHEN** <action or condition>
+- **THEN** <expected outcome>
+```
+
+One `### Requirement:` per behaviour, its SHALL statement specific enough to
+test; each `#### Scenario:` is one acceptance case. The pairing rule: scenarios
+say *what must pass*; `## Test seams` says *where it is tested*.
+
 ## Three rules
 
 **Synthesise; never re-interview.** The grilling *is* the interview and it has

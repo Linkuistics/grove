@@ -1,5 +1,54 @@
 # Changelog
 
+## v14.0.0
+
+The harness trial's remaining launch-time gaps close: codex sessions can
+commit, pi sessions carry names, and a `brew upgrade` mid-loop stops the loop
+cleanly at the next session boundary instead of hanging it at the next
+completion signal.
+
+### Added
+
+- **Version-skew guard** (*self-driving-loop*). Before each session launch
+  the driver confirms that `grove-llm --version` — resolved as the *agent*
+  resolves it, through `GROVE_LLM_BIN`/PATH, deliberately not the driver's
+  prefer-the-sibling rule (the stale sibling would match the stale driver and
+  hide exactly the skew being checked for) — still reports the driver's own
+  compiled-in version. A `brew upgrade` mid-loop replaces the binary on disk
+  while the running driver keeps executing the text segment it started with,
+  silently splitting the signal protocol's two halves: every session hangs at
+  its completion signal, nothing relaunches, no diagnostic. On a confirmed
+  mismatch the loop now stops before the next session, naming both versions
+  and the restart instruction (restart ≡ continuation). An *unreadable*
+  version (missing binary, failed or unparseable `--version`) only warns and
+  continues — the guard guides, it does not gate. Checked per session, not
+  per driver start, because a mid-loop upgrade is precisely what a start-time
+  check misses.
+- **`## Requirements` in the spec format.** SPEC-FORMAT.md gains an optional
+  requirements section — one `### Requirement:` per behaviour with a SHALL
+  statement specific enough to test, each `#### Scenario:` a WHEN/THEN
+  acceptance case; scenarios say *what must pass*, `## Test seams` says
+  *where it is tested*. The requirement/scenario language is adapted from
+  OpenSpec (MIT, `LICENSES/openspec.LICENSE`) — the spec language only, none
+  of its delta/validation machinery.
+
+### Fixed
+
+- **codex sessions can commit** (*codex-gitdir-grant*). codex's
+  `workspace-write` sandbox carves the repository gitdir out read-only, so
+  `git commit` — and with it grove's mandatory Commit and Retire steps —
+  failed inside every codex session. Every codex launch now appends
+  `--add-dir <absolutized git-common-dir>`: one path covers both repo shapes
+  (a linked worktree's gitdir is a subpath of the common dir; a plain
+  checkout's common dir *is* `.git`), grants are additive so the default
+  writable roots stay intact, and the flag is harmless when the sandbox is
+  off. No other harness is touched.
+- **pi sessions are pre-named at launch.** pi does have a launch-time
+  session-name flag — `--name/-n` (verified live on pi 0.80.10) — so pi
+  launches now set the standard `<repo>: <name> grove` display name; v12
+  shipped without pre-naming on the mistaken reading that no such flag
+  existed.
+
 ## v13.0.0
 
 The self-driving loop's session-end kill moves from the agent to the loop

@@ -46,3 +46,20 @@ leaf only tracks.
 Keep grove walk-away-able: the pass must not make the linkuistics
 `using-jujutsu` skill a prerequisite — grove's own docs stay
 self-contained (constraint 6).
+
+## Outcome
+
+Shipped as Linkuistics/grove `ce0131a` (main, pushed). The dual-VCS pass
+landed across `content/`, `docs/`, the README, and — one step beyond the
+planned surface — the CLI help text in `src/cli.rs`, which claimed the
+git-only precondition verbatim. Conceptual lines went VCS-neutral ("the
+VCS holds the history"); every concrete command now names both
+interfaces; `git mv` mentions carry the jj-enabled plain-rename note
+where they describe verb behaviour, and stay plain git in the git-repo
+walkthrough transcripts (git default, per Q3). `user-owned-worktrees`
+reworked in place to user-owned working trees, slug kept — all citing
+prose checked, none dangling. `codex-gitdir-grant` needed no touch (k9
+had already reworked it). Also fixed in passing: grove.md's stale
+"completed branches retire to an archive" claim, in a sentence already
+under edit. 474 tests green; jj commands stay inline so grove keeps its
+walk-away-ability (no skill prerequisite added).

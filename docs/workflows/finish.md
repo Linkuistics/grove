@@ -1,6 +1,6 @@
 # Finishing a grove — walkthrough
 
-Close out a completed grove. There is no `grove finish` verb: `grove do` is the sole lifecycle entry verb, and finishing is an **in-session** step. When a grove has no live leaves left, the running session proposes the **complete finish cycle** and, on one confirmation, carries it out end to end. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, and the scaffolding has been deleted in a focused commit. That's where grove's cycle ends — integrating the branch (a merge, a PR, whatever your team's convention is) and tearing down the working tree are the user's own git/gh, or their worktree tooling, done whenever they choose (user-owned-worktrees).
+Close out a completed grove. There is no `grove finish` verb: `grove do` is the sole lifecycle entry verb, and finishing is an **in-session** step. When a grove has no live leaves left, the running session proposes the **complete finish cycle** and, on one confirmation, carries it out end to end. By the end of this walkthrough, `add-rate-limiting`'s durable output has been promoted out of `.grove/`, and the scaffolding has been deleted in a focused commit. That's where grove's cycle ends — integrating the branch (a merge, a PR, whatever your team's convention is) and tearing down the working tree are the user's own git/gh or jj, or their worktree tooling, done whenever they choose (user-owned-worktrees).
 
 > This page is about driving the **grove CLI** through its finish step. For *why a finished grove must not leave its scaffolding on the branch you integrate*, see [`../grove.md`](../grove.md); for the canonical step-by-step the session follows, the source of truth is the **Finish** step of the methodology in [`../../content/SKILL.md`](../../content/SKILL.md) (provisioned to the global `~/.claude/skills/grove/SKILL.md`), with the step-level design rationale in [`../adr/in-session-finish-cycle.md`](../adr/in-session-finish-cycle.md).
 
@@ -56,7 +56,7 @@ The session proposes the cycle as three ordered steps:
 2. **Delete** `.grove/` in one focused commit on the grove's branch.
 3. **Signal** the loop to stop with `grove-llm complete --done`.
 
-Step 1 is ordinary, reviewable session work — its edits land in the diff like any other commit. Step 2 is the one piece of mechanical teardown, gated by **one** confirmation (see below). Step 3 is bookkeeping for the loop, not the working tree. Nothing after step 3 is grove's concern: because grove created no git topology, it merges none and deletes none either (user-owned-worktrees) — integrating the branch and tearing down the working tree are entirely up to you, on your own schedule, using your own tooling.
+Step 1 is ordinary, reviewable session work — its edits land in the diff like any other commit. Step 2 is the one piece of mechanical teardown, gated by **one** confirmation (see below). Step 3 is bookkeeping for the loop, not the working tree. Nothing after step 3 is grove's concern: because grove created no VCS topology, it merges none and deletes none either (user-owned-worktrees) — integrating the branch and tearing down the working tree are entirely up to you, on your own schedule, using your own tooling.
 
 ## Step 1: promotion is where judgement lives
 

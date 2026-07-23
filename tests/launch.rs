@@ -68,7 +68,7 @@ fn do_runs_from_a_linked_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
 
-    // Precondition is "any git working tree" (user-owned-worktrees): a linked
+    // Precondition is "any working tree" (user-owned-worktrees): a linked
     // worktree the test creates itself, not a `.grove-worktrees/<name>/` grove
     // ever provisions.
     let linked = repo.path().join("scratch-worktree");

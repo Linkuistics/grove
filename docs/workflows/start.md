@@ -1,6 +1,6 @@
 # `grove do` (new grove) — walkthrough
 
-Begin a new workstream. `grove do` is the sole lifecycle entry verb; this page shows its new-grove path. Running `grove do` against a working tree that already has a `.grove/` tree *continues* it instead — see [`multi-step.md`](multi-step.md). Opening a new grove is two steps, and only the second one is grove's: you create a git working tree yourself, then run argument-less `grove do` from inside it. By the end of this walkthrough, `acme/orders-api` has a fresh linked worktree at `~/code/acme/add-rate-limiting` on a new `add-rate-limiting` branch, and a harness session is running inside it on grove's start prompt.
+Begin a new workstream. `grove do` is the sole lifecycle entry verb; this page shows its new-grove path. Running `grove do` against a working tree that already has a `.grove/` tree *continues* it instead — see [`multi-step.md`](multi-step.md). Opening a new grove is two steps, and only the second one is grove's: you create a working tree yourself (git in this walkthrough; a jj-enabled tree works the same), then run argument-less `grove do` from inside it. By the end of this walkthrough, `acme/orders-api` has a fresh linked worktree at `~/code/acme/add-rate-limiting` on a new `add-rate-limiting` branch, and a harness session is running inside it on grove's start prompt.
 
 > This page is about driving the **grove CLI**. For *what grove is and why*, see [`../grove.md`](../grove.md); for the methodology agents read at runtime, see [`../../content/SKILL.md`](../../content/SKILL.md). For the full flag surface, run `grove do --help`.
 
@@ -22,7 +22,7 @@ We want to add request rate limiting to the API — a project we expect to span 
 
 ## Create your own working tree
 
-grove never creates, integrates, or tears down git topology (user-owned-worktrees) — that part is plain git, and it comes first. A linked worktree is the common choice, since it keeps the main checkout free for other work:
+grove never creates, integrates, or tears down VCS topology (user-owned-worktrees) — that part is plain git (or jj), and it comes first. A linked worktree is the common choice, since it keeps the main checkout free for other work:
 
 ```
 $ git worktree add ../add-rate-limiting -b add-rate-limiting
@@ -34,7 +34,7 @@ $ git worktree list
 ~/code/acme/add-rate-limiting  1a2b3c4 [add-rate-limiting]
 ```
 
-The new working tree can live anywhere — here, a sibling of `orders-api` under `~/code/acme/`. Its directory basename, `add-rate-limiting`, *is* the grove's name: grove derives it from `git rev-parse --show-toplevel`, never from the branch, so name the directory whatever you want the grove called. A plain `git init` or `git clone`, or a dedicated tool such as [worktrunk](https://github.com/max-sixty/worktrunk), works just as well — grove's only precondition is *a git working tree*.
+The new working tree can live anywhere — here, a sibling of `orders-api` under `~/code/acme/`. Its directory basename, `add-rate-limiting`, *is* the grove's name: grove derives it from the working-tree root (`git rev-parse --show-toplevel`; `jj workspace root` in a jj-enabled tree), never from the branch, so name the directory whatever you want the grove called. A plain `git init` or `git clone`, a jj-enabled tree (`jj git clone`, `jj git init --colocate`, or a `jj workspace add`), or a dedicated tool such as [worktrunk](https://github.com/max-sixty/worktrunk), works just as well — grove's only precondition is *a working tree*, git or jj.
 
 ## `grove do` opens the bootstrap session
 
@@ -49,7 +49,7 @@ Two things happen, in order. First, the binary provisions (or refreshes) the glo
 claude -n "orders-api: add-rate-limiting grove" <prompt>
 ```
 
-— where `<prompt>` is read from the binary-provisioned global skill at `~/.claude/skills/grove/prompts/start.md`, and `orders-api` (the `<repo-basename>` half of the session name) comes from the **main repo** — `git rev-parse --git-common-dir`'s parent — not from this working tree's own path. The session name follows the `<repo-basename>: <name> grove` convention so groves show up identifiably in harness UIs.
+— where `<prompt>` is read from the binary-provisioned global skill at `~/.claude/skills/grove/prompts/start.md`, and `orders-api` (the `<repo-basename>` half of the session name) comes from the **main repo** — `git rev-parse --git-common-dir`'s parent, or `jj workspace root --name default`'s basename in a jj-enabled tree — not from this working tree's own path. The session name follows the `<repo-basename>: <name> grove` convention so groves show up identifiably in harness UIs.
 
 ## The bootstrap session
 
@@ -98,7 +98,7 @@ $ cat ~/code/acme/orders-api/.grove-stamps/add-rate-limiting
 claude
 ```
 
-Note the stamp lives under `orders-api` (the main repo), not under `add-rate-limiting` (this grove's own working tree) — later verbs resolve the main repo the same way (`git rev-parse --git-common-dir`'s parent) regardless of which working tree they run from, so the binding is found however the grove is addressed. Later verbs (`grove do`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos relying on auto-detection, the stamp is not written — there's nothing to disambiguate. Passing `--harness` explicitly always writes the stamp, even in a single-harness repo, so a deliberate binding survives the next plain `grove do`.
+Note the stamp lives under `orders-api` (the main repo), not under `add-rate-limiting` (this grove's own working tree) — later verbs resolve the main repo the same way (`git rev-parse --git-common-dir`'s parent, or the default jj workspace root in a jj-enabled tree) regardless of which working tree they run from, so the binding is found however the grove is addressed. Later verbs (`grove do`, `grove retire`) read that stamp and run the same harness, so a single grove never spans harnesses mid-flight. In single-harness repos relying on auto-detection, the stamp is not written — there's nothing to disambiguate. Passing `--harness` explicitly always writes the stamp, even in a single-harness repo, so a deliberate binding survives the next plain `grove do`.
 
 ## Codex harness
 

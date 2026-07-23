@@ -72,7 +72,7 @@ Anything else the executing session should know.
 
 The first-line header is the **position-free handle** `# <slug>-k<key>` — the
 mutable position `NN` lives only in the filename, never in the body. That is what
-lets a reorder or insert be a pure `git mv` with zero content rewrites, and it is
+lets a reorder or insert be a pure file move with zero content rewrites, and it is
 the same stable handle you cite in commit messages (task-tree-scheme §5). When this leaf
 is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.

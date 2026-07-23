@@ -20,7 +20,7 @@ state** — the same rule as `docs/adr/`, one grain coarser. Edit a spec in plac
 as understanding shifts; merge two whose designs converged; split one that turned
 out to cover two areas; delete one that no longer describes anything. Never date
 or number the filename, and never append a superseding spec: the artifacts hold
-the present, git holds the past (constraint 1).
+the present, the VCS holds the past (constraint 1).
 
 **The membership test.** *Would a session on an unrelated future grove need to
 read this?*

@@ -39,8 +39,9 @@ Three parts do the work:
    dotted vector). It is the **mutable locator**: lexical == numeric == DFS order
    within a level, locale-robust because it is pure digits, and gives ~99
    siblings/level. A node's full position is its directory path; reorder/insert
-   renames only the affected *level's* sibling directories (`git mv 07-…-k14/
-   08-…-k14/`), and the whole subtree — child names and keys — rides along untouched.
+   renames only the affected *level's* sibling directories (`07-…-k14/` →
+   `08-…-k14/` — a `git mv`, or a plain rename in a jj-enabled tree), and the
+   whole subtree — child names and keys — rides along untouched.
 2. **Key `-k<key>`** — the **permanent stable id**. Assigned once (`max key in tree +
    1`), never rewritten by renumber or decompose, always the terminal token before the
    extension or trailing slash. The keys in the names *are* the counter — there is no
@@ -64,7 +65,7 @@ Three parts do the work:
 
 A task file's in-file `# …` header is the **position-free handle** `# <slug>-k<key>`
 (`# <slug>-k<key> — brief` for a node): the mutable `NN` lives only in the filename,
-never in the body. That is what makes a renumber a pure `git mv` with **zero content
+never in the body. That is what makes a renumber a pure file move with **zero content
 rewrites**.
 
 ## Reference a work item by its stable handle
@@ -80,8 +81,9 @@ the DFS pre-order is the sort order. The verbs express this against the director
 structure: `pick` is a recursive DFS walk returning the first live leaf; `brief-chain`
 walks parent directories collecting each `BRIEF.md`; `resolve` searches directories by
 key; `leaf-decompose` turns a leaf file into a node *directory* (keeping its key);
-`leaf-retire` adds the `DONE` infix in place; and `leaf-insert` `git mv`s sibling
-directories, subtrees riding along.
+`leaf-retire` adds the `DONE` infix in place; and `leaf-insert` moves sibling
+directories (`git mv`, or a plain rename in a jj-enabled tree), subtrees riding
+along.
 
 ## Rationale
 
@@ -89,7 +91,7 @@ directories, subtrees riding along.
   state it directly, dissolving the false-sibling problem of a positionless root brief
   and the numbering tricks a flat encoding forces (`00` sentinels, low-ASCII prefixes,
   a `tree/` subdir).
-- **Cheap restructure.** Moving or inserting a node is a single `git mv` of its
+- **Cheap restructure.** Moving or inserting a node is a single move of its
   directory; the subtree and all keys come along. A flat filename encoding paid
   O(subtree) renames for the same edit, because each leaf baked its full path into its
   name. Insertions and reorderings are first-class operations, so this matters.
@@ -130,7 +132,8 @@ The live verbs are **current-format-only** — there is no transitional dual-for
 reader threaded through every verb. Instead, `grove do` **migrates an old-format
 `.grove/` on adoption**, before driving:
 
-- The migration is a **reviewable single git commit**, **idempotent** on a
+- The migration is a **reviewable single commit** (git-authored, or jj-authored
+  via `jj commit .grove` in a jj-enabled tree), **idempotent** on a
   current-format tree, and **fixture-tested hard before it ever touches a real tree**
   (a migration bug could corrupt a live tree; the single reviewable commit is
   revertable).
@@ -154,5 +157,5 @@ is safe.
   *self-extension-core-and-methodology*); the grove methodology prose carries the
   reference-by-handle instruction, and because the global skill is binary-embedded and
   re-extracted on launch, that prose ships with the binary.
-- Reversible in principle (the scheme lives in names plus git history), expensive once
+- Reversible in principle (the scheme lives in names plus VCS history), expensive once
   trees migrate — it clears the ADR bar as a durable trade-off.

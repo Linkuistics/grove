@@ -25,7 +25,7 @@ prose stays legible and editable without a release. And the cycle's hard part is
 interactive agent does well and a fixed Rust state machine does badly. Encoding it
 in Rust would buy determinism the operation does not need while forfeiting the
 recovery flexibility it does. The trade-off (no machine-enforced atomicity) is
-acceptable because every step is individually recoverable in git.
+acceptable because every step is individually recoverable in the VCS.
 
 ## Resume is state-checked, never a marker file
 
@@ -40,7 +40,8 @@ finished" and stop.
 The teardown (steps 2–3) is gated by a **single** confirmation, taken after
 promotion (step 1) has produced its reviewable working-tree edits. Per-step
 confirmation is rejected as a wizard anti-pattern. The single gate is safe because
-nothing in the cycle is irreversible in git — the `.grove/` deletion is a commit.
+nothing in the cycle is irreversible in the VCS — the `.grove/` deletion is a
+commit.
 The real risk is finishing the *wrong* grove, which one clear plan-and-confirm
 addresses.
 

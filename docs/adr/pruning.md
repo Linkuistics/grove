@@ -90,7 +90,7 @@ difference between a tombstone and a gate with a key.
   prose in a namespace that cannot read prose. *What would reopen it:* a proposed
   state that changes what the **walk** does, not merely what a reader infers.
 - **`leaf-retire --abandoned` instead of a sibling verb (rejected).** Mechanically
-  identical — both are a `git mv` adding an infix, and they share a code path
+  identical — both are a file move adding an infix, and they share a code path
   regardless — so the flag saves nothing real. It frames abandonment as a *mode of
   completion*, which the methodology prose would then spend its life apologising for;
   and forgetting the flag would silently assert the work was **finished**. A missing

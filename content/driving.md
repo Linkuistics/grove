@@ -214,13 +214,13 @@ An ADR set is a **minimum coherent set describing the current design**, not a
 changelog (`linkuistics:decision-records`). So when a later leaf's work *changes*
 a decision an earlier ADR recorded, the move is **not** to add a new ADR that
 supersedes the old one — that grows exactly the chronology grove rejects (it is
-constraint 1 again: the artifacts hold the present, git holds the past, now
+constraint 1 again: the artifacts hold the present, the VCS holds the past, now
 applied to `docs/adr/`). Instead:
 
 - **Edit in place.** Rewrite the affected ADR to state what *now* binds and why.
   Merge two ADRs whose decisions have converged; split one that turned out to
-  cover two independent calls; delete one whose decision no longer holds (git
-  keeps it). No `superseded by`, no status line.
+  cover two independent calls; delete one whose decision no longer holds (the
+  VCS keeps it). No `superseded by`, no status line.
 - **Keep the set minimal.** After the edit, the set should be the fewest ADRs
   that coherently explain the current design. A rework that leaves both the old
   ADR *and* a new one live has failed the test.
@@ -340,7 +340,7 @@ this leaf's stated goal *and* stays inside one focused, low-context session. If
 either answer is no, externalize.
 
 Externalizing is cheap, so spend it freely. A permanent key never moves, a
-renumber is a single `git mv` that rewrites zero file contents, and `leaf-insert`
+renumber is a single file move that rewrites zero file contents, and `leaf-insert`
 exists precisely so a late-surfacing concern can slot ahead of queued work
 without disturbing it. A tree that keeps sprouting small, concrete leaves is the
 system working as intended — lazy means *just-in-time, not few* (`SKILL.md`

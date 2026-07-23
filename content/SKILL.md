@@ -5,10 +5,10 @@ description: Use when driving a long, multi-session workstream that cannot be pl
 
 # grove — hierarchical, self-extending workstreams
 
-A **grove** is one workstream driven as a git-tracked **tree of task files**,
+A **grove** is one workstream driven as a VCS-tracked **tree of task files**,
 one task per session. Planning tasks grow the tree as understanding deepens;
 completed leaves are marked done in place. The tree's shape — the directory tree
-under `.grove/` — is the only state; git is the history.
+under `.grove/` — is the only state; the VCS holds the history.
 
 ```mermaid
 flowchart TD
@@ -52,7 +52,8 @@ grove drives long work *without* becoming brittle, constraining machinery.
 These seven rules are non-negotiable; everything below is subordinate to them.
 
 1. **Artifacts, not state.** No phase file, no session log, no status file.
-   The directory tree under `.grove/` is the only state; git is the history.
+   The directory tree under `.grove/` is the only state; the VCS holds the
+   history.
 2. **Read, don't run.** A session bootstraps by *reading markdown* — no script
    must succeed before work begins. (Materialising or updating grove itself is
    a separate maintenance action and may use a script — see `VERSION.md`.)
@@ -71,9 +72,10 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 
 ## The loop
 
-One task is one session. A grove runs in **a git working tree the user
-provides** — any working tree, linked worktree or main checkout, on any
-branch, anywhere on disk; grove reads no branch anywhere (user-owned-worktrees).
+One task is one session. A grove runs in **a working tree the user
+provides** — git or jj-enabled (a `.jj/` present, colocated or native); a main
+checkout, linked git worktree, or jj workspace; on any branch, anywhere on
+disk; grove reads no branch and no bookmark anywhere (user-owned-worktrees).
 The grove's name is that working tree's directory basename, and its task tree
 lives at `.grove/` inside it.
 
@@ -81,10 +83,11 @@ Sessions are launched by the `grove` CLI (installed via `brew install Linkuistic
 
 `grove do` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do` from the same working tree. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
-If a session was started without the helpers and the session name doesn't already match `<repo-basename>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the working tree's own basename (`git rev-parse --show-toplevel`), `<repo-basename>` from the **main repo**'s basename (`git rev-parse --git-common-dir`'s parent — the repo a linked worktree belongs to, not the worktree's own path).
+If a session was started without the helpers and the session name doesn't already match `<repo-basename>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the working tree's own basename (`git rev-parse --show-toplevel`; `jj workspace root` in a jj-enabled tree), `<repo-basename>` from the **main repo**'s basename (`git rev-parse --git-common-dir`'s parent, or `jj workspace root --name default`'s basename in a jj-enabled tree — the repo a linked worktree or secondary workspace belongs to, not the working tree's own path).
 
-**Starting a new grove.** Provide a git working tree by whatever means you
-like — `git init`, `git clone`, a plain checkout, or a linked worktree from
+**Starting a new grove.** Provide a working tree by whatever means you
+like — `git init`, `git clone`, `jj git init --colocate`, `jj git clone`, a
+plain checkout, a linked worktree or jj workspace (`jj workspace add`), or
 your own tooling (e.g. [worktrunk](https://github.com/max-sixty/worktrunk)) —
 then run argument-less `grove do` from inside it. A brand-new grove has a
 working tree but no `.grove/` tree yet — and every step below assumes
@@ -135,7 +138,7 @@ session's entire mandate; read nothing else by reflex.
   ADR set as a **minimum coherent set describing the current design**: when
   grilling *changes* a decision an ADR already records, **rework the set in
   place** — merge / split / delete — and reconcile the briefs that cite it;
-  never append a superseding ADR (git holds the history). The same rule governs
+  never append a superseding ADR (the VCS holds the history). The same rule governs
   `docs/specs/`, one grain coarser. See `driving.md` for the field-guide habits
   that make grilling and research-leaf commissioning productive (WDYT, pushback,
   running decision log, citation discipline).
@@ -162,8 +165,9 @@ The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children
 (`01-…`, `02-…`); the filesystem carries the hierarchy, and `.grove/` is itself
 the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
-<first-child-slug>`: the verb `git mv`s the leaf file `NN-<slug>-k<key>.md` into
-a new directory `NN-<slug>-k<key>/` as its `BRIEF.md` (**keeping its permanent
+<first-child-slug>`: the verb moves the leaf file `NN-<slug>-k<key>.md`
+(`git mv`; a plain rename in a jj-enabled tree, where jj snapshots the working
+copy) into a new directory `NN-<slug>-k<key>/` as its `BRIEF.md` (**keeping its permanent
 key `-k<key>`** — the leaf that was `k<key>` becomes the *node* `k<key>`, same
 position and slug), retitles the brief's position-free `# <slug>-k<key>` header
 with ` — brief`, and atomically grows the node's first child
@@ -175,7 +179,8 @@ a leaf at the node's next free child position with a fresh key (the common
 case), or `grove-llm leaf-insert <target> <slug>` when a new concern must
 sequence *ahead* of existing leaves — the insert verb shifts the target and
 every later sibling up one position. Because the hierarchy lives in directories,
-that shift is a single `git mv` of each sibling **directory** and the whole
+that shift is a single move of each sibling **directory** (`git mv`, or a plain
+rename under jj) and the whole
 subtree — child names *and* keys — rides along untouched; in-file `# …` headers
 are position-free, so the renumber rewrites **zero file contents**. The verb
 surfaces any stray **position-prefixed** cross-reference (`05-mid-k14`) on
@@ -279,8 +284,8 @@ confirmation, run:
    Outside `grove do` (no loop to stop) it is a safe no-op: just exit.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
-are **not** grove workflow — both belong to plain git/gh, or the user's own
-worktree tooling (user-owned-worktrees). Whoever integrates does so after step
+are **not** grove workflow — both belong to plain git/gh or jj, or the user's
+own worktree tooling (user-owned-worktrees). Whoever integrates does so after step
 2, so the integrated history never carries `.grove/`.
 
 **Resume is state-checked, never a marker file** (constraint 1). `grove do` into
@@ -319,7 +324,7 @@ produced lazily by a planning task *when the increment is a genuine agreement
 point*. The flow there: grill → spec (review & agree) → decompose → execute.
 Specs live in `docs/specs/<slug>.md` and, like ADRs, are a **minimum coherent
 set describing the current design**: edited, merged, split in place; deleted
-when one no longer describes anything (constraint 1 — git holds the past).
+when one no longer describes anything (constraint 1 — the VCS holds the past).
 
 Two rules keep the set honest. **Membership:** would a session on an unrelated
 future grove need to read this? If not, it is a `BRIEF.md` and it dies with

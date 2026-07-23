@@ -73,7 +73,7 @@ within the shell-loop design itself:
 
 The self-driving loop delivers what the engine falsely promised — restart≡
 continuation and loop-until-empty — for free, both falling out of one `grove-llm pick`
-evaluation with near-zero machinery and full git legibility. Full evidence with
+evaluation with near-zero machinery and full VCS legibility. Full evidence with
 primary-source citations is in `docs/research/loop-substrate-options.md`.
 
 ## Consequences

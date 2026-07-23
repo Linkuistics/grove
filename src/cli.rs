@@ -52,8 +52,8 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Start or continue a grove — the sole lifecycle entry verb, run from
-    /// inside the working tree (any git working tree; the grove name is its
-    /// basename — user-owned-worktrees).
+    /// inside the working tree (any git or jj working tree; the grove name is
+    /// its basename — user-owned-worktrees).
     ///
     /// Inspects the grove's state and dispatches: no `.grove/` yet → open a
     /// bootstrap session; a live tree → continue. When the grove has no live
@@ -61,9 +61,9 @@ pub enum Command {
     Do(StartArgs),
     /// Migrate this worktree's `.grove/` to the v2 **directory** scheme
     /// (task-tree-scheme) in place — from either the v1-flat `<dotted>-[<key>]-<slug>`
-    /// format or the old `NNN-slug/` + `done/` directory format. A reviewable git
-    /// change (`git mv` + `# …` header rewrites, no commit) — review the diff,
-    /// then commit. No-op on an already-v2 tree or a missing/foreign `.grove/`.
+    /// format or the old `NNN-slug/` + `done/` directory format. A reviewable
+    /// working-tree change (file moves + `# …` header rewrites, no commit) —
+    /// review the diff, then commit. No-op on an already-v2 tree or a missing/foreign `.grove/`.
     /// `grove do` runs this automatically on adoption; invoke it explicitly to
     /// migrate a tree by hand.
     Migrate(MigrateArgs),
@@ -88,8 +88,9 @@ pub struct StartArgs {
 
 #[derive(Parser)]
 pub struct MigrateArgs {
-    /// Worktree whose `.grove/` to migrate (default: the current worktree, via
-    /// `git rev-parse --show-toplevel`).
+    /// Worktree whose `.grove/` to migrate (default: the current worktree's
+    /// root — `git rev-parse --show-toplevel`, or the jj workspace root in a
+    /// jj-enabled tree).
     pub path: Option<PathBuf>,
 }
 

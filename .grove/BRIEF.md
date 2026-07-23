@@ -29,6 +29,10 @@ existing skills that mention git:
   configurations before designing.
 - `skill-design-k3` — planning: digest research, settle names / triggers /
   harness scope, grow the work leaves.
+- Grove-side arc (from `grove-jj-integration-k7` grilling): the k8–k10
+  leaves *track* jj support in grove itself — execution and commits happen
+  in Linkuistics/grove (~/Development/grove), never here; each slice
+  retires its leaf here with a bookkeeping-only commit.
 
 ## Pointers
 

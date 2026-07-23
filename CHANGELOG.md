@@ -1,5 +1,46 @@
 # Changelog
 
+## v15.0.0
+
+grove goes dual-VCS: jj-enabled working trees — native, colocated, and
+secondary jj workspaces — drive first-class alongside git, from detection
+through the codex sandbox grants to the prose.
+
+### Added
+
+- **jj-enabled working trees drive first-class.** A thin jj-first probe, no
+  VCS trait: the nearest ancestor's `.jj/` wins over a `.git` beside it, so a
+  colocated repo drives through jj while a git repo nested under a jj tree
+  stays git — the repo's state alone picks the interface, and git remains it,
+  silently, in not-jj-enabled trees. In a jj-enabled tree the workspace root
+  comes straight from the marker walk (no jj binary needed); main-repo
+  resolution from a secondary workspace runs `jj workspace root --name
+  default --ignore-working-copy` (never snapshotting); renames go plain (jj
+  has no index to keep in step — a `git mv` in a colocated tree would stage
+  into an index jj ignores); and the adoption migration commits via
+  fileset-scoped `jj commit .grove` (jj-authored: change-id, op-undoable).
+  Tests cover all three repo shapes.
+- **codex launches grant the jj store** (*codex-gitdir-grant*). The
+  `--add-dir` grant goes per-VCS: git trees keep the absolutized common dir
+  exactly as before; jj-enabled trees grant the main workspace's `.jj` — a
+  secondary workspace's every op lands in the *main* workspace's `.jj/repo`,
+  outside the sandbox cwd — plus the main `.git` when it exists (colocated),
+  where jj's git backend writes commit objects and exported refs into the
+  carved-out gitdir. Each grant proven load-bearing by live `codex exec`
+  probes across every jj shape. Previously the grant derivation shelled
+  `git rev-parse --git-common-dir` unconditionally, so a codex launch in a
+  jj-native tree died at spawn.
+
+### Changed
+
+- **The prose speaks dual-VCS, git default** (*user-owned-worktrees*,
+  reworked in place to user-owned *working trees*). Conceptual lines go
+  VCS-neutral ("the VCS holds the history"); wherever a concrete command
+  appears, both interfaces are named (`git init` / `jj git init --colocate`,
+  `git rev-parse --show-toplevel` / `jj workspace root`); verb-behaviour
+  notes carry the jj plain-rename reality; CLI help drops its git-only
+  precondition claim. grove reads no branch — and now, no bookmark.
+
 ## v14.0.0
 
 The harness trial's remaining launch-time gaps close: codex sessions can

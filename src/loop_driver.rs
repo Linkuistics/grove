@@ -257,9 +257,10 @@ fn launch_session(
             cmd.args(harness.model_args).arg(model);
         }
     }
-    // codex-gitdir-grant: reopen the sandbox's read-only gitdir carve-out so
-    // the session can commit; a no-op for every other harness.
-    crate::launch::append_codex_gitdir_grant(&mut cmd, harness, worktree)?;
+    // codex-gitdir-grant: reopen the VCS store the sandbox blocks (git's
+    // carved-out gitdir; a jj tree's main-workspace store) so the session can
+    // commit; a no-op for every other harness.
+    crate::launch::append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);

@@ -52,13 +52,24 @@ pub fn grove_env_names() -> Vec<String> {
 /// Whitespace-splitting is safe here: every fixture path is a `TempDir`
 /// path with no spaces.
 pub fn add_dir_value(argv: &str) -> Option<&str> {
+    add_dir_values(argv).into_iter().next()
+}
+
+/// Every value following an `--add-dir` in a space-joined argv log line, in
+/// argv order — a jj-enabled launch grants up to two stores (the main
+/// workspace's `.jj`, plus its `.git` when colocated). Same whitespace-split
+/// caveat as [`add_dir_value`].
+pub fn add_dir_values(argv: &str) -> Vec<&str> {
+    let mut values = Vec::new();
     let mut tokens = argv.split_whitespace();
     while let Some(token) = tokens.next() {
         if token == "--add-dir" {
-            return tokens.next();
+            if let Some(value) = tokens.next() {
+                values.push(value);
+            }
         }
     }
-    None
+    values
 }
 
 /// Save/restore an arbitrary set of env vars across a test via `Drop`, so a

@@ -300,19 +300,15 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
     );
 }
 
-#[test]
-fn retire_on_codex_grants_the_gitdir_via_add_dir() {
-    // codex-gitdir-grant applies to *every* codex launch, not just the loop's:
-    // a `grove retire` session commits too, and would hit the same read-only
-    // gitdir carve-out. `exec_harness` has no bin seam — it execs
-    // `harness.exec_bin` through PATH — so plant a fake `codex` there.
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-
-    let bindir = repo.path().join("bin");
+/// Plant a fake argv-logging `codex` on PATH plus the retire prompt under
+/// `skill_root` (the dir init helpers point GROVE_SKILL_DIR into), run a
+/// codex `retire` from the current cwd, and return the logged argv line.
+/// `exec_harness` has no bin seam — it execs `harness.exec_bin` through
+/// PATH — which is why the fake goes there. Callers hold CWD_LOCK.
+fn codex_retire_argv(skill_root: &std::path::Path) -> String {
+    let bindir = skill_root.join("bin");
     fs::create_dir_all(&bindir).unwrap();
-    let log = repo.path().join("log");
+    let log = skill_root.join("log");
     let fake = bindir.join("codex");
     fs::write(
         &fake,
@@ -327,8 +323,8 @@ fn retire_on_codex_grants_the_gitdir_via_add_dir() {
     fs::set_permissions(&fake, perms).unwrap();
 
     // `retire` (unlike `do`) does not provision; plant its prompt by hand in
-    // the global skill dir init_repo pointed GROVE_SKILL_DIR at.
-    let prompts = repo.path().join("global-skill/prompts");
+    // the global skill dir the init helper pointed GROVE_SKILL_DIR at.
+    let prompts = skill_root.join("global-skill/prompts");
     fs::create_dir_all(&prompts).unwrap();
     fs::write(prompts.join("retire.md"), "RETIRE {{NODE_PATH}}").unwrap();
 
@@ -347,14 +343,153 @@ fn retire_on_codex_grants_the_gitdir_via_add_dir() {
     })
     .unwrap();
 
-    let argv = fs::read_to_string(&log).unwrap();
-    let granted = support::add_dir_value(&argv).unwrap_or_else(|| {
-        panic!("a codex retire launch must carry --add-dir <gitdir> (argv: {argv:?})")
-    });
+    fs::read_to_string(&log).unwrap()
+}
+
+/// The `--add-dir` values in `argv`, canonicalized for comparison against
+/// fixture paths (TempDirs live behind the /var → /private/var symlink).
+fn granted_dirs(argv: &str) -> Vec<std::path::PathBuf> {
+    support::add_dir_values(argv)
+        .into_iter()
+        .map(|p| std::path::Path::new(p).canonicalize().unwrap())
+        .collect()
+}
+
+/// A jj-enabled fixture: native (`.jj/` only) or colocated (`.git` beside
+/// it), with GROVE_SKILL_DIR pointed inside like init_repo does. jj runs
+/// with a test-local identity so no global config is required.
+fn init_jj_repo(colocate: bool) -> TempDir {
+    let tmp = TempDir::new().unwrap();
+    std::env::set_var("GROVE_SKILL_DIR", tmp.path().join("global-skill"));
+    run_jj(
+        tmp.path(),
+        if colocate {
+            &["git", "init", "--colocate", "--quiet", "."]
+        } else {
+            &[
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ]
+        },
+    );
+    tmp
+}
+
+fn run_jj(dir: &std::path::Path, args: &[&str]) {
+    let mut full = vec![
+        "--config",
+        "user.name=Test",
+        "--config",
+        "user.email=t@example.com",
+    ];
+    full.extend_from_slice(args);
+    let out = Command::new("jj")
+        .current_dir(dir)
+        .args(&full)
+        .output()
+        .unwrap_or_else(|e| panic!("running jj {args:?}: {e} (is jj installed?)"));
+    assert!(
+        out.status.success(),
+        "jj {args:?} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
+fn retire_on_codex_grants_the_gitdir_via_add_dir() {
+    // codex-gitdir-grant applies to *every* codex launch, not just the loop's:
+    // a `grove retire` session commits too, and would hit the same read-only
+    // gitdir carve-out.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    let argv = codex_retire_argv(repo.path());
     assert_eq!(
-        std::path::Path::new(granted).canonicalize().unwrap(),
-        repo.path().join(".git").canonicalize().unwrap(),
+        granted_dirs(&argv),
+        vec![repo.path().join(".git").canonicalize().unwrap()],
         "the retire session's grant is the checkout's own `.git` (argv: {argv:?})"
+    );
+}
+
+#[test]
+fn retire_on_codex_in_jj_native_tree_grants_the_jj_store() {
+    // A jj-native tree has no `.git` for `git rev-parse` to find — the grant
+    // derivation must go through jj instead of erroring the launch outright.
+    // The granted store is the main workspace's `.jj`: redundant here (it
+    // sits under the sandbox cwd, and codex carves out only `.git`, verified
+    // by probe), but load-bearing from a secondary workspace, and grants are
+    // additive so the uniform rule costs nothing.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_jj_repo(false);
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    let argv = codex_retire_argv(repo.path());
+    assert_eq!(
+        granted_dirs(&argv),
+        vec![repo.path().join(".jj").canonicalize().unwrap()],
+        "a jj-native launch grants the `.jj` store and nothing else (argv: {argv:?})"
+    );
+}
+
+#[test]
+fn retire_on_codex_in_colocated_tree_grants_jj_and_git_stores() {
+    // Colocated: jj's git backend writes commit objects and exported refs
+    // into `.git`, which the sandbox carves out of the cwd root (probe:
+    // `jj describe` fails in-sandbox without the grant, succeeds with it).
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_jj_repo(true);
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    let argv = codex_retire_argv(repo.path());
+    assert_eq!(
+        granted_dirs(&argv),
+        vec![
+            repo.path().join(".jj").canonicalize().unwrap(),
+            repo.path().join(".git").canonicalize().unwrap(),
+        ],
+        "a colocated launch grants both stores (argv: {argv:?})"
+    );
+}
+
+#[test]
+fn retire_on_codex_in_secondary_jj_workspace_grants_the_main_workspace_store() {
+    // A secondary workspace's own `.jj/` holds only the working copy; every
+    // op lands in the *main* workspace's `.jj/repo`, outside the sandbox cwd
+    // entirely (probe: `jj describe` fails there without the grant). The
+    // grant must therefore name the main workspace's `.jj`, not the local one.
+    let _g = CWD_LOCK.lock().unwrap();
+    let tmp = TempDir::new().unwrap();
+    std::env::set_var("GROVE_SKILL_DIR", tmp.path().join("global-skill"));
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    run_jj(
+        &main,
+        &[
+            "--config",
+            "git.colocate=false",
+            "git",
+            "init",
+            "--quiet",
+            ".",
+        ],
+    );
+    let ws = tmp.path().join("ws2");
+    run_jj(
+        &main,
+        &["workspace", "add", "--quiet", ws.to_str().unwrap()],
+    );
+    std::env::set_current_dir(&ws).unwrap();
+
+    let argv = codex_retire_argv(tmp.path());
+    assert_eq!(
+        granted_dirs(&argv),
+        vec![main.join(".jj").canonicalize().unwrap()],
+        "a secondary-workspace launch grants the main workspace's `.jj` (argv: {argv:?})"
     );
 }
 

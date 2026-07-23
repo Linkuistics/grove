@@ -113,24 +113,48 @@ fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
     out
 }
 
-/// codex-gitdir-grant: codex's `workspace-write` sandbox carves the
-/// repository gitdir out read-only, so `git commit` — and with it grove's
-/// mandatory Commit and Retire steps — would fail inside the session. Every
-/// codex launch therefore grants the gitdir back by appending
-/// `--add-dir <absolutized git-common-dir>`: one path covers both repo
-/// shapes (a linked worktree's gitdir is a subpath of the common dir; a
-/// plain checkout's common dir *is* `.git`), grants are additive so the
-/// default writable roots stay intact, and the flag is harmless when the
-/// sandbox is off. No other harness is touched. The value is dynamic —
-/// derived from the worktree per launch — which is why it lives here at the
-/// assembly sites rather than in `harness.rs`'s static flag templates.
-pub(crate) fn append_codex_gitdir_grant(
+/// codex-gitdir-grant: codex's `workspace-write` sandbox blocks the VCS
+/// store writes grove's mandatory Commit and Retire steps depend on, so
+/// every codex launch grants the store back via `--add-dir` — per-VCS,
+/// because the two VCSes fail differently:
+///
+/// - **git tree**: the sandbox carves `.git` out of every writable root, so
+///   the grant is the absolutized git common dir. One path covers both
+///   shapes (a linked worktree's gitdir is a subpath of the common dir; a
+///   plain checkout's common dir *is* `.git`).
+/// - **jj-enabled tree**: `.jj` is *not* carved out (codex 0.145.0 protects
+///   only `.git`/`.agents`/`.codex`), but a secondary workspace's ops all
+///   land in the *main* workspace's `.jj/repo` — outside the sandbox cwd
+///   entirely — so the grant is the main workspace's `.jj`; plus the main
+///   `.git` when colocated, where jj's git backend writes commit objects
+///   and exported refs into the carved-out gitdir. In a primary workspace
+///   the `.jj` grant is redundant but harmless.
+///
+/// Grants are additive so the default writable roots stay intact, and the
+/// flags are harmless when the sandbox is off. No other harness is touched.
+/// The values are dynamic — derived from the worktree per launch — which is
+/// why this lives here at the assembly sites rather than in `harness.rs`'s
+/// static flag templates.
+pub(crate) fn append_codex_vcs_store_grant(
     cmd: &mut Command,
     harness: &Harness,
     worktree: &Path,
 ) -> Result<()> {
-    if harness.name == "codex" {
-        cmd.arg("--add-dir").arg(repo::git_common_dir(worktree)?);
+    if harness.name != "codex" {
+        return Ok(());
+    }
+    match repo::vcs_of(worktree) {
+        Some(repo::Vcs::Jj { .. }) => {
+            let main = repo::main_repo_of(worktree)?;
+            cmd.arg("--add-dir").arg(main.join(".jj"));
+            let git_store = main.join(".git");
+            if git_store.exists() {
+                cmd.arg("--add-dir").arg(git_store);
+            }
+        }
+        _ => {
+            cmd.arg("--add-dir").arg(repo::git_common_dir(worktree)?);
+        }
     }
     Ok(())
 }
@@ -153,7 +177,7 @@ fn exec_harness(
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(&session_name);
     }
-    append_codex_gitdir_grant(&mut cmd, harness, worktree)?;
+    append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
     cmd.arg(prompt);
 
     let status = cmd

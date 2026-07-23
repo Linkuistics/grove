@@ -1175,7 +1175,11 @@ exit 0
 
     let log = fs::read_to_string(&log).unwrap();
     let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(rows.len(), 2, "loop should run twice then stop (log: {log:?})");
+    assert_eq!(
+        rows.len(),
+        2,
+        "loop should run twice then stop (log: {log:?})"
+    );
 
     // Every launch is pre-named: `-n <repo-basename>: <name> grove`.
     let session_name = format!(

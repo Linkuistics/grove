@@ -88,8 +88,9 @@ primary-source citations is in `docs/research/loop-substrate-options.md`.
 - The driver also selects each session's **launch model by the picked leaf's
   kind** (planning vs work), via native `claude --model` — see
   *model-per-task-kind*.
-- codex launches additionally carry a gitdir write grant (`--add-dir`) so the
-  sandboxed session can commit and retire at all — see *codex-gitdir-grant*.
+- codex launches additionally carry a VCS store write grant (`--add-dir`, the
+  gitdir or the jj repo store) so the sandboxed session can commit and retire
+  at all — see *codex-gitdir-grant*.
 - A `brew upgrade` mid-loop stops the loop at the next session boundary with a
   restart instruction, instead of hanging at the next completion signal;
   re-running `grove do` resumes on the new binary.

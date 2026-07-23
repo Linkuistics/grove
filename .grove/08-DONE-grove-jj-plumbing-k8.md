@@ -44,3 +44,17 @@ Teach grove's Rust plumbing to work first-class in jj-enabled working trees
 
 jj 0.43.0 is installed locally. The codex sandbox question is deliberately
 NOT here — it is `grove-codex-jj-sandbox-k9`.
+
+## Outcome
+
+Shipped as Linkuistics/grove `b6e45dd` (main). `repo.rs` grew the jj-first
+probe `vcs_of` (nearest `.jj/` beats a `.git` beside it; closest marker
+wins); `git_toplevel` → `toplevel` (jj workspace root straight from the
+walk, no jj binary needed); main-repo derivation → `main_repo_of` via
+`jj workspace root --name default --ignore-working-copy`. Rename goes plain
+in jj-enabled trees; the adoption migration commits via fileset-scoped
+`jj commit -m <msg> .grove` (jj-authored: change-id, op-undoable). Tests
+cover all three shapes; 471 pass. Facts for k9/k10: the ambient jj config
+may default `git.colocate` **on** (fixtures must force it off), and the
+codex `--add-dir` grant still calls `git_common_dir` — it errors in a
+jj-native tree, so codex launches there stay broken until k9.

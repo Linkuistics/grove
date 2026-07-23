@@ -445,7 +445,7 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
 // read one level off.
 fn grove_paths() -> Result<(PathBuf, PathBuf)> {
     let cwd = std::env::current_dir().context("getting cwd")?;
-    let worktree = repo::git_toplevel(&cwd)?;
+    let worktree = repo::toplevel(&cwd)?;
     let grove_root = worktree.join(".grove");
     Ok((worktree, grove_root))
 }

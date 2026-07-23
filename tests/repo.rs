@@ -1,11 +1,211 @@
-use grove::repo::resolve;
-use std::path::Path;
+use grove::repo::{main_repo_of, resolve, toplevel, vcs_of, Vcs};
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tempfile::TempDir;
 
 fn init_git_repo(path: &Path) {
-    Command::new("git").arg("init").arg(path).status().unwrap();
+    run("git", path, &["init", "-q", "."]);
 }
+
+/// A jj-native repo (no `.git/`). `git.colocate=false` is forced because the
+/// ambient jj config may default colocation on, which would silently turn
+/// every "native" fixture into a colocated one.
+fn init_jj_repo(path: &Path) {
+    run_jj(
+        path,
+        &[
+            "--config",
+            "git.colocate=false",
+            "git",
+            "init",
+            "--quiet",
+            ".",
+        ],
+    );
+}
+
+fn run(bin: &str, dir: &Path, args: &[&str]) {
+    let out = Command::new(bin)
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap_or_else(|e| panic!("running {bin} {args:?}: {e} (is {bin} installed?)"));
+    assert!(
+        out.status.success(),
+        "{bin} {args:?} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// Run jj with a test-local user identity, so no global config is required.
+fn run_jj(dir: &Path, args: &[&str]) {
+    let mut full = vec![
+        "--config",
+        "user.name=Test",
+        "--config",
+        "user.email=t@example.com",
+    ];
+    full.extend_from_slice(args);
+    run("jj", dir, &full);
+}
+
+fn canon(p: &Path) -> PathBuf {
+    p.canonicalize().unwrap()
+}
+
+// ---- vcs_of: the jj-first ownership probe ---------------------------------
+
+#[test]
+fn vcs_of_plain_git_repo_is_git() {
+    let tmp = TempDir::new().unwrap();
+    init_git_repo(tmp.path());
+    assert!(matches!(vcs_of(tmp.path()), Some(Vcs::Git)));
+}
+
+#[test]
+fn vcs_of_jj_native_repo_is_jj_with_its_workspace_root() {
+    let tmp = TempDir::new().unwrap();
+    init_jj_repo(tmp.path());
+    let sub = tmp.path().join("a/b");
+    fs::create_dir_all(&sub).unwrap();
+    match vcs_of(&sub) {
+        Some(Vcs::Jj { workspace_root }) => {
+            assert_eq!(canon(&workspace_root), canon(tmp.path()))
+        }
+        other => panic!("expected Jj, got {other:?}"),
+    }
+}
+
+#[test]
+fn vcs_of_colocated_repo_is_jj_first() {
+    // `.jj/` beside `.git/`: the jj-enabled state picks jj, per the symmetric
+    // VCS rule — git is used only in not-jj-enabled trees.
+    let tmp = TempDir::new().unwrap();
+    init_git_repo(tmp.path());
+    run_jj(tmp.path(), &["git", "init", "--colocate", "--quiet", "."]);
+    assert!(matches!(vcs_of(tmp.path()), Some(Vcs::Jj { .. })));
+}
+
+#[test]
+fn vcs_of_git_repo_nested_under_jj_tree_is_git() {
+    // The closest marker wins: an inner plain-git checkout is not captured by
+    // an outer jj-enabled tree.
+    let tmp = TempDir::new().unwrap();
+    init_jj_repo(tmp.path());
+    let inner = tmp.path().join("inner");
+    fs::create_dir_all(&inner).unwrap();
+    init_git_repo(&inner);
+    assert!(matches!(vcs_of(&inner), Some(Vcs::Git)));
+}
+
+#[test]
+fn vcs_of_unversioned_dir_is_none() {
+    // TempDir lives under the system temp dir, which itself is unversioned.
+    let tmp = TempDir::new().unwrap();
+    assert!(vcs_of(tmp.path()).is_none());
+}
+
+// ---- toplevel: the working-tree root, either VCS --------------------------
+
+#[test]
+fn toplevel_in_plain_git_repo_resolves_from_subdir() {
+    let tmp = TempDir::new().unwrap();
+    init_git_repo(tmp.path());
+    let sub = tmp.path().join("src");
+    fs::create_dir_all(&sub).unwrap();
+    assert_eq!(canon(&toplevel(&sub).unwrap()), canon(tmp.path()));
+}
+
+#[test]
+fn toplevel_in_jj_native_repo_resolves_from_subdir() {
+    let tmp = TempDir::new().unwrap();
+    init_jj_repo(tmp.path());
+    let sub = tmp.path().join("src");
+    fs::create_dir_all(&sub).unwrap();
+    assert_eq!(canon(&toplevel(&sub).unwrap()), canon(tmp.path()));
+}
+
+#[test]
+fn toplevel_in_secondary_jj_workspace_is_the_workspace_root() {
+    // A secondary workspace is its own working tree; grove runs *in* it, so
+    // its root — not the main repo's — is the worktree.
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    init_jj_repo(&main);
+    let ws = tmp.path().join("ws2");
+    run_jj(
+        &main,
+        &["workspace", "add", "--quiet", ws.to_str().unwrap()],
+    );
+    assert_eq!(canon(&toplevel(&ws).unwrap()), canon(&ws));
+}
+
+#[test]
+fn toplevel_outside_any_repo_errors() {
+    let tmp = TempDir::new().unwrap();
+    let err = toplevel(tmp.path()).unwrap_err();
+    assert!(
+        err.to_string().contains("not in a git or jj repo"),
+        "unexpected error: {err}"
+    );
+}
+
+// ---- main_repo_of: the main repo behind a working tree --------------------
+
+#[test]
+fn main_repo_of_git_linked_worktree_is_the_main_checkout() {
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    init_git_repo(&main);
+    run(
+        "git",
+        &main,
+        &[
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=Test",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "seed",
+        ],
+    );
+    let wt = tmp.path().join("wt");
+    run(
+        "git",
+        &main,
+        &["worktree", "add", "-q", wt.to_str().unwrap()],
+    );
+    assert_eq!(canon(&main_repo_of(&wt).unwrap()), canon(&main));
+}
+
+#[test]
+fn main_repo_of_jj_native_repo_is_itself() {
+    let tmp = TempDir::new().unwrap();
+    init_jj_repo(tmp.path());
+    assert_eq!(canon(&main_repo_of(tmp.path()).unwrap()), canon(tmp.path()));
+}
+
+#[test]
+fn main_repo_of_secondary_jj_workspace_is_the_default_workspace_root() {
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    init_jj_repo(&main);
+    let ws = tmp.path().join("ws2");
+    run_jj(
+        &main,
+        &["workspace", "add", "--quiet", ws.to_str().unwrap()],
+    );
+    assert_eq!(canon(&main_repo_of(&ws).unwrap()), canon(&main));
+}
+
+// ---- resolve --------------------------------------------------------------
 
 #[test]
 fn resolve_uses_explicit_arg_when_provided() {
@@ -13,15 +213,24 @@ fn resolve_uses_explicit_arg_when_provided() {
     init_git_repo(tmp.path());
 
     let resolved = resolve(Some(tmp.path())).unwrap();
-    assert_eq!(
-        resolved.canonicalize().unwrap(),
-        tmp.path().canonicalize().unwrap()
-    );
+    assert_eq!(canon(&resolved), canon(tmp.path()));
 }
 
 #[test]
-fn resolve_errors_when_arg_is_not_a_git_repo() {
+fn resolve_accepts_a_jj_native_repo_arg() {
+    let tmp = TempDir::new().unwrap();
+    init_jj_repo(tmp.path());
+
+    let resolved = resolve(Some(tmp.path())).unwrap();
+    assert_eq!(canon(&resolved), canon(tmp.path()));
+}
+
+#[test]
+fn resolve_errors_when_arg_is_not_a_repo() {
     let tmp = TempDir::new().unwrap();
     let err = resolve(Some(tmp.path())).unwrap_err();
-    assert!(err.to_string().contains("not a git repo"));
+    assert!(
+        err.to_string().contains("not a git or jj repo"),
+        "unexpected error: {err}"
+    );
 }

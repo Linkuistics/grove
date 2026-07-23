@@ -9,7 +9,8 @@ use std::process::Command;
 
 /// State-dispatching launcher: the sole lifecycle entry verb, run from inside
 /// the working tree (user-owned-worktrees) — grove never creates, attaches, or
-/// relocates it. The worktree is `git rev-parse --show-toplevel` of cwd, and
+/// relocates it. The worktree is cwd's working-tree root ([`repo::toplevel`]:
+/// the jj workspace root in a jj-enabled tree, else git's toplevel), and
 /// the grove name is its basename. Once resolved, it drives the **whole
 /// self-driving loop** (self-driving-loop): one fresh foreground harness
 /// session per task, relaunching on each completion signal until the agent stops
@@ -17,7 +18,7 @@ use std::process::Command;
 /// sessions handle all in-context judgement — including proposing the
 /// complete finish cycle once the grove has no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
-    let worktree = repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?;
+    let worktree = repo::toplevel(&std::env::current_dir().context("getting cwd")?)?;
     let name = worktree_name(&worktree);
 
     let repo_path = repo::resolve(None)?;
@@ -64,7 +65,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
 }
 
 pub fn retire(args: &RetireArgs) -> Result<()> {
-    let worktree = repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?;
+    let worktree = repo::toplevel(&std::env::current_dir().context("getting cwd")?)?;
     let name = worktree_name(&worktree);
 
     let repo_path = repo::resolve(None)?;

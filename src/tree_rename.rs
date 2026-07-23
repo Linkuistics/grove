@@ -34,9 +34,15 @@ use std::process::Command;
 /// Rename the tree entry `src` → `dst` (both relative to `dir`), taking git's
 /// index along when git is tracking it. A node directory carries its whole subtree
 /// with it. `dst`'s parent directory must already exist.
+///
+/// In a **jj-enabled** tree (jj-first, colocated included) the rename is always
+/// plain: jj has no index to keep in step — it snapshots the working copy — and
+/// a `git mv` in a colocated tree would stage into an index jj ignores.
 pub fn rename_entry(dir: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
     let (src, dst) = (src.as_ref(), dst.as_ref());
-    if is_tracked(dir, src) {
+    if matches!(crate::repo::vcs_of(dir), Some(crate::repo::Vcs::Jj { .. })) {
+        plain_rename(dir, src, dst)
+    } else if is_tracked(dir, src) {
         git_mv(dir, src, dst)
     } else {
         plain_rename(dir, src, dst)
@@ -86,4 +92,92 @@ fn plain_rename(dir: &Path, src: &Path, dst: &Path) -> Result<()> {
     let (from, to) = (dir.join(src), dir.join(dst));
     fs::rename(&from, &to)
         .with_context(|| format!("renaming {} -> {}", from.display(), to.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn run(bin: &str, dir: &Path, args: &[&str]) -> String {
+        let out = Command::new(bin)
+            .current_dir(dir)
+            .args(args)
+            .output()
+            .unwrap_or_else(|e| panic!("running {bin} {args:?}: {e} (is {bin} installed?)"));
+        assert!(
+            out.status.success(),
+            "{bin} {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    fn run_jj(dir: &Path, args: &[&str]) {
+        let mut full = vec![
+            "--config",
+            "user.name=Test",
+            "--config",
+            "user.email=t@example.com",
+        ];
+        full.extend_from_slice(args);
+        run("jj", dir, &full);
+    }
+
+    #[test]
+    fn rename_in_jj_native_tree_moves_the_file() {
+        // No `.git/` anywhere: the rename must not require git at all.
+        // (`git.colocate=false` forced — the ambient jj config may default
+        // colocation on, which would sneak a `.git/` into this fixture.)
+        let tmp = tempfile::TempDir::new().unwrap();
+        let repo = tmp.path();
+        run_jj(
+            repo,
+            &[
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ],
+        );
+        fs::write(repo.join("a.md"), "# a\n").unwrap();
+        run_jj(repo, &["commit", "-m", "seed"]);
+
+        rename_entry(repo, "a.md", "b.md").unwrap();
+
+        assert!(!repo.join("a.md").exists());
+        assert_eq!(fs::read_to_string(repo.join("b.md")).unwrap(), "# a\n");
+    }
+
+    #[test]
+    fn rename_in_colocated_tree_leaves_the_git_index_alone() {
+        // jj-first: in a colocated repo the entry *is* git-tracked, but a
+        // `git mv` would stage a rename into an index jj ignores — jj has no
+        // index; it snapshots the working copy. So the rename must be plain:
+        // the file moves, git's index stays exactly as it was.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let repo = tmp.path();
+        run("git", repo, &["init", "-q", "."]);
+        run("git", repo, &["config", "user.email", "t@example.com"]);
+        run("git", repo, &["config", "user.name", "Test"]);
+        fs::write(repo.join("a.md"), "# a\n").unwrap();
+        run("git", repo, &["add", "-A"]);
+        run("git", repo, &["commit", "-q", "-m", "seed"]);
+        run_jj(repo, &["git", "init", "--colocate", "--quiet", "."]);
+
+        rename_entry(repo, "a.md", "b.md").unwrap();
+
+        assert!(!repo.join("a.md").exists());
+        assert_eq!(fs::read_to_string(repo.join("b.md")).unwrap(), "# a\n");
+        let index = run("git", repo, &["ls-files"]);
+        assert!(
+            index.lines().any(|l| l == "a.md"),
+            "git index must be untouched (still listing a.md): {index:?}"
+        );
+        assert!(
+            !index.lines().any(|l| l == "b.md"),
+            "no git mv may have staged b.md: {index:?}"
+        );
+    }
 }

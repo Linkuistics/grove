@@ -152,15 +152,42 @@ pub fn migrate_on_adoption(worktree: &Path, name: &str) -> Result<Outcome> {
     Ok(outcome)
 }
 
-/// Commit the adoption migration as one isolated, self-describing commit. Staging
-/// is scoped to `.grove/` so an unrelated dirty file elsewhere is never swept in,
-/// and a plain `git add` is required because the post-rename header rewrites left
-/// each renamed file modified-after-staging (and an untracked v1 leaf, renamed
-/// without touching the index, needs adding regardless).
+/// Commit the adoption migration as one isolated, self-describing commit,
+/// scoped to `.grove/` so an unrelated dirty file elsewhere is never swept in.
+///
+/// In a **jj-enabled** tree (jj-first, colocated included) that is one
+/// fileset-scoped `jj commit` — jj's snapshot picks up the renames and header
+/// rewrites, no staging step exists, and in a colocated repo jj's auto-export
+/// keeps the git view in step (where a git-made commit would be one jj must
+/// import). In a git tree, staging via a plain `git add` is required because
+/// the post-rename header rewrites left each renamed file
+/// modified-after-staging (and an untracked v1 leaf, renamed without touching
+/// the index, needs adding regardless).
 fn commit_migration(worktree: &Path, name: &str) -> Result<()> {
-    git(worktree, &["add", "-A", "--", ".grove"])?;
     let msg = format!("grove({name}): migrate task tree to v2 directory scheme");
-    git(worktree, &["commit", "-q", "-m", &msg])?;
+    if matches!(repo::vcs_of(worktree), Some(repo::Vcs::Jj { .. })) {
+        jj(worktree, &["commit", "-m", &msg, ".grove"])?;
+    } else {
+        git(worktree, &["add", "-A", "--", ".grove"])?;
+        git(worktree, &["commit", "-q", "-m", &msg])?;
+    }
+    Ok(())
+}
+
+/// Run `jj <args>` in `dir`, bailing with stderr on a non-zero exit.
+fn jj(dir: &Path, args: &[&str]) -> Result<()> {
+    let out = Command::new("jj")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .with_context(|| format!("running jj {}", args.join(" ")))?;
+    if !out.status.success() {
+        bail!(
+            "jj {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&out.stderr).trim()
+        );
+    }
     Ok(())
 }
 
@@ -188,7 +215,7 @@ fn git(dir: &Path, args: &[&str]) -> Result<()> {
 pub fn run(args: &MigrateArgs) -> Result<()> {
     let worktree = match &args.path {
         Some(p) => p.clone(),
-        None => repo::git_toplevel(&std::env::current_dir().context("getting cwd")?)?,
+        None => repo::toplevel(&std::env::current_dir().context("getting cwd")?)?,
     };
     let grove_root = worktree.join(".grove");
     match migrate(&worktree)? {
@@ -1529,5 +1556,148 @@ mod tests {
             migrate(tmp.path()).unwrap(),
             Outcome::NothingToMigrate
         ));
+    }
+
+    // ---- jj-enabled trees (jj-first) ----------------------------------------
+
+    /// Run `bin` in `dir`, asserting success and returning stdout.
+    fn run_out(bin: &str, dir: &Path, args: &[&str]) -> String {
+        let out = Command::new(bin)
+            .current_dir(dir)
+            .args(args)
+            .output()
+            .unwrap_or_else(|e| panic!("running {bin} {args:?}: {e} (is {bin} installed?)"));
+        assert!(
+            out.status.success(),
+            "{bin} {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    fn run_jj(dir: &Path, args: &[&str]) -> String {
+        let mut full = vec![
+            "--config",
+            "user.name=Test",
+            "--config",
+            "user.email=t@example.com",
+        ];
+        full.extend_from_slice(args);
+        run_out("jj", dir, &full)
+    }
+
+    /// A `.grove/` inside a jj-native repo (no `.git/`), seeded and committed.
+    /// `git.colocate=false` is forced — the ambient jj config may default
+    /// colocation on, which would sneak a `.git/` into this fixture.
+    fn jj_grove(files: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let repo = tmp.path().to_path_buf();
+        run_jj(
+            &repo,
+            &[
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ],
+        );
+        let root = repo.join(".grove");
+        for (rel, body) in files {
+            let p = root.join(rel);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(&p, body).unwrap();
+        }
+        run_jj(&repo, &["commit", "-m", "seed"]);
+        (tmp, root)
+    }
+
+    #[test]
+    fn migrate_on_adoption_commits_via_jj_in_a_jj_native_tree() {
+        let (_t, g) = jj_grove(&[
+            ("BRIEF.md", "# my-grove — brief\n"),
+            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
+        ]);
+        let worktree = g.parent().unwrap();
+        assert!(matches!(
+            migrate_on_adoption(worktree, "my-grove").unwrap(),
+            Outcome::Migrated(_)
+        ));
+        // The conversion is a finalized jj commit (@'s parent) with the same
+        // message the git path writes, and the v2 shape is on disk.
+        let desc = run_jj(
+            worktree,
+            &["log", "--no-graph", "-r", "@-", "-T", "description"],
+        );
+        assert_eq!(
+            desc.trim(),
+            "grove(my-grove): migrate task tree to v2 directory scheme"
+        );
+        assert!(g.join("01-plan-k1.md").is_file());
+        // A second adoption is a clean no-op.
+        assert!(matches!(
+            migrate_on_adoption(worktree, "my-grove").unwrap(),
+            Outcome::AlreadyV2
+        ));
+    }
+
+    #[test]
+    fn migrate_on_adoption_jj_commit_is_scoped_to_grove() {
+        // An unrelated dirty file must stay in the working copy, not be swept
+        // into the migration commit — the fileset scoping the git path gets
+        // from `git add -- .grove`.
+        let (_t, g) = jj_grove(&[
+            ("BRIEF.md", "# my-grove — brief\n"),
+            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
+        ]);
+        let worktree = g.parent().unwrap();
+        fs::write(worktree.join("stray.txt"), "stray\n").unwrap();
+        assert!(matches!(
+            migrate_on_adoption(worktree, "my-grove").unwrap(),
+            Outcome::Migrated(_)
+        ));
+        let committed = run_jj(worktree, &["diff", "-r", "@-", "--summary"]);
+        assert!(
+            !committed.contains("stray.txt"),
+            "stray file swept into the migration commit: {committed:?}"
+        );
+        let working = run_jj(worktree, &["diff", "-r", "@", "--summary"]);
+        assert!(
+            working.contains("stray.txt"),
+            "stray file must remain in the working copy: {working:?}"
+        );
+    }
+
+    #[test]
+    fn migrate_on_adoption_in_colocated_tree_commits_via_jj() {
+        // jj-first: `.jj/` beside `.git/` picks the jj path. The commit must be
+        // jj-authored — carrying jj's change-id header, so it is a first-class
+        // change (`jj op undo`-able), not a git-made commit jj must import —
+        // and jj's auto-export keeps the git view clean and in step.
+        let (_t, g) = git_grove(&[
+            ("BRIEF.md", "# my-grove — brief\n"),
+            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
+        ]);
+        let worktree = g.parent().unwrap();
+        run_jj(worktree, &["git", "init", "--colocate", "--quiet", "."]);
+        assert!(matches!(
+            migrate_on_adoption(worktree, "my-grove").unwrap(),
+            Outcome::Migrated(_)
+        ));
+        assert_eq!(
+            run_out("git", worktree, &["log", "-1", "--format=%s"]).trim(),
+            "grove(my-grove): migrate task tree to v2 directory scheme"
+        );
+        assert_eq!(
+            run_out("git", worktree, &["status", "--porcelain"]),
+            "",
+            "jj's export must leave the git view clean"
+        );
+        let commit_obj = run_out("git", worktree, &["cat-file", "commit", "HEAD"]);
+        assert!(
+            commit_obj.contains("change-id "),
+            "migration commit must be jj-authored (change-id header): {commit_obj:?}"
+        );
     }
 }

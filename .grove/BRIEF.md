@@ -69,3 +69,12 @@ Two findings from the planning grilling that a session here may trip over:
 - **Archiving fails silently.** `autoUpdate: true` keeps *succeeding* against an
   archived repo; the content just freezes with no error. Announcement is the
   mitigation, not a nicety.
+
+**For the finish cycle's promote step** (from `docs-reconciliation-k4`, now done):
+three parts of `docs/` are **closed historical records, not current-state
+documents** — `docs/research/` (ten surveys from two lineages), `docs/superpowers/`
+(a dated plan + spec from a past workstream), and the carried-in section at the foot
+of `CHANGELOG.md`. They are read for provenance and left alone; only a claim the
+merge actually falsified is worth touching. Nothing outside `.grove/` says this
+today, so it needs a durable home — a short note in `docs/` is the obvious one — or
+it dies with the tree.

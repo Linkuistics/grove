@@ -47,6 +47,8 @@ That is the whole installation. The `grove` binary **embeds its full methodology
 
 Provisioning to Claude Code's **personal** skill dir is deliberate: Claude Code resolves skills enterprise > personal > project, so the binary-provisioned copy takes precedence over any same-named project skill and always wins. That precedence is the reason grove does not also drop a per-repo copy — a project-local mirror would be dead, shadowed code that could only mislead a contributor into editing the wrong file. To change the methodology, edit `content/` in the grove repo and rebuild; the new binary reprovisions the global skill on its next `grove do`.
 
+One thing sits outside the binary: grove's ADR and spec guidance defers to the `linkuistics:decision-records` and `linkuistics:codebase-design` skills, so grove takes the **`linkuistics` plugin** as a documentation-level prerequisite. That plugin is developed in this same repo under `plugins/`, but the binary provisions only grove's own methodology, so it is a separate install — see [`../plugins/README.md`](../plugins/README.md). Nothing enforces it at install time; a session that never raises an ADR never notices.
+
 ### Updating
 
 Upgrading the binary upgrades the methodology. `brew upgrade grove` installs a new binary, and the next `grove do` re-provisions the global skill from it — the content-hash stamp makes a matching skill a no-op and a changed one a refresh. There is no separate update verb and no per-project version to pin: the binary on your `$PATH` is the single source of truth.

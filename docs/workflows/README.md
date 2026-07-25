@@ -14,7 +14,7 @@ There is no install walkthrough: `brew install grove` is the whole installation,
 
 Every walkthrough drives the same fictional repo, `acme/orders-api`, and `start.md` through `finish.md` follow one fictional grove, `add-rate-limiting`, end to end. Pinning the demo target here means readers can move between walkthroughs without re-orienting.
 
-Terms used across these pages are defined in [`../../CONTEXT.md`](../../CONTEXT.md).
+Terms used across these pages are defined in [`../../CONTEXT.md`](../../CONTEXT.md) — grove's glossary. (The repo carries a second one for the skill plugins; [`../../CONTEXT-MAP.md`](../../CONTEXT-MAP.md) routes between them. Nothing on these pages needs it.)
 
 ## What's not here
 

@@ -344,12 +344,15 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
 
 **Prerequisite — the `linkuistics` plugin.** Two bodies of guidance grove used
-to carry now live outside it, and grove **requires** the `linkuistics` plugin as
-a prerequisite: ADR philosophy in `linkuistics:decision-records`, and what a
-test seam is and how to judge one in `linkuistics:codebase-design`.
-Self-containment is not a constraint for either — `ADR-FORMAT.md` and
-`SPEC-FORMAT.md` keep only grove's placement and recording conventions. A
-session raising or reworking an ADR, or sketching a spec's test seams, should
-consult the matching skill. The dependency is documentation-level, not
-install-enforced; everything else grove needs stays self-contained (constraint
-6).
+to carry now live in a **separately installed** plugin, and grove **requires**
+it: ADR philosophy in `linkuistics:decision-records`, and what a test seam is
+and how to judge one in `linkuistics:codebase-design`. The plugin is developed
+in grove's own repo (`plugins/linkuistics/`), but the `grove` binary provisions
+only grove's methodology — never the plugin — so it is installed on its own,
+through the Claude Code marketplace or the repo's `install.sh`.
+Self-containment is not a constraint for either body of guidance —
+`ADR-FORMAT.md` and `SPEC-FORMAT.md` keep only grove's placement and recording
+conventions. A session raising or reworking an ADR, or sketching a spec's test
+seams, should consult the matching skill. The dependency is
+documentation-level, not install-enforced; everything else grove needs stays
+self-contained (constraint 6).

@@ -4,8 +4,11 @@
 # symlinking each skill directory into that harness's personal skills folder.
 #
 # Claude Code does NOT need this script. Install there via the marketplace:
-#   /plugin marketplace add Linkuistics/skills
+#   /plugin marketplace add Linkuistics/grove
 #   /plugin install linkuistics@linkuistics
+#
+# This script covers the `linkuistics` plugin's skills only. `testanyware`
+# ships through the marketplace alone, so it is Claude Code only.
 #
 # For the harnesses below, the SKILL.md format is shared but there is no
 # package manager, so symlinks are the install mechanism. Because the targets

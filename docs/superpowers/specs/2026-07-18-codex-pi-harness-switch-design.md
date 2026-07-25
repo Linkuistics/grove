@@ -4,6 +4,13 @@
 **Status:** live — shipped in grove v12.0.0; trial running 2026-07-18 to
 ~2026-08-18
 
+> **Stale paths, kept as written.** This document predates the skills merge
+> (*skills-monorepo*). Where it says the skills repo, `~/Development/skills`, or
+> "commit in the skills repo", that tree is now `plugins/` in *this* repo and the
+> commit lands here. The text is left as it stood, because it records what was
+> designed at the time — and its "Skills repo" section is itself an instance of
+> the cross-repo lockstep that later motivated the merge.
+
 ## Context and goals
 
 The user is retiring the Anthropic subscription. Two axes drive the replacement:

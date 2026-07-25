@@ -2,20 +2,35 @@
 
 Hierarchical, self-extending workstream tool for AI agents. See [`docs/grove.md`](docs/grove.md) for what grove is and why, [`content/SKILL.md`](content/SKILL.md) for the methodology agents read at runtime; this README covers the CLI.
 
-This repo also hosts the **`linkuistics` and `testanyware` skill plugins** under [`plugins/`](plugins/), published through the marketplace declared in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (formerly the separate `Linkuistics/skills` repo, grafted in with its history). They live here because they change in lockstep with grove — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md). The two ship by different paths and are installed separately: grove by `brew`, the plugins by marketplace or [`install.sh`](install.sh); the repo's two bounded contexts and how they relate are mapped in [`CONTEXT-MAP.md`](CONTEXT-MAP.md), over [`CONTEXT.md`](CONTEXT.md) (grove) and [`plugins/CONTEXT.md`](plugins/CONTEXT.md) (skills).
+## What's in this repo
 
-## Install
+Two components, shipped by two paths. They live together because they change in lockstep — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md); the skill plugins were formerly the separate `Linkuistics/skills` repo, grafted in with its history.
+
+| | What it is | How you install it |
+|---|---|---|
+| **grove** — [`src/`](src/), [`content/`](content/) | the CLI plus the workstream methodology it embeds and provisions to your agent | `brew install grove` — see [Install grove](#install-grove) below |
+| **skill plugins** — [`plugins/`](plugins/) | `linkuistics` (coding standards) and `testanyware` (GUI testing in VMs) | Claude Code marketplace, or [`install.sh`](install.sh) for codex/gemini — see [`plugins/README.md`](plugins/README.md) |
+
+**Which do you want?** If you are here to drive long multi-session workstreams, you want grove — keep reading. If you are here for the coding-style, design, ADR, jj or GUI-testing skills, you want the plugins: go to [`plugins/README.md`](plugins/README.md), which lists every skill and what triggers it. Installing one does not install the other; the `grove` binary provisions grove's own methodology and nothing else.
+
+The repo's two bounded contexts and how they relate are mapped in [`CONTEXT-MAP.md`](CONTEXT-MAP.md), over [`CONTEXT.md`](CONTEXT.md) (grove) and [`plugins/CONTEXT.md`](plugins/CONTEXT.md) (skills).
+
+## Install grove
+
+(For the skill plugins instead, see [`plugins/README.md`](plugins/README.md).)
 
 ```
 brew tap Linkuistics/taps
 brew install grove
 ```
 
-That is the whole installation. The `grove` binary embeds its full methodology and provisions it to your **personal** skill dir (`~/.claude/skills/grove/`) on the first `grove do` — idempotent against a content-hash stamp, re-provisioned whenever the binary changes (self-extension-core-and-methodology / task-tree-scheme). There is no per-repo install step and nothing to keep in sync; `grove --version` reports the binary's version.
+That is the whole installation of grove itself. The `grove` binary embeds its full methodology and provisions it to your **personal** skill dir (`~/.claude/skills/grove/`) on the first `grove do` — idempotent against a content-hash stamp, re-provisioned whenever the binary changes (self-extension-core-and-methodology / task-tree-scheme). There is no per-repo install step and nothing to keep in sync; `grove --version` reports the binary's version.
 
 ## Prerequisite
 
-grove's ADR guidance defers to the **`linkuistics:decision-records`** skill (from the `linkuistics` plugin) for the decision-record philosophy, format, and when-to-write test — grove's bundled `ADR-FORMAT.md` keeps only grove's own placement conventions. A grove session that raises or reworks an ADR consults that skill, so install the `linkuistics` plugin alongside grove — it is hosted in this repo under `plugins/linkuistics/`, but is still a separate install (the `grove` binary does not provision it). The dependency is documentation-level (grove does not enforce it at install time); everything else grove needs is embedded in the binary.
+grove's methodology defers two bodies of guidance to the **`linkuistics` plugin**: decision-record philosophy, format and the when-to-write test to `linkuistics:decision-records`, and test-seam judgement to `linkuistics:codebase-design`. Grove's bundled `ADR-FORMAT.md` and `SPEC-FORMAT.md` keep only grove's own placement and recording conventions, so a session raising an ADR or sketching a spec's seams consults those skills.
+
+Install the plugin alongside grove. It is hosted in this repo under [`plugins/linkuistics/`](plugins/linkuistics/) but is **still a separate install** — the `grove` binary provisions grove's methodology and nothing else. See [`plugins/README.md`](plugins/README.md) for the two commands. The dependency is documentation-level (grove does not enforce it at install time); everything else grove needs is embedded in the binary.
 
 ## Use
 

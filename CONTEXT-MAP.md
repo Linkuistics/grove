@@ -23,7 +23,8 @@ lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
 - **Shared target: the personal skill directory.** Both contexts write into the
   same per-harness namespace. The `grove` binary sweeps `content/` to
   `~/.claude/skills/grove/` (and the codex and pi equivalents); `install.sh`
-  symlinks each marketplace skill into `~/.codex/skills/` and `~/.gemini/skills/`.
+  symlinks each **`linkuistics`** skill into `~/.codex/skills/` and
+  `~/.gemini/skills/` (`testanyware` ships by marketplace only).
   Nothing collides today — the overlap is `~/.codex/skills/`, where the names are
   disjoint — but the namespace is shared, so any future decision to have one
   context provision the other's content is a question about precedence and

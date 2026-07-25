@@ -1,5 +1,24 @@
 # Changelog
 
+One file, one entry style, for both of this repo's components (*skills-monorepo*).
+
+**Versioned sections are grove's.** A `## v<N>.<m>.<p>` heading is a release of
+the `grove` binary — that is the only artifact this repo tags and ships by
+version. Entries under it are grouped `### Added` / `### Changed` / `### Fixed`
+where a release has enough of each to be worth grouping, and a flat list
+otherwise.
+
+**A skills-only change is logged in the section of the grove release it lands
+before**, prefixed with the plugin and skill it touched — e.g. *"`linkuistics`
+/ `using-jujutsu`: …"*. It is not given a version of its own, because the
+plugins carry no version to give (Claude Code versions them by repo HEAD SHA);
+this file is not their release ledger, it is the record of what changed and
+when. A grove release that happens to contain only skill changes still gets a
+version, because the binary is what was cut.
+
+The section at the foot of this file is the `Linkuistics/skills` changelog as it
+stood at the graft — a closed record, not part of the versioned sequence above.
+
 ## v15.0.0
 
 grove goes dual-VCS: jj-enabled working trees — native, colocated, and

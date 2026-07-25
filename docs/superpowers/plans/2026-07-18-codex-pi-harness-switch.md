@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-18-codex-pi-harness-switch-design.md` (approved). Read it for rationale; this plan is the how.
 
+> **Completed plan — stale paths kept as written.** Its steps are checked off; it
+> is a record of work done, not a live work order. It also predates the skills
+> merge (*skills-monorepo*), so Task 12's `~/Development/skills` paths now live at
+> `plugins/` in this repo, and its separate skills-repo commit would today be one
+> commit here. The checked-off text is left exactly as executed.
+
 ## Global Constraints
 
 - Env naming scheme (exact): `GROVE_<KIND>_HARNESS` (kind ∈ PLANNING, RESEARCH, PROTOTYPE, WORK, REVIEW) selects the harness for that kind; `GROVE_<HARNESS>_<KIND>_MODEL` (harness ∈ CLAUDE, CODEX, PI) beats `GROVE_<KIND>_MODEL`.

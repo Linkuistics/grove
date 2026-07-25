@@ -2,6 +2,8 @@
 
 Hierarchical, self-extending workstream tool for AI agents. See [`docs/grove.md`](docs/grove.md) for what grove is and why, [`content/SKILL.md`](content/SKILL.md) for the methodology agents read at runtime; this README covers the CLI.
 
+This repo also hosts the **`linkuistics` and `testanyware` skill plugins** under [`plugins/`](plugins/), published through the marketplace declared in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (formerly the separate `Linkuistics/skills` repo, grafted in with its history). They live here because they change in lockstep with grove — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md). The two ship by different paths and are installed separately: grove by `brew`, the plugins by marketplace or [`install.sh`](install.sh); glossary for that half of the tree is [`plugins/CONTEXT.md`](plugins/CONTEXT.md).
+
 ## Install
 
 ```
@@ -13,7 +15,7 @@ That is the whole installation. The `grove` binary embeds its full methodology a
 
 ## Prerequisite
 
-grove's ADR guidance defers to the **`linkuistics:decision-records`** skill (from the `linkuistics` plugin) for the decision-record philosophy, format, and when-to-write test — grove's bundled `ADR-FORMAT.md` keeps only grove's own placement conventions. A grove session that raises or reworks an ADR consults that skill, so install the `linkuistics` plugin alongside grove. The dependency is documentation-level (grove does not enforce it at install time); everything else grove needs is embedded in the binary.
+grove's ADR guidance defers to the **`linkuistics:decision-records`** skill (from the `linkuistics` plugin) for the decision-record philosophy, format, and when-to-write test — grove's bundled `ADR-FORMAT.md` keeps only grove's own placement conventions. A grove session that raises or reworks an ADR consults that skill, so install the `linkuistics` plugin alongside grove — it is hosted in this repo under `plugins/linkuistics/`, but is still a separate install (the `grove` binary does not provision it). The dependency is documentation-level (grove does not enforce it at install time); everything else grove needs is embedded in the binary.
 
 ## Use
 

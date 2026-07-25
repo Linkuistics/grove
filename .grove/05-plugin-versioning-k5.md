@@ -9,9 +9,13 @@ unrelated grove commit lands.
 
 ## Context
 
-`plugins/linkuistics/` and `plugins/testanyware/` carry no `plugin.json`, so
-Claude Code falls back to versioning a plugin by **repo HEAD SHA**. Observed
-locally in `~/.claude/plugins/installed_plugins.json`:
+Both plugins **do** carry `<plugin>/.claude-plugin/plugin.json` — corrected in
+`graft-history-k2` after reading the grafted files; the planning note that said
+they carry none was wrong. What each manifest lacks is a **`version` field**
+(name, description, author, repository and keywords are all present), so Claude
+Code falls back to versioning a plugin by **repo HEAD SHA**. That makes this leaf
+an edit to two existing files, not a create. Observed locally in
+`~/.claude/plugins/installed_plugins.json`:
 
 ```jsonc
 "linkuistics@linkuistics": [{
@@ -32,12 +36,19 @@ stays inside that scope.
 
 ## Done when
 
-- Both plugins declare an explicit version in a `plugin.json` under the plugin's
-  `.claude-plugin/` directory. **Verify the exact filename, location and schema
-  against current Claude Code documentation before writing it** — this is
-  version-specific structure and the `driving.md` rule applies: fetch the
-  official source, do not write it from memory, and cite the source in a comment
-  or in the commit message.
+- Both plugins declare an explicit version in their existing `plugin.json` under
+  the plugin's `.claude-plugin/` directory. **Verify the exact field name,
+  location and schema against current Claude Code documentation before writing
+  it** — this is version-specific structure and the `driving.md` rule applies:
+  fetch the official source, do not write it from memory, and cite the source in
+  a comment or in the commit message. Both manifests already declare
+  `"$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json"`,
+  which is the first place to look.
+- Both manifests' `"repository"` field is corrected: each still reads
+  `https://github.com/Linkuistics/skills`. Doing it here (rather than in
+  `cutover-k6`) keeps it in the one session that already has these two files
+  open; it is metadata with no ordering constraint, since `Linkuistics/grove`
+  already exists. Surfaced by `graft-history-k2`; no other leaf covered it.
 - A grove-only commit no longer changes either plugin's reported version.
 - A skills-only change still produces a version bump — verify by inspecting the
   installed record after an update, not by reasoning about it.

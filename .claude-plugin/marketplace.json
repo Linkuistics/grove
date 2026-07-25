@@ -1,0 +1,19 @@
+{
+  "name": "linkuistics",
+  "owner": {
+    "name": "Antony Blakey",
+    "email": "antony.blakey@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "linkuistics",
+      "source": "./plugins/linkuistics",
+      "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI and deep-module design, an in-flight adversarial-verify discipline, plus a user-invoked safety guardrail that gates destructive operations."
+    },
+    {
+      "name": "testanyware",
+      "source": "./plugins/testanyware",
+      "description": "TestAnyware GUI-testing skill: drive GUI apps in isolated macOS/Linux/Windows VMs for host-isolation, cross-platform testing, UI experiments, and documentation screenshots/recordings."
+    }
+  ]
+}

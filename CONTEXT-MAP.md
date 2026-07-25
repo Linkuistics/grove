@@ -30,10 +30,14 @@ lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
   context provision the other's content is a question about precedence and
   double-provisioning, not a local change.
 
-- **An ADR is owned by one context, never shared.** `task-tree-scheme` is grove's
-  decision, `symmetric-vcs-rule` is the skills'; both sit in the root `docs/adr/`
-  today, and a slug is unique repo-wide. A term that has an ADR is defined in the
-  glossary of whichever context **owns** it, never both.
+- **An ADR is owned by one context, never shared — but the whole set is one flat
+  root `docs/adr/`.** `task-tree-scheme` is grove's decision, `symmetric-vcs-rule`
+  is the skills'; ownership is recorded *here*, not in the directory layout, and a
+  slug is unique **repo-wide**. The set stays flat because the two contexts are not
+  peers: grove's *is* the repo root, so a per-context split would exile the skills'
+  one record while leaving the root set just as mixed
+  (`content/ADR-FORMAT.md` states the rule and when flat is right). A term that has
+  an ADR is defined in the glossary of whichever context **owns** it, never both.
 
 ## Choosing a context
 

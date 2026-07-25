@@ -5,8 +5,12 @@ grove ships two binaries produced from a single Cargo crate (one `[lib]`, two
 holds the verbs a human at a terminal invokes — the lifecycle set `do` /
 `migrate` / `retire`. **`grove-llm`** holds the verbs the LLM driving a grove
 session invokes mid-session to perform deterministic mechanics — `root-init`,
-`pick`, `brief-chain`, `resolve`, `leaf-add`, `leaf-insert`, `leaf-decompose`,
-`leaf-retire`, `leaf-prune`, `complete`.
+`pick`, `brief-chain`, `kind`, `resolve`, `leaf-add`, `leaf-insert`,
+`leaf-decompose`, `leaf-retire`, `leaf-prune`, `complete`.
+
+This record is the **one place the verb surface is enumerated**. Other ADRs that
+touch a verb cite it rather than re-listing the set — two lists drift apart, and a
+set that disagrees with itself binds nothing.
 
 ## Why split the surface at all
 

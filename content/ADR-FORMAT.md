@@ -10,10 +10,23 @@ ADRs live in `docs/adr/`, one file per record, **slug-named**: `docs/adr/<slug>.
 The slug *is* the ADR's identity — cite it by slug/title, never by a number.
 Create the `docs/adr/` directory lazily, only when the first ADR is needed.
 
-In a multi-context repo (one carrying a root `CONTEXT-MAP.md`), place each ADR
-with the context it belongs to: system-wide decisions under the root `docs/adr/`,
-context-specific decisions under that context's own `docs/adr/`. The map points to
-where each context lives.
+In a multi-context repo (one carrying a root `CONTEXT-MAP.md`), whether the set
+splits is **conditional on the repo's shape**, not automatic:
+
+- **Split** when the contexts are *peers*, each rooted in its own subtree:
+  system-wide decisions under the root `docs/adr/`, context-specific ones under
+  that context's own `docs/adr/`. The map points to where each context lives.
+- **Stay flat** — one root `docs/adr/` for the whole repo — when a split cannot
+  produce that partition. The usual case is a context that occupies the **repo
+  root**: its ADRs have no home but `docs/adr/`, so splitting exiles the nested
+  context's records while leaving the root set just as mixed. A set small enough
+  that one directory is the cheaper index is the other case. Then
+  `CONTEXT-MAP.md` records which context **owns** each record, and the slug is
+  unique **repo-wide** rather than per-directory.
+
+Choose on the evidence, not the letter. The point of a split is a partition a
+reader can trust; a split that leaves the root directory still mixed has bought a
+second search path for nothing.
 
 ## Why the set stays minimal
 

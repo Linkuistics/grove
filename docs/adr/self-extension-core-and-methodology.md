@@ -3,9 +3,9 @@
 grove is two things and nothing else:
 
 1. **A self-extension core** — the `.grove/` task tree as data, the `pick` walk, the
-   grow verbs (`root-init` / `leaf-add` / `leaf-insert` / `leaf-decompose` /
-   `leaf-retire` / `brief-chain` / `resolve`), the closed task-kind taxonomy (ADR
-   *task-kind-taxonomy*), and the minimal loop skeleton.
+   verbs that grow, address and retire the tree (enumerated once, in
+   *cli-binary-split*), the closed task-kind taxonomy (ADR *task-kind-taxonomy*),
+   and the minimal loop skeleton.
 2. **Its distinctive methodology** — grilling, the `driving.md` habits, the loop
    discipline, and the CONTEXT / ADR / SPEC format guides.
 
@@ -16,7 +16,10 @@ to the user's own tooling (see *user-owned-worktrees*); fresh-context looping an
 the human-as-scheduler crank are supplied by the
 self-driving loop (see *self-driving-loop*); generic engineering skills (TDD, review,
 debugging) are deferred to third-party collections grove never had superior versions
-of.
+of. Two bodies of guidance grove once carried are deferred the same way, to the
+`linkuistics` plugin — decision-record philosophy (`linkuistics:decision-records`)
+and seam judgement (`linkuistics:codebase-design`) — leaving `content/ADR-FORMAT.md`
+and `content/SPEC-FORMAT.md` holding only grove's own placement conventions.
 
 ## Why: less machinery, not less wisdom
 
@@ -39,6 +42,12 @@ methodology prose.
 Because the binary embeds the methodology and re-extracts it to the global skill on
 launch, there is no per-worktree materialised copy to drift and no multi-artifact
 version model. One binary, one global skill it provisions, always matching.
+
+This is unchanged by the `linkuistics` plugin now sharing grove's repo
+(*skills-monorepo*). The binary provisions `content/` and nothing else, so the
+deferral above is **intra-repo but still not install-enforced**: the plugin is a
+separate install, by marketplace or `install.sh`. One repo, two delivery paths — and
+grove's own artifact count stays at one binary plus the skill it writes.
 
 ## Consequences
 

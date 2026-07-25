@@ -4,9 +4,10 @@
 and the skill plugins `linkuistics` and `testanyware` (`plugins/`,
 `.claude-plugin/marketplace.json`). It binds because the two change **in
 lockstep**: most grove changes require a corresponding skill change, and while
-they lived apart no commit could carry both. The former `Linkuistics/skills`
-repo is archived, its 68 commits grafted in via a two-parent merge so blame on
-the skill files stays continuous.
+they lived apart no commit could carry both. `Linkuistics/skills`' 68 commits are
+grafted in via a two-parent merge, so blame on the skill files stays continuous;
+that repo is retired — archived behind a pointer to this one at cutover, rather
+than kept alive as a redirect (third option below).
 
 The evidence that forced this is in the skills repo's own history: a grove
 workstream run there had to write three commits whose entire content was a
@@ -16,11 +17,12 @@ coupled change looks like when the histories cannot hold it.
 
 **Distribution stays dual, deliberately.** grove's methodology reaches all three
 harnesses grove supports (`claude`, `codex`, `pi` — `src/harness.rs`) by being
-embedded in the binary and swept to each harness's personal skill dir; the
-plugins reach Claude Code through the marketplace. Collapsing onto plugins alone
-is not available: Claude Code plugins are Claude-only, which is why the skills
-tree carries `install.sh` for the other two. One repo, two delivery paths, and
-the monorepo is what makes that a choice rather than an accident.
+embedded in the binary and swept to each harness's personal skill dir
+(*self-extension-core-and-methodology*); the plugins reach Claude Code through the
+marketplace. Collapsing onto plugins alone is not available: Claude Code plugins
+are Claude-only, which is why the skills tree carries `install.sh` for the other
+two. One repo, two delivery paths, and the monorepo is what makes that a choice
+rather than an accident.
 
 ## Considered options
 

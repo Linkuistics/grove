@@ -51,6 +51,10 @@ If a `CONTEXT-MAP.md` exists at the root, the repo has multiple contexts. The ma
 │       └── docs/adr/
 ```
 
+The **glossary** always follows its context. The **ADR** split shown here does not:
+it applies when the contexts are peers, as above, and a repo whose contexts are not
+peers keeps one flat root `docs/adr/` instead — see `ADR-FORMAT.md`.
+
 Create files lazily — only when you have something to write. If no `CONTEXT.md` exists, create one when the first term is resolved. If no `docs/adr/` exists, create it when the first ADR is needed.
 
 ## During the session

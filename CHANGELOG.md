@@ -25,6 +25,29 @@ never in a version's path either.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
+- **The `linkuistics` and `testanyware` plugins now ship from this repo;
+  `Linkuistics/skills` is archived** (*skills-monorepo*). That repo's history is
+  grafted in here, so `git blame` on `plugins/linkuistics/skills/*` still traces
+  past the merge. The two components live together because they change in
+  lockstep — most grove changes need a matching skill change, and two repos made
+  every such change a cross-repo pair no single commit could carry.
+
+  **If you installed the marketplace before this change, run both of these:**
+
+  ```
+  /plugin marketplace remove linkuistics
+  /plugin marketplace add Linkuistics/grove
+  ```
+
+  Nothing else changes: the marketplace keeps the name `linkuistics` (its
+  identity is the `name` field in `marketplace.json`, never the repo URL), so
+  `linkuistics@linkuistics`, `testanyware@linkuistics` and every
+  `linkuistics:<skill>` reference keep working untouched. **Re-pointing is not
+  optional even though nothing will break loudly:** an archived GitHub repo stays
+  readable, so `autoUpdate: true` keeps *succeeding* against `Linkuistics/skills`
+  — the skills simply freeze at the last commit before the archive, with no error
+  surfaced. `install.sh` users re-clone from `Linkuistics/grove` instead.
+
 ## v15.0.0
 
 grove goes dual-VCS: jj-enabled working trees — native, colocated, and

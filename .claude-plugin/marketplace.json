@@ -1,5 +1,6 @@
 {
   "name": "linkuistics",
+  "description": "Coding standards, software-design and version-control disciplines as lazily-loaded agent skills, plus GUI testing in isolated VMs. Two plugins: linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"

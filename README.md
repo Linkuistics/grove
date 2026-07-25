@@ -2,7 +2,7 @@
 
 Hierarchical, self-extending workstream tool for AI agents. See [`docs/grove.md`](docs/grove.md) for what grove is and why, [`content/SKILL.md`](content/SKILL.md) for the methodology agents read at runtime; this README covers the CLI.
 
-This repo also hosts the **`linkuistics` and `testanyware` skill plugins** under [`plugins/`](plugins/), published through the marketplace declared in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (formerly the separate `Linkuistics/skills` repo, grafted in with its history). They live here because they change in lockstep with grove — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md). The two ship by different paths and are installed separately: grove by `brew`, the plugins by marketplace or [`install.sh`](install.sh); glossary for that half of the tree is [`plugins/CONTEXT.md`](plugins/CONTEXT.md).
+This repo also hosts the **`linkuistics` and `testanyware` skill plugins** under [`plugins/`](plugins/), published through the marketplace declared in [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) (formerly the separate `Linkuistics/skills` repo, grafted in with its history). They live here because they change in lockstep with grove — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md). The two ship by different paths and are installed separately: grove by `brew`, the plugins by marketplace or [`install.sh`](install.sh); the repo's two bounded contexts and how they relate are mapped in [`CONTEXT-MAP.md`](CONTEXT-MAP.md), over [`CONTEXT.md`](CONTEXT.md) (grove) and [`plugins/CONTEXT.md`](plugins/CONTEXT.md) (skills).
 
 ## Install
 

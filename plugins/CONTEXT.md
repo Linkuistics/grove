@@ -1,43 +1,124 @@
-# skills — jj adoption context
+# skills
 
-Terms for the workstream that makes agents prefer Jujutsu over git.
+The `linkuistics` and `testanyware` skill plugins under `plugins/` — the
+language of **authoring, packaging, triggering and installing** a skill.
+
+**Scope boundary.** A skill's own *subject matter* — jj's working-copy-as-commit,
+testanyware's VM vocabulary — belongs to that skill and its ADRs, not here. This
+glossary is about the corpus, not its contents.
 
 ## Language
 
-**jj-enabled**:
-A repository in which Jujutsu is initialized — a `.jj/` directory exists,
-whether colocated with `.git/` or native. The trigger condition for jj being
-the primary VCS interface.
-_Avoid_: jj-aware, jj-capable, "has jj" (ambiguous with the binary being
-installed)
+### Units and packaging
 
-**Symmetric VCS rule**:
-The repo's state alone picks the interface: jj-enabled → jj is the
-interface; not jj-enabled → git, silently. The skills never convert a repo
-or offer to — no `jj git init`, regardless of whether jj is installed.
-_Avoid_: colocation offer (a dropped earlier design — the skills no longer
-propose conversion)
+**Skill**:
+A directory containing `SKILL.md` — YAML frontmatter (`name`, `description`) over
+a markdown body — as defined by the open Agent Skills standard, so it loads on
+any conforming harness.
+_Avoid_: "command" (a Claude Code slash command is a different artifact), "prompt",
+"agent".
 
-**using-jujutsu**:
-The workflow skill: auto-fires on VCS work, detects whether the repo is
-jj-enabled, and teaches jj's native model (working-copy-as-commit,
-`jj new`/`jj describe`, bookmarks, op-log undo). Harness-neutral core with
-per-harness enforcement recipes.
-_Avoid_: the jj skill (ambiguous with git-to-jj-mapping), Workflow skill
-(pre-settlement working name)
+**Plugin**:
+Claude Code's packaging unit — `plugins/<name>/` holding `.claude-plugin/plugin.json`
+and a `skills/` directory — and a Claude Code concept only; other harnesses receive
+the same [[Skill]] directories by [[Symlink install]]. Two ship here: `linkuistics`
+and `testanyware`.
 
-**git-to-jj-mapping**:
-The on-demand git→jj reference skill — command and concept translation,
-loaded only when needed so the table costs no standing context.
-_Avoid_: translation table (that's its content, not the skill), Mapping
-skill (pre-settlement working name)
+**Marketplace**:
+`.claude-plugin/marketplace.json`, the catalogue a user adds once to reach every
+[[Plugin]] in it. **Its identity is the `name` field, not the repo URL** — already
+`linkuistics` while the tree lived in `Linkuistics/skills` — so every
+`linkuistics:<skill>` reference is repo-independent and a repo move rewrites only
+where the marketplace is added from.
+_Avoid_: treating the repository URL or owner as the namespace.
+
+### Invocation and triggering
+
+**Model-invoked** (the default):
+A [[Skill]] whose `description` sits in every session's context, so the agent can
+auto-fire it on a match. It spends standing **context load** — the description is
+in the window every turn, needed or not.
+
+**User-invoked** (`disable-model-invocation: true`):
+A [[Skill]] reachable only by a human typing `/<name>` — never auto-fired, zero
+standing context cost, spending **cognitive load** instead, since the human is the
+index. The lever is for operator guidance rather than capability, which is why only
+`authoring-conventions` and `guardrail` pull it.
+_Avoid_: "disabled skill" — it is fully functional, just hand-only.
+
+**Description shape** (the house rule):
+A one-sentence **capability** plus an explicit **"Use when …"** trigger clause, and
+never a step-by-step **workflow** summary — a description that lists steps becomes a
+shortcut the agent takes *instead of* reading the body. Deliberately overrides
+`superpowers:writing-skills`' when-only rule, because a stated capability is
+load-bearing routing signal for a reference corpus.
+_Avoid_: "when-to-use only" (that is upstream's rule, not this one).
+
+**`paths:` trigger**:
+A frontmatter glob list scoping a [[Skill]] to matching files — a **Claude Code
+plugin auto-activation extension beyond the Agent Skills spec**, whose only
+activation channel is the `description`. Carried by the `coding-style*` skills and
+inert wherever they arrive by [[Symlink install]].
+_Avoid_: assuming a `paths:`-triggered skill fires on a spec-only harness.
+
+**Hook-carrying skill**:
+A [[Skill]] whose frontmatter declares Claude Code `hooks:`, so activating it
+installs tool-call interception for the session. Only `guardrail` does — a
+`PreToolUse` gate that asks rather than denies. Claude Code only; the block is a
+no-op elsewhere.
+
+### Authoring
+
+**House delta**:
+The `authoring-conventions` [[Skill]] records only where this corpus decides
+*differently* from `superpowers:writing-skills`, plus the few conventions it adopts
+by pointer. It never restates upstream craft — the upstream skill is a dependency,
+not a thing to copy.
+
+**Progressive disclosure**:
+Keeping a [[Skill]] cheap to load: body under ~500 lines, a `references/` file over
+~300 lines gets a table of contents, references stay one level deep, and
+cross-references name another skill rather than linking a path. **Never `@path`** —
+it force-loads the target before it is needed.
+
+**Source citation** / **`UNVERIFIED`**:
+The discipline for an embedded external fact (an API, a flag, a version-specific
+behaviour): prefer the authority hierarchy (official docs > official blog >
+standards > third-party), link the deep anchor, and where no source is found write
+the literal marker `UNVERIFIED` rather than let the prose imply confidence.
+
+### Distribution
+
+**Symlink install** (`install.sh`):
+The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
+mechanism: symlink each skill directory into that harness's personal skills folder
+(`~/.codex/skills`, `~/.gemini/skills`). Because the targets are links, a `git pull`
+updates content in place — re-run only when skills are added or removed.
+_Avoid_: running it for Claude Code, which installs by [[Marketplace]].
+
+## Flagged ambiguities
+
+**"skill"** means two different things in this repo. In this context it is a member
+of the corpus under `plugins/*/skills/`, shipped by [[Marketplace]] or
+[[Symlink install]]. But grove's methodology is *also* provisioned as a skill
+(`~/.claude/skills/grove/`, written by the `grove` binary from `content/`) while
+being no part of this corpus. Qualify as "a marketplace skill" versus "grove's
+skill" when the distinction matters; see `CONTEXT-MAP.md`.
 
 ## Example dialogue
 
-> **Dev:** The repo has jj installed, so the agent should commit with `jj`.
-> **Expert:** Installed isn't the trigger — is the repo *jj-enabled*? If
-> there's no `.jj/`, the *symmetric VCS rule* says git remains the
-> interface, silently; `using-jujutsu` never offers to convert.
-> **Dev:** And if the agent forgets what `git stash` becomes?
-> **Expert:** That's `git-to-jj-mapping`'s job — pulled in on demand, not
-> resident.
+> **Dev:** We moved the repo, so every `linkuistics:coding-style-rust` reference
+> breaks, right?
+> **Expert:** No — the *marketplace*'s identity is its `name` field, not the repo
+> URL. It was `linkuistics` in the old repo and it is `linkuistics` here. Only
+> where you add the marketplace from changed.
+> **Dev:** Then why didn't `guardrail` fire before that `rm -rf`?
+> **Expert:** It's *user-invoked*. `disable-model-invocation: true` keeps its
+> description out of context entirely, so nothing but you typing `/guardrail`
+> can reach it — no *context load*, at the price of *cognitive load*: you have to
+> remember it exists.
+> **Dev:** And `coding-style-rust` is model-invoked *and* carries `paths:`?
+> **Expert:** On Claude Code, yes — belt and braces. But `paths:` is a plugin
+> auto-activation extension the Agent Skills spec doesn't define, so on codex,
+> where it arrives by *symlink install*, the description is the only trigger.
+> That's why the *description shape* rule keeps the capability clause.

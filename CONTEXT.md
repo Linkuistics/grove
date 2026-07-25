@@ -143,5 +143,6 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 1. The **CLI tool** / Rust crate published as `grove` — the verbs `do`, `migrate`, `retire`, etc.
 2. The **methodology** embedded in `content/SKILL.md` and provisioned to the global skill dir.
 3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. `grove do` operates on this sense.
+4. The **repo** `Linkuistics/grove`, which since the skills graft holds two products — grove *and* the `linkuistics` / `testanyware` plugins under `plugins/` (`docs/adr/skills-monorepo.md`). So "grove's README / CHANGELOG / ADR set" now names artifacts shared with a second bounded context; this glossary covers only senses 1–3, and `CONTEXT-MAP.md` routes the rest.
 
-When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove".
+When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove", "the grove repo".

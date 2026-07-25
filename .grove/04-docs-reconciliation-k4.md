@@ -51,6 +51,17 @@ a claim the merge has falsified.
 
 ## Notes
 
+- **ADR *placement* is now an open question, raised by `glossary-partition-k3`.**
+  `content/ADR-FORMAT.md` says that in a multi-context repo — one carrying a root
+  `CONTEXT-MAP.md`, which this repo now does — system-wide decisions stay in the
+  root `docs/adr/` while **context-specific** ones go under that context's own
+  `docs/adr/`. By that rule `symmetric-vcs-rule` belongs at
+  `plugins/docs/adr/symmetric-vcs-rule.md`, and `skills-monorepo` is arguably
+  system-wide. Decide it explicitly — split per the rule, or keep one flat set and
+  amend `content/ADR-FORMAT.md` to say when a flat set is right. Either way
+  `CONTEXT-MAP.md`'s third relationship ("both sit in the root `docs/adr/` today")
+  and every citation of a moved slug need updating. This is the single biggest
+  argument for `leaf-decompose`-ing this leaf.
 - `content/SKILL.md` and `README.md` both name the `linkuistics` plugin as an
   external **prerequisite**. That framing is now half-true — the skills are
   in-repo, but a *user* still installs them separately via the marketplace since

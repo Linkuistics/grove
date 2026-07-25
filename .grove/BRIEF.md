@@ -45,9 +45,16 @@ hard prerequisite; the three behind it are mutually independent.
   so every push delivers and there is nothing to forget
   (`docs/adr/skills-monorepo.md`). A session here should expect
   `claude plugin validate --strict` to fail on both manifests — that is by design.
-- `cutover-k6` — archive, announce, re-point, verify. Last because it depends on
-  the merge being pushed, and it carries the deferred half of
-  `plugin-versioning-k5`'s verification.
+- `cutover-k6` — archive, announce, re-point, verify. Ran last because it depends
+  on the merge being pushed, and it carried the deferred half of
+  `plugin-versioning-k5`'s verification. Done: `main` is pushed, the marketplace
+  re-points at `Linkuistics/grove` and resolves end to end at SHA `bd9df106d34b`,
+  and `Linkuistics/skills` is archived behind a pointer README.
+- `sparse-marketplace-checkout-k10` — decide whether the marketplace clone should
+  be sparse (`.claude-plugin` + `plugins/` only) rather than dragging grove's whole
+  tree. Grown from `cutover-k6`, not planned: re-pointing made the monorepo's first
+  *consumer-visible* cost measurable — 2.7M cloned for 172K of plugins. Small
+  stakes; an explicit decline is a fine outcome.
 
 ## Pointers
 

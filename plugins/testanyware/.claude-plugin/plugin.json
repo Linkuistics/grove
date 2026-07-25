@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "testanyware",
-  "version": "1.0.0",
   "description": "TestAnyware GUI-testing skill — run, test, screenshot, and record GUI apps inside isolated macOS/Linux/Windows VMs instead of on your host.",
   "author": {
     "name": "Antony Blakey",

@@ -89,21 +89,29 @@ equivalents) and nothing else — it never provisions these plugins. See
 
 ## Versioning
 
-Each `plugin.json` declares an explicit `version`, independent per plugin and
-unrelated to grove's release version. Without one, Claude Code falls back to
-versioning a plugin by its source's git commit SHA — and in this repo, where most
-commits are grove's, every one of them would read as a plugin update.
+**Neither `plugin.json` declares a `version`, and that is deliberate — do not add
+one.** Without it Claude Code versions a plugin by the commit SHA of its source,
+and the source is the repo rather than the subdirectory, so both plugins report one
+shared version that moves with every commit. Every push therefore delivers: edit a
+skill, commit, done. Nothing to bump, nothing to grade, nothing to forget.
 
-**If you edit a skill, bump that plugin's `version` in the same commit.** The
-version is the cache key Claude Code decides an update on, so an unbumped change
-reaches nobody: `/plugin update` reports "already at the latest version" and
-nothing reports the omission
+The cost is churn — in this repo, where most commits are grove's, each one reads as
+an update to both plugins and re-installs content that did not change. That is the
+accepted side of the trade, because pinning an explicit semver fails the other way:
+the version is the cache key an update is decided on, so an unbumped change reaches
+nobody, `/plugin update` reports "already at the latest version", and nothing
+reports the omission
 ([Version management](https://code.claude.com/docs/en/plugins-reference#version-management)).
-`CHANGELOG.md` carries the rule and how MAJOR / MINOR / PATCH are graded here; the
-trade behind it is the *each plugin pins its own version* consequence in
+Churn is noisy and self-correcting; staleness is silent, and this repo has no CI and
+no `pre-commit` hook (jj snapshots the working copy) to catch it. The full trade is
+the *neither plugin declares a `version`* consequence in
 [`../docs/adr/skills-monorepo.md`](../docs/adr/skills-monorepo.md).
 
-None of this applies to the symlink install above — those skills update with a
+One trap: `claude plugin validate --strict` warns on the missing `version` and so
+fails on both manifests. That warning is expected — silencing it by adding a
+`version` is the change this section exists to prevent.
+
+None of this touches the symlink install above — those skills update with a
 `git pull`, no version involved.
 
 ## Editing a skill

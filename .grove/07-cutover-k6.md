@@ -33,19 +33,28 @@ mitigation, so it is a completion condition, not a courtesy.
     `source.repo: "Linkuistics/grove"` under the marketplace name `linkuistics`
   - `installed_plugins.json` still keys `linkuistics@linkuistics` and
     `testanyware@linkuistics` — the names must not change
-  - both records show `"version": "1.0.0"` and an `installPath` ending `/1.0.0`,
-    not a commit SHA. This is the **deferred half of `plugin-versioning-k5`**: that
-    leaf could verify the manifests locally (`claude plugin validate`) but not the
-    installed record, which cannot change while the marketplace still points at
-    `Linkuistics/skills`. If a SHA appears here instead, the explicit version is
-    not winning and that leaf's premise was wrong — say so rather than patching
-    around it
+  - both records show a **commit SHA** as their `version`, with an `installPath`
+    ending in that same SHA, and the SHA is this repo's HEAD rather than
+    `e0ba6f40f6e8` (the old skills repo's, which is what they carry until the
+    re-point). Both plugins should show the *same* SHA. This is the **deferred half
+    of `plugin-versioning-k5`**, inverted by `version-bump-guard-k9`: that leaf
+    pinned an explicit `1.0.0`, `k9` reversed it and removed `version` from both
+    manifests, so a SHA here is now the *expected* result and a `1.0.0` would mean
+    a stale manifest or a stale marketplace cache. `docs/adr/skills-monorepo.md`
+    carries the trade; do not "fix" a SHA by re-pinning
   - a `linkuistics:<skill>` invocation resolves and loads the skill body
 - `Linkuistics/skills` is archived, its README replaced first with a pointer to
   the monorepo and the two commands a consumer must run.
 - The move is announced in `CHANGELOG.md` with those same two commands.
 - The brew tap is checked: confirm the formula still resolves and that nothing in
   it referenced the skills repo.
+- `.claude-plugin/marketplace.json` gains a `description` — it has none, which is
+  what a user sees when they run the `/plugin marketplace add` in the pointer
+  README above, and it is the marketplace's only `claude plugin validate` warning.
+  Surfaced by `version-bump-guard-k9`; routed here because this is the leaf that
+  publishes and verifies the marketplace. Note that it does **not** make
+  `validate --strict` pass: both plugin manifests fail `--strict` by design now
+  (no `version`), so `--strict` is not a gate this repo can use.
 
 ## Notes
 

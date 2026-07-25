@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "linkuistics",
-  "version": "1.0.0",
   "description": "Linkuistics coding-standards skills — universal principles, per-language style guides, CLI and deep-module design, decision records (ADRs) as a minimum coherent set, an in-flight adversarial-verify discipline, a Jujutsu-native version-control workflow with an on-demand git→jj reference, plus a user-invoked safety guardrail that gates destructive operations.",
   "author": {
     "name": "Antony Blakey",

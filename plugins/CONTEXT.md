@@ -89,15 +89,17 @@ the literal marker `UNVERIFIED` rather than let the prose imply confidence.
 
 ### Distribution
 
-**Explicit version** (`plugin.json`'s `version`):
-The semver each [[Plugin]] here pins, in place of Claude Code's fallback of versioning
-a plugin by its source's git commit SHA. The version is the **cache key** an update is
-decided on, so it *pins*: a skill change shipped without a bump reaches no consumer and
-raises no error. Hence the rule that a commit touching `plugins/<name>/` bumps that
-plugin's version in the same commit (`CHANGELOG.md` states it and grades MAJOR / MINOR /
-PATCH). Per-plugin and unrelated to grove's release version.
-_Avoid_: reading a plugin's version as "the repo's version"; assuming a push delivers an
-unbumped change (it is [[Symlink install]] that needs no version, not this).
+**Commit-SHA version** (no `version` in `plugin.json`):
+The version Claude Code derives for a [[Plugin]] when neither its manifest nor its
+[[Marketplace]] entry declares one: the commit SHA of the plugin's *source*, which is
+the **repo** and not the subdirectory — so both plugins here report one shared version
+string. It is the **cache key** an update is decided on, and it moves with every commit,
+so every push delivers. Both plugins use it deliberately
+(`docs/adr/skills-monorepo.md`); the alternative, an explicit semver, *pins* — a skill
+change shipped without a bump reaches no consumer and raises no error.
+_Avoid_: adding a `version` to silence `claude plugin validate --strict`, which pins
+delivery on a bump nothing in this repo can check; reading the SHA as identifying a
+plugin's own content, when it identifies the repo's.
 
 **Symlink install** (`install.sh`):
 The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]

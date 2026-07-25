@@ -65,14 +65,31 @@ rather than an accident.
   from an archived repo keeps *succeeding* — the content simply freezes, with no
   error surfaced. The migration is therefore announced, not merely performed.
 
-- **Each plugin pins its own version, so a skills release is now a deliberate
-  act.** Absent a `version` in `plugin.json`, Claude Code versions a plugin by its
-  source's git commit SHA — and in a repo whose commit rate is grove's, that
-  re-versions both plugins on every unrelated commit and re-installs content that
-  did not change. Both manifests therefore declare an explicit semver, which wins
-  over the SHA fallback. The residual consequence is the one that binds: an
-  explicit version *pins*, so a skill change that ships without a bump reaches no
-  consumer and no error is surfaced. This trades churn that is merely noisy for
-  staleness that is silent — acceptable only because the bump rule is written down
-  with the changelog policy and the plugins' consumer is this machine. The rule is
-  written down, not enforced.
+- **Neither plugin declares a `version`, so every push delivers.** With `version`
+  absent from `plugin.json` and from the marketplace entry alike, Claude Code
+  versions a plugin by the commit SHA of its source — and the source is the *repo*,
+  not the subdirectory, so both plugins install under one shared SHA. In a repo
+  whose commit rate is grove's, that re-versions both on every unrelated commit and
+  re-installs content that did not change. That churn is accepted, because the
+  alternative fails differently in kind: an explicit version is the cache key an
+  update is decided on, so it **pins** — a skill change shipped without a bump
+  reaches no consumer, `/plugin update` reports "already at the latest version", and
+  nothing surfaces the omission ([Version
+  management](https://code.claude.com/docs/en/plugins-reference#version-management)).
+  Churn is noisy and self-correcting; staleness is silent and unbounded, and nothing
+  here can catch it — the repo has no CI, and jj has no `pre-commit` hook to hang a
+  check on because the working copy is snapshotted rather than staged. So delivery is
+  fail-safe by construction and there is no bump discipline to forget. Vendor
+  guidance points the same way: commit-SHA versioning is documented for *"internal or
+  team plugins under active development"*, explicit versions for *"published plugins
+  with stable release cycles"*. *Reopens if* the plugins acquire consumers beyond
+  this machine — a stable release cycle is where a graded semver starts earning its
+  keep.
+
+- **`claude plugin validate --strict` fails on both manifests**, warning on the
+  missing `version`. Strict validation is therefore not usable as a gate here, and
+  a reader who "fixes" that warning silently reinstates the staleness the bullet
+  above rejects — which is why the plugins' glossary defines the mechanism and says
+  so. Relatedly, a plugin that updates mid-session moves `${CLAUDE_PLUGIN_ROOT}`, so
+  `guardrail`'s hooks keep the old path until `/reload-plugins`; the previous
+  directory survives about two weeks, so nothing breaks.

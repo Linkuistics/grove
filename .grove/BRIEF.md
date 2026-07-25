@@ -34,12 +34,17 @@ hard prerequisite; the three behind it are mutually independent.
 - `docs-reconciliation-k4` — README, CHANGELOG and the ADR set read as one
   repo's rather than two.
 - `plugin-versioning-k5` — stop plugin versions churning on unrelated grove
-  commits.
+  commits. Pinned an explicit semver in both manifests; **reversed by
+  `version-bump-guard-k9`**, so the churn is back by choice and the pin is gone.
 - `version-bump-guard-k9` — decide whether the bump discipline
   `plugin-versioning-k5` introduced gets a mechanical guard. Grown from that
   leaf, not planned: pinning a version replaced noisy churn with a *silent*
   staleness, and grove's own hazard rule says a silently-failing discipline needs
-  either a mitigation or an explicit decision not to build one.
+  either a mitigation or an explicit decision not to build one. Settled by
+  removing the discipline rather than guarding it: both plugins ship unversioned,
+  so every push delivers and there is nothing to forget
+  (`docs/adr/skills-monorepo.md`). A session here should expect
+  `claude plugin validate --strict` to fail on both manifests — that is by design.
 - `cutover-k6` — archive, announce, re-point, verify. Last because it depends on
   the merge being pushed, and it carries the deferred half of
   `plugin-versioning-k5`'s verification.

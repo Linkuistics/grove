@@ -54,7 +54,13 @@ hard prerequisite; the three behind it are mutually independent.
   be sparse (`.claude-plugin` + `plugins/` only) rather than dragging grove's whole
   tree. Grown from `cutover-k6`, not planned: re-pointing made the monorepo's first
   *consumer-visible* cost measurable — 2.7M cloned for 172K of plugins. Small
-  stakes; an explicit decline is a fine outcome.
+  stakes; an explicit decline is a fine outcome. **Abandoned** — sparse checkout was
+  applied to the live clone and measured, then reverted: it saves 1.6M (2.7M → 1.1M,
+  a 2.5× cut, not the 16× the leaf assumed) and **zero bandwidth**, because cone mode
+  keeps every root-level file and `.git/objects` is untouched by a working-tree
+  filter. The recurring fetch `docs/adr/skills-monorepo.md` accepts is therefore
+  unchanged, which was the leaf's whole case. No ADR: the choice fails the
+  hard-to-reverse test.
 
 ## Pointers
 

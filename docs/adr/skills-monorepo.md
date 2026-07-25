@@ -65,8 +65,14 @@ rather than an accident.
   from an archived repo keeps *succeeding* — the content simply freezes, with no
   error surfaced. The migration is therefore announced, not merely performed.
 
-- **Plugin versions churn with unrelated grove commits.** With no `plugin.json`
-  declaring a version, Claude Code versions a plugin by repo HEAD SHA
-  (`installed_plugins.json` records `"version": "e0ba6f40f6e8"`). In a repo whose
-  commit rate is grove's, every commit re-versions both plugins. An explicit
-  `plugin.json` version decouples them.
+- **Each plugin pins its own version, so a skills release is now a deliberate
+  act.** Absent a `version` in `plugin.json`, Claude Code versions a plugin by its
+  source's git commit SHA — and in a repo whose commit rate is grove's, that
+  re-versions both plugins on every unrelated commit and re-installs content that
+  did not change. Both manifests therefore declare an explicit semver, which wins
+  over the SHA fallback. The residual consequence is the one that binds: an
+  explicit version *pins*, so a skill change that ships without a bump reaches no
+  consumer and no error is surfaced. This trades churn that is merely noisy for
+  staleness that is silent — acceptable only because the bump rule is written down
+  with the changelog policy and the plugins' consumer is this machine. The rule is
+  written down, not enforced.

@@ -33,6 +33,13 @@ mitigation, so it is a completion condition, not a courtesy.
     `source.repo: "Linkuistics/grove"` under the marketplace name `linkuistics`
   - `installed_plugins.json` still keys `linkuistics@linkuistics` and
     `testanyware@linkuistics` — the names must not change
+  - both records show `"version": "1.0.0"` and an `installPath` ending `/1.0.0`,
+    not a commit SHA. This is the **deferred half of `plugin-versioning-k5`**: that
+    leaf could verify the manifests locally (`claude plugin validate`) but not the
+    installed record, which cannot change while the marketplace still points at
+    `Linkuistics/skills`. If a SHA appears here instead, the explicit version is
+    not winning and that leaf's premise was wrong — say so rather than patching
+    around it
   - a `linkuistics:<skill>` invocation resolves and loads the skill body
 - `Linkuistics/skills` is archived, its README replaced first with a pointer to
   the monorepo and the two commands a consumer must run.

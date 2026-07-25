@@ -23,20 +23,26 @@ single commit could carry.
 
 ## Decomposition
 
-Children are ordered by dependency, not by size — `02` is the only hard
-prerequisite; `03`–`05` are mutually independent behind it.
+Children are ordered by dependency, not by size — `graft-history-k2` is the only
+hard prerequisite; the three behind it are mutually independent.
 
-- `02-graft-history-k2` — the merge lands green. Everything else needs the files
-  to be here first.
-- `03-glossary-partition-k3` — `CONTEXT-MAP.md` plus a rewritten
+- `graft-history-k2` — the merge lands green. Everything else needs the files to
+  be here first.
+- `glossary-partition-k3` — `CONTEXT-MAP.md` plus a rewritten
   `plugins/CONTEXT.md`. Changes what every future session reads at bootstrap, so
   it comes early.
-- `04-docs-reconciliation-k4` — README, CHANGELOG and the ADR set read as one
+- `docs-reconciliation-k4` — README, CHANGELOG and the ADR set read as one
   repo's rather than two.
-- `05-plugin-versioning-k5` — stop plugin versions churning on unrelated grove
+- `plugin-versioning-k5` — stop plugin versions churning on unrelated grove
   commits.
-- `06-cutover-k6` — archive, announce, re-point, verify. Last because it depends
-  on the merge being pushed.
+- `version-bump-guard-k9` — decide whether the bump discipline
+  `plugin-versioning-k5` introduced gets a mechanical guard. Grown from that
+  leaf, not planned: pinning a version replaced noisy churn with a *silent*
+  staleness, and grove's own hazard rule says a silently-failing discipline needs
+  either a mitigation or an explicit decision not to build one.
+- `cutover-k6` — archive, announce, re-point, verify. Last because it depends on
+  the merge being pushed, and it carries the deferred half of
+  `plugin-versioning-k5`'s verification.
 
 ## Pointers
 

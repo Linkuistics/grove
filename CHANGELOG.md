@@ -10,11 +10,29 @@ otherwise.
 
 **A skills-only change is logged in the section of the grove release it lands
 before**, prefixed with the plugin and skill it touched — e.g. *"`linkuistics`
-/ `using-jujutsu`: …"*. It is not given a version of its own, because the
-plugins carry no version to give (Claude Code versions them by repo HEAD SHA);
-this file is not their release ledger, it is the record of what changed and
-when. A grove release that happens to contain only skill changes still gets a
-version, because the binary is what was cut.
+/ `using-jujutsu`: …"*. It gets no `##` heading of its own: this file is not the
+plugins' release ledger, it is the record of what changed and when. A grove
+release that happens to contain only skill changes still gets a version, because
+the binary is what was cut.
+
+**Each plugin carries its own version, and the bump belongs to the commit.** Both
+`plugins/<name>/.claude-plugin/plugin.json` files pin an explicit semver,
+independent of each other and of grove's — the two artifacts share this repo and
+nothing else. The rule: **a commit that changes anything under `plugins/<name>/`
+bumps that plugin's `version` in the same commit**, and the changelog entry names
+the new version alongside the plugin and skill. This is not tidiness. An explicit
+version is the *cache key* Claude Code decides an update on, so it **pins** — a
+skill change that ships without a bump never reaches a consumer at all, `/plugin
+update` reports "already at the latest version", and nothing anywhere reports the
+omission ([Version management][vm]). Grade the bump by what a consumer's existing
+usage does: **MAJOR** when a skill is removed or renamed, or its triggering
+narrows so an invocation that used to fire no longer does; **MINOR** for a new
+skill or a new capability in one; **PATCH** for wording, references and fixes
+within existing skills. Skills reaching codex and gemini by `install.sh` are
+unaffected either way — those are symlinks, so a `git pull` updates them in place
+with no version in the loop.
+
+[vm]: https://code.claude.com/docs/en/plugins-reference#version-management
 
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.

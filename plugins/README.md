@@ -58,7 +58,8 @@ Windows/Linux environment from macOS. It installs independently of `linkuistics`
 ```
 
 Enable auto-update for the marketplace (`/plugin` → Marketplaces → Enable
-auto-update) so every Claude Code startup pulls the latest skills.
+auto-update) so every Claude Code startup picks up each plugin's latest published
+version — see *Versioning* below for what "published" means here.
 
 The marketplace's identity is the `name` field in `marketplace.json`, not the
 repo URL — it was already `linkuistics` while this tree lived in
@@ -88,11 +89,22 @@ equivalents) and nothing else — it never provisions these plugins. See
 
 ## Versioning
 
-Neither `plugin.json` declares a `version` field today, so Claude Code versions
-each plugin by repo HEAD SHA: every commit to this repo — including a
-grove-only commit — reads as a plugin update. See the *Plugin versions churn with
-unrelated grove commits* consequence in
+Each `plugin.json` declares an explicit `version`, independent per plugin and
+unrelated to grove's release version. Without one, Claude Code falls back to
+versioning a plugin by its source's git commit SHA — and in this repo, where most
+commits are grove's, every one of them would read as a plugin update.
+
+**If you edit a skill, bump that plugin's `version` in the same commit.** The
+version is the cache key Claude Code decides an update on, so an unbumped change
+reaches nobody: `/plugin update` reports "already at the latest version" and
+nothing reports the omission
+([Version management](https://code.claude.com/docs/en/plugins-reference#version-management)).
+`CHANGELOG.md` carries the rule and how MAJOR / MINOR / PATCH are graded here; the
+trade behind it is the *each plugin pins its own version* consequence in
 [`../docs/adr/skills-monorepo.md`](../docs/adr/skills-monorepo.md).
+
+None of this applies to the symlink install above — those skills update with a
+`git pull`, no version involved.
 
 ## Editing a skill
 

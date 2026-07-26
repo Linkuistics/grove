@@ -182,7 +182,36 @@ Two mechanisms, answering two different questions. Neither is redundant.
 
 **The leaf names the seat; the environment names who sits in it.** A per-leaf
 declaration selects a *harness*; the model for that (harness, kind) pair still
-comes from the environment.
+comes from the environment. It is written as a `**Harness:** <name>` line beside
+`**Kind:**` (`content/TASK-FORMAT.md`), and the loop driver reads both facts in
+**one** peek — the peek already runs on every iteration, and a second subprocess
+to read a neighbouring line would double that cost for a declaration almost no
+leaf carries.
+
+**Precedence on the harness axis is leaf, then kind, then family, then stamp.**
+A declaration is a fact about *one* leaf, which is strictly more specific than a
+policy that knows nothing about any tree, so it outranks both env keys. A leaf
+naming the *stamped* harness is not a reroute — `rerouted` is computed against
+the stamp on this axis exactly as on the env axis — so the unscoped model keys
+still apply to it.
+
+**The declaration is read strictly, where the kind is read leniently.** An
+unrecognised harness name, or an empty `**Harness:**` line, **refuses to
+launch**, naming the file and the registry; it does not degrade. The asymmetry
+with gate-on-write / degrade-on-read is real and deliberate: a wrong *discipline
+label* costs a warning and a model from the wrong bucket, while a wrong *harness*
+would run the leaf on a vendor the tree explicitly said not to — the same silent
+misroute a degraded kind peek already refuses. Executing a declaration grove
+cannot honour is not what constraint 5 protects; that constraint is about
+refusing on *process* grounds.
+
+**Pre-flight covers the env axis only.** `grove do` resolves every harness a
+*configured* var could route to before it commits to anything, because that
+surface is static and knowable up front. It deliberately does not walk the tree
+for declarations: the tree grows while the loop runs, so a snapshot would be
+silent about every leaf a later planning session writes — which is most of them —
+while duplicating a check that has to exist at launch anyway. A leaf-declared
+harness that is not installed is therefore refused at launch, by name.
 
 **Routing keys on a family, not only the full kind.** Two families exist —
 `review-*` and `integrate-review-*`; the other seven kinds stand alone. A family
@@ -273,7 +302,9 @@ No new seams. The work tests through the existing partition:
   decision is observable here, at the process boundary: family precedence,
   harness-major ordering, reroute truncation, and the required-var failures.
 - **The `kind` verb seam** — task file in, label out. The `work`→`impl` read
-  alias and the degradation warning land here.
+  alias and the degradation warning land here, and so does the whole read
+  contract of the `**Harness:**` line: the second output line under
+  `--with-harness`, and the refusals.
 - **The kind enum's own unit tests** — label round-trip, the seventeen labels,
   and the `--kind work` refusal text.
 

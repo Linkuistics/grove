@@ -12,12 +12,14 @@ cannot be described coherently apart.
 
 ## Mechanism
 
-- **The driver peeks.** Before launching, the loop driver resolves the next live
-  leaf's kind via `grove-llm kind [<leaf>]` (which reads the task file's
-  `**Kind:**` line), then routes on it. This keeps the loop stateless — the kind
-  is re-derived from the filesystem every iteration (*self-driving-loop*,
-  constraint 1), matching the driver's existing role of setting launch args (it
-  already sets the session name).
+- **The driver peeks — once, for both facts.** Before launching, the loop driver
+  runs `grove-llm kind --with-harness`, which reads the next live leaf's
+  `**Kind:**` line and, when it has one, its `**Harness:**` line. One subprocess,
+  because the peek runs on every iteration and the second fact is one line away
+  in the same file. This keeps the loop stateless — both are re-derived from the
+  filesystem every iteration (*self-driving-loop*, constraint 1), matching the
+  driver's existing role of setting launch args (it already sets the session
+  name).
 - **Which harness: a policy, plus a per-leaf fact.** `GROVE_<KIND>_HARNESS` names
   the harness that runs leaves of that kind, whatever the grove is stamped to.
   Unset means the **stamped** harness — which is not a default but an explicit
@@ -28,7 +30,10 @@ cannot be described coherently apart.
   fact about *one* leaf — this one goes elsewhere *because its sibling does not*.
   That second case is not expressible as a kind→harness function at all: the
   vendor pair runs the same kind on two vendors
-  (`docs/specs/task-kind-taxonomy.md`).
+  (`docs/specs/task-kind-taxonomy.md`). The full order is **leaf, kind, family,
+  stamp**, and the leaf declaration is read strictly — an unrecognised name
+  refuses to launch rather than degrading, since honouring it wrongly is the
+  misroute it exists to prevent.
 - **Which model: four keys, harness-major.** `GROVE_<HARNESS>_<KIND>_MODEL`, then
   `GROVE_<HARNESS>_<FAMILY>_MODEL`, then `GROVE_<KIND>_MODEL`, then
   `GROVE_<FAMILY>_MODEL`. The harness axis outranks the kind axis because the two

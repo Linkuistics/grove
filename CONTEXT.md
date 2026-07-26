@@ -88,12 +88,15 @@ interrogates.
 **Kind routing** (`GROVE_<KIND>_HARNESS`, `GROVE_<KIND>_MODEL`):
 How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
 **which model** that harness loads, both keyed on the leaf's [[Task kind]]. The
-driver peeks the kind (`grove-llm kind`) every iteration and resolves two axes
-via each harness's native launch flags — no router, no proxy.
-*Harness*: `GROVE_<KIND>_HARNESS` before `GROVE_<FAMILY>_HARNESS`; unset means
-the **stamped** harness, which is an explicit on-disk binding, not a default. A
-leaf may also name its own harness, outranking both — the [[Review chain]] /
-vendor pair distinction is why.
+driver peeks the leaf (`grove-llm kind --with-harness`) every iteration and
+resolves two axes via each harness's native launch flags — no router, no proxy.
+*Harness*: **leaf beats kind beats family beats stamp** — a leaf's own
+`**Harness:** <name>` line first, then `GROVE_<KIND>_HARNESS`, then
+`GROVE_<FAMILY>_HARNESS`; unset everywhere means the **stamped** harness, which
+is an explicit on-disk binding, not a default. The per-leaf line exists for the
+[[Review chain]]'s counterpart, the vendor pair, and is read **strictly** — an
+unrecognised name refuses to launch rather than degrading as a [[Task kind]]
+does, because a wrong harness runs the leaf on a vendor the tree said not to.
 *Model*: four keys, **harness-major** — `GROVE_<HARNESS>_<KIND>_MODEL` >
 `GROVE_<HARNESS>_<FAMILY>_MODEL` > `GROVE_<KIND>_MODEL` > `GROVE_<FAMILY>_MODEL`
 — because the harness axis is a *correctness* axis (a codex profile name is

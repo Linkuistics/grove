@@ -28,6 +28,7 @@
 // which keeps speaking the flat scheme until the user-gated re-flip (11.6). So no
 // leaf in this node can break the v1-flat grove that is driving itself.
 
+use crate::harness::Harness;
 use crate::leaf::Kind;
 use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
@@ -41,7 +42,17 @@ use std::path::{Path, PathBuf};
 /// grove root). The new position is `max(direct-child position) + 1` (counting
 /// leaves live AND `DONE`, and node directories, so a slot is never reused), the
 /// new key is `max(key over the whole tree) + 1`. Working-tree only — no commit.
-pub fn leaf_add(grove_root: &Path, parent_dir: &Path, slug: &str, kind: Kind) -> Result<PathBuf> {
+///
+/// `harness` is the optional per-leaf routing declaration (`leaf-harness-k15`):
+/// `Some` writes a `**Harness:**` line beside `**Kind:**`, `None` — the
+/// overwhelmingly common case — writes no line at all.
+pub fn leaf_add(
+    grove_root: &Path,
+    parent_dir: &Path,
+    slug: &str,
+    kind: Kind,
+    harness: Option<&'static Harness>,
+) -> Result<PathBuf> {
     validate_slug(slug)?;
     let grove_abs = canonical_grove_root(grove_root)?;
     let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
@@ -58,7 +69,7 @@ pub fn leaf_add(grove_root: &Path, parent_dir: &Path, slug: &str, kind: Kind) ->
     if path.exists() {
         bail!("destination already exists: {}", path.display());
     }
-    write_template(&path, slug, key, kind)?;
+    write_template(&path, slug, key, kind, harness)?;
     Ok(path)
 }
 
@@ -91,6 +102,7 @@ pub fn leaf_insert(
     target: &Path,
     slug: &str,
     kind: Kind,
+    harness: Option<&'static Harness>,
 ) -> Result<(PathBuf, Vec<Renumber>)> {
     validate_slug(slug)?;
     let grove_abs = canonical_grove_root(grove_root)?;
@@ -152,7 +164,7 @@ pub fn leaf_insert(
             renumbers
         );
     }
-    write_template(&path, slug, new_key, kind)?;
+    write_template(&path, slug, new_key, kind, harness)?;
     Ok((path, renumbers))
 }
 
@@ -405,10 +417,27 @@ fn stem(name: &str) -> &str {
 /// Write a freshly-created leaf's template. The first-line header is the
 /// **position-free handle** `# <slug>-k<key>` (decided 11.3) — the mutable per-level
 /// position lives only in the filename, so a later renumber never rewrites this.
-fn write_template(path: &Path, slug: &str, key: u32, kind: Kind) -> Result<()> {
+///
+/// A declared `harness` adds one `**Harness:**` line immediately under
+/// `**Kind:**` — the two routing facts read as one metadata block, and
+/// `tree_read` finds either by its own marker wherever it sits. An undeclared
+/// harness writes **no line**, not an empty one: the peek treats an empty
+/// `**Harness:**` line as an unfinished declaration and refuses to launch, so a
+/// template that emitted one would break every leaf grove creates.
+fn write_template(
+    path: &Path,
+    slug: &str,
+    key: u32,
+    kind: Kind,
+    harness: Option<&'static Harness>,
+) -> Result<()> {
     let kind_label = kind.label();
+    let harness_line = match harness {
+        Some(h) => format!("**Harness:** {}\n", h.name),
+        None => String::new(),
+    };
     let body = format!(
-        "# {slug}-k{key}\n\n**Kind:** {kind_label}\n\n## Goal\n\n## Context\n\n## Done when\n\n## Notes\n",
+        "# {slug}-k{key}\n\n**Kind:** {kind_label}\n{harness_line}\n## Goal\n\n## Context\n\n## Done when\n\n## Notes\n",
     );
     fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
     Ok(())
@@ -529,7 +558,7 @@ mod tests {
     fn add_root_level_child_gets_position_01_and_first_key() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let got = leaf_add(&g, &g, "survey", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &g, "survey", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "01-survey-k1.md");
     }
 
@@ -539,7 +568,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "01-a-k1.md", "a-k1");
         touch(&g, "02-b-k2.md", "b-k2");
-        let got = leaf_add(&g, &g, "c", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &g, "c", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "03-c-k3.md");
     }
 
@@ -549,7 +578,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-x-k3.md", "x-k3");
-        let got = leaf_add(&g, &node, "y", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &node, "y", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "02-y-k4.md");
         assert_eq!(name_of(got.parent().unwrap()), "02-build-k2");
     }
@@ -559,7 +588,7 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
-        let got = leaf_add(&g, &node, "first", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &node, "first", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "01-first-k3.md");
     }
 
@@ -572,7 +601,7 @@ mod tests {
         let design = mknode(&g, "01-design-k1", "design-k1");
         touch(&design, "01-deep-k7.md", "deep-k7"); // a high key in another subtree
         let build = mknode(&g, "02-build-k2", "build-k2");
-        let got = leaf_add(&g, &build, "y", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &build, "y", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "01-y-k8.md");
     }
 
@@ -583,7 +612,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-DONE-x-k3.md", "x-k3");
-        let got = leaf_add(&g, &node, "y", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &node, "y", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "02-y-k4.md");
     }
 
@@ -596,7 +625,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let node = mknode(&g, "02-build-k2", "build-k2");
         touch(&node, "01-ABANDONED-x-k3.md", "x-k3");
-        let got = leaf_add(&g, &node, "y", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &node, "y", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "02-y-k4.md");
     }
 
@@ -606,7 +635,7 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         mknode(&g, "01-design-k1", "design-k1");
-        let got = leaf_add(&g, &g, "build", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &g, "build", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&got), "02-build-k2.md");
     }
 
@@ -614,7 +643,7 @@ mod tests {
     fn add_writes_position_free_header_and_kind() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let got = leaf_add(&g, &g, "survey", Kind::Impl).unwrap();
+        let got = leaf_add(&g, &g, "survey", Kind::Impl, None).unwrap();
         let text = body(&got);
         assert!(
             text.starts_with("# survey-k1\n"),
@@ -627,7 +656,7 @@ mod tests {
     fn add_planning_kind_writes_planning_label() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let got = leaf_add(&g, &g, "design", Kind::Planning).unwrap();
+        let got = leaf_add(&g, &g, "design", Kind::Planning, None).unwrap();
         assert!(body(&got).contains("**Kind:** planning"));
     }
 
@@ -636,7 +665,7 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let missing = g.join("09-nope-k9");
-        let err = leaf_add(&g, &missing, "y", Kind::Impl).unwrap_err();
+        let err = leaf_add(&g, &missing, "y", Kind::Impl, None).unwrap_err();
         assert!(err.to_string().contains("parent"), "got {err}");
     }
 
@@ -646,7 +675,7 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let leaf = touch(&g, "02-build-k2.md", "build-k2");
-        let err = leaf_add(&g, &leaf, "y", Kind::Impl).unwrap_err();
+        let err = leaf_add(&g, &leaf, "y", Kind::Impl, None).unwrap_err();
         assert!(err.to_string().contains("parent"), "got {err}");
     }
 
@@ -657,7 +686,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let bare = g.join("02-bare-k2");
         fs::create_dir_all(&bare).unwrap();
-        let err = leaf_add(&g, &bare, "y", Kind::Impl).unwrap_err();
+        let err = leaf_add(&g, &bare, "y", Kind::Impl, None).unwrap_err();
         assert!(err.to_string().contains("parent"), "got {err}");
     }
 
@@ -665,15 +694,15 @@ mod tests {
     fn add_errors_on_invalid_slug() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        assert!(leaf_add(&g, &g, "BRIEF", Kind::Impl).is_err());
-        assert!(leaf_add(&g, &g, "Bad Slug", Kind::Impl).is_err());
+        assert!(leaf_add(&g, &g, "BRIEF", Kind::Impl, None).is_err());
+        assert!(leaf_add(&g, &g, "Bad Slug", Kind::Impl, None).is_err());
     }
 
     #[test]
     fn add_errors_when_grove_root_absent() {
         let (_t, g) = grove();
         let missing = g.join("nope");
-        let err = leaf_add(&missing, &missing, "y", Kind::Impl).unwrap_err();
+        let err = leaf_add(&missing, &missing, "y", Kind::Impl, None).unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"
@@ -690,7 +719,8 @@ mod tests {
         touch(&g, "02-b-k2.md", "b-k2");
         touch(&g, "03-c-k3.md", "c-k3");
         stage_all(&g);
-        let (path, _renums) = leaf_insert(&g, &g.join("02-b-k2.md"), "new", Kind::Impl).unwrap();
+        let (path, _renums) =
+            leaf_insert(&g, &g.join("02-b-k2.md"), "new", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&path), "02-new-k4.md"); // fresh key, not a reused one
         let files = list(&g);
         assert!(
@@ -728,7 +758,8 @@ mod tests {
         let grandchild_before = body(&grandchild);
         let brief_before = body(&mid.join("BRIEF.md"));
         stage_all(&g);
-        let (path, renums) = leaf_insert(&g, &g.join("02-mid-k3"), "new", Kind::Impl).unwrap();
+        let (path, renums) =
+            leaf_insert(&g, &g.join("02-mid-k3"), "new", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&path), "02-new-k5.md");
         // The node shifted 02 -> 03; only its ancestor dir name changed.
         let shifted = g.join("03-mid-k3");
@@ -755,7 +786,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "01-a-k1.md", "a-k1");
         stage_all(&g);
-        let (path, _r) = leaf_insert(&g, &g.join("01-a-k1.md"), "head", Kind::Impl).unwrap();
+        let (path, _r) = leaf_insert(&g, &g.join("01-a-k1.md"), "head", Kind::Impl, None).unwrap();
         let text = body(&path);
         assert!(text.starts_with("# head-k2\n"), "got {text:?}");
         assert!(text.contains("**Kind:** impl"), "got {text:?}");
@@ -769,7 +800,7 @@ mod tests {
         let b = touch_body(&g, "02-b-k2.md", "# b-k2\n\nbody text\n");
         let b_before = body(&b);
         stage_all(&g);
-        leaf_insert(&g, &g.join("02-b-k2.md"), "new", Kind::Impl).unwrap();
+        leaf_insert(&g, &g.join("02-b-k2.md"), "new", Kind::Impl, None).unwrap();
         assert_eq!(
             body(&g.join("03-b-k2.md")),
             b_before,
@@ -787,7 +818,8 @@ mod tests {
             touch(&g, &format!("{i:02}-s{i}-k{i}.md"), &format!("s{i}-k{i}"));
         }
         stage_all(&g);
-        let (path, renums) = leaf_insert(&g, &g.join("01-s1-k1.md"), "head", Kind::Impl).unwrap();
+        let (path, renums) =
+            leaf_insert(&g, &g.join("01-s1-k1.md"), "head", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&path), "01-head-k6.md");
         assert_eq!(renums.len(), 5);
         let leaves: Vec<String> = list(&g).into_iter().filter(|n| n != "BRIEF.md").collect();
@@ -813,7 +845,8 @@ mod tests {
         touch(&g, "02-b-k2.md", "b-k2");
         touch(&g, "03-c-k3.md", "c-k3");
         stage_all(&g);
-        let (_path, renums) = leaf_insert(&g, &g.join("01-a-k1.md"), "head", Kind::Impl).unwrap();
+        let (_path, renums) =
+            leaf_insert(&g, &g.join("01-a-k1.md"), "head", Kind::Impl, None).unwrap();
         let positions: Vec<(u32, u32)> = renums
             .iter()
             .map(|r| (r.old_position, r.new_position))
@@ -830,7 +863,7 @@ mod tests {
         touch(&design, "02-b-k3.md", "b-k3");
         stage_all(&g);
         let (path, renums) =
-            leaf_insert(&g, &design.join("01-a-k2.md"), "first", Kind::Impl).unwrap();
+            leaf_insert(&g, &design.join("01-a-k2.md"), "first", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&path), "01-first-k4.md");
         assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
         let children = list(&design);
@@ -846,7 +879,7 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         touch(&g, "01-a-k1.md", "a-k1");
         stage_all(&g);
-        assert!(leaf_insert(&g, &g.join("01-a-k1.md"), "BRIEF", Kind::Impl).is_err());
+        assert!(leaf_insert(&g, &g.join("01-a-k1.md"), "BRIEF", Kind::Impl, None).is_err());
     }
 
     #[test]
@@ -854,7 +887,7 @@ mod tests {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         stage_all(&g);
-        let err = leaf_insert(&g, &g.join("BRIEF.md"), "x", Kind::Impl).unwrap_err();
+        let err = leaf_insert(&g, &g.join("BRIEF.md"), "x", Kind::Impl, None).unwrap_err();
         assert!(err.to_string().contains("brief"), "got {err}");
     }
 
@@ -863,14 +896,15 @@ mod tests {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         stage_all(&g);
-        assert!(leaf_insert(&g, &g.join("09-nope-k9.md"), "x", Kind::Impl).is_err());
+        assert!(leaf_insert(&g, &g.join("09-nope-k9.md"), "x", Kind::Impl, None).is_err());
     }
 
     #[test]
     fn insert_errors_when_grove_root_absent() {
         let (_t, g) = git_grove();
         let missing = g.join("nope");
-        let err = leaf_insert(&missing, &missing.join("01-a-k1.md"), "x", Kind::Impl).unwrap_err();
+        let err =
+            leaf_insert(&missing, &missing.join("01-a-k1.md"), "x", Kind::Impl, None).unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"
@@ -891,11 +925,11 @@ mod tests {
         // with no `git add` in between — the ordinary planning-session sequence.
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let release = leaf_add(&g, &g, "release", Kind::Impl).unwrap();
+        let release = leaf_add(&g, &g, "release", Kind::Impl, None).unwrap();
         assert_eq!(name_of(&release), "01-release-k1.md");
 
         // No stage_all: the leaf is untracked, exactly as `leaf_add` left it.
-        let (path, renums) = leaf_insert(&g, &release, "review", Kind::Impl).unwrap();
+        let (path, renums) = leaf_insert(&g, &release, "review", Kind::Impl, None).unwrap();
 
         assert_eq!(name_of(&path), "01-review-k2.md");
         let files = list(&g);
@@ -921,7 +955,8 @@ mod tests {
         stage_all(&g); // a and b are tracked
         touch(&g, "03-c-k3.md", "c-k3"); // c is not
 
-        let (path, renums) = leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Impl).unwrap();
+        let (path, renums) =
+            leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Impl, None).unwrap();
 
         assert_eq!(name_of(&path), "01-new-k4.md");
         let files = list(&g);
@@ -945,7 +980,7 @@ mod tests {
         touch(&g, "01-a-k1.md", "a-k1");
         stage_all(&g);
 
-        leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Impl).unwrap();
+        leaf_insert(&g, &g.join("01-a-k1.md"), "new", Kind::Impl, None).unwrap();
 
         let idx = indexed(&g);
         assert!(

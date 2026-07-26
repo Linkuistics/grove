@@ -77,6 +77,31 @@ the same stable handle you cite in commit messages (task-tree-scheme §5). When 
 is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
+## Naming a harness — optional, and rare
+
+A leaf MAY declare the harness its session launches on, with a `**Harness:**`
+line beside `**Kind:**`:
+
+    **Kind:** research
+    **Harness:** codex
+
+Almost no leaf carries one. It exists for the **vendor pair** — two `research`
+leaves that differ only by which vendor runs them, plus the `combine-research`
+step after them — which is the one shape a kind→harness policy cannot express,
+because a policy maps each kind to *one* harness
+(`docs/specs/task-kind-taxonomy.md`, *Routing*). Everything else is a policy
+(`GROVE_<KIND>_HARNESS`) or falls through to the harness the grove is stamped
+to. Write one with `leaf-add --harness <name>` / `leaf-insert --harness <name>`,
+or by hand; `leaf-decompose` carries a declaration onto the node's first child,
+as it does the kind.
+
+The line **beats every policy var and the stamp** — leaf beats kind beats family
+beats stamp — so it is read strictly: a name grove does not recognise, or an
+empty `**Harness:**`, **refuses to launch** rather than degrading. That is the
+opposite of how `**Kind:**` is read, deliberately: a wrong discipline label costs
+a warning, while a wrong harness would run the leaf on a vendor the tree
+explicitly said not to.
+
 ## Planning tasks — extra guidance
 
 A planning task additionally:

@@ -17,15 +17,24 @@
 // which codex's Seatbelt sandbox silently denied.
 //
 // The driver is deliberately tiny — a plain shell `while` loop could stand in
-// (constraint 6, walk-away-able); model selection (model-per-task-kind) is just
-// a kind→model lookup before the launch:
+// (constraint 6, walk-away-able); routing (model-per-task-kind) is just two
+// lookups off the picked leaf before the launch:
 //
 //     sig="$TMPDIR/grove-loop-<name>-<worktree-identity-hash>.signal"
 //     while :; do
 //       v=$(grove-llm --version | awk '{print $NF}')     # version-skew guard
 //       [ -n "$v" ] && [ "$v" != "<own compiled-in version>" ] && break
 //       rm -f "$sig"
-//       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
+//       # One peek, two facts: the kind on line 1, and the harness the leaf
+//       # declares for itself on line 2 when it carries a `**Harness:**` line.
+//       # A declaration beats every policy var and the stamp.
+//       if [ -d "$wt/.grove" ]; then
+//         peek=$(grove-llm kind --with-harness) || exit 1
+//         kind=$(printf '%s\n' "$peek" | sed -n 1p)
+//         leaf_harness=$(printf '%s\n' "$peek" | sed -n 2p)
+//       else
+//         kind=planning; leaf_harness=
+//       fi
 //       # kind → env suffix: uppercase, `-` → `_` (review-impl ⇒ REVIEW_IMPL).
 //       # An empty $kind is an empty grove — no leaf, so nothing to require a
 //       # model *for*; every other kind must resolve one.
@@ -39,11 +48,17 @@
 //         *)                  fam= ;;
 //       esac
 //       [ -n "$model" ] || [ -z "$fam" ] || eval model="\$GROVE_${fam}_MODEL"
+//       # Harness: leaf beats kind beats family beats stamp. (The real driver
+//       # then re-resolves $model against the *launching* harness, and a
+//       # rerouted launch consults no unscoped var at all.)
+//       eval policy_h="\$GROVE_${suffix}_HARNESS"
+//       [ -n "$policy_h" ] || [ -z "$fam" ] || eval policy_h="\$GROVE_${fam}_HARNESS"
+//       harness=${leaf_harness:-${policy_h:-$stamped}}
 //       # A kind that resolves no model is a configuration error, not a
 //       # fall-through to the harness's own default (model-per-task-kind).
 //       [ -z "$kind" ] || [ -n "$model" ] || { echo "no model for $kind" >&2; exit 1; }
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
-//       GROVE_SIGNAL_FILE="$sig" "$harness_bin" "$@" &
+//       GROVE_SIGNAL_FILE="$sig" "$(bin_for "$harness")" "$@" &
 //       pid=$!
 //       # poll $pid (try_wait) and "$sig" every ~500ms; on signal appearing:
 //       # sleep $GROVE_KILL_GRACE, kill -TERM $pid, sleep
@@ -697,6 +712,17 @@ fn validate_all_harness_overrides() -> Result<()> {
 /// `GROVE_HARNESS_BIN` / `GROVE_HARNESS_BIN_<NAME>` test-seam override pointing
 /// at a nonexistent path is caught here too, not just a harness with no
 /// override at all.
+///
+/// **Per-leaf declarations are deliberately not swept here** (leaf-harness-k15).
+/// Walking the live leaves for `**Harness:**` lines was the alternative, and it
+/// cannot deliver the property this function exists for: the tree *grows while
+/// the loop runs*, so a pre-flight snapshot is silent about every leaf a
+/// planning session writes an hour from now — which is most of them. What it
+/// would add is a duplicate of a check that has to exist at launch anyway
+/// ([`leaf_harness_installed`]), paid for with a full tree read on every
+/// `grove do`, reporting a leaf that may be many sessions away. The env axis is
+/// static and knowable up front, which is exactly why it *is* swept here; the
+/// leaf axis is not, so it is checked at the one moment it is known.
 pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
     let stamped_bin = harness_bin(stamped, false);
     if !crate::harness::exec_bin_on_path(&stamped_bin) {
@@ -747,6 +773,12 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
 /// checked on every iteration, so there was nothing left for a short-circuit
 /// whose whole purpose is to avoid looking to decide. The zero-subprocess
 /// launch went with it, knowingly (`model-per-task-kind`, *Consequences*).
+///
+/// **A leaf's own `**Harness:**` declaration outranks both env vars**
+/// (`leaf-harness-k15`): leaf beats kind beats family beats stamp. It comes off
+/// the *same* peek — one subprocess returns both facts — because the peek
+/// already runs every iteration and a second one to read a neighbouring line
+/// would double that cost for a declaration almost no leaf carries.
 fn resolve_launch(
     stamped: &'static Harness,
     worktree: &Path,
@@ -756,35 +788,47 @@ fn resolve_launch(
     let peek = if verb == "start" {
         // Start-path is planning by construction: `.grove/` does not exist yet
         // (the agent runs `root-init` inside that session), and root-init's
-        // first leaf is always planning — fresh-grove-start-contract.
-        KindPeek::Kind(Kind::Planning)
+        // first leaf is always planning — fresh-grove-start-contract. No leaf
+        // exists to declare a harness either, so the per-leaf axis is silent.
+        KindPeek::Leaf(Kind::Planning, None)
     } else {
         resolve_kind(worktree)
     };
-    let kind = match peek {
-        KindPeek::Kind(k) => k,
+    let (kind, leaf_harness) = match peek {
+        KindPeek::Leaf(k, h) => (k, h),
         // Empty grove (no live leaf — the finish-cycle iteration): no leaf to
         // route, and no task to require a model *for*. An absence of the
         // question, not a default — and legitimately nothing to select on,
         // unlike a degraded peek below.
         KindPeek::Empty => return Ok((stamped, None, false)),
         // The peek itself failed (missing grove-llm, non-zero exit,
-        // unparseable output) — genuinely unknown, not "nothing to route".
-        // This now bails in **every** case, where it previously bailed only
-        // under a configured harness override: the asymmetry that spared a
-        // model-only config ("a missing model is a nicety, a misroute is not")
-        // died with the requirement below, since an unknown kind can no longer
-        // be routed by guessing on either axis (model-per-task-kind).
+        // unparseable output, or a leaf declaring a harness grove does not
+        // know) — genuinely unknown, not "nothing to route". This now bails in
+        // **every** case, where it previously bailed only under a configured
+        // harness override: the asymmetry that spared a model-only config
+        // ("a missing model is a nicety, a misroute is not") died with the
+        // requirement below, since an unknown kind can no longer be routed by
+        // guessing on either axis (model-per-task-kind).
         KindPeek::Degraded => anyhow::bail!(
-            "grove: the next leaf's kind could not be determined (see the diagnostic \
-             above). Both routing axes key on it — which harness runs the leaf \
-             (GROVE_<KIND>_HARNESS / GROVE_<FAMILY>_HARNESS), and which model that \
-             harness loads, which is now required (model-per-task-kind) — so grove \
-             refuses to guess and launch on the stamped harness. Fix `grove-llm kind` \
-             and re-run."
+            "grove: the next leaf's launch could not be resolved (see the diagnostic \
+             above). Every routing axis reads that leaf — the harness it declares \
+             for itself, the harness its kind routes to (GROVE_<KIND>_HARNESS / \
+             GROVE_<FAMILY>_HARNESS), and the model that harness loads, which is now \
+             required (model-per-task-kind) — so grove refuses to guess and launch on \
+             the stamped harness. Fix `grove-llm kind` and re-run."
         ),
     };
-    let launch = harness_override(kind)?.unwrap_or(stamped);
+    // Leaf beats kind beats family beats stamp: a declaration on the leaf is a
+    // fact about *this* leaf ("this one goes elsewhere because its sibling does
+    // not"), which is strictly more specific than a policy that knows nothing
+    // about any tree (`docs/specs/task-kind-taxonomy.md`, *Routing*).
+    let launch = match leaf_harness {
+        Some(h) => {
+            leaf_harness_installed(h, h.name != stamped.name)?;
+            h
+        }
+        None => harness_override(kind)?.unwrap_or(stamped),
+    };
     let rerouted = launch.name != stamped.name;
     // A harness whose model-flag template is empty has opted out of model
     // selection entirely; requiring a flag it cannot pass would make it
@@ -807,28 +851,66 @@ fn env_nonempty(var: &str) -> Option<String> {
     std::env::var(var).ok().filter(|s| !s.is_empty())
 }
 
-/// The outcome of peeking the next live leaf's kind — three genuinely
-/// different situations `resolve_launch` must not conflate (B6): `Empty` has
-/// no leaf to route *on purpose* (the finish-cycle iteration), while
-/// `Degraded` means the peek itself failed and the kind is simply unknown.
-/// The distinction is what keeps the finish-cycle iteration exempt from the
-/// required-model rule while a genuinely unknown kind refuses to launch at all.
+/// Refuse a leaf-declared harness that is not installed. Pre-flight cannot
+/// cover this axis (see [`preflight_check`]), so the check lands here, at the
+/// one moment the declaration is known — and it is *only* on this axis: the
+/// env-configured harnesses were resolved once at pre-flight, and re-checking
+/// them every iteration would buy nothing.
+///
+/// Takes `rerouted` rather than assuming it, because [`harness_bin`] resolves a
+/// *different* binary either way (a reroute consults no unscoped
+/// `GROVE_HARNESS_BIN`), and a check that looked at a binary the launch would
+/// not exec is worse than no check at all.
+fn leaf_harness_installed(harness: &'static Harness, rerouted: bool) -> Result<()> {
+    let bin = harness_bin(harness, rerouted);
+    if !crate::harness::exec_bin_on_path(&bin) {
+        anyhow::bail!(
+            "grove: the next leaf declares `**Harness:** {}`, but {bin} is not on PATH. \
+             Install it, or change the leaf's `**Harness:**` line — grove will not fall \
+             back to another harness for a leaf that named one.",
+            harness.name,
+        );
+    }
+    Ok(())
+}
+
+/// The outcome of peeking the next live leaf — three genuinely different
+/// situations `resolve_launch` must not conflate (B6): `Empty` has no leaf to
+/// route *on purpose* (the finish-cycle iteration), while `Degraded` means the
+/// peek itself failed and the leaf's launch is simply unknown. The distinction
+/// is what keeps the finish-cycle iteration exempt from the required-model rule
+/// while a genuinely unresolvable leaf refuses to launch at all.
+///
+/// `Leaf` carries **both** routing facts the peek returns: the kind, always,
+/// and the harness the leaf declares for itself when it declares one
+/// (leaf-harness-k15). They live in one variant because they come from one
+/// subprocess reading one file — splitting them would imply a leaf can have a
+/// harness without a kind, which the read path makes impossible (kind degrades
+/// to `impl` rather than going missing).
 enum KindPeek {
-    Kind(Kind),
+    Leaf(Kind, Option<&'static Harness>),
     Empty,
     Degraded,
 }
 
-/// Peek the next live leaf's kind by running `grove-llm kind` against the
-/// worktree — the same verb (and code path) the launched agent would call.
-/// Any failure (binary missing, non-zero exit, unparseable output) yields
+/// Peek the next live leaf's launch facts by running `grove-llm kind
+/// --with-harness` against the worktree — the same verb (and code path) the
+/// launched agent would call. Any failure (binary missing, non-zero exit,
+/// unparseable output, or a leaf declaring a harness the verb rejects) yields
 /// [`KindPeek::Degraded`] with a diagnostic rather than erroring here, so the
 /// *reporting* stays separate from the *policy*: this function says what it
 /// saw, `resolve_launch` decides what that means. The child's stderr is
 /// inherited, not captured — see the note on the spawn below.
+///
+/// The output is one or two lines: the kind, then the declared harness when
+/// there is one. Both ends of that shape move together — the driver's
+/// per-session version-skew guard already refuses to run a `grove-llm` that is
+/// not this exact build, so there is no window in which a two-line reader meets
+/// a one-line writer.
 fn resolve_kind(worktree: &Path) -> KindPeek {
     let out = Command::new(grove_llm_bin())
         .arg("kind")
+        .arg("--with-harness")
         .current_dir(worktree)
         // Inherit stderr rather than capture it. `kind` *degrades* on an
         // unrecognised `**Kind:**` line — it warns and prints `work`, on a
@@ -840,26 +922,42 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
         .output();
     match out {
         Ok(o) if o.status.success() => {
-            let token = String::from_utf8_lossy(&o.stdout);
-            let token = token.trim();
-            if token.is_empty() {
-                return KindPeek::Empty; // empty grove: no kind to select on
-            }
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            let mut lines = stdout.lines().map(str::trim).filter(|l| !l.is_empty());
+            let Some(token) = lines.next() else {
+                return KindPeek::Empty; // empty grove: no leaf to select on
+            };
             // The read-side parser, not the write gate: this token came *out*
             // of `grove-llm kind`, so it is a read. That is also why the alias
             // matters here — a stale `grove-llm` predating the `work` → `impl`
             // rename prints `work`, which is exactly the mismatched-binary case
             // this arm exists to guard, and it resolves rather than degrading.
-            match Kind::parse_read(token) {
-                Some(k) => KindPeek::Kind(k),
-                None => {
-                    // Not expected from a real `grove-llm kind` (it self-degrades
-                    // unparseable task-file tokens to `impl` before printing) —
-                    // this guards against a mismatched/stale `grove-llm` binary.
-                    eprintln!("grove: unrecognized task kind {token:?} from `grove-llm kind`");
-                    KindPeek::Degraded
-                }
-            }
+            let Some(kind) = Kind::parse_read(token) else {
+                // Not expected from a real `grove-llm kind` (it self-degrades
+                // unparseable task-file tokens to `impl` before printing) —
+                // this guards against a mismatched/stale `grove-llm` binary.
+                eprintln!("grove: unrecognized task kind {token:?} from `grove-llm kind`");
+                return KindPeek::Degraded;
+            };
+            // The optional second line: the harness the leaf declared. The verb
+            // already validated it against the registry and would have exited
+            // non-zero otherwise, so an unknown name here is the same
+            // stale-binary case as above, not a user's typo — which is why this
+            // degrades rather than reporting the leaf's own error a second time
+            // in worse words.
+            let harness = match lines.next() {
+                None => None,
+                Some(name) => match crate::harness::by_name(name) {
+                    Some(h) => Some(h),
+                    None => {
+                        eprintln!(
+                            "grove: unrecognized harness {name:?} from `grove-llm kind --with-harness`"
+                        );
+                        return KindPeek::Degraded;
+                    }
+                },
+            };
+            KindPeek::Leaf(kind, harness)
         }
         Ok(_) => {
             // The child's own diagnostic already reached stderr (inherited above).

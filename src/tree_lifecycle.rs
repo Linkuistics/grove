@@ -60,7 +60,7 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     // Delegate the first leaf to `leaf_add` (root parent) so the scaffolded leaf is
     // byte-identical to one the LLM would later add by hand — no template drift. A
     // fresh `.grove/` has only `BRIEF.md`, so the first root child is `01-<slug>-k1`.
-    let leaf_path = leaf_add(&grove_root, &grove_root, slug, Kind::Planning)?;
+    let leaf_path = leaf_add(&grove_root, &grove_root, slug, Kind::Planning, None)?;
     Ok(vec![brief_path, leaf_path])
 }
 
@@ -77,6 +77,20 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
 /// read via [`crate::tree_read::read_kind`], which degrades to `impl` rather
 /// than erroring, so a leaf with a garbled `**Kind:**` line can still be
 /// decomposed — `Some(k)` uses `k` regardless of the parent's kind.
+///
+/// The first child **also inherits a declared `**Harness:**`** (leaf-harness-k15),
+/// for the same reason it inherits the kind: decomposing says *this leaf was
+/// bigger than its brief assumed*, so the first child is that leaf's work
+/// continued, and a vendor-bound `research` leaf whose child silently fell back
+/// to the stamp would be exactly the misroute the per-leaf axis exists to
+/// prevent. There is no `--harness` override here — the declaration is rare
+/// enough that dropping it is an edit to one line of the new child, while
+/// *losing* it is invisible.
+///
+/// Unlike the kind read, this one can **fail**: `read_harness` refuses an
+/// unrecognised name rather than degrading. That is deliberate here too — the
+/// leaf would refuse to launch anyway, and a human is present at decompose time
+/// to fix the line.
 pub fn leaf_decompose(
     grove_root: &Path,
     leaf_path: &Path,
@@ -117,6 +131,7 @@ pub fn leaf_decompose(
         Some(k) => k,
         None => crate::tree_read::read_kind(&parent_abs.join(&name))?,
     };
+    let harness = crate::tree_read::read_harness(&parent_abs.join(&name))?;
 
     // The entity that was leaf k becomes node directory k: same position, key, and
     // slug — only the on-disk shape changes (file → directory holding BRIEF.md).
@@ -141,7 +156,7 @@ pub fn leaf_decompose(
     // Grow the first child at `01` (enforce-first-child) — delegated to `leaf_add`
     // so it is byte-identical to a hand-added child and gets the next fresh key. The
     // node now exists (the BRIEF.md we just created), so the parent guard passes.
-    let child_path = leaf_add(&grove_abs, &node_dir, first_child_slug, kind)?;
+    let child_path = leaf_add(&grove_abs, &node_dir, first_child_slug, kind, harness)?;
     Ok((brief_path, child_path))
 }
 
@@ -1089,7 +1104,7 @@ mod tests {
     fn retire_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "ship", Kind::Impl).unwrap();
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "ship", Kind::Impl, None).unwrap();
         // No stage_all: `leaf_add` leaves it untracked, by design.
         let done = leaf_retire(&g, &leaf).unwrap();
         assert_eq!(name_of(&done), "01-DONE-ship-k1.md");
@@ -1104,7 +1119,7 @@ mod tests {
     fn decompose_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "big", Kind::Impl).unwrap();
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "big", Kind::Impl, None).unwrap();
         // "The current item proving bigger" — the canonical mid-session decompose.
         let (brief, child) = leaf_decompose(&g, &leaf, "first", None).unwrap();
         assert_eq!(name_of(&brief), "BRIEF.md");
@@ -1120,7 +1135,7 @@ mod tests {
     fn prune_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "dead", Kind::Impl).unwrap();
+        let leaf = crate::tree_grow::leaf_add(&g, &g, "dead", Kind::Impl, None).unwrap();
         let result = leaf_prune(&g, &leaf).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-dead-k1.md");

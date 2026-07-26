@@ -1704,7 +1704,14 @@ fn drive_one_leaf(
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_TEST_KIND", kind);
+        .set("GROVE_TEST_KIND", kind)
+        // The leaf the fake materialises carries a `**Harness:**` line only when
+        // a case asks for one, by setting this in `vars` — so every existing
+        // case keeps writing the undeclared leaf it always wrote. Explicitly
+        // cleared rather than merely unset: `clear_grove_env` sweeps the routing
+        // surface, not the fixture's own handles, and a value left behind by the
+        // previous case in this binary would silently reroute the next one.
+        .remove("GROVE_TEST_LEAF_HARNESS");
 
     for name in ["claude", "codex", "pi"] {
         let fake = worktree.join(format!("fake-{name}.sh"));
@@ -1720,6 +1727,9 @@ if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
   printf '# a-k1\n\n**Kind:** %s\n' "$GROVE_TEST_KIND" > "$PWD/.grove/01-a-k1.md"
+  if [ -n "$GROVE_TEST_LEAF_HARNESS" ]; then
+    printf '**Harness:** %s\n' "$GROVE_TEST_LEAF_HARNESS" >> "$PWD/.grove/01-a-k1.md"
+  fi
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -2077,6 +2087,179 @@ fn preflight_check_catches_a_missing_family_override_binary() {
     );
 }
 
+// ── The per-leaf axis (leaf-harness-k15) ─────────────────────────────────
+//
+// A leaf may name its own harness on a `**Harness:**` line, and that beats every
+// policy var and the grove's own stamp. It exists for the **vendor pair** — two
+// `research` leaves differing only by vendor — which is the one shape a
+// kind→harness *function* cannot express, so `research` is the kind driven
+// throughout. Same seam as the family axis above: the real driver, a fake binary
+// per vendor, assertions on the recorded argv.
+
+// The claim itself. `research` has no policy var set anywhere here, so the only
+// thing that can move this leaf off the stamp is the line on the leaf.
+#[test]
+fn a_leaf_declared_harness_launches_there_whatever_the_stamp() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_TEST_LEAF_HARNESS", "codex"),
+            ("GROVE_CODEX_RESEARCH_MODEL", "sol-high"),
+        ],
+    );
+    assert_eq!(
+        rows[0].0, "claude",
+        "the planning start path has no leaf to declare anything and stays on the stamp"
+    );
+    assert_eq!(rows[1].0, "codex", "the leaf's own declaration must win");
+    assert!(
+        rows[1].1.contains("--profile sol-high"),
+        "the leaf names the seat; the env names who sits in it — the model still \
+         comes from the (harness, kind) pair (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// Precedence: leaf beats kind beats family beats stamp. The discriminating
+// fixture sets the *kind* var — the most specific thing the env can say about
+// this leaf — and still loses, which is the whole point of the axis: the pair's
+// second survey goes elsewhere *because its sibling does not*, and no policy
+// keyed on `research` can say that about one of two identical-kind leaves.
+#[test]
+fn a_leaf_declaration_beats_the_per_kind_policy() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_RESEARCH_HARNESS", "pi"),
+            ("GROVE_TEST_LEAF_HARNESS", "codex"),
+            ("GROVE_CODEX_RESEARCH_MODEL", "sol-high"),
+            ("GROVE_PI_RESEARCH_MODEL", SCAFFOLD_MODEL),
+        ],
+    );
+    assert_eq!(
+        rows[1].0, "codex",
+        "a leaf declaration must outrank GROVE_<KIND>_HARNESS"
+    );
+}
+
+// `rerouted` is computed against the **stamp**, exactly as it is for the env
+// axis — so a leaf-declared reroute gets no unscoped model var and no global
+// binary override. Without this the pair's codex leaf could launch on a value
+// written for claude, which is the failure the reroute rule exists to prevent.
+#[test]
+fn a_leaf_declared_reroute_consults_no_unscoped_model_var() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let (err, rows) = refusal_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_TEST_LEAF_HARNESS", "codex"),
+            ("GROVE_RESEARCH_MODEL", "opus"),
+        ],
+    );
+    assert!(
+        err.contains("GROVE_CODEX_RESEARCH_MODEL"),
+        "the refusal must name the harness-scoped key, which is the whole \
+         lattice a rerouted launch has left (err: {err})"
+    );
+    assert_eq!(
+        rows.len(),
+        1,
+        "only the stamped planning session ran (rows: {rows:?})"
+    );
+    assert!(
+        !rows.iter().any(|(_, argv)| argv.contains("opus")),
+        "the unscoped var must not cross the leaf-declared reroute (rows: {rows:?})"
+    );
+}
+
+// The other side of that rule: declaring the harness the grove is already
+// stamped to is **not** a reroute, so the unscoped var still applies. Otherwise
+// a leaf could be made unlaunchable by writing down the harness it was already
+// going to run on.
+#[test]
+fn declaring_the_stamped_harness_is_not_a_reroute() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_TEST_LEAF_HARNESS", "claude"),
+            ("GROVE_RESEARCH_MODEL", "opus"),
+        ],
+    );
+    assert_eq!(rows[1].0, "claude");
+    assert!(
+        rows[1].1.contains("--model opus"),
+        "an unscoped var must still apply when nothing was rerouted (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// Refuse, do not degrade. A wrong *harness* is not a wrong label: degrading
+// would run the leaf on a vendor the tree explicitly said not to. The read side
+// refuses (tests/kind.rs proves the message), which surfaces here as a peek the
+// driver cannot resolve — and the driver must then stop rather than fall back to
+// the stamp, which is the exact fallback the declaration forbade.
+#[test]
+fn an_unrecognised_leaf_harness_refuses_to_launch() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let (err, rows) = refusal_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_TEST_LEAF_HARNESS", "codx"),
+            ("GROVE_RESEARCH_MODEL", SCAFFOLD_MODEL),
+        ],
+    );
+    assert!(
+        err.contains("could not be resolved") && err.contains("declares for itself"),
+        "the refusal must point at the leaf, since the operator's mistake is on \
+         it and not in the environment (err: {err})"
+    );
+    assert_eq!(
+        rows.len(),
+        1,
+        "the research leaf must not launch on the stamp (rows: {rows:?})"
+    );
+}
+
+// Pre-flight deliberately does not walk the tree for declarations — it cannot,
+// since the tree grows while the loop runs — so the not-installed case is caught
+// at launch, and must be caught *by name* rather than as a raw spawn failure.
+// Same instruction as the pre-flight refusals: which harness, which binary.
+#[test]
+fn a_leaf_declared_harness_that_is_not_installed_refuses_by_name() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let (err, rows) = refusal_over_one_leaf(
+        "claude",
+        "research",
+        &[
+            ("GROVE_TEST_LEAF_HARNESS", "pi"),
+            ("GROVE_HARNESS_BIN_PI", "/nonexistent/pi-binary"),
+            ("GROVE_PI_RESEARCH_MODEL", SCAFFOLD_MODEL),
+        ],
+    );
+    assert!(
+        err.contains("pi") && err.contains("/nonexistent/pi-binary"),
+        "the refusal must name the harness and the binary it looked for (err: {err})"
+    );
+    assert!(
+        err.contains("not on PATH"),
+        "…and say what is actually wrong, rather than reporting it as a \
+         mis-declared harness (err: {err})"
+    );
+    assert_eq!(
+        rows.len(),
+        1,
+        "nothing may launch in its place (rows: {rows:?})"
+    );
+}
+
 // An unknown harness name in a family var fails loudly at pre-flight too, not
 // only once a leaf of that family is picked.
 #[test]
@@ -2329,7 +2512,7 @@ fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
         ("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL),
     ]);
     assert!(
-        err.contains("could not be determined") && err.contains("stamped harness"),
+        err.contains("could not be resolved") && err.contains("stamped harness"),
         "a degraded kind peek with an active harness override must fail \
          loudly rather than silently launching on the stamped harness \
          (err: {err})"
@@ -2353,9 +2536,9 @@ fn degraded_kind_peek_bails_even_with_nothing_configured() {
     let _g = support::lock_env(&ENV_LOCK);
     let err = degraded_peek_error(&[]);
     assert!(
-        err.contains("could not be determined"),
+        err.contains("could not be resolved"),
         "a degraded peek must refuse whether or not anything is configured — \
-         the kind is what both axes key on (err: {err})"
+         every routing axis reads the leaf the peek could not read (err: {err})"
     );
     assert!(
         err.contains("model-per-task-kind"),

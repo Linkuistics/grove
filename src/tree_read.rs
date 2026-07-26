@@ -28,6 +28,7 @@
 // so every v1 reference still resolves identically (a literal slug ending in
 // `-k<digits>` is matched as a slug first), and the §5 handle round-trips to a path.
 
+use crate::harness::Harness;
 use crate::leaf::Kind;
 use crate::tree_id::{parse, sort_key, Entry, Outcome};
 use anyhow::{bail, Context, Result};
@@ -162,18 +163,100 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
 /// `impl`) — so a hand-edited or foreign task file can never jam the
 /// self-driving loop.
 pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
+    match target_leaf(grove_root, leaf_path)? {
+        Some(leaf) => read_kind(&leaf).map(Some),
+        None => Ok(None),
+    }
+}
+
+/// Both facts the loop driver needs before it can launch a session: the leaf's
+/// kind, and the harness that leaf *declares* for itself if it declares one
+/// (`leaf-harness-k15`). `Ok(None)` is the empty-grove signal, exactly as
+/// [`kind`] gives it.
+///
+/// One function, and one leaf resolution, because the driver peeks **once**: the
+/// peek is a subprocess on every iteration of the loop (`model-per-task-kind`,
+/// *Consequences*), and a second verb call to read a line out of the same file
+/// would double that cost for a declaration almost no leaf carries.
+///
+/// The two fields degrade differently on purpose, which is why this returns a
+/// pair rather than one fallible whole: `read_kind` never fails on content, so a
+/// garbled kind still yields a launch, while [`read_harness`] **refuses** — an
+/// unrecognised harness name aborts the peek rather than resolving to anything.
+pub fn launch_peek(
+    grove_root: &Path,
+    leaf_path: Option<&Path>,
+) -> Result<Option<(Kind, Option<&'static Harness>)>> {
+    let Some(leaf) = target_leaf(grove_root, leaf_path)? else {
+        return Ok(None);
+    };
+    let kind = read_kind(&leaf)?;
+    let harness = read_harness(&leaf)?;
+    Ok(Some((kind, harness)))
+}
+
+/// The leaf a leaf-reading verb operates on: the given path (absolute, or
+/// relative to `grove_root`), else [`pick`]'s next live leaf. `Ok(None)` is the
+/// empty grove — the same "no live leaves" signal `pick` gives, which the CLI
+/// renders as the standard stderr diagnostic.
+fn target_leaf(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
     }
-    let leaf = match leaf_path {
-        Some(p) if p.is_absolute() => p.to_path_buf(),
-        Some(p) => grove_root.join(p),
-        None => match pick(grove_root)? {
-            Some(p) => p,
-            None => return Ok(None),
-        },
-    };
-    read_kind(&leaf).map(Some)
+    Ok(match leaf_path {
+        Some(p) if p.is_absolute() => Some(p.to_path_buf()),
+        Some(p) => Some(grove_root.join(p)),
+        None => pick(grove_root)?,
+    })
+}
+
+/// Read a leaf task file's declared launch harness from its `**Harness:** <name>`
+/// line (`content/TASK-FORMAT.md`) — the per-leaf routing axis, which exists for
+/// the vendor pair a kind→harness function cannot express
+/// (`docs/specs/task-kind-taxonomy.md`, *Routing*). Parsed exactly like
+/// [`read_kind`]: first line carrying the marker, first whitespace token after
+/// it, trailing commentary tolerated.
+///
+/// **No line is the answer `None`, not a failure.** Almost no leaf declares a
+/// harness — it is two leaves of a research pair and nothing else — so the
+/// undeclared path must stay free.
+///
+/// **Read refuses, where [`read_kind`] degrades.** A token that is not a known
+/// harness — and an empty `**Harness:**` line, which is a declaration the author
+/// did not finish — errors, naming the file and the registry. This is a
+/// deliberate departure from the kind axis, on the difference between the two
+/// mistakes: a wrong *discipline label* costs a warning and a model chosen for
+/// the wrong bucket, while a wrong *harness* would run the leaf on a vendor the
+/// tree explicitly said not to — the same silent misroute `loop_driver` already
+/// bails on when the kind peek itself fails. Refusing to honour a declaration
+/// grove cannot execute is not grove gating on *process* grounds (constraint 5),
+/// which is what that constraint forbids.
+pub(crate) fn read_harness(leaf_path: &Path) -> Result<Option<&'static Harness>> {
+    let text = fs::read_to_string(leaf_path)
+        .with_context(|| format!("reading task file {}", leaf_path.display()))?;
+    for line in text.lines() {
+        let Some(rest) = line.trim_start().strip_prefix("**Harness:**") else {
+            continue;
+        };
+        let Some(token) = rest.split_whitespace().next() else {
+            bail!(
+                "task file {} has an empty `**Harness:**` line. Name a harness ({}) \
+                 or delete the line to run this leaf on the grove's own harness.",
+                leaf_path.display(),
+                crate::harness::known_names()
+            );
+        };
+        return crate::harness::by_name(token).map(Some).ok_or_else(|| {
+            anyhow::anyhow!(
+                "task file {} declares `**Harness:** {}`, which is not a known harness. \
+                 Known: {}.",
+                leaf_path.display(),
+                token,
+                crate::harness::known_names()
+            )
+        });
+    }
+    Ok(None)
 }
 
 /// Read a leaf task file's declared kind from its `**Kind:** <kind>` line

@@ -272,6 +272,105 @@ fn add_defaults_to_impl_when_no_kind_is_given() {
     assert!(body.contains("**Kind:** impl\n"), "got {body:?}");
 }
 
+// ── `--harness`: the per-leaf routing declaration (leaf-harness-k15) ──────
+
+#[test]
+fn add_with_a_harness_writes_the_declaration_beside_the_kind() {
+    // The line the loop driver's peek reads. Adjacent to `**Kind:**`, because
+    // the two are one metadata block — a session skimming the file should see
+    // both routing facts together.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &[
+            "leaf-add",
+            ".",
+            "survey-b",
+            "--kind",
+            "research",
+            "--harness",
+            "codex",
+        ],
+    );
+    assert!(ok, "--harness codex rejected: {stderr:?}");
+    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(
+        body.contains("**Kind:** research\n**Harness:** codex\n"),
+        "got {body:?}"
+    );
+}
+
+#[test]
+fn add_without_a_harness_writes_no_harness_line_at_all() {
+    // The common case, and a hard requirement rather than a nicety: an empty
+    // `**Harness:**` line is a *refusal* on the read side, so a template that
+    // always emitted one would make every leaf grove creates unlaunchable.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
+    assert!(ok);
+    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(!body.contains("Harness"), "got {body:?}");
+}
+
+#[test]
+fn add_rejects_an_unknown_harness_listing_the_registry() {
+    // The write gate, mirroring `--kind`'s: caught at authoring time, when a
+    // human is present to fix it, rather than hours later when the loop reaches
+    // the leaf.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--harness", "lemur"]);
+    assert!(!ok, "an unknown --harness must be refused on write");
+    assert!(
+        stderr.contains("claude") && stderr.contains("codex") && stderr.contains("pi"),
+        "the error must list the registry, got {stderr:?}"
+    );
+    assert!(
+        !exists(tmp.path(), ".grove/01-x-k1.md"),
+        "a refused --harness must not leave a leaf behind"
+    );
+}
+
+#[test]
+fn insert_carries_a_harness_declaration_too() {
+    // `leaf-insert` is the verb a planning session reaches for when the vendor
+    // pair has to sequence *ahead* of live leaves, so it needs the same flag —
+    // and this is the only thing that proves the two grow verbs share the
+    // template rather than each writing their own.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("01-a-k1.md"), "# a-k1\n\n**Kind:** impl\n");
+    stage_all(tmp.path());
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &[
+            "leaf-insert",
+            "01-a-k1.md",
+            "survey-b",
+            "--kind",
+            "research",
+            "--harness",
+            "pi",
+        ],
+    );
+    assert!(ok, "leaf-insert --harness failed: {stderr:?}");
+    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(body.contains("**Harness:** pi\n"), "got {body:?}");
+}
+
 #[test]
 fn add_rejects_invalid_slug() {
     let tmp = init_repo();

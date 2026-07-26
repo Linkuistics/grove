@@ -74,12 +74,25 @@ pub enum Command {
     /// rather than erroring, so a hand-edited or foreign task file can never jam
     /// the self-driving loop. The previous spelling `work` resolves to `impl`
     /// silently — it is not a degrade. The output is a single lowercase token +
-    /// newline. The self-driving loop calls this to choose each session's launch
-    /// harness and model by the picked leaf's kind (model-per-task-kind).
+    /// newline (`--with-harness` may add a second line — see the flag). The
+    /// self-driving loop calls this to resolve each session's launch harness and
+    /// model from the picked leaf (model-per-task-kind).
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
+        /// Also print the harness the leaf declares for itself, on a **second
+        /// line**, when it carries a `**Harness:**` line (leaf-harness-k15).
+        /// Undeclared — the overwhelmingly common case — prints nothing extra,
+        /// so the output is byte-identical to the plain form. An unrecognised
+        /// harness name **errors** here rather than degrading, because a wrong
+        /// harness would run the leaf on a vendor the tree said not to.
+        ///
+        /// The loop driver's peek passes this: one subprocess, both launch
+        /// facts. Without it the verb prints the kind and nothing else, and
+        /// never inspects the harness line at all.
+        #[arg(long = "with-harness")]
+        with_harness: bool,
     },
     /// Resolve a reference to its current file path, searching live, retired
     /// (`DONE`), **and** abandoned (`ABANDONED`, ADR *pruning*) entries alike
@@ -200,6 +213,17 @@ const KIND_HELP: &str = "Leaf kind (task-kind-taxonomy), written into the templa
 its own review-<producer> and integrate-review-<producer> step; plus research and \
 combine-research. An unrecognised value errors, listing all seventeen";
 
+/// `--harness` help for the two verbs that *create* a leaf. Optional and rarely
+/// used by design: it exists for the **vendor pair** — two `research` leaves and
+/// the `combine-research` step that follows them — which is the one shape a
+/// kind→harness policy cannot express (`docs/specs/task-kind-taxonomy.md`).
+/// Everything else routes by policy or falls through to the stamp, so the help
+/// names the case rather than inviting general use.
+const HARNESS_HELP: &str = "Harness this one leaf launches on, written into a \
+`**Harness:**` line beside `**Kind:**` — it beats the per-kind and per-family policy \
+vars and the grove's own stamp. Omit unless this leaf must run on a different vendor \
+than its siblings (the research vendor pair). An unrecognised name errors";
+
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
 const KIND_OVERRIDE_HELP: &str = "Override the first child's kind — one of the seventeen \
@@ -216,6 +240,8 @@ pub struct LeafAddArgs {
     pub slug: String,
     #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
+    #[arg(long = "harness", help = HARNESS_HELP)]
+    pub harness: Option<String>,
 }
 
 #[derive(Parser)]
@@ -227,6 +253,8 @@ pub struct LeafInsertArgs {
     pub slug: String,
     #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
+    #[arg(long = "harness", help = HARNESS_HELP)]
+    pub harness: Option<String>,
 }
 
 #[derive(Parser)]
@@ -258,7 +286,10 @@ pub fn run() -> Result<()> {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
-        Command::Kind { leaf_path } => cmd_kind(leaf_path.as_deref()),
+        Command::Kind {
+            leaf_path,
+            with_harness,
+        } => cmd_kind(leaf_path.as_deref(), with_harness),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
@@ -326,14 +357,29 @@ fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
+fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
     // Normalize a cwd-relative path to what `tree_read::kind` accepts (absolute
     // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
     // stays `None` so the verb defaults to `pick`'s next live leaf.
     let leaf = leaf_path.map(normalize_leaf_path);
-    match tree_read::kind(&grove_root, leaf.as_deref())? {
-        Some(k) => println!("{}", k.label()),
+    // Two output shapes from one verb, and the plain one is the contract: the
+    // kind alone, a single lowercase token. `--with-harness` adds a second line
+    // *only* when the leaf declares a harness, so the one consumer that opts in
+    // reads `lines[1]` or finds nothing — and no other caller, human or agent,
+    // sees a byte of change.
+    let facts = if with_harness {
+        tree_read::launch_peek(&grove_root, leaf.as_deref())?
+    } else {
+        tree_read::kind(&grove_root, leaf.as_deref())?.map(|k| (k, None))
+    };
+    match facts {
+        Some((kind, harness)) => {
+            println!("{}", kind.label());
+            if let Some(harness) = harness {
+                println!("{}", harness.name);
+            }
+        }
         None => eprintln!(
             "grove {}: no live leaves; this grove is done",
             label(&worktree)
@@ -356,6 +402,7 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
+    let harness = parse_harness(args.harness.as_deref())?;
     // `.` is the grove root (the root node); anything else is a node by key or
     // path (a v2 node is a directory). `tree_grow::leaf_add` validates that the
     // resolved parent is a real node directory.
@@ -364,7 +411,7 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     } else {
         resolve_ref_or_path(&grove_root, &args.parent)?
     };
-    let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind)?;
+    let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind, harness)?;
     println!("{}", path.display());
     Ok(())
 }
@@ -372,8 +419,10 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
+    let harness = parse_harness(args.harness.as_deref())?;
     let target = resolve_ref_or_path(&grove_root, &args.target)?;
-    let (path, renumbers) = tree_grow::leaf_insert(&grove_root, &target, &args.slug, kind)?;
+    let (path, renumbers) =
+        tree_grow::leaf_insert(&grove_root, &target, &args.slug, kind, harness)?;
 
     // The new leaf's path is the only stdout content; the renumber summary and
     // cross-references go to stderr so the LLM can parse stdout cleanly.
@@ -446,6 +495,22 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
         }
     }
     Ok(())
+}
+
+// The `--harness` write gate, mirroring `Kind::parse`'s: an unrecognised name is
+// refused at authoring time, when a human is present to fix it. The read side
+// (`tree_read::read_harness`) refuses too — unlike the kind axis, which degrades
+// on read — so this gate is a *sooner* failure, not the only one.
+fn parse_harness(name: Option<&str>) -> Result<Option<&'static crate::harness::Harness>> {
+    let Some(name) = name else {
+        return Ok(None);
+    };
+    crate::harness::by_name(name).map(Some).ok_or_else(|| {
+        anyhow::anyhow!(
+            "--harness must be one of {}, got {name:?}",
+            crate::harness::known_names()
+        )
+    })
 }
 
 // Resolve `(worktree, grove_root)` from the cwd. The task-tree verbs run from

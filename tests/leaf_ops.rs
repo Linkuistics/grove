@@ -198,6 +198,85 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
 }
 
 #[test]
+fn decompose_carries_a_declared_harness_onto_the_first_child() {
+    // leaf-harness-k15, for the same reason the kind is inherited: decomposing
+    // says *this leaf was bigger than its brief assumed*, so the first child is
+    // that leaf's work continued. A vendor-bound `research` leaf whose child
+    // silently fell back to the stamp would be exactly the misroute the
+    // per-leaf axis exists to prevent — and the fallback would be invisible,
+    // because a leaf with no declaration is the normal case.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** research\n**Harness:** codex\n\nbody body\n",
+    );
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+    );
+    assert!(ok, "leaf-decompose failed");
+    let child = rel_line(&stdout, tmp.path(), 1);
+    let body = read(tmp.path(), child.to_str().unwrap());
+    assert!(
+        body.contains("**Harness:** codex"),
+        "child must inherit the parent leaf's harness, got {body:?}"
+    );
+}
+
+#[test]
+fn decompose_of_an_undeclared_leaf_writes_no_harness_line() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** impl\n\nbody body\n",
+    );
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(
+        tmp.path(),
+        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+    );
+    assert!(ok, "leaf-decompose failed");
+    let child = rel_line(&stdout, tmp.path(), 1);
+    let body = read(tmp.path(), child.to_str().unwrap());
+    assert!(!body.contains("Harness"), "got {body:?}");
+}
+
+#[test]
+fn decompose_refuses_a_leaf_whose_harness_line_names_nothing_known() {
+    // The read side refuses rather than degrades, and that refusal reaches
+    // `leaf-decompose` too. Correct, not merely consistent: the leaf could not
+    // have launched either, and a human is present here to fix the line —
+    // whereas degrading would copy a broken declaration onto a new leaf and
+    // multiply the problem.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(
+        &grove.join("01-target-k1.md"),
+        "# target-k1\n\n**Kind:** research\n**Harness:** codx\n",
+    );
+    stage_all(tmp.path());
+
+    let (_, stderr, ok) = run(
+        tmp.path(),
+        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+    );
+    assert!(!ok, "a bad harness declaration must refuse");
+    assert!(
+        stderr.contains("codx"),
+        "the error must name the offending token, got {stderr:?}"
+    );
+    assert!(
+        !exists(tmp.path(), ".grove/01-target-k1/BRIEF.md"),
+        "a refused decompose must not leave a half-built node behind"
+    );
+}
+
+#[test]
 fn decompose_rejects_a_brief() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");

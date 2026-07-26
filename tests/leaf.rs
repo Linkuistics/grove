@@ -18,6 +18,8 @@
 // - stdout: the new leaf's absolute path, single line.
 // - stderr: renumber summary and cross-reference candidates (for insert).
 
+mod support;
+
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -124,7 +126,7 @@ fn add_to_empty_root_uses_position_one() {
     let body = read(tmp.path(), ".grove/01-first-step-k1.md");
     // The in-file header is the position-free handle `# <slug>-k<key>`.
     assert!(body.starts_with("# first-step-k1\n"), "header: {body:?}");
-    assert!(body.contains("**Kind:** work\n"));
+    assert!(body.contains("**Kind:** impl\n"));
     assert!(body.contains("## Goal\n"));
 }
 
@@ -196,21 +198,29 @@ fn add_with_planning_kind_writes_planning_in_template() {
 }
 
 #[test]
-fn add_with_review_kind_succeeds() {
-    // task-kind-taxonomy: `review` is one of the five, not just `work`/`planning`.
+fn add_accepts_every_one_of_the_seventeen_kinds() {
+    // task-kind-taxonomy: the whole parameterised set is writable, including the
+    // hyphenated `review-*` and `integrate-review-*` steps — the labels most
+    // likely to be mangled between the CLI, the enum, and the leaf template.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "review"]);
-    assert!(ok);
-    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
-    assert!(body.contains("**Kind:** review\n"), "got {body:?}");
+    for (i, label) in support::KIND_LABELS.iter().enumerate() {
+        let slug = format!("x{i}");
+        let (stdout, stderr, ok) = run(tmp.path(), &["leaf-add", ".", &slug, "--kind", label]);
+        assert!(ok, "--kind {label} rejected: {stderr:?}");
+        let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+        assert!(
+            body.contains(&format!("**Kind:** {label}\n")),
+            "got {body:?}"
+        );
+    }
 }
 
 #[test]
-fn add_rejects_an_unrecognised_kind_listing_the_five() {
+fn add_rejects_an_unrecognised_kind_listing_every_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
@@ -218,12 +228,48 @@ fn add_rejects_an_unrecognised_kind_listing_the_five() {
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "reserch"]);
     assert!(!ok, "an unrecognised --kind must be rejected at write time");
-    for label in ["planning", "research", "prototype", "work", "review"] {
+    for label in support::KIND_LABELS {
         assert!(
             stderr.contains(label),
             "error must list {label:?}, got {stderr:?}"
         );
     }
+}
+
+#[test]
+fn add_refuses_the_retired_work_kind_and_names_its_replacement() {
+    // The write half of the `work` → `impl` rename (task-kind-taxonomy). Write
+    // gates where read aliases: a human is present at authoring time, and the
+    // error has to retrain rather than merely reject — "not in the list" is
+    // useless advice for a word that was correct last week.
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--kind", "work"]);
+    assert!(!ok, "`--kind work` must be refused on write");
+    assert!(
+        stderr.contains("impl"),
+        "the error must name the replacement, got {stderr:?}"
+    );
+    assert!(
+        !exists(tmp.path(), ".grove/01-x-k1.md"),
+        "a refused --kind must not leave a leaf behind"
+    );
+}
+
+#[test]
+fn add_defaults_to_impl_when_no_kind_is_given() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    stage_all(tmp.path());
+
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
+    assert!(ok);
+    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(body.contains("**Kind:** impl\n"), "got {body:?}");
 }
 
 #[test]

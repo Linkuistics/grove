@@ -150,7 +150,7 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
     Ok(chain)
 }
 
-/// `kind [<leaf>]`: the task's kind — one of the closed five
+/// `kind [<leaf>]`: the task's kind — one of the closed seventeen
 /// (task-kind-taxonomy) — the loop driver keys model selection on
 /// (model-per-task-kind). With `leaf_path = Some`, read that leaf's
 /// `**Kind:**` line; with `None`, default to [`pick`]'s next live leaf and
@@ -159,7 +159,7 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
 /// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`. Reading
 /// goes through [`read_kind`], which **degrades** rather than errors on a
 /// missing or unrecognised `**Kind:**` line (warns to stderr, treated as
-/// `work`) — so a hand-edited or foreign task file can never jam the
+/// `impl`) — so a hand-edited or foreign task file can never jam the
 /// self-driving loop.
 pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     if !grove_root.is_dir() {
@@ -179,18 +179,23 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
 /// Read a leaf task file's declared kind from its `**Kind:** <kind>` line
 /// (`content/TASK-FORMAT.md`). Takes the first line that begins with the
 /// `**Kind:**` marker and parses the first whitespace token after it through
-/// [`Kind::parse`] — so trailing commentary (`**Kind:** work   (or: planning)`)
-/// is tolerated.
+/// [`Kind::parse_read`] — so trailing commentary (`**Kind:** impl   (or:
+/// planning)`) is tolerated.
 ///
 /// **Read degrades** (task-kind-taxonomy, the counterpart to [`Kind::parse`]'s
 /// write-side gate): a missing `**Kind:**` line, an empty one, or a token
-/// [`Kind::parse`] does not recognise — hand-edited, or written by a future
+/// [`Kind::parse_read`] does not recognise — hand-edited, or written by a future
 /// grove version — warns to stderr, naming the file, and is treated as
-/// `Kind::Work`. This function never errors on the content of the line; only
+/// `Kind::Impl`. This function never errors on the content of the line; only
 /// a genuine I/O failure (the file cannot be read at all) still returns `Err`.
 /// Reading must degrade because the self-driving loop relaunches unattended: a
 /// typo in a task file must never jam it (constraint 5). `leaf_decompose`
 /// reuses this to inherit a leaf's kind, so the same degrade applies there.
+///
+/// `**Kind:** work` is **not** a degrade: [`Kind::parse_read`] resolves the
+/// previous spelling to `impl` silently, so the six live groves carrying it read
+/// correctly and print no warning. Warning there would fire on every task file
+/// of every live grove and train the operator to ignore this diagnostic.
 pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
     let text = fs::read_to_string(leaf_path)
         .with_context(|| format!("reading task file {}", leaf_path.display()))?;
@@ -200,29 +205,29 @@ pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
         };
         let Some(token) = rest.split_whitespace().next() else {
             eprintln!(
-                "grove: task file {} has an empty `**Kind:**` line; treating as `work`",
+                "grove: task file {} has an empty `**Kind:**` line; treating as `impl`",
                 leaf_path.display()
             );
-            return Ok(Kind::Work);
+            return Ok(Kind::Impl);
         };
-        return Ok(match Kind::parse(token) {
-            Ok(k) => k,
-            Err(_) => {
+        return Ok(match Kind::parse_read(token) {
+            Some(k) => k,
+            None => {
                 eprintln!(
                     "grove: task file {} has an unrecognised `**Kind:**` token {:?}; \
-                     treating as `work`",
+                     treating as `impl`",
                     leaf_path.display(),
                     token
                 );
-                Kind::Work
+                Kind::Impl
             }
         });
     }
     eprintln!(
-        "grove: task file {} has no `**Kind:**` line; treating as `work`",
+        "grove: task file {} has no `**Kind:**` line; treating as `impl`",
         leaf_path.display()
     );
-    Ok(Kind::Work)
+    Ok(Kind::Impl)
 }
 
 /// The outcome of resolving a reference. The CLI maps this to stdout/stderr via
@@ -877,10 +882,10 @@ mod tests {
     }
 
     #[test]
-    fn kind_reads_a_work_leaf() {
+    fn kind_reads_an_impl_leaf() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work\n\n## Goal\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** impl\n\n## Goal\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
@@ -891,16 +896,25 @@ mod tests {
     }
 
     #[test]
-    fn kind_reads_the_three_newer_kinds() {
+    fn kind_reads_every_one_of_the_seventeen() {
+        // The whole set through the real file-reading path, not just
+        // `Kind::parse` — the marker-line scan is what a hyphenated label
+        // (`integrate-review-impl`) could plausibly trip over.
         let (_t, g) = grove();
-        for (name, label, want) in [
-            ("01-a-k1.md", "research", Kind::Research),
-            ("02-b-k2.md", "prototype", Kind::Prototype),
-            ("03-c-k3.md", "review", Kind::Review),
-        ] {
-            let leaf = touch_body(&g, name, &format!("**Kind:** {label}\n"));
+        for (i, want) in Kind::ALL.into_iter().enumerate() {
+            let name = format!("{:02}-a-k{}.md", i + 1, i + 1);
+            let leaf = touch_body(&g, &name, &format!("**Kind:** {}\n", want.label()));
             assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(want));
         }
+    }
+
+    #[test]
+    fn kind_reads_the_legacy_work_label_as_impl() {
+        // The compatibility rule the rename stands on (task-kind-taxonomy): a
+        // live grove's task files say `work` and must keep resolving, silently.
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work\n\n## Goal\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
@@ -926,34 +940,44 @@ mod tests {
         let (_t, g) = grove();
         let node = mknode(&g, "01-design-k1");
         touch(&node, "BRIEF.md");
-        touch_body(&node, "01-leaf-k2.md", "**Kind:** work\n");
+        touch_body(&node, "01-leaf-k2.md", "**Kind:** impl\n");
         let got = kind(&g, Some(Path::new("01-design-k1/01-leaf-k2.md"))).unwrap();
-        assert_eq!(got, Some(Kind::Work));
+        assert_eq!(got, Some(Kind::Impl));
     }
 
     #[test]
     fn kind_tolerates_trailing_commentary_on_the_kind_line() {
-        // TASK-FORMAT's own example writes `**Kind:** work   (or: planning)`.
+        // TASK-FORMAT's own example writes `**Kind:** impl   (or: planning)`.
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work          (or: planning)\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** impl          (or: planning)\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_degrades_to_work_on_a_missing_kind_line() {
+    fn kind_degrades_to_impl_on_a_missing_kind_line() {
         // Read degrades (task-kind-taxonomy): a leaf with no `**Kind:**` line at
-        // all — `touch` writes only `# stub` — is treated as `work`, never an
+        // all — `touch` writes only `# stub` — is treated as `impl`, never an
         // error, so a hand-edited leaf can never jam the self-driving loop.
         let (_t, g) = grove();
         let leaf = touch(&g, "01-a-k1.md");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_degrades_to_work_on_a_garbled_kind_token() {
+    fn kind_degrades_to_impl_on_a_garbled_kind_token() {
         let (_t, g) = grove();
         let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** bogus\n");
-        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Work));
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
+    }
+
+    #[test]
+    fn kind_degrades_on_a_family_name_written_as_a_kind() {
+        // `review` and `integrate-review` are *families* (the routing axis), not
+        // members of the set. Written on a leaf they are simply unrecognised —
+        // the degrade path, not a silent match against the five `review-*` kinds.
+        let (_t, g) = grove();
+        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** review\n");
+        assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]

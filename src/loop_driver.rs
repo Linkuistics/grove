@@ -26,14 +26,10 @@
 //       [ -n "$v" ] && [ "$v" != "<own compiled-in version>" ] && break
 //       rm -f "$sig"
 //       [ -d "$wt/.grove" ] && kind=$(grove-llm kind) || kind=planning
-//       case "$kind" in
-//         planning)  model="$GROVE_PLANNING_MODEL" ;;
-//         research)  model="$GROVE_RESEARCH_MODEL" ;;
-//         prototype) model="$GROVE_PROTOTYPE_MODEL" ;;
-//         work)      model="$GROVE_WORK_MODEL" ;;
-//         review)    model="$GROVE_REVIEW_MODEL" ;;
-//         *)         model="" ;;                      # empty grove → no --model
-//       esac
+//       # kind → env suffix: uppercase, `-` → `_` (review-impl ⇒ REVIEW_IMPL).
+//       # An empty $kind (empty grove) yields GROVE__MODEL, i.e. no --model.
+//       suffix=$(printf '%s' "$kind" | tr 'a-z-' 'A-Z_')
+//       eval model="\$GROVE_${suffix}_MODEL"
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" "$harness_bin" "$@" &
 //       pid=$!
@@ -476,18 +472,14 @@ fn harness_bin(harness: &Harness, rerouted: bool) -> String {
         .unwrap_or_else(|| harness.exec_bin.to_string())
 }
 
-/// Env-name suffixes for the five kinds, in taxonomy order. Shared by the
-/// model lookup and (task-routing) the harness override.
-const KIND_SUFFIXES: [&str; 5] = ["PLANNING", "RESEARCH", "PROTOTYPE", "WORK", "REVIEW"];
-
-fn env_suffix(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Planning => "PLANNING",
-        Kind::Research => "RESEARCH",
-        Kind::Prototype => "PROTOTYPE",
-        Kind::Work => "WORK",
-        Kind::Review => "REVIEW",
-    }
+/// A kind's env-name suffix: its label uppercased with `-` mapped to `_`
+/// (`review-impl` ⇒ `REVIEW_IMPL`). Derived from `Kind::label` rather than
+/// tabulated beside it, so the seventeen suffixes cannot drift from the
+/// seventeen labels — the failure mode being a var name the user writes
+/// correctly and grove never reads. The grammar is unambiguous because harness
+/// names and kind labels share no token (`docs/specs/task-kind-taxonomy.md`).
+fn env_suffix(kind: Kind) -> String {
+    kind.label().to_uppercase().replace('-', "_")
 }
 
 /// The model value for a kind on a harness: the harness-scoped var
@@ -512,9 +504,16 @@ fn model_for(harness: &Harness, kind: Kind, rerouted: bool) -> Option<String> {
 
 /// Whether any model env var (scoped-to-this-harness or base) is set — the
 /// gate that keeps the common unconfigured path a zero-subprocess launch.
+///
+/// This sweeps `2 × 17` env lookups per launch now rather than `2 × 5`; still
+/// far below the cost of the subprocess it exists to avoid. Not worth
+/// optimising: `required-model-vars-k18` deletes this gate outright, because a
+/// var that is *required* must be checked on every iteration and there is
+/// nothing left for a short-circuit to decide.
 fn any_model_env(harness: &Harness) -> bool {
     let h = harness.name.to_uppercase();
-    KIND_SUFFIXES.iter().any(|s| {
+    Kind::ALL.into_iter().any(|k| {
+        let s = env_suffix(k);
         env_nonempty(&format!("GROVE_{h}_{s}_MODEL")).is_some()
             || env_nonempty(&format!("GROVE_{s}_MODEL")).is_some()
     })
@@ -539,30 +538,30 @@ fn checked_harness_override(suffix: &str) -> Result<Option<&'static Harness>> {
 }
 
 /// The per-kind harness override: `GROVE_<KIND>_HARNESS` names the harness
-/// that runs leaves of that kind, whatever the grove is stamped to (the
-/// trial's "K3 reviews everywhere": GROVE_REVIEW_HARNESS=pi).
+/// that runs leaves of that kind, whatever the grove is stamped to
+/// (`GROVE_REVIEW_IMPL_HARNESS=codex` sends code reviews to codex).
 fn harness_override(kind: Kind) -> Result<Option<&'static Harness>> {
-    checked_harness_override(env_suffix(kind))
+    checked_harness_override(&env_suffix(kind))
 }
 
 /// Whether any per-kind harness override is set — like `any_model_env`, the
 /// gate that decides whether the kind peek is worth a subprocess.
 fn any_harness_override_env() -> bool {
-    KIND_SUFFIXES
-        .iter()
-        .any(|s| env_nonempty(&format!("GROVE_{s}_HARNESS")).is_some())
+    Kind::ALL
+        .into_iter()
+        .any(|k| env_nonempty(&format!("GROVE_{}_HARNESS", env_suffix(k))).is_some())
 }
 
 /// Validate every `GROVE_<KIND>_HARNESS` override up front, not just the
 /// picked leaf's kind — a typo in a var for a *different* kind (e.g.
-/// `GROVE_PLANNING_HARNESS=lemur` while today's leaf is `work`) would
+/// `GROVE_PLANNING_HARNESS=lemur` while today's leaf is `impl`) would
 /// otherwise pass silently and only surface hours later, once a planning leaf
-/// is finally picked. `any_harness_override_env` already sweeps all five
-/// suffixes to decide whether routing applies at all, so validating them here
-/// too is nearly free.
+/// is finally picked. `any_harness_override_env` already sweeps every kind to
+/// decide whether routing applies at all, so validating them here too is
+/// nearly free.
 fn validate_all_harness_overrides() -> Result<()> {
-    for suffix in KIND_SUFFIXES {
-        checked_harness_override(suffix)?;
+    for kind in Kind::ALL {
+        checked_harness_override(&env_suffix(kind))?;
     }
     Ok(())
 }
@@ -590,8 +589,9 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
         );
     }
     validate_all_harness_overrides()?;
-    for suffix in KIND_SUFFIXES {
-        let Some(overridden) = checked_harness_override(suffix)? else {
+    for kind in Kind::ALL {
+        let suffix = env_suffix(kind);
+        let Some(overridden) = checked_harness_override(&suffix)? else {
             continue;
         };
         let rerouted = overridden.name != stamped.name;
@@ -603,7 +603,10 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
                  again once it's installed)",
                 overridden.name,
                 bin,
-                suffix.to_lowercase(),
+                // The kind's own label, not the suffix lowercased — the two
+                // differ on every hyphenated kind (`REVIEW_IMPL` would print as
+                // `review_impl`, which is not a kind anyone can write).
+                kind.label(),
             );
         }
     }
@@ -705,7 +708,7 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
         // Inherit stderr rather than capture it. `kind` *degrades* on an
         // unrecognised `**Kind:**` line — it warns and prints `work`, on a
         // **zero** exit — so the warning rides the success path. Capturing would
-        // swallow it and silently launch the leaf on the work model, which in a
+        // swallow it and silently launch the leaf on the impl model, which in a
         // typical config is the cheapest one: a silent downgrade with no way to
         // see why. Inheriting surfaces every diagnostic, warning or error.
         .stderr(Stdio::inherit())
@@ -717,11 +720,16 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
             if token.is_empty() {
                 return KindPeek::Empty; // empty grove: no kind to select on
             }
-            match Kind::parse(token) {
-                Ok(k) => KindPeek::Kind(k),
-                Err(_) => {
+            // The read-side parser, not the write gate: this token came *out*
+            // of `grove-llm kind`, so it is a read. That is also why the alias
+            // matters here — a stale `grove-llm` predating the `work` → `impl`
+            // rename prints `work`, which is exactly the mismatched-binary case
+            // this arm exists to guard, and it resolves rather than degrading.
+            match Kind::parse_read(token) {
+                Some(k) => KindPeek::Kind(k),
+                None => {
                     // Not expected from a real `grove-llm kind` (it self-degrades
-                    // unparseable task-file tokens to `work` before printing) —
+                    // unparseable task-file tokens to `impl` before printing) —
                     // this guards against a mismatched/stale `grove-llm` binary.
                     eprintln!("grove: unrecognized task kind {token:?} from `grove-llm kind`");
                     KindPeek::Degraded

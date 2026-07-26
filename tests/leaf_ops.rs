@@ -185,14 +185,14 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
             ".grove/01-target-k1.md",
             "sub",
             "--kind",
-            "review",
+            "review-impl",
         ],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
     let body = read(tmp.path(), child.to_str().unwrap());
     assert!(
-        body.contains("**Kind:** review"),
+        body.contains("**Kind:** review-impl"),
         "--kind must override the parent leaf's kind, got {body:?}"
     );
 }

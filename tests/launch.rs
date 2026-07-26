@@ -276,7 +276,7 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
     env.clear_grove_env()
         .set("GROVE_HARNESS_BIN", &fake_claude)
         .set("GROVE_HARNESS_BIN_PI", &missing_pi)
-        .set("GROVE_REVIEW_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
 
     let result = launch::do_grove(&StartArgs {
         harness: None,
@@ -286,7 +286,7 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
     let err = result.expect_err("a missing rerouted harness binary must fail pre-flight");
     let msg = err.to_string();
     assert!(
-        msg.contains("GROVE_REVIEW_HARNESS"),
+        msg.contains("GROVE_REVIEW_IMPL_HARNESS"),
         "diagnostic must name the override var (got: {msg:?})"
     );
     assert!(

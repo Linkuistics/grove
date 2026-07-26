@@ -666,8 +666,9 @@ exec sleep 30
 // live leaf's kind via the real `grove-llm kind` binary (wired in via the
 // `GROVE_LLM_BIN` seam, run against a real git worktree so `kind` resolves the
 // grove root). Asserts the exact `--model` per iteration, across three of the
-// five kinds — planning (start), then two non-binary continue kinds (work,
-// review) — proving the scheme is a real five-way lookup, not just a binary.
+// seventeen kinds — planning (start), then two continue kinds, one of them a
+// *hyphenated* one (`impl`, then `review-impl`) — proving the scheme is a real
+// per-kind lookup and that the label → env-suffix mapping survives a hyphen.
 #[test]
 fn loop_selects_model_by_kind() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -712,10 +713,10 @@ printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
 fi
 if [ "$n" -eq 2 ]; then
-  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
 fi
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
@@ -729,7 +730,7 @@ exit 0
     // clear_grove_env is load-bearing here, not just hygiene: this repo
     // dogfoods per-kind model + harness routing envs (BRIEF.md Notes), and
     // this very test suite may be running *inside* a rerouted review session
-    // — ambient `GROVE_REVIEW_HARNESS`/`GROVE_PI_REVIEW_MODEL` would silently
+    // — ambient `GROVE_REVIEW_IMPL_HARNESS`/`GROVE_PI_REVIEW_IMPL_MODEL` would silently
     // reroute iteration 3 (B1).
     let mut env = EnvGuard::new();
     env.clear_grove_env()
@@ -739,8 +740,8 @@ exit 0
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_PLANNING_MODEL", "opus")
-        .set("GROVE_WORK_MODEL", "sonnet")
-        .set("GROVE_REVIEW_MODEL", "haiku");
+        .set("GROVE_IMPL_MODEL", "sonnet")
+        .set("GROVE_REVIEW_IMPL_MODEL", "haiku");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "modelgrove");
 
@@ -765,24 +766,26 @@ exit 0
         "start session must use only the planning model (argv: {:?})",
         rows[0]
     );
-    // Iteration 2 — continue path ⇒ work leaf ⇒ GROVE_WORK_MODEL.
+    // Iteration 2 — continue path ⇒ impl leaf ⇒ GROVE_IMPL_MODEL.
     assert!(
         rows[1].contains("--model sonnet"),
-        "continue (work) session must launch on the work model (argv: {:?})",
+        "continue (impl) session must launch on the impl model (argv: {:?})",
         rows[1]
     );
-    // Iteration 3 — continue path ⇒ review leaf ⇒ GROVE_REVIEW_MODEL, proving a
-    // non-binary kind resolves correctly, not just planning/work.
+    // Iteration 3 — continue path ⇒ review-impl leaf ⇒ GROVE_REVIEW_IMPL_MODEL.
+    // The discriminating case: a hyphenated label has to reach the underscored
+    // env suffix, which a label used verbatim as a var name would not.
     assert!(
         rows[2].contains("--model haiku"),
-        "continue (review) session must launch on the review model (argv: {:?})",
+        "continue (review-impl) session must launch on the review-impl model \
+         (argv: {:?})",
         rows[2]
     );
 }
 
 // Degrade-on-read must be **loud** (task-kind-taxonomy). An unrecognised
 // `**Kind:**` line — a typo, a hand-edited file, or a tree written by a newer
-// grove — is treated as `work`, which in a typical config is the *cheapest*
+// grove — is treated as `impl`, which in a typical config is the *cheapest*
 // model: a silent downgrade. `grove-llm kind` warns on stderr but exits 0, so
 // the warning rides the **success** path; a driver that captures the child's
 // stderr swallows exactly the diagnostic that explains the downgrade.
@@ -863,7 +866,7 @@ exit 0
         .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .env("GROVE_SKILL_DIR", &skill_dir)
         .env("GROVE_TEST_LOG", &log)
-        .env("GROVE_WORK_MODEL", "sonnet")
+        .env("GROVE_IMPL_MODEL", "sonnet")
         .output()
         .unwrap();
 
@@ -878,7 +881,7 @@ exit 0
     let argv = fs::read_to_string(&log).unwrap_or_default();
     assert!(
         argv.contains("--model sonnet"),
-        "an unrecognised kind degrades to `work` and still launches — a typo must \
+        "an unrecognised kind degrades to `impl` and still launches — a typo must \
          never jam the unattended loop (argv: {argv:?})"
     );
 }
@@ -953,7 +956,7 @@ exit 0
 }
 
 // T6: an *empty-string* model var must behave exactly like an unset one — a
-// blank `GROVE_WORK_MODEL=` (e.g. from a shell template that didn't fill in a
+// blank `GROVE_IMPL_MODEL=` (e.g. from a shell template that didn't fill in a
 // value) must never reach the harness as a literal empty `--model`.
 #[test]
 fn loop_omits_model_flag_when_env_is_empty_string() {
@@ -1058,7 +1061,7 @@ printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1074,7 +1077,7 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_WORK_MODEL", "sol-high");
+        .set("GROVE_IMPL_MODEL", "sol-high");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
 
@@ -1151,7 +1154,7 @@ printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1167,7 +1170,7 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_WORK_MODEL", "moonshot/k3");
+        .set("GROVE_IMPL_MODEL", "moonshot/k3");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "pigrove");
 
@@ -1240,8 +1243,8 @@ fn per_harness_model_env_beats_the_base_var() {
     let counter = worktree.join("counter");
     let log = worktree.join("log");
 
-    // Fake harness: run 1 (start/planning) materialises a work leaf + signal;
-    // run 2 (continue/work) stops.
+    // Fake harness: run 1 (start/planning) materialises an impl leaf + signal;
+    // run 2 (continue/impl) stops.
     let fake = worktree.join("fake-claude.sh");
     write_exec(
         &fake,
@@ -1253,7 +1256,7 @@ printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** work\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1274,8 +1277,8 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CLAUDE_WORK_MODEL", "kimi-k3")
-        .set("GROVE_WORK_MODEL", "sonnet")
+        .set("GROVE_CLAUDE_IMPL_MODEL", "kimi-k3")
+        .set("GROVE_IMPL_MODEL", "sonnet")
         .set("GROVE_PI_PLANNING_MODEL", "must-not-leak");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "envgrove");
@@ -1301,12 +1304,12 @@ exit 0
     // discriminating assertion (precedence, not cross-harness isolation).
     assert!(
         rows[1].contains("--model kimi-k3") && !rows[1].contains("sonnet"),
-        "GROVE_CLAUDE_WORK_MODEL must beat GROVE_WORK_MODEL (argv: {:?})",
+        "GROVE_CLAUDE_IMPL_MODEL must beat GROVE_IMPL_MODEL (argv: {:?})",
         rows[1]
     );
 }
 
-// Per-kind harness routing: GROVE_REVIEW_HARNESS=pi must launch review leaves
+// Per-kind harness routing: GROVE_REVIEW_IMPL_HARNESS=pi must launch review leaves
 // on pi even in a codex-stamped grove — the trial's "K3 reviews everywhere"
 // invariant. Proven with two distinct fake binaries wired through the
 // per-harness bin seam, so the argv log shows *which* harness ran each leaf.
@@ -1365,7 +1368,7 @@ printf 'codex\t%s\t%s\n' "$*" "$prompt" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1395,9 +1398,9 @@ exit 0
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_HARNESS", "pi")
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
         .set("GROVE_CODEX_PLANNING_MODEL", "sol-xhigh")
-        .set("GROVE_PI_REVIEW_MODEL", "kimi-code/k3");
+        .set("GROVE_PI_REVIEW_IMPL_MODEL", "kimi-code/k3");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
 
@@ -1429,7 +1432,7 @@ exit 0
     // — and pi's own continue prompt, not codex's (B7).
     assert_eq!(
         rows[1][0], "pi",
-        "review must reroute to GROVE_REVIEW_HARNESS"
+        "review must reroute to GROVE_REVIEW_IMPL_HARNESS"
     );
     assert!(
         rows[1][1].contains("--model kimi-code/k3"),
@@ -1485,7 +1488,7 @@ printf 'codex\t%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1510,10 +1513,10 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_HARNESS", "pi")
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
         // The base var — a codex profile name, meaningless to pi — with no
-        // GROVE_PI_REVIEW_MODEL set to beat it.
-        .set("GROVE_REVIEW_MODEL", "sol-high");
+        // GROVE_PI_REVIEW_IMPL_MODEL set to beat it.
+        .set("GROVE_REVIEW_IMPL_MODEL", "sol-high");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "basemodelgrove");
 
@@ -1530,8 +1533,8 @@ exit 0
     assert_eq!(rows[1][0], "pi", "review must reroute to pi");
     assert!(
         !rows[1][1].contains("--model"),
-        "the base GROVE_REVIEW_MODEL (a codex profile name) must not reach \
-         pi across a reroute — no scoped GROVE_PI_REVIEW_MODEL means no \
+        "the base GROVE_REVIEW_IMPL_MODEL (a codex profile name) must not reach \
+         pi across a reroute — no scoped GROVE_PI_REVIEW_IMPL_MODEL means no \
          --model at all (argv: {:?})",
         rows[1][1]
     );
@@ -1582,7 +1585,7 @@ printf 'wrapper\t%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1617,7 +1620,7 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "binleakgrove");
 
@@ -1736,7 +1739,7 @@ fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
         worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review\n",
+        "# a-k1\n\n**Kind:** review-impl\n",
     )
     .unwrap();
 
@@ -1747,7 +1750,7 @@ fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
         // A nonexistent grove-llm binary: the spawn itself fails ⇒ a
         // degraded peek (Err(e) arm), not a parse error.
         .set("GROVE_LLM_BIN", worktree.join("no-such-grove-llm"))
-        .set("GROVE_REVIEW_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "degradedgrove");
 
@@ -1782,19 +1785,19 @@ fn an_off_kind_harness_override_typo_is_caught_immediately() {
     let harness = harness::by_name("claude").unwrap();
 
     // The start path resolves straight to Planning, never touching
-    // GROVE_REVIEW_HARNESS — yet the typo there must still fail loudly right
+    // GROVE_REVIEW_IMPL_HARNESS — yet the typo there must still fail loudly right
     // away, not once a review leaf happens to be picked.
     let mut env = EnvGuard::new();
     env.clear_grove_env()
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_HARNESS", "lemur");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "lemur");
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "offkindgrove");
 
     let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("GROVE_REVIEW_HARNESS") && err.contains("lemur"),
+        err.contains("GROVE_REVIEW_IMPL_HARNESS") && err.contains("lemur"),
         "a typo in an off-kind override must fail at the very next launch, \
          not only once a review leaf is picked (err: {err})"
     );
@@ -1847,7 +1850,7 @@ fn unknown_review_harness_fails_loudly() {
 // T3: the continue path's kind peek must honour the same
 // unknown-override-fails-loudly contract as the start path above — that path
 // short-circuits to `Kind::Planning` and never calls `resolve_kind`
-// (src/loop_driver.rs:279-281), so it cannot exercise `GROVE_REVIEW_HARNESS`
+// (src/loop_driver.rs:279-281), so it cannot exercise `GROVE_REVIEW_IMPL_HARNESS`
 // at all. This drives a real `.grove/` with a **review** leaf through the
 // continue path (real `grove-llm kind`) so `resolve_kind` genuinely runs.
 #[test]
@@ -1869,7 +1872,7 @@ fn unknown_review_harness_fails_loudly_on_the_continue_path() {
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
         worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review\n",
+        "# a-k1\n\n**Kind:** review-impl\n",
     )
     .unwrap();
 
@@ -1884,13 +1887,13 @@ fn unknown_review_harness_fails_loudly_on_the_continue_path() {
     env.clear_grove_env()
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_HARNESS", "lemur");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "lemur");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "typogrove2");
 
     let err = result.unwrap_err().to_string();
     assert!(
-        err.contains("GROVE_REVIEW_HARNESS") && err.contains("lemur"),
+        err.contains("GROVE_REVIEW_IMPL_HARNESS") && err.contains("lemur"),
         "the error must name the variable and the bad value (err: {err})"
     );
     assert!(
@@ -1954,7 +1957,7 @@ exit 0
 }
 
 // harness-spawn-preflight-k8: `do_grove`'s pre-flight used to validate only
-// the stamped harness's binary, so `GROVE_REVIEW_HARNESS=pi` against a
+// the stamped harness's binary, so `GROVE_REVIEW_IMPL_HARNESS=pi` against a
 // codex-stamped grove with no `pi` installed sailed through pre-flight, ran
 // for however long, and only died the moment a review leaf was finally
 // picked. `preflight_check` must catch that up front — resolved through the
@@ -1976,12 +1979,12 @@ fn preflight_check_catches_a_missing_per_kind_override_binary() {
     env.clear_grove_env()
         .set("GROVE_HARNESS_BIN", &fake_claude)
         .set("GROVE_HARNESS_BIN_PI", &missing_pi)
-        .set("GROVE_REVIEW_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
 
     let err = loop_driver::preflight_check(stamped).unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("GROVE_REVIEW_HARNESS"),
+        msg.contains("GROVE_REVIEW_IMPL_HARNESS"),
         "diagnostic must name the override var (got: {msg:?})"
     );
     assert!(
@@ -2031,7 +2034,7 @@ fn preflight_check_passes_when_every_configured_harness_resolves() {
     env.clear_grove_env()
         .set("GROVE_HARNESS_BIN", &fake_claude)
         .set("GROVE_HARNESS_BIN_PI", &fake_pi)
-        .set("GROVE_REVIEW_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
 
     loop_driver::preflight_check(stamped).unwrap();
 }
@@ -2741,7 +2744,7 @@ fn a_sigtermed_driver_releases_the_pane_before_exiting() {
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
         repo_path.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** work\n",
+        "# a-k1\n\n**Kind:** impl\n",
     )
     .unwrap();
     git(&["add", "-A"]);

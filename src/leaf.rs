@@ -1,11 +1,13 @@
 // Shared leaf vocabulary that outlived the old-format reader/grower (swept in
 // 090/9.4 once the 060 migration unwired the old verb path). Two items survive:
 //
-//   * `Kind` — the leaf-kind enum, a **closed set of five** (`planning`,
-//     `research`, `prototype`, `work`, `review` — ADR `task-kind-taxonomy`)
-//     written into a task file's `**Kind:**` line. Live: the new
-//     dotted-decimal grow/lifecycle verbs (`leaf_grow` / `leaf_lifecycle`) and
-//     the `grove-llm` CLI surface (`llm_cli`) parse and carry it.
+//   * `Kind` — the leaf-kind enum, a **closed, parameterised set of seventeen**
+//     (five producers, each with its own `review-` and `integrate-review-` step,
+//     plus `research` and `combine-research` — ADR `task-kind-taxonomy`,
+//     membership in `docs/specs/task-kind-taxonomy.md`) written into a task
+//     file's `**Kind:**` line. Live: the grow/lifecycle verbs (`tree_grow` /
+//     `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`) parse and
+//     carry it.
 //   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per task-tree-scheme the
 //     *only* surviving consumer of the old format is `grove migrate`, which
 //     reads an old tree exactly once on adoption; this is the reader it leans on.
@@ -16,54 +18,155 @@
 
 use anyhow::{bail, Result};
 
-/// A leaf's declared session kind — a closed set (ADR `task-kind-taxonomy`):
-/// adding a sixth is a deliberate code change, never a free-text label a leaf
-/// may coin. Only `Planning` carries methodological force (the loop's sole
-/// Execute branch, the only kind that grows the tree); the other four are
-/// work-shaped sessions differing in discipline and model bucket
-/// (`model-per-task-kind`).
+/// The previous spelling of `impl`, still accepted on **read** so a live grove's
+/// task files keep working across the rename (task-kind-taxonomy). Refused on
+/// write, with an error naming the replacement — see [`Kind::parse`].
+const WORK_ALIAS: &str = "work";
+
+/// A leaf's declared session kind — a closed, **parameterised** set of
+/// seventeen (ADR `task-kind-taxonomy`): five producers, each with its own
+/// `review-` and `integrate-review-` step, plus `research` and
+/// `combine-research`. Adding an eighteenth is a deliberate code change, never
+/// a free-text label a leaf may coin. Only `Planning` carries methodological
+/// force (the loop's sole Execute branch, the only kind that grows the tree);
+/// every other kind produces some artifact, differing in discipline and in
+/// routing (`model-per-task-kind`). Each kind's discipline and its HITL/AFK
+/// mark are `docs/specs/task-kind-taxonomy.md`; this enum owns only the set and
+/// its spelling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
+    // Producers.
+    Requirements,
+    Design,
     Planning,
-    Research,
     Prototype,
-    Work,
-    Review,
+    Impl,
+    // Research and its binary combine step.
+    Research,
+    CombineResearch,
+    // One adversarial read per producer.
+    ReviewRequirements,
+    ReviewDesign,
+    ReviewPlanning,
+    ReviewPrototype,
+    ReviewImpl,
+    // One triage-and-apply step per review.
+    IntegrateReviewRequirements,
+    IntegrateReviewDesign,
+    IntegrateReviewPlanning,
+    IntegrateReviewPrototype,
+    IntegrateReviewImpl,
 }
 
 impl Kind {
+    /// Every kind, in taxonomy order (producers, research, reviews,
+    /// integrations — the order `docs/specs/task-kind-taxonomy.md` presents
+    /// them). The single source of truth for the *set*, as [`Kind::label`] is
+    /// for its *spelling*: parsing, the `--kind` error listing, and the loop
+    /// driver's env-var sweep all derive from these two, so none of them can
+    /// drift from the enum. That mattered little at five kinds and matters a
+    /// lot at seventeen.
+    pub const ALL: [Kind; 17] = [
+        Kind::Requirements,
+        Kind::Design,
+        Kind::Planning,
+        Kind::Prototype,
+        Kind::Impl,
+        Kind::Research,
+        Kind::CombineResearch,
+        Kind::ReviewRequirements,
+        Kind::ReviewDesign,
+        Kind::ReviewPlanning,
+        Kind::ReviewPrototype,
+        Kind::ReviewImpl,
+        Kind::IntegrateReviewRequirements,
+        Kind::IntegrateReviewDesign,
+        Kind::IntegrateReviewPlanning,
+        Kind::IntegrateReviewPrototype,
+        Kind::IntegrateReviewImpl,
+    ];
+
     /// Write gates (task-kind-taxonomy): a grow verb rejects an unrecognised
-    /// `--kind` with an error listing the five, so a typo is caught at
+    /// `--kind` with an error listing the whole set, so a typo is caught at
     /// authoring time, when a human is present to fix it. Read degrades
-    /// instead — see `tree_read::read_kind`, the read-path counterpart that
-    /// never bails through this error.
+    /// instead — see [`Kind::parse_read`] and its caller `tree_read::read_kind`,
+    /// the read-path counterpart that never bails through this error.
+    ///
+    /// `work` is refused here rather than silently accepted: it is the previous
+    /// spelling of `impl`, and the gate exists to retrain a human who is present
+    /// to be retrained. The error names the replacement instead of only listing
+    /// the seventeen, because "not in the list" is unhelpful for a word that was
+    /// correct last week.
     pub fn parse(s: &str) -> Result<Kind> {
-        match s {
-            "planning" => Ok(Kind::Planning),
-            "research" => Ok(Kind::Research),
-            "prototype" => Ok(Kind::Prototype),
-            "work" => Ok(Kind::Work),
-            "review" => Ok(Kind::Review),
-            other => bail!(
-                "--kind must be one of `planning`, `research`, `prototype`, `work`, `review`, got {:?}",
-                other
-            ),
+        if let Some(kind) = Kind::from_label(s) {
+            return Ok(kind);
         }
+        if s == WORK_ALIAS {
+            bail!(
+                "--kind `work` was renamed `impl` (task-kind-taxonomy); use `--kind impl`. \
+                 A task file still saying `**Kind:** work` keeps reading as `impl` and needs \
+                 no edit."
+            );
+        }
+        bail!("--kind must be one of {}, got {:?}", Kind::label_list(), s)
+    }
+
+    /// The read-side counterpart of [`Kind::parse`], and the reason the
+    /// `work` → `impl` rename is safe: it additionally accepts `work` as
+    /// `Impl`, **silently**. That asymmetry is grove's existing gate-on-write /
+    /// degrade-on-read rule (task-kind-taxonomy), not a new one — an alias is a
+    /// read-side concession, and a warning on a file whose only sin is the
+    /// previous spelling would be noise on every task file of every live grove.
+    ///
+    /// `None` means genuinely unrecognised; deciding what *that* means is the
+    /// caller's (`tree_read::read_kind` warns and degrades to `Impl`).
+    pub(crate) fn parse_read(s: &str) -> Option<Kind> {
+        Kind::from_label(s).or_else(|| (s == WORK_ALIAS).then_some(Kind::Impl))
     }
 
     /// The lowercase label written into a task file's `**Kind:**` line and
-    /// printed by `grove-llm kind` — the inverse of [`Kind::parse`], so the two
-    /// round-trip. The single source of truth for the label direction: both the
-    /// grow verbs' leaf template (`tree_grow`) and the `kind` verb print through
-    /// it, so the two can never disagree on the spelling.
+    /// printed by `grove-llm kind`. The single source of truth for the label
+    /// direction: the grow verbs' leaf template (`tree_grow`), the `kind` verb,
+    /// [`Kind::from_label`], and the loop driver's env-var suffixes all read
+    /// through it, so none of them can disagree on the spelling.
     pub fn label(self) -> &'static str {
         match self {
+            Kind::Requirements => "requirements",
+            Kind::Design => "design",
             Kind::Planning => "planning",
-            Kind::Research => "research",
             Kind::Prototype => "prototype",
-            Kind::Work => "work",
-            Kind::Review => "review",
+            Kind::Impl => "impl",
+            Kind::Research => "research",
+            Kind::CombineResearch => "combine-research",
+            Kind::ReviewRequirements => "review-requirements",
+            Kind::ReviewDesign => "review-design",
+            Kind::ReviewPlanning => "review-planning",
+            Kind::ReviewPrototype => "review-prototype",
+            Kind::ReviewImpl => "review-impl",
+            Kind::IntegrateReviewRequirements => "integrate-review-requirements",
+            Kind::IntegrateReviewDesign => "integrate-review-design",
+            Kind::IntegrateReviewPlanning => "integrate-review-planning",
+            Kind::IntegrateReviewPrototype => "integrate-review-prototype",
+            Kind::IntegrateReviewImpl => "integrate-review-impl",
         }
+    }
+
+    /// The exact inverse of [`Kind::label`], derived from it rather than
+    /// hand-written, so the round-trip holds by construction. No aliases and no
+    /// error text — the two parse entry points above layer their own policy on
+    /// top of this one shared lookup.
+    fn from_label(s: &str) -> Option<Kind> {
+        Kind::ALL.into_iter().find(|k| k.label() == s)
+    }
+
+    /// Every label, backtick-quoted and comma-joined, for the `--kind` error.
+    /// Built from [`Kind::ALL`] so a new kind is listed the moment it exists.
+    fn label_list() -> String {
+        Kind::ALL
+            .iter()
+            .map(|k| format!("`{}`", k.label()))
+            .collect::<Vec<_>>()
+            .join(", ")
     }
 }
 
@@ -104,39 +207,105 @@ mod inline_tests {
     }
 
     #[test]
-    fn kind_parses_the_five_valid_labels_and_rejects_others() {
-        assert_eq!(Kind::parse("planning").unwrap(), Kind::Planning);
-        assert_eq!(Kind::parse("research").unwrap(), Kind::Research);
-        assert_eq!(Kind::parse("prototype").unwrap(), Kind::Prototype);
-        assert_eq!(Kind::parse("work").unwrap(), Kind::Work);
-        assert_eq!(Kind::parse("review").unwrap(), Kind::Review);
+    fn the_set_is_seventeen_distinct_kinds() {
+        // The count and the distinctness are the two things `ALL` can get wrong
+        // that the compiler cannot catch (a duplicated entry, a forgotten one
+        // paired with a duplicate). Spelled out against the spec's own figure.
+        assert_eq!(Kind::ALL.len(), 17);
+        let mut labels: Vec<&str> = Kind::ALL.iter().map(|k| k.label()).collect();
+        labels.sort_unstable();
+        let distinct = labels.len();
+        labels.dedup();
+        assert_eq!(
+            labels.len(),
+            distinct,
+            "two kinds share a label: {labels:?}"
+        );
+    }
+
+    #[test]
+    fn every_kind_label_round_trips_through_parse() {
+        for k in Kind::ALL {
+            assert_eq!(Kind::parse(k.label()).unwrap(), k);
+            assert_eq!(Kind::parse_read(k.label()), Some(k));
+        }
+    }
+
+    #[test]
+    fn the_labels_are_exactly_the_taxonomy_spellings() {
+        // Pinned verbatim: these strings are a public surface (task files on
+        // disk, env-var suffixes, `grove-llm kind` output), so a "harmless"
+        // rename must fail here rather than silently orphan a live grove.
+        let labels: Vec<&str> = Kind::ALL.iter().map(|k| k.label()).collect();
+        assert_eq!(
+            labels,
+            vec![
+                "requirements",
+                "design",
+                "planning",
+                "prototype",
+                "impl",
+                "research",
+                "combine-research",
+                "review-requirements",
+                "review-design",
+                "review-planning",
+                "review-prototype",
+                "review-impl",
+                "integrate-review-requirements",
+                "integrate-review-design",
+                "integrate-review-planning",
+                "integrate-review-prototype",
+                "integrate-review-impl",
+            ]
+        );
+    }
+
+    #[test]
+    fn kind_parse_rejects_unknown_labels() {
         assert!(Kind::parse("bogus").is_err());
         assert!(Kind::parse("").is_err());
+        // Near-misses that must not be smuggled in by a loose matcher.
+        assert!(
+            Kind::parse("review").is_err(),
+            "`review` is a family, not a kind"
+        );
+        assert!(Kind::parse("integrate-review").is_err());
+        assert!(Kind::parse("Impl").is_err(), "labels are lowercase");
     }
 
     #[test]
-    fn kind_parse_error_lists_all_five() {
+    fn kind_parse_error_lists_every_kind() {
         let err = Kind::parse("reserch").unwrap_err().to_string();
-        for label in ["planning", "research", "prototype", "work", "review"] {
-            assert!(err.contains(label), "error {err:?} missing {label:?}");
+        for k in Kind::ALL {
+            assert!(
+                err.contains(k.label()),
+                "error {err:?} missing {:?}",
+                k.label()
+            );
         }
     }
 
+    // The `work` → `impl` rename, both halves. The asymmetry *is* the decision
+    // (task-kind-taxonomy): read silently accepts the previous spelling so the
+    // six live groves whose task files say `work` keep working untouched; write
+    // refuses it so a human authoring a new leaf is retrained once.
     #[test]
-    fn kind_label_round_trips_through_parse() {
-        for k in [
-            Kind::Planning,
-            Kind::Research,
-            Kind::Prototype,
-            Kind::Work,
-            Kind::Review,
-        ] {
-            assert_eq!(Kind::parse(k.label()).unwrap(), k);
-        }
-        assert_eq!(Kind::Planning.label(), "planning");
-        assert_eq!(Kind::Research.label(), "research");
-        assert_eq!(Kind::Prototype.label(), "prototype");
-        assert_eq!(Kind::Work.label(), "work");
-        assert_eq!(Kind::Review.label(), "review");
+    fn work_reads_as_impl_but_is_refused_on_write() {
+        assert_eq!(Kind::parse_read("work"), Some(Kind::Impl));
+        let err = Kind::parse("work").unwrap_err().to_string();
+        assert!(
+            err.contains("impl"),
+            "the error must name the replacement: {err:?}"
+        );
+        assert!(err.contains("work"), "…and the word it replaces: {err:?}");
+    }
+
+    #[test]
+    fn parse_read_still_reports_a_genuinely_unknown_label() {
+        // The alias must not turn `parse_read` into "anything goes" — an
+        // unrecognised token still comes back `None`, so `read_kind` can warn.
+        assert_eq!(Kind::parse_read("reserch"), None);
+        assert_eq!(Kind::parse_read(""), None);
     }
 }

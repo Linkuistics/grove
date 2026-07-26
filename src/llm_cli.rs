@@ -64,17 +64,18 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Print a leaf's task **kind** — one of the closed five (`planning`,
-    /// `research`, `prototype`, `work`, `review` — ADR `task-kind-taxonomy`) —
-    /// read from its `**Kind:**` line. With no argument the kind is read for
-    /// `pick`'s next live leaf; on an empty grove it prints the standard "no
-    /// live leaves" diagnostic on stderr (mirroring `brief-chain`) and exits 0.
-    /// A missing or unrecognised `**Kind:**` line **degrades**: it warns on
-    /// stderr and prints `work` rather than erroring, so a hand-edited or
-    /// foreign task file can never jam the self-driving loop. The output is a
-    /// single lowercase token + newline. The self-driving loop calls this to
-    /// choose each session's launch model by the picked leaf's kind
-    /// (model-per-task-kind).
+    /// Print a leaf's task **kind** — one of the closed seventeen (ADR
+    /// `task-kind-taxonomy`; the set and each kind's discipline are
+    /// `docs/specs/task-kind-taxonomy.md`) — read from its `**Kind:**` line.
+    /// With no argument the kind is read for `pick`'s next live leaf; on an
+    /// empty grove it prints the standard "no live leaves" diagnostic on stderr
+    /// (mirroring `brief-chain`) and exits 0. A missing or unrecognised
+    /// `**Kind:**` line **degrades**: it warns on stderr and prints `impl`
+    /// rather than erroring, so a hand-edited or foreign task file can never jam
+    /// the self-driving loop. The previous spelling `work` resolves to `impl`
+    /// silently — it is not a degrade. The output is a single lowercase token +
+    /// newline. The self-driving loop calls this to choose each session's launch
+    /// harness and model by the picked leaf's kind (model-per-task-kind).
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
@@ -189,6 +190,23 @@ pub struct RootInitArgs {
     pub slug: String,
 }
 
+/// `--kind` help for the two verbs that *create* a leaf. One const rather than
+/// two hand-copied copies, and written **generatively** — the producers, then
+/// "each with its own `review-` and `integrate-review-` step" — because the
+/// point of a help string is to teach the shape of the set; the full seventeen
+/// are one `--kind reserch` away, from `Kind::parse`'s error.
+const KIND_HELP: &str = "Leaf kind (task-kind-taxonomy), written into the templated \
+`**Kind:**` line. Producers: requirements, design, planning, prototype, impl — each with \
+its own review-<producer> and integrate-review-<producer> step; plus research and \
+combine-research. An unrecognised value errors, listing all seventeen";
+
+/// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
+/// kind rather than supplying a default.
+const KIND_OVERRIDE_HELP: &str = "Override the first child's kind — one of the seventeen \
+(task-kind-taxonomy): requirements, design, planning, prototype, impl, each with its own \
+review-<producer> and integrate-review-<producer> step, plus research and \
+combine-research. Default: inherit the kind of the leaf being decomposed";
+
 #[derive(Parser)]
 pub struct LeafAddArgs {
     /// Parent node — `.` for the grove root, or a node by its key
@@ -196,10 +214,7 @@ pub struct LeafAddArgs {
     pub parent: String,
     /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
     pub slug: String,
-    /// Leaf kind — one of `planning`, `research`, `prototype`, `work`,
-    /// `review` (task-kind-taxonomy) — written into the templated `**Kind:**`
-    /// line. An unrecognised value errors, listing the five.
-    #[arg(long = "kind", default_value = "work")]
+    #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
 }
 
@@ -210,10 +225,7 @@ pub struct LeafInsertArgs {
     pub target: String,
     /// Slug for the new leaf (lowercase ASCII letters, digits, dashes).
     pub slug: String,
-    /// Leaf kind — one of `planning`, `research`, `prototype`, `work`,
-    /// `review` (task-kind-taxonomy) — written into the templated `**Kind:**`
-    /// line. An unrecognised value errors, listing the five.
-    #[arg(long = "kind", default_value = "work")]
+    #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
 }
 
@@ -224,10 +236,7 @@ pub struct LeafDecomposeArgs {
     /// Slug for the node's first child (lowercase ASCII letters, digits,
     /// dashes).
     pub first_child_slug: String,
-    /// Override the first child's kind — one of `planning`, `research`,
-    /// `prototype`, `work`, `review` (task-kind-taxonomy). Default: inherit
-    /// the leaf being decomposed's own kind.
-    #[arg(long = "kind")]
+    #[arg(long = "kind", help = KIND_OVERRIDE_HELP)]
     pub kind: Option<String>,
 }
 

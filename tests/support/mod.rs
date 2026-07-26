@@ -21,13 +21,49 @@ pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
     lock.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// The five task kinds' env-name suffixes and the three harnesses' names, in
-/// the same taxonomy the loop driver reads (src/loop_driver.rs KIND_SUFFIXES
-/// / harness::HARNESSES). Kept local rather than `use`d from the crate so
-/// this helper stays honest about *which* names it scrubs, independent of
-/// production wiring drifting under it unnoticed.
-const KINDS: [&str; 5] = ["PLANNING", "RESEARCH", "PROTOTYPE", "WORK", "REVIEW"];
+/// Every task-kind label, in taxonomy order (ADR `task-kind-taxonomy`;
+/// membership in `docs/specs/task-kind-taxonomy.md`) — the same strings a live
+/// task file's `**Kind:**` line carries, and what the env-var suffixes below are
+/// formed from. Spelled out here rather than reached for from the crate so
+/// these tests stay honest about *which* names they use, independent of
+/// production wiring drifting under them unnoticed.
+pub const KIND_LABELS: [&str; 17] = [
+    "requirements",
+    "design",
+    "planning",
+    "prototype",
+    "impl",
+    "research",
+    "combine-research",
+    "review-requirements",
+    "review-design",
+    "review-planning",
+    "review-prototype",
+    "review-impl",
+    "integrate-review-requirements",
+    "integrate-review-design",
+    "integrate-review-planning",
+    "integrate-review-prototype",
+    "integrate-review-impl",
+];
+
+/// Retired pre-rename kind suffixes. Not kinds — scrubbed only so a developer
+/// whose shell still exports `GROVE_WORK_MODEL` / `GROVE_REVIEW_HARNESS` (this
+/// repo dogfoods the routing envs) gets a hermetic run. `REVIEW` stops being
+/// vestigial in `family-fallback-k14`, which makes it a live *family* suffix.
+const RETIRED_KIND_SUFFIXES: [&str; 2] = ["WORK", "REVIEW"];
+
 const HARNESS_NAMES: [&str; 3] = ["CLAUDE", "CODEX", "PI"];
+
+/// A kind label's env-name suffix — uppercase, `-` → `_` — mirroring
+/// `loop_driver::env_suffix`, plus the retired spellings.
+fn kind_env_suffixes() -> Vec<String> {
+    KIND_LABELS
+        .iter()
+        .map(|l| l.to_uppercase().replace('-', "_"))
+        .chain(RETIRED_KIND_SUFFIXES.iter().map(|s| s.to_string()))
+        .collect()
+}
 
 /// The pane environment herdr places in every pane it spawns, which the driver
 /// now reads to report its state (herdr-optional-ui). Scrubbed for a blunt
@@ -46,9 +82,10 @@ const HERDR_PANE_ENV: [&str; 3] = ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE
 /// `Command::env_remove` — a `Command` does not isolate itself from the
 /// parent's ambient env just because some vars are set explicitly.
 pub fn grove_env_names() -> Vec<String> {
+    let suffixes = kind_env_suffixes();
     let mut names =
-        Vec::with_capacity(KINDS.len() * (2 + HARNESS_NAMES.len()) + HERDR_PANE_ENV.len());
-    for kind in KINDS {
+        Vec::with_capacity(suffixes.len() * (2 + HARNESS_NAMES.len()) + HERDR_PANE_ENV.len());
+    for kind in &suffixes {
         names.push(format!("GROVE_{kind}_MODEL"));
         names.push(format!("GROVE_{kind}_HARNESS"));
         for harness in HARNESS_NAMES {
@@ -115,10 +152,10 @@ impl EnvGuard {
         self
     }
 
-    /// Scrub the loop driver's whole routing/model-selection surface — 5
-    /// kinds × [base `GROVE_<KIND>_MODEL`, 3 harness-scoped
-    /// `GROVE_<HARNESS>_<KIND>_MODEL`] + 5 `GROVE_<KIND>_HARNESS` overrides,
-    /// 25 names — **plus the 3 [`HERDR_PANE_ENV`] vars**, so a loop under test
+    /// Scrub the loop driver's whole routing/model-selection surface —
+    /// [`KINDS`] × [base `GROVE_<KIND>_MODEL`, 3 harness-scoped
+    /// `GROVE_<HARNESS>_<KIND>_MODEL`, `GROVE_<KIND>_HARNESS`], 95 names —
+    /// **plus the 3 [`HERDR_PANE_ENV`] vars**, so a loop under test
     /// cannot report into the developer's own herdr pane. Every loop_driver
     /// test needs this: this branch's own dogfooded `~/.zshenv` (and the loop
     /// driver's own launch, for a session running these tests under itself)

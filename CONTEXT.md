@@ -117,9 +117,17 @@ its `set_hook_authority_at` lets the identity owner veto a differently-sourced
 state report, and clears the identity record on every accepted one. Both
 behaviours are gated on `session_ref.is_some()` by the patch. grove never sends a
 `session_ref`, so it reports state without disturbing the harness's session
-resume. Shipped from `linkuistics/taps` as upstream's version plus a local
-suffix, tracked closely against upstream, and offered upstream as a `fix:` PR;
-if it lands, the carry ends. See ADR *herdr-optional-ui*.
+resume. Shipped from `linkuistics/taps` as upstream's version plus
+**`-linkuistics.<seq>`** — a sequence incrementing per ship and resetting when
+upstream's version bumps, because a commit sha does not order and Homebrew needs
+ordering to see an upgrade. Carried on **two** fork branches with different jobs:
+`authority-fix` off `upstream/master` holding *only* the fix (the PR branch, kept
+pure), and `ui-layout` as the ship branch, which takes the fix by **merge** so it
+never needs a force-push. Tracked closely against upstream, and offered upstream
+as a `fix:` PR; if it lands, the carry ends. See ADR *herdr-optional-ui*.
+_Avoid_: reading `herdr --version` to tell which build is installed — it prints
+bare upstream `0.7.5` either way, since the suffix is Homebrew's, not Cargo's.
+Check the Cellar path or `brew list --versions`.
 _Avoid_: "grove joins herdr's authority allowlist" — verified false. Allowlist
 membership is a *stricter* path, not a fast lane: an allowlisted report must
 pass `route_full_lifecycle_hook_report`, which needs the label to parse to the

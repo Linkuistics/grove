@@ -38,13 +38,27 @@ execution`, `da40b1aa ci: gate pull request review by scope`). `AntonyBlakey` is
 Re-read the current templates and policy before drafting — they are days old
 and may have moved again.
 
+**The PR branch already exists.** `herdr-authority-patch-k9` pushed
+`AntonyBlakey/herdr@authority-fix`, branched off `upstream/master` and carrying
+exactly one commit — the two hunks plus two tests, 1 file, +74/−2, message
+already written in `fix:` form with the CLI reproduction in its body. Submit from
+that branch; do **not** submit from `ui-layout`, which also carries the two
+unsubmitted `feat:` commits and would blow the scope gate. Rebase it onto current
+`upstream/master` first if upstream has moved, and re-run the suite with the
+build-environment settings the node brief records (`ZIG`, toolchain pin) — the
+`pre-commit` hook needs them.
+
 ## Done when
 
 - A PR is open upstream, titled about like
   `fix: separate session identity from lifecycle state in hook reports`, with:
   - the reproduction (`herdr pane report-agent` against a pane whose session is
-    owned by `herdr:claude` — report silently dropped, CLI exit 0, `revision`
-    unchanged);
+    owned by `herdr:claude` — report silently dropped, CLI exit 0, the pane's
+    `agent` and `agent_status` unchanged). **Do not cite `revision`** as the
+    dropped-report evidence, as earlier notes in this node did: `revision`
+    tracks `report_metadata` token changes only and never moves for a state
+    report, landed or dropped, so a maintainer would rightly reject it as the
+    wrong field. `k9` measured the correct observables;
   - the argument stated as a **bug**, not as a grove feature request. herdr
     conflates two separable concerns, and the fix helps every third-party
     reporter. Naming grove as the motivating case is honest and fine; framing

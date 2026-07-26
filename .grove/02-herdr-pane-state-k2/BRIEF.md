@@ -101,6 +101,71 @@ Two corrections that brief made, worth keeping in front of anyone working here:
   is alive. What remains is a different problem — grove's authority never
   expires — which is handled by releasing on exit, not by a latch guard.
 
+## Shipped state (established by `herdr-authority-patch-k9`)
+
+The patch is landed, shipped, and **measured working end-to-end**. What `03`
+can now assume, and what it must not:
+
+- **Fork layout — two branches, deliberately.** `authority-fix` is off
+  `upstream/master` and carries *only* the fix (one commit, +74/−2, one file):
+  that is `herdr-upstream-pr-k10`'s PR branch, kept pure. `ui-layout` is the
+  **ship** branch and reached the same content by **merge**, not rebase, so it
+  fast-forwards from `origin/ui-layout` and never needs a force-push. Both are
+  pushed. Recurring-rebase discipline is therefore: rebase `authority-fix` onto
+  new `upstream/master`, then merge it into `ui-layout`.
+- **Shipped as `0.7.5-linkuistics.1`.** Suffix scheme is upstream's version plus
+  `-linkuistics.<seq>`, `<seq>` incrementing per ship and resetting when upstream
+  bumps — a sequence, not a sha, because shas do not compare. **Gotcha, measured
+  against Homebrew's own `Version`:** the one-time move from `-uilayout.<sha>`
+  sorts as a *downgrade* (`linkuistics` < `uilayout` alphabetically), so that
+  transition needs `brew reinstall`; later `<seq>` bumps upgrade normally.
+- **`herdr --version` cannot tell you which build is installed** — it prints
+  bare `0.7.5` for both, since the suffix is Homebrew's, not Cargo's. Use the
+  Cellar path (`readlink -f $(which herdr)`) or `brew list --versions`.
+
+**Correction to this brief's own `revision` claim.** The measured findings below
+say a landed report advances `revision` 0→1, and `k9`'s "Done when" repeated it.
+**That is wrong on current upstream**: `revision` is incremented only by
+`report_metadata` token changes (`src/app/api/panes.rs`, in the `token_changed`
+closure). A landed *state* report does not touch it. The observables that do
+change are **`agent`** (→ the reported label) and **`agent_status`** (→ the
+reported state). `03` must not wait on `revision` to confirm its own reports.
+
+**Measured live**, A/B on one scratch pane whose session identity is owned by
+`herdr:claude`/`claude`, same CLI command, differing only in which server was
+listening — old unpatched server vs new patched one:
+
+| report | old server | new server |
+|---|---|---|
+| `grove`/`working` | dropped, exit 0, no change | `agent=grove`, `agent_status=working` |
+| `grove`/`blocked` | — | lands (**latching hazard dissolved**) |
+| `grove`/`idle` | — | lands; surfaces as `done` (herdr's `idle && !seen`) |
+| `release-agent` | — | authority cleared, back to screen detection |
+
+`agent_session` stayed `herdr:claude/claude:test-sess-0001` through **every**
+step including release — hunk 2 verified: grove never disturbs session-resume.
+
+**The running server is still the old binary.** herdr's server process predates
+the install, and the patch lives in the server's `state.rs`, so on the live
+session grove's reports are *still* dropped until herdr is restarted. Restarting
+kills every pane, so it is the human's call, not an agent's. Until then, `03`
+can be written and unit-tested but not confirmed against the daily herdr.
+
+**Build environment** (cost real time; both are traps):
+- `ZIG=/opt/homebrew/opt/zig@0.15/bin/zig` is **required** — the default
+  `/opt/homebrew/bin/zig` is 0.16 and the vendored `libghostty-vt` refuses it.
+- `PATH="$HOME/.cargo/bin:$PATH"` is required so rustup honours the repo's
+  `rust-toolchain.toml` pin (1.96.1). Homebrew's cargo is 1.97 and invents two
+  clippy failures in files the patch never touches. herdr's `pre-commit` hook
+  runs `just lint`, so both must be set for `git commit` to succeed.
+- Two herdr tests are **flaky upstream**, independent of the patch:
+  `workspace::…::generated_workspace_ids_are_short_base32_handles` and
+  `api::server::pane_graphics_stream::…::inactive_owner_cancels_idle_stream_…`.
+  Both pass in isolation and fail in a full run. Verified identical on unpatched
+  `upstream/master` (baseline 2850 pass / 1 fail → patched 2852 / 1: exactly the
+  two new tests added, zero regressions). Run with `--test-threads=1`; a default
+  parallel run flakes ~12 tests on *either* tree.
+
 ## Decomposition
 
 Position order encodes dependency.
@@ -109,8 +174,10 @@ Position order encodes dependency.
   fork, general fix in its minimal form, precedence not full authority, release
   on catchable exits, upstream PR on a separate non-blocking track.
 - `02` **herdr-authority-patch** — land the two hunks on the fork, test them,
-  ship via `linkuistics/taps`. Blocks `03`: until a patched herdr is running,
-  no report is accepted in any configuration, so the reporter cannot be verified.
+  ship via `linkuistics/taps`. *Done.* Shipped as `0.7.5-linkuistics.1`. See
+  *Shipped state* below — including the one thing still standing between `03`
+  and an end-to-end verification: the **running** herdr server predates the
+  patch and must be restarted.
 - `03` **report-plumbing** — the driver-side reporter: transport, the four
   report sites, the state mapping, release-on-exit (including signal handling
   the driver lacks), tests.

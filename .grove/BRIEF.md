@@ -26,8 +26,9 @@ Position order encodes dependency and value-first sequencing.
 
 - `02` **herdr-pane-state** — driver-level state reporting. Harness-agnostic:
   the driver is the parent process whatever it spawned, so this needs no hooks
-  and no per-harness work. Smallest slice that fixes the headline complaint, and
-  it proves the socket path end-to-end.
+  and no per-harness work. Now a node: measurement showed the unforked
+  mechanism is vetoed by herdr (see `## Notes`), so `02/01` settles the route
+  and `02/02` builds the reporter to match.
 - `03` **harness-on-leaf** — planning. Move harness selection from per-grove env
   (`GROVE_<KIND>_HARNESS`) onto the leaf, so a node can sequence work across
   vendors (impl → review → integrate). Independent of `02`.
@@ -70,9 +71,19 @@ out of herdr's source at planning time and belong to a repo we do not control �
 - A state report whose `agent` label parses to a *different known agent* than the
   one herdr detected is **silently dropped**. Reporting an **unrecognised** label
   (e.g. `grove`) bypasses that gate, and also prevents a screen-detected blocker
-  from overriding the report — which appears to give de-facto exclusive authority
-  with no fork changes. **Hypothesis from reading the reducer, not measured**;
-  `02` should measure it.
+  from overriding the report. Both halves **measured true** by `02` — but they
+  are not sufficient, and the conclusion drawn from them was wrong:
+- **De-facto unforked authority does not exist.** A *third* gate,
+  `current_session_owner_conflicts`, drops any report whose `(source, agent)`
+  differs from whoever owns the pane's **session identity** — and that owner is
+  the harness's own herdr integration, at every SessionStart. The
+  session-identity-only integrations dismissed above as inert are exactly what
+  locks grove out. Worse, a report that lands *before* the owner appears
+  **latches**: the pane pins at grove's last-accepted state and never moves
+  again. Measured live against 0.7.5 by `02`; full detail and `state.rs` line
+  references in `02-herdr-pane-state-k2/BRIEF.md`. This fired
+  *herdr-optional-ui*'s own reopening condition for the fork option, which
+  `02/01-herdr-authority-route-k7` now settles.
 - Full lifecycle authority is a **compiled-in allowlist** of seven
   `(source, agent)` pairs. Nothing reachable from outside the binary — a plugin
   included — can join it. This is why the plugin owns UI only, never state.

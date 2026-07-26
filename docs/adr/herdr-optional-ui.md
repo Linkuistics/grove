@@ -42,13 +42,17 @@ change to grove's contract, not a feature, and it is not this decision.
   duplicates on the wire what `.grove/` already holds, adds a reporting
   obligation to every tree mutation, and drifts the moment a verb forgets to
   report. Still fine as a thin display-only garnish on the pane's sidebar row.
-- **Fork herdr to make grove a first-class agent.** Rejected for now. herdr's
-  *full lifecycle authority* is a compiled-in allowlist of `(source, agent)`
-  pairs, so joining it genuinely requires a fork or an upstream PR — but
-  reporting an unrecognised agent label appears to give the same practical
-  result unforked, because a screen-detected blocker can only override a hook
-  report whose label parses to the *detected* agent. Reopened if that turns out
-  to be false, or if upstream would take the pair.
+- **Fork herdr to make grove a first-class agent.** herdr's *full lifecycle
+  authority* is a compiled-in allowlist of `(source, agent)` pairs, so joining
+  it genuinely requires a fork or an upstream PR. This was rejected on the
+  reading that an unrecognised agent label gives the same practical result
+  unforked — and **reopened, because measurement showed it does not**. The label
+  does bypass both gates that reading identified, but a third one,
+  `current_session_owner_conflicts`, drops any report whose `(source, agent)`
+  differs from the pane's session-identity owner — which the harness's own herdr
+  integration claims at every SessionStart. There is no unforked way through it,
+  and a report that lands before the owner appears latches the pane at a stale
+  state. Measured live against herdr 0.7.5; the route is being settled now.
 - **herdr as execution substrate** (panes per leaf, sequencing over the socket).
   Rejected as a spine change, not a feature — see above. Reopened only as a
   deliberate amendment to the constraints, with constraint 6 restated.

@@ -94,5 +94,5 @@ install) and from upstream `state.rs`/`detect/mod.rs` at
 `47104169`. herdr moves fast, and the root brief's version of this same finding
 was already stale by the time it was read.
 
-**Scope guard**: intra-session turn boundaries are `04-herdr-turn-hooks-k4`.
+**Scope guard**: intra-session turn boundaries are `herdr-turn-hooks-k4`.
 This leaf is only about which *agent* herdr thinks a grove pane is running.

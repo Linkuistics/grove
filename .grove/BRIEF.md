@@ -31,16 +31,21 @@ Position order encodes dependency and value-first sequencing.
   *herdr-optional-ui*), then patch → reporter. **Done.** Its fourth leaf, the
   upstream PR, was abandoned: grove does not contribute upstream. The reporter
   is shipped and tested; what it cannot reach — intra-turn state — is `04`.
-- `03` **harness-on-leaf** — planning. Move harness selection from per-grove env
-  (`GROVE_<KIND>_HARNESS`) onto the leaf, so a node can sequence work across
-  vendors (impl → review → integrate). Independent of `02`.
-- `04` **herdr-turn-hooks** — intra-session turn boundaries, per harness.
+- `03` **task-kind-taxonomy** — now a node. Opened as `harness-on-leaf`
+  (planning): move harness selection from per-grove env onto the leaf. The
+  grilling reframed it — the sequencing problem was a *taxonomy* problem, not a
+  harness-location one — so it is now the five-kind → seventeen-kind rework plus
+  both routing axes. Its brief carries the design. Independent of `02`.
+- `04` **herdr-notes-reverify** — re-verify this brief's herdr Notes and the
+  fork-maintenance spec against the fork's current state, once, ahead of the
+  three leaves that depend on them. A separate workstream has moved the fork.
+- `05` **herdr-turn-hooks** — intra-session turn boundaries, per harness.
   Refines `02`; claude first (cleanest injection), codex and pi after.
-- `05` **herdr-grove-plugin** — the plugin. Depends only on the `.grove/`
+- `06` **herdr-grove-plugin** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow `02` at any point.
-- `06` **jj-first-coverage** — the jj path is primary in code but untested, and
+- `07` **jj-first-coverage** — the jj path is primary in code but untested, and
   the docs still lead with git.
-- `07` **herdr-pane-misdetection** — planning. grove panes are labelled with the
+- `08` **herdr-pane-misdetection** — planning. grove panes are labelled with the
   wrong agent; upstreaming is closed, so the route is ours to pick (grove-side,
   fork-side, or accept). Last because grove's own reports mask it whenever grove
   holds authority. Independent of everything above.

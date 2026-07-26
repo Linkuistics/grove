@@ -42,7 +42,7 @@ option; the recommendation is the fourth.
 1. **Do nothing unforked; ship the reporter disabled by default.** Honest, no
    herdr change, no risk of latching. But it delivers nothing the root brief's
    "Done when" asks for, so it is really a decision to abandon this node and
-   let `05-herdr-grove-plugin-k5` carry the whole integration.
+   let `herdr-grove-plugin-k5` carry the whole integration.
 2. **Win the ownership race.** Have the driver claim the pane's session identity
    as `grove`/`grove` *before* launching the first harness session. Measured to
    work on a fresh pane — and it then vetoes the harness's own SessionStart

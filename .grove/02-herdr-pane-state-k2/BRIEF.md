@@ -185,7 +185,7 @@ outrank what earlier leaves here recorded:
   grove as `idle` → herdr's derived `done` — the headline bug, restored. The full
   table is now in ADR *herdr-optional-ui*.
 - **The mid-turn HITL stall is not closed by this node**, and genuinely needs
-  `04-herdr-turn-hooks-k4`. The driver's whole vocabulary is session-start /
+  `herdr-turn-hooks-k4`. The driver's whole vocabulary is session-start /
   session-end; it sees no turn boundaries. A session waiting on a question reads
   **`working`** — strictly better than `done` (no false green on the tab
   rollup), but not `blocked`. `04` inherits exactly this gap, and nothing else:

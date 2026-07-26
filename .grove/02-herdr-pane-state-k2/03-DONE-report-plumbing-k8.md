@@ -56,7 +56,7 @@ Full reasoning is in `01-DONE-herdr-authority-route-k7.md`'s `## Decisions
   exists to fix. Note that the driver cannot see intra-session turn boundaries;
   what it *can* see is that a session ended without a signal. Whether that is
   sufficient for the "stalled overnight on a question" case, or whether it
-  genuinely needs `04-herdr-turn-hooks-k4`, is worth stating plainly in this
+  genuinely needs `herdr-turn-hooks-k4`, is worth stating plainly in this
   leaf rather than papering over.
 - A no-signal exit lumps together a crash, a deliberate Ctrl-C, and `/exit`. If
   the driver can separate them from the child's exit status or terminating

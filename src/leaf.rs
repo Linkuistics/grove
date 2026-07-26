@@ -23,6 +23,42 @@ use anyhow::{bail, Result};
 /// write, with an error naming the replacement — see [`Kind::parse`].
 const WORK_ALIAS: &str = "work";
 
+/// A **routing family** — a set of kinds one env var configures as a group
+/// (`model-per-task-kind`). Exactly two exist, and deliberately so: the five
+/// `review-*` kinds and the five `integrate-review-*` kinds are each a set the
+/// user configures *as a set* ("reviews go to codex"), which is what makes
+/// resolving through a family a within-discipline lookup rather than the
+/// across-discipline fallback that same ADR rejects. The other seven kinds
+/// stand alone.
+///
+/// A family is an **env-var concept only**: it is never a leaf's `**Kind:**`
+/// value, which is why `Kind::parse` refuses `review` and `read_kind` degrades
+/// it. Do not add a third without a live case behind it (constraint 4) — every
+/// family multiplies the precedence table that has to stay testable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Family {
+    Review,
+    IntegrateReview,
+}
+
+impl Family {
+    /// Both families, for the routing sweeps that must see every configurable
+    /// suffix — validation, the "is anything configured" gates, and pre-flight.
+    /// `Kind::ALL`'s counterpart: a sweep written over one and not the other is
+    /// precisely how a family var comes to be silently ignored.
+    pub const ALL: [Family; 2] = [Family::Review, Family::IntegrateReview];
+
+    /// The family's label, in the same lowercase-and-hyphens spelling as
+    /// [`Kind::label`] — the env-var suffixes are formed from both by one
+    /// shared transform, so they cannot disagree on case or separator.
+    pub fn label(self) -> &'static str {
+        match self {
+            Family::Review => "review",
+            Family::IntegrateReview => "integrate-review",
+        }
+    }
+}
+
 /// A leaf's declared session kind — a closed, **parameterised** set of
 /// seventeen (ADR `task-kind-taxonomy`): five producers, each with its own
 /// `review-` and `integrate-review-` step, plus `research` and
@@ -85,6 +121,41 @@ impl Kind {
         Kind::IntegrateReviewPrototype,
         Kind::IntegrateReviewImpl,
     ];
+
+    /// The kind's [`Family`], or `None` for the seven that stand alone. The
+    /// second half of routing's "specific beats general" rule: a kind with a
+    /// family resolves its own var first, then the family's
+    /// (`model-per-task-kind`).
+    ///
+    /// Written as an exhaustive `match` rather than derived from the label,
+    /// for two reasons the label direction cannot supply. First, the compiler
+    /// forces an eighteenth kind to *declare* its family instead of inheriting
+    /// one by accident of spelling. Second, the two family labels overlap as
+    /// strings — `integrate-review-impl` contains `review` — so any
+    /// substring/prefix derivation is one loose matcher away from routing every
+    /// integration step through the review family's var. A `match` cannot make
+    /// that mistake; the inline tests pin both halves anyway.
+    pub fn family(self) -> Option<Family> {
+        match self {
+            Kind::Requirements
+            | Kind::Design
+            | Kind::Planning
+            | Kind::Prototype
+            | Kind::Impl
+            | Kind::Research
+            | Kind::CombineResearch => None,
+            Kind::ReviewRequirements
+            | Kind::ReviewDesign
+            | Kind::ReviewPlanning
+            | Kind::ReviewPrototype
+            | Kind::ReviewImpl => Some(Family::Review),
+            Kind::IntegrateReviewRequirements
+            | Kind::IntegrateReviewDesign
+            | Kind::IntegrateReviewPlanning
+            | Kind::IntegrateReviewPrototype
+            | Kind::IntegrateReviewImpl => Some(Family::IntegrateReview),
+        }
+    }
 
     /// Write gates (task-kind-taxonomy): a grow verb rejects an unrecognised
     /// `--kind` with an error listing the whole set, so a typo is caught at
@@ -299,6 +370,97 @@ mod inline_tests {
             "the error must name the replacement: {err:?}"
         );
         assert!(err.contains("work"), "…and the word it replaces: {err:?}");
+    }
+
+    // The families, and the one grouping that a loose matcher gets wrong.
+    // `integrate-review-impl` *contains* `review`, so a `contains`-style
+    // derivation resolves every integration step through the review family's
+    // var — silently sending `GROVE_REVIEW_HARNESS=codex`'s reviewer to run the
+    // integration it was supposed to hand back. Spelled out per kind rather
+    // than looped, because the point is the membership itself.
+    #[test]
+    fn each_review_kind_is_in_review_and_each_integration_in_integrate_review() {
+        for k in [
+            Kind::ReviewRequirements,
+            Kind::ReviewDesign,
+            Kind::ReviewPlanning,
+            Kind::ReviewPrototype,
+            Kind::ReviewImpl,
+        ] {
+            assert_eq!(k.family(), Some(Family::Review), "{}", k.label());
+        }
+        for k in [
+            Kind::IntegrateReviewRequirements,
+            Kind::IntegrateReviewDesign,
+            Kind::IntegrateReviewPlanning,
+            Kind::IntegrateReviewPrototype,
+            Kind::IntegrateReviewImpl,
+        ] {
+            assert_eq!(k.family(), Some(Family::IntegrateReview), "{}", k.label());
+        }
+    }
+
+    #[test]
+    fn the_seven_standalone_kinds_have_no_family() {
+        for k in [
+            Kind::Requirements,
+            Kind::Design,
+            Kind::Planning,
+            Kind::Prototype,
+            Kind::Impl,
+            Kind::Research,
+            Kind::CombineResearch,
+        ] {
+            assert_eq!(k.family(), None, "{} must stand alone", k.label());
+        }
+        // The count matters as much as the membership: the spec's routing
+        // arithmetic (about nine vars for full coverage) is seven standalone
+        // kinds plus two family vars.
+        assert_eq!(Kind::ALL.iter().filter(|k| k.family().is_none()).count(), 7);
+    }
+
+    // The `match` above is free to disagree with the labels, and nothing in the
+    // compiler would notice. This is the tie: a kind's family label must be
+    // exactly its own label's leading segment, so the env-var pair a user sees
+    // (`GROVE_INTEGRATE_REVIEW_IMPL_HARNESS` / `GROVE_INTEGRATE_REVIEW_HARNESS`)
+    // always reads as the specific-then-general pair it is.
+    #[test]
+    fn a_kinds_family_label_prefixes_its_own_label() {
+        for k in Kind::ALL {
+            let Some(f) = k.family() else { continue };
+            assert!(
+                k.label().starts_with(&format!("{}-", f.label())),
+                "{} is in family {} but does not read as one of its members",
+                k.label(),
+                f.label()
+            );
+        }
+    }
+
+    // Longest match, stated as the property that makes it necessary: the two
+    // family labels are not disjoint as strings, so membership can never be
+    // decided by "which family label appears in this kind's label".
+    #[test]
+    fn the_family_labels_overlap_which_is_why_membership_is_not_a_string_test() {
+        assert!(Family::IntegrateReview
+            .label()
+            .contains(Family::Review.label()));
+        assert_eq!(
+            Kind::IntegrateReviewImpl.family(),
+            Some(Family::IntegrateReview),
+            "the longer family wins; naive matching would say review"
+        );
+    }
+
+    #[test]
+    fn a_family_label_is_never_a_kind() {
+        // Families exist only as env-var suffixes. If one ever parsed as a
+        // kind, `--kind review` would start writing leaves that route to
+        // themselves.
+        for f in Family::ALL {
+            assert!(Kind::parse(f.label()).is_err(), "{}", f.label());
+            assert_eq!(Kind::parse_read(f.label()), None, "{}", f.label());
+        }
     }
 
     #[test]

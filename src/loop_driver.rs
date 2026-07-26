@@ -30,6 +30,14 @@
 //       # An empty $kind (empty grove) yields GROVE__MODEL, i.e. no --model.
 //       suffix=$(printf '%s' "$kind" | tr 'a-z-' 'A-Z_')
 //       eval model="\$GROVE_${suffix}_MODEL"
+//       # …then the family var, for the ten kinds that have one. Note the
+//       # longest family matches first — INTEGRATE_REVIEW_IMPL is not a REVIEW.
+//       case "$suffix" in
+//         INTEGRATE_REVIEW_*) fam=INTEGRATE_REVIEW ;;
+//         REVIEW_*)           fam=REVIEW ;;
+//         *)                  fam= ;;
+//       esac
+//       [ -n "$model" ] || [ -z "$fam" ] || eval model="\$GROVE_${fam}_MODEL"
 //       [ -n "$model" ] && set -- --model "$model" "$prompt" || set -- "$prompt"
 //       GROVE_SIGNAL_FILE="$sig" "$harness_bin" "$@" &
 //       pid=$!
@@ -472,48 +480,103 @@ fn harness_bin(harness: &Harness, rerouted: bool) -> String {
         .unwrap_or_else(|| harness.exec_bin.to_string())
 }
 
-/// A kind's env-name suffix: its label uppercased with `-` mapped to `_`
-/// (`review-impl` ⇒ `REVIEW_IMPL`). Derived from `Kind::label` rather than
-/// tabulated beside it, so the seventeen suffixes cannot drift from the
-/// seventeen labels — the failure mode being a var name the user writes
-/// correctly and grove never reads. The grammar is unambiguous because harness
-/// names and kind labels share no token (`docs/specs/task-kind-taxonomy.md`).
-fn env_suffix(kind: Kind) -> String {
-    kind.label().to_uppercase().replace('-', "_")
+/// A kind or family label's env-name suffix: uppercased with `-` mapped to `_`
+/// (`review-impl` ⇒ `REVIEW_IMPL`, `integrate-review` ⇒ `INTEGRATE_REVIEW`).
+/// Derived from `Kind::label`/`Family::label` rather than tabulated beside
+/// them, so the nineteen suffixes cannot drift from the nineteen labels — the
+/// failure mode being a var name the user writes correctly and grove never
+/// reads. The grammar is unambiguous because harness names, kind labels and
+/// family labels share no token (`docs/specs/task-kind-taxonomy.md`).
+fn env_suffix(label: &str) -> String {
+    label.to_uppercase().replace('-', "_")
 }
 
-/// The model value for a kind on a harness: the harness-scoped var
-/// (`GROVE_<HARNESS>_<KIND>_MODEL`) beats the base (`GROVE_<KIND>_MODEL`) —
-/// but only when `harness` is the one the grove is stamped to (`!rerouted`).
-/// Scoped because one shared value cannot serve two harnesses — a codex
-/// profile name is garbage to pi and vice versa (B2) — and that is exactly
-/// what a reroute puts at risk: the base var was written with *some* harness
-/// in mind (typically the stamped one), so once a per-kind override sends
-/// this kind to a *different* harness, the base var must not follow it there.
-/// A rerouted launch with no scoped var set gets no `--model` at all, never
-/// the base var's value.
+/// A kind's env-name suffixes **in precedence order along the kind axis**: its
+/// own, then its family's when it has one (`REVIEW_IMPL`, then `REVIEW`). The
+/// single statement of "specific beats general" on that axis — both routing
+/// axes read this list rather than restating the order, so the harness var and
+/// the model var cannot come to disagree about what beats what.
+///
+/// A kind with no family yields one suffix and resolves exactly as it did
+/// before families existed.
+fn kind_suffixes(kind: Kind) -> Vec<String> {
+    let mut suffixes = vec![env_suffix(kind.label())];
+    if let Some(family) = kind.family() {
+        suffixes.push(env_suffix(family.label()));
+    }
+    suffixes
+}
+
+/// Every env-name suffix routing can be configured under: the seventeen kinds
+/// plus the two families. The sweeps that must not miss the family half —
+/// validation, the "is anything configured at all" gates, and pre-flight — all
+/// iterate this rather than `Kind::ALL`, because a sweep written over kinds
+/// alone is exactly how `GROVE_REVIEW_HARNESS` comes to be accepted, never
+/// validated, and never read.
+fn all_routing_suffixes() -> Vec<String> {
+    Kind::ALL
+        .iter()
+        .map(|k| env_suffix(k.label()))
+        .chain(
+            crate::leaf::Family::ALL
+                .iter()
+                .map(|f| env_suffix(f.label())),
+        )
+        .collect()
+}
+
+/// The model value for a kind on a harness — the four-key lattice, resolved
+/// **harness-major** (`model-per-task-kind`):
+///
+/// 1. `GROVE_<HARNESS>_<KIND>_MODEL`
+/// 2. `GROVE_<HARNESS>_<FAMILY>_MODEL`
+/// 3. `GROVE_<KIND>_MODEL`
+/// 4. `GROVE_<FAMILY>_MODEL`
+///
+/// The harness axis outranks the kind axis because the two are different
+/// *kinds* of constraint. Crossing the harness axis can yield a value that is
+/// not merely less specific but **invalid** for the binary being launched — a
+/// codex profile name is garbage to pi (B2) — while a family's model is less
+/// specific yet still the user's own choice, and still valid. Kind-major
+/// ordering would let a set harness-scoped family var lose to an unscoped
+/// exact-kind var written with a different harness in mind, which is the
+/// precise failure the harness axis exists to prevent.
+///
+/// A **rerouted** launch (`harness` is not the one the grove is stamped to)
+/// consults no unscoped var at all: the lattice truncates to keys 1–2, and a
+/// reroute with neither set gets no `--model`, never the base var's value.
+/// Harness-major ordering is what makes that a truncation of one ordering
+/// rather than a switch to a different one.
 fn model_for(harness: &Harness, kind: Kind, rerouted: bool) -> Option<String> {
     let h = harness.name.to_uppercase();
-    let s = env_suffix(kind);
-    let scoped = env_nonempty(&format!("GROVE_{h}_{s}_MODEL"));
+    let suffixes = kind_suffixes(kind);
+    let scoped = suffixes
+        .iter()
+        .find_map(|s| env_nonempty(&format!("GROVE_{h}_{s}_MODEL")));
     if rerouted {
         return scoped;
     }
-    scoped.or_else(|| env_nonempty(&format!("GROVE_{s}_MODEL")))
+    scoped.or_else(|| {
+        suffixes
+            .iter()
+            .find_map(|s| env_nonempty(&format!("GROVE_{s}_MODEL")))
+    })
 }
 
 /// Whether any model env var (scoped-to-this-harness or base) is set — the
-/// gate that keeps the common unconfigured path a zero-subprocess launch.
+/// gate that keeps the common unconfigured path a zero-subprocess launch. The
+/// two family suffixes count: a config whose *only* model var is
+/// `GROVE_REVIEW_MODEL` must still make the kind peek worth a subprocess, or
+/// the one line the family axis exists to enable would select nothing.
 ///
-/// This sweeps `2 × 17` env lookups per launch now rather than `2 × 5`; still
+/// This sweeps `2 × 19` env lookups per launch now rather than `2 × 5`; still
 /// far below the cost of the subprocess it exists to avoid. Not worth
 /// optimising: `required-model-vars-k18` deletes this gate outright, because a
 /// var that is *required* must be checked on every iteration and there is
 /// nothing left for a short-circuit to decide.
 fn any_model_env(harness: &Harness) -> bool {
     let h = harness.name.to_uppercase();
-    Kind::ALL.into_iter().any(|k| {
-        let s = env_suffix(k);
+    all_routing_suffixes().into_iter().any(|s| {
         env_nonempty(&format!("GROVE_{h}_{s}_MODEL")).is_some()
             || env_nonempty(&format!("GROVE_{s}_MODEL")).is_some()
     })
@@ -539,45 +602,92 @@ fn checked_harness_override(suffix: &str) -> Result<Option<&'static Harness>> {
 
 /// The per-kind harness override: `GROVE_<KIND>_HARNESS` names the harness
 /// that runs leaves of that kind, whatever the grove is stamped to
-/// (`GROVE_REVIEW_IMPL_HARNESS=codex` sends code reviews to codex).
+/// (`GROVE_REVIEW_IMPL_HARNESS=codex` sends code reviews to codex), falling
+/// back to the family var (`GROVE_REVIEW_HARNESS`) so one line covers all five
+/// of a family's kinds.
+///
+/// Two keys, not four: scoping a *harness* choice by harness is meaningless,
+/// so this axis has only the kind dimension the [`kind_suffixes`] order
+/// already states.
 fn harness_override(kind: Kind) -> Result<Option<&'static Harness>> {
-    checked_harness_override(&env_suffix(kind))
-}
-
-/// Whether any per-kind harness override is set — like `any_model_env`, the
-/// gate that decides whether the kind peek is worth a subprocess.
-fn any_harness_override_env() -> bool {
-    Kind::ALL
-        .into_iter()
-        .any(|k| env_nonempty(&format!("GROVE_{}_HARNESS", env_suffix(k))).is_some())
-}
-
-/// Validate every `GROVE_<KIND>_HARNESS` override up front, not just the
-/// picked leaf's kind — a typo in a var for a *different* kind (e.g.
-/// `GROVE_PLANNING_HARNESS=lemur` while today's leaf is `impl`) would
-/// otherwise pass silently and only surface hours later, once a planning leaf
-/// is finally picked. `any_harness_override_env` already sweeps every kind to
-/// decide whether routing applies at all, so validating them here too is
-/// nearly free.
-fn validate_all_harness_overrides() -> Result<()> {
-    for kind in Kind::ALL {
-        checked_harness_override(&env_suffix(kind))?;
+    for suffix in kind_suffixes(kind) {
+        if let Some(harness) = checked_harness_override(&suffix)? {
+            return Ok(Some(harness));
+        }
     }
-    Ok(())
+    Ok(None)
+}
+
+/// Whether any harness override is set, kind or family — like `any_model_env`,
+/// the gate that decides whether the kind peek is worth a subprocess. Missing
+/// the family suffixes here would be silent and total: a grove configured with
+/// `GROVE_REVIEW_HARNESS=codex` alone would skip the peek, never route, and
+/// look exactly like one that had been configured correctly.
+fn any_harness_override_env() -> bool {
+    all_routing_suffixes()
+        .into_iter()
+        .any(|s| env_nonempty(&format!("GROVE_{s}_HARNESS")).is_some())
+}
+
+/// Every harness override the environment actually sets, as
+/// `(var name, what it routes, harness)` — the shared reader behind
+/// [`validate_all_harness_overrides`] and [`preflight_check`]. Sweeping the
+/// *vars* rather than the kinds is what lets both see a family var that no
+/// kind currently resolves through (every member overriding it individually),
+/// which is still a configured route to a harness and still worth failing on.
+fn configured_harness_overrides() -> Result<Vec<(String, String, &'static Harness)>> {
+    let mut found = Vec::new();
+    for kind in Kind::ALL {
+        let suffix = env_suffix(kind.label());
+        if let Some(harness) = checked_harness_override(&suffix)? {
+            found.push((
+                format!("GROVE_{suffix}_HARNESS"),
+                // The kind's own label, not the suffix lowercased — the two
+                // differ on every hyphenated kind (`REVIEW_IMPL` would print
+                // as `review_impl`, which is not a kind anyone can write).
+                kind.label().to_string(),
+                harness,
+            ));
+        }
+    }
+    for family in crate::leaf::Family::ALL {
+        let suffix = env_suffix(family.label());
+        if let Some(harness) = checked_harness_override(&suffix)? {
+            found.push((
+                format!("GROVE_{suffix}_HARNESS"),
+                format!("{}-*", family.label()),
+                harness,
+            ));
+        }
+    }
+    Ok(found)
+}
+
+/// Validate every harness override up front, not just the picked leaf's kind —
+/// a typo in a var for a *different* kind (e.g. `GROVE_PLANNING_HARNESS=lemur`
+/// while today's leaf is `impl`) would otherwise pass silently and only
+/// surface hours later, once a planning leaf is finally picked. The same holds
+/// for a family var, which is worse: it is the var a user is most likely to set
+/// exactly once and never look at again.
+/// `any_harness_override_env` already sweeps every suffix to decide whether
+/// routing applies at all, so validating them here too is nearly free.
+fn validate_all_harness_overrides() -> Result<()> {
+    configured_harness_overrides().map(|_| ())
 }
 
 /// Pre-flight: verify every harness this grove's launch might actually need
 /// resolves to a real binary — the stamped harness, plus any harness named by
-/// a configured per-kind override (`GROVE_<KIND>_HARNESS`) — before `do_grove`
-/// commits to anything (harness-spawn-preflight-k8). Checking only the
-/// stamped harness let a rerouted-but-uninstalled one (e.g.
-/// `GROVE_REVIEW_HARNESS=pi` against a codex-stamped grove with no `pi`
-/// installed) pass pre-flight, run happily for however long, and only die
-/// mid-loop the moment a leaf of that kind was finally picked. Each harness
-/// is resolved through [`harness_bin`] — the same effective-binary lookup
-/// `launch_session` actually execs — so a `GROVE_HARNESS_BIN` /
-/// `GROVE_HARNESS_BIN_<NAME>` test-seam override pointing at a nonexistent
-/// path is caught here too, not just a harness with no override at all.
+/// a configured override, per-kind (`GROVE_<KIND>_HARNESS`) or per-family
+/// (`GROVE_<FAMILY>_HARNESS`) — before `do_grove` commits to anything
+/// (harness-spawn-preflight-k8). Checking only the stamped harness let a
+/// rerouted-but-uninstalled one (e.g. `GROVE_REVIEW_HARNESS=pi` against a
+/// codex-stamped grove with no `pi` installed) pass pre-flight, run happily
+/// for however long, and only die mid-loop the moment a leaf of that kind was
+/// finally picked. Each harness is resolved through [`harness_bin`] — the same
+/// effective-binary lookup `launch_session` actually execs — so a
+/// `GROVE_HARNESS_BIN` / `GROVE_HARNESS_BIN_<NAME>` test-seam override pointing
+/// at a nonexistent path is caught here too, not just a harness with no
+/// override at all.
 pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
     let stamped_bin = harness_bin(stamped, false);
     if !crate::harness::exec_bin_on_path(&stamped_bin) {
@@ -588,25 +698,19 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
             stamped.name
         );
     }
-    validate_all_harness_overrides()?;
-    for kind in Kind::ALL {
-        let suffix = env_suffix(kind);
-        let Some(overridden) = checked_harness_override(&suffix)? else {
-            continue;
-        };
+    // Sweeps the configured *vars* (kinds and families alike), so this both
+    // validates every name — the unknown-harness case — and bin-checks every
+    // harness one of them could route to.
+    for (var, routes, overridden) in configured_harness_overrides()? {
         let rerouted = overridden.name != stamped.name;
         let bin = harness_bin(overridden, rerouted);
         if !crate::harness::exec_bin_on_path(&bin) {
             anyhow::bail!(
-                "GROVE_{suffix}_HARNESS={}: {} is not on PATH — install it before \
-                 this grove can run {} leaves on it (nothing was stamped; run \
-                 again once it's installed)",
+                "{var}={}: {} is not on PATH — install it before this grove can \
+                 run {routes} leaves on it (nothing was stamped; run again once \
+                 it's installed)",
                 overridden.name,
                 bin,
-                // The kind's own label, not the suffix lowercased — the two
-                // differ on every hyphenated kind (`REVIEW_IMPL` would print as
-                // `review_impl`, which is not a kind anyone can write).
-                kind.label(),
             );
         }
     }
@@ -614,13 +718,20 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
 }
 
 /// Resolve where and on what the next session launches: peek the picked
-/// leaf's kind (only when some routing env makes it matter), apply the
-/// per-kind harness override, then resolve the model against the
-/// *post-override* harness — so `GROVE_PI_REVIEW_MODEL` governs a review
-/// rerouted to pi, not the stamped harness's vars. Returns whether a reroute
-/// happened (`launch` differs from `stamped`), threaded through to
+/// leaf's kind (only when some routing env makes it matter), apply the harness
+/// override (its own kind's var, else its family's), then resolve the model
+/// against the *post-override* harness — so `GROVE_PI_REVIEW_MODEL` governs a
+/// review rerouted to pi, not the stamped harness's vars. Returns whether a
+/// reroute happened (`launch` differs from `stamped`), threaded through to
 /// `harness_bin`/`model_for` so neither lets a stamped-harness-scoped
 /// fallback leak into the rerouted launch.
+///
+/// The two axes are resolved in this order for a reason: the family fallback
+/// runs along the *kind* axis and must compose with the reroute rule rather
+/// than route around it. Falling back `review-impl` → `review` is fine at any
+/// point; falling back across harnesses once a reroute has happened is not, and
+/// `rerouted` is computed here — after the harness axis has settled, before the
+/// model axis is consulted — so the family fallback cannot open a hole in it.
 fn resolve_launch(
     stamped: &'static Harness,
     worktree: &Path,
@@ -654,11 +765,11 @@ fn resolve_launch(
             if any_harness_override_env() {
                 anyhow::bail!(
                     "grove: the next leaf's kind could not be determined (see the \
-                     diagnostic above), and a per-kind harness override \
-                     (GROVE_<KIND>_HARNESS) is configured — refusing to silently \
-                     launch on the stamped harness, which could run this leaf on \
-                     the wrong harness for the whole iteration. Fix `grove-llm kind` \
-                     and re-run."
+                     diagnostic above), and a harness override \
+                     (GROVE_<KIND>_HARNESS or GROVE_<FAMILY>_HARNESS) is \
+                     configured — refusing to silently launch on the stamped \
+                     harness, which could run this leaf on the wrong harness for \
+                     the whole iteration. Fix `grove-llm kind` and re-run."
                 );
             }
             return Ok((stamped, None, false));

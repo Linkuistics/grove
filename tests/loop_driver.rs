@@ -1540,6 +1540,403 @@ exit 0
     );
 }
 
+// ── The family axis (family-fallback-k14) ────────────────────────────────
+//
+// One variable states a policy covering all five kinds of a family:
+// `GROVE_REVIEW_HARNESS` / `GROVE_REVIEW_MODEL` govern every `review-*` leaf,
+// and the exact-kind var beats them. Driven through the whole-`grove do` seam
+// the spec names (docs/specs/task-kind-taxonomy.md, *Test seams*): the real
+// driver, a fake binary per vendor, assertions on the recorded argv.
+
+/// Drive the real loop over exactly one leaf of `kind`, with `vars` layered on
+/// a scrubbed environment. Run 1 takes the start path (planning by
+/// construction — fresh-grove-start-contract), materialises the leaf and
+/// signals; run 2 takes the continue path over that leaf and stops without
+/// signalling. Returns one `(harness, argv)` row per launch, so a case can
+/// assert both *which* harness ran the leaf and *what* model flag it carried.
+///
+/// All three harnesses are wired to their own fake binary through the
+/// per-harness `GROVE_HARNESS_BIN_<NAME>` seam, so a reroute is *observed* in
+/// the row's first field rather than inferred from the flags. The caller holds
+/// `ENV_LOCK`; the guard this sets up lives only for the call, which is why
+/// each case reads its rows before configuring the next one.
+fn loop_over_one_leaf(stamped: &str, kind: &str, vars: &[(&str, &str)]) -> Vec<(String, String)> {
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    assert!(
+        std::process::Command::new("git")
+            .arg("init")
+            .arg("-q")
+            .current_dir(worktree)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let counter = worktree.join("counter");
+    let log = worktree.join("log");
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_TEST_KIND", kind);
+
+    for name in ["claude", "codex", "pi"] {
+        let fake = worktree.join(format!("fake-{name}.sh"));
+        write_exec(
+            &fake,
+            &format!(
+                r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+printf '{name}\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+if [ "$n" -eq 1 ]; then
+  mkdir -p "$PWD/.grove"
+  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
+  printf '# a-k1\n\n**Kind:** %s\n' "$GROVE_TEST_KIND" > "$PWD/.grove/01-a-k1.md"
+  : > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#
+            ),
+        );
+        env.set(&format!("GROVE_HARNESS_BIN_{}", name.to_uppercase()), &fake);
+    }
+
+    for (key, value) in vars {
+        env.set(key, value);
+    }
+
+    let result = loop_driver::run_loop(
+        harness::by_name(stamped).unwrap(),
+        worktree,
+        worktree,
+        "familygrove",
+    );
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<(String, String)> = log
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            let (h, argv) = l.split_once('\t').expect("the fake logs harness\\targv");
+            (h.to_string(), argv.to_string())
+        })
+        .collect();
+    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+    rows
+}
+
+// The claim the family axis exists to make good on: *one* line covers all five
+// kinds of a family. Without it the same policy would be written five times and
+// hand-kept in sync, and the seventeen-kind set would not pay for itself
+// (model-per-task-kind). All five, because "covers the family" is exactly the
+// property a per-kind implementation would satisfy for four of them.
+#[test]
+fn one_family_model_var_covers_every_kind_in_the_family() {
+    let _g = support::lock_env(&ENV_LOCK);
+    for kind in [
+        "review-requirements",
+        "review-design",
+        "review-planning",
+        "review-prototype",
+        "review-impl",
+    ] {
+        let rows = loop_over_one_leaf("claude", kind, &[("GROVE_REVIEW_MODEL", "sonnet")]);
+        assert!(
+            rows[1].1.contains("--model sonnet"),
+            "GROVE_REVIEW_MODEL must cover {kind} (argv: {:?})",
+            rows[1].1
+        );
+    }
+}
+
+// "Specific beats general" on the kind axis, at both scopes and on both vars.
+// The family var is the fallback, never the winner, whenever the exact kind is
+// configured alongside it — which has to hold *within* each scope, not only
+// between the unscoped pair, or the lattice's key 2 would swallow key 1.
+#[test]
+fn an_exact_kind_var_beats_its_family_var_on_both_axes() {
+    let _g = support::lock_env(&ENV_LOCK);
+
+    // Keys 1 vs 2 — both harness-scoped.
+    let rows = loop_over_one_leaf(
+        "claude",
+        "review-impl",
+        &[
+            ("GROVE_CLAUDE_REVIEW_IMPL_MODEL", "opus"),
+            ("GROVE_CLAUDE_REVIEW_MODEL", "sonnet"),
+        ],
+    );
+    assert!(
+        rows[1].1.contains("--model opus") && !rows[1].1.contains("sonnet"),
+        "GROVE_CLAUDE_REVIEW_IMPL_MODEL must beat GROVE_CLAUDE_REVIEW_MODEL \
+         (argv: {:?})",
+        rows[1].1
+    );
+
+    // Keys 3 vs 4 — both unscoped.
+    let rows = loop_over_one_leaf(
+        "claude",
+        "review-impl",
+        &[
+            ("GROVE_REVIEW_IMPL_MODEL", "opus"),
+            ("GROVE_REVIEW_MODEL", "sonnet"),
+        ],
+    );
+    assert!(
+        rows[1].1.contains("--model opus") && !rows[1].1.contains("sonnet"),
+        "GROVE_REVIEW_IMPL_MODEL must beat GROVE_REVIEW_MODEL (argv: {:?})",
+        rows[1].1
+    );
+
+    let rows = loop_over_one_leaf(
+        "claude",
+        "review-impl",
+        &[
+            ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
+            ("GROVE_REVIEW_HARNESS", "codex"),
+        ],
+    );
+    assert_eq!(
+        rows[1].0, "pi",
+        "GROVE_REVIEW_IMPL_HARNESS must beat GROVE_REVIEW_HARNESS"
+    );
+}
+
+// The user's actual configuration (this node's brief, *Notes*): the whole
+// policy layer is two lines — a family harness var and the matching
+// harness-scoped family model var — and everything else falls through to the
+// stamp. Also the only end-to-end exercise of lattice key 2
+// (`GROVE_<HARNESS>_<FAMILY>_MODEL`), which is the one key that has to survive
+// a reroute.
+#[test]
+fn the_two_line_review_policy_routes_a_review_leaf_by_family_alone() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "claude",
+        "review-design",
+        &[
+            ("GROVE_REVIEW_HARNESS", "codex"),
+            ("GROVE_CODEX_REVIEW_MODEL", "sol-high"),
+        ],
+    );
+    assert_eq!(
+        rows[0].0, "claude",
+        "planning has no family and stays on the stamped harness"
+    );
+    assert_eq!(rows[1].0, "codex", "the review leaf routes by its family");
+    assert!(
+        rows[1].1.contains("--profile sol-high"),
+        "a harness-scoped family model var must survive the reroute, under the \
+         *launching* harness's flag template (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// The two family labels overlap as strings — `integrate-review-impl` contains
+// `review` — so longest match wins. The second half of this test is the one
+// that fails under naive substring matching: with *only* the review family
+// configured, an integration leaf must resolve nothing at all, on either axis.
+#[test]
+fn integrate_review_resolves_to_its_own_family_never_to_review() {
+    let _g = support::lock_env(&ENV_LOCK);
+
+    let rows = loop_over_one_leaf(
+        "claude",
+        "integrate-review-impl",
+        &[
+            ("GROVE_REVIEW_MODEL", "reviewer-model"),
+            ("GROVE_INTEGRATE_REVIEW_MODEL", "integrator-model"),
+        ],
+    );
+    assert!(
+        rows[1].1.contains("--model integrator-model") && !rows[1].1.contains("reviewer-model"),
+        "an integration step must take its own family's model (argv: {:?})",
+        rows[1].1
+    );
+
+    let rows = loop_over_one_leaf(
+        "claude",
+        "integrate-review-impl",
+        &[
+            ("GROVE_REVIEW_MODEL", "reviewer-model"),
+            ("GROVE_REVIEW_HARNESS", "pi"),
+        ],
+    );
+    assert_eq!(
+        rows[1].0, "claude",
+        "the review family must not capture an integration leaf — it belongs to \
+         integrate-review, which is unconfigured here, so the leaf stays on the \
+         stamped harness"
+    );
+    assert!(
+        !rows[1].1.contains("--model"),
+        "…and picks up no model either (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// Harness-major, and the case that distinguishes it from kind-major: a
+// harness-scoped *family* var (lattice key 2) beats an unscoped *exact-kind*
+// var (key 3). Kind-major ordering would invert this and hand the launch a
+// value written with some other harness in mind — the precise failure the
+// harness axis exists to prevent (model-per-task-kind).
+#[test]
+fn a_harness_scoped_family_var_beats_an_unscoped_exact_kind_var() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "claude",
+        "review-impl",
+        &[
+            ("GROVE_CLAUDE_REVIEW_MODEL", "scoped-family"),
+            ("GROVE_REVIEW_IMPL_MODEL", "unscoped-kind"),
+        ],
+    );
+    assert!(
+        rows[1].1.contains("--model scoped-family") && !rows[1].1.contains("unscoped-kind"),
+        "the harness axis outranks the kind axis (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// The reroute rule and the family fallback run along different axes, and the
+// family fallback must compose with the reroute rule rather than open a hole
+// in it: falling back `review-impl` → `review` is fine, but the *unscoped*
+// family var is still a value written for some other harness (here a codex
+// profile name, garbage to pi) and must not follow the kind across a reroute.
+#[test]
+fn an_unscoped_family_model_var_does_not_survive_a_reroute() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let rows = loop_over_one_leaf(
+        "codex",
+        "review-impl",
+        &[
+            ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
+            ("GROVE_REVIEW_MODEL", "sol-high"),
+        ],
+    );
+    assert_eq!(rows[1].0, "pi", "the review leaf reroutes");
+    assert!(
+        !rows[1].1.contains("sol-high"),
+        "the unscoped family var must not cross the reroute; with no \
+         GROVE_PI_REVIEW_IMPL_MODEL or GROVE_PI_REVIEW_MODEL set, the rerouted \
+         leaf launches with no model at all (argv: {:?})",
+        rows[1].1
+    );
+}
+
+// A family var is the var a user is most likely to set exactly once and never
+// look at again, so a typo in one must fail at the very next launch — the same
+// contract `an_off_kind_harness_override_typo_is_caught_immediately` pins for
+// kind vars. The start path resolves straight to Planning, which has no family
+// and never consults this var at all.
+#[test]
+fn a_family_harness_override_typo_is_caught_immediately() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_INTEGRATE_REVIEW_HARNESS", "lemur");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "famtypogrove");
+
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("GROVE_INTEGRATE_REVIEW_HARNESS") && err.contains("lemur"),
+        "a typo in a family override must fail at the very next launch (err: {err})"
+    );
+}
+
+// Pre-flight resolves every harness a launch might need. A family var names a
+// harness exactly as a kind var does, so it must be pre-flighted the same way
+// — otherwise `GROVE_REVIEW_HARNESS=codex` with no codex installed sails
+// through and only dies once the first review leaf is finally picked, which is
+// the whole failure harness-spawn-preflight-k8 exists to close.
+#[test]
+fn preflight_check_catches_a_missing_family_override_binary() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+
+    let fake_claude = tmp.path().join("fake-claude.sh");
+    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
+    let missing_pi = tmp.path().join("no-such-pi");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_HARNESS_BIN_PI", &missing_pi)
+        .set("GROVE_REVIEW_HARNESS", "pi");
+
+    let err = loop_driver::preflight_check(stamped).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("GROVE_REVIEW_HARNESS"),
+        "diagnostic must name the override var (got: {msg:?})"
+    );
+    assert!(
+        msg.contains(&missing_pi.display().to_string()),
+        "diagnostic must name the missing binary (got: {msg:?})"
+    );
+    assert!(
+        msg.contains("review-*"),
+        "diagnostic must say the var covers a whole family, not one kind — a
+         reader who set one line should not be sent hunting for a per-kind var \
+         they never wrote (got: {msg:?})"
+    );
+}
+
+// An unknown harness name in a family var fails loudly at pre-flight too, not
+// only once a leaf of that family is picked.
+#[test]
+fn preflight_check_rejects_an_unknown_family_harness_name() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let fake_claude = tmp.path().join("fake-claude.sh");
+    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
+
+    let stamped = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake_claude)
+        .set("GROVE_REVIEW_HARNESS", "lemur");
+
+    let err = loop_driver::preflight_check(stamped).unwrap_err();
+    assert!(
+        err.to_string().contains("unknown harness"),
+        "an unknown family override name must fail loudly (got: {err})"
+    );
+}
+
 // B5: the legacy unscoped `GROVE_HARNESS_BIN` must not leak into a
 // per-kind-rerouted launch — once one loop can launch two harnesses, a
 // single global bin override is incoherent (it would exec the *stamped*

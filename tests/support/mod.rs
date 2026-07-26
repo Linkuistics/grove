@@ -47,19 +47,28 @@ pub const KIND_LABELS: [&str; 17] = [
     "integrate-review-impl",
 ];
 
-/// Retired pre-rename kind suffixes. Not kinds — scrubbed only so a developer
-/// whose shell still exports `GROVE_WORK_MODEL` / `GROVE_REVIEW_HARNESS` (this
-/// repo dogfoods the routing envs) gets a hermetic run. `REVIEW` stops being
-/// vestigial in `family-fallback-k14`, which makes it a live *family* suffix.
-const RETIRED_KIND_SUFFIXES: [&str; 2] = ["WORK", "REVIEW"];
+/// The two routing **families** (`model-per-task-kind`), which configure their
+/// five member kinds as a group. Not kinds — a leaf may never declare one — but
+/// a live env-var suffix in every way a kind's is: `GROVE_REVIEW_MODEL` and
+/// `GROVE_REVIEW_HARNESS` both route, so both have to be scrubbed, or a
+/// developer's own `GROVE_REVIEW_HARNESS=codex` would reroute review leaves
+/// inside tests that never asked for it.
+const FAMILY_LABELS: [&str; 2] = ["review", "integrate-review"];
+
+/// Retired pre-rename kind suffixes. Not kinds and not families — scrubbed only
+/// so a developer whose shell still exports `GROVE_WORK_MODEL` (this repo
+/// dogfoods the routing envs) gets a hermetic run.
+const RETIRED_KIND_SUFFIXES: [&str; 1] = ["WORK"];
 
 const HARNESS_NAMES: [&str; 3] = ["CLAUDE", "CODEX", "PI"];
 
-/// A kind label's env-name suffix — uppercase, `-` → `_` — mirroring
-/// `loop_driver::env_suffix`, plus the retired spellings.
+/// Every env-name suffix routing reads — uppercase, `-` → `_` — mirroring
+/// `loop_driver::all_routing_suffixes`: the seventeen kinds, the two families,
+/// plus the retired spellings.
 fn kind_env_suffixes() -> Vec<String> {
     KIND_LABELS
         .iter()
+        .chain(FAMILY_LABELS.iter())
         .map(|l| l.to_uppercase().replace('-', "_"))
         .chain(RETIRED_KIND_SUFFIXES.iter().map(|s| s.to_string()))
         .collect()
@@ -153,9 +162,10 @@ impl EnvGuard {
     }
 
     /// Scrub the loop driver's whole routing/model-selection surface —
-    /// [`KINDS`] × [base `GROVE_<KIND>_MODEL`, 3 harness-scoped
-    /// `GROVE_<HARNESS>_<KIND>_MODEL`, `GROVE_<KIND>_HARNESS`], 95 names —
-    /// **plus the 3 [`HERDR_PANE_ENV`] vars**, so a loop under test
+    /// ([`KIND_LABELS`] + [`FAMILY_LABELS`]) × [base `GROVE_<KIND>_MODEL`, 3
+    /// harness-scoped `GROVE_<HARNESS>_<KIND>_MODEL`, `GROVE_<KIND>_HARNESS`],
+    /// 95 live names plus the retired spellings — **plus the 3
+    /// [`HERDR_PANE_ENV`] vars**, so a loop under test
     /// cannot report into the developer's own herdr pane. Every loop_driver
     /// test needs this: this branch's own dogfooded `~/.zshenv` (and the loop
     /// driver's own launch, for a session running these tests under itself)

@@ -33,11 +33,16 @@ pub struct Harness {
     pub name_args: &'static [&'static str],
     /// CLI flag template for selecting the launch model (model-per-task-kind),
     /// parallel to `name_args`: *how* to pass a model is per-harness, while the
-    /// *value* comes from the picked leaf's kind's env var (one of
-    /// `GROVE_PLANNING_MODEL` / `GROVE_RESEARCH_MODEL` / `GROVE_PROTOTYPE_MODEL`
-    /// / `GROVE_WORK_MODEL` / `GROVE_REVIEW_MODEL`). For claude: `["--model"]`.
-    /// An **empty** template means "this harness opts out of model selection" —
-    /// the loop driver skips passing any model flag for it.
+    /// *value* comes from the picked leaf's kind, resolved through the
+    /// four-key `GROVE_*_MODEL` lattice (`loop_driver::model_keys`). For
+    /// claude: `["--model"]`.
+    ///
+    /// An **empty** template means "this harness opts out of model selection",
+    /// and is the one *harness-side* exemption from the rule that a kind
+    /// resolving no model var fails the launch: requiring a flag the harness
+    /// cannot pass would make it unlaunchable. Every harness currently in the
+    /// registry takes one, so the exemption is a contract of the type, not a
+    /// live configuration.
     pub model_args: &'static [&'static str],
 }
 

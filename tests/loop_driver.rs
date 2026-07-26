@@ -34,11 +34,43 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 // stop the loop before the session under test ever launched.
 const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
 
+// Model selection is **required** (model-per-task-kind, *A kind with no model
+// is a configuration error*): a picked leaf whose kind resolves no model var
+// fails the launch instead of inheriting the harness's own default. So every
+// fixture here has to configure the kinds its loop actually launches — for most
+// of them that is `planning` alone, since the start path is planning by
+// construction. That is **scaffolding, not intent**: these tests are about
+// kills, graces, prompts and signals, and the value below is deliberately
+// meaningless so a reader does not go looking for significance in it. The tests
+// that *are* about model selection name their own models.
+const SCAFFOLD_MODEL: &str = "scaffold-model";
+
 fn write_exec(path: &std::path::Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut perms = fs::metadata(path).unwrap().permissions();
     perms.set_mode(0o755);
     fs::set_permissions(path, perms).unwrap();
+}
+
+/// Create `dir` as a real git repo — the shape `grove-llm kind` needs to
+/// resolve a grove root at all.
+///
+/// Also scaffolding, and for the same reason: the kind peek used to be skipped
+/// entirely when no routing env was set, so a fixture whose loop reached the
+/// *continue* path never ran `grove-llm kind` and never needed to be a repo.
+/// The peek is unconditional now, and outside a repo it fails — which is a
+/// degraded peek, which refuses to launch.
+fn init_worktree(dir: &std::path::Path) {
+    fs::create_dir_all(dir).unwrap();
+    assert!(
+        std::process::Command::new("git")
+            .args(["init", "-q"])
+            .current_dir(dir)
+            .status()
+            .unwrap()
+            .success(),
+        "git init failed"
+    );
 }
 
 #[test]
@@ -63,7 +95,7 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
     fs::write(stale.join("continue.md"), "STALE CONTINUE").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
@@ -100,7 +132,11 @@ exit 0
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: only the first (start ⇒ planning) iteration needs a
+        // model at all — the two continue iterations peek an *empty* `.grove/`,
+        // which is the no-live-leaf exemption.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
 
@@ -188,7 +224,9 @@ exit 0
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: the single iteration is the start path ⇒ planning.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
 
@@ -267,7 +305,9 @@ fi
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.2");
+        .set("GROVE_KILL_GRACE_KILL", "0.2")
+        // Scaffolding: both loops run one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let repo_a_path = repo_a.path().to_path_buf();
     let repo_b_path = repo_b.path().to_path_buf();
@@ -351,7 +391,9 @@ exec sleep 30
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3");
+        .set("GROVE_KILL_GRACE_KILL", "0.3")
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let started = Instant::now();
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove");
@@ -382,8 +424,10 @@ fn driver_kills_a_hung_session_that_signalled_relaunch() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
 
+    // A repo, because iteration 2 takes the continue path and its kind peek is
+    // no longer skippable (see `init_worktree`).
     let worktree = repo_path.join(".grove-worktrees/killgrove2");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let counter = repo_path.join("counter");
 
@@ -418,7 +462,10 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3");
+        .set("GROVE_KILL_GRACE_KILL", "0.3")
+        // Scaffolding: iteration 1 is the start path ⇒ planning; iteration 2
+        // peeks an empty `.grove/` and needs nothing.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let started = Instant::now();
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove2");
@@ -487,7 +534,9 @@ exec sleep 1.5
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.2");
+        .set("GROVE_KILL_GRACE_KILL", "0.2")
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let started = Instant::now();
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove4");
@@ -567,7 +616,9 @@ done
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3");
+        .set("GROVE_KILL_GRACE_KILL", "0.3")
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let started = Instant::now();
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove3");
@@ -636,7 +687,9 @@ exec sleep 30
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_KILL_GRACE", "3.0")
-        .set("GROVE_KILL_GRACE_KILL", "0.3");
+        .set("GROVE_KILL_GRACE_KILL", "0.3")
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let started = Instant::now();
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove5");
@@ -886,42 +939,46 @@ exit 0
     );
 }
 
-// The load-bearing rule: with neither model env var set, the driver passes no
-// `--model` at all — byte-for-byte the pre-feature launch, so a user's own
-// `ANTHROPIC_MODEL`/settings default is never clobbered.
+// The load-bearing rule, **inverted** (required-model-vars-k18): a picked leaf
+// whose kind resolves no model var makes the launch fail, where it previously
+// launched with no `--model` and let the session inherit the user's own
+// default. The old rule never clobbered an existing default, which is true and
+// beside the point — falling through is still grove deciding which model runs a
+// `review-impl` leaf, just invisibly, and it leaves *partial* configuration
+// indistinguishable from complete configuration (model-per-task-kind).
+//
+// Two halves, both necessary. Nothing may launch — a session running on a model
+// chosen by omission is the state the requirement exists to make
+// unrepresentable. And the refusal must carry its own fix: the kind, plus every
+// var that would satisfy it. Driven over a **`review-impl`** leaf because it is
+// a kind *with a family*, so all four lattice keys exist for it and the error's
+// completeness is observable; a standalone kind would prove only half of it.
 #[test]
-fn loop_omits_model_flag_when_env_unset() {
+fn a_kind_with_no_model_var_fails_loudly_instead_of_launching() {
     let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
 
-    let skill_dir = repo_path.join("global-skill");
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        worktree.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** review-impl\n",
+    )
+    .unwrap();
+
+    let skill_dir = worktree.join("global-skill");
     let prompts = skill_dir.join("prompts");
     fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
 
-    let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    fs::create_dir_all(&worktree).unwrap();
-
-    let counter = repo_path.join("counter");
-    let log = repo_path.join("log");
-
-    // Fake claude: log full argv; create `.grove/` on the first run so the
-    // second run takes the continue path too (both paths must stay `--model`-free
-    // when the env is unset); stop after two iterations.
-    let fake = repo_path.join("fake-claude.sh");
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-claude.sh");
     write_exec(
         &fake,
         r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
 printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-mkdir -p "$PWD/.grove"
-if [ "$n" -lt 2 ]; then
-  : > "$GROVE_SIGNAL_FILE"
-fi
 exit 0
 "#,
     );
@@ -933,33 +990,47 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log);
 
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
+    let err = loop_driver::run_loop(harness, worktree, worktree, "nomodelgrove")
+        .expect_err("a kind resolving no model var must fail the launch")
+        .to_string();
 
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(
-        rows.len(),
-        2,
-        "loop should run twice then stop (log: {log:?})"
+    assert!(
+        err.contains("review-impl"),
+        "the error must name the kind that resolved nothing — it is what the \
+         operator has to go configure (err: {err})"
     );
-    for row in &rows {
+    for key in [
+        "GROVE_CLAUDE_REVIEW_IMPL_MODEL",
+        "GROVE_CLAUDE_REVIEW_MODEL",
+        "GROVE_REVIEW_IMPL_MODEL",
+        "GROVE_REVIEW_MODEL",
+    ] {
         assert!(
-            !row.contains("--model"),
-            "no env set ⇒ no --model flag (argv: {row:?})"
+            err.contains(key),
+            "the error must list every var that would satisfy the requirement — \
+             exact-kind and family, harness-scoped and unscoped — or it sends \
+             the operator hunting; missing {key} (err: {err})"
         );
     }
+    assert!(
+        !log.exists(),
+        "no session may launch: running on a model grove chose by omission is \
+         exactly what the requirement makes unrepresentable"
+    );
 }
 
-// T6: an *empty-string* model var must behave exactly like an unset one — a
-// blank `GROVE_IMPL_MODEL=` (e.g. from a shell template that didn't fill in a
-// value) must never reach the harness as a literal empty `--model`.
+// T6, carried across the inversion: an *empty-string* model var must still
+// behave exactly like an unset one — a blank `GROVE_PLANNING_MODEL=` (e.g. from
+// a shell template that never filled in a value) must never reach the harness
+// as a literal empty `--model`. What changed is only the consequence: "treated
+// as unset" now means the loud refusal above rather than a bare launch.
+//
+// The start path, so this covers the standalone-kind shape the sibling test
+// cannot: `planning` has no family, so its error lists two keys, not four.
 #[test]
-fn loop_omits_model_flag_when_env_is_empty_string() {
+fn an_empty_string_model_var_fails_loudly_like_an_unset_one() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
@@ -992,15 +1063,21 @@ exit 0
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_PLANNING_MODEL", "");
 
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
+    let err = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove")
+        .expect_err("an empty-string model var must fail exactly as an unset one does")
+        .to_string();
 
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let argv = fs::read_to_string(&log).unwrap();
     assert!(
-        !argv.contains("--model"),
-        "an empty-string model var must be treated as unset, never passed \
-         through as a literal empty --model (argv: {argv:?})"
+        err.contains("planning")
+            && err.contains("GROVE_PLANNING_MODEL")
+            && err.contains("GROVE_CLAUDE_PLANNING_MODEL"),
+        "the error must name the kind and both keys that would satisfy a \
+         standalone (family-less) kind (err: {err})"
+    );
+    assert!(
+        !log.exists(),
+        "an empty-string model var must never be passed through as a literal \
+         empty --model — and now must not launch at all"
     );
 }
 
@@ -1077,6 +1154,9 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
+        // Scaffolding for run 1 (start ⇒ planning); run 2 is the impl leaf
+        // this test is actually about.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
         .set("GROVE_IMPL_MODEL", "sol-high");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
@@ -1170,6 +1250,8 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
+        // Scaffolding for run 1 (start ⇒ planning).
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
         .set("GROVE_IMPL_MODEL", "moonshot/k3");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "pigrove");
@@ -1279,6 +1361,7 @@ exit 0
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_CLAUDE_IMPL_MODEL", "kimi-k3")
         .set("GROVE_IMPL_MODEL", "sonnet")
+        .set("GROVE_PLANNING_MODEL", "planning-base")
         .set("GROVE_PI_PLANNING_MODEL", "must-not-leak");
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "envgrove");
@@ -1289,14 +1372,16 @@ exit 0
     let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
     assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
 
-    // Start/planning: no CLAUDE planning override and no base planning var ⇒
-    // no --model. This is a structural guarantee, not a live-risk assertion —
-    // `model_for` only ever interpolates *this* harness's own name into the
-    // env-var it reads (src/loop_driver.rs `model_for`), so a pi-scoped var
-    // has no code path that could consult it; kept as documentation of that
-    // intent, alongside the genuinely discriminating precedence check below.
+    // Start/planning: the base planning var applies and the *pi*-scoped one
+    // does not. This is a structural guarantee, not a live-risk assertion —
+    // `model_keys` only ever interpolates *this* harness's own name into the
+    // env-vars it reads (src/loop_driver.rs), so a pi-scoped var has no code
+    // path that could consult it; kept as documentation of that intent,
+    // alongside the genuinely discriminating precedence check below. It could
+    // no longer be written as "no --model at all": that state is now a hard
+    // error, not a quiet launch (required-model-vars-k18).
     assert!(
-        !rows[0].contains("--model"),
+        rows[0].contains("--model planning-base") && !rows[0].contains("must-not-leak"),
         "another harness's scoped var must not select a model (argv: {:?})",
         rows[0]
     );
@@ -1448,10 +1533,14 @@ exit 0
 
 // B2: the harness-agnostic base var must not survive a reroute — a codex
 // profile name (or any value meant for the *stamped* harness) is garbage on
-// the harness a per-kind override reroutes to. Only the harness-scoped var
-// may supply a model once a reroute has happened; with it unset, the
-// rerouted leaf must launch with no `--model` at all, never the base var's
-// value.
+// the harness a per-kind override reroutes to. Only the harness-scoped var may
+// supply a model once a reroute has happened.
+//
+// What that means changed with required-model-vars-k18: the rerouted leaf used
+// to launch with no `--model` at all, and now fails loudly, because "resolves
+// nothing" is a configuration error wherever it happens. The test discriminates
+// exactly as sharply either way — a base var that *did* leak would launch pi on
+// `sol-high` instead of erroring — and the refusal is the louder of the two.
 #[test]
 fn base_model_var_does_not_survive_a_reroute() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -1514,13 +1603,27 @@ exit 0
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
+        // Scaffolding: run 1 is the start path ⇒ planning, which is not
+        // rerouted, so the unscoped var reaches the stamped codex.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
         // The base var — a codex profile name, meaningless to pi — with no
         // GROVE_PI_REVIEW_IMPL_MODEL set to beat it.
         .set("GROVE_REVIEW_IMPL_MODEL", "sol-high");
 
-    let result = loop_driver::run_loop(harness, worktree, worktree, "basemodelgrove");
+    let err = loop_driver::run_loop(harness, worktree, worktree, "basemodelgrove")
+        .expect_err("a reroute that resolves no harness-scoped model must fail")
+        .to_string();
 
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+    assert!(
+        err.contains("GROVE_PI_REVIEW_IMPL_MODEL"),
+        "the refusal must point at the *pi*-scoped keys, the only ones that can \
+         satisfy a rerouted launch (err: {err})"
+    );
+    assert!(
+        err.contains("rerouted"),
+        "…and must say why the base var the operator can plainly see set was \
+         declined rather than used (err: {err})"
+    );
 
     let log = fs::read_to_string(&log).unwrap();
     let rows: Vec<Vec<&str>> = log
@@ -1528,15 +1631,16 @@ exit 0
         .filter(|l| !l.is_empty())
         .map(|l| l.splitn(2, '\t').collect())
         .collect();
-    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
-
-    assert_eq!(rows[1][0], "pi", "review must reroute to pi");
+    assert_eq!(
+        rows.len(),
+        1,
+        "only the stamped planning session may have run — the rerouted review \
+         leaf must never launch (log: {log:?})"
+    );
     assert!(
-        !rows[1][1].contains("--model"),
+        !log.contains("sol-high"),
         "the base GROVE_REVIEW_IMPL_MODEL (a codex profile name) must not reach \
-         pi across a reroute — no scoped GROVE_PI_REVIEW_IMPL_MODEL means no \
-         --model at all (argv: {:?})",
-        rows[1][1]
+         pi across a reroute (log: {log:?})"
     );
 }
 
@@ -1552,15 +1656,26 @@ exit 0
 /// a scrubbed environment. Run 1 takes the start path (planning by
 /// construction — fresh-grove-start-contract), materialises the leaf and
 /// signals; run 2 takes the continue path over that leaf and stops without
-/// signalling. Returns one `(harness, argv)` row per launch, so a case can
-/// assert both *which* harness ran the leaf and *what* model flag it carried.
+/// signalling. Returns the loop's own outcome plus one `(harness, argv)` row
+/// per launch, so a case can assert *which* harness ran the leaf, *what* model
+/// flag it carried, **and** — since required-model-vars-k18 — whether it was
+/// allowed to launch at all.
 ///
 /// All three harnesses are wired to their own fake binary through the
 /// per-harness `GROVE_HARNESS_BIN_<NAME>` seam, so a reroute is *observed* in
 /// the row's first field rather than inferred from the flags. The caller holds
 /// `ENV_LOCK`; the guard this sets up lives only for the call, which is why
 /// each case reads its rows before configuring the next one.
-fn loop_over_one_leaf(stamped: &str, kind: &str, vars: &[(&str, &str)]) -> Vec<(String, String)> {
+///
+/// `GROVE_PLANNING_MODEL` is set here as scaffolding, before `vars`, so every
+/// case gets past run 1 without restating it: planning is never the kind under
+/// test in this section, and a case that wants a different planning model can
+/// still override it.
+fn drive_one_leaf(
+    stamped: &str,
+    kind: &str,
+    vars: &[(&str, &str)],
+) -> (Result<LoopOutcome, String>, Vec<(String, String)>) {
     let worktree_dir = TempDir::new().unwrap();
     let worktree = worktree_dir.path();
     assert!(
@@ -1614,6 +1729,7 @@ exit 0
         env.set(&format!("GROVE_HARNESS_BIN_{}", name.to_uppercase()), &fake);
     }
 
+    env.set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
     for (key, value) in vars {
         env.set(key, value);
     }
@@ -1623,10 +1739,10 @@ exit 0
         worktree,
         worktree,
         "familygrove",
-    );
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+    )
+    .map_err(|e| e.to_string());
 
-    let log = fs::read_to_string(&log).unwrap();
+    let log = fs::read_to_string(&log).unwrap_or_default();
     let rows: Vec<(String, String)> = log
         .lines()
         .filter(|l| !l.is_empty())
@@ -1635,8 +1751,31 @@ exit 0
             (h.to_string(), argv.to_string())
         })
         .collect();
-    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
+    (result, rows)
+}
+
+/// [`drive_one_leaf`] for the cases that must launch: asserts the loop ran both
+/// sessions and stopped normally, and hands back the two rows.
+fn loop_over_one_leaf(stamped: &str, kind: &str, vars: &[(&str, &str)]) -> Vec<(String, String)> {
+    let (result, rows) = drive_one_leaf(stamped, kind, vars);
+    let outcome = result.unwrap_or_else(|e| panic!("the loop must not fail here: {e}"));
+    assert_eq!(outcome, LoopOutcome::Stopped);
+    assert_eq!(rows.len(), 2, "loop should run twice (rows: {rows:?})");
     rows
+}
+
+/// [`drive_one_leaf`] for the cases that must **not** launch: asserts the loop
+/// refused, and hands back the refusal text alongside whatever did run before
+/// it — so a case can prove both that the error is diagnostic and that no
+/// session slipped through.
+fn refusal_over_one_leaf(
+    stamped: &str,
+    kind: &str,
+    vars: &[(&str, &str)],
+) -> (String, Vec<(String, String)>) {
+    let (result, rows) = drive_one_leaf(stamped, kind, vars);
+    let err = result.expect_err("this configuration must refuse to launch");
+    (err, rows)
 }
 
 // The claim the family axis exists to make good on: *one* line covers all five
@@ -1702,12 +1841,17 @@ fn an_exact_kind_var_beats_its_family_var_on_both_axes() {
         rows[1].1
     );
 
+    // The harness axis. The pi-scoped model is scaffolding: a rerouted launch
+    // consults only harness-scoped keys, and one that resolves none now
+    // refuses before it can be observed on either harness.
     let rows = loop_over_one_leaf(
         "claude",
         "review-impl",
         &[
             ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
             ("GROVE_REVIEW_HARNESS", "codex"),
+            ("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL),
+            ("GROVE_CODEX_REVIEW_MODEL", SCAFFOLD_MODEL),
         ],
     );
     assert_eq!(
@@ -1768,23 +1912,29 @@ fn integrate_review_resolves_to_its_own_family_never_to_review() {
         rows[1].1
     );
 
+    // The harness half. `GROVE_INTEGRATE_REVIEW_MODEL` is scaffolding — the
+    // leaf has to resolve *some* model to launch at all now — chosen so the
+    // model assertion still discriminates: if the review family captured this
+    // leaf on either axis, it would run on pi and/or `reviewer-model`.
     let rows = loop_over_one_leaf(
         "claude",
         "integrate-review-impl",
         &[
             ("GROVE_REVIEW_MODEL", "reviewer-model"),
             ("GROVE_REVIEW_HARNESS", "pi"),
+            ("GROVE_INTEGRATE_REVIEW_MODEL", "integrator-model"),
         ],
     );
     assert_eq!(
         rows[1].0, "claude",
         "the review family must not capture an integration leaf — it belongs to \
-         integrate-review, which is unconfigured here, so the leaf stays on the \
-         stamped harness"
+         integrate-review, which is unconfigured on the harness axis here, so \
+         the leaf stays on the stamped harness"
     );
     assert!(
-        !rows[1].1.contains("--model"),
-        "…and picks up no model either (argv: {:?})",
+        !rows[1].1.contains("reviewer-model"),
+        "…and takes nothing from the review family's model var either \
+         (argv: {:?})",
         rows[1].1
     );
 }
@@ -1817,10 +1967,16 @@ fn a_harness_scoped_family_var_beats_an_unscoped_exact_kind_var() {
 // in it: falling back `review-impl` → `review` is fine, but the *unscoped*
 // family var is still a value written for some other harness (here a codex
 // profile name, garbage to pi) and must not follow the kind across a reroute.
+//
+// With no `GROVE_PI_*` key to supply one instead, that leaves the rerouted leaf
+// resolving nothing — which is a refusal now rather than a bare launch
+// (required-model-vars-k18). The property under test is unchanged and the
+// discrimination is the same: a family var that *did* cross would launch pi on
+// a codex profile name instead of erroring.
 #[test]
 fn an_unscoped_family_model_var_does_not_survive_a_reroute() {
     let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
+    let (err, rows) = refusal_over_one_leaf(
         "codex",
         "review-impl",
         &[
@@ -1828,13 +1984,20 @@ fn an_unscoped_family_model_var_does_not_survive_a_reroute() {
             ("GROVE_REVIEW_MODEL", "sol-high"),
         ],
     );
-    assert_eq!(rows[1].0, "pi", "the review leaf reroutes");
     assert!(
-        !rows[1].1.contains("sol-high"),
-        "the unscoped family var must not cross the reroute; with no \
-         GROVE_PI_REVIEW_IMPL_MODEL or GROVE_PI_REVIEW_MODEL set, the rerouted \
-         leaf launches with no model at all (argv: {:?})",
-        rows[1].1
+        err.contains("GROVE_PI_REVIEW_IMPL_MODEL") && err.contains("GROVE_PI_REVIEW_MODEL"),
+        "the refusal must name the two pi-scoped keys — the whole lattice a \
+         rerouted launch has left (err: {err})"
+    );
+    assert_eq!(
+        rows.len(),
+        1,
+        "only the stamped planning session ran; the rerouted review leaf never \
+         launched (rows: {rows:?})"
+    );
+    assert!(
+        !rows.iter().any(|(_, argv)| argv.contains("sol-high")),
+        "the unscoped family var must not cross the reroute (rows: {rows:?})"
     );
 }
 
@@ -2017,7 +2180,12 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
+        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
+        // Scaffolding: run 1 is planning on the stamped codex, run 2 is the
+        // review leaf rerouted to pi — each needs a model to launch at all,
+        // and this test is about *which binary* runs, not which model.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
+        .set("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "binleakgrove");
 
@@ -2094,7 +2262,9 @@ exit 0
         .set("PATH", &path)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_HARNESS_BIN", "");
+        .set("GROVE_HARNESS_BIN", "")
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptybingrove");
 
@@ -2111,6 +2281,39 @@ exit 0
     );
 }
 
+/// A grove whose continue-path kind peek is guaranteed to degrade: a real tree
+/// with a live leaf, driven with `GROVE_LLM_BIN` pointing at a binary that does
+/// not exist, so the spawn itself fails (the `Err(e)` arm) rather than any
+/// parse or exit-code path. `vars` layers the scenario's own configuration.
+fn degraded_peek_error(vars: &[(&str, &str)]) -> String {
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        worktree.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** review-impl\n",
+    )
+    .unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", worktree.join("no-such-grove-llm"));
+    for (key, value) in vars {
+        env.set(key, value);
+    }
+
+    loop_driver::run_loop(
+        harness::by_name("codex").unwrap(),
+        worktree,
+        worktree,
+        "degradedgrove",
+    )
+    .expect_err("a degraded kind peek must refuse to launch")
+    .to_string()
+}
+
 // B6: a degraded kind peek (grove-llm missing/failing/unparseable) must not
 // silently cancel an active per-kind harness override by launching on the
 // stamped harness — that is exactly the "K3 reviews everywhere" invariant a
@@ -2120,43 +2323,44 @@ exit 0
 #[test]
 fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
     let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
+    let err = degraded_peek_error(&[
+        ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
+        ("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL),
+        ("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL),
+    ]);
     assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review-impl\n",
-    )
-    .unwrap();
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        // A nonexistent grove-llm binary: the spawn itself fails ⇒ a
-        // degraded peek (Err(e) arm), not a parse error.
-        .set("GROVE_LLM_BIN", worktree.join("no-such-grove-llm"))
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "degradedgrove");
-
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("harness override") && err.contains("stamped harness"),
+        err.contains("could not be determined") && err.contains("stamped harness"),
         "a degraded kind peek with an active harness override must fail \
          loudly rather than silently launching on the stamped harness \
          (err: {err})"
+    );
+}
+
+// The half of the degrade rule that required-model-vars-k18 inverted: a
+// degraded peek used to bail *only* when a harness override was configured, and
+// otherwise launched on the stamped harness with no model — on the argument
+// that "model selection is a nicety, a misroute is not". That asymmetry died
+// with the requirement: a model is not a nicety any more, so an undeterminable
+// kind can no longer be routed by guessing on *either* axis
+// (model-per-task-kind).
+//
+// The discriminating fixture is a config with **nothing routed at all** — no
+// harness override, no model var — which is precisely the case the old rule
+// let through, and which under the old *gate* would not even have reached the
+// peek.
+#[test]
+fn degraded_kind_peek_bails_even_with_nothing_configured() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let err = degraded_peek_error(&[]);
+    assert!(
+        err.contains("could not be determined"),
+        "a degraded peek must refuse whether or not anything is configured — \
+         the kind is what both axes key on (err: {err})"
+    );
+    assert!(
+        err.contains("model-per-task-kind"),
+        "…and must say which rule it is enforcing, since with nothing set the \
+         operator has no configuration to look at for a clue (err: {err})"
     );
 }
 
@@ -2335,7 +2539,9 @@ exit 0
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_PLANNING_HARNESS", "");
+        .set("GROVE_PLANNING_HARNESS", "")
+        // Scaffolding: the leaf still has to resolve a model to launch.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptyharnessgrove");
 
@@ -2558,7 +2764,11 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", &broken)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: the start path resolves to planning without consulting
+        // `grove-llm` at all, so the session still launches — which is the
+        // point of the test — and still needs a model to do so.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "unreadablegrove");
 
@@ -2695,7 +2905,9 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, worktree, worktree, "gitdirgrove");
 
@@ -2768,7 +2980,9 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, &worktree, &worktree, "linkedgrove");
 
@@ -2824,7 +3038,10 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: one start-path (planning) session per harness. The
+        // unscoped var covers both, since neither launch is rerouted.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     for name in ["claude", "pi"] {
         let harness = harness::by_name(name).unwrap();
@@ -2925,8 +3142,10 @@ fn a_finishing_loop_reports_working_per_task_then_idle_and_releases() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
 
+    // A repo: task 2 takes the continue path, whose kind peek is no longer
+    // skippable (see `init_worktree`).
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let sock = repo_path.join("herdr.sock");
     let herdr = fake_herdr(&sock);
@@ -2959,6 +3178,9 @@ exit 0
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
+        // Scaffolding: task 1 is the start path ⇒ planning; task 2 peeks an
+        // empty `.grove/` (the finish-cycle iteration, exempt by construction).
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
         .set("HERDR_ENV", "1")
         .set("HERDR_SOCKET_PATH", &sock)
         .set("HERDR_PANE_ID", "wQ:p1");
@@ -3023,6 +3245,8 @@ exit 0
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .set("GROVE_SKILL_DIR", &skill_dir)
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL)
         .set("HERDR_ENV", "1")
         .set("HERDR_SOCKET_PATH", &sock)
         .set("HERDR_PANE_ID", "wQ:p1");
@@ -3082,7 +3306,9 @@ exit 0
     env.clear_grove_env()
         .set("GROVE_HARNESS_BIN", &fake)
         .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir);
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        // Scaffolding: one start-path (planning) session.
+        .set("GROVE_PLANNING_MODEL", SCAFFOLD_MODEL);
 
     let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
     assert_eq!(
@@ -3179,6 +3405,9 @@ exec sleep 60
         .env("GROVE_HARNESS_BIN", &fake)
         .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
         .env("GROVE_SKILL_DIR", &skill_dir)
+        // Scaffolding: the committed tree's live leaf is `impl`, and the
+        // continue path now requires it to resolve a model.
+        .env("GROVE_IMPL_MODEL", SCAFFOLD_MODEL)
         .env("GROVE_KILL_GRACE", "0.2")
         .env("GROVE_KILL_GRACE_KILL", "0.3")
         .env("HERDR_ENV", "1")

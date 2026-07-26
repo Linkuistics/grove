@@ -28,10 +28,10 @@ difference.
 
 **Pruning is HITL.** An agent never prunes on its own. Abandoning planned work is a
 commitment-shaped decision, and the same guard applies as to the retire cascade's
-"ask before treating a node as done". An AFK session (`research` / `work` /
-`review`) that finds a leaf dead says so and stops; the loop stalling on an
-abandonment decision is the system working, not a fault (*task-kind-taxonomy*,
-HITL/AFK).
+"ask before treating a node as done". An AFK session — every kind but
+`requirements` and `prototype` — that finds a leaf dead says so and stops; the
+loop stalling on an abandonment decision is the system working, not a fault
+(*task-kind-taxonomy*, HITL/AFK).
 
 ## The durable record
 

@@ -1,16 +1,22 @@
-# grove owns a closed set of five task kinds, gated on write and degraded on read
+# grove owns a closed, parameterised set of task kinds, gated on write and degraded on read
 
 Every leaf task file declares a **kind** on its `**Kind:**` line, drawn from a
-closed set of five: `planning`, `research`, `prototype`, `work`, `review`. The set
-is closed — a sixth kind is a change to grove's code and docs, not a free-text
-label a leaf may coin. A kind earns its place only by carrying behaviour beyond a
-name: a distinct session discipline (`content/TASK-FORMAT.md`) and its own model
-bucket (*model-per-task-kind*).
+closed set. The set is closed — a new kind is a change to grove's code and docs,
+not a free-text label a leaf may coin. A kind earns its place only by carrying
+behaviour beyond a name: a distinct session discipline and its own model bucket
+(*model-per-task-kind*).
+
+The set is **parameterised, not flat**: five producers — `requirements`,
+`design`, `planning`, `prototype`, `impl` — each with its own `review-` and
+`integrate-review-` step, plus `research` and `combine-research`. Seventeen
+kinds. The membership, each kind's discipline, and its HITL/AFK mark are
+`docs/specs/task-kind-taxonomy.md`; this record owns only *why the set is closed
+and parameterised*, and how the enforcement is asymmetric.
 
 Only **`planning`** carries methodological force. It is the sole branch in the
-loop's Execute step, and the only kind that grows the tree. The other four are
-work-shaped sessions — they produce an artifact — differing in discipline, not in
-what the loop does with them.
+loop's Execute step, and the only kind that grows the tree. Every other kind is a
+producer of some artifact, differing in discipline, not in what the loop does
+with it.
 
 ## Why the set is closed
 
@@ -26,21 +32,52 @@ not one: constraint 3 governs the **task file's body**, which stays freeform
 markdown that nothing validates. The kind is a one-word declaration the CLI acts
 on.
 
+## Why the set is parameterised
+
+Closed does not have to mean small, and the count is not the thing being
+defended — the *earns-its-place* bar is. Parameterisation clears it because a
+review step is genuinely five different reads: judging whether a decomposition is
+made of vertical slices is not the same work as judging whether code is correct,
+and neither is judging whether a requirements list describes the human's actual
+need. The integrate steps clear it on a different axis — they share one triage
+discipline but differ in **what the session is permitted to change**, which runs
+from "edit code freely" to "edit what the human asked for", a change no session
+can make unilaterally.
+
+The cost is paid honestly: parameterisation grows the configuration surface to a
+ceiling of 95 env vars, and it means a `review-*` policy must be written five
+times unless routing can key on a *family*. That is why the family axis exists
+(*model-per-task-kind*) — without it, parameterisation would not pay for itself.
+
+**The set is closed but the patterns over it are not enforced.** grove does not
+validate that a `review-X` leaf follows an `X` leaf, because a grammar is a
+relation *between* leaves and grove expresses no such relation — the same
+principle that keeps "the reviewer must not be the author" out of grove. The
+patterns are documented conventions (`docs/specs/task-kind-taxonomy.md`).
+
 ## Gate on write, degrade on read
 
 The enforcement is deliberately **asymmetric**, and the asymmetry is the decision:
 
 - **Write gates.** `leaf-add` / `leaf-insert` / `leaf-decompose` reject an unknown
-  `--kind` with an error listing the five. A human is present at authoring time, so
+  `--kind` with an error listing the set. A human is present at authoring time, so
   catching `reserch` there is cheap and actionable.
 - **Read degrades.** An unrecognised `**Kind:**` line — hand-edited, or written by
-  a future grove version — emits a warning and is treated as `work`. Reading never
+  a future grove version — emits a warning and is treated as `impl`. Reading never
   errors.
 
 Read must degrade because the self-driving loop relaunches unattended: a task file
 with a typo would otherwise jam the loop, and grove guides rather than gates
 (constraint 5). Write may gate because gating there costs a human one retry, not a
 stalled loop.
+
+The same asymmetry decides the `work` → `impl` rename. `work` named both a member
+of the set and the category containing it, so it was renamed — but a live grove's
+task files must keep working. On **read**, `work` resolves silently to `impl`: it
+is the previous spelling, not a typo, and warning on a correct file is noise. On
+**write**, `--kind work` is refused with an error naming the replacement. No
+version gate, no deprecation window; the read alias is one line and `.grove/`
+trees are ephemeral, so it expires on its own.
 
 ## Considered options
 
@@ -49,28 +86,46 @@ stalled loop.
   it can meaningfully inherit, a typo becomes a silent new kind rather than an
   error, and the disciplines documented per kind become an unbounded set grove
   cannot describe. The closed set is what buys the inheritance and the defaults.
+- **A flat set — one `review`, one `integrate-review` (rejected).** Thirteen kinds
+  instead of seventeen, a smaller config surface, and no need for a family axis at
+  all. Rejected because the five reads are genuinely different disciplines, and
+  because the asymmetry costs more to explain than the four extra kinds cost to
+  carry: a set where producers are parameterised but their reviews are not leaves
+  `leaf-decompose`'s kind inheritance ambiguous at exactly the step where a review
+  proves oversized. The honest weak point is the integrate side, whose five
+  members share one triage discipline; they are kept because their *permissions*
+  differ, not their procedure.
+- **Enforcing the review chain as a grammar (rejected).** See *Why the set is
+  parameterised*. A non-blocking lint was costed as the middle option and rejected
+  too: it would fire on a tree the human deliberately shaped, demand no action,
+  and re-trigger on every `leaf-insert`.
 - **Upstream wayfinder's four types (rejected as a set).** `research` / `prototype`
   / `grilling` / `task` decompose *decision-reaching* work only — even wayfinder's
   `task` "earns its place by unblocking a decision, not by delivering the
-  destination." They are a decomposition of grove's `planning`, not a superset of
-  grove's binary: grove's `work` has no analogue there at all. grove takes
-  `research` and `prototype`, maps `grilling` onto `planning`, and drops `task` —
-  the tree already sequences prerequisites, so grove has no blocked-decision
-  concept for it to earn its place against. `review` is grove's own addition.
+  destination." They are a decomposition of grove's producer half, not a superset
+  of grove's set: grove's `impl` has no analogue there at all. grove takes
+  `research` and `prototype`, maps `grilling` onto `requirements`, and drops
+  `task` — the tree already sequences prerequisites, so grove has no
+  blocked-decision concept for it to earn its place against. The review and
+  integrate steps are grove's own addition.
 - **Keeping the `planning`/`work` binary (rejected).** Cheapest, but it forces
-  three genuinely different sessions — a citation-disciplined literature survey, a
-  deliberately throwaway spike, and a fresh-context adversarial read — to share one
-  label, one discipline, and one model bucket.
+  genuinely different sessions — a citation-disciplined literature survey, a
+  deliberately throwaway spike, a fresh-context adversarial read, and the triage
+  that follows one — to share one label, one discipline, and one model bucket.
 
 ## Consequences
 
-- Adding a sixth kind is a deliberate code change (`leaf::Kind`,
-  `content/TASK-FORMAT.md`, `--help`, README) rather than a leaf coining a word.
-  That friction is the point: a kind that cannot justify a discipline and a model
-  bucket should not exist.
-- Existing trees are unaffected — `work` and `planning` keep their labels and
-  meanings, and no leaf changes kind on its own.
-- Each kind is additionally marked **HITL** (`planning`, `prototype`) or **AFK**
-  (`research`, `work`, `review`) in `TASK-FORMAT.md`. This is documented guidance
-  with no machinery behind it: a HITL leaf reached by an unattended relaunch simply
-  waits for a human, which is correct behaviour, not a fault to engineer around.
+- Adding a kind is a deliberate code change (`leaf::Kind`,
+  `content/TASK-FORMAT.md`, `--help`, README, and the spec) rather than a leaf
+  coining a word. That friction is the point: a kind that cannot justify a
+  discipline and a model bucket should not exist.
+- **Grilling moves off `planning` and onto `requirements`.** `planning` keeps its
+  methodological force but no longer opens with an interrogation, so the loop's
+  Execute step and `content/SKILL.md` name `requirements` as the grilling kind.
+- Existing trees keep working without edits: `**Kind:** work` reads as `impl`, and
+  every other pre-existing label is unchanged.
+- Each kind is additionally marked **HITL** or **AFK**
+  (`docs/specs/task-kind-taxonomy.md`). This is documented guidance with no
+  machinery behind it, and the mark *predicts* rather than permits: any kind may
+  stop and ask a human, and a HITL leaf reached by an unattended relaunch simply
+  waits, which is correct behaviour, not a fault to engineer around.

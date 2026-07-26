@@ -1,141 +1,204 @@
-# The loop driver selects each session's launch model by the leaf's task kind
+# The loop driver routes each session by the leaf's task kind — which harness runs it, and which model it loads
 
-The self-driving loop launches each task's `claude` session on a model chosen by
-the picked leaf's **kind** (*task-kind-taxonomy*), so a grove can grill on a strong
-reasoning model, survey literature on a long-context one, and grind mechanical work
-on a cheaper/faster one. Selection uses Claude Code's **native `--model` flag** — no
-router, no proxy.
+The self-driving loop launches each task's session on a harness and a model
+chosen by the picked leaf's **kind** (*task-kind-taxonomy*), so a grove can grill
+on a strong reasoning model, survey literature on a long-context one, and send
+reviews to a different vendor entirely. Selection uses each harness's **native
+launch flags** — no router, no proxy.
+
+The slug names the model axis because that half came first; the record covers
+both, because the two axes share a resolution rule (the family axis below) and
+cannot be described coherently apart.
 
 ## Mechanism
 
 - **The driver peeks.** Before launching, the loop driver resolves the next live
   leaf's kind via `grove-llm kind [<leaf>]` (which reads the task file's
-  `**Kind:**` line), then launches `claude --model <model>` where `<model>` is the
-  env var for that kind. This keeps the loop stateless — the kind is re-derived
-  from the filesystem every iteration (self-driving-loop, constraint 1), matching
-  the driver's existing role of setting launch args (it already sets the session
-  name). An unrecognised kind degrades to `work` (*task-kind-taxonomy*), so a
-  hand-edited task file cannot jam the loop.
-- **One env var per kind.** `GROVE_PLANNING_MODEL`, `GROVE_RESEARCH_MODEL`,
-  `GROVE_PROTOTYPE_MODEL`, `GROVE_WORK_MODEL`, `GROVE_REVIEW_MODEL`, read at each
-  launch.
-- **Unset ⇒ no `--model` flag, and no fallback.** The session inherits the user's
-  own default (`ANTHROPIC_MODEL` / settings). This is the load-bearing rule:
-  because the selection priority is `--model` > `ANTHROPIC_MODEL` > settings
-  (Claude Code model-config docs), passing `--model` unconditionally would silently
-  clobber a user's own default. grove passes it **only when the user has opted in**
-  for that kind.
-- **Per-harness flag template.** The `Harness` struct carries a `model_args`
-  template (`claude: ["--model"]`), parallel to `name_args`, so *how* to pass a
-  model is per-harness while the *value* comes from the env var. claude is wired;
-  codex is best-effort/lazy (one grove runs one harness).
+  `**Kind:**` line), then routes on it. This keeps the loop stateless — the kind
+  is re-derived from the filesystem every iteration (*self-driving-loop*,
+  constraint 1), matching the driver's existing role of setting launch args (it
+  already sets the session name).
+- **Which harness: a policy, plus a per-leaf fact.** `GROVE_<KIND>_HARNESS` names
+  the harness that runs leaves of that kind, whatever the grove is stamped to.
+  Unset means the **stamped** harness — which is not a default but an explicit
+  binding recorded on disk. A leaf may additionally name its own harness, which
+  outranks the policy. Both exist because they answer different questions: the
+  env var is one rule for every grove and no tree knows about it ("reviews go to
+  codex, because that is what I pay for"), while a leaf-level declaration is a
+  fact about *one* leaf — this one goes elsewhere *because its sibling does not*.
+  That second case is not expressible as a kind→harness function at all: the
+  vendor pair runs the same kind on two vendors
+  (`docs/specs/task-kind-taxonomy.md`).
+- **Which model: four keys, harness-major.** `GROVE_<HARNESS>_<KIND>_MODEL`, then
+  `GROVE_<HARNESS>_<FAMILY>_MODEL`, then `GROVE_<KIND>_MODEL`, then
+  `GROVE_<FAMILY>_MODEL`. The harness axis outranks the kind axis because the two
+  are different kinds of constraint: the harness axis is a **correctness** axis (a
+  codex profile name is garbage to pi — crossing it yields a value that is invalid
+  for the binary, not merely suboptimal), while the kind axis is a **preference**
+  axis (a family's model is less specific but still the user's, and still valid).
+- **Routing keys on a family, not only the full kind.** Two families exist,
+  `review-*` and `integrate-review-*`; the other seven kinds stand alone. Without
+  a family axis, a seventeen-kind set would need the same one-line policy written
+  five times and hand-kept in sync, and the parameterised taxonomy would not pay
+  for itself (*task-kind-taxonomy*). This is not a new concept — grove already
+  runs *specific beats general* on the harness axis; the family axis extends the
+  same rule along the kind axis.
+- **A reroute consults no unscoped var.** When the launch harness differs from the
+  stamped one, neither the unscoped model keys nor a global binary override apply.
+  A base var was written with *some* harness in mind — typically the stamped
+  one — so it must not follow a kind to a different vendor. The lattice truncates
+  to the two harness-scoped keys.
+- **Per-harness flag template.** Each harness carries its own model-flag template
+  (claude and pi: `--model`; codex: `--profile`, because a codex profile binds
+  model *and* reasoning effort, which a bare model flag cannot express), parallel
+  to the session-name template. *How* to pass a model is per-harness; the *value*
+  comes from the env.
 - **Start-path is planning by construction.** On a brand-new grove the driver
   launches `start` while `.grove/` does not yet exist (the agent runs `root-init`
-  *inside* that session), so there is no leaf to peek — but `root-init`'s first leaf
-  is always **planning** (fresh-grove-start-contract), so the `start` path uses
-  `GROVE_PLANNING_MODEL` unconditionally.
-- **Kind is the only key.** There is no per-leaf override. `pick`'s default output
-  is unchanged (the launched agent still parses it as a bare path); `kind` is a
-  separate verb.
+  *inside* that session), so there is no leaf to peek — but `root-init`'s first
+  leaf is always **planning** (*fresh-grove-start-contract*), so the `start` path
+  routes as planning unconditionally.
+
+## A kind with no model is a configuration error, not a default
+
+**If a picked leaf's kind resolves no model var, grove fails loudly rather than
+launching.** This is the load-bearing rule, and it is the *inverse* of the one
+this record previously carried ("unset ⇒ no `--model` flag; the session inherits
+the user's own default").
+
+The old rule was defended on the grounds that passing `--model` unconditionally
+would clobber a default the user already had. That is true, and it is also beside
+the point: falling through to the harness's own default is still grove deciding
+which model runs a `review-impl` leaf — it just decides less visibly. The
+dangerous state is **partial configuration**, where some kinds are routed, others
+silently are not, and nothing on screen distinguishes the two. Requiring the var
+makes that state unrepresentable.
+
+Three exemptions, each an *absence of the question* rather than a default:
+
+- **No live leaf.** The finish-cycle iteration has no task to require a var for.
+- **A harness whose model-flag template is empty.** It has opted out of model
+  selection; requiring a flag it cannot pass would make it unlaunchable.
+- **Harness absence.** No `GROVE_<KIND>_HARNESS` means the stamped harness — an
+  explicit binding, recorded on disk, chosen once.
+
+A **degraded kind peek** — the kind could not be determined at all — now bails in
+every case, where it previously bailed only when a harness override was
+configured. Once model selection is required, an unknown kind cannot be routed by
+guessing in either axis.
 
 ## The launch model is a default, not a lock
 
-The launch `--model` is only the session's *starting* model. Claude Code's
-in-session `/model` is **higher priority** than `--model`, so the agent or the human
-can switch mid-session at will — this is exactly what covers "a `work` session that
-turns into substantial planning": no grove machinery, native `/model`.
+The launch model flag is only the session's *starting* model. An in-session
+`/model` switch is higher priority, so the agent or the human can change it at
+will — that, and not grove machinery, is what covers "an `impl` session that turns
+into substantial design work."
 
-Whether that switch survives into the next task depends on grove's own no-fallback
-rule, which is the non-obvious part:
-
-- For a kind whose env var **is set**, the driver passes `--model` on the next
-  launch, and the flag outranks the saved default. The override does **not** persist.
-- For a kind whose env var is **unset**, grove passes no flag — and interactive
-  `/model` saves the choice as the user's default for new sessions. The override
-  **does** persist, into every subsequent unconfigured session.
-
-Both behaviours are correct (each task is keyed on its own kind, and an
-unconfigured kind is by definition the user's own default), but the asymmetry
-surprises, so it is called out in the user-facing docs.
+The asymmetry this record used to warn about — that `/model` persists into later
+sessions of *unconfigured* kinds but is overridden for configured ones — largely
+dissolves under the requirement above: with every kind configured, every launch
+passes a flag, and no in-session switch survives into the next task. It survives
+only for a harness that is exempt because it takes no model flag at all.
 
 ## Considered options
 
-- **A fallback chain (rejected).** Letting an unset `GROVE_RESEARCH_MODEL` fall back
-  to `GROVE_WORK_MODEL` (or to a declared base kind) looks like a convenience. It is
-  grove choosing a model for a kind the user never configured, which is the precise
-  thing the load-bearing rule above forbids — and it can silently *downgrade*: a
-  user who sets only `GROVE_WORK_MODEL=sonnet` would find research leaves demoted
-  from their own Opus default to Sonnet. With no chain, an unconfigured kind gets
-  exactly what it would get if grove did not exist. The migration objection ("a
-  research leaf is `**Kind:** work` today, so re-kinding changes its model") does
-  not survive contact: re-kinding is a deliberate human edit, not a silent
-  migration.
+- **Unset ⇒ inherit the user's own default (the previous rule; now rejected).**
+  It made grove a no-op until you opted in, never clobbered an existing default,
+  and let you configure one kind and leave the rest alone. That last property is
+  the defect: setting three of nine vars leaves six kinds silently routed to
+  whatever your default happens to be, which reads identically to having
+  configured them. Explicit beats convenient here, because the failure is silent
+  and the cost of the alternative is one error message.
+- **Requiring vars only once the user opts in (rejected).** With no model var set
+  anywhere, treat kind-based selection as *off* and launch bare; the moment any
+  var is set, require them all. This preserves out-of-the-box usability and the
+  zero-subprocess launch, and it still makes partial configuration impossible.
+  Rejected in favour of the simpler and more explicit rule: two modes are harder
+  to reason about than one, and "grove launched without a model because you
+  configured nothing" is exactly the invisible behaviour the requirement exists to
+  eliminate.
+- **A fallback chain across kinds (rejected — but the family axis is not one).**
+  Letting an unset `GROVE_RESEARCH_MODEL` fall back to `GROVE_IMPL_MODEL` (or to a
+  declared base kind) is grove choosing a model for a kind the user never
+  configured, and it can silently *downgrade*: a user who sets only
+  `GROVE_IMPL_MODEL=sonnet` would find research leaves demoted from their own Opus
+  default to Sonnet. Under the requirement above the same reasoning now produces
+  an error instead of a launch, which is strictly louder. The **family** axis is
+  carved out and is different in character: `review-*` is a set the user
+  explicitly configured *as a set*, so resolving `review-impl` through
+  `GROVE_REVIEW_MODEL` delivers a value chosen for that leaf, not one borrowed
+  from an unrelated discipline. The rejection targets falling back *across*
+  disciplines; it never targeted resolving within one.
 - **A model router (rejected).** claude-code-router and similar proxy Claude Code's
   API requests to route across *providers* (OpenRouter, DeepSeek, Ollama, Gemini).
   They need an API key and, on a Max subscription, either break the subscription
-  billing or drain pay-per-token credits
-  (github.com/NousResearch/hermes-agent/issues/40014). For Opus↔Sonnet on a Max sub,
-  native `--model` does the identical routing on the subscription for free — a
-  router is the wrong tool and adds a proxy grove would have to own.
-- **Cross-family (multi-provider) selection — rejected; the kind is the key, the
-  *family* is not.** A `review` leaf gains most from a reviewer that does not share
-  the author's family-level style prior (self-preference bias is causally
-  established and family-level — Panickssery et al., NeurIPS 2024), so the obvious
-  extension is to let a kind select a whole *provider*, not just a tier. Two routes
-  were costed in full (`docs/research/cross-family-review-providers.md`); **both are
-  rejected, and the mechanism above stays single-provider.**
-  - *Redirect `claude`'s endpoint* (`ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` per
-    kind, `--model <vendor-id>` passed through verbatim). This is not a
-    model-selection change — it is a **credential and provider-configuration surface
-    grove does not have**: a live secret to hold and never persist, an *undocumented*
-    collision between `settings.json`'s `env` block and a `Command::env` child
-    environment (community evidence says the `env` block silently wins —
-    `claude-agent-sdk-typescript#217`), an open interactive-auth bug against the one
-    variable it must use (`anthropics/claude-code#7855`, `has repro` — and grove's
-    sessions are interactive and TTY-owning), and a subagent-alias trap. That is
-    infrastructure, and it earns a design of its own before any of it is bolted onto
-    the launch path.
-  - *codex as the review harness.* ~Ten changes (research doc, Q5), one of which —
-    `--sandbox danger-full-access` — exists *only* to defeat codex's Seatbelt policy
-    (`(allow signal (target same-sandbox))`), which would otherwise make grove's
-    completion `kill -TERM <parent>` return `EPERM`. grove would adopt a second
-    harness and immediately disable the one property that distinguishes it, plus a
-    second skill location (`~/.agents/skills/`), a second instruction-file convention
-    (`AGENTS.md`), and a terminal-reset obligation (codex installs no `SIGTERM`
-    handler). Wanting codex *itself* as the reviewer is a different question, not
-    this one. (An unrelated defect this surfaced, grove's stale codex
-    `name_args: &["--name"]`, is tracked as `Linkuistics/grove#1`.)
+  billing or drain pay-per-token credits. For Opus↔Sonnet on a Max sub, native
+  `--model` does the identical routing on the subscription for free — a router is
+  the wrong tool and adds a proxy grove would have to own.
+- **A per-leaf *model* axis (rejected for now).** Every model currently in use is
+  distinguishable by harness alone (claude ⇒ claude, gpt ⇒ codex, kimi ⇒ pi), so a
+  `**Model:**` line would be machinery for a case that is not live (constraint 4).
+  It is purely additive when it comes — a second optional line, not a design to
+  unpick. What would reopen it: one model family genuinely running on two
+  harnesses.
+- **Cross-family (multi-provider) selection as a *methodological* lever —
+  rejected; the kind is the key, the *family* is not.** A review leaf gains most
+  from a reviewer that does not share the author's family-level style prior
+  (self-preference bias is causally established and family-level — Panickssery et
+  al., NeurIPS 2024), so the obvious extension is to let a kind select a whole
+  *provider* on that reasoning. Two routes were costed in full
+  (`docs/research/cross-family-review-providers.md`); **both were rejected.**
+  - *Redirect `claude`'s endpoint* (`ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`
+    per kind). This is not a model-selection change — it is a **credential and
+    provider-configuration surface grove does not have**: a live secret to hold
+    and never persist, an *undocumented* collision between `settings.json`'s `env`
+    block and a child environment, an open interactive-auth bug against the one
+    variable it must use (`anthropics/claude-code#7855`, and grove's sessions are
+    interactive and TTY-owning), and a subagent-alias trap.
+  - *Adopting a second harness purely to review on it.* Costed at ~ten changes,
+    one of which existed only to defeat codex's Seatbelt policy, which would
+    otherwise make grove's completion signal fail.
 
-  What is *not* the reason: cost (~$18/mo — trivial) or fidelity (the loop, skills,
-  subagents and the `complete` handshake all survive a redirected endpoint). The
-  reason is that the payoff is **unquantified — no study isolates same-family
-  fresh-context vs different-family review on the same artifacts** (research doc,
-  Q6) — while the cost is a provider/credential layer grove would have to own. A
-  cheap bet is still a bad trade when it is paid for in infrastructure. The
-  best-evidenced review lever is an **external deterministic verifier** (build,
-  tests, static analysis as an oracle): orthogonal to provider choice, and cheaper.
-  What would reopen this: a coherent provider/credential design for grove, or
-  evidence that actually measures the cross-family increment in defect-detection
-  recall.
-- **Agent self-switch via `/model` (rejected as the mechanism).** Having the launched
-  agent read its own kind and `/model`-switch at session start needs no driver
-  change, but the bootstrap context already ran on the wrong model, it depends on the
-  agent remembering every session, and it is unverifiable in an unattended relaunch.
-  Native `/model` still *layers on top* for mid-session overrides — it just isn't the
-  launch-default mechanism.
+  What is *not* the reason: cost (trivial) or fidelity. The reason is that the
+  payoff is **unquantified — no study isolates same-family fresh-context vs
+  different-family review on the same artifacts** — while the cost is a
+  provider/credential layer grove would have to own. The best-evidenced review
+  lever is an **external deterministic verifier** (build, tests, static analysis
+  as an oracle): orthogonal to provider choice, and cheaper. What would reopen
+  this: a coherent provider/credential design for grove, or evidence that
+  measures the cross-family increment in defect-detection recall.
+
+  **This is untouched by the harness axis above.** `GROVE_REVIEW_HARNESS=codex` is
+  a *commercial* decision — the subscription being paid for — not reviewer-bias
+  mitigation, and it routes to a harness already in grove's table rather than
+  building a provider layer.
+- **Agent self-switch via `/model` (rejected as the mechanism).** Having the
+  launched agent read its own kind and switch at session start needs no driver
+  change, but the bootstrap context already ran on the wrong model, it depends on
+  the agent remembering every session, and it is unverifiable in an unattended
+  relaunch. Native `/model` still *layers on top* for mid-session overrides — it
+  just isn't the launch-default mechanism.
 - **CLI flags / config file for configuration (rejected).** `grove do` flags do not
   survive a loop restart (they aren't re-derived from state — fights
-  restart≡continuation). A config file adds non-task state under `.grove/`
-  (constraint 1). Env vars are walk-away-able (the loop's shell equivalent expresses
-  them trivially), stateless, and re-derived every `grove do`.
+  restart ≡ continuation). A config file adds non-task state under `.grove/`
+  (constraint 1). Env vars are walk-away-able (the loop's shell equivalent
+  expresses them trivially), stateless, and re-derived every `grove do`.
 
 ## Consequences
 
-- The driver gains one `grove-llm kind` call per iteration on the `continue` path
-  (none on `start`), and only when at least one of the five env vars is set —
-  otherwise the launch is byte-for-byte the pre-feature one. No durable state;
-  restart ≡ continuation is preserved.
-- The five env vars are a public config surface — documented in `--help`/README
-  alongside the `/model`-persistence asymmetry above.
-- Backward compatible: with no env var set, grove launches exactly as before (no
-  `--model`), so existing groves are unaffected.
+- **The zero-subprocess launch is gone.** The driver previously skipped the kind
+  peek entirely when no routing var was set, making an unconfigured launch
+  byte-for-byte the pre-feature one. A requirement that must hold on *every*
+  iteration cannot be checked by a short-circuit whose purpose is to avoid
+  looking, so `grove-llm kind` now runs unconditionally on the `continue` path.
+- **Not backward compatible, deliberately.** A grove that ran with no
+  configuration now errors until its kinds resolve. Full coverage is about **nine**
+  vars — seven standalone kinds plus two family vars — against a ceiling of 95 (17
+  kinds × 5, plus 2 families × 5). The ceiling is not the burden: the stamped
+  harness absorbs every kind that is not rerouted, so a realistic policy is two
+  lines plus a per-leaf declaration on the vendor pair.
+- **`GROVE_WORK_MODEL` needs no deprecation path.** `work` was renamed `impl`
+  (*task-kind-taxonomy*), and because `GROVE_IMPL_MODEL` is *required*, a stale
+  config fails loudly on the first launch. The error is the migration notice.
+- The env vars are a public config surface, documented in `--help` and README.
+- No durable state is added; restart ≡ continuation is preserved.

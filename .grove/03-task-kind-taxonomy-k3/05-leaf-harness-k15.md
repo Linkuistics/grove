@@ -17,8 +17,10 @@ per-kind routing cannot express.
 - `src/llm_cli.rs` — the `kind` verb. Decide whether harness is a second verb or
   the same verb gains a second output line; see **Notes**.
 - `src/loop_driver.rs` — `resolve_launch` decides `(harness, model, rerouted)`.
-  The leaf declaration slots in **above** the per-kind override and **below**
-  nothing: leaf beats family beats kind beats stamp.
+  The leaf declaration slots in **above** the per-kind override and below
+  nothing: **leaf beats kind beats family beats stamp** (specific beats general
+  on the kind axis, per the spec's *Routing* — an earlier draft of this brief had
+  family and kind the wrong way round).
 - `preflight_check` cannot know which harnesses a tree's leaves declare without
   walking the tree. Decide whether it walks live leaves or defers to
   launch-time; both are defensible, and the choice is this leaf's to make.
@@ -51,13 +53,13 @@ argues the case; follow it. Constraint 5 ("grove guides, it does not gate") is
 about grove refusing to proceed on *process* grounds, not about executing a
 declaration it cannot honour.
 
-**One peek or two?** The driver already spends one `grove-llm kind` subprocess
-per iteration, gated on routing env being set. A leaf declaration is *not* gated
-on env — a tree can declare a harness with no env configured at all — so the gate
-that keeps the unconfigured path subprocess-free no longer holds. Prefer
-extending the existing peek to return both facts over adding a second
-subprocess; the shape of that output is this leaf's call, but it must stay
-parseable by the existing consumer or change both ends together.
+**One peek or two?** By the time this leaf runs, `required-model-vars-k18` has
+already made the `grove-llm kind` peek **unconditional** on the `continue` path,
+so the old worry here — that a leaf declaration is not gated on env while the
+peek is — has dissolved. The remaining question is narrower and purely about
+subprocess count: prefer extending the existing peek to return both facts over
+adding a second subprocess. The shape of that output is this leaf's call, but it
+must stay parseable by the existing consumer or change both ends together.
 
 Only two leaves in a research pair ever carry this line — the second producer
 and the combine step. Do not build a general per-leaf configuration surface off

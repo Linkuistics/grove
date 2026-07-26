@@ -54,3 +54,9 @@ Watch the hot path: `any_model_env` runs `KIND_SUFFIXES.len() × 2` env lookups
 on every launch to decide whether the kind peek is worth a subprocess. At five
 that was 10; at seventeen it is 34. Still trivial, but confirm the
 zero-subprocess unconfigured path is genuinely unchanged rather than assuming it.
+
+**Do not invest in that path beyond keeping it working.**
+`required-model-vars-k18` deletes it outright — once a model var is *required*,
+the peek must run every iteration and the `any_model_env` short-circuit has
+nothing left to decide. Grow the suffix list correctly here; leave the
+optimisation alone.

@@ -85,9 +85,10 @@ primary-source citations is in `docs/research/loop-substrate-options.md`.
   completion signal file while its harness child runs and kills that child
   itself once the file appears — relaunch is gated on the same file. No PID is
   ever exported to the agent.
-- The driver also selects each session's **launch model by the picked leaf's
-  kind** (planning vs work), via native `claude --model` — see
-  *model-per-task-kind*.
+- The driver also **routes each session by the picked leaf's kind** — which
+  harness runs it and which model that harness loads — via each harness's native
+  launch flags. A kind that resolves no model is a configuration error, so the
+  kind peek runs on every `continue` iteration; see *model-per-task-kind*.
 - codex launches additionally carry a VCS store write grant (`--add-dir`, the
   gitdir or the jj repo store) so the sandboxed session can commit and retire
   at all — see *codex-gitdir-grant*.

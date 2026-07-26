@@ -24,47 +24,97 @@ The per-session context-loading step of the grove loop: read the glossary, the a
 
 **Task kind** (`**Kind:**`):
 The one-word session-shape declaration on a [[Leaf]]'s task file, drawn from a
-closed set of five: **planning** (grills, grows the tree), **research** (produces
-`docs/research/<slug>.md`), **prototype** (a cheap throwaway artifact to react to),
-**work** (produces code, docs, tests), **review** (fresh-context adversarial read;
-produces findings). `planning` is the only kind with methodological force — it is
-the sole branch in the loop's Execute step, and the only kind that grows the tree;
-the other four are work-shaped sessions that differ in discipline and in
-[[Per-kind model selection]]. grove **gates on write** (a grow verb rejects an
-unknown `--kind`, where a human is present to fix it) and **degrades on read** (an
-unrecognised `**Kind:**` line warns and is treated as `work`, so a hand-edited leaf
-can never jam the loop — constraint 5). `leaf-decompose` gives the first child its
-parent leaf's kind, so a research leaf that proves bigger becomes a research node.
-See ADR *task-kind-taxonomy*.
+**closed, parameterised set of seventeen**: five producers — `requirements`
+(grills; establishes *what*), `design` (establishes *how*; produces a spec / ADR
+set), `planning` (cuts vertical slices; grows the tree), `prototype` (a cheap
+throwaway artifact to react to), `impl` (produces code, docs, tests) — each with
+its own `review-` and `integrate-review-` step, plus `research` (produces
+`docs/research/<slug>.md`) and `combine-research`. `planning` is the only kind
+with methodological force — the sole branch in the loop's Execute step, and the
+only kind that grows the tree; every other kind produces an artifact and differs
+in discipline and in [[Kind routing]]. grove **gates on write** (a grow verb
+rejects an unknown `--kind`, where a human is present to fix it) and **degrades
+on read** (an unrecognised `**Kind:**` line warns and is treated as `impl`, so a
+hand-edited leaf can never jam the loop — constraint 5). `leaf-decompose` gives
+the first child its parent leaf's kind, so a research leaf that proves bigger
+becomes a research node. `work` was renamed `impl`; it still *reads* as `impl`,
+silently, but is refused on write. See ADR *task-kind-taxonomy* for why the set
+is closed and parameterised, and `docs/specs/task-kind-taxonomy.md` for the
+membership and each kind's discipline.
 _Avoid_: adding a kind that carries no behaviour beyond a name — a kind must earn
-its place with a distinct discipline, and a sixth is a change to this closed set,
-not a free-text label.
+its place with a distinct discipline, and an eighteenth is a change to this closed
+set, not a free-text label.
+_Avoid_: "the five kinds" — that count is pre-taxonomy-rework, as is `work` as a
+live label.
+
+**Review chain** / **vendor pair**:
+The two composition patterns over the [[Task kind]] set, and the reason [[Kind
+routing]] needs two mechanisms. The **review chain** is `X` → `review-X` →
+`integrate-review-X`: sequential, **adversarial** (the reviewer's job is to find
+fault), and each step is a *different kind*, so per-kind routing alone expresses
+it. The **vendor pair** is `research` → `research` → `combine-research`:
+**breadth-and-confirmation** (two independent surveys, unioned), where the two
+producers are the *same kind differing only by vendor* — which no kind→harness
+function can express, and is therefore the entire reason a per-leaf harness
+declaration exists. The fan is a **pair**, not an N-way fan-out, so the combine
+step is binary.
+_Avoid_: treating either as enforced — grove validates no ordering between
+leaves, because a grammar is a relation *between* leaves and grove expresses
+none (ADR *task-kind-taxonomy*).
+_Avoid_: running the *researchers* adversarially — that discards the breadth the
+pair was run for. The adversarial move belongs to `combine-research`, whose
+discipline is that **agreement without independent primary sourcing is a red
+flag, not a confirmation** (two vendors on overlapping corpora can agree on
+something false).
 
 **HITL** / **AFK**:
 Whether a [[Task kind]] resolves through live exchange with a human who speaks for
-themselves (`planning`, `prototype`) or is driven by the agent alone (`research`,
-`work`, `review`). A HITL leaf reached by an unattended relaunch of the self-driving
-loop stalls until a human arrives; that is correct, not a fault.
-_Avoid_: an agent answering its own HITL questions — a `planning` session that
-grills itself has broken the distinction (`grilling.md`).
+themselves (`requirements`, `prototype`) or is driven by the agent alone (every
+other kind). The generating rule: a kind is HITL when **a human's own words are
+the session's input or its deliverable** — not merely when a human would want to
+read the output, which is true of everything and which the VCS already serves. A
+HITL leaf reached by an unattended relaunch of the self-driving loop stalls until
+a human arrives; that is correct, not a fault.
+The mark **predicts, it does not permit**: *any* kind may stop and ask a human,
+and doing so is always legitimate. `design` often will;
+`integrate-review-requirements` is the borderline cell (it edits what was asked
+for, which it cannot change unilaterally) and is marked AFK anyway.
+_Avoid_: an agent answering its own HITL questions — a `requirements` session
+that grills itself has broken the distinction (`grilling.md`).
+_Avoid_: "`planning` is HITL" — it flipped to AFK when grilling moved to
+`requirements`. Planning keeps its methodological force but no longer
+interrogates.
 
-**Per-kind model selection** (`GROVE_<KIND>_MODEL`):
-The self-driving loop launches each task's `claude` session on a model chosen by
-the picked [[Leaf]]'s [[Task kind]] — one env var per kind
-(`GROVE_PLANNING_MODEL`, `GROVE_RESEARCH_MODEL`, `GROVE_PROTOTYPE_MODEL`,
-`GROVE_WORK_MODEL`, `GROVE_REVIEW_MODEL`) — via Claude Code's native `--model`
-flag (no router, no proxy). The driver peeks the kind (`grove-llm kind`), reads
-that kind's var, and passes `--model` **only if it is set**. There is **no
-fallback chain**: an unset var means no flag at all, so the session inherits the
-user's own default rather than a model grove picked for a kind the user never
-configured. The launched value is a *default*, not a lock — in-session `/model`
-outranks `--model` for that session. See ADR *model-per-task-kind*.
+**Kind routing** (`GROVE_<KIND>_HARNESS`, `GROVE_<KIND>_MODEL`):
+How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
+**which model** that harness loads, both keyed on the leaf's [[Task kind]]. The
+driver peeks the kind (`grove-llm kind`) every iteration and resolves two axes
+via each harness's native launch flags — no router, no proxy.
+*Harness*: `GROVE_<KIND>_HARNESS` before `GROVE_<FAMILY>_HARNESS`; unset means
+the **stamped** harness, which is an explicit on-disk binding, not a default. A
+leaf may also name its own harness, outranking both — the [[Review chain]] /
+vendor pair distinction is why.
+*Model*: four keys, **harness-major** — `GROVE_<HARNESS>_<KIND>_MODEL` >
+`GROVE_<HARNESS>_<FAMILY>_MODEL` > `GROVE_<KIND>_MODEL` > `GROVE_<FAMILY>_MODEL`
+— because the harness axis is a *correctness* axis (a codex profile name is
+garbage to pi) while the kind axis is only a *preference* axis. A **rerouted**
+launch consults no unscoped var, truncating the lattice to the first two.
+**A kind that resolves no model var fails loudly**; there is no fall-through to
+the harness's own default, because that is still grove deciding, only less
+visibly. Exempt: no live leaf, a harness whose model-flag template is empty, and
+harness absence. Two [[Task kind]] **families** exist (`review-*`,
+`integrate-review-*`) so one policy line covers five kinds. Ceiling 95 vars;
+full coverage is about nine. See ADR *model-per-task-kind*.
+_Avoid_: "per-kind model selection" as the whole name — the harness axis is half
+of it, and the family axis spans both.
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;
-this is single-provider launch-flag selection on the same (e.g. Max) subscription.
-_Avoid_: "an in-session `/model` never survives relaunch" — unqualified, that is
-false. Interactive `/model` saves as the user's default, so it survives into the
-next session of any kind whose var is **unset** (grove passes no `--model`, and
-the saved default governs); a configured kind's `--model` overrides it.
+this is native launch-flag selection against harnesses grove already knows.
+_Avoid_: "an unset var means the session inherits your own default" — that was
+the pre-rework rule and is now an error. The `/model`-persistence asymmetry it
+caused is gone with it, except for a harness that takes no model flag at all.
+_Avoid_: "there is no fallback chain" unqualified — falling back *across* kinds
+is still rejected, but resolving within a **family** the user configured as a set
+is carved out.
 
 **Spec** (`docs/specs/<slug>.md`):
 The human-facing, team-shareable design of an *area* of the system — problem,

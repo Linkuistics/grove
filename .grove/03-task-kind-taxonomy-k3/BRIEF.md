@@ -27,44 +27,54 @@ below — read that section before the children; it is the whole of the design.
 ## Decomposition
 
 Position order is dependency order. `01` settles the written design before any
-code moves; `02`–`04` are independent vertical slices, each landing green on its
-own; `05` is the sweep that cannot run until the rest exists.
+code moves; `02`–`05` are vertical slices, each landing green on its own (`04`
+needs `03`'s lattice first); `06` is the sweep that cannot run until the rest
+exists.
 
 - `01` **taxonomy-spec** (planning) — the spec and the ADR reworks. Everything
-  else cites it.
+  else cites it. **Done** — `docs/specs/task-kind-taxonomy.md` is the authority
+  for `02`–`06`; both ADRs are reworked in place.
 - `02` **kind-set** (work) — the enum, the env suffixes, and the `work` → `impl`
   rename. Demoable alone: seventeen kinds exist and route to the stamp.
 - `03` **family-fallback** (work) — the family axis in `harness_override` and
-  `model_for`.
-- `04` **leaf-harness** (work) — the `**Harness:**` line, its peek, and its
+  `model_for`, resolved **harness-major** (spec, *Routing*).
+- `04` **required-model-vars** (work) — a kind that resolves no model var fails
+  loudly. Added by `01`; sequenced after `03` because "required" is defined
+  against the four-key lattice, and the ~9-var figure only holds once families
+  exist. Mostly test blast radius.
+- `05` **leaf-harness** (work) — the `**Harness:**` line, its peek, and its
   refusal semantics.
-- `05` **config-sweep** (work) — live env migration and the doc surface.
+- `06` **config-sweep** (work) — live env migration and the doc surface.
 
 ## Pointers
 
 - ADRs a session here must read: *task-kind-taxonomy* (the closed-set argument
   this node rewrites), *model-per-task-kind* (the routing mechanism it extends),
   *self-driving-loop*.
-- Glossary terms in play: Task kind, Per-kind model selection, HITL/AFK.
+- Glossary terms in play: Task kind, Kind routing, Review chain / vendor pair,
+  HITL/AFK.
 - Both ADRs are reworked **in place** — merge / split / delete, never a
   superseding record (`linkuistics:decision-records`).
 - The behavioural contracts this node depends on, stated without line numbers so
   they survive the code moving:
-  - The loop driver **peeks the picked leaf's kind** before launching, and only
-    when some routing env makes it matter — the unconfigured path stays a
-    zero-subprocess launch.
+  - The loop driver **peeks the picked leaf's kind** before launching. This was
+    gated on some routing env making it matter, keeping the unconfigured path a
+    zero-subprocess launch; `04` removes that gate, because a required var must
+    be checked every iteration.
   - A **rerouted** launch (launch harness ≠ stamped harness) must never inherit
     an unscoped value — not the base model var, not the global binary override.
     A codex profile name is garbage to pi.
-  - Kind **reading degrades** (unrecognised ⇒ `work`, warn) but harness routing
-    **refuses**: when the kind peek fails while a harness override is
-    configured, the driver bails rather than launch on the wrong vendor. Model
-    selection is a nicety; a misroute is not.
+  - Kind **reading degrades** (unrecognised ⇒ `impl`, warn) but harness routing
+    **refuses**: the driver bails rather than launch on the wrong vendor. The
+    asymmetry that justified this — "model selection is a nicety, a misroute is
+    not" — no longer holds after `04`: a missing model is now an error too, so a
+    **degraded peek bails unconditionally**, not only under a configured
+    override.
 
 ## Notes
 
 **The user's actual configuration**, which is what the design was derived
-against and what `05` must produce: claude leads, codex reviews, claude
+against and what `06` must produce: claude leads, codex reviews, claude
 integrates the review; research runs claude + codex, combined by claude, codex
 or kimi. Everything on claude needs no configuration at all — it falls through
 to the stamp. So the whole policy layer is two lines
@@ -74,25 +84,29 @@ declaration.
 
 **Independent of the herdr subtree.** Nothing here touches herdr.
 
-### Still open
+### Settled in `01` — nothing here is open
 
-- **Is the grammar enforced or only documented?** Recommended: *documented*.
-  Sibling **positions are mutable** (`leaf-insert` shifts every later sibling),
-  so a rule over sibling order would be invalidated by the one verb that exists
-  to reorder work — grove would either re-validate whole subtrees on every
-  insert or silently stop enforcing. The closed set already buys what mattered
-  (kind inheritance on decompose, a model bucket per kind); sequence validation
-  earns nothing further. Not confirmed by the user.
-- **HITL/AFK per kind.** `requirements` is HITL (it holds the grilling).
-  `planning`, stripped of grilling, is plausibly **AFK** — "given the spec, cut
-  it into vertical slices" is something `driving.md` already gives an agent
-  enough rules to do alone. That flips a row in the existing table and should be
-  decided explicitly in `01`, not assumed.
-- **Per-leaf model.** Rejected for now: every model in use is distinguishable by
-  harness alone (claude ⇒ claude, gpt ⇒ codex, kimi ⇒ pi), so a `**Model:**`
-  axis would be machinery for a case that is not live (constraint 4). Revisit
-  the day one model family genuinely runs on two harnesses. Additive when it
-  comes — a second optional line, not a design to unpick.
+All of it is now in `docs/specs/task-kind-taxonomy.md`; this is the pointer, not
+a second account.
+
+- **Grammar: documented, not enforced** — and on a stronger reason than this
+  brief originally gave. Mutable positions are true but secondary; the
+  load-bearing reason is that a grammar is a *relation between leaves*, which
+  this node already refused when it rejected "the reviewer must not be the
+  author". A non-blocking lint was costed and rejected too.
+- **HITL/AFK is generated by a rule**, not enumerated: a kind is HITL when a
+  human's own words are the session's input or deliverable. Two kinds qualify —
+  `requirements` and `prototype`. **`planning` flips to AFK.** The mark
+  *predicts* and does not permit: any kind may stop and ask.
+- **Per-leaf model** stays rejected, unchanged.
+- **New, and not anticipated here: no defaults.** A kind resolving no model var
+  now **fails loudly**, inverting *model-per-task-kind*'s central rule. That
+  killed the zero-subprocess launch path and grew leaf `04`.
+- **Routing precedence is harness-major**, because the harness axis is a
+  correctness axis and the kind axis only a preference axis.
+- **The harness axis had no ADR at all.** It has been folded into
+  *model-per-task-kind*, which now covers both axes — the family axis spans both,
+  so they could not be recorded apart.
 
 ## Decisions
 

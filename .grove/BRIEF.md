@@ -55,7 +55,7 @@ Position order encodes dependency and value-first sequencing.
 - ADRs a session here must read: *herdr-optional-ui*, *self-driving-loop*,
   *task-tree-scheme*.
 - *model-per-task-kind* — `03` reworks the mechanism that ADR describes.
-- Glossary terms in play: herdr integration, Per-kind model selection, HITL/AFK,
+- Glossary terms in play: herdr integration, Kind routing, HITL/AFK,
   Task kind (see `CONTEXT.md`).
 - herdr's source is checked out at `~/Development/herdr` — `AntonyBlakey/herdr`,
   a fork with `ogulcancelik/herdr` as `upstream`. The reducer deciding whether a

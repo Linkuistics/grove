@@ -138,18 +138,41 @@ status surface depends on it. Under stock herdr the reports are dropped and the
 pane falls back to screen detection, exactly as with no herdr at all.
 
 **Authority release**:
-grove's obligation to un-report on exit. herdr never expires a hook authority —
-there is no TTL, and its clear-on-process-exit path only fires for a label that
-parses to a known agent, which `grove` does not. So grove's last report is what
-the pane shows until something releases it. The loop driver releases on clean
-relaunch-stop, on `complete --done`, and on SIGINT/SIGTERM (which needs signal
-handling the driver did not previously have). SIGKILL, panic, OOM and power loss
-stay uncovered by design: the pane pins at grove's last state and the user
+grove's obligation to un-report **when it stops having an opinion about the
+pane**. herdr never expires a hook authority — there is no TTL, and its
+clear-on-process-exit path only fires for a label that parses to a known agent,
+which `grove` does not. So grove's last report is what the pane shows until
+something releases it. The loop driver releases on `complete --done` (after
+reporting `idle`) and on **SIGTERM/SIGHUP** — and deliberately **does not**
+release on a no-signal stop (`/exit`, Ctrl-C, a crash), on a version-skew stop,
+or on an error: those report **`blocked`** and hold it, because the grove has
+live leaves and genuinely needs a human. Releasing there would return the pane to
+screen detection, which reads a parked grove as `idle` — herdr's derived `done` —
+i.e. the very complaint the reporter exists to fix. SIGKILL, panic, OOM and power
+loss stay uncovered by design: the pane pins at grove's last state and the user
 recovers with `herdr pane release-agent`.
+_Avoid_: "release on every catchable exit" — that was the route decision's
+formulation and it is wrong; see the table in ADR *herdr-optional-ui*.
+_Avoid_: "grove needs a SIGINT handler" — the driver already sets SIGINT to
+`SIG_IGN` so it survives Ctrl-C and reaches the relaunch-vs-stop decision, so a
+Ctrl-C arrives as an ordinary no-signal stop and reports `blocked`. SIGTERM
+(with SIGHUP, the pane-close signal) is the case that needed new code.
 _Avoid_: calling the uncovered case "latching" — that named a *different*,
 now-dissolved failure where herdr dropped grove's later reports and froze the
 pane mid-loop. [[Authority patch]] fixed that; grove can always correct itself
 while it is alive.
+
+**Session-boundary visibility** (what the driver can and cannot see):
+The loop driver is the harness's **parent process**, so its whole observable
+vocabulary is *session started* / *session ended, with or without a completion
+signal*. It sees no **turn** boundaries. Consequence for [[herdr integration]]: a
+session that stalls mid-turn on a [[HITL]] question reads **`working`**, not
+`blocked` — a strict improvement on the pre-reporter `done` (the pane no longer
+claims the grove finished, so tab/workspace rollup no longer shows a false
+green), but not the whole headline fix. `blocked` lands for the *session-ended*
+cases only. Intra-turn state needs per-harness hooks and is separate work.
+_Avoid_: claiming driver-level reporting closes the "stalled overnight on a
+question" case — it closes the half where the session **ended**.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 

@@ -57,6 +57,30 @@ stood at the graft — a closed record, not part of the versioned sequence above
   re-running `install.sh` re-points it here and picks up `using-jujutsu` and
   `git-to-jj-mapping`, which no hand-linked harness had.
 
+- **A `grove do` pane now tells herdr what it is doing** (*herdr-optional-ui*).
+  The loop driver reports `working` while a session runs, `blocked` when the loop
+  parks needing a human, and `idle` when the grove finishes — over herdr's own
+  unix socket, addressed by the `HERDR_*` variables herdr puts in the pane
+  environment. This fixes the complaint the feature exists for: a grove that
+  stopped overnight used to read as **done**, because herdr derives `done` from
+  `idle && !seen` and nothing ever reported `blocked`.
+
+  **Entirely optional, and never load-bearing.** With no herdr present — or with
+  stock, unpatched herdr, which drops the reports — every grove behaviour is
+  unchanged, minus the status surface. A refused or wedged socket is a no-op
+  bounded at 500ms, never a failed launch and never a stalled loop.
+
+  Two details worth knowing. **Release is not "on every exit":** grove hands the
+  pane back on `complete --done` and on SIGTERM/SIGHUP, but a loop parked without
+  a completion signal keeps its `blocked` report — releasing would return the
+  pane to screen detection, which reads a parked grove as `idle`, restoring the
+  very bug. And **the driver sees session boundaries, not turn boundaries**: a
+  session stalled *mid-turn* on a question reads `working`, not `blocked`. That
+  is a strict improvement on `done`, not the whole fix; intra-turn state needs
+  per-harness hooks. Uncovered by design, since herdr never expires an authority:
+  SIGKILL, panic, OOM and power loss pin the pane at grove's last state until the
+  next `grove do` or a `herdr pane release-agent`.
+
 ## v15.0.0
 
 grove goes dual-VCS: jj-enabled working trees — native, colocated, and

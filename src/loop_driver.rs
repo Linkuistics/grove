@@ -105,13 +105,25 @@ pub fn signal_file_path(worktree: &Path, name: &str) -> PathBuf {
     std::env::temp_dir().join(format!("grove-loop-{safe}-{:016x}.signal", hasher.finish()))
 }
 
-/// Entry point: install the interrupt guard, then run the loop. The real
+/// Entry point: install the signal handlers, then run the loop. The real
 /// `grove do` path calls this; tests call [`run_loop`] directly to avoid the
-/// process-global signal change. The outcome is already reported on stderr by
+/// process-global signal changes. The outcome is already reported on stderr by
 /// the loop body, so the caller can discard it.
+///
+/// An `Err` out of the loop is a report site too (herdr-optional-ui): it can
+/// fire hours in, unattended — a per-kind harness override against an
+/// undeterminable leaf kind, say — and it leaves the loop parked with live
+/// leaves, which is precisely what herdr should be showing as `blocked`.
 pub fn run(harness: &'static Harness, repo_path: &Path, worktree: &Path, name: &str) -> Result<()> {
     ignore_interrupts();
-    run_loop(harness, repo_path, worktree, name).map(|_| ())
+    install_termination_handler();
+    match run_loop(harness, repo_path, worktree, name) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            crate::herdr::apply(crate::herdr::plan_for(crate::herdr::Stop::Failed));
+            Err(e)
+        }
+    }
 }
 
 /// The loop body, free of process-global side effects. Returns why it stopped
@@ -148,6 +160,7 @@ pub fn run_loop(
                 "       Re-run `grove do` from this working tree to continue on the new \
                  binary (restart ≡ continuation)."
             );
+            crate::herdr::apply(crate::herdr::plan_for(crate::herdr::Stop::VersionSkew));
             let _ = std::fs::remove_file(&signal_file);
             return Ok(LoopOutcome::Stopped);
         }
@@ -175,7 +188,13 @@ pub fn run_loop(
         let (launch_harness, model, rerouted) = resolve_launch(harness, worktree, verb)?;
         let prompt = crate::launch::load_prompt(launch_harness, verb)?;
 
-        launch_session(
+        // Report site 1 of 4 (herdr-optional-ui). Before the spawn, not after:
+        // the pane is about to be busy, and the other three sites all describe
+        // a loop that has stopped. Nothing else is reported until then — a
+        // relaunch keeps the pane `working` without a redundant round trip.
+        crate::herdr::report(crate::herdr::State::Working);
+
+        let ended = launch_session(
             launch_harness,
             worktree,
             &session_name,
@@ -189,7 +208,26 @@ pub fn run_loop(
         // screen; reset before relaunching (and on the way out).
         reset_terminal();
 
-        match complete::read_signal(&signal_file) {
+        // Report site 2: the driver itself was signalled. Checked before the
+        // signal file, because an interrupt mid-session usually leaves no
+        // signal file at all and must not be read as the human's `/exit`.
+        if ended == SessionEnd::Interrupted {
+            eprintln!("grove: interrupted — releasing the herdr pane and stopping the loop.");
+            eprintln!(
+                "       Re-run `grove do` from this working tree to resume (restart ≡ continuation)."
+            );
+            crate::herdr::apply(crate::herdr::plan_for(crate::herdr::Stop::Interrupted));
+            let _ = std::fs::remove_file(&signal_file);
+            return Ok(LoopOutcome::Stopped);
+        }
+
+        // Report sites 3 and 4: what the finished session left in the signal
+        // file decides both the loop's next move and the pane's state, from the
+        // one table in `herdr::plan_for`.
+        let signal = complete::read_signal(&signal_file);
+        crate::herdr::apply(crate::herdr::plan_for(crate::herdr::Stop::Signal(signal)));
+
+        match signal {
             // Per-task completion signal → relaunch with fresh context.
             Some(Disposition::Relaunch) => continue,
             // `complete --done` (the Finish cycle's last action) → stop clean.
@@ -236,7 +274,7 @@ fn launch_session(
     signal_file: &Path,
     rerouted: bool,
     model: Option<&str>,
-) -> Result<()> {
+) -> Result<SessionEnd> {
     let bin = harness_bin(harness, rerouted);
     eprintln!(
         "grove: launching {} (model: {})",
@@ -284,6 +322,15 @@ enum Watch {
     Terminated(Instant),
 }
 
+/// How a watched session ended: normally (whatever it left in the signal file
+/// decides the rest), or because the *driver* was signalled — a case the signal
+/// file cannot express, since an interrupt normally leaves none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SessionEnd {
+    Exited,
+    Interrupted,
+}
+
 /// How often the watcher checks the child's liveness and the signal file.
 /// Not a tunable seam — `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` below are
 /// the only knobs a test (or an operator) needs.
@@ -305,9 +352,19 @@ const DEFAULT_KILL_GRACE: f64 = 5.0;
 /// can always signal its child — codex's Seatbelt sandbox, for one, denies a
 /// same-sandbox process from signalling its own session, which is why the
 /// previous in-agent self-kill silently failed there.
-fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
+///
+/// A caught SIGTERM/SIGHUP also lands here: the handler only flips
+/// [`TERMINATED`], and this poll loop is what acts on it — forwarding the
+/// signal to the child and letting the existing escalation reap it. That
+/// ordering is deliberate. Releasing grove's herdr authority means a socket
+/// connect, a write and a read, none of which are async-signal-safe, so none of
+/// them may happen inside the handler; the driver already polls on a
+/// [`POLL_INTERVAL`] tick, so an atomic flag read there costs nothing and runs
+/// the release on a normal stack.
+fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<SessionEnd> {
     let (grace, kill_grace) = kill_graces();
     let mut watch = Watch::Running;
+    let mut interrupted = false;
     loop {
         if child
             .try_wait()
@@ -317,7 +374,21 @@ fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
             // A completion kill makes the harness exit non-zero (or via
             // signal); that is the normal exit path, not an error. The signal
             // file — not the exit status — decides relaunch.
-            return Ok(());
+            return Ok(if interrupted {
+                SessionEnd::Interrupted
+            } else {
+                SessionEnd::Exited
+            });
+        }
+        // A signalled driver forwards the signal to its child and hands over to
+        // the same escalation the completion path uses, so a harness that
+        // ignores SIGTERM still gets SIGKILL'd rather than orphaned onto the
+        // TTY. Latched, because the driver must still return `Interrupted` on
+        // the iteration where the child finally exits.
+        if !interrupted && TERMINATED.load(std::sync::atomic::Ordering::Relaxed) {
+            interrupted = true;
+            unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+            watch = Watch::Terminated(Instant::now());
         }
         watch = match watch {
             Watch::Running if signal_file.exists() => Watch::Signalled(Instant::now()),
@@ -332,7 +403,11 @@ fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<()> {
             Watch::Terminated(at) if at.elapsed() >= kill_grace => {
                 unsafe { libc::kill(child.id() as i32, libc::SIGKILL) };
                 child.wait().context("reaping the killed harness session")?;
-                return Ok(());
+                return Ok(if interrupted {
+                    SessionEnd::Interrupted
+                } else {
+                    SessionEnd::Exited
+                });
             }
             other => other,
         };
@@ -765,9 +840,48 @@ fn reset_terminal() {
 /// foreground process group) does not kill the loop; the child `claude`
 /// installs its own handler and still responds. The driver must survive the
 /// interrupt to reach the relaunch-vs-stop decision.
+///
+/// This is also why grove needs **no** SIGINT handler for herdr release
+/// (herdr-optional-ui): a Ctrl-C that stops the loop does so by killing the
+/// *session*, which the driver then sees as a no-signal exit and reports as
+/// `blocked` down the normal path. SIGTERM is the case that genuinely needs a
+/// handler — see [`install_termination_handler`].
 fn ignore_interrupts() {
     unsafe {
         libc::signal(libc::SIGINT, libc::SIG_IGN);
+    }
+}
+
+/// Set by [`on_terminate`], read by the watcher's poll loop. A `bool` store is
+/// the only work done inside the handler, because it is the only work that is
+/// async-signal-safe — the release it leads to is a socket round trip, and runs
+/// on a normal stack one [`POLL_INTERVAL`] tick later.
+static TERMINATED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+extern "C" fn on_terminate(_signum: libc::c_int) {
+    TERMINATED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Catch SIGTERM and SIGHUP so the driver can release its herdr authority on
+/// the way out (herdr-optional-ui). herdr never expires an authority, so a
+/// driver that dies without releasing leaves the pane pinned at whatever grove
+/// last reported.
+///
+/// Both signals, because both really happen: SIGTERM is `kill` and every
+/// orderly shutdown, SIGHUP is what a closing pane delivers to its foreground
+/// process group. SIGINT is deliberately absent — [`ignore_interrupts`] already
+/// makes Ctrl-C flow to the no-signal stop path, which reports the more useful
+/// `blocked` rather than releasing.
+///
+/// Uncovered by construction, and documented rather than papered over: SIGKILL,
+/// a panic, OOM, and power loss. In those cases the pane keeps grove's last
+/// reported state until the next `grove do` overwrites it, or the user clears
+/// it with `herdr pane release-agent`.
+fn install_termination_handler() {
+    let handler = on_terminate as extern "C" fn(libc::c_int) as usize;
+    unsafe {
+        libc::signal(libc::SIGTERM, handler as libc::sighandler_t);
+        libc::signal(libc::SIGHUP, handler as libc::sighandler_t);
     }
 }
 

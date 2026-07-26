@@ -2443,3 +2443,387 @@ exit 0
         );
     }
 }
+
+// herdr pane-state reporting (herdr-optional-ui, report-plumbing-k8). The unit
+// tests in `src/herdr.rs` cover the state table and the transport separately;
+// what neither can prove is the **wiring** — that the driver reaches the right
+// report site at the right moment. So these drive the real loop against a fake
+// herdr: a `UnixListener` this test owns, addressed through the same
+// `HERDR_SOCKET_PATH`/`HERDR_PANE_ID` variables herdr itself puts in a pane.
+//
+// `support::grove_env_names` scrubs those three vars for every *other* test in
+// this file, precisely so a `cargo test` run cannot report into the developer's
+// own pane; these two set them back deliberately.
+
+/// Bind a fake herdr on `path` and serve it from a background thread, appending
+/// each request line to the returned buffer.
+///
+/// The buffer is shared rather than returned from a `JoinHandle`, and the thread
+/// is deliberately never joined: `UnixListener::accept` has no timeout in `std`,
+/// so a joinable server would need an out-of-band way to be woken, and there
+/// isn't a reliable one once the socket path is gone. Sharing is also *correct*
+/// by ordering, not just convenient — the server appends a line **before**
+/// answering it, and the driver's own report waits for that answer, so every
+/// line is already in the buffer by the time `run_loop` returns.
+fn fake_herdr(path: &std::path::Path) -> std::sync::Arc<Mutex<Vec<String>>> {
+    let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
+    let lines = std::sync::Arc::new(Mutex::new(Vec::new()));
+    let collected = std::sync::Arc::clone(&lines);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { break };
+            let mut line = String::new();
+            if std::io::BufRead::read_line(&mut std::io::BufReader::new(&stream), &mut line).is_ok()
+            {
+                if !line.trim().is_empty() {
+                    collected.lock().unwrap().push(line.trim().to_string());
+                }
+                // Answer as herdr does, so the driver's read completes rather
+                // than spending its whole budget waiting on every report.
+                let _ = std::io::Write::write_all(
+                    &mut &stream,
+                    br#"{"id":"x","result":{"type":"ok"}}"#.as_slice(),
+                );
+                let _ = std::io::Write::write_all(&mut &stream, b"\n");
+            }
+        }
+    });
+    lines
+}
+
+/// The `(method, state)` pairs out of collected request lines — asserting on
+/// these rather than on raw JSON keeps the wiring assertions about *sequence*,
+/// while `src/herdr.rs`'s own tests pin the exact bytes.
+fn reported(lines: &[String]) -> Vec<(String, String)> {
+    lines
+        .iter()
+        .map(|line| {
+            let field = |key: &str| {
+                line.split(&format!("\"{key}\":\""))
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .unwrap_or("")
+                    .to_string()
+            };
+            (field("method"), field("state"))
+        })
+        .collect()
+}
+
+// The happy path, end to end: two tasks then a finish. Every launch reports
+// `working`; a relaunch reports nothing of its own; `complete --done` reports
+// `idle` and *then* releases, in that order.
+#[test]
+fn a_finishing_loop_reports_working_per_task_then_idle_and_releases() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let sock = repo_path.join("herdr.sock");
+    let herdr = fake_herdr(&sock);
+
+    let counter = repo_path.join("counter");
+
+    // Task 1 relaunches; task 2 runs the finish cycle (`done`).
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
+n=$((n + 1))
+echo "$n" > "$GROVE_TEST_COUNTER"
+mkdir -p "$PWD/.grove"
+if [ "$n" -eq 1 ]; then
+  : > "$GROVE_SIGNAL_FILE"
+else
+  printf 'done\n' > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_COUNTER", &counter)
+        .set("HERDR_ENV", "1")
+        .set("HERDR_SOCKET_PATH", &sock)
+        .set("HERDR_PANE_ID", "wQ:p1");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
+    assert_eq!(result.unwrap(), LoopOutcome::Finished);
+
+    drop(env);
+    let lines = herdr.lock().unwrap().clone();
+
+    assert_eq!(
+        reported(&lines),
+        vec![
+            ("pane.report_agent".into(), "working".into()),
+            ("pane.report_agent".into(), "working".into()),
+            ("pane.report_agent".into(), "idle".into()),
+            ("pane.release_agent".into(), String::new()),
+        ],
+        "one `working` per launch (a relaunch adds nothing of its own), then \
+         idle-then-release at the finish — release last, so a failed release \
+         leaves the pane reading done rather than pinned at working \
+         (lines: {lines:?})"
+    );
+}
+
+// The headline case (root BRIEF.md): a loop that stops without a completion
+// signal — `/exit`, Ctrl-C, or a crash — must report **`blocked`** and must
+// **keep** its authority. Releasing here would hand the pane back to screen
+// detection, which reads a parked grove as `idle`, which herdr surfaces as its
+// derived `done`: the exact "stalled overnight, shows as finished" complaint
+// this leaf exists to fix.
+#[test]
+fn a_loop_that_stops_without_a_signal_reports_blocked_and_holds_the_pane() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    let sock = repo_path.join("herdr.sock");
+    let herdr = fake_herdr(&sock);
+
+    // Never signals — stands in for `/exit`, a double Ctrl-C, or a crash.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("HERDR_ENV", "1")
+        .set("HERDR_SOCKET_PATH", &sock)
+        .set("HERDR_PANE_ID", "wQ:p1");
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    drop(env);
+    let lines = herdr.lock().unwrap().clone();
+
+    assert_eq!(
+        reported(&lines),
+        vec![
+            ("pane.report_agent".into(), "working".into()),
+            ("pane.report_agent".into(), "blocked".into()),
+        ],
+        "a parked loop reads `blocked`, and nothing releases it: the grove has \
+         live leaves and genuinely needs a human (lines: {lines:?})"
+    );
+}
+
+// herdr-optional-ui's load-bearing negative, at the loop level: with no herdr
+// in the environment the driver must not so much as look for a socket, and the
+// loop must behave exactly as it did before this feature existed.
+#[test]
+fn a_loop_with_no_herdr_in_the_environment_reports_nothing() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+
+    // A listener is bound, but the pane vars are scrubbed — so a driver that
+    // reported regardless of the environment would still be caught here.
+    let sock = repo_path.join("herdr.sock");
+    let herdr = fake_herdr(&sock);
+
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    // `clear_grove_env` scrubs the HERDR_* trio too — the point of the test.
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir);
+
+    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
+    assert_eq!(
+        result.unwrap(),
+        LoopOutcome::Finished,
+        "the loop is unaffected by herdr's absence"
+    );
+
+    drop(env);
+    let lines = herdr.lock().unwrap().clone();
+
+    assert!(
+        reported(&lines).is_empty(),
+        "with no HERDR_* pane environment grove must report nothing at all \
+         (lines: {lines:?})"
+    );
+}
+
+// Release-on-exit, the one genuinely new mechanism here: herdr never expires a
+// hook authority, so a driver killed without releasing leaves the pane pinned
+// at whatever grove last reported. Only `loop_driver::run` installs the
+// SIGTERM/SIGHUP handler (`run_loop`, which every test above calls, deliberately
+// does not — it must stay free of process-global signal changes), so this is
+// the one case that has to drive the **real `grove do` binary** as a subprocess
+// and signal it for real.
+//
+// Also the only test that exercises handler→poll-loop→release end to end: the
+// handler itself may only flip an atomic (a socket round trip is not
+// async-signal-safe), so the release happening at all depends on the watcher's
+// poll loop noticing the flag and acting on it.
+#[test]
+fn a_sigtermed_driver_releases_the_pane_before_exiting() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let git = |args: &[&str]| {
+        assert!(
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(repo_path)
+                .status()
+                .unwrap()
+                .success(),
+            "git {args:?} failed"
+        );
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["config", "user.email", "t@example.com"]);
+    git(&["config", "user.name", "t"]);
+
+    // `.claude/` so the harness is detected; a `.grove/` so the loop takes the
+    // continue path without needing to bootstrap.
+    fs::create_dir_all(repo_path.join(".claude")).unwrap();
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-a-k1.md"),
+        "# a-k1\n\n**Kind:** work\n",
+    )
+    .unwrap();
+    git(&["add", "-A"]);
+    git(&["commit", "-qm", "tree"]);
+
+    // Live provisioning, as in the sibling subprocess test: stamp the dir so the
+    // foreign-dir guard treats it as grove's own.
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
+
+    let sock = repo_path.join("herdr.sock");
+    let herdr = fake_herdr(&sock);
+
+    // Never signals, never exits on its own — stands in for a session sitting
+    // mid-task when the driver is killed from outside. `exec` so the pid the
+    // driver signals is the sleeping process itself.
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+exec sleep 60
+"#,
+    );
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    cmd.arg("do").current_dir(repo_path);
+    for name in support::grove_env_names() {
+        cmd.env_remove(name);
+    }
+    let mut child = cmd
+        .env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .env("GROVE_SKILL_DIR", &skill_dir)
+        .env("GROVE_KILL_GRACE", "0.2")
+        .env("GROVE_KILL_GRACE_KILL", "0.3")
+        .env("HERDR_ENV", "1")
+        .env("HERDR_SOCKET_PATH", &sock)
+        .env("HERDR_PANE_ID", "wQ:p1")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+
+    // Wait for the launch report, so the SIGTERM lands mid-session rather than
+    // racing the driver's own startup.
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while herdr.lock().unwrap().is_empty() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!(
+        reported(&herdr.lock().unwrap()),
+        vec![("pane.report_agent".into(), "working".into())],
+        "the driver must have reported `working` before being signalled"
+    );
+
+    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+
+    let exited = Instant::now() + Duration::from_secs(20);
+    loop {
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < exited,
+            "a SIGTERM'd driver must stop, not hang"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    let lines = herdr.lock().unwrap().clone();
+    assert_eq!(
+        reported(&lines),
+        vec![
+            ("pane.report_agent".into(), "working".into()),
+            ("pane.release_agent".into(), String::new()),
+        ],
+        "a torn-down driver hands the pane back and says nothing else — herdr \
+         never expires an authority, so skipping this pins the pane at \
+         `working` forever (lines: {lines:?})"
+    );
+}

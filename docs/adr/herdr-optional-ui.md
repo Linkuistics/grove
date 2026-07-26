@@ -101,6 +101,46 @@ uncatchably (SIGKILL, panic, OOM) pins the pane at its last reported state until
 which would change behaviour for every third-party reporter and weaken the
 upstream PR's framing as a bug fix.
 
+## When grove releases — and the two cases where it must not
+
+Release is **not** "on every catchable exit". That was this ADR's own earlier
+formulation and it is wrong: it would undo the fix a moment after making it.
+grove releases exactly when it stops having an opinion about the pane, and holds
+its report when the opinion is *"a human is needed"*:
+
+| the loop | reports | releases |
+|---|---|---|
+| launching a session | `working` | — |
+| relaunching (per-task signal) | nothing — the next launch re-reports `working` | — |
+| `complete --done` (grove finished) | `idle`, then release | **yes** |
+| stopped with no signal (`/exit`, Ctrl-C, crash) | `blocked` | no |
+| stopped by the version-skew guard, or an error | `blocked` | no |
+| SIGTERM / SIGHUP | nothing | **yes** |
+
+The no-signal row is the whole point. Releasing there hands the pane straight
+back to screen detection, which reads a parked grove as `idle` — herdr's derived
+`done` — which *is* the "stalled overnight, shows as finished" complaint. And
+`blocked` is not a stale leftover: the grove has live leaves and genuinely needs
+a human, and it self-heals, because the next session reports `working` over the
+top of it once the owner gate no longer vetoes later reports.
+
+**SIGINT needs no handler**, contrary to what the route that chose this recorded.
+The driver already sets SIGINT to `SIG_IGN` so it survives the human's Ctrl-C and
+reaches the relaunch-vs-stop decision; a Ctrl-C that stops the loop does so by
+killing the *session*, which the driver then sees as a no-signal exit and reports
+as `blocked` down the ordinary path. SIGTERM is the case that genuinely needed
+new code — with SIGHUP alongside it, since that is what a closing pane delivers
+to its foreground process group.
+
+Whether a crash, a deliberate `/exit`, and a Ctrl-C should read differently was
+considered and rejected. The driver *can* separate a crash from the two clean
+exits (the child's exit status), but not `/exit` from Ctrl-C — both are the
+harness exiting cleanly at the human's request. More decisively, the right report
+is `blocked` for all three: `pick` still has live leaves in every case, so
+anything else would claim the grove had progressed when it had not. grove
+therefore does not read the exit status at all, rather than inventing a
+distinction that changes nothing.
+
 ## Consequences
 
 - grove reports as agent **`grove`**, not as the harness it launched. This is
@@ -114,9 +154,16 @@ upstream PR's framing as a bug fix.
   ADR already promises. The optional-UI claim therefore survives the fork: it
   now reads *a grove with no herdr, or with stock herdr, behaves identically,
   minus the status surface.*
-- grove must **release** its authority on exit, because herdr will never expire
-  it. That obligation is real code in the loop driver, including signal
-  handling it did not previously have.
+- grove must **release** its authority when it stops having an opinion, because
+  herdr will never expire it — see the table above for which exits release and
+  which deliberately hold a `blocked` report instead. That obligation is real
+  code in the loop driver, including a SIGTERM/SIGHUP handler it did not
+  previously have.
+- **The status surface stops at session boundaries.** The driver is the harness's
+  parent, so it sees a session start and a session end and nothing in between.
+  A session that stalls *mid-turn* on a HITL question therefore reads `working`,
+  not `blocked` — better than the pre-patch `done`, but not the whole fix.
+  Intra-turn state needs per-harness hooks, which is separate work.
 - The plugin's only contract is the `.grove/` directory scheme
   (*task-tree-scheme*), which is already published and stable. Changing that
   scheme is now also a plugin-compatibility question.

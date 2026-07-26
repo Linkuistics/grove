@@ -166,13 +166,47 @@ can be written and unit-tested but not confirmed against the daily herdr.
   two new tests added, zero regressions). Run with `--test-threads=1`; a default
   parallel run flakes ~12 tests on *either* tree.
 
+## Reporter state (established by `report-plumbing-k8`)
+
+The driver-side reporter is built, wired, and tested (`src/herdr.rs` plus four
+report sites in `src/loop_driver.rs`). Three corrections it forced, all of which
+outrank what earlier leaves here recorded:
+
+- **`src/loop_driver.rs` already had a signal handler**, contrary to `k7`'s
+  running log and this leaf's own brief: `run` sets SIGINT to `SIG_IGN` (so the
+  driver survives Ctrl-C and reaches the relaunch-vs-stop decision). SIGINT
+  therefore needed *no* work — a Ctrl-C arrives as an ordinary no-signal stop.
+  SIGTERM/SIGHUP was the real new code.
+- **"Release on every catchable exit" is wrong** and is not what shipped. A
+  no-signal stop reports `blocked` and **holds** authority; releasing there
+  returns the pane to (mis-detected) screen detection, which reads a parked
+  grove as `idle` → herdr's derived `done` — the headline bug, restored. The full
+  table is now in ADR *herdr-optional-ui*.
+- **The mid-turn HITL stall is not closed by this node**, and genuinely needs
+  `04-herdr-turn-hooks-k4`. The driver's whole vocabulary is session-start /
+  session-end; it sees no turn boundaries. A session waiting on a question reads
+  **`working`** — strictly better than `done` (no false green on the tab
+  rollup), but not `blocked`. `04` inherits exactly this gap, and nothing else:
+  transport, source/agent identity, the state vocabulary, and release are all
+  settled and shared.
+
+**Still unverified against the daily herdr, and not verifiable by an agent.**
+Re-measured this session on the live pane: a `grove`-labelled report returns
+`{"result":{"type":"ok"}}` and changes nothing (`agent` stays `codex`,
+`agent_status` stays `idle` while mid-turn). The **running server** (pid from
+Fri 24 Jul) predates the `0.7.5-linkuistics.1` install, and the patch lives in
+the server's `state.rs`. Restarting herdr kills every pane, so it is the human's
+call. Everything below the socket is proven against a fake herdr; the one thing
+outstanding is that a real patched server accepts these exact bytes.
+
 ## Decomposition
 
 Position order encodes dependency.
 
 - `01` **herdr-authority-route** — planning, HITL. *Done.* Settled the route:
   fork, general fix in its minimal form, precedence not full authority, release
-  on catchable exits, upstream PR on a separate non-blocking track.
+  on catchable exits, upstream PR on a separate non-blocking track. Two of its
+  premises did not survive contact with the code — see *Reporter state* above.
 - `02` **herdr-authority-patch** — land the two hunks on the fork, test them,
   ship via `linkuistics/taps`. *Done.* Shipped as `0.7.5-linkuistics.1`. See
   *Shipped state* below — including the one thing still standing between `03`
@@ -180,7 +214,7 @@ Position order encodes dependency.
   patch and must be restarted.
 - `03` **report-plumbing** — the driver-side reporter: transport, the four
   report sites, the state mapping, release-on-exit (including signal handling
-  the driver lacks), tests.
+  the driver lacks), tests. *Done.* See *Reporter state* above.
 - `04` **herdr-upstream-pr** — the same patch as an upstream `fix:` PR, plus the
   mis-detection bug filed as an issue. Deliberately last and deliberately
   non-blocking; a merge would end the fork carry, but nothing waits on it.
@@ -202,22 +236,18 @@ Position order encodes dependency.
 
 ## Still open
 
-- A no-signal exit lumps together a crash, a deliberate Ctrl-C, and `/exit`. Is
-  `blocked` right for all three, or should a deliberate exit read as `idle`?
-  The driver may be able to tell them apart from the child's exit status or
-  terminating signal; if it cannot, say so plainly and pick the safer default
-  rather than inventing a distinction the driver can't observe. Belongs to
-  `report-plumbing-k8`.
-- Whether a session stalled *mid-turn* on a HITL question is reachable from the
-  driver at all, or genuinely needs `04-herdr-turn-hooks-k4`. The driver sees
-  session boundaries, not turn boundaries — and the headline complaint is about
-  a session that has not ended. Worth answering honestly in
-  `report-plumbing-k8` rather than assuming this node closes it.
+Nothing, other than the herdr restart named in *Reporter state* above — which is
+the human's call, not an agent's.
 
 Settled, and no longer open: grove reports `agent: "grove"` (the label is not
 what drops us — see the ADR); the `source` string is ours to pick, and herdr
 accepts any, but it must stay **stable**, since release matches on
-`(source, agent)`.
+`(source, agent)` — shipped as `grove`/`grove`. Both of this section's former
+questions were answered by `report-plumbing-k8`: a no-signal exit reports
+`blocked` for a crash, a Ctrl-C and an `/exit` alike (the driver can separate a
+crash from the clean exits but not the two clean exits from each other, and
+`blocked` is right for all three regardless, so it reads no exit status at all);
+and the mid-turn stall is **not** reachable from the driver — it needs `04`.
 
 **Scope guard**: intra-session turn boundaries are `04`. The value of this node
 is precisely that it needs no hooks — resist pulling them in.

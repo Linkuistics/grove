@@ -31,6 +31,7 @@ fi
 harness_skill_dirs=(
   "${HOME}/.codex/skills"
   "${HOME}/.gemini/skills"
+  "${HOME}/.pi/agent/skills"
 )
 
 linked=0

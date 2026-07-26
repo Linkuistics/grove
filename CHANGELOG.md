@@ -19,8 +19,8 @@ the binary is what was cut.
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
 versioned by commit SHA, so every push delivers and there is no bump to record
 (*skills-monorepo* has the trade, and adding a `version` would quietly undo it).
-The skills reaching codex and gemini by `install.sh` are symlinks, so they were
-never in a version's path either.
+The skills reaching codex, gemini and pi by `install.sh` are symlinks, so they
+were never in a version's path either.
 
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
@@ -47,6 +47,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
   readable, so `autoUpdate: true` keeps *succeeding* against `Linkuistics/skills`
   — the skills simply freeze at the last commit before the archive, with no error
   surfaced. `install.sh` users re-clone from `Linkuistics/grove` instead.
+
+- **`install.sh` links into Pi as well as codex and gemini.** Pi reads personal
+  skills from `~/.pi/agent/skills`, one level deeper than the others; the
+  existing "install only if the parent directory exists" guard needs no
+  special-casing for it, since `dirname` yields `~/.pi/agent` — present only
+  when Pi is set up. Pi had been symlinked by hand against `Linkuistics/skills`
+  and so was left behind by the graft, frozen at the pre-archive skill set;
+  re-running `install.sh` re-points it here and picks up `using-jujutsu` and
+  `git-to-jj-mapping`, which no hand-linked harness had.
 
 ## v15.0.0
 

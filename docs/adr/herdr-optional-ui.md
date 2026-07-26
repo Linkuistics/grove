@@ -75,6 +75,19 @@ change to grove's contract, not a feature, and it is not this decision.
   runtime, and cannot add socket methods or join the authority allowlist. A
   plugin has exactly the socket access `grove-llm` already has, so routing state
   through one would add a hop and buy nothing.
+- **Offer the patch upstream as a `fix:` PR.** Rejected; the fork is a permanent
+  carry, not a temporary one. The patch is inside the automated intake budget
+  (1 file, +74/−2, against a limit of 20 files / 1000 lines) and a `fix:` title
+  is honest, so the gate was never the obstacle. The cost is what follows a
+  submission: herdr is an explicitly opinionated solo-maintainer project whose
+  `CONTRIBUTING.md` reserves the right to close anything off-direction, the
+  patch sits in the hook-authority seam the maintainer is actively rewriting
+  (`state.rs` took +1281/−812 while this grove ran), and an open PR is a standing
+  obligation to track a fast-moving `master` and answer two review bots. Against
+  that, the only prize is ending a carry that is already shipping and measured
+  working. Reopen if upstream separates session identity from lifecycle state on
+  its own — which retires the patch outright — or if the recurring rebase ever
+  costs more than the submission would.
 
 ## The patch, and what it costs
 
@@ -90,16 +103,29 @@ without touching identity, and the harness's own session-resume survives intact.
 The fork is shipped from `linkuistics/taps` alongside grove itself, versioned as
 upstream's version plus a local suffix, and tracked closely against upstream —
 the discipline that keeps a recurring rebase cheap, and the reason the patch is
-held to two hunks rather than a more thorough refactor of the same seam. The
-same patch goes upstream as a `fix:` PR; if it lands, the carry ends.
+held to two hunks rather than a more thorough refactor of the same seam.
+
+**The carry is permanent.** Offering the patch upstream was considered and
+rejected (see above), so nothing is expected to end it except upstream reaching
+the same separation independently. That raises the price of every future hunk:
+each one is a rebase obligation forever, so the two-hunk discipline above is now
+a standing constraint rather than a courtesy to a reviewer.
 
 grove takes **precedence** over screen detection, not authority *instead of* it:
-staying outside herdr's allowlist keeps `fallback_state` live underneath. The
-known gap is that grove's authority has no expiry in herdr, so a driver killed
-uncatchably (SIGKILL, panic, OOM) pins the pane at its last reported state until
-`herdr pane release-agent`. Accepted rather than fixed with a staleness TTL,
-which would change behaviour for every third-party reporter and weaken the
-upstream PR's framing as a bug fix.
+staying outside herdr's allowlist keeps `fallback_state` live underneath. Two
+known gaps follow, both accepted here rather than fixed.
+
+grove's authority has **no expiry** in herdr, so a driver killed uncatchably
+(SIGKILL, panic, OOM) pins the pane at its last reported state until
+`herdr pane release-agent`. A staleness TTL would fix it and is rejected: it
+changes behaviour for every third-party reporter, and it is a second principle
+in a patch deliberately held to one.
+
+The `fallback_state` underneath is **not reliable for grove panes**: herdr
+identifies the agent from the pane's foreground process group, whose leader is
+`grove` — an unknown name — so detection falls back to scoring the whole group
+and can settle on an MCP helper rather than the harness grove launched. What to
+do about that is undecided and out of this ADR's scope.
 
 ## When grove releases — and the two cases where it must not
 
@@ -154,6 +180,11 @@ distinction that changes nothing.
   ADR already promises. The optional-UI claim therefore survives the fork: it
   now reads *a grove with no herdr, or with stock herdr, behaves identically,
   minus the status surface.*
+- **The fork is a standing maintenance obligation, not a temporary one.** Every
+  upstream release means a rebase of `authority-fix` and a merge into the ship
+  branch, indefinitely. That is the price of the status surface, and it is the
+  reason no further hunk joins the patch without clearing the same bar the first
+  two did.
 - grove must **release** its authority when it stops having an opinion, because
   herdr will never expire it — see the table above for which exits release and
   which deliberately hold a `blocked` report instead. That obligation is real

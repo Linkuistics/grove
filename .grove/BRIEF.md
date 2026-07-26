@@ -28,7 +28,9 @@ Position order encodes dependency and value-first sequencing.
   the driver is the parent process whatever it spawned, so this needs no hooks
   and no per-harness work. Now a node: measurement showed the unforked mechanism
   is vetoed by herdr, so the route was settled first (fork, two-hunk patch — ADR
-  *herdr-optional-ui*), and the node now runs patch → reporter → upstream PR.
+  *herdr-optional-ui*), then patch → reporter. **Done.** Its fourth leaf, the
+  upstream PR, was abandoned: grove does not contribute upstream. The reporter
+  is shipped and tested; what it cannot reach — intra-turn state — is `04`.
 - `03` **harness-on-leaf** — planning. Move harness selection from per-grove env
   (`GROVE_<KIND>_HARNESS`) onto the leaf, so a node can sequence work across
   vendors (impl → review → integrate). Independent of `02`.
@@ -38,6 +40,10 @@ Position order encodes dependency and value-first sequencing.
   directory scheme, so it can follow `02` at any point.
 - `06` **jj-first-coverage** — the jj path is primary in code but untested, and
   the docs still lead with git.
+- `07` **herdr-pane-misdetection** — planning. grove panes are labelled with the
+  wrong agent; upstreaming is closed, so the route is ours to pick (grove-side,
+  fork-side, or accept). Last because grove's own reports mask it whenever grove
+  holds authority. Independent of everything above.
 
 ## Pointers
 
@@ -53,11 +59,15 @@ Position order encodes dependency and value-first sequencing.
   scripts) are `src/integration/assets/<agent>/`.
 - The fork is **already in production**: `/opt/homebrew/bin/herdr` resolves to
   `linkuistics-herdr`, built from the fork and shipped from `linkuistics/taps`,
-  the same tap grove ships from. Version = upstream's plus a local suffix; track
-  upstream closely and often, because every release means a rebase.
-- Upstream restricts PRs from contributors not in `.github/APPROVED_CONTRIBUTORS`
-  to `fix:`-titled changes of ≤20 files / ≤1000 lines. `AntonyBlakey` is not on
-  that list. `akbash` in herdr's history is herdr's *own* agent bot, not us.
+  the same tap grove ships from. How the carry is maintained — branch layout,
+  rebase cycle, version suffix scheme, the required build environment, and the
+  A/B check that verifies a rebase — is
+  `docs/specs/herdr-fork-maintenance.md`. Read it before touching the fork.
+- **We do not contribute upstream.** Offering the authority patch as a `fix:` PR
+  was drafted and then decided against; the fork is a permanent carry (ADR
+  *herdr-optional-ui*). Do not re-propose it, and do not file issues upstream
+  either. Read the fork as ours to maintain, not as a staging area for
+  contributions.
 
 ## Notes
 
@@ -97,6 +107,11 @@ out of herdr's source at planning time and belong to a repo we do not control �
   only, never state. It is *also* not the way in for grove: joining that list is
   verified to make things worse, since the allowlisted path demands a session_ref
   grove does not have. See the ADR.
-- grove panes are currently **mis-detected**: MCP servers inherit the harness's
-  foreground process group, so a `codex` MCP server running under `claude` makes
-  herdr identify the pane as codex and evaluate the wrong manifest.
+- grove panes are currently **mis-detected**, but not for the reason this brief
+  originally recorded. It said MCP servers inherit the harness's process group,
+  so a `codex` MCP server under `claude` makes herdr read the pane as codex.
+  herdr already defends against precisely that (upstream #161, fixed in v0.5.11)
+  by preferring the process-group *leader*. The defence misses because the leader
+  of a grove pane is **`grove` itself**, which herdr cannot identify, so it falls
+  back to scoring the whole group. See `CONTEXT.md` and
+  `herdr-pane-misdetection-k11`.

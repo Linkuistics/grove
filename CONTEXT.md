@@ -121,10 +121,16 @@ resume. Shipped from `linkuistics/taps` as upstream's version plus
 **`-linkuistics.<seq>`** — a sequence incrementing per ship and resetting when
 upstream's version bumps, because a commit sha does not order and Homebrew needs
 ordering to see an upgrade. Carried on **two** fork branches with different jobs:
-`authority-fix` off `upstream/master` holding *only* the fix (the PR branch, kept
-pure), and `ui-layout` as the ship branch, which takes the fix by **merge** so it
-never needs a force-push. Tracked closely against upstream, and offered upstream
-as a `fix:` PR; if it lands, the carry ends. See ADR *herdr-optional-ui*.
+`authority-fix` off `upstream/master` holding *only* the fix (kept pure, so it
+stays reviewable and rebasable on its own), and `ui-layout` as the ship branch,
+which takes the fix by **merge** so it never needs a force-push. Tracked closely
+against upstream. The carry is **permanent**: offering the patch upstream was
+considered and rejected, so only upstream reaching the same separation
+independently would end it — which makes every additional hunk a rebase
+obligation forever, and is why the patch stays at two. See ADR
+*herdr-optional-ui* for the decision, and `docs/specs/herdr-fork-maintenance.md`
+for how the carry is actually maintained (rebase cycle, version suffix scheme,
+the required build environment, and how to verify a rebase).
 _Avoid_: reading `herdr --version` to tell which build is installed — it prints
 bare upstream `0.7.5` either way, since the suffix is Homebrew's, not Cargo's.
 Check the Cellar path or `brew list --versions`.
@@ -173,6 +179,24 @@ green), but not the whole headline fix. `blocked` lands for the *session-ended*
 cases only. Intra-turn state needs per-harness hooks and is separate work.
 _Avoid_: claiming driver-level reporting closes the "stalled overnight on a
 question" case — it closes the half where the session **ended**.
+
+**Pane mis-detection**:
+herdr labelling a `grove do` pane with the wrong agent — in practice `codex`,
+whatever harness grove actually launched — so its screen manifests evaluate
+against the wrong agent's UI. herdr identifies the agent from the pane's
+foreground **process group**: it prefers the group *leader*, and only falls back
+to scoring every process in the group when the leader is unrecognised. In a
+grove pane the leader is `grove` itself, which herdr cannot identify, so the
+fallback runs and a `codex`-named MCP helper can outrank the real harness. Bites
+only where grove is not holding hook authority (before its first report; after
+release), since a landed report takes precedence over detection. Undecided —
+`herdr-pane-misdetection-k11`.
+_Avoid_: "MCP servers inherit the harness's process group, so a codex MCP server
+makes the pane read as codex" — true but the wrong half of the story, and it
+was the version this grove's root brief carried. herdr **already** defends
+against exactly that (upstream #161, fixed in v0.5.11, same claude+codex-MCP
+shape); grove sitting at the head of the process group is what disables that
+defence.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 

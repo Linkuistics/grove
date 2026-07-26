@@ -107,8 +107,10 @@ The patch is landed, shipped, and **measured working end-to-end**. What `03`
 can now assume, and what it must not:
 
 - **Fork layout — two branches, deliberately.** `authority-fix` is off
-  `upstream/master` and carries *only* the fix (one commit, +74/−2, one file):
-  that is `herdr-upstream-pr-k10`'s PR branch, kept pure. `ui-layout` is the
+  `upstream/master` and carries *only* the fix (one commit, +74/−2, one file).
+  It was shaped as a PR branch; with upstreaming abandoned its job is now to
+  stay a clean, isolated rebase target, which is what keeps the permanent carry
+  cheap. `ui-layout` is the
   **ship** branch and reached the same content by **merge**, not rebase, so it
   fast-forwards from `origin/ui-layout` and never needs a force-push. Both are
   pushed. Recurring-rebase discipline is therefore: rebase `authority-fix` onto
@@ -206,7 +208,8 @@ Position order encodes dependency.
 - `01` **herdr-authority-route** — planning, HITL. *Done.* Settled the route:
   fork, general fix in its minimal form, precedence not full authority, release
   on catchable exits, upstream PR on a separate non-blocking track. Two of its
-  premises did not survive contact with the code — see *Reporter state* above.
+  premises did not survive contact with the code — see *Reporter state* above —
+  and the upstream track was later abandoned outright (see `04`).
 - `02` **herdr-authority-patch** — land the two hunks on the fork, test them,
   ship via `linkuistics/taps`. *Done.* Shipped as `0.7.5-linkuistics.1`. See
   *Shipped state* below — including the one thing still standing between `03`
@@ -216,8 +219,12 @@ Position order encodes dependency.
   report sites, the state mapping, release-on-exit (including signal handling
   the driver lacks), tests. *Done.* See *Reporter state* above.
 - `04` **herdr-upstream-pr** — the same patch as an upstream `fix:` PR, plus the
-  mis-detection bug filed as an issue. Deliberately last and deliberately
-  non-blocking; a merge would end the fork carry, but nothing waits on it.
+  mis-detection bug filed as an issue. **Abandoned**, on the human's call: grove
+  does not contribute upstream, and the fork carry is permanent (ADR
+  *herdr-optional-ui* records the rejection and what would reopen it). Nothing
+  waited on it, so nothing here is left undone. The mis-detection half moved out
+  to the root as `herdr-pane-misdetection-k11` — it is our problem now, not a
+  bug report.
 
 ## Context
 

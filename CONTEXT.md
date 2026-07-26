@@ -12,8 +12,9 @@ The terminal, whole-grove sequence that retires a grove once it has no live leav
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 
 **Grove name**:
-The working-tree directory's basename — derived from `git rev-parse --show-toplevel`, never from a branch or a canonical layout. Names the root brief (`# <name> — brief`), the harness session (`<repo-basename>: <name> grove`), and the harness stamp (`<repo>/.grove-stamps/<name>`).
+The working-tree directory's basename — never a branch, a bookmark, or a canonical layout. Resolved **jj-first**: a `.jj/` directory heading the tree makes it jj-enabled (native, secondary workspace, or colocated — `.jj/` wins even with a `.git` beside it) and the workspace root is the directory holding `.jj/`; only a not-jj-enabled tree falls back to `git rev-parse --show-toplevel`. The closest marker walking up decides, so a plain-git checkout nested under a jj tree stays git. Names the root brief (`# <name> — brief`), the harness session (`<repo-basename>: <name> grove`), and the harness stamp (`<repo>/.grove-stamps/<name>`).
 _Avoid_: "the grove name equals the branch name" — grove reads no branch anywhere.
+_Avoid_: describing resolution as git-with-jj-fallback — it is the other way round, in `repo.rs` and in every tree-mutation verb (a jj tree renames with `fs::rename`; `git mv` is the fallback).
 
 **root-init** / **fresh-grove start**:
 The bootstrap of a brand-new grove (a git working tree exists — user-provided, any branch, anywhere — but no `.grove/` tree yet), enacted by the `grove-llm root-init [<slug>]` verb. It creates `.grove/`, the root `BRIEF.md` stub, and a first **planning** leaf `01-<slug>-k1.md` (default slug `plan`) — a working-tree change with no commit, refusing to clobber an existing `.grove/`. It is the one tree verb that sits *below* the floor the others stand on (`leaf-add`/`leaf-insert`/`leaf-decompose`/`leaf-retire` all require `.grove/` to already exist), so it is what makes a fresh grove enter the steady-state loop. Creating the first leaf — not just the root brief — is load-bearing: `grove-llm pick` skips every `BRIEF.md`, so a brief-only `.grove/` reports "no live leaves; this grove is done" and would mis-trigger the [[Complete finish cycle]] (fresh-grove-start-contract). The first session's commit folds the scaffold in. Distinct from [[Bootstrap]]-the-loop-step (reading context at the start of every session); this is the one-time creation of the tree that the loop then reads.
@@ -83,6 +84,28 @@ binds). Shape and the seam-recording rule: `content/SPEC-FORMAT.md`; what a seam
 _Avoid_: "PRD" — grove names no product-requirements artifact. _Avoid_ a
 `## Decomposition` section inside a spec: that is brief material, dead when the
 grove finishes.
+
+**herdr integration**:
+grove's relationship with [herdr](https://herdr.dev), the agent multiplexer whose
+sidebar rolls per-pane agent state up to tabs and workspaces: **optimised-for,
+never required** (ADR *herdr-optional-ui*). Split in two. **Semantic state**
+(`idle` / `working` / `blocked`) is reported *by grove* over herdr's unix socket,
+addressed by the `HERDR_*` variables herdr places in the pane environment —
+skipped entirely when they are absent, and a no-op if the socket refuses.
+**Everything richer** — the tree, the live leaf, progress — is rendered by a
+**herdr plugin that reads `.grove/` directly**; grove pushes it nothing. The
+split works because the tree on disk already *is* the status (constraint 1), so
+the only thing worth reporting is what no artifact records: whether the agent is
+mid-turn or has stopped and is waiting for a human. grove reports as agent
+**`grove`**, not as the harness it launched — a `grove do` pane is a loop
+relaunching a *sequence* of sessions, and the harness may vary per leaf.
+_Avoid_: "grove requires herdr" or "herdr drives the loop" — with no herdr
+present every grove behaviour is unchanged, minus the status surface. Panes-per-leaf
+sequencing over the socket would be an amendment to the spine (constraint 6), not
+a feature.
+_Avoid_: treating the plugin as a state authority — herdr's *full lifecycle
+authority* is a compiled-in allowlist of `(source, agent)` pairs that nothing
+outside the binary can join; the plugin owns UI only.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 

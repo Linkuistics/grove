@@ -26,9 +26,9 @@ Position order encodes dependency and value-first sequencing.
 
 - `02` **herdr-pane-state** — driver-level state reporting. Harness-agnostic:
   the driver is the parent process whatever it spawned, so this needs no hooks
-  and no per-harness work. Now a node: measurement showed the unforked
-  mechanism is vetoed by herdr (see `## Notes`), so `02/01` settles the route
-  and `02/02` builds the reporter to match.
+  and no per-harness work. Now a node: measurement showed the unforked mechanism
+  is vetoed by herdr, so the route was settled first (fork, two-hunk patch — ADR
+  *herdr-optional-ui*), and the node now runs patch → reporter → upstream PR.
 - `03` **harness-on-leaf** — planning. Move harness selection from per-grove env
   (`GROVE_<KIND>_HARNESS`) onto the leaf, so a node can sequence work across
   vendors (impl → review → integrate). Independent of `02`.
@@ -46,11 +46,18 @@ Position order encodes dependency and value-first sequencing.
 - *model-per-task-kind* — `03` reworks the mechanism that ADR describes.
 - Glossary terms in play: herdr integration, Per-kind model selection, HITL/AFK,
   Task kind (see `CONTEXT.md`).
-- herdr's source is checked out at `~/Development/herdr` — a fork of
-  `ogulcancelik/herdr` with an `upstream` remote. The reducer deciding whether a
+- herdr's source is checked out at `~/Development/herdr` — `AntonyBlakey/herdr`,
+  a fork with `ogulcancelik/herdr` as `upstream`. The reducer deciding whether a
   state report lands is `src/terminal/state.rs`; screen manifests are
   `website/agent-detection/<agent>.toml`; integration assets (the installed hook
   scripts) are `src/integration/assets/<agent>/`.
+- The fork is **already in production**: `/opt/homebrew/bin/herdr` resolves to
+  `linkuistics-herdr`, built from the fork and shipped from `linkuistics/taps`,
+  the same tap grove ships from. Version = upstream's plus a local suffix; track
+  upstream closely and often, because every release means a rebase.
+- Upstream restricts PRs from contributors not in `.github/APPROVED_CONTRIBUTORS`
+  to `fix:`-titled changes of ≤20 files / ≤1000 lines. `AntonyBlakey` is not on
+  that list. `akbash` in herdr's history is herdr's *own* agent bot, not us.
 
 ## Notes
 
@@ -78,15 +85,18 @@ out of herdr's source at planning time and belong to a repo we do not control �
   differs from whoever owns the pane's **session identity** — and that owner is
   the harness's own herdr integration, at every SessionStart. The
   session-identity-only integrations dismissed above as inert are exactly what
-  locks grove out. Worse, a report that lands *before* the owner appears
-  **latches**: the pane pins at grove's last-accepted state and never moves
-  again. Measured live against 0.7.5 by `02`; full detail and `state.rs` line
-  references in `02-herdr-pane-state-k2/BRIEF.md`. This fired
-  *herdr-optional-ui*'s own reopening condition for the fork option, which
-  `02/01-herdr-authority-route-k7` now settles.
-- Full lifecycle authority is a **compiled-in allowlist** of seven
-  `(source, agent)` pairs. Nothing reachable from outside the binary — a plugin
-  included — can join it. This is why the plugin owns UI only, never state.
+  locks grove out. This fired *herdr-optional-ui*'s own reopening condition for
+  the fork option; `herdr-authority-route-k7` settled it, and the ADR now carries
+  the outcome. Re-verified against upstream HEAD, not only 0.7.5 — but note that
+  `state.rs` took +1281/-812 in the interim, so **every line number in these
+  notes is stale even where the behaviour is not.**
+- Full lifecycle authority is a **compiled-in allowlist** — six `(source, agent)`
+  pairs on current upstream, after hermes moved out into a new
+  `session_identity_only_integration()` category. Nothing reachable from outside
+  the binary — a plugin included — can join it. This is why the plugin owns UI
+  only, never state. It is *also* not the way in for grove: joining that list is
+  verified to make things worse, since the allowlisted path demands a session_ref
+  grove does not have. See the ADR.
 - grove panes are currently **mis-detected**: MCP servers inherit the harness's
   foreground process group, so a `codex` MCP server running under `claude` makes
   herdr identify the pane as codex and evaluate the wrong manifest.

@@ -7,7 +7,9 @@ it. Two mechanisms, deliberately separated:
 - **Semantic state** (`idle` / `working` / `blocked`) is reported *by grove* over
   herdr's socket, addressed by the `HERDR_*` variables herdr places in the pane
   environment. Detection is skipped entirely when they are absent, and a refused
-  or slow socket is a no-op, never a failed launch or a stalled loop.
+  or slow socket is a no-op, never a failed launch or a stalled loop. Stock herdr
+  **drops** these reports; landing them needs a two-hunk patch grove carries in a
+  fork (see below).
 - **Everything richer** — the task tree, the live leaf, progress — is rendered by
   a **herdr plugin that reads `.grove/` directly**. grove pushes it nothing and
   does not know it exists.
@@ -42,17 +44,29 @@ change to grove's contract, not a feature, and it is not this decision.
   duplicates on the wire what `.grove/` already holds, adds a reporting
   obligation to every tree mutation, and drifts the moment a verb forgets to
   report. Still fine as a thin display-only garnish on the pane's sidebar row.
-- **Fork herdr to make grove a first-class agent.** herdr's *full lifecycle
-  authority* is a compiled-in allowlist of `(source, agent)` pairs, so joining
-  it genuinely requires a fork or an upstream PR. This was rejected on the
-  reading that an unrecognised agent label gives the same practical result
-  unforked — and **reopened, because measurement showed it does not**. The label
-  does bypass both gates that reading identified, but a third one,
-  `current_session_owner_conflicts`, drops any report whose `(source, agent)`
-  differs from the pane's session-identity owner — which the harness's own herdr
-  integration claims at every SessionStart. There is no unforked way through it,
-  and a report that lands before the owner appears latches the pane at a stale
-  state. Measured live against herdr 0.7.5; the route is being settled now.
+- **Join herdr's authority allowlist.** Adding `("herdr:grove", "grove")` to the
+  compiled-in `full_lifecycle_hook_authority` list is the obvious fork, and it
+  **does not work**: allowlist membership is not a fast lane past the owner gate,
+  it is a stricter path *before* it. An allowlisted report must satisfy
+  `route_full_lifecycle_hook_report`, which demands the label parse to the
+  detected agent (`grove` parses to nothing) and then requires a `session_ref`
+  grove does not have — so every report would be dropped. Rejected as strictly
+  worse than doing nothing. Reopen only if grove ever gains a resumable session
+  identity of its own, which would be a different tool.
+- **Report unforked, on an unrecognised label.** Rejected on measurement. An
+  unrecognised label does bypass the agent-label gate and the screen-blocker
+  override, but a third gate, `current_session_owner_conflicts`, drops any report
+  whose `(source, agent)` differs from the pane's session-identity owner — which
+  the harness's own herdr integration claims at every SessionStart. There is no
+  unforked way through, on 0.7.5 or on current upstream, and a report that lands
+  before the owner appears latches the pane at a stale state forever. Reopen if
+  herdr ever accepts a state report from a source that owns no session identity.
+- **Claim the pane's session identity first, or have the user uninstall the
+  harness integration.** Both make grove's reports land, and both work by
+  destroying herdr's session-resume for that harness — hostile to another
+  integration in the first case, a configuration demand rather than a design in
+  the second. Rejected. The uninstall remains usable as a documented escape
+  hatch for anyone unwilling to run the patched build.
 - **herdr as execution substrate** (panes per leaf, sequencing over the socket).
   Rejected as a spine change, not a feature — see above. Reopened only as a
   deliberate amendment to the constraints, with constraint 6 restated.
@@ -62,6 +76,31 @@ change to grove's contract, not a feature, and it is not this decision.
   plugin has exactly the socket access `grove-llm` already has, so routing state
   through one would add a hop and buy nothing.
 
+## The patch, and what it costs
+
+herdr conflates two separable concerns: who owns a pane's *session identity*
+(for resume) and who reports its *lifecycle state*. `set_hook_authority_at` lets
+the identity owner veto any differently-sourced state report, and clears the
+identity record on every accepted one. grove carries a two-hunk fix encoding one
+principle — **a hook report that makes no session-identity claim neither
+conflicts with, nor clears, the identity owner** — gating both behaviours on
+`session_ref.is_some()`. grove never sends a `session_ref`, so it reports state
+without touching identity, and the harness's own session-resume survives intact.
+
+The fork is shipped from `linkuistics/taps` alongside grove itself, versioned as
+upstream's version plus a local suffix, and tracked closely against upstream —
+the discipline that keeps a recurring rebase cheap, and the reason the patch is
+held to two hunks rather than a more thorough refactor of the same seam. The
+same patch goes upstream as a `fix:` PR; if it lands, the carry ends.
+
+grove takes **precedence** over screen detection, not authority *instead of* it:
+staying outside herdr's allowlist keeps `fallback_state` live underneath. The
+known gap is that grove's authority has no expiry in herdr, so a driver killed
+uncatchably (SIGKILL, panic, OOM) pins the pane at its last reported state until
+`herdr pane release-agent`. Accepted rather than fixed with a staleness TTL,
+which would change behaviour for every third-party reporter and weaken the
+upstream PR's framing as a bug fix.
+
 ## Consequences
 
 - grove reports as agent **`grove`**, not as the harness it launched. This is
@@ -69,6 +108,15 @@ change to grove's contract, not a feature, and it is not this decision.
   the harness may vary per leaf — and it sidesteps herdr's gate that silently
   drops a report whose label names a different *known* agent than the one it
   detected.
+- **The status surface, not the loop, is what depends on the patched build.**
+  Under stock herdr the reports are dropped and the pane falls back to screen
+  detection — the same outcome as no herdr at all, which is exactly what this
+  ADR already promises. The optional-UI claim therefore survives the fork: it
+  now reads *a grove with no herdr, or with stock herdr, behaves identically,
+  minus the status surface.*
+- grove must **release** its authority on exit, because herdr will never expire
+  it. That obligation is real code in the loop driver, including signal
+  handling it did not previously have.
 - The plugin's only contract is the `.grove/` directory scheme
   (*task-tree-scheme*), which is already published and stable. Changing that
   scheme is now also a plugin-compatibility question.

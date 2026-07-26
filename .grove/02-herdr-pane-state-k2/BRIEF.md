@@ -86,17 +86,37 @@ planning.
 ## What this means
 
 *herdr-optional-ui* pre-committed the fork option to be **reopened "if that
-turns out to be false"**. It has turned out to be false. The `01` child settles
-the route; that ADR's *Considered options* has been corrected in place to
-record the measurement, and the root brief's note likewise.
+turns out to be false"**. It turned out to be false, and `herdr-authority-route-k7`
+spent that reopening: **grove carries a two-hunk patch in a herdr fork.** The ADR
+now records the settled route, the patch, and its consequences; this brief no
+longer carries that argument.
+
+Two corrections that brief made, worth keeping in front of anyone working here:
+
+- **Line numbers below are stale.** Upstream took +1281/-812 on `state.rs` since
+  these measurements. The *behaviours* re-verified true against upstream HEAD;
+  the line references did not. Find things by name.
+- **The latching hazard is dissolved**, not managed. With the owner gate no
+  longer vetoing, grove's later reports land, so grove corrects itself while it
+  is alive. What remains is a different problem — grove's authority never
+  expires — which is handled by releasing on exit, not by a latch guard.
 
 ## Decomposition
 
-- `01` **herdr-authority-route** — planning, HITL. Which route past gate 3, and
-  what the reporter therefore looks like. Must come first: the routes produce
-  different reporters (see that leaf).
-- `02` **report-plumbing** — the driver-side reporter itself: transport, the
-  four report sites, the state mapping, tests. Shaped by `01`.
+Position order encodes dependency.
+
+- `01` **herdr-authority-route** — planning, HITL. *Done.* Settled the route:
+  fork, general fix in its minimal form, precedence not full authority, release
+  on catchable exits, upstream PR on a separate non-blocking track.
+- `02` **herdr-authority-patch** — land the two hunks on the fork, test them,
+  ship via `linkuistics/taps`. Blocks `03`: until a patched herdr is running,
+  no report is accepted in any configuration, so the reporter cannot be verified.
+- `03` **report-plumbing** — the driver-side reporter: transport, the four
+  report sites, the state mapping, release-on-exit (including signal handling
+  the driver lacks), tests.
+- `04` **herdr-upstream-pr** — the same patch as an upstream `fix:` PR, plus the
+  mis-detection bug filed as an issue. Deliberately last and deliberately
+  non-blocking; a merge would end the fork carry, but nothing waits on it.
 
 ## Context
 
@@ -113,19 +133,24 @@ record the measurement, and the root brief's note likewise.
   before the positional fail with a bare `unknown option: <value>`. Cost ~15
   minutes; worth knowing before hand-driving the socket.
 
-## Still open, inherited from planning
+## Still open
 
-- Report `agent: "grove"`, not the underlying harness — a `grove do` pane is a
-  loop relaunching a *sequence* of sessions, and the harness may vary per leaf
-  once `03` lands. Unaffected by the findings above; the label is not what
-  drops us.
-- The `source` string is ours to pick; herdr accepts any (its own tests use
-  `custom:hermes`).
 - A no-signal exit lumps together a crash, a deliberate Ctrl-C, and `/exit`. Is
   `blocked` right for all three, or should a deliberate exit read as `idle`?
   The driver may be able to tell them apart from the child's exit status or
   terminating signal; if it cannot, say so plainly and pick the safer default
-  rather than inventing a distinction the driver can't observe. Belongs to `02`.
+  rather than inventing a distinction the driver can't observe. Belongs to
+  `report-plumbing-k8`.
+- Whether a session stalled *mid-turn* on a HITL question is reachable from the
+  driver at all, or genuinely needs `04-herdr-turn-hooks-k4`. The driver sees
+  session boundaries, not turn boundaries — and the headline complaint is about
+  a session that has not ended. Worth answering honestly in
+  `report-plumbing-k8` rather than assuming this node closes it.
+
+Settled, and no longer open: grove reports `agent: "grove"` (the label is not
+what drops us — see the ADR); the `source` string is ours to pick, and herdr
+accepts any, but it must stay **stable**, since release matches on
+`(source, agent)`.
 
 **Scope guard**: intra-session turn boundaries are `04`. The value of this node
 is precisely that it needs no hooks — resist pulling them in.

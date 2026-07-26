@@ -91,7 +91,8 @@ sidebar rolls per-pane agent state up to tabs and workspaces: **optimised-for,
 never required** (ADR *herdr-optional-ui*). Split in two. **Semantic state**
 (`idle` / `working` / `blocked`) is reported *by grove* over herdr's unix socket,
 addressed by the `HERDR_*` variables herdr places in the pane environment —
-skipped entirely when they are absent, and a no-op if the socket refuses.
+skipped entirely when they are absent, and a no-op if the socket refuses, or if
+the herdr on the other end is stock and drops the report ([[Authority patch]]).
 **Everything richer** — the tree, the live leaf, progress — is rendered by a
 **herdr plugin that reads `.grove/` directly**; grove pushes it nothing. The
 split works because the tree on disk already *is* the status (constraint 1), so
@@ -106,6 +107,41 @@ a feature.
 _Avoid_: treating the plugin as a state authority — herdr's *full lifecycle
 authority* is a compiled-in allowlist of `(source, agent)` pairs that nothing
 outside the binary can join; the plugin owns UI only.
+
+**Authority patch** / **session identity vs lifecycle state**:
+The two-hunk change grove carries in its herdr fork, encoding one principle: **a
+hook report that makes no session-identity claim neither conflicts with, nor
+clears, the identity owner**. herdr conflates the two concerns — who owns a
+pane's session identity (for resume) and who reports its lifecycle state — so
+its `set_hook_authority_at` lets the identity owner veto a differently-sourced
+state report, and clears the identity record on every accepted one. Both
+behaviours are gated on `session_ref.is_some()` by the patch. grove never sends a
+`session_ref`, so it reports state without disturbing the harness's session
+resume. Shipped from `linkuistics/taps` as upstream's version plus a local
+suffix, tracked closely against upstream, and offered upstream as a `fix:` PR;
+if it lands, the carry ends. See ADR *herdr-optional-ui*.
+_Avoid_: "grove joins herdr's authority allowlist" — verified false. Allowlist
+membership is a *stricter* path, not a fast lane: an allowlisted report must
+pass `route_full_lifecycle_hook_report`, which needs the label to parse to the
+detected agent and then requires a `session_ref` grove does not have, so every
+report would be dropped.
+_Avoid_: "grove needs a forked herdr" as a statement about the *loop* — only the
+status surface depends on it. Under stock herdr the reports are dropped and the
+pane falls back to screen detection, exactly as with no herdr at all.
+
+**Authority release**:
+grove's obligation to un-report on exit. herdr never expires a hook authority —
+there is no TTL, and its clear-on-process-exit path only fires for a label that
+parses to a known agent, which `grove` does not. So grove's last report is what
+the pane shows until something releases it. The loop driver releases on clean
+relaunch-stop, on `complete --done`, and on SIGINT/SIGTERM (which needs signal
+handling the driver did not previously have). SIGKILL, panic, OOM and power loss
+stay uncovered by design: the pane pins at grove's last state and the user
+recovers with `herdr pane release-agent`.
+_Avoid_: calling the uncovered case "latching" — that named a *different*,
+now-dissolved failure where herdr dropped grove's later reports and froze the
+pane mid-loop. [[Authority patch]] fixed that; grove can always correct itself
+while it is alive.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 

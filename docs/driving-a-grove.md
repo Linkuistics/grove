@@ -16,25 +16,32 @@ then *reversed* that premise. Paths below point at durable artifacts
 from that workstream — the research doc, the ADRs — so the chain from
 concern → research → grilling → ADR is traceable end to end.
 
+That workstream predates the seventeen-kind taxonomy
+([`specs/task-kind-taxonomy.md`](specs/task-kind-taxonomy.md)), so its own
+leaves carried the older five-kind labels — in particular, `planning` was
+then the kind that grilled. Quotations below keep their original wording;
+the advice around them is stated in the **current** vocabulary, where
+grilling is `requirements` and `planning` only cuts slices.
+
 ## When to commission prior-art research
 
-A planning leaf is the right unit for a grilling session when the
+A `requirements` leaf is the right unit for a grilling session when the
 design tree fits in one session. When the leaf's design depends on
 lessons that prior tools have already learned the hard way — and
 those lessons are not obvious from the current codebase — *insert a
-research leaf ahead of the planning leaf*. The research leaf's job is
-to surface the failure modes the planning leaf would otherwise have
-to learn from scratch.
+`research` leaf ahead of it*. The research leaf's job is to surface
+the failure modes the grilling would otherwise have to learn from
+scratch.
 
 **Signs you want a research leaf:**
 
-- The planning leaf sits in an architectural neighbourhood with
+- The leaf sits in an architectural neighbourhood with
   well-known prior art (workflow engines, agentic loops, issue
   trackers, sync protocols, build systems, etc.).
 - Earlier leaves in the subtree have already touched architectural
   decisions the new leaf depends on — i.e. several downstream
-  planning leaves share a common evidence base.
-- The planning conversation surfaces a question like "has anyone
+  `requirements` / `design` leaves share a common evidence base.
+- The grilling surfaces a question like "has anyone
   tried this before, and what happened to them?" — that question is
   the signal.
 
@@ -43,7 +50,7 @@ worked example. The one open foundational fork was *which substrate
 drives grove's fresh-context loop* — and the founding premise (adopt
 the Archon workflow engine) was exactly the kind of load-bearing
 assumption that deserved evidence before commitment. The spike was
-inserted *before* the `substrate-decision` planning leaf that would
+inserted *before* the `substrate-decision` leaf that would
 choose, and its findings reversed the premise: Archon was rejected,
 and the decision (self-extension-core-and-methodology / self-driving-loop) landed on a thin, grove-owned loop
 instead.
@@ -111,7 +118,7 @@ future readers from re-doing the same fruitless search.
 
 ## When to invoke a design discussion (grilling)
 
-The trigger is: a planning leaf's brief lists three or more questions
+The trigger is: a `requirements` leaf's brief lists three or more questions
 whose answers interdepend. Grilling is the procedure that walks the
 dependency tree without the LLM making decisions on the human's
 behalf.
@@ -250,9 +257,9 @@ rationale section for the worked end-to-end.
   `impl` task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
 - **The runaway tree.** Decomposition is meant to be lazy (grove
-  constraint 4, *lazy and optional*). If a planning session grows
-  new child leaves faster than you can settle the current question,
-  stop and ask whether the parent question was the wrong unit. When a
+  constraint 4, *lazy and optional*). If a session grows new child
+  leaves faster than the current one converges, stop and ask whether
+  the parent was the wrong unit. When a
   concern genuinely must sequence ahead of existing work,
   `grove-llm leaf-insert` absorbs it with one renumber — but if the
   inserts start stacking, that is the signal to pause and
@@ -275,7 +282,7 @@ If you remember one paragraph of this doc, remember this:
 ## See also
 
 - `docs/grove.md` — what grove is and why, and the shorter "Steering
-  a planning session" subsection covering the interrupt and
+  a grilling session" subsection covering the interrupt and
   foundational-ask moves.
 - `docs/workflows/` — verb-by-verb walkthroughs.
 - The bundled `grilling.md` in the global skill

@@ -1,7 +1,7 @@
 <!-- bundled in grove from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3 (skills/productivity/grilling/SKILL.md + skills/engineering/domain-modeling/SKILL.md) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
 <!-- intentionally fused — upstream split them; grove has no skill-to-skill invocation, so the split would be cosmetic -->
 
-# Grilling — the planning-task interrogation procedure
+# Grilling — the `requirements`-task interrogation procedure
 
 <what-to-do>
 

@@ -87,7 +87,23 @@ that found it had no reason to enter.
 - `09` **planning-grills-leftovers** (impl) — `docs/driving-a-grove.md` and one
   line of `docs/workflows/multi-step.md` still say a `planning` session opens
   with a grilling pass. `content/driving.md` was relabelled by `06`; its
-  repo-facing sibling was not.
+  repo-facing sibling was not. **Done.** A third file turned up under the leaf's
+  own "add it here" rule and was absorbed: `content/grilling.md`'s *title* read
+  "the planning-task interrogation procedure" — the worst of the three, since
+  `content/` is what every session reads at runtime. The field guide's worked
+  example (`refactor-to-archon`) predates the taxonomy, so it now declares that
+  once and keeps its **quotations verbatim**; back-dating a quoted brief to
+  today's labels would falsify the record the doc exists to make traceable.
+
+Added by `09`. A different species from `09`'s own subject — not a "planning
+grills" claim but a stale *kind label* — which is why it is a leaf and not part
+of that relabel.
+
+- `10` **content-kind-labels** (impl) — `content/` still names `work` as a live
+  kind (`driving.md`) and attributes the spec to a `planning` task
+  (`SPEC-FORMAT.md`, ~4 sites) where `SKILL.md` and `docs/concepts.md` both say
+  `design`. Aggravated by living in `content/`, which is provisioned to
+  `~/.claude/skills/grove/` and so is read by every session on every grove.
 
 ## Pointers
 

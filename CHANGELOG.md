@@ -193,7 +193,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
   Documented across `grove do --help`, README (`## Configuration`),
   `content/TASK-FORMAT.md`, `content/SKILL.md`, `content/driving.md`,
-  `docs/grove.md` and `CONTEXT.md`.
+  `content/grilling.md`, `docs/grove.md`, `docs/driving-a-grove.md`,
+  `docs/workflows/multi-step.md` and `CONTEXT.md`. The field guide's worked
+  example (`refactor-to-archon`) predates the taxonomy, so it now says so once
+  and keeps its quotations verbatim rather than back-dating the old labels out
+  of the record.
 
 - **`grove do --no-launch` now checks the readiness it reports — and says what it
   found** (*model-per-task-kind*). The flag returned *above* both config checks,

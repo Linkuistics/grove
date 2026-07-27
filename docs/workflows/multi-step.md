@@ -66,7 +66,7 @@ Two commits per session is grove's usual rhythm — the deliverable (`feat: spik
 
 ## Iteration 2: a planning leaf grows the tree
 
-The loop relaunches. The first live leaf is now `03-design-token-bucket-k3.md`, marked **Kind: planning**. The continue prompt is the same; the leaf's kind tells the session to open with a grilling pass before doing anything else. Through the grilling, the session sharpens any new terminology into `CONTEXT.md` inline, decides the design is too big for one focused session, and **grows the tree**: the leaf is *decomposed* into a node — its file becomes a **directory** holding its own `BRIEF.md` and one or more ordered child leaves.
+The loop relaunches. The first live leaf is now `03-design-token-bucket-k3.md`, marked **Kind: planning**. The continue prompt is the same; the leaf's kind tells the session to cut the settled design into vertical slices rather than produce an artifact of its own — `planning` does not interrogate. The session sharpens any new terminology into `CONTEXT.md` inline, finds the design is too big for one focused session, and **grows the tree**: the leaf is *decomposed* into a node — its file becomes a **directory** holding its own `BRIEF.md` and one or more ordered child leaves.
 
 ```
 $ tree .grove

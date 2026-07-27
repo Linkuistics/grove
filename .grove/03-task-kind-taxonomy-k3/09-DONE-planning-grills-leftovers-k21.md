@@ -46,3 +46,17 @@ walkthrough:
 
 Docs only — no code, no ADR. If the relabel turns up a *third* file, add it here
 rather than growing the scope past "the leftovers `06` missed".
+
+**A third file did turn up**, found by the Done-when grep rather than by reading:
+
+- **`content/grilling.md`**, line 4 — the bundled procedure's own title read
+  "Grilling — the planning-task interrogation procedure". grove wrote that line
+  (the bundle marker sits above it), so it is ours to fix, and it is the *most*
+  load-bearing site of the three: `content/` is provisioned to
+  `~/.claude/skills/grove/`, so an agent opening the procedure was told in its
+  first line that grilling belongs to `planning`. Now `` `requirements` ``.
+
+**Two leftovers of a different species were externalized, not absorbed** — they
+are stale *kind labels* the taxonomy sweep missed, not grilling claims, so they
+fail this leaf's Done-when for a different reason and belong to their own leaf
+(`content-kind-labels-k22`).

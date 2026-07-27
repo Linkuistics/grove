@@ -75,11 +75,34 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **herdr-turn-hooks-k4**.
 - **herdr-turn-hooks-k4** — intra-session turn boundaries, per harness. Refines
   **herdr-pane-state-k2**; claude first (cleanest injection), codex and pi after.
-  herdr's own retired claude event→state mapping is in Notes below — start there.
+  **Done.** claude launches under herdr now carry an inline `--settings` hook
+  block wiring `UserPromptSubmit` ⇒ `working` and `Stop` ⇒ `blocked`-unless-
+  signalled; measured live, on the real `claude`, on all three signal cases. The
+  durable record is ADR *herdr-turn-boundary-hooks*. codex and pi are deferred on
+  **facts, not effort** — codex has no turn-end hook event and persists hook
+  trust per content hash; pi's own herdr extension reports `idle` at turn end,
+  the same conflation. What it does *not* cover is mid-turn blockers, now
+  **herdr-mid-turn-blockers-k30**.
+- **herdr-mid-turn-blockers-k30** — the gap inside a turn: a permission prompt
+  stalls an unattended loop exactly as badly as a question, and grove's own
+  authority suppressed the screen detection that used to catch it by accident.
+  Deferred out of **herdr-turn-hooks-k4** because `blocked` there needs a paired
+  restore that only a per-tool-call event gives — a different design, not a
+  bigger version of the same one.
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
   the docs still lead with git.
+- **compose-task-chains-k29** — make the review chain (`X` → `review-X` →
+  `integrate-review-X`) and the research vendor pair the *habitual* shape a
+  session cuts leaves in — in `SKILL.md`'s Decompose step, in `TASK-FORMAT.md`,
+  and in the **bootstrap** prompt, which cuts the decomposition that shapes every
+  later session — and give a cut chain a naming structure that makes it legible
+  from `find .grove` alone. Encouragement only: grove validates no ordering
+  between leaves and this must not start (*task-kind-taxonomy*). Raised by the
+  human during **herdr-turn-hooks-k4**; independent of the herdr work. Sequenced
+  ahead of the remaining planning leaf so that session cuts under the new
+  guidance.
 - **herdr-pane-misdetection-k11** — planning. grove panes are labelled with the
   wrong agent; upstreaming is closed, so the route is ours to pick (grove-side,
   fork-side, or accept). Late because grove's own reports mask it whenever grove
@@ -103,6 +126,8 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
 
 - ADRs a session here must read: *herdr-optional-ui*, *self-driving-loop*,
   *task-tree-scheme*.
+- *herdr-turn-boundary-hooks* — the second reporting mechanism (hooks grove
+  injects into a claude launch), and why codex and pi are blocked on facts.
 - *model-per-task-kind* — **task-kind-taxonomy-k3** reworked the mechanism that
   ADR describes.
 - Glossary terms in play: herdr integration, Kind routing, HITL/AFK,
@@ -199,6 +224,29 @@ control: re-verify anything load-bearing before building on it.
   Two observation nuances, both now in the spec: release reads `agent: null` /
   `agent_status: unknown` rather than snapping back to the detected agent, and
   the `idle` before release is not externally observable at 30 ms polling.
+- **Hooks merge; they do not clobber** (measured 2026-07-27,
+  `herdr-turn-hooks-k4`). claude's `--settings` takes inline JSON as an
+  *additional* settings source and hooks are **unioned** across sources — proved
+  twice, once against a project `settings.json` and once live, where herdr's own
+  installed `SessionStart` hook claimed session identity in the same run as
+  grove's injected turn reports. Hook subprocesses also inherit the driver's
+  environment (`GROVE_SIGNAL_FILE`, `HERDR_*`), which is what makes the
+  discriminator readable from inside the session. A `grove-llm` invocation costs
+  **~3ms**, socket or no socket — so per-turn reporting is cheap, and the only
+  real objection to going per-*tool-call* is socket chatter, not latency.
+- **codex has no turn-end hook event**, verified against codex-cli 0.145.0: the
+  set is `pre_tool_use`, `permission_request`, `post_tool_use`, `pre_compact`,
+  `post_compact`, `session_start`, `session_end`, `user_prompt_submit`,
+  `subagent_start`, `subagent_stop`. Independently, hook **trust is persisted**
+  per source-location and content hash in `~/.codex/config.toml`'s
+  `[hooks.state]`, so a `-c`-injected hook has no trust record.
+- **pi's herdr extension reports `idle` at turn end** — `agent_settled` with no
+  outstanding `herdr:blocked` yields `idle`
+  (`src/integration/assets/pi/herdr-agent-state.ts`). So pi is a full lifecycle
+  reporter that still has the headline bug. It also dedups (`lastState`), which
+  is the pattern to copy if grove ever needs redundancy suppression. And
+  `pi -e <path>` **is** a per-launch injection route — contra
+  **herdr-turn-hooks-k4**'s original note that none was found.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

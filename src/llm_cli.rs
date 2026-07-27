@@ -183,6 +183,37 @@ pub enum Command {
     /// that is absent (a session not under `grove do`) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
+    /// **Not for you to call.** grove injects this as a claude hook at launch
+    /// (`--settings`, per session, persisting nothing) so the harness can tell
+    /// grove something the loop driver structurally cannot see: that a *turn*
+    /// ended (herdr-turn-boundary-hooks).
+    ///
+    /// The driver is the harness's parent, so it sees a session start and a
+    /// session end and nothing between them — a session that stalls mid-session
+    /// on a question reads `working` forever. This verb closes that half: at a
+    /// turn end it reports **`blocked`** unless `$GROVE_SIGNAL_FILE` shows the
+    /// task completed on purpose, and at a turn start it reports `working`. It
+    /// reads no tree, writes no file, and prints nothing; with no herdr in the
+    /// environment it does nothing at all.
+    ReportTurn(ReportTurnArgs),
+}
+
+#[derive(Parser)]
+pub struct ReportTurnArgs {
+    /// Which boundary fired: `start` (claude's `UserPromptSubmit`) or `end`
+    /// (`Stop`).
+    #[arg(value_enum)]
+    pub boundary: TurnBoundary,
+}
+
+/// The two boundaries a claude session can report. A closed set with no
+/// degrade-on-read arm, unlike a task kind: this argument is written by grove
+/// itself at injection time, so an unrecognised value means a mismatched binary,
+/// not a hand-edited file.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum TurnBoundary {
+    Start,
+    End,
 }
 
 #[derive(Parser)]
@@ -299,7 +330,21 @@ pub fn run() -> Result<()> {
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::Complete(args) => cmd_complete(&args),
+        Command::ReportTurn(args) => cmd_report_turn(&args),
     }
+}
+
+/// Report a turn boundary and exit zero, always. Both halves matter to the
+/// session this runs inside: a non-zero exit makes claude print a `hook error`
+/// notice into the transcript at **every** turn, and this verb has nothing to
+/// fail at — `herdr::report_turn` returns no `Result`, because a herdr that is
+/// absent, refusing, or stock is a no-op by design, not an error to surface.
+fn cmd_report_turn(args: &ReportTurnArgs) -> Result<()> {
+    crate::herdr::report_turn(match args.boundary {
+        TurnBoundary::Start => crate::herdr::Turn::Started,
+        TurnBoundary::End => crate::herdr::Turn::Ended,
+    });
+    Ok(())
 }
 
 fn cmd_complete(args: &CompleteArgs) -> Result<()> {

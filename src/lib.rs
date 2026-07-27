@@ -3,6 +3,7 @@ pub mod complete;
 pub mod harness;
 pub mod harness_stamp;
 pub mod herdr;
+pub mod json;
 pub mod launch;
 // `leaf` (Kind + the old `NNN-slug` `split_prefix`) and `leaf_id` (the v1-flat
 // reader) survive solely as `tree_migrate`'s one-time migration inputs (task-tree-scheme).

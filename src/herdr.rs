@@ -171,6 +171,73 @@ pub fn plan_for(stop: Stop) -> Plan {
     }
 }
 
+/// An **intra-session turn boundary**, reported by the harness itself through a
+/// hook grove injects at launch — the half of the pane's state the loop driver
+/// structurally cannot see.
+///
+/// The driver is the harness's *parent*, so its whole vocabulary is "a session
+/// started" / "a session ended". A session that stalls **mid-session** on a
+/// question — the overnight case this whole grove exists to fix — never reaches
+/// either, and reads `working` forever. Only the harness knows a turn ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Turn {
+    /// The human submitted a prompt: whatever the pane said, the agent is going
+    /// again.
+    Started,
+    /// The agent stopped responding. Whether that means "asking" or "finished
+    /// the task" is not something the harness knows — see [`plan_for_turn`].
+    Ended,
+}
+
+/// The turn table — the state policy for a boundary only the harness can see,
+/// refining (never replacing) [`plan_for`]'s session-level one.
+///
+/// **The discriminator is the signal file, and nothing else.** A grove turn ends
+/// exactly two ways: the model ran `grove-llm complete` — in which case the
+/// disposition is sitting in `$GROVE_SIGNAL_FILE` and the driver is already
+/// winding this session down — or it did not, in which case the model stopped
+/// mid-task and a human is needed. That needs **no new model contract**:
+/// `complete` is already mandatory as the last action of every task, so the
+/// disposition is already being deposited. A "declare your intent" verb would
+/// only be a second thing to forget.
+///
+/// This is also precisely why herdr cannot fix this upstream and grove can:
+/// herdr sees a turn end and genuinely cannot tell "done" from "asking". grove
+/// knows, because grove is the thing that relaunches.
+///
+/// Two entries are worth their own sentence:
+///
+/// **A signalled turn end reports `working`, not nothing.** The driver's
+/// equivalent row stays silent because the next launch re-reports `working` a
+/// moment later; here it is not redundant, because a *earlier* turn in this same
+/// session may have left the pane `blocked` (the agent asked, the human
+/// answered, the task then finished). Re-reporting is one round trip per task
+/// and heals that.
+///
+/// **A `done` turn end says nothing at all.** The driver is about to report
+/// `idle` and release; flapping `working` at a grove that has just finished
+/// would be a report in the wrong direction, for the two seconds until the
+/// completion kill lands.
+pub fn plan_for_turn(turn: Turn, signal: Option<Disposition>) -> Plan {
+    let report = match (turn, signal) {
+        // A prompt was submitted: the human is done and the agent is running.
+        (Turn::Started, _) => Some(State::Working),
+        // The headline case. No signal at a turn end means the model stopped
+        // without completing the task — it asked something, or gave up — and
+        // the loop cannot proceed until a human answers.
+        (Turn::Ended, None) => Some(State::Blocked),
+        (Turn::Ended, Some(Disposition::Relaunch)) => Some(State::Working),
+        (Turn::Ended, Some(Disposition::Done)) => None,
+    };
+    // Never, on any row: release is the *driver's* call (herdr-optional-ui's
+    // table). A session that released mid-loop would hand the pane back to
+    // screen detection while the loop was still running.
+    Plan {
+        report,
+        release: false,
+    }
+}
+
 /// Enact a [`Plan`]. Report before release — see [`plan_for`].
 pub fn apply(plan: Plan) {
     if let Some(state) = plan.report {
@@ -179,6 +246,27 @@ pub fn apply(plan: Plan) {
     if plan.release {
         release();
     }
+}
+
+/// Report a turn boundary from **inside** a harness session — the body of
+/// `grove-llm report-turn`, run by the hooks grove injects at launch
+/// (`launch::append_turn_hooks`).
+///
+/// Reads the one fact the policy turns on out of the environment the driver
+/// exported: `$GROVE_SIGNAL_FILE`. Its **absence** and an absent *file at* that
+/// path are deliberately different things. No variable at all means this session
+/// is not a loop task — a `grove retire` launch, or a hand-run harness that
+/// somehow carries the hooks — and grove has no opinion about that pane; herdr
+/// never expires an authority, so reporting one would pin a pane nobody is
+/// driving. A variable with no file behind it is the headline case: the driver
+/// clears the signal at the top of every iteration, so within a session the file
+/// exists only if *this* session's agent wrote it.
+pub fn report_turn(turn: Turn) {
+    let Some(signal_file) = std::env::var_os("GROVE_SIGNAL_FILE") else {
+        return;
+    };
+    let signal = crate::complete::read_signal(std::path::Path::new(&signal_file));
+    apply(plan_for_turn(turn, signal));
 }
 
 /// Report one state. The launch site's `working` is the only report that is not
@@ -200,6 +288,20 @@ pub fn release() {
 /// grove is not running under herdr — the gate that makes this whole module
 /// vanish. All three variables are checked, matching every herdr integration
 /// asset; `HERDR_ENV` alone is what herdr's own code treats as "inside herdr".
+/// Whether this process is running inside a herdr pane at all — the same gate
+/// [`pane`] applies, exposed for the *launch* site, which must decide whether to
+/// inject the turn-boundary hooks in the first place.
+///
+/// Gating the injection (and not merely the reporting) is what makes
+/// "absent herdr, the hooks are inert" true in the strongest sense: outside a
+/// herdr pane the launch argv is byte-identical to what it was before turn
+/// hooks existed, so there is no hook to fire, nothing to spawn, and no new
+/// surface to go wrong. Safe to read once at launch: the pane environment comes
+/// from the pane grove is already running in and cannot appear mid-loop.
+pub fn in_pane() -> bool {
+    pane().is_some()
+}
+
 fn pane() -> Option<(String, String)> {
     if std::env::var("HERDR_ENV").ok()? != "1" {
         return None;
@@ -229,7 +331,7 @@ fn request_line(method: &str, pane_id: &str, state: Option<State>) -> String {
     // escaped — but it *is* escaped, rather than assumed well-formed.
     let mut params = format!(
         r#"{{"pane_id":"{}","source":"{SOURCE}","agent":"{AGENT}""#,
-        escape(pane_id)
+        crate::json::escape(pane_id)
     );
     if let Some(state) = state {
         params.push_str(&format!(r#","state":"{}""#, state.token()));
@@ -238,22 +340,6 @@ fn request_line(method: &str, pane_id: &str, state: Option<State>) -> String {
     // The `id` is required by herdr's envelope but grove never reads the
     // response, so it only has to be present and stable-ish.
     format!(r#"{{"id":"grove:{method}","method":"{method}","params":{params}}}"#)
-}
-
-fn escape(raw: &str) -> String {
-    let mut out = String::with_capacity(raw.len());
-    for c in raw.chars() {
-        match c {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out
 }
 
 /// Send one line with a hard wall-clock bound, whatever the socket does.
@@ -347,6 +433,78 @@ mod tests {
             },
             "a torn-down driver knows nothing about the pane: say nothing, release"
         );
+    }
+
+    // The turn table, pinned whole beside the stop table it refines. The
+    // discriminator is the signal file and nothing else: a turn that ended
+    // *without* one is a model that stopped mid-task and needs a human.
+    #[test]
+    fn every_turn_boundary_maps_to_its_intended_pane_state() {
+        assert_eq!(
+            plan_for_turn(Turn::Started, None),
+            Plan {
+                report: Some(State::Working),
+                release: false
+            },
+            "a human answered: the agent is going again, whatever the pane said"
+        );
+        assert_eq!(
+            plan_for_turn(Turn::Ended, None),
+            Plan {
+                report: Some(State::Blocked),
+                release: false
+            },
+            "no signal at a turn end = stopped mid-task with a question: blocked"
+        );
+        assert_eq!(
+            plan_for_turn(Turn::Ended, Some(Disposition::Relaunch)),
+            Plan {
+                report: Some(State::Working),
+                release: false
+            },
+            "the task signalled: the driver is about to relaunch, so the pane is \
+             busy — and this heals any `blocked` an earlier turn end left behind"
+        );
+        assert_eq!(
+            plan_for_turn(Turn::Ended, Some(Disposition::Done)),
+            Plan {
+                report: None,
+                release: false
+            },
+            "the grove finished: say nothing and let the driver's idle-then-release \
+             be the last word, rather than flapping `working` at a finished grove"
+        );
+    }
+
+    // The whole point of the discriminator, guarded on its own: every *other*
+    // turn end in a grove session is a completed task, and a table that reported
+    // `blocked` for those would flap the pane at the end of every single task —
+    // which is indistinguishable from the stall it exists to surface.
+    #[test]
+    fn a_signalled_turn_end_never_reports_blocked() {
+        for signal in [Disposition::Relaunch, Disposition::Done] {
+            assert_ne!(
+                plan_for_turn(Turn::Ended, Some(signal)).report,
+                Some(State::Blocked),
+                "{signal:?} means the task finished on purpose, not that a human is needed"
+            );
+        }
+    }
+
+    // A turn hook fires inside the harness session, which never releases:
+    // release is the driver's call alone (herdr-optional-ui's table), and a
+    // session that released mid-loop would hand the pane to screen detection
+    // while the loop was still running.
+    #[test]
+    fn no_turn_boundary_ever_releases_the_pane() {
+        for turn in [Turn::Started, Turn::Ended] {
+            for signal in [None, Some(Disposition::Relaunch), Some(Disposition::Done)] {
+                assert!(
+                    !plan_for_turn(turn, signal).release,
+                    "{turn:?}/{signal:?}: release belongs to the driver, not a turn hook"
+                );
+            }
+        }
     }
 
     // A no-signal stop is the one case where releasing would undo this leaf's

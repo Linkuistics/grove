@@ -313,6 +313,13 @@ fn launch_session(
     // carved-out gitdir; a jj tree's main-workspace store) so the session can
     // commit; a no-op for every other harness.
     crate::launch::append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
+    // herdr-turn-boundary-hooks: ask the harness to report the turn boundaries
+    // the driver cannot see. Only here, never in `launch::exec_harness` — a
+    // `grove retire` session sets no signal file, so every turn end there would
+    // look unsignalled and report `blocked` with no driver to correct it.
+    // Resolved against `grove_llm_bin()`, the same binary the agent's own verbs
+    // run, so the hook cannot drift from the driver that injected it.
+    crate::launch::append_turn_hooks(&mut cmd, harness, Path::new(&grove_llm_bin()));
     cmd.arg(prompt);
     cmd.current_dir(worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);

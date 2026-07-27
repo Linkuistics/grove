@@ -189,3 +189,65 @@ impl Drop for EnvGuard {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// A fake herdr, for the tests that assert on what grove *reports* rather than
+// on what it does. Shared by `tests/loop_driver.rs` (the driver's four report
+// sites) and `tests/report_turn.rs` (the turn hooks' verb), because both need
+// the same thing: a real unix socket speaking herdr's newline-delimited JSON,
+// addressed through the same `HERDR_*` variables herdr itself puts in a pane.
+
+/// Bind a fake herdr on `path` and serve it from a background thread, appending
+/// each request line to the returned buffer.
+///
+/// The buffer is shared rather than returned from a `JoinHandle`, and the thread
+/// is deliberately never joined: `UnixListener::accept` has no timeout in `std`,
+/// so a joinable server would need an out-of-band way to be woken, and there
+/// isn't a reliable one once the socket path is gone. Sharing is also *correct*
+/// by ordering, not just convenient — the server appends a line **before**
+/// answering it, and the driver's own report waits for that answer, so every
+/// line is already in the buffer by the time `run_loop` returns.
+pub fn fake_herdr(path: &std::path::Path) -> std::sync::Arc<Mutex<Vec<String>>> {
+    let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
+    let lines = std::sync::Arc::new(Mutex::new(Vec::new()));
+    let collected = std::sync::Arc::clone(&lines);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(stream) = stream else { break };
+            let mut line = String::new();
+            if std::io::BufRead::read_line(&mut std::io::BufReader::new(&stream), &mut line).is_ok()
+            {
+                if !line.trim().is_empty() {
+                    collected.lock().unwrap().push(line.trim().to_string());
+                }
+                // Answer as herdr does, so the driver's read completes rather
+                // than spending its whole budget waiting on every report.
+                let _ = std::io::Write::write_all(
+                    &mut &stream,
+                    br#"{"id":"x","result":{"type":"ok"}}"#.as_slice(),
+                );
+                let _ = std::io::Write::write_all(&mut &stream, b"\n");
+            }
+        }
+    });
+    lines
+}
+
+/// The `(method, state)` pairs out of collected request lines — asserting on
+/// these rather than on raw JSON keeps the wiring assertions about *sequence*,
+/// while `src/herdr.rs`'s own tests pin the exact bytes.
+pub fn reported(lines: &[String]) -> Vec<(String, String)> {
+    lines
+        .iter()
+        .map(|line| {
+            let field = |key: &str| {
+                line.split(&format!("\"{key}\":\""))
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .unwrap_or("")
+                    .to_string()
+            };
+            (field("method"), field("state"))
+        })
+        .collect()
+}

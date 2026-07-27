@@ -29,7 +29,10 @@ The one thing artifacts cannot supply is *semantic state at a moment in time* �
 whether the agent is mid-turn, or has stopped and is waiting for a human. That is
 knowledge grove holds and nothing on disk records, so it is the only thing grove
 reports. Keeping the boundary exactly there is what stops the integration
-metastasising into a dependency.
+metastasising into a dependency. Some of that knowledge lives in the loop driver
+and some only in the harness, which is why reporting has two mechanisms rather
+than one (*herdr-turn-boundary-hooks*) — but both report the same three states
+over the same socket, and both vanish with no herdr present.
 
 The alternative — herdr as grove's execution substrate, spawning panes per leaf
 and sequencing through the socket API — would be more capable and would amend the
@@ -190,11 +193,14 @@ distinction that changes nothing.
   which deliberately hold a `blocked` report instead. That obligation is real
   code in the loop driver, including a SIGTERM/SIGHUP handler it did not
   previously have.
-- **The status surface stops at session boundaries.** The driver is the harness's
-  parent, so it sees a session start and a session end and nothing in between.
-  A session that stalls *mid-turn* on a HITL question therefore reads `working`,
-  not `blocked` — better than the pre-patch `done`, but not the whole fix.
-  Intra-turn state needs per-harness hooks, which is separate work.
+- **The driver's own reporting stops at session boundaries**, because the driver
+  is the harness's parent and sees a session start, a session end, and nothing
+  in between. **Turn** boundaries reach herdr by a second mechanism — hooks
+  grove injects into the launch, so the harness reports them itself — which
+  exists for **claude** only; see *herdr-turn-boundary-hooks* for how, and for
+  why codex and pi are blocked on facts rather than on effort. On codex and pi a
+  session that stalls mid-turn still reads `working`, not `blocked`: better than
+  the pre-patch `done`, but not the whole fix.
 - The plugin's only contract is the `.grove/` directory scheme
   (*task-tree-scheme*), which is already published and stable. Changing that
   scheme is now also a plugin-compatibility question.

@@ -178,6 +178,85 @@ pub(crate) fn append_codex_vcs_store_grant(
     Ok(())
 }
 
+/// Inject the **turn-boundary hooks** into a claude launch (herdr-turn-hooks).
+///
+/// The loop driver is the harness's parent, so it can see a session start and a
+/// session end and nothing between them. A session that stalls *mid-session* on
+/// a question therefore reads `working` forever — the overnight case the status
+/// surface exists to fix, and the half driver-level reporting structurally
+/// cannot reach. Only the harness knows a turn ended, so grove asks it, with
+/// hooks that report back through `grove-llm report-turn`.
+///
+/// **Per launch, persisting nothing.** claude's `--settings` takes an inline
+/// JSON string as an *additional* settings source, and hooks are **unioned**
+/// across sources (measured: a project `Stop` hook and a `--settings` `Stop`
+/// hook both fire). So grove contends with nothing — not herdr's own installed
+/// `SessionStart` hook, not the user's — writes to no file the user owns, and
+/// leaves nothing behind when the loop stops. Persisting the hooks in
+/// `settings.json` was the alternative and is strictly worse: it is a mutation
+/// of the user's configuration that outlives the grove, in the same file
+/// herdr's installer writes.
+///
+/// Three gates, all of them narrowing:
+///
+/// - **claude only.** codex has no turn-end hook event at all (its set is
+///   `pre_tool_use`, `permission_request`, `post_tool_use`, `pre_compact`,
+///   `post_compact`, `session_start`, `session_end`, `user_prompt_submit`,
+///   `subagent_start`, `subagent_stop`), and its hook trust is persisted per
+///   source-and-content-hash, so an injected hook has no trust record; pi has
+///   herdr's own full-lifecycle extension already reporting on the same events.
+///   See ADR *herdr-turn-boundary-hooks*.
+/// - **Under herdr only**, via [`crate::herdr::in_pane`] — see its note on why
+///   the *injection* is gated and not merely the reporting.
+/// - **The loop only.** Not `grove retire`, which launches a one-off session
+///   with no signal file: every turn end there would look unsignalled and
+///   report `blocked` with no driver to correct it.
+pub(crate) fn append_turn_hooks(cmd: &mut Command, harness: &Harness, grove_llm: &Path) {
+    if harness.name != "claude" || !crate::herdr::in_pane() {
+        return;
+    }
+    cmd.arg("--settings").arg(turn_hook_settings(grove_llm));
+}
+
+/// One hook entry's `command`: the reporting verb, with the binary path shell-
+/// quoted (claude runs `command` through a shell) before the caller
+/// JSON-escapes the lot.
+fn turn_hook_command(grove_llm: &Path, boundary: &str) -> String {
+    // Single-quote and escape any embedded quote the POSIX way (`'\''`): the
+    // path is whatever the filesystem holds, and a developer with a space in
+    // their home directory must not get a hook that silently fails every turn.
+    let quoted = format!("'{}'", grove_llm.to_string_lossy().replace('\'', r"'\''"));
+    format!("{quoted} report-turn {boundary}")
+}
+
+/// Seconds a turn hook may take before claude abandons it. Belt and braces:
+/// [`crate::herdr`] already hard-bounds a report at 500ms whatever the socket
+/// does, so this only ever fires if the *binary* wedges. Well under claude's own
+/// defaults (600s for `Stop`, 30s for `UserPromptSubmit`), because a hook that
+/// stalls a turn is worse than a hook that reports nothing.
+const HOOK_TIMEOUT_SECS: u32 = 5;
+
+/// The `--settings` payload: both turn boundaries, wired to the reporting verb.
+///
+/// Two events, and only two. `UserPromptSubmit` is what un-blocks the pane once
+/// a human answers — without it the pane would stay `blocked` for the rest of a
+/// session in which the agent asked anything. `Stop` is the boundary itself.
+/// Neither prints to stdout, which matters for `UserPromptSubmit` specifically:
+/// its stdout is injected into the conversation as context.
+fn turn_hook_settings(grove_llm: &Path) -> String {
+    let entry = |event: &str, boundary: &str| {
+        format!(
+            r#""{event}":[{{"hooks":[{{"type":"command","command":"{}","timeout":{HOOK_TIMEOUT_SECS}}}]}}]"#,
+            crate::json::escape(&turn_hook_command(grove_llm, boundary))
+        )
+    };
+    format!(
+        r#"{{"hooks":{{{},{}}}}}"#,
+        entry("UserPromptSubmit", "start"),
+        entry("Stop", "end")
+    )
+}
+
 fn exec_harness(
     harness: &Harness,
     repo_path: &Path,
@@ -206,4 +285,34 @@ fn exec_harness(
         anyhow::bail!("{} exited non-zero", harness.exec_bin);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The wire shape of the injected settings, pinned byte for byte. This is a
+    // payload another program parses, and the only way to see it in production
+    // is `claude --debug`, so it is asserted rather than trusted — exactly as
+    // `herdr::request_line` is.
+    #[test]
+    fn the_injected_settings_wire_both_turn_boundaries_to_the_reporting_verb() {
+        assert_eq!(
+            turn_hook_settings(Path::new("/opt/homebrew/bin/grove-llm")),
+            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn start","timeout":5}]}],"Stop":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn end","timeout":5}]}]}}"#
+        );
+    }
+
+    // The path comes from the filesystem, not from grove, so it goes through
+    // *two* layers that can be broken by one character: a shell (claude runs
+    // `command` through one) and JSON. A developer with a space in their home
+    // directory would otherwise get a hook that silently fails on every turn.
+    #[test]
+    fn a_grove_llm_path_is_shell_quoted_and_json_escaped_rather_than_trusted() {
+        let settings = turn_hook_settings(Path::new("/tmp/a b/gro've-llm"));
+        assert!(
+            settings.contains(r#""command":"'/tmp/a b/gro'\\''ve-llm' report-turn end""#),
+            "{settings}"
+        );
+    }
 }

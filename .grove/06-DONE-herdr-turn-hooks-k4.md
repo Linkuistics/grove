@@ -55,12 +55,44 @@ end and genuinely cannot tell "done" from "asking". grove knows, because grove i
 the thing that relaunches.
 
 **Open question deferred from planning**: whether to also wire `Notification`,
-which fires on permission requests. `Stop` only fires at turn boundaries, so a
-permission prompt blocks mid-turn and would read as `working`. Today herdr's
-screen manifests catch some of those by accident; once grove reports an
-unrecognised agent label, screen detection can no longer override us, so that
-accidental coverage is lost. Decide whether the first increment is turn
-boundaries only, or turn boundaries plus `Notification`.
+which fires on permission requests. **Decided: turn boundaries only, this
+increment.** `blocked` on a permission prompt needs a paired restore once the
+permission is granted, and the only event that fires there is per-tool-call —
+a different design (and a redundancy-suppression question) rather than a bigger
+version of this one. Externalised as **herdr-mid-turn-blockers-k30**, which ADR
+*herdr-turn-boundary-hooks* names as the reopen condition; the two measurements
+that leaf needs are recorded in its Context so it need not re-derive them.
 
-**Watch for**: reporting must stay cheap. A hook runs on every turn end; a
-socket timeout there is a per-turn latency tax.
+**Watch for**: reporting must stay cheap. **Measured: ~3ms per invocation**
+(30 invocations in 80ms, both against a live socket and with the pane
+environment scrubbed) — process startup dominates and the socket is invisible
+against it. The latency worry was unfounded; what remains is chatter, which only
+bites if reporting ever goes per-tool-call.
+
+## Outcome
+
+Shipped for **claude**; codex and pi deferred on facts, not effort. Durable
+record: ADR *herdr-turn-boundary-hooks*, plus the glossary's reworked
+*Session-boundary visibility / Turn-boundary hooks* entry and a correction to
+*herdr-optional-ui*, whose "the status surface stops at session boundaries"
+consequence was made false by this.
+
+**Verified live, not just in tests.** grove's own generated `--settings` string
+was captured off a real driver run and fed verbatim to the real `claude -p`
+against a unix-socket listener, on all three signal states:
+
+| `$GROVE_SIGNAL_FILE` | reports observed |
+|---|---|
+| absent (stopped mid-task) | `working` (prompt), then **`blocked`** |
+| `relaunch` (task done) | `working`, `working` — no flap |
+| `done` (grove finished) | `working` only; `Stop` stays silent |
+
+herdr's own `pane.report_agent_session` appeared in all three runs alongside
+grove's reports, which is the merge property holding in production rather than
+in a fixture.
+
+**What is not covered**, and stated so nothing later assumes otherwise: mid-turn
+blockers on every harness (**herdr-mid-turn-blockers-k30**), and turn boundaries
+at all on codex and pi. Three rows of *herdr-optional-ui*'s release table
+(SIGTERM/SIGHUP, version-skew stop, relaunch) remain unobserved on a live pane —
+inherited unchanged from **status-surface-live-k23**, untouched here.

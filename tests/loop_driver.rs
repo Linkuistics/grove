@@ -3260,61 +3260,6 @@ exit 0
 // this file, precisely so a `cargo test` run cannot report into the developer's
 // own pane; these two set them back deliberately.
 
-/// Bind a fake herdr on `path` and serve it from a background thread, appending
-/// each request line to the returned buffer.
-///
-/// The buffer is shared rather than returned from a `JoinHandle`, and the thread
-/// is deliberately never joined: `UnixListener::accept` has no timeout in `std`,
-/// so a joinable server would need an out-of-band way to be woken, and there
-/// isn't a reliable one once the socket path is gone. Sharing is also *correct*
-/// by ordering, not just convenient — the server appends a line **before**
-/// answering it, and the driver's own report waits for that answer, so every
-/// line is already in the buffer by the time `run_loop` returns.
-fn fake_herdr(path: &std::path::Path) -> std::sync::Arc<Mutex<Vec<String>>> {
-    let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
-    let lines = std::sync::Arc::new(Mutex::new(Vec::new()));
-    let collected = std::sync::Arc::clone(&lines);
-    std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            let Ok(stream) = stream else { break };
-            let mut line = String::new();
-            if std::io::BufRead::read_line(&mut std::io::BufReader::new(&stream), &mut line).is_ok()
-            {
-                if !line.trim().is_empty() {
-                    collected.lock().unwrap().push(line.trim().to_string());
-                }
-                // Answer as herdr does, so the driver's read completes rather
-                // than spending its whole budget waiting on every report.
-                let _ = std::io::Write::write_all(
-                    &mut &stream,
-                    br#"{"id":"x","result":{"type":"ok"}}"#.as_slice(),
-                );
-                let _ = std::io::Write::write_all(&mut &stream, b"\n");
-            }
-        }
-    });
-    lines
-}
-
-/// The `(method, state)` pairs out of collected request lines — asserting on
-/// these rather than on raw JSON keeps the wiring assertions about *sequence*,
-/// while `src/herdr.rs`'s own tests pin the exact bytes.
-fn reported(lines: &[String]) -> Vec<(String, String)> {
-    lines
-        .iter()
-        .map(|line| {
-            let field = |key: &str| {
-                line.split(&format!("\"{key}\":\""))
-                    .nth(1)
-                    .and_then(|rest| rest.split('"').next())
-                    .unwrap_or("")
-                    .to_string()
-            };
-            (field("method"), field("state"))
-        })
-        .collect()
-}
-
 // The happy path, end to end: two tasks then a finish. Every launch reports
 // `working`; a relaunch reports nothing of its own; `complete --done` reports
 // `idle` and *then* releases, in that order.
@@ -3336,7 +3281,7 @@ fn a_finishing_loop_reports_working_per_task_then_idle_and_releases() {
     init_worktree(&worktree);
 
     let sock = repo_path.join("herdr.sock");
-    let herdr = fake_herdr(&sock);
+    let herdr = support::fake_herdr(&sock);
 
     let counter = repo_path.join("counter");
 
@@ -3380,7 +3325,7 @@ exit 0
     let lines = herdr.lock().unwrap().clone();
 
     assert_eq!(
-        reported(&lines),
+        support::reported(&lines),
         vec![
             ("pane.report_agent".into(), "working".into()),
             ("pane.report_agent".into(), "working".into()),
@@ -3415,7 +3360,7 @@ fn a_loop_that_stops_without_a_signal_reports_blocked_and_holds_the_pane() {
     fs::create_dir_all(&worktree).unwrap();
 
     let sock = repo_path.join("herdr.sock");
-    let herdr = fake_herdr(&sock);
+    let herdr = support::fake_herdr(&sock);
 
     // Never signals — stands in for `/exit`, a double Ctrl-C, or a crash.
     let fake = repo_path.join("fake-claude.sh");
@@ -3446,7 +3391,7 @@ exit 0
     let lines = herdr.lock().unwrap().clone();
 
     assert_eq!(
-        reported(&lines),
+        support::reported(&lines),
         vec![
             ("pane.report_agent".into(), "working".into()),
             ("pane.report_agent".into(), "blocked".into()),
@@ -3476,7 +3421,7 @@ fn a_loop_with_no_herdr_in_the_environment_reports_nothing() {
     // A listener is bound, but the pane vars are scrubbed — so a driver that
     // reported regardless of the environment would still be caught here.
     let sock = repo_path.join("herdr.sock");
-    let herdr = fake_herdr(&sock);
+    let herdr = support::fake_herdr(&sock);
 
     let fake = repo_path.join("fake-claude.sh");
     write_exec(
@@ -3509,7 +3454,7 @@ exit 0
     let lines = herdr.lock().unwrap().clone();
 
     assert!(
-        reported(&lines).is_empty(),
+        support::reported(&lines).is_empty(),
         "with no HERDR_* pane environment grove must report nothing at all \
          (lines: {lines:?})"
     );
@@ -3571,7 +3516,7 @@ fn a_sigtermed_driver_releases_the_pane_before_exiting() {
     fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
 
     let sock = repo_path.join("herdr.sock");
-    let herdr = fake_herdr(&sock);
+    let herdr = support::fake_herdr(&sock);
 
     // Never signals, never exits on its own — stands in for a session sitting
     // mid-task when the driver is killed from outside. `exec` so the pid the
@@ -3613,7 +3558,7 @@ exec sleep 60
         std::thread::sleep(Duration::from_millis(50));
     }
     assert_eq!(
-        reported(&herdr.lock().unwrap()),
+        support::reported(&herdr.lock().unwrap()),
         vec![("pane.report_agent".into(), "working".into())],
         "the driver must have reported `working` before being signalled"
     );
@@ -3634,7 +3579,7 @@ exec sleep 60
 
     let lines = herdr.lock().unwrap().clone();
     assert_eq!(
-        reported(&lines),
+        support::reported(&lines),
         vec![
             ("pane.report_agent".into(), "working".into()),
             ("pane.release_agent".into(), String::new()),
@@ -3643,4 +3588,108 @@ exec sleep 60
          never expires an authority, so skipping this pins the pane at \
          `working` forever (lines: {lines:?})"
     );
+}
+
+// The turn-boundary hooks' *injection* (herdr-turn-boundary-hooks). The verb
+// they call is driven end to end in `tests/report_turn.rs` and the payload's
+// exact bytes are pinned in `src/launch.rs`; what only the real loop can prove
+// is that the flag reaches the argv of the harness that actually launches, and
+// — just as load-bearing — that it reaches nothing else.
+
+/// Run one start-path iteration of the real loop against an argv-logging fake
+/// harness, and return what it was launched with. `herdr` picks whether the
+/// pane environment is present; the socket path deliberately points at nothing,
+/// since these tests assert on the argv and a refused socket is a fast no-op.
+fn launched_argv(harness_name: &str, herdr: bool) -> String {
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    // A real repo, because a codex launch resolves the gitdir it grants back
+    // (codex-gitdir-grant) before it ever gets as far as the turn hooks.
+    init_worktree(worktree);
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-harness.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
+    if herdr {
+        env.set("HERDR_ENV", "1")
+            .set("HERDR_SOCKET_PATH", worktree.join("nowhere.sock"))
+            .set("HERDR_PANE_ID", "wQ:p1");
+    }
+
+    let result = loop_driver::run_loop(
+        harness::by_name(harness_name).unwrap(),
+        worktree,
+        worktree,
+        "hookgrove",
+    );
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+    fs::read_to_string(&log).unwrap()
+}
+
+// Both boundaries, or the surface is worse than useless: `Stop` alone would
+// report `blocked` when the agent asks and then never take it back down once
+// the human answers.
+#[test]
+fn a_claude_launch_under_herdr_carries_both_turn_hooks() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let argv = launched_argv("claude", true);
+    assert!(
+        argv.contains("--settings"),
+        "a claude launch under herdr must inject the turn hooks (argv: {argv:?})"
+    );
+    for boundary in ["report-turn start", "report-turn end"] {
+        assert!(
+            argv.contains(boundary),
+            "the injected settings must wire {boundary:?} (argv: {argv:?})"
+        );
+    }
+}
+
+// herdr-optional-ui's load-bearing negative, at its strongest: with no herdr in
+// the pane environment there is no hook to fire, nothing to spawn, and no new
+// surface to go wrong — the launch is byte-identical to a grove that never had
+// turn hooks.
+#[test]
+fn a_claude_launch_outside_herdr_carries_no_turn_hooks() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let argv = launched_argv("claude", false);
+    assert!(
+        !argv.contains("--settings") && !argv.contains("report-turn"),
+        "absent herdr, the hooks must not be injected at all (argv: {argv:?})"
+    );
+}
+
+// codex has no turn-end hook event, and pi has herdr's own full-lifecycle
+// extension already reporting on the same events. Injecting a claude-shaped
+// `--settings` into either would at best be ignored and at worst refuse the
+// launch outright.
+#[test]
+fn codex_and_pi_launches_never_carry_turn_hooks() {
+    let _g = support::lock_env(&ENV_LOCK);
+    for harness in ["codex", "pi"] {
+        let argv = launched_argv(harness, true);
+        assert!(
+            !argv.contains("--settings"),
+            "the turn hooks are claude-shaped and claude-only ({harness} argv: {argv:?})"
+        );
+    }
 }

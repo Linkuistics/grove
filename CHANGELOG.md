@@ -25,6 +25,47 @@ were never in a version's path either.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
+## v16.1.0
+
+### Added
+
+- **A claude-hosted grove now reports `blocked` the moment it stops to ask, not
+  when the session ends** (*herdr-turn-boundary-hooks*). v16.0.0 shipped
+  driver-level reporting and named its own gap: the driver is the harness's
+  *parent*, so it sees a session start and a session end and nothing in between,
+  and a session that stalls **mid-session** on a question ends no session — it
+  read `working` until a human noticed. That gap is now closed on claude.
+
+  Every claude launch under herdr carries an inline `--settings` hook block
+  wiring claude's turn events to a new `grove-llm report-turn`:
+  `UserPromptSubmit` ⇒ `working`, `Stop` ⇒ **`blocked` unless
+  `$GROVE_SIGNAL_FILE` says the task completed on purpose**. That discriminator
+  is the whole design, and it needs **no new model contract**: `grove-llm
+  complete` is already mandatory as every task's last action, so the fact the
+  hook reads is already being deposited. Hence no flapping — a task that
+  finishes normally reports `working`, and the grove-finished case says nothing
+  at all and leaves `idle`-then-release to the driver. It is also why herdr
+  cannot fix this upstream and grove can: herdr sees a turn end and cannot tell
+  "finished" from "asking"; grove knows, because grove is the thing that
+  relaunches.
+
+  **Injected per launch, persisting nothing.** claude merges hooks across
+  settings sources, so grove contends with neither herdr's own installed
+  `SessionStart` hook nor yours, writes to no file you own, and leaves nothing
+  behind. **Nothing is injected outside a herdr pane at all** — the argv is then
+  byte-identical to a grove without turn hooks. Under herdr the cost is one
+  ~3ms process spawn per boundary, socket or no socket.
+
+  **claude only, and the other two are blocked on facts rather than effort.**
+  codex has no turn-end hook event (`session_end` is the boundary the driver
+  already sees), and persists hook trust per source-and-content-hash so an
+  injected hook has no trust record — the only escape disables trust for every
+  hook in the invocation. pi's herdr extension already reports full lifecycle,
+  but reports `idle` at turn end, which is the same conflation. Mid-turn
+  blockers — a permission prompt — are still uncovered on every harness, and
+  deliberately so: `blocked` there needs a paired restore that only a
+  per-tool-call event can give.
+
 ## v16.0.0
 
 The loop starts talking to herdr, and the task-kind set triples. A `grove do`

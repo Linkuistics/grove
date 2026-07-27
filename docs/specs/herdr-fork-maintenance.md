@@ -184,6 +184,13 @@ the same socket exchange, and polling at 30 ms still sees `working` go straight
 to released. That is not a defect — released *is* the intended resting state —
 but a watcher must not wait for an `idle` that will never be sampled.
 
+A watcher on a real **claude** `grove do` pane also sees reports the driver did
+not make. Turn-boundary hooks report from inside the session — `working` at
+every prompt submit, `working` or `blocked` at every turn end
+(*herdr-turn-boundary-hooks*) — so the report *count* is not a fixture, and a
+`blocked` mid-session is normal rather than a sign the loop parked. Assert on the
+pane's resting state at each step, never on how many reports arrived.
+
 **Do not use `revision` as the signal.** It does not move for a state report,
 landed or dropped. Earlier notes in this workstream claimed otherwise and were
 wrong. The observables are `agent` and `agent_status` (read them with

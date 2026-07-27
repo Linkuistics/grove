@@ -4,10 +4,41 @@
 
 ## Goal
 
-Make `scripts/release-doctor.sh` fail on the toolchain misconfiguration that
-actually breaks a release build, instead of passing while the build dies.
+Make the release path work without the operator remembering two undocumented
+workarounds: `scripts/release-doctor.sh` should fail on the toolchain
+misconfiguration that actually breaks a release build instead of passing while
+the build dies, and `cargo release` should not refuse the detached HEAD that jj
+colocation always leaves in place.
 
-## Context
+## Context — the second friction, found in `observe-mid-turn-live-k31`
+
+`cargo release minor --execute` **cannot cut a release from this repo as
+configured**:
+
+```
+error: cannot release from branch `HEAD` as it doesn't match `*`, `!HEAD`;
+       either switch to an allowed branch or add this branch to `allow-branch`
+```
+
+jj colocation keeps git's HEAD **detached** — that is jj's normal resting state,
+not a broken checkout — and cargo-release's default `allow-branch` is
+`["*", "!HEAD"]`, which excludes exactly it. Passing `--allow-branch HEAD`
+works, and the result is clean: git makes the detached commit and the tag, jj
+imports it (`Reset the working copy parent to the new Git HEAD`), and
+`jj bookmark set main -r <release-change>` puts the bookmark on it. No duplicate
+commit, no attached-HEAD fight.
+
+So the fix is one line in `release.toml` — `allow-branch = ["*", "HEAD"]` — plus
+a comment saying *why* (this repo is always jj-colocated, so HEAD is always
+detached). Same shape as the toolchain gap below: a workaround the operator must
+remember every time is weaker than configuration that is correct by
+construction.
+
+Both frictions cost `observe-mid-turn-live-k31` a release cut. Neither is
+recorded anywhere the next releaser would look — `release.toml`'s own usage
+comment still says plain `cargo release minor --execute`, which does not work.
+
+## Context — the toolchain gap
 
 Found the hard way in `ship-release-k25`: the doctor printed
 `✓ rustup target: aarch64-unknown-linux-gnu` and `all prerequisites met`, and
@@ -44,9 +75,21 @@ from it to release grove.
   which and why.
 - Consider whether the herdr-fork spec should cite this rather than duplicating
   it, once the grove-side check exists.
+- `cargo release` cuts a release from a jj-colocated checkout without a flag —
+  `allow-branch` in `release.toml` admits detached HEAD, and the usage comment at
+  the head of that file is corrected to whatever command actually works.
 
 ## Notes
 
 Cheap and self-contained; sequenced last because it costs a release only one
 re-run once you know the fix, and this grove's live leaves all gate the status
-surface.
+surface. Both frictions have now cost two releases (`ship-release-k25`,
+`observe-mid-turn-live-k31`) rather than one — the toolchain gap has bitten
+twice, so "one re-run" is a per-releaser cost, not a one-off.
+
+The workarounds, for anyone cutting a release before this leaf lands:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo release minor --allow-branch HEAD --execute
+```

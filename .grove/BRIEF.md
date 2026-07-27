@@ -105,6 +105,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   version-skew stop, relaunch), which were homeless once **herdr-turn-hooks-k4**
   finished. Needs v16.1.0 shipped first; the version-skew guard makes that a
   single leaf rather than two (the leaf explains how).
+  **Ship half done, observation not started.** **v16.1.0 is shipped and
+  installed**, so every grove session from here launches claude with the turn
+  hooks — see Notes. The version-skew stop that shipping provokes is being
+  captured by a detached poller across the session boundary
+  (`target/k31-skew-observation.log`); the leaf says how to read it. What it
+  costs: two release-path frictions, both folded into
+  **release-doctor-toolchain-gap-k27**, which is now a two-friction leaf rather
+  than the doctor alone.
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
@@ -125,10 +133,13 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   holds authority. Independent of everything above.
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
-- **release-doctor-toolchain-gap-k27** — `release-doctor.sh` passes while the
-  release build dies, because the doctor asks *rustup* what targets are installed
-  and the build asks whatever `cargo` is on `PATH`. Found by **ship-release-k25**;
-  independent of the herdr work, sequenced last.
+- **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
+  operator remember. `release-doctor.sh` passes while the release build dies,
+  because the doctor asks *rustup* what targets are installed and the build asks
+  whatever `cargo` is on `PATH` (found by **ship-release-k25**, and it bit again
+  in **observe-mid-turn-live-k31**); and `cargo release` refuses jj's
+  always-detached HEAD, so a cut needs `--allow-branch HEAD` that `release.toml`
+  should carry. Independent of the herdr work, sequenced last.
 - **session-leaf-binding-k28** — design. The driver resolves the leaf *before* the
   session exists (that peek is what binds harness and model), then hands the
   session no leaf identity, so the session re-picks independently. They agree only
@@ -285,6 +296,23 @@ control: re-verify anything load-bearing before building on it.
   is the pattern to copy if grove ever needs redundancy suppression. And
   `pi -e <path>` **is** a per-launch injection route — contra
   **herdr-turn-hooks-k4**'s original note that none was found.
+- **The turn hooks are in the installed binary from v16.1.0** (shipped
+  2026-07-28, `observe-mid-turn-live-k31`). Until then everything
+  **herdr-turn-hooks-k4** and **herdr-mid-turn-blockers-k30** built was invisible
+  in production for the same reason the reporter was before v16.0.0: it was in
+  the tree, not in the binary that launches sessions. `strings` on the installed
+  `grove` now shows `report-turn`, `UserPromptSubmit`, `PostToolUse`,
+  `Notification`, `permission_prompt` and `elicitation_dialog`. **The one-line
+  check that a session is running under a hook-carrying driver is its own argv**:
+  `ps -o command= -p $PPID` shows `--settings` or it does not.
+- **Cutting a release needs two workarounds this repo does not record.** `export
+  PATH="$HOME/.cargo/bin:$PATH"` (Homebrew's cargo otherwise wins and the Linux
+  targets fail on a missing `std`), and `cargo release … --allow-branch HEAD`
+  (jj colocation keeps git's HEAD detached, and cargo-release's default
+  `allow-branch` is `["*", "!HEAD"]`). Both belong to
+  **release-doctor-toolchain-gap-k27**. The rest of the path is unremarkable and
+  jj-clean: git makes the detached release commit and tag, jj imports it, and
+  `jj bookmark set main -r <release-change>` puts the bookmark on it.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

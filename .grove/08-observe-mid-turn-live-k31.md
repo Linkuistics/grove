@@ -67,3 +67,50 @@ the number of turns (`docs/specs/herdr-fork-maintenance.md`).
 tool batch whose sibling outlives the six-second timer lifts the block early, and
 a tool that renders its own dialog (`AskUserQuestion`) raises no notification at
 all. Both are in ADR *herdr-turn-boundary-hooks* under *Consequences*.
+
+## Progress — session 1 (ship half done, observation not started)
+
+**v16.1.0 is shipped and installed.** Tagged, three targets built, GitHub Release
+created, tap formula pushed, `brew upgrade` clean; `grove --version` reads
+16.1.0. The installed binary carries `report-turn`, `UserPromptSubmit`,
+`PostToolUse`, `Notification`, `permission_prompt` and `elicitation_dialog`, and
+`grove-llm report-turn --help` renders — the same cheap `strings` check
+`ship-release-k25` used, extended to the mid-turn pair. Green baseline before
+cutting: `cargo test` — 558 passed, 0 failed.
+
+Two release-path frictions, **both folded into
+`release-doctor-toolchain-gap-k27`** rather than fixed here:
+`PATH="$HOME/.cargo/bin:$PATH"` is still required (the known doctor gap — with it
+set, the doctor passed *and* all three targets built), and `cargo release`
+refuses jj's detached HEAD, so the cut needs `--allow-branch HEAD`.
+
+**A version-skew stop is being captured across this session's end.** Shipping
+16.1.0 under a 16.0.0 driver *creates* one of the three unobserved rows: at the
+next loop iteration the guard sees the skew, and per `plan_for` should report
+**`blocked`** and **not** release. Nothing in-session can watch that — it happens
+after this session is dead — so a detached poller was started immediately before
+the completion signal:
+
+- watcher: `target/k31-pane-watch.sh` (samples `herdr pane get` every 250ms,
+  logs only on change)
+- log: `target/k31-skew-observation.log`
+
+**Read that log first.** It is the version-skew row, already collected. Both
+files are under `target/`, so they are gitignored and would not survive a
+`cargo clean` — do not run one before reading.
+
+## What is left
+
+- The headline: a real permission prompt, held past six seconds, reading
+  **`blocked`**, and back to `working` on grant. This session's driver injected
+  no hooks (its argv had no `--settings`); a session under the 16.1.0 driver
+  will. Confirm that first — `ps -o command= -p $PPID` should now show
+  `--settings`.
+- Same detached-watcher trick works for the two remaining rows, and both are
+  cheapest at the very end of a session: **relaunch** (silent, next launch
+  re-reports `working`) rides on a normal `grove-llm complete`, and
+  **SIGTERM/SIGHUP** (release, report nothing) means signalling the driver — the
+  grandparent process, `ps -o ppid= -p $PPID`.
+- The pane is `wQ:p1` on workspace `wQ`; the patched server is PID 77248
+  (`linkuistics-herdr 0.7.5-linkuistics.1`, live-handoff import). Re-check both
+  before trusting a reading.

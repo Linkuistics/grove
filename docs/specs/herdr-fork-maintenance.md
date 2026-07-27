@@ -185,11 +185,13 @@ to released. That is not a defect — released *is* the intended resting state �
 but a watcher must not wait for an `idle` that will never be sampled.
 
 A watcher on a real **claude** `grove do` pane also sees reports the driver did
-not make. Turn-boundary hooks report from inside the session — `working` at
-every prompt submit, `working` or `blocked` at every turn end
-(*herdr-turn-boundary-hooks*) — so the report *count* is not a fixture, and a
-`blocked` mid-session is normal rather than a sign the loop parked. Assert on the
-pane's resting state at each step, never on how many reports arrived.
+not make. Turn hooks report from inside the session — `working` at every prompt
+submit, `working` or `blocked` at every turn end, `blocked` while a dialog waits
+on a human, and `working` at **every tool call**
+(*herdr-turn-boundary-hooks*) — so the report *count* is not a fixture and is not
+even bounded by the number of turns, and a `blocked` mid-session is normal rather
+than a sign the loop parked. Assert on the pane's resting state at each step,
+never on how many reports arrived.
 
 **Do not use `revision` as the signal.** It does not move for a state report,
 landed or dropped. Earlier notes in this workstream claimed otherwise and were

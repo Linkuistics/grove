@@ -178,14 +178,17 @@ pub(crate) fn append_codex_vcs_store_grant(
     Ok(())
 }
 
-/// Inject the **turn-boundary hooks** into a claude launch (herdr-turn-hooks).
+/// Inject the **turn hooks** into a claude launch (herdr-turn-hooks,
+/// herdr-mid-turn-blockers).
 ///
 /// The loop driver is the harness's parent, so it can see a session start and a
 /// session end and nothing between them. A session that stalls *mid-session* on
 /// a question therefore reads `working` forever — the overnight case the status
 /// surface exists to fix, and the half driver-level reporting structurally
 /// cannot reach. Only the harness knows a turn ended, so grove asks it, with
-/// hooks that report back through `grove-llm report-turn`.
+/// hooks that report back through `grove-llm report-turn`. The same argument
+/// runs one level deeper for a stall *inside* a turn — a permission prompt —
+/// which is the mid-turn pair in [`turn_hook_settings`].
 ///
 /// **Per launch, persisting nothing.** claude's `--settings` takes an inline
 /// JSON string as an *additional* settings source, and hooks are **unioned**
@@ -236,24 +239,63 @@ fn turn_hook_command(grove_llm: &Path, boundary: &str) -> String {
 /// stalls a turn is worse than a hook that reports nothing.
 const HOOK_TIMEOUT_SECS: u32 = 5;
 
-/// The `--settings` payload: both turn boundaries, wired to the reporting verb.
+/// The notification types grove treats as "a human is needed, mid-turn"
+/// (herdr-mid-turn-blockers). Matched as claude's `Notification` matcher, which
+/// filters on the payload's `notification_type`.
 ///
-/// Two events, and only two. `UserPromptSubmit` is what un-blocks the pane once
-/// a human answers — without it the pane would stay `blocked` for the rest of a
+/// Not a hand-picked list of things that sounded human-shaped: these are exactly
+/// the three sites claude raises from its **idle-notify** path, which fires a
+/// notification only once the human has gone six seconds without touching the
+/// dialog. That is already grove's own definition of unattended, so the
+/// selection rule is a property of claude's code rather than a guess — and it is
+/// why `idle_prompt` is absent (a different site, and one that only fires with
+/// no request in flight, i.e. after `Stop` has already reported `blocked`) as
+/// are the purely informational types (`auth_success`, `agent_completed`).
+///
+/// A matcher naming a type this claude has never heard of is inert, not an
+/// error — unlike an unknown *event* name — so listing all three costs nothing
+/// on an older claude.
+const HUMAN_NEEDED_NOTIFICATIONS: &str =
+    "permission_prompt|elicitation_dialog|elicitation_url_dialog";
+
+/// The `--settings` payload: the two turn boundaries plus the mid-turn pair,
+/// all wired to the reporting verb.
+///
+/// **The boundaries.** `UserPromptSubmit` is what un-blocks the pane once a
+/// human answers — without it the pane would stay `blocked` for the rest of a
 /// session in which the agent asked anything. `Stop` is the boundary itself.
-/// Neither prints to stdout, which matters for `UserPromptSubmit` specifically:
-/// its stdout is injected into the conversation as context.
+///
+/// **The mid-turn pair** (herdr-mid-turn-blockers) closes the gap *inside* a
+/// turn, where a permission prompt stalls an unattended loop exactly as badly as
+/// a question. It is a pair because `blocked` there needs a paired restore:
+/// granting the permission fires no event of its own, and the next thing claude
+/// runs a hook for is the tool call itself. Hence `Notification` ⇒ `blocked` and
+/// `PostToolUse` ⇒ `working`.
+///
+/// `PostToolUse` fires per tool call, which is the one deliberately chatty thing
+/// here — a ~3ms spawn and one socket line each. `PostToolBatch` would fire once
+/// per model round trip instead *and* would close the parallel-batch race below,
+/// but it is a much newer event name than the rest of this block, and an older
+/// claude would warn about it on every launch; revisit when it can be assumed.
+///
+/// None of the four prints to stdout, which matters for `UserPromptSubmit`
+/// specifically: its stdout is injected into the conversation as context.
 fn turn_hook_settings(grove_llm: &Path) -> String {
-    let entry = |event: &str, boundary: &str| {
+    let entry = |event: &str, matcher: Option<&str>, boundary: &str| {
+        let matcher = matcher
+            .map(|m| format!(r#""matcher":"{m}","#))
+            .unwrap_or_default();
         format!(
-            r#""{event}":[{{"hooks":[{{"type":"command","command":"{}","timeout":{HOOK_TIMEOUT_SECS}}}]}}]"#,
+            r#""{event}":[{{{matcher}"hooks":[{{"type":"command","command":"{}","timeout":{HOOK_TIMEOUT_SECS}}}]}}]"#,
             crate::json::escape(&turn_hook_command(grove_llm, boundary))
         )
     };
     format!(
-        r#"{{"hooks":{{{},{}}}}}"#,
-        entry("UserPromptSubmit", "start"),
-        entry("Stop", "end")
+        r#"{{"hooks":{{{},{},{},{}}}}}"#,
+        entry("UserPromptSubmit", None, "start"),
+        entry("Stop", None, "end"),
+        entry("Notification", Some(HUMAN_NEEDED_NOTIFICATIONS), "waiting"),
+        entry("PostToolUse", None, "tool")
     )
 }
 
@@ -299,7 +341,31 @@ mod tests {
     fn the_injected_settings_wire_both_turn_boundaries_to_the_reporting_verb() {
         assert_eq!(
             turn_hook_settings(Path::new("/opt/homebrew/bin/grove-llm")),
-            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn start","timeout":5}]}],"Stop":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn end","timeout":5}]}]}}"#
+            r#"{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn start","timeout":5}]}],"Stop":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn end","timeout":5}]}],"Notification":[{"matcher":"permission_prompt|elicitation_dialog|elicitation_url_dialog","hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn waiting","timeout":5}]}],"PostToolUse":[{"hooks":[{"type":"command","command":"'/opt/homebrew/bin/grove-llm' report-turn tool","timeout":5}]}]}}"#
+        );
+    }
+
+    // The matcher is the difference between reporting `blocked` on a permission
+    // prompt and reporting it on `auth_success`, so its exact shape is pinned
+    // rather than left to the alternation constant. claude compares a matcher
+    // made only of `[A-Za-z0-9_|]` as an **exact-string alternation**, not a
+    // substring regex — which is what stops `permission_prompt` from also
+    // firing on herdr-irrelevant types like `worker_permission_prompt`.
+    #[test]
+    fn only_the_notification_hook_carries_a_matcher() {
+        let settings = turn_hook_settings(Path::new("/g"));
+        assert_eq!(
+            settings.matches(r#""matcher""#).count(),
+            1,
+            "every other event fires unconditionally: {settings}"
+        );
+        assert!(
+            HUMAN_NEEDED_NOTIFICATIONS
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '|'),
+            "a matcher outside [A-Za-z0-9_|] falls out of claude's exact-match \
+             path and is compiled as a regex, where `permission_prompt` would \
+             match `worker_permission_prompt` too"
         );
     }
 

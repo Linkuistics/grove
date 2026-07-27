@@ -3645,9 +3645,10 @@ exit 0
     fs::read_to_string(&log).unwrap()
 }
 
-// Both boundaries, or the surface is worse than useless: `Stop` alone would
-// report `blocked` when the agent asks and then never take it back down once
-// the human answers.
+// All four, and each one's absence would make the surface worse than useless:
+// `Stop` alone would report `blocked` when the agent asks and never take it back
+// down once the human answers, and `Notification` alone would do the same to a
+// permission prompt (herdr-mid-turn-blockers).
 #[test]
 fn a_claude_launch_under_herdr_carries_both_turn_hooks() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -3656,7 +3657,12 @@ fn a_claude_launch_under_herdr_carries_both_turn_hooks() {
         argv.contains("--settings"),
         "a claude launch under herdr must inject the turn hooks (argv: {argv:?})"
     );
-    for boundary in ["report-turn start", "report-turn end"] {
+    for boundary in [
+        "report-turn start",
+        "report-turn end",
+        "report-turn waiting",
+        "report-turn tool",
+    ] {
         assert!(
             argv.contains(boundary),
             "the injected settings must wire {boundary:?} (argv: {argv:?})"

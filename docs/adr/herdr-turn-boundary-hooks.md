@@ -1,4 +1,4 @@
-# Turn boundaries reach herdr through hooks grove injects per launch, on claude alone
+# What happens inside a session reaches herdr through hooks grove injects per launch, on claude alone
 
 The loop driver is the harness's **parent process**, so its whole observable
 vocabulary is *session started* / *session ended*. It cannot see a **turn**
@@ -8,10 +8,27 @@ the pane reads `working` until a human notices. That is the half of the
 cannot reach.
 
 grove closes it by asking the harness. On every **claude** launch the loop
-driver appends `--settings` carrying an inline JSON hook block that wires
-claude's two turn-boundary events to `grove-llm report-turn`:
-`UserPromptSubmit` → `working`, and `Stop` → **`blocked` unless
-`$GROVE_SIGNAL_FILE` says the task completed on purpose**.
+driver appends `--settings` carrying an inline JSON hook block that wires four
+of claude's events to `grove-llm report-turn`:
+
+| event | matcher | reports |
+|---|---|---|
+| `UserPromptSubmit` | — | `working` |
+| `Stop` | — | **`blocked` unless `$GROVE_SIGNAL_FILE` says the task completed on purpose** |
+| `Notification` | `permission_prompt\|elicitation_dialog\|elicitation_url_dialog` | `blocked` |
+| `PostToolUse` | — | `working` |
+
+The first two are the **turn boundaries**. The second two are the **mid-turn
+pair**, and they are a pair rather than one more boundary: a permission prompt
+stalls an unattended loop exactly as badly as a question does, but granting the
+permission fires no event of its own, so a mid-turn `blocked` needs a paired
+restore or it pins the pane until the turn finally ends. `PostToolUse` is the
+only event claude fires in between.
+
+A `done` disposition in the signal file silences every row a machine can
+fire — the driver is about to report `idle` and release, and anything in that
+window is a report in the wrong direction. `UserPromptSubmit` is exempt, because
+a prompt submitted after `complete --done` is a human actually typing.
 
 ## Why it binds
 
@@ -42,7 +59,23 @@ leaves nothing behind when the loop stops.
 grove already reads, applied at the *launch* site rather than only inside the
 verb, so with no herdr present the argv is byte-identical to a grove that never
 had turn hooks: no hook to fire, nothing to spawn, no new surface. Under herdr
-the cost is one ~3ms process spawn per boundary, socket or no socket.
+the cost is one ~3ms process spawn per event, socket or no socket — which is
+what makes it affordable to put a reporter on the per-tool-call path at all.
+
+**The notification matcher is a property of claude's code, not a guess.** The
+three types grove matches are exactly the sites claude raises from its
+*idle-notify* path, which fires only once the human has ignored the dialog for
+six seconds. That is already grove's own definition of unattended, so a human
+answering promptly never causes a flap, and reaching the hook at all *means*
+nobody is there. It is also why `idle_prompt` is excluded — a different site,
+and one that only fires with no request in flight, i.e. after `Stop` has already
+reported `blocked` — as are the informational types (`auth_success`,
+`agent_completed`). Matchers on `Notification` filter on the payload's
+`notification_type` and a matcher drawn from `[A-Za-z0-9_|]` is compared as an
+**exact-string alternation**, so `permission_prompt` cannot also fire on
+`worker_permission_prompt`. A matcher naming a type this claude has never heard
+of is inert; an unknown *event* name is dropped with a warning and the rest of
+the block still applies.
 
 ## Considered options
 
@@ -57,19 +90,33 @@ the cost is one ~3ms process spawn per boundary, socket or no socket.
   Nothing would reopen this — the redundancy is the objection.
 - **Adopt herdr's retired claude event→state mapping wholesale**
   (`PreToolUse`/`PostToolUse`/`SubagentStop` → `working`, `Stop` → `idle`, …).
-  Rejected on both ends: `Stop → idle` is the conflation being fixed, and the
-  per-tool-call `working` reports buy nothing once `UserPromptSubmit` covers the
-  only transition that needs undoing. Reopen if mid-turn blocking states are
-  ever reported (see below), which is what would need a per-tool restore.
-- **Also report mid-turn permission prompts** (`Notification`, or the
-  `PermissionRequest` event). Deferred, not rejected: it is real coverage — an
-  unattended loop that hits a permission prompt stalls exactly as badly as one
-  that hits a question, and grove's own authority now suppresses the screen
-  detection that used to catch it by accident. What stops it landing here is
-  that `blocked` needs a paired restore-to-`working` once the permission is
-  granted, and the only event that fires there is per-tool-call; that is a
-  different design (and a redundancy-suppression question) rather than a bigger
-  version of this one. Reopen with `herdr-mid-turn-blockers-k30`.
+  Rejected at the head: `Stop → idle` is the conflation being fixed. The
+  per-tool-call half is now *half* adopted — `PostToolUse` earns its place as the
+  mid-turn restore, but `PreToolUse` and `SubagentStop` still buy nothing, since
+  the only transition needing to be undone is the one `PostToolUse` already
+  covers. Nothing would reopen the rest.
+- **`PermissionRequest` rather than `Notification` as the block signal.** Both
+  fire on a permission prompt, but `PermissionRequest` is a **decisional** hook —
+  exit code 2 there *denies the permission*. A status reporter has no business on
+  a security-relevant decision path, however reliably it exits zero. It is also
+  worse on the merits: it fires the instant the prompt appears, where
+  `Notification` waits out claude's six-second idle check and so only fires when
+  a human really is absent. Reopen only if `Notification` stops carrying
+  permission prompts.
+- **Suppress the redundant `working` reports `PostToolUse` emits**, the way
+  herdr's own pi extension keeps a `lastState`. Rejected: pi's extension is
+  in-process, where remembering is a free variable; grove's hook is a fresh
+  process per tool call, so remembering costs a file read and write — about what
+  the socket line it saves costs. It would also *lose* something real, because a
+  report on every tool call is what re-asserts grove's authority after a herdr
+  restart mid-session; a cache would hold the stale value until the next session.
+  Reopen if a herdr-side cost of per-tool-call reports is ever measured.
+- **`PostToolBatch` rather than `PostToolUse` as the restore.** It fires once per
+  model round trip rather than once per tool, and — because it waits for *every*
+  call in the batch to resolve — it would also close the parallel-batch race in
+  *Consequences*. Rejected for now purely on age: it is a much newer event name
+  than the rest of the block, and an older claude drops an unknown event with a
+  warning printed on every launch. Reopen once it can be assumed present.
 
 ## Why claude alone
 
@@ -104,14 +151,27 @@ defined ordering. Reopen as its own leaf if pi-hosted groves become common.
   same protocol, same side of the fence — but nothing should ever call it but
   the injected hook. Its help says so.
 - **It must exit zero and print nothing, always.** A non-zero exit makes claude
-  print a `hook error` notice into the transcript at every turn, and
-  `UserPromptSubmit` stdout is **injected into the conversation as context** —
-  a stray byte there would be read by the model as an instruction. The verb
-  returns no `Result` for the same reason the rest of the reporting does not:
-  an absent, refusing, or stock herdr is a no-op by design.
+  print a `hook error` notice into the transcript at every turn — and, since one
+  row is per-tool-call, at every tool call too — and `UserPromptSubmit` stdout is
+  **injected into the conversation as context**, so a stray byte there would be
+  read by the model as an instruction. The verb returns no `Result` for the same
+  reason the rest of the reporting does not: an absent, refusing, or stock herdr
+  is a no-op by design.
 - **A pane can now read `blocked` while a session is still alive.** That is the
-  point, and it self-heals: the next `UserPromptSubmit` reports `working` over
-  it, as does the next task's launch.
+  point, and it self-heals: the next tool call or `UserPromptSubmit` reports
+  `working` over it, as does the next task's launch.
+- **A parallel batch can undo a mid-turn block early.** If one call in a batch is
+  waiting on a permission prompt while a sibling is still running, the sibling's
+  `PostToolUse` reports `working` over the `blocked`, and nothing corrects it
+  until the turn ends. It needs a batch whose other member outlives the prompt's
+  six-second timer, and it is still strictly better than the pre-mid-turn
+  behaviour of reading `working` throughout; `PostToolBatch` closes it properly
+  when it can be assumed present.
+- **A mid-turn stall that raises no notification is still uncovered.** claude
+  raises one for permission prompts and MCP elicitations, but not for a tool that
+  renders its own dialog — `AskUserQuestion`, for one — so a session parked there
+  still reads `working` until its turn ends. Nothing in this design can reach it:
+  there is no event to hook.
 - **The claim that the status surface stops at session boundaries is now false
   for claude, and still true for codex and pi.** Anything asserting otherwise —
   glossary, ADR, spec — has to say which harness it means.

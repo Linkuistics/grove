@@ -154,6 +154,75 @@ fn a_turn_that_started_reports_working_whatever_the_pane_last_said() {
     );
 }
 
+// The mid-turn gap (herdr-mid-turn-blockers). A permission prompt stalls an
+// unattended loop exactly as badly as a question does, and it ends no turn, so
+// `Stop` never fires and the pane reads `working` all night. claude raises the
+// notification behind this only after the human has ignored the dialog for six
+// seconds, so reaching this verb already means *unattended*.
+#[test]
+fn a_dialog_waiting_on_a_human_reports_blocked_without_the_turn_ending() {
+    let tmp = TempDir::new().unwrap();
+    let sock = tmp.path().join("herdr.sock");
+    let herdr = support::fake_herdr(&sock);
+    // Mid-turn, so no signal file: the task is nowhere near complete.
+    let signal = tmp.path().join("loop.signal");
+
+    let out = run_hook("waiting", Some(&sock), Some(&signal));
+
+    assert_silent(&out);
+    assert_eq!(
+        support::reported(&herdr.lock().unwrap()),
+        vec![("pane.report_agent".into(), "blocked".into())],
+        "a permission prompt nobody has answered is a stalled loop"
+    );
+}
+
+// The restore, and the reason the mid-turn report is a *pair* rather than one
+// more boundary: granting a permission fires no event of its own, so without
+// this the pane would stay `blocked` from the first prompt of a session until
+// its turn finally ended — a report that is wrong for longer than it is right.
+#[test]
+fn a_finished_tool_call_takes_a_mid_turn_block_back_down() {
+    let tmp = TempDir::new().unwrap();
+    let sock = tmp.path().join("herdr.sock");
+    let herdr = support::fake_herdr(&sock);
+    let signal = tmp.path().join("loop.signal");
+
+    let out = run_hook("tool", Some(&sock), Some(&signal));
+
+    assert_silent(&out);
+    assert_eq!(
+        support::reported(&herdr.lock().unwrap()),
+        vec![("pane.report_agent".into(), "working".into())],
+        "a tool call that completed is proof the agent got past the dialog"
+    );
+}
+
+// `tool` fires per tool call, which makes it far and away the most frequent
+// site in the whole status surface — so the two properties that make it safe to
+// put there are worth their own case: it must cost the tool call nothing it
+// could notice, and it must stay silent on stdout, since a hook's stdout can be
+// fed back to the model as context.
+#[test]
+fn the_per_tool_call_report_is_cheap_and_silent() {
+    let tmp = TempDir::new().unwrap();
+    let sock = tmp.path().join("herdr.sock");
+    let _herdr = support::fake_herdr(&sock);
+    let signal = tmp.path().join("loop.signal");
+
+    let started = std::time::Instant::now();
+    for _ in 0..10 {
+        assert_silent(&run_hook("tool", Some(&sock), Some(&signal)));
+    }
+    let each = started.elapsed() / 10;
+
+    assert!(
+        each < std::time::Duration::from_millis(100),
+        "a per-tool-call hook must be invisible against a tool call's own cost \
+         (took {each:?} each)"
+    );
+}
+
 // herdr-optional-ui's load-bearing negative, at the one site that runs most
 // often. The hooks are only injected under herdr, so this is belt and braces —
 // but the verb is on `PATH` and a human may well run it out of curiosity.

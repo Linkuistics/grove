@@ -171,14 +171,20 @@ pub fn plan_for(stop: Stop) -> Plan {
     }
 }
 
-/// An **intra-session turn boundary**, reported by the harness itself through a
-/// hook grove injects at launch — the half of the pane's state the loop driver
+/// An **intra-session moment**, reported by the harness itself through a hook
+/// grove injects at launch — the half of the pane's state the loop driver
 /// structurally cannot see.
 ///
 /// The driver is the harness's *parent*, so its whole vocabulary is "a session
 /// started" / "a session ended". A session that stalls **mid-session** on a
 /// question — the overnight case this whole grove exists to fix — never reaches
 /// either, and reads `working` forever. Only the harness knows a turn ended.
+///
+/// Two of the four are turn *boundaries*; the other two are the pair that closes
+/// the gap **inside** one turn, where a permission prompt stalls an unattended
+/// loop exactly as badly as a question does. A mid-turn stall needs a *paired*
+/// restore, which is why it is a pair and not one more boundary: nothing else
+/// would ever take the `blocked` back down before the turn ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Turn {
     /// The human submitted a prompt: whatever the pane said, the agent is going
@@ -187,6 +193,15 @@ pub enum Turn {
     /// The agent stopped responding. Whether that means "asking" or "finished
     /// the task" is not something the harness knows — see [`plan_for_turn`].
     Ended,
+    /// A dialog is on screen waiting for a human, **mid-turn** — a permission
+    /// prompt, or an MCP elicitation. claude only raises these once the human
+    /// has been silent for six seconds, so this already means *unattended*, not
+    /// merely *asked*.
+    Waiting,
+    /// A tool call finished, so the agent is demonstrably running again. The
+    /// restore half of [`Turn::Waiting`], and the only event claude fires
+    /// between a granted permission and the end of the turn.
+    ToolUsed,
 }
 
 /// The turn table — the state policy for a boundary only the harness can see,
@@ -205,7 +220,7 @@ pub enum Turn {
 /// herdr sees a turn end and genuinely cannot tell "done" from "asking". grove
 /// knows, because grove is the thing that relaunches.
 ///
-/// Two entries are worth their own sentence:
+/// Three entries are worth their own sentence:
 ///
 /// **A signalled turn end reports `working`, not nothing.** The driver's
 /// equivalent row stays silent because the next launch re-reports `working` a
@@ -214,20 +229,32 @@ pub enum Turn {
 /// answered, the task then finished). Re-reporting is one round trip per task
 /// and heals that.
 ///
-/// **A `done` turn end says nothing at all.** The driver is about to report
-/// `idle` and release; flapping `working` at a grove that has just finished
-/// would be a report in the wrong direction, for the two seconds until the
-/// completion kill lands.
+/// **A `done` signal silences every row that fires without a human.** The driver
+/// is about to report `idle` and release; any report in that window is one in
+/// the wrong direction at a grove that has just finished, for the two seconds
+/// until the completion kill lands. [`Turn::Started`] is the exception, because
+/// a prompt submitted after `complete --done` is a human actually typing.
+///
+/// **A mid-turn stall does not consult the *session*'s state, only the signal.**
+/// [`Turn::Waiting`] reports `blocked` whatever else is true: a dialog waiting
+/// on a human is not a thing grove has an opinion to weigh, and unlike a turn
+/// end there is nothing ambiguous to discriminate.
 pub fn plan_for_turn(turn: Turn, signal: Option<Disposition>) -> Plan {
     let report = match (turn, signal) {
         // A prompt was submitted: the human is done and the agent is running.
         (Turn::Started, _) => Some(State::Working),
+        // The grove finished: leave the last word to the driver's idle+release.
+        (Turn::Ended | Turn::Waiting | Turn::ToolUsed, Some(Disposition::Done)) => None,
         // The headline case. No signal at a turn end means the model stopped
         // without completing the task — it asked something, or gave up — and
         // the loop cannot proceed until a human answers.
         (Turn::Ended, None) => Some(State::Blocked),
         (Turn::Ended, Some(Disposition::Relaunch)) => Some(State::Working),
-        (Turn::Ended, Some(Disposition::Done)) => None,
+        // The mid-turn pair (herdr-mid-turn-blockers): a dialog nobody has
+        // touched for six seconds, and the tool call that proves the agent got
+        // past it.
+        (Turn::Waiting, _) => Some(State::Blocked),
+        (Turn::ToolUsed, _) => Some(State::Working),
     };
     // Never, on any row: release is the *driver's* call (herdr-optional-ui's
     // table). A session that released mid-loop would hand the pane back to
@@ -476,6 +503,61 @@ mod tests {
         );
     }
 
+    // The mid-turn pair (herdr-mid-turn-blockers). A permission prompt stalls an
+    // unattended loop exactly as badly as a question does, and grove's own
+    // authority took away the screen detection that used to catch it by
+    // accident — so this closes a gap grove itself opened.
+    #[test]
+    fn a_mid_turn_dialog_blocks_and_the_next_tool_call_takes_it_back_down() {
+        for signal in [None, Some(Disposition::Relaunch)] {
+            assert_eq!(
+                plan_for_turn(Turn::Waiting, signal).report,
+                Some(State::Blocked),
+                "{signal:?}: a dialog claude has been waiting six seconds on is a \
+                 human-needed stall, whatever else the session is doing"
+            );
+            assert_eq!(
+                plan_for_turn(Turn::ToolUsed, signal).report,
+                Some(State::Working),
+                "{signal:?}: a finished tool call is proof the agent got past the \
+                 dialog — without this the pane stays blocked until the turn ends"
+            );
+        }
+    }
+
+    // The restore is the whole reason this is a *pair* rather than one more
+    // boundary: `Waiting` alone would pin a pane at `blocked` from the first
+    // permission prompt of a session until its turn finally ended.
+    #[test]
+    fn the_mid_turn_pair_is_symmetric() {
+        assert_eq!(
+            plan_for_turn(Turn::ToolUsed, None).report,
+            Some(State::Working),
+            "the restore must undo the block, or the block is worse than no report"
+        );
+        assert_ne!(
+            plan_for_turn(Turn::Waiting, None).report,
+            plan_for_turn(Turn::ToolUsed, None).report,
+            "a pair that reported the same thing would be one event, not two"
+        );
+    }
+
+    // A grove that has finished belongs to the driver's idle-then-release, and
+    // that holds for every row a *machine* can fire — not just the turn end the
+    // rule was first written for. `Started` is deliberately not in here: a
+    // prompt submitted after `complete --done` is a human actually typing.
+    #[test]
+    fn a_done_signal_silences_every_report_no_human_asked_for() {
+        for turn in [Turn::Ended, Turn::Waiting, Turn::ToolUsed] {
+            assert_eq!(
+                plan_for_turn(turn, Some(Disposition::Done)).report,
+                None,
+                "{turn:?}: the driver is two seconds from reporting idle and \
+                 releasing; anything here is a report in the wrong direction"
+            );
+        }
+    }
+
     // The whole point of the discriminator, guarded on its own: every *other*
     // turn end in a grove session is a completed task, and a table that reported
     // `blocked` for those would flap the pane at the end of every single task —
@@ -497,7 +579,7 @@ mod tests {
     // while the loop was still running.
     #[test]
     fn no_turn_boundary_ever_releases_the_pane() {
-        for turn in [Turn::Started, Turn::Ended] {
+        for turn in [Turn::Started, Turn::Ended, Turn::Waiting, Turn::ToolUsed] {
             for signal in [None, Some(Disposition::Relaunch), Some(Disposition::Done)] {
                 assert!(
                     !plan_for_turn(turn, signal).release,

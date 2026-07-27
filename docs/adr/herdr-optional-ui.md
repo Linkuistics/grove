@@ -195,12 +195,13 @@ distinction that changes nothing.
   previously have.
 - **The driver's own reporting stops at session boundaries**, because the driver
   is the harness's parent and sees a session start, a session end, and nothing
-  in between. **Turn** boundaries reach herdr by a second mechanism — hooks
-  grove injects into the launch, so the harness reports them itself — which
-  exists for **claude** only; see *herdr-turn-boundary-hooks* for how, and for
-  why codex and pi are blocked on facts rather than on effort. On codex and pi a
-  session that stalls mid-turn still reads `working`, not `blocked`: better than
-  the pre-patch `done`, but not the whole fix.
+  in between. What happens **inside** a session — a turn ending, and a dialog
+  stalling one mid-turn — reaches herdr by a second mechanism: hooks grove
+  injects into the launch, so the harness reports them itself. That exists for
+  **claude** only; see *herdr-turn-boundary-hooks* for how, and for why codex and
+  pi are blocked on facts rather than on effort. On codex and pi a session that
+  stalls mid-turn still reads `working`, not `blocked`: better than the pre-patch
+  `done`, but not the whole fix.
 - The plugin's only contract is the `.grove/` directory scheme
   (*task-tree-scheme*), which is already published and stable. Changing that
   scheme is now also a plugin-compatibility question.

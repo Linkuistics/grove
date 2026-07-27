@@ -47,9 +47,10 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   `docs/specs/task-kind-taxonomy.md` plus *task-kind-taxonomy* and
   *model-per-task-kind*, both reworked in place. Four of its ten leaves were
   consequences discovered by the sweep, not planned — the taxonomy's real cost
-  was the doc and config surface, not the enum. **Still unreleased:**
-  `Cargo.toml` is 15.0.0 and the shipped `grove-llm` refuses `--kind impl`, so
-  work in this repo needs `./target/debug/grove-llm`.
+  was the doc and config surface, not the enum. Shipped as **v16.0.0** by
+  `ship-release-k25`. Work in this repo still runs against
+  `./target/debug/grove-llm` whenever it depends on unreleased behaviour — as of
+  now, the whole v16.1.0 CHANGELOG entry, which is written but not cut.
 - **herdr-notes-reverify-k17** — re-verify this brief's herdr Notes and the
   fork-maintenance spec against the fork's current state, once, ahead of the
   leaves that depend on them. A separate workstream had moved the fork.
@@ -71,8 +72,8 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   including the one that issued it, so the "restart kills every pane" cost this
   node was sequenced around turned out not to exist. Three rows of ADR
   *herdr-optional-ui*'s table remain unobserved (SIGTERM/SIGHUP, version-skew
-  stop, relaunch); none was in scope here, and each is cheap to check under
-  **herdr-turn-hooks-k4**.
+  stop, relaunch); none was in scope here, and they now ride along with
+  **observe-mid-turn-live-k31**.
 - **herdr-turn-hooks-k4** — intra-session turn boundaries, per harness. Refines
   **herdr-pane-state-k2**; claude first (cleanest injection), codex and pi after.
   **Done.** claude launches under herdr now carry an inline `--settings` hook
@@ -81,14 +82,29 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   durable record is ADR *herdr-turn-boundary-hooks*. codex and pi are deferred on
   **facts, not effort** — codex has no turn-end hook event and persists hook
   trust per content hash; pi's own herdr extension reports `idle` at turn end,
-  the same conflation. What it does *not* cover is mid-turn blockers, now
-  **herdr-mid-turn-blockers-k30**.
+  the same conflation. What it did *not* cover was mid-turn blockers — closed by
+  **herdr-mid-turn-blockers-k30**, which widened the same ADR rather than adding
+  one.
 - **herdr-mid-turn-blockers-k30** — the gap inside a turn: a permission prompt
   stalls an unattended loop exactly as badly as a question, and grove's own
   authority suppressed the screen detection that used to catch it by accident.
   Deferred out of **herdr-turn-hooks-k4** because `blocked` there needs a paired
   restore that only a per-tool-call event gives — a different design, not a
   bigger version of the same one.
+  **Done.** Two more rows in the injected block, as a pair: `Notification`
+  (matched to three dialog types) ⇒ `blocked`, `PostToolUse` ⇒ `working`. Both
+  design questions were settled by reading the shipped claude binary rather than
+  its self-contradicting docs — see Notes. Redundancy suppression was
+  *rejected*, contra the leaf's opening framing: grove's hook is a fresh process,
+  so remembering costs what it saves, and a report per tool call is what
+  re-asserts authority after a herdr restart. What it could not do is watch a
+  real permission prompt end to end — that is **observe-mid-turn-live-k31**.
+- **observe-mid-turn-live-k31** — the one measurement only production has: a real
+  pane, parked on a real permission prompt, reading `blocked`. Carries the three
+  rows of *herdr-optional-ui*'s table nobody has observed (SIGTERM/SIGHUP,
+  version-skew stop, relaunch), which were homeless once **herdr-turn-hooks-k4**
+  finished. Needs v16.1.0 shipped first; the version-skew guard makes that a
+  single leaf rather than two (the leaf explains how).
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
@@ -234,6 +250,28 @@ control: re-verify anything load-bearing before building on it.
   discriminator readable from inside the session. A `grove-llm` invocation costs
   **~3ms**, socket or no socket — so per-turn reporting is cheap, and the only
   real objection to going per-*tool-call* is socket chatter, not latency.
+- **The shipped claude binary is readable, and it is the better source than the
+  hooks docs** (measured 2026-07-27, `herdr-mid-turn-blockers-k30`). It is a
+  Mach-O with the bundled JS inside, so `strings` over
+  `~/.local/share/claude/versions/<v>` gives the actual implementation; the
+  docs page contradicts itself about `Notification` matchers and the
+  implementation does not. What that settled, all against 2.1.220:
+  matchers **do** filter `Notification`, keyed on the payload's
+  `notification_type`; a matcher drawn from `[A-Za-z0-9_|]` is compared as an
+  **exact-string alternation**, not a substring regex; an unknown hook **event**
+  name is dropped with a warning while the rest of the block still applies (an
+  unknown *matcher* value is simply inert); `permission_prompt`,
+  `elicitation_dialog` and `elicitation_url_dialog` come from one shared
+  *idle-notify* helper that fires **once, after six seconds with no human
+  interaction**; and `PermissionDenied` fires only for the auto-mode classifier,
+  never on an interactive denial. `PostToolBatch` exists and fires once per model
+  round trip, but appears in no changelog entry, so it is too new to assume.
+- **A `Notification` cannot be provoked from `claude -p`** — it is raised by TUI
+  dialog components, so print mode never reaches one. Everything else in the
+  injected block *is* reachable: feed grove's own generated `--settings` to
+  `claude -p` against a `UnixListener` and diff a tool-using prompt against a
+  tool-free one. Driving interactive claude under `expect` was tried four times
+  and did not get the model as far as a permission prompt.
 - **codex has no turn-end hook event**, verified against codex-cli 0.145.0: the
   set is `pre_tool_use`, `permission_request`, `post_tool_use`, `pre_compact`,
   `post_compact`, `session_start`, `session_end`, `user_prompt_submit`,

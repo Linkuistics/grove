@@ -61,10 +61,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
   already sees), and persists hook trust per source-and-content-hash so an
   injected hook has no trust record — the only escape disables trust for every
   hook in the invocation. pi's herdr extension already reports full lifecycle,
-  but reports `idle` at turn end, which is the same conflation. Mid-turn
-  blockers — a permission prompt — are still uncovered on every harness, and
-  deliberately so: `blocked` there needs a paired restore that only a
-  per-tool-call event can give.
+  but reports `idle` at turn end, which is the same conflation.
+
+- **A claude-hosted grove parked on a permission prompt now reads `blocked` too**
+  (*herdr-turn-boundary-hooks*). A permission prompt stalls an unattended loop
+  exactly as badly as a question does, and it ends no turn — so the boundary
+  hooks above never fired for it, and grove's own pane authority had taken away
+  the screen detection that used to catch it by accident.
+
+  The injected block gains two more rows, and they are a **pair**: `Notification`
+  ⇒ `blocked`, `PostToolUse` ⇒ `working`. The restore is what makes it a pair
+  rather than one more event — granting a permission fires no event of its own,
+  so without it the pane would stay `blocked` from the first prompt of a session
+  until its turn finally ended. `PostToolUse` is the only thing claude fires in
+  between, which is why the restore is per-tool-call; the reports are not
+  deduplicated, and that is deliberate, since a report on every tool call is also
+  what re-asserts grove's authority if herdr restarts mid-session.
+
+  The `Notification` row is matched to `permission_prompt`,
+  `elicitation_dialog` and `elicitation_url_dialog` — exactly the dialogs claude
+  raises a notification for only after **six seconds of human silence**, so a
+  prompt you answer straight away never flaps the pane, and one that reaches the
+  hook really is unattended. Two cases stay uncovered and are named in the ADR: a
+  parallel batch whose sibling outlives the prompt can lift the block early, and
+  a tool that renders its own dialog (`AskUserQuestion`) raises no notification
+  at all.
 
 ## v16.0.0
 

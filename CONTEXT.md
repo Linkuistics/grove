@@ -233,32 +233,47 @@ now-dissolved failure where herdr dropped grove's later reports and froze the
 pane mid-loop. [[Authority patch]] fixed that; grove can always correct itself
 while it is alive.
 
-**Session-boundary visibility** / **Turn-boundary hooks** (the two reporting
-mechanisms, and why there are two):
+**Session-boundary visibility** / **Turn hooks** (the two reporting mechanisms,
+and why there are two):
 The loop driver is the harness's **parent process**, so its whole observable
 vocabulary is *session started* / *session ended, with or without a completion
-signal*. It sees no **turn** boundaries — and a session that stalls mid-session
-on a [[HITL]] question ends no session, so driver-level reporting alone leaves it
-reading `working` forever. Hence a **second mechanism**: on every **claude**
-launch the driver appends `--settings` with an inline JSON hook block wiring
-claude's turn events to `grove-llm report-turn`, so the harness reports what the
-driver cannot see. `UserPromptSubmit` ⇒ `working`; `Stop` ⇒ **`blocked` unless
-`$GROVE_SIGNAL_FILE` shows the task completed on purpose** — the discriminator,
-which needs no new model contract because `grove-llm complete` is already
-mandatory as every task's last action. Injected **per launch, persisting
-nothing** (hooks are *unioned* across settings sources, so grove contends with
-neither herdr's own installed hook nor the user's), and **not injected at all**
-outside a herdr pane, so the argv is then byte-identical to a grove without
-them. **claude only**: codex has no turn-end hook event *and* persists hook trust
-per source-and-content-hash; pi's herdr extension already reports full lifecycle
-but reports `idle` at turn end — the same conflation. See ADR
-*herdr-turn-boundary-hooks*.
+signal*. It sees nothing **inside** a session — and a session that stalls
+mid-session on a [[HITL]] question ends no session, so driver-level reporting
+alone leaves it reading `working` forever. Hence a **second mechanism**: on every
+**claude** launch the driver appends `--settings` with an inline JSON hook block
+wiring four claude events to `grove-llm report-turn`, so the harness reports what
+the driver cannot see. Two are **turn boundaries** — `UserPromptSubmit` ⇒
+`working`; `Stop` ⇒ **`blocked` unless `$GROVE_SIGNAL_FILE` shows the task
+completed on purpose** (the discriminator, which needs no new model contract
+because `grove-llm complete` is already mandatory as every task's last action).
+Two are the **mid-turn pair** — `Notification` (matched to the dialog types
+claude raises only after six seconds of human silence) ⇒ `blocked`, and
+`PostToolUse` ⇒ `working`. That one is a *pair* because granting a permission
+fires no event of its own, so a mid-turn `blocked` needs a paired restore or it
+pins the pane until the turn ends; `PostToolUse` is the only event claude fires
+in between, which is why the restore is per-tool-call. A `done` disposition
+silences every row a machine can fire, leaving the driver's idle-then-release the
+last word. Injected **per launch, persisting nothing** (hooks are *unioned*
+across settings sources, so grove contends with neither herdr's own installed
+hook nor the user's), and **not injected at all** outside a herdr pane, so the
+argv is then byte-identical to a grove without them. **claude only**: codex has
+no turn-end hook event *and* persists hook trust per source-and-content-hash;
+pi's herdr extension already reports full lifecycle but reports `idle` at turn
+end — the same conflation. See ADR *herdr-turn-boundary-hooks*.
 _Avoid_: claiming driver-level reporting closes the "stalled overnight on a
 question" case — it closes the half where the session **ended**; the hooks close
-the half where the *turn* ended, on claude.
+the halves where the *turn* ended and where the turn is still running but a
+dialog is waiting, both on claude.
 _Avoid_: "the status surface stops at session boundaries" unqualified — true of
 the driver's own reporting, and true end-to-end on codex and pi, but false for a
 claude-hosted grove.
+_Avoid_: "the turn hooks fire only at turn boundaries" — that was the pre-
+mid-turn set of two, and the per-tool-call row is now by far the most frequent
+site in the whole surface.
+_Avoid_: reaching for `PermissionRequest` as the mid-turn block signal because it
+sounds more direct — it is a **decisional** hook (exit 2 *denies the
+permission*), and it fires the instant the prompt appears rather than waiting out
+the idle check that makes "unattended" mean something.
 _Avoid_: treating `grove-llm report-turn` as a verb the model calls. It is
 machinery the injected hook runs; it must exit zero and print nothing, because a
 `UserPromptSubmit` hook's stdout is injected into the conversation as context.

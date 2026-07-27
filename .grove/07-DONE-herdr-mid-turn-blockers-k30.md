@@ -76,3 +76,54 @@ three cases (no signal → `blocked`; `relaunch` → `working`; `done` → silen
 reproducible by feeding grove's own generated `--settings` string to
 `claude -p` against a unix-socket listener. Re-run it after any change to the
 injected block.
+
+## Outcome
+
+Shipped as **two more rows in the injected block**, a pair: `Notification`
+(matched to `permission_prompt|elicitation_dialog|elicitation_url_dialog`) ⇒
+`blocked`, `PostToolUse` ⇒ `working`. The durable record is ADR
+*herdr-turn-boundary-hooks*, reworked in place — retitled, given the four-row
+table, and with its deferral entry replaced by the three real trade-offs. The
+glossary term is now *Turn hooks*, not *Turn-boundary hooks*.
+
+**Both open questions were settled by reading the shipped claude binary**
+(`strings` over 2.1.220 exposes the bundled JS), which is a measurement of the
+artifact rather than of the self-contradicting docs:
+
+- **Matchers do filter `Notification`**, keyed on `notification_type`
+  (`case "Notification": a = n.notification_type`), and a matcher drawn from
+  `[A-Za-z0-9_|]` takes an **exact-string alternation** path — so
+  `permission_prompt` cannot also fire on `worker_permission_prompt`. claude's
+  own changelog dates this to 2.0.37.
+- **The three matched types are exactly claude's *idle-notify* sites** — one
+  helper, mounted by the permission dialog and the two elicitation dialogs,
+  which resets a `lastInteractionTime` on mount and fires **once, after six
+  seconds of no human interaction**. So the selection rule is a property of
+  claude's code, not a guess, and reaching the hook already means *unattended*.
+- **An unknown hook *event* name is dropped with a warning and the rest of the
+  block still applies** — which is why `PostToolBatch` was tempting but is not
+  worth an every-launch warning on an older claude.
+- `PermissionDenied` fires **only** for the auto-mode classifier, not on an
+  interactive denial, so it is not a general restore.
+
+**Redundancy suppression was considered and rejected**, contra this leaf's
+opening framing. herdr's pi extension dedups because it is *in-process*, where
+remembering is a free variable; grove's hook is a fresh process per tool call, so
+a `lastState` costs a file read and write — about what the socket line it saves
+costs — and it would lose the free self-healing a per-tool-call report gives
+after a herdr restart. Recorded as a *Considered options* entry.
+
+**Measured live, real claude, real socket** (`claude -p` against a `UnixListener`,
+fed grove's own generated `--settings` captured from a real driver launch): the
+payload parses with no validation warning; a tool-using prompt reports
+`working`(prompt) → `working`(**PostToolUse**) → `blocked`(Stop, no signal), and
+the differential — the same prompt with no tool call — reports only
+`working` → `blocked`, so the extra report is unambiguously the new hook. The
+k4 boundary evidence is therefore re-run and not regressed.
+
+**Not observed live: the `Notification` half end to end.** That notification is
+raised by a TUI dialog component, so `claude -p` cannot reach it, and four
+attempts at driving interactive claude under `expect` never got the model as far
+as a permission prompt. Externalised as **observe-mid-turn-live-k31** rather than
+claimed — the same call `status-surface-live-k23` made about an unobserved
+surface.

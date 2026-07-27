@@ -111,9 +111,8 @@ where the unpatched baseline has to be built anyway.
 
 The patch lives in code the herdr **server** runs. Installing a new build leaves
 the already-running server in place, so grove's reports keep being dropped until
-herdr restarts. Restarting kills every pane, which makes it a human's decision,
-never an agent's. Any "the patch doesn't work" report must first establish that
-the running server postdates the install.
+herdr restarts. Any "the patch doesn't work" report must first establish that the
+running server postdates the install.
 
 Establish it without restarting anything: compare the start time of the
 `herdr server` process (`ps -eo pid,lstart,args | grep 'herdr server'`) against
@@ -126,6 +125,35 @@ This trap is not hypothetical; it was live at the 2026-07-27 re-verification,
 stacked with a second one — the *shipped* `grove` had no reporter compiled in at
 all. Two independent silences produce the same symptom as a broken patch, so
 check both binaries before suspecting the code.
+
+### Restarting need not kill panes — prefer the live handoff
+
+"Restart" names two operations with very different costs, and only one destroys
+work. Conflating them is what makes a stale server look like an unavoidable
+price, so the distinction is load-bearing rather than pedantic:
+
+- **`herdr server stop`**, and any plain restart after it, kills every pane.
+- **`herdr server live-handoff --import-exe <path>`** replaces the server
+  process while **preserving pane processes**: it binds a handoff socket,
+  captures each pane's file descriptors, pauses the readers, spawns
+  `<path> server --handoff-import`, and passes the fds across. It has rollback
+  logic if the import server fails to come up.
+
+The handoff is a **first-class CLI subcommand**, listed in `herdr server`'s own
+help — not a raw socket call. Do **not** reach for `herdr update --handoff`
+instead: that fetches *upstream* herdr and would clobber the fork.
+
+Demonstrated 2026-07-27: `herdr server live-handoff --import-exe
+/opt/homebrew/bin/herdr` swapped a 24 Jul server (PID 3825) for a patched one
+(PID 77248) with every pane surviving — including the pane that issued the swap.
+
+Two bounded costs, neither fatal. Connected TUI clients are disconnected with
+"live update in progress; reconnect after handoff completes", so panes live but
+the UI must reattach. And a handoff carries at most `MAX_FDS_PER_HANDOFF` (64)
+panes, above which it refuses cleanly rather than half-migrating.
+
+It stays the human's call, because it interrupts their UI. But "restarting kills
+every pane" is not a property of restarting.
 
 ## Verifying a rebase
 
@@ -142,6 +170,19 @@ exists for):
 4. Throughout, the pane's `agent_session` must stay exactly as the harness left
    it. This is the second hunk's whole purpose: grove never disturbs session
    resume.
+
+Step 3's observable is `agent: null` with `agent_status: "unknown"`, **not** an
+immediate return to the previously detected agent. Release hands the pane back to
+screen detection, but detection re-runs on its next sweep rather than
+synchronously, so a checker that asserts "back to `codex`" right after the
+release will fail against a working patch.
+
+Watching a real `grove do` pane rather than driving the CLI by hand, the
+`idle` that ADR *herdr-optional-ui* places before the release on `complete
+--done` is **not externally observable**: the report and the release land inside
+the same socket exchange, and polling at 30 ms still sees `working` go straight
+to released. That is not a defect — released *is* the intended resting state —
+but a watcher must not wait for an `idle` that will never be sampled.
 
 **Do not use `revision` as the signal.** It does not move for a state report,
 landed or dropped. Earlier notes in this workstream claimed otherwise and were

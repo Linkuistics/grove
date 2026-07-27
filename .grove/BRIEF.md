@@ -66,6 +66,13 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **ship-release-k25** (cut the release; prove the installed binary reports) then
   **observe-live-surface-k26** (acceptance test under a new driver and a
   restarted server).
+  **Done.** The surface is live and measured on a real pane — see Notes. The
+  server was replaced by `herdr server live-handoff`, which preserved every pane
+  including the one that issued it, so the "restart kills every pane" cost this
+  node was sequenced around turned out not to exist. Three rows of ADR
+  *herdr-optional-ui*'s table remain unobserved (SIGTERM/SIGHUP, version-skew
+  stop, relaunch); none was in scope here, and each is cheap to check under
+  **herdr-turn-hooks-k4**.
 - **herdr-turn-hooks-k4** — intra-session turn boundaries, per harness. Refines
   **herdr-pane-state-k2**; claude first (cleanest injection), codex and pi after.
   herdr's own retired claude event→state mapping is in Notes below — start there.
@@ -83,6 +90,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   release build dies, because the doctor asks *rustup* what targets are installed
   and the build asks whatever `cargo` is on `PATH`. Found by **ship-release-k25**;
   independent of the herdr work, sequenced last.
+- **session-leaf-binding-k28** — design. The driver resolves the leaf *before* the
+  session exists (that peek is what binds harness and model), then hands the
+  session no leaf identity, so the session re-picks independently. They agree only
+  because nothing mutates `.grove/` in between — an unenforced coincidence whose
+  failure mode is a session silently running the wrong model for its kind. Decide
+  whether to bind, and reconcile the skill's Pick step with where the pick really
+  happens. Raised by the human during **observe-live-surface-k26**; independent of
+  the herdr work.
 
 ## Pointers
 
@@ -170,26 +185,26 @@ control: re-verify anything load-bearing before building on it.
   herdr, so it falls back to scoring the whole group — where a `codex mcp-server`
   helper outranks the real harness. See `CONTEXT.md` and
   `herdr-pane-misdetection-k11`.
-- **The status surface was not live in production**, for two independent reasons,
-  neither a defect: the shipped `grove` 15.0.0 carried **no reporter at all**
-  (HEAD was unreleased at the same version number), and the running herdr
-  *server* predates the patched build, which
-  `docs/specs/herdr-fork-maintenance.md` warns leaves the patch inert until herdr
-  restarts.
-  **The grove half is closed:** `ship-release-k25` shipped **v16.0.0**, and the
-  installed binary now carries `HERDR_SOCKET_PATH`, `HERDR_PANE_ID`,
-  `pane.report_agent` and `pane.release_agent`. The shipped `grove-llm` also
-  accepts `--kind impl` now, so `./target/debug/grove-llm` is no longer needed.
-  **The herdr half is not:** until the server restarts, any observation of a live
-  pane is still an observation of the *pre-reporter* world — and a *reporting*
-  driver only exists in a pane launched by a `grove do` started after the
-  upgrade. Both are **observe-live-surface-k26**.
-- **A herdr restart need not kill every pane.** `docs/specs/herdr-fork-maintenance.md`
-  says it does; that is true of `herdr server stop` and false in general. herdr
-  carries a live-handoff path (`server.live_handoff`, taking an `import_exe`,
-  spawning `herdr server --handoff-import` and passing pane fds across), and
-  `platform::capabilities()` reports `live_handoff: cfg!(unix)`. The server
-  running now was itself started with `--handoff-import`, so the path works on
-  this machine. It stays the human's call either way. **Do not reach for
-  `herdr update --handoff`** to get there: that fetches *upstream* herdr and would
-  clobber the fork.
+- **The status surface is live in production, and verified end to end**
+  (2026-07-27, `observe-live-surface-k26`). Both silences that made it inert are
+  closed: `ship-release-k25` shipped **v16.0.0** so the installed `grove` carries
+  the reporter, and the server was replaced by live handoff (PID 3825 → 77248),
+  so the running herdr carries the patch. What was measured on a real pane whose
+  `agent_session` was owned by `herdr:claude`: the fork acceptance test passes on
+  all four points (report lands, a *second differing* report lands, release
+  returns the pane, `agent_session` byte-identical throughout), and on a real
+  `grove do` pane the driver reports `working` at launch, **`blocked` held** on a
+  no-signal stop, and **releases** on `complete --done`. `working` was also seen
+  overwriting a stale `blocked` — the ADR's self-healing claim, observed.
+  Two observation nuances, both now in the spec: release reads `agent: null` /
+  `agent_status: unknown` rather than snapping back to the detected agent, and
+  the `idle` before release is not externally observable at 30 ms polling.
+- **A herdr restart need not kill every pane** — and the route is a **plain CLI
+  subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
+  `herdr server`'s own help. Earlier notes here claimed no CLI path existed and
+  that a raw `server.live_handoff` socket call was required; that was wrong.
+  Demonstrated: every pane survived the swap, including the pane that issued it.
+  Costs are bounded — TUI clients disconnect and must reattach, and a handoff
+  carries at most 64 panes. It stays the human's call because it interrupts their
+  UI. **Do not reach for `herdr update --handoff`**: that fetches *upstream*
+  herdr and would clobber the fork.

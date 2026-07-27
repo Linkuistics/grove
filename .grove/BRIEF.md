@@ -60,7 +60,12 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
 - **status-surface-live-k23** — ship the reporter and get the patched herdr
   server actually running, then pass the fork-maintenance acceptance test on a
   real `grove do` pane. Inserted ahead of the two leaves that refine a surface
-  they currently cannot observe.
+  they currently cannot observe. Now a node: a `grove do` pane's ancestry is
+  `herdr → shell → grove → harness`, so a session here is a grandchild of both
+  processes that must be replaced, and cannot watch its own replacement. Hence
+  **ship-release-k25** (cut the release; prove the installed binary reports) then
+  **observe-live-surface-k26** (acceptance test under a new driver and a
+  restarted server).
 - **herdr-turn-hooks-k4** — intra-session turn boundaries, per harness. Refines
   **herdr-pane-state-k2**; claude first (cleanest injection), codex and pi after.
   herdr's own retired claude event→state mapping is in Notes below — start there.
@@ -74,6 +79,10 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   holds authority. Independent of everything above.
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
+- **release-doctor-toolchain-gap-k27** — `release-doctor.sh` passes while the
+  release build dies, because the doctor asks *rustup* what targets are installed
+  and the build asks whatever `cargo` is on `PATH`. Found by **ship-release-k25**;
+  independent of the herdr work, sequenced last.
 
 ## Pointers
 
@@ -161,11 +170,26 @@ control: re-verify anything load-bearing before building on it.
   herdr, so it falls back to scoring the whole group — where a `codex mcp-server`
   helper outranks the real harness. See `CONTEXT.md` and
   `herdr-pane-misdetection-k11`.
-- **The status surface is not live in production**, for two independent reasons,
-  neither a defect. The shipped `grove` 15.0.0 carries **no reporter at all** —
-  the binary contains no `HERDR_SOCKET_PATH`, `HERDR_PANE_ID` or
-  `pane.report_agent`, because HEAD is unreleased at the same version number. And
-  the running herdr *server* predates the patched build, which
+- **The status surface was not live in production**, for two independent reasons,
+  neither a defect: the shipped `grove` 15.0.0 carried **no reporter at all**
+  (HEAD was unreleased at the same version number), and the running herdr
+  *server* predates the patched build, which
   `docs/specs/herdr-fork-maintenance.md` warns leaves the patch inert until herdr
-  restarts. **status-surface-live-k23** closes both. Until it does, any
-  observation of a live pane is an observation of the *pre-reporter* world.
+  restarts.
+  **The grove half is closed:** `ship-release-k25` shipped **v16.0.0**, and the
+  installed binary now carries `HERDR_SOCKET_PATH`, `HERDR_PANE_ID`,
+  `pane.report_agent` and `pane.release_agent`. The shipped `grove-llm` also
+  accepts `--kind impl` now, so `./target/debug/grove-llm` is no longer needed.
+  **The herdr half is not:** until the server restarts, any observation of a live
+  pane is still an observation of the *pre-reporter* world — and a *reporting*
+  driver only exists in a pane launched by a `grove do` started after the
+  upgrade. Both are **observe-live-surface-k26**.
+- **A herdr restart need not kill every pane.** `docs/specs/herdr-fork-maintenance.md`
+  says it does; that is true of `herdr server stop` and false in general. herdr
+  carries a live-handoff path (`server.live_handoff`, taking an `import_exe`,
+  spawning `herdr server --handoff-import` and passing pane fds across), and
+  `platform::capabilities()` reports `live_handoff: cfg!(unix)`. The server
+  running now was itself started with `--handoff-import`, so the path works on
+  this machine. It stays the human's call either way. **Do not reach for
+  `herdr update --handoff`** to get there: that fetches *upstream* herdr and would
+  clobber the fork.

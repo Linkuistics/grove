@@ -44,7 +44,28 @@ exists.
   exist. Mostly test blast radius.
 - `05` **leaf-harness** (work) — the `**Harness:**` line, its peek, and its
   refusal semantics.
-- `06` **config-sweep** (work) — live env migration and the doc surface.
+- `06` **config-sweep** (impl) — live env migration and the doc surface.
+  **Done.** Both routing axes and the seventeen kinds now reach `--help`,
+  `TASK-FORMAT.md`, `SKILL.md`, `driving.md`, `README.md`, `docs/grove.md` and
+  the CHANGELOG; the live env is rewritten harness-scoped across all three
+  harnesses and verified by 51 real launches. It surfaced `07` and `08`, so this
+  node is **not** done.
+
+Added by `06`, both consequences of `04`'s inversion rather than of the original
+plan. Neither is a doc fix; both change launch-path behaviour or a recorded
+contract, which is why they are leaves and not part of the sweep.
+
+- `07` **bootstrap-leaf-kind** (impl) — `root-init` mints `planning`, the start
+  path routes as `planning`, and `start.md` has that session **grill**. But
+  grilling is now `requirements`, so a fresh grove does `requirements` work under
+  a `planning` label and draws a `planning` model for it.
+  *fresh-grove-start-contract* records the old answer and must be reworked in
+  place either way.
+- `08` **no-launch-config-check** (impl) — `--no-launch` returns before both
+  config checks, so it prints `ready` and exits 0 where the next real launch
+  fails on a missing model var. Measured, not inferred. That reintroduces
+  exactly the partial-configuration invisibility `04` exists to eliminate,
+  through the dry-run door.
 
 ## Pointers
 
@@ -74,13 +95,27 @@ exists.
 ## Notes
 
 **The user's actual configuration**, which is what the design was derived
-against and what `06` must produce: claude leads, codex reviews, claude
-integrates the review; research runs claude + codex, combined by claude, codex
-or kimi. Everything on claude needs no configuration at all — it falls through
-to the stamp. So the whole policy layer is two lines
-(`GROVE_REVIEW_HARNESS=codex` plus the matching model var), and only the
-research pair's second leaf and its combine step ever carry a per-leaf
+against: claude leads, codex reviews, claude integrates the review; research runs
+claude + codex, combined by claude, codex or kimi. The **policy** layer is indeed
+two lines (`GROVE_REVIEW_HARNESS=codex` plus `GROVE_CODEX_REVIEW_MODEL`), and only
+the research pair's second leaf and its combine step ever carry a per-leaf
 declaration.
+
+**But "everything on claude needs no configuration at all" was wrong, and `06`
+had to pay for it.** That held only under the pre-`04` rule where an unset var
+fell through to the harness's own default. Once a kind with no model var is a
+hard failure, *falling through to the stamp* still requires a var for every kind
+the stamped harness runs — the stamp absorbs the **harness** axis, never the
+**model** axis. The live `.zshenv` had no `GROVE_CLAUDE_*_MODEL` and no unscoped
+var at all (it dated from the codex/pi trials), so every kind on every
+claude-stamped grove failed at launch. The migration was ~27 vars, not three
+renames: nine suffixes × three harnesses, **harness-scoped throughout**, because
+an unscoped value would follow a kind onto a harness it was never written for and
+this user drives groves stamped to all three.
+
+Read the "about nine vars" figure in the spec and both ADRs with that
+caveat — nine is the count for **one** stamped harness, and only if you are
+willing to use the unscoped spellings.
 
 **Independent of the herdr subtree.** Nothing here touches herdr.
 

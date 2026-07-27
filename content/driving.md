@@ -4,10 +4,11 @@ The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
 file is about *how* to drive it well — the moves a human collaborator makes
 that turn the loop into productive design work. It is a field guide, not a
 specification; treat it as a starting set of habits, not a checklist. Most of
-it concerns *planning* sessions — research and grilling — but the later
-sections are habits for *work* sessions too: grounding framework decisions in
-the source, doubting a decision before it stands, and externalizing surfaced
-work into new leaves rather than absorbing it.
+it concerns the *design* kinds — `research`, `requirements`, `design`,
+`planning` — but the later sections are habits for `impl` sessions too:
+grounding framework decisions in the source, doubting a decision before it
+stands, and externalizing surfaced work into new leaves rather than absorbing
+it.
 
 The dogfood reference throughout this doc is the
 `capture-issues-for-later-groves` workstream in the grove project's own
@@ -23,31 +24,31 @@ end-to-end.
 ## When not to start a grove
 
 Before reaching for `root-init`, check that the journey actually needs a map.
-If a first planning session surfaces no real fog — the path to done is
+If a first bootstrap session surfaces no real fog — the path to done is
 already clear and the whole thing fits in one sitting — do the work directly
 instead: a grove would only wrap it in a tree, a brief chain, and a relaunch
 cycle it doesn't need. Reach for `root-init` once genuine session-to-session
 fog shows up — work whose shape you can't see past the next session or two.
-`root-init` will always mint a first planning leaf on request; that
-mechanical fact is not itself the signal to run it.
+`root-init` will always mint a first leaf on request; that mechanical fact is
+not itself the signal to run it.
 
 ## When to commission prior-art research
 
-A planning leaf is the right unit for a grilling session when the design
-tree fits in one session. When the leaf's design depends on lessons that
-prior tools have learned the hard way — and those lessons are not
-obvious from the current codebase — *insert a research leaf ahead of
-the planning leaf*. The research leaf's job is to surface the failure
-modes the planning leaf will otherwise have to learn from scratch.
+A `requirements` leaf is the right unit for a grilling session when the
+design tree fits in one session. When the leaf's design depends on lessons
+that prior tools have learned the hard way — and those lessons are not
+obvious from the current codebase — *insert a `research` leaf ahead of
+it*. The research leaf's job is to surface the failure modes the
+grilling would otherwise have to learn from scratch.
 
 **Signs you want a research leaf:**
 
-- The planning leaf sits in an architectural neighbourhood with well-known
+- The leaf sits in an architectural neighbourhood with well-known
   prior art (issue trackers, sync protocols, schema registries, etc.).
 - Earlier leaves in the subtree have already touched architectural
-  decisions the new leaf depends on — i.e. several downstream planning
-  leaves share a common evidence base.
-- The planning conversation surfaces a question like "has anyone tried
+  decisions the new leaf depends on — i.e. several downstream
+  `requirements` / `design` leaves share a common evidence base.
+- The grilling surfaces a question like "has anyone tried
   this before, and what happened to them?" — that question itself is the
   signal.
 
@@ -105,9 +106,47 @@ git-appraise, CRDT-merge surprises in Radicle COBs) — the absence is
 itself a confidence signal, and recording it stops future readers from
 re-doing the same fruitless search.
 
+## Running the vendor pair
+
+One survey is one vendor's corpus and one vendor's blind spots. When the
+question is load-bearing enough to justify the cost, run the **vendor pair**:
+two `research` leaves on the same question, differing *only* by which harness
+runs them, then a `combine-research` leaf. This is why a leaf may name its own
+harness — the two leaves are the same kind, so no `GROVE_RESEARCH_HARNESS`
+policy can send one elsewhere:
+
+```
+grove-llm leaf-add . survey-sync-protocols --kind research
+grove-llm leaf-add . survey-sync-protocols-second --kind research --harness codex
+grove-llm leaf-add . combine-sync-survey --kind combine-research
+```
+
+The first leaf needs no declaration — it falls through to the grove's stamp.
+Only the *second* one, and any combine step you want run elsewhere, carry a
+`**Harness:**` line.
+
+**Give both researchers the same brief.** The pair buys breadth, and breadth
+comes from the corpora differing, not the questions. Two briefs means two
+surveys you cannot union.
+
+**Do not run the researchers adversarially.** Framing the second as "find what
+the first got wrong" discards the breadth you paid for and biases it toward the
+first survey's frame. Both run breadth-seeking; the adversarial move belongs to
+the combine step.
+
+**The combine step's job is the one check neither survey can perform on
+itself.** Union the coverage, flag every disagreement — and treat **agreement
+without independent primary sourcing as a red flag, not a confirmation**. Two
+vendors trained on overlapping corpora can agree on something false, and a
+purely confirmatory combine raises confidence exactly where it should lower it:
+a correlated error laundered as corroboration. So for each agreed claim, ask
+whether the two surveys reached it through *different* primary sources. If they
+cite the same blog post, or neither cites anything, that agreement is worth less
+than a disagreement.
+
 ## When to invoke a design discussion (grilling)
 
-The trigger is: a planning leaf's brief lists three or more questions
+The trigger is: a `requirements` leaf's brief lists three or more questions
 whose answers interdepend. Grilling is the procedure that walks the
 dependency tree without the LLM making decisions on the human's
 behalf.
@@ -244,7 +283,7 @@ ADR set in the same pass.
 
 The research-leaf discipline — a citation per claim, primary sources, and a
 note for what you *couldn't* verify — is not only for research. It applies to
-**work tasks** too, whenever you write framework- or library-specific code
+**`impl` tasks** too, whenever you write framework- or library-specific code
 whose correctness depends on the version. Training data goes stale; an API you
 "remember" may have been deprecated two releases ago.
 
@@ -310,6 +349,49 @@ The pass:
 
 This is in-flight doubt, before the commit — not the post-hoc review of a
 finished branch, by which point course-correction is expensive.
+
+## The review chain — when doubt earns its own leaves
+
+The doubt pass above is the cheap end of one ladder. Its top end is the **review
+chain**: `X` → `review-X` → `integrate-review-X`, three leaves instead of a
+mid-session subagent. Same move — a fresh context asked to *disprove* — but with
+a real session's reach: its own harness (so a different vendor can review what
+yours produced), its own model, and a third leaf explicitly licensed to change
+the artifact.
+
+Escalate from the pass to the chain when the artifact is **big enough that a
+subagent cannot hold it**, when you want it read by a **different vendor** than
+wrote it, or when acting on the findings is itself **more than a session's
+work**. A one-file change wants the pass. A landed spec, a decomposition you
+will build on for months, or a subsystem wants the chain.
+
+```
+grove-llm leaf-add [12] review-sync-design --kind review-design
+grove-llm leaf-add [12] apply-sync-review --kind integrate-review-design
+```
+
+Three habits make the chain worth its three sessions:
+
+- **The reviewer produces findings, not fixes.** A reviewer that starts editing
+  has collapsed the chain back into one session and lost the independence that
+  was the point. `review-prototype` is the sharpest case: it is *not* a code
+  review — a prototype is judged on whether it informed a decision, and polish
+  in one is a defect.
+- **The integrate step triages; it does not capitulate.** Each finding is one of
+  four things: a contract you stated unclearly (fix the contract), a real issue
+  (fix the artifact), a real trade-off (accept it *visibly*), or noise raised for
+  want of context (note it, move on). Performative agreement with a confident
+  reviewer is the failure mode, and a fresh reviewer can be wrong *because* it is
+  fresh.
+- **Route the review, don't hand-place it.** "Reviews go to codex" is a policy —
+  one `GROVE_REVIEW_HARNESS` line covering all five `review-*` kinds — not a
+  per-leaf declaration. Reach for `--harness` only where a policy genuinely
+  cannot express the shape (the vendor pair).
+
+grove **enforces none of this**. It does not check that a `review-X` leaf follows
+an `X` leaf, and will not warn when one does not — a grammar is a relation
+*between* leaves, and grove expresses no relation between leaves. The chain is
+yours to compose, and skipping it is a normal choice, not a violation.
 
 ## Externalizing surfaced work
 

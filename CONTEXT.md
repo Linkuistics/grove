@@ -106,8 +106,14 @@ launch consults no unscoped var, truncating the lattice to the first two.
 the harness's own default, because that is still grove deciding, only less
 visibly. Exempt: no live leaf, a harness whose model-flag template is empty, and
 harness absence. Two [[Task kind]] **families** exist (`review-*`,
-`integrate-review-*`) so one policy line covers five kinds. Ceiling 95 vars;
-full coverage is about nine. See ADR *model-per-task-kind*.
+`integrate-review-*`) so one policy line covers five kinds. Ceiling 95 vars.
+See ADR *model-per-task-kind*.
+_Avoid_: "the stamp absorbs every kind that is not rerouted" as a claim about the
+**model** surface — it absorbs the *harness* axis only. Falling through to the
+stamp still needs a model var per kind, so the "about nine vars" figure is one
+stamped harness resolving through the unscoped keys; drive groves stamped to
+several harnesses and it is nine *per harness* in the harness-scoped spelling
+(measured at ~27 on the first real migration).
 _Avoid_: "per-kind model selection" as the whole name — the harness axis is half
 of it, and the family axis spans both.
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;

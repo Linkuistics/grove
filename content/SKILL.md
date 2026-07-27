@@ -30,16 +30,16 @@ flowchart TD
     direction TB
     pick["Pick — first live leaf: depth-first walk, skip briefs + DONE"]
     boot["Bootstrap — read glossary, ancestor BRIEFs, cited ADRs, the task"]
-    exec{"planning or work?"}
-    plan["Planning — grill; glossary inline; ADRs sparingly; maybe a spec; grow the tree"]
-    work["Work — produce code / docs / tests"]
+    exec{"kind — planning, or one of the other sixteen?"}
+    plan["Planning — cut vertical slices; grow the tree"]
+    work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
     commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
     retire{"parent chain — node now has no live leaf?"}
     ret["Ask user; promote brief up; leaves already marked (done/abandoned) in place"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
     exec -->|planning| plan --> commit
-    exec -->|work| work --> commit
+    exec -->|any other kind| work --> commit
     commit --> retire
     retire -->|yes| ret --> retire
     retire -->|no| signal --> pick
@@ -126,22 +126,37 @@ path per line, root→leaf (a missing brief at any level is skipped silently —
 some nodes do not yet carry one); the task file. That assembled context is the
 session's entire mandate; read nothing else by reflex.
 
-**Execute.** The task file states its kind (`TASK-FORMAT.md`):
-- A **work task** produces code, docs, or tests.
-- A **planning task** opens with a **grilling session** (`grilling.md`):
-  interview the user one question at a time, propose a recommended answer for
-  each, walk down the design tree until shared understanding is reached. Through
-  that grilling, update `CONTEXT.md` *inline* as terms resolve, raise ADRs
-  *sparingly* (`ADR-FORMAT.md` for placement; the `linkuistics:decision-records`
-  skill for the philosophy, format, and when-to-write test), MAY write a spec at
-  a genuine agreement point (`SPEC-FORMAT.md`), and **grow the tree**. Treat the
-  ADR set as a **minimum coherent set describing the current design**: when
-  grilling *changes* a decision an ADR already records, **rework the set in
-  place** — merge / split / delete — and reconcile the briefs that cite it;
-  never append a superseding ADR (the VCS holds the history). The same rule governs
-  `docs/specs/`, one grain coarser. See `driving.md` for the field-guide habits
-  that make grilling and research-leaf commissioning productive (WDYT, pushback,
-  running decision log, citation discipline).
+**Execute.** The task file states its kind, drawn from a closed set of
+**seventeen** — five producers (`requirements`, `design`, `planning`,
+`prototype`, `impl`), each with its own `review-` and `integrate-review-` step,
+plus `research` and `combine-research` (`TASK-FORMAT.md` for every kind's
+discipline and its HITL/AFK mark). `work` is the previous spelling of `impl` and
+still reads as it. **`planning` is the only kind with methodological force** —
+the sole branch here, and the only kind that grows the tree generatively:
+- Every other kind **produces an artifact** and differs in discipline, not in
+  what the loop does with it. `requirements` opens with a **grilling session**
+  (`grilling.md`): interview the user one question at a time, propose a
+  recommended answer for each, walk down the design tree until shared
+  understanding is reached, updating `CONTEXT.md` *inline* as terms resolve.
+  `design` turns that into a spec or an ADR set; `impl` produces code, docs, or
+  tests; the `review-*` kinds produce findings and the `integrate-review-*` kinds
+  apply them.
+- A **planning task** cuts the design into vertical slices and **grows the
+  tree** (Decompose, below). It no longer interrogates — grilling moved to
+  `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
+  as any kind may.
+
+Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for placement;
+the `linkuistics:decision-records` skill for the philosophy, format, and
+when-to-write test), and write a spec only at a genuine agreement point
+(`SPEC-FORMAT.md`). Treat the ADR set as a **minimum coherent set describing the
+current design**: when a session *changes* a decision an ADR already records,
+**rework the set in place** — merge / split / delete — and reconcile the briefs
+that cite it; never append a superseding ADR (the VCS holds the history). The
+same rule governs `docs/specs/`, one grain coarser. See `driving.md` for the
+field-guide habits that make grilling, research-leaf commissioning, and the
+review chain productive (WDYT, pushback, running decision log, citation
+discipline).
 
 **Decompose.** When work surfaces mid-session, default to **externalizing it as
 a new leaf** rather than absorbing it into the current session — grove's value
@@ -191,6 +206,17 @@ resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
 `<slug>-k<key>` handle back into the current file path. All three grow verbs are
 working-tree changes only; the enclosing task's commit folds them in.
 
+Every grow verb takes `--kind <kind>` — one of the seventeen, defaulting to
+`impl` — and gates on it: an unrecognised value errors and lists the set, because
+a human is present at authoring time (reading a kind degrades instead, so a
+hand-edited file can never jam the loop). `leaf-decompose` gives the node's first
+child its parent leaf's kind unless `--kind` overrides, so a `research` leaf that
+proves bigger becomes a `research` node. A leaf may additionally name the harness
+its session runs on with `--harness <name>` (written as a `**Harness:**` line);
+almost none does — it exists for the **vendor pair**, two `research` leaves
+differing only by vendor, which is the one shape a per-kind policy cannot
+express.
+
 **Commit.** One task = one focused commit. **Name the work item in the commit
 message by its stable handle `<slug>-k<key>`, never by its position or directory
 path** — positions and paths move under renumber and reorder, but the
@@ -212,7 +238,8 @@ bookkeeping, no need to ask.
 
 The other case: a session finds the leaf's path decided against, not done. This
 is **pruning**, and it is **HITL — an agent never prunes on its own**: an AFK
-session (research / work / review) that discovers this says so and stops; the
+session (every kind but `requirements` and `prototype`) that discovers this says
+so and stops; the
 loop stalling on an abandonment decision is the system working, not a fault.
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
@@ -320,7 +347,7 @@ is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
 ## Specs
 
 A **spec** is the human-facing, team-shareable design of an area of the system,
-produced lazily by a planning task *when the increment is a genuine agreement
+produced lazily by a `design` task *when the increment is a genuine agreement
 point*. The flow there: grill → spec (review & agree) → decompose → execute.
 Specs live in `docs/specs/<slug>.md` and, like ADRs, are a **minimum coherent
 set describing the current design**: edited, merged, split in place; deleted
@@ -339,7 +366,7 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
 - `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.
-- `grilling.md` — the grilling procedure for planning tasks (bundled).
+- `grilling.md` — the grilling procedure for `requirements` tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
 

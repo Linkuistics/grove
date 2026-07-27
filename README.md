@@ -49,25 +49,62 @@ See `grove --help` for flag details. For end-to-end walkthroughs of each verb in
 
 ## Configuration
 
-`grove do` picks each task session's model by the **kind** of the leaf it's
-about to launch, so planning can run on a stronger reasoning model and
-mechanical work on a cheaper/faster one:
+Before each task launch, `grove do` reads the **kind** of the leaf it's about to run and resolves two things from the environment: **which harness** runs it, and **which model** that harness loads. Selection uses each harness's own native launch flags — no router, no proxy.
 
-```
-GROVE_PLANNING_MODEL=opus GROVE_WORK_MODEL=sonnet grove do
-```
+Every leaf declares one of **seventeen** kinds: five producers — `requirements`, `design`, `planning`, `prototype`, `impl` — each with its own `review-<producer>` and `integrate-review-<producer>` step, plus `research` and `combine-research`. Two **families** group them for configuration, so one line covers five kinds: `REVIEW` (every `review-*`) and `INTEGRATE_REVIEW` (every `integrate-review-*`). Variable names uppercase the label and map `-` to `_` — `review-impl` → `REVIEW_IMPL`. See [`docs/specs/task-kind-taxonomy.md`](docs/specs/task-kind-taxonomy.md) for each kind's discipline.
 
-| Variable | Applies to |
+### Which harness
+
+Most precise wins — **leaf, then kind, then family, then the stamp**:
+
+| Source | Applies to |
 |---|---|
-| `GROVE_PLANNING_MODEL` | planning leaves (grilling, design) |
-| `GROVE_RESEARCH_MODEL` | research leaves (citation-disciplined surveys) |
-| `GROVE_PROTOTYPE_MODEL` | prototype leaves (a cheap throwaway artifact) |
-| `GROVE_WORK_MODEL` | work leaves (code, docs, tests) |
-| `GROVE_REVIEW_MODEL` | review leaves (fresh-context adversarial read) |
+| a `**Harness:** <name>` line on the task file | that one leaf. Rare — it exists for the research **vendor pair**, two `research` leaves differing only by vendor, the one shape a per-kind policy cannot express. Read *strictly*: an unknown name refuses to launch rather than degrading. |
+| `GROVE_<KIND>_HARNESS` | one kind, e.g. `GROVE_REVIEW_IMPL_HARNESS=codex` |
+| `GROVE_<FAMILY>_HARNESS` | a whole family, e.g. `GROVE_REVIEW_HARNESS=codex` |
+| *unset* | the harness this grove is **stamped** to (`.grove-stamps/<name>`) — an explicit on-disk binding, not a default |
 
-The loop passes the matching value via Claude Code's native `--model` at each launch. Two things to know:
+### Which model
 
-- **Unset ⇒ inherit your own default.** Leave a variable unset and grove passes no `--model` for that kind — the session runs on your own default (`ANTHROPIC_MODEL` or your Claude Code settings). So grove is a no-op until you opt in, and it never clobbers a default you already have; setting only some of the five is fine (an unconfigured kind still inherits).
-- **The launch model is a default, not a lock.** An in-session `/model` switch outranks `--model` for that one session (native Claude Code). Whether it persists into the *next* task depends on the switched kind's env var: **set** ⇒ the driver passes `--model` again on the next launch and the override does not persist; **unset** ⇒ interactive `/model` saves as your own default, so the override *does* persist into every subsequent unconfigured session.
+Four keys, **harness-major** — `<HARNESS>` is `CLAUDE`, `CODEX` or `PI`:
 
-See [`docs/adr/model-per-task-kind.md`](docs/adr/model-per-task-kind.md) for the rationale (why native `--model` rather than a router/proxy).
+| Key, most specific first | Example |
+|---|---|
+| 1. `GROVE_<HARNESS>_<KIND>_MODEL` | `GROVE_CODEX_REVIEW_IMPL_MODEL` |
+| 2. `GROVE_<HARNESS>_<FAMILY>_MODEL` | `GROVE_CODEX_REVIEW_MODEL` |
+| 3. `GROVE_<KIND>_MODEL` | `GROVE_IMPL_MODEL` |
+| 4. `GROVE_<FAMILY>_MODEL` | `GROVE_INTEGRATE_REVIEW_MODEL` |
+
+The harness axis outranks the kind axis because the two are different kinds of constraint: crossing the harness axis can yield a value that is **invalid** rather than merely less specific (a codex profile name is garbage to pi), while a family's model is less specific yet still your own choice. A **rerouted** launch — the leaf's harness is not the one the grove is stamped to — consults keys 1–2 only, since an unscoped var was written with some *other* harness in mind.
+
+The value is passed via the harness's own flag: `--model` for claude and pi (pi accepts `provider/id` patterns), `--profile` for codex (a codex profile binds model *and* reasoning effort, which a bare model flag cannot express — define profiles as `$CODEX_HOME/<name>.config.toml` files, not a `[profiles.<name>]` table in `config.toml`).
+
+Two things to know:
+
+- **A model is required — an unset variable is an error, not a fallback.** If the picked leaf's kind resolves none of the four keys, grove fails loudly and names every variable that would satisfy it. There is no fall-through to the harness's own default, because that is still grove choosing which model runs a `review-impl` leaf — it just chooses invisibly, and it makes a half-configured setup indistinguishable from a complete one. Three exemptions, each an *absence of the question* rather than a default: no live leaf (the finish-cycle iteration has no task to require a variable for); a harness that takes no model flag at all; and an unset `GROVE_<KIND>_HARNESS`, which means the stamp.
+- **The launch model is a default, not a lock.** An in-session `/model` switch outranks the flag for that one session. It does not survive into the next task — every launch passes a flag again.
+
+### A worked configuration
+
+claude leads, codex reviews, claude integrates the review. The stamp absorbs every kind that is *not* rerouted, so the whole policy layer is two lines and one family variable does the work of five kinds:
+
+```
+# reviews go to codex (one line, all five review-* kinds), on a codex profile;
+# rerouted, so it needs the CODEX-scoped spelling
+export GROVE_REVIEW_HARNESS=codex
+export GROVE_CODEX_REVIEW_MODEL=sol-xhigh
+
+# everything else falls through to the stamped harness (claude)
+export GROVE_REQUIREMENTS_MODEL=opus
+export GROVE_DESIGN_MODEL=opus
+export GROVE_PLANNING_MODEL=opus
+export GROVE_PROTOTYPE_MODEL=sonnet
+export GROVE_IMPL_MODEL=sonnet
+export GROVE_RESEARCH_MODEL=opus
+export GROVE_COMBINE_RESEARCH_MODEL=opus
+export GROVE_INTEGRATE_REVIEW_MODEL=opus   # family: all five integrate-review-*
+```
+
+Ten variables against a ceiling of 95 (17 kinds × 5, plus 2 families × 5). The ceiling is not the burden — the stamp absorbs everything not rerouted. **Use the harness-scoped spellings instead of the unscoped ones if you drive groves stamped to more than one harness**, since an unscoped value would follow a kind onto a harness it was never written for.
+
+See [`docs/adr/model-per-task-kind.md`](docs/adr/model-per-task-kind.md) for the rationale (why native launch flags rather than a router/proxy, and why a missing variable errors).

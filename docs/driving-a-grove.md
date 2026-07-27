@@ -247,7 +247,7 @@ rationale section for the worked end-to-end.
   trade-off visible by construction.
 - **The pre-baked answer.** If you already know the answer and just
   want it executed, you don't need a grilling session — that's a
-  work task. The grilling discipline exists for genuinely open
+  `impl` task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
 - **The runaway tree.** Decomposition is meant to be lazy (grove
   constraint 4, *lazy and optional*). If a planning session grows

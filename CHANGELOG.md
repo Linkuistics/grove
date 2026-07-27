@@ -81,6 +81,105 @@ stood at the graft — a closed record, not part of the versioned sequence above
   SIGKILL, panic, OOM and power loss pin the pane at grove's last state until the
   next `grove do` or a `herdr pane release-agent`.
 
+- **Five task kinds become seventeen, and routing gains the two mechanisms they
+  need** (*task-kind-taxonomy*, *model-per-task-kind*; membership and each kind's
+  discipline in `docs/specs/task-kind-taxonomy.md`). The set is now
+  **parameterised rather than flat**: five producers — `requirements`, `design`,
+  `planning`, `prototype`, `impl` — each with its own `review-<producer>` and
+  `integrate-review-<producer>` step, plus `research` and `combine-research`. The
+  old set of five carried two loads badly once a workstream ran across more than
+  one vendor: one `review` label meant one discipline and one model bucket for
+  five genuinely different reads (judging whether a decomposition is made of
+  vertical slices is not judging whether code is correct), a review's findings had
+  no named successor session and borrowed `work`, and `planning` fused eliciting
+  *what* to build with deciding *how*. The set stays **closed** and still
+  gate-on-write / degrade-on-read: a grow verb rejects an unknown `--kind` (a
+  human is present to fix it), while an unrecognised `**Kind:**` line warns and
+  reads as `impl`, so a hand-edited file can never jam an unattended relaunch.
+
+  **`work` is renamed `impl`** — it named both a member of the set and the
+  category containing it. Existing trees need no edits: `**Kind:** work` reads as
+  `impl` *silently* (it is the previous spelling, not a typo), while `--kind work`
+  on a grow verb is refused with an error naming the replacement.
+
+  **Grilling moves off `planning` and onto `requirements`.** `planning` keeps its
+  methodological force — still the sole branch in the loop's Execute step, still
+  the only kind that grows the tree generatively — but no longer interrogates, and
+  flips from HITL to AFK. Only `requirements` and `prototype` are now HITL, by a
+  rule rather than a list: a kind is HITL when *a human's own words are the
+  session's input or its deliverable*. The mark **predicts, it does not permit** —
+  any kind may stop and ask a human, and doing so is always legitimate.
+
+  **Routing keys on a family, not only the full kind.** Two families exist,
+  `REVIEW` and `INTEGRATE_REVIEW`, so `GROVE_REVIEW_HARNESS=codex` is one line
+  covering all five `review-*` kinds instead of five lines hand-kept in sync.
+  Without it a seventeen-kind set would not have paid for itself. Model resolution
+  is now four keys, **harness-major** — `GROVE_<HARNESS>_<KIND>_MODEL`,
+  `GROVE_<HARNESS>_<FAMILY>_MODEL`, `GROVE_<KIND>_MODEL`,
+  `GROVE_<FAMILY>_MODEL` — because the harness axis is a *correctness* axis (a
+  codex profile name is garbage to pi) while the kind axis is only a *preference*
+  axis. A **rerouted** launch still consults no unscoped var, so the lattice
+  truncates to the first two.
+
+  **A leaf may name its own harness**, with a `**Harness:** <name>` line beside
+  `**Kind:**` (`leaf-add --harness`, `leaf-insert --harness`, and inherited by
+  `leaf-decompose` like the kind). Precedence is **leaf, kind, family, stamp**.
+  Almost no leaf carries one: it exists for the research **vendor pair** — two
+  `research` leaves differing *only* by which vendor runs them, then a
+  `combine-research` step — which is the one shape a kind→harness *function*
+  cannot express. Unlike `**Kind:**`, the line is read **strictly**: an
+  unrecognised name, or an empty `**Harness:**`, refuses to launch rather than
+  degrading, because a wrong harness would run the leaf on a vendor the tree
+  explicitly said not to.
+
+  **Breaking: a kind that resolves no model variable now fails the launch.** This
+  *inverts* the previous rule ("unset ⇒ no `--model`; the session inherits your
+  own default"). The old rule never clobbered a default you already had — true,
+  and beside the point: falling through to the harness's own default is still
+  grove deciding which model runs a `review-impl` leaf, only less visibly, and it
+  makes **partial configuration** indistinguishable from complete configuration.
+  Three exemptions, each an absence of the question rather than a default: no live
+  leaf (the finish-cycle iteration), a harness with no model flag at all, and an
+  unset `GROVE_<KIND>_HARNESS` (which means the *stamped* harness — an explicit
+  on-disk binding). A degraded kind peek now bails in every case, not only when a
+  harness override is configured, so the zero-subprocess launch is gone: the kind
+  peek runs on every iteration.
+
+  **If you drove groves with model variables set, migrate before your next
+  `grove do`** — a stale config now stops the loop the first time it reaches a
+  kind it does not cover. Rename `GROVE_*_WORK_MODEL` to `*_IMPL_MODEL`, and add a
+  variable for every kind your groves actually reach. Full coverage is about nine
+  variables against a ceiling of 95, because the stamped harness absorbs every
+  kind that is not rerouted:
+
+  ```
+  export GROVE_REVIEW_HARNESS=codex          # one line, all five review-* kinds
+  export GROVE_CODEX_REVIEW_MODEL=sol-xhigh  # rerouted ⇒ needs the scoped spelling
+  export GROVE_REQUIREMENTS_MODEL=opus GROVE_DESIGN_MODEL=opus
+  export GROVE_PLANNING_MODEL=opus GROVE_PROTOTYPE_MODEL=sonnet
+  export GROVE_IMPL_MODEL=sonnet GROVE_RESEARCH_MODEL=opus
+  export GROVE_COMBINE_RESEARCH_MODEL=opus GROVE_INTEGRATE_REVIEW_MODEL=opus
+  ```
+
+  **Two composition patterns run over the set, and grove enforces neither.** The
+  **review chain** (`X` → `review-X` → `integrate-review-X`) is sequential and
+  adversarial, and each step is a different kind — so per-kind routing expresses
+  it. The **vendor pair** (`research` → `research` → `combine-research`) is
+  breadth-and-confirmation, two independent surveys unioned, and is why the
+  per-leaf declaration exists. grove does not validate that a `review-X` leaf
+  follows an `X` leaf and will not warn when one does not, because a grammar is a
+  relation *between* leaves and grove expresses no relation between leaves — the
+  same principle that keeps "the reviewer must not be the author" out of grove. A
+  non-blocking lint was costed and rejected: it would fire on a tree the human
+  deliberately shaped, demand no action, and re-trigger on every `leaf-insert`.
+  `combine-research`, not `research`, carries the adversarial move — two vendors
+  on overlapping corpora can agree on something false, so **agreement without
+  independent primary sourcing is a red flag, not a confirmation**.
+
+  Documented across `grove do --help`, README (`## Configuration`),
+  `content/TASK-FORMAT.md`, `content/SKILL.md`, `content/driving.md`,
+  `docs/grove.md` and `CONTEXT.md`.
+
 ## v15.0.0
 
 grove goes dual-VCS: jj-enabled working trees — native, colocated, and

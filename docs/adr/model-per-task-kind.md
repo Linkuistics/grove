@@ -200,8 +200,13 @@ only for a harness that is exempt because it takes no model flag at all.
   configuration now errors until its kinds resolve. Full coverage is about **nine**
   vars — seven standalone kinds plus two family vars — against a ceiling of 95 (17
   kinds × 5, plus 2 families × 5). The ceiling is not the burden: the stamped
-  harness absorbs every kind that is not rerouted, so a realistic policy is two
-  lines plus a per-leaf declaration on the vendor pair.
+  harness absorbs every kind that is not rerouted, so a realistic *policy* is two
+  lines plus a per-leaf declaration on the vendor pair. **The model surface does
+  not shrink the same way** — the stamp absorbs the harness axis only, so falling
+  through to it still requires a model var per kind, and someone driving groves
+  stamped to several harnesses needs nine *per harness* in the harness-scoped
+  spelling. Measured on the first real migration: ~27 vars, not nine
+  (`docs/specs/task-kind-taxonomy.md`, *Model selection is required*).
 - **`GROVE_WORK_MODEL` needs no deprecation path.** `work` was renamed `impl`
   (*task-kind-taxonomy*), and because `GROVE_IMPL_MODEL` is *required*, a stale
   config fails loudly on the first launch. The error is the migration notice.

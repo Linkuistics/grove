@@ -1,6 +1,6 @@
 # Multi-step grove — walkthrough
 
-The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through four sessions — a work leaf, a planning leaf that grew the tree, a work leaf inside the new subtree, and the implementation leaf — all driven automatically by a **single `grove do`**, plus one out-of-band `grove retire` to promote a completed subtree's brief upward.
+The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through four sessions — an `impl` leaf, a `planning` leaf that grew the tree, an `impl` leaf inside the new subtree, and the implementation leaf — all driven automatically by a **single `grove do`**, plus one out-of-band `grove retire` to promote a completed subtree's brief upward.
 
 > This page is about driving the **grove CLI** through the inner loop. For *what the loop is and why*, see [`../../content/SKILL.md`](../../content/SKILL.md); for *how a single session conducts itself*, follow the SKILL file. This walkthrough shows the **CLI cadence and the on-disk evolution** — not session-internal UX.
 
@@ -27,7 +27,7 @@ $ git log --oneline
 1a2b3c4 Add idempotency keys to orders
 ```
 
-`01-DONE-plan-k1.md` is the `root-init` planning leaf, already retired by the bootstrap session. `02-spike-token-bucket-k2.md` is a **work** leaf — a quick experimental spike. `03-design-token-bucket-k3.md` is a **planning** leaf: the bootstrap session declared the design open enough that the move is to grill, not to code. `04-implement-k4.md` is a **work** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further. Each name is `NN-<slug>-k<key>`: the `NN` is the per-level position (the sort order), and the trailing `-k<key>` is the permanent identity that never changes — not under renumber, not under a slug edit.
+`01-DONE-plan-k1.md` is the `root-init` planning leaf, already retired by the bootstrap session. `02-spike-token-bucket-k2.md` is an **impl** leaf — a quick experimental spike. `03-design-token-bucket-k3.md` is a **planning** leaf: the bootstrap session declared the design open enough that the move is to decompose, not to code. `04-implement-k4.md` is an **impl** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further. Each name is `NN-<slug>-k<key>`: the `NN` is the per-level position (the sort order), and the trailing `-k<key>` is the permanent identity that never changes — not under renumber, not under a slug edit.
 
 ## One `grove do` drives the whole loop
 
@@ -41,7 +41,7 @@ The CLI's role is small: it provisions the global skill, exec's a fresh harness 
 
 The sections below trace the loop's iterations one at a time, showing how each kind of session moves the tree on disk.
 
-## Iteration 1: a work leaf
+## Iteration 1: an `impl` leaf
 
 The loop's first session picks the first live leaf depth-first — `02-spike-token-bucket-k2.md` — reads `CONTEXT.md`, the root `BRIEF.md`, and the leaf itself, and gets to work. It produces a small experimental implementation under `src/`, commits it as one focused commit, retires the leaf **in place** by adding a `DONE` infix, and fires its completion signal:
 
@@ -87,7 +87,7 @@ Note what *didn't* happen: the planning session did not retire anything. The lea
 
 ## Iteration 3: a leaf inside the new subtree
 
-The loop relaunches, and the depth-first pick descends into the new node, landing on `03-design-token-bucket-k3/01-record-policy-adr-k5.md` — a work leaf. The session reads the ancestor briefs (root `BRIEF.md` → `03-design-token-bucket-k3/BRIEF.md`) plus the leaf, authors `docs/adr/token-bucket-policy.md`, commits it, and retires the leaf in place:
+The loop relaunches, and the depth-first pick descends into the new node, landing on `03-design-token-bucket-k3/01-record-policy-adr-k5.md` — an `impl` leaf. The session reads the ancestor briefs (root `BRIEF.md` → `03-design-token-bucket-k3/BRIEF.md`) plus the leaf, authors `docs/adr/token-bucket-policy.md`, commits it, and retires the leaf in place:
 
 ```
 $ tree .grove

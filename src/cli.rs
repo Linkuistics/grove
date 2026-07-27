@@ -1,42 +1,71 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-/// Extra `grove do --help` section documenting the per-kind model-selection env
-/// vars (model-per-task-kind). The rationale lives in the ADR; this is the
-/// discoverable how-to.
+/// Extra `grove do --help` section documenting the per-kind routing env vars —
+/// both axes, which harness runs a leaf and which model that harness loads
+/// (model-per-task-kind). The rationale lives in the ADR and the membership in
+/// `docs/specs/task-kind-taxonomy.md`; this is the discoverable how-to.
 const MODEL_ENV_HELP: &str = "\
 Environment variables:
-  GROVE_PLANNING_MODEL   Model for planning leaves (grilling / design).
-  GROVE_RESEARCH_MODEL   Model for research leaves (produces docs/research/*.md).
-  GROVE_PROTOTYPE_MODEL  Model for prototype leaves (a cheap throwaway artifact).
-  GROVE_WORK_MODEL       Model for work leaves (code / docs / tests).
-  GROVE_REVIEW_MODEL     Model for review leaves (fresh-context adversarial read).
+  Every leaf declares a KIND, drawn from a closed set of seventeen: five
+  producers — requirements, design, planning, prototype, impl — each with
+  its own review-<producer> and integrate-review-<producer> step, plus
+  research and combine-research. Two FAMILIES group them for configuration:
+  REVIEW covers all five review-* kinds, INTEGRATE_REVIEW all five
+  integrate-review-* kinds. A var name uppercases the label and maps `-`
+  to `_` (review-impl => REVIEW_IMPL).
 
-  GROVE_<HARNESS>_<KIND>_MODEL   Harness-scoped override (CLAUDE / CODEX / PI),
-                         e.g. GROVE_PI_REVIEW_MODEL. Beats the base var for
-                         that harness. Use when two harnesses run concurrently
-                         and need different values for the same kind.
-  GROVE_<KIND>_HARNESS   Route leaves of one kind to another harness,
-                         e.g. GROVE_REVIEW_HARNESS=pi runs every review leaf
-                         on pi whatever the grove's own harness is.
+  Which harness runs the leaf — leaf beats kind beats family beats stamp:
+    <leaf>                 a `**Harness:** <name>` line on the task file
+                           itself. Rare; it exists for the research vendor
+                           pair, the one shape a per-kind policy cannot
+                           express. Read strictly — an unknown name refuses
+                           to launch rather than degrading.
+    GROVE_<KIND>_HARNESS   e.g. GROVE_REVIEW_IMPL_HARNESS=codex.
+    GROVE_<FAMILY>_HARNESS e.g. GROVE_REVIEW_HARNESS=codex — one line
+                           covering all five review-* kinds.
+    unset                  the harness this grove is STAMPED to
+                           (.grove-stamps/<name>) — an explicit on-disk
+                           binding, not a default.
 
-The loop passes the value via the harness's launch flag at each task launch,
-keyed on the picked leaf's kind: `--model` for claude and pi (pi accepts
-provider/id patterns), `--profile` for codex (a codex profile binds model +
-reasoning effort — define profiles as $CODEX_HOME/<name>.config.toml files,
-not a [profiles.<name>] table in config.toml). Unset ⇒ no flag:
-the session inherits the harness's own default, so grove is a no-op until you
-opt in and never clobbers a default you already set. Setting only some kinds
-is fine — an unconfigured kind still inherits.
+  Which model that harness loads — four keys, harness-major:
+    1. GROVE_<HARNESS>_<KIND>_MODEL     e.g. GROVE_CODEX_REVIEW_IMPL_MODEL
+    2. GROVE_<HARNESS>_<FAMILY>_MODEL   e.g. GROVE_CODEX_REVIEW_MODEL
+    3. GROVE_<KIND>_MODEL               e.g. GROVE_IMPL_MODEL
+    4. GROVE_<FAMILY>_MODEL             e.g. GROVE_INTEGRATE_REVIEW_MODEL
+  <HARNESS> is CLAUDE, CODEX or PI. The harness axis outranks the kind axis
+  because crossing it can yield a value that is invalid, not merely less
+  specific — a codex profile name is garbage to pi. A REROUTED launch (the
+  leaf's harness is not the stamped one) consults keys 1-2 ONLY: an unscoped
+  var was written with some other harness in mind.
 
-An in-session model switch outranks the launch flag for that one session
-only; whether it persists into the next task depends on whether the next
-launch passes a flag again (configured kind: yes, override gone; unconfigured
-kind: the harness's own persistence rules apply).
+A MODEL IS REQUIRED. If the picked leaf's kind resolves none of the four
+keys, grove fails loudly and names every var that would satisfy it — it does
+not fall through to the harness's own default, because that is still grove
+choosing a model, only invisibly, and it makes a half-configured setup
+indistinguishable from a complete one. Three exemptions, each an absence of
+the question rather than a default: no live leaf (the finish-cycle
+iteration); a harness with no model flag at all; and an unset
+GROVE_<KIND>_HARNESS, which means the stamp, not a guess.
 
-Example:
-  GROVE_CODEX_WORK_MODEL=sol-high GROVE_REVIEW_HARNESS=pi \\
-  GROVE_PI_REVIEW_MODEL=kimi-code/k3 grove do";
+The value is passed via the harness's own launch flag: `--model` for claude
+and pi (pi accepts provider/id patterns), `--profile` for codex (a codex
+profile binds model + reasoning effort, which a bare model flag cannot
+express — define profiles as $CODEX_HOME/<name>.config.toml files, not a
+[profiles.<name>] table in config.toml).
+
+An in-session model switch outranks the launch flag for that session only.
+It does not survive into the next task: every launch passes a flag again.
+
+Example — claude leads, codex reviews, claude integrates the review. The
+stamp absorbs every kind that is not rerouted, so the whole policy layer is
+two lines, and one FAMILY var does the work of five kinds:
+  GROVE_REVIEW_HARNESS=codex GROVE_CODEX_REVIEW_MODEL=sol-xhigh \\
+  GROVE_REQUIREMENTS_MODEL=opus GROVE_DESIGN_MODEL=opus \\
+  GROVE_PLANNING_MODEL=opus GROVE_PROTOTYPE_MODEL=sonnet \\
+  GROVE_IMPL_MODEL=sonnet GROVE_RESEARCH_MODEL=opus \\
+  GROVE_COMBINE_RESEARCH_MODEL=opus GROVE_INTEGRATE_REVIEW_MODEL=opus \\
+  grove do";
 
 #[derive(Parser)]
 #[command(

@@ -4,7 +4,7 @@ The methodology grove leans on borrows vocabulary from older traditions — **Do
 
 ## What's not here
 
-- **grove's own vocabulary** — *task, leaf, node, brief, planning task, work task, grilling, retirement* — lives in [`../content/SKILL.md`](../content/SKILL.md) and its sibling files. Those are defined where they're enforced.
+- **grove's own vocabulary** — *task, leaf, node, brief, task kind, grilling, retirement* — lives in [`../content/SKILL.md`](../content/SKILL.md) and its sibling files. Those are defined where they're enforced.
 - **DDD's tactical building blocks** — *Aggregate, Entity, Value Object, Repository* — aren't load-bearing for grove.
 - **Codebase-specific domain terms** — *install scope, path-scoped commit, lifecycle walkthrough* — live in [`../CONTEXT.md`](../CONTEXT.md) (grove's own Ubiquitous Language artifact).
 
@@ -63,7 +63,7 @@ The methodology grove leans on borrows vocabulary from older traditions — **Do
 
 **Definition.** A spec is a human-facing, team-shareable document describing *how an area of the system works* — the problem, the solution, and the decisions that settle it, written so that product, engineering, and stakeholders read the same page. Where an ADR captures one decision and the trade-off behind it, a spec captures a coherent design across many.
 
-**How grove uses it.** Specs live in `docs/specs/<slug>.md`, slug-named, written by a planning task only at a **genuine human-facing agreement point** — never speculatively. The typical grove flow at such a point is *grill → spec (review & agree) → decompose → execute*: the spec is where the human signs off on the design's shape before further decomposition turns it into work tasks. Two rules keep the set honest. **Membership:** would a session on an unrelated future grove need to read this? If not, it belongs in a `BRIEF.md`, which dies with `.grove/`. **Grain:** a spec cites the ADRs in its area rather than restating them. Like `docs/adr/`, `docs/specs/` is a **minimum coherent set describing the design's current state** — edited, merged, and split in place, deleted when a spec no longer describes anything. The VCS holds what a spec used to say.
+**How grove uses it.** Specs live in `docs/specs/<slug>.md`, slug-named, written by a `design` task only at a **genuine human-facing agreement point** — never speculatively. The typical grove flow at such a point is *grill → spec (review & agree) → decompose → execute*: the spec is where the human signs off on the design's shape before further decomposition turns it into `impl` tasks. Two rules keep the set honest. **Membership:** would a session on an unrelated future grove need to read this? If not, it belongs in a `BRIEF.md`, which dies with `.grove/`. **Grain:** a spec cites the ADRs in its area rather than restating them. Like `docs/adr/`, `docs/specs/` is a **minimum coherent set describing the design's current state** — edited, merged, and split in place, deleted when a spec no longer describes anything. The VCS holds what a spec used to say.
 
 **References.**
 - No single canonical source; the practice is shaped more by use than by a defining text.

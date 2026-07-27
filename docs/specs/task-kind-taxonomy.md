@@ -274,6 +274,16 @@ families × 5), and full coverage needs about **9** of them: seven standalone
 kinds plus two family vars. The ceiling is not the burden — the stamped harness
 absorbs every kind that is not rerouted.
 
+**The stamp absorbs the harness axis, not the model axis**, and the nine-var
+figure counts one stamped harness resolving through the *unscoped* keys. Falling
+through to the stamp still requires a model var for every kind that harness runs;
+what the stamp saves is a `GROVE_<KIND>_HARNESS` line, not a
+`GROVE_<KIND>_MODEL` one. So someone who drives groves stamped to more than one
+harness needs the **harness-scoped** spellings — nine per harness — because an
+unscoped value would follow a kind onto a harness it was never written for, which
+is the same crossing the harness-major ordering exists to prevent. Nine is the
+floor for a single-harness setup, not the expected total.
+
 ### `work` is renamed `impl`
 
 `work` named both a member of the set and the category containing it. The rename

@@ -14,32 +14,91 @@ infix (`03-ABANDONED-extract-k7.md`, `leaf-prune`, ADR *pruning*) — pruning is
 task per session). The file is freeform markdown — a guide follows, not a
 schema.
 
-## The five kinds
+## The seventeen kinds
 
-Every task file states its **kind**, drawn from a closed set of five (ADR
-`task-kind-taxonomy`). Adding a sixth is a deliberate change to grove's code
-and docs, not a free-text label a leaf may coin. Each is marked **HITL**
-(resolves through live exchange with a human who speaks for themselves) or
-**AFK** (driven by the agent alone) — a HITL leaf reached by an unattended
-relaunch of the self-driving loop simply waits for a human, which is correct
-behaviour, not a fault:
+Every task file states its **kind**, drawn from a closed set (ADR
+`task-kind-taxonomy`). Adding an eighteenth is a deliberate change to grove's
+code and docs, not a free-text label a leaf may coin. The set is
+**parameterised, not flat**: five producers, each with its own `review-` and
+`integrate-review-` step, plus a research pair.
 
-- **planning** (HITL) — grills, sharpens the glossary, may raise an ADR or a
-  spec, and **grows the tree**: turns an oversized leaf into a node — a
-  **directory** `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child
-  leaves. The deliverable is *more tree*. The only kind with methodological
-  force — the sole branch in the loop's Execute step.
-- **research** (AFK) — a citation-disciplined literature/prior-art survey.
-  Produces `docs/research/<slug>.md`; no grilling, no tree growth.
-- **prototype** (HITL) — a cheap, deliberately throwaway artifact built to
-  react to, not to ship. The point is the reaction it provokes, not the code's
+| producer | review | integrate |
+|---|---|---|
+| `requirements` | `review-requirements` | `integrate-review-requirements` |
+| `design` | `review-design` | `integrate-review-design` |
+| `planning` | `review-planning` | `integrate-review-planning` |
+| `prototype` | `review-prototype` | `integrate-review-prototype` |
+| `impl` | `review-impl` | `integrate-review-impl` |
+| `research` | — | `combine-research` |
+
+Each kind is marked **HITL** (resolves through live exchange with a human who
+speaks for themselves) or **AFK** (driven by the agent alone). The mark
+**predicts, it does not permit**: *any* kind may stop and ask a human, and doing
+so is always legitimate. A HITL leaf reached by an unattended relaunch of the
+self-driving loop simply waits for a human, which is correct behaviour, not a
+fault.
+
+**Producers**
+
+- **requirements** (HITL) — establish *what* should be built. This is where the
+  grilling lives (`grilling.md`): interview one question at a time, propose a
+  recommended answer for each, walk the design tree until shared understanding
+  is reached. Sharpen `CONTEXT.md` inline as terms resolve.
+- **design** (AFK) — given requirements, establish *how*. The deliverable is a
+  spec, an ADR set, or both. A `design` session that finds itself cutting
+  *implementation* leaves has drifted into planning's job and should externalize
+  a `planning` leaf instead.
+- **planning** (AFK) — given the design, cut it into vertical slices and **grow
+  the tree**: turn an oversized leaf into a node — a **directory**
+  `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child leaves. The
+  deliverable is *more tree*. The only kind with methodological force — the sole
+  branch in the loop's Execute step.
+- **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
+  to, not to ship. The point is the reaction it provokes, not the code's
   survival.
-- **work** (AFK) — produces code, docs, or tests. The deliverable is an
-  artifact. (`driving.md` carries the work-session habits: cite framework
-  decisions to the source, doubt a hard-to-reverse decision before it stands,
-  and externalize surfaced work into new leaves rather than absorbing it.)
-- **review** (AFK) — a fresh-context adversarial read of already-done work.
-  Produces findings, not a fix.
+- **impl** (AFK) — produces code, docs, or tests. The deliverable is an artifact
+  that ships. (`driving.md` carries the habits: cite framework decisions to the
+  source, doubt a hard-to-reverse decision before it stands, and externalize
+  surfaced work into new leaves rather than absorbing it.)
+
+**Research** — a **vendor pair**, not a chain: two independent surveys, unioned.
+
+- **research** (AFK) — a citation-disciplined literature/prior-art survey
+  producing `docs/research/<slug>.md`. Breadth-seeking: a citation per
+  failure-mode claim, primary sources, and an explicit note where a search found
+  silence (the absence is itself a finding). No grilling, no tree growth.
+- **combine-research** (AFK) — union two surveys' coverage and flag every
+  disagreement. This kind, not `research`, carries the **adversarial** move: two
+  vendors on overlapping corpora can agree on something false, so **agreement
+  without independent primary sourcing is a red flag, not a confirmation**.
+
+**review-\*** (all AFK) — a fresh-context adversarial read of *one* artifact,
+producing findings, not a fix. Five reads, because they look for different
+things: `review-requirements` (is anything missing? is each requirement
+falsifiable? is a solution smuggled in as a requirement?), `review-design` (does
+it satisfy the requirements? are the ADRs a minimum coherent set? are the seams
+at the right height and count?), `review-planning` (are the slices vertical?
+does each land green without waiting on a sibling? is anything missing?),
+`review-prototype` (does it probe the question it was built for? — *not* a code
+review; polish is a defect in a prototype), `review-impl` (correctness,
+security, tests, project conventions).
+
+**integrate-review-\*** (all AFK) — triage one review's findings and apply the
+real ones. Shared discipline: verify each finding rather than performatively
+agreeing, then classify it as *a contract stated unclearly* (fix the contract),
+*a real issue* (fix the artifact), *a real trade-off* (accept it visibly), or
+*noise raised for want of context*. What separates the five is **what the
+session may change** — `integrate-review-impl` edits code freely;
+`integrate-review-design` reworks the ADR set under its in-place discipline
+(merge / split / delete, never a superseding record);
+`integrate-review-planning` reshapes the tree; `integrate-review-prototype`
+decides what the prototype *taught* and normally discards it;
+`integrate-review-requirements` edits what was asked for, which it cannot always
+do alone — the kind most likely to stop and ask.
+
+The two shapes above are **conventions, not a grammar**. grove does not validate
+that a `review-X` leaf follows an `X` leaf, because a grammar is a relation
+*between* leaves and grove expresses none. Compose them by hand.
 
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
@@ -48,12 +107,16 @@ decompose, not to do.
 decomposed, unless `--kind` overrides it — a research leaf that proves bigger
 becomes a research node by default.
 
+**`work` is the previous spelling of `impl`.** A task file still saying
+`**Kind:** work` reads as `impl`, silently — it is not a typo. Writing it is
+refused: `--kind work` errors and names the replacement.
+
 ## Suggested shape
 
 ```markdown
 # <slug>-k<key>
 
-**Kind:** work          (or: planning, research, prototype, review)
+**Kind:** impl          (one of the seventeen above)
 
 ## Goal
 What this one session must deliver.
@@ -102,15 +165,23 @@ opposite of how `**Kind:**` is read, deliberately: a wrong discipline label cost
 a warning, while a wrong harness would run the leaf on a vendor the tree
 explicitly said not to.
 
-## Planning tasks — extra guidance
+## The three design kinds — extra guidance
 
-A planning task additionally:
+The work today's `planning` label used to cover is split across three kinds, and
+each carries part of the old checklist:
 
-- runs the grilling procedure (`grilling.md`) to interrogate the design;
-- updates `CONTEXT.md` **inline** as terms are resolved — never batched;
-- raises ADRs **sparingly** — only decisions hard to reverse, surprising, or a
-  real trade-off (`ADR-FORMAT.md`);
-- MAY write a spec (`docs/specs/<slug>.md`) when the increment is a genuine
-  agreement point (`SPEC-FORMAT.md`);
-- writes the child `BRIEF.md`(s) and ordered leaf files for any node it grows
-  (`BRIEF-FORMAT.md`).
+- **requirements** runs the grilling procedure (`grilling.md`) to interrogate
+  *what* is wanted, and updates `CONTEXT.md` **inline** as terms are resolved —
+  never batched.
+- **design** raises ADRs **sparingly** — only decisions hard to reverse,
+  surprising, or a real trade-off (`ADR-FORMAT.md`) — and MAY write a spec
+  (`docs/specs/<slug>.md`) when the increment is a genuine agreement point
+  (`SPEC-FORMAT.md`).
+- **planning** writes the child `BRIEF.md`(s) and ordered leaf files for any node
+  it grows (`BRIEF-FORMAT.md`).
+
+The split is a division of *deliverable*, not a gate: a small workstream may do
+all three in one `planning` leaf, and any of the three may sharpen the glossary
+inline. What does not blur is tree growth — only `planning` may grow the tree
+generatively. *Reactive* decomposition (a leaf proving bigger than its brief) is
+kind-agnostic and available to every kind.

@@ -70,7 +70,7 @@ $ tree -L 1 .grove
 └── BRIEF.md
 ```
 
-Each leaf is `NN-<slug>-k<key>.md`: a 2-digit per-level position (`01`, `02`, `03`), a slug, and a permanent key (`-k1`, `-k2`, `-k3`) that never changes once assigned. The planning leaf `01-plan-k1.md` came from `root-init`; `02-design-token-bucket-k2.md` and `03-implement-k3.md` are what the grilling decided to grow. Keep the bootstrap planning small; the decomposition will grow as later planning tasks discover what is actually there.
+Each leaf is `NN-<slug>-k<key>.md`: a 2-digit per-level position (`01`, `02`, `03`), a slug, and a permanent key (`-k1`, `-k2`, `-k3`) that never changes once assigned. The planning leaf `01-plan-k1.md` came from `root-init`; `02-design-token-bucket-k2.md` and `03-implement-k3.md` are what the grilling decided to grow. Keep the bootstrap planning small; the decomposition will grow as later `planning` tasks discover what is actually there.
 
 ## Variation: `--no-launch`
 

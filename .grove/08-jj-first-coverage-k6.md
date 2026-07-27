@@ -49,7 +49,7 @@ The `linkuistics:using-jujutsu` skill is the reference for jj semantics; the
 `git-to-jj-mapping` skill translates specific commands.
 
 Deliberately last in position: it touches no other leaf's work and blocks
-nothing. Bring it forward if a jj bug surfaces while doing `02`–`05`.
+nothing. Bring it forward if a jj bug surfaces while doing any earlier leaf.
 
 Watch the `--ignore-working-copy` convention already used in `repo.rs` — jj
 probes must stay read-only, or a status probe mutates the working copy it is

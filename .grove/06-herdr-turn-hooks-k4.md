@@ -5,13 +5,14 @@
 ## Goal
 
 Report state at **intra-session turn boundaries**, refining the session-level
-reporting from `02`. The driver knows when a session starts and ends; only the
+reporting from **herdr-pane-state-k2**. The driver knows when a session starts
+and ends; only the
 harness knows when a *turn* ends — which is the moment the agent has stopped and
 a human is needed.
 
 ## Context
 
-- `02` (`herdr-pane-state`) must land first — this leaf refines its mapping, it
+- **herdr-pane-state-k2** must land first — this leaf refines its mapping, it
   does not replace it.
 - Injection differs sharply per harness:
   - **claude**: `--settings <file-or-json>` accepts an **inline JSON string**, so

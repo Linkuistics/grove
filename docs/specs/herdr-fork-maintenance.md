@@ -9,9 +9,11 @@ principle the patch encodes. This spec covers the consequence: the fork is a
 **permanent carry**, so rebasing it onto each new upstream release is recurring
 work, and it has enough traps to lose an afternoon to on the first attempt.
 
-Everything here is knowledge about a repository we do not control. It was
-accurate when written and herdr moves fast; treat it as a map, not a contract,
-and re-verify anything load-bearing.
+Everything here is knowledge about a repository we do not control. herdr moves
+fast; treat it as a map, not a contract, and re-verify anything load-bearing.
+Last re-verified **2026-07-27** against `upstream/master` at `dc2506ea`, with
+`authority-fix` at `b1484e37` and `ui-layout` at `d17e0f42` — except the
+flaky-test section, which was not re-run (see the note there).
 
 ## Solution
 
@@ -29,6 +31,20 @@ never forces a rewrite of published history.
 The recurring cycle is therefore: rebase `authority-fix` onto the new
 `upstream/master`, verify, then merge `authority-fix` into `ui-layout` and ship.
 
+The two invariants worth checking before believing the layout is intact are
+`git rev-list --count ui-layout..authority-fix` (must be 0 — the ship branch
+contains the fix) and the tap formula's pinned `revision` matching `ui-layout`
+HEAD. Both held at the last re-verification.
+
+**How far behind the rebase is** is not the same question as **how much churn
+the patch's seam has taken**. Upstream commits that never touch
+`src/terminal/state.rs` cost the rebase nothing however many there are, so the
+useful measure is
+`git diff --stat $(git merge-base authority-fix upstream/master) upstream/master
+-- src/terminal/state.rs`. An earlier +1281/−812 on that file is what made a
+previous rebase expensive; at the last check it was empty across five upstream
+commits.
+
 ## Decisions
 
 ### Versioning is a sequence, not a sha
@@ -37,6 +53,12 @@ The fork ships from `linkuistics/taps` as **upstream's version plus
 `-linkuistics.<seq>`** — `0.7.5-linkuistics.1`. `<seq>` increments per ship and
 resets when upstream's version bumps. A commit sha was rejected because shas do
 not order, and Homebrew needs an ordering to recognise an upgrade.
+
+The formula is `Formula/linkuistics-herdr.rb`, and it pins `ui-layout` by
+explicit `revision:` — so shipping is *two* edits, the `version` and the
+`revision`, and a rebase that updates only one of them ships the wrong tree under
+the right name. It is also where the `ZIG` override below is applied for anyone
+installing rather than building by hand.
 
 Two consequences that have already bitten:
 
@@ -52,8 +74,9 @@ Two consequences that have already bitten:
 
 ### The build environment has two required overrides
 
-herdr's `pre-commit` hook runs its lint recipe, so a commit on the fork fails
-without both of these — they are not optional conveniences:
+herdr wires `core.hooksPath` to its in-repo `.githooks/`, whose `pre-commit` runs
+`just lint`, so a commit on the fork fails without both of these — they are not
+optional conveniences:
 
 - **Zig must be 0.15.** The vendored `libghostty-vt` refuses newer Zig, and
   Homebrew's default is ahead of it. Point `ZIG` at the 0.15 keg explicitly.
@@ -62,6 +85,12 @@ without both of these — they are not optional conveniences:
   cargo first on `PATH` the pin is ignored and the newer clippy invents failures
   in files the patch never touches. Put `$HOME/.cargo/bin` ahead of Homebrew's
   bin.
+
+Both are still live traps, not historical ones: Homebrew's default `zig` is
+ahead of 0.15 on this machine, and `command -v cargo` resolves to Homebrew's.
+Check them each time rather than assuming a previous session's shell survived —
+the failure mode is a wall of clippy errors in untouched files, which reads as
+"the rebase broke something" and is not.
 
 ### Two upstream tests are flaky, independently of the patch
 
@@ -72,6 +101,12 @@ they were verified identical on unpatched `upstream/master`, so they are
 upstream's flakes and not a regression signal. The baseline that matters is the
 delta: the patch should add exactly its own tests and change nothing else.
 
+*Not re-verified at the 2026-07-27 pass.* Which particular tests flake is the
+least durable knowledge in this spec and the most expensive to re-establish (a
+cold build of the vendored `libghostty-vt`), and it gates nothing — the delta,
+not the absolute pass list, is the signal. Re-establish it as part of a rebase,
+where the unpatched baseline has to be built anyway.
+
 ### An installed build does not take effect until the server restarts
 
 The patch lives in code the herdr **server** runs. Installing a new build leaves
@@ -79,6 +114,18 @@ the already-running server in place, so grove's reports keep being dropped until
 herdr restarts. Restarting kills every pane, which makes it a human's decision,
 never an agent's. Any "the patch doesn't work" report must first establish that
 the running server postdates the install.
+
+Establish it without restarting anything: compare the start time of the
+`herdr server` process (`ps -eo pid,lstart,args | grep 'herdr server'`) against
+the patch commit's own date — if the server started before the commit existed, it
+provably does not carry it, and no amount of testing against that server means
+anything. The Cellar install time (`stat`, or the `time` field in
+`INSTALL_RECEIPT.json`) is the same check one step later in the chain.
+
+This trap is not hypothetical; it was live at the 2026-07-27 re-verification,
+stacked with a second one — the *shipped* `grove` had no reporter compiled in at
+all. Two independent silences produce the same symptom as a broken patch, so
+check both binaries before suspecting the code.
 
 ## Verifying a rebase
 
@@ -96,14 +143,31 @@ exists for):
    it. This is the second hunk's whole purpose: grove never disturbs session
    resume.
 
-**Do not use `revision` as the signal.** It tracks display-metadata token
-changes only, and does not move for a state report, landed or dropped. Earlier
-notes in this workstream claimed otherwise and were wrong. The observables are
-`agent` and `agent_status`.
+**Do not use `revision` as the signal.** It does not move for a state report,
+landed or dropped. Earlier notes in this workstream claimed otherwise and were
+wrong. The observables are `agent` and `agent_status` (read them with
+`herdr pane current` or `herdr pane get`).
 
-One CLI trap when driving this by hand: `herdr pane report-agent` takes its
-**pane id positionally, first**. Flags placed before the positional fail with a
-bare `unknown option: <value>`.
+Nor is `revision` merely "display-metadata tokens", as this spec previously said:
+it bumps on a metadata-token patch, on metadata-token *expiry*, and on a change
+to the pane's **stripped terminal title**. The last one matters here, because a
+`grove do` pane's title is grove's own — so a watcher would see `revision` move
+for reasons that have nothing to do with either metadata or state, and read that
+as confirmation.
+
+Two CLI traps when driving this by hand:
+
+- `herdr pane report-agent` takes its **pane id positionally, first**. Flags
+  placed before the positional fail with a bare `unknown option: <value>` — and
+  `--help` prints a usage line showing the positional *last*, which is what makes
+  this worth writing down. Same for `release-agent`.
+- The CLI **exits 0 on a protocol error**, returning the failure in the JSON body
+  (`{"error":{"code":"pane_not_found",…}}`). Any scripted check must parse the
+  body; an exit-status check passes on every failure.
+
+A safe way to test argument handling without mutating a pane: aim the command at
+a pane id that does not exist. A parse failure and a `pane_not_found` are
+distinguishable, and neither touches real state.
 
 ## Out of scope
 

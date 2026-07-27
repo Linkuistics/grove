@@ -17,7 +17,8 @@ kind, what is done, what is left. All UI logic lives in the plugin and is driven
   binary); the socket API is there for raw JSON.
 - **Plugin v1 cannot register actions at runtime and cannot add socket methods.**
   It also cannot become a state authority — that is a compiled-in allowlist. UI
-  only; semantic state stays with `02`/`04`.
+  only; semantic state stays with **herdr-pane-state-k2** and
+  **herdr-turn-hooks-k4**.
 - ADR *task-tree-scheme* — the directory scheme the plugin parses. This is the
   plugin's only real dependency, and it is a published contract.
 - `grove-llm pick` / `brief-chain` / `kind` / `resolve` already expose the tree
@@ -43,7 +44,8 @@ Open, for this session to decide: what the pane actually renders (whole tree vs
 current path vs progress summary), how it finds the grove root from the pane's
 cwd, and whether it watches the filesystem or polls. Also worth deciding whether
 `pane.report_metadata` tokens (e.g. `$grove_leaf`) belong here for the sidebar
-row, or in `02` — they are display-only either way.
+row, or in **herdr-pane-state-k2** — they are display-only either way.
 
-Depends on `02` only for knowing what grove itself already reports, so the two
+Depends on **herdr-pane-state-k2** only for knowing what grove itself already
+reports, so the two
 do not duplicate. Otherwise independent.

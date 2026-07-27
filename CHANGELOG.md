@@ -193,11 +193,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
   Documented across `grove do --help`, README (`## Configuration`),
   `content/TASK-FORMAT.md`, `content/SKILL.md`, `content/driving.md`,
-  `content/grilling.md`, `docs/grove.md`, `docs/driving-a-grove.md`,
-  `docs/workflows/multi-step.md` and `CONTEXT.md`. The field guide's worked
-  example (`refactor-to-archon`) predates the taxonomy, so it now says so once
-  and keeps its quotations verbatim rather than back-dating the old labels out
-  of the record.
+  `content/grilling.md`, `content/SPEC-FORMAT.md`, `content/BRIEF-FORMAT.md`,
+  `docs/grove.md`, `docs/driving-a-grove.md`, `docs/workflows/multi-step.md` and
+  `CONTEXT.md`. The field guide's worked example (`refactor-to-archon`) predates
+  the taxonomy, so it now says so once and keeps its quotations verbatim rather
+  than back-dating the old labels out of the record. Two artifacts were also
+  re-attributed, which is a correction and not a relabel: a **spec** is written by
+  a `design` task, not a `planning` one (`planning` consumes it and cuts the
+  leaves), and a **`BRIEF.md`** is written by whichever session creates its
+  node — `planning` cutting the tree *generatively*, or a leaf of any kind that
+  proved bigger and decomposed itself, since `leaf-decompose` is kind-agnostic and
+  inherits the parent's kind.
 
 - **`grove do --no-launch` now checks the readiness it reports — and says what it
   found** (*model-per-task-kind*). The flag returned *above* both config checks,

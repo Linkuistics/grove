@@ -61,3 +61,38 @@ as `k21` did.
 The `grove-llm` on `PATH` is **v15.0.0**, which predates this node's own rework,
 so `leaf-add --kind impl` is refused by the installed binary and must be run as
 `./target/debug/grove-llm`. Expected, not a defect — the taxonomy is unreleased.
+
+**A fifth site turned up, and it exposes a hole in this leaf's own Done-when
+grep** — the methodological finding worth more than the fix:
+
+- **`content/BRIEF-FORMAT.md`**, line 14: "A brief is written by the planning
+  task that creates its node." Absorbed, not externalized: it is the *same
+  species* as `SPEC-FORMAT.md`'s defect and it fails this leaf's **Goal** verbatim
+  ("attributes an artifact to the wrong kind"). Pre-taxonomy the sentence was
+  simply true — `planning` was the only node-creating kind. The taxonomy split
+  node creation in two: **generative** decomposition (a `planning` session whose
+  deliverable *is* the tree) and **reactive** decomposition (`leaf-decompose`,
+  explicitly kind-agnostic, inheriting the parent's kind). The brief now names
+  both.
+- **Why the Done-when's fourth clause could not have found it.** That clause greps
+  for "a kind label outside the seventeen-kind set" — and `planning` is *inside*
+  the set. A mis-attribution to a **live** label is invisible to a set-membership
+  grep; it needs an *attribution* grep (`written by (a|the) <kind>`). Both greps
+  ran here, and only the second one fired. A future sweep should run both.
+
+**The glossary was corrected inline** (`CONTEXT.md`, **Spec**), as any kind may.
+Not scope creep: it carried the identical "written lazily by a planning task"
+claim, and leaving it would have put the glossary — read every session, and the
+one forcing function against terminology drift — in direct conflict with the file
+this leaf was fixing. It also gained an `_Avoid_` line, so the next reader is
+warned off the pre-taxonomy reading rather than merely not being told it.
+
+**The flow clause was labelled, not replaced**, exactly as `Done when` warned: it
+now reads grill (`requirements`) → spec (`design`) → decompose (`planning`) →
+execute (`impl`). `docs/concepts.md` leaves the same flow unannotated and says
+`impl` at the end; annotating it here is the extra precision a *format reference*
+earns and a concepts overview does not, and the two do not disagree.
+
+One article slip in `docs/driving-a-grove.md` ("a `impl` task", introduced by
+`k21` at the mirrored paragraph) was fixed in passing — a one-character typo, not
+a concern worth a leaf.

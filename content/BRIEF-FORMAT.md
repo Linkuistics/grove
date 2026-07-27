@@ -11,7 +11,9 @@ scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision log
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
 
-A brief is written by the planning task that creates its node. Because a brief
+A brief is written by whichever session creates its node — a `planning` task
+cutting the tree, or a leaf of any kind that proved bigger than its brief and
+decomposed itself (`leaf-decompose` inherits the parent's kind). Because a brief
 is context, not a task, it is **never** marked done: a node is done
 *implicitly*, when no live leaf remains in its subtree, and its brief stays in
 place. On that completion, anything still live in the brief is promoted upward

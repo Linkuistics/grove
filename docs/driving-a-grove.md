@@ -253,7 +253,7 @@ rationale section for the worked end-to-end.
   format's recommended-answer-with-evidence structure makes the
   trade-off visible by construction.
 - **The pre-baked answer.** If you already know the answer and just
-  want it executed, you don't need a grilling session — that's a
+  want it executed, you don't need a grilling session — that's an
   `impl` task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
 - **The runaway tree.** Decomposition is meant to be lazy (grove

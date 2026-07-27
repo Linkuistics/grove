@@ -521,8 +521,8 @@ the CLI — the sentence picks the verb.
   format's recommended-answer-with-evidence structure makes the
   trade-off visible by construction.
 - **The pre-baked answer.** If you already know the answer and just
-  want it executed, you don't need a grilling session — that's a
-  work task. The grilling discipline exists for genuinely open
+  want it executed, you don't need a grilling session — that's an
+  `impl` task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
 
 ## The shortest version

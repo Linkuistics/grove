@@ -104,6 +104,15 @@ of that relabel.
   (`SPEC-FORMAT.md`, ~4 sites) where `SKILL.md` and `docs/concepts.md` both say
   `design`. Aggravated by living in `content/`, which is provisioned to
   `~/.claude/skills/grove/` and so is read by every session on every grove.
+  **Done.** A fifth site was absorbed under the leaf's own Goal
+  (`content/BRIEF-FORMAT.md` attributed the `BRIEF.md` to `planning`, which was
+  true only while `planning` was the sole node-creating kind — reactive
+  decomposition is kind-agnostic), and the glossary's **Spec** entry carried the
+  identical claim and was corrected inline. The leaf leaves behind a finding about
+  the sweep itself: a set-membership grep ("a label outside the seventeen") cannot
+  see a mis-attribution to a **live** label, so an *attribution* grep
+  (`written by (a|the) <kind>`) is a second, independent check — it is what found
+  both the fifth site and the glossary, and the taxonomy sweep never ran it.
 
 ## Pointers
 

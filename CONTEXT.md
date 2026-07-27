@@ -129,7 +129,9 @@ is carved out.
 **Spec** (`docs/specs/<slug>.md`):
 The human-facing, team-shareable design of an *area* of the system — problem,
 solution, settled decisions, agreed test seams, out-of-scope — written lazily by a
-planning task at a genuine agreement point (grill → spec → decompose → execute).
+`design` task at a genuine agreement point. The flow around it spans four kinds:
+grill (`requirements`) → spec (`design`) → decompose (`planning`) → execute
+(`impl`).
 Slug-named, never dated or numbered. Like `docs/adr/`, `docs/specs/` is a **minimum
 coherent set describing the design's current state**: edited, merged and split in
 place, and deleted once a spec describes nothing (constraint 1 — git holds the
@@ -144,6 +146,9 @@ binds). Shape and the seam-recording rule: `content/SPEC-FORMAT.md`; what a seam
 _Avoid_: "PRD" — grove names no product-requirements artifact. _Avoid_ a
 `## Decomposition` section inside a spec: that is brief material, dead when the
 grove finishes.
+_Avoid_: "a planning task writes the spec" — pre-taxonomy, from when `planning`
+covered grilling and design both. `design` is the producer whose deliverable is a
+spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
 
 **herdr integration**:
 grove's relationship with [herdr](https://herdr.dev), the agent multiplexer whose

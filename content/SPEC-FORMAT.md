@@ -3,15 +3,15 @@
 # SPEC-FORMAT — the spec
 
 A **spec** is the human-facing, team-shareable design of an area of the system,
-written by a planning task *when the increment is a genuine agreement point*. The
-flow there is: grill → spec (review & agree) → decompose → execute. Specs live in
-`docs/specs/`, one file per area, **slug-named**: `docs/specs/<slug>.md`. The slug
-is the spec's identity; create the directory lazily, only when the first spec is
-needed.
+written by a `design` task *when the increment is a genuine agreement point*. The
+flow there is: grill (`requirements`) → spec, review & agree (`design`) →
+decompose (`planning`) → execute (`impl`). Specs live in `docs/specs/`, one file
+per area, **slug-named**: `docs/specs/<slug>.md`. The slug is the spec's identity;
+create the directory lazily, only when the first spec is needed.
 
-Most planning increments write no spec at all (constraint 4). The one that does
-is the one where the human signs off on the design's shape before decomposition
-turns it into work tasks.
+Most increments write no spec at all (constraint 4). The one that does is the one
+where the human signs off on the design's shape before decomposition turns it
+into `impl` leaves.
 
 ## The set is current-state
 
@@ -88,9 +88,9 @@ say *what must pass*; `## Test seams` says *where it is tested*.
 ## Three rules
 
 **Synthesise; never re-interview.** The grilling *is* the interview and it has
-already happened. A spec synthesises the planning task's running decision log and
-the codebase understanding it built. A session that writes a spec by re-asking
-the questions is running grilling twice.
+already happened, in the `requirements` leaf upstream. A spec synthesises that
+leaf's running decision log and the codebase understanding it built. A session
+that writes a spec by re-asking the questions is running grilling twice.
 
 **Behavioural, not procedural.** Describe interfaces, types, and behavioural
 contracts. No file paths, no line numbers, no code — they go stale faster than
@@ -115,6 +115,6 @@ agreement gets recorded.
 
 When the increment covers code that will be tested but writes **no** spec — the
 common case — record the agreed seams in the node's `BRIEF.md` instead. The brief
-chain is how a node's settled design reaches its child work leaves, and it binds
-them without a new artifact. That the brief dies with `.grove/` is correct: once
-the tests exist at the seam, the tests are the record.
+chain is how a node's settled design reaches its child `impl` leaves, and it
+binds them without a new artifact. That the brief dies with `.grove/` is correct:
+once the tests exist at the seam, the tests are the record.

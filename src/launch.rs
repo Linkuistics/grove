@@ -44,21 +44,40 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         );
     }
 
+    // Both config checks run *above* the no-launch return, not below it
+    // (no-launch-config-check-k20). The pre-flight check covers not just the
+    // stamped harness but every per-kind `GROVE_<KIND>_HARNESS` override
+    // configured (harness-spawn-preflight-k8): a rerouted-but-uninstalled
+    // harness must fail here, before the loop starts, not mid-run on the first
+    // leaf routed to it.
+    crate::loop_driver::preflight_check(harness)?;
+
     if args.no_launch {
-        eprintln!("grove: ready in {} (no-launch)", worktree.display());
+        // `--no-launch` is documented as *reporting readiness*, so it has to
+        // resolve everything a launch would fail on rather than merely decline
+        // to launch: once a kind with no model var became a hard error
+        // (model-per-task-kind), a dry run that skipped the checks printed
+        // `ready` and exited 0 on exactly the half-configured environments the
+        // requirement exists to expose — the same partial-configuration
+        // invisibility, back through the dry-run door.
+        //
+        // The guard still sits above `maybe_stamp` (B3): reporting is free to
+        // read anything, but a documented dry run must never permanently rebind
+        // the grove. Both checks it now runs are side-effect free — pre-flight
+        // is a PATH lookup, and the kind peek only spawns `grove-llm kind`,
+        // which reads the tree and writes nothing.
+        let readiness = crate::loop_driver::readiness(harness, &worktree)?;
+        eprintln!(
+            "grove: ready in {} — {readiness} (no-launch)",
+            worktree.display()
+        );
         return Ok(());
     }
 
-    // The stamp is written only here, after provisioning and the no-launch
-    // check have both already succeeded: a documented dry run must never
-    // permanently rebind the grove (B3), and a provisioning failure — or a
-    // harness whose binary isn't installed — must never leave a stamp with
-    // no recovery path (B4). The pre-flight check covers not just the stamped
-    // harness but every per-kind `GROVE_<KIND>_HARNESS` override configured
-    // (harness-spawn-preflight-k8): a rerouted-but-uninstalled harness must
-    // fail here, before the loop starts, not mid-run on the first leaf routed
-    // to it.
-    crate::loop_driver::preflight_check(harness)?;
+    // The stamp is written only here, after provisioning, the no-launch return
+    // and the pre-flight check have all already succeeded: a provisioning
+    // failure — or a harness whose binary isn't installed — must never leave a
+    // stamp with no recovery path (B4).
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
     crate::loop_driver::run(harness, &repo_path, &worktree, &name)

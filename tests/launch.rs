@@ -13,6 +13,48 @@ use tempfile::TempDir;
 // repo::resolve(None) call.
 static CWD_LOCK: Mutex<()> = Mutex::new(());
 
+// This build's own `grove-llm`, pinned through the `GROVE_LLM_BIN` seam: the
+// kind peek `--no-launch` now runs (no-launch-config-check-k20) spawns it, and
+// unpinned that is whatever the machine's PATH happens to carry.
+const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
+
+// Scaffolding, not intent (mirroring tests/loop_driver.rs): model selection is
+// required, so a dry run that resolves a kind has to find a model var for it.
+// These tests are about provisioning, migration and stamping — the value is
+// deliberately meaningless.
+const SCAFFOLD_MODEL: &str = "scaffold-model";
+
+fn write_exec(path: &std::path::Path, body: &str) {
+    fs::write(path, body).unwrap();
+    let mut perms = fs::metadata(path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(path, perms).unwrap();
+}
+
+/// The env a `--no-launch` dry run needs to reach its own subject matter, now
+/// that the flag runs both config checks before reporting: a harness binary that
+/// exists (pre-flight is a PATH lookup), this build's `grove-llm` for the kind
+/// peek, and a model var for each kind these fixtures actually resolve —
+/// `requirements` on the start path (no `.grove/`), `impl` on the continue path.
+///
+/// `clear_grove_env` first, and load-bearingly: this repo dogfoods the routing
+/// vars, and this suite may itself be running inside a rerouted session, so an
+/// ambient `GROVE_IMPL_HARNESS` would reroute a dry run that never asked for one.
+fn dry_run_env(repo: &std::path::Path) -> support::EnvGuard {
+    let fake = repo.join("fake-harness.sh");
+    write_exec(&fake, "#!/bin/sh\nexit 0\n");
+    let mut env = support::EnvGuard::new();
+    env.clear_grove_env()
+        .remove("GROVE_HARNESS_BIN_CLAUDE")
+        .remove("GROVE_HARNESS_BIN_CODEX")
+        .remove("GROVE_HARNESS_BIN_PI")
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
+        .set("GROVE_IMPL_MODEL", SCAFFOLD_MODEL);
+    env
+}
+
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
     // `do_grove` provisions the global skill on launch (070/010); `load_prompt`
@@ -53,6 +95,7 @@ fn do_reports_readiness_in_no_launch_mode() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
 
     // `do` never creates or touches git topology (user-owned-worktrees) — cwd's
     // toplevel *is* the worktree, and the grove name is its basename.
@@ -82,6 +125,7 @@ fn do_runs_from_a_linked_worktree() {
     assert!(status.success(), "git worktree add failed");
 
     std::env::set_current_dir(&linked).unwrap();
+    let _env = dry_run_env(repo.path());
 
     launch::do_grove(&StartArgs {
         harness: None,
@@ -97,6 +141,8 @@ fn do_provisions_the_global_skill_on_launch() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+
+    let _env = dry_run_env(repo.path());
 
     // The helper points GROVE_SKILL_DIR at <repo>/global-skill; it should not
     // exist until `do` provisions it.
@@ -120,6 +166,7 @@ fn do_is_idempotent_on_the_same_working_tree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
 
     // `do` is the sole entry verb for every state (do-is-sole-lifecycle-verb):
     // running it again from the same working tree must still succeed.
@@ -143,6 +190,7 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
 
     let worktree = repo.path();
     fs::create_dir_all(worktree.join(".grove/done")).unwrap();
@@ -196,6 +244,7 @@ fn no_launch_does_not_stamp_the_grove() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
     let name = repo
         .path()
         .file_name()
@@ -212,6 +261,133 @@ fn no_launch_does_not_stamp_the_grove() {
     assert!(
         !grove::harness_stamp::path(repo.path(), &name).exists(),
         "a documented dry run must not permanently rebind the grove"
+    );
+}
+
+/// Plant a minimal v2 task tree with one leaf of `kind`, live or retired.
+/// Committed, so the adoption migration (which runs above the no-launch return)
+/// sees a clean v2 tree and no-ops.
+fn plant_leaf(worktree: &std::path::Path, kind: &str, retired: bool) {
+    let grove_dir = worktree.join(".grove");
+    fs::create_dir_all(&grove_dir).unwrap();
+    fs::write(grove_dir.join("BRIEF.md"), "# g — brief\n").unwrap();
+    let name = if retired {
+        "01-DONE-a-k1.md"
+    } else {
+        "01-a-k1.md"
+    };
+    fs::write(
+        grove_dir.join(name),
+        format!("# a-k1\n\n**Kind:** {kind}\n"),
+    )
+    .unwrap();
+    Command::new("git")
+        .args(["-C", worktree.to_str().unwrap(), "add", "-A"])
+        .status()
+        .unwrap();
+    Command::new("git")
+        .args([
+            "-C",
+            worktree.to_str().unwrap(),
+            "commit",
+            "-q",
+            "-m",
+            "plant tree",
+            "--no-verify",
+        ])
+        .status()
+        .unwrap();
+}
+
+#[test]
+fn no_launch_fails_when_the_next_leafs_kind_has_no_model_var() {
+    // no-launch-config-check-k20, the measured case: with a required model var
+    // unset, `--no-launch` used to print `ready` and exit 0 while the very next
+    // real `grove do` died on that same var. A dry run that reports readiness
+    // has to fail on everything a launch fails on, or "ready" is the one thing
+    // it is not.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let mut env = dry_run_env(repo.path());
+    env.remove("GROVE_IMPL_MODEL");
+    plant_leaf(repo.path(), "impl", false);
+
+    let err = launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .expect_err("a dry run must not report `ready` for a launch that would fail");
+
+    // The same words the real launch would use — the dry run resolves through
+    // the same code path, so the operator is told to set the same variables.
+    let msg = err.to_string();
+    for var in ["GROVE_CLAUDE_IMPL_MODEL", "GROVE_IMPL_MODEL"] {
+        assert!(
+            msg.contains(var),
+            "the readiness failure must name {var} (got: {msg:?})"
+        );
+    }
+    assert!(
+        msg.contains("impl"),
+        "the readiness failure must name the kind that went unconfigured (got: {msg:?})"
+    );
+}
+
+#[test]
+fn no_launch_still_succeeds_when_the_grove_has_no_live_leaves() {
+    // The finish-cycle iteration is the required-model rule's first exemption
+    // (model-per-task-kind): no live leaf means no task to require a model
+    // *for*. A grove ready to finish must therefore still report ready, with
+    // every model var unset — otherwise the new checks would make the last
+    // `grove do` of a grove's life unrunnable.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let mut env = dry_run_env(repo.path());
+    env.remove("GROVE_IMPL_MODEL")
+        .remove("GROVE_REQUIREMENTS_MODEL");
+    plant_leaf(repo.path(), "impl", true);
+
+    launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .expect("a grove with no live leaves has no kind to require a model for");
+}
+
+#[test]
+fn the_readiness_report_names_the_next_leaf_its_kind_and_the_resolved_model() {
+    // The report is what makes `--no-launch` an inspection tool rather than
+    // merely non-committal: an operator checking a routing change wants to see
+    // *which* leaf resolved to *which* model, not a bare "ready".
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let mut env = dry_run_env(repo.path());
+    env.set("GROVE_IMPL_MODEL", "sonnet");
+    plant_leaf(repo.path(), "impl", false);
+
+    let claude = grove::harness::by_name("claude").unwrap();
+    let line = grove::loop_driver::readiness(claude, repo.path())
+        .unwrap()
+        .to_string();
+
+    assert!(
+        line.contains("01-a-k1.md") && line.contains("impl") && line.contains("sonnet"),
+        "readiness must name the leaf, its kind and the model (got: {line:?})"
+    );
+
+    // A brand-new grove has no leaf to name — and says so, rather than
+    // rendering the same "no leaf" as a finished one.
+    let fresh = init_repo();
+    std::env::set_current_dir(fresh.path()).unwrap();
+    let line = grove::loop_driver::readiness(claude, fresh.path())
+        .unwrap()
+        .to_string();
+    assert!(
+        line.contains("bootstraps") && line.contains("requirements"),
+        "a grove with no `.grove/` yet reports the bootstrap session (got: {line:?})"
     );
 }
 
@@ -297,6 +473,20 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
     assert!(
         !grove::harness_stamp::path(repo.path(), &name).exists(),
         "a pre-flight failure must not leave a permanent stamp (B4)"
+    );
+
+    // …and the dry run reports the same failure (no-launch-config-check-k20):
+    // pre-flight now runs *above* the no-launch return, so `--no-launch` can no
+    // longer print `ready` for an environment whose next real launch would die
+    // on an uninstalled rerouted harness.
+    let err = launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .expect_err("a dry run must fail pre-flight wherever a real launch would");
+    assert!(
+        err.to_string().contains("GROVE_REVIEW_IMPL_HARNESS"),
+        "the dry run's diagnostic must name the override var too (got: {err})"
     );
 }
 

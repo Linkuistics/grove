@@ -191,16 +191,7 @@ pub fn run_loop(
         // Clear any stale signal from the previous iteration.
         let _ = std::fs::remove_file(&signal_file);
 
-        // A brand-new grove (no `.grove/` yet) bootstraps via `start`; an
-        // existing one uses `continue` (which, on an empty `pick`, proposes the
-        // finish cycle in-session). This is the loop body's only state — and it
-        // is re-derived from the filesystem each iteration, so restart ≡
-        // continuation.
-        let verb = if worktree.join(".grove").is_dir() {
-            "continue"
-        } else {
-            "start"
-        };
+        let verb = launch_verb(worktree);
 
         // Route the launch by the picked leaf's kind: per-kind harness
         // override first (GROVE_<KIND>_HARNESS), then model-per-task-kind
@@ -208,8 +199,8 @@ pub fn run_loop(
         // loading the prompt (B7): the prompt must come from the harness that
         // actually launches, not the stamped one — reading it first would
         // silently serve the wrong harness's copy whenever a reroute happens.
-        let (launch_harness, model, rerouted) = resolve_launch(harness, worktree, verb)?;
-        let prompt = crate::launch::load_prompt(launch_harness, verb)?;
+        let launch = resolve_launch(harness, worktree, verb)?;
+        let prompt = crate::launch::load_prompt(launch.harness, verb)?;
 
         // Report site 1 of 4 (herdr-optional-ui). Before the spawn, not after:
         // the pane is about to be busy, and the other three sites all describe
@@ -218,13 +209,13 @@ pub fn run_loop(
         crate::herdr::report(crate::herdr::State::Working);
 
         let ended = launch_session(
-            launch_harness,
+            launch.harness,
             worktree,
             &session_name,
             &prompt,
             &signal_file,
-            rerouted,
-            model.as_deref(),
+            launch.rerouted,
+            launch.model.as_deref(),
         )?;
 
         // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
@@ -752,13 +743,54 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
     Ok(())
 }
 
+/// Which launcher prompt the next session runs: a brand-new grove (no
+/// `.grove/` yet) bootstraps via `start`, an existing one continues via
+/// `continue` (which, on an empty `pick`, proposes the finish cycle
+/// in-session). The loop body's only state, and it is re-derived from the
+/// filesystem every iteration, so restart ≡ continuation.
+///
+/// Extracted so the `--no-launch` dry run reads it from here too
+/// (`no-launch-config-check-k20`): the report and the launch it predicts must
+/// not be able to disagree about which of the two paths the next session takes,
+/// since the start path is routed as `requirements` by construction and the
+/// continue path by whatever the tree says.
+fn launch_verb(worktree: &Path) -> &'static str {
+    if worktree.join(".grove").is_dir() {
+        "continue"
+    } else {
+        "start"
+    }
+}
+
+/// Everything the next session's launch is routed to, resolved from the picked
+/// leaf by [`resolve_launch`]: the harness that runs it, the model that harness
+/// loads, whether that harness differs from the stamped one, and the kind both
+/// axes were keyed on.
+///
+/// `kind` is `None` in exactly one case — the finish-cycle iteration, which has
+/// no live leaf — which is also the one case that requires no model. It rides
+/// along because the `--no-launch` dry run *reports* what the launch resolved,
+/// and a readiness line that named a model without naming the kind it was chosen
+/// for would leave the operator unable to check the choice against their config.
+struct Launch {
+    harness: &'static Harness,
+    model: Option<String>,
+    rerouted: bool,
+    kind: Option<Kind>,
+}
+
 /// Resolve where and on what the next session launches: peek the picked
 /// leaf's kind, apply the harness override (its own kind's var, else its
 /// family's), then resolve the model against the *post-override* harness — so
 /// `GROVE_PI_REVIEW_MODEL` governs a review rerouted to pi, not the stamped
-/// harness's vars. Returns whether a reroute happened (`launch` differs from
-/// `stamped`), threaded through to `harness_bin`/`model_for` so neither lets a
-/// stamped-harness-scoped fallback leak into the rerouted launch.
+/// harness's vars. The returned [`Launch`] records whether a reroute happened
+/// (`harness` differs from `stamped`), threaded through to
+/// `harness_bin`/`model_for` so neither lets a stamped-harness-scoped fallback
+/// leak into the rerouted launch.
+///
+/// **Side-effect free, and load-bearingly so**: the `--no-launch` dry run calls
+/// this to report what the next launch would do ([`readiness`]), so anything
+/// durable done here would happen on a run documented as doing nothing.
 ///
 /// The two axes are resolved in this order for a reason: the family fallback
 /// runs along the *kind* axis and must compose with the reroute rule rather
@@ -779,11 +811,7 @@ pub fn preflight_check(stamped: &'static Harness) -> Result<()> {
 /// the *same* peek — one subprocess returns both facts — because the peek
 /// already runs every iteration and a second one to read a neighbouring line
 /// would double that cost for a declaration almost no leaf carries.
-fn resolve_launch(
-    stamped: &'static Harness,
-    worktree: &Path,
-    verb: &str,
-) -> Result<(&'static Harness, Option<String>, bool)> {
+fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Result<Launch> {
     validate_all_harness_overrides()?;
     let peek = if verb == "start" {
         // Start-path is `requirements` by construction: `.grove/` does not exist
@@ -803,7 +831,14 @@ fn resolve_launch(
         // route, and no task to require a model *for*. An absence of the
         // question, not a default — and legitimately nothing to select on,
         // unlike a degraded peek below.
-        KindPeek::Empty => return Ok((stamped, None, false)),
+        KindPeek::Empty => {
+            return Ok(Launch {
+                harness: stamped,
+                model: None,
+                rerouted: false,
+                kind: None,
+            })
+        }
         // The peek itself failed (missing grove-llm, non-zero exit,
         // unparseable output, or a leaf declaring a harness grove does not
         // know) — genuinely unknown, not "nothing to route". This now bails in
@@ -840,11 +875,129 @@ fn resolve_launch(
     // stamped harness — an explicit binding recorded on disk — so the model is
     // still required for it.
     if launch.model_args.is_empty() {
-        return Ok((launch, None, rerouted));
+        return Ok(Launch {
+            harness: launch,
+            model: None,
+            rerouted,
+            kind: Some(kind),
+        });
     }
     let model = model_for(launch, kind, rerouted)
         .ok_or_else(|| missing_model_error(launch, kind, rerouted))?;
-    Ok((launch, Some(model), rerouted))
+    Ok(Launch {
+        harness: launch,
+        model: Some(model),
+        rerouted,
+        kind: Some(kind),
+    })
+}
+
+/// What the next real launch would do, resolved without doing it — the payload
+/// of `grove do --no-launch` (`no-launch-config-check-k20`).
+///
+/// Deliberately produced by the **same** [`resolve_launch`] the loop's next
+/// iteration would call, rather than by a parallel "check the config" routine:
+/// the flag's whole claim is that the next launch would succeed, and a second
+/// implementation of that claim is a second thing to keep in sync. The dry run
+/// therefore fails on exactly what a launch fails on — an unknown harness name,
+/// a rerouted-but-uninstalled binary, an undeterminable kind, a kind with no
+/// model var — and names the same variables in the same words.
+pub struct Readiness {
+    next: Next,
+    harness: &'static Harness,
+    model: Option<String>,
+}
+
+/// What the next session would be working on — the three states
+/// [`resolve_launch`] distinguishes, kept apart here for the same reason it
+/// keeps them apart: "no leaf because the tree does not exist yet" and "no leaf
+/// because they are all retired" are opposite ends of a grove's life, and a
+/// readiness line that rendered both as "no leaf" would be actively misleading.
+enum Next {
+    /// No `.grove/` yet: the next session bootstraps one, routed as
+    /// `requirements` by construction (*fresh-grove-start-contract*).
+    Bootstrap(Kind),
+    /// The picked live leaf and the kind the launch routes on. `path` is
+    /// `None` only when the reporting walk below could not name it.
+    Leaf { path: Option<PathBuf>, kind: Kind },
+    /// No live leaves left: the next session proposes the finish cycle, and has
+    /// no task to require a model for.
+    Finish,
+}
+
+/// Resolve — without launching, stamping, or otherwise touching anything — what
+/// `grove do` would do next. See [`Readiness`]; the caller is `launch::do_grove`'s
+/// `--no-launch` branch, which prints it and returns.
+pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness> {
+    let verb = launch_verb(worktree);
+    let launch = resolve_launch(stamped, worktree, verb)?;
+    let next = match launch.kind {
+        None => Next::Finish,
+        Some(kind) if verb == "start" => Next::Bootstrap(kind),
+        Some(kind) => Next::Leaf {
+            path: picked_leaf(worktree),
+            kind,
+        },
+    };
+    Ok(Readiness {
+        next,
+        harness: launch.harness,
+        model: launch.model,
+    })
+}
+
+/// The leaf the readiness line names, walked **in-process** rather than through
+/// a second `grove-llm` call. This is *reporting*, not routing: every fact the
+/// launch turns on already came off the peek subprocess above, so a failed walk
+/// costs the line a path and nothing else — which is why it degrades to `None`
+/// instead of failing a dry run that has otherwise succeeded.
+///
+/// Relative to the worktree, unlike `grove-llm pick`'s absolute output: the
+/// readiness line already opens with the worktree, and repeating it inside the
+/// leaf path pushed the informative half off the right of the terminal.
+fn picked_leaf(worktree: &Path) -> Option<PathBuf> {
+    let leaf = crate::tree_read::pick(&worktree.join(".grove"))
+        .ok()
+        .flatten()?;
+    Some(leaf.strip_prefix(worktree).unwrap_or(&leaf).to_path_buf())
+}
+
+impl std::fmt::Display for Readiness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.next {
+            Next::Bootstrap(kind) => write!(
+                f,
+                "no task tree yet: the next session bootstraps one, as {} on {}",
+                kind.label(),
+                self.harness.name
+            )?,
+            Next::Leaf {
+                path: Some(path),
+                kind,
+            } => write!(
+                f,
+                "next leaf {} ({}) on {}",
+                path.display(),
+                kind.label(),
+                self.harness.name
+            )?,
+            Next::Leaf { path: None, kind } => {
+                write!(f, "next leaf ({}) on {}", kind.label(), self.harness.name)?
+            }
+            Next::Finish => write!(
+                f,
+                "no live leaves: the next session proposes the finish cycle, on {}",
+                self.harness.name
+            )?,
+        }
+        match &self.model {
+            Some(model) => write!(f, ", model {model}"),
+            // Only the two exemptions reach here: the finish-cycle iteration,
+            // and a harness whose model-flag template is empty. Every other
+            // launch resolved a model or this line was never reached.
+            None => Ok(()),
+        }
+    }
 }
 
 /// Read an env var, treating an empty string as unset — the convention every

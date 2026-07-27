@@ -195,6 +195,30 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `content/TASK-FORMAT.md`, `content/SKILL.md`, `content/driving.md`,
   `docs/grove.md` and `CONTEXT.md`.
 
+- **`grove do --no-launch` now checks the readiness it reports — and says what it
+  found** (*model-per-task-kind*). The flag returned *above* both config checks,
+  so on a half-configured environment it printed `grove: ready in <path>` and
+  exited 0 while the very next real `grove do` died on a missing model variable.
+  That is the same partial-configuration invisibility the required-model rule
+  exists to eliminate, arriving through the dry-run door. It now runs the same
+  pre-flight and the same per-kind routing resolution a launch does — the
+  identical code path, not a parallel config check — so it fails on exactly what
+  a launch fails on and names exactly the variables a launch names.
+
+  The report is informative rather than merely non-committal:
+
+  ```
+  $ grove do --no-launch
+  grove: ready in ~/code/acme/rate-limiting — next leaf .grove/02-design-k2.md (design) on claude, model opus (no-launch)
+  ```
+
+  A brand-new tree reports the bootstrap session instead of a leaf, and a grove
+  with no live leaves left still reports ready — the finish-cycle session has no
+  task to require a model for. **Two new failure modes, both deliberate:** the dry
+  run now needs `grove-llm` resolvable and the harness binary on `PATH`, because
+  both are conditions of the launch it is reporting on. It still writes no stamp —
+  a documented dry run must never permanently rebind the grove.
+
 ## v15.0.0
 
 grove goes dual-VCS: jj-enabled working trees — native, colocated, and

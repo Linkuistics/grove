@@ -65,11 +65,20 @@ contract, which is why they are leaves and not part of the sweep.
   routed before the verb runs), and *fresh-grove-start-contract* now carries the
   answer with the rejected reading and its reopening condition.
   **`GROVE_REQUIREMENTS_MODEL` is now the first-run var**, named in `README.md`.
-- `08` **no-launch-config-check** (impl) — `--no-launch` returns before both
-  config checks, so it prints `ready` and exits 0 where the next real launch
-  fails on a missing model var. Measured, not inferred. That reintroduces
-  exactly the partial-configuration invisibility `04` exists to eliminate,
-  through the dry-run door.
+- `08` **no-launch-config-check** (impl) — `--no-launch` returned before both
+  config checks, so it printed `ready` and exited 0 where the next real launch
+  failed on a missing model var. **Done.** Pre-flight is hoisted above the
+  no-launch return and the dry run now calls the *same* `resolve_launch` the
+  loop's next iteration would, so it fails on exactly what a launch fails on and
+  names the same vars — verified against the old release side by side. The
+  question the leaf left open ("peek as well as pre-flight, or pre-flight
+  only?") is settled **both**: `Done when`'s first clause requires it, since the
+  model requirement is per-kind and only the peek yields a kind. The two costs
+  are recorded in *model-per-task-kind*'s Consequences — the dry run now needs
+  `grove-llm` resolvable and the harness binary on PATH, both conditions of the
+  launch it reports on. It still writes no stamp (`B3`). The readiness line now
+  names the leaf, kind, harness and model; the three states (bootstrap / live
+  leaf / no live leaves) render distinctly.
 
 Added by `07`, and the same species as `06`'s own leftovers rather than of
 `04`'s inversion: a stale claim the taxonomy sweep missed, in a file the leaf

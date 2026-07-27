@@ -110,7 +110,10 @@ pub struct StartArgs {
     /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
-    /// Report readiness but don't exec the harness.
+    /// Report launch readiness and exit without exec'ing the harness: names the
+    /// next leaf, its kind, the harness that kind routes to and the model that
+    /// harness would load — and fails, naming the same variables a real launch
+    /// would, when any of that is unconfigured. Writes no stamp.
     #[arg(long = "no-launch")]
     pub no_launch: bool,
 }

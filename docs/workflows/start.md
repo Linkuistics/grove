@@ -78,10 +78,30 @@ When you want to confirm the CLI is ready to drive this working tree but skip th
 
 ```
 $ grove do --no-launch
-grove: ready in /Users/you/code/acme/add-rate-limiting (no-launch)
+grove: ready in /Users/you/code/acme/add-rate-limiting — no task tree yet: the next session bootstraps one, as requirements on claude, model opus (no-launch)
 ```
 
 `.grove/` is untouched: on a brand-new working tree there's nothing to scaffold yet, since `root-init` runs inside the bootstrap session, not the CLI itself. You can `cd` into the working tree and start the harness yourself with a free-form prompt (or run `grove-llm root-init` by hand first), or come back later with plain `grove do` — which opens the bootstrap session on a rootless tree, or continues an existing one.
+
+**`ready` is checked, not assumed.** The flag resolves everything the next real launch turns on — the harness binaries pre-flight needs on `PATH`, the picked leaf, its kind, and the model that kind requires — so on a live tree it names the leaf it would run:
+
+```
+$ grove do --no-launch
+grove: ready in /Users/you/code/acme/add-rate-limiting — next leaf .grove/02-design-token-bucket-k2.md (design) on claude, model opus (no-launch)
+```
+
+and on a half-configured environment it fails instead of reporting ready, naming the same variables the launch would:
+
+```
+$ grove do --no-launch
+Error: grove: the next leaf's kind is `design`, and no model is configured for it on claude — model selection is required, so grove will not silently launch on the harness's own default (model-per-task-kind). Set one of, most specific first:
+  GROVE_CLAUDE_DESIGN_MODEL
+  GROVE_DESIGN_MODEL
+$ echo $?
+1
+```
+
+A grove with no live leaves left still reports ready — the finish-cycle session has no task to require a model for.
 
 ## Multi-harness repos
 

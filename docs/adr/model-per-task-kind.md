@@ -198,7 +198,19 @@ only for a harness that is exempt because it takes no model flag at all.
   peek entirely when no routing var was set, making an unconfigured launch
   byte-for-byte the pre-feature one. A requirement that must hold on *every*
   iteration cannot be checked by a short-circuit whose purpose is to avoid
-  looking, so `grove-llm kind` now runs unconditionally on the `continue` path.
+  looking, so `grove-llm kind` now runs unconditionally on the `continue` path —
+  and, for the same reason, on the `grove do --no-launch` dry run.
+- **`--no-launch` resolves the launch it declines to perform.** The flag reports
+  *readiness*, so once a missing model var became a hard error it had to run the
+  same resolution or "ready" would be a claim about strictly less state than the
+  launch it predicts — the same partial-configuration invisibility this record
+  exists to eliminate, arriving through the dry-run door. It runs the identical
+  code path rather than a parallel config check, so it fails on the same things
+  and names the same variables. Two costs, both accepted: the dry run now depends
+  on `grove-llm` being resolvable and on the harness binary being on PATH. Both
+  are conditions of the launch it is reporting on, so a dry run that passed
+  without them would be reporting on a launch that could not happen. It still
+  writes no stamp — a documented dry run must never permanently rebind the grove.
 - **Not backward compatible, deliberately.** A grove that ran with no
   configuration now errors until its kinds resolve. Full coverage is about **nine**
   vars — seven standalone kinds plus two family vars — against a ceiling of 95 (17

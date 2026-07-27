@@ -72,7 +72,7 @@ grove retire <node-path>   # promote a finished node's brief upward (its leaves 
 
 Once driving, `grove do` runs the **self-driving loop** (self-driving-loop): it launches a fresh, clean-context session per task and relaunches automatically each time a session fires its completion signal (`grove-llm complete`), walking the tree until no live leaf is left — at which point the loop proposes the in-session finish cycle. Any non-signalling exit — your `/exit`, a Ctrl-C, or a crash — stops the loop; re-running `grove do` from the same working tree resumes it, because the loop holds no state of its own and re-derives its position from the tree each iteration.
 
-Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (report readiness but skip exec'ing the harness — useful for inspection or scripting).
+Each verb takes optional `--harness <name>` (auto-detected by default) and `--no-launch` (report readiness but skip exec'ing the harness — useful for inspection or scripting). On `grove do`, readiness is a **checked** claim: the flag runs the same pre-flight and per-kind routing resolution the next real launch would, names the leaf, its kind, the harness that kind routes to and the model that harness would load, and exits non-zero — naming the same variables — whenever any of that is unconfigured. It writes no stamp.
 
 The exec'd session is pre-named `<repo-basename>: <name> grove`, where `<name>` is the working tree's own basename; a one-line stamp at `<repo>/.grove-stamps/<name>` records the harness binding whenever `--harness` is passed explicitly, and also when needed to disambiguate in multi-harness repos.
 

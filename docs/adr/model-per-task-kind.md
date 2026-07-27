@@ -58,11 +58,14 @@ cannot be described coherently apart.
   model *and* reasoning effort, which a bare model flag cannot express), parallel
   to the session-name template. *How* to pass a model is per-harness; the *value*
   comes from the env.
-- **Start-path is planning by construction.** On a brand-new grove the driver
-  launches `start` while `.grove/` does not yet exist (the agent runs `root-init`
-  *inside* that session), so there is no leaf to peek — but `root-init`'s first
-  leaf is always **planning** (*fresh-grove-start-contract*), so the `start` path
-  routes as planning unconditionally.
+- **Start-path is `requirements` by construction.** On a brand-new grove the
+  driver launches `start` while `.grove/` does not yet exist (the agent runs
+  `root-init` *inside* that session), so there is no leaf to peek — but
+  `root-init`'s first leaf is always **requirements**, and takes no `--kind`
+  precisely so this stays true (*fresh-grove-start-contract*). The `start` path
+  therefore routes as requirements unconditionally, which makes
+  `GROVE_REQUIREMENTS_MODEL` (or its harness-scoped spelling) the one variable a
+  brand-new grove cannot start without.
 
 ## A kind with no model is a configuration error, not a default
 

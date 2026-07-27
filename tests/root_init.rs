@@ -80,7 +80,7 @@ fn read(repo: &Path, rel: &str) -> String {
 // happy path
 
 #[test]
-fn root_init_creates_root_brief_and_first_planning_leaf() {
+fn root_init_creates_root_brief_and_first_requirements_leaf() {
     let tmp = init_repo();
 
     let (stdout, _, ok) = run(tmp.path(), &["root-init"]);
@@ -112,16 +112,19 @@ fn root_init_creates_root_brief_and_first_planning_leaf() {
         "brief missing Done when: {brief:?}"
     );
 
-    // The first leaf is a planning task per the fresh-grove contract. Its header
-    // is the position-free handle `# <slug>-k<key>` (the v2 form `leaf_add` writes).
+    // The first leaf is a *requirements* task per the fresh-grove contract: the
+    // bootstrap session's only input is the human's own words (the HITL rule),
+    // and the `start` launch is routed on this kind with no leaf to peek. Its
+    // header is the position-free handle `# <slug>-k<key>` (the v2 form
+    // `leaf_add` writes).
     let leaf = read(tmp.path(), ".grove/01-plan-k1.md");
     assert!(
         leaf.starts_with("# plan-k1\n"),
         "leaf header wrong: {leaf:?}"
     );
     assert!(
-        leaf.contains("**Kind:** planning\n"),
-        "leaf not planning: {leaf:?}"
+        leaf.contains("**Kind:** requirements\n"),
+        "leaf not requirements: {leaf:?}"
     );
 }
 
@@ -146,7 +149,7 @@ fn root_init_custom_slug_names_the_first_leaf() {
         PathBuf::from(".grove/01-design-the-api-k1.md")
     );
     let leaf = read(tmp.path(), ".grove/01-design-the-api-k1.md");
-    assert!(leaf.contains("**Kind:** planning\n"), "got {leaf:?}");
+    assert!(leaf.contains("**Kind:** requirements\n"), "got {leaf:?}");
 }
 
 #[test]

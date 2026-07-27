@@ -41,8 +41,10 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
-    /// `BRIEF.md` charter, and lay down a first planning leaf `01-<slug>-k1.md`
-    /// (default slug `plan`). After this, `grove-llm pick` returns the new
+    /// `BRIEF.md` charter, and lay down a first **requirements** leaf
+    /// `01-<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
+    /// bootstrap session's only input is the human's own words. After this,
+    /// `grove-llm pick` returns the new
     /// leaf — a fresh grove is no longer indistinguishable from a finished
     /// one. Refuses if `.grove/` already exists. Working-tree change only —
     /// no commit.
@@ -197,7 +199,7 @@ pub struct CompleteArgs {
 
 #[derive(Parser)]
 pub struct RootInitArgs {
-    /// Slug for the first planning leaf (lowercase ASCII letters, digits,
+    /// Slug for the first (requirements) leaf (lowercase ASCII letters, digits,
     /// dashes). Default: `plan`. Mirrors `leaf-add . <slug>`.
     #[arg(default_value = "plan")]
     pub slug: String,

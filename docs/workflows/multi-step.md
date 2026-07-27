@@ -10,7 +10,7 @@ The sequence below is one plausible shape, not a template. Real groves vary: a g
 
 ## Starting state
 
-We pick up where [`start.md`](start.md) left off. The bootstrap session retired its `root-init` planning leaf and committed a root `BRIEF.md` plus — for this walkthrough — three further leaves (imagine the grilling had decided on a quick spike ahead of the design):
+We pick up where [`start.md`](start.md) left off. The bootstrap session retired its `root-init` requirements leaf and committed a root `BRIEF.md` plus — for this walkthrough — three further leaves (imagine the grilling had decided on a quick spike ahead of the design):
 
 ```
 $ cd ~/code/acme/add-rate-limiting
@@ -27,7 +27,7 @@ $ git log --oneline
 1a2b3c4 Add idempotency keys to orders
 ```
 
-`01-DONE-plan-k1.md` is the `root-init` planning leaf, already retired by the bootstrap session. `02-spike-token-bucket-k2.md` is an **impl** leaf — a quick experimental spike. `03-design-token-bucket-k3.md` is a **planning** leaf: the bootstrap session declared the design open enough that the move is to decompose, not to code. `04-implement-k4.md` is an **impl** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further. Each name is `NN-<slug>-k<key>`: the `NN` is the per-level position (the sort order), and the trailing `-k<key>` is the permanent identity that never changes — not under renumber, not under a slug edit.
+`01-DONE-plan-k1.md` is the `root-init` requirements leaf, already retired by the bootstrap session. `02-spike-token-bucket-k2.md` is an **impl** leaf — a quick experimental spike. `03-design-token-bucket-k3.md` is a **planning** leaf: the bootstrap session declared the design open enough that the move is to decompose, not to code. `04-implement-k4.md` is an **impl** leaf placeholder for the actual implementation, which the design step will almost certainly decompose further. Each name is `NN-<slug>-k<key>`: the `NN` is the per-level position (the sort order), and the trailing `-k<key>` is the permanent identity that never changes — not under renumber, not under a slug edit.
 
 ## One `grove do` drives the whole loop
 

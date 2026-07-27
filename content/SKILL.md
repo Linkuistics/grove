@@ -95,15 +95,21 @@ working tree but no `.grove/` tree yet — and every step below assumes
 has nothing for `grove-llm pick` to walk (it errors `grove root not found`), and
 the tree-growing verbs (`leaf-add` and friends) all need a root too. Run
 **`grove-llm root-init [<slug>]`** (default slug `plan`) once: it creates
-`.grove/`, the root `BRIEF.md` stub, and a first **planning** leaf
+`.grove/`, the root `BRIEF.md` stub, and a first **requirements** leaf
 `01-<slug>-k1.md` — working-tree only, no commit (the first session's commit
 folds it in), refusing to clobber an existing `.grove/`. Creating the first
 leaf, not just the brief, is load-bearing: `pick` skips every brief
 (`BRIEF.md`), so a brief-only `.grove/` reports `no live leaves; this grove is
 done` and would mis-trigger the Complete finish cycle — a newborn grove
-indistinguishable from a finished one (fresh-grove-start-contract). After
-`root-init`, `pick` returns the planning leaf and you enter the normal loop
-below at **Bootstrap**; the launcher's `start.md` prompt names this as step one.
+indistinguishable from a finished one (fresh-grove-start-contract). The kind is
+fixed at `requirements` (no `--kind`): the bootstrap session's only input is the
+human's own words, and the loop routes that launch *by construction*, having no
+leaf to peek — so `GROVE_REQUIREMENTS_MODEL` is the one var a brand-new grove
+cannot start without. After `root-init`, `pick` returns that leaf and you enter
+the normal loop below at **Bootstrap**: grill it, record the outcome in the root
+brief, then grow the tree — cutting the leaves yourself if the workstream is
+small, otherwise adding a `planning` leaf for a fresh session. The launcher's
+`start.md` prompt names this as step one.
 
 **Pick.** Run `grove-llm pick` — it walks the `.grove/` directory tree
 depth-first in **pre-order**, visiting each directory's children in per-level

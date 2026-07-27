@@ -2,13 +2,14 @@
 // `leaf-retire`, and `leaf-prune` — re-expressed against the real **directory
 // tree**, built on the 11.1 id model (`src/tree_id.rs`) and the 11.3 grow verbs
 // (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
-// starts with a planning leaf so it is never mistaken for finished; decompose
+// starts with one live leaf so it is never mistaken for finished; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
 // place; prune marks abandonment in place, ADR *pruning*) and changes the
 // *mechanics* to the filesystem's shape:
 //
 //   * `root-init` writes the root `BRIEF.md` (the one unkeyed singleton) and a
-//     first planning leaf `01-<slug>-k1.md` — a 2-digit per-level position;
+//     first **requirements** leaf `01-<slug>-k1.md` — a 2-digit per-level
+//     position;
 //   * `leaf-decompose` turns the leaf *file* `NN-<slug>-k<key>.md` into a node
 //     *directory* `NN-<slug>-k<key>/` (**key preserved** — the entity that was the
 //     leaf becomes the node), renaming the leaf body in as the node's `BRIEF.md`
@@ -39,9 +40,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
-/// `BRIEF.md` (the one unkeyed singleton) and a first **planning** leaf
+/// `BRIEF.md` (the one unkeyed singleton) and a first **requirements** leaf
 /// `01-<slug>-k1.md`. Returns the absolute paths created, `BRIEF.md` first then the
 /// leaf. Refuses to clobber an existing `.grove/`. Working-tree only — no commit.
+///
+/// The kind is fixed, with no `--kind` flag: a brand-new grove's first session
+/// takes the human's own words as its only input — nothing else is on disk —
+/// which is the generating rule for **HITL**, and `requirements` is the kind
+/// that rule names (`docs/specs/task-kind-taxonomy.md`, *HITL and AFK*). It
+/// being fixed is also load-bearing for routing: the loop driver launches the
+/// `start` session *before* this verb has run, so it can only route the
+/// bootstrap by construction (`fresh-grove-start-contract`).
 pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     // Validate before touching the filesystem so a bad slug never leaves a stray
     // `.grove/` behind.
@@ -60,7 +69,7 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     // Delegate the first leaf to `leaf_add` (root parent) so the scaffolded leaf is
     // byte-identical to one the LLM would later add by hand — no template drift. A
     // fresh `.grove/` has only `BRIEF.md`, so the first root child is `01-<slug>-k1`.
-    let leaf_path = leaf_add(&grove_root, &grove_root, slug, Kind::Planning, None)?;
+    let leaf_path = leaf_add(&grove_root, &grove_root, slug, Kind::Requirements, None)?;
     Ok(vec![brief_path, leaf_path])
 }
 
@@ -524,7 +533,7 @@ fn grove_name(worktree: &Path) -> String {
 }
 
 /// Emit the minimal section-header scaffold for the root `BRIEF.md` — headers only,
-/// no prose (the first planning session fills them). The root brief is the one
+/// no prose (the bootstrap session fills them). The root brief is the one
 /// unkeyed, position-free singleton, unchanged across schemes.
 fn write_root_brief(path: &Path, name: &str) -> Result<()> {
     let body = format!(
@@ -666,12 +675,16 @@ mod tests {
         assert!(g.join("01-plan-k1.md").is_file());
     }
 
+    // fresh-grove-start-contract: the bootstrap leaf is `requirements` — the
+    // human's own words are the session's only input, which is the HITL rule —
+    // and the `start` path routes on that kind without a file to peek, so this
+    // assertion is the contract, not a detail of the template.
     #[test]
-    fn root_init_first_leaf_is_a_planning_task() {
+    fn root_init_first_leaf_is_a_requirements_task() {
         let (_t, wt) = worktree();
         let created = root_init(&wt, "plan").unwrap();
         assert!(
-            body(&created[1]).contains("**Kind:** planning"),
+            body(&created[1]).contains("**Kind:** requirements"),
             "got {:?}",
             body(&created[1])
         );

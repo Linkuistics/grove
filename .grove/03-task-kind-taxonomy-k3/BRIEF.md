@@ -55,17 +55,30 @@ Added by `06`, both consequences of `04`'s inversion rather than of the original
 plan. Neither is a doc fix; both change launch-path behaviour or a recorded
 contract, which is why they are leaves and not part of the sweep.
 
-- `07` **bootstrap-leaf-kind** (impl) — `root-init` mints `planning`, the start
-  path routes as `planning`, and `start.md` has that session **grill**. But
-  grilling is now `requirements`, so a fresh grove does `requirements` work under
-  a `planning` label and draws a `planning` model for it.
-  *fresh-grove-start-contract* records the old answer and must be reworked in
-  place either way.
+- `07` **bootstrap-leaf-kind** (impl) — `root-init` minted `planning` while
+  `start.md` had that session **grill**, so a fresh grove did `requirements` work
+  under a `planning` label. **Done** — settled as **`requirements`**, on the
+  HITL generating rule rather than on the prompt's wording: a brand-new grove has
+  nothing on disk but the human's own words, so keeping `planning` would have
+  meant re-marking it HITL or exempting the bootstrap from a mark the spec
+  insists is rule-generated. `root-init` takes no `--kind` (the `start` launch is
+  routed before the verb runs), and *fresh-grove-start-contract* now carries the
+  answer with the rejected reading and its reopening condition.
+  **`GROVE_REQUIREMENTS_MODEL` is now the first-run var**, named in `README.md`.
 - `08` **no-launch-config-check** (impl) — `--no-launch` returns before both
   config checks, so it prints `ready` and exits 0 where the next real launch
   fails on a missing model var. Measured, not inferred. That reintroduces
   exactly the partial-configuration invisibility `04` exists to eliminate,
   through the dry-run door.
+
+Added by `07`, and the same species as `06`'s own leftovers rather than of
+`04`'s inversion: a stale claim the taxonomy sweep missed, in a file the leaf
+that found it had no reason to enter.
+
+- `09` **planning-grills-leftovers** (impl) — `docs/driving-a-grove.md` and one
+  line of `docs/workflows/multi-step.md` still say a `planning` session opens
+  with a grilling pass. `content/driving.md` was relabelled by `06`; its
+  repo-facing sibling was not.
 
 ## Pointers
 

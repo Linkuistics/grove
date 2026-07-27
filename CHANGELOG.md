@@ -110,6 +110,21 @@ stood at the graft — a closed record, not part of the versioned sequence above
   session's input or its deliverable*. The mark **predicts, it does not permit** —
   any kind may stop and ask a human, and doing so is always legitimate.
 
+  **A fresh grove's bootstrap leaf follows the grilling: `root-init` now mints
+  `requirements`, not `planning`** (*fresh-grove-start-contract*, reworked in
+  place). On a brand-new working tree the session's only input is the human's own
+  words — nothing else is on disk — which is the HITL rule itself, so keeping the
+  `planning` label would have meant re-marking `planning` HITL or carving a
+  bootstrap-shaped exception into a mark that is deliberately rule-generated. The
+  leaf is labelled for the discipline that *always* applies; a small workstream's
+  bootstrap session may still cut its own leaves (the permitted requirements /
+  design / planning fusion), and a larger one adds a `planning` leaf for a fresh
+  session. `root-init` takes no `--kind`, because the driver launches the `start`
+  session *before* that verb has run and can only route the bootstrap by
+  construction. **Config consequence:** `GROVE_REQUIREMENTS_MODEL` (or its
+  harness-scoped spelling) is now the one variable a brand-new grove cannot start
+  without — it was `GROVE_PLANNING_MODEL`.
+
   **Routing keys on a family, not only the full kind.** Two families exist,
   `REVIEW` and `INTEGRATE_REVIEW`, so `GROVE_REVIEW_HARNESS=codex` is one line
   covering all five `review-*` kinds instead of five lines hand-kept in sync.

@@ -33,7 +33,7 @@
 //         kind=$(printf '%s\n' "$peek" | sed -n 1p)
 //         leaf_harness=$(printf '%s\n' "$peek" | sed -n 2p)
 //       else
-//         kind=planning; leaf_harness=
+//         kind=requirements; leaf_harness=
 //       fi
 //       # kind → env suffix: uppercase, `-` → `_` (review-impl ⇒ REVIEW_IMPL).
 //       # An empty $kind is an empty grove — no leaf, so nothing to require a
@@ -786,11 +786,14 @@ fn resolve_launch(
 ) -> Result<(&'static Harness, Option<String>, bool)> {
     validate_all_harness_overrides()?;
     let peek = if verb == "start" {
-        // Start-path is planning by construction: `.grove/` does not exist yet
-        // (the agent runs `root-init` inside that session), and root-init's
-        // first leaf is always planning — fresh-grove-start-contract. No leaf
-        // exists to declare a harness either, so the per-leaf axis is silent.
-        KindPeek::Leaf(Kind::Planning, None)
+        // Start-path is `requirements` by construction: `.grove/` does not exist
+        // yet (the agent runs `root-init` inside that session), and root-init's
+        // first leaf is always requirements — fresh-grove-start-contract. No
+        // leaf exists to declare a harness either, so the per-leaf axis is
+        // silent. This is the one launch grove routes without reading a file,
+        // so `GROVE_REQUIREMENTS_MODEL` (or a harness-scoped spelling of it) is
+        // the single var a brand-new grove cannot start without.
+        KindPeek::Leaf(Kind::Requirements, None)
     } else {
         resolve_kind(worktree)
     };

@@ -55,8 +55,8 @@ claude -n "orders-api: add-rate-limiting grove" <prompt>
 
 The harness session that just opened is the **bootstrap session** — the first session in this working tree, and the first iteration of the **self-driving loop** that `grove do` started. Following the start prompt, the session will:
 
-1. Run `grove-llm root-init` to scaffold `.grove/`: a root [`BRIEF.md`](../../content/BRIEF-FORMAT.md) stub and a first leaf, `01-plan-k1.md`, marked **Kind: planning** — a working-tree change, no commit yet.
-2. Enter the loop at that planning leaf: run a grilling pass on your goal, sharpening any new terminology into `CONTEXT.md` inline, and grow the tree with `grove-llm leaf-add` — usually to a small initial decomposition, one or two leaves, no more.
+1. Run `grove-llm root-init` to scaffold `.grove/`: a root [`BRIEF.md`](../../content/BRIEF-FORMAT.md) stub and a first leaf, `01-plan-k1.md`, marked **Kind: requirements** — a working-tree change, no commit yet. The kind is fixed: on a fresh tree your own words are the session's only input, and `grove do` had to route this launch before `.grove/` existed, so it routed it as `requirements` by construction (which is why `GROVE_REQUIREMENTS_MODEL` is the one variable a brand-new grove cannot start without).
+2. Enter the loop at that leaf: run a grilling pass on your goal, sharpening any new terminology into `CONTEXT.md` inline, and grow the tree with `grove-llm leaf-add` — usually to a small initial decomposition, one or two leaves, no more. (For a workstream too big to see the shape of, the move is one `planning` leaf and a fresh session to cut it.)
 3. Commit everything as one commit on the `add-rate-limiting` branch — the `root-init` scaffold, the grown leaves, and any `CONTEXT.md` edits — then retire `01-plan-k1.md` in place (it becomes `01-DONE-plan-k1.md` in the same commit, since nothing was committed before it to separate the retirement into its own commit). Finally it fires its completion signal so the loop relaunches into the first live leaf.
 
 After the bootstrap session commits, `.grove/` looks something like:
@@ -70,7 +70,7 @@ $ tree -L 1 .grove
 └── BRIEF.md
 ```
 
-Each leaf is `NN-<slug>-k<key>.md`: a 2-digit per-level position (`01`, `02`, `03`), a slug, and a permanent key (`-k1`, `-k2`, `-k3`) that never changes once assigned. The planning leaf `01-plan-k1.md` came from `root-init`; `02-design-token-bucket-k2.md` and `03-implement-k3.md` are what the grilling decided to grow. Keep the bootstrap planning small; the decomposition will grow as later `planning` tasks discover what is actually there.
+Each leaf is `NN-<slug>-k<key>.md`: a 2-digit per-level position (`01`, `02`, `03`), a slug, and a permanent key (`-k1`, `-k2`, `-k3`) that never changes once assigned. The requirements leaf `01-plan-k1.md` came from `root-init`; `02-design-token-bucket-k2.md` and `03-implement-k3.md` are what the grilling decided to grow. Keep the bootstrap decomposition small; it will grow as later `planning` tasks discover what is actually there.
 
 ## Variation: `--no-launch`
 

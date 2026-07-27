@@ -180,8 +180,16 @@ each carries part of the old checklist:
 - **planning** writes the child `BRIEF.md`(s) and ordered leaf files for any node
   it grows (`BRIEF-FORMAT.md`).
 
-The split is a division of *deliverable*, not a gate: a small workstream may do
-all three in one `planning` leaf, and any of the three may sharpen the glossary
+The split is a division of *deliverable*, not a gate: a small workstream may
+resolve all three in one leaf, and any of the three may sharpen the glossary
 inline. What does not blur is tree growth — only `planning` may grow the tree
 generatively. *Reactive* decomposition (a leaf proving bigger than its brief) is
 kind-agnostic and available to every kind.
+
+**A fresh grove's bootstrap leaf is the standing example of that fusion**, and
+it is `requirements` (`root-init` mints it, with no `--kind` to change it). Its
+only input is the human's own words — nothing else is on disk yet — which is the
+HITL rule, so it is labelled for the discipline that *always* applies. A small
+workstream's bootstrap session may go on to cut the leaves itself; a larger one
+adds a `planning` leaf and lets a fresh session do the decomposition
+(ADR *fresh-grove-start-contract*).

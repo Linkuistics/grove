@@ -82,7 +82,7 @@ For end-to-end walkthroughs of each verb in context, see [`workflows/`](workflow
 
 The CLI doesn't gate or enforce — it composes a prompt and execs the harness in the worktree. The prompts are in `content/prompts/*.md` in the grove repo, ship inside the binary, and are provisioned to `~/.claude/skills/grove/prompts/`:
 
-- `start` — grill on the goal, sharpen new terminology into `CONTEXT.md` inline, propose the root `BRIEF.md` and one or two initial leaves. Don't over-plan.
+- `start` — run `grove-llm root-init` (root brief + a first **requirements** leaf), then grill on the goal, sharpen new terminology into `CONTEXT.md` inline, and propose the root `BRIEF.md` and one or two initial leaves. Don't over-plan. This is the one launch routed without peeking a leaf — there is no `.grove/` yet — so it routes as `requirements` by construction ([`adr/fresh-grove-start-contract.md`](adr/fresh-grove-start-contract.md)).
 - `continue` — pick the next live leaf depth-first, bootstrap by reading, execute, commit, signal completion, judge retirement. This is the per-task prompt the self-driving loop relaunches.
 - `retire` — promote anything still relevant from the node's `BRIEF.md` upward; its leaves stay marked done in place, so nothing moves.
 

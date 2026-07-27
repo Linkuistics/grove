@@ -36,6 +36,15 @@ Position order encodes dependency and value-first sequencing.
   grilling reframed it — the sequencing problem was a *taxonomy* problem, not a
   harness-location one — so it is now the five-kind → seventeen-kind rework plus
   both routing axes. Its brief carries the design. Independent of `02`.
+  **Done.** Seventeen kinds, `work` → `impl` without breaking live groves, both
+  routing axes (family fallback harness-major, per-leaf `**Harness:**`), and a
+  hard failure on a kind that resolves no model var. The durable record is
+  `docs/specs/task-kind-taxonomy.md` plus *task-kind-taxonomy* and
+  *model-per-task-kind*, both reworked in place. Four of its ten leaves were
+  consequences discovered by the sweep, not planned — the taxonomy's real cost
+  was the doc and config surface, not the enum. **Still unreleased:**
+  `Cargo.toml` is 15.0.0 and the shipped `grove-llm` refuses `--kind impl`, so
+  work in this repo needs `./target/debug/grove-llm`.
 - `04` **herdr-notes-reverify** — re-verify this brief's herdr Notes and the
   fork-maintenance spec against the fork's current state, once, ahead of the
   three leaves that depend on them. A separate workstream has moved the fork.

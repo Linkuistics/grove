@@ -234,6 +234,40 @@ See `docs/research/loop-substrate-options.md` (the spike) and
 `docs/adr/self-driving-loop.md`'s
 rationale section for the worked end-to-end.
 
+## Sweeping a rename across the docs
+
+Renaming a concept — a task kind, a verb, a glossary term — leaves
+stale mentions across two surfaces that drift independently:
+`content/`, which the binary provisions to `~/.claude/skills/grove/`
+and which every session on every grove reads at runtime, and
+`docs/`, which contributors read. A sweep working from an enumerated
+file list misses whichever copy wasn't on it, and the two drift in
+*opposite* directions between leaves — the seventeen-kind rework
+left the repo copy stale in one leaf and the bundled copy stale in
+the next.
+
+**Run two greps, not one.** They catch different defects and neither
+subsumes the other:
+
+- **Set membership** — does any file still name a token the set no
+  longer has? (`work`, after the rename to `impl`.) This is the grep
+  everyone writes.
+- **Attribution** — does any file name the *wrong member* of the set
+  as an artifact's author? (`written by a planning task`, after a
+  spec became `design`'s deliverable.) A mis-attribution points at a
+  **live** label, so the membership grep is blind to it by
+  construction — the two are independent checks, not one check
+  spelled two ways.
+
+The taxonomy sweep ran only the first, and two leaves of cleanup
+followed. Run both, over both surfaces.
+
+Then name the **deliberate survivors** in the leaf's Done-when, so a
+later sweep doesn't "fix" them: `work` still has to *read* as `impl`,
+or every live grove's existing task files stop parsing. A grep that
+must come back non-empty needs saying out loud, once, where the next
+reader will look.
+
 ## Anti-patterns
 
 - **The rigid wizard.** Turning an open design question into a fixed

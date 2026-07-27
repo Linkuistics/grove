@@ -25,37 +25,17 @@ were never in a version's path either.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
-- **The `linkuistics` and `testanyware` plugins now ship from this repo;
-  `Linkuistics/skills` is archived** (*skills-monorepo*). That repo's history is
-  grafted in here, so `git blame` on `plugins/linkuistics/skills/*` still traces
-  past the merge. The two components live together because they change in
-  lockstep — most grove changes need a matching skill change, and two repos made
-  every such change a cross-repo pair no single commit could carry.
+## v16.0.0
 
-  **If you installed the marketplace before this change, run both of these:**
+The loop starts talking to herdr, and the task-kind set triples. A `grove do`
+pane now reports `working` / `blocked` / `idle` over herdr's own socket, so a
+grove parked on a question stops reading as *done*; and the five task kinds
+become seventeen, parameterised rather than flat, with the two routing
+mechanisms they need. **Two breaking changes**: `work` is renamed `impl`, and a
+kind that resolves no model variable now fails the launch instead of silently
+inheriting your default — the migration snippet is under the taxonomy entry.
 
-  ```
-  /plugin marketplace remove linkuistics
-  /plugin marketplace add Linkuistics/grove
-  ```
-
-  Nothing else changes: the marketplace keeps the name `linkuistics` (its
-  identity is the `name` field in `marketplace.json`, never the repo URL), so
-  `linkuistics@linkuistics`, `testanyware@linkuistics` and every
-  `linkuistics:<skill>` reference keep working untouched. **Re-pointing is not
-  optional even though nothing will break loudly:** an archived GitHub repo stays
-  readable, so `autoUpdate: true` keeps *succeeding* against `Linkuistics/skills`
-  — the skills simply freeze at the last commit before the archive, with no error
-  surfaced. `install.sh` users re-clone from `Linkuistics/grove` instead.
-
-- **`install.sh` links into Pi as well as codex and gemini.** Pi reads personal
-  skills from `~/.pi/agent/skills`, one level deeper than the others; the
-  existing "install only if the parent directory exists" guard needs no
-  special-casing for it, since `dirname` yields `~/.pi/agent` — present only
-  when Pi is set up. Pi had been symlinked by hand against `Linkuistics/skills`
-  and so was left behind by the graft, frozen at the pre-archive skill set;
-  re-running `install.sh` re-points it here and picks up `using-jujutsu` and
-  `git-to-jj-mapping`, which no hand-linked harness had.
+### Added
 
 - **A `grove do` pane now tells herdr what it is doing** (*herdr-optional-ui*).
   The loop driver reports `working` while a session runs, `blocked` when the loop
@@ -80,6 +60,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
   per-harness hooks. Uncovered by design, since herdr never expires an authority:
   SIGKILL, panic, OOM and power loss pin the pane at grove's last state until the
   next `grove do` or a `herdr pane release-agent`.
+
+- **`install.sh` links into Pi as well as codex and gemini.** Pi reads personal
+  skills from `~/.pi/agent/skills`, one level deeper than the others; the
+  existing "install only if the parent directory exists" guard needs no
+  special-casing for it, since `dirname` yields `~/.pi/agent` — present only
+  when Pi is set up. Pi had been symlinked by hand against `Linkuistics/skills`
+  and so was left behind by the graft, frozen at the pre-archive skill set;
+  re-running `install.sh` re-points it here and picks up `using-jujutsu` and
+  `git-to-jj-mapping`, which no hand-linked harness had.
+
+### Changed
 
 - **Five task kinds become seventeen, and routing gains the two mechanisms they
   need** (*task-kind-taxonomy*, *model-per-task-kind*; membership and each kind's
@@ -204,6 +195,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
   node — `planning` cutting the tree *generatively*, or a leaf of any kind that
   proved bigger and decomposed itself, since `leaf-decompose` is kind-agnostic and
   inherits the parent's kind.
+
+- **The `linkuistics` and `testanyware` plugins now ship from this repo;
+  `Linkuistics/skills` is archived** (*skills-monorepo*). That repo's history is
+  grafted in here, so `git blame` on `plugins/linkuistics/skills/*` still traces
+  past the merge. The two components live together because they change in
+  lockstep — most grove changes need a matching skill change, and two repos made
+  every such change a cross-repo pair no single commit could carry.
+
+  **If you installed the marketplace before this change, run both of these:**
+
+  ```
+  /plugin marketplace remove linkuistics
+  /plugin marketplace add Linkuistics/grove
+  ```
+
+  Nothing else changes: the marketplace keeps the name `linkuistics` (its
+  identity is the `name` field in `marketplace.json`, never the repo URL), so
+  `linkuistics@linkuistics`, `testanyware@linkuistics` and every
+  `linkuistics:<skill>` reference keep working untouched. **Re-pointing is not
+  optional even though nothing will break loudly:** an archived GitHub repo stays
+  readable, so `autoUpdate: true` keeps *succeeding* against `Linkuistics/skills`
+  — the skills simply freeze at the last commit before the archive, with no error
+  surfaced. `install.sh` users re-clone from `Linkuistics/grove` instead.
+
+### Fixed
 
 - **`grove do --no-launch` now checks the readiness it reports — and says what it
   found** (*model-per-task-kind*). The flag returned *above* both config checks,

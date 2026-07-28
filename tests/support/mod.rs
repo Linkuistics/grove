@@ -83,17 +83,38 @@ fn kind_env_suffixes() -> Vec<String> {
 /// sets these three back, pointing at a listener it owns.
 const HERDR_PANE_ENV: [&str; 3] = ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID"];
 
+/// The loop driver's **control channel** (self-driving-loop), scrubbed for the
+/// same reason as [`HERDR_PANE_ENV`] one notch up the severity scale: not a
+/// hijacked sidebar row, a dead terminal.
+///
+/// `GROVE_SIGNAL_FILE` is the path the driver watches while its harness child
+/// runs; its mere *appearance* triggers grace → SIGTERM → kill-grace → SIGKILL.
+/// These tests normally run inside a live `grove do` session, so the variable is
+/// present in this process's ambient environment, and the fake harnesses below
+/// write `"$GROVE_SIGNAL_FILE"` unconditionally — a harness spawn that does not
+/// scope the variable therefore kills the session `cargo test` was typed into
+/// (guard-loop-signal-k37, pinned to the codex sandbox pre-flight, which spawns
+/// the harness binary outside `launch_session` — the one site that scopes it).
+///
+/// `.cargo/config.toml` force-overrides the same variable for everything cargo
+/// runs. The two guards are independent on purpose: that one covers tests which
+/// never touch these helpers, this one covers a test binary executed directly
+/// rather than through cargo. Neither subsumes the other.
+const LOOP_CONTROL_ENV: [&str; 1] = ["GROVE_SIGNAL_FILE"];
+
 /// Every ambient env var that steers a `grove do` launch or its side effects:
 /// the GROVE_* routing / model-selection surface (see
-/// [`EnvGuard::clear_grove_env`]'s doc for the count) plus [`HERDR_PANE_ENV`].
+/// [`EnvGuard::clear_grove_env`]'s doc for the count), [`HERDR_PANE_ENV`], plus
+/// [`LOOP_CONTROL_ENV`].
 /// Shared by `EnvGuard` (scrubbing this test's own process env) and any test
 /// that instead needs to scrub a *subprocess*'s inherited env via
 /// `Command::env_remove` — a `Command` does not isolate itself from the
 /// parent's ambient env just because some vars are set explicitly.
 pub fn grove_env_names() -> Vec<String> {
     let suffixes = kind_env_suffixes();
-    let mut names =
-        Vec::with_capacity(suffixes.len() * (2 + HARNESS_NAMES.len()) + HERDR_PANE_ENV.len());
+    let mut names = Vec::with_capacity(
+        suffixes.len() * (2 + HARNESS_NAMES.len()) + HERDR_PANE_ENV.len() + LOOP_CONTROL_ENV.len(),
+    );
     for kind in &suffixes {
         names.push(format!("GROVE_{kind}_MODEL"));
         names.push(format!("GROVE_{kind}_HARNESS"));
@@ -102,6 +123,7 @@ pub fn grove_env_names() -> Vec<String> {
         }
     }
     names.extend(HERDR_PANE_ENV.iter().map(|n| n.to_string()));
+    names.extend(LOOP_CONTROL_ENV.iter().map(|n| n.to_string()));
     names
 }
 
@@ -166,7 +188,9 @@ impl EnvGuard {
     /// harness-scoped `GROVE_<HARNESS>_<KIND>_MODEL`, `GROVE_<KIND>_HARNESS`],
     /// 95 live names plus the retired spellings — **plus the 3
     /// [`HERDR_PANE_ENV`] vars**, so a loop under test
-    /// cannot report into the developer's own herdr pane. Every loop_driver
+    /// cannot report into the developer's own herdr pane, **plus
+    /// [`LOOP_CONTROL_ENV`]**, so it cannot kill the developer's own session.
+    /// Every loop_driver
     /// test needs this: this branch's own dogfooded `~/.zshenv` (and the loop
     /// driver's own launch, for a session running these tests under itself)
     /// sets a dozen of these for real, and a hand-maintained `remove_var` list

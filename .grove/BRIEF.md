@@ -189,6 +189,24 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   installed binary: real groves get it at **v16.2.0**. Only **claude** was
   measured; codex and pi follow by construction (same helper, same shape, both
   names are herdr labels) but are unobserved.
+- **guard-loop-signal-k37** — `cargo test` in this repo killed the `grove do`
+  session it was typed into. Raised by the human during **codex-grant-refused-k35**
+  and sequenced ahead of it, because it makes every later session unsafe to test
+  in and it is k35's own in-flight code that fires it.
+  **Done.** The cause is that authority to end a session was **ambient**:
+  `GROVE_SIGNAL_FILE` is inherited by every descendant, and the driver kills on
+  the file's mere appearance. Pinned by measurement to five codex-launch tests,
+  all of them k35's — its sandbox pre-flight spawns the harness binary outside
+  `launch_session`, the one site that scopes the variable, so the suite's fake
+  harness wrote the *live* path. Fixed on the suite side with two independent
+  guards (`.cargo/config.toml` forced `[env]` override; the shared
+  `tests/support` scrub list) asserted by `tests/env_hygiene.rs`; ADR
+  *self-driving-loop* now states the invariant on the exporting side. The
+  product-side half — no harness spawn but the session's own may inherit the
+  control env — is recorded on **codex-grant-refused-k35**, whose code it is.
+  A per-session **nonce was rejected**, and the reason generalises: the nonce is
+  inherited too, so authority granted through the environment cannot be
+  authenticated from inside it.
 - **codex-grant-refused-k35** — a codex `grove do` launch dies at startup: codex
   refuses grove's `--add-dir` VCS-store grants because the effective permission
   profile is neither `workspace-write` nor off, and the loop stops on the mute
@@ -220,6 +238,16 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   whether to bind, and reconcile the skill's Pick step with where the pick really
   happens. Raised by the human during **observe-live-surface-k26**; independent of
   the herdr work.
+- **chain-group-unit-k36** — design. grove has one decomposition mechanism and
+  reuses it for two unlike things: genuine vertical-slice decomposition, and a
+  **step chain over one artifact** (`X` → `review-X` → `integrate-review-X`; the
+  research vendor pair), which exists only because a step boundary is the sole
+  place grove can switch harness or model. Decide whether a chain is first-class —
+  a unit `pick` will not wander out of, and whose close needs no confirmation —
+  against constraints 3 and 5, which both push the other way.
+  **compose-task-chains-k29** stopped deliberately at encouragement; this asks
+  whether that was far enough. Raised by the human during
+  **codex-grant-refused-k35**; independent of the herdr work.
 
 ## Pointers
 
@@ -475,6 +503,18 @@ control: re-verify anything load-bearing before building on it.
   is not there. And `pane.report_metadata` is display-only *and* inert until the user
   adds `$name` to `[ui.sidebar.agents] rows` in their own config — the fact that
   decides **herdr-sidebar-tokens-k32**.
+- **This repo's own `cargo test` is a loop participant, not a bystander**
+  (measured 2026-07-28, `guard-loop-signal-k37`). A meta-grove's suite runs as a
+  *descendant* of the session under test, so it inherits `GROVE_SIGNAL_FILE` —
+  the driver's kill channel, which fires on the file's appearance alone — and the
+  fixtures write `"$GROVE_SIGNAL_FILE"` unconditionally. Two consequences worth
+  carrying: **`.cargo/config.toml`'s `[env]` with `force = true` does override an
+  inherited value** for everything cargo runs (measured — it is the only guard
+  here that cannot be forgotten, since it needs no cooperation from the test),
+  and the **acceptance test is a full `cargo test` from a live pane** with the
+  real path in ambient env, checking the path stayed absent afterwards. Anything
+  less proves nothing: a redirected run is safe by construction and would pass
+  with the guard removed.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

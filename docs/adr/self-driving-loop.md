@@ -39,6 +39,22 @@ external workflow engine. The mechanism:
   and re-derives its position from `grove-llm pick` every iteration. Re-invoking the
   loop *is* resuming it; a crashed mid-task leaf is simply re-picked and redone,
   because commit-before-retire guarantees no half-done state.
+- **The signal file is ambient authority, and only `launch_session` may hand it
+  out.** The driver kills on the file's *appearance*; nothing establishes who
+  wrote it. `signal_file_path` keys the path on the worktree's identity, which
+  makes a *foreign grove's* write harmless, but it does nothing about the far
+  commoner case: every descendant of a session inherits `GROVE_SIGNAL_FILE` and
+  can therefore end it. So the invariant is placed on the exporting side —
+  **`launch_session` is the only site that sets the variable, and any other
+  harness spawn must scrub it**, the same rule already applied to
+  `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID`. Breaking it is not theoretical: a
+  codex sandbox pre-flight that spawned the harness binary without scrubbing made
+  this repo's own `cargo test` kill the session it was typed into
+  (guard-loop-signal-k37). A **meta-grove** — a grove whose subject is the loop
+  machinery — is where this bites, because only there does a descendant both
+  inherit the variable and have reason to write it. Its suite carries two
+  independent guards, `.cargo/config.toml`'s forced `[env]` override and the
+  shared scrub list in `tests/support`, asserted by `tests/env_hygiene.rs`.
 
 ## Considered options
 
@@ -70,6 +86,17 @@ within the shell-loop design itself:
   always signal its child — moving the kill there is strictly more capable and
   adds no new moving part, since the driver already owns the launch and the
   relaunch decision.
+- **Authenticating the signal with a per-session nonce (rejected).** The obvious
+  answer to "any descendant can end the session" is to make the file's existence
+  insufficient: mint a nonce per session, export it beside the path, and have the
+  driver ignore a signal that does not carry it. It does not work, and the reason
+  is the same one that creates the problem — **the nonce is inherited too**, so
+  every process that could write the file could also present the token. It would
+  buy only what is already bought elsewhere: a stale signal (the driver clears the
+  file each iteration) and a foreign grove's write (the identity hash in
+  `signal_file_path`). Authority here cannot be authenticated from inside the
+  environment it is granted through; it has to be *withheld* at the spawn, which
+  is why the invariant sits on `launch_session` instead.
 
 The self-driving loop delivers what the engine falsely promised — restart≡
 continuation and loop-until-empty — for free, both falling out of one `grove-llm pick`

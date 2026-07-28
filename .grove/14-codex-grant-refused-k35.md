@@ -78,3 +78,54 @@ policy path.
 The grant is built by `launch::append_codex_vcs_store_grant`; both launch sites
 call it. Check the installed codex version against the ADR's 0.145.0 first — a
 behaviour change upstream is the cheapest explanation and the easiest to confirm.
+
+## Work already in the tree, and one defect in it (found by guard-loop-signal-k37)
+
+**A previous session got most of the way and was killed before committing.** Its
+work survives uncommitted in the working copy (jj snapshots it): `src/launch.rs`
+(+222), `src/loop_driver.rs` (+33), `tests/launch.rs`. Read it before restarting
+from scratch — it already establishes the answer the Goal asks for, and states it
+well:
+
+> codex's effective sandbox is `read-only` for any project the user has not
+> **trusted**, and trust is per-directory with **no inheritance from parent
+> directories** — so a brand-new working tree, which is exactly what `grove do`
+> bootstraps into, is untrusted by construction. Under `read-only`, `--add-dir`
+> is refused **fatally**: codex exits 1 in ~0ms, before drawing any TUI.
+
+So the ADR's third case is the *default* case, not an exotic one, and the "mute
+non-signal exit" in the report is that 0ms exit. It adds
+`launch::check_codex_sandbox_accepts_grants`, a pre-flight called from both the
+loop and `readiness()`, which refuses rather than elevating or degrading.
+
+**It is not finished, and it has one defect that must be fixed before it lands:**
+
+- **8 loop_driver tests fail** — all codex-launch tests
+  (`codex_launches_with_no_name_flag_and_a_model_flag`,
+  `review_leaf_reroutes_to_the_review_harness`, the four reroute tests,
+  `a_leaf_declaration_beats_the_per_kind_policy`,
+  `a_leaf_declared_harness_launches_there_whatever_the_stamp`). The pre-flight
+  invokes the harness *binary*, which under test is a fake shell script, so every
+  codex launch test now spawns it twice with the probe's argv.
+- **The pre-flight spawns a harness process without scrubbing the loop's control
+  environment** (`probe_codex_sandbox`, `src/launch.rs:334-358`). `launch_session`
+  is the *only* site that scopes `GROVE_SIGNAL_FILE`, deliberately — it sets it on
+  the session child and nothing else. The probe inherits the driver's own value,
+  so in this repo's suite the fake harness's `: > "$GROVE_SIGNAL_FILE"` wrote the
+  **live** session's signal and the real driver killed the developer's terminal.
+  That is what made `cargo test` start killing sessions, and it was pinned to
+  these exact five tests by measurement (k37).
+
+  In production the leak is latent — a real `codex exec` never writes that path —
+  but the rule it breaks is the general one, and `launch_session` already scrubs
+  `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` on exactly this reasoning ("must not
+  leak a stale, unrelated PID into the new harness session",
+  `src/loop_driver.rs:347-353`). **Any harness spawn that is not the session
+  itself must scrub the loop-control env**; consider giving that rule one helper
+  rather than open-coding it at each site, since this leaf adds the second site.
+
+k37 fixed the *suite* so this can no longer kill a session
+(`.cargo/config.toml` force-override + `tests/support` scrub list +
+`tests/env_hygiene.rs`), which is why the 8 failures are now safe to iterate on.
+It deliberately did **not** touch `src/launch.rs` — that is this leaf's code and
+this leaf's commit.

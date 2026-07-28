@@ -1,0 +1,26 @@
+# guard-loop-signal-k37 — keep `cargo test` from killing the session it was
+# typed into.
+#
+# This repo is a **meta-grove**: its own test suite *is* the loop machinery, and
+# the suite is normally run from inside a live `grove do` session. That session's
+# environment carries `GROVE_SIGNAL_FILE` — the path the loop driver watches, and
+# whose mere appearance makes it SIGTERM the harness child (self-driving-loop).
+# Authority to end a session is therefore ambient: every descendant of the
+# session inherits it, `cargo test` included. The suite's fake harnesses do
+# `: > "$GROVE_SIGNAL_FILE"`, so any harness spawn that does not scope the
+# variable writes the *live* path and kills the developer's terminal.
+#
+# Force-override it for everything cargo runs. This is the half that cannot be
+# forgotten — it applies whether or not a test remembers to scrub, and to tests
+# that do not use the shared helpers at all. `tests/support/mod.rs`
+# (`LOOP_CONTROL_ENV`) carries the in-process and subprocess half; the two are
+# deliberately independent, because a test binary executed directly rather than
+# through cargo gets only the latter.
+#
+# Scope note: this also applies to `cargo run -- …` in this repo, so a
+# cargo-launched `grove-llm complete` signals the inert path instead of a live
+# loop. That is the intended reading — a dev-built binary should not fire a real
+# loop by accident. The agent's own end-of-task signal is unaffected: it runs an
+# installed or `./target/debug/` binary directly, never through cargo.
+[env]
+GROVE_SIGNAL_FILE = { value = "target/grove-test-signal/inert.signal", relative = true, force = true }

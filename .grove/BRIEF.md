@@ -165,10 +165,20 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   rebuilt binary but **not the installed one** — the same in-the-tree-not-in-the-
   binary gap as v16.0.0's reporter and v16.1.0's hooks, and it reaches real
   sessions only when **v16.2.0** is cut (entry written, not cut).
-- **herdr-pane-misdetection-k11** — planning. grove panes are labelled with the
-  wrong agent; upstreaming is closed, so the route is ours to pick (grove-side,
-  fork-side, or accept). Late because grove's own reports mask it whenever grove
-  holds authority. Independent of everything above.
+- **herdr-pane-misdetection-k11** — grove panes are labelled with the wrong agent;
+  upstreaming is closed, so the route was ours to pick. Late because grove's own
+  reports mask it whenever grove holds authority. Independent of everything above.
+  Now a node: the planning session found a **fourth** route the leaf did not list,
+  and it dominates all three — `HERDR_AGENT=<agent>` is a *documented upstream
+  extension point* for exactly this shape (a host-visible wrapper hiding the real
+  agent), so the fix is one environment variable on the harness child, on stock
+  herdr as much as on the fork. The two candidates the leaf favoured both lost to
+  it: restructuring the process group buys the same outcome by rewriting the
+  driver's signal topology, and a third fork hunk is a permanent rebase obligation
+  for a fix that needs no fork. Hence **agent-hint-k33** (set it) then
+  **agent-hint-observe-k34** (measure it, and rework *herdr-optional-ui*'s
+  "undecided, out of scope" paragraph). Needs no release: the observer drives a
+  pane from `./target/debug/grove`.
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
 - **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
@@ -280,7 +290,11 @@ control: re-verify anything load-bearing before building on it.
   because the leader of a grove pane is **`grove` itself**, unidentifiable to
   herdr, so it falls back to scoring the whole group — where a `codex mcp-server`
   helper outranks the real harness. See `CONTEXT.md` and
-  `herdr-pane-misdetection-k11`.
+  `herdr-pane-misdetection-k11`. **The route is now settled**: herdr publishes an
+  environment hint, `HERDR_AGENT=<agent>`, for host-visible wrappers that hide the
+  real agent — precisely what grove is — so grove sets it on the harness child
+  rather than restructuring process groups or adding a fork hunk. That node's
+  brief carries the evidence and both rejections.
 - **The status surface is live in production, and verified end to end**
   (2026-07-27, `observe-live-surface-k26`). Both silences that made it inert are
   closed: `ship-release-k25` shipped **v16.0.0** so the installed `grove` carries

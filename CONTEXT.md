@@ -336,8 +336,16 @@ to scoring every process in the group when the leader is unrecognised. In a
 grove pane the leader is `grove` itself, which herdr cannot identify, so the
 fallback runs and a `codex`-named MCP helper can outrank the real harness. Bites
 only where grove is not holding hook authority (before its first report; after
-release), since a landed report takes precedence over detection. Undecided —
-`herdr-pane-misdetection-k11`.
+release), since a landed report takes precedence over detection. **The route is
+settled** (`herdr-pane-misdetection-k11`): grove sets herdr's documented
+`HERDR_AGENT=<harness>` hint on the harness child it spawns — the extension point
+upstream added for host-visible wrappers, which is what `grove do` is. Not yet
+implemented or observed live; the entry is rewritten to the resolved mechanism by
+`agent-hint-observe-k34`.
+_Avoid_: restructuring grove's process group (`setpgid`/`tcsetpgrp`) to win
+herdr's leader preference — it reaches the same result by rewriting the driver's
+signal topology, which [[Authority release]] and the loop's Ctrl-C survival both
+rest on.
 _Avoid_: "MCP servers inherit the harness's process group, so a codex MCP server
 makes the pane read as codex" — true but the wrong half of the story, and it
 was the version this grove's root brief carried. herdr **already** defends

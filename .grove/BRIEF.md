@@ -179,6 +179,16 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **agent-hint-observe-k34** (measure it, and rework *herdr-optional-ui*'s
   "undecided, out of scope" paragraph). Needs no release: the observer drives a
   pane from `./target/debug/grove`.
+  **Done.** One environment variable at two launch sites, and the A/B on real
+  panes is unambiguous — identical process shapes read `codex` without it and
+  `claude` with it. The measurement returned more than the label: the fix also
+  repairs `fallback_state` (a stalled session now reads `blocked` off the right
+  screen manifest), the hint is inherited by the harness's whole subtree, and it
+  **dies with the harness** — which corrected a claim in the v16.2.0 changelog
+  entry. Like **compose-task-chains-k29**, it is in the tree and *not* in the
+  installed binary: real groves get it at **v16.2.0**. Only **claude** was
+  measured; codex and pi follow by construction (same helper, same shape, both
+  names are herdr labels) but are unobserved.
 - **codex-grant-refused-k35** — a codex `grove do` launch dies at startup: codex
   refuses grove's `--add-dir` VCS-store grants because the effective permission
   profile is neither `workspace-write` nor off, and the loop stops on the mute

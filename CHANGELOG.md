@@ -1,6 +1,6 @@
 # Changelog
 
-One file, one entry style, for both of this repo's components (*skills-monorepo*).
+One file, one entry style, for everything this repo ships (*skills-monorepo*).
 
 **Versioned sections are grove's.** A `## v<N>.<m>.<p>` heading is a release of
 the `grove` binary — that is the only artifact this repo tags and ships by
@@ -8,12 +8,12 @@ version. Entries under it are grouped `### Added` / `### Changed` / `### Fixed`
 where a release has enough of each to be worth grouping, and a flat list
 otherwise.
 
-**A skills-only change is logged in the section of the grove release it lands
-before**, prefixed with the plugin and skill it touched — e.g. *"`linkuistics`
-/ `using-jujutsu`: …"*. It gets no `##` heading of its own: this file is not the
-plugins' release ledger, it is the record of what changed and when. A grove
-release that happens to contain only skill changes still gets a version, because
-the binary is what was cut.
+**A change to anything the grove binary does not carry is logged in the section
+of the grove release it lands before**, prefixed with the component it touched —
+e.g. *"`linkuistics` / `using-jujutsu`: …"*, or *"`herdr-plugin`: …"*. It gets no
+`##` heading of its own: this file is not those components' release ledger, it is
+the record of what changed and when. A grove release that happens to contain only
+such changes still gets a version, because the binary is what was cut.
 
 **A skills entry names no version, because the plugins carry none.** Neither
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
@@ -86,6 +86,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
   parallel batch whose sibling outlives the prompt can lift the block early, and
   a tool that renders its own dialog (`AskUserQuestion`) raises no notification
   at all.
+
+- **`herdr-plugin`: a herdr plugin that renders the live `.grove/` tree** — the
+  other half of *herdr-optional-ui*'s split, and the half that needs nothing from
+  grove at all. A pane shows the tree with the live leaf marked and its kind
+  beside it, finished node directories collapsed to their counts, live ones
+  expanded, and it follows the loop as it advances. Install it with
+  `herdr plugin install Linkuistics/grove/herdr-plugin` and bind
+  `linkuistics.grove.open-tree` to a key.
+
+  It reads the `.grove/` directory scheme (*task-tree-scheme*) and nothing else:
+  no socket, no state file, no call into `grove` or `grove-llm`. That is what the
+  ADR promised and it is now literal — the plugin and the binary version
+  independently, deleting the plugin changes nothing about grove, and deleting
+  grove leaves the plugin with nothing to render but breaks nothing. It reports
+  no state either: `idle`/`working`/`blocked` stays with the binary, because
+  herdr's lifecycle authority is a compiled-in allowlist a plugin cannot join.
+
+  Because the scheme puts position, outcome, slug and key all in the *filename*,
+  the whole shape costs one `scandir` per directory and the only file read is a
+  live leaf's `**Kind:**` line — so refreshing is a 1 s poll rather than a
+  filesystem watcher. One zero-dependency Python file plus a manifest; `python3`
+  is the only requirement, so there is no build step. macOS and Linux.
+
+  Consequence worth naming: **changing the `.grove/` directory scheme is now a
+  plugin-compatibility question**, as *herdr-optional-ui* anticipated.
 
 ## v16.0.0
 

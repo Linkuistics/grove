@@ -158,11 +158,11 @@ never required** (ADR *herdr-optional-ui*). Split in two. **Semantic state**
 addressed by the `HERDR_*` variables herdr places in the pane environment —
 skipped entirely when they are absent, and a no-op if the socket refuses, or if
 the herdr on the other end is stock and drops the report ([[Authority patch]]).
-**Everything richer** — the tree, the live leaf, progress — is rendered by a
-**herdr plugin that reads `.grove/` directly**; grove pushes it nothing. The
-split works because the tree on disk already *is* the status (constraint 1), so
-the only thing worth reporting is what no artifact records: whether the agent is
-mid-turn or has stopped and is waiting for a human. grove reports as agent
+**Everything richer** — the tree, the live leaf, progress — is rendered by the
+[[Tree viewer plugin]], which reads `.grove/` directly; grove pushes it nothing.
+The split works because the tree on disk already *is* the status (constraint 1),
+so the only thing worth reporting is what no artifact records: whether the agent
+is mid-turn or has stopped and is waiting for a human. grove reports as agent
 **`grove`**, not as the harness it launched — a `grove do` pane is a loop
 relaunching a *sequence* of sessions, and the harness may vary per leaf.
 _Avoid_: "grove requires herdr" or "herdr drives the loop" — with no herdr
@@ -172,6 +172,41 @@ a feature.
 _Avoid_: treating the plugin as a state authority — herdr's *full lifecycle
 authority* is a compiled-in allowlist of `(source, agent)` pairs that nothing
 outside the binary can join; the plugin owns UI only.
+
+**Tree viewer plugin** (`herdr-plugin/`, plugin id `linkuistics.grove`):
+The rendering half of the [[herdr integration]] — a herdr plugin that draws a
+grove's task tree in a pane: the live leaf marked, its [[Task kind]], the done
+and pruned behind it, live [[Node directory]]s expanded and finished ones
+collapsed to their counts. **UI only, never state**: herdr's full lifecycle
+authority is a compiled-in allowlist nothing outside its binary can join, and a
+plugin has exactly the socket access `grove-llm` already has, so routing state
+through one would add a hop and buy nothing.
+Its **only** contract is the [[Node directory]] naming scheme (task-tree-scheme).
+It never invokes `grove` or `grove-llm`, opens no socket and writes no state, so
+the plugin and the binary version independently — the property that makes
+"optimised-for" real rather than aspirational. Consequently *changing the
+directory scheme is now also a plugin-compatibility question*. Filename-only
+parsing is what the scheme was designed for, so the whole shape costs one
+`scandir` per directory and the only file read is a live leaf's `**Kind:**` line;
+refresh is a 1 s poll redrawing on change, not a filesystem watcher.
+Lives at the repo root, **not** under `plugins/` — that directory is the *skills*
+bounded context (Claude Code plugins behind `.claude-plugin/marketplace.json`),
+and this is grove's own context by subject. Installed separately again
+(`herdr plugin install Linkuistics/grove/herdr-plugin`); needs `python3` and
+nothing else, so there is no build step. Its pane is summoned by a plugin
+**action**, because a herdr keybinding can target an action but never a pane
+entrypoint.
+_Avoid_: opening its pane with `plugin pane open --cwd` — that **replaces** the
+plugin root as the process cwd, so herdr resolves the manifest's relative command
+against the new directory and the pane dies on spawn. The invoking pane's cwd
+already arrives in `HERDR_PLUGIN_CONTEXT_JSON` (on the split *and* the overlay
+path), which is why the override buys nothing.
+_Avoid_: resolving the grove from the plugin's *own* cwd — that is the plugin
+directory, which says nothing about the pane the human is looking at, and which
+(when linked from a checkout that is itself a grove) sits **under** one and would
+render the wrong tree.
+_Avoid_: treating a `herdr plugin link` as durable — it records the path, so
+linking a grove's throwaway working tree dies with that worktree.
 
 **Authority patch** / **session identity vs lifecycle state**:
 The two-hunk change grove carries in its herdr fork, encoding one principle: **a

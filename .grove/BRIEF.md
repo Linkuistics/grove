@@ -115,6 +115,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   than the doctor alone.
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
+  **Done.** `herdr-plugin/` — plugin id `linkuistics.grove`, a manifest plus one
+  zero-dependency Python renderer, linked and measured on a real pane beside this
+  very grove. Its three open design questions were all answered *cheaply*, which is
+  the finding: the whole tree renders (finished nodes collapsed to counts), the
+  invoking pane's cwd arrives free in `HERDR_PLUGIN_CONTEXT_JSON`, and a 1 s poll
+  beats a watcher. The fourth question — sidebar tokens — was answered by
+  *externalising* it as **herdr-sidebar-tokens-k32**: it is a push over the socket,
+  not a read off disk, so it is a different decision entirely.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
   the docs still lead with git.
 - **compose-task-chains-k29** — make the review chain (`X` → `review-X` →
@@ -140,6 +148,12 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   in **observe-mid-turn-live-k31**); and `cargo release` refuses jj's
   always-detached HEAD, so a cut needs `--allow-branch HEAD` that `release.toml`
   should carry. Independent of the herdr work, sequenced last.
+- **herdr-sidebar-tokens-k32** — design. Whether a `grove do` pane's **sidebar row**
+  should carry the live leaf as `pane.report_metadata` tokens, and which side would
+  report them. Split out of **herdr-grove-plugin-k5**, which decided it did not
+  belong there: the plugin *reads disk*, tokens are a *push*, and a token renders
+  only if the user has put `$name` in their own sidebar config. A well-argued **no**
+  is the cheaper answer and retires the question for good.
 - **session-leaf-binding-k28** — design. The driver resolves the leaf *before* the
   session exists (that peek is what binds harness and model), then hands the
   session no leaf identity, so the session re-picks independently. They agree only
@@ -363,6 +377,20 @@ control: re-verify anything load-bearing before building on it.
   **release-doctor-toolchain-gap-k27**. The rest of the path is unremarkable and
   jj-clean: git makes the detached release commit and tag, jj imports it, and
   `jj bookmark set main -r <release-change>` puts the bookmark on it.
+- **herdr's plugin surface is enough for a viewer and nothing more** (measured
+  2026-07-28, `herdr-grove-plugin-k5`, against 0.7.5). Four facts, in descending
+  order of how much time they cost: a **`plugin pane open --cwd` REPLACES the plugin
+  root as the process cwd**, after which herdr resolves the manifest's *relative*
+  command against the new directory and the pane dies on spawn with no log entry —
+  and the override is unnecessary, because `HERDR_PLUGIN_CONTEXT_JSON` already
+  carries `focused_pane_cwd` on **both** the split and the overlay path
+  (`plugin_context_for_pane` / `current_plugin_context`). A **keybinding can only
+  target a plugin action**, never a pane entrypoint, so a pane needs a one-line
+  action wrapper calling `plugin pane open`. `herdr pane read` returns a snapshot
+  **one column narrower than the pane**, which reads as a truncated right edge that
+  is not there. And `pane.report_metadata` is display-only *and* inert until the user
+  adds `$name` to `[ui.sidebar.agents] rows` in their own config — the fact that
+  decides **herdr-sidebar-tokens-k32**.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

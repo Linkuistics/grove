@@ -4,14 +4,17 @@ Hierarchical, self-extending workstream tool for AI agents. See [`docs/grove.md`
 
 ## What's in this repo
 
-Two components, shipped by two paths. They live together because they change in lockstep — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md); the skill plugins were formerly the separate `Linkuistics/skills` repo, grafted in with its history.
+Two components, shipped by two paths, plus one optional extra. The two live together because they change in lockstep — see [`docs/adr/skills-monorepo.md`](docs/adr/skills-monorepo.md); the skill plugins were formerly the separate `Linkuistics/skills` repo, grafted in with its history.
 
 | | What it is | How you install it |
 |---|---|---|
 | **grove** — [`src/`](src/), [`content/`](content/) | the CLI plus the workstream methodology it embeds and provisions to your agent | `brew install grove` — see [Install grove](#install-grove) below |
 | **skill plugins** — [`plugins/`](plugins/) | `linkuistics` (coding standards) and `testanyware` (GUI testing in VMs) | Claude Code marketplace, or [`install.sh`](install.sh) for codex/gemini — see [`plugins/README.md`](plugins/README.md) |
+| **herdr plugin** — [`herdr-plugin/`](herdr-plugin/) | optional: renders a live `.grove/` tree in a [herdr](https://herdr.dev) pane | `herdr plugin install Linkuistics/grove/herdr-plugin` — see [`herdr-plugin/README.md`](herdr-plugin/README.md) |
 
 **Which do you want?** If you are here to drive long multi-session workstreams, you want grove — keep reading. If you are here for the coding-style, design, ADR, jj or GUI-testing skills, you want the plugins: go to [`plugins/README.md`](plugins/README.md), which lists every skill and what triggers it. Installing one does not install the other; the `grove` binary provisions grove's own methodology and nothing else.
+
+The herdr plugin is a viewer, never a dependency: it reads `.grove/` off disk and grove pushes it nothing, so a grove with no herdr behaves identically (`docs/adr/herdr-optional-ui.md`).
 
 The repo's two bounded contexts and how they relate are mapped in [`CONTEXT-MAP.md`](CONTEXT-MAP.md), over [`CONTEXT.md`](CONTEXT.md) (grove) and [`plugins/CONTEXT.md`](plugins/CONTEXT.md) (skills).
 

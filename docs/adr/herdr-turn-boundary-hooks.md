@@ -172,6 +172,21 @@ defined ordering. Reopen as its own leaf if pi-hosted groves become common.
   renders its own dialog — `AskUserQuestion`, for one — so a session parked there
   still reads `working` until its turn ends. Nothing in this design can reach it:
   there is no event to hook.
+- **The mid-turn row only fires where the harness actually asks**, and a
+  permissive permission mode is the common case that silences it. Measured
+  2026-07-28 under `defaultMode: "auto"` with `skipDangerousModePermissionPrompt`
+  set: an `rm -rf`, an explicit sandbox override, and a call to an
+  un-allowlisted MCP server all ran with no dialog at all — so no
+  `Notification`, and the pane read `working` throughout. The row is worth
+  having anyway (an unattended overnight loop is exactly the case a human sets
+  a *prompting* mode for), but it is not a general answer to "grove is stuck":
+  a session in a fully permissive mode has no mid-turn stall to report.
+- **The six-second timer is gated on human *inattention*, not elapsed dialog
+  time.** Dialogs held open for several seconds with the human present and
+  interacting did not fire the notification; the one that did had sat ~10s
+  untouched. That is the semantics this design wants — it detects *unattended*,
+  not merely *slow* — but it means the row cannot be provoked on demand by
+  simply leaving a dialog up while watching it.
 - **The claim that the status surface stops at session boundaries is now false
   for claude, and still true for codex and pi.** Anything asserting otherwise —
   glossary, ADR, spec — has to say which harness it means.

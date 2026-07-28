@@ -99,18 +99,84 @@ the completion signal:
 files are under `target/`, so they are gitignored and would not survive a
 `cargo clean` — do not run one before reading.
 
+## Progress — session 2 (headline observed; skew observed; two rows in flight)
+
+Preconditions re-checked and both held: the driver injects hooks (parent argv
+carries `--settings` with all four rows), and the patched server is still PID
+77248, so no second live-handoff was needed.
+
+**The headline is observed**, on claude 2.1.220 — the same version
+`herdr-mid-turn-blockers-k30` derived the matcher behaviour against. From
+`target/k31-permission-observation.log`:
+
+```
+18:34:25  agent=grove status=blocked   ← real permission dialog, up ~10s untouched
+18:34:44  agent=grove status=working   ← granted; PostToolUse restored it
+```
+
+Both Done-when points, and neither is an artefact of hand-invoking `report-turn`:
+the `blocked` came from a real dialog raising a real `Notification`, and the
+`working` landed *mid-turn* (the same turn made a further tool call at 18:34:56).
+The sidebar rendering was confirmed too — the human saw a red dot, and
+`~/Development/herdr/src/ui/status.rs:195-227` maps `Blocked → red` with **red
+unique to blocked** across all five rows (`working` yellow, `done` teal, `idle`
+green, `unknown` grey).
+
+**The version-skew row is observed** — read from the previous session's
+`target/k31-skew-observation.log`: `blocked` 14s after `complete`, held for the
+remaining 5½ min, `agent=grove` and `session=herdr:claude` intact throughout. No
+release. Exactly `plan_for(Stop::VersionSkew)`.
+
+**`PostToolUse ⇒ working` was also isolated on its own**, before the headline: a
+hand-invoked `report-turn waiting` inside a tool call put the pane at `blocked`
+(18:31:59), the `herdr pane get` *inside that same call* still read `blocked`,
+and it flipped to `working` at 18:32:00 with no report command of mine running.
+Nothing else could have done it — the driver reports only at launch and stop.
+
+Four findings that cost time and should not be re-derived:
+
+- **A permissive permission mode raises no dialog at all**, so the mid-turn row
+  is unreachable in it. Under `defaultMode: "auto"` plus
+  `skipDangerousModePermissionPrompt`, an `rm -rf`, an explicit sandbox override,
+  and an un-allowlisted MCP call *all* ran with no prompt. The measurement needed
+  the human to Shift+Tab into ask mode. Now a bound in ADR
+  *herdr-turn-boundary-hooks*.
+- **The six-second timer is gated on human inattention, not elapsed dialog
+  time.** Dialogs held several seconds with the human present did not fire it;
+  the one that did had sat ~10s untouched. Do not expect to provoke it on demand
+  while watching.
+- **`herdr pane get`'s `revision` is not a report discriminator** — it stayed at
+  9 across three state changes. It tracks pane lifecycle, not agent state, so it
+  cannot distinguish "reported the same state" from "reported nothing".
+- **`pgrep -P` returns nothing under this sandbox**; `ps -axo pid=,ppid=,command=
+  | awk '$2==<pid>'` is what works for child detection.
+
 ## What is left
 
-- The headline: a real permission prompt, held past six seconds, reading
-  **`blocked`**, and back to `working` on grant. This session's driver injected
-  no hooks (its argv had no `--settings`); a session under the 16.1.0 driver
-  will. Confirm that first — `ps -o command= -p $PPID` should now show
-  `--settings`.
-- Same detached-watcher trick works for the two remaining rows, and both are
-  cheapest at the very end of a session: **relaunch** (silent, next launch
-  re-reports `working`) rides on a normal `grove-llm complete`, and
-  **SIGTERM/SIGHUP** (release, report nothing) means signalling the driver — the
-  grandparent process, `ps -o ppid= -p $PPID`.
+Only the last two rows, and both are **already in flight** — captured by a
+detached observer started immediately before this session's completion signal,
+the same trick the skew row used:
+
+- script: `target/k31-relaunch-interrupt.sh`
+- log: `target/k31-relaunch-interrupt.log`
+
+It waits for the driver to relaunch (a new harness child appears), settles ~6s,
+then SIGTERMs the driver. **The two rows are told apart by exactly one thing: an
+`agent=null` sample.** Relaunch (report nothing, *no* release) must produce none
+above the `RELAUNCH` marker; interrupt (report nothing, *release*) must produce
+one below the `SIGTERM` marker. The script writes both assertions into the log
+as marker lines, so it reads without this file.
+
+This leaf is deliberately **not retired**: the rows land after the session that
+armed them is dead, so recording them needs one more short session. Leaving it
+live also means the sacrificial relaunched session is *this leaf's own* rather
+than a wasted session on the next leaf.
+
+**The next session's whole job**: read `target/k31-relaunch-interrupt.log`,
+promote the two rows into the brief Notes, then retire. Under `target/`, so
+gitignored — do not `cargo clean` first. If the log shows `ABORT` or no
+`RELAUNCH`, the driver PID moved and the rows need re-arming, not re-designing.
+
 - The pane is `wQ:p1` on workspace `wQ`; the patched server is PID 77248
   (`linkuistics-herdr 0.7.5-linkuistics.1`, live-handoff import). Re-check both
   before trusting a reading.

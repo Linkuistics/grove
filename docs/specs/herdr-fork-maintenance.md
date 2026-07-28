@@ -184,6 +184,15 @@ the same socket exchange, and polling at 30 ms still sees `working` go straight
 to released. That is not a defect — released *is* the intended resting state —
 but a watcher must not wait for an `idle` that will never be sampled.
 
+For the same reason, **`herdr pane get`'s `revision` cannot be used to count
+reports**: it tracks pane lifecycle, not agent state, and does not move when a
+state report lands (measured across three consecutive state changes). So a
+report that re-asserts the state the pane already holds is indistinguishable
+from no report at all. A checker that needs to prove a *silent* step — the
+driver's relaunch row, say — must either arrange a different pre-state to watch
+persist, or assert on the one transition nothing else produces: the `agent=null`
+that only a release yields.
+
 A watcher on a real **claude** `grove do` pane also sees reports the driver did
 not make. Turn hooks report from inside the session — `working` at every prompt
 submit, `working` or `blocked` at every turn end, `blocked` while a dialog waits

@@ -105,14 +105,16 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   version-skew stop, relaunch), which were homeless once **herdr-turn-hooks-k4**
   finished. Needs v16.1.0 shipped first; the version-skew guard makes that a
   single leaf rather than two (the leaf explains how).
-  **Ship half done, observation not started.** **v16.1.0 is shipped and
-  installed**, so every grove session from here launches claude with the turn
-  hooks — see Notes. The version-skew stop that shipping provokes is being
-  captured by a detached poller across the session boundary
-  (`target/k31-skew-observation.log`); the leaf says how to read it. What it
-  costs: two release-path frictions, both folded into
-  **release-doctor-toolchain-gap-k27**, which is now a two-friction leaf rather
-  than the doctor alone.
+  **Headline observed; one short session left.** v16.1.0 is shipped and
+  installed, and under that driver a real permission dialog held past six seconds
+  read **`blocked`** and returned to `working` on grant, mid-turn — see Notes.
+  The version-skew row is observed too. What remains is only the *recording* of
+  the last two rows (relaunch, SIGTERM/SIGHUP): both are armed by a detached
+  observer that acts after the arming session is dead, so the leaf stays live for
+  one session whose whole job is to read
+  `target/k31-relaunch-interrupt.log` and retire. Costs: two release-path
+  frictions, both folded into **release-doctor-toolchain-gap-k27**, which is now
+  a two-friction leaf rather than the doctor alone.
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
@@ -305,6 +307,33 @@ control: re-verify anything load-bearing before building on it.
   `Notification`, `permission_prompt` and `elicitation_dialog`. **The one-line
   check that a session is running under a hook-carrying driver is its own argv**:
   `ps -o command= -p $PPID` shows `--settings` or it does not.
+- **The mid-turn pair is observed end to end in production** (2026-07-28,
+  `observe-mid-turn-live-k31`), on claude 2.1.220 under the v16.1.0 driver. A
+  real permission dialog left untouched ~10s reported **`blocked`**, and granting
+  it returned the pane to `working` *mid-turn* — a further tool call followed in
+  the same turn. Neither half is an artefact of hand-invoking `report-turn`;
+  `PostToolUse ⇒ working` was separately isolated by putting the pane at
+  `blocked` inside a tool call and watching the hook restore it with no report
+  command running. The sidebar rendering is confirmed against herdr's own source:
+  `state_dot` maps `Blocked → red`, and **red is unique to blocked** across all
+  five rows (`src/ui/status.rs`), so the red dot an operator sees *is* `blocked`.
+- **The version-skew stop row is observed**: `blocked` 14s after the signal, held
+  5½ min, `agent=grove` never released — `plan_for(Stop::VersionSkew)` exactly.
+- **Two bounds on how far the mid-turn row reaches**, both now in ADR
+  *herdr-turn-boundary-hooks*. A **permissive permission mode raises no dialog at
+  all** — under `defaultMode: "auto"` with `skipDangerousModePermissionPrompt`,
+  an `rm -rf`, an explicit sandbox override and an un-allowlisted MCP call all
+  ran unprompted, so nothing to report; provoking the row needs a *prompting*
+  mode. And the **six-second timer is gated on human inattention, not elapsed
+  dialog time**: dialogs held several seconds with the human present did not fire
+  it. Both are the design working (it detects *unattended*), but they mean the
+  row is not a general answer to "grove is stuck".
+- **`herdr pane get`'s `revision` is not a report discriminator** — it tracks
+  pane lifecycle, not agent state, and stayed put across three state changes. So
+  "reported the same state" and "reported nothing" remain indistinguishable from
+  the socket; the only way to tell a silent row from a re-reporting one is to
+  arrange a *different* pre-state, or to watch for the `agent=null` that only
+  release produces.
 - **Cutting a release needs two workarounds this repo does not record.** `export
   PATH="$HOME/.cargo/bin:$PATH"` (Homebrew's cargo otherwise wins and the Linux
   targets fail on a missing `std`), and `cargo release … --allow-branch HEAD`

@@ -148,7 +148,15 @@ Two things that shape looks like it could be and is not:
   than one session* — and spending one per chain erases that while buying a
   `BRIEF.md` written because a step demanded it (constraint 4). There is also no
   verb that makes a node: you would `leaf-add` and then `leaf-decompose`,
-  applying a deliberately *reactive* verb speculatively.
+  applying a deliberately *reactive* verb speculatively. And the Retire cascade
+  asks the human before treating a **node** as done — a fair question of a
+  decomposition, noise for a chain, and one a flat chain is never asked.
+- **A chain is not a unit, either.** Its steps run in order because they sit at
+  *adjacent positions*, the same ordering a node's children get; `pick` returns
+  the first live leaf in the whole tree and nothing groups leaves for it
+  (*task-tree-scheme*). So cut a chain's steps **together**, and reach for
+  `leaf-insert` — not `leaf-add`, which appends at the end — when a step is
+  decided on after its producer has already run.
 
 The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step

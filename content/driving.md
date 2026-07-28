@@ -378,8 +378,15 @@ grove-llm leaf-add [12] sync-design-review --kind review-design
 grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
 ```
 
-Four habits make the chain worth its three sessions:
+Five habits make the chain worth its three sessions:
 
+- **Cut the steps together, or `leaf-insert` a late one.** A chain is ordered only
+  because its steps sit at *adjacent positions* — `pick` walks the tree top to
+  bottom and nothing groups them (*task-tree-scheme*). Cutting all three at once,
+  as above, gets that for free. Deciding on the review *after* the producer has
+  run does not: `leaf-add` appends at the **end**, behind every unrelated live
+  leaf, and the chain's steps end up running weeks apart. Reach for `leaf-insert`
+  against the next sibling instead, so the step lands beside its stem-mate.
 - **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
   `<stem>-integrate` — so `find .grove` shows the chain as a chain, without
   opening a file. The suffix goes on the end for a reason: a prefix
@@ -407,6 +414,10 @@ grove **enforces none of this**. It does not check that a `review-X` leaf follow
 an `X` leaf, and will not warn when one does not — a grammar is a relation
 *between* leaves, and grove expresses no relation between leaves. The chain is
 yours to compose, and skipping it is a normal choice, not a violation.
+
+It does not **group** them either. A chain is not a unit `pick` refuses to walk out
+of, so a `leaf-insert` aimed between two steps splits it — deliberately, because
+that verb exists precisely so you can preempt. One more insert puts it back.
 
 ## Externalizing surfaced work
 

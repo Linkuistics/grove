@@ -188,6 +188,14 @@ chain up front would apply it speculatively. The slug convention costs nothing
 structurally and is cheap to change, because durable references use the permanent
 key either way (*task-tree-scheme* §5).
 
+A fourth reason, found later and operator-visible: the Retire cascade asks the
+human before treating a node as done, so the human can add a follow-up leaf. That
+question is right for a decomposition node — *is this area actually finished?* —
+and pure noise for a chain, whose integrate step finishing means the chain is
+finished by construction. **Because a chain is not a node, that question is never
+asked of one.** Give a chain a directory and you buy the noise; the flat shape has
+never paid it.
+
 **Nothing parses the suffix**, and adding a parser would be the signal the
 convention had overreached — see the next section. It is a habit that makes
 `find .grove` legible, on the same footing as the patterns it names.
@@ -208,6 +216,87 @@ grove's spine forbids outright.
 
 A non-blocking lint was considered and rejected: it would fire on a tree the
 human deliberately shaped, demand no action, and re-trigger on every insert.
+
+### A chain is not a unit either
+
+Beyond the grammar, a chain was costed as a **first-class group**: a thing `pick`
+will not walk out of once its first step is done, and whose close skips the Retire
+cascade's confirmation. It is not adopted, and the reasons are worth keeping
+because the request is a natural one to raise again.
+
+**Two of the three motivating costs are not real.**
+
+- **`pick` does not wander out of a chain.** `pick` returns the first live leaf in
+  pre-order; a chain's steps sit at adjacent positions, so once the producer is
+  `DONE` the next name in the walk *is* the review. That is exactly the ordering a
+  decomposition node's children get — contiguity is the only ordering grove offers
+  anywhere, so the chain is not the weaker case, it is the ordinary one. A chain
+  also survives a step being decomposed with no special handling: the node is
+  walked in place and the remaining steps follow it.
+- **A chain's close asks nothing.** The cascade's confirmation is asked **per
+  node**, and a chain is not a node — so the noise the group construct would
+  remove is noise only a *directory-shaped* chain would have created. This is a
+  second, independent reason node-per-chain loses, on a different axis from the
+  one that decided it above (what a node *means*); it does not reverse that
+  decision, it reinforces it.
+
+**The one real gap** is that contiguity is unprotected against a sibling-level
+`leaf-insert`, where a node's children are protected by containment. Two shapes
+hit it: an insert aimed between two chain steps, and a chain cut *lazily* — the
+review decided on after the producer ran, which `leaf-add` appends at the end,
+behind every unrelated live leaf. Both are repaired by one `leaf-insert`, and the
+second is avoided outright by cutting a chain's steps together or inserting a
+late-decided step beside its stem-mate (`content/driving.md`).
+
+**What closing the gap would cost** is `pick`'s defining property — it would stop
+being a walk and become a scheduler (*task-tree-scheme*). That is the decision, and
+it is not a judgement about chains: no grouping of leaves can be honoured by a
+`pick` that is both stateless and local.
+
+**And it would gate** (constraint 5). A `pick` that refuses to leave a chain is
+grove overruling the position order a human set. `leaf-insert` exists precisely so
+a human can say *this goes first*; immunity would mean a defect found mid-review
+cannot be sequenced ahead of the integrate step, which is grove refusing work on
+process grounds — the one thing constraint 5 forbids outright. Note which way that
+cuts: the request was framed as *removing* a gate (a confirmation with one sensible
+answer), but the confirmation is never asked of a chain, while the containment
+would be a real gate. Constraint 3 is the milder objection and points the same way —
+a `**Chain:**` field is schema in the one place the spine keeps freeform — but it
+is not the load-bearing one, since the kind-inference mark needs no field at all.
+
+**The two candidate marks, costed anyway**, since the answer would be one of them
+if the walk were free:
+
+- **A brief field** (`**Chain:** true`, or a node brief declaring itself one) —
+  explicit and readable, but presupposes the directory shape already rejected, is
+  one more thing to hand-maintain against constraint 3, and can drift out of sync
+  with what the leaves actually are.
+- **Inference from the children's kinds** — a run of `X` / `review-X` /
+  `integrate-review-X` *is* a chain, with no new field at all. Strictly better:
+  it costs no schema and cannot drift. It is still not adopted, because the mark
+  was never the expensive part — reading it inside `pick` is.
+
+**The tempting middle option, also rejected:** `leaf-add <parent> <stem>-review`
+placing the new leaf after the sibling named `<stem>` instead of at the end. It
+closes the lazy-cut gap with no change to `pick`. Rejected because it makes a verb
+named *add* sometimes *insert*, on the strength of a slug prefix — which means
+parsing the suffix convention, the one thing the convention says it must never do
+— and it is wrong whenever the human wants the step at the end deliberately.
+
+**What would reopen this.** Not friction with chains, which the workarounds above
+answer at one command each. Only a case where `pick` acquires a legitimate reason
+to be non-local for some *other* purpose: chain-awareness could then ride along at
+near-zero cost. Today it would be the sole reason, and it does not carry the
+weight alone. Note also that grove has **never executed a chain** — this repo's own
+tree is 37 keys with none, correctly, since every leaf so far was a bug fix rather
+than a load-bearing artifact — so the machinery would be built entirely ahead of
+the evidence, which constraint 4 forbids on its own.
+
+**Blast radius of the answer being no:** zero code. `pick`, `leaf-add`,
+`leaf-insert` and the Retire cascade are untouched. What changed is prose, in the
+three surfaces a session reads while cutting leaves — `content/SKILL.md`'s
+Decompose step, `content/TASK-FORMAT.md`, and `content/driving.md` — plus this
+section and the two ADRs.
 
 ### Routing
 
@@ -361,6 +450,9 @@ No new seams. The work tests through the existing partition:
 
 - **Grammar enforcement or linting.** See *The grammar is documented, not
   enforced*.
+- **A chain as a first-class group** — a unit `pick` will not walk out of, closing
+  without the cascade's confirmation. See *A chain is not a unit either*; the cost
+  is `pick`'s walk, and two of the three costs it would remove are not real.
 - **Auto-creating a chain from one `leaf-add`.** A `--chain` flag that minted
   three leaves where the human asked for one would grow the tree speculatively,
   which constraint 4 forbids — and it would have to guess the escalation call

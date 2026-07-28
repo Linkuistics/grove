@@ -207,7 +207,11 @@ a step demanded it (constraint 4) while erasing what node-ness tells a reader.
 None of this is enforced and none of it is parsed. grove validates no ordering
 between leaves — a grammar is a relation *between* leaves and grove expresses
 none (*task-kind-taxonomy*) — `leaf-add` still makes exactly one leaf, and
-skipping a chain is a normal choice, not a violation.
+skipping a chain is a normal choice, not a violation. A chain is not a **unit**
+either: its steps run in order because they are *adjacent*, and `pick` returns the
+first live leaf in the tree with nothing grouping them (*task-tree-scheme*). So cut
+a chain's steps together, and use `leaf-insert` — not `leaf-add`, which appends at
+the end — for a step decided on after its producer already ran.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children

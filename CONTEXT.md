@@ -85,6 +85,16 @@ verb) speculatively.
 _Avoid_: treating either as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
 none (ADR *task-kind-taxonomy*).
+_Avoid_: treating a chain as a **unit** — something [[Pick]] will not walk out of,
+or whose close skips the Retire cascade's confirmation. Neither exists, and two of
+the three costs that framing names are not real: a chain's steps are already
+ordered by adjacency, and the confirmation is asked per [[Node directory]], so a
+flat chain is never asked one. The one real gap — a sibling-level `leaf-insert`
+can split a chain where containment would not — is repaired by one more insert,
+and closing it would cost `pick` its walk.
+_Avoid_: `leaf-add` for a chain step decided on *after* its producer ran — it
+appends at the end, behind every unrelated live leaf. Cut the steps together, or
+`leaf-insert` the late one beside its stem-mate.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
 pair was run for. The adversarial move belongs to `combine-research`, whose
 discipline is that **agreement without independent primary sourcing is a red
@@ -389,6 +399,10 @@ _Avoid_: calling a node a "file" — a node is always a directory.
 
 **Leaf**:
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
+
+**Pick** (`grove-llm pick`):
+The loop's dispatcher: the **first live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates that* — no priority, no grouping, no set of leaves that must finish before another is considered. Ordering in a grove is **contiguity**, at every level, and it is the only ordering grove offers: a [[Review chain]]'s steps run in sequence because they sit at adjacent [[Position]]s, exactly as a node's children do. It reads no file contents and carries no state, re-deriving the loop's place every iteration — which is what makes restart ≡ continuation (self-driving-loop). Empty stdout plus a stderr diagnostic means no live leaves anywhere: the [[Complete finish cycle]] trigger. Its value is that a human computes it **by eye** — `find .grove` shows the tree and the next session is the first name with no outcome infix — which is what makes "the tree is the only state" worth something rather than merely true.
+_Avoid_: expecting `pick` to **schedule** — to finish a group before considering an earlier live leaf, or to skip a leaf that is merely blocked. Answering "is a group in flight?" needs either state outside the tree (constraint 1) or a rule that skips live work and ranks groups, turning the walk into a scheduler no reader of `find .grove` can predict (task-tree-scheme, *`pick` is a walk, not a scheduler*).
 
 **Position** (`NN`):
 The **mutable** 2-digit zero-padded per-level locator of an entry among its directory's siblings — the sort input within one directory (lexical == numeric == DFS), rewritten on insert/reorder. It is a locator, **not** an identity.

@@ -258,6 +258,26 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **compose-task-chains-k29** stopped deliberately at encouragement; this asks
   whether that was far enough. Raised by the human during
   **codex-grant-refused-k35**; independent of the herdr work.
+  **Done — the answer is no, and k29's stopping point was far enough.** Two of the
+  three costs motivating the construct **do not exist**: a chain's steps are
+  already ordered by adjacency, which is the same ordering a node's children get
+  (`pick` returns the first live leaf in pre-order and stops), and the Retire
+  cascade's confirmation is asked **per node**, so a chain — deliberately not one —
+  is never asked one. That second finding *reinforces* k29's rejection of
+  node-per-chain on a new axis rather than reversing it: the confirmation is a cost
+  a directory-shaped chain would introduce. The one real gap — a sibling-level
+  `leaf-insert` can split a chain where containment would not — is repaired by one
+  more insert, and closing it would cost `pick` its defining property. ADR
+  *task-tree-scheme* now carries the invariant (**`pick` is a walk, not a
+  scheduler**), which generalises past chains: answering *is a group in flight?*
+  needs either state outside the tree or a rule that skips live work and ranks
+  groups. It would also **gate** — a chain `pick` will not leave overrules the one
+  verb that exists to preempt — so the request to remove a gate would have
+  installed a larger one. Zero code changed; the guidance gained one operational
+  habit (**cut a chain's steps together; `leaf-insert`, not `leaf-add`, for a step
+  decided on after its producer ran**), which is the shape that actually breaks a
+  chain in practice. Like k29 and k35, it is in the tree and not in the installed
+  binary — real sessions get it at **v16.2.0**.
 
 ## Pointers
 

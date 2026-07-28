@@ -62,6 +62,36 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Skipping a chain stays a normal choice. `docs/specs/task-kind-taxonomy.md`
   carries the reasoning, including the node-per-chain option and why it lost.
 
+- **A chain stays a convention, not a construct** — the follow-on question to the
+  entry above, asked and closed. Should a chain be *first-class*: a unit `pick`
+  will not walk out of, whose close needs no confirmation? **No** — and two of the
+  three costs that would motivate it turn out not to exist. A chain's steps sit at
+  adjacent positions, so `pick`, which returns the first live leaf in pre-order,
+  already runs them in sequence; that is the very ordering a decomposition node's
+  children get, not a weaker one. And the Retire cascade's confirmation is asked
+  **per node** — so a chain, deliberately not a node, is never asked one. That
+  makes it a cost node-per-chain would *introduce*, which is a second and
+  independent reason that option lost, on a different axis from the one that
+  decided it.
+
+  The one real gap is that a sibling-level `leaf-insert` can split a chain, where
+  a node's children are protected by containment. Closing it would cost `pick` its
+  defining property: answering *is a group in flight?* needs either state outside
+  the tree (constraint 1 — and `pick`'s statelessness is what makes restart ≡
+  continuation) or a rule that skips live work and ranks groups, which is a
+  scheduler no reader of `find .grove` can predict. ADR *task-tree-scheme* now
+  states the invariant — **`pick` is a walk, not a scheduler** — which also covers
+  why an outcome taxonomy cannot carry a `blocked` mark, and glossary term
+  **Pick** carries it into every session's bootstrap.
+
+  What changed in practice is guidance, not behaviour: **cut a chain's steps
+  together**, and reach for `leaf-insert` rather than `leaf-add` for a step decided
+  on *after* its producer already ran — `leaf-add` appends at the end, behind every
+  unrelated live leaf, which is how a chain actually comes apart. Both candidate
+  marks (a brief field; inference from the children's kinds) and the tempting
+  middle option (`leaf-add` inferring placement from a shared stem) are costed in
+  `docs/specs/task-kind-taxonomy.md`, along with what would reopen the question.
+
 ### Fixed
 
 - **A codex grove no longer dies at startup in an untrusted working tree.** A

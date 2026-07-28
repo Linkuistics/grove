@@ -85,6 +85,42 @@ key; `leaf-decompose` turns a leaf file into a node *directory* (keeping its key
 directories (`git mv`, or a plain rename in a jj-enabled tree), subtrees riding
 along.
 
+### `pick` is a walk, not a scheduler
+
+`pick` returns **the first live leaf in pre-order, and nothing modulates that** —
+no priority, no grouping, no set of leaves that must be finished before another is
+considered. Ordering in a grove is **contiguity**, at every level, and it is the
+only ordering grove offers.
+
+What that buys is that **a human computes `pick` by eye**: `find .grove` shows the
+whole tree, and the next session is the first name in it carrying no outcome infix.
+That legibility is what makes "the directory tree is the only state" (constraint 1)
+worth something rather than merely true.
+
+Any rule that groups leaves — *"once this review chain starts, finish it before
+anything else"* — has to answer **is a group in flight?**, and both ways of
+answering are blocked:
+
+- **From memory** — which leaf retired last. That is loop state living outside the
+  tree, which constraint 1 forbids; and `pick`'s statelessness is precisely what
+  makes restart ≡ continuation (*self-driving-loop*).
+- **From structure** — a run of related leaves holding both a `DONE` member and a
+  live one. Computable and stateless, but it must then **skip a live leaf that
+  sorts earlier**, and with two such runs in flight it must rank them. `pick` stops
+  being a walk and becomes a priority scheduler, whose answer no reader of
+  `find .grove` can predict.
+
+The same principle already settles two other questions. An outcome taxonomy
+carrying a `blocked` mark is rejected because a blocked leaf is *live work* and
+`pick` must not skip it (*pruning*); and the review chain is not a first-class unit
+(*task-kind-taxonomy*, whose *Considered options* holds the full costing).
+
+The accepted cost: contiguity is **unprotected against a sibling-level
+`leaf-insert`**, which can split a run of related leaves, where a node directory's
+children are protected by containment. That asymmetry stands — `leaf-insert` names
+its target explicitly and exists so a human can preempt, and a split is repaired by
+one more `leaf-insert`.
+
 ## Rationale
 
 - **Honesty.** The parent/child relationship is the filesystem's job; directories

@@ -227,6 +227,19 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   cut).
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
+  **Done.** `Formula/linkuistics-herdr.rb` in `Linkuistics/homebrew-taps` now
+  says the carry is permanent and names each half's real end condition
+  (upstream separating identity from state; upstream shipping a geometry API).
+  The `ui.layout` half went the same way: "unsubmitted upstream" read as pending
+  intent, and the policy is blanket — the fork is ours to maintain, not a
+  staging area. Its durable half is in `docs/specs/herdr-fork-maintenance.md`,
+  which now records *why* that branch exists (Modaliser needs the drawn
+  cell-rects; upstream has no `ui.layout` at all) and that Out-of-scope covers
+  both patches. Committed and **pushed**, because the deliverable is what
+  `brew info` prints, not what the checkout holds — a three-hop gap, the same
+  in-the-tree-not-in-the-binary shape as v16.0.0's reporter. Verified by reading
+  `brew info` after the tap clone caught up; no version bump, and `brew
+  outdated` stays silent, so no user is rebuilt for a text fix.
 - **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
   operator remember. `release-doctor.sh` passes while the release build dies,
   because the doctor asks *rustup* what targets are installed and the build asks

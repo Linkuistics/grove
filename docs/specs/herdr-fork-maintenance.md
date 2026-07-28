@@ -26,7 +26,12 @@ never forces a rewrite of published history.
 - **`ui-layout`** — the ship branch, from which the Homebrew formula builds. It
   carries pre-existing fork feature work *and* takes the patch by **merge**, not
   cherry-pick or rebase, so it always fast-forwards from its remote and never
-  needs a force-push.
+  needs a force-push. That feature work is two `feat:` commits — the `ui.layout`
+  API method (drawn cell-rects for sidebar and tab-bar entries) and the CLI verb
+  reaching it — carried for **Modaliser**, which paints chips over herdr's own
+  chrome. Upstream has no `ui.layout` in any form, so it is a permanent carry on
+  the same terms as the patch: the branch is never retired, and its end
+  condition is upstream shipping an equivalent geometry API.
 
 The recurring cycle is therefore: rebase `authority-fix` onto the new
 `upstream/master`, verify, then merge `authority-fix` into `ui-layout` and ship.
@@ -241,9 +246,12 @@ distinguishable, and neither touches real state.
 
 ## Out of scope
 
-- **Upstreaming.** Decided against; see ADR *herdr-optional-ui* for the reasons
-  and for what would reopen it. Do not open PRs or file issues against
-  `ogulcancelik/herdr`.
+- **Upstreaming.** Decided against, for **both** patches — the fork is ours to
+  maintain, not a staging area for contributions. See ADR *herdr-optional-ui*
+  for the reasoning on the authority patch and for what would reopen it. Do not
+  open PRs or file issues against `ogulcancelik/herdr`. The tap formula's
+  `caveats` say the same thing, because `brew info` is where a user meets this
+  decision first.
 - **Growing the patch.** The two hunks encode one principle. Because the carry is
   permanent, every additional hunk is a rebase obligation forever, so a third
   must clear the same bar — not merely be useful.

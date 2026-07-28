@@ -6,7 +6,10 @@ holds the verbs a human at a terminal invokes — the lifecycle set `do` /
 `migrate` / `retire`. **`grove-llm`** holds the verbs the LLM driving a grove
 session invokes mid-session to perform deterministic mechanics — `root-init`,
 `pick`, `brief-chain`, `kind`, `resolve`, `leaf-add`, `leaf-insert`,
-`leaf-decompose`, `leaf-retire`, `leaf-prune`, `complete`.
+`leaf-decompose`, `leaf-retire`, `leaf-prune`, `complete` — plus `report-turn`,
+which sits on `grove-llm` because it is loop machinery rather than a human verb,
+but which the model never calls (grove injects it as a harness hook,
+*herdr-turn-boundary-hooks*).
 
 This record is the **one place the verb surface is enumerated**. Other ADRs that
 touch a verb cite it rather than re-listing the set — two lists drift apart, and a
@@ -43,8 +46,44 @@ nested clusters (`leaf add`), for LLM-specific reasons:
   to the same tokens — the visual-hierarchy argument for nested clusters buys
   nothing here because no human reads this `--help` by design.
 
+## What earns a `grove-llm` verb
+
+"Every deterministic step with a stable input/output shape" is the rule above, and
+on its own it would admit almost anything. A step earns a verb when **all three**
+hold:
+
+1. **Deterministic** — the output is a function of the arguments. No judgement
+   runs inside the verb.
+2. **Derived from something grove already owns** — the closed kind set, the
+   tree's positions and keys, a naming convention grove authored. This is the leg
+   that matters: it means a session doing the step by hand can get it *wrong*,
+   not merely do it slowly, and a wrong-but-well-formed result is the error class
+   a parser cannot catch but a derivation can.
+3. **The judgement stays outside** — the caller decides *whether*; the verb
+   decides *what*. A verb that must infer why it was called fails this leg.
+
+Leg 3 is what separates a convenience from a policy, and it is where the
+one-leaf-per-call instinct actually comes from. It is **not** a rule that a verb
+writes one file: `root-init` writes a root brief *and* a first leaf,
+`leaf-decompose` a brief *and* a first child, because in each case the caller
+named a *shape*. What leg 3 forbids is a verb inferring the shape from an
+argument that meant something narrower.
+
+The bar also excludes, by leg 3 alone, any verb that inspects the tree to decide
+whether something *ought* to exist — a chain linter, a completeness check. Those
+would gate besides (constraint 5), but they fail this bar first.
+
 ## Considered options
 
+- **`leaf-add --chain`, minting a review chain from the verb that means one
+  leaf** (rejected) — versus `leaf-add-chain` / `leaf-add-pair` as distinctly
+  named verbs (adopted; `docs/specs/task-kind-taxonomy.md`, *Constructing a chain
+  is one call*). Both write three leaves, so the difference is entirely leg 3: on
+  a flag, `leaf-add` would be making the escalation call (chain, or a mid-session
+  subagent?) that is the only judgement in the pattern, on the strength of an
+  argument the caller used to mean *one leaf*. Under its own name, the caller has
+  already made that call and the verb only executes it. Nothing would reopen the
+  flag — a named verb dominates it on every axis.
 - **Single binary, one flat namespace** — all verbs on `grove`. Rejected: the
   audience-mixed `--help` grows without bound and the human's discovery surface
   degrades with every LLM-only verb.

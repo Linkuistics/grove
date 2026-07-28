@@ -348,6 +348,40 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   chain, at once, per k36's own operational habit — and the friction of doing that
   by hand (three `leaf-add` calls, three chances to stop after the first, the
   naming convention re-derived from this brief) is itself evidence for k38.
+  **k38 done — the answer is yes: one call per shape, `leaf-add-chain` and
+  `leaf-add-pair`.** The decision does *not* rest on the friction that raised it,
+  which is thin (post-k29 this tree cut one chain in nine leaves, and that one was
+  maximally primed — a design leaf about chains, cut right after k36 concluded on
+  chains). It rests on ADR *cli-binary-split*'s own recorded rule — every
+  deterministic step with a stable input/output shape is a verb rather than an
+  instruction a model might paraphrase wrong — which as written would admit almost
+  anything and now carries a **three-leg bar** (deterministic; derived from
+  something grove already owns; the judgement stays outside). Leg 2 is what the
+  verb actually buys: `<producer>` ⇒ `review-<producer>` ⇒
+  `integrate-review-<producer>` is the parameterisation the seventeen-kind set
+  bought and nothing had spent, and hand-transcribing it admits a
+  **wrong-but-well-formed** kind — a silent misroute the `--kind` write-gate
+  cannot catch, because `--kind review-impl` beside a `design` producer is a valid
+  invocation. Leg 3 is why this is **not** a quiet reversal of
+  **compose-task-chains-k29**: that rejection targets a `--chain` *flag on
+  `leaf-add`*, where the verb would make the escalation call on the strength of an
+  argument that meant one leaf, and it stands. Its closing generalisation ("the
+  verbs stay one-leaf-per-call") does not — it was already false when written:
+  `root-init` writes a root brief and a first leaf, `leaf-decompose` a brief and a
+  first child. The kind set settles
+  the two-shape question **by construction**: `research` is the one kind with no
+  `review-` sibling, so it gets its own verb rather than a mode, and one verb
+  dispatching on `--kind` was rejected because `research` is then the only legal
+  value — a mode selector wearing a parameter's clothes. Constraints 3 and 5 are
+  **not strained**: `leaf-add` is untouched, no tree is inspected, nothing is
+  parsed, and the refusals are authoring-time argument validation with a human
+  present. Zero code changed; no new ADR (it fails the hard-to-reverse leg). The
+  named risk is k29's failure with a compile step — a verb nobody reaches for —
+  and the design's only answer is **placement**, which is a claim the
+  implementation has to make good on. Implementation is deliberately **not** cut
+  here: **chain-construction-review-k39** has not read this yet, and a producer
+  that banks its conclusion before the reviewer is the failure mode the chain
+  exists to prevent.
 - **routed-leaf-diagnostic-k41** — make the driver's launch line name the leaf it
   routed on. Split out of **session-leaf-binding-k28**: the only part of that
   complaint k28's decision leaves standing is *visibility*, and a diagnostic

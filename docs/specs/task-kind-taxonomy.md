@@ -287,16 +287,163 @@ parsing the suffix convention, the one thing the convention says it must never d
 answer at one command each. Only a case where `pick` acquires a legitimate reason
 to be non-local for some *other* purpose: chain-awareness could then ride along at
 near-zero cost. Today it would be the sole reason, and it does not carry the
-weight alone. Note also that grove has **never executed a chain** — this repo's own
-tree is 37 keys with none, correctly, since every leaf so far was a bug fix rather
-than a load-bearing artifact — so the machinery would be built entirely ahead of
-the evidence, which constraint 4 forbids on its own.
+weight alone. The evidence base is also no longer empty: this repo's tree carries
+its first chain (`chain-construction-k38` → `-review-k39` → `-integrate-k40`),
+whose own construction is what raised the *construction* question below.
 
 **Blast radius of the answer being no:** zero code. `pick`, `leaf-add`,
 `leaf-insert` and the Retire cascade are untouched. What changed is prose, in the
 three surfaces a session reads while cutting leaves — `content/SKILL.md`'s
 Decompose step, `content/TASK-FORMAT.md`, and `content/driving.md` — plus this
 section and the two ADRs.
+
+### Constructing a chain is one call
+
+*Sequencing* a chain needs no mechanism (above). **Constructing** one gets two
+verbs, each emitting a whole shape in a single call:
+
+```
+grove-llm leaf-add-chain <parent> <stem> --kind <producer>
+   NN+0  <stem>-k<a>              **Kind:** <producer>
+   NN+1  <stem>-review-k<a+1>     **Kind:** review-<producer>
+   NN+2  <stem>-integrate-k<a+2>  **Kind:** integrate-review-<producer>
+
+grove-llm leaf-add-pair <parent> <stem> --harness <name>
+   NN+0  <stem>-a-k<a>            **Kind:** research
+   NN+1  <stem>-b-k<a+1>          **Kind:** research, **Harness:** <name>
+   NN+2  <stem>-combine-k<a+2>    **Kind:** combine-research
+```
+
+Everything else is `leaf-add`'s, three times over: the same `<parent>` argument
+(`.` for the grove root, or a node by key or path), appended at the parent's next
+free positions, contiguous, three fresh keys, the same template. Each prints its
+three absolute paths, one per line, in position order — `leaf-decompose`'s
+convention. Nothing else changes: `leaf-add`, `leaf-insert`, `pick` and the
+Retire cascade are untouched, and a generated chain is byte-identical to a
+hand-cut one.
+
+**Why a verb here, when the answer to the group construct was no.** The two
+questions look adjacent and are not. A group would have changed `pick`'s defining
+property — a spine-level, permanent cost — to buy an ordering that contiguity
+already gives. A construction verb changes nothing that exists; it performs a
+**derivation grove already owns and currently asks a session to redo from prose**:
+`<producer>` ⇒ `review-<producer>` ⇒ `integrate-review-<producer>` is precisely
+what *parameterised, not flat* bought, and nothing has spent it yet. ADR
+*cli-binary-split* states the rule this falls under — every deterministic step
+with a stable input/output shape is a verb rather than an instruction a model
+might paraphrase wrong — and bounds it (*What earns a `grove-llm` verb*).
+
+That derivation closes an error class prose cannot. A mistyped kind is already
+caught (`--kind` gates on write); a **well-formed wrong** one is not.
+`--kind review-impl` beside a `design` producer is a perfectly valid invocation,
+and what it costs is the whole reason the set is parameterised rather than flat:
+the reviewer reads for correctness, security and tests where it should be asking
+whether the ADRs are a minimum coherent set and the seams are at the right
+height, and the integrate step arrives licensed to *edit code freely* rather than
+to rework a decision set. That cost is unconditional. The routing cost rides on
+top of it and is not: with only the family var `GROVE_REVIEW_MODEL` set, the two
+resolve identically, so a misroute bites only where kind-level vars are — which
+makes the discipline mismatch, not the model bucket, the load-bearing half of
+this argument. Transcribing a seventeen-row table by hand three times is where
+that error comes from, and a derivation is where it stops.
+
+**Two verbs, not one with a mode.** The obvious economy is one verb dispatching
+on `--kind`, and it is a false one: in pair mode `research` is the *only* legal
+value, so the flag would be a mode selector wearing a parameter's clothes. The
+shapes differ in slug (`-review`/`-integrate` vs `-a`/`-b`/`-combine`), in flag
+(`--harness` refused vs required), and in whether a kind is a choice at all.
+Splitting them lets each verb carry zero dispatch, and their refusals point at
+each other.
+
+**The kind-set consequence is settled by construction.** `research` is the one
+kind with no `review-` sibling, which is exactly why it needs its own verb rather
+than a shape the chain verb can reach: `leaf-add-chain --kind research` is
+**refused**, naming `leaf-add-pair`, and `leaf-add-pair` takes no `--kind` at
+all. Both shapes are covered, neither is implied by the other.
+
+**The flags encode the routing doctrine.** `--harness` is **required** by
+`leaf-add-pair` — two producers on one vendor is not a pair, and a pair that
+looks like one but is not is worse than none — and **refused** by
+`leaf-add-chain`, naming `GROVE_REVIEW_HARNESS`, because routing reviews is a
+policy and not a per-leaf fact (*Routing*). The verb teaches the doctrine at the
+one moment a session is deciding.
+
+**This does not gate** (constraint 5), and the test is the one the request itself
+named: a verb that makes the chain the *easy* path is compatible; a verb that
+makes a bare `leaf-add` harder, or that validates a tree's chain-completeness, is
+not. `leaf-add` is untouched, no tree is inspected, nothing is warned about, and
+skipping a chain stays a normal choice. The refusals above are **authoring-time
+argument validation** with a human present, the same class as `--kind reserch`
+and `--harness bogus` — not grove refusing work on process grounds.
+
+**Nor is it schema** (constraint 3). The verb *writes* the naming convention; it
+still never *reads* one. Nothing parses a suffix, and the convention remains a
+habit a human may deviate from by using `leaf-add`. Supplying a convention rather
+than asking each session to re-derive it from prose is what the templated
+`**Kind:**` line already does.
+
+**Nor is it speculative** (constraint 4). The lazily-grown thing is the *tree*,
+and the decision to grow it by three is the caller's escalation call — cut a
+chain for a load-bearing artifact, reach for a mid-session subagent for a
+one-file change (`content/driving.md`) — made *before* the call and nowhere
+inside it. The verb writes three leaves for the same reason `leaf-decompose`
+writes a brief and a first child, and `root-init` a root brief and a first leaf:
+the caller named a shape, not a file count.
+
+**How a session comes to use it** — the failure mode this must clear, because it
+is *compose-task-chains-k29*'s failure with a compile step. Five reference
+surfaces documenting chains produced zero chains in 26 leaves; what fixed it was
+putting the guidance where a session reads *while cutting*. A verb inherits that
+requirement and also improves on it in a way prose cannot: `SKILL.md`'s Decompose
+step and `content/driving.md` already enumerate *the verbs a session reaches for*
+(`leaf-add`, `leaf-insert`, `leaf-decompose`), so the chain verbs join a list
+already read at the cutting moment rather than sitting in a paragraph beside it —
+and they appear in `grove-llm --help`, the bootstrap-recovery surface, adjacent to
+the `leaf-add` every session already calls. The verb converts a chain from *a
+paragraph to be recalled* into *an entry in the list of things you can do*. This
+is a claim about placement, and it is only as good as the placement: whatever
+guidance names the hand-cut procedure must name the verb instead.
+
+**Partial chains stay `leaf-add`'s job.** Neither verb takes a `--steps` flag.
+The friction they remove is the *whole shape*; a partial mode reintroduces the
+per-step decision they exist to collapse, and there is no evidence anyone wants
+one. Adding it later is additive.
+
+**Why this section and no ADR of its own.** The durable record is here, plus a
+bounded rework of ADR *cli-binary-split* — which owns the verb surface and the
+bar a verb clears, and whose *Considered options* now carries the `leaf-add
+--chain` rejection this is often mistaken for. A record for the decision itself
+would fail the when-to-write test's first leg: a verb is cheap to remove, the
+leaves it writes are indistinguishable from hand-cut ones, and `.grove/` trees
+are ephemeral, so nothing about it is hard to reverse. The trade-off it *does*
+carry (constraint 4 against a derivation grove owns) is stated above, where the
+reader who needs it already is.
+
+**Out of scope, and what would reopen each:**
+
+- **A `leaf-insert-chain` / retrofit verb** — giving an *existing* producer leaf
+  its review steps in place, which is the shape that actually breaks a chain
+  (`leaf-add` appends behind every unrelated live leaf). Not adopted: it has
+  never happened, and today's repair is two `leaf-insert` calls, which is exactly
+  the work the verb would do. Reopen it if a retrofit becomes routine — the
+  design carries over unchanged, taking a *target* where these take a *parent*.
+- **`leaf-add --chain`** — stays rejected; see *Considered options* in ADR
+  *cli-binary-split*.
+- **Everything that describes the shipped tool.** The line this design holds is
+  that a record of a *decision* is reworked now, while a description of the *tool*
+  stays accurate until the tool changes — so the following are the
+  implementation's to reconcile, not this design's, and each currently says a
+  true thing that the verbs falsify. `content/SKILL.md` (Decompose: "`leaf-add`
+  still makes exactly one leaf"), `content/TASK-FORMAT.md` (same claim),
+  `content/driving.md` (two worked examples cutting a chain and a pair by hand),
+  `content/prompts/start.md` (the bootstrap cut), `docs/grove.md` ("the verbs
+  still make exactly one leaf per call"), and ADR *cli-binary-split*'s
+  enumeration, which is normative and must list any new verb. `content/` in
+  particular is provisioned to real sessions **from the binary**, so naming a verb
+  there before it exists would ship guidance for a verb the installed `grove-llm`
+  does not have — this repo's recurring in-the-tree-not-in-the-binary gap, run in
+  reverse. The CHANGELOG needs a new entry, not an edit: its v16.2.0 text
+  correctly records what *that* version ships.
 
 ### Routing
 
@@ -453,6 +600,16 @@ No new seams. The work tests through the existing partition:
   `--with-harness`, and the refusals.
 - **The kind enum's own unit tests** — label round-trip, the seventeen labels,
   and the `--kind work` refusal text.
+- **The grow-verb seam** (`src/tree_grow.rs`'s own tests) — where
+  `leaf-add-chain` / `leaf-add-pair` land: a `.grove/` fixture in, three named
+  and kinded files out, plus the refusals. It is the seam `leaf_add` and
+  `leaf_insert` already test through, and the composed verbs are `leaf_add`
+  three times with derived slugs and kinds, so they need no seam of their own.
+  The property worth **falsifying by mutation** rather than asserting is the
+  *derivation*: break `<producer>` ⇒ `review-<producer>` and the kind assertions
+  must fail, since a wrong-but-well-formed kind is the error class the verb
+  exists to close, and an assertion that only checks three files exist would not
+  notice.
 
 ## Out of scope
 
@@ -461,12 +618,16 @@ No new seams. The work tests through the existing partition:
 - **A chain as a first-class group** — a unit `pick` will not walk out of, closing
   without the cascade's confirmation. See *A chain is not a unit either*; the cost
   is `pick`'s walk, and two of the three costs it would remove are not real.
-- **Auto-creating a chain from one `leaf-add`.** A `--chain` flag that minted
-  three leaves where the human asked for one would grow the tree speculatively,
-  which constraint 4 forbids — and it would have to guess the escalation call
-  (chain, or a mid-session subagent?) that is the only judgement in the pattern.
-  The encouragement is prose in the guidance a session already reads; the verbs
-  stay one-leaf-per-call.
+- **Auto-creating a chain from one `leaf-add`.** A `--chain` flag on the verb
+  that means *one leaf* would mint three where the caller asked for one, and
+  would have to guess the escalation call (chain, or a mid-session subagent?)
+  that is the only judgement in the pattern. Still rejected — but the objection
+  is specific to a flag on `leaf-add`, and does **not** carry to a distinctly
+  named verb, where the caller has already made that call. See *Constructing a
+  chain is one call*, which adopts one. (An earlier version of this entry
+  generalised to "the verbs stay one-leaf-per-call"; that was never true —
+  `root-init` writes a root brief and a first leaf, `leaf-decompose` a brief and
+  a first child.)
 - **Parallelism.** The loop launches one foreground session owning the real TTY
   and watches one signal file, so N-vendor work is expressed as sequential leaves
   that do not read each other's output, plus a combine step. Behaviourally

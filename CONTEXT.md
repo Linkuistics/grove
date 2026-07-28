@@ -76,6 +76,13 @@ convention is a **habit nothing parses**; the guidance a session reads while
 cutting leaves carries it (`content/SKILL.md`'s Decompose step,
 `content/TASK-FORMAT.md`, and the bootstrap prompt), and
 `docs/specs/task-kind-taxonomy.md` holds the reasoning.
+**Sequencing and construction are separate questions with opposite answers.**
+Sequencing gets no mechanism — see the _Avoid_ on units below. Construction gets
+one call per shape (`leaf-add-chain` / `leaf-add-pair`), because deriving
+`review-<producer>` and `integrate-review-<producer>` from a producer kind is a
+derivation grove owns rather than a judgement, and the escalation call stays with
+the caller (*Constructing a chain is one call*; the bar a verb must clear is ADR
+*cli-binary-split*).
 _Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
 every other review and scatters the chains the naming exists to reveal.
 _Avoid_: giving a chain its own [[Node directory]] — a node already means "this
@@ -95,6 +102,9 @@ and closing it would cost `pick` its walk.
 _Avoid_: `leaf-add` for a chain step decided on *after* its producer ran — it
 appends at the end, behind every unrelated live leaf. Cut the steps together, or
 `leaf-insert` the late one beside its stem-mate.
+_Avoid_: naming a construction verb `chain-add` — "chain" is overloaded (see
+*Flagged ambiguities*), and the `leaf-add-` prefix is what anchors the sense and
+puts the verb beside the `leaf-add` a session already calls.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
 pair was run for. The adversarial move belongs to `combine-research`, whose
 discipline is that **agreement without independent primary sourcing is a red
@@ -477,3 +487,16 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 4. The **repo** `Linkuistics/grove`, which since the skills graft holds two products — grove *and* the `linkuistics` / `testanyware` plugins under `plugins/` (`docs/adr/skills-monorepo.md`). So "grove's README / CHANGELOG / ADR set" now names artifacts shared with a second bounded context; this glossary covers only senses 1–3, and `CONTEXT-MAP.md` routes the rest.
 
 When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove", "the grove repo".
+
+**"chain"** carries two unrelated senses, and one of them is already a verb name:
+
+1. The **brief chain** — a leaf's ancestor `BRIEF.md` files, root→leaf, which
+   [[Bootstrap]] reads and `grove-llm brief-chain` prints. A relation between a
+   leaf and its *ancestors*.
+2. The **[[Review chain]]** — `X` → `review-X` → `integrate-review-X`, a step
+   sequence over one artifact. A relation between *sibling* leaves.
+
+Neither is derivable from the other and both are load-bearing, so qualify every
+use ("brief chain", "review chain") and never let a bare "chain" head a verb
+name — the reason a construction verb is `leaf-add-chain` rather than
+`chain-add`, which would sit beside `brief-chain` meaning something else entirely.

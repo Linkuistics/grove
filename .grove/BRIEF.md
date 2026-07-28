@@ -71,8 +71,8 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   server was replaced by `herdr server live-handoff`, which preserved every pane
   including the one that issued it, so the "restart kills every pane" cost this
   node was sequenced around turned out not to exist. Three rows of ADR
-  *herdr-optional-ui*'s table remain unobserved (SIGTERM/SIGHUP, version-skew
-  stop, relaunch); none was in scope here, and they now ride along with
+  *herdr-optional-ui*'s table were out of scope here (SIGTERM/SIGHUP,
+  version-skew stop, relaunch); all three were later observed by
   **observe-mid-turn-live-k31**.
 - **herdr-turn-hooks-k4** — intra-session turn boundaries, per harness. Refines
   **herdr-pane-state-k2**; claude first (cleanest injection), codex and pi after.
@@ -105,16 +105,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   version-skew stop, relaunch), which were homeless once **herdr-turn-hooks-k4**
   finished. Needs v16.1.0 shipped first; the version-skew guard makes that a
   single leaf rather than two (the leaf explains how).
-  **Headline observed; one short session left.** v16.1.0 is shipped and
-  installed, and under that driver a real permission dialog held past six seconds
-  read **`blocked`** and returned to `working` on grant, mid-turn — see Notes.
-  The version-skew row is observed too. What remains is only the *recording* of
-  the last two rows (relaunch, SIGTERM/SIGHUP): both are armed by a detached
-  observer that acts after the arming session is dead, so the leaf stays live for
-  one session whose whole job is to read
-  `target/k31-relaunch-interrupt.log` and retire. Costs: two release-path
-  frictions, both folded into **release-doctor-toolchain-gap-k27**, which is now
-  a two-friction leaf rather than the doctor alone.
+  **Done.** v16.1.0 is shipped and installed, and under that driver a real
+  permission dialog held past six seconds read **`blocked`** and returned to
+  `working` on grant, mid-turn. All three carried rows were observed too, the
+  last two by a detached observer acting after the arming session was dead — so
+  *herdr-optional-ui*'s state table is now **observed in full, in production**
+  (see Notes). Costs: two release-path frictions, both folded into
+  **release-doctor-toolchain-gap-k27**, which is now a two-friction leaf rather
+  than the doctor alone.
 - **herdr-grove-plugin-k5** — the plugin. Depends only on the `.grove/`
   directory scheme, so it can follow **herdr-pane-state-k2** at any point.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
@@ -319,6 +317,29 @@ control: re-verify anything load-bearing before building on it.
   five rows (`src/ui/status.rs`), so the red dot an operator sees *is* `blocked`.
 - **The version-skew stop row is observed**: `blocked` 14s after the signal, held
   5½ min, `agent=grove` never released — `plan_for(Stop::VersionSkew)` exactly.
+- **ADR *herdr-optional-ui*'s state table is now observed in full, in
+  production** — the last two rows on 2026-07-28 by `observe-mid-turn-live-k31`,
+  from a detached observer armed before its arming session's completion signal
+  (`target/k31-relaunch-interrupt.log`). **Relaunch**: across the session swap
+  (child 39119 → 79090 under driver 39105) the pane held `agent=grove
+  status=working` with **no `agent=null` sample** — nothing released, exactly
+  `plan_for(Stop::Signal(Some(Relaunch)))`. **Interrupt**: a SIGTERM to the
+  driver yielded `agent=null status=unknown` 2s later — released, reporting
+  nothing, exactly `plan_for(Stop::Interrupted)`; the 2s is the child's kill
+  grace, since the driver applies the plan only after the session it was killing
+  is reaped. **SIGHUP is covered by code path, not separately observed**: both
+  signals land on one handler and one `Stop::Interrupted`
+  (`src/loop_driver.rs:1259-1278`).
+- **The relaunch row's *silence* remains unobservable, by construction**, and
+  rests on the unit-pinned policy table rather than on measurement: with the pane
+  already at `working`, "reported nothing" and "re-reported the state it already
+  held" produce identical samples (the `revision` finding), and arranging a
+  different pre-state across a relaunch would need a third cross-session observer
+  to buy a distinction no operator can see. What the row asserts *operationally*
+  — the pane is never released mid-loop — is what was measured. Also observed at
+  the release: `agent` stayed `null` and `agent_status` flapped
+  `unknown`→`idle`→`unknown`, never re-acquiring an agent name, which is screen
+  detection reading a pane whose harness is dead — not a stalled sweep.
 - **Two bounds on how far the mid-turn row reaches**, both now in ADR
   *herdr-turn-boundary-hooks*. A **permissive permission mode raises no dialog at
   all** — under `defaultMode: "auto"` with `skipDangerousModePermissionPrompt`,

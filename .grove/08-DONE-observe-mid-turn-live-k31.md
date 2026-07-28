@@ -151,32 +151,47 @@ Four findings that cost time and should not be re-derived:
 - **`pgrep -P` returns nothing under this sandbox**; `ps -axo pid=,ppid=,command=
   | awk '$2==<pid>'` is what works for child detection.
 
-## What is left
+## Progress — session 3 (both rows recorded; leaf complete)
 
-Only the last two rows, and both are **already in flight** — captured by a
-detached observer started immediately before this session's completion signal,
-the same trick the skew row used:
+The detached observer fired cleanly — no `ABORT`, and the `RELAUNCH` marker is
+there. Both rows in one run, transcribed here because the log lives under
+`target/` and does not survive a `cargo clean`:
 
-- script: `target/k31-relaunch-interrupt.sh`
-- log: `target/k31-relaunch-interrupt.log`
+```
+18:43:26  [0000]  watch start — pane wQ:p1, driver 39105, outgoing session 39119
+18:43:26  [0000]  agent=grove status=working session=herdr:claude
+18:43:55  [0095]  RELAUNCH — driver 39105 has new harness child 79090 (was 39119)
+18:43:55  [0095]             relaunch row asserts: no agent=null above this line
+18:44:02  [0119]  SIGTERM -> driver 39105 (grove do)
+18:44:02  [0119]             interrupt row asserts: agent=null appears below this line
+18:44:04  [0126]  agent=null status=unknown session=herdr:claude
+18:44:04  [0126]  RELEASE observed — interrupt row confirmed
+18:44:04  [0127]  agent=null status=idle session=herdr:claude
+18:44:04  [0128]  agent=null status=unknown session=herdr:claude
+18:54:42  [2400]  watch end — phase=done
+```
 
-It waits for the driver to relaunch (a new harness child appears), settles ~6s,
-then SIGTERMs the driver. **The two rows are told apart by exactly one thing: an
-`agent=null` sample.** Relaunch (report nothing, *no* release) must produce none
-above the `RELAUNCH` marker; interrupt (report nothing, *release*) must produce
-one below the `SIGTERM` marker. The script writes both assertions into the log
-as marker lines, so it reads without this file.
+- **Relaunch** — one sample above the marker, `agent=grove status=working`, and
+  no `agent=null` anywhere in the phase: the pane was never released across the
+  session swap. `plan_for(Stop::Signal(Some(Relaunch)))` exactly.
+- **Interrupt** — `agent=null` 2s after the SIGTERM. Released, reporting nothing:
+  `plan_for(Stop::Interrupted)` exactly. The 2s is the child's kill grace — the
+  driver checks `SessionEnd::Interrupted` and applies the plan only after the
+  session it is tearing down is reaped (`src/loop_driver.rs:228-236`).
+- **SIGHUP was not separately provoked** and does not need to be: it shares one
+  handler and one `Stop::Interrupted` with SIGTERM
+  (`src/loop_driver.rs:1259-1278`).
 
-This leaf is deliberately **not retired**: the rows land after the session that
-armed them is dead, so recording them needs one more short session. Leaving it
-live also means the sacrificial relaunched session is *this leaf's own* rather
-than a wasted session on the next leaf.
+`agent_session` stayed `herdr:claude` throughout, including across the release —
+the patch's second hunk, holding under the one path that legitimately releases.
 
-**The next session's whole job**: read `target/k31-relaunch-interrupt.log`,
-promote the two rows into the brief Notes, then retire. Under `target/`, so
-gitignored — do not `cargo clean` first. If the log shows `ABORT` or no
-`RELAUNCH`, the driver PID moved and the rows need re-arming, not re-designing.
+**The silent half of the relaunch row stays unobserved on purpose.** With the
+pane already at `working`, "reported nothing" and "re-reported `working`" are
+byte-identical from the socket (`revision` is not a discriminator), so proving it
+needs a *third* cross-session observer arranging a different pre-state — for a
+distinction no operator can see. The policy table is unit-pinned
+(`src/herdr.rs:426-463`); the measurement covers the operational claim, which is
+that the pane is never released mid-loop.
 
-- The pane is `wQ:p1` on workspace `wQ`; the patched server is PID 77248
-  (`linkuistics-herdr 0.7.5-linkuistics.1`, live-handoff import). Re-check both
-  before trusting a reading.
+All four Done-when points are met and the two rows are promoted into the brief
+Notes. Nothing is left; the leaf retires here.

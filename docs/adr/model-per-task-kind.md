@@ -20,6 +20,22 @@ cannot be described coherently apart.
   filesystem every iteration (*self-driving-loop*, constraint 1), matching the
   driver's existing role of setting launch args (it already sets the session
   name).
+- **The peek is a forecast, not a reservation — the tree wins.** It necessarily
+  runs *before the session exists*, so it **predicts** which leaf that session
+  will take; the session then runs its own `grove-llm pick`, and that is the
+  **fact**. Nothing binds the two and nothing should. A leaf identity handed to
+  the session would be authoritative state living outside the tree (constraint
+  1), and it would let a stale prediction override a `leaf-insert` that landed in
+  the meantime — the one verb whose entire purpose is to preempt. So a
+  disagreement costs exactly **one session's routing**, and the next iteration is
+  already correct without intervention, because the loop re-derives its position
+  from the tree every time — the same zero-state property that makes restart ≡
+  continuation (*self-driving-loop*). What self-healing does *not* undo is a leaf
+  already **executed** under the wrong routing, which is where the residual sits:
+  bounded at one leaf, once, and on the harness axis it is not correctable
+  in-session (below). The window is the harness's own boot — measured at ≥8s to a
+  claude session's first tool call, against a ~0–30ms peek — so it is not
+  something grove can shrink.
 - **Which harness: a policy, plus a per-leaf fact.** `GROVE_<KIND>_HARNESS` names
   the harness that runs leaves of that kind, whatever the grove is stamped to.
   Unset means the **stamped** harness — which is not a default but an explicit
@@ -149,6 +165,32 @@ only for a harness that is exempt because it takes no model flag at all.
   It is purely additive when it comes — a second optional line, not a design to
   unpick. What would reopen it: one model family genuinely running on two
   harnesses.
+- **Binding the session to the leaf the driver routed on (rejected).** The driver
+  exports the leaf it peeked; the skill's Pick step reads it instead of walking,
+  or walks and treats a mismatch as a failure. The divergence it targets is real
+  and was **constructed and observed** (`session-leaf-binding-k28`): with a
+  `leaf-insert` landing inside the launch window, the driver launched
+  `claude/opus` for a `design` leaf and the session worked a `review-impl` leaf
+  that `GROVE_REVIEW_HARNESS=codex` routes to codex — a **cross-vendor** misroute,
+  silent, since the launch diagnostic names the harness and model but not the
+  leaf. It is also the sharper half: a wrong *model* is a preference axis the
+  session can correct with `/model`, a wrong *harness* is a correctness axis it
+  cannot correct at all.
+  Rejected anyway, on four counts. It **inverts the authority** the mechanism
+  above rests on, making a pre-session forecast beat the tree. It **discards a
+  legitimate `leaf-insert`** — the human's one means of preempting the loop —
+  for a whole session. It **cannot be mandatory**, because the grove skill also
+  drives sessions with no driver at all (a plain harness launched in a grove
+  worktree), so the check must tolerate an unset variable and therefore cannot
+  distinguish "no driver" from "driver that forgot". And a session that
+  **refuses** to start because a variable disagrees with the tree is a gate, which
+  grove does not do (constraint 5) — while a session that only *warns* has already
+  paid the machinery for an outcome the next iteration corrects by itself.
+  Against that: no occurrence is known, the residual is one leaf executed on the
+  wrong vendor, once, and the loop's own zero-state re-derivation already limits
+  it to that. What would reopen it: an observed divergence in the field, or a
+  driver that peeks further ahead than it launches (which would widen the window
+  from *boot latency* to *arbitrary*, and break the bound above).
 - **Cross-family (multi-provider) selection as a *methodological* lever —
   rejected; the kind is the key, the *family* is not.** A review leaf gains most
   from a reviewer that does not share the author's family-level style prior

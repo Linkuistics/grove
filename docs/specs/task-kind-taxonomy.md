@@ -439,6 +439,14 @@ No new seams. The work tests through the existing partition:
   value) and on stderr plus exit code for the refusal cases. Every routing
   decision is observable here, at the process boundary: family precedence,
   harness-major ordering, reroute truncation, and the required-var failures.
+  Two properties of the seam itself, both of which silently corrupt a run that
+  ignores them. A **fake codex is spawned twice per launch** — the sandbox
+  pre-flight, then the session — so it must discriminate on `exec` as argv[1] or
+  every codex launch double-counts (*codex-gitdir-grant*, and the pre-flight's
+  own asymmetry: `codex exec` carries on where the TUI dies). And **only the
+  scoped `GROVE_HARNESS_BIN_<HARNESS>` spelling survives a reroute** — plain
+  `GROVE_HARNESS_BIN` is deliberately ignored there, so faking *both* ends of a
+  reroute needs the scoped form for each.
 - **The `kind` verb seam** — task file in, label out. The `work`→`impl` read
   alias and the degradation warning land here, and so does the whole read
   contract of the `**Harness:**` line: the second output line under

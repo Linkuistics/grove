@@ -92,6 +92,34 @@ stood at the graft — a closed record, not part of the versioned sequence above
   middle option (`leaf-add` inferring placement from a shared stem) are costed in
   `docs/specs/task-kind-taxonomy.md`, along with what would reopen the question.
 
+- **The skill's Pick step now says where the pick actually happens.** A session
+  reading `SKILL.md` met Pick as its first act, when under `grove do` it is the
+  *second*: the driver already ran `grove-llm kind --with-harness` to bind this
+  session's harness and model, necessarily **before the session existed**. The
+  step, glossary term **Kind routing**, and ADR *model-per-task-kind* now state
+  the invariant that follows — **the driver's peek is a forecast, not a
+  reservation, and the tree wins**. grove hands a session no leaf identity, so
+  work the leaf `pick` returns even if the launch was routed for a different one.
+
+  Whether to *bind* the two was the open question, and the answer is **no**. The
+  divergence it targets is real and was constructed rather than assumed: with a
+  `leaf-insert` landing inside the launch window — measured at **≥8s**, which is
+  essentially all harness boot, against a ~0–30ms peek — the driver launched
+  `claude/opus` for a `design` leaf while the session worked a `review-impl` leaf
+  that `GROVE_REVIEW_HARNESS=codex` routes to codex. A **cross-vendor** misroute,
+  and the sharper half, since a wrong model is a preference axis `/model` can fix
+  in-session and a wrong harness is a correctness axis that cannot be.
+
+  Binding lost anyway, on four counts: it inverts the authority (a pre-session
+  forecast beating the tree, which is state outside the tree — constraint 1); it
+  discards a `leaf-insert`, the human's one means of preempting the loop; it
+  **cannot be mandatory**, because the skill also drives sessions with no driver
+  at all, so an unset variable is indistinguishable from a driver that forgot;
+  and refusing to start on a mismatch is a gate (constraint 5). Against that, the
+  loop already self-heals in **one** iteration off the same zero-state
+  re-derivation that gives restart ≡ continuation — so the residual is one leaf
+  executed on the wrong vendor, once. No behaviour changed.
+
 ### Fixed
 
 - **A codex grove no longer dies at startup in an untrusted working tree.** A

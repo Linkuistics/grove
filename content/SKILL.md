@@ -123,6 +123,13 @@ its later siblings; skip every `BRIEF.md` and `DONE` leaf; a brief is not a
 leaf) are what the verb implements; reach for them only when reasoning about the
 walk, not when running it.
 
+Under `grove do` this is the **second** pick: the driver already peeked the tree
+to route this session's harness and model (*model-per-task-kind*), necessarily
+*before* the session existed. That peek is a **forecast**; your `pick` is the
+**fact**, and the fact wins — grove hands a session no leaf identity, so the tree
+stays the only state. Work the leaf `pick` returns even if the launch was routed
+for a different one; the next iteration re-derives and is already correct.
+
 **Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
 bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
 `BRIEF.md` chain root→leaf, enumerated by `grove-llm brief-chain` — the verb

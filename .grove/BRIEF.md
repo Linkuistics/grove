@@ -297,6 +297,21 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   whether to bind, and reconcile the skill's Pick step with where the pick really
   happens. Raised by the human during **observe-live-surface-k26**; independent of
   the herdr work.
+  **Done — do not bind; the tree wins.** The coincidence is real but the framing
+  was inverted: the driver's peek runs *before the session exists*, so it is a
+  **forecast**, and the session's own `pick` is the **fact**. Binding would make
+  the forecast beat the tree — authoritative state outside `.grove/` (constraint
+  1) that also silently discards a `leaf-insert`, the one verb that exists to
+  preempt. Three more counts in ADR *model-per-task-kind*, which gained the
+  invariant and the rejection rather than a new ADR (the same under-described-ADR
+  repair **jj-first-coverage-k6** made to *symmetric-vcs-rule*). The divergence was
+  **constructed, not assumed**, and it is worse than the leaf claimed —
+  **cross-vendor**, not just a wrong model, and so *not* correctable in-session
+  the way `/model` corrects the model axis. What retires the question is that the
+  loop **self-heals in one iteration** off the same zero-state re-derivation that
+  gives restart ≡ continuation, bounding the residual at one leaf, once. Its one
+  open half — the misroute is invisible, since the launch line names harness and
+  model but not the leaf — is **routed-leaf-diagnostic-k41**.
 - **herdr-sidebar-tokens-k32** — design. Whether a `grove do` pane's **sidebar row**
   should carry the live leaf as `pane.report_metadata` tokens, and which side would
   report them. Split out of **herdr-grove-plugin-k5**, which decided it did not
@@ -316,6 +331,13 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   chain, at once, per k36's own operational habit — and the friction of doing that
   by hand (three `leaf-add` calls, three chances to stop after the first, the
   naming convention re-derived from this brief) is itself evidence for k38.
+- **routed-leaf-diagnostic-k41** — make the driver's launch line name the leaf it
+  routed on. Split out of **session-leaf-binding-k28**: the only part of that
+  complaint k28's decision leaves standing is *visibility*, and a diagnostic
+  closes it with no gate, no env export, and no state outside the tree. Stands
+  alone too — *what it is working on* is this brief's own goal, and it is absent
+  from the driver's own output. Deliberately **not** a chain (a one-file
+  diagnostic; k29's escalation call says subagent, not `review-impl`).
 
 ## Pointers
 
@@ -619,6 +641,38 @@ control: re-verify anything load-bearing before building on it.
   codex on the `GROVE_HARNESS_BIN*` seam must tell them apart — `exec` as argv[1]
   is the discriminator, and `tests/support`'s `fake_codex` carries the reply; and
   a codex leaf in *this* grove will refuse until this tree is trusted.
+- **The driver's routing peek and the session's own `pick` really can disagree,
+  and the misroute is cross-vendor** (constructed and measured 2026-07-28,
+  `session-leaf-binding-k28`). With a `leaf-insert` landing between the two, a
+  driver launched `claude/opus` — routed for a `design` leaf — while the session
+  worked a `review-impl` leaf that `GROVE_REVIEW_HARNESS=codex` (this machine's
+  live config) routes to codex. Three bounds worth carrying. The **window is
+  ≥8s**, measured spawn-to-first-tool-call on a real `claude -p`, and a real
+  session adds a skill-load turn on top; it is essentially all harness boot, so
+  grove cannot shrink it, while `grove-llm kind --with-harness` costs ~0–30ms.
+  The loop **self-heals at the next iteration** (the following session launched
+  `codex/sol-xhigh` correctly) off the same zero-state re-derivation that gives
+  restart ≡ continuation — but it heals the *routing*, never a leaf already
+  executed under the wrong one, which is what bounds the residual at one leaf,
+  once. And the **live path runs two picks, not three**: `picked_leaf`
+  (`src/loop_driver.rs:1006`) is reached only from `readiness()`, the `--no-launch`
+  dry run, which by definition never launches.
+- **The routing decision's *outputs* already reach the session, through its own
+  argv** — `ps -o command= -p $PPID` shows `--model opus`, the same one-line check
+  the turn-hooks note below uses for `--settings`. Only the routing *input* (which
+  leaf was peeked) is absent, and `grove do --no-launch` re-runs the identical
+  `resolve_launch` against the current tree, so a divergence is checkable today
+  with zero new code. Worth knowing, not worth mandating: it costs a subprocess
+  per session, and it carries `--no-launch`'s side conditions (a codex probe
+  spawn, the harness binary on PATH).
+- **A fake harness on the `GROVE_HARNESS_BIN_<HARNESS>` seam must skip `exec` as
+  argv[1]**, or a codex launch double-counts. This is `codex-grant-refused-k35`'s
+  finding met from the other side: the sandbox pre-flight spawns the same fake
+  before the session does, and a fake that logs both makes a two-iteration loop
+  read as three. The scoped `GROVE_HARNESS_BIN_<HARNESS>` spelling is also the
+  only one that survives a reroute — plain `GROVE_HARNESS_BIN` is deliberately
+  ignored there (`harness_bin`), so faking *both* ends of a reroute needs the
+  scoped form for each.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

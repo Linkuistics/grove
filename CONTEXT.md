@@ -124,6 +124,14 @@ How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
 **which model** that harness loads, both keyed on the leaf's [[Task kind]]. The
 driver peeks the leaf (`grove-llm kind --with-harness`) every iteration and
 resolves two axes via each harness's native launch flags — no router, no proxy.
+The peek is a **forecast, not a reservation**: it runs before the session exists,
+so the session's own [[Pick]] is the fact and **the fact wins** — no leaf identity
+is handed across, because that would be authoritative state outside the tree
+(constraint 1) and would let a stale forecast override a `leaf-insert`, the one
+verb that exists to preempt. A disagreement therefore costs **one session's
+routing**, self-healing at the next iteration off the same zero-state
+re-derivation that gives restart ≡ continuation; what it cannot undo is a leaf
+already *executed* under it.
 *Harness*: **leaf beats kind beats family beats stamp** — a leaf's own
 `**Harness:** <name>` line first, then `GROVE_<KIND>_HARNESS`, then
 `GROVE_<FAMILY>_HARNESS`; unset everywhere means the **stamped** harness, which
@@ -150,6 +158,14 @@ several harnesses and it is nine *per harness* in the harness-scoped spelling
 (measured at ~27 on the first real migration).
 _Avoid_: "per-kind model selection" as the whole name — the harness axis is half
 of it, and the family axis spans both.
+_Avoid_: reading "the driver picks, then the session picks the same leaf" as an
+**invariant** — nothing enforces it, and a `leaf-insert` landing in the launch
+window (measured at ≥8s, essentially all harness boot) breaks it. The misroute is
+real and **cross-vendor** where a kind reroutes the harness, which the session
+cannot correct in-session the way `/model` corrects the model axis. Binding the
+session to the routed leaf was considered and **rejected** — it inverts the
+authority, discards the insert, cannot be mandatory (the skill also drives
+sessions with no driver), and refusing would gate.
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;
 this is native launch-flag selection against harnesses grove already knows.
 _Avoid_: "an unset var means the session inherits your own default" — that was

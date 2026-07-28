@@ -174,8 +174,19 @@ exists for):
 Step 3's observable is `agent: null` with `agent_status: "unknown"`, **not** an
 immediate return to the previously detected agent. Release hands the pane back to
 screen detection, but detection re-runs on its next sweep rather than
-synchronously, so a checker that asserts "back to `codex`" right after the
-release will fail against a working patch.
+synchronously, so a checker that asserts "back to the detected agent" right after
+the release will fail against a working patch.
+
+Whether it *ever* returns depends on there still being a harness to detect, and
+the two cases are worth separating because they look like the same bug. On a
+`grove do` pane whose harness is **still running**, release is followed by
+`agent: null` for roughly **14 seconds** and then a re-acquisition as the launched
+harness — measured 2026-07-28, and it re-acquires as `claude` rather than `codex`
+because grove sets the `HERDR_AGENT` hint (*herdr-optional-ui*). After
+`complete --done` the harness has already exited, the hint exits with it, and the
+pane stays at `agent: null` indefinitely. So "released and never came back" is
+correct at the end of a grove and a symptom mid-loop; a checker must say which it
+is testing, and must wait out at least one sweep either way.
 
 Watching a real `grove do` pane rather than driving the CLI by hand, the
 `idle` that ADR *herdr-optional-ui* places before the release on `complete

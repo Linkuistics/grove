@@ -78,6 +78,24 @@ change to grove's contract, not a feature, and it is not this decision.
   runtime, and cannot add socket methods or join the authority allowlist. A
   plugin has exactly the socket access `grove-llm` already has, so routing state
   through one would add a hop and buy nothing.
+- **Restructure the driver's process group** so the harness, not `grove`, leads
+  the pane's foreground job (`setpgid` the harness into its own group and
+  `tcsetpgrp` it to the foreground). It would work — detection reads the pane
+  shell's `e_tpgid`, so the harness would win herdr's leader preference outright
+  — and it needs no environment hint. Rejected as buying an outcome
+  `HERDR_AGENT` already buys, at the price of rewriting the driver's job-control
+  topology: SIGINT delivery (the driver's `SIG_IGN` survival is load-bearing —
+  *self-driving-loop*), the SIGTERM/SIGHUP release in the table below,
+  `tcsetpgrp` restore on child exit, and `SIGTTOU` handling around the call.
+  That is a signal-contract change to buy a screen-manifest selection. Reopen
+  only if the hint is withdrawn upstream.
+- **A third fork hunk on herdr's `identify_agent_in_job` fallback.** Rejected on
+  the same ground that holds the patch to two hunks: the carry is permanent, so
+  every hunk is a rebase obligation forever, and a fix needing no fork beats one
+  that does. It would also fix only *our* build, leaving stock-herdr users with
+  the mis-label.
+- **Accept the mis-label as known noise.** Legitimate only while the fix was
+  expensive. It is one environment variable.
 - **Offer the patch upstream as a `fix:` PR.** Rejected; the fork is a permanent
   carry, not a temporary one. The patch is inside the automated intake budget
   (1 file, +74/−2, against a limit of 20 files / 1000 lines) and a `fix:` title
@@ -116,7 +134,8 @@ a standing constraint rather than a courtesy to a reviewer.
 
 grove takes **precedence** over screen detection, not authority *instead of* it:
 staying outside herdr's allowlist keeps `fallback_state` live underneath. Two
-known gaps follow, both accepted here rather than fixed.
+known gaps followed. The first is accepted here; the second is now fixed, and the
+fix needed no fork hunk.
 
 grove's authority has **no expiry** in herdr, so a driver killed uncatchably
 (SIGKILL, panic, OOM) pins the pane at its last reported state until
@@ -124,11 +143,37 @@ grove's authority has **no expiry** in herdr, so a driver killed uncatchably
 changes behaviour for every third-party reporter, and it is a second principle
 in a patch deliberately held to one.
 
-The `fallback_state` underneath is **not reliable for grove panes**: herdr
+The `fallback_state` underneath **was not reliable for grove panes**: herdr
 identifies the agent from the pane's foreground process group, whose leader is
-`grove` — an unknown name — so detection falls back to scoring the whole group
-and can settle on an MCP helper rather than the harness grove launched. What to
-do about that is undecided and out of this ADR's scope.
+`grove` — a name herdr cannot identify — so detection fell back to scoring the
+whole group and settled on a `codex mcp-server` helper rather than the harness
+grove launched. grove closes that by setting herdr's documented
+`HERDR_AGENT=<harness>` hint on every harness child it spawns, at both launch
+sites. The probe consults every **non-leader** member of the foreground job for a
+hint *before* reaching the group scoring that misfired, so one environment
+variable is the whole fix — on stock herdr as much as on the fork.
+
+The principle, and the reason the two surfaces do not collide: **grove reports
+what it *is* (`grove`); it hints what it *launched* (`claude` / `codex` / `pi`).**
+They are different fields serving different jobs — the report carries semantic
+state grove alone knows, the hint selects which screen manifest herdr parses the
+TUI with — and keeping them distinct is what lets both be honest at once. The
+hint cannot disturb the reports: a screen-detected blocker overrides a hook report
+only when `parse_agent_label(authority.agent_label) == detected_agent`, and
+grove's label parses to `None`, so moving `detected_agent` from `Some(Codex)` to
+`Some(Claude)` moves nothing in that gate.
+
+The fix is **measured, not merely reasoned** (2026-07-28, against the installed
+`0.7.5-linkuistics.1`). On two real grove panes with byte-identical process
+shapes — leader `grove`, a live `claude`, a `codex mcp-server` helper — the
+hint-less build read `agent: codex` (and `agent_status: done` while claude was
+alive), and the hint-carrying build read `agent: claude`. On a real `grove do`
+pane with grove's authority released to expose detection underneath, the pane
+re-acquired as `claude` and herdr then read a stalled grilling session as
+**`blocked`** off claude's own screen manifest — the `fallback_state` this
+paragraph used to disclaim, working. The hint is inherited by the harness's whole
+process subtree, so even the `codex` helper carries `HERDR_AGENT=claude` and
+cannot win the hint path either.
 
 ## When grove releases — and the two cases where it must not
 
@@ -177,6 +222,13 @@ distinction that changes nothing.
   the harness may vary per leaf — and it sidesteps herdr's gate that silently
   drops a report whose label names a different *known* agent than the one it
   detected.
+- grove **hints** `HERDR_AGENT=<harness>` on every harness child, at both launch
+  sites, unconditionally — not gated on being inside a herdr pane, unlike the
+  turn hooks. The asymmetry is deliberate: injecting hooks changes the launch
+  argv and arms a per-tool-call subprocess, while an environment variable changes
+  no argv and spawns nothing, and nothing but herdr ever reads it. Because the
+  hint rides the harness's environment, it dies with the harness — which is why a
+  released pane re-acquires the harness only while one is still running.
 - **The status surface, not the loop, is what depends on the patched build.**
   Under stock herdr the reports are dropped and the pane falls back to screen
   detection — the same outcome as no herdr at all, which is exactly what this

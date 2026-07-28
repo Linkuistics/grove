@@ -327,21 +327,40 @@ _Avoid_: treating `grove-llm report-turn` as a verb the model calls. It is
 machinery the injected hook runs; it must exit zero and print nothing, because a
 `UserPromptSubmit` hook's stdout is injected into the conversation as context.
 
-**Pane mis-detection**:
-herdr labelling a `grove do` pane with the wrong agent — in practice `codex`,
-whatever harness grove actually launched — so its screen manifests evaluate
-against the wrong agent's UI. herdr identifies the agent from the pane's
-foreground **process group**: it prefers the group *leader*, and only falls back
-to scoring every process in the group when the leader is unrecognised. In a
-grove pane the leader is `grove` itself, which herdr cannot identify, so the
-fallback runs and a `codex`-named MCP helper can outrank the real harness. Bites
-only where grove is not holding hook authority (before its first report; after
-release), since a landed report takes precedence over detection. **The route is
-settled** (`herdr-pane-misdetection-k11`): grove sets herdr's documented
-`HERDR_AGENT=<harness>` hint on the harness child it spawns — the extension point
-upstream added for host-visible wrappers, which is what `grove do` is. Not yet
-implemented or observed live; the entry is rewritten to the resolved mechanism by
-`agent-hint-observe-k34`.
+**Pane mis-detection** / **agent hint** (`HERDR_AGENT`):
+herdr labelling a grove pane with the wrong agent — in practice `codex`, whatever
+harness grove actually launched — so its screen manifests evaluate against the
+wrong agent's UI. herdr identifies the agent from the pane's foreground **process
+group**: it prefers the group *leader*, and only falls back to scoring every
+process in the group when the leader is unrecognised. In a grove pane the leader
+is `grove` itself, which herdr cannot identify, so the fallback runs and a
+`codex`-named MCP helper outranks the real harness. Bites only where grove is not
+holding hook authority (before its first report; after release), since a landed
+report takes precedence over detection — which is why the bug hid behind grove's
+own status surface.
+**Fixed** by grove setting herdr's documented `HERDR_AGENT=<harness.name>` hint on
+the harness child at **both** launch sites (`launch::set_herdr_agent_hint`) — the
+extension point upstream added for host-visible wrappers, which is what grove is.
+It works because the probe consults every **non-leader** member of the foreground
+job for a hint *before* the group scoring that misfires, so no fork hunk and no
+process-group surgery is needed; it works on stock herdr too. Set
+**unconditionally**, not gated on [[herdr integration]]'s `in_pane` — the
+deliberate asymmetry with the [[Session-boundary visibility]] turn hooks, whose
+gate exists because they change the launch argv. The principle: **grove reports
+what it *is* (`grove`); it hints what it *launched*** — different fields, different
+jobs, both honest at once. Observed live 2026-07-28 against
+`0.7.5-linkuistics.1`: identical panes read `codex` without the hint and `claude`
+with it, and a released `grove do` pane re-acquired as `claude` and then read a
+stalled grilling session as `blocked` off claude's own manifest.
+_Avoid_: expecting the hint to outlive the harness — it rides the harness's
+**exec-time environment**, so once the harness exits the pane reads `agent: null`,
+not the harness. That, not a stalled sweep, is why a released pane at
+`complete --done` never snaps back.
+_Avoid_: `strings`/`grep` over a herdr binary to check the feature is present —
+`b"HERDR_AGENT="` is a compile-time `strip_prefix` operand LLVM lowers to
+immediate byte compares, so it is absent from a binary that provably contains the
+code. Check the Homebrew install receipt's pinned revision instead. (The habit
+*does* work on grove's own side, where `cmd.env` needs the literal at runtime.)
 _Avoid_: restructuring grove's process group (`setpgid`/`tcsetpgrp`) to win
 herdr's leader preference — it reaches the same result by rewriting the driver's
 signal topology, which [[Authority release]] and the loop's Ctrl-C survival both

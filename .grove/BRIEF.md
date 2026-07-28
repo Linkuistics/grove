@@ -179,6 +179,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **agent-hint-observe-k34** (measure it, and rework *herdr-optional-ui*'s
   "undecided, out of scope" paragraph). Needs no release: the observer drives a
   pane from `./target/debug/grove`.
+- **codex-grant-refused-k35** — a codex `grove do` launch dies at startup: codex
+  refuses grove's `--add-dir` VCS-store grants because the effective permission
+  profile is neither `workspace-write` nor off, and the loop stops on the mute
+  exit. Raised by the human during **agent-hint-observe-k34**, from a different
+  grove (`UIAnyware`, colocated jj); independent of the herdr work. Sequenced
+  ahead of the remaining leaves because it blocks a live grove, and because it
+  fires ADR *codex-gitdir-grant*'s own reopen condition ("unexplained codex
+  launch failures surface in the field") verbatim.
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
 - **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
@@ -282,19 +290,41 @@ control: re-verify anything load-bearing before building on it.
   detected agent falls through to a branch requiring both a `session_ref` and a
   `seq`, and is dropped without them. Allowlist membership is a stricter path,
   not a fast lane.
-- grove panes are **mis-detected** — now observed live, not inferred: a `grove
-  do` pane reads `agent: codex` while its `agent_session` is owned by
-  `herdr:claude`. The brief originally blamed MCP servers inheriting the
-  harness's process group; herdr already defends against precisely that (upstream
-  #161, v0.5.11) by preferring the process-group *leader*. The defence misses
-  because the leader of a grove pane is **`grove` itself**, unidentifiable to
-  herdr, so it falls back to scoring the whole group — where a `codex mcp-server`
-  helper outranks the real harness. See `CONTEXT.md` and
-  `herdr-pane-misdetection-k11`. **The route is now settled**: herdr publishes an
-  environment hint, `HERDR_AGENT=<agent>`, for host-visible wrappers that hide the
-  real agent — precisely what grove is — so grove sets it on the harness child
-  rather than restructuring process groups or adding a fork hunk. That node's
-  brief carries the evidence and both rejections.
+- grove panes **were mis-detected, and now are not** (fixed and observed live
+  2026-07-28, `agent-hint-observe-k34`). The cause: herdr prefers the
+  process-group *leader*, and a grove pane's leader is **`grove` itself**,
+  unidentifiable — so it falls back to scoring the whole group, where a
+  `codex mcp-server` helper outranks the real harness. (The root brief originally
+  blamed MCP servers inheriting the harness's process group; herdr already
+  defends against precisely that — upstream #161, v0.5.11 — and grove sitting at
+  the head of the group is what disables the defence.) The fix is one environment
+  variable, `HERDR_AGENT=<harness>`, set on the harness child at both launch
+  sites: herdr's probe reads **non-leader** hints before it reaches group
+  scoring. No fork hunk, no process-group surgery.
+  **The A/B, on real grove panes with byte-identical process shapes** (leader
+  `grove`, live `claude`, `codex mcp-server` helper), against the installed
+  `0.7.5-linkuistics.1`: the hint-less build read `agent: codex` with
+  `agent_status: done` *while claude was alive* — the headline complaint, in
+  miniature — and the hint-carrying build read `agent: claude`. On a real
+  `grove do` pane with grove's authority released to expose detection, the pane
+  re-acquired as `claude` after ~14s and herdr then read a stalled grilling
+  session as **`blocked`** off claude's own screen manifest, before grove's turn
+  hook self-healed back to `agent: grove`. So the fix buys more than a correct
+  label: it makes `fallback_state` — which *herdr-optional-ui* used to disclaim
+  for grove panes — actually work underneath grove's own reports.
+  Two bounds worth carrying: the hint is **inherited by the harness's whole
+  process subtree** (even the `codex` helper ends up carrying
+  `HERDR_AGENT=claude`, so it cannot win the hint path either), and it rides the
+  harness's **exec-time environment**, so it dies with the harness — which is why
+  a pane released at `complete --done` never snaps back to a detected agent.
+- **macOS discloses no environment at all for SIP-protected platform binaries**,
+  and `kern_procargs2` is exactly what herdr reads — so a hint set on, say,
+  `/bin/sleep` is invisible, while `claude`, `codex` and `grove` all read ~100
+  environment tokens fine. This bit while building a synthetic rig, not in
+  production (no harness is a platform binary), but it is the reason a
+  hand-rolled reproduction with system binaries silently proves nothing. Copying
+  a signed system binary to dodge it does not work either — the copy fails its
+  code signature and is killed on Apple Silicon. Compile a throwaway instead.
 - **The status surface is live in production, and verified end to end**
   (2026-07-27, `observe-live-surface-k26`). Both silences that made it inert are
   closed: `ship-release-k25` shipped **v16.0.0** so the installed `grove` carries

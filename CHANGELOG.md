@@ -89,9 +89,24 @@ stood at the graft — a closed record, not part of the versioned sequence above
   names are already herdr's three canonical labels; a name herdr does not know
   parses to nothing and degrades to the previous behaviour.
 
-  Visible only where grove is not holding hook authority — before its first
-  report, and after it releases at `complete --done` — since a landed report
-  already takes precedence over detection.
+  Visible only where grove is not holding hook authority, since a landed report
+  already takes precedence over detection — and in practice that means *while a
+  harness is running and grove is not reporting*, **not** after the release at
+  `complete --done`: the hint rides the harness's exec-time environment, so it
+  dies with the harness and a finished grove's pane has nothing left to detect.
+
+  **Measured on real panes** against the installed herdr `0.7.5-linkuistics.1`.
+  Two `grove retire` panes with byte-identical process shapes — leader `grove`, a
+  live `claude`, a `codex mcp-server` helper — read `agent: codex` with
+  `agent_status: done` on the hint-less v16.1.0 build (a live session reported as
+  finished: the headline complaint in miniature) and `agent: claude` on this one.
+  On a `grove do` pane with grove's authority released to expose detection, the
+  pane re-acquired as `claude` after one detection sweep and herdr then read a
+  stalled grilling session as **`blocked`** off claude's own screen manifest —
+  so the fix also makes `fallback_state`, which *herdr-optional-ui* previously
+  disclaimed for grove panes, work underneath grove's own reports. The hint turns
+  out to be inherited by the harness's whole process subtree, so even the `codex`
+  helper carries `HERDR_AGENT=claude` and cannot win the hint path either.
 
 ## v16.1.0
 

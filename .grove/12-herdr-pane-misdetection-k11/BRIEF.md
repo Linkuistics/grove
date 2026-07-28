@@ -43,6 +43,14 @@ call sites, which the guidance says to subagent, not to chain.
   `ship-release-k25` preceded `observe-live-surface-k26`). Unlike those, this one
   needs **no release** — the observer drives a throwaway pane from
   `./target/debug/grove`.
+  **Done.** The hint works, measured three independent ways against the installed
+  `0.7.5-linkuistics.1` — see Notes. The route the brief settled on a code read is
+  now settled on evidence, and *herdr-optional-ui* no longer disclaims
+  `fallback_state` for grove panes. The observation was cheaper than planned
+  because of a fact the brief did not record: **`grove retire` never reports to
+  herdr**, so its pane shows raw detection with the hint live — no
+  `release-agent`, no gap to catch. That is the rig to reach for next time
+  anything about grove-pane *detection* needs measuring.
 
 ## Why this route, and what was rejected
 
@@ -136,3 +144,45 @@ revision the **installed** `0.7.5-linkuistics.1` was built from (Homebrew's
   holding authority — before its first report, and after it releases at
   `complete --done`. A landed report takes precedence over detection, which is why
   `herdr pane get` on a live grove pane shows `agent: "grove"` and hides the bug.
+
+Measured 2026-07-28 by `agent-hint-observe-k34`, against the same installed
+`0.7.5-linkuistics.1`. Three independent demonstrations, weakest first:
+
+- **Synthetic rig** — a compiled wrapper (unidentifiable leader) forking a
+  `codex`-named decoy and a hinted child, reproducing a grove pane's process shape
+  exactly. With `HERDR_AGENT=claude` on the non-leader child the pane read
+  `agent: claude`; with the identical rig minus the hint it read `agent: codex`.
+  This isolates the **non-leader hint path** specifically — the leader-hint path
+  was confirmed separately and is not the one grove uses.
+- **Real `grove retire` panes, A/B on the binaries.** Both panes: leader `grove`,
+  a live `claude`, a `codex mcp-server` helper, same throwaway grove. The
+  installed **v16.1.0** (no hint — confirmed by `strings`) read **`agent: codex`,
+  `agent_status: done`** while claude was alive and working. `./target/debug/grove`
+  (hint) read **`agent: claude`**, held stably over two minutes. This is the whole
+  bug and the whole fix, on real binaries, changing one variable.
+- **A real `grove do` pane**, authority released to expose detection: `agent: null`
+  for ~14 s (one detection sweep), then **`claude`** with `agent_status: blocked`
+  — herdr reading a stalled grilling session correctly off *claude's* screen
+  manifest — then grove's own `PostToolUse` hook self-healing back to
+  `agent: grove`. The fix buys a working `fallback_state`, not just a correct label.
+
+Four facts worth carrying forward:
+
+- **`grove retire` never reports to herdr** (no `herdr::` call on that path; it is
+  `Command::status`, so the process shape is identical to `grove do`). Its pane is
+  therefore a **free window onto raw detection with the hint live** — no
+  `release-agent`, no race against grove's own report. Use it for any future
+  grove-pane detection measurement.
+- **The hint is inherited by the harness's whole subtree.** Every process under
+  `claude` whose environment macOS discloses carries `HERDR_AGENT=claude` —
+  including the `codex mcp-server` decoy — so the decoy cannot win the hint path
+  either. Strengthens the fix beyond what the code read predicted.
+- **macOS discloses no environment at all for SIP-protected platform binaries**,
+  via the same `kern_procargs2` herdr reads: `/bin/sleep` and `caffeinate` show
+  zero tokens where `claude`, `codex` and `grove` show ~100. Harmless in
+  production (no harness is a platform binary) but fatal to a naive synthetic rig,
+  and copying a signed system binary to dodge it fails its code signature and is
+  killed on Apple Silicon. Compile a throwaway.
+- **`herdr pane release-agent` takes the pane id first** (`release-agent <PANE_ID>
+  --source grove --agent grove`); the `--flag=value` form is rejected outright and
+  the usage string's ordering misleads.

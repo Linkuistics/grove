@@ -492,9 +492,16 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
 
 /// Plant a fake argv-logging `codex` on PATH plus the retire prompt under
 /// `skill_root` (the dir init helpers point GROVE_SKILL_DIR into), run a
-/// codex `retire` from the current cwd, and return the logged argv line.
-/// `exec_harness` has no bin seam — it execs `harness.exec_bin` through
+/// codex `retire` from the current cwd, and return the launch's logged argv
+/// line. `exec_harness` has no bin seam — it execs `harness.exec_bin` through
 /// PATH — which is why the fake goes there. Callers hold CWD_LOCK.
+///
+/// The fake carries [`support::CODEX_SANDBOX_PROBE_REPLY`], because a codex
+/// retire is pre-flighted exactly as a codex loop launch is: it commits, so it
+/// dies on the same read-only refusal and wants the same diagnostic. Asserting
+/// the log holds **one** line is therefore load-bearing rather than pedantic —
+/// it is what pins the probe as a probe, so these `--add-dir` assertions can
+/// never be quietly summing two invocations.
 fn codex_retire_argv(skill_root: &std::path::Path) -> String {
     let bindir = skill_root.join("bin");
     fs::create_dir_all(&bindir).unwrap();
@@ -503,8 +510,9 @@ fn codex_retire_argv(skill_root: &std::path::Path) -> String {
     fs::write(
         &fake,
         format!(
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"{}\"\nexit 0\n",
-            log.display()
+            "#!/bin/sh\n{probe}printf '%s\\n' \"$*\" >> \"{log}\"\nexit 0\n",
+            probe = support::CODEX_SANDBOX_PROBE_REPLY,
+            log = log.display()
         ),
     )
     .unwrap();
@@ -533,7 +541,19 @@ fn codex_retire_argv(skill_root: &std::path::Path) -> String {
     })
     .unwrap();
 
-    fs::read_to_string(&log).unwrap()
+    let log = fs::read_to_string(&log).unwrap();
+    let mut lines = log.lines();
+    let argv = lines
+        .next()
+        .unwrap_or_else(|| panic!("the fake codex logged nothing (log: {log:?})"))
+        .to_string();
+    assert_eq!(
+        lines.next(),
+        None,
+        "the sandbox pre-flight must not reach the argv log — it is a probe, \
+         not a launch (log: {log:?})"
+    );
+    argv
 }
 
 /// The `--add-dir` values in `argv`, canonicalized for comparison against

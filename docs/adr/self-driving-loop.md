@@ -56,6 +56,13 @@ external workflow engine. The mechanism:
   independent guards, `.cargo/config.toml`'s forced `[env]` override and the
   shared scrub list in `tests/support`, asserted by `tests/env_hygiene.rs`.
 
+  On the product side the rule is **one helper, not a discipline**
+  (`launch::scrub_loop_control_env`): all three harness spawns — the session, a
+  `grove retire`, and the codex sandbox pre-flight — call it, and the session's
+  then grants back the single path it owns. Scrub-then-grant rather than
+  grant-only, because *not setting* a variable is not the same as the child not
+  having it; open-coding the list per site is how the pre-flight came to miss it.
+
 ## Considered options
 
 The founding premise was to adopt an external YAML workflow engine (Archon) with

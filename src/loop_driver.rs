@@ -200,6 +200,27 @@ pub fn run_loop(
         // actually launches, not the stamped one — reading it first would
         // silently serve the wrong harness's copy whenever a reroute happens.
         let launch = resolve_launch(harness, worktree, verb)?;
+
+        // codex-gitdir-grant / codex-grant-refused-k35: before spawning, confirm
+        // codex would actually accept the VCS-store grants this launch is about
+        // to pass. Here rather than in `preflight_check` because the answer
+        // depends on the *model* — grove routes codex models through
+        // `--profile`, which is a whole config layer that can carry
+        // `sandbox_mode` — so it is only knowable once `resolve_launch` has
+        // picked the leaf and resolved its kind. A no-op for every other
+        // harness, and ~0.1s for codex.
+        //
+        // Bails rather than stopping the loop by hand: `run` already turns an
+        // `Err` out of here into the right pane state (`Stop::Failed` ⇒
+        // `blocked`, authority held), which is exactly this case — parked, with
+        // live leaves, needing a human.
+        crate::launch::check_codex_sandbox_accepts_grants(
+            &harness_bin(launch.harness, launch.rerouted),
+            launch.harness,
+            worktree,
+            launch.model.as_deref(),
+        )?;
+
         let prompt = crate::launch::load_prompt(launch.harness, verb)?;
 
         // Report site 1 of 4 (herdr-optional-ui). Before the spawn, not after:
@@ -322,14 +343,16 @@ fn launch_session(
     crate::launch::append_turn_hooks(&mut cmd, harness, Path::new(&grove_llm_bin()));
     cmd.arg(prompt);
     cmd.current_dir(worktree);
+    // Scrub the whole control channel, then grant back the one path this driver
+    // owns. Scrub-then-grant rather than grant-only, and via the shared helper
+    // rather than open-coded, because inheritance is the default: a `grove do`
+    // launched from inside a session that itself carried one of these (nested
+    // groves) must not leak a stale, unrelated handle — and the retired PID
+    // handles are not exported at all any more (driver-side-kill-k2), since the
+    // driver kills its own child directly. This is the *one* site that grants;
+    // every other harness spawn only scrubs (`launch::scrub_loop_control_env`).
+    crate::launch::scrub_loop_control_env(&mut cmd);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
-    // Neither handle is exported any more (driver-side-kill-k2) — the agent
-    // never needs its own PID, since the driver kills its own child directly.
-    // Scrub rather than simply not-setting: a `grove do` launched from inside
-    // a session that itself inherited one of these (e.g. nested groves) must
-    // not leak a stale, unrelated PID into the new harness session.
-    cmd.env_remove("GROVE_HARNESS_PID");
-    cmd.env_remove("GROVE_CLAUDE_PID");
     // herdr-pane-misdetection: name the harness for herdr's foreground-process
     // detection, which otherwise scores the process group `grove` leads and can
     // elect a `codex mcp-server` helper. Unlike `append_turn_hooks` above, this
@@ -944,6 +967,18 @@ enum Next {
 pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness> {
     let verb = launch_verb(worktree);
     let launch = resolve_launch(stamped, worktree, verb)?;
+    // The dry run fails on exactly what a launch fails on, and a codex sandbox
+    // that would refuse the grants is now one of those things
+    // (no-launch-config-check-k20). It is the *one* check here that is not
+    // purely a config read — it spawns a short-lived `codex exec` — but it stays
+    // inside the flag's contract: it touches neither the working tree nor the
+    // stamp, and codex sweeps its own scratch dir on its next run.
+    crate::launch::check_codex_sandbox_accepts_grants(
+        &harness_bin(launch.harness, launch.rerouted),
+        launch.harness,
+        worktree,
+        launch.model.as_deref(),
+    )?;
     let next = match launch.kind {
         None => Next::Finish,
         Some(kind) if verb == "start" => Next::Bootstrap(kind),

@@ -52,6 +52,19 @@ fn write_exec(path: &std::path::Path, body: &str) {
     fs::set_permissions(path, perms).unwrap();
 }
 
+/// [`write_exec`] for a fake a **codex** launch can reach — by whichever bin
+/// seam binds it, so the stamped-harness wrapper in
+/// [`unscoped_harness_bin_does_not_leak_across_a_reroute`] counts as one too.
+///
+/// Every codex launch is preceded by grove's sandbox pre-flight, which runs the
+/// same binary as `codex exec`; without [`support::fake_codex`]'s reply the fake
+/// treats that probe as a second launch and the fixture's counter, argv log and
+/// completion signal all double. A fake that forgets this fails loudly (a row
+/// count one too high), never quietly.
+fn write_fake_codex(path: &std::path::Path, body: &str) {
+    write_exec(path, &support::fake_codex(body));
+}
+
 /// Create `dir` as a real git repo — the shape `grove-llm kind` needs to
 /// resolve a grove root at all.
 ///
@@ -1189,7 +1202,7 @@ fn codex_launches_with_no_name_flag_and_a_model_flag() {
     // `grove-llm kind` resolves it to `work`. Signal only on the first, so the loop
     // stops after two.
     let fake = worktree.join("fake-codex.sh");
-    write_exec(
+    write_fake_codex(
         &fake,
         r#"#!/bin/sh
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
@@ -1245,6 +1258,187 @@ exit 0
         rows[1].contains("--profile sol-high"),
         "codex must honour model-per-task-kind via --profile (argv: {:?})",
         rows[1]
+    );
+}
+
+// ── The codex sandbox pre-flight (codex-grant-refused-k35) ────────────────
+//
+// A codex `grove do` used to die at startup with a one-line "Ignoring
+// --add-dir" message and a mute non-signal exit, because codex refuses the
+// VCS-store grants *fatally* under a `read-only` sandbox — the effective mode
+// for any project the user has not trusted, and trust does not inherit from
+// parent directories, so a fresh working tree is untrusted by construction.
+
+/// A fake codex whose sandbox pre-flight answers `mode`, and which appends
+/// `$*` to `$GROVE_TEST_LOG` on any **launch**. Nothing else: these two cases
+/// are about whether a launch happens at all, so the fake deliberately cannot
+/// materialise a tree or signal.
+fn fake_codex_reporting_sandbox(path: &std::path::Path, mode: &str) {
+    write_exec(
+        path,
+        &format!(
+            r#"#!/bin/sh
+if [ "$1" = exec ]; then
+  printf 'probe\t%s\n' "${{GROVE_SIGNAL_FILE:-unset}}" >> "$GROVE_TEST_LOG"
+  printf 'sandbox: {mode}\n' >&2
+  exit 0
+fi
+printf 'launch\t%s\n' "${{GROVE_SIGNAL_FILE:-unset}}" >> "$GROVE_TEST_LOG"
+exit 0
+"#
+        ),
+    );
+}
+
+/// A grove holding exactly one live `impl` leaf, so the loop takes the
+/// *continue* path on its first iteration — the fakes below never signal, and a
+/// refused launch never materialises anything.
+fn plant_one_impl_leaf(worktree: &std::path::Path) {
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(grove.join("01-a-k1.md"), "# a-k1\n\n**Kind:** impl\n").unwrap();
+}
+
+// The refusal, at the seam the field report came from: `read-only` must stop the
+// launch **before** the spawn, with a message naming what to change. Refusing
+// rather than elevating to `workspace-write` is the decision (codex-gitdir-grant)
+// — the sandbox posture is the user's, and codex's trust prompt exists so a human
+// answers it once — and refusing rather than degrading to a launch that comes up
+// and then cannot commit is the other half: grove's Commit and Retire steps are
+// mandatory, so a silently read-only session is worse than none.
+#[test]
+fn a_read_only_codex_sandbox_refuses_before_launching() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
+    plant_one_impl_leaf(worktree);
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-codex.sh");
+    fake_codex_reporting_sandbox(&fake, "read-only");
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN_CODEX", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_CODEX_IMPL_MODEL", "sol-high");
+
+    let err = loop_driver::run_loop(
+        harness::by_name("codex").unwrap(),
+        worktree,
+        worktree,
+        "readonlygrove",
+    )
+    .expect_err("a read-only codex sandbox must refuse the launch")
+    .to_string();
+
+    // Both remedies, because which one applies is the user's call and neither is
+    // guessable from codex's own one-liner — it names the two modes it would
+    // accept and says nothing about trust, which is what actually set the mode.
+    assert!(
+        err.contains("read-only") && err.contains(&worktree.display().to_string()),
+        "the refusal must name the mode and the tree it applies to (err: {err})"
+    );
+    assert!(
+        err.contains("trust") && err.contains("workspace-write"),
+        "…and both ways out: trust the project, or give it a writable sandbox \
+         (err: {err})"
+    );
+
+    let log = fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        !log.contains("launch"),
+        "nothing may be spawned as a session: the whole point of a pre-flight is \
+         that the failure happens before the launch it predicts (log: {log:?})"
+    );
+}
+
+// The other half of the same spawn: authority to end a session must not ride
+// along with the probe (guard-loop-signal-k37). `GROVE_SIGNAL_FILE` is the
+// driver's kill channel and an environment is inherited rather than addressed,
+// so a probe that merely declines to *set* it still hands its child whatever the
+// driver carried — which is exactly how this repo's own `cargo test` came to
+// kill the live session it was typed into.
+//
+// Asserts both halves at once, because scrubbing everywhere would be just as
+// wrong as scrubbing nowhere: the probe sees no signal file, and the session
+// spawned right after it sees the driver's own.
+#[test]
+fn the_sandbox_probe_hands_the_harness_no_authority_over_the_session() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
+    plant_one_impl_leaf(worktree);
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-codex.sh");
+    fake_codex_reporting_sandbox(&fake, "workspace-write [workdir, /tmp]");
+
+    // The ambient value a session-descendant inherits, standing in for the outer
+    // loop's own. Set *after* `clear_grove_env`, which scrubs it — the guards
+    // that keep this suite from killing a real terminal would otherwise make
+    // this test pass vacuously.
+    let outer_signal = worktree.join("outer.signal");
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN_CODEX", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_CODEX_IMPL_MODEL", "sol-high")
+        .set("GROVE_SIGNAL_FILE", &outer_signal);
+
+    let result = loop_driver::run_loop(
+        harness::by_name("codex").unwrap(),
+        worktree,
+        worktree,
+        "scrubgrove",
+    );
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let log = fs::read_to_string(&log).unwrap();
+    let rows: Vec<(&str, &str)> = log
+        .lines()
+        .filter(|l| !l.is_empty())
+        .map(|l| {
+            l.split_once('\t')
+                .expect("the fake logs role\\tsignal-file")
+        })
+        .collect();
+    assert_eq!(rows.len(), 2, "one probe then one launch (log: {log:?})");
+
+    assert_eq!(
+        rows[0],
+        ("probe", "unset"),
+        "the pre-flight must hand its child no signal file at all — not the \
+         driver's, and not the ambient one it inherited (log: {log:?})"
+    );
+    assert_eq!(rows[1].0, "launch");
+    assert_ne!(
+        rows[1].1, "unset",
+        "…while the session itself still gets one, or nothing could ever signal \
+         (log: {log:?})"
+    );
+    assert_ne!(
+        rows[1].1,
+        outer_signal.display().to_string(),
+        "…and it is the driver's own, never the inherited one (log: {log:?})"
     );
 }
 
@@ -1503,7 +1697,7 @@ fn review_leaf_reroutes_to_the_review_harness() {
     // it received (the last positional arg) so the test can tell which
     // harness's copy `load_prompt` actually read.
     let fake_codex = worktree.join("fake-codex.sh");
-    write_exec(
+    write_fake_codex(
         &fake_codex,
         r#"#!/bin/sh
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
@@ -1631,7 +1825,7 @@ fn base_model_var_does_not_survive_a_reroute() {
     let log = worktree.join("log");
 
     let fake_codex = worktree.join("fake-codex.sh");
-    write_exec(
+    write_fake_codex(
         &fake_codex,
         r#"#!/bin/sh
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
@@ -1779,7 +1973,10 @@ fn drive_one_leaf(
 
     for name in ["claude", "codex", "pi"] {
         let fake = worktree.join(format!("fake-{name}.sh"));
-        write_exec(
+        // All three carry the probe reply, not just codex's: these cases reroute
+        // between harnesses, so which fake a codex launch reaches is the very
+        // thing under test. The branch is inert on a fake that is never probed.
+        write_fake_codex(
             &fake,
             &format!(
                 r#"#!/bin/sh
@@ -2380,9 +2577,10 @@ fn unscoped_harness_bin_does_not_leak_across_a_reroute() {
     let log = worktree.join("log");
 
     // The unscoped legacy wrapper: correct for the *stamped* harness (codex,
-    // no GROVE_HARNESS_BIN_CODEX set), wrong for anything rerouted to.
+    // no GROVE_HARNESS_BIN_CODEX set), wrong for anything rerouted to. It stands
+    // in for codex, so it answers codex's sandbox pre-flight.
     let wrapper = worktree.join("wrapper.sh");
-    write_exec(
+    write_fake_codex(
         &wrapper,
         r#"#!/bin/sh
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)

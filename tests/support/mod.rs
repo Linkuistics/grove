@@ -127,6 +127,46 @@ pub fn grove_env_names() -> Vec<String> {
     names
 }
 
+/// The `sh` block every fake standing in for **codex** carries, so it answers
+/// grove's sandbox pre-flight the way a *trusted* codex does
+/// (codex-grant-refused-k35).
+///
+/// Before launching codex, grove runs `codex exec` with the same model flags and
+/// the same `--add-dir` grants and reads the one `sandbox:` line of the header,
+/// because codex refuses those grants **fatally** under a `read-only` sandbox —
+/// which is the default for any project the user has not trusted. That makes a
+/// codex launch two invocations of the harness binary, and a fake that treats
+/// both as launches counts twice, logs twice, and signals twice.
+///
+/// `exec` as the first argument is an exact discriminator, not a heuristic: it
+/// is codex's own subcommand, and grove's codex *launch* argv never carries one
+/// (`[--profile M] [--add-dir D]… <prompt>`). So the branch fires on the probe
+/// and on nothing else, and a fake for a harness that is never probed is
+/// unaffected by carrying it.
+///
+/// Answering `workspace-write` rather than staying mute is deliberate: silence
+/// degrades the verdict to `Unknown`, which also proceeds, so the tests would
+/// pass while exercising the fallback instead of the path production takes. The
+/// refusal is exercised by a fake that answers `read-only` on purpose.
+pub const CODEX_SANDBOX_PROBE_REPLY: &str = r#"if [ "$1" = exec ]; then
+  printf 'sandbox: workspace-write [workdir, /tmp, $TMPDIR]\n' >&2
+  exit 0
+fi
+"#;
+
+/// A fake harness body with [`CODEX_SANDBOX_PROBE_REPLY`] spliced in directly
+/// after its `#!` line — the earliest point it can go, since it has to precede
+/// whatever the fake logs, counts, or signals.
+///
+/// Takes the whole script rather than a shebang-less fragment so each fixture
+/// stays readable as a complete shell program at its call site.
+pub fn fake_codex(body: &str) -> String {
+    let (shebang, rest) = body
+        .split_once('\n')
+        .unwrap_or_else(|| panic!("a fake harness starts with a `#!` line: {body:?}"));
+    format!("{shebang}\n{CODEX_SANDBOX_PROBE_REPLY}{rest}")
+}
+
 /// The value following `--add-dir` in a space-joined argv log line (the
 /// fake-harness scripts log `$*`), or `None` when the flag is absent.
 /// Whitespace-splitting is safe here: every fixture path is a `TempDir`

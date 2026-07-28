@@ -64,6 +64,51 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ### Fixed
 
+- **A codex grove no longer dies at startup in an untrusted working tree.** A
+  `grove do` on codex printed one line — `Error adding directories: Ignoring
+  --add-dir (…) because the effective permissions do not allow additional
+  writable roots` — and the loop stopped on what looked like a mute non-signal
+  exit. The cause: codex's effective sandbox is `read-only` for any project the
+  user has not **trusted**, trust is per-directory with **no inheritance from
+  parent directories**, and under `read-only` the VCS-store grants grove passes
+  so a session can commit (*codex-gitdir-grant*) are refused **fatally** —
+  despite the word "Ignoring", codex exits 1 before drawing any TUI. A
+  brand-new working tree, which is exactly what `grove do` bootstraps into, is
+  untrusted by construction; the ADR's "harmless when the sandbox is off" had
+  only ever covered `danger-full-access`, and this third mode was the default.
+
+  Every codex launch — the loop's, `grove retire`'s, and the `--no-launch` dry
+  run's — is now pre-flighted: grove asks codex what sandbox *this* launch would
+  get, by running `codex exec` with the same model flags and the same grants and
+  reading the one `sandbox:` line of its header, then **refuses before spawning**
+  with a message naming both ways out (trust the project, or set `sandbox_mode =
+  "workspace-write"`). Per launch rather than once per `grove do`, because codex
+  models route through `--profile`, which is a config layer that can itself set
+  `sandbox_mode`. ~0.15s, killed the instant the header arrives, so it spends no
+  tokens, writes no trust entry and leaves no rollout. It is codex's own verdict,
+  not a reimplementation of its trust rules, so there are no false refusals — and
+  anything unanswerable (codex unspawnable, no header, an unknown mode) proceeds,
+  because a probe that cannot answer must never be what stops a loop.
+
+  grove **refuses rather than elevating**: passing `--sandbox workspace-write`
+  would make every launch succeed, but the sandbox posture is the user's and
+  codex's trust prompt exists so a human answers it once. It refuses rather than
+  *degrading*, too — `-c sandbox_workspace_write.writable_roots=[…]` is silently
+  ignored under `read-only` rather than fatal, so that flag form would buy a
+  session that comes up and then cannot commit, and grove's Commit and Retire
+  steps are mandatory.
+
+- **A harness spawn that is not the session no longer inherits authority to end
+  one.** `GROVE_SIGNAL_FILE` is the loop driver's kill channel — it SIGTERMs its
+  child the moment that path appears — and an environment is inherited, not
+  addressed, so any spawn that merely declined to *set* it still handed its child
+  whatever the driver carried. All three harness spawns now scrub the loop's
+  control environment through one helper, and exactly one of them (the session's
+  own) grants a path back afterwards. Latent in production, where no real harness
+  writes that file; not latent in a meta-grove, where the pre-flight above spawned
+  the harness binary unscrubbed and this repo's own `cargo test` killed the live
+  session it was typed into.
+
 - **herdr no longer labels a grove pane with the wrong agent.** herdr identifies
   a pane's agent from its foreground process group, preferring the group
   *leader*; in a grove pane the leader is `grove` itself, which herdr cannot

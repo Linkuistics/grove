@@ -215,6 +215,16 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   ahead of the remaining leaves because it blocks a live grove, and because it
   fires ADR *codex-gitdir-grant*'s own reopen condition ("unexplained codex
   launch failures surface in the field") verbatim.
+  **Done.** The third case the ADR missed was the **default** one, not an exotic
+  profile — see Notes. Every codex launch is now pre-flighted against codex's own
+  verdict and **refuses before spawning**, naming both remedies; a refused launch
+  parks the pane `blocked` with authority held, which is exactly what it is. It
+  also carries the product-side half k37 handed here: one helper, called by all
+  three harness spawn sites, and exactly one of them grants a signal path back.
+  Both properties were **falsified by mutation**, not assumed. Like
+  **compose-task-chains-k29** and **agent-hint-k33**, it is in the tree and not in
+  the installed binary — real groves get it at **v16.2.0** (entry written, not
+  cut).
 - **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
   upstreaming as pending. Text-only, independent, low priority.
 - **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
@@ -515,6 +525,21 @@ control: re-verify anything load-bearing before building on it.
   real path in ambient env, checking the path stayed absent afterwards. Anything
   less proves nothing: a redirected run is safe by construction and would pass
   with the guard removed.
+- **A codex grove needs the working tree *trusted*, and trust does not inherit**
+  (measured 2026-07-28, `codex-grant-refused-k35`, against the installed codex-cli
+  0.145.0). codex's effective sandbox is `read-only` for any untrusted project,
+  and a scratch repo *inside* the trusted `[projects."/Users/antony"]` still reads
+  `read-only` — so a fresh working tree, which is what `grove do` bootstraps into,
+  is untrusted by construction. Under it `--add-dir` is **fatal** (exit 1 before
+  any TUI, and before codex's own TTY check), while `-c
+  sandbox_workspace_write.writable_roots` is silently *ignored* — which is why
+  grove refuses rather than switching flag form. The asymmetry the pre-flight
+  rests on: given the same flags that kill the TUI, `codex exec` prints its header
+  (`sandbox: read-only`) and carries on. Two consequences for work in this repo:
+  **every codex launch now spawns codex twice** (probe, then session), so a fake
+  codex on the `GROVE_HARNESS_BIN*` seam must tell them apart — `exec` as argv[1]
+  is the discriminator, and `tests/support`'s `fake_codex` carries the reply; and
+  a codex leaf in *this* grove will refuse until this tree is trusted.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

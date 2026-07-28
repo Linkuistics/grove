@@ -42,11 +42,34 @@ change to grove's contract, not a feature, and it is not this decision.
 
 ## Considered options
 
-- **Push status to herdr as structured metadata** (`pane.report_metadata`
-  tokens for the leaf, kind, progress). Rejected as the *primary* channel: it
-  duplicates on the wire what `.grove/` already holds, adds a reporting
-  obligation to every tree mutation, and drifts the moment a verb forgets to
-  report. Still fine as a thin display-only garnish on the pane's sidebar row.
+- **Push status to herdr as structured metadata** — `pane.report_metadata`,
+  whose four fields are `tokens`, `display_agent`, `title` and `state_labels`.
+  Rejected outright: as the *primary* channel, and as the thin display-only
+  garnish this ADR once allowed. The live leaf is exactly the kind of fact
+  `.grove/` already holds and the plugin already renders, so pushing it is a
+  second representation of the tree on the wire — and **no reporter can hold it
+  honestly**. The driver's leaf is a *forecast*, taken before the session exists
+  and measured to diverge from the session's own `pick`, cross-vendor
+  (*model-per-task-kind*); a grove verb gaining a reporting obligation is ruled
+  out by Consequences below; and the turn hooks reach **claude only**
+  (*herdr-turn-boundary-hooks*), so on codex and pi the row would be silently
+  absent, where absence reads as *no grove* rather than *not reported*.
+  The mechanism does not rescue it. Custom `$name` tokens render only where the
+  user has listed them, and the default agent rows are
+  `[state_icon, workspace, tab]` and `[agent]`. The two fields that *do* render
+  unconfigured are worse rather than better: `display_agent` renders by
+  **replacing** the `agent` field — work-item identity in an agent-identity
+  field, against the principle that grove reports what it *is* and hints what it
+  *launched* — and `title` outranks the human's own
+  typed pane name in the navigator. None of it survives a restart or a
+  `live-handoff`, which snapshot only cwd, label, agent name, session ref and
+  argv; semantic state absorbs that by self-healing on the next report, a
+  launch-time leaf name does not.
+  A reader who wants a per-pane line already has one at zero cost to grove:
+  `terminal_title_stripped` in their own sidebar rows — herdr's own documented
+  example — which the harness writes and the handoff does carry. Reopen if herdr
+  renders custom tokens in a *default* row, or if grove gains a per-turn reporter
+  on **every** harness *and* the plugin stops being the richer surface.
 - **Join herdr's authority allowlist.** Adding `("herdr:grove", "grove")` to the
   compiled-in `full_lifecycle_hook_authority` list is the obvious fork, and it
   **does not work**: allowlist membership is not a fast lane past the owner gate,

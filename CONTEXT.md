@@ -221,6 +221,10 @@ a feature.
 _Avoid_: treating the plugin as a state authority — herdr's *full lifecycle
 authority* is a compiled-in allowlist of `(source, agent)` pairs that nothing
 outside the binary can join; the plugin owns UI only.
+_Avoid_: pushing the live leaf — or anything else `.grove/` already records — as
+`pane.report_metadata`. Rejected in full (*herdr-optional-ui*), tokens and the
+zero-config presentation fields alike: `pane.report_agent` state is the **only**
+thing grove pushes, and the leaf's renderer is the [[Tree viewer plugin]].
 
 **Tree viewer plugin** (`herdr-plugin/`, plugin id `linkuistics.grove`):
 The rendering half of the [[herdr integration]] — a herdr plugin that draws a

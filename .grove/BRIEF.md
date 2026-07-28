@@ -318,6 +318,23 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   belong there: the plugin *reads disk*, tokens are a *push*, and a token renders
   only if the user has put `$name` in their own sidebar config. A well-argued **no**
   is the cheaper answer and retires the question for good.
+  **Done — the answer is no, and it is a firmer no than the leaf framed.** The
+  config demand turned out not to be the decisive cost, and the leaf's premise
+  inverted on inspection: `pane.report_metadata` is **four** fields, and the two
+  that render with *no* user configuration are the invasive ones — `display_agent`
+  **replaces** the pane's agent label, and `title` outranks the human's own typed
+  pane name in the navigator (see Notes). So a zero-config route existed and is
+  worse, not better. What actually decides it is that **no reporter can hold the
+  leaf honestly**: the driver's leaf is a forecast — **session-leaf-binding-k28**'s
+  own measured, cross-vendor divergence — a grove verb is ruled out by
+  *herdr-optional-ui*'s standing consequence, and the turn hooks reach claude only,
+  so on codex and pi the row would be silently absent, where absence reads as *no
+  grove* rather than *not reported*. ADR *herdr-optional-ui*'s "still fine as a thin
+  display-only garnish" is **removed** — reworked in place, with a reopen
+  condition — and `CONTEXT.md` gained the matching `_Avoid_`. Zero code changed. A
+  user who wants a per-pane line already has one at zero cost to grove:
+  `terminal_title_stripped` in their own rows, which the harness writes and a
+  `live-handoff` carries, unlike metadata.
 - **chain-construction-k38** → **chain-construction-review-k39** →
   **chain-construction-integrate-k40** — a review chain over one design: how to
   make the review chain and the research vendor pair **reliably constructed as a
@@ -673,6 +690,29 @@ control: re-verify anything load-bearing before building on it.
   only one that survives a reroute — plain `GROVE_HARNESS_BIN` is deliberately
   ignored there (`harness_bin`), so faking *both* ends of a reroute needs the
   scoped form for each.
+- **`pane.report_metadata` is four fields, not one, and the config-gated one is
+  the *least* invasive** (read from herdr's source 2026-07-28,
+  `herdr-sidebar-tokens-k32`, against `ui-layout` at `d17e0f42`). `tokens` render
+  only where the user lists `$name` — `Custom(name) => entry.tokens.get(name)` is
+  the whole path (`ui/sidebar/tokens.rs`) and the **default** agent rows are
+  `[state_icon, workspace, tab]` and `[agent]` (`config/sidebar.rs`) — which is
+  what `herdr-grove-plugin-k5` reported. What it did not surface is that the other
+  three render **unconfigured**: `display_agent` *becomes* the pane's `agent_label`
+  (`workspace/aggregate.rs`), replacing the `agent` row that **is** in the
+  defaults; `title` becomes `effective_title()`, which the navigator checks
+  **before** `manual_label` — the human's own typed pane name — so pushing it
+  clobbers a rename; `state_labels` relabels `state_text`, which is not in the
+  defaults. The guards (`agent`, `applies_to_source`) are **opt-in**, so an
+  unguarded report is never dropped: the display half genuinely carries no
+  authority machinery.
+  Two bounds worth carrying. Limits are 16 token keys per request, 32 retained per
+  resource, keys ≤32 chars, values ≤80 (`app/api_helpers.rs`). And **`PaneSnapshot`
+  carries only cwd, label, agent name, managed kind, session ref and argv**
+  (`persist/snapshot.rs`) — so *no* metadata survives a restart or a
+  `live-handoff`, whereas `terminal_title` does (`handoff_runtime.rs`) and is
+  written by the harness for free. That makes `terminal_title_stripped` in the
+  user's own rows — herdr's own commented example in `main.rs` — the per-pane line
+  that costs grove nothing.
 - **A herdr restart need not kill every pane** — and the route is a **plain CLI
   subcommand**, `herdr server live-handoff --import-exe <path>`, listed in
   `herdr server`'s own help. Earlier notes here claimed no CLI path existed and

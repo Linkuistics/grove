@@ -225,42 +225,6 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   **compose-task-chains-k29** and **agent-hint-k33**, it is in the tree and not in
   the installed binary — real groves get it at **v16.2.0** (entry written, not
   cut).
-- **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
-  upstreaming as pending. Text-only, independent, low priority.
-  **Done.** `Formula/linkuistics-herdr.rb` in `Linkuistics/homebrew-taps` now
-  says the carry is permanent and names each half's real end condition
-  (upstream separating identity from state; upstream shipping a geometry API).
-  The `ui.layout` half went the same way: "unsubmitted upstream" read as pending
-  intent, and the policy is blanket — the fork is ours to maintain, not a
-  staging area. Its durable half is in `docs/specs/herdr-fork-maintenance.md`,
-  which now records *why* that branch exists (Modaliser needs the drawn
-  cell-rects; upstream has no `ui.layout` at all) and that Out-of-scope covers
-  both patches. Committed and **pushed**, because the deliverable is what
-  `brew info` prints, not what the checkout holds — a three-hop gap, the same
-  in-the-tree-not-in-the-binary shape as v16.0.0's reporter. Verified by reading
-  `brew info` after the tap clone caught up; no version bump, and `brew
-  outdated` stays silent, so no user is rebuilt for a text fix.
-- **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
-  operator remember. `release-doctor.sh` passes while the release build dies,
-  because the doctor asks *rustup* what targets are installed and the build asks
-  whatever `cargo` is on `PATH` (found by **ship-release-k25**, and it bit again
-  in **observe-mid-turn-live-k31**); and `cargo release` refuses jj's
-  always-detached HEAD, so a cut needs `--allow-branch HEAD` that `release.toml`
-  should carry. Independent of the herdr work, sequenced last.
-- **herdr-sidebar-tokens-k32** — design. Whether a `grove do` pane's **sidebar row**
-  should carry the live leaf as `pane.report_metadata` tokens, and which side would
-  report them. Split out of **herdr-grove-plugin-k5**, which decided it did not
-  belong there: the plugin *reads disk*, tokens are a *push*, and a token renders
-  only if the user has put `$name` in their own sidebar config. A well-argued **no**
-  is the cheaper answer and retires the question for good.
-- **session-leaf-binding-k28** — design. The driver resolves the leaf *before* the
-  session exists (that peek is what binds harness and model), then hands the
-  session no leaf identity, so the session re-picks independently. They agree only
-  because nothing mutates `.grove/` in between — an unenforced coincidence whose
-  failure mode is a session silently running the wrong model for its kind. Decide
-  whether to bind, and reconcile the skill's Pick step with where the pick really
-  happens. Raised by the human during **observe-live-surface-k26**; independent of
-  the herdr work.
 - **chain-group-unit-k36** — design. grove has one decomposition mechanism and
   reuses it for two unlike things: genuine vertical-slice decomposition, and a
   **step chain over one artifact** (`X` → `review-X` → `integrate-review-X`; the
@@ -290,7 +254,68 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   habit (**cut a chain's steps together; `leaf-insert`, not `leaf-add`, for a step
   decided on after its producer ran**), which is the shape that actually breaks a
   chain in practice. Like k29 and k35, it is in the tree and not in the installed
-  binary — real sessions get it at **v16.2.0**.
+  binary — real sessions get it at **v16.2.0**. Its unanswered half — whether
+  *construction* needs more than encouragement — is **chain-construction-k38**.
+- **tap-caveats-reconcile-k24** — the Homebrew formula's caveats still describe
+  upstreaming as pending. Text-only, independent, low priority.
+  **Done.** `Formula/linkuistics-herdr.rb` in `Linkuistics/homebrew-taps` now
+  says the carry is permanent and names each half's real end condition
+  (upstream separating identity from state; upstream shipping a geometry API).
+  The `ui.layout` half went the same way: "unsubmitted upstream" read as pending
+  intent, and the policy is blanket — the fork is ours to maintain, not a
+  staging area. Its durable half is in `docs/specs/herdr-fork-maintenance.md`,
+  which now records *why* that branch exists (Modaliser needs the drawn
+  cell-rects; upstream has no `ui.layout` at all) and that Out-of-scope covers
+  both patches. Committed and **pushed**, because the deliverable is what
+  `brew info` prints, not what the checkout holds — a three-hop gap, the same
+  in-the-tree-not-in-the-binary shape as v16.0.0's reporter. Verified by reading
+  `brew info` after the tap clone caught up; no version bump, and `brew
+  outdated` stays silent, so no user is rebuilt for a text fix.
+- **release-doctor-toolchain-gap-k27** — two frictions the release path makes the
+  operator remember. `release-doctor.sh` passes while the release build dies,
+  because the doctor asks *rustup* what targets are installed and the build asks
+  whatever `cargo` is on `PATH` (found by **ship-release-k25**, and it bit again
+  in **observe-mid-turn-live-k31**); and `cargo release` refuses jj's
+  always-detached HEAD, so a cut needs `--allow-branch HEAD` that `release.toml`
+  should carry. Independent of the herdr work, sequenced last.
+  **Done.** Both frictions are now configuration rather than memory — see Notes.
+  The set-vs-diagnose question resolved to **set, then verify what you set**:
+  `scripts/release-common.sh` (new, sourced by both doctor and build) prepends
+  rustup's shim dir to `PATH`, and the doctor's target check interrogates the
+  **resolved** toolchain instead of asking `rustup`. Three narrower remedies were
+  measured and *rejected*, which is the finding — the gap is a **rustc-on-PATH**
+  problem, not a cargo one. No ADR: a four-line PATH prepend fails the
+  when-to-write test's first leg (hard to reverse), so the reasoning is a
+  load-bearing script comment, this repo's existing idiom. No CHANGELOG entry
+  either — release scripts ship nothing, and that file records what the repo
+  ships.
+- **session-leaf-binding-k28** — design. The driver resolves the leaf *before* the
+  session exists (that peek is what binds harness and model), then hands the
+  session no leaf identity, so the session re-picks independently. They agree only
+  because nothing mutates `.grove/` in between — an unenforced coincidence whose
+  failure mode is a session silently running the wrong model for its kind. Decide
+  whether to bind, and reconcile the skill's Pick step with where the pick really
+  happens. Raised by the human during **observe-live-surface-k26**; independent of
+  the herdr work.
+- **herdr-sidebar-tokens-k32** — design. Whether a `grove do` pane's **sidebar row**
+  should carry the live leaf as `pane.report_metadata` tokens, and which side would
+  report them. Split out of **herdr-grove-plugin-k5**, which decided it did not
+  belong there: the plugin *reads disk*, tokens are a *push*, and a token renders
+  only if the user has put `$name` in their own sidebar config. A well-argued **no**
+  is the cheaper answer and retires the question for good.
+- **chain-construction-k38** → **chain-construction-review-k39** →
+  **chain-construction-integrate-k40** — a review chain over one design: how to
+  make the review chain and the research vendor pair **reliably constructed as a
+  unit**, up to and including a `grove-llm` verb that cuts a whole chain in one
+  call. Explicitly **construction only** — the human's framing is that sequencing
+  needs no enforcement, which is also what **chain-group-unit-k36** independently
+  concluded. This is k36's unanswered half and the next question after
+  **compose-task-chains-k29**, which fixed the three cutting-time surfaces and
+  stopped at encouragement on purpose. Raised by the human during
+  **release-doctor-toolchain-gap-k27**; independent of the herdr work. Cut as a
+  chain, at once, per k36's own operational habit — and the friction of doing that
+  by hand (three `leaf-add` calls, three chances to stop after the first, the
+  naming convention re-derived from this brief) is itself evidence for k38.
 
 ## Pointers
 
@@ -524,14 +549,35 @@ control: re-verify anything load-bearing before building on it.
   the socket; the only way to tell a silent row from a re-reporting one is to
   arrange a *different* pre-state, or to watch for the `agent=null` that only
   release produces.
-- **Cutting a release needs two workarounds this repo does not record.** `export
-  PATH="$HOME/.cargo/bin:$PATH"` (Homebrew's cargo otherwise wins and the Linux
-  targets fail on a missing `std`), and `cargo release … --allow-branch HEAD`
-  (jj colocation keeps git's HEAD detached, and cargo-release's default
-  `allow-branch` is `["*", "!HEAD"]`). Both belong to
-  **release-doctor-toolchain-gap-k27**. The rest of the path is unremarkable and
-  jj-clean: git makes the detached release commit and tag, jj imports it, and
-  `jj bookmark set main -r <release-change>` puts the bookmark on it.
+- **Cutting a release needs no workarounds any more** (fixed and measured
+  2026-07-28, `release-doctor-toolchain-gap-k27`). Plain
+  `cargo release <level> --execute` and `scripts/release-build.sh` now work as
+  written: `release.toml` carries `allow-branch = ["*", "HEAD"]`, and the build
+  pins its own toolchain. Run the cut from the **colocated default workspace**
+  (`jj workspace root --name default`) — cargo-release drives git, and a
+  jj-native secondary workspace has no `.git` at all. The rest of the path is
+  unremarkable and jj-clean: git makes the detached release commit and tag, jj
+  imports it, and `jj bookmark set main -r <release-change>` puts the bookmark
+  on it.
+- **The toolchain gap was PATH *ordering*, not a missing rustup** (measured
+  2026-07-28, same leaf). `$HOME/.cargo/bin` was on `PATH` all along — at
+  position 23, behind `/opt/homebrew/bin` — so every "is rustup installed?"
+  check answered yes while the build got Homebrew's rustc. Three narrower
+  remedies were measured and **do not work**: invoking `$(rustup which cargo)`
+  by absolute path fails identically, because cargo resolves `rustc` from
+  `$RUSTC` or `PATH` and rustup's cargo 1.93.1 happily drove Homebrew's rustc
+  1.97.1; `rustup run <toolchain> cargo …` is a **no-op**, setting only
+  `$RUSTUP_TOOLCHAIN` and never touching `PATH`, so on a machine whose `PATH`
+  lacks the shim dir it changes nothing; and `rustup target list --installed`
+  answers for rustup's toolchain whatever the build will use. What does work is
+  prepending the shim dir, which yields one coherent toolchain (cargo, rustc and
+  the `cargo-*` subcommands) and would honour a `rust-toolchain.toml`.
+  The honest probe for "can this build the target" is
+  **`"$rustc" --print target-libdir --target <t>` plus a directory-existence
+  test** — the command prints a path for any recognised target whether installed
+  or not, so the exit status proves nothing while the `-d` test reproduces the
+  E0463 boundary exactly. The A/B, in one environment: the old check printed
+  `✓ aarch64-unknown-linux-gnu` where the new one fails it and the build dies.
 - **herdr's plugin surface is enough for a viewer and nothing more** (measured
   2026-07-28, `herdr-grove-plugin-k5`, against 0.7.5). Four facts, in descending
   order of how much time they cost: a **`plugin pane open --cwd` REPLACES the plugin

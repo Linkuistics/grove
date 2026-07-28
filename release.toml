@@ -1,12 +1,16 @@
 # cargo-release configuration.
 #
 # Usage:
-#   cargo install cargo-release          # one-time
+#   cargo install cargo-release           # one-time
 #   cargo release patch --execute         # 1.0.0 → 1.0.1 + tag v1.0.1
 #   cargo release minor --execute         # 1.0.0 → 1.1.0 + tag v1.1.0
 #   cargo release major --execute         # 1.0.0 → 2.0.0 + tag v2.0.0
 #
-# Omit `--execute` for a dry run. Push is not automated; after release:
+# Omit `--execute` for a dry run. Run it from the colocated workspace
+# (`jj workspace root --name default`), not from a jj-native secondary
+# workspace — cargo-release drives git, and only the colocated one has a
+# `.git`. Push is not automated; after release:
+#   jj bookmark set main -r <release-change>
 #   git push origin main --follow-tags
 
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
@@ -15,6 +19,18 @@ publish = false
 # Leave the push to the operator so the release commit + tag can be
 # inspected locally before any remote side-effect.
 push = false
+
+# Admit a detached HEAD. This repo is jj-colocated, and a detached git HEAD is
+# jj's normal resting state, not a broken checkout — so cargo-release's default
+# `["*", "!HEAD"]` refuses every release cut from here:
+#
+#   error: cannot release from branch `HEAD` as it doesn't match `*`, `!HEAD`
+#
+# Dropping the negation is what matters (`["*"]` alone also works); `HEAD` is
+# listed explicitly so a reader sees it admitted on purpose rather than lost.
+# The result is clean: git makes the detached release commit and tag, jj imports
+# it, and `jj bookmark set main -r <release-change>` moves the bookmark onto it.
+allow-branch = ["*", "HEAD"]
 
 # Tag shape `v1.0.0` matches what `git describe` emits and what the
 # --version output renders.

@@ -16,11 +16,10 @@ readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly DIST_DIR="$REPO_ROOT/target/dist"
 readonly TEMPLATE="$REPO_ROOT/scripts/templates/grove.rb.tmpl"
 
-readonly TARGETS=(
-  aarch64-apple-darwin
-  aarch64-unknown-linux-gnu
-  x86_64-unknown-linux-gnu
-)
+# TARGETS and pin_rust_toolchain — shared with release-doctor.sh so the doctor
+# checks the toolchain and target list this build actually uses.
+# shellcheck source=scripts/release-common.sh
+source "$REPO_ROOT/scripts/release-common.sh"
 
 # Glibc floor for Linux targets — wide compatibility, RHEL 7-era.
 readonly LINUX_GLIBC=2.17
@@ -96,6 +95,10 @@ render_formula() {
 
 main() {
   cd "$REPO_ROOT"
+  # Before the doctor, so the doctor inherits the pinned PATH and checks the
+  # toolchain the cargo invocations below will use.
+  pin_rust_toolchain
+  echo "release-build: cargo $(command -v cargo || echo '(not found)')"
   "$REPO_ROOT/scripts/release-doctor.sh"
   require_clean_tagged_tree
   local version

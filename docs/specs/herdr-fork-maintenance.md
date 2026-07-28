@@ -97,6 +97,14 @@ Check them each time rather than assuming a previous session's shell survived �
 the failure mode is a wall of clippy errors in untouched files, which reads as
 "the rebase broke something" and is not.
 
+**This section is about building the fork by hand, and nothing else.** The same
+Homebrew-vs-rustup trap bites grove's *own* release, where it is handled by
+construction rather than by memory: `scripts/release-common.sh` puts rustup's
+shim directory at the front of `PATH` and `release-doctor.sh` verifies the
+outcome against the resolved toolchain. Do not borrow the manual `export` above
+into grove's release path — it is already pinned — and do not expect grove's pin
+to help here, because a herdr build is not run through grove's scripts.
+
 ### Two upstream tests are flaky, independently of the patch
 
 A parallel test run flakes on the order of a dozen tests on the *unpatched* tree

@@ -147,6 +147,24 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   human during **herdr-turn-hooks-k4**; independent of the herdr work. Sequenced
   ahead of the remaining planning leaf so that session cuts under the new
   guidance.
+  **Done.** The premise was confirmed by this grove's own tree — 32 keys, 26
+  leaves, **zero** chains and zero pairs, despite both patterns being documented
+  in five places. All five were *reference* material; none was the guidance a
+  session reads **while cutting leaves**. Fixed in the three surfaces in the
+  order a session meets them (bootstrap prompt, `SKILL.md` Decompose,
+  `TASK-FORMAT.md`), each stating the **escalation call** rather than only the
+  shape — chain a load-bearing artifact, subagent a one-file change. The open
+  naming question resolved to a **shared stem plus a terminal step suffix**
+  (`<stem>-review` / `<stem>-integrate`; `<stem>-a` / `<stem>-b` /
+  `<stem>-combine`): node-per-chain lost on what a node *already means* in a real
+  tree, and a leading token loses because it scatters the chains it was meant to
+  reveal. Durable record `docs/specs/task-kind-taxonomy.md`; `driving.md`'s two
+  worked examples were both prefix-shaped and were corrected. Nothing gained a
+  parser, and `resolve` was measured to match slugs **exactly**, so
+  prefix-sharing slugs introduce no ambiguity. The guidance is embedded in the
+  rebuilt binary but **not the installed one** — the same in-the-tree-not-in-the-
+  binary gap as v16.0.0's reporter and v16.1.0's hooks, and it reaches real
+  sessions only when **v16.2.0** is cut (entry written, not cut).
 - **herdr-pane-misdetection-k11** — planning. grove panes are labelled with the
   wrong agent; upstreaming is closed, so the route is ours to pick (grove-side,
   fork-side, or accept). Late because grove's own reports mask it whenever grove

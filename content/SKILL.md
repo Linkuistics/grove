@@ -182,6 +182,33 @@ Continue inline **only** while the work still serves this leaf's stated goal
 not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
 just-in-time, at the genuine seam, never speculatively.
 
+**Compose, don't just append.** When more than one leaf serves *one* artifact,
+two shapes are the habitual answer — reach for them by default, and argue
+yourself *out* of one rather than into it:
+- **The review chain** — `X` → `review-X` → `integrate-review-X`: a fresh
+  context asked to *disprove*, then a leaf licensed to act on what it found.
+  Cut it when the artifact is load-bearing — a spec, a decomposition you will
+  build on for months, a subsystem. A one-file change wants the cheap version
+  instead, a mid-session subagent (`driving.md`).
+- **The vendor pair** — `research` → `research` → `combine-research`, the two
+  surveys differing *only* by `--harness`. Cut it when the question is
+  load-bearing enough to pay for two corpora.
+
+**Name a chain by a shared stem plus a step suffix** — `<stem>` /
+`<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
+`<stem>-combine` — so `find .grove` shows the *process*, not just the work,
+without opening a file. The suffix goes on the end because that is what keeps a
+chain together under its stem; a prefix (`review-<stem>`) sorts every review
+beside every other review and scatters the chains it was meant to reveal. A
+chain gets **no node directory of its own**: a node means "this proved bigger
+than one session", and spending one per chain buys a `BRIEF.md` written because
+a step demanded it (constraint 4) while erasing what node-ness tells a reader.
+
+None of this is enforced and none of it is parsed. grove validates no ordering
+between leaves — a grammar is a relation *between* leaves and grove expresses
+none (*task-kind-taxonomy*) — `leaf-add` still makes exactly one leaf, and
+skipping a chain is a normal choice, not a violation.
+
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children
 (`01-…`, `02-…`); the filesystem carries the hierarchy, and `.grove/` is itself

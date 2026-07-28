@@ -25,6 +25,43 @@ were never in a version's path either.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
+## v16.2.0
+
+### Changed
+
+- **The review chain and the vendor pair are now the shape a session reaches for
+  by default** — and a cut chain is legible from `find .grove` alone. v16.0.0
+  tripled the kind set and documented both composition patterns
+  (`X` → `review-X` → `integrate-review-X`; `research` → `research` →
+  `combine-research`), but only in the reference material: nothing in the
+  guidance a session reads *while it is cutting leaves* told it to reach for
+  them, so in practice it did not. The evidence was this repo's own task tree —
+  32 permanent keys, 26 leaves, zero chains and zero pairs.
+
+  Three surfaces now carry it, in the order a session meets them: the
+  **bootstrap prompt** (whose one decomposition shapes every later session),
+  `SKILL.md`'s **Decompose** step, and `TASK-FORMAT.md`. Each states the
+  escalation call rather than just the shape — chain an artifact that is
+  load-bearing (a spec, a decomposition you will build on for months, a
+  subsystem); a one-file change wants a mid-session subagent instead.
+
+  **A chain is named off a shared stem with a terminal step suffix**: `<stem>` /
+  `<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
+  `<stem>-combine`. The suffix is terminal because that keeps a chain contiguous
+  under its stem — a leading token (`review-<stem>`) sorts every review beside
+  every other review and scatters exactly the chains the naming exists to
+  reveal. A chain deliberately gets **no node directory of its own**: a node
+  already means *this work proved bigger than one session*, and one per chain
+  would overload that signal, buy a `BRIEF.md` no step earned, and apply
+  `leaf-decompose` — a reactive verb — speculatively.
+
+  **No behaviour changed and nothing new is enforced.** grove still validates no
+  ordering between leaves, does not parse the suffix, and will not warn when a
+  chain is absent; `leaf-add` still makes exactly one leaf, because minting three
+  where one was asked for would grow the tree speculatively (constraint 4).
+  Skipping a chain stays a normal choice. `docs/specs/task-kind-taxonomy.md`
+  carries the reasoning, including the node-per-chain option and why it lost.
+
 ## v16.1.0
 
 ### Added

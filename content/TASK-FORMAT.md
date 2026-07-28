@@ -96,10 +96,6 @@ decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
 
-The two shapes above are **conventions, not a grammar**. grove does not validate
-that a `review-X` leaf follows an `X` leaf, because a grammar is a relation
-*between* leaves and grove expresses none. Compose them by hand.
-
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
 
@@ -110,6 +106,60 @@ becomes a research node by default.
 **`work` is the previous spelling of `impl`.** A task file still saying
 `**Kind:** work` reads as `impl`, silently — it is not a typo. Writing it is
 refused: `--kind work` errors and names the replacement.
+
+## Composing the kinds — the two chains
+
+The kinds compose into two habitual shapes. A session cutting leaves should
+reach for them **by default**, and argue itself *out* of one rather than into
+it:
+
+- **The review chain** — `X` → `review-X` → `integrate-review-X`. Sequential and
+  adversarial; each step is a *different* kind, so one `GROVE_REVIEW_HARNESS`
+  line routes every review a grove ever cuts. Cut it when the artifact is
+  load-bearing (a spec, a decomposition you will build on for months, a
+  subsystem); a one-file change wants a mid-session subagent instead
+  (`driving.md`).
+- **The vendor pair** — `research` → `research` → `combine-research`. Two
+  independent surveys unioned. The producers are the *same* kind differing only
+  by vendor, which is the entire reason `**Harness:**` exists.
+
+**Name a chain by a shared stem plus a step suffix**, so the chain is legible
+from the filenames alone — the kind lives in the file, but the *process* shows
+up in `find .grove`:
+
+```
+01-sync-design-k12.md              # design
+02-sync-design-review-k13.md       # review-design
+03-sync-design-integrate-k14.md    # integrate-review-design
+
+04-sync-survey-a-k15.md            # research
+05-sync-survey-b-k16.md            # research, **Harness:** codex
+06-sync-survey-combine-k17.md      # combine-research
+```
+
+Two things that shape looks like it could be and is not:
+
+- **The suffix goes on the end**, not the front. A suffix keeps a chain together
+  under its stem; a prefix (`review-sync-design`) sorts every review beside
+  every *other* review and scatters the chains it was meant to reveal.
+- **A chain is not a node.** Giving each chain its own `NN-<stem>-k<key>/`
+  directory is structurally honest and needs no convention at all, but a node
+  directory already means something in a real tree — *this work proved bigger
+  than one session* — and spending one per chain erases that while buying a
+  `BRIEF.md` written because a step demanded it (constraint 4). There is also no
+  verb that makes a node: you would `leaf-add` and then `leaf-decompose`,
+  applying a deliberately *reactive* verb speculatively.
+
+The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
+because they are peers: a bare stem beside a `-second` implies a producer/step
+relation the pair does not have.
+
+All of this is **convention, not grammar, and nothing parses it**. grove does not
+validate that a `review-X` leaf follows an `X` leaf, does not read the suffix,
+and will not warn when a chain is absent — a grammar is a relation *between*
+leaves and grove expresses none. `leaf-add` makes exactly one leaf; auto-creating
+three where one was asked for would grow the tree speculatively. Skipping a chain
+is a normal choice.
 
 ## Suggested shape
 

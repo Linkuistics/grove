@@ -59,6 +59,20 @@ producers are the *same kind differing only by vendor* — which no kind→harne
 function can express, and is therefore the entire reason a per-leaf harness
 declaration exists. The fan is a **pair**, not an N-way fan-out, so the combine
 step is binary.
+Both are **named off a shared stem with a terminal step suffix** —
+`<stem>` / `<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
+`<stem>-combine` — so a cut chain is legible from `find .grove` without opening a
+file, which the [[Task kind]] cannot be (it lives in the file, not the name). The
+convention is a **habit nothing parses**; the guidance a session reads while
+cutting leaves carries it (`content/SKILL.md`'s Decompose step,
+`content/TASK-FORMAT.md`, and the bootstrap prompt), and
+`docs/specs/task-kind-taxonomy.md` holds the reasoning.
+_Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
+every other review and scatters the chains the naming exists to reveal.
+_Avoid_: giving a chain its own [[Node directory]] — a node already means "this
+work proved bigger than one session", and one per chain overloads that signal,
+buys a `BRIEF.md` no step earned, and would apply `leaf-decompose` (a *reactive*
+verb) speculatively.
 _Avoid_: treating either as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
 none (ADR *task-kind-taxonomy*).

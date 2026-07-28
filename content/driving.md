@@ -116,14 +116,20 @@ harness — the two leaves are the same kind, so no `GROVE_RESEARCH_HARNESS`
 policy can send one elsewhere:
 
 ```
-grove-llm leaf-add . survey-sync-protocols --kind research
-grove-llm leaf-add . survey-sync-protocols-second --kind research --harness codex
-grove-llm leaf-add . combine-sync-survey --kind combine-research
+grove-llm leaf-add . sync-protocols-a --kind research
+grove-llm leaf-add . sync-protocols-b --kind research --harness codex
+grove-llm leaf-add . sync-protocols-combine --kind combine-research
 ```
 
 The first leaf needs no declaration — it falls through to the grove's stamp.
 Only the *second* one, and any combine step you want run elsewhere, carry a
 `**Harness:**` line.
+
+**Name all three off one stem** — `-a`, `-b`, `-combine` — so they sort together
+and the pair is visible in `find .grove` without opening a file
+(`TASK-FORMAT.md`). The two producers are labelled `a` and `b` rather than one
+bare and one `-second`, because they are peers; a bare stem beside a `-second`
+implies a producer/step relation the pair does not have.
 
 **Give both researchers the same brief.** The pair buys breadth, and breadth
 comes from the corpora differing, not the questions. Two briefs means two
@@ -365,13 +371,22 @@ wrote it, or when acting on the findings is itself **more than a session's
 work**. A one-file change wants the pass. A landed spec, a decomposition you
 will build on for months, or a subsystem wants the chain.
 
+Given a producer leaf `sync-design` already sitting under node `[12]`:
+
 ```
-grove-llm leaf-add [12] review-sync-design --kind review-design
-grove-llm leaf-add [12] apply-sync-review --kind integrate-review-design
+grove-llm leaf-add [12] sync-design-review --kind review-design
+grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
 ```
 
-Three habits make the chain worth its three sessions:
+Four habits make the chain worth its three sessions:
 
+- **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
+  `<stem>-integrate` — so `find .grove` shows the chain as a chain, without
+  opening a file. The suffix goes on the end for a reason: a prefix
+  (`review-sync-design`) groups every review together and scatters the chains
+  (`TASK-FORMAT.md`). Don't spend a node directory on a chain either — a node
+  means "this proved bigger than one session", and overloading it costs a brief
+  you only wrote because a step demanded one.
 - **The reviewer produces findings, not fixes.** A reviewer that starts editing
   has collapsed the chain back into one session and lost the independence that
   was the point. `review-prototype` is the sharpest case: it is *not* a code

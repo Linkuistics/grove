@@ -153,6 +153,45 @@ will. There is no machinery behind either mark; a HITL leaf reached by an
 unattended relaunch of the self-driving loop simply waits, which is correct
 behaviour.
 
+### A chain is named by a shared stem plus a step suffix
+
+The kind lives inside the task file, so a tree of leaves shows *what* was worked
+on and never *how it was composed*. A chain is therefore named to carry that
+itself:
+
+```
+01-sync-design-k12.md              # design
+02-sync-design-review-k13.md       # review-design
+03-sync-design-integrate-k14.md    # integrate-review-design
+
+04-sync-survey-a-k15.md            # research
+05-sync-survey-b-k16.md            # research, **Harness:** codex
+06-sync-survey-combine-k17.md      # combine-research
+```
+
+The pair's producers are `-a` / `-b` rather than a bare stem beside a `-second`,
+because they are peers rather than a producer and a step.
+
+**The suffix is terminal, not leading.** A suffix keeps a chain contiguous under
+its stem; a prefix (`review-<stem>`) sorts every review beside every *other*
+review and scatters exactly the chains the naming exists to reveal.
+
+**A chain does not get its own node directory.** The alternative considered was
+`NN-<stem>-k<key>/` holding `01-impl`, `02-review`, `03-integrate` — structurally
+honest, needing no convention at all. Rejected on what a node already means in a
+real tree: *this work proved bigger than one session*. Spending a directory on
+every chain overloads that signal with an unrelated one ("this work got
+reviewed"), buys a `BRIEF.md` written because a step demanded it rather than
+because it earned its place (constraint 4), and has no verb behind it — a node is
+created only by `leaf-decompose`, a deliberately *reactive* verb, so cutting a
+chain up front would apply it speculatively. The slug convention costs nothing
+structurally and is cheap to change, because durable references use the permanent
+key either way (*task-tree-scheme* §5).
+
+**Nothing parses the suffix**, and adding a parser would be the signal the
+convention had overreached — see the next section. It is a habit that makes
+`find .grove` legible, on the same footing as the patterns it names.
+
 ### The grammar is documented, not enforced
 
 The two patterns are conventions a human composes by hand. grove does not
@@ -322,6 +361,12 @@ No new seams. The work tests through the existing partition:
 
 - **Grammar enforcement or linting.** See *The grammar is documented, not
   enforced*.
+- **Auto-creating a chain from one `leaf-add`.** A `--chain` flag that minted
+  three leaves where the human asked for one would grow the tree speculatively,
+  which constraint 4 forbids — and it would have to guess the escalation call
+  (chain, or a mid-session subagent?) that is the only judgement in the pattern.
+  The encouragement is prose in the guidance a session already reads; the verbs
+  stay one-leaf-per-call.
 - **Parallelism.** The loop launches one foreground session owning the real TTY
   and watches one signal file, so N-vendor work is expressed as sequential leaves
   that do not read each other's output, plus a combine step. Behaviourally

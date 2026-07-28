@@ -33,7 +33,10 @@ lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
 - **An ADR is owned by one context, never shared — but the whole set is one flat
   root `docs/adr/`.** `task-tree-scheme` is grove's decision, `symmetric-vcs-rule`
   is the skills'; ownership is recorded *here*, not in the directory layout, and a
-  slug is unique **repo-wide**. The set stays flat because the two contexts are not
+  slug is unique **repo-wide**. Ownership is about who **maintains** the record,
+  not about whose code it binds: `symmetric-vcs-rule` also governs the `grove`
+  binary's jj-first probe, and stays one record rather than two because it is one
+  decision with two enforcers. The set stays flat because the two contexts are not
   peers: grove's *is* the repo root, so a per-context split would exile the skills'
   one record while leaving the root set just as mixed
   (`content/ADR-FORMAT.md` states the rule and when flat is right). A term that has

@@ -125,6 +125,18 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   not a read off disk, so it is a different decision entirely.
 - **jj-first-coverage-k6** — the jj path is primary in code but untested, and
   the docs still lead with git.
+  **Done.** `tests/jj_tree_verbs.rs` drives every tree-mutation verb end to end
+  in a jj-native tree, and the rename-shaped ones in a colocated tree where
+  git's index must come out untouched. The leaf's premise had half-decayed
+  under it — `repo.rs`, `tree_rename.rs` and the migration's commit path had
+  each grown jj tests since it was cut — so what was actually missing was
+  per-*verb* proof that no verb carries a git-only side path, which no test of
+  a seam can give. Both properties were **falsified by mutation rather than
+  assumed**: removing jj-first from `rename_entry` fails exactly the 5
+  colocated tests, removing `.jj/` from `vcs_of` fails all 13. The docs half
+  was four small prose corrections; ADR *symmetric-vcs-rule* needed no rework
+  but was under-described (`repo.rs` cites it while it named only the skills)
+  and now states the rule binds the binary too.
 - **compose-task-chains-k29** — make the review chain (`X` → `review-X` →
   `integrate-review-X`) and the research vendor pair the *habitual* shape a
   session cuts leaves in — in `SKILL.md`'s Decompose step, in `TASK-FORMAT.md`,

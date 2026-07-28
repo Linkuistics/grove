@@ -8,6 +8,12 @@ belongs to the human, and an auto-firing skill that mutates it (or lobbies
 to) trades away the zero-surprise guarantee that makes auto-firing safe to
 ship.
 
+The same rule binds the **`grove` binary**, which decides jj-first in
+`repo::vcs_of` — the closest marker walking up, `.jj/` winning over a `.git`
+beside it — and likewise converts nothing: grove runs in a working tree the
+user provides and creates none (*user-owned-worktrees*). One decision with two
+enforcers, not two decisions.
+
 ## Considered options
 
 - **Ask-first colocation offer** — `jj git init --colocate`, offered once

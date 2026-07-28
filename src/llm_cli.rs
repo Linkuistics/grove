@@ -121,7 +121,8 @@ pub enum Command {
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
     /// node by its key or path. Because the hierarchy lives in directories, each
-    /// shift is a single `git mv` of one sibling directory and the whole subtree
+    /// shift is a single move of one sibling directory (`git mv`, or a plain
+    /// rename in a jj-enabled tree) and the whole subtree
     /// — child names *and* keys — rides along untouched; in-file `# …` headers
     /// are position-free, so **zero file contents** are rewritten. The new leaf
     /// gets a fresh key. Prints the new leaf's absolute path on stdout; the
@@ -130,8 +131,9 @@ pub enum Command {
     LeafInsert(LeafInsertArgs),
     /// Convert a live leaf file `NN-<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`
-    /// becomes the node `k<key>`), `git mv`ing the leaf body in as the node's
-    /// `BRIEF.md` (its `# <slug>-k<key>` header retitled with ` — brief`) and
+    /// becomes the node `k<key>`), moving the leaf body in as the node's
+    /// `BRIEF.md` (`git mv`, or a plain rename in a jj-enabled tree; its
+    /// `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child `01-<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
     /// leaf's own kind** (task-kind-taxonomy) unless `--kind` overrides it.

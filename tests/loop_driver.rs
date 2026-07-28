@@ -244,6 +244,65 @@ exit 0
     );
 }
 
+// herdr-pane-misdetection: the driver names the harness it launched in the
+// child's environment, so herdr's foreground-process detection stops scoring the
+// process group `grove` leads and electing whatever helper wins — in practice a
+// `codex mcp-server`, whatever the pane is actually running.
+//
+// Asserted from inside a *real* spawned child rather than off the `Command`
+// builder (the unit tests in `src/launch.rs` cover the builder). The variable is
+// read by herdr out of the kernel's copy of the child's exec-time environment,
+// so what matters is that it survives the spawn — and this fixture is the only
+// place the driver's own launch path is exercised end to end.
+//
+// `clear_grove_env` scrubs the three `HERDR_*` pane variables, so this loop runs
+// as if there were no herdr at all — which is the point: the hint is ungated, and
+// must reach the child here exactly as it would inside a pane.
+#[test]
+fn the_loop_hints_herdr_with_the_harness_it_launched() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
+    fs::write(skill_dir.join("prompts/start.md"), "START PROMPT").unwrap();
+
+    let worktree = repo_path.join("wt");
+    fs::create_dir_all(&worktree).unwrap();
+    let log = repo_path.join("log");
+
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "${HERDR_AGENT:-unset}" >> "$GROVE_TEST_LOG"
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+exit 0
+"#,
+    );
+
+    let harness = harness::by_name("claude").unwrap();
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
+
+    loop_driver::run_loop(harness, repo_path, &worktree, "hintgrove").unwrap();
+
+    assert_eq!(
+        fs::read_to_string(&log).unwrap().trim(),
+        "claude",
+        "grove reports the pane's *state* as agent `grove`, but hints the agent \
+         it *launched* — the two are different fields with different jobs, and \
+         the hint is what picks the screen manifest herdr parses the TUI with"
+    );
+}
+
 // Signal-file identity (signal-file-identity-k6): two `grove do` loops with
 // the *same grove name* but *different worktrees* must not interfere, even
 // running truly concurrently. Pre-fix, `signal_file_path` derived the path

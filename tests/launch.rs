@@ -684,6 +684,65 @@ fn retire_on_codex_in_secondary_jj_workspace_grants_the_main_workspace_store() {
 }
 
 #[test]
+fn retire_hints_herdr_with_the_harness_it_launched() {
+    // herdr-pane-misdetection: the hint goes in **both** launch sites, unlike the
+    // turn hooks. A `grove retire` pane is mis-detected exactly as a `grove do`
+    // pane is — grove leads the process group either way — and the hint carries
+    // no signal-file discriminator, so there is nothing for it to get wrong here.
+    //
+    // Asserted from inside a real spawned child: herdr reads the variable out of
+    // the kernel's copy of the child's exec-time environment, so surviving the
+    // spawn is the property. `exec_harness` has no bin seam — it execs
+    // `harness.exec_bin` through PATH — so the fake goes there, as in
+    // `codex_retire_argv`.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+
+    let bindir = repo.path().join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    let log = repo.path().join("hint-log");
+    write_exec(
+        &bindir.join("claude"),
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"${{HERDR_AGENT:-unset}}\" >> \"{}\"\nexit 0\n",
+            log.display()
+        ),
+    );
+
+    // `retire` (unlike `do`) does not provision; plant its prompt by hand.
+    let prompts = repo.path().join("global-skill/prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("retire.md"), "RETIRE {{NODE_PATH}}").unwrap();
+
+    let mut env = support::EnvGuard::new();
+    // `clear_grove_env` scrubs the three `HERDR_*` pane variables too, so this
+    // runs as if there were no herdr at all — the point being that the hint is
+    // ungated and must reach the child regardless.
+    env.clear_grove_env().set(
+        "PATH",
+        format!(
+            "{}:{}",
+            bindir.display(),
+            std::env::var("PATH").unwrap_or_default()
+        ),
+    );
+
+    launch::retire(&RetireArgs {
+        path: "01-x-k1".into(),
+        harness: Some("claude".into()),
+        no_launch: false,
+    })
+    .unwrap();
+
+    assert_eq!(
+        fs::read_to_string(&log).unwrap().trim(),
+        "claude",
+        "a retire session's pane needs the same hint the loop's does"
+    );
+}
+
+#[test]
 fn retire_resolves_a_bare_node_path_in_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();

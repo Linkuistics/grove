@@ -330,6 +330,12 @@ fn launch_session(
     // not leak a stale, unrelated PID into the new harness session.
     cmd.env_remove("GROVE_HARNESS_PID");
     cmd.env_remove("GROVE_CLAUDE_PID");
+    // herdr-pane-misdetection: name the harness for herdr's foreground-process
+    // detection, which otherwise scores the process group `grove` leads and can
+    // elect a `codex mcp-server` helper. Unlike `append_turn_hooks` above, this
+    // goes in *both* launch sites and is not gated on being under herdr — see
+    // `launch::set_herdr_agent_hint` for both asymmetries.
+    crate::launch::set_herdr_agent_hint(&mut cmd, harness);
 
     let child = cmd.spawn().context("launching the harness session")?;
     wait_with_watcher(child, signal_file)

@@ -62,6 +62,37 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Skipping a chain stays a normal choice. `docs/specs/task-kind-taxonomy.md`
   carries the reasoning, including the node-per-chain option and why it lost.
 
+### Fixed
+
+- **herdr no longer labels a grove pane with the wrong agent.** herdr identifies
+  a pane's agent from its foreground process group, preferring the group
+  *leader*; in a grove pane the leader is `grove` itself, which herdr cannot
+  identify, so it fell back to scoring every member — where a `codex mcp-server`
+  helper could outrank the harness grove had actually launched. The pane then read
+  `codex` whatever it was running, and herdr evaluated the wrong agent's screen
+  manifest against the TUI.
+
+  Every harness grove spawns now carries `HERDR_AGENT=<harness name>` —
+  herdr's own documented hint for a **host-visible wrapper that hides the real
+  agent**, which is exactly what `grove do` is. It goes on the child rather than
+  on `grove` (a process cannot rewrite its own exec-time environment, which is
+  what herdr reads), and at **both** launch sites: a `grove retire` pane is
+  mis-detected the same way. No fork hunk and no process-group surgery — both
+  were considered and rejected, the latter because it buys the same outcome by
+  rewriting the driver's signal topology, which *self-driving-loop* and
+  *herdr-optional-ui*'s release table both rest on.
+
+  Unlike the turn hooks, the hint is **not gated on running under herdr**: it
+  changes no argv and spawns nothing, nothing but herdr reads it, and the gate's
+  own three variables are not what herdr's detection depends on — so gating could
+  only lose the fix. The value is the harness name verbatim, because grove's three
+  names are already herdr's three canonical labels; a name herdr does not know
+  parses to nothing and degrades to the previous behaviour.
+
+  Visible only where grove is not holding hook authority — before its first
+  report, and after it releases at `complete --done` — since a landed report
+  already takes precedence over detection.
+
 ## v16.1.0
 
 ### Added

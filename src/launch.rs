@@ -178,6 +178,55 @@ pub(crate) fn append_codex_vcs_store_grant(
     Ok(())
 }
 
+/// Tell herdr which agent this pane is really running, via its documented
+/// `HERDR_AGENT=<agent>` foreground-process hint (herdr-pane-misdetection).
+///
+/// herdr identifies a pane's agent from the foreground **process group**: it
+/// prefers the group *leader*, and only falls back to scoring every member when
+/// the leader is unrecognised. In a grove pane the leader is `grove` itself,
+/// which herdr cannot identify, so the fallback runs — and a `codex mcp-server`
+/// helper can outrank the harness grove actually launched. The pane then reads
+/// `codex` whatever it is running, and herdr evaluates the wrong agent's screen
+/// manifest against the TUI. `HERDR_AGENT` is the extension point upstream added
+/// for exactly this shape — a host-visible wrapper hiding the real agent — and
+/// `grove do` **is** one.
+///
+/// **On the child, never on grove.** herdr's doc says to set it "on the wrapper
+/// command", but grove cannot rewrite its own exec-time environment (which is
+/// what herdr reads, via `kern_procargs2` / `/proc/<pid>/environ`) and does not
+/// need to: the probe consults every **non-leader** member of the foreground job
+/// for a hint *before* the group scoring that misfires. Per-launch is also more
+/// accurate than a wrapper-level export, because grove's harness varies per leaf
+/// (model-per-task-kind).
+///
+/// **Both launch sites**, unlike [`append_turn_hooks`] — which is deliberately
+/// driver-only, because a `grove retire` session sets no signal file and every
+/// turn end there would read `blocked`. The hint carries no such discriminator: a
+/// `grove retire` pane is mis-detected exactly as a `grove do` pane is, so it
+/// wants the same fix.
+///
+/// **Set unconditionally, not gated on [`crate::herdr::in_pane`]** — the one
+/// asymmetry with the turn hooks, and the reasons are three. The hooks are gated
+/// because injecting them *changes the launch argv* and arms a subprocess that
+/// fires on every tool call; an environment variable changes no argv and spawns
+/// nothing, so the "absent herdr, the launch is byte-identical" discipline is
+/// untouched either way. Nothing but herdr reads the variable, and it does so
+/// only by inspecting *another* process's environ — herdr's own code never
+/// `getenv`s it — so outside a herdr pane it is inert for want of a reader. And
+/// the gate's failure mode is the asymmetric one: `in_pane` needs all three of
+/// `HERDR_ENV`/`HERDR_SOCKET_PATH`/`HERDR_PANE_ID`, while the detection this
+/// feeds needs none of them, so any pane that loses the pane environment but
+/// keeps the process group would lose the fix in precisely the case it exists
+/// for. Gating would buy purity and risk the bug back.
+///
+/// The value is `harness.name` with no translation table: grove's three harness
+/// names are already herdr's three canonical labels (`detect::lookup_agent`). A
+/// name herdr does not know parses to nothing and degrades to today's behaviour,
+/// so a fourth harness costs a mis-detected pane, never a wrongly-detected one.
+pub(crate) fn set_herdr_agent_hint(cmd: &mut Command, harness: &Harness) {
+    cmd.env("HERDR_AGENT", harness.name);
+}
+
 /// Inject the **turn hooks** into a claude launch (herdr-turn-hooks,
 /// herdr-mid-turn-blockers).
 ///
@@ -319,6 +368,10 @@ fn exec_harness(
     }
     append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
     cmd.arg(prompt);
+    // herdr-pane-misdetection: a `grove retire` pane is mis-detected exactly as a
+    // `grove do` pane is, so it carries the hint too — see `set_herdr_agent_hint`
+    // for why this one is *not* driver-only the way `append_turn_hooks` is.
+    set_herdr_agent_hint(&mut cmd, harness);
 
     let status = cmd
         .status()
@@ -366,6 +419,56 @@ mod tests {
             "a matcher outside [A-Za-z0-9_|] falls out of claude's exact-match \
              path and is compiled as a regex, where `permission_prompt` would \
              match `worker_permission_prompt` too"
+        );
+    }
+
+    /// The value a `Command` will pass down as `key`, or `None` if it sets no
+    /// such variable. `get_envs` reports only what the builder *changed*, which
+    /// is exactly the payload under test — the inherited environment is not it.
+    fn env_delta(cmd: &Command, key: &str) -> Option<String> {
+        let key = std::ffi::OsStr::new(key);
+        cmd.get_envs()
+            .find(|(k, _)| *k == key)
+            .and_then(|(_, value)| value)
+            .map(|value| value.to_string_lossy().into_owned())
+    }
+
+    // The hint is a payload another program reads out of the *kernel's* copy of
+    // this environment, so like the injected `--settings` it is asserted rather
+    // than trusted — and asserted across the whole registry, because the value
+    // being `harness.name` verbatim is the claim (grove's names are already
+    // herdr's canonical labels, so there is no translation table to get wrong).
+    #[test]
+    fn every_harness_launch_is_hinted_with_its_own_name() {
+        for harness in crate::harness::HARNESSES {
+            let mut cmd = Command::new("true");
+            set_herdr_agent_hint(&mut cmd, harness);
+            assert_eq!(
+                env_delta(&cmd, "HERDR_AGENT").as_deref(),
+                Some(harness.name),
+                "herdr detects the harness by this name, not by grove's"
+            );
+        }
+    }
+
+    // The one asymmetry with `append_turn_hooks`, pinned so it is not quietly
+    // "fixed" into symmetry later: the hint is set whether or not grove is under
+    // herdr. It changes no argv and spawns nothing, nothing but herdr reads it,
+    // and `in_pane`'s three variables are not what the detection it feeds depends
+    // on — so gating it could only lose the fix, never save anything.
+    #[test]
+    fn the_hint_is_not_gated_on_running_under_herdr() {
+        let claude = crate::harness::by_name("claude").unwrap();
+        let mut cmd = Command::new("true");
+        set_herdr_agent_hint(&mut cmd, claude);
+
+        // Whatever this test process's own herdr environment happens to be — the
+        // suite may well be running inside a herdr pane — the delta is the same.
+        assert_eq!(env_delta(&cmd, "HERDR_AGENT").as_deref(), Some("claude"));
+        assert!(
+            cmd.get_args().next().is_none(),
+            "the hint must not add an argument: `absent herdr, the launch argv is \
+             byte-identical` is what gates the turn hooks, and it stays true here"
         );
     }
 

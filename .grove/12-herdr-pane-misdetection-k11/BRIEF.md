@@ -26,6 +26,17 @@ call sites, which the guidance says to subagent, not to chain.
 
 - **agent-hint-k33** — set the hint. Small, and the only thing that must land
   before anything can be observed.
+  **Done.** `launch::set_herdr_agent_hint` sets `HERDR_AGENT=<harness.name>` at
+  both launch sites, five tests, no fork change. Its one open design call — gate
+  on `herdr::in_pane()` or not — went **against** the leaf's own recommendation:
+  it is **ungated**, and the three reasons are in the function's doc comment.
+  In short, the turn hooks are gated because injecting them changes the launch
+  *argv* and arms a per-tool-call subprocess, and an environment variable does
+  neither; herdr's own code never `getenv`s it (it reads *other* processes'
+  environs), so absent herdr it is inert for want of a reader; and `in_pane`'s
+  three variables are not what the detection this feeds depends on, so the gate
+  could only ever lose the fix. Do not re-litigate this into symmetry — a test
+  pins the asymmetry.
 - **agent-hint-observe-k34** — the measurement, plus the durable record. Separate
   because the change lives in the **driver**, and a session is the driver's
   grandchild: it cannot watch its own replacement (the same reason

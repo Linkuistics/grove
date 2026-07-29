@@ -70,12 +70,27 @@ declaration exists. The fan is a **pair**, not an N-way fan-out, so the combine
 step is binary. **Both** producers declare their harness and the two must
 differ: that is what makes "two corpora" a fact in the tree rather than a
 forecast about what [[Kind routing]] will resolve at launch.
-Both are **named off a shared stem with a terminal step suffix** —
-`<stem>` / `<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
-`<stem>-combine` — so a cut chain is legible from `find .grove` without opening a
-file, which the [[Task kind]] cannot be (it lives in the file, not the name). The
-convention is a **habit nothing parses**; the guidance a session reads while
-cutting leaves carries it (`content/SKILL.md`'s Decompose step,
+Both are **a [[Node directory]] of their own** — `NN-<stem>-chain-k<key>/` and
+`NN-<stem>-pair-k<key>/` — holding their steps as children, **still named off the
+shared stem with a terminal step suffix**: `<stem>` / `<stem>-review` /
+`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. The directory
+is what makes the group **structural** rather than merely contiguous, so *any*
+tree viewer — `yazi`, Finder, `ls -R`, `find .grove`, the [[Tree viewer plugin]] —
+shows it as one collapsible object without being taught anything. That is the
+whole reason it beat the flat shape it replaced; grove controls one of those
+viewers and the argument for the flat shape rested on that one.
+The stem-and-suffix names **survive inside the node**, on a *different*
+justification than the one that created them. They no longer exist to make a
+chain legible from a flat listing — the directory does that now. They exist to
+keep every child's [[Work-item handle]] unique and self-describing: `resolve`
+matches a bare slug exactly and reports >1 as ambiguous, and `.grove/` dies at the
+[[Complete finish cycle]] leaving commit messages as the only record, so
+step-only children (`review-k4`) would collide across chains *and* name no
+artifact in the history that outlives the tree. The node's `-chain` / `-pair`
+token exists for the same reason: without it the node's slug collides with its
+own first child's.
+The convention remains a **habit nothing parses**; the guidance a session reads
+while cutting leaves carries it (`content/SKILL.md`'s Decompose step,
 `content/TASK-FORMAT.md`, and the bootstrap prompt), and
 `docs/specs/task-kind-taxonomy.md` holds the reasoning.
 **Sequencing and construction are separate questions with opposite answers.**
@@ -87,23 +102,30 @@ the caller (*Constructing a chain is one call*; the bar a verb must clear is ADR
 *cli-binary-split*).
 _Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
 every other review and scatters the chains the naming exists to reveal.
-_Avoid_: giving a chain its own [[Node directory]] — a node already means "this
-work proved bigger than one session", and one per chain overloads that signal,
-buys a `BRIEF.md` no step earned, and would apply `leaf-decompose` (a *reactive*
-verb) speculatively.
+_Avoid_: "a chain gets no node directory of its own" — reversed. The three
+arguments that decided it have all lapsed: `leaf-add-chain` / `leaf-add-pair` are
+proactive shape-emitting verbs, so node creation is no longer `leaf-decompose`'s
+*reactive* monopoly; a chain node is **brief-less by rule**, so it buys no
+`BRIEF.md` any step had to earn; and the cascade confirmation it was said to
+introduce is not asked of a brief-less node. What survives of the old reasoning is
+that node-ness now means two things — which the `BRIEF.md` discriminator keeps
+legible rather than overloaded ([[Node directory]]).
 _Avoid_: treating either as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
 none (ADR *task-kind-taxonomy*).
-_Avoid_: treating a chain as a **unit** — something [[Pick]] will not walk out of,
-or whose close skips the Retire cascade's confirmation. Neither exists, and two of
-the three costs that framing names are not real: a chain's steps are already
-ordered by adjacency, and the confirmation is asked per [[Node directory]], so a
-flat chain is never asked one. The one real gap — a sibling-level `leaf-insert`
-can split a chain where containment would not — is repaired by one more insert,
-and closing it would cost `pick` its walk.
-_Avoid_: `leaf-add` for a chain step decided on *after* its producer ran — it
-appends at the end, behind every unrelated live leaf. Cut the steps together, or
-`leaf-insert` the late one beside its stem-mate.
+_Avoid_: treating a chain as a **unit** in [[Pick]]'s sense — something the walk
+will not leave. Containment is not immunity: `pick` is unchanged, descends a chain
+node in pre-order exactly as it descends any node, and walks straight out of it
+into the next sibling once its steps are done. What the directory *does* give is
+the narrower property the flat shape lacked — **a sibling-level `leaf-insert` can
+no longer split a chain**, because the steps are children rather than siblings.
+That was the one real gap in the flat shape, and it closed as a by-product of the
+grouping rather than by teaching `pick` anything.
+_Avoid_: `leaf-insert` for a chain step decided on *after* its producer ran, if
+the producer already sits in a chain node — `leaf-add <chain-node> <stem>-review`
+appends *inside* the node, which puts it immediately after its stem-mates and
+ahead of everything outside. `leaf-insert` is still the answer when the producer
+was cut as a plain leaf, which no directory can retrofit.
 _Avoid_: naming a construction verb `chain-add` — "chain" is overloaded (see
 *Flagged ambiguities*), and the `leaf-add-` prefix is what anchors the sense and
 puts the verb beside the `leaf-add` a session already calls.
@@ -256,7 +278,10 @@ collapsed to their counts. **UI only, never state**: herdr's full lifecycle
 authority is a compiled-in allowlist nothing outside its binary can join, and a
 plugin has exactly the socket access `grove-llm` already has, so routing state
 through one would add a hop and buy nothing.
-Its **only** contract is the [[Node directory]] naming scheme (task-tree-scheme).
+Its **only** contract is the [[Node directory]] naming scheme (task-tree-scheme) —
+which is why chain nodes cost it **no change at all**: its node pattern matches any
+`NN-<slug>-k<key>/`, it never opens a `BRIEF.md`, and a finished chain therefore
+collapses to one counted line for free.
 It never invokes `grove` or `grove-llm`, opens no socket and writes no state, so
 the plugin and the binary version independently — the property that makes
 "optimised-for" real rather than aspirational. Consequently *changing the
@@ -436,14 +461,35 @@ defence.
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
 **Node directory** / **node**:
-A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children (leaf files and child node directories); `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
+A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), optionally headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
+**Two species, discriminated by whether the directory carries a `BRIEF.md`.** A
+**decomposition node** (written by `leaf-decompose`; `root-init` for the root)
+always carries one: it means *this work proved bigger than one session*, and the
+charter is the context those extra sessions need. A **chain node** (written by
+`leaf-add-chain` / `leaf-add-pair`) never does: it means *these steps compose one
+artifact*, a shape declared whole at construction, with no charter anyone is in a
+position to write. The discriminator is a **file's presence, never a name
+pattern** — which is what lets the Retire cascade tell them apart without reading
+the step-suffix convention back (task-kind-taxonomy).
+Three consequences. The cascade's confirmation is asked of **brief-carrying nodes
+only** — a chain node closing is implicitly done, silently. `brief-chain`'s
+tolerance of a missing level is now **load-bearing** rather than incidental (it
+was "some nodes do not carry one *yet*"; one species never will). And nothing is
+enforced: a human who writes a `BRIEF.md` into a chain node has simply made it
+brief-carrying, and gets the confirmation that follows from that.
 _Avoid_: calling a node a "file" — a node is always a directory.
+_Avoid_: "every node has a charter", or reading a bare directory as malformed —
+both were true only before chain nodes existed.
+_Avoid_: discriminating the two species by the `-chain` / `-pair` token in the
+node's slug. That token exists to keep the node's slug distinct from its first
+child's for `resolve`, and it is ordinary slug text a human may not use; the
+`BRIEF.md` test is the one that holds.
 
 **Leaf**:
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
 **Pick** (`grove-llm pick`):
-The loop's dispatcher: the **first live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates that* — no priority, no grouping, no set of leaves that must finish before another is considered. Ordering in a grove is **contiguity**, at every level, and it is the only ordering grove offers: a [[Review chain]]'s steps run in sequence because they sit at adjacent [[Position]]s, exactly as a node's children do. It reads no file contents and carries no state, re-deriving the loop's place every iteration — which is what makes restart ≡ continuation (self-driving-loop). Empty stdout plus a stderr diagnostic means no live leaves anywhere: the [[Complete finish cycle]] trigger. Its value is that a human computes it **by eye** — `find .grove` shows the tree and the next session is the first name with no outcome infix — which is what makes "the tree is the only state" worth something rather than merely true.
+The loop's dispatcher: the **first live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates that* — no priority, no grouping, no set of leaves that must finish before another is considered. Ordering in a grove is **contiguity**, at every level, and it is the only ordering grove offers: a [[Review chain]]'s steps run in sequence because they are one node's children at adjacent [[Position]]s, exactly as a decomposition's are. It reads no file contents and carries no state, re-deriving the loop's place every iteration — which is what makes restart ≡ continuation (self-driving-loop). Empty stdout plus a stderr diagnostic means no live leaves anywhere: the [[Complete finish cycle]] trigger. Its value is that a human computes it **by eye** — `find .grove` shows the tree and the next session is the first name with no outcome infix — which is what makes "the tree is the only state" worth something rather than merely true.
 _Avoid_: expecting `pick` to **schedule** — to finish a group before considering an earlier live leaf, or to skip a leaf that is merely blocked. Answering "is a group in flight?" needs either state outside the tree (constraint 1) or a rule that skips live work and ranks groups, turning the walk into a scheduler no reader of `find .grove` can predict (task-tree-scheme, *`pick` is a walk, not a scheduler*).
 
 **Position** (`NN`):

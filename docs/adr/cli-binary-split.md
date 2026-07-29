@@ -79,7 +79,8 @@ would gate besides (constraint 5), but they fail this bar first.
 - **`leaf-add --chain`, minting a review chain from the verb that means one
   leaf** (rejected) — versus `leaf-add-chain` / `leaf-add-pair` as distinctly
   named verbs (adopted; `docs/specs/task-kind-taxonomy.md`, *Constructing a chain
-  is one call*). Both write three leaves, so the difference is entirely leg 3: on
+  is one call*). Both write a whole shape — a node directory holding three leaves —
+  rather than one leaf, so the difference is entirely leg 3: on
   a flag, `leaf-add` would be making the escalation call (chain, or a mid-session
   subagent?) that is the only judgement in the pattern, on the strength of an
   argument the caller used to mean *one leaf*. Under its own name, the caller has

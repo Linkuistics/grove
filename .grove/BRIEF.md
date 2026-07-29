@@ -29,6 +29,39 @@ and cut the leaves below. It diverged from the plan in two ways.
 | `skill-review-k3` | `review-impl` | disprove every claim in it |
 | `skill-integrate-k4` | `integrate-review-impl` | apply the findings |
 | `distribution-k5` | `impl` | plan Task 3, unchanged |
+| `docs-reconcile-k6` | `impl` | reconcile the spec and plan to what shipped |
+
+## Scope — this grove also carries grove-methodology work
+
+The leaves below are **not** about `using-codebase-memory`. They belong to the
+**grove** bounded context (`CONTEXT.md`, not `plugins/CONTEXT.md`) and were raised
+during this grove's sessions. `chain-as-node-k7` argued in its own Notes that it
+was likely a grove of its own; the human was asked at the start of that session and
+**chose to keep it here** rather than prune it and start a new grove. The
+Done-when above is therefore no longer the whole of what this grove will produce.
+
+| Leaf | Kind | Covers |
+|---|---|---|
+| `install-workspace-guard-k8` | `impl` | `install.sh` hijacking a skill install from a secondary workspace — found by `distribution-k5`, and the reason this grove's third done-when is only half-verified |
+| `chain-as-node-k7` | `design` | **decided**: a review chain / vendor pair becomes a node directory |
+| `chain-node-k9` … `-integrate-k11` | `impl` chain | implement that decision |
+| `retire-confirmation-k12` | `design` | whether the Retire cascade needs confirmation at all |
+
+**What `chain-as-node-k7` decided**, since the tree below builds on it and
+`.grove/` dies at the finish cycle. A chain gets its own **node directory** —
+reversing a decision the ADR, the spec and the glossary each recorded. The three
+arguments that had rejected it lapsed: `leaf-add-chain` made node creation
+proactive, the node is **brief-less by rule** so it buys no unearned `BRIEF.md`,
+and a brief-less node is never asked the Retire cascade's confirmation. The
+decisive new argument *for* it is that a directory makes the group **structural**
+in every tree viewer (`yazi`, Finder, `ls -R`), not just in the one grove controls.
+Children keep the stem (`skill-review-k4`, not `review-k4`) because `resolve`
+matches bare slugs exactly and commit messages outlive `.grove/`. Existing flat
+chains are **not** migrated — detecting one needs the suffix parsing the design
+forbids, and a flat chain is a valid tree. Recorded in
+`docs/specs/task-kind-taxonomy.md`, `docs/adr/task-tree-scheme.md`,
+`docs/adr/cli-binary-split.md` and `CONTEXT.md`; nothing here is the durable
+record.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

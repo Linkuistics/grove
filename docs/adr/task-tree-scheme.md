@@ -2,8 +2,8 @@
 
 grove's task tree is a real directory tree under `.grove/`. The uniform rule:
 
-> A node is a **directory** holding a `BRIEF.md` (its charter) plus its numbered
-> children. The grove root `.grove/` is itself such a directory.
+> A node is a **directory** holding its numbered children, optionally headed by a
+> `BRIEF.md` charter. The grove root `.grove/` is itself such a directory.
 
 The hierarchy is carried by the filesystem — there is no flat dotted-decimal position
 baked into filenames and no special root-brief sentinel.
@@ -12,7 +12,7 @@ baked into filenames and no special root-brief sentinel.
 .grove/
   BRIEF.md                       ← root brief (plain; heads .grove/)
   01-DONE-plan-k1.md             ← retired leaf
-  05-dotted-decimal-k5/          ← node = directory; key rides in the dir name
+  05-dotted-decimal-k5/          ← decomposition node — carries a charter
     BRIEF.md
     01-DONE-id-model-k6.md
     04-DONE-lifecycle-k9.md
@@ -20,9 +20,24 @@ baked into filenames and no special root-brief sentinel.
     BRIEF.md
     04-DONE-install-k18.md
     05-remove-mirrors-k19.md     ← live leaf
-  08-shed-tui-k20.md             ← live leaf
-  10-complete-signal-k22.md
+  08-shed-tui-k20/               ← chain node — brief-less by rule
+    01-DONE-shed-tui-k21.md
+    02-shed-tui-review-k22.md    ← live leaf
+    03-shed-tui-integrate-k23.md
+  10-complete-signal-k24.md
 ```
+
+**The charter is what distinguishes the two species of node.** A *decomposition*
+node — written by `leaf-decompose` — always carries a `BRIEF.md`; it means *this
+work proved bigger than one session*, and the charter is the context those extra
+sessions need. A *chain* node — written by `leaf-add-chain` / `leaf-add-pair` for a
+review chain or a vendor pair — never carries one; it means *these steps compose
+one artifact*, a shape declared whole at construction. The discriminator is the
+**presence of the file**, never a pattern in the name, which is what lets the
+Retire cascade tell them apart without any reader parsing the step-suffix
+convention (*task-kind-taxonomy*, which owns the chain decision). Nothing enforces
+either species: a `BRIEF.md` written into a chain node simply makes it
+brief-carrying.
 
 ## Naming grammar
 
@@ -30,7 +45,7 @@ Fields are ordered by human relevance — sort key first, user-facing state next
 machine handle last:
 
 - **Leaf:** `NN-[DONE-|ABANDONED-]<slug>-k<key>.md`
-- **Node:** directory `NN-<slug>-k<key>/` containing `BRIEF.md` + children
+- **Node:** directory `NN-<slug>-k<key>/` containing children, optionally headed by `BRIEF.md`
 - **Root brief:** `.grove/BRIEF.md` (plain, unkeyed — the root dir's charter)
 
 Three parts do the work:
@@ -73,6 +88,19 @@ rewrites**.
 Commit messages and prose name a work item by `<slug>-k<key>` — never by its position
 or directory path. The position/path is mutable (renumber, move); the `<slug>-k<key>`
 handle is stable, so the historical record stays meaningful after restructures.
+
+**A slug therefore has to carry meaning on its own, and stay unique tree-wide.**
+Two facts make that a constraint rather than a preference. `.grove/` is deleted at
+the finish cycle, so a commit message is the *only* surviving record of a work
+item — a handle that names a role rather than a subject (`review-k4`) says nothing
+once the tree is gone. And `resolve` matches a bare slug **exactly**, reporting
+more than one match as ambiguous, so slugs that repeat per group degrade the
+reference surface as the tree grows. This is what decides how a node's children
+are named when the node itself supplies the context: they keep the qualifying stem
+(`skill-review-k4`, not `review-k4`), and the node takes a distinguishing token so
+its own slug does not collide with its first child's. The redundancy in a listing
+is the price of the handle staying self-describing after the tree that explained it
+no longer exists.
 
 ## Comparator and verbs
 
@@ -120,6 +148,15 @@ The accepted cost: contiguity is **unprotected against a sibling-level
 children are protected by containment. That asymmetry stands — `leaf-insert` names
 its target explicitly and exists so a human can preempt, and a split is repaired by
 one more `leaf-insert`.
+
+It no longer bites the case it was written for. A review chain and a vendor pair
+are **node directories** (*task-kind-taxonomy*), so their steps are children and a
+sibling-level insert cannot land between them. Note *how* that gap closed: not by
+teaching `pick` about groups — it is the same stateless local walk, and it leaves a
+chain node for the next sibling as freely as it leaves any node — but as a
+by-product of the grouping being structural. The residual exposure is a run of
+related leaves a human left flat on purpose, which is exactly the case where
+`leaf-insert`'s explicitness is the right answer.
 
 ## Rationale
 

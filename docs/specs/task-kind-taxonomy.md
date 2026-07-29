@@ -153,52 +153,101 @@ will. There is no machinery behind either mark; a HITL leaf reached by an
 unattended relaunch of the self-driving loop simply waits, which is correct
 behaviour.
 
-### A chain is named by a shared stem plus a step suffix
+### A chain is a node directory, named by a shared stem plus a step suffix
 
 The kind lives inside the task file, so a tree of leaves shows *what* was worked
-on and never *how it was composed*. A chain is therefore named to carry that
-itself:
+on and never *how it was composed*. A chain carries that in its **shape** — it is
+a node directory — and its steps carry it in their **names**:
 
 ```
-01-sync-design-k12.md              # design
-02-sync-design-review-k13.md       # review-design
-03-sync-design-integrate-k14.md    # integrate-review-design
+07-sync-design-chain-k11/            # chain node — no BRIEF.md
+  01-sync-design-k12.md              # design
+  02-sync-design-review-k13.md       # review-design
+  03-sync-design-integrate-k14.md    # integrate-review-design
 
-04-sync-survey-a-k15.md            # research
-05-sync-survey-b-k16.md            # research, **Harness:** codex
-06-sync-survey-combine-k17.md      # combine-research
+08-sync-survey-pair-k15/             # chain node — no BRIEF.md
+  01-sync-survey-a-k16.md            # research, **Harness:** claude
+  02-sync-survey-b-k17.md            # research, **Harness:** codex
+  03-sync-survey-combine-k18.md      # combine-research
 ```
+
+**The directory is what makes the group structural.** A flat run of stem-sharing
+leaves is *contiguous and similarly prefixed*; nothing in a listing distinguishes
+it from three adjacent unrelated leaves that happen to share a prefix. A directory
+is a first-class object in every tree viewer there is — `yazi`, Finder, `ls -R`,
+`find .grove` — collapsible, selectable and countable without any of them being
+taught the convention. That is the decisive point, and it is the one the earlier
+rejection got wrong: the flat shape's legibility argument was carried by the
+[[Tree viewer plugin]] and by `find`, and grove controls exactly one of the
+viewers a human actually uses.
+
+**The three arguments that had rejected it have all lapsed.** They are recorded
+here because the request is a natural one to re-raise, and re-raising it should
+start from why the answer changed rather than from the conclusion:
+
+- *"No verb behind it — a node is created only by `leaf-decompose`, a deliberately
+  reactive verb, so cutting a chain up front applies it speculatively."* Dead:
+  `leaf-add-chain` / `leaf-add-pair` are proactive shape-emitting verbs that did
+  not exist when this was written, and emitting a directory is the same one call.
+- *"Buys a `BRIEF.md` written because a step demanded it (constraint 4)."* Dead:
+  a chain node is **brief-less by rule** (below), so no brief is written at all.
+- *"The Retire cascade asks the human before treating a node as done, which is
+  pure noise for a chain whose integrate step finishing means it is finished by
+  construction."* Dead, and it is the brief-less rule that kills it — the cascade
+  asks of **brief-carrying nodes only**, so a chain node closes silently.
+
+What survives is that node-ness now means two things: *this proved bigger than one
+session*, and *these steps compose one artifact*. The `BRIEF.md` discriminator is
+what keeps that a distinction rather than an overload.
+
+**The node is brief-less by rule**, and the rule does real work beyond saving a
+stub. It gives the Retire cascade a discriminator that is a **file's presence, not
+a name pattern** — so the cascade can skip a chain's confirmation without any
+reader parsing the step suffix, which is the line the next section says must never
+be crossed. A charter-writing alternative was available and rejected: the verb
+could emit a stub naming the artifact, which `brief-chain` would then deliver to
+all three sessions as shared context. It loses on constraint 4 — the stub is
+written because a step demanded it, by a verb that knows only a stem — and on the
+discriminator, which a brief-carrying chain node would destroy. Nothing is
+enforced: a human who writes a `BRIEF.md` into a chain node has made it
+brief-carrying and gets the confirmation that follows.
+
+**The children keep the stem; the node takes a `-chain` / `-pair` token.** The
+tempting shape is `NN-<stem>-k<key>/` holding `01-impl`, `02-review`,
+`03-integrate` — much the cleanest listing, and needing no naming convention at
+all. It is rejected on two checkable facts about references, both in
+*task-tree-scheme* §5. `resolve` matches a bare slug **exactly** and reports more
+than one match as ambiguous, so a second chain in the same grove makes `resolve
+review` ambiguous. And `.grove/` is deleted at the finish cycle, leaving commit
+messages as the only surviving record — where `review-k4` names a role and no
+artifact, against `sync-design-review-k13` which still says what it was. The
+redundancy in the listing is the price of a handle that outlives the tree that
+explained it. The node's `-chain` / `-pair` token is the same constraint applied
+one level up: without it the node's slug collides with its own first child's.
 
 The pair's producers are `-a` / `-b` rather than a bare stem beside a `-second`,
 because they are peers rather than a producer and a step.
 
-**The suffix is terminal, not leading.** A suffix keeps a chain contiguous under
-its stem; a prefix (`review-<stem>`) sorts every review beside every *other*
-review and scatters exactly the chains the naming exists to reveal.
-
-**A chain does not get its own node directory.** The alternative considered was
-`NN-<stem>-k<key>/` holding `01-impl`, `02-review`, `03-integrate` — structurally
-honest, needing no convention at all. Rejected on what a node already means in a
-real tree: *this work proved bigger than one session*. Spending a directory on
-every chain overloads that signal with an unrelated one ("this work got
-reviewed"), buys a `BRIEF.md` written because a step demanded it rather than
-because it earned its place (constraint 4), and has no verb behind it — a node is
-created only by `leaf-decompose`, a deliberately *reactive* verb, so cutting a
-chain up front would apply it speculatively. The slug convention costs nothing
-structurally and is cheap to change, because durable references use the permanent
-key either way (*task-tree-scheme* §5).
-
-A fourth reason, found later and operator-visible: the Retire cascade asks the
-human before treating a node as done, so the human can add a follow-up leaf. That
-question is right for a decomposition node — *is this area actually finished?* —
-and pure noise for a chain, whose integrate step finishing means the chain is
-finished by construction. **Because a chain is not a node, that question is never
-asked of one.** Give a chain a directory and you buy the noise; the flat shape has
-never paid it.
+**The suffix is terminal, not leading.** A suffix keeps a chain's steps sorted
+under their stem; a prefix (`review-<stem>`) sorts every review beside every
+*other* review. Containment makes this weaker than it was — the steps are a node's
+children now, so nothing unrelated is interleaved with them either way — but it
+still decides how a chain's *handles* read in a commit log, which is the surface
+that outlives the tree.
 
 **Nothing parses the suffix**, and adding a parser would be the signal the
-convention had overreached — see the next section. It is a habit that makes
-`find .grove` legible, on the same footing as the patterns it names.
+convention had overreached — see the next section. It remains a habit, on the same
+footing as the patterns it names; the directory, not the suffix, is what any
+machine or viewer keys on.
+
+**Existing flat chains are not migrated, and the reason is load-bearing.**
+Detecting one in a live tree means matching `-review` / `-integrate` against a
+preceding stem — precisely the suffix parsing this design forbids — and it would
+misfire on a leaf legitimately named `foo-review`. A flat chain is not malformed:
+nothing parses the convention, so a run of adjacent leaves is a valid tree that
+`pick` walks correctly. Old chains stay flat and keep working; the verbs write the
+new shape from here. There is no format bump and no work for `grove do`'s
+migration step (*task-tree-scheme*, *Migration*).
 
 ### The grammar is documented, not enforced
 
@@ -227,31 +276,37 @@ because the request is a natural one to raise again.
 **Two of the three motivating costs are not real.**
 
 - **`pick` does not wander out of a chain.** `pick` returns the first live leaf in
-  pre-order; a chain's steps sit at adjacent positions, so once the producer is
-  `DONE` the next name in the walk *is* the review. That is exactly the ordering a
-  decomposition node's children get — contiguity is the only ordering grove offers
-  anywhere, so the chain is not the weaker case, it is the ordinary one. A chain
-  also survives a step being decomposed with no special handling: the node is
-  walked in place and the remaining steps follow it.
-- **A chain's close asks nothing.** The cascade's confirmation is asked **per
-  node**, and a chain is not a node — so the noise the group construct would
-  remove is noise only a *directory-shaped* chain would have created. This is a
-  second, independent reason node-per-chain loses, on a different axis from the
-  one that decided it above (what a node *means*); it does not reverse that
-  decision, it reinforces it.
+  pre-order; a chain's steps are one node's children at adjacent positions, so once
+  the producer is `DONE` the next name in the walk *is* the review. That is exactly
+  the ordering a decomposition node's children get — contiguity is the only
+  ordering grove offers anywhere, so the chain is not the weaker case, it is the
+  ordinary one. A chain also survives a step being decomposed with no special
+  handling: the nested node is walked in place and the remaining steps follow it.
+- **A chain's close asks nothing.** The cascade's confirmation is asked of
+  **brief-carrying** nodes, and a chain node is brief-less by rule — so the noise
+  the group construct would remove is not there to remove. (This bullet used to
+  read "the confirmation is asked per node, and a chain is not a node", which was a
+  second argument *against* node-per-chain. Making the chain a node did not
+  resurrect the cost; the brief-less rule is what keeps it dead, and the
+  discriminator is a file's presence rather than any reading of the naming.)
 
-**The one real gap** is that contiguity is unprotected against a sibling-level
-`leaf-insert`, where a node's children are protected by containment. Two shapes
-hit it: an insert aimed between two chain steps, and a chain cut *lazily* — the
-review decided on after the producer ran, which `leaf-add` appends at the end,
-behind every unrelated live leaf. Both are repaired by one `leaf-insert`, and the
-second is avoided outright by cutting a chain's steps together or inserting a
-late-decided step beside its stem-mate (`content/driving.md`).
+**The one real gap has closed** — as a by-product, not by adopting the group
+construct. It was that contiguity is unprotected against a sibling-level
+`leaf-insert`, where a node's children are protected by containment; a chain is now
+a node, so its steps *are* protected. The lazy-cut shape closed with it: a review
+decided on after its producer ran is `leaf-add <chain-node> <stem>-review`, which
+appends inside the node — immediately after its stem-mates and ahead of everything
+outside — where the flat shape had `leaf-add` append behind every unrelated live
+leaf. The one case still needing `leaf-insert` is a producer that was cut as a
+plain leaf, which no directory can retrofit (see *Out of scope*).
 
-**What closing the gap would cost** is `pick`'s defining property — it would stop
-being a walk and become a scheduler (*task-tree-scheme*). That is the decision, and
-it is not a judgement about chains: no grouping of leaves can be honoured by a
-`pick` that is both stateless and local.
+**What closing it via `pick` would have cost** is `pick`'s defining property — it
+would stop being a walk and become a scheduler (*task-tree-scheme*). That decision
+stands and is untouched by the gap closing: `pick` is stateless and local, knows
+nothing about chains, and leaves a chain node for the next sibling as freely as it
+leaves any node. No grouping of leaves can be honoured by such a walk; the answer
+was to make the grouping *structural* instead, where the filesystem already
+enforces it for free.
 
 **And it would gate** (constraint 5). A `pick` that refuses to leave a chain is
 grove overruling the position order a human set. `leaf-insert` exists precisely so
@@ -283,19 +338,17 @@ named *add* sometimes *insert*, on the strength of a slug prefix — which means
 parsing the suffix convention, the one thing the convention says it must never do
 — and it is wrong whenever the human wants the step at the end deliberately.
 
-**What would reopen this.** Not friction with chains, which the workarounds above
-answer at one command each. Only a case where `pick` acquires a legitimate reason
-to be non-local for some *other* purpose: chain-awareness could then ride along at
-near-zero cost. Today it would be the sole reason, and it does not carry the
-weight alone. The evidence base is also no longer empty: this repo's tree carries
-its first chain (`chain-construction-k38` → `-review-k39` → `-integrate-k40`),
-whose own construction is what raised the *construction* question below.
+**What would reopen this.** Not friction with chains — the gap that caused it is
+now closed structurally, so the motivating cost is gone rather than merely
+tolerated. Only a case where `pick` acquires a legitimate reason to be non-local
+for some *other* purpose: chain-awareness could then ride along at near-zero cost.
+Today it would be the sole reason, and it does not carry the weight alone.
 
-**Blast radius of the answer being no:** zero code. `pick`, `leaf-add`,
-`leaf-insert` and the Retire cascade are untouched. What changed is prose, in the
-three surfaces a session reads while cutting leaves — `content/SKILL.md`'s
-Decompose step, `content/TASK-FORMAT.md`, and `content/driving.md` — plus this
-section and the two ADRs.
+**Blast radius of *this* answer being no:** zero code. The group construct would
+have changed `pick`; declining it leaves `pick`, `leaf-add` and `leaf-insert`
+exactly as they are. (The adjacent chain-as-node decision above *does* change code
+— the two construction verbs — and one line of the Retire cascade's prose; that is
+its blast radius, not this one's.)
 
 ### Constructing a chain is one call
 
@@ -304,21 +357,26 @@ verbs, each emitting a whole shape in a single call:
 
 ```
 grove-llm leaf-add-chain <parent> <stem> --kind <producer>
-   NN+0  <stem>-k<a>              **Kind:** <producer>
-   NN+1  <stem>-review-k<a+1>     **Kind:** review-<producer>
-   NN+2  <stem>-integrate-k<a+2>  **Kind:** integrate-review-<producer>
+   NN    <stem>-chain-k<a>/                   chain node — no BRIEF.md
+     01  <stem>-k<a+1>            **Kind:** <producer>
+     02  <stem>-review-k<a+2>     **Kind:** review-<producer>
+     03  <stem>-integrate-k<a+3>  **Kind:** integrate-review-<producer>
 
 grove-llm leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <other>
-   NN+0  <stem>-a-k<a>            **Kind:** research, **Harness:** <name>
-   NN+1  <stem>-b-k<a+1>          **Kind:** research, **Harness:** <other>
-   NN+2  <stem>-combine-k<a+2>    **Kind:** combine-research
+   NN    <stem>-pair-k<a>/                    chain node — no BRIEF.md
+     01  <stem>-a-k<a+1>          **Kind:** research, **Harness:** <name>
+     02  <stem>-b-k<a+2>          **Kind:** research, **Harness:** <other>
+     03  <stem>-combine-k<a+3>    **Kind:** combine-research
 ```
 
 The arguments are `leaf-add`'s: the same `<parent>` (`.` for the grove root, or a
-node by key or path), appended at the parent's next free positions, contiguous,
-fresh keys, the same template. A generated shape is **byte-identical to the same
-leaves cut by hand**, so nothing downstream can tell them apart; `leaf-add`,
-`leaf-insert`, `pick` and the Retire cascade are untouched.
+node by key or path). The **node** is appended at the parent's next free position;
+its three children start at `01`, contiguous, with fresh consecutive keys and the
+same leaf template. Four keys per shape, not three — the node holds the first.
+Stdout is four absolute paths, the node directory then its three leaves, so a
+caller can immediately `leaf-add <node>` a late step into it. A generated shape is
+**byte-identical to the same directory and leaves cut by hand**, so nothing
+downstream can tell them apart; `leaf-add`, `leaf-insert` and `pick` are untouched.
 
 **One call is one mutation.** This is the part that is *not* `leaf-add` three
 times over, and it is the reason a composite verb is worth having rather than a
@@ -335,8 +393,12 @@ prevent, reintroduced by the verb itself. So the contract is:
   collision is an up-front refusal rather than a rollback;
 - **anything that still fails mid-write rolls the run back** — and a rollback
   that cannot complete names the residue by path, because the one case where a
-  caller has something to clean up is the one case worth stating loudly;
-- **stdout is the whole shape or nothing.** The three paths print *after* the
+  caller has something to clean up is the one case worth stating loudly. The node
+  directory makes this materially easier than the flat shape did: every file the
+  run created is inside one directory that did not exist beforehand, so the
+  rollback is one recursive remove rather than three unlinks that must each be
+  matched against what actually landed;
+- **stdout is the whole shape or nothing.** The four paths print *after* the
   mutation succeeded, never as each leaf lands: a run that failed was rolled
   back, so paths on stdout would describe files that are no longer there.
 
@@ -495,6 +557,12 @@ reader who needs it already is.
   never happened, and today's repair is two `leaf-insert` calls, which is exactly
   the work the verb would do. Reopen it if a retrofit becomes routine — the
   design carries over unchanged, taking a *target* where these take a *parent*.
+  Its scope narrowed when chains became nodes: a step added late to a producer
+  that *is already in a chain node* is a plain `leaf-add <node> <stem>-review`,
+  which lands inside the node ahead of everything outside it. What is left for a
+  retrofit verb is only the producer cut as a bare leaf, which would have to
+  become a node — i.e. `leaf-decompose` with a derived set of children rather than
+  an insert at all.
 - **`leaf-add --chain`** — stays rejected; see *Considered options* in ADR
   *cli-binary-split*.
 - **A `--steps` / partial mode on either verb** — stays out; see *Partial chains
@@ -506,6 +574,20 @@ reader who needs it already is.
   would need a case that a *reader* cannot serve by opening the file — and a
   chain linter fails ADR *cli-binary-split*'s third leg before it reaches
   constraint 5.
+  **The chain node does not cross this line, and the tempting way to build it
+  would.** Two readers now need to know a chain node from a decomposition node —
+  the Retire cascade, and anything that reports on a tree — and the obvious
+  discriminator is the `-chain` / `-pair` token in the node's slug. That is a name
+  parse, and it inherits every objection above: the token is ordinary slug text a
+  human may omit, misspell, or use for something else. The discriminator is
+  therefore the **presence of `BRIEF.md`** — a file test that holds regardless of
+  naming, and that a human can change deliberately by writing a charter. The
+  naming token exists solely to keep the node's slug distinct from its first
+  child's for `resolve`; nothing may key on it.
+- **Migrating existing flat chains.** Not adopted, and not a deferral: detecting a
+  flat chain requires the suffix parsing the entry above forbids, and a flat run
+  of leaves is a valid tree that `pick` walks correctly. See *A chain is a node
+  directory* for the full reasoning.
 
 **Reconciled at implementation** (this section's own out-of-scope list, now
 discharged). The design deliberately left every *description of the tool* alone
@@ -518,6 +600,17 @@ hand-cut procedure — **replacing** it rather than sitting beside it, because
 parallel old-and-new guidance is how *compose-task-chains-k29* failed the first
 time — and ADR *cli-binary-split*'s normative enumeration lists both. The
 guidance nonetheless reaches real sessions only when the next release is cut.
+
+**The same obligation is open again** for the chain-node shape. This document, ADR
+*task-tree-scheme* and `CONTEXT.md` now describe a shape the verbs do not yet
+write, and `content/` plus `docs/grove.md` still describe the flat one — correctly,
+because they describe what ships. They are the implementation's job, on the same
+discipline: **replace** the flat-shape guidance rather than let the two sit side by
+side. The surfaces are `content/SKILL.md` (Decompose, and the node definition),
+`content/TASK-FORMAT.md`, `content/BRIEF-FORMAT.md` (which asserts every node
+carries a charter), `content/driving.md`, `content/prompts/*.md` and
+`docs/grove.md` — plus the Retire step's cascade prose, where "ask before treating
+a node as done" becomes "ask before treating a *brief-carrying* node as done".
 
 ### Routing
 
@@ -675,15 +768,24 @@ No new seams. The work tests through the existing partition:
 - **The kind enum's own unit tests** — label round-trip, the seventeen labels,
   and the `--kind work` refusal text.
 - **The grow-verb seam** (`src/tree_grow.rs`'s own tests) — where
-  `leaf-add-chain` / `leaf-add-pair` land: a `.grove/` fixture in, three named
-  and kinded files out, plus the refusals. It is the seam `leaf_add` and
-  `leaf_insert` already test through, and the composed verbs are `leaf_add`
-  three times with derived slugs and kinds, so they need no seam of their own.
-  The property worth **falsifying by mutation** rather than asserting is the
-  *derivation*: break `<producer>` ⇒ `review-<producer>` and the kind assertions
-  must fail, since a wrong-but-well-formed kind is the error class the verb
-  exists to close, and an assertion that only checks three files exist would not
-  notice.
+  `leaf-add-chain` / `leaf-add-pair` land: a `.grove/` fixture in, one node
+  directory holding three named and kinded files out, plus the refusals. It is the
+  seam `leaf_add` and `leaf_insert` already test through, and the composed verbs
+  are a directory create followed by `leaf_add` three times *into it* with derived
+  slugs and kinds, so they need no seam of their own.
+  Three properties here are worth **falsifying by mutation** rather than merely
+  asserting, because each is load-bearing somewhere the test does not look:
+  - the *derivation* — break `<producer>` ⇒ `review-<producer>` and the kind
+    assertions must fail, since a wrong-but-well-formed kind is the error class
+    the verb exists to close, and an assertion that only counts files would not
+    notice;
+  - the *absence of a `BRIEF.md`* — write one and a test must fail. This reads
+    like a cosmetic assertion and is not: brief-presence is the discriminator the
+    Retire cascade uses to tell a chain node from a decomposition node, so a stray
+    charter silently restores the confirmation the design removed;
+  - the *rollback* — a run that fails mid-write must leave no node directory
+    behind, which is the whole-shape-or-nothing property restated for the shape
+    that now has a container.
 
 ## Out of scope
 
@@ -691,7 +793,9 @@ No new seams. The work tests through the existing partition:
   enforced*.
 - **A chain as a first-class group** — a unit `pick` will not walk out of, closing
   without the cascade's confirmation. See *A chain is not a unit either*; the cost
-  is `pick`'s walk, and two of the three costs it would remove are not real.
+  is `pick`'s walk, and all three costs it would have removed are now gone without
+  it — two were never real, and the third (a sibling insert splitting a chain)
+  closed when chains became node directories.
 - **Auto-creating a chain from one `leaf-add`.** A `--chain` flag on the verb
   that means *one leaf* would mint three where the caller asked for one, and
   would have to guess the escalation call (chain, or a mid-session subagent?)

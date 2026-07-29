@@ -382,6 +382,42 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   here: **chain-construction-review-k39** has not read this yet, and a producer
   that banks its conclusion before the reviewer is the failure mode the chain
   exists to prevent.
+  **k39 done.** The direction survived, with two behavioural holes that would have
+  let either verb emit the wrong-but-well-formed result it exists to prevent, plus
+  an ADR left internally incoherent by adopting verbs it did not enumerate. Its
+  clean bills on constraints 3 and 5 are the ones that matter, and its one
+  *conditional* verdict — encounter at cutting time — bound k40 to **replace** the
+  hand-cut procedure rather than append to it.
+  **k40 done — both verbs shipped, all three findings applied, none declined.**
+  `leaf-add-chain <parent> <stem> --kind <producer>` and `leaf-add-pair <parent>
+  <stem> --harness-a <n> --harness-b <m>`. The interesting outcome is **F2**: the
+  review offered two remedies and both were wrong in the same way, because
+  producer A's harness is not a fact to compare against — it resolves at *launch*
+  time, so comparing it at construction compares an argument against a **forecast
+  about the environment**, which is **session-leaf-binding-k28**'s inversion
+  exactly. The third route makes the property durable: **both** producers are
+  declared and an equal pair is refused, so "two corpora" is two `**Harness:**`
+  lines in the tree and the check is between two *arguments*. What the caller
+  gives up — *"the usual vendor, and a different one"* — is not expressible as a
+  fact about a leaf, which is the point. **F1** made one call one mutation
+  (validate-then-allocate-then-sweep-then-write, rollback, stdout buffered until
+  success); its two arms are provoked by a *directory* wearing a leaf's name and
+  by a derived name crossing `NAME_MAX` — the latter a hazard **specific to
+  composite verbs**, since the derived names are longer than the stem the caller
+  validated. Both properties, and the derivation itself, **falsified by mutation**.
+  Two things worth carrying past this chain. The design's answer to k29's failure
+  mode is **placement**, so placement is *asserted* (`--help` ordering is a test),
+  not assumed — and the guidance **replaced** the hand-cut procedure in all five
+  surfaces rather than sitting beside it, since parallel old-and-new guidance is
+  how k29 failed the first time. And the chain's own history came back **negative**
+  on the friction argument: `leaf-add-chain . chain-construction --kind design`
+  would have emitted byte-for-byte what the three hand-cut `leaf-add` calls
+  produced, so this chain is evidence for friction (which k38 already judged thin)
+  and *not* for the error class the verb closes. Constraint 4 is recorded as
+  **lightly strained** in the spec — adopted on reasoning about that error class,
+  not on a measured incident. Like k29, k35 and k36, it is in the tree and not in
+  the installed binary; real sessions get it at **v16.2.0**, whose `### Added`
+  entry is written but not cut.
 - **routed-leaf-diagnostic-k41** — make the driver's launch line name the leaf it
   routed on. Split out of **session-leaf-binding-k28**: the only part of that
   complaint k28's decision leaves standing is *visibility*, and a diagnostic

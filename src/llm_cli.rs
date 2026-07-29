@@ -118,6 +118,54 @@ pub enum Command {
     /// node by its key (`[n]` / `n` / `<slug>-k<key>`) or its path. Prints the
     /// new leaf's absolute path on stdout. Working-tree change only — no commit.
     LeafAdd(LeafAddArgs),
+    /// Append a whole **review chain** under `<parent>` in one call — `<stem>`,
+    /// `<stem>-review`, `<stem>-integrate` — deriving the two step kinds from
+    /// the one producer kind you name.
+    ///
+    /// Three contiguous leaves with three consecutive fresh keys:
+    ///
+    ///   NN+0  `<stem>`            **Kind:** `<producer>`
+    ///   NN+1  `<stem>-review`     **Kind:** `review-<producer>`
+    ///   NN+2  `<stem>-integrate`  **Kind:** `integrate-review-<producer>`
+    ///
+    /// You name the producer kind; the verb **derives** the other two. That
+    /// derivation is what it is for: `--kind review-impl` beside a `design`
+    /// producer is a valid invocation the `--kind` gate cannot catch, and it
+    /// misroutes the whole chain's discipline. Reach for a chain when the
+    /// artifact is load-bearing — a spec, a decomposition you will build on for
+    /// months, a subsystem; a one-file change wants a mid-session subagent
+    /// instead (`driving.md`).
+    ///
+    /// All three leaves are created or none is. Prints their three absolute
+    /// paths on stdout, one per line in position order — and prints nothing at
+    /// all if the shape could not be created. Working-tree change only — no
+    /// commit. `leaf-add` is untouched and cutting no chain stays a normal
+    /// choice; retrofitting steps onto a producer that already ran is
+    /// `leaf-insert`'s job, not this verb's.
+    LeafAddChain(LeafAddChainArgs),
+    /// Append a whole **research vendor pair** under `<parent>` in one call —
+    /// `<stem>-a`, `<stem>-b`, `<stem>-combine` — with both producers' vendors
+    /// declared, and refused if the two are the same.
+    ///
+    /// Three contiguous leaves with three consecutive fresh keys:
+    ///
+    ///   NN+0  `<stem>-a`        **Kind:** research, **Harness:** `<harness-a>`
+    ///   NN+1  `<stem>-b`        **Kind:** research, **Harness:** `<harness-b>`
+    ///   NN+2  `<stem>-combine`  **Kind:** combine-research
+    ///
+    /// `research` is the one kind with no `review-` sibling, so its shape is a
+    /// pair rather than a chain and gets its own verb. **Both producers declare
+    /// their harness and the two must differ** — that declaration is the only
+    /// thing that makes "two corpora" a fact in the tree rather than a forecast
+    /// about routing policy, which can change after the leaves are cut. An equal
+    /// pair is refused. Cut one when a question is load-bearing enough to pay
+    /// for two vendors' corpora and blind spots.
+    ///
+    /// All three leaves are created or none is. Prints their three absolute
+    /// paths on stdout, one per line in position order — and prints nothing at
+    /// all if the shape could not be created. Working-tree change only — no
+    /// commit.
+    LeafAddPair(LeafAddPairArgs),
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
     /// node by its key or path. Because the hierarchy lives in directories, each
@@ -288,6 +336,59 @@ pub struct LeafAddArgs {
     pub harness: Option<String>,
 }
 
+/// `--kind` help for `leaf-add-chain`, whose `--kind` names the chain's *head*
+/// and is **required**: `leaf-add`'s `impl` default would silently pick a
+/// producer, which is precisely the wrong-but-well-formed kind this verb exists
+/// to stop a session choosing by accident.
+const CHAIN_KIND_HELP: &str = "Kind of the leaf that heads the chain — one of the five \
+producers: requirements, design, planning, prototype, impl. The other two steps are \
+derived from it (review-<producer>, integrate-review-<producer>); you never name them. \
+`research` is refused, naming leaf-add-pair — its shape is the vendor pair";
+
+#[derive(Parser)]
+pub struct LeafAddChainArgs {
+    /// Parent node — `.` for the grove root, or a node by its key
+    /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
+    pub parent: String,
+    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
+    /// dashes). The steps are `<stem>`, `<stem>-review`, `<stem>-integrate` —
+    /// suffixed, not prefixed, so a chain sorts together under its stem.
+    pub stem: String,
+    #[arg(long = "kind", help = CHAIN_KIND_HELP)]
+    pub kind: String,
+    /// Accepted only to be refused with the reason. Routing reviews is a
+    /// *policy* (`GROVE_REVIEW_HARNESS`, one line covering all five `review-*`
+    /// kinds), not a fact about one leaf — and clap's bare "unexpected argument"
+    /// would teach a session nothing at the one moment it is deciding.
+    #[arg(long = "harness", hide = true)]
+    pub harness: Option<String>,
+}
+
+#[derive(Parser)]
+pub struct LeafAddPairArgs {
+    /// Parent node — `.` for the grove root, or a node by its key
+    /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
+    pub parent: String,
+    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
+    /// dashes). The steps are `<stem>-a`, `<stem>-b`, `<stem>-combine` — the two
+    /// producers are `a` and `b` because they are peers, not a leader and a
+    /// follow-up.
+    pub stem: String,
+    /// Harness for the first survey, written as its `**Harness:**` line.
+    /// Required, and must differ from `--harness-b`.
+    #[arg(long = "harness-a")]
+    pub harness_a: String,
+    /// Harness for the second survey, written as its `**Harness:**` line.
+    /// Required, and must differ from `--harness-a`.
+    #[arg(long = "harness-b")]
+    pub harness_b: String,
+    /// Accepted only to be refused with the reason: a pair's kinds are fixed
+    /// (`research`, `research`, `combine-research`), so `research` would be the
+    /// flag's only legal value — a mode selector wearing a parameter's clothes.
+    #[arg(long = "kind", hide = true)]
+    pub kind: Option<String>,
+}
+
 #[derive(Parser)]
 pub struct LeafInsertArgs {
     /// Target entry — the existing leaf or node (by key or path) whose slot the
@@ -336,6 +437,8 @@ pub fn run() -> Result<()> {
         } => cmd_kind(leaf_path.as_deref(), with_harness),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
+        Command::LeafAddChain(args) => cmd_leaf_add_chain(&args),
+        Command::LeafAddPair(args) => cmd_leaf_add_pair(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
@@ -464,17 +567,84 @@ fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
     let harness = parse_harness(args.harness.as_deref())?;
-    // `.` is the grove root (the root node); anything else is a node by key or
-    // path (a v2 node is a directory). `tree_grow::leaf_add` validates that the
-    // resolved parent is a real node directory.
-    let parent_dir = if args.parent == "." {
-        grove_root.clone()
-    } else {
-        resolve_ref_or_path(&grove_root, &args.parent)?
-    };
+    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
     let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind, harness)?;
     println!("{}", path.display());
     Ok(())
+}
+
+/// Resolve the `<parent>` argument shared by the three appending verbs: `.` is
+/// the grove root (the root node); anything else is a node by key or path.
+/// `tree_grow` validates that the result is a real node directory.
+fn resolve_parent(grove_root: &Path, parent: &str) -> Result<PathBuf> {
+    if parent == "." {
+        Ok(grove_root.to_path_buf())
+    } else {
+        resolve_ref_or_path(grove_root, parent)
+    }
+}
+
+/// Print a composite verb's paths — **after** the mutation succeeded, never as
+/// each leaf lands. A run that fails is rolled back, so stdout describing a
+/// shape the command reported as failed would be describing files that are no
+/// longer there.
+fn print_paths(paths: &[PathBuf]) {
+    for p in paths {
+        println!("{}", p.display());
+    }
+}
+
+fn cmd_leaf_add_chain(args: &LeafAddChainArgs) -> Result<()> {
+    // Argument refusals come before the repo is resolved: they are pure
+    // authoring-time validation, and a caller who mis-typed a flag is better
+    // served by hearing that than by hearing where they are standing.
+    if let Some(name) = &args.harness {
+        bail!(
+            "leaf-add-chain takes no --harness (got {name:?}). Routing reviews is a \
+             *policy*, not a fact about one leaf: set `GROVE_REVIEW_HARNESS={name}` once \
+             and every review this grove ever cuts goes there (`GROVE_INTEGRATE_REVIEW_HARNESS` \
+             for the integrate step). A `**Harness:**` line exists for the one shape no \
+             policy can express — the research vendor pair, which is `leaf-add-pair`."
+        );
+    }
+    let producer = Kind::parse(&args.kind)?;
+    let (_, grove_root) = grove_paths()?;
+    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
+    let paths = tree_grow::leaf_add_chain(&grove_root, &parent_dir, &args.stem, producer)?;
+    print_paths(&paths);
+    Ok(())
+}
+
+fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
+    if let Some(kind) = &args.kind {
+        bail!(
+            "leaf-add-pair takes no --kind (got {kind:?}). A pair's kinds are fixed — \
+             research, research, combine-research — so `research` would be the flag's only \
+             legal value: a mode selector wearing a parameter's clothes. For a chain over \
+             some other producer, use `leaf-add-chain <parent> <stem> --kind {kind}`."
+        );
+    }
+    // Both names are parsed before anything is resolved or written, so a typo in
+    // the *second* one cannot leave the first survey on disk.
+    let harness_a = require_harness(&args.harness_a)?;
+    let harness_b = require_harness(&args.harness_b)?;
+    let (_, grove_root) = grove_paths()?;
+    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
+    let paths =
+        tree_grow::leaf_add_pair(&grove_root, &parent_dir, &args.stem, harness_a, harness_b)?;
+    print_paths(&paths);
+    Ok(())
+}
+
+/// [`parse_harness`] for a *required* name — the vendor pair's two producers,
+/// where an absent declaration is not an option ([`tree_grow::leaf_add_pair`]).
+fn require_harness(name: &str) -> Result<&'static crate::harness::Harness> {
+    crate::harness::by_name(name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "--harness-a/--harness-b must each be one of {}, got {name:?}",
+            crate::harness::known_names()
+        )
+    })
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {

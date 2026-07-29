@@ -5,8 +5,9 @@ grove ships two binaries produced from a single Cargo crate (one `[lib]`, two
 holds the verbs a human at a terminal invokes — the lifecycle set `do` /
 `migrate` / `retire`. **`grove-llm`** holds the verbs the LLM driving a grove
 session invokes mid-session to perform deterministic mechanics — `root-init`,
-`pick`, `brief-chain`, `kind`, `resolve`, `leaf-add`, `leaf-insert`,
-`leaf-decompose`, `leaf-retire`, `leaf-prune`, `complete` — plus `report-turn`,
+`pick`, `brief-chain`, `kind`, `resolve`, `leaf-add`, `leaf-add-chain`,
+`leaf-add-pair`, `leaf-insert`, `leaf-decompose`, `leaf-retire`, `leaf-prune`,
+`complete` — plus `report-turn`,
 which sits on `grove-llm` because it is loop machinery rather than a human verb,
 but which the model never calls (grove injects it as a harness hook,
 *herdr-turn-boundary-hooks*).
@@ -84,6 +85,12 @@ would gate besides (constraint 5), but they fail this bar first.
   argument the caller used to mean *one leaf*. Under its own name, the caller has
   already made that call and the verb only executes it. Nothing would reopen the
   flag — a named verb dominates it on every axis.
+
+  A closing generalisation an earlier draft of that rejection carried — *"the
+  verbs stay one leaf per call"* — does **not** survive, and was already false
+  when written: `root-init` writes a root brief and a first leaf, and
+  `leaf-decompose` a brief and a first child. The rule is leg 3, not a file
+  count, as *What earns a `grove-llm` verb* now says outright.
 - **Single binary, one flat namespace** — all verbs on `grove`. Rejected: the
   audience-mixed `--help` grows without bound and the human's discovery surface
   degrades with every LLM-only verb.

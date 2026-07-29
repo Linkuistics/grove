@@ -157,6 +157,88 @@ impl Kind {
         }
     }
 
+    /// The two steps that follow this kind in a **review chain** — its
+    /// `review-` sibling and its `integrate-review-` sibling — or `None` for the
+    /// twelve kinds that head no chain (`research` and `combine-research`, whose
+    /// shape is the vendor pair, and the ten steps themselves, which are already
+    /// in one).
+    ///
+    /// This is the derivation `leaf-add-chain` exists to perform, and the reason
+    /// it clears ADR *cli-binary-split*'s second leg: `<producer>` ⇒
+    /// `review-<producer>` ⇒ `integrate-review-<producer>` is exactly what
+    /// *parameterised, not flat* bought, and a session transcribing it from a
+    /// seventeen-row table by hand can produce a **wrong-but-well-formed**
+    /// result — `--kind review-impl` beside a `design` producer is a perfectly
+    /// valid invocation that the `--kind` write-gate cannot catch. A derivation
+    /// can.
+    ///
+    /// Exhaustive `match` rather than a label transform, for [`Kind::family`]'s
+    /// two reasons: the compiler forces an eighteenth kind to *declare* whether
+    /// it heads a chain instead of inheriting one by accident of spelling, and
+    /// the two family labels overlap as strings (`integrate-review-impl`
+    /// contains `review`), so any prefix derivation is one loose matcher away
+    /// from pairing a step with itself.
+    pub fn review_steps(self) -> Option<(Kind, Kind)> {
+        match self {
+            Kind::Requirements => {
+                Some((Kind::ReviewRequirements, Kind::IntegrateReviewRequirements))
+            }
+            Kind::Design => Some((Kind::ReviewDesign, Kind::IntegrateReviewDesign)),
+            Kind::Planning => Some((Kind::ReviewPlanning, Kind::IntegrateReviewPlanning)),
+            Kind::Prototype => Some((Kind::ReviewPrototype, Kind::IntegrateReviewPrototype)),
+            Kind::Impl => Some((Kind::ReviewImpl, Kind::IntegrateReviewImpl)),
+            Kind::Research
+            | Kind::CombineResearch
+            | Kind::ReviewRequirements
+            | Kind::ReviewDesign
+            | Kind::ReviewPlanning
+            | Kind::ReviewPrototype
+            | Kind::ReviewImpl
+            | Kind::IntegrateReviewRequirements
+            | Kind::IntegrateReviewDesign
+            | Kind::IntegrateReviewPlanning
+            | Kind::IntegrateReviewPrototype
+            | Kind::IntegrateReviewImpl => None,
+        }
+    }
+
+    /// [`Kind::review_steps`] with the refusal `leaf-add-chain` owes its caller.
+    /// The two `None` arms mean different things and get different errors: the
+    /// research kinds have a shape, it is just the *other* verb's, while a step
+    /// kind means the caller passed the chain's output where its input goes.
+    pub fn review_steps_or_refuse(self) -> Result<(Kind, Kind)> {
+        if let Some(steps) = self.review_steps() {
+            return Ok(steps);
+        }
+        if matches!(self, Kind::Research | Kind::CombineResearch) {
+            bail!(
+                "`{}` heads no review chain — research composes as a **vendor pair** \
+                 (two surveys unioned by a `combine-research` step). Use \
+                 `leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <name>`.",
+                self.label()
+            );
+        }
+        bail!(
+            "`{}` is already a review-chain *step*, not the producer that heads one. \
+             Pass the producer kind — one of {} — and the verb derives \
+             `review-<producer>` and `integrate-review-<producer>` itself.",
+            self.label(),
+            Kind::producer_list()
+        )
+    }
+
+    /// The five kinds that head a review chain, backtick-quoted and comma-joined.
+    /// Derived from [`Kind::review_steps`] rather than hand-listed, so a kind that
+    /// gains (or loses) a chain cannot drift out of the error that teaches the set.
+    fn producer_list() -> String {
+        Kind::ALL
+            .iter()
+            .filter(|k| k.review_steps().is_some())
+            .map(|k| format!("`{}`", k.label()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
     /// Write gates (task-kind-taxonomy): a grow verb rejects an unrecognised
     /// `--kind` with an error listing the whole set, so a typo is caught at
     /// authoring time, when a human is present to fix it. Read degrades
@@ -292,6 +374,56 @@ mod inline_tests {
             distinct,
             "two kinds share a label: {labels:?}"
         );
+    }
+
+    #[test]
+    fn every_producer_s_chain_steps_are_its_own_labels_prefixed() {
+        // The derivation `leaf-add-chain` sells, stated as the invariant that
+        // makes it *derivable* at all: a producer's two steps are its own label
+        // under the two family prefixes. Written against the labels rather than
+        // the variants, because that is the direction a session hand-cutting a
+        // chain reads — and getting it wrong there is well-formed, so nothing
+        // downstream catches it.
+        for producer in Kind::ALL.iter().filter(|k| k.review_steps().is_some()) {
+            let (review, integrate) = producer.review_steps().unwrap();
+            assert_eq!(review.label(), format!("review-{}", producer.label()));
+            assert_eq!(
+                integrate.label(),
+                format!("integrate-review-{}", producer.label())
+            );
+            assert_eq!(review.family(), Some(Family::Review));
+            assert_eq!(integrate.family(), Some(Family::IntegrateReview));
+        }
+    }
+
+    #[test]
+    fn exactly_the_five_producers_head_a_chain() {
+        // The count is the load-bearing half: `research` heading one would make
+        // `leaf-add-pair` redundant, and a *step* heading one would let a chain
+        // be built on a chain's output. Both are refused by
+        // `review_steps_or_refuse`, and each refusal names a different remedy.
+        let heads: Vec<&str> = Kind::ALL
+            .iter()
+            .filter(|k| k.review_steps().is_some())
+            .map(|k| k.label())
+            .collect();
+        assert_eq!(
+            heads,
+            vec!["requirements", "design", "planning", "prototype", "impl"]
+        );
+        for k in Kind::ALL.iter().filter(|k| k.review_steps().is_none()) {
+            let err = k.review_steps_or_refuse().unwrap_err().to_string();
+            let expected = if matches!(k, Kind::Research | Kind::CombineResearch) {
+                "leaf-add-pair"
+            } else {
+                "already a review-chain"
+            };
+            assert!(
+                err.contains(expected),
+                "{}: refusal should say {expected:?}, got {err}",
+                k.label()
+            );
+        }
     }
 
     #[test]

@@ -308,19 +308,43 @@ grove-llm leaf-add-chain <parent> <stem> --kind <producer>
    NN+1  <stem>-review-k<a+1>     **Kind:** review-<producer>
    NN+2  <stem>-integrate-k<a+2>  **Kind:** integrate-review-<producer>
 
-grove-llm leaf-add-pair <parent> <stem> --harness <name>
-   NN+0  <stem>-a-k<a>            **Kind:** research
-   NN+1  <stem>-b-k<a+1>          **Kind:** research, **Harness:** <name>
+grove-llm leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <other>
+   NN+0  <stem>-a-k<a>            **Kind:** research, **Harness:** <name>
+   NN+1  <stem>-b-k<a+1>          **Kind:** research, **Harness:** <other>
    NN+2  <stem>-combine-k<a+2>    **Kind:** combine-research
 ```
 
-Everything else is `leaf-add`'s, three times over: the same `<parent>` argument
-(`.` for the grove root, or a node by key or path), appended at the parent's next
-free positions, contiguous, three fresh keys, the same template. Each prints its
-three absolute paths, one per line, in position order — `leaf-decompose`'s
-convention. Nothing else changes: `leaf-add`, `leaf-insert`, `pick` and the
-Retire cascade are untouched, and a generated chain is byte-identical to a
-hand-cut one.
+The arguments are `leaf-add`'s: the same `<parent>` (`.` for the grove root, or a
+node by key or path), appended at the parent's next free positions, contiguous,
+fresh keys, the same template. A generated shape is **byte-identical to the same
+leaves cut by hand**, so nothing downstream can tell them apart; `leaf-add`,
+`leaf-insert`, `pick` and the Retire cascade are untouched.
+
+**One call is one mutation.** This is the part that is *not* `leaf-add` three
+times over, and it is the reason a composite verb is worth having rather than a
+snippet in the guidance. Three separate calls give three chances to stop
+half-way, and a live prefix of a chain is indistinguishable from a deliberately
+hand-cut partial one — the wrong-but-well-formed residue the verb exists to
+prevent, reintroduced by the verb itself. So the contract is:
+
+- **every slug is validated and the parent resolved before the first write** — a
+  malformed stem or a bad `--kind` costs nothing and creates nothing;
+- **positions and keys come from one snapshot**, which is what makes contiguous
+  positions and consecutive keys a property rather than a race;
+- **every destination is checked free before any is written**, so the realistic
+  collision is an up-front refusal rather than a rollback;
+- **anything that still fails mid-write rolls the run back** — and a rollback
+  that cannot complete names the residue by path, because the one case where a
+  caller has something to clean up is the one case worth stating loudly;
+- **stdout is the whole shape or nothing.** The three paths print *after* the
+  mutation succeeded, never as each leaf lands: a run that failed was rolled
+  back, so paths on stdout would describe files that are no longer there.
+
+The observable property is **no silent partial shape**, and it is what the tests
+assert — a happy path that made three files does not test the reason the verb
+exists. A retry after a refusal therefore gets the positions and keys the failed
+run had planned, rather than appending a duplicate shape behind the first one's
+debris.
 
 **Why a verb here, when the answer to the group construct was no.** The two
 questions look adjacent and are not. A group would have changed `pick`'s defining
@@ -361,12 +385,46 @@ than a shape the chain verb can reach: `leaf-add-chain --kind research` is
 **refused**, naming `leaf-add-pair`, and `leaf-add-pair` takes no `--kind` at
 all. Both shapes are covered, neither is implied by the other.
 
-**The flags encode the routing doctrine.** `--harness` is **required** by
-`leaf-add-pair` — two producers on one vendor is not a pair, and a pair that
-looks like one but is not is worse than none — and **refused** by
+A third refusal falls out of the same derivation: `--kind review-design` — a
+chain's *output* passed where its input goes — is refused too, listing the five
+producers. The derivation is an exhaustive `match` on the kind rather than a
+label transform, for the same two reasons the kind→family map is one: the
+compiler makes an eighteenth kind *declare* whether it heads a chain, and the two
+family labels overlap as strings (`integrate-review-impl` contains `review`), so any prefix
+derivation is one loose matcher away from pairing a step with itself.
+
+**The flags encode the routing doctrine.** `--harness` is **refused** by
 `leaf-add-chain`, naming `GROVE_REVIEW_HARNESS`, because routing reviews is a
-policy and not a per-leaf fact (*Routing*). The verb teaches the doctrine at the
-one moment a session is deciding.
+policy and not a per-leaf fact (*Routing*). It is refused *by name* rather than
+merely undefined: clap's bare "unexpected argument" would reject it correctly and
+teach nothing, and the one moment a session is deciding is the one moment the
+doctrine is worth stating. `leaf-add-pair` refuses `--kind` the same way, naming
+`leaf-add-chain`; the two refusals point at each other.
+
+**The pair declares *both* producers, and they must differ.** Requiring a single
+`--harness` — the first draft of this design — does not establish a pair. It
+leaves producer A undeclared, resolving through leaf → kind → family → stamp at
+*launch* time, so "these two run on different vendors" is a **forecast about the
+environment**, not a fact in the tree: it is unverifiable at construction, and it
+silently decays if routing policy changes afterwards. That is the same inversion
+*session-leaf-binding-k28* found in the driver's routing peek, and it is answered
+the same way — the tree wins. So both producers carry a `**Harness:**` line, and
+an equal pair is **refused before anything is written**: two surveys on one
+vendor is three ordinary research leaves wearing a pair's names, which is exactly
+the "looks like one but is not" state the flag was supposed to prevent.
+
+Declaring A costs nothing it did not already cost: a leaf naming the *stamped*
+harness is not a reroute (*Routing*), so the unscoped model keys still apply to
+it. What the caller gives up is the ability to say *"the usual vendor, and a
+different one"* — and that is the point, because that sentence is not expressible
+as a fact about a leaf. The `combine-research` step stays **undeclared**: it is
+not a peer of the two producers and routes by policy like every other kind.
+
+**`--kind` is required by `leaf-add-chain`**, where `leaf-add` defaults it to
+`impl`. A default here would silently choose the producer, which is precisely the
+wrong-but-well-formed kind the verb exists to stop a session picking by accident;
+the asymmetry is the same gate-on-write reasoning, applied to an argument that
+now parameterises three leaves instead of one.
 
 **This does not gate** (constraint 5), and the test is the one the request itself
 named: a verb that makes the chain the *easy* path is compatible; a verb that
@@ -389,6 +447,16 @@ one-file change (`content/driving.md`) — made *before* the call and nowhere
 inside it. The verb writes three leaves for the same reason `leaf-decompose`
 writes a brief and a first child, and `root-init` a root brief and a first leaf:
 the caller named a shape, not a file count.
+
+It is, however, **lightly strained** on the other axis, and that is worth stating
+rather than arguing away. The code was adopted after **one** maximally-primed
+post-k29 chain and **no observed wrong-kind incident** — the error class it
+closes is real and reasoned about, not measured in the field. The evidence for
+the *mechanism* is therefore thinner than the evidence for the naming convention
+k29 fixed, which had 26 leaves and zero chains behind it. What keeps runtime tree
+growth genuinely lazy is that only the caller can reach for the composite verb;
+nothing grows a chain because a step demanded one. Do not restate this as
+stronger empirical support than it is.
 
 **How a session comes to use it** — the failure mode this must clear, because it
 is *compose-task-chains-k29*'s failure with a compile step. Five reference
@@ -429,21 +497,27 @@ reader who needs it already is.
   design carries over unchanged, taking a *target* where these take a *parent*.
 - **`leaf-add --chain`** — stays rejected; see *Considered options* in ADR
   *cli-binary-split*.
-- **Everything that describes the shipped tool.** The line this design holds is
-  that a record of a *decision* is reworked now, while a description of the *tool*
-  stays accurate until the tool changes — so the following are the
-  implementation's to reconcile, not this design's, and each currently says a
-  true thing that the verbs falsify. `content/SKILL.md` (Decompose: "`leaf-add`
-  still makes exactly one leaf"), `content/TASK-FORMAT.md` (same claim),
-  `content/driving.md` (two worked examples cutting a chain and a pair by hand),
-  `content/prompts/start.md` (the bootstrap cut), `docs/grove.md` ("the verbs
-  still make exactly one leaf per call"), and ADR *cli-binary-split*'s
-  enumeration, which is normative and must list any new verb. `content/` in
-  particular is provisioned to real sessions **from the binary**, so naming a verb
-  there before it exists would ship guidance for a verb the installed `grove-llm`
-  does not have — this repo's recurring in-the-tree-not-in-the-binary gap, run in
-  reverse. The CHANGELOG needs a new entry, not an edit: its v16.2.0 text
-  correctly records what *that* version ships.
+- **A `--steps` / partial mode on either verb** — stays out; see *Partial chains
+  stay `leaf-add`'s job* above.
+- **Reading the convention back.** Nothing parses a `-review` suffix, relates two
+  leaves, or checks a tree for chain-completeness, and nothing here proposes to.
+  That is the line between writing a convention and enforcing a schema
+  (constraint 3), and the verbs sit firmly on the writing side. Reopening it
+  would need a case that a *reader* cannot serve by opening the file — and a
+  chain linter fails ADR *cli-binary-split*'s third leg before it reaches
+  constraint 5.
+
+**Reconciled at implementation** (this section's own out-of-scope list, now
+discharged). The design deliberately left every *description of the tool* alone
+until the tool existed — `content/` is provisioned to real sessions **from the
+binary**, so naming a verb there before it shipped would have been this repo's
+in-the-tree-not-in-the-binary gap run in reverse. With both verbs implemented,
+`content/SKILL.md`, `content/TASK-FORMAT.md`, `content/driving.md`,
+`content/prompts/start.md` and `docs/grove.md` name the verbs in place of the
+hand-cut procedure — **replacing** it rather than sitting beside it, because
+parallel old-and-new guidance is how *compose-task-chains-k29* failed the first
+time — and ADR *cli-binary-split*'s normative enumeration lists both. The
+guidance nonetheless reaches real sessions only when the next release is cut.
 
 ### Routing
 

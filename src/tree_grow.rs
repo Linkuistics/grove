@@ -73,6 +73,208 @@ pub fn leaf_add(
     Ok(path)
 }
 
+/// One leaf of a composite shape: the slug the verb derived for it, its kind,
+/// and its optional per-leaf harness declaration. Private — the shape, not the
+/// step, is what a caller names ([`leaf_add_chain`], [`leaf_add_pair`]).
+struct Step {
+    slug: String,
+    kind: Kind,
+    harness: Option<&'static Harness>,
+}
+
+/// Append a whole **shape** — several contiguous sibling leaves — under
+/// `parent_dir` as *one mutation*. The shared engine behind [`leaf_add_chain`]
+/// and [`leaf_add_pair`]; the difference between them is entirely which `Step`s
+/// they derive.
+///
+/// **This is not `leaf_add` in a loop, and the difference is the whole point of
+/// a composite verb.** `leaf_add` validates, allocates and writes in one breath,
+/// so three calls give three chances to stop half-way — and a live prefix of a
+/// chain looks exactly like a deliberately hand-cut partial one, which is the
+/// wrong-but-well-formed residue the verb exists to prevent. So:
+///
+/// * **every slug is validated, and the parent resolved, before the first
+///   write** — a bad third slug refuses without creating the first two;
+/// * **positions and keys come from one snapshot**, so the run is contiguous and
+///   its keys consecutive whatever else the tree holds;
+/// * **every destination is checked free before any is written**, which is what
+///   makes the realistic collision an up-front refusal rather than a rollback;
+/// * **anything that still fails mid-write rolls the run back**, so the
+///   observable outcome is the whole shape or none of it.
+///
+/// Rollback removes only paths *this call* created (each was proven absent
+/// moments earlier), so it can never eat a pre-existing leaf. If a removal
+/// itself fails the error names the residue by path — the one case where a
+/// caller has something to clean up, stated rather than silent.
+///
+/// Working-tree only — no commit, exactly like [`leaf_add`].
+fn add_run(grove_root: &Path, parent_dir: &Path, steps: &[Step]) -> Result<Vec<PathBuf>> {
+    for step in steps {
+        validate_slug(&step.slug)?;
+    }
+    let grove_abs = canonical_grove_root(grove_root)?;
+    let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
+
+    // One snapshot for the whole run: positions are contiguous from the parent's
+    // next free slot, keys consecutive from the tree-wide max. Re-reading per
+    // step would give the same answer today — nothing else is writing — but
+    // deriving both once is what makes that a property rather than a race.
+    let base_position = next_child_position(&parent_abs)?;
+    let base_key = next_key(collect_all_names(&grove_abs)?);
+
+    let planned: Vec<(PathBuf, u32, &Step)> = steps
+        .iter()
+        .enumerate()
+        .map(|(i, step)| {
+            let i = i as u32;
+            let key = base_key + i;
+            let entry = Entry::Leaf {
+                position: base_position + i,
+                slug: step.slug.clone(),
+                key,
+                outcome: Outcome::Live,
+            };
+            (parent_abs.join(entry.name()), key, step)
+        })
+        .collect();
+
+    for (path, _, _) in &planned {
+        if path.exists() {
+            bail!(
+                "destination already exists: {} (nothing was created)",
+                path.display()
+            );
+        }
+    }
+
+    let mut written: Vec<PathBuf> = Vec::with_capacity(planned.len());
+    for (path, key, step) in &planned {
+        if let Err(e) = write_template(path, &step.slug, *key, step.kind, step.harness) {
+            return Err(roll_back(e, &written));
+        }
+        written.push(path.clone());
+    }
+    Ok(written)
+}
+
+/// Undo a partially-written run and return the error the caller should see.
+/// Every path here was created by this call and proven absent before it, so
+/// removal is safe by construction. A removal that itself fails is *named* —
+/// a residue the operator must know about is worse hidden than reported.
+fn roll_back(cause: anyhow::Error, written: &[PathBuf]) -> anyhow::Error {
+    let mut stuck = Vec::new();
+    for path in written.iter().rev() {
+        if fs::remove_file(path).is_err() {
+            stuck.push(path.display().to_string());
+        }
+    }
+    if stuck.is_empty() {
+        cause.context("creating the shape failed; every leaf it had written was rolled back")
+    } else {
+        cause.context(format!(
+            "creating the shape failed and rollback could not remove {} — \
+             delete {} by hand before retrying, or the retry will append a duplicate shape",
+            stuck.join(", "),
+            if stuck.len() == 1 { "it" } else { "them" }
+        ))
+    }
+}
+
+/// Append a whole **review chain** — `<stem>` / `<stem>-review` /
+/// `<stem>-integrate` — under `parent_dir`, in one mutation ([`add_run`]).
+///
+/// `producer` is the kind of the leaf that heads the chain; the other two kinds
+/// are **derived** from it ([`Kind::review_steps`]), which is what the verb is
+/// for. A kind that heads no chain is refused, naming the shape it does have.
+pub fn leaf_add_chain(
+    grove_root: &Path,
+    parent_dir: &Path,
+    stem: &str,
+    producer: Kind,
+) -> Result<Vec<PathBuf>> {
+    // The stem is validated in its own right, not merely through the slugs it
+    // builds: `foo-` is a bad slug, but `foo--review` would pass, so validating
+    // only the derived names would let a malformed stem through on two of three.
+    validate_slug(stem)?;
+    let (review, integrate) = producer.review_steps_or_refuse()?;
+    add_run(
+        grove_root,
+        parent_dir,
+        &[
+            Step {
+                slug: stem.to_string(),
+                kind: producer,
+                harness: None,
+            },
+            Step {
+                slug: format!("{stem}-review"),
+                kind: review,
+                harness: None,
+            },
+            Step {
+                slug: format!("{stem}-integrate"),
+                kind: integrate,
+                harness: None,
+            },
+        ],
+    )
+}
+
+/// Append a whole **research vendor pair** — `<stem>-a` / `<stem>-b` /
+/// `<stem>-combine` — under `parent_dir`, in one mutation ([`add_run`]).
+///
+/// **Both producers declare their harness, and the two must differ.** Declaring
+/// only the second would leave the first resolving through leaf → kind → family
+/// → stamp at *launch* time, which makes "these run on different vendors" a
+/// forecast about the environment rather than a fact in the tree — and one that
+/// silently decays when routing policy changes after construction. Two surveys
+/// on one vendor is not a pair; it is three ordinary research leaves wearing a
+/// pair's names, and the equal case is refused before anything is written.
+///
+/// The `combine-research` step is left undeclared: it is not a peer of the two
+/// producers and routes by policy like every other kind. Adding a
+/// `**Harness:**` line to it afterwards is a normal edit.
+pub fn leaf_add_pair(
+    grove_root: &Path,
+    parent_dir: &Path,
+    stem: &str,
+    harness_a: &'static Harness,
+    harness_b: &'static Harness,
+) -> Result<Vec<PathBuf>> {
+    validate_slug(stem)?;
+    if harness_a.name == harness_b.name {
+        bail!(
+            "a vendor pair needs two vendors: --harness-a and --harness-b are both `{}`. \
+             The pair exists to union two *different* corpora, and two surveys on one \
+             harness is three ordinary research leaves, not a pair. Known harnesses: {}. \
+             (Wanted three research leaves on one vendor? That is `leaf-add` three times.)",
+            harness_a.name,
+            crate::harness::known_names()
+        );
+    }
+    add_run(
+        grove_root,
+        parent_dir,
+        &[
+            Step {
+                slug: format!("{stem}-a"),
+                kind: Kind::Research,
+                harness: Some(harness_a),
+            },
+            Step {
+                slug: format!("{stem}-b"),
+                kind: Kind::Research,
+                harness: Some(harness_b),
+            },
+            Step {
+                slug: format!("{stem}-combine"),
+                kind: Kind::CombineResearch,
+                harness: None,
+            },
+        ],
+    )
+}
+
 /// One entry of a `leaf_insert` renumber: an existing sibling whose per-level
 /// position shifted up by one. The key and slug (and, for a node, its whole
 /// subtree) are invariant — only the `NN` in this one entry's own name changes —
@@ -707,6 +909,360 @@ mod tests {
             err.to_string().contains("grove root not found"),
             "got {err}"
         );
+    }
+
+    // ---- leaf-add-chain / leaf-add-pair -------------------------------------
+    //
+    // The composite verbs. Two properties carry the design and both are pinned
+    // by *mutation*, not by asserting the happy path made three files:
+    //
+    //   * **the derivation** — the caller names one producer kind and the other
+    //     two are derived, which is the wrong-but-well-formed error class the
+    //     `--kind` write-gate cannot catch (ADR *cli-binary-split*, leg 2);
+    //   * **one call, one mutation** — a run that fails leaves *nothing*, so a
+    //     live prefix of a chain never masquerades as a hand-cut partial one.
+
+    fn names_of(paths: &[PathBuf]) -> Vec<String> {
+        paths.iter().map(|p| name_of(p)).collect()
+    }
+
+    fn claude() -> &'static Harness {
+        crate::harness::by_name("claude").unwrap()
+    }
+    fn codex() -> &'static Harness {
+        crate::harness::by_name("codex").unwrap()
+    }
+
+    #[test]
+    fn chain_emits_three_contiguous_leaves_off_one_stem_with_consecutive_keys() {
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let paths = leaf_add_chain(&g, &g, "sync-design", Kind::Design).unwrap();
+        assert_eq!(
+            names_of(&paths),
+            vec![
+                "01-sync-design-k1.md",
+                "02-sync-design-review-k2.md",
+                "03-sync-design-integrate-k3.md",
+            ],
+            "contiguous positions, consecutive keys, suffixed off one stem"
+        );
+    }
+
+    #[test]
+    fn chain_derives_the_review_and_integrate_kinds_from_the_producer() {
+        // The reason the verb exists. A session hand-transcribing this from the
+        // seventeen-row table can pair `review-impl` with a `design` producer —
+        // a valid invocation that misroutes the whole chain's discipline.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let paths = leaf_add_chain(&g, &g, "sync-design", Kind::Design).unwrap();
+        let kinds: Vec<String> = paths
+            .iter()
+            .map(|p| {
+                body(p)
+                    .lines()
+                    .find_map(|l| l.strip_prefix("**Kind:** ").map(str::to_string))
+                    .unwrap()
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            vec!["design", "review-design", "integrate-review-design"],
+            "all three kinds agree on one producer"
+        );
+    }
+
+    #[test]
+    fn chain_derives_every_producer_s_own_steps_not_one_hardcoded_family() {
+        // Sweeps the whole producer domain, so a derivation that silently
+        // collapsed to (say) the `impl` family would fail on four of five.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        for producer in Kind::ALL.iter().filter(|k| k.review_steps().is_some()) {
+            let stem = format!("s-{}", producer.label());
+            let paths = leaf_add_chain(&g, &g, &stem, *producer).unwrap();
+            assert!(
+                body(&paths[1]).contains(&format!("**Kind:** review-{}", producer.label())),
+                "{}: review step must name its own producer",
+                producer.label()
+            );
+            assert!(
+                body(&paths[2])
+                    .contains(&format!("**Kind:** integrate-review-{}", producer.label())),
+                "{}: integrate step must name its own producer",
+                producer.label()
+            );
+        }
+    }
+
+    #[test]
+    fn chain_refuses_research_and_names_the_pair_verb() {
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let err = leaf_add_chain(&g, &g, "survey", Kind::Research)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("leaf-add-pair"),
+            "the refusal points at the shape research *does* have: {err}"
+        );
+        assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    }
+
+    #[test]
+    fn chain_refuses_a_kind_that_is_already_a_chain_step() {
+        // Passing the chain's *output* where its input goes. Distinct from the
+        // research refusal, and it must not be answered by silently deriving a
+        // `review-review-design`.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        for step in [Kind::ReviewDesign, Kind::IntegrateReviewImpl] {
+            let err = leaf_add_chain(&g, &g, "x", step).unwrap_err().to_string();
+            assert!(
+                err.contains("already a review-chain") && err.contains("`design`"),
+                "{}: refuse, and list the producers: {err}",
+                step.label()
+            );
+        }
+        assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    }
+
+    #[test]
+    fn chain_appends_after_existing_siblings_and_under_a_node() {
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-a-k1.md", "a-k1");
+        let node = mknode(&g, "02-build-k2", "build-k2");
+        touch(&node, "01-x-k3.md", "x-k3");
+        let paths = leaf_add_chain(&g, &node, "api", Kind::Impl).unwrap();
+        assert_eq!(
+            names_of(&paths),
+            vec![
+                "02-api-k4.md",
+                "03-api-review-k5.md",
+                "04-api-integrate-k6.md",
+            ],
+            "positions continue the node's children; keys continue the whole tree"
+        );
+        assert_eq!(name_of(paths[0].parent().unwrap()), "02-build-k2");
+    }
+
+    #[test]
+    fn pair_emits_two_declared_producers_and_an_undeclared_combine() {
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let paths = leaf_add_pair(&g, &g, "sync-survey", claude(), codex()).unwrap();
+        assert_eq!(
+            names_of(&paths),
+            vec![
+                "01-sync-survey-a-k1.md",
+                "02-sync-survey-b-k2.md",
+                "03-sync-survey-combine-k3.md",
+            ]
+        );
+        assert!(body(&paths[0]).contains("**Kind:** research"));
+        assert!(body(&paths[1]).contains("**Kind:** research"));
+        assert!(body(&paths[2]).contains("**Kind:** combine-research"));
+    }
+
+    #[test]
+    fn pair_declares_both_producers_so_two_vendors_is_a_fact_in_the_tree() {
+        // F2, and the reason `--harness-a` exists at all. Declaring only the
+        // second leaves the first resolving through leaf → kind → family →
+        // stamp at *launch* time — a forecast about routing policy, which can
+        // change after the leaves are cut, so the pair could quietly become two
+        // surveys on one vendor without a byte of the tree changing.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let paths = leaf_add_pair(&g, &g, "sync-survey", claude(), codex()).unwrap();
+        assert!(
+            body(&paths[0]).contains("**Harness:** claude"),
+            "producer A carries its own declaration: {:?}",
+            body(&paths[0])
+        );
+        assert!(
+            body(&paths[1]).contains("**Harness:** codex"),
+            "producer B carries its own declaration: {:?}",
+            body(&paths[1])
+        );
+        assert!(
+            !body(&paths[2]).contains("**Harness:**"),
+            "the combine step is not a peer of the two producers — it routes by \
+             policy like every other kind: {:?}",
+            body(&paths[2])
+        );
+    }
+
+    #[test]
+    fn pair_refuses_two_producers_on_one_harness_before_writing_anything() {
+        // The other half of F2: requiring a declaration is not enough if the two
+        // declarations may be equal — that emits exactly the state the verb
+        // claims to prevent, a pair that looks like one and is not.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let err = leaf_add_pair(&g, &g, "survey", codex(), codex())
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("two vendors"),
+            "the refusal names the property, not the flag: {err}"
+        );
+        assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    }
+
+    #[test]
+    fn both_verbs_reject_a_malformed_stem_in_its_own_right() {
+        // A trailing dash is a bad slug, but `foo--review` and `foo--a` are not,
+        // so validating only the *derived* names would let a malformed stem
+        // through on two leaves of three.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        assert!(leaf_add_chain(&g, &g, "foo-", Kind::Design).is_err());
+        assert!(leaf_add_pair(&g, &g, "foo-", claude(), codex()).is_err());
+        assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
+    }
+
+    // ---- one call, one mutation (F1) ----------------------------------------
+
+    /// Occupy a run's **third** destination with an entry the numbering does not
+    /// see: a *directory* carrying a leaf's name. `read_children` reconciles each
+    /// parsed name against its real filesystem kind, so this is skipped when
+    /// positions and keys are allocated — and `Path::exists` still finds it when
+    /// the destinations are swept. Exactly the gap between the parsed tree and
+    /// the filesystem that the sweep exists to cover.
+    fn squat_third_destination(g: &Path) -> PathBuf {
+        let p = g.join("03-sync-integrate-k3.md");
+        fs::create_dir(&p).unwrap();
+        p
+    }
+
+    #[test]
+    fn a_run_whose_third_destination_is_taken_creates_none_of_the_first_two() {
+        // The reason destinations are swept before the first write rather than
+        // checked per leaf: `leaf_add` three times over would create two files
+        // and *then* fail, leaving a live prefix of a chain indistinguishable
+        // from a deliberately hand-cut partial one.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        squat_third_destination(&g);
+
+        let err = leaf_add_chain(&g, &g, "sync", Kind::Design)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("nothing was created"),
+            "the error says what the tree now holds: {err}"
+        );
+        let mut files = list(&g);
+        files.sort();
+        assert_eq!(
+            files,
+            vec!["03-sync-integrate-k3.md", "BRIEF.md"],
+            "only the squatter and the brief — no prefix left behind"
+        );
+    }
+
+    #[test]
+    fn a_write_that_fails_mid_run_rolls_the_whole_shape_back() {
+        // The residual the up-front sweep cannot see: a destination that does
+        // not exist and still cannot be written. The cheapest deterministic one
+        // is also a hazard **specific to composite verbs** — the derived names
+        // are longer than the stem the caller validated, so a third name can
+        // cross `NAME_MAX` (255) while the first two clear it. `Path::exists`
+        // reports false for an over-long path, so the sweep waves it through and
+        // the failure lands mid-write, which is the arm under test.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        // `NN-<stem>-k<key>.md` is stem+9; `-review` and `-integrate` add 7 and
+        // 10. At 238 the run plans 247, 254 and 257 bytes: two fit, one does not.
+        let stem = "a".repeat(238);
+
+        let err = leaf_add_chain(&g, &g, &stem, Kind::Design)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("rolled back"),
+            "the error says the run was undone: {err}"
+        );
+        assert_eq!(
+            list(&g),
+            vec!["BRIEF.md"],
+            "the two leaves written before the failure must not survive it"
+        );
+    }
+
+    #[test]
+    fn a_rolled_back_run_leaves_the_next_call_a_clean_slate() {
+        // Why all-or-nothing is worth the machinery: a retry after a failure
+        // must produce the shape, not a second copy of it under new positions
+        // and keys. Pinned end to end — fail, clear the obstruction, retry.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let squatter = squat_third_destination(&g);
+        assert!(leaf_add_chain(&g, &g, "sync", Kind::Design).is_err());
+        fs::remove_dir(&squatter).unwrap();
+
+        let paths = leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap();
+
+        assert_eq!(
+            names_of(&paths),
+            vec![
+                "01-sync-k1.md",
+                "02-sync-review-k2.md",
+                "03-sync-integrate-k3.md",
+            ],
+            "the retry got the positions and keys the failed run had planned"
+        );
+        let mut files = list(&g);
+        files.sort();
+        assert_eq!(
+            files,
+            vec![
+                "01-sync-k1.md",
+                "02-sync-review-k2.md",
+                "03-sync-integrate-k3.md",
+                "BRIEF.md",
+            ],
+            "exactly one chain — no duplicate from the failed attempt"
+        );
+    }
+
+    #[test]
+    fn a_refused_run_does_not_consume_positions_or_keys() {
+        // The allocation happens after validation, so a refusal costs nothing:
+        // an ordinary `leaf-add` afterwards still gets 01/k1.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        assert!(leaf_add_chain(&g, &g, "survey", Kind::Research).is_err());
+        assert!(leaf_add_pair(&g, &g, "survey", codex(), codex()).is_err());
+        let got = leaf_add(&g, &g, "plain", Kind::Impl, None).unwrap();
+        assert_eq!(name_of(&got), "01-plain-k1.md");
+    }
+
+    #[test]
+    fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
+        // Constraint 6, and the claim the spec makes: nothing about a generated
+        // chain is distinguishable afterwards. If this ever diverges, the verbs
+        // have started writing a *format* rather than a convention.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let generated = leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap();
+        let generated_bodies: Vec<String> = generated.iter().map(|p| body(p)).collect();
+        for p in &generated {
+            fs::remove_file(p).unwrap();
+        }
+
+        let by_hand = [
+            leaf_add(&g, &g, "sync", Kind::Design, None).unwrap(),
+            leaf_add(&g, &g, "sync-review", Kind::ReviewDesign, None).unwrap(),
+            leaf_add(&g, &g, "sync-integrate", Kind::IntegrateReviewDesign, None).unwrap(),
+        ];
+        assert_eq!(names_of(&generated), names_of(&by_hand));
+        let hand_bodies: Vec<String> = by_hand.iter().map(|p| body(p)).collect();
+        assert_eq!(generated_bodies, hand_bodies);
     }
 
     // ---- leaf-insert --------------------------------------------------------

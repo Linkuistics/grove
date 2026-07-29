@@ -67,7 +67,9 @@ it. The **vendor pair** is `research` → `research` → `combine-research`:
 producers are the *same kind differing only by vendor* — which no kind→harness
 function can express, and is therefore the entire reason a per-leaf harness
 declaration exists. The fan is a **pair**, not an N-way fan-out, so the combine
-step is binary.
+step is binary. **Both** producers declare their harness and the two must
+differ: that is what makes "two corpora" a fact in the tree rather than a
+forecast about what [[Kind routing]] will resolve at launch.
 Both are **named off a shared stem with a terminal step suffix** —
 `<stem>` / `<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
 `<stem>-combine` — so a cut chain is legible from `find .grove` without opening a
@@ -105,6 +107,11 @@ appends at the end, behind every unrelated live leaf. Cut the steps together, or
 _Avoid_: naming a construction verb `chain-add` — "chain" is overloaded (see
 *Flagged ambiguities*), and the `leaf-add-` prefix is what anchors the sense and
 puts the verb beside the `leaf-add` a session already calls.
+_Avoid_: declaring only the pair's *second* producer and letting the first fall
+through to [[Kind routing]] — the pair's defining property then rests on a
+forecast that decays silently if policy changes before the leaves run, and two
+surveys that resolve to one vendor are three ordinary `research` leaves wearing a
+pair's names.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
 pair was run for. The adversarial move belongs to `combine-research`, whose
 discipline is that **agreement without independent primary sourcing is a red

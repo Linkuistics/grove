@@ -116,16 +116,23 @@ harness — the two leaves are the same kind, so no `GROVE_RESEARCH_HARNESS`
 policy can send one elsewhere:
 
 ```
-grove-llm leaf-add . sync-protocols-a --kind research
-grove-llm leaf-add . sync-protocols-b --kind research --harness codex
-grove-llm leaf-add . sync-protocols-combine --kind combine-research
+grove-llm leaf-add-pair . sync-protocols --harness-a claude --harness-b codex
 ```
 
-The first leaf needs no declaration — it falls through to the grove's stamp.
-Only the *second* one, and any combine step you want run elsewhere, carry a
-`**Harness:**` line.
+That is the whole pair — `sync-protocols-a`, `sync-protocols-b` and
+`sync-protocols-combine`, contiguous, off one stem, with both producers'
+`**Harness:**` lines written.
 
-**Name all three off one stem** — `-a`, `-b`, `-combine` — so they sort together
+**Name both vendors, even the one you would have got anyway.** The verb requires
+it and refuses two names that are the same. Declaring only the second would leave
+the first resolving through kind → family → stamp at *launch* time, which makes
+"two corpora" a forecast about routing policy rather than a fact in the tree —
+and one that quietly stops being true if the policy changes between cutting the
+leaves and running them. A pair that looks like one and is not is worse than no
+pair at all. The `combine` step is left undeclared; add a `**Harness:**` line by
+hand if you want it run somewhere particular.
+
+**The stem gets suffixes** — `-a`, `-b`, `-combine` — so all three sort together
 and the pair is visible in `find .grove` without opening a file
 (`TASK-FORMAT.md`). The two producers are labelled `a` and `b` rather than one
 bare and one `-second`, because they are peers; a bare stem beside a `-second`
@@ -371,29 +378,44 @@ wrote it, or when acting on the findings is itself **more than a session's
 work**. A one-file change wants the pass. A landed spec, a decomposition you
 will build on for months, or a subsystem wants the chain.
 
-Given a producer leaf `sync-design` already sitting under node `[12]`:
+Cutting one under node `[12]`, for a design that has not been written yet:
 
 ```
-grove-llm leaf-add [12] sync-design-review --kind review-design
-grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
+grove-llm leaf-add-chain [12] sync-design --kind design
 ```
+
+One call, three leaves — `sync-design`, `sync-design-review`,
+`sync-design-integrate`. You name the producer kind and nothing else: the verb
+derives `review-design` and `integrate-review-design`, which is the part worth
+not doing by hand. `--kind review-impl` beside a `design` producer is a perfectly
+valid invocation, and what it buys is a reviewer reading for correctness,
+security and tests where it should be asking whether the ADRs are a minimum
+coherent set — a discipline mismatch nothing downstream detects.
 
 Five habits make the chain worth its three sessions:
 
 - **Cut the steps together, or `leaf-insert` a late one.** A chain is ordered only
   because its steps sit at *adjacent positions* — `pick` walks the tree top to
-  bottom and nothing groups them (*task-tree-scheme*). Cutting all three at once,
-  as above, gets that for free. Deciding on the review *after* the producer has
-  run does not: `leaf-add` appends at the **end**, behind every unrelated live
-  leaf, and the chain's steps end up running weeks apart. Reach for `leaf-insert`
-  against the next sibling instead, so the step lands beside its stem-mate.
+  bottom and nothing groups them (*task-tree-scheme*). One call gets that for
+  free. Deciding on the review *after* the producer has run does not: `leaf-add`
+  appends at the **end**, behind every unrelated live leaf, and the chain's steps
+  end up running weeks apart. Reach for `leaf-insert` against the next sibling
+  instead, so the step lands beside its stem-mate:
+
+      grove-llm leaf-insert <next-sibling> sync-design-review --kind review-design
+      grove-llm leaf-insert <next-sibling> sync-design-integrate --kind integrate-review-design
+
+  This retrofit is the one case you still transcribe the kinds by hand, so read
+  them off the producer rather than from memory. There is no retrofit verb: it
+  has not come up often enough to earn one.
 - **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
-  `<stem>-integrate` — so `find .grove` shows the chain as a chain, without
-  opening a file. The suffix goes on the end for a reason: a prefix
-  (`review-sync-design`) groups every review together and scatters the chains
-  (`TASK-FORMAT.md`). Don't spend a node directory on a chain either — a node
-  means "this proved bigger than one session", and overloading it costs a brief
-  you only wrote because a step demanded one.
+  `<stem>-integrate`. The chain verb does this for you, and it is what makes
+  `find .grove` show the chain as a chain without opening a file. The suffix goes
+  on the end for a reason: a prefix (`review-sync-design`) groups every review
+  together and scatters the chains (`TASK-FORMAT.md`). Don't spend a node
+  directory on a chain either — a node means "this proved bigger than one
+  session", and overloading it costs a brief you only wrote because a step
+  demanded one.
 - **The reviewer produces findings, not fixes.** A reviewer that starts editing
   has collapsed the chain back into one session and lost the independence that
   was the point. `review-prototype` is the sharpest case: it is *not* a code
@@ -407,8 +429,9 @@ Five habits make the chain worth its three sessions:
   fresh.
 - **Route the review, don't hand-place it.** "Reviews go to codex" is a policy —
   one `GROVE_REVIEW_HARNESS` line covering all five `review-*` kinds — not a
-  per-leaf declaration. Reach for `--harness` only where a policy genuinely
-  cannot express the shape (the vendor pair).
+  per-leaf declaration. `leaf-add-chain` refuses `--harness` for exactly this
+  reason. Reach for a `**Harness:**` line only where a policy genuinely cannot
+  express the shape, which is the vendor pair and nothing else.
 
 grove **enforces none of this**. It does not check that a `review-X` leaf follows
 an `X` leaf, and will not warn when one does not — a grammar is a relation

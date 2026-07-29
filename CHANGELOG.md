@@ -27,6 +27,67 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## v16.2.0
 
+### Added
+
+- **`grove-llm leaf-add-chain` and `leaf-add-pair` — one call per composition
+  shape.** The entry below made the review chain and the vendor pair the shape a
+  session is *told* to reach for; these make reaching for one no more work than
+  cutting the first leaf of it.
+
+  ```
+  grove-llm leaf-add-chain <parent> <stem> --kind <producer>
+     <stem>            <producer>              <stem>-a        research, **Harness:** <a>
+     <stem>-review     review-<producer>       <stem>-b        research, **Harness:** <b>
+     <stem>-integrate  integrate-review-<p>    <stem>-combine  combine-research
+  ```
+
+  **What the verbs buy is a derivation, not keystrokes.** `<producer>` ⇒
+  `review-<producer>` ⇒ `integrate-review-<producer>` is precisely the
+  parameterisation the seventeen-kind set bought in v16.0.0, and until now
+  nothing had spent it — every chain was transcribed from a seventeen-row table
+  by hand. A typo there is already caught (`--kind` gates on write); a
+  **well-formed wrong** kind is not. `--kind review-impl` beside a `design`
+  producer is a perfectly valid invocation, and what it costs is a reviewer
+  reading for correctness, security and tests where it should be asking whether
+  the ADRs are a minimum coherent set — a *discipline* misroute nothing
+  downstream detects.
+
+  **The pair declares both vendors, and refuses two that are the same.** A single
+  `--harness` naming only the second producer would leave the first resolving
+  through kind → family → stamp at launch time — so "two corpora" would be a
+  forecast about routing policy rather than a fact in the tree, unverifiable when
+  the leaves are cut and silently false if the policy changes before they run.
+  Both producers therefore carry a `**Harness:**` line. Declaring the first costs
+  nothing it did not already cost: a leaf naming the *stamped* harness is not a
+  reroute, so the unscoped model keys still apply.
+
+  **One call is one mutation.** Slugs, kind and vendors are validated before the
+  first write; positions and keys come from one snapshot; every destination is
+  checked free before any is written; anything that still fails mid-write rolls
+  the run back, and a rollback that cannot complete names the residue by path.
+  Stdout prints the three paths *after* the run succeeded and prints nothing at
+  all otherwise — three separate `leaf-add` calls would leave a live prefix of a
+  chain that reads exactly like a deliberately hand-cut partial one, which is the
+  wrong-but-well-formed residue the verbs exist to prevent.
+
+  **Nothing is enforced and nothing is parsed.** `leaf-add` is untouched, no tree
+  is inspected, no chain is linted for completeness, and skipping a chain — or
+  cutting a partial one — stays a normal choice. The verbs *write* the naming
+  convention; nothing ever reads it back. The refusals (`--harness` on a chain,
+  `--kind` on a pair, `--kind research` on a chain, one vendor named twice) are
+  authoring-time argument validation with a human present, and each names the
+  mechanism that *does* express what was asked: the chain's refusal points at
+  `GROVE_REVIEW_HARNESS`, the pair's at `leaf-add-chain`, and back.
+
+  A generated shape is **byte-identical to the same leaves cut by hand**. There
+  is deliberately no retrofit verb for adding review steps to a producer that has
+  already run — that is two `leaf-insert` calls, which is exactly the work such a
+  verb would do. `docs/specs/task-kind-taxonomy.md` carries the design, the
+  all-or-nothing contract, and the honest note that the mechanism was adopted on
+  reasoning about the error class rather than on a measured incident; ADR
+  *cli-binary-split* carries the three-leg bar a `grove-llm` verb clears and now
+  lists both verbs in its normative enumeration.
+
 ### Changed
 
 - **The review chain and the vendor pair are now the shape a session reaches for
@@ -61,6 +122,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
   where one was asked for would grow the tree speculatively (constraint 4).
   Skipping a chain stays a normal choice. `docs/specs/task-kind-taxonomy.md`
   carries the reasoning, including the node-per-chain option and why it lost.
+  (This release also ships two verbs that cut a whole shape in one call — see
+  *Added*. They do not reopen the clause above: `leaf-add` is untouched, and a
+  caller naming a *shape* is not a verb inferring one from an argument that meant
+  one leaf.)
 
 - **A chain stays a convention, not a construct** — the follow-on question to the
   entry above, asked and closed. Should a chain be *first-class*: a unit `pick`

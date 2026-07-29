@@ -191,34 +191,60 @@ just-in-time, at the genuine seam, never speculatively.
 
 **Compose, don't just append.** When more than one leaf serves *one* artifact,
 two shapes are the habitual answer — reach for them by default, and argue
-yourself *out* of one rather than into it:
+yourself *out* of one rather than into it. **Each is one call**, so cutting the
+whole shape is no more work than cutting the first leaf of it:
 - **The review chain** — `X` → `review-X` → `integrate-review-X`: a fresh
   context asked to *disprove*, then a leaf licensed to act on what it found.
   Cut it when the artifact is load-bearing — a spec, a decomposition you will
   build on for months, a subsystem. A one-file change wants the cheap version
   instead, a mid-session subagent (`driving.md`).
-- **The vendor pair** — `research` → `research` → `combine-research`, the two
-  surveys differing *only* by `--harness`. Cut it when the question is
-  load-bearing enough to pay for two corpora.
 
-**Name a chain by a shared stem plus a step suffix** — `<stem>` /
-`<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
-`<stem>-combine` — so `find .grove` shows the *process*, not just the work,
-without opening a file. The suffix goes on the end because that is what keeps a
-chain together under its stem; a prefix (`review-<stem>`) sorts every review
-beside every other review and scatters the chains it was meant to reveal. A
-chain gets **no node directory of its own**: a node means "this proved bigger
-than one session", and spending one per chain buys a `BRIEF.md` written because
-a step demanded it (constraint 4) while erasing what node-ness tells a reader.
+      grove-llm leaf-add-chain <parent> <stem> --kind <producer>
+
+  You name the **producer** kind — `requirements`, `design`, `planning`,
+  `prototype` or `impl` — and the verb derives `review-<producer>` and
+  `integrate-review-<producer>`. That derivation is the point: a hand-written
+  `--kind review-impl` beside a `design` producer is a perfectly valid
+  invocation, and it silently gives the reviewer the wrong discipline. Reviews
+  route by *policy* (`GROVE_REVIEW_HARNESS`), so the verb takes no `--harness`.
+- **The vendor pair** — `research` → `research` → `combine-research`, the two
+  surveys differing *only* by vendor. Cut it when the question is load-bearing
+  enough to pay for two corpora.
+
+      grove-llm leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <other>
+
+  **Both** producers are declared and the two must differ — that is what makes
+  "two corpora" a fact in the tree rather than a guess about what routing policy
+  will say weeks later. An equal pair is refused.
+
+Both verbs append at `<parent>`'s next free positions (`.` for the grove root, or
+a node by key or path), name the three leaves off one stem, and print their three
+absolute paths. **All three land or none does**: a run that fails is rolled back
+and prints nothing, so you never get a live prefix of a chain that reads like a
+deliberately partial one. A generated shape is byte-identical to the same leaves
+cut by hand.
+
+**The stem gets a step suffix, not a prefix** — `<stem>` / `<stem>-review` /
+`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine` — so
+`find .grove` shows the *process*, not just the work, without opening a file. The
+suffix goes on the end because that is what keeps a chain together under its
+stem; a prefix (`review-<stem>`) sorts every review beside every other review and
+scatters the chains it was meant to reveal. A chain gets **no node directory of
+its own**: a node means "this proved bigger than one session", and spending one
+per chain buys a `BRIEF.md` written because a step demanded it (constraint 4)
+while erasing what node-ness tells a reader.
 
 None of this is enforced and none of it is parsed. grove validates no ordering
 between leaves — a grammar is a relation *between* leaves and grove expresses
-none (*task-kind-taxonomy*) — `leaf-add` still makes exactly one leaf, and
-skipping a chain is a normal choice, not a violation. A chain is not a **unit**
+none (*task-kind-taxonomy*) — and skipping a chain is a normal choice, not a
+violation: `leaf-add` is untouched and cuts one leaf as it always did. The verbs
+*write* the convention; nothing ever reads it back. A chain is not a **unit**
 either: its steps run in order because they are *adjacent*, and `pick` returns the
 first live leaf in the tree with nothing grouping them (*task-tree-scheme*). So cut
-a chain's steps together, and use `leaf-insert` — not `leaf-add`, which appends at
-the end — for a step decided on after its producer already ran.
+a chain's steps together — which is what the one-call verbs are for — and use
+`leaf-insert`, not `leaf-add`, for a step decided on **after** its producer
+already ran; there is deliberately no retrofit verb, because appending would put
+the step behind every unrelated live leaf.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children
@@ -253,13 +279,16 @@ working-tree changes only; the enclosing task's commit folds them in.
 Every grow verb takes `--kind <kind>` — one of the seventeen, defaulting to
 `impl` — and gates on it: an unrecognised value errors and lists the set, because
 a human is present at authoring time (reading a kind degrades instead, so a
-hand-edited file can never jam the loop). `leaf-decompose` gives the node's first
-child its parent leaf's kind unless `--kind` overrides, so a `research` leaf that
-proves bigger becomes a `research` node. A leaf may additionally name the harness
-its session runs on with `--harness <name>` (written as a `**Harness:**` line);
-almost none does — it exists for the **vendor pair**, two `research` leaves
-differing only by vendor, which is the one shape a per-kind policy cannot
-express.
+hand-edited file can never jam the loop). `leaf-add-chain` is the one exception
+to the default: it **requires** `--kind`, since defaulting would silently pick
+the producer that parameterises all three of its leaves. `leaf-decompose` gives
+the node's first child its parent leaf's kind unless `--kind` overrides, so a
+`research` leaf that proves bigger becomes a `research` node. A leaf may
+additionally name the harness its session runs on with `--harness <name>`
+(written as a `**Harness:**` line); almost none does — it exists for the **vendor
+pair**, two `research` leaves differing only by vendor, which is the one shape a
+per-kind policy cannot express, and `leaf-add-pair` writes both declarations for
+you.
 
 **Commit.** One task = one focused commit. **Name the work item in the commit
 message by its stable handle `<slug>-k<key>`, never by its position or directory

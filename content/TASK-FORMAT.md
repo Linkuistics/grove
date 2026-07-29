@@ -123,19 +123,31 @@ it:
   independent surveys unioned. The producers are the *same* kind differing only
   by vendor, which is the entire reason `**Harness:**` exists.
 
-**Name a chain by a shared stem plus a step suffix**, so the chain is legible
-from the filenames alone — the kind lives in the file, but the *process* shows
-up in `find .grove`:
+**Each shape is one call**, and the verb names the leaves off a shared stem for
+you:
 
 ```
+grove-llm leaf-add-chain [12] sync-design --kind design
 01-sync-design-k12.md              # design
 02-sync-design-review-k13.md       # review-design
 03-sync-design-integrate-k14.md    # integrate-review-design
 
-04-sync-survey-a-k15.md            # research
-05-sync-survey-b-k16.md            # research, **Harness:** codex
+grove-llm leaf-add-pair [12] sync-survey --harness-a claude --harness-b codex
+04-sync-survey-a-k15.md            # research,  **Harness:** claude
+05-sync-survey-b-k16.md            # research,  **Harness:** codex
 06-sync-survey-combine-k17.md      # combine-research
 ```
+
+You name the chain's **producer** kind and the verb derives the other two; you
+name the pair's **two vendors** and it declares both. Neither derivation is
+something to do by hand — a `--kind review-impl` beside a `design` producer is a
+valid invocation nothing downstream catches, and a pair with only its second
+producer declared is not a pair, just a forecast that the first will route
+somewhere else. All three leaves land or none does, and a generated shape is
+byte-identical to the same leaves cut by hand with `leaf-add`.
+
+The naming matters because the *kind* lives inside the file while the **process**
+shows up in `find .grove`:
 
 Two things that shape looks like it could be and is not:
 
@@ -154,9 +166,12 @@ Two things that shape looks like it could be and is not:
 - **A chain is not a unit, either.** Its steps run in order because they sit at
   *adjacent positions*, the same ordering a node's children get; `pick` returns
   the first live leaf in the whole tree and nothing groups leaves for it
-  (*task-tree-scheme*). So cut a chain's steps **together**, and reach for
-  `leaf-insert` — not `leaf-add`, which appends at the end — when a step is
-  decided on after its producer has already run.
+  (*task-tree-scheme*). Cutting the steps **together** is what buys the
+  adjacency, and it is why each shape is one call. A step decided on *after* its
+  producer has already run needs `leaf-insert`, not `leaf-add` — appending would
+  put it behind every unrelated live leaf, and the chain's steps would run weeks
+  apart. There is deliberately no retrofit verb for that; two `leaf-insert` calls
+  are exactly the work one would do.
 
 The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step
@@ -165,9 +180,10 @@ relation the pair does not have.
 All of this is **convention, not grammar, and nothing parses it**. grove does not
 validate that a `review-X` leaf follows an `X` leaf, does not read the suffix,
 and will not warn when a chain is absent — a grammar is a relation *between*
-leaves and grove expresses none. `leaf-add` makes exactly one leaf; auto-creating
-three where one was asked for would grow the tree speculatively. Skipping a chain
-is a normal choice.
+leaves and grove expresses none. The composite verbs *write* the convention and
+nothing ever reads it back; `leaf-add` still makes exactly one leaf, because the
+call that means one leaf must keep meaning one leaf. Skipping a chain is a normal
+choice, and a partially-cut one is legal.
 
 ## Suggested shape
 
@@ -212,9 +228,11 @@ step after them — which is the one shape a kind→harness policy cannot expres
 because a policy maps each kind to *one* harness
 (`docs/specs/task-kind-taxonomy.md`, *Routing*). Everything else is a policy
 (`GROVE_<KIND>_HARNESS`) or falls through to the harness the grove is stamped
-to. Write one with `leaf-add --harness <name>` / `leaf-insert --harness <name>`,
-or by hand; `leaf-decompose` carries a declaration onto the node's first child,
-as it does the kind.
+to. For the pair itself, `leaf-add-pair` writes **both** producers' declarations
+— that is the shape it exists for. Otherwise write one with
+`leaf-add --harness <name>` / `leaf-insert --harness <name>`, or by hand;
+`leaf-decompose` carries a declaration onto the node's first child, as it does
+the kind.
 
 The line **beats every policy var and the stamp** — leaf beats kind beats family
 beats stamp — so it is read strictly: a name grove does not recognise, or an

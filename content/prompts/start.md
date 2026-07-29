@@ -4,12 +4,14 @@ scaffold the root brief and first **requirements** leaf, then enter the loop
 outcome in the root brief → grow the tree). Cut the leaves yourself if the whole
 workstream fits a handful of them; otherwise add a `planning` leaf and let a
 fresh session do the decomposition. This first cut shapes every later session, so
-compose rather than only append: where a leaf's artifact is load-bearing, cut it
-as a **review chain** (`X` → `review-X` → `integrate-review-X`) rather than a
-lone leaf, and a load-bearing survey as a **vendor pair** (`research` →
-`research --harness <other>` → `combine-research`) — naming each chain off a
-shared stem (`<stem>-review`, `<stem>-integrate`; `<stem>-a`, `<stem>-b`,
-`<stem>-combine`) so the tree shows the process. Neither is required and neither
-is enforced; see the skill's Decompose step. End each task with `grove-llm
+compose rather than only append, and each shape is **one call**: where a leaf's
+artifact is load-bearing, cut a **review chain** with `grove-llm leaf-add-chain
+<parent> <stem> --kind <producer>` rather than a lone `leaf-add`, and a
+load-bearing survey as a **vendor pair** with `grove-llm leaf-add-pair <parent>
+<stem> --harness-a <name> --harness-b <other>`. Each names its three leaves off a
+shared stem so the tree shows the process, and derives what you would otherwise
+transcribe — the chain's `review-`/`integrate-review-` kinds, the pair's two
+declarations. Neither is required and neither is enforced; see the skill's
+Decompose step. End each task with `grove-llm
 complete` as your last step so the self-driving loop relaunches the next task
 with fresh context.

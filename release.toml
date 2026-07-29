@@ -9,9 +9,26 @@
 # Omit `--execute` for a dry run. Run it from the colocated workspace
 # (`jj workspace root --name default`), not from a jj-native secondary
 # workspace — cargo-release drives git, and only the colocated one has a
-# `.git`. Push is not automated; after release:
+# `.git`.
+#
+# FIRST, in that colocated workspace:
+#   jj new main
+# cargo-release commits against git `HEAD`, and a colocated `HEAD` follows the
+# working copy's parent — so without this the release commit lands on whatever
+# the workspace was last parked on. It also fast-forwards `refs/heads/main` as
+# a side effect of jj's automatic export, which is the only thing that closes
+# the lag `jj bookmark list --all-remotes` reports as `@git (behind by N)`.
+# That lag is normal here: commits made from a jj-native secondary workspace
+# have no `.git` to export to, so they accumulate until a colocated command
+# runs.
+#
+# Push is not automated; after release:
 #   jj bookmark set main -r <release-change>
-#   git push origin main --follow-tags
+#   jj git push -b main                     # bookmark: jj drives the mutation
+#   git push origin v<version>              # tag: jj refuses to push tags,
+#                                           # the standing symmetric-vcs-rule
+#                                           # exception. Do not skip it — the
+#                                           # GitHub Release is cut against it.
 
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
 publish = false

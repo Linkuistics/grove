@@ -8,10 +8,10 @@ compose rather than only append, and each shape is **one call**: where a leaf's
 artifact is load-bearing, cut a **review chain** with `grove-llm leaf-add-chain
 <parent> <stem> --kind <producer>` rather than a lone `leaf-add`, and a
 load-bearing survey as a **vendor pair** with `grove-llm leaf-add-pair <parent>
-<stem> --harness-a <name> --harness-b <other>`. Each names its three leaves off a
-shared stem so the tree shows the process, and derives what you would otherwise
-transcribe — the chain's `review-`/`integrate-review-` kinds, the pair's two
-declarations. Neither is required and neither is enforced; see the skill's
+<stem> --harness-a <name> --harness-b <other>`. Each writes a node directory
+holding its three leaves, named off a shared stem so the tree shows the process,
+and derives what you would otherwise transcribe — the chain's
+`review-`/`integrate-review-` kinds, the pair's two declarations. Neither is required and neither is enforced; see the skill's
 Decompose step. End each task with `grove-llm
 complete` as your last step so the self-driving loop relaunches the next task
 with fresh context.

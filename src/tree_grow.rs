@@ -1,4 +1,6 @@
-// The **v2 grow verbs** (task-tree-scheme) — `leaf-add` and `leaf-insert` —
+// The **v2 grow verbs** (task-tree-scheme) — `leaf-add`, `leaf-insert`, and the
+// composite `leaf-add-chain` / `leaf-add-pair` (which emit a **chain node**: a
+// directory holding three steps and, by rule, no `BRIEF.md`) —
 // re-expressed against the real **directory tree**, built on the 11.1 id model
 // (`src/tree_id.rs`). Keeps task-tree-scheme's *semantics* (append a gapless child with a
 // fresh permanent key; insert shifts the occupant + later siblings up by one) and
@@ -82,110 +84,126 @@ struct Step {
     harness: Option<&'static Harness>,
 }
 
-/// Append a whole **shape** — several contiguous sibling leaves — under
-/// `parent_dir` as *one mutation*. The shared engine behind [`leaf_add_chain`]
-/// and [`leaf_add_pair`]; the difference between them is entirely which `Step`s
-/// they derive.
+/// Append a whole **shape** — a **chain node** directory holding its steps as
+/// children — under `parent_dir` as *one mutation*. The shared engine behind
+/// [`leaf_add_chain`] and [`leaf_add_pair`]; the difference between them is
+/// entirely `node_slug` and which `Step`s they derive.
+///
+/// **The node carries no `BRIEF.md`, and that is the point rather than an
+/// omission** (task-tree-scheme, *the charter distinguishes the two species*). A
+/// decomposition node's charter says *this proved bigger than one session*; a
+/// chain has no such context to write, and a stub written because a step demanded
+/// it is exactly what constraint 4 forbids. Its absence is also the **discriminator
+/// the Retire cascade reads** — a file test, never a parse of the `-chain` /
+/// `-pair` token, which is ordinary slug text nothing keys on.
 ///
 /// **This is not `leaf_add` in a loop, and the difference is the whole point of
 /// a composite verb.** `leaf_add` validates, allocates and writes in one breath,
-/// so three calls give three chances to stop half-way — and a live prefix of a
+/// so four calls give four chances to stop half-way — and a live prefix of a
 /// chain looks exactly like a deliberately hand-cut partial one, which is the
 /// wrong-but-well-formed residue the verb exists to prevent. So:
 ///
 /// * **every slug is validated, and the parent resolved, before the first
-///   write** — a bad third slug refuses without creating the first two;
-/// * **positions and keys come from one snapshot**, so the run is contiguous and
-///   its keys consecutive whatever else the tree holds;
-/// * **every destination is checked free before any is written**, which is what
-///   makes the realistic collision an up-front refusal rather than a rollback;
+///   write** — a bad third slug refuses without creating the node;
+/// * **the position and keys come from one snapshot**, so the node lands at the
+///   parent's next free slot and its keys run consecutively from the node's own;
+/// * **the destination is checked free before anything is written**, which is
+///   what makes the realistic collision an up-front refusal rather than a
+///   rollback. One check now covers the whole shape: the children live inside a
+///   directory that does not exist, so none of them can;
 /// * **anything that still fails mid-write rolls the run back**, so the
 ///   observable outcome is the whole shape or none of it.
 ///
-/// Rollback removes only paths *this call* created (each was proven absent
-/// moments earlier), so it can never eat a pre-existing leaf. If a removal
-/// itself fails the error names the residue by path — the one case where a
-/// caller has something to clean up, stated rather than silent.
-///
 /// Working-tree only — no commit, exactly like [`leaf_add`].
-fn add_run(grove_root: &Path, parent_dir: &Path, steps: &[Step]) -> Result<Vec<PathBuf>> {
+fn add_run(
+    grove_root: &Path,
+    parent_dir: &Path,
+    node_slug: &str,
+    steps: &[Step],
+) -> Result<Vec<PathBuf>> {
+    validate_slug(node_slug)?;
     for step in steps {
         validate_slug(&step.slug)?;
     }
     let grove_abs = canonical_grove_root(grove_root)?;
     let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
 
-    // One snapshot for the whole run: positions are contiguous from the parent's
-    // next free slot, keys consecutive from the tree-wide max. Re-reading per
-    // step would give the same answer today — nothing else is writing — but
-    // deriving both once is what makes that a property rather than a race.
-    let base_position = next_child_position(&parent_abs)?;
-    let base_key = next_key(collect_all_names(&grove_abs)?);
-
-    let planned: Vec<(PathBuf, u32, &Step)> = steps
-        .iter()
-        .enumerate()
-        .map(|(i, step)| {
-            let i = i as u32;
-            let key = base_key + i;
-            let entry = Entry::Leaf {
-                position: base_position + i,
-                slug: step.slug.clone(),
-                key,
-                outcome: Outcome::Live,
-            };
-            (parent_abs.join(entry.name()), key, step)
-        })
-        .collect();
-
-    for (path, _, _) in &planned {
-        if path.exists() {
-            bail!(
-                "destination already exists: {} (nothing was created)",
-                path.display()
-            );
+    // One snapshot for the whole run: the node takes the parent's next free slot
+    // and the tree-wide next key; its children start at `01` inside it with the
+    // keys after the node's. Re-reading per step would give the same answer today
+    // — nothing else is writing — but deriving both once is what makes contiguous
+    // positions and consecutive keys a property rather than a race.
+    let node_position = next_child_position(&parent_abs)?;
+    let node_key = next_key(collect_all_names(&grove_abs)?);
+    let node_dir = parent_abs.join(
+        Entry::Node {
+            position: node_position,
+            slug: node_slug.to_string(),
+            key: node_key,
         }
+        .name(),
+    );
+    if node_dir.exists() {
+        bail!(
+            "destination already exists: {} (nothing was created)",
+            node_dir.display()
+        );
     }
 
-    let mut written: Vec<PathBuf> = Vec::with_capacity(planned.len());
-    for (path, key, step) in &planned {
-        if let Err(e) = write_template(path, &step.slug, *key, step.kind, step.harness) {
-            return Err(roll_back(e, &written));
+    fs::create_dir(&node_dir).with_context(|| format!("creating {}", node_dir.display()))?;
+
+    let mut created = vec![node_dir.clone()];
+    for (i, step) in steps.iter().enumerate() {
+        let i = i as u32;
+        let key = node_key + 1 + i;
+        let entry = Entry::Leaf {
+            position: i + 1,
+            slug: step.slug.clone(),
+            key,
+            outcome: Outcome::Live,
+        };
+        let path = node_dir.join(entry.name());
+        if let Err(e) = write_template(&path, &step.slug, key, step.kind, step.harness) {
+            return Err(roll_back(e, &node_dir));
         }
-        written.push(path.clone());
+        created.push(path);
     }
-    Ok(written)
+    Ok(created)
 }
 
 /// Undo a partially-written run and return the error the caller should see.
-/// Every path here was created by this call and proven absent before it, so
-/// removal is safe by construction. A removal that itself fails is *named* —
-/// a residue the operator must know about is worse hidden than reported.
-fn roll_back(cause: anyhow::Error, written: &[PathBuf]) -> anyhow::Error {
-    let mut stuck = Vec::new();
-    for path in written.iter().rev() {
-        if fs::remove_file(path).is_err() {
-            stuck.push(path.display().to_string());
-        }
-    }
-    if stuck.is_empty() {
-        cause.context("creating the shape failed; every leaf it had written was rolled back")
+/// Everything the run created is inside `node_dir`, which was proven absent
+/// moments earlier, so one recursive remove is both complete and safe by
+/// construction — it can never eat a pre-existing entry. A removal that itself
+/// fails is *named*: a residue the operator must know about is worse hidden than
+/// reported.
+fn roll_back(cause: anyhow::Error, node_dir: &Path) -> anyhow::Error {
+    if fs::remove_dir_all(node_dir).is_ok() {
+        cause
+            .context("creating the shape failed; the node directory it had created was rolled back")
     } else {
         cause.context(format!(
             "creating the shape failed and rollback could not remove {} — \
-             delete {} by hand before retrying, or the retry will append a duplicate shape",
-            stuck.join(", "),
-            if stuck.len() == 1 { "it" } else { "them" }
+             delete it by hand before retrying, or the retry will append a duplicate shape",
+            node_dir.display()
         ))
     }
 }
 
-/// Append a whole **review chain** — `<stem>` / `<stem>-review` /
-/// `<stem>-integrate` — under `parent_dir`, in one mutation ([`add_run`]).
+/// Append a whole **review chain** — a `<stem>-chain` node holding `<stem>` /
+/// `<stem>-review` / `<stem>-integrate` — under `parent_dir`, in one mutation
+/// ([`add_run`]). Returns four paths, the node directory first.
 ///
 /// `producer` is the kind of the leaf that heads the chain; the other two kinds
 /// are **derived** from it ([`Kind::review_steps`]), which is what the verb is
 /// for. A kind that heads no chain is refused, naming the shape it does have.
+///
+/// The children keep the stem (`<stem>-review`, not a bare `review`) and the node
+/// takes the `-chain` token, both for the same reason: `resolve` matches a bare
+/// slug **exactly** and `.grove/` dies at the finish cycle, so a handle has to
+/// stay unique tree-wide *and* name its artifact once the tree that explained it
+/// is gone (task-tree-scheme §5). Without the token the node's slug would collide
+/// with its own first child's.
 pub fn leaf_add_chain(
     grove_root: &Path,
     parent_dir: &Path,
@@ -200,6 +218,7 @@ pub fn leaf_add_chain(
     add_run(
         grove_root,
         parent_dir,
+        &format!("{stem}-chain"),
         &[
             Step {
                 slug: stem.to_string(),
@@ -220,8 +239,12 @@ pub fn leaf_add_chain(
     )
 }
 
-/// Append a whole **research vendor pair** — `<stem>-a` / `<stem>-b` /
-/// `<stem>-combine` — under `parent_dir`, in one mutation ([`add_run`]).
+/// Append a whole **research vendor pair** — a `<stem>-pair` node holding
+/// `<stem>-a` / `<stem>-b` / `<stem>-combine` — under `parent_dir`, in one
+/// mutation ([`add_run`]). Returns four paths, the node directory first.
+///
+/// The producers are `-a` / `-b` rather than a bare stem beside a `-second`,
+/// because they are peers rather than a producer and a step.
 ///
 /// **Both producers declare their harness, and the two must differ.** Declaring
 /// only the second would leave the first resolving through leaf → kind → family
@@ -255,6 +278,7 @@ pub fn leaf_add_pair(
     add_run(
         grove_root,
         parent_dir,
+        &format!("{stem}-pair"),
         &[
             Step {
                 slug: format!("{stem}-a"),
@@ -440,9 +464,18 @@ fn canonical_grove_root(grove_root: &Path) -> Result<PathBuf> {
 /// Resolve a `parent_dir` argument (the grove root, or a node directory under it,
 /// absolute or grove-root-relative) to an absolute, validated node directory. The
 /// grove root is always a valid parent (the root node); any other parent must be
-/// an existing directory whose name parses as a node *and* that holds a `BRIEF.md`
-/// — the v2 translation of v1's "no brief at that position" guard, which also
-/// rejects pointing at a leaf *file* (a leaf has no children until decomposed).
+/// an existing **directory whose name parses as a node**. That also rejects
+/// pointing at a leaf *file* (a leaf has no children until decomposed), which
+/// fails `is_dir` before the name is ever read.
+///
+/// **A `BRIEF.md` is not required, and used to be.** The guard was the v2
+/// translation of v1's "no brief at that position" check, written when every node
+/// was a decomposition node and so always carried a charter. A **chain node** is
+/// brief-less by rule (task-tree-scheme), which makes the old guard refuse the one
+/// case the design names explicitly: `leaf-add <chain-node> <stem>-review`, a step
+/// decided on after its producer already ran, appending *inside* the node rather
+/// than behind every unrelated live leaf. Node-ness is the name plus being a
+/// directory; the charter distinguishes the two *species*, not node from non-node.
 fn resolve_parent_node(grove_abs: &Path, parent_dir: &Path) -> Result<PathBuf> {
     let candidate = if parent_dir.is_absolute() {
         parent_dir.to_path_buf()
@@ -453,7 +486,7 @@ fn resolve_parent_node(grove_abs: &Path, parent_dir: &Path) -> Result<PathBuf> {
     // the same actionable "parent" diagnostic (rather than a raw canonicalise error).
     if !candidate.is_dir() {
         bail!(
-            "parent is not a node directory (need a directory with a BRIEF.md): {}",
+            "parent is not a node directory (need a directory named NN-<slug>-k<key>): {}",
             candidate.display()
         );
     }
@@ -471,9 +504,9 @@ fn resolve_parent_node(grove_abs: &Path, parent_dir: &Path) -> Result<PathBuf> {
         return Ok(parent_abs); // the root node — always valid
     }
     let name = file_name(&parent_abs)?;
-    if !matches!(parse(&name), Some(Entry::Node { .. })) || !parent_abs.join("BRIEF.md").is_file() {
+    if !matches!(parse(&name), Some(Entry::Node { .. })) {
         bail!(
-            "parent is not a node directory (need a directory with a BRIEF.md): {}",
+            "parent is not a node directory (need a directory named NN-<slug>-k<key>): {}",
             parent_abs.display()
         );
     }
@@ -882,11 +915,32 @@ mod tests {
     }
 
     #[test]
-    fn add_errors_when_node_dir_has_no_brief() {
-        // A bare directory without a BRIEF.md is not a node.
+    fn add_appends_a_late_step_into_a_brief_less_chain_node() {
+        // The lazy-cut shape the node makes possible, and the one place a
+        // brief-less node forced a change to a verb this leaf was told not to
+        // touch: a review decided on *after* its producer ran is
+        // `leaf-add <chain-node> <stem>-review`, landing immediately after its
+        // stem-mates. The old parent guard required a `BRIEF.md` and refused it,
+        // sending the step to the end of the tree behind every unrelated live leaf
+        // — which is exactly what the node shape exists to stop.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let bare = g.join("02-bare-k2");
+        let chain = &leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap()[0];
+
+        let got = leaf_add(&g, chain, "sync-second-review", Kind::ReviewDesign, None).unwrap();
+
+        assert_eq!(name_of(&got), "04-sync-second-review-k5.md");
+        assert_eq!(name_of(got.parent().unwrap()), "01-sync-chain-k1");
+    }
+
+    #[test]
+    fn add_errors_when_parent_dir_name_is_not_a_node() {
+        // Node-ness is the *name* plus being a directory. A charter is what tells
+        // the two node species apart, not node from non-node, so the guard reads
+        // the name — a bare `notes/` is still refused.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        let bare = g.join("notes");
         fs::create_dir_all(&bare).unwrap();
         let err = leaf_add(&g, &bare, "y", Kind::Impl, None).unwrap_err();
         assert!(err.to_string().contains("parent"), "got {err}");
@@ -913,14 +967,17 @@ mod tests {
 
     // ---- leaf-add-chain / leaf-add-pair -------------------------------------
     //
-    // The composite verbs. Two properties carry the design and both are pinned
-    // by *mutation*, not by asserting the happy path made three files:
+    // The composite verbs. Three properties carry the design and each is pinned
+    // by *mutation*, not by asserting the happy path made four things:
     //
     //   * **the derivation** — the caller names one producer kind and the other
     //     two are derived, which is the wrong-but-well-formed error class the
     //     `--kind` write-gate cannot catch (ADR *cli-binary-split*, leg 2);
-    //   * **one call, one mutation** — a run that fails leaves *nothing*, so a
-    //     live prefix of a chain never masquerades as a hand-cut partial one.
+    //   * **the node carries no `BRIEF.md`** — the discriminator the Retire
+    //     cascade reads, so a stray charter silently restores the confirmation
+    //     the design removed (task-tree-scheme);
+    //   * **one call, one mutation** — a run that fails leaves *no directory*, so
+    //     a live prefix of a chain never masquerades as a hand-cut partial one.
 
     fn names_of(paths: &[PathBuf]) -> Vec<String> {
         paths.iter().map(|p| name_of(p)).collect()
@@ -934,19 +991,57 @@ mod tests {
     }
 
     #[test]
-    fn chain_emits_three_contiguous_leaves_off_one_stem_with_consecutive_keys() {
+    fn chain_emits_a_node_directory_holding_its_three_steps_off_one_stem() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let paths = leaf_add_chain(&g, &g, "sync-design", Kind::Design).unwrap();
         assert_eq!(
             names_of(&paths),
             vec![
-                "01-sync-design-k1.md",
-                "02-sync-design-review-k2.md",
-                "03-sync-design-integrate-k3.md",
+                "01-sync-design-chain-k1",
+                "01-sync-design-k2.md",
+                "02-sync-design-review-k3.md",
+                "03-sync-design-integrate-k4.md",
             ],
-            "contiguous positions, consecutive keys, suffixed off one stem"
+            "the node first, then its children at 01..03 — four keys, not three"
         );
+        assert!(paths[0].is_dir(), "the shape's head is a directory");
+        for step in &paths[1..] {
+            assert_eq!(
+                name_of(step.parent().unwrap()),
+                "01-sync-design-chain-k1",
+                "every step is a child of the node"
+            );
+        }
+    }
+
+    #[test]
+    fn a_chain_node_carries_no_brief_so_the_cascade_never_asks_about_it() {
+        // The discriminator, and the argument that unblocked node-per-chain. The
+        // Retire cascade's confirmation is asked of **brief-carrying** nodes, so a
+        // charter here would silently restore the noise the design removed — and
+        // it would be written because a step demanded it (constraint 4), by a verb
+        // that knows only a stem. Asserted as a *file test*, which is the only
+        // thing any reader is allowed to key on.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        for paths in [
+            leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap(),
+            leaf_add_pair(&g, &g, "survey", claude(), codex()).unwrap(),
+        ] {
+            let node = &paths[0];
+            assert!(
+                !node.join("BRIEF.md").exists(),
+                "{}: a chain node is brief-less by rule",
+                name_of(node)
+            );
+            assert_eq!(
+                list(node).len(),
+                3,
+                "{}: the node holds its three steps and nothing else",
+                name_of(node)
+            );
+        }
     }
 
     #[test]
@@ -957,7 +1052,7 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let paths = leaf_add_chain(&g, &g, "sync-design", Kind::Design).unwrap();
-        let kinds: Vec<String> = paths
+        let kinds: Vec<String> = paths[1..]
             .iter()
             .map(|p| {
                 body(p)
@@ -983,12 +1078,12 @@ mod tests {
             let stem = format!("s-{}", producer.label());
             let paths = leaf_add_chain(&g, &g, &stem, *producer).unwrap();
             assert!(
-                body(&paths[1]).contains(&format!("**Kind:** review-{}", producer.label())),
+                body(&paths[2]).contains(&format!("**Kind:** review-{}", producer.label())),
                 "{}: review step must name its own producer",
                 producer.label()
             );
             assert!(
-                body(&paths[2])
+                body(&paths[3])
                     .contains(&format!("**Kind:** integrate-review-{}", producer.label())),
                 "{}: integrate step must name its own producer",
                 producer.label()
@@ -1039,11 +1134,13 @@ mod tests {
         assert_eq!(
             names_of(&paths),
             vec![
-                "02-api-k4.md",
-                "03-api-review-k5.md",
-                "04-api-integrate-k6.md",
+                "02-api-chain-k4",
+                "01-api-k5.md",
+                "02-api-review-k6.md",
+                "03-api-integrate-k7.md",
             ],
-            "positions continue the node's children; keys continue the whole tree"
+            "the node continues the parent's positions; the keys continue the whole tree, \
+             and the steps restart at 01 inside the node"
         );
         assert_eq!(name_of(paths[0].parent().unwrap()), "02-build-k2");
     }
@@ -1056,14 +1153,15 @@ mod tests {
         assert_eq!(
             names_of(&paths),
             vec![
-                "01-sync-survey-a-k1.md",
-                "02-sync-survey-b-k2.md",
-                "03-sync-survey-combine-k3.md",
+                "01-sync-survey-pair-k1",
+                "01-sync-survey-a-k2.md",
+                "02-sync-survey-b-k3.md",
+                "03-sync-survey-combine-k4.md",
             ]
         );
-        assert!(body(&paths[0]).contains("**Kind:** research"));
         assert!(body(&paths[1]).contains("**Kind:** research"));
-        assert!(body(&paths[2]).contains("**Kind:** combine-research"));
+        assert!(body(&paths[2]).contains("**Kind:** research"));
+        assert!(body(&paths[3]).contains("**Kind:** combine-research"));
     }
 
     #[test]
@@ -1077,20 +1175,20 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
         let paths = leaf_add_pair(&g, &g, "sync-survey", claude(), codex()).unwrap();
         assert!(
-            body(&paths[0]).contains("**Harness:** claude"),
+            body(&paths[1]).contains("**Harness:** claude"),
             "producer A carries its own declaration: {:?}",
-            body(&paths[0])
-        );
-        assert!(
-            body(&paths[1]).contains("**Harness:** codex"),
-            "producer B carries its own declaration: {:?}",
             body(&paths[1])
         );
         assert!(
-            !body(&paths[2]).contains("**Harness:**"),
+            body(&paths[2]).contains("**Harness:** codex"),
+            "producer B carries its own declaration: {:?}",
+            body(&paths[2])
+        );
+        assert!(
+            !body(&paths[3]).contains("**Harness:**"),
             "the combine step is not a peer of the two producers — it routes by \
              policy like every other kind: {:?}",
-            body(&paths[2])
+            body(&paths[3])
         );
     }
 
@@ -1125,27 +1223,27 @@ mod tests {
 
     // ---- one call, one mutation (F1) ----------------------------------------
 
-    /// Occupy a run's **third** destination with an entry the numbering does not
-    /// see: a *directory* carrying a leaf's name. `read_children` reconciles each
-    /// parsed name against its real filesystem kind, so this is skipped when
-    /// positions and keys are allocated — and `Path::exists` still finds it when
-    /// the destinations are swept. Exactly the gap between the parsed tree and
-    /// the filesystem that the sweep exists to cover.
-    fn squat_third_destination(g: &Path) -> PathBuf {
-        let p = g.join("03-sync-integrate-k3.md");
-        fs::create_dir(&p).unwrap();
+    /// Occupy a run's **node** destination with an entry the numbering does not
+    /// see: a *file* carrying a node's name. `read_children` reconciles each
+    /// parsed name against its real filesystem kind, so this is skipped when the
+    /// position and keys are allocated — and `Path::exists` still finds it when
+    /// the destination is checked. Exactly the gap between the parsed tree and
+    /// the filesystem that the check exists to cover.
+    fn squat_node_destination(g: &Path) -> PathBuf {
+        let p = g.join("01-sync-chain-k1");
+        fs::write(&p, "not a node\n").unwrap();
         p
     }
 
     #[test]
-    fn a_run_whose_third_destination_is_taken_creates_none_of_the_first_two() {
-        // The reason destinations are swept before the first write rather than
-        // checked per leaf: `leaf_add` three times over would create two files
-        // and *then* fail, leaving a live prefix of a chain indistinguishable
-        // from a deliberately hand-cut partial one.
+    fn a_run_whose_node_destination_is_taken_creates_nothing_at_all() {
+        // The reason the destination is checked before the first write: the node
+        // is the run's single point of refusal, so a collision costs an error and
+        // nothing else. (Under the flat shape this had to sweep three names to get
+        // the same property; containment collapsed it to one.)
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        squat_third_destination(&g);
+        squat_node_destination(&g);
 
         let err = leaf_add_chain(&g, &g, "sync", Kind::Design)
             .unwrap_err()
@@ -1159,24 +1257,32 @@ mod tests {
         files.sort();
         assert_eq!(
             files,
-            vec!["03-sync-integrate-k3.md", "BRIEF.md"],
-            "only the squatter and the brief — no prefix left behind"
+            vec!["01-sync-chain-k1", "BRIEF.md"],
+            "only the squatter and the brief — no half-built node left behind"
         );
     }
 
     #[test]
-    fn a_write_that_fails_mid_run_rolls_the_whole_shape_back() {
-        // The residual the up-front sweep cannot see: a destination that does
+    fn a_write_that_fails_mid_run_removes_the_node_directory_entirely() {
+        // The residual the up-front check cannot see: a destination that does
         // not exist and still cannot be written. The cheapest deterministic one
         // is also a hazard **specific to composite verbs** — the derived names
         // are longer than the stem the caller validated, so a third name can
-        // cross `NAME_MAX` (255) while the first two clear it. `Path::exists`
-        // reports false for an over-long path, so the sweep waves it through and
-        // the failure lands mid-write, which is the arm under test.
+        // cross `NAME_MAX` (255) while the node and the first two steps clear it.
+        // `Path::exists` reports false for an over-long path, so the check waves
+        // it through and the failure lands mid-write, which is the arm under test.
+        //
+        // What is asserted is that **no directory survives** — the whole reason
+        // the node shape makes rollback easier than the flat one did. A leftover
+        // `NN-<stem>-chain-k<key>/` holding one or two steps is precisely the
+        // wrong-but-well-formed residue, and it is worse than the flat version
+        // was: it *looks* like a deliberately cut chain node.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        // `NN-<stem>-k<key>.md` is stem+9; `-review` and `-integrate` add 7 and
-        // 10. At 238 the run plans 247, 254 and 257 bytes: two fit, one does not.
+        // The node is `NN-<stem>-chain-k<key>` (stem+12); the steps are
+        // `NN-<stem>-k<key>.md` (stem+9) plus 7 for `-review` and 10 for
+        // `-integrate`. At 238 the run plans a 250-byte directory and 247-, 254-
+        // and 257-byte children: the node and two steps fit, the third does not.
         let stem = "a".repeat(238);
 
         let err = leaf_add_chain(&g, &g, &stem, Kind::Design)
@@ -1190,7 +1296,7 @@ mod tests {
         assert_eq!(
             list(&g),
             vec!["BRIEF.md"],
-            "the two leaves written before the failure must not survive it"
+            "the node directory and the two steps inside it must not survive the failure"
         );
     }
 
@@ -1201,32 +1307,26 @@ mod tests {
         // and keys. Pinned end to end — fail, clear the obstruction, retry.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let squatter = squat_third_destination(&g);
+        let squatter = squat_node_destination(&g);
         assert!(leaf_add_chain(&g, &g, "sync", Kind::Design).is_err());
-        fs::remove_dir(&squatter).unwrap();
+        fs::remove_file(&squatter).unwrap();
 
         let paths = leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap();
 
         assert_eq!(
             names_of(&paths),
             vec![
-                "01-sync-k1.md",
-                "02-sync-review-k2.md",
-                "03-sync-integrate-k3.md",
+                "01-sync-chain-k1",
+                "01-sync-k2.md",
+                "02-sync-review-k3.md",
+                "03-sync-integrate-k4.md",
             ],
-            "the retry got the positions and keys the failed run had planned"
+            "the retry got the position and keys the failed run had planned"
         );
-        let mut files = list(&g);
-        files.sort();
         assert_eq!(
-            files,
-            vec![
-                "01-sync-k1.md",
-                "02-sync-review-k2.md",
-                "03-sync-integrate-k3.md",
-                "BRIEF.md",
-            ],
-            "exactly one chain — no duplicate from the failed attempt"
+            list(&g),
+            vec!["01-sync-chain-k1", "BRIEF.md"],
+            "exactly one chain node — no duplicate from the failed attempt"
         );
     }
 
@@ -1243,26 +1343,43 @@ mod tests {
     }
 
     #[test]
-    fn a_shape_is_byte_identical_to_the_same_leaves_cut_by_hand() {
+    fn a_shape_is_byte_identical_to_the_same_node_and_leaves_cut_by_hand() {
         // Constraint 6, and the claim the spec makes: nothing about a generated
         // chain is distinguishable afterwards. If this ever diverges, the verbs
         // have started writing a *format* rather than a convention.
+        //
+        // "By hand" is now `mkdir` + three `leaf-add`s into the bare directory,
+        // which is only possible because node-ness is the name plus being a
+        // directory — a parent guard that still demanded a `BRIEF.md` would make
+        // the hand-cut shape unreachable and this equivalence false.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let generated = leaf_add_chain(&g, &g, "sync", Kind::Design).unwrap();
-        let generated_bodies: Vec<String> = generated.iter().map(|p| body(p)).collect();
-        for p in &generated {
-            fs::remove_file(p).unwrap();
-        }
+        let generated_bodies: Vec<String> = generated[1..].iter().map(|p| body(p)).collect();
+        fs::remove_dir_all(&generated[0]).unwrap();
 
+        let node = g.join("01-sync-chain-k1");
+        fs::create_dir(&node).unwrap();
         let by_hand = [
-            leaf_add(&g, &g, "sync", Kind::Design, None).unwrap(),
-            leaf_add(&g, &g, "sync-review", Kind::ReviewDesign, None).unwrap(),
-            leaf_add(&g, &g, "sync-integrate", Kind::IntegrateReviewDesign, None).unwrap(),
+            node.clone(),
+            leaf_add(&g, &node, "sync", Kind::Design, None).unwrap(),
+            leaf_add(&g, &node, "sync-review", Kind::ReviewDesign, None).unwrap(),
+            leaf_add(
+                &g,
+                &node,
+                "sync-integrate",
+                Kind::IntegrateReviewDesign,
+                None,
+            )
+            .unwrap(),
         ];
         assert_eq!(names_of(&generated), names_of(&by_hand));
-        let hand_bodies: Vec<String> = by_hand.iter().map(|p| body(p)).collect();
+        let hand_bodies: Vec<String> = by_hand[1..].iter().map(|p| body(p)).collect();
         assert_eq!(generated_bodies, hand_bodies);
+        assert!(
+            !node.join("BRIEF.md").exists(),
+            "neither shape has a charter — that is what makes them the same node"
+        );
     }
 
     // ---- leaf-insert --------------------------------------------------------

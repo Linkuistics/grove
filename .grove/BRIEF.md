@@ -64,6 +64,35 @@ forbids, and a flat chain is a valid tree. Recorded in
 `docs/adr/cli-binary-split.md` and `CONTEXT.md`; nothing here is the durable
 record.
 
+**What `chain-node-k9` shipped, and the three things it found.** The two verbs
+now write `NN-<stem>-chain-k<key>/` (or `-pair-`) holding their steps at `01`–`03`
+— four keys, four paths on stdout, node first. The three properties the spec marks
+as worth falsifying by mutation are each pinned by a test: the kind derivation, the
+absence of `BRIEF.md`, and a mid-write failure leaving **no directory**. Verified
+end-to-end against a real fixture that `pick`, `brief-chain`, `resolve`,
+`leaf-retire`, `kind --with-harness` and the tree viewer all cope unchanged.
+
+1. **`leaf-add` was *not* untouched, and the leaf asked for this to be surfaced.**
+   Its parent guard required a `BRIEF.md` at `<parent>`, so it refused a chain
+   node — breaking the one affordance the node shape exists to buy
+   (`leaf-add <chain-node> <stem>-late-step`). The guard now reads the directory's
+   **name**, which is what ADR *task-tree-scheme* already said node-ness was; the
+   charter distinguishes the two *species*, not node from non-node. Recorded in
+   that ADR's *Comparator and verbs*. The other seven verbs needed nothing.
+2. **`docs/adr/task-kind-taxonomy.md` still carried the reversed reasoning** —
+   `chain-as-node-k7` reconciled the spec and two other ADRs but missed this one,
+   which was still arguing "a chain — deliberately not a node — already closes with
+   none" and that the cascade cost is *created* by giving a chain a directory.
+   Reworked in place (never appended to), so the ADR set is coherent again. Worth a
+   sceptical pass in `chain-node-review-k10`: if one ADR was missed, check the rest.
+3. **`CHANGELOG.md` got an `## Unreleased` heading, and that is
+   `changelog-unreleased-k13`'s decision to ratify or undo.** This change had to be
+   logged somewhere and `## v16.2.0` is closed history — editing it would falsify a
+   tagged release. So the heading exists now with one entry under it; k13 still owns
+   the question and now decides it against a live instance rather than in the
+   abstract. It should add the other four rows of its table, not re-litigate this
+   one entry's placement unless it is discarding the heading entirely.
+
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where
 splitting is cheap because subagents share the parent's context. Grove leaves are

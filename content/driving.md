@@ -119,9 +119,9 @@ policy can send one elsewhere:
 grove-llm leaf-add-pair . sync-protocols --harness-a claude --harness-b codex
 ```
 
-That is the whole pair — `sync-protocols-a`, `sync-protocols-b` and
-`sync-protocols-combine`, contiguous, off one stem, with both producers'
-`**Harness:**` lines written.
+That is the whole pair — a `sync-protocols-pair/` node holding
+`sync-protocols-a`, `sync-protocols-b` and `sync-protocols-combine`, off one
+stem, with both producers' `**Harness:**` lines written.
 
 **Name both vendors, even the one you would have got anyway.** The verb requires
 it and refuses two names that are the same. Declaring only the second would leave
@@ -384,38 +384,43 @@ Cutting one under node `[12]`, for a design that has not been written yet:
 grove-llm leaf-add-chain [12] sync-design --kind design
 ```
 
-One call, three leaves — `sync-design`, `sync-design-review`,
-`sync-design-integrate`. You name the producer kind and nothing else: the verb
-derives `review-design` and `integrate-review-design`, which is the part worth
-not doing by hand. `--kind review-impl` beside a `design` producer is a perfectly
-valid invocation, and what it buys is a reviewer reading for correctness,
-security and tests where it should be asking whether the ADRs are a minimum
-coherent set — a discipline mismatch nothing downstream detects.
+One call, one `sync-design-chain/` node holding three leaves — `sync-design`,
+`sync-design-review`, `sync-design-integrate`. You name the producer kind and
+nothing else: the verb derives `review-design` and `integrate-review-design`,
+which is the part worth not doing by hand. `--kind review-impl` beside a `design`
+producer is a perfectly valid invocation, and what it buys is a reviewer reading
+for correctness, security and tests where it should be asking whether the ADRs
+are a minimum coherent set — a discipline mismatch nothing downstream detects.
 
 Five habits make the chain worth its three sessions:
 
-- **Cut the steps together, or `leaf-insert` a late one.** A chain is ordered only
-  because its steps sit at *adjacent positions* — `pick` walks the tree top to
-  bottom and nothing groups them (*task-tree-scheme*). One call gets that for
-  free. Deciding on the review *after* the producer has run does not: `leaf-add`
-  appends at the **end**, behind every unrelated live leaf, and the chain's steps
-  end up running weeks apart. Reach for `leaf-insert` against the next sibling
-  instead, so the step lands beside its stem-mate:
+- **Cut the steps together; a late one goes *inside* the node.** One call gets the
+  steps contiguous and, because the node contains them, safe from a sibling-level
+  `leaf-insert` splitting them later. Deciding on the review *after* the producer
+  has run is then cheap — `leaf-add` into the chain node appends immediately after
+  its stem-mates, ahead of everything outside it:
+
+      grove-llm leaf-add <chain-node> sync-design-review --kind review-design
+      grove-llm leaf-add <chain-node> sync-design-integrate --kind integrate-review-design
+
+  (The node's path is the first line the chain verb printed, and `resolve
+  sync-design-chain` finds it again.) `leaf-insert` is still the answer for a
+  producer that was cut as a **plain leaf**, where there is no node to append
+  into and `leaf-add` would land the step behind every unrelated live leaf:
 
       grove-llm leaf-insert <next-sibling> sync-design-review --kind review-design
-      grove-llm leaf-insert <next-sibling> sync-design-integrate --kind integrate-review-design
 
-  This retrofit is the one case you still transcribe the kinds by hand, so read
+  Either retrofit is the one case you still transcribe the kinds by hand, so read
   them off the producer rather than from memory. There is no retrofit verb: it
   has not come up often enough to earn one.
 - **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
-  `<stem>-integrate`. The chain verb does this for you, and it is what makes
-  `find .grove` show the chain as a chain without opening a file. The suffix goes
-  on the end for a reason: a prefix (`review-sync-design`) groups every review
-  together and scatters the chains (`TASK-FORMAT.md`). Don't spend a node
-  directory on a chain either — a node means "this proved bigger than one
-  session", and overloading it costs a brief you only wrote because a step
-  demanded one.
+  `<stem>-integrate`, under a `<stem>-chain/` node. The chain verb does this for
+  you, and it is what makes `find .grove` — and any file manager — show the chain
+  as a chain without opening a file. The suffix goes on the end for a reason: a
+  prefix (`review-sync-design`) groups every review together and scatters the
+  chains (`TASK-FORMAT.md`). Don't write a `BRIEF.md` into the node: its absence
+  is what tells the Retire cascade this is a chain rather than a decomposition, so
+  it closes silently instead of asking a question with one answer.
 - **The reviewer produces findings, not fixes.** A reviewer that starts editing
   has collapsed the chain back into one session and lost the independence that
   was the point. `review-prototype` is the sharpest case: it is *not* a code

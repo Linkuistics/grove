@@ -50,7 +50,8 @@ fault.
   a `planning` leaf instead.
 - **planning** (AFK) — given the design, cut it into vertical slices and **grow
   the tree**: turn an oversized leaf into a node — a **directory**
-  `NN-<slug>-k<key>/` holding a `BRIEF.md` plus ordered child leaves. The
+  `NN-<slug>-k<key>/` holding ordered child leaves, headed here by a `BRIEF.md`
+  (a *decomposition* node; the chain node below is the brief-less species). The
   deliverable is *more tree*. The only kind with methodological force — the sole
   branch in the loop's Execute step.
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
@@ -123,19 +124,21 @@ it:
   independent surveys unioned. The producers are the *same* kind differing only
   by vendor, which is the entire reason `**Harness:**` exists.
 
-**Each shape is one call**, and the verb names the leaves off a shared stem for
-you:
+**Each shape is one call**, and each is a **node directory** whose children the
+verb names off a shared stem for you:
 
 ```
 grove-llm leaf-add-chain [12] sync-design --kind design
-01-sync-design-k12.md              # design
-02-sync-design-review-k13.md       # review-design
-03-sync-design-integrate-k14.md    # integrate-review-design
+01-sync-design-chain-k12/            # chain node — no BRIEF.md
+  01-sync-design-k13.md              # design
+  02-sync-design-review-k14.md       # review-design
+  03-sync-design-integrate-k15.md    # integrate-review-design
 
 grove-llm leaf-add-pair [12] sync-survey --harness-a claude --harness-b codex
-04-sync-survey-a-k15.md            # research,  **Harness:** claude
-05-sync-survey-b-k16.md            # research,  **Harness:** codex
-06-sync-survey-combine-k17.md      # combine-research
+02-sync-survey-pair-k16/             # chain node — no BRIEF.md
+  01-sync-survey-a-k17.md            # research,  **Harness:** claude
+  02-sync-survey-b-k18.md            # research,  **Harness:** codex
+  03-sync-survey-combine-k19.md      # combine-research
 ```
 
 You name the chain's **producer** kind and the verb derives the other two; you
@@ -143,35 +146,44 @@ name the pair's **two vendors** and it declares both. Neither derivation is
 something to do by hand — a `--kind review-impl` beside a `design` producer is a
 valid invocation nothing downstream catches, and a pair with only its second
 producer declared is not a pair, just a forecast that the first will route
-somewhere else. All three leaves land or none does, and a generated shape is
-byte-identical to the same leaves cut by hand with `leaf-add`.
+somewhere else. Four keys per shape, not three — the node holds the first, and
+stdout is four absolute paths with the node's leading. The whole shape lands or
+none of it does, and a generated shape is byte-identical to the same directory
+and leaves cut by hand with `mkdir` plus `leaf-add`.
 
 The naming matters because the *kind* lives inside the file while the **process**
 shows up in `find .grove`:
 
 Two things that shape looks like it could be and is not:
 
-- **The suffix goes on the end**, not the front. A suffix keeps a chain together
-  under its stem; a prefix (`review-sync-design`) sorts every review beside
-  every *other* review and scatters the chains it was meant to reveal.
-- **A chain is not a node.** Giving each chain its own `NN-<stem>-k<key>/`
-  directory is structurally honest and needs no convention at all, but a node
-  directory already means something in a real tree — *this work proved bigger
-  than one session* — and spending one per chain erases that while buying a
-  `BRIEF.md` written because a step demanded it (constraint 4). There is also no
-  verb that makes a node: you would `leaf-add` and then `leaf-decompose`,
-  applying a deliberately *reactive* verb speculatively. And the Retire cascade
-  asks the human before treating a **node** as done — a fair question of a
-  decomposition, noise for a chain, and one a flat chain is never asked.
-- **A chain is not a unit, either.** Its steps run in order because they sit at
-  *adjacent positions*, the same ordering a node's children get; `pick` returns
-  the first live leaf in the whole tree and nothing groups leaves for it
-  (*task-tree-scheme*). Cutting the steps **together** is what buys the
-  adjacency, and it is why each shape is one call. A step decided on *after* its
-  producer has already run needs `leaf-insert`, not `leaf-add` — appending would
-  put it behind every unrelated live leaf, and the chain's steps would run weeks
-  apart. There is deliberately no retrofit verb for that; two `leaf-insert` calls
-  are exactly the work one would do.
+- **The suffix goes on the end**, not the front. A suffix keeps a chain's handles
+  together under their stem; a prefix (`review-sync-design`) sorts every review
+  beside every *other* review and scatters the chains it was meant to reveal. And
+  the children keep the **stem** rather than shortening to `01-design` /
+  `02-review` now that the node supplies the context: `resolve` matches a bare
+  slug exactly and reports more than one match as ambiguous, and `.grove/` dies at
+  the finish cycle leaving commit messages as the only record — where `review-k14`
+  names a role and no artifact. The node's `-chain` / `-pair` token is the same
+  rule one level up; without it the node's slug collides with its first child's.
+- **The node carries no `BRIEF.md`, and nothing reads its name.** A charter means
+  *this work proved bigger than one session*, which a chain is not; a stub written
+  because a step demanded it is what constraint 4 forbids, and the verb knows only
+  a stem anyway. Its absence is what lets the Retire cascade ask its
+  "is this node done?" confirmation of **brief-carrying nodes only** — a fair
+  question of a decomposition, noise for a chain whose integrate step finishing
+  means it is finished by construction. That discriminator is a **file test**: the
+  `-chain` / `-pair` token is ordinary slug text, and anything that parsed it would
+  reintroduce exactly the convention-reading this section forbids.
+- **A chain is not a unit, either.** Containment is not immunity: `pick` descends
+  a chain node in pre-order like any other and walks straight out into the next
+  sibling once its steps are done — it returns the first live leaf in the whole
+  tree and nothing groups leaves for it (*task-tree-scheme*). What the directory
+  *does* buy is that a sibling-level `leaf-insert` can no longer split the steps,
+  and that a step decided on *after* its producer ran is
+  `leaf-add <chain-node> <stem>-late-step`, appending **inside** the node —
+  immediately after its stem-mates, ahead of everything outside. Only a producer
+  cut as a plain leaf still needs `leaf-insert`; no directory retrofits that, and
+  there is deliberately no retrofit verb.
 
 The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step

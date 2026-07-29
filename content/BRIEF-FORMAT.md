@@ -2,14 +2,25 @@
 
 # BRIEF-FORMAT — the node briefing
 
-Every node in a grove is a **directory**, and each carries a brief as the
-`BRIEF.md` inside it — the root node `.grove/` as `.grove/BRIEF.md`, every other
-node as the `BRIEF.md` in its directory `NN-<slug>-k<key>/` (the directory the
-leaf became when it was decomposed, keeping its permanent key). It is **process
-scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision log
-(`docs/adr/`). It exists so that a session executing a leaf can read *three*
+Every node in a grove is a **directory**, and a *decomposition* node carries a
+brief as the `BRIEF.md` inside it — the root node `.grove/` as `.grove/BRIEF.md`,
+every other one as the `BRIEF.md` in its directory `NN-<slug>-k<key>/` (the
+directory the leaf became when it was decomposed, keeping its permanent key). It
+is **process scaffolding** — neither the glossary (`CONTEXT.md`) nor a decision
+log (`docs/adr/`). It exists so that a session executing a leaf can read *three*
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
+
+**Not every node has one.** A **chain node** — the directory `leaf-add-chain` /
+`leaf-add-pair` writes to hold a review chain or a vendor pair — is brief-less by
+rule: it means *these steps compose one artifact*, a shape declared whole at
+construction with no context anyone is in a position to write, and a stub emitted
+because a step demanded it is what constraint 4 forbids. So the presence of
+`BRIEF.md` is the **discriminator between the two node species**, which is why
+`brief-chain` skipping a level with no brief is load-bearing rather than merely
+tolerant, and why the Retire cascade's confirmation is asked of **brief-carrying
+nodes only** (`TASK-FORMAT.md`; ADR *task-tree-scheme*). Nothing is enforced:
+writing a `BRIEF.md` into a chain node simply makes it brief-carrying.
 
 A brief is written by whichever session creates its node — a `planning` task
 cutting the tree, or a leaf of any kind that proved bigger than its brief and

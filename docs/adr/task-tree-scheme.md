@@ -109,9 +109,19 @@ the DFS pre-order is the sort order. The verbs express this against the director
 structure: `pick` is a recursive DFS walk returning the first live leaf; `brief-chain`
 walks parent directories collecting each `BRIEF.md`; `resolve` searches directories by
 key; `leaf-decompose` turns a leaf file into a node *directory* (keeping its key);
-`leaf-retire` adds the `DONE` infix in place; and `leaf-insert` moves sibling
-directories (`git mv`, or a plain rename in a jj-enabled tree), subtrees riding
-along.
+`leaf-retire` adds the `DONE` infix in place; `leaf-add-chain` / `leaf-add-pair`
+create a brief-less chain node holding three named steps; and `leaf-insert` moves
+sibling directories (`git mv`, or a plain rename in a jj-enabled tree), subtrees
+riding along.
+
+**A parent is a directory whose *name* parses as a node — the charter is not part
+of the test.** The appending verbs used to require a `BRIEF.md` at the parent, a
+guard written when every node was a decomposition node and so always carried one.
+A chain node is brief-less, and the old guard refused the shape the design names
+explicitly: `leaf-add <chain-node> <stem>-late-step`, a step decided on after its
+producer ran, appending *inside* the node instead of behind every unrelated live
+leaf. The charter distinguishes the two node **species**; it never distinguished a
+node from a non-node.
 
 ### `pick` is a walk, not a scheduler
 

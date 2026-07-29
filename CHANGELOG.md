@@ -25,6 +25,48 @@ were never in a version's path either.
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
+## Unreleased
+
+### Changed
+
+- **A review chain and a vendor pair are now a *node directory*** — reversing the
+  "a chain gets no node directory of its own" line v16.2.0 shipped. `leaf-add-chain`
+  and `leaf-add-pair` write `NN-<stem>-chain-k<key>/` (or `-pair-`) holding their
+  three steps at `01`–`03`; four keys per shape, not three, and stdout is **four**
+  absolute paths with the node's leading, so a caller can `leaf-add <node>` a late
+  step straight into it.
+
+  **The directory is what makes the group structural.** A flat run of stem-sharing
+  leaves is contiguous and similarly prefixed, and nothing in a listing tells it
+  apart from three adjacent unrelated leaves; a directory is a first-class object
+  in `yazi`, Finder and `ls -R` alike, collapsible and countable without any of
+  them being taught the convention. That is the argument the earlier rejection got
+  wrong — its legibility case rested on `find` and on the one viewer grove ships.
+
+  **The node carries no `BRIEF.md`, by rule**, and that is what killed the two
+  costs the earlier answer was built on: it buys no charter written because a step
+  demanded it (constraint 4), and the Retire cascade's "is this node done?"
+  confirmation is now asked of **brief-carrying nodes only**, so a chain closes
+  silently. The discriminator is a **file's presence, never a name pattern** — the
+  `-chain` / `-pair` token is ordinary slug text nothing keys on, present only so
+  the node's slug does not collide with its first child's under `resolve`.
+
+  **Existing flat chains are not migrated, and that is a decision.** Detecting one
+  needs the `-review` / `-integrate` suffix parsing the design forbids, and would
+  misfire on a leaf legitimately named `foo-review`. A flat chain is a valid tree
+  that `pick` walks correctly. No format bump; `grove do`'s migration is untouched.
+
+  Falling out of the same change: `leaf-add` / `leaf-add-chain` / `leaf-add-pair`
+  now accept **any node directory** as `<parent>`, where they had required one
+  holding a `BRIEF.md`. That guard predated the two node species and refused the
+  shape the design names explicitly — `leaf-add <chain-node> <stem>-late-step`,
+  which lands a step decided on afterwards inside the chain rather than behind
+  every unrelated live leaf. `pick`, `brief-chain`, `resolve`, `leaf-insert`,
+  `leaf-decompose`, `leaf-retire` and `leaf-prune` needed no change at all, and
+  neither did the tree viewer. `docs/specs/task-kind-taxonomy.md` carries the
+  design and the lapsed arguments; ADRs *task-tree-scheme* and *task-kind-taxonomy*
+  carry the two node species and the charter discriminator.
+
 ## v16.2.0
 
 ### Added

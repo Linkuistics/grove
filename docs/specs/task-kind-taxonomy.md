@@ -403,7 +403,7 @@ prevent, reintroduced by the verb itself. So the contract is:
   back, so paths on stdout would describe files that are no longer there.
 
 The observable property is **no silent partial shape**, and it is what the tests
-assert — a happy path that made three files does not test the reason the verb
+assert — a happy path that made four things does not test the reason the verb
 exists. A retry after a refusal therefore gets the positions and keys the failed
 run had planned, rather than appending a duplicate shape behind the first one's
 debris.

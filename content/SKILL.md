@@ -15,13 +15,15 @@ flowchart TD
   subgraph tree["A grove — a directory tree under .grove/; a node is a directory"]
     direction TB
     root["BRIEF.md — root brief (heads .grove/)"]
-    n1["01-design-k1/ — node directory"]
+    n1["01-design-k1/ — decomposition node"]
     nb1["BRIEF.md — node brief"]
     l1["01-DONE-spec-k2.md — retired leaf, in place"]
     l2["02-impl-k3.md — live leaf"]
-    n2["02-build-k4.md — live leaf"]
+    n2["02-build-chain-k4/ — chain node, no brief"]
+    c1["01-build-k5.md — live leaf"]
     root --- n1
     root --- n2
+    n2 --- c1
     n1 --- nb1
     n1 --- l1
     n1 --- l2
@@ -217,39 +219,56 @@ whole shape is no more work than cutting the first leaf of it:
   "two corpora" a fact in the tree rather than a guess about what routing policy
   will say weeks later. An equal pair is refused.
 
-Both verbs append at `<parent>`'s next free positions (`.` for the grove root, or
-a node by key or path), name the three leaves off one stem, and print their three
-absolute paths. **All three land or none does**: a run that fails is rolled back
-and prints nothing, so you never get a live prefix of a chain that reads like a
-deliberately partial one. A generated shape is byte-identical to the same leaves
+**Each shape is a node directory** — `<stem>-chain/` or `<stem>-pair/`, appended
+at `<parent>`'s next free position (`.` for the grove root, or a node by key or
+path), holding its three steps as children at `01`–`03`. Four keys per shape, not
+three: the node holds the first. Stdout is **four** absolute paths, the node
+directory first, so you can `leaf-add <node> <stem>-late-step` straight into it.
+**The whole shape lands or none of it does**: a run that fails is rolled back —
+one recursive remove of a directory that did not exist beforehand — and prints
+nothing, so you never get a live prefix of a chain that reads like a deliberately
+partial one. A generated shape is byte-identical to the same directory and leaves
 cut by hand.
+
+**The node carries no `BRIEF.md`, by rule.** A charter says *this proved bigger
+than one session*; a chain has no such context to write, and a stub written
+because a step demanded it is what constraint 4 forbids. Its absence is also the
+**discriminator** the Retire step reads (below) — a file test, never a parse of
+the `-chain` / `-pair` token, which is ordinary slug text nothing keys on. Write a
+`BRIEF.md` into one yourself and you have simply made it brief-carrying; nothing
+is enforced.
 
 **The stem gets a step suffix, not a prefix** — `<stem>` / `<stem>-review` /
 `<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine` — so
 `find .grove` shows the *process*, not just the work, without opening a file. The
-suffix goes on the end because that is what keeps a chain together under its
-stem; a prefix (`review-<stem>`) sorts every review beside every other review and
-scatters the chains it was meant to reveal. A chain gets **no node directory of
-its own**: a node means "this proved bigger than one session", and spending one
-per chain buys a `BRIEF.md` written because a step demanded it (constraint 4)
-while erasing what node-ness tells a reader.
+children keep the stem (`sync-design-review-k13`, not `review-k13`) and the node
+takes the `-chain` / `-pair` token, both for the same reason: `resolve` matches a
+bare slug **exactly**, and `.grove/` dies at the finish cycle leaving commit
+messages as the only record, so a handle has to stay unique tree-wide *and* name
+its artifact once the tree that explained it is gone. The suffix goes on the end
+because that is what keeps a chain's *handles* together under their stem; a prefix
+(`review-<stem>`) sorts every review beside every other review.
 
 None of this is enforced and none of it is parsed. grove validates no ordering
 between leaves — a grammar is a relation *between* leaves and grove expresses
 none (*task-kind-taxonomy*) — and skipping a chain is a normal choice, not a
 violation: `leaf-add` is untouched and cuts one leaf as it always did. The verbs
 *write* the convention; nothing ever reads it back. A chain is not a **unit**
-either: its steps run in order because they are *adjacent*, and `pick` returns the
-first live leaf in the tree with nothing grouping them (*task-tree-scheme*). So cut
-a chain's steps together — which is what the one-call verbs are for — and use
-`leaf-insert`, not `leaf-add`, for a step decided on **after** its producer
-already ran; there is deliberately no retrofit verb, because appending would put
-the step behind every unrelated live leaf.
+either: containment is not immunity. `pick` descends a chain node in pre-order
+exactly as it descends any node and walks straight out into the next sibling once
+its steps are done — it returns the first live leaf in the tree with nothing
+grouping them (*task-tree-scheme*). What the directory *does* protect is
+contiguity: a sibling-level `leaf-insert` can no longer land between a chain's
+steps, and a step decided on **after** its producer ran is `leaf-add <chain-node>
+<stem>-late-step`, which appends *inside* the node — immediately after its
+stem-mates and ahead of everything outside. Only a producer cut as a **plain
+leaf** still needs `leaf-insert`; no directory can retrofit that.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
-`NN-<slug>-k<key>/` holding a `BRIEF.md` charter plus its numbered children
-(`01-…`, `02-…`); the filesystem carries the hierarchy, and `.grove/` is itself
-the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
+`NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), optionally
+headed by a `BRIEF.md` charter — always one for a node a leaf *decomposed* into,
+never one for a chain node; the filesystem carries the hierarchy, and `.grove/` is
+itself the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
 <first-child-slug>`: the verb moves the leaf file `NN-<slug>-k<key>.md`
 (`git mv`; a plain rename in a jj-enabled tree, where jj snapshots the working
 copy) into a new directory `NN-<slug>-k<key>/` as its `BRIEF.md` (**keeping its permanent
@@ -326,9 +345,14 @@ clears the when-to-write bar; otherwise the mark and the commit message suffice
 Then walk the parent chain: if a node now has no live leaf left in its subtree —
 however its leaves finished — it is **implicitly done** — a brief is context,
 not a task, so it is never marked done; its done-ness *is* the absence of a live
-child. **Ask the user before treating it as done** — the confirmation gives them
-a moment to add a follow-up leaf if the node is not actually finished. On
-confirmation, promote anything still relevant from the node's brief upward — to
+child. **Ask the user before treating a *brief-carrying* node as done** — the
+confirmation gives them a moment to add a follow-up leaf if the node is not
+actually finished. A **brief-less** node — a chain node, written whole by
+`leaf-add-chain` / `leaf-add-pair` — closes **silently**: its integrate or
+combine step finishing means it is finished by construction, there is no brief to
+promote, and the question has one sensible answer. The discriminator is the
+presence of `BRIEF.md`, a file test — never the node's slug. On confirmation,
+promote anything still relevant from the node's brief upward — to
 the parent brief, an ADR, or the glossary — so it stays in the brief chain of
 future siblings; the brief and its now-terminal leaves stay exactly where they
 are (nothing moves). Retirement is also the moment to **reconcile the ADR set**
@@ -415,7 +439,8 @@ else — terse definitions, aliases-to-avoid, no implementation detail
 
 **Briefs vs. the glossary.** A bounded context is a *domain* partition; a
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
-is per-bounded-context; a node carries a `BRIEF.md`, not a glossary.
+is per-bounded-context; a node that carries anything carries a `BRIEF.md`, not a
+glossary.
 
 ## Specs
 

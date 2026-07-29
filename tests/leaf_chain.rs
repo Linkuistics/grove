@@ -6,9 +6,11 @@
 // unit tests). What only the binary can show is the *command* contract, which is
 // where the review's F1 landed:
 //
-//   * **stdout is the shape or it is nothing** — a failed run prints no path at
-//     all, because the run was rolled back and stdout describing files that are
-//     no longer there is worse than silence;
+//   * **stdout is the shape or it is nothing** — four absolute paths, the chain
+//     node's directory first so a caller can `leaf-add <node>` a late step
+//     straight into it; and a failed run prints no path at all, because the run
+//     was rolled back and stdout describing files that are no longer there is
+//     worse than silence;
 //   * the refusals **teach**, at the one moment a session is deciding — a
 //     `--harness` on a chain names the policy var, a `--kind` on a pair names
 //     the other verb;
@@ -69,7 +71,7 @@ fn body(worktree: &Path, name: &str) -> String {
 }
 
 #[test]
-fn chain_prints_its_three_paths_in_position_order() {
+fn chain_prints_its_node_then_its_three_steps() {
     let t = grove();
     let (stdout, _, ok) = run(
         t.path(),
@@ -77,11 +79,16 @@ fn chain_prints_its_three_paths_in_position_order() {
     );
     assert!(ok, "chain should succeed: {stdout}");
     let lines: Vec<&str> = stdout.lines().collect();
-    assert_eq!(lines.len(), 3, "one absolute path per leaf: {stdout:?}");
+    assert_eq!(
+        lines.len(),
+        4,
+        "the node directory then one path per step: {stdout:?}"
+    );
     for (line, expected) in lines.iter().zip([
-        "01-sync-k1.md",
-        "02-sync-review-k2.md",
-        "03-sync-integrate-k3.md",
+        "01-sync-chain-k1",
+        "01-sync-chain-k1/01-sync-k2.md",
+        "01-sync-chain-k1/02-sync-review-k3.md",
+        "01-sync-chain-k1/03-sync-integrate-k4.md",
     ]) {
         assert!(
             line.ends_with(expected) && line.starts_with('/'),
@@ -91,7 +98,7 @@ fn chain_prints_its_three_paths_in_position_order() {
 }
 
 #[test]
-fn pair_prints_its_three_paths_and_declares_both_vendors() {
+fn pair_prints_its_node_and_declares_both_vendors() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
@@ -106,23 +113,59 @@ fn pair_prints_its_three_paths_and_declares_both_vendors() {
         ],
     );
     assert!(ok, "pair should succeed: {stdout} {stderr}");
-    assert_eq!(stdout.lines().count(), 3, "{stdout:?}");
-    assert!(body(t.path(), "01-survey-a-k1.md").contains("**Harness:** claude"));
-    assert!(body(t.path(), "02-survey-b-k2.md").contains("**Harness:** codex"));
-    assert!(!body(t.path(), "03-survey-combine-k3.md").contains("**Harness:**"));
+    assert_eq!(stdout.lines().count(), 4, "{stdout:?}");
+    let node = "01-survey-pair-k1";
+    assert!(
+        !t.path().join(".grove").join(node).join("BRIEF.md").exists(),
+        "a chain node is brief-less by rule — the Retire cascade's discriminator"
+    );
+    assert!(body(t.path(), &format!("{node}/01-survey-a-k2.md")).contains("**Harness:** claude"));
+    assert!(body(t.path(), &format!("{node}/02-survey-b-k3.md")).contains("**Harness:** codex"));
+    assert!(!body(t.path(), &format!("{node}/03-survey-combine-k4.md")).contains("**Harness:**"));
+}
+
+#[test]
+fn the_printed_node_path_is_a_parent_leaf_add_accepts() {
+    // Why the node's path leads stdout rather than being implied: the shape's
+    // one durable affordance is `leaf-add <node> <stem>-late-step`, which lands a
+    // step decided on afterwards *inside* the chain instead of behind every
+    // unrelated live leaf. Piping the first line straight back in is the whole
+    // point, and it only works because a chain node's missing `BRIEF.md` does not
+    // disqualify it as a parent.
+    let t = grove();
+    let (stdout, _, ok) = run(
+        t.path(),
+        &["leaf-add-chain", ".", "sync", "--kind", "design"],
+    );
+    assert!(ok, "{stdout}");
+    let node = stdout.lines().next().unwrap();
+
+    let (added, stderr, ok) = run(t.path(), &["leaf-add", node, "sync-second-review"]);
+
+    assert!(ok, "leaf-add into the chain node should succeed: {stderr}");
+    assert!(
+        added
+            .trim()
+            .ends_with("01-sync-chain-k1/04-sync-second-review-k5.md"),
+        "the late step lands inside the node, after its stem-mates: {added:?}"
+    );
 }
 
 #[test]
 fn a_failed_run_prints_no_path_at_all() {
-    // F1's stdout half. Printing as each leaf lands would let stdout describe a
+    // F1's stdout half. Printing as each path lands would let stdout describe a
     // mutation the command reports as failed — and here the run is rolled back,
     // so those paths do not exist by the time the caller reads them.
     //
-    // The obstruction is a *directory* wearing the third leaf's name: the tree
-    // reconciles parsed names against real filesystem kinds, so it is invisible
-    // to position and key allocation and still blocks the write.
+    // The obstruction is a *file* wearing the node's name: the tree reconciles
+    // parsed names against real filesystem kinds, so it is invisible to position
+    // and key allocation and still blocks the directory.
     let t = grove();
-    fs::create_dir(t.path().join(".grove").join("03-sync-integrate-k3.md")).unwrap();
+    fs::write(
+        t.path().join(".grove").join("01-sync-chain-k1"),
+        "not a node\n",
+    )
+    .unwrap();
 
     let (stdout, stderr, ok) = run(
         t.path(),
@@ -140,8 +183,8 @@ fn a_failed_run_prints_no_path_at_all() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["03-sync-integrate-k3.md", "BRIEF.md"],
-        "no live prefix of a chain left behind"
+        vec!["01-sync-chain-k1", "BRIEF.md"],
+        "no half-built chain node left behind"
     );
 }
 

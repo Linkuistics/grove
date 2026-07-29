@@ -55,13 +55,17 @@ relation *between* leaves and grove expresses no such relation — the same
 principle that keeps "the reviewer must not be the author" out of grove. The
 patterns are documented conventions (`docs/specs/task-kind-taxonomy.md`).
 
-**Nor are they units.** A chain is not something `pick` refuses to walk out of,
-and not something whose close skips the Retire cascade's confirmation. Both would
-need `pick` to modulate its walk, which *task-tree-scheme* forbids for a reason
-that is not about chains at all. The three-leaf shape is not a workaround for a
-missing construct: a leaf is the only unit the loop can be *at*, so cutting one
-artifact into three leaves **is** how grove represents "one artifact, three
-sessions" — the state is the tree, and there is nowhere smaller to put it.
+**Nor are they units.** A chain is a **node directory** holding its three steps
+(*task-tree-scheme*), which makes the grouping structural — but structure is not
+immunity: `pick` descends a chain node in pre-order exactly as it descends any
+node and walks straight out into the next sibling. A chain `pick` refuses to leave
+would need `pick` to modulate its walk, which *task-tree-scheme* forbids for a
+reason that is not about chains at all. The three-leaf shape is not a workaround
+for a missing construct: a leaf is the only unit the loop can be *at*, so cutting
+one artifact into three leaves **is** how grove represents "one artifact, three
+sessions" — the state is the tree, and there is nowhere smaller to put it. The
+node's close skips the Retire cascade's confirmation, but by being **brief-less**
+rather than by being a unit: the cascade asks of brief-carrying nodes only.
 
 ## Gate on write, degrade on read
 
@@ -108,18 +112,17 @@ trees are ephemeral, so it expires on its own.
   too: it would fire on a tree the human deliberately shaped, demand no action,
   and re-trigger on every `leaf-insert`.
 - **Making a chain a first-class *group* — a unit `pick` will not leave, closing
-  without confirmation (rejected).** Two of its three motivating costs do not
-  exist. A chain at adjacent positions is already ordered by exactly the mechanism
-  a node's children are, so `pick` does not wander out of one; and the Retire
-  cascade's confirmation is asked **per node**, so a chain — deliberately not a
-  node — already closes with none. That second cost is *created* by giving a chain
-  a directory, not removed by it, which is a second and independent reason
-  node-per-chain loses. The one real gap is that a sibling-level `leaf-insert` can
-  split a chain where containment would not, and the machinery that would close it
-  costs `pick`'s walk (*task-tree-scheme*) against a split repaired by one command.
-  It would also **gate**: a chain `pick` will not leave is grove overruling the
-  order a human set with the one verb that exists to preempt, so the request to
-  remove a gate would have installed a larger one (constraint 5).
+  without confirmation (rejected).** None of its three motivating costs survives.
+  A chain's steps are a node's children at adjacent positions, so `pick` does not
+  wander out of one mid-chain; the Retire cascade's confirmation is asked of
+  **brief-carrying** nodes and a chain node is brief-less by rule, so it already
+  closes with none; and the one real gap — a sibling-level `leaf-insert` splitting
+  a chain, where containment would not — closed as a **by-product** of the
+  grouping becoming structural, not by adopting the group construct. Note that the
+  gap closed without `pick` learning anything: it is the same stateless local walk.
+  The construct would also **gate**: a chain `pick` will not leave is grove
+  overruling the order a human set with the one verb that exists to preempt, so
+  the request to remove a gate would have installed a larger one (constraint 5).
   `docs/specs/task-kind-taxonomy.md` costs both candidate marks and the tempting
   middle option (`leaf-add` inferring placement from a shared stem).
 - **Upstream wayfinder's four types (rejected as a set).** `research` / `prototype`

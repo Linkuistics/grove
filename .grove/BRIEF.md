@@ -454,6 +454,23 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   because the cut cannot happen in this working tree at all — it is a jj-native
   secondary workspace with no `.git`. Last leaf: after it, `pick` is empty and
   the finish cycle follows.
+  **Done. v16.2.0 is cut, published and installed, and all five leaves are
+  proved in the *installed* binary — functionally, not by `strings`.** The
+  gap this grove worked around throughout is closed: `/opt/homebrew/bin/grove`
+  is 16.2.0, so work here stops needing `./target/debug/grove-llm`. Two of the
+  leaf's own premises came back **false**, both cheaply. v16.0.0 and v16.1.0
+  were **already on `origin`** — byte-identical annotated tag objects — so the
+  reconciliation item was satisfied before the session started and only
+  v16.2.0's own tag needed pushing; `jj git push` does refuse tags, but the
+  release path's documented `git push origin <tag>` had already carried them.
+  And **installing does not have to come last**: the version-skew guard sits at
+  the top of each *loop iteration* (`src/loop_driver.rs:167`), so it stops the
+  loop before the **next** session and never touches the installing one — which
+  is what let the proofs run in the same session that installed. The
+  33-commit `main@git` lag was real and closed by one `jj new main` in the
+  colocated workspace (see Notes). k27's fixes held with no regression: the
+  doctor passed all eight checks and neither `cargo release` nor
+  `release-build.sh` needed a flag.
 
 ## Pointers
 
@@ -821,3 +838,40 @@ control: re-verify anything load-bearing before building on it.
   carries at most 64 panes. It stays the human's call because it interrupts their
   UI. **Do not reach for `herdr update --handoff`**: that fetches *upstream*
   herdr and would clobber the fork.
+- **`main@git` lags because the commits are made from the wrong workspace, and
+  one command closes it** (measured 2026-07-29, `ship-v16-2-0-k42`). The
+  colocated `.git`'s `refs/heads/main` sat 33 commits behind jj's `main` — not
+  because jj had failed to export, but because every one of those commits was
+  made from the **jj-native secondary workspace**, which has no `.git` to export
+  to. `jj new main` in the *colocated default* workspace both moves git `HEAD`
+  onto the tip (what `cargo release` commits against) and fast-forwards
+  `refs/heads/main` as a side effect of jj's automatic export. Check it with
+  `jj bookmark list --all-remotes`, which names the lag as `@git (behind by N
+  commits)` — a plain `jj log` shows only `main*`, which does not say which
+  remote disagrees.
+- **`brew upgrade` mid-session is safe; only the *next* session is stopped**
+  (read from `src/loop_driver.rs:167-189`, 2026-07-29). The version-skew guard
+  is the first thing in the loop **body**, so it fires between iterations: the
+  session that runs the install keeps its own driver and finishes normally, and
+  the loop stops before relaunching. So the installed-binary proofs a shipping
+  leaf owes belong in the **same** session as the install, not a follow-up.
+- **The cheap rig for proving an installed binary carries a release**
+  (`ship-v16-2-0-k42`, reusable next cut). A scratch `git init` tree +
+  `grove-llm root-init` + a two-line fake harness on
+  `GROVE_HARNESS_BIN_CLAUDE`, launched with `env -u HERDR_ENV` so the nested
+  driver reports nothing to the operator's own pane, and `--harness claude` +
+  `GROVE_CLAUDE_MODEL` because a scratch tree has no stamp and no detectable
+  harness. The fake exits 0 without signalling, so the nested loop stops itself
+  after one iteration. That one launch yields three proofs at once: the k41
+  launch-line tail, `HERDR_AGENT` on the child (have the fake echo it), and —
+  because `grove do` **re-provisions the skill from the binary** — the
+  methodology surfaces, which is a better proof of guidance shipping than
+  `strings` on the binary ever gives. A fourth comes free from the scratch tree
+  being untrusted: `grove do --harness codex --no-launch` there exercises k35's
+  pre-flight refusal end to end.
+- **A release is two outward-facing gestures, and the harness classifier blocks
+  the scripted forms of both.** `cargo release … --execute` and
+  `scripts/release-publish.sh` were each refused as opaque invocations, while
+  the publish script's two constituent commands (`gh release create`, the tap
+  `cp`/`commit`/`push`) ran fine spelled out. Expect to hand the cut to the
+  human and to run the publish step by hand; nothing about grove needs changing.

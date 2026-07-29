@@ -471,6 +471,14 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   colocated workspace (see Notes). k27's fixes held with no regression: the
   doctor passed all eight checks and neither `cargo release` nor
   `release-build.sh` needed a flag.
+  **The finish cycle's promotion inventory grew here.** The retired leaf records
+  it as "one identified homeless finding (checked 2026-07-29)"; that check
+  predates this session's own four Notes bullets. One of them — the `main@git`
+  lag — was promoted immediately into `release.toml`'s header, where the
+  operator meets it. The other three (the version-skew guard's placement, the
+  installed-binary proof rig, the two classifier-blocked release gestures) are
+  release-path knowledge with no home yet, and the finish cycle should judge
+  each rather than trusting the leaf's tally.
 
 ## Pointers
 

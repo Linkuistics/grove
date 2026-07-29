@@ -1362,6 +1362,91 @@ fn a_read_only_codex_sandbox_refuses_before_launching() {
     );
 }
 
+/// A fake codex that **enforces `codex exec`'s git gate** the way the real one
+/// does: it refuses the probe outright unless `--skip-git-repo-check` is
+/// present — one line to stderr, exit 1, *no header* — and otherwise answers
+/// `read-only`. Launches are logged as before.
+fn fake_codex_gating_exec_on_a_git_repo(path: &std::path::Path) {
+    write_exec(
+        path,
+        r#"#!/bin/sh
+if [ "$1" = exec ]; then
+  case " $* " in
+    *" --skip-git-repo-check "*) printf 'sandbox: read-only\n' >&2; exit 0 ;;
+  esac
+  printf 'Not inside a trusted directory and --skip-git-repo-check was not specified.\n' >&2
+  exit 1
+fi
+printf 'launch\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+}
+
+// The pre-flight's own blind spot, closed. `codex exec` refuses to start when
+// the cwd is **neither trusted nor inside a git repo** — one line to stderr,
+// exit 1, before any header — while the TUI grove actually launches has no such
+// gate (the asymmetry ADR *codex-gitdir-grant* already records, applied there to
+// the launch and not to the probe that came later).
+//
+// So the hole was exactly anti-correlated with the guard's purpose: `untrusted`
+// is what makes the sandbox `read-only`, and `untrusted && not-a-git-repo` is
+// what makes the probe mute. In a jj-native working tree the verdict degraded to
+// `Unknown`, the loop launched anyway, and codex died on `--add-dir` with the
+// cryptic one-liner this pre-flight exists to replace.
+//
+// Pinned both ways, because the wrong fix passes half of it: making `Unknown`
+// fatal would satisfy the refusal below while breaking the rule that a probe
+// which *cannot* answer never stops a loop (constraint 5). The mechanism is the
+// flag, so the flag is asserted.
+#[test]
+fn the_probe_clears_codex_exec_s_git_gate_so_a_jj_native_tree_is_still_pre_flighted() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
+    plant_one_impl_leaf(worktree);
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-codex.sh");
+    fake_codex_gating_exec_on_a_git_repo(&fake);
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN_CODEX", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_CODEX_IMPL_MODEL", "sol-high");
+
+    let err = loop_driver::run_loop(
+        harness::by_name("codex").unwrap(),
+        worktree,
+        worktree,
+        "gatedgrove",
+    )
+    .expect_err("the gate must not cost the pre-flight its verdict")
+    .to_string();
+
+    assert!(
+        err.contains("read-only") && err.contains("trust"),
+        "the refusal is the same one a git tree already got — the gate changes \
+         what the probe can *ask*, never what grove does with the answer \
+         (err: {err})"
+    );
+    let log = fs::read_to_string(&log).unwrap_or_default();
+    assert!(
+        !log.contains("launch"),
+        "a mute probe used to degrade to `Unknown` and launch, which is how the \
+         field report happened at all (log: {log:?})"
+    );
+}
+
 // The other half of the same spawn: authority to end a session must not ride
 // along with the probe (guard-loop-signal-k37). `GROVE_SIGNAL_FILE` is the
 // driver's kill channel and an environment is inherited rather than addressed,

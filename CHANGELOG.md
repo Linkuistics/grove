@@ -148,6 +148,17 @@ stood at the graft — a closed record, not part of the versioned sequence above
   anything unanswerable (codex unspawnable, no header, an unknown mode) proceeds,
   because a probe that cannot answer must never be what stops a loop.
 
+  The probe passes **`--skip-git-repo-check`**, which is what makes it the TUI
+  rather than a stricter cousin of it. `codex exec` refuses to start when the cwd
+  is neither trusted nor inside a git repo — one line to stderr, exit 1, no
+  header — while the TUI grove actually launches has no such gate. Untrusted is
+  the very condition that makes the sandbox `read-only`, so in a **jj-native**
+  working tree the two arrive together and an unflagged probe went mute in
+  precisely the case it exists for: the verdict degraded to `Unknown`, the loop
+  launched, and codex died on `--add-dir` with the cryptic one-liner the
+  pre-flight is here to replace. The flag moves no policy — the same tree reports
+  the same `read-only` with or without a `.git` beside it.
+
   grove **refuses rather than elevating**: passing `--sandbox workspace-write`
   would make every launch succeed, but the sandbox posture is the user's and
   codex's trust prompt exists so a human answers it once. It refuses rather than

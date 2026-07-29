@@ -53,7 +53,10 @@ modes it would accept and says nothing about the trust that set the mode.
 **The verdict is codex's own, not a reimplementation.** The probe runs `codex
 exec` with the same model flags and the same grants the launch will pass, and
 reads the one `sandbox:` line of the header — the same policy builder the TUI
-uses, which is why `codex sandbox` is the trap recorded below. Reimplementing the
+uses, which is why `codex sandbox` is the trap recorded below. It also passes
+`--skip-git-repo-check`, which is what makes the probe *be* the TUI rather than a
+stricter cousin of it: `codex exec` carries a git gate the TUI does not, and the
+gate closes in exactly the quadrant the pre-flight exists for (below). Reimplementing the
 trust rules could not be made safe anyway, since an explicit `sandbox_mode` in
 the config, in a `--profile` layer, or on the command line overrides the trust
 default. So there are no false refusals: if it says `read-only`, the session
@@ -118,15 +121,29 @@ read-only facts against the installed 0.145.0, 2026-07-28):
   pre-flight possible at all: the probe gets its verdict in exactly the case the
   launch would die in. The header goes to **stderr**, and arrives in 0.1–0.4s,
   before hooks or MCP servers spin up.
+- **…but `codex exec` gates on a git repo where the TUI does not, so the probe
+  must pass `--skip-git-repo-check`.** Outside a git repo *and* outside a trusted
+  directory, `codex exec` prints `Not inside a trusted directory and
+  --skip-git-repo-check was not specified.` and exits **before** the header.
+  Untrusted is precisely the condition that makes the sandbox `read-only`, so in
+  a **jj-native** working tree — no `.git` for the gate to find, and a secondary
+  workspace of a *colocated* main has none of its own either — the two conditions
+  arrive together and an unflagged probe goes mute in exactly the case it exists
+  for: the verdict degrades to `Unknown`, the launch proceeds, and codex dies on
+  `--add-dir`. The flag clears the gate and moves no policy — an untrusted
+  jj-native tree reports the same `sandbox: read-only` that the same tree reports
+  with a `.git` beside it (measured, 0.145.0, 2026-07-29). This is why the
+  guard's blind spot was anti-correlated with its purpose rather than merely
+  incomplete, and why the case is pinned by a fake codex that enforces the gate.
 - **Probe trap: the `codex sandbox` subcommand does not model the session
   sandbox.** Since at least 0.144.5 it requires `--permission-profile` and
   exercises codex's named-profile machinery, not the legacy
   `sandbox_workspace_write` policy the TUI/exec path uses. Probing it gave a
   false replace-not-add reading that this decision's earlier drafts nearly
   encoded. Settle sandbox questions against `codex exec` (same policy builder
-  as the TUI), never the subcommand. (Relatedly: `--skip-git-repo-check` and
-  the hard not-a-git-repo refusal are `codex exec`-only — the TUI grove
-  launches has no git gate, so jj-native trees launch fine.)
+  as the TUI), never the subcommand. (Relatedly: the hard not-a-git-repo refusal
+  is `codex exec`-only — the TUI grove launches has no git gate, which is both
+  why jj-native trees launch fine and why the probe must clear it, above.)
 
 ## Considered options
 

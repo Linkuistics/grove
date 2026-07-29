@@ -377,6 +377,18 @@ fn probe_codex_sandbox(
 
     let mut cmd = Command::new(bin);
     cmd.arg("exec");
+    // `codex exec` refuses to start when the cwd is **neither trusted nor inside
+    // a git repo** — one line to stderr, exit 1, before any header — and the TUI
+    // this probe stands in for has no such gate. Without the flag the probe was
+    // therefore mute in exactly the case it exists for: `untrusted` is what makes
+    // the sandbox `read-only`, so in a **jj-native** tree the two conditions
+    // arrive together, the verdict degraded to `Unknown`, and the launch went
+    // ahead into the death this pre-flight is here to predict. The gate is
+    // `codex exec`'s alone, so clearing it is what makes the probe *be* the TUI
+    // rather than a stricter cousin of it; it moves no policy — a probe run with
+    // the flag in an untrusted jj-native tree reports the same `read-only` the
+    // same tree reports with a `.git` beside it.
+    cmd.arg("--skip-git-repo-check");
     if let Some(model) = model {
         if !harness.model_args.is_empty() {
             cmd.args(harness.model_args).arg(model);

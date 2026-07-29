@@ -14,7 +14,8 @@ as chained tool calls.
 - The `linkuistics` plugin manifest names the skill.
 - `./install.sh` places the skill in `~/.codex/skills`, `~/.gemini/skills` and
   `~/.pi/agent/skills`, verified by resolving one symlink and reading its
-  frontmatter.
+  frontmatter. **Done, but under an isolated `HOME` — the real `$HOME` was
+  deliberately not written** (see Notes § Distribution).
 
 ## Decomposition
 
@@ -102,6 +103,20 @@ every documented command falsified several claims all three carried as verified:
   `qualified_name` returns 67.
 
 `docs/` still carries the falsified wording — see `docs-reconcile-k6`.
+
+**Distribution — `install.sh` cannot be run from this working tree.**
+`distribution-k5` verified the install path against an **isolated `HOME`**, not
+the real one, and left `$HOME` untouched. The script derives its link source from
+`${BASH_SOURCE[0]}` and unconditionally re-links, so running it here — a
+*secondary* jj workspace, while the default is `/Users/antony/Development/grove`
+— would have re-pointed all 15 already-installed linkuistics skills at a tree
+that dies with this grove, silently. The evidence it did produce is stronger for
+the actual claim: `48 = 16 skills × 3 harnesses`, all three targets exercised,
+including `~/.gemini`, which does not exist on this machine and would otherwise
+have printed `skip`. The manifest edit and the glob-pickup are therefore fully
+verified; **only the real-machine install is outstanding**, and it is not
+grove's to do — `install.sh` should be run from the default workspace once this
+grove's work is integrated. The underlying defect is `install-workspace-guard-k8`.
 
 **Authoring authority.** The plan cites `superpowers:writing-skills`. This repo
 ships `linkuistics:authoring-conventions`, a **house delta that overrides

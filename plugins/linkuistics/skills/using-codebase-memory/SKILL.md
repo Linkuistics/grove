@@ -19,10 +19,17 @@ shell, and lets one question become one script instead of a round-trip per call.
 > queries — typed arguments, no shell quoting. Use the CLI when composing,
 > batching, or when those tools are not available.
 
-In Claude Code these MCP tools are deferred: they are absent from the base tool
-list and must be loaded before they can be called at all.
+In Claude Code, MCP tools are [deferred by default][toolsearch] — absent from the
+base tool list until loaded, so an absent `mcp__codebase-memory-mcp__*` tool means
+"not yet loaded", not "server not running". Load what you need first:
 
     ToolSearch("select:mcp__codebase-memory-mcp__search_graph,mcp__codebase-memory-mcp__trace_path")
+
+Deferral is the default, not a guarantee: `ENABLE_TOOL_SEARCH=false`, an
+unsupported endpoint, or a server marked `alwaysLoad` all put the tools in the
+base list instead, where they are simply callable.
+
+[toolsearch]: https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search
 
 ## Invoking the CLI
 
@@ -34,9 +41,10 @@ Parameter names live in the MCP tool schemas; where those are reachable
 argument lists in this file.
 
 Skip the `--json` flag. It wraps the payload in an MCP envelope
-(`.content[0].text`, a JSON *string* needing a second parse), writes that
-envelope to **both** stdout and stderr, and returns exit `0` on failure. Plain
-`cli` gives clean stdout and an honest exit status.
+(`.content[0].text`, a JSON *string* needing a second parse) and returns exit `0`
+even on failure — the failure signal moves inside the envelope, to
+`"isError": true`, where a shell `if` will not see it. Plain `cli` gives clean
+stdout and an honest exit status.
 
 ## The project parameter is required
 
@@ -78,8 +86,18 @@ codebase-memory-mcp cli no_such_tool '{}' >/dev/null 2>&1; echo $?   # 1
 codebase-memory-mcp cli no_such_tool '{}' | head -1 >/dev/null; echo $?  # 0 — head's status
 ```
 
-Guard without a pipeline: capture stdout, let the `if !` see the real status,
-and keep stderr where you can read it.
+`set -o pipefail` (bash and zsh alike) fixes the *status* half in one line, and
+is worth setting in any script that pipes this CLI:
+
+```bash
+set -o pipefail
+codebase-memory-mcp cli search_graph '{"project":"nope"}' | jq -r '.total'; echo $?  # 1
+```
+
+It does not fix the *blindness* half — `jq` still receives an empty stream and
+prints nothing useful. To see the error as well, guard without a pipeline:
+capture stdout, let the `if !` see the real status, and keep stderr where you can
+read it.
 
 ```bash
 if ! out=$(codebase-memory-mcp cli search_graph '{"project":"nope"}' 2>/tmp/cm.err); then
@@ -122,7 +140,7 @@ codebase-memory-mcp cli trace_path "$args"
 | Tool | For |
 |---|---|
 | `list_projects` | what is indexed (no arguments) |
-| `index_repository` | index a repo — `repo_path`, optional `mode` (`full`/`moderate`/`fast`) |
+| `index_repository` | index a repo — `repo_path`, optional `mode` (below) |
 | `index_status` | `{project, nodes, edges, status}` |
 | `detect_changes` | files changed since the index, and the symbols they touch |
 | `delete_project` | drop an index |
@@ -134,13 +152,45 @@ codebase-memory-mcp cli trace_path "$args"
 | `get_graph_schema` | node labels, their properties, and edge types with counts |
 | `get_architecture` | layers, clusters, entry points, routes, hotspots |
 | `manage_adr` | decision records held in the graph |
-| `ingest_traces` | fold runtime traces into the graph |
+| `ingest_traces` | accepts runtime traces — see below before relying on it |
 
-`search_graph` has three independent, combinable match modes: `query` (BM25
-full-text, splits camelCase — best for natural-language discovery),
-`name_pattern` / `qn_pattern` (regex over the name or qualified name), and
-`semantic_query` (an **array** of keywords, vector search). Narrow with `label`,
-`file_pattern`, `min_degree` / `max_degree`.
+`ingest_traces` does **not** currently change the graph. It accepts a payload and
+says so in the response: `{"status":"accepted", "traces_received":0, "note":
+"Runtime edge creation from traces not yet implemented"}`. Read the `note`;
+`status: "accepted"` alone reads like success.
+
+`index_repository`'s `mode` is `full` (the default), `moderate`, `fast`, or
+`cross-repo-intelligence` — the last also **requires** `target_projects` (use
+`["*"]` for all). An unrecognised mode is not rejected: it silently routes to
+`full`, the slowest one, so a typo costs time rather than raising an error.
+
+### `query` is exclusive; everything else composes
+
+`search_graph` selects rows three ways — `query` (BM25 full-text, splits
+camelCase — best for natural-language discovery), `name_pattern` / `qn_pattern`
+(regex over the name or qualified name), and `semantic_query` (an **array** of
+keywords, vector search) — narrowed by `label`, `file_pattern` and
+`min_degree` / `max_degree`.
+
+**`query` overrides every other one of those, silently.** Send it alongside any
+of them and the rest are ignored — no error, no warning, just unfiltered results
+you will read as filtered:
+
+```bash
+codebase-memory-mcp cli search_graph "{\"project\":\"$P\",\"query\":\"wait socket\",\"limit\":5}" \
+  | jq -r '.total'                                                          # 257
+codebase-memory-mcp cli search_graph \
+  "{\"project\":\"$P\",\"query\":\"wait socket\",\"label\":\"NoSuchLabel\",\"limit\":5}" \
+  | jq -r '.total'                                                          # 257 — label ignored
+```
+
+An impossible `name_pattern`, a nonexistent `label`, a `file_pattern` matching
+nothing, `min_degree:10000` — every one of them returns the same 257 rows. So
+treat `query` as a whole search, not as one clause of one: use it alone, or drop
+it and express the constraint in the modes that *do* compose.
+
+Everything except `query` intersects as you would expect — `name_pattern` +
+`qn_pattern`, `semantic_query` + `label` + `min_degree`, and so on all narrow.
 
 ## Results are truncated by default
 
@@ -158,9 +208,11 @@ Sorting or aggregating those 200 rows client-side answers a question about an
 arbitrary 8% of the matches, not about the codebase. Page with `offset` until
 `has_more` is false, or push the whole question into `query_graph`.
 
-`trace_path` truncates too, and more quietly — no `has_more`, no count. It
-returned exactly 100 callers for two different symbols whose inbound degree was
-123 and 104. Treat 100 as "at least 100".
+`trace_path` truncates too, and worse: its response carries no `total` and no
+`has_more`, and the cap is **hard at 100** — `limit` and `max_results` are both
+ignored. A symbol whose true caller count is 123 returns 100, and nothing in the
+payload says so. Read 100 as "100 or more, and this tool cannot tell you which";
+when the exact set matters, count it in Cypher instead.
 
 ## Degree filters are not directional
 
@@ -202,18 +254,20 @@ Pass the `qualified_name` instead — `trace_path` accepts one, and the same
 query then returns 67 callers. Check `total` from `search_graph` before
 trusting a bare name.
 
-Two more `trace_path` defaults that shape the answer: `include_tests` is
-**false**, so callers in test files are omitted unless you ask for them; and the
-response key follows the direction — `callers` for `inbound`, `callees` for
-`outbound`.
-
 ```bash
 QN=Users-antony-Development-herdr.scripts.smoke_live_handoff_sessions.wait_for_socket
 codebase-memory-mcp cli trace_path \
-  "{\"project\":\"$P\",\"function_name\":\"$QN\",\"direction\":\"inbound\",\"depth\":1,\"include_tests\":true}" \
+  "{\"project\":\"$P\",\"function_name\":\"$QN\",\"direction\":\"inbound\",\"depth\":1}" \
   | jq -c '{function, callers: [.callers[].name] | length}'
 # {"function":"...wait_for_socket","callers":67}
 ```
+
+Two more `trace_path` defaults shape the answer. `include_tests` is **false**, so
+callers in test files are dropped — and on a test-heavy symbol that is most of
+them. One fixture symbol reports **1** caller by default and **100** with
+`include_tests: true`; nothing but the flag distinguishes "barely used" from
+"used everywhere in the suite". The other default: the response key follows the
+direction — `callers` for `inbound`, `callees` for `outbound`.
 
 ## Push aggregation into Cypher
 
@@ -236,6 +290,31 @@ eight unrelated `wait_for_socket`s into one row.
 The response is columnar: `{columns, rows, total}`, where `rows` is an array of
 arrays in `columns` order and `total` is the row count.
 
+### Filter with `WHERE`, never an inline property map
+
+Pinning a node with a property map in the pattern — `(f:Function {qualified_name:
+'…'})` — **silently truncates any traversal off it to 10 rows**. The `WHERE` form
+of the same query returns the real answer:
+
+```bash
+cy() { codebase-memory-mcp cli query_graph "$(jq -nc --arg p "$P" --arg q "$1" '{project:$p, query:$q}')"; }
+QN=Users-antony-Development-herdr.src.app.input.mod.app_for_mouse_test
+
+cy "MATCH (f:Function {qualified_name: '$QN'})<-[:CALLS]-() RETURN count(*) AS n" | jq -c '.rows'
+# [["10"]]    <- capped, and nothing in the response says so
+cy "MATCH (f:Function)<-[:CALLS]-() WHERE f.qualified_name = '$QN' RETURN count(*) AS n" | jq -c '.rows'
+# [["123"]]   <- the true count
+```
+
+Every high-fan-in symbol on the fixture returns exactly `10` in the first form.
+There is no `has_more`, and `total` counts the rows *returned*, so the response
+looks complete. Worse, the two forms **agree** whenever the true result is under
+10 — so this passes every small test case and is wrong on every large one.
+
+The cap is on the traversal, not the match: a property map with no edge pattern
+(`MATCH (f:Function {name: 'wait_for_socket'}) RETURN count(*)`) is correct. That
+narrowness is not worth remembering — just always write `WHERE`.
+
 ## Compose across tools, not within one
 
 Cypher covers everything one query can express. Bash earns its place for the
@@ -243,17 +322,34 @@ shape Cypher cannot reach: **fanning a second tool over the first tool's
 results**. Each intermediate stays in the shell instead of transiting the
 conversation.
 
+A loop is where the silent-failure trap does the most damage: a failed call
+contributes nothing to stdout, so the loop simply iterates fewer times and the
+output looks like a smaller true answer. Two lines fix it for a whole script —
+`set -o pipefail` (bash and zsh both) restores the honest exit status through a
+pipe, and one wrapper keeps every error visible:
+
+```bash
+set -o pipefail
+P=Users-antony-Development-herdr
+
+cm() {  # cm <tool> <json>  — JSON on stdout, or a loud failure and exit 1
+  local out err=; err=$(mktemp)
+  if ! out=$(codebase-memory-mcp cli "$@" 2>"$err"); then
+    printf 'codebase-memory-mcp %s failed:\n' "$1" >&2; cat "$err" >&2
+    rm -f "$err"; return 1
+  fi
+  rm -f "$err"; printf '%s' "$out"
+}
+```
+
 Disambiguate, then trace — the two-step that turns a name into real callers:
 
 ```bash
-P=Users-antony-Development-herdr
-codebase-memory-mcp cli search_graph \
-  "$(jq -nc --arg p "$P" '{project:$p, label:"Function", name_pattern:"^wait_for_socket$"}')" \
+cm search_graph "$(jq -nc --arg p "$P" '{project:$p, label:"Function", name_pattern:"^wait_for_socket$"}')" \
   | jq -r '.results[] | select(.in_degree > 0) | .qualified_name' \
   | while read -r qn; do
-      codebase-memory-mcp cli trace_path \
+      cm trace_path \
         "$(jq -nc --arg p "$P" --arg f "$qn" '{project:$p, function_name:$f, direction:"inbound", depth:1}')" \
-        2>/dev/null \
       | jq -c --arg qn "$qn" '{symbol:$qn, callers:(.callers|length)}'
     done
 ```
@@ -262,15 +358,18 @@ Rank in Cypher, then pull each hit's source — one script instead of a
 round-trip per symbol:
 
 ```bash
-codebase-memory-mcp cli query_graph "$(jq -nc --arg p "$P" '{project:$p, query:
+cm query_graph "$(jq -nc --arg p "$P" '{project:$p, query:
   "MATCH (f:Function)<-[:CALLS]-() RETURN f.qualified_name AS qn, count(*) AS fan_in ORDER BY fan_in DESC LIMIT 5"}')" \
   | jq -r '.rows[][0]' \
   | while read -r qn; do
-      codebase-memory-mcp cli get_code_snippet \
-        "$(jq -nc --arg p "$P" --arg q "$qn" '{project:$p, qualified_name:$q}')" 2>/dev/null \
+      cm get_code_snippet "$(jq -nc --arg p "$P" --arg q "$qn" '{project:$p, qualified_name:$q}')" \
       | jq -c '{name, file_path, lines, complexity}'
     done
 ```
+
+The `2>/dev/null` these loops would otherwise carry is the blanket redirect
+warned against above: inside a loop it discards the one diagnostic that explains
+why a symbol produced no row.
 
 ## When the graph has no answer
 
@@ -283,9 +382,11 @@ codebase-memory-mcp cli index_repository "$(jq -nc --arg r "$PWD" '{repo_path:$r
 ```
 
 — or fall back to Grep and say which you did. `fast` skips similarity and
-semantic edges and filters the file set; the response names the directories it
-dropped under `excluded`, so check them before concluding a symbol is absent.
-`full` and `moderate` index more and cost more.
+semantic edges and filters the file set; where it dropped directories it names
+them under `excluded`, so check them before concluding a symbol is absent. The
+key is **absent entirely** when nothing was dropped, so `.excluded.dirs` yielding
+`null` means "nothing excluded", not "field missing". `full` and `moderate` index
+more and cost more.
 
 Reporting "no results found" from an index that was never built is the one
 failure mode this whole file exists to prevent.

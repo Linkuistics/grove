@@ -240,3 +240,89 @@ for indexing, the disposable fixture above):
   `writing-skills` / `anthropic-best-practices.md` materials could not be
   checked; the concrete house rules in `authoring-conventions` were checked
   directly.
+
+## Dispositions (`skill-integrate-k4`, 2026-07-29)
+
+Every finding above was re-run against the live fixture before being acted on.
+All six were **reproduced**; none was rejected. Two were acted on differently
+than the finding proposed, and both departures are recorded below.
+
+1. **`--json` duplicate envelope** — *acted, as written.* Reproduced: stderr
+   carries only `mem.init`, stdout carries the envelope. Dropped the
+   "both stdout and stderr" clause and added the fact that replaces it — the
+   failure signal moves *inside* the envelope as `"isError": true`, which is why
+   the exit-`0`-on-failure behaviour is dangerous rather than merely untidy.
+
+2. **Match modes not combinable** — *acted, and enlarged.* The finding tested
+   `query` + `name_pattern`. The defect is broader: `query` silently suppresses
+   **every** other selector, including the `label` / `file_pattern` /
+   `min_degree` narrowing the same paragraph recommended. An impossible
+   `name_pattern`, `label:"NoSuchLabel"`, an unmatched `file_pattern` and
+   `min_degree:10000` all return the identical 257 rows. Promoted to its own
+   subsection, with the composing (non-`query`) selectors stated positively so
+   the rule is usable rather than only a warning.
+
+3. **`ingest_traces`** — *acted, as written.* Reproduced verbatim. The table
+   entry no longer claims graph mutation, and the `note` field is quoted, since
+   `status: "accepted"` alone reads like success.
+
+4. **`index_repository` mode list not exhaustive** — *acted, and enlarged.*
+   `cross-repo-intelligence` confirmed, with its `target_projects` requirement.
+   Also found: an *unrecognised* mode is not rejected at all — it silently routes
+   to `full` (`pipeline.route path=full` on a disposable index), so a typo costs
+   the slowest indexing run rather than raising an error.
+
+5. **Worked pipelines reproduce the trap** — *acted, but not by guarding every
+   example.* The finding is right that the file taught the trap and then modelled
+   it. Guarding all ~12 illustrative one-liners would have buried the API content
+   they exist to teach, so the disposition splits them: the one-liners keep bare
+   `| jq` (each carries its expected output, which *is* the check), while the two
+   **composition scripts** — where a failed call silently shortens a loop, the
+   worst case — now open with `set -o pipefail` and a reusable `cm` wrapper that
+   prints the error and returns 1. `set -o pipefail` was also added to the
+   streams section as the general one-line fix for the exit-status half; it was
+   absent from the file entirely. The scripts' `2>/dev/null` was removed: three
+   sections above, the file warns against exactly that blanket redirect, so
+   inside a loop it was self-contradictory as well as harmful. Verified both
+   ways — the scripts still produce their documented output, and with a bad
+   project they now print a diagnostic and exit 1 where they previously printed
+   nothing and exited 0.
+
+6. **Claude Code claim unsourced** — *acted, but sourced rather than marked
+   `UNVERIFIED`.* The finding correctly applied the house rule; its proposed
+   remedy was the fallback, not the first choice. The authority hierarchy has a
+   primary source, so the claim now carries a deep anchor
+   (`code.claude.com/docs/en/mcp#scale-with-mcp-tool-search`). Sourcing it also
+   **corrected** it: deferral is Claude Code's *default*, not a universal —
+   `ENABLE_TOOL_SEARCH=false`, an unsupported endpoint, or a server marked
+   `alwaysLoad` all put the tools in the base list. The original absolute phrasing
+   would have misled an agent on any of those paths, which is the substantive win
+   `UNVERIFIED` would have missed.
+
+### Found by this leaf, missed by the review
+
+Re-running the file turned up defects the review did not reach. Recorded here
+because they measure the review's coverage, not to reopen it.
+
+- **`query_graph` truncates a property-map-anchored traversal to 10 rows,
+  silently.** `MATCH (f:Function {qualified_name: X})<-[:CALLS]-() RETURN
+  count(*)` returns `10` for every high-fan-in symbol on the fixture; the
+  `WHERE f.qualified_name = X` form of the same query returns the true `123`.
+  `total` reports the truncated count and there is no `has_more`, so the response
+  looks complete — and the two forms **agree** below 10 results, so it passes
+  every small test and is wrong on every large one. This is the same shape as the
+  `min_degree` defect this review chain was created to catch, in the very tool the
+  file recommends as the correct escape hatch. Now its own subsection.
+- **`trace_path`'s 100-cap is hard.** The review confirmed the cap; it is also
+  not adjustable — `limit` and `max_results` are both ignored. "Treat 100 as at
+  least 100" understated it, so the file now sends the reader to Cypher when the
+  exact set matters.
+- **The `include_tests` example was inert.** It passed `include_tests: true` on a
+  symbol with 67 callers either way, demonstrating nothing. The claim is true and
+  the effect is large on the right symbol (one fixture symbol: 1 by default, 100
+  with the flag), so the example was replaced by that contrast.
+- **`excluded` is absent, not null, when nothing was dropped** — verified both
+  ways on a disposable index (`excluded:["vendor"]` when a directory is dropped).
+- Both disposable indexes created during this leaf were removed with
+  `delete_project`; `list_projects` returns the same 7 projects as at session
+  start.

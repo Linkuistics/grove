@@ -169,6 +169,28 @@ impl Entry {
             } => format!("{:02}-{}-k{}", position, slug, key),
         }
     }
+
+    /// The **position-free stable handle** `<slug>-k<key>` — how a work item is
+    /// named in a commit message, in prose, and in any durable cross-reference
+    /// (task-tree-scheme, *Reference a work item by its stable handle*).
+    ///
+    /// The counterpart of [`Entry::name`], and the reason both live here: `name`
+    /// renders everything that *moves* (the per-level position, the outcome
+    /// infix, the `.md` suffix), `handle` renders the part that never does. A
+    /// caller that wants to be readable after a renumber wants this one. It is
+    /// also, byte for byte, the `# <slug>-k<key>` header the grow verbs write
+    /// into the file itself.
+    ///
+    /// `None` for the brief — the one entry with neither slug nor key, because a
+    /// brief is context rather than a work item.
+    pub fn handle(&self) -> Option<String> {
+        match self {
+            Entry::Brief => None,
+            Entry::Leaf { slug, key, .. } | Entry::Node { slug, key, .. } => {
+                Some(format!("{slug}-k{key}"))
+            }
+        }
+    }
 }
 
 /// Parse a bare name (not a path) into an [`Entry`]. **Lenient**: a name that does
@@ -659,6 +681,35 @@ mod tests {
         // Past 99 the FS lexical sort degrades (the documented ~99/level limit),
         // but rendering must not truncate — grove's own comparator stays numeric.
         assert_eq!(leaf(100, "x", 1).name(), "100-x-k1.md");
+    }
+
+    // ---- handle -------------------------------------------------------------
+
+    #[test]
+    fn handle_drops_the_position_that_name_renders() {
+        // The whole point of §5: the same work item at two positions is one
+        // handle, so a reference written before a renumber still reads after it.
+        assert_eq!(leaf(5, "add", 4).handle().as_deref(), Some("add-k4"));
+        assert_eq!(leaf(9, "add", 4).handle().as_deref(), Some("add-k4"));
+        assert_eq!(node(5, "verbs", 2).handle().as_deref(), Some("verbs-k2"));
+    }
+
+    #[test]
+    fn handle_survives_the_outcome_infix() {
+        // Retiring renames the file; a commit message that named the leaf must
+        // not have named something that no longer exists.
+        assert_eq!(done_leaf(5, "add", 4).handle().as_deref(), Some("add-k4"));
+        assert_eq!(
+            abandoned_leaf(5, "add", 4).handle().as_deref(),
+            Some("add-k4")
+        );
+    }
+
+    #[test]
+    fn handle_is_none_for_the_brief() {
+        // The one entry with neither slug nor key: a brief is context, not a
+        // work item, so there is nothing to name.
+        assert_eq!(Entry::Brief.handle(), None);
     }
 
     // ---- kind predicates ----------------------------------------------------

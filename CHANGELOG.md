@@ -185,6 +185,33 @@ stood at the graft — a closed record, not part of the versioned sequence above
   re-derivation that gives restart ≡ continuation — so the residual is one leaf
   executed on the wrong vendor, once. No behaviour changed.
 
+- **The launch line now names the leaf the launch routed on.** Every `grove do`
+  iteration printed `grove: launching claude (model: opus)` — true about the
+  launch and silent about the work. It now prints:
+
+  ```
+  grove: launching claude (model: opus) — session-leaf-binding-k28 (design)
+  ```
+
+  This is the one part of the complaint the entry above leaves standing. The
+  peek is a forecast the session may disagree with, and until now **nothing on
+  screen said so**: a session running a leaf routed for a different kind looked
+  identical to one that was not. The diagnostic closes that with no gate, no
+  environment export and no state outside the tree — the three grounds binding
+  was rejected on. It stands on its own too, since *what a grove is working on*
+  was absent from the driver's own output, and the scrollback is the only record
+  of what each session in a loop was on.
+
+  Named by the **stable `<slug>-k<key>` handle**, not the path
+  (*task-tree-scheme*): a position moves under `leaf-insert` and the scrollback
+  outlives it. Deliberately unlike `grove do --no-launch`, which keeps printing
+  the path because it names something the operator opens next. The tail is
+  omitted whenever there is no leaf to name — the bootstrap launch (no `.grove/`
+  to walk), the finish-cycle launch, and any walk that cannot resolve one — so a
+  line that reports a leaf is always reporting a real one. The kind shown is the
+  **peek's**, so the line says what the launch actually resolved on rather than
+  re-reading the file and reporting something the launch never saw.
+
 ### Fixed
 
 - **A codex grove no longer dies at startup in an untrusted working tree.** A

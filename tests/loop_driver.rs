@@ -1011,6 +1011,133 @@ exit 0
     );
 }
 
+/// Scaffolding for the tests below that observe the driver's **own stderr**.
+/// The launch diagnostic goes to the operator's terminal, not through any value
+/// an in-process `run_loop` test can inspect, so these drive the real `grove do`
+/// binary as a subprocess — the same route
+/// [`unrecognised_kind_warns_the_operator_and_still_launches`] takes.
+///
+/// Plants a git repo with `.claude/` (so the harness detects as claude), a
+/// provisioned skill dir, and a fake harness that exits without signalling — the
+/// loop then stops after exactly one launch, which is all a diagnostic assertion
+/// needs. Returns the command with the whole routing surface **scrubbed**: a
+/// subprocess inherits this process's ambient environment, so this repo's own
+/// dogfooded config would otherwise steer it.
+fn one_launch_grove_do(repo_path: &std::path::Path) -> std::process::Command {
+    let git = |args: &[&str]| {
+        assert!(
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(repo_path)
+                .status()
+                .unwrap()
+                .success(),
+            "git {args:?} failed"
+        );
+    };
+    git(&["init", "-q", "-b", "main"]);
+    git(&["config", "user.email", "t@example.com"]);
+    git(&["config", "user.name", "t"]);
+    fs::create_dir_all(repo_path.join(".claude")).unwrap();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
+
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(&fake, "#!/bin/sh\nexit 0\n");
+
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    cmd.args(["do"]).current_dir(repo_path);
+    for name in support::grove_env_names() {
+        cmd.env_remove(name);
+    }
+    cmd.env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .env("GROVE_SKILL_DIR", &skill_dir);
+    cmd
+}
+
+/// The driver's one launch line, or a panic naming what it saw instead.
+fn launch_line(stderr: &str) -> String {
+    stderr
+        .lines()
+        .find(|l| l.starts_with("grove: launching"))
+        .unwrap_or_else(|| panic!("no `grove: launching` line on stderr: {stderr:?}"))
+        .to_string()
+}
+
+// The launch line must name **what** the session was routed to work on, not
+// only where it was routed *to* (routed-leaf-diagnostic-k41). The routing peek
+// is a forecast the session is free to disagree with (model-per-task-kind), and
+// a session running a leaf routed for a different kind is otherwise
+// indistinguishable from one that is not — the harness and model on the line are
+// true about the launch and silent about the work.
+//
+// Asserted as **exact line equality**, which carries the naming rule for free:
+// the leaf here sits at position 02 under a `.grove/` path, and neither appears.
+// task-tree-scheme §5 — a durable reference is the `<slug>-k<key>` handle,
+// because scrollback outlives the position a `leaf-insert` will move.
+#[test]
+fn launch_line_names_the_routed_leaf_by_its_stable_handle() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let mut cmd = one_launch_grove_do(repo_path);
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-DONE-spec-k1.md"),
+        "# spec-k1\n\n**Kind:** design\n",
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join(".grove/02-picked-k7.md"),
+        "# picked-k7\n\n**Kind:** design\n",
+    )
+    .unwrap();
+
+    let out = cmd.env("GROVE_DESIGN_MODEL", "opus").output().unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+
+    assert_eq!(
+        launch_line(&stderr),
+        "grove: launching claude (model: opus) — picked-k7 (design)",
+        "the launch diagnostic must name the routed leaf by its stable handle \
+         and its kind (stderr: {stderr:?})"
+    );
+}
+
+// The other half: when there is no leaf to name, the line degrades to its
+// pre-feature form rather than inventing one. Driven over the **bootstrap**
+// launch, which is the honest case — `.grove/` does not exist yet, so the walk
+// has nothing to walk and the kind is `requirements` by construction
+// (fresh-grove-start-contract), resolved without reading any file at all.
+#[test]
+fn a_launch_with_no_leaf_to_name_degrades_to_the_bare_line() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let mut cmd = one_launch_grove_do(repo_path);
+    let out = cmd
+        .env("GROVE_REQUIREMENTS_MODEL", "opus")
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+
+    assert_eq!(
+        launch_line(&stderr),
+        "grove: launching claude (model: opus)",
+        "with no `.grove/` there is no leaf to name; the line must degrade \
+         rather than report a leaf it could not resolve (stderr: {stderr:?})"
+    );
+}
+
 // The load-bearing rule, **inverted** (required-model-vars-k18): a picked leaf
 // whose kind resolves no model var makes the launch fail, where it previously
 // launched with no `--model` and let the session inherit the user's own

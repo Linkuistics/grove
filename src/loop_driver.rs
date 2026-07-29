@@ -229,15 +229,7 @@ pub fn run_loop(
         // relaunch keeps the pane `working` without a redundant round trip.
         crate::herdr::report(crate::herdr::State::Working);
 
-        let ended = launch_session(
-            launch.harness,
-            worktree,
-            &session_name,
-            &prompt,
-            &signal_file,
-            launch.rerouted,
-            launch.model.as_deref(),
-        )?;
+        let ended = launch_session(&launch, worktree, &session_name, &prompt, &signal_file)?;
 
         // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
         // screen; reset before relaunching (and on the way out).
@@ -291,30 +283,37 @@ pub fn run_loop(
 /// the driver signals it directly once the completion file appears.
 /// `GROVE_HARNESS_BIN` overrides the binary (testing / wrapping `claude`).
 ///
-/// `rerouted` says whether `harness` differs from the grove's stamped one
-/// (a per-kind `GROVE_<KIND>_HARNESS` override fired) — threaded through to
-/// [`harness_bin`], which must not let the legacy unscoped `GROVE_HARNESS_BIN`
-/// leak into a rerouted launch (B5).
+/// Takes the whole [`Launch`] rather than its fields: all four are decided
+/// together by [`resolve_launch`] and are only meaningful together — the model
+/// was resolved *against* that harness, and `rerouted` (whether `harness`
+/// differs from the grove's stamped one, i.e. a per-kind `GROVE_<KIND>_HARNESS`
+/// override fired) is what stops the legacy unscoped `GROVE_HARNESS_BIN` leaking
+/// into a rerouted launch via [`harness_bin`] (B5). Splitting them across the
+/// signature invited a caller to pair a harness with another launch's model.
 ///
 /// Prints one diagnostic line naming the resolved `(harness, model)` on every
 /// launch, routed or not: the trial's central invariant ("K3 reviews
 /// everywhere") is otherwise unobservable at runtime, and a typo in a var
 /// *name* (e.g. `GROVE_REVIEWS_HARNESS`) would silently produce zero routing
 /// effect for a whole month with nothing to notice.
+///
+/// The line also names the leaf the launch **routed on** ([`routed_leaf`]) —
+/// the routing *input*, where the harness and model are its outputs.
 fn launch_session(
-    harness: &Harness,
+    launch: &Launch,
     worktree: &Path,
     session_name: &str,
     prompt: &str,
     signal_file: &Path,
-    rerouted: bool,
-    model: Option<&str>,
 ) -> Result<SessionEnd> {
-    let bin = harness_bin(harness, rerouted);
+    let harness = launch.harness;
+    let model = launch.model.as_deref();
+    let bin = harness_bin(harness, launch.rerouted);
     eprintln!(
-        "grove: launching {} (model: {})",
+        "grove: launching {} (model: {}){}",
         harness.name,
-        model.unwrap_or("default")
+        model.unwrap_or("default"),
+        routed_leaf(worktree, launch.kind).map_or(String::new(), |leaf| format!(" — {leaf}"))
     );
 
     let mut cmd = Command::new(&bin);
@@ -994,15 +993,52 @@ pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness
     })
 }
 
-/// The leaf the readiness line names, walked **in-process** rather than through
-/// a second `grove-llm` call. This is *reporting*, not routing: every fact the
-/// launch turns on already came off the peek subprocess above, so a failed walk
-/// costs the line a path and nothing else — which is why it degrades to `None`
-/// instead of failing a dry run that has otherwise succeeded.
+/// The `<slug>-k<key> (<kind>)` tail of the launch diagnostic
+/// (routed-leaf-diagnostic-k41): **what** this session was routed to work on,
+/// beside the harness and model it was routed *to*. `None` degrades the line to
+/// its pre-feature form, which is the honest rendering in all three cases that
+/// produce it — the bootstrap launch (no `.grove/` to walk), the finish-cycle
+/// launch (`kind` is `None` because there is no live leaf), and a walk that
+/// cannot name the leaf.
+///
+/// Named by the **stable handle**, not the path the readiness line prints
+/// (task-tree-scheme, *Reference a work item by its stable handle*). The two
+/// differ on purpose: `--no-launch` is something the operator acts on next, and
+/// a path is openable, whereas this line is scrollback — the only durable record
+/// of what each session in a loop was on — and a position moves under
+/// `leaf-insert`.
+///
+/// **The pairing is honest about what it is.** The handle comes from the
+/// in-process walk and the kind from the peek subprocess, so the two could in
+/// principle disagree; they are microseconds apart, and this is *reporting, not
+/// routing* — the same pairing [`readiness`] already makes in [`Next::Leaf`].
+/// Reporting the peek's kind rather than re-reading the leaf's is also the
+/// point: the kind shown is the one the launch actually resolved on.
+fn routed_leaf(worktree: &Path, kind: Option<Kind>) -> Option<String> {
+    let kind = kind?;
+    let leaf = picked_leaf(worktree)?;
+    let handle = crate::tree_id::parse(leaf.file_name()?.to_str()?)?.handle()?;
+    Some(format!("{handle} ({})", kind.label()))
+}
+
+/// The leaf the readiness line and the launch diagnostic name, walked
+/// **in-process** rather than through a second `grove-llm` call. This is
+/// *reporting*, not routing: every fact either line's launch turns on already
+/// came off the peek subprocess above, so a failed walk costs the line a leaf
+/// and nothing else — which is why it degrades to `None` instead of failing a
+/// dry run, or a launch, that has otherwise succeeded.
+///
+/// It is a third pick per iteration on the live path, knowingly
+/// (session-leaf-binding-k28 scoped de-duplicating the picks out): an
+/// in-process directory walk against a `grove-llm kind` peek measured at
+/// ~0–30ms is not the cost worth optimising, and the alternative is a launch
+/// line that cannot say what it launched for.
 ///
 /// Relative to the worktree, unlike `grove-llm pick`'s absolute output: the
 /// readiness line already opens with the worktree, and repeating it inside the
 /// leaf path pushed the informative half off the right of the terminal.
+/// [`routed_leaf`] reads only the file name, so the choice is the readiness
+/// line's alone.
 fn picked_leaf(worktree: &Path) -> Option<PathBuf> {
     let leaf = crate::tree_read::pick(&worktree.join(".grove"))
         .ok()

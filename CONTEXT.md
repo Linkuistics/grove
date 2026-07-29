@@ -183,6 +183,11 @@ cannot correct in-session the way `/model` corrects the model axis. Binding the
 session to the routed leaf was considered and **rejected** — it inverts the
 authority, discards the insert, cannot be mandatory (the skill also drives
 sessions with no driver), and refusing would gate.
+_Avoid_: reading the driver's launch line (`… — <slug>-k<key> (<kind>)`) as the
+leaf the session **ran**. It names what the launch *routed on* — the forecast —
+which is the point: a divergence is visible only by comparing that line against
+what the session then reports working on. The kind on it is the peek's, not a
+re-read of the file.
 _Avoid_: calling this "model routing" — that implies a multi-provider proxy;
 this is native launch-flag selection against harnesses grove already knows.
 _Avoid_: "an unset var means the session inherits your own default" — that was

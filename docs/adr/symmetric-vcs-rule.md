@@ -11,8 +11,18 @@ ship.
 The same rule binds the **`grove` binary**, which decides jj-first in
 `repo::vcs_of` — the closest marker walking up, `.jj/` winning over a `.git`
 beside it — and likewise converts nothing: grove runs in a working tree the
-user provides and creates none (*user-owned-worktrees*). One decision with two
-enforcers, not two decisions.
+user provides and creates none (*user-owned-worktrees*).
+
+It binds **`install.sh`** too, whose workspace guard asks the same question of
+the tree it lives in — is this the repo's main checkout, or a side tree? — and
+must therefore answer it the same way. There the ordering is not a matter of
+consistency but of correctness: a secondary jj workspace of a colocated repo is
+not a git worktree at all, so a git-first probe reports "not a repository" and
+misses precisely the case the guard exists to catch. The guard likewise converts
+nothing and mutates nothing — it probes with `--ignore-working-copy`, because
+every other jj invocation snapshots the working copy as a side effect.
+
+One decision with three enforcers, not three decisions.
 
 ## Considered options
 

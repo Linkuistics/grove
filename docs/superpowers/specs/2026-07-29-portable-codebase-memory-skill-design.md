@@ -159,11 +159,13 @@ existing path:
   place; `install.sh` only needs re-running when skills are added or removed.
 
 This held, and the manifest edit plus the glob-pickup are verified. One operational
-caveat surfaced during that verification and is **not** part of this design: run
-`install.sh` only from the default workspace. It derives its link source from
-`${BASH_SOURCE[0]}` and re-links unconditionally, so running it from a secondary
-jj workspace silently re-points every installed skill at a tree that may not
-outlive the task. Tracked separately as grove leaf `install-workspace-guard-k8`.
+caveat surfaced during that verification and was **not** part of this design:
+`install.sh` derives its link source from `${BASH_SOURCE[0]}` and re-links
+unconditionally, so running it from a secondary jj workspace silently re-pointed
+every installed skill at a tree that may not outlive the task. That was a manual
+discipline — "run it only from the default workspace" — and is now enforced by the
+script, which detects a side tree and refuses unless given `--force`
+(`install-workspace-guard-k8`; see `plugins/README.md`).
 
 ## Testing
 

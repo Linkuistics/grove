@@ -42,10 +42,11 @@ Done-when above is therefore no longer the whole of what this grove will produce
 
 | Leaf | Kind | Covers |
 |---|---|---|
-| `install-workspace-guard-k8` | `impl` | `install.sh` hijacking a skill install from a secondary workspace — found by `distribution-k5`, and the reason this grove's third done-when is only half-verified |
+| `install-workspace-guard-k8` | `impl` | **done** — `install.sh` hijacking a skill install from a secondary workspace; found by `distribution-k5`, and the reason this grove's third done-when is only half-verified |
 | `chain-as-node-k7` | `design` | **decided**: a review chain / vendor pair becomes a node directory |
 | `chain-node-k9` … `-integrate-k11` | `impl` chain | implement that decision |
 | `retire-confirmation-k12` | `design` | whether the Retire cascade needs confirmation at all |
+| `changelog-unreleased-k13` | `impl` | nothing this grove shipped is in `CHANGELOG.md`, and `v16.2.0` is already tagged — raised by `k8` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -159,7 +160,20 @@ including `~/.gemini`, which does not exist on this machine and would otherwise
 have printed `skip`. The manifest edit and the glob-pickup are therefore fully
 verified; **only the real-machine install is outstanding**, and it is not
 grove's to do — `install.sh` should be run from the default workspace once this
-grove's work is integrated. The underlying defect is `install-workspace-guard-k8`.
+grove's work is integrated.
+
+**The underlying defect is now fixed** (`install-workspace-guard-k8`).
+`install.sh` probes whether the tree it lives in is the repo's main checkout —
+jj-first, mirroring the binary's `repo::vcs_of`, which is load-bearing rather
+than merely consistent because a secondary jj workspace of a colocated repo is
+not a git worktree and a git-first probe would miss it entirely. It **refuses**
+rather than warns, since the damage is silent and delayed; `--force` opts in for
+the one legitimate case, testing an unmerged skill live. `install.test.sh` covers
+nine tree shapes against an isolated `HOME`. `docs/adr/symmetric-vcs-rule.md` now
+names three enforcers, not two. **This does not change the outstanding item
+above** — the real-machine install still has to be run from the default
+workspace, and the guard is precisely what now makes running it from here fail
+loudly instead of silently.
 
 **Authoring authority.** The plan cites `superpowers:writing-skills`. This repo
 ships `linkuistics:authoring-conventions`, a **house delta that overrides

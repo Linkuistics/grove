@@ -79,6 +79,15 @@ cd grove
 installed). Because the targets are symlinks, `git pull` refreshes the content in
 place — re-run the script only when skills are added or removed.
 
+**Run it from the repo's main checkout.** The script links from whichever tree it
+lives in and re-links every skill unconditionally, so running it from a linked
+`git worktree` or a secondary `jj workspace` would re-point *all* your installed
+skills at a tree that is usually temporary — and nothing would report it, since a
+symlink whose target later disappears reads as "skill not installed" rather than
+as an error. It detects that and refuses. Pass `--force` when linking from a side
+tree is what you actually want (testing an unmerged skill against a live
+harness), and re-run from the main checkout afterwards to repair the links.
+
 `testanyware` is **not** covered by `install.sh`; it ships through the
 marketplace only, so it is Claude Code only today.
 

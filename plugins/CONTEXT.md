@@ -108,6 +108,16 @@ mechanism: symlink each skill directory into that harness's personal skills fold
 updates content in place — re-run only when skills are added or removed.
 _Avoid_: running it for Claude Code, which installs by [[Marketplace]].
 
+**Workspace guard**:
+`install.sh`'s refusal to run from anywhere but the repo's **main checkout**,
+since it links from the tree it lives in and re-links *every* skill
+unconditionally — so a linked git worktree or secondary jj workspace would
+capture the whole install and dangle it on teardown. The failure is otherwise
+unobservable: a symlink to a vanished target reads as "skill not installed", not
+as an error. `--force` opts in deliberately. The probe is jj-first, sharing
+`docs/adr/symmetric-vcs-rule.md` with the `grove` binary.
+_Avoid_: reading it as a jj feature — a linked `git worktree` trips it identically.
+
 ## Flagged ambiguities
 
 **"skill"** means two different things in this repo. In this context it is a member

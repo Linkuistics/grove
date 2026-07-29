@@ -29,6 +29,23 @@
 #                                           # the standing symmetric-vcs-rule
 #                                           # exception. Do not skip it — the
 #                                           # GitHub Release is cut against it.
+#
+# Two things worth knowing before an agent-driven cut.
+#
+# The scripted forms of both outward-facing gestures get refused as opaque
+# invocations by the harness's own command classifier — `cargo release …
+# --execute` here, and `scripts/release-publish.sh` at the end. Their
+# constituent commands (`gh release create`, the tap `cp`/`commit`/`push`) run
+# fine spelled out, so expect to hand the cut to the human and to run the
+# publish step by hand. Nothing about the scripts needs changing.
+#
+# Installing the new build mid-session is safe, and the proofs belong in the
+# same session as the install. The driver's version-skew guard is the first
+# thing in the loop *body* (`src/loop_driver.rs`), so it fires between
+# iterations: a `brew upgrade` under a live `grove do` lets the session that
+# ran it finish normally and stops the loop before the next one. A shipping
+# task therefore does not have to defer its installed-binary checks to a
+# follow-up — see `scripts/release-publish.sh` for the rig.
 
 # Not a crates.io crate — `cargo release` must skip `cargo publish`.
 publish = false

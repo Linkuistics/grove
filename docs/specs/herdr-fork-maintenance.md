@@ -252,6 +252,32 @@ A safe way to test argument handling without mutating a pane: aim the command at
 a pane id that does not exist. A parse failure and a `pane_not_found` are
 distinguishable, and neither touches real state.
 
+### Measuring detection on a grove pane
+
+Anything that checks what herdr *detects* — as opposed to what grove reports —
+has to get grove's own authority out of the way first, and there are two ways
+that go wrong.
+
+**Prefer a `grove retire` pane over `release-agent` on a `grove do` one.** The
+retire path makes no herdr call at all (it is a plain `Command::status`, and the
+process shape is identical to `grove do` — unidentifiable leader, live harness,
+MCP helpers), so its pane is a free window onto raw detection with the
+`HERDR_AGENT` hint live: no release to issue, and no race against grove's own
+next report. On a `grove do` pane you must release first, then wait out a
+detection sweep (~14 s, measured 2026-07-28), and grove's turn hooks will
+self-heal the pane back to `agent: grove` at the next tool call.
+
+**A synthetic rig built from system binaries proves nothing.** macOS discloses
+no environment at all for SIP-protected platform binaries through
+`kern_procargs2`, which is exactly what herdr reads: `/bin/sleep` and
+`caffeinate` show zero tokens where `claude`, `codex` and `grove` show ~100. So
+a hand-rolled reproduction that hints a system binary silently exercises the
+group-scoring fallback instead of the hint path, and reads as "the hint does not
+work". Copying a signed system binary to dodge it does not help either — the
+copy fails its code signature and is killed on Apple Silicon. **Compile a
+throwaway.** This is harmless in production, where no harness is a platform
+binary; it only bites while building a rig.
+
 ## Out of scope
 
 - **Upstreaming.** Decided against, for **both** patches — the fork is ours to
@@ -264,5 +290,9 @@ distinguishable, and neither touches real state.
   permanent, every additional hunk is a rebase obligation forever, so a third
   must clear the same bar — not merely be useful.
 - **Pane mis-detection.** herdr labelling a grove pane with the wrong agent is a
-  separate problem with its own open question, and it is not fixed by this patch.
-  See `CONTEXT.md`.
+  separate problem, and it was never fixed by this patch. It is **fixed**, by
+  grove setting herdr's own documented `HERDR_AGENT=<harness>` hint on the
+  harness child — no fork hunk, and it works on stock herdr too. That is why
+  *Verifying a rebase* above can assume a released pane re-acquires as the
+  launched harness rather than as `codex`. See `CONTEXT.md` and ADR
+  *herdr-optional-ui*.

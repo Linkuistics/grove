@@ -7,6 +7,42 @@
 #
 # Prerequisite: ./scripts/release-build.sh has just run successfully.
 # Env: GROVE_TAP_DIR (default ~/Development/homebrew-taps).
+#
+# This script is one of the two gestures the harness classifier refuses as an
+# opaque invocation (see release.toml). Its two steps run fine spelled out by
+# hand; that is the expected path for an agent-driven cut, not a workaround.
+#
+# ---------------------------------------------------------------------------
+# Proving the *installed* binary carries the release
+#
+# `brew upgrade` after this leaves the obvious question — does the installed
+# grove actually do the new thing? `strings` on the binary is a weak answer and
+# sometimes a wrong one (a compile-time literal LLVM lowers to immediate byte
+# compares is absent from a binary that provably contains the code). Drive it
+# functionally instead. One nested launch yields several proofs at once:
+#
+#   scratch=$(mktemp -d) && cd "$scratch" && git init -q .
+#   grove-llm root-init                       # a live tree for `pick` to walk
+#   printf '#!/bin/sh\necho "HERDR_AGENT=$HERDR_AGENT"\n' > fake && chmod +x fake
+#   env -u HERDR_ENV \
+#       GROVE_HARNESS_BIN_CLAUDE="$PWD/fake" GROVE_CLAUDE_MODEL=opus \
+#       grove do --harness claude
+#
+# `env -u HERDR_ENV` keeps the nested driver from reporting into the operator's
+# own herdr pane. `--harness claude` plus an explicit model are needed because a
+# scratch tree has no stamp and no detectable harness. The fake exits 0 without
+# signalling, so the nested loop stops itself after one iteration.
+#
+# What that shows: the driver's launch line (routing diagnostics), HERDR_AGENT
+# reaching the harness child (the fake echoes it), and — because `grove do`
+# re-provisions the skill from the binary — the methodology surfaces, which is a
+# far better proof that guidance shipped than any check on the binary. A fourth
+# comes free from the scratch tree being untrusted by codex:
+# `grove do --harness codex --no-launch` there exercises the sandbox pre-flight
+# refusal end to end.
+#
+# Run this in the same session as the `brew upgrade` — see release.toml on why
+# that is safe and why deferring it to a follow-up session is unnecessary.
 
 set -euo pipefail
 IFS=$'\n\t'

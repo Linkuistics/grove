@@ -425,6 +425,24 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   alone too — *what it is working on* is this brief's own goal, and it is absent
   from the driver's own output. Deliberately **not** a chain (a one-file
   diagnostic; k29's escalation call says subagent, not `review-impl`).
+  **Done.** `grove: launching claude (model: opus) — session-leaf-binding-k28
+  (design)`. The leaf is named by its stable handle, not its path — so the
+  driver's line and `--no-launch`'s deliberately disagree, the latter printing a
+  path because it names something the operator opens *next* while scrollback
+  outlives the position a `leaf-insert` moves. Both properties were **falsified
+  by mutation**: removing the degrade makes the bootstrap line read `— ?
+  (requirements)`, and rendering `name()` instead of `handle()` emits
+  `02-picked-k7.md`. Two things it cost that the leaf did not predict. The
+  handle had no renderer — it was spelled inline in three places — so the id
+  model gained `Entry::handle()` as the position-free counterpart of
+  `Entry::name()`, which is where task-tree-scheme §5's distinction belongs. And
+  `kind` as an eighth parameter tripped clippy, which was right: the four
+  routing fields are decided together by `resolve_launch` and only mean anything
+  together, so `launch_session` now takes the whole `&Launch`. What the line
+  **cannot** do is show a divergence by itself — it names the forecast, and
+  seeing the disagreement still means comparing it against what the session
+  reports working on; that is the `_Avoid_` added to **Kind routing**. In the
+  tree, not the installed binary: real groves get it at **v16.2.0**.
 
 ## Pointers
 

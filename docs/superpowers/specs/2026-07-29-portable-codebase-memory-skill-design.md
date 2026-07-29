@@ -1,7 +1,13 @@
 # Portable codebase-memory skill — design
 
 **Date:** 2026-07-29
-**Status:** approved, not yet implemented
+**Status:** executed. The skill shipped as
+`plugins/linkuistics/skills/using-codebase-memory/SKILL.md`, and **that file is
+the authority for every CLI behaviour claim.** Where this document and the skill
+disagree, the skill is right: it was written by running every command it
+documents, which falsified several facts this document carried as verified.
+Those are corrected or deleted below. What remains is the design reasoning,
+which still holds.
 
 ## Context and goals
 
@@ -74,8 +80,11 @@ first, and gets most of the composition benefit for zero new infrastructure.
 
 ## Skill content
 
-Every claim below was verified against `codebase-memory-mcp 0.8.1` before this
-document was written. The skill must cover:
+This is the **coverage requirement** — what the skill must document — not a
+statement of CLI behaviour. It was drafted from spot checks against
+`codebase-memory-mcp 0.8.1`; implementation ran *every* documented command and
+falsified part of it. The behavioural detail has therefore been thinned to a
+pointer wherever the skill states it better, so the two cannot drift apart.
 
 1. **Invocation** — `codebase-memory-mcp cli <tool> '<json>'`, all fourteen
    tools (`index_repository`, `index_status`, `list_projects`, `delete_project`,
@@ -85,24 +94,39 @@ document was written. The skill must cover:
 
 2. **`project` is required — this leads.** The CLI does *not* infer the project
    from the working directory. Running inside an indexed repo without the
-   parameter still returns `{"error":"project not found or not indexed"}`.
-   Project names come from `list_projects` and are path-derived, e.g.
-   `Users-antony-Development-herdr`.
+   parameter still fails with `{"error":"project not found or not indexed"}` —
+   on **stderr**, not stdout; see item 3. Project names come from
+   `list_projects` and are path-derived, e.g. `Users-antony-Development-herdr`.
 
-3. **Streams** — logs (`level=info msg=mem.init …`) go to **stderr**, JSON goes
-   to **stdout**. `| jq` is therefore clean with no redirection needed.
+3. **Streams, exit codes, and the silent-failure trap.** Three separate items
+   stood here — streams; honest exit codes; informative errors. Each held half a
+   truth and they composed into a false one, because all three described the
+   *success* path while reading as unconditional. On **failure** stdout is
+   *empty* and the error goes to stderr, so `| jq` sees nothing and the pipe
+   replaces the binary's exit `1` with `jq`'s exit `0`. The skill's *Streams,
+   exit codes, and the silent-failure trap* section carries the whole
+   contract — the guarded no-pipeline call shape, why the error body is worth
+   reading, and why `--json` must be avoided. Do not restate it here.
 
-4. **Exit codes are honest** — 0 on success, 1 on error (bad tool name,
-   malformed JSON, unknown project). `set -euo pipefail` and `||` guards work.
-   Note for the skill author: verify exit status *without* a pipeline, or `$?`
-   reports the last pipeline stage rather than the binary.
+4. **Malformed JSON is discarded, not reported** — a JSON argument that does not
+   parse becomes an empty argument set, and you are told "project not found",
+   the same message an unindexed project gives. Not in the original spec; found
+   by execution. Build interpolated arguments with `jq -n`.
 
-5. **Errors are informative** — the failure payload carries `hint` and
-   `available_projects`. Read it rather than discarding it.
+5. **Truncation is silent-ish** — `search_graph` caps at `limit` (default 200)
+   and flags it only in `total` / `has_more`; `trace_path` caps callers at 100
+   with no flag at all. Also not in the original spec, and the reason item 6
+   changed shape.
 
 6. **Composition patterns** — the reason the skill exists. Worked bash examples
-   of the shapes that cost many round-trips as individual tool calls and one
-   script as a pipeline: the high-fan-in sweep, and the trace-each-result loop.
+   of the shapes that cost a round-trip per call as individual tool calls and one
+   script as a pipeline. The "high-fan-in sweep" named here was the **wrong
+   example**: counting, sorting and global top-N are one `query_graph` Cypher
+   call, and doing them in `jq` over a truncated page answers a question about an
+   arbitrary slice of the matches. Bash earns its place only for the shape Cypher
+   cannot reach — **fanning a second tool over the first tool's results**
+   (disambiguate-then-trace; rank-then-fetch-source). See the skill's *Compose
+   across tools, not within one*.
 
 7. **Which surface to use — stated by capability, not by harness.** One rule,
    which the reading agent resolves for itself without knowing what harness it
@@ -134,15 +158,32 @@ existing path:
 - Because the targets are symlinks, a later `git pull` updates the content in
   place; `install.sh` only needs re-running when skills are added or removed.
 
+This held, and the manifest edit plus the glob-pickup are verified. One operational
+caveat surfaced during that verification and is **not** part of this design: run
+`install.sh` only from the default workspace. It derives its link source from
+`${BASH_SOURCE[0]}` and re-links unconditionally, so running it from a secondary
+jj workspace silently re-points every installed skill at a tree that may not
+outlive the task. Tracked separately as grove leaf `install-workspace-guard-k8`.
+
 ## Testing
 
 Every command that appears in the skill is executed against a real indexed
 project before the skill is committed. A skill documenting an invocation that
-does not run is worse than no skill, because it is trusted.
+does not run is worse than no skill, because it is trusted. This is the one rule
+here that earned its keep: it is what falsified the claims above, and it held.
 
-`Users-antony-Development-herdr` (23,641 nodes / 97,504 edges) is a suitable
-target. Note that `/Users/antony/Development/grove` itself is **not** currently
-indexed, so it cannot be used as the test fixture without indexing it first.
+`Users-antony-Development-herdr` was the fixture. It is a **live, drifting**
+index — 23,641 nodes / 97,504 edges when this was written, 23,681 / 97,906 a day
+later — so treat every exact figure as a re-check, and keep counts out of the
+skill.
+
+`/Users/antony/Development/grove` is still not indexed. Verifying the
+`index_repository` fallback command therefore indexed *this grove's own working
+tree* instead (`Users-antony-Development-grove.using-codebase-memory`,
+`mode:"fast"`). That index outlives the tree it describes and is left in place
+deliberately — several sibling grove worktrees are already indexed the same way,
+so removing only this one would be inconsistent. Drop it with `delete_project`
+when the working tree is torn down.
 
 ## Non-goals
 

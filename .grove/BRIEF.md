@@ -89,7 +89,10 @@ statement of all of it):
 **Corrections `skill-k2` made to the plan, the spec, and this brief.** Running
 every documented command falsified several claims all three carried as verified:
 
-- The spec's `| jq -r '.error'` idiom cannot work — errors never reach stdout.
+- The `| jq -r '.error'` idiom cannot work — errors never reach stdout. (It is
+  the **plan**'s, at Task 1 Step 4, not the spec's as this brief first said; the
+  spec's version of the same error was an unqualified "`| jq` is therefore clean
+  with no redirection needed".)
 - "produces byte-identical results" (plan) and "results[] identical" (this
   brief, at scoping) are both false. `relationship`/`direction` drop 2 rows of
   2460; the earlier check saw agreement only because `limit:5` hid it. The
@@ -102,7 +105,14 @@ every documented command falsified several claims all three carried as verified:
   **none** of them: 8 `wait_for_socket` symbols, 0 callers, exit 0. The
   `qualified_name` returns 67.
 
-`docs/` still carries the falsified wording — see `docs-reconcile-k6`.
+**`docs/` is reconciled** (`docs-reconcile-k6`). Both documents now open with a
+status banner naming the shipped `SKILL.md` as the authority for every CLI
+behaviour claim; the plan's Global Constraints and both of its embedded
+`SKILL.md` drafts are **deleted** rather than annotated, on the grounds that a
+second copy of a file that already exists is the defect, not the wording. What
+survives in each is the design reasoning and the record of what ran. The
+falsified claims are kept only quoted-and-refuted, so the correction is legible
+without the assertion surviving anywhere.
 
 **Distribution — `install.sh` cannot be run from this working tree.**
 `distribution-k5` verified the install path against an **isolated `HOME`**, not

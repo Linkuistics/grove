@@ -65,30 +65,43 @@ harness and needs three config dialects for the other three. `SKILL.md` plus a
 CLI reaches all four. `codebase-memory-mcp` exposes the same fourteen tools both
 ways.
 
-**Verified contract** (against `codebase-memory-mcp` 0.8.1, 2026-07-29 — all
-four surprise on first use, and the third contradicts the installer-managed
-skill):
+**Verified contract** (against `codebase-memory-mcp` 0.8.1, re-derived
+end-to-end by `skill-k2`; the shipped `SKILL.md` is now the authoritative
+statement of all of it):
 
 1. `project` is required; it is **not** inferred from the working directory.
-2. Logs go to stderr, JSON to stdout — `| jq` is clean.
-3. `min_degree` gates on **total** degree (in + out); `relationship` and
-   `direction` do not narrow it. The "high fan-in" recipe in
+   `list_projects` and `index_repository` are the exceptions.
+2. On **success** JSON goes to stdout and logs to stderr, so `| jq` is clean.
+   On **failure** stdout is *empty* and the error goes to stderr — so `| jq`
+   shows nothing and the pipe masks exit `1` as `jq`'s exit `0`.
+3. Malformed JSON is **discarded, not reported**: arguments become empty and
+   you are told "project not found", the same message an unindexed project
+   gives. Build interpolated arguments with `jq -n`.
+4. `search_graph` truncates at `limit`, default **200**, flagged only by
+   `has_more`/`total`. `trace_path` caps callers at 100 with no flag at all.
+5. `min_degree` gates on **total** degree (in + out); `relationship` and
+   `direction` do not make it directional. The "high fan-in" recipe in
    `~/.claude/skills/codebase-memory/SKILL.md` is wrong for this reason.
-4. Exit status is honest (0/1) but only observable **without** a pipeline.
+6. Exit status is honest (0/1), observable **without** a pipeline, and
+   defeated by `--json`, which also duplicates its envelope to both streams.
 
-**Correction to the plan, found at scoping (`scope-k1`).** Item 3 above is
-right, but the *plan*'s Global Constraints overstate it as "produces
-byte-identical results". Re-measured against 0.8.1:
+**Corrections `skill-k2` made to the plan, the spec, and this brief.** Running
+every documented command falsified several claims all three carried as verified:
 
-```
-min_degree:10, label:Function, limit:5      → total=2460
-  + relationship:CALLS, direction:inbound   → total=2458
-results[] identical; both include  in=0 out=11 above_pane_sets_autoscroll_up
-```
+- The spec's `| jq -r '.error'` idiom cannot work — errors never reach stdout.
+- "produces byte-identical results" (plan) and "results[] identical" (this
+  brief, at scoping) are both false. `relationship`/`direction` drop 2 rows of
+  2460; the earlier check saw agreement only because `limit:5` hid it. The
+  durable, reproducible claim is item 5 plus: exactly **half** the rows that
+  filter returns have `in_degree: 0`.
+- The plan's flagship composition recipe passes `limit:200` — the default — and
+  sorts client-side, so its "top 20 fan-in" ranks an arbitrary 8% of 2460
+  matches. Aggregation and global top-N belong in `query_graph`'s Cypher.
+- `trace_path` on a bare `function_name` shared by several symbols resolves to
+  **none** of them: 8 `wait_for_socket` symbols, 0 callers, exit 0. The
+  `qualified_name` returns 67.
 
-The *filter semantics* are unchanged — that is the real gotcha, and it holds.
-The *responses* are not identical. The skill must state the former, not the
-latter.
+`docs/` still carries the falsified wording — see `docs-reconcile-k6`.
 
 **Authoring authority.** The plan cites `superpowers:writing-skills`. This repo
 ships `linkuistics:authoring-conventions`, a **house delta that overrides

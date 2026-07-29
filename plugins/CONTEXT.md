@@ -104,7 +104,7 @@ plugin's own content, when it identifies the repo's.
 **Symlink install** (`install.sh`):
 The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
 mechanism: symlink each skill directory into that harness's personal skills folder
-(`~/.codex/skills`, `~/.gemini/skills`). Because the targets are links, a `git pull`
+(`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`). Because the targets are links, a `git pull`
 updates content in place — re-run only when skills are added or removed.
 _Avoid_: running it for Claude Code, which installs by [[Marketplace]].
 

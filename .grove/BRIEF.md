@@ -443,6 +443,17 @@ shift under `leaf-insert` and handles do not (*task-tree-scheme*).
   seeing the disagreement still means comparing it against what the session
   reports working on; that is the `_Avoid_` added to **Kind routing**. In the
   tree, not the installed binary: real groves get it at **v16.2.0**.
+- **ship-v16-2-0-k42** — cut v16.2.0 and install it, closing the
+  in-the-tree-not-in-the-binary gap **five** leaves each ended on (k29, k33/k34,
+  k35, k38–k40, k41) and that this grove has worked around throughout by running
+  `./target/debug/grove-llm`. Raised by the human at the finish-cycle proposal
+  and sequenced ahead of it: a grove that finishes without shipping leaves a
+  live victim, since k35's codex pre-flight is what unblocks the `UIAnyware`
+  grove. Cut as a leaf rather than absorbed into k41's session because this
+  grove's own precedent is that shipping is a leaf (**ship-release-k25**), and
+  because the cut cannot happen in this working tree at all — it is a jj-native
+  secondary workspace with no `.git`. Last leaf: after it, `pick` is empty and
+  the finish cycle follows.
 
 ## Pointers
 

@@ -93,9 +93,10 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
     let repo_path = repo.path();
 
     // Prompts the loop's load_prompt must read — from the GLOBAL skill dir the
-    // binary provisions (`$GROVE_SKILL_DIR`), NOT any repo-local mirror (the 9.3
-    // repoint). Plant a stale mirror in the old `install_path` location to prove
-    // the loop ignores it: a regression to the old read would log "STALE …".
+    // binary provisions (`$GROVE_SKILL_DIR`), NOT any repo-local mirror
+    // (self-extension-core-and-methodology). Plant a stale mirror in the old
+    // `install_path` location to prove the loop ignores it: a regression to the
+    // old read would log "STALE …".
     let skill_dir = repo_path.join("global-skill");
     let prompts = skill_dir.join("prompts");
     fs::create_dir_all(&prompts).unwrap();

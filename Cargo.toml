@@ -5,11 +5,10 @@
 # no code with `grove`'s own `[lib]`, needs dependencies (`uuid`, `base64`,
 # `serde_json`) the shipped `grove`/`grove-llm` binaries have no reason to
 # carry, and staying un-depended-on by the `grove` package is what keeps it
-# off `grove`'s shipped surface (D3 in that grove's `demo-architecture-and-
-# plan-k53` leaf) without any packaging step having to know to exclude it.
-# The TUI tower (rmux/ratatui app + Fleet) was deleted in leaf `080-shed-tui`
-# (self-extension-core-and-methodology / self-driving-loop) — grove's own
-# runtime is the self-driving loop driver + the tree verbs.
+# off `grove`'s shipped surface without any packaging step having to know to
+# exclude it. The TUI tower (rmux/ratatui app + Fleet) was deleted in the
+# `shed-tui` leaf (self-extension-core-and-methodology / self-driving-loop) —
+# grove's own runtime is the self-driving loop driver + the tree verbs.
 [workspace]
 members = ["codex-bridge"]
 
@@ -45,10 +44,11 @@ path = "src/lib.rs"
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }
 # Embed the full `content/` methodology tree into the `grove` binary at compile
-# time (self-extension-core-and-methodology / task-tree-scheme, leaf 070/010). `grove do` extracts this embed to the
-# global personal skill dir (`~/.claude/skills/grove/`), so the skill can never
-# drift from the binary — replacing the old fetch-tarball + materialise +
-# `VERSION.md` model (deleted in 090). Paired with `build.rs`, which emits
+# time (self-extension-core-and-methodology / task-tree-scheme). `grove do`
+# extracts this embed to the global personal skill dir
+# (`~/.claude/skills/grove/`), so the skill can never drift from the binary —
+# replacing the old fetch-tarball + materialise + `VERSION.md` model, now
+# deleted. Paired with `build.rs`, which emits
 # `rerun-if-changed` for every content file: on stable Rust the macro does not
 # register its reads with Cargo, so an edit would otherwise leave a stale embed.
 include_dir = "0.7"

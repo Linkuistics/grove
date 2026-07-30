@@ -56,7 +56,8 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `driving-original-scheme-example-k22` | `impl` | **done** — `content/driving.md`'s worked research-leaf example cited original-scheme, keyless work items in *provisioned* content; raised by `k20` |
 | `retire-harness-stamp-claim-k23` | `impl` | **done** — the doc was wrong, not the behaviour: only the verb that drives the grove writes the stamp; raised by `k21` |
 | `src-position-citations-k24` | `impl` | **done** — two `src/` comments citing dead `.grove/` positions; one of them was a *false claim*, not just a stale citation; raised by `k22` |
-| `nonsrc-position-citations-k25` | `impl` | the same class in `tests/` (4, including a live `D<n>`) and `codex-bridge/src/` (1, cross-repo); raised by `k24` |
+| `nonsrc-position-citations-k25` | `impl` | **done** — the same class outside the root crate's `src/`; the five-site list was an undercount by four, and `Cargo.toml` is in no tree at all; raised by `k24` |
+| `dangling-finding-tags-k26` | `impl` | nine `B<n>` review-finding tags across ~25 `src/`+`tests/` comments that resolve nowhere — same family, different claim's surface; raised by `k25` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -672,7 +673,11 @@ Externalized rather than absorbed: `nonsrc-position-citations-k25` — four site
 reported at zero, because neither claim ever reached `tests/`) and one in
 `codex-bridge/src/main.rs`, which cites a **foreign repo's** `.grove/` path plus
 that dead brief's `D2/D3/D6` and so needs a *decision* (promote the load-bearing
-reason, or drop the pointer), not a reword. **The scope narrowing is the third
+reason, or drop the pointer), not a reword. (Both halves of this were falsified by
+`k25` and are kept quoted-and-refuted: the count was **nine**, not five — the
+scope missed `Cargo.toml` entirely — and the `codex-bridge` pointer carried **no**
+load-bearing reason, since the reason it cited is stated three lines below it. See
+`k25`'s summary below.) **The scope narrowing is the third
 generation of `k14`'s defect**: `k14` narrowed by comment species and pattern
 list, `k24` inherited a narrowing by *directory* — and `codex-bridge/src/main.rs`
 **is** a `src/` path, just not the root crate's, so even the word "`src/`" did not
@@ -683,6 +688,79 @@ does.**
 CHANGELOG-free, the fourth leaf running to confirm `k20`'s rule: no behaviour
 changed — two comments corrected against shipped behaviour. `cargo test`: 628
 passed, 0 failed; clippy and `cargo fmt --check` clean.
+
+**What `nonsrc-position-citations-k25` swept, and the premise of its own Context
+it falsified.** Nine citations across six files, zero code, zero tests.
+
+1. **The five-site list undercounted by four, and the miss is a *fourth*
+   generation of `k14`'s defect — a genuinely new form of it.** `Cargo.toml`
+   carried four (`D3`, `080-shed-tui`, `070/010`, `090`) and
+   `tests/loop_driver.rs:96` a fifth `tests/` one. Every scope this lineage has
+   ever stated is a **tree**: `k25`'s Context named `tests/` and
+   `codex-bridge/src/` and measured `herdr-plugin/` and `scripts/` at zero — and
+   `Cargo.toml` is in none of them. `k14` narrowed by comment species, `k24` by
+   directory, `k25` inherited a *set* of directories. **A scope stated as a set
+   of trees cannot reach the files that are in no tree.** What found them is
+   `k24`'s enumerate-then-classify widened past `src/` to every commented file
+   in the repo: 208 distinct numeric-bearing tokens extracted, all 208
+   classified. Complete by construction, again, and again it was the completeness
+   and not a longer pattern list that paid.
+2. **The `codex-bridge` pointer was decorative, not load-bearing — the exact
+   inverse of what the leaf reserved a decision for.** D2/D3/D6 were recovered by
+   *reading* them out of AgentAnyware's git history (`4ab2336^`, its finish-cycle
+   commit's parent), which also falsifies the Context's third unreachability
+   ground: those sections were committed and are recoverable — what died is the
+   **path**, not the record. D2's substance (policy-free binary; no
+   supervisor-resolution-envelope, policy tiers or phase mapping) is already
+   stated in `main.rs`'s *next paragraph*, with the same three-item list; D3's
+   (a spike, not a shipped feature, carrying a top-of-file doc comment saying so)
+   is stated by `main.rs`'s **first** paragraph — which *is* the doc comment D3
+   asked for — and by `Cargo.toml`. D6 is about the demonstration's audit method
+   and says nothing about the binary's shape: **mis-cited, not merely stale.** So
+   nothing was promoted and no ADR is owed: a second copy of what the file already
+   says is `docs-reconcile-k6`'s defect, and this repo decided nothing here.
+3. **ADR *task-tree-scheme* §5 supplied its own fix, which is the pleasing part.**
+   The pointer became the handles `codex-bridge-k54` /
+   `demo-architecture-and-plan-k53` plus *where they survive* — that repo's commit
+   log, which names them exactly as §5 requires. The reference is now **more**
+   recoverable than before, not less: `git log --grep` finds both, the `.grove/`
+   paths find nothing. Same move for `shed-tui`, verified present in this repo's
+   own log. The rule this leaf exists to enforce is what makes a cross-repo
+   reference survive its tree.
+4. **`CONTEXT.md` was in scope, and is the reason to widen past "comments".** Its
+   *Global skill provisioning* entry carried `(070/050)` and "deleted in 090" —
+   §5 binds **prose**, the glossary is read every session, and it is the summary
+   layer over this very class (`k17`'s rule, now on its fourth outing). Repo prose
+   otherwise measured clean; `docs/research/` and `docs/superpowers/` are dated
+   evidence and were left untouched.
+5. **Three same-shaped series were checked and deliberately left alone, and that
+   is the reusable half.** `T<n>` resolves into the live plan doc, `K3` into the
+   live spec, and "runbook step 6" into that spec's *Migration runbook*, which
+   says what the comment claims. They are indistinguishable from `D5` by shape.
+   **Shape is a bad proxy; reachability is the fact** — which is why no lexical
+   guard shipped here either.
+
+Verified by the claim grep run over **code comments repo-wide with no directory
+narrowing** (clean), plus `k24`'s two controls: a positive control, and a
+cross-tree control — the same patterns must still find the class where it
+legitimately lives, and they do, in `.grove/` and `docs/research/`. A broken
+instrument reads clean everywhere; clean-here-plus-dirty-there cannot be faked.
+Everything the grep still returns is the **position-as-subject** class `k24`
+settled as correct: synthetic fixture paths in test literals, the
+`acme`/`token-bucket` worked examples in `docs/workflows/`, and
+`docs/driving-a-grove.md`'s `D1–D6` teaching example *about* running logs.
+
+Externalized rather than absorbed: `dangling-finding-tags-k26` — nine `B<n>`
+tags over ~25 comment sites in `src/` and `tests/` that resolve nowhere in the
+repo. Same failure family, **different claim's surface** (a finding id, not a
+position), so no earlier claim is falsified by it. Its premise is measured rather
+than assumed, per this leaf's own lesson: they **are** recoverable, as
+`branch-review-k14`'s findings at `d65c033^` in this repo's history — so `k26`'s
+options are wider than the codex-bridge decision was.
+
+CHANGELOG-free, the fifth leaf running to confirm `k20`'s rule: no behaviour
+changed, no test shipped. `cargo test`: 628 passed, 0 failed — unchanged from
+`k24`, which is correct; clippy and `cargo fmt --check` clean.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

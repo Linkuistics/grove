@@ -1,10 +1,13 @@
 //! `codex-bridge`: the falsification harness for AgentAnyware's
 //! `success-demonstration-k11` grove — **not** a supported Grove feature, and
 //! not wired into `grove`'s README, `--help`, or `grove do`'s own launch path.
-//! See `.grove/06-success-demonstration-k11/02-codex-bridge-k54.md` in the
-//! AgentAnyware repo for the leaf this implements, and that node's
-//! `01-DONE-demo-architecture-and-plan-k53.md` (decisions D2/D3/D6) for why
-//! it looks like this.
+//! It implements that grove's `codex-bridge-k54` work item, designed in
+//! `demo-architecture-and-plan-k53`. Both are recoverable from the AgentAnyware
+//! repo's **commit log** rather than from any path: that grove's `.grove/` tree
+//! was deleted at its own finish cycle, so the handles are what survive it
+//! (task-tree-scheme §5). Why the binary looks like this is stated below rather
+//! than cited — see the next paragraph, and the workspace `Cargo.toml` for why
+//! it is a separate crate.
 //!
 //! It spawns `agentanyware run --adapter codex --cwd <path>` as a child
 //! process and exposes its stdin/stdout as one-shot CLI primitives — a

@@ -3,7 +3,7 @@
 // global personal skill dir. These drive the *real* embed via the public
 // `provision_into`, against a throwaway tempdir, and prove the three contract
 // scenarios named in the leaf brief: extract-fresh, extract-idempotent,
-// extract-on-change (self-extension-core-and-methodology / task-tree-scheme, 070/010).
+// extract-on-change (self-extension-core-and-methodology / task-tree-scheme).
 
 mod support;
 

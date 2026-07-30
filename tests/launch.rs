@@ -57,8 +57,9 @@ fn dry_run_env(repo: &std::path::Path) -> support::EnvGuard {
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
-    // `do_grove` provisions the global skill on launch (070/010); `load_prompt`
-    // reads its launcher prompts from that same global dir (the 9.3 repoint).
+    // `do_grove` provisions the global skill on launch
+    // (self-extension-core-and-methodology); `load_prompt` reads its launcher
+    // prompts from that same global dir, never a repo-local mirror.
     // Point both at a throwaway dir inside the repo so the suite never touches
     // the real ~/.claude/skills/grove. Safe under CWD_LOCK (all callers
     // serialize), and unprovisioned until a `do` runs (so the provision test can
@@ -137,7 +138,8 @@ fn do_runs_from_a_linked_worktree() {
 #[test]
 fn do_provisions_the_global_skill_on_launch() {
     // `grove do` extracts the binary-embedded methodology to the global personal
-    // skill dir (070/010), so the launched session's skill matches the binary.
+    // skill dir (self-extension-core-and-methodology), so the launched session's
+    // skill matches the binary.
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();

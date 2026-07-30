@@ -48,8 +48,10 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-confirmation-k12` | `design` | **decided**: the Retire cascade asks nothing; it checks, promotes and reports |
 | `changelog-unreleased-k13` | `impl` | **done** — `## Unreleased` ratified; this grove's shipped work logged under it |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
-| `confirmation-prose-k15` … `-k17` | `impl` chain | `k15` **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
+| `confirmation-prose-k15` … `-k17` | `impl` chain | `k15` + `k16` **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
 | `changelog-release-rename-k18` | `impl` | make `cargo release` rename `## Unreleased`, rather than the prose note `k13` left — raised by `k13` |
+| `walkthrough-harness-routing-k19` | `impl` | fix the walkthrough's obsolete one-stamped-harness claim — raised by `k16` |
+| `retire-help-node-path-k20` | `impl` | replace `grove retire --help`'s original-scheme node-path example — raised by `k16` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -274,6 +276,22 @@ this chain owns, plus a fix to the *Unreleased* chain-node entry, which still sa
 the confirmation "is now asked of brief-carrying nodes only"; the identical
 sentence under `## v16.2.0` is tagged history and was left. Every `grove-llm` /
 `grove` `--help` long-text surface was greped clean of the old claim.
+
+**What `confirmation-prose-review-k16` found.** Two Medium parallel-guidance
+defects, both reproduced by the repository-wide grep and left for
+`confirmation-prose-integrate-k17`: this brief's `chain-as-node-k7` carry-forward
+still makes brief-lessness the reason a node is not asked, and
+`docs/research/skill-repo-prior-art.md`'s G5 heading still says grove *asks* even
+though its rewritten body says the gate was dropped. The generated chain help,
+the six discriminator surfaces, the cold Retire procedure and the five-session
+walkthrough otherwise agree with the decision; `cargo test` passed in full,
+including the chain-node brief-absence guard.
+
+Two unrelated stale surfaces found only by executing help and reading the whole
+walkthrough were externalized, not absorbed: `walkthrough-harness-routing-k19`
+owns the last paragraph's obsolete claim that one bootstrap-chosen/stamped
+harness runs every task, and `retire-help-node-path-k20` owns `grove retire
+--help`'s removed original-scheme example `003-session-store`.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

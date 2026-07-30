@@ -102,9 +102,10 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
   **The node carries no `BRIEF.md`, by rule**, and that is what killed the two
   costs the earlier answer was built on: it buys no charter written because a step
-  demanded it (constraint 4), and the Retire cascade's "is this node done?"
-  confirmation is now asked of **brief-carrying nodes only**, so a chain closes
-  silently. The discriminator is a **file's presence, never a name pattern** — the
+  demanded it (constraint 4), and the Retire cascade's close finds **nothing to do**
+  at a chain node — no `Done when` to check, no brief to promote — where a
+  decomposition node's close has both. The discriminator is a
+  **file's presence, never a name pattern** — the
   `-chain` / `-pair` token is ordinary slug text nothing keys on, present only so
   the node's slug does not collide with its first child's under `resolve`.
 
@@ -123,6 +124,47 @@ stood at the graft — a closed record, not part of the versioned sequence above
   neither did the tree viewer. `docs/specs/task-kind-taxonomy.md` carries the
   design and the lapsed arguments; ADRs *task-tree-scheme* and *task-kind-taxonomy*
   carry the two node species and the charter discriminator.
+
+- **The Retire cascade no longer asks the human to confirm a node's close — it
+  checks, promotes and reports instead.** For *every* node species, where the
+  methodology previously said *"ask the user before treating a brief-carrying node
+  as done"* and re-asked at each ancestor up the chain. In its place a
+  brief-carrying node's close runs four steps the session discharges itself: check
+  the node's brief `Done when` against what the subtree delivered; `leaf-add` the
+  missing work if the check fails and the gap can be named; escalate — stop and say
+  so — if it cannot, because the residue is a scope judgement rather than work; then
+  promote what survives from the brief upward and name the closed node by its
+  `<slug>-k<key>` handle in the commit message. A brief-less chain node's close
+  still has nothing to do. Leaf retirement is unchanged (it was never confirmed —
+  mechanical bookkeeping), `leaf-prune` is unchanged (still HITL), and the finish
+  cycle's single gate is unchanged and is now the loop's **only routine human gate**.
+
+  **The generating rule is two ordered tests**, and it is what the change is
+  actually for: does the answer change what is written, and if so, is the fact the
+  session's to establish or the human's to decide? A node close fails the first —
+  a node is **never marked**, so whatever the human answered the tree was
+  byte-identical afterwards, and a node closed in error is reopened by one
+  `leaf-add` with nothing to undo. The question was also in the Retire step, which
+  *every* kind runs, so an AFK leaf that happened to be its subtree's last was
+  guaranteed to stall at a moment nothing in the tree predicts — the one thing that
+  makes the HITL/AFK mark wrong by construction. The trade is that the question was
+  synchronous and the report is not: a human who would have said "no" now says it
+  one session later, against a node nothing has marked.
+
+  **Zero code changed** — the cascade was always prose. What changed is
+  `content/SKILL.md`'s Retire step and every surface that restated it:
+  `content/BRIEF-FORMAT.md`, `content/TASK-FORMAT.md` and `content/driving.md`
+  (each justified the `BRIEF.md` discriminator by the confirmation — its job is now
+  to select which closes have *work*, not which get *asked*), `docs/grove.md`,
+  `docs/workflows/multi-step.md` (whose walkthrough beat was *"the user said not
+  yet"* and is now check → `leaf-add`), and doc comments in `src/llm_cli.rs` and
+  `src/tree_grow.rs`. The mutation test asserting a chain node is brief-less is
+  **kept** — under the new rule a stray charter silently gives the cascade
+  close-time work over a rollup nobody wrote. New ADR
+  `docs/adr/confirmation-boundary.md` carries the tests and the four rejected
+  options; *pruning*, *task-tree-scheme*, *task-kind-taxonomy*,
+  *in-session-finish-cycle*, `docs/specs/task-kind-taxonomy.md` and `CONTEXT.md`
+  were reworked in place to cite it.
 
 ### Fixed
 

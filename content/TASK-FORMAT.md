@@ -168,10 +168,11 @@ Two things that shape looks like it could be and is not:
 - **The node carries no `BRIEF.md`, and nothing reads its name.** A charter means
   *this work proved bigger than one session*, which a chain is not; a stub written
   because a step demanded it is what constraint 4 forbids, and the verb knows only
-  a stem anyway. Its absence is what lets the Retire cascade ask its
-  "is this node done?" confirmation of **brief-carrying nodes only** — a fair
-  question of a decomposition, noise for a chain whose integrate step finishing
-  means it is finished by construction. That discriminator is a **file test**: the
+  a stem anyway. Its absence is what lets the Retire cascade give a closing chain
+  node **nothing to do** — no `Done when` to check against the subtree and no
+  brief to promote — where a decomposition node's close has both
+  (*confirmation-boundary*; the close asks nothing of either species). That
+  discriminator is a **file test**: the
   `-chain` / `-pair` token is ordinary slug text, and anything that parsed it would
   reintroduce exactly the convention-reading this section forbids.
 - **A chain is not a unit, either.** Containment is not immunity: `pick` descends

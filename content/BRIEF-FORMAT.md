@@ -18,8 +18,10 @@ construction with no context anyone is in a position to write, and a stub emitte
 because a step demanded it is what constraint 4 forbids. So the presence of
 `BRIEF.md` is the **discriminator between the two node species**, which is why
 `brief-chain` skipping a level with no brief is load-bearing rather than merely
-tolerant, and why the Retire cascade's confirmation is asked of **brief-carrying
-nodes only** (`TASK-FORMAT.md`; ADR *task-tree-scheme*). Nothing is enforced:
+tolerant, and why the Retire cascade's close has **work to do on a brief-carrying
+node and nothing to do on a chain node** — a `Done when` to check and a brief to
+promote, against neither (`TASK-FORMAT.md`; ADRs *task-tree-scheme* and
+*confirmation-boundary*). Nothing is enforced:
 writing a `BRIEF.md` into a chain node simply makes it brief-carrying.
 
 A brief is written by whichever session creates its node — a `planning` task

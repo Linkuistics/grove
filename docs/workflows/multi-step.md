@@ -1,6 +1,6 @@
 # Multi-step grove — walkthrough
 
-The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through four sessions — an `impl` leaf, a `planning` leaf that grew the tree, an `impl` leaf inside the new subtree, and the implementation leaf — all driven automatically by a **single `grove do`**, plus one out-of-band `grove retire` to promote a completed subtree's brief upward.
+The inner loop. By the end of this walkthrough, `acme/orders-api`'s `add-rate-limiting` grove has run through five sessions — an `impl` leaf, a `planning` leaf that grew the tree, an `impl` leaf inside the new subtree, a follow-up leaf the node's own close-time check demanded, and the implementation leaf — all driven automatically by a **single `grove do`**, with the manual `grove retire` shown as the out-of-band way to promote a completed subtree's brief upward.
 
 > This page is about driving the **grove CLI** through the inner loop. For *what the loop is and why*, see [`../../content/SKILL.md`](../../content/SKILL.md); for *how a single session conducts itself*, follow the SKILL file. This walkthrough shows the **CLI cadence and the on-disk evolution** — not session-internal UX.
 
@@ -106,32 +106,62 @@ b2a1d9c chore(grove): retire record-policy-adr-k5
 4d3c2b1 plan(rate-limit): decompose design-token-bucket-k3 into one ADR leaf
 ```
 
-Two things to notice. First, the retired leaf stays exactly where it lived — `03-design-token-bucket-k3/01-DONE-record-policy-adr-k5.md` — marked with the `DONE` infix, so the tree shows *where* each completed leaf belonged without any parallel shadow tree. Second, `03-design-token-bucket-k3/` now has no live leaf: its only child is done. The node is **implicitly** done — a brief is context, not a task, so a node is never marked `DONE`; its done-ness *is* the absence of any live leaf in its subtree.
+Two things to notice. First, the retired leaf stays exactly where it lived — `03-design-token-bucket-k3/01-DONE-record-policy-adr-k5.md` — marked with the `DONE` infix, so the tree shows *where* each completed leaf belonged without any parallel shadow tree. Second, `03-design-token-bucket-k3/` now has no live leaf: its only child is done. That makes the node **implicitly** done — a brief is context, not a task, so a node is never marked `DONE`; its done-ness *is* the absence of any live leaf in its subtree. Being an inference rather than a stored state, it is also cheap to get wrong and cheap to reverse, which is what the next section turns on.
 
-## A brief-carrying node's retirement is asked, not assumed
+## A brief-carrying node's close is checked, not asked
 
-When `03-design-token-bucket-k3/`'s last live leaf retired, the session's *judge retirement* step walked the parent chain, noticed the node had no live leaf left, and **asked the user** before treating it as done — a confirmation gives them a moment to add a follow-up leaf if the node is not actually finished. In this walkthrough the user said *not yet*, so the session fired its completion signal and the loop moved on to `04-implement-k4.md`. Node-level retirement is deliberate, not automatic — grove guides, it does not gate.
+When `03-design-token-bucket-k3/`'s last live leaf retired, the same session walked the parent chain, noticed the node had no live leaf left, and **asked the user nothing**. A node is never marked, so a close writes nothing at all: whatever a human answered, the tree would be byte-identical afterwards, and a node closed in error is reopened by one `leaf-add` with nothing to undo ([`adr/confirmation-boundary.md`](../adr/confirmation-boundary.md)). What the session does instead is **check** the node's brief `Done when` against what the subtree actually delivered.
 
-`03-design-token-bucket-k3/` is a **decomposition** node: `leaf-decompose` gave it a `BRIEF.md`, and that charter is exactly what the confirmation exists to promote. The *other* node species — a **chain node**, the `<stem>-chain/` or `<stem>-pair/` directory `leaf-add-chain` / `leaf-add-pair` writes — carries no charter by rule, so it closes **silently**: there is nothing to promote and nothing to decide. The discriminator is the file's presence, not the name.
+Here the check fails, and it fails *nameably*: the brief promised the policy **and** the knobs that expose it, and the ADR records only the policy. A failed check names missing **work**, not a decision to take — so the session cuts the leaf rather than raising a question:
 
-Retiring a node moves nothing on disk (there is no `done/` to move into): its leaves are already marked done in place, and its `BRIEF.md` stays where it is. What retirement *does* is **promote** anything from the node's brief that future siblings should still see — up to the parent brief, an ADR, or the glossary — so it stays in the brief chain after the node goes quiet. To do that out of band — or whenever a prior session forgot to ask — the user runs `grove retire`, in-worktree:
+```
+$ grove-llm leaf-add 03-design-token-bucket-k3 document-policy-knobs
+/…/.grove/03-design-token-bucket-k3/02-document-policy-knobs-k6.md
+
+$ tree .grove
+.grove
+├── 01-DONE-plan-k1.md
+├── 02-DONE-spike-token-bucket-k2.md
+├── 03-design-token-bucket-k3
+│   ├── 01-DONE-record-policy-adr-k5.md
+│   ├── 02-document-policy-knobs-k6.md
+│   └── BRIEF.md
+├── 04-implement-k4.md
+└── BRIEF.md
+
+$ git log --oneline -1
+f5e4d3c chore(grove): design-token-bucket-k3 stays open — add document-policy-knobs-k6
+```
+
+The node is live again, the follow-up leaf lands at the next free position with a fresh key (`-k6`), and nothing had to be un-marked to get there — that is the whole reason the close needs no gate. It gets its own housekeeping commit, separate from the retirement that preceded it: *this leaf is done* and *this node is not* are two different facts. The human reviews the decision in that diff, after the fact, instead of being interrupted before it. The only case that stops is a check that fails *un*-nameably — a residue that is a scope judgement rather than work. That is an escalation, discretionary and triggered by evidence the session actually met, not a routine gate.
+
+`03-design-token-bucket-k3/` is a **decomposition** node: `leaf-decompose` gave it a `BRIEF.md`, and that charter is what supplies both the `Done when` to check and the text to promote. The *other* node species — a **chain node**, the `<stem>-chain/` or `<stem>-pair/` directory `leaf-add-chain` / `leaf-add-pair` writes — carries no charter by rule, so its close has **nothing to do**: no rollup to check and nothing to promote. The discriminator is the file's presence, not the name.
+
+## Iteration 4: the follow-up leaf, and the node's close
+
+The loop relaunches and the depth-first pick stays inside the node, landing on the leaf the last session cut. The session documents the knobs, commits, and retires the leaf in place. Walking the parent chain again, the node has no live leaf — and this time the `Done when` holds.
+
+Closing a node moves nothing on disk (there is no `done/` to move into): its leaves are already marked done in place, and its `BRIEF.md` stays where it is. What the close *does* is **promote** anything from the node's brief that future siblings should still see — up to the parent brief, an ADR, or the glossary — so it stays in the brief chain after the node goes quiet, and then **report** the close by naming the node's handle in the commit message:
+
+```
+$ git log --oneline -2
+e1d0c9b chore(grove): retire document-policy-knobs-k6, close design-token-bucket-k3 — promote design intent into root brief
+7c6b5a4 docs(rate-limit): document token-bucket policy knobs
+```
+
+The promoted text is now part of an ancestor — `04-implement-k4`'s session reads it from the root `BRIEF.md` without descending into a quiet subtree. Had that left the *root* with no live leaf either, the walk would repeat one level up, silently, so an unattended run crosses a whole chain of closes without stopping.
+
+If the node's `BRIEF.md` carried nothing worth promoting (the work was a tactical step whose conclusions live entirely in the code or ADR it produced), the session records that nothing needed promoting. The discipline is to *consider* promotion, not to always perform it.
+
+To run that promotion out of band — because a prior session skipped it, or because you want it in its own commit — the user runs `grove retire`, in-worktree:
 
 ```
 $ grove retire 03-design-token-bucket-k3
 ```
 
-`grove retire` launches a focused harness session whose prompt does exactly that: promote anything still relevant from the node's `BRIEF.md` upward (to the parent brief, an ADR, or the glossary), in one focused commit. The node directory and its `DONE` leaf stay put.
+`grove retire` launches a focused harness session whose prompt does exactly that: promote anything still relevant from the node's `BRIEF.md` upward, in one focused commit. The node directory and its `DONE` leaves stay put.
 
-```
-$ git log --oneline -1
-e1d0c9b chore(grove): retire design-token-bucket-k3 — promote design intent into root brief
-```
-
-The promoted text from the node's brief is now part of an ancestor — `04-implement-k4`'s session can read it from the root `BRIEF.md` without descending into a quiet subtree. (Inside the regular loop, the same promotion runs implicitly when the user confirms the asked retirement, and the same cascade continues up the parent chain.)
-
-If the node's `BRIEF.md` carried nothing worth promoting (the work was a tactical step whose conclusions live entirely in the code or ADR it produced), the retire session simply records that nothing needed promoting. The discipline is to *consider* promotion, not to always perform it.
-
-## Iteration 4: the implementation leaf
+## Iteration 5: the implementation leaf
 
 The loop's next session picks `04-implement-k4.md`, wires the token-bucket middleware, commits, and retires the leaf in place (`04-DONE-implement-k4.md`). With that, every leaf is done — `grove-llm pick` comes up empty, and the loop switches from "do the next task" to proposing the **complete finish cycle**. That hand-off is the subject of [`finish.md`](finish.md).
 

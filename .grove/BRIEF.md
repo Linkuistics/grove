@@ -48,7 +48,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-confirmation-k12` | `design` | **decided**: the Retire cascade asks nothing; it checks, promotes and reports |
 | `changelog-unreleased-k13` | `impl` | **done** — `## Unreleased` ratified; this grove's shipped work logged under it |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
-| `confirmation-prose-k15` … `-k17` | `impl` chain | reconcile `content/`, `docs/` and `src/` prose to that decision |
+| `confirmation-prose-k15` … `-k17` | `impl` chain | `k15` **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
 | `changelog-release-rename-k18` | `impl` | make `cargo release` rename `## Unreleased`, rather than the prose note `k13` left — raised by `k13` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
@@ -229,6 +229,51 @@ name. Grep is decisive here where the graph is heuristic (a Rust cross-module ca
 must appear textually as a path or a `use`), which is worth knowing given this
 repo's session protocol reaches for the graph first. `tree_id` and `leaf_id` now
 each warn about the other.
+
+**What `confirmation-prose-k15` swept, and the two calls `k16` should attack
+first.** Eleven files, zero code. `content/SKILL.md` § Retire is the substantial
+rewrite — the close asks nothing for either species, and four verify-and-report
+steps replace the question, teaching the *first test* (a node is never marked, so
+any answer left the tree byte-identical) rather than only the outcome. The finish
+cycle now states it is the loop's only routine human gate, the counterpart fact.
+The `BRIEF.md` discriminator's four justifications-by-confirmation were
+**rewritten, not cut** — its job is now to select whether a close has *work*, not
+whether it gets *asked* (`BRIEF-FORMAT.md`, `TASK-FORMAT.md`, `driving.md`,
+`docs/grove.md`, plus `llm_cli.rs` and `tree_grow.rs`). `tree_grow.rs`'s
+brief-absence assertion is kept and only its justification rewritten, per the
+leaf; the test was **renamed** to what it now pins
+(`…_so_its_close_has_nothing_to_do`).
+
+1. **`docs/research/` was included, annotated not rewritten — the widest call
+   here.** Four places read *"task-master validates grove's human-confirmed
+   roll-up"* as a live endorsement. The rule applied: a survey **finding** is dated
+   evidence and immutable, while its **mapping onto our design** is normative and
+   must track the decision — so only the mappings moved, framed as "at survey
+   time". What survives is the *integrity* half (grove's done-ness cannot drift
+   from its children), which is the very premise the ADR used to **remove** the
+   gate; the survey was not wrong, its conclusion was drawn one step early. If
+   `k16` judges research docs out of scope for a prose sweep, this is the finding to
+   raise — the alternative was five scattered annotations or a whole-document
+   status banner (the `docs-reconcile-k6` pattern).
+2. **`docs/workflows/multi-step.md` was rebuilt, not edited, and grew an
+   iteration.** Its scripted beat was *"the user said not yet"* — an interaction
+   that can no longer happen. Now check → `leaf-add`, which shows the ADR's own
+   repair (the node goes live again with nothing un-marked, which is *why* the close
+   needs no gate). That pushed the node's real close into a new iteration 4, moved
+   `grove retire` beside the promotion it demonstrates, and made the walkthrough
+   five sessions. Worth a consistency read: the illustrative commit hashes and the
+   iteration-3 log had to stay reconcilable, and one earlier paragraph ("the node is
+   implicitly done") now sets up a check that *fails*.
+
+Also checked and deliberately left alone, so `k16` need not re-derive them:
+`src/cli.rs`'s `grove retire` doc comment (promote-and-close, never implied
+asking), `content/prompts/retire.md` (one line, delegates to the skill's flow),
+and the `leaf-prune` HITL comments in `llm_cli.rs` / `tree_lifecycle.rs` —
+pruning stays HITL on test 2. `CHANGELOG.md` got the **one** `### Changed` entry
+this chain owns, plus a fix to the *Unreleased* chain-node entry, which still said
+the confirmation "is now asked of brief-carrying nodes only"; the identical
+sentence under `## v16.2.0` is tagged history and was left. Every `grove-llm` /
+`grove` `--help` long-text surface was greped clean of the old claim.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

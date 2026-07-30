@@ -133,7 +133,9 @@ pub enum Command {
     ///
     /// The directory is what makes the group structural in any tree viewer, and
     /// it is **brief-less by rule** — that absence is how the Retire cascade
-    /// tells a chain from a decomposition, so a chain node closes silently.
+    /// tells a chain from a decomposition, so a chain node's close has nothing to
+    /// do: no `Done when` to check, no brief to promote. Neither species' close
+    /// asks a human anything (*confirmation-boundary*).
     ///
     /// You name the producer kind; the verb **derives** the other two. That
     /// derivation is what it is for: `--kind review-impl` beside a `design`

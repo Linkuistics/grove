@@ -345,27 +345,45 @@ clears the when-to-write bar; otherwise the mark and the commit message suffice
 Then walk the parent chain: if a node now has no live leaf left in its subtree —
 however its leaves finished — it is **implicitly done** — a brief is context,
 not a task, so it is never marked done; its done-ness *is* the absence of a live
-child. **Ask the user before treating a *brief-carrying* node as done** — the
-confirmation gives them a moment to add a follow-up leaf if the node is not
-actually finished. A **brief-less** node — a chain node, written whole by
-`leaf-add-chain` / `leaf-add-pair` — closes **silently**: its integrate or
-combine step finishing means it is finished by construction, there is no brief to
-promote, and the question has one sensible answer. The discriminator is the
-presence of `BRIEF.md`, a file test — never the node's slug. On confirmation,
-promote anything still relevant from the node's brief upward — to
-the parent brief, an ADR, or the glossary — so it stays in the brief chain of
-future siblings; the brief and its now-terminal leaves stay exactly where they
-are (nothing moves). Retirement is also the moment to **reconcile the ADR set**
+child. **The close asks the human nothing, for either node species.** A node is
+never marked, so whatever a human answered the tree was byte-identical
+afterwards — and a node closed in error is reopened by one `leaf-add`, with
+nothing to undo. That is the first of the two tests deciding where grove *does*
+ask; ADR *confirmation-boundary* carries both, and the second is why pruning and
+the finish cycle still do.
+
+Instead the session **verifies and reports**. On a **brief-carrying** node:
+
+1. **Check** the node's brief `Done when` against what its subtree delivered.
+2. **`leaf-add`** the missing work if the check fails and you can name the gap —
+   a failed check names *work*, and grove has one answer for missing work.
+3. **Escalate** — stop and say so — if the check fails and you *cannot* name the
+   gap, because the residue is a scope judgement rather than work. That is an
+   ordinary escalation, discretionary and always legitimate, not a routine gate.
+4. **Promote** anything still relevant from the brief upward — to the parent
+   brief, an ADR, or the glossary — so it stays in the brief chain of future
+   siblings; and **report** the close by naming the node's `<slug>-k<key>` handle
+   in the commit message alongside the leaf's own. The human reviews the close
+   after the fact, in the diff. The brief and its now-terminal leaves stay
+   exactly where they are (nothing moves).
+
+A **brief-less** node — a chain node, written whole by `leaf-add-chain` /
+`leaf-add-pair` — closes with **nothing to do**: no `Done when` to check and no
+brief to promote, so every step above is vacuous. The discriminator is the
+presence of `BRIEF.md`, a file test — never the node's slug.
+
+Retirement is also the moment to **reconcile the ADR set**
 with what the finished work established: edit it in place to keep it a minimum
 coherent set (merge / split / delete), and fix any citation the rework leaves
 dangling — in the briefs, the other ADRs, or `docs/`; never append a superseding
 ADR (`linkuistics:decision-records`). That may leave the next ancestor with no
-live leaf either; re-check, ask again, recurse, until a node still has a live
-leaf or you reach the grove root. Terminal branches stay in the tree, marked in
+live leaf either; re-check and recurse, until a node still has a live
+leaf or you reach the grove root — silently, so an unattended run crosses a whole
+chain of closes without stopping. Terminal branches stay in the tree, marked in
 place, never deleted while the grove is live — so a recursive view of `.grove/`
 (`find .grove`, or a tree-style file manager) shows the whole state, done and
 abandoned alike. The cascade walk and the brief-promotion-upward stay prose
-deliberately: both are judgement steps (is this node done? what survives
+deliberately: both are judgement steps (does the `Done when` hold? what survives
 upward?) with no stable input/output shape that would justify a verb.
 
 **Signal.** Once the task is committed and retired (and any parent-chain cascade
@@ -390,8 +408,9 @@ Ctrl-C, which stops).
 done" on stderr. The **complete finish cycle** is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
 confirmation before any teardown** — never run steps 2–3 unprompted, so a
-headless run with no human present simply reports the plan and stops. On
-confirmation, run:
+headless run with no human present simply reports the plan and stops. This is the
+loop's **only routine human gate** (ADR *confirmation-boundary*) — everything else
+a session asks is a discretionary escalation. On confirmation, run:
 
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op

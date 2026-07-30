@@ -420,7 +420,7 @@ Five habits make the chain worth its three sessions:
   prefix (`review-sync-design`) groups every review together and scatters the
   chains (`TASK-FORMAT.md`). Don't write a `BRIEF.md` into the node: its absence
   is what tells the Retire cascade this is a chain rather than a decomposition, so
-  it closes silently instead of asking a question with one answer.
+  its close has nothing to do — no `Done when` to check, no brief to promote.
 - **The reviewer produces findings, not fixes.** A reviewer that starts editing
   has collapsed the chain back into one session and lost the independence that
   was the point. `review-prototype` is the sharpest case: it is *not* a code

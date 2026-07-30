@@ -1164,11 +1164,14 @@ When the last subtask of a parent goes `done`, it **does not auto-complete the p
 *suggests*: *"All subtasks of parent task N are now marked as done… Consider updating the parent
 task status with: task-master set-status --id=N --status=done"* (`update-single-task-status.js:78-85`).
 grove marks a leaf done with a filename infix (`NN-DONE-slug-kKEY.md`), and a *node's* done-ness is
-**implicit** — the absence of any live child — but the retire cascade **asks the user before
-treating the node as done**. *Walk-away:* a clean **convergence** — the closest analog independently
-reaches grove's exact instinct that *a parent/node being "done" because its children are is a
-human-confirmed judgment, not an automatic transition* (validates the retire-step's "ask the user").
-But the *mechanism* diverges in grove's favour on integrity: task-master stores the parent's done
+**implicit** — the absence of any live child — while at survey time the retire cascade **asked the
+user before treating the node as done**. *Walk-away:* a **convergence on instinct that grove has
+since resolved the other way** — the closest analog independently reaches *a parent/node being "done"
+because its children are is a human-confirmed judgment, not an automatic transition*, and grove
+dropped exactly that gate (ADR *confirmation-boundary*: a node is never marked, so the answer changed
+no bytes; the session checks the node's `Done when` and cuts a follow-up leaf instead of asking).
+The reason it could is the divergence recorded next, so read the two together rather than as
+independent points. The *mechanism* diverges in grove's favour on integrity: task-master stores the parent's done
 *state as a separate field that can disagree with its children* (a parent sits `pending` with all
 subtasks `done` until the human updates it — two sources of truth that can drift); grove's node
 done-ness **is** the absence of a live child, so it can never disagree with its children — there is
@@ -1225,7 +1228,7 @@ note that task-master's `review`/`deferred`/`cancelled` express lifecycle states
 infix deliberately omits. **G6** adds that grove's one-worktree-per-grove lets git do the
 concurrency isolation task-master must hand-build as tags + cross-tag move validation. Net: no
 mechanism to import — task-master **validates** grove's core bets (edgeless positional ordering,
-filesystem-as-state, lazy recursive decomposition, human-confirmed roll-up) by being the
+filesystem-as-state, lazy recursive decomposition, drift-free implicit roll-up) by being the
 well-built, popular system that took every opposite road and paid the machinery bill for it.
 
 ## openclaw/openclaw
@@ -2441,7 +2444,9 @@ worktree**. Ranked: actionable first, validation-only last.
    boundedness*: grove can front-load completely because the brief-chain **is** the bounded,
    complete relevant set, so it needs neither search nor a running-notes tier. gstack-G6 and
    hermes-G4's `--script` split independently validate grove's deterministic-CLI-vs-prompt
-   architecture; task-master-G5 validates the human-confirmed parent roll-up. *Walk-away:* no
+   architecture; task-master-G5 validates the *drift-free* parent roll-up (its
+   human-confirmed half is the one bet grove later resolved the other way —
+   *confirmation-boundary*). *Walk-away:* no
    mechanism to import — a deep bench of citations for when grove's core bets are questioned.
    The two genuine *gaps* the validation surfaces, both real but out of current scope:
    **cross-workspace / cross-agent handoff** (gstack-G7's `/context-restore`, mattpocock-G3's
@@ -2508,8 +2513,9 @@ worktree**. Ranked: actionable first, validation-only last.
   mechanisms (trust-levels, budget-as-distill-signal, source-file staleness).
 - **Q5 (staged-pipeline / multi-agent patterns)?** The biggest opportunity is an **opt-in
   unattended mode** (C4, four sources). Dependency edges between leaves are **declined** with
-  their cost quantified (task-master-G3). The deterministic-CLI-vs-prompt split and
-  human-confirmed roll-up are validated, not changed.
+  their cost quantified (task-master-G3). The deterministic-CLI-vs-prompt split is
+  validated, not changed; the *human-confirmed* roll-up was validated here and dropped
+  later (*confirmation-boundary*), leaving the drift-free half.
 - **Q6 (doubt / review / verification)?** The headline carry: specify the doubt pass from
   `doubt-driven-development` (C3, three-source-validated), optionally with diverse-lens
   compositions and sandboxed cross-model review; add a bootstrap confabulation guard; and wire

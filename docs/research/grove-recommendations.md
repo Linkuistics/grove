@@ -353,9 +353,12 @@ side deliberate every time:
 - **Human-confirmed parent roll-up.** task-master does *not* auto-complete a parent when its
   last subtask finishes — it *suggests*: *"All subtasks of parent task N are now marked as
   done… Consider updating the parent task status"* (`update-single-task-status.js:78-85`).
-  This validates grove's retire-cascade "ask the user before treating a node as done."
-  (Better, grove's node done-ness *is* the absence of a live child, so it cannot drift from
-  its children the way task-master's separate status field can.)
+  At survey time this was read as validating grove's retire-cascade "ask the user before
+  treating a node as done." **grove has since dropped that confirmation** (ADR
+  *confirmation-boundary*), and the second half of this finding is why: grove's node
+  done-ness *is* the absence of a live child, so it cannot drift from its children the way
+  task-master's separate status field can — and with nothing written, a human's yes/no
+  changed no bytes. The convergence that survives is the *integrity* point, not the gate.
 - **Auto-load vs on-demand, settled by relevance-boundedness.** openclaw must retrieve
   (`memory_search`/`memory_get`) and even pre-fetch (active memory) because its relevant
   context is unbounded and unstructured (`active-memory.md:10-20`); grove can front-load

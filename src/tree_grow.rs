@@ -980,8 +980,9 @@ mod tests {
     //     two are derived, which is the wrong-but-well-formed error class the
     //     `--kind` write-gate cannot catch (ADR *cli-binary-split*, leg 2);
     //   * **the node carries no `BRIEF.md`** — the discriminator the Retire
-    //     cascade reads, so a stray charter silently restores the confirmation
-    //     the design removed (task-tree-scheme);
+    //     cascade reads, so a stray charter silently promotes a chain into the
+    //     species whose close carries work (task-tree-scheme,
+    //     confirmation-boundary);
     //   * **one call, one mutation** — a run that fails leaves *no directory*, so
     //     a live prefix of a chain never masquerades as a hand-cut partial one.
 
@@ -1022,13 +1023,15 @@ mod tests {
     }
 
     #[test]
-    fn a_chain_node_carries_no_brief_so_the_cascade_never_asks_about_it() {
-        // The discriminator, and the argument that unblocked node-per-chain. The
-        // Retire cascade's confirmation is asked of **brief-carrying** nodes, so a
-        // charter here would silently restore the noise the design removed — and
-        // it would be written because a step demanded it (constraint 4), by a verb
-        // that knows only a stem. Asserted as a *file test*, which is the only
-        // thing any reader is allowed to key on.
+    fn a_chain_node_carries_no_brief_so_its_close_has_nothing_to_do() {
+        // The discriminator, and the argument that unblocked node-per-chain. A
+        // brief-carrying node's close has a `Done when` to check against its
+        // subtree and a brief to promote; a chain node's has neither
+        // (confirmation-boundary). So a charter here would silently give the
+        // cascade close-time work over a rollup nobody wrote — and it would be
+        // written because a step demanded it (constraint 4), by a verb that knows
+        // only a stem. Asserted as a *file test*, which is the only thing any
+        // reader is allowed to key on.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         for paths in [

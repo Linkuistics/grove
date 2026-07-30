@@ -1,5 +1,5 @@
-// The **v2 read verbs** (task-tree-scheme) — `pick`, `brief-chain`, `resolve` —
-// re-expressed against the real **directory tree**, built on the 11.1 id model
+// The **read verbs** (task-tree-scheme) — `pick`, `brief-chain`, `resolve` —
+// expressed against the real **directory tree**, built on the id model
 // (`src/tree_id.rs`). Keeps task-tree-scheme's *semantics* (first live leaf in DFS
 // pre-order; ancestor briefs root→leaf; reference-by-permanent-key) and changes
 // only the **walk**: in v1 the whole tree was encoded into flat filenames, so a
@@ -13,22 +13,17 @@
 //   * `brief-chain` — the leaf's ancestor *directories* root→leaf, each `BRIEF.md`;
 //   * `resolve`     — a recursive collect-the-tree, then match by key/slug.
 //
-// Built **isolated**, mirroring `tree_id`: this module does NOT touch the live v1
-// verb path (`leaf_read` and the `llm_cli` dispatch to it), which keeps speaking
-// the flat scheme until the user-gated re-flip (11.6 — mirrors 070/040) wires
-// these verbs in and sweeps the v1 modules. So no leaf in this node can break the
-// v1-flat grove that is driving itself. The `Resolution` types and
-// `render_resolution` are deliberately re-defined here (not reused from
-// `leaf_read`) to keep the v2 surface self-contained for that later swap.
+// These are the verbs `llm_cli` dispatches; the flat-scheme `leaf_read` they
+// replaced is gone. `Resolution` and `render_resolution` live here rather than in a
+// shared module because this is now the only reader.
 //
-// `resolve`'s **reference grammar** keeps v1's `[n]` / `n` / `[n]-slug` / bare-slug
-// forms verbatim, and 11.5 adds exactly one form: the full `<slug>-k<key>` handle
-// that task-tree-scheme §5 makes canonical for commits and prose. The deferred question
-// 11.2 left for here ("should resolve also accept the handle, now that the handle
-// is established?") is **resolved yes**: `handle_key` peels the handle's terminal
-// `-k<key>`, and the slug branch falls back to it only when no bare slug matched —
-// so every v1 reference still resolves identically (a literal slug ending in
-// `-k<digits>` is matched as a slug first), and the §5 handle round-trips to a path.
+// `resolve`'s **reference grammar** keeps the flat scheme's `[n]` / `n` /
+// `[n]-slug` / bare-slug forms verbatim and adds exactly one: the full
+// `<slug>-k<key>` handle that task-tree-scheme §5 makes canonical for commits and
+// prose. `handle_key` peels the handle's terminal `-k<key>`, and the slug branch
+// falls back to it only when no bare slug matched — so every older reference still
+// resolves identically (a literal slug ending in `-k<digits>` is matched as a slug
+// first), and the §5 handle round-trips to a path.
 
 use crate::harness::Harness;
 use crate::leaf::Kind;
@@ -317,8 +312,7 @@ pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
 
 /// The outcome of resolving a reference. The CLI maps this to stdout/stderr via
 /// [`render_resolution`]; the split keeps the I/O contract unit-testable without
-/// a live verb dispatch. (Re-defined here, not reused from `leaf_read`, to keep
-/// the v2 surface self-contained for the 11.6 swap.)
+/// a live verb dispatch.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Resolution {
     /// Exactly one entry matched. `outcome` is the matched leaf's own
@@ -470,10 +464,9 @@ fn handle_key(reference: &str) -> Option<u32> {
     reference[digits_start..].parse().ok()
 }
 
-/// Render a [`Resolution`] to the `(stdout, stderr)` the `resolve` verb emits
-/// once wired in (11.6). Kept pure and separate from the I/O so the exact
-/// stdout/stderr contract is unit-testable while the live CLI dispatch is
-/// untouched.
+/// Render a [`Resolution`] to the `(stdout, stderr)` the `resolve` verb emits.
+/// Kept pure and separate from the I/O so the exact stdout/stderr contract is
+/// unit-testable without going through the CLI dispatch.
 pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, String) {
     match resolution {
         Resolution::Found { path, outcome } => {

@@ -1,35 +1,29 @@
-// The **v2 grow verbs** (task-tree-scheme) — `leaf-add`, `leaf-insert`, and the
+// The **grow verbs** (task-tree-scheme) — `leaf-add`, `leaf-insert`, and the
 // composite `leaf-add-chain` / `leaf-add-pair` (which emit a **chain node**: a
-// directory holding three steps and, by rule, no `BRIEF.md`) —
-// re-expressed against the real **directory tree**, built on the 11.1 id model
-// (`src/tree_id.rs`). Keeps task-tree-scheme's *semantics* (append a gapless child with a
-// fresh permanent key; insert shifts the occupant + later siblings up by one) and
-// changes the *mechanics* to the filesystem's shape:
+// directory holding three steps and, by rule, no `BRIEF.md`) — expressed against
+// the real **directory tree**, built on the id model (`src/tree_id.rs`). Keeps
+// task-tree-scheme's *semantics* (append a gapless child with a fresh permanent
+// key; insert shifts the occupant + later siblings up by one) with the mechanics
+// the filesystem's shape allows:
 //
-//   * v1-flat baked the whole dotted path into every filename, so inserting at
-//     `2.2` rewrote `2.2.1`→`2.3.1`… across the **whole subtree** — O(subtree)
-//     filename + header rewrites.
-//   * v2 carries the hierarchy in directories (a node is a *directory* holding
-//     its children, and optionally a `BRIEF.md` charter — see `tree_id`'s header
-//     for the two species), so a renumber is a single **rename of a directory**
-//     and the subtree — child names *and* keys — rides along untouched. The shift
-//     is O(siblings at one level), the "cascade collapse" task-tree-scheme celebrates.
+//   * the superseded v1-flat scheme baked the whole dotted path into every
+//     filename, so inserting at `2.2` rewrote `2.2.1`→`2.3.1`… across the **whole
+//     subtree** — O(subtree) filename + header rewrites.
+//   * directories carry the hierarchy instead (a node is a *directory* holding its
+//     children, and optionally a `BRIEF.md` charter — see `tree_id`'s header for
+//     the two species), so a renumber is a single **rename of a directory** and the
+//     subtree — child names *and* keys — rides along untouched. The shift is
+//     O(siblings at one level), the "cascade collapse" task-tree-scheme celebrates.
 //
-// **Position-free headers (decided 11.3, with the post-flip grilling).** A task
-// file's first-line `# …` header is the *stable handle* `# <slug>-k<key>` — the
-// per-level position `NN` lives only in the filename, never in the body. This is
-// the faithful realization of task-tree-scheme §5 ("reference a work item by `<slug>-k<key>`,
-// never by its position/path") and it makes the renumber a **pure rename with
-// zero content rewrites**: shifting `05-mid-k14/`→`06-mid-k14/` changes one
-// directory name and nothing else — the moved node's own `BRIEF.md` header
-// (`# mid-k14 — brief`) and every descendant file stay byte-identical. (Carried to
-// 11.4's migration, which rewrites v1 `# <dotted>-[<key>]-<slug>` headers down to
-// the position-free handle, and to 11.5's prose.)
-//
-// Built **isolated**, mirroring `tree_id` / `tree_read`: this module does NOT
-// touch the live v1 verb path (`leaf_grow` and the `llm_cli` dispatch to it),
-// which keeps speaking the flat scheme until the user-gated re-flip (11.6). So no
-// leaf in this node can break the v1-flat grove that is driving itself.
+// **Position-free headers.** A task file's first-line `# …` header is the *stable
+// handle* `# <slug>-k<key>` — the per-level position `NN` lives only in the
+// filename, never in the body. This is the faithful realization of
+// task-tree-scheme §5 ("reference a work item by `<slug>-k<key>`, never by its
+// position/path") and it makes the renumber a **pure rename with zero content
+// rewrites**: shifting `05-mid-k14/`→`06-mid-k14/` changes one directory name and
+// nothing else — the moved node's own `BRIEF.md` header (`# mid-k14 — brief`) and
+// every descendant file stay byte-identical. `tree_migrate` carries the same rule
+// backwards, rewriting v1 `# <dotted>-[<key>]-<slug>` headers down to the handle.
 
 use crate::harness::Harness;
 use crate::leaf::Kind;
@@ -662,7 +656,7 @@ fn stem(name: &str) -> &str {
 }
 
 /// Write a freshly-created leaf's template. The first-line header is the
-/// **position-free handle** `# <slug>-k<key>` (decided 11.3) — the mutable per-level
+/// **position-free handle** `# <slug>-k<key>` — the mutable per-level
 /// position lives only in the filename, so a later renumber never rewrites this.
 ///
 /// A declared `harness` adds one `**Harness:**` line immediately under

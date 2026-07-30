@@ -1,9 +1,9 @@
-// The **v2 id model** (task-tree-scheme): the parsed tree-entry-name type plus the pure
-// functions every directory-based verb (11.2 read / 11.3 grow+lifecycle / 11.4
-// migrate) consumes. Replaces `leaf_id`'s flat dotted-decimal-*vector* model.
+// The task tree's **id model** (task-tree-scheme): the parsed tree-entry-name type
+// plus the pure functions every directory-based verb consumes — `tree_read`,
+// `tree_grow`, `tree_lifecycle`, `tree_migrate`.
 //
-// In v2 the task tree is real **directories** — the filesystem carries the
-// hierarchy, so a name encodes only its *per-level* position, not a global path:
+// The task tree is real **directories** — the filesystem carries the hierarchy, so
+// a name encodes only its *per-level* position, not a global path:
 //
 //     leaf       NN-[DONE-|ABANDONED-]<slug>-k<key>.md
 //     node dir   NN-<slug>-k<key>             (a directory holding children, and
@@ -28,15 +28,18 @@
 // the two marks mutually exclusive by construction (`Outcome`). A node is never
 // marked either way — its done-ness is the absence of a live leaf in its subtree.
 //
-// The `-k<key>` delimiter (resolved at 11.1, amending task-tree-scheme's `[<key>]`):
+// The `-k<key>` delimiter (amending task-tree-scheme's original `[<key>]`):
 // brackets are shell-glob metacharacters; `-k<key>` is glob-safe, and it stays
 // unambiguous because the key is mandatory and always rendered last — parse takes
 // the terminal `-k<digits>`, so `05-task-k9-k3.md` is slug `task-k9`, key `3`.
 //
-// Built **isolated**: it does NOT touch the live v1 verb path (`leaf_id` /
-// `leaf_read` / `leaf_grow` / `leaf_lifecycle` / `migrate`), which keeps speaking
-// the flat scheme until 11.2+ rewrite the verbs onto this model and the v1 modules
-// are swept. Pure functions only, dependency-free of the verb modules.
+// **`leaf_id` is not a second opinion on any of this.** It parses the superseded
+// *v1-flat* names (`<dotted>-[<key>]-<slug>`) and survives only as `tree_migrate`'s
+// one-time migration input; every live verb reads names through here. The two
+// modules export the same four function names — `parse`, `sort_key`, `next_key`,
+// `validate_slug` — for different grammars, so read a call site's `use` line before
+// concluding which model it speaks (a name-matching indexer will get this wrong).
+// Pure functions only, dependency-free of the verb modules.
 
 use anyhow::{bail, Result};
 
@@ -293,8 +296,8 @@ fn parse_parts(stem: &str, allow_outcome_infix: bool) -> Option<(u32, Outcome, S
 
 /// Parse a per-level position string (`05`) into its integer. **Lenient on
 /// padding**: a hand-typed `5` parses to `5` (rendering re-pads to `05`); only
-/// non-digit or empty input rejects. Public so the grow/lifecycle verbs (11.3)
-/// can validate a bare position argument or the `NN` prefix of a `# …` header.
+/// non-digit or empty input rejects. Public so the grow/lifecycle verbs can
+/// validate a bare position argument or the `NN` prefix of a `# …` header.
 pub fn parse_position(s: &str) -> Option<u32> {
     if s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()) {
         return None;
@@ -305,7 +308,7 @@ pub fn parse_position(s: &str) -> Option<u32> {
 /// The **per-level** sort key for a name. Orders the entries *within one
 /// directory*: the charter brief first, then leaves and node dirs by numeric
 /// position, then foreign names last; the full name breaks ties deterministically.
-/// The *global* tree order is the directory walk (11.2's `pick`), so this is a
+/// The *global* tree order is the directory walk (`tree_read`'s `pick`), so this is a
 /// per-level comparator only — not a global vector like v1's.
 pub fn sort_key(name: &str) -> (u8, u32, String) {
     // The leading rank groups: 0 = the charter (heads its dir), 1 = positioned

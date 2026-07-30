@@ -1,6 +1,6 @@
-// The **v2 lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`,
-// `leaf-retire`, and `leaf-prune` — re-expressed against the real **directory
-// tree**, built on the 11.1 id model (`src/tree_id.rs`) and the 11.3 grow verbs
+// The **lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`,
+// `leaf-retire`, and `leaf-prune` — expressed against the real **directory
+// tree**, built on the id model (`src/tree_id.rs`) and the grow verbs
 // (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
 // starts with one live leaf so it is never mistaken for finished; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
@@ -18,18 +18,17 @@
 //     `NN-DONE-<slug>-k<key>.md`), keeping the retired leaf in its directory at its
 //     position — no `done/` directory;
 //   * `leaf-prune` adds an `ABANDONED` infix in place, symmetric with retire, but
-//     — per ADR *pruning*'s D6 — accepts a **node** too: marking every *live* leaf
+//     — per ADR *pruning* — accepts a **node** too: marking every *live* leaf
 //     in the subtree (bulk, since one decision can kill many leaves at once),
 //     leaving `DONE` leaves alone.
 //
-// **Position-free headers (11.3):** a leaf/brief header is the stable handle
+// **Position-free headers:** a leaf/brief header is the stable handle
 // `# <slug>-k<key>` (`# … — brief` for a node), so `leaf-retire`/`leaf-prune`
 // leave the file's content byte-identical (the outcome infix is filename-only)
 // and `leaf-decompose` only appends ` — brief` to the handle.
 //
-// Built **isolated**, mirroring `tree_id` / `tree_read` / `tree_grow`: this module
-// does NOT touch the live v1 verb path (`leaf_lifecycle` and the `llm_cli` dispatch
-// to it), which keeps speaking the flat scheme until the user-gated re-flip (11.6).
+// These are the verbs `llm_cli` dispatches; the flat-scheme `leaf_lifecycle` they
+// replaced is gone.
 
 use crate::leaf::Kind;
 use crate::tree_grow::leaf_add;
@@ -218,7 +217,7 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
 /// (its new path), and every already-`DONE` leaf found in scope and left
 /// untouched (ADR *pruning*: that work really was done). A single-leaf call
 /// marks exactly one entry and finds nothing to leave alone; a node call is
-/// bulk — the arity asymmetry with `leaf-retire` is deliberate (D6).
+/// bulk — the arity asymmetry with `leaf-retire` is deliberate (ADR *pruning*).
 #[derive(Debug)]
 pub struct PruneResult {
     pub marked: Vec<PathBuf>,
@@ -237,7 +236,7 @@ pub struct PruneResult {
 /// The `ABANDONED` infix is filename-only — every marked leaf's `# <handle>`
 /// header stays byte-identical. Working-tree only — no commit.
 ///
-/// **HITL (ADR *pruning*, D7):** this verb does not itself gate on human
+/// **HITL (ADR *pruning*):** this verb does not itself gate on human
 /// confirmation — constraint 5 is "grove guides, it does not gate" — so the
 /// caller (the LLM driving the session) must already have explicit human
 /// confirmation before calling this at all.
@@ -1267,7 +1266,7 @@ mod tests {
         );
     }
 
-    // ---- leaf-prune on a node: bulk arity (ADR *pruning*, D6) ---------------
+    // ---- leaf-prune on a node: bulk arity (ADR *pruning*) -------------------
 
     #[test]
     fn prune_node_marks_every_live_leaf_in_the_subtree() {

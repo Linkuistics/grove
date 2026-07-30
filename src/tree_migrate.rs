@@ -1,39 +1,37 @@
-// The **v2 migration** (task-tree-scheme): the one-time, in-place conversion of a task
-// tree to the v2 **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
-// `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It reuses
-// task-tree-scheme's migrate-on-adoption mechanism (the same one the v1 `migrate.rs`
-// rides) but targets the directory shape, and it accepts **two** source formats:
+// The **migration** (task-tree-scheme): the one-time, in-place conversion of a task
+// tree to the current **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
+// `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It runs on
+// adoption, from `grove do` (`launch.rs`) and the `grove migrate` verb (`cli.rs`),
+// and it accepts **two** superseded source formats:
 //
-//   * **v1-flat** (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`, the scheme this
-//     grove flipped to at 070/040) — the primary case;
-//   * the **old `NNN-slug/` + `done/`** directory tree — for any grove that never
-//     opened since 070/040, converted straight to v2 (no v1-flat way-station).
+//   * **v1-flat** (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`) — the primary case;
+//   * the **older `NNN-slug/` + `done/`** directory tree — for any grove that never
+//     opened during the v1-flat generation, converted straight across with no
+//     way-station.
 //
-// Per task-tree-scheme §5 / the 11.3 settled note, a v2 task file's first-line header is
-// the **position-free handle** `# <slug>-k<key>` (`# … — brief` for a node), so the
-// migration rewrites every old header (`# <dotted>-[<key>]-<slug>` or `# NNN-slug`)
-// down to that handle while preserving any ` — brief` tail.
+// Per task-tree-scheme §5 a task file's first-line header is the **position-free
+// handle** `# <slug>-k<key>` (`# … — brief` for a node), so the migration rewrites
+// every old header (`# <dotted>-[<key>]-<slug>` or `# NNN-slug`) down to that handle
+// while preserving any ` — brief` tail.
 //
-// **Structure** mirrors `migrate.rs`: a pure `plan` (reads the directory shape,
-// mutates nothing — unit-testable without a git repo) and an impure `execute`
-// (renames + header rewrites, **no commit** — a reviewable git change). Both
-// source readers lower to one intermediate — `Logical` (a `LeafId`-shaped id + the
-// source path + the old header token) — and a single `render` maps that to v2
-// directory destinations. So the only format-specific code is the two readers; the
-// v2 placement rules live in exactly one place.
+// **Structure:** a pure `plan` (reads the directory shape, mutates nothing —
+// unit-testable without a git repo) and an impure `execute` (renames + header
+// rewrites, **no commit** — a reviewable git change). Both source readers lower to
+// one intermediate — `Logical` (a `LeafId`-shaped id + the source path + the old
+// header token) — and a single `render` maps that to directory destinations. So the
+// only format-specific code is the two readers; the placement rules live in exactly
+// one place.
 //
-// **Keys.** v1-flat already carries permanent keys → preserved verbatim. The old
+// **Keys.** v1-flat already carries permanent keys → preserved verbatim. The
 // `NNN-slug` format has none → keys are assigned fresh in **DFS pre-order** (a
 // node's brief takes its key before its children), starting at `1` — deterministic
 // and re-runnable, so the fixtures below pin exact output.
 //
-// Built **isolated**, mirroring `tree_id` / `tree_read` / `tree_grow` /
-// `tree_lifecycle`: this module is NOT wired into the live `grove do` adoption
-// (`launch.rs`) or `grove migrate` (`cli.rs`) path — those still call the v1
-// `migrate.rs` until the user-gated re-flip (11.6) swaps `migrate::` → this module
-// and sweeps the v1 reader. So no leaf in this node can break the live grove. The
-// only old-format readers it leans on are `leaf::split_prefix` (old `NNN-slug`) and
-// `leaf_id::parse` (v1-flat) — both already the migration's one-time inputs.
+// **This is the only live reader of either old format**, and the two modules that
+// still parse them exist for it alone: `leaf::split_prefix` (`NNN-slug`) and
+// `leaf_id::parse` (v1-flat). Note `leaf_id` exports `parse` / `sort_key` /
+// `next_key` / `validate_slug` under the same names as `tree_id` — the import list
+// below is what distinguishes them.
 
 use crate::cli::MigrateArgs;
 use crate::leaf::split_prefix;
@@ -48,7 +46,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// What a migration attempt did. Both no-op outcomes are clean (not errors), so
-/// adoption (11.6) can call `migrate` unconditionally on every `grove do`.
+/// adoption can call `migrate` unconditionally on every `grove do`.
 #[derive(Debug)]
 pub enum Outcome {
     /// The tree was v1-flat or old-`NNN` and was converted; carries the move log.
@@ -74,7 +72,7 @@ pub struct Rename {
 enum Format {
     /// Already v2 — a keyed `…-k<key>.md` leaf or a `NN-<slug>-k<key>/` node dir.
     V2,
-    /// v1-flat — a `<dotted>-[<key>]-<slug>` keyed file (the 070/040 scheme).
+    /// v1-flat — a `<dotted>-[<key>]-<slug>` keyed file.
     V1Flat,
     /// Old — a `done/` dir, an `NNN-slug/` node dir, or an `NNN-slug.md` leaf.
     OldNnn,
@@ -134,8 +132,8 @@ pub fn migrate(worktree: &Path) -> Result<Outcome> {
     }
 }
 
-/// Adoption-migrate (task-tree-scheme, wired live by 11.6): the step `grove do` runs
-/// **before driving** so the loop only ever sees a v2 tree. It detects the format
+/// Adoption-migrate (task-tree-scheme): the step `grove do` runs **before
+/// driving** so the loop only ever sees a v2 tree. It detects the format
 /// via [`migrate`]; if the tree was migratable it converts it **and commits** the
 /// conversion as one clear, reviewable commit, then driving proceeds v2.
 /// A v2 / empty / absent `.grove/` is a clean no-op — no commit, no churn.
@@ -209,7 +207,7 @@ fn git(dir: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
-/// The `grove migrate [path]` CLI handler (wired live by 11.6). `path` is the
+/// The `grove migrate [path]` CLI handler (dispatched from `cli.rs`). `path` is the
 /// worktree whose `.grove/` to migrate (default: the current worktree). Prints a
 /// move summary.
 pub fn run(args: &MigrateArgs) -> Result<()> {
@@ -359,7 +357,7 @@ fn v1flat_token(id: &LeafId) -> String {
 /// Read an **old `NNN-slug/` + `done/`** tree into the common `Logical` shape:
 /// build the unified forest (live + `done/` mirror merged by logical path), then
 /// walk it DFS pre-order assigning each entity its position (1-based sibling index)
-/// and a fresh key. Same forest reader as v1's `migrate.rs`, re-targeted to v2.
+/// and a fresh key.
 fn read_old(grove_root: &Path) -> Result<Vec<Logical>> {
     let forest = collect_level(grove_root, Path::new(""))?;
     let mut logicals = Vec::new();
@@ -465,7 +463,7 @@ fn node_dir_name(id: &LeafId) -> String {
     .name()
 }
 
-// --- old `NNN-slug/` + `done/` forest reader (ported from v1 `migrate.rs`) ---
+// --- old `NNN-slug/` + `done/` forest reader ---------------------------------
 
 /// One node/leaf in the **unified** old tree (live and `done/` mirrors merged by
 /// logical path). `nnn` is the old zero-padded numeric prefix (the level's sort

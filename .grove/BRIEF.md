@@ -193,6 +193,43 @@ headers still declaring themselves isolated from a v1 verb path this repo delete
 Same failure class, different generation — noticed while editing those very
 headers for the chain-node claim.
 
+**What `stale-module-headers-k14` swept, and the rule it settled.** All five
+"Built **isolated**" headers plus `leaf_id`'s D9 variant now describe their module
+as it is today; `leaf.rs` and `lib.rs` carried two more of the same class and were
+folded in (`lib.rs` also claimed `leaf` survives *solely* as a migration input,
+which is false — `Kind` is live everywhere). **`src/` comments no longer cite
+`.grove/` positions at all** — every `11.x`, `070/040`, `060/020` and `D<n>` is
+gone. That is not a style preference: ADR *task-tree-scheme* §5 binds "commit
+messages and **prose**" to `<slug>-k<key>` and forbids the position, and a source
+comment is prose; the referent is deleted twice over, since `.grove/` dies at the
+finish cycle. Where a citation was load-bearing it became an **ADR slug** or a
+module path — `lib.rs`'s existing "(task-tree-scheme, the install-and-reflip-v2
+leaf)" was already the model. `docs/adr/pruning.md` has no `D6`/`D7` sections at
+all, so `tree_lifecycle`'s three citations to them were pointing at a dead brief's
+running log while *looking* like ADR references. **`confirmation-prose-k17` should
+not re-open these headers**; it inherits the rule rather than re-deciding it.
+
+Two things it confirmed rather than assumed. `tree_migrate` **is** wired live
+(`cli.rs:147`, `launch.rs:38`) — the header claiming it was not had outlived the
+re-flip, so the sweep replaced a stale negative with a checked positive rather than
+just deleting the sentence. And `leaf_id`'s only consumer is `tree_migrate`, which
+touches `parse` and the `LeafId` shape alone: `filename`, `is_live_leaf`,
+`sort_key` and `next_key` are exercised **only by that module's own tests**, and
+`parse_position` / `validate_slug` live solely as `parse`'s helpers. Per this
+leaf's own Notes that is surfaced, **not trimmed** — the header now argues the
+positive case for keeping it whole (a frozen grammar whose tests pin it against
+`tree_migrate`'s fixtures), so no follow-up leaf is owed.
+
+**A tooling trap worth carrying, now recorded in both headers.** `query_graph`
+reports `tree_grow` / `tree_read` / `tree_lifecycle` calling
+`leaf_id::validate_slug` / `next_key` / `parse` / `sort_key`. They do not — those
+modules import all four names from **`tree_id`**, which exports an identical
+function set for the other grammar, and the indexer resolved the `CALLS` edges by
+name. Grep is decisive here where the graph is heuristic (a Rust cross-module call
+must appear textually as a path or a `use`), which is worth knowing given this
+repo's session protocol reaches for the graph first. `tree_id` and `leaf_id` now
+each warn about the other.
+
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where
 splitting is cheap because subagents share the parent's context. Grove leaves are

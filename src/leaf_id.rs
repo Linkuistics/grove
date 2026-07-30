@@ -1,7 +1,5 @@
-// The new-format **id model**: the foundational parsed-filename type plus the
-// pure functions every dotted-decimal verb (020 read / 030 grow / 040 lifecycle)
-// consumes. Implements the grammar settled in task-tree-scheme and the 050 brief's
-// running log D1/D2/D3/D6:
+// The **v1-flat name parser** — and nothing else. It reads the superseded flat
+// scheme, in which the whole dotted path was baked into every filename:
 //
 //     <position>-[<key>]-<slug>[.BRIEF|.DONE].md      (root brief: BRIEF.md)
 //
@@ -10,22 +8,31 @@
 // permanent **key** (stable identity, assigned once, never rewritten), and the
 // human **slug**.
 //
-// Per D9 this module is **new, isolated code**: it does NOT touch the live verb
-// path (`src/leaf.rs`, `src/pick.rs`), which keeps speaking the old `NNN-slug`
-// format until leaf 060 wires the dual-format dispatch in. Pure functions only,
-// dependency-free of the verb modules.
+// **Its one consumer is `tree_migrate`**, which uses `parse` and the `LeafId`
+// shape to read a v1-flat tree exactly once on adoption; no live verb reads a name
+// through here. The current model — directories, `NN-<slug>-k<key>` — is
+// `tree_id`, which exports `parse`, `sort_key`, `next_key` and `validate_slug`
+// under these same names for that grammar. A call site's `use` line is the only
+// thing that tells the two apart, so check it before reading a call as v1.
+//
+// Consequently `filename`, `is_live_leaf`, `sort_key` and `next_key` are exercised
+// only by this module's own tests, and `parse_position` / `validate_slug` are live
+// solely as `parse`'s helpers. That surface is kept whole rather than trimmed to
+// what the migration happens to call: it is a parser for a fixed, frozen grammar,
+// and the tests below are what pin that grammar against the fixtures in
+// `tree_migrate`. Pure functions only, dependency-free of the verb modules.
 
 use anyhow::{bail, Result};
 
 /// A filename parsed into its dotted-decimal parts. A *leaf* is `is_brief =
 /// is_done = false`; a *node brief* has `is_brief = true`; a *retired leaf* has
-/// `is_done = true` (D4: briefs are never done, so the two flags never coincide).
+/// `is_done = true` (briefs are never done, so the two flags never coincide).
 /// The root brief `BRIEF.md` is the one unkeyed singleton: empty `position`,
 /// `key = None`, empty `slug`, `is_brief = true`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LeafId {
     /// The dotted position vector, e.g. `2.3.1` → `[2, 3, 1]`. Empty for the
-    /// root brief. The *only* input to the sort comparator (D2).
+    /// root brief. The *only* input to the sort comparator.
     pub position: Vec<u32>,
     /// The permanent identity key `[n]`. `None` only for the root brief.
     pub key: Option<u32>,
@@ -34,7 +41,7 @@ pub struct LeafId {
     /// `true` for a node brief (`.BRIEF`) and the root brief.
     pub is_brief: bool,
     /// `true` for a retired leaf (`.DONE`). Never `true` together with
-    /// `is_brief` (D4).
+    /// `is_brief`.
     pub is_done: bool,
 }
 
@@ -57,7 +64,7 @@ impl LeafId {
         }
         s.push('-');
         s.push_str(&self.slug);
-        // is_brief and is_done never coincide (D4), so order is immaterial.
+        // is_brief and is_done never coincide, so order is immaterial.
         if self.is_brief {
             s.push_str(".BRIEF");
         } else if self.is_done {
@@ -73,12 +80,12 @@ impl LeafId {
     }
 }
 
-/// Parse a bare filename (not a path) into a [`LeafId`]. **Lenient** (D2): a
+/// Parse a bare filename (not a path) into a [`LeafId`]. **Lenient**: a
 /// name that does not match the grammar is "not a leaf/brief" and yields
 /// `None` — never a panic or error, so a stray `README.md` or half-written
 /// file never jams the loop.
 pub fn parse(name: &str) -> Option<LeafId> {
-    // The root brief is the one unkeyed singleton (D6).
+    // The root brief is the one unkeyed singleton.
     if name == "BRIEF.md" {
         return Some(LeafId {
             position: Vec::new(),
@@ -91,7 +98,7 @@ pub fn parse(name: &str) -> Option<LeafId> {
 
     let stem = name.strip_suffix(".md")?;
 
-    // Peel at most one marker (D4: .BRIEF and .DONE never coincide on one file).
+    // Peel at most one marker (.BRIEF and .DONE never coincide on one file).
     let (stem, is_brief, is_done) = if let Some(s) = stem.strip_suffix(".BRIEF") {
         (s, true, false)
     } else if let Some(s) = stem.strip_suffix(".DONE") {
@@ -151,13 +158,13 @@ pub fn parse_position(s: &str) -> Option<Vec<u32>> {
 }
 
 /// The total-order sort key for a filename. Orders by the **position vector
-/// only** (D2): element-wise integer compare, shorter-prefix-first, so the flat
+/// only**: element-wise integer compare, shorter-prefix-first, so the flat
 /// sorted list is the DFS pre-order. Foreign / malformed names are "not a leaf"
 /// and sort **last**; a same-position collision (a malformed tree) breaks
 /// deterministically by the full filename.
 pub fn sort_key(name: &str) -> (bool, Vec<u32>, String) {
     // Tuple Ord does the work: `false < true` puts parseable names first;
-    // `Vec<u32>` compares element-wise with shorter-prefix-first (D2); the
+    // `Vec<u32>` compares element-wise with shorter-prefix-first; the
     // filename is the deterministic tie-break for a same-position collision and
     // the order among foreign names.
     match parse(name) {
@@ -167,7 +174,7 @@ pub fn sort_key(name: &str) -> (bool, Vec<u32>, String) {
 }
 
 /// The next permanent key for a tree: `max([n] over all files, live AND .DONE)
-/// + 1`, or `1` for an empty tree. `.DONE` files stay in the tree (D3/D6) so the
+/// + 1`, or `1` for an empty tree. `.DONE` files stay in the tree so the
 ///   max is always visible and keys are never reused — there is no counter file.
 pub fn next_key<I, S>(names: I) -> u32
 where
@@ -181,7 +188,7 @@ where
         .map_or(1, |m| m + 1)
 }
 
-/// Validate a slug under the new grammar (D6): non-empty, lowercase ASCII +
+/// Validate a slug under the v1-flat grammar: non-empty, lowercase ASCII +
 /// digits + `-`, no leading/trailing `-`, and not the reserved words `BRIEF` /
 /// `DONE`. The character set already excludes `.`, `[`, and `]`.
 pub fn validate_slug(slug: &str) -> Result<()> {
@@ -334,7 +341,7 @@ mod tests {
 
     #[test]
     fn parse_double_marker_is_none() {
-        // Only one marker is peeled (D4); a second leaks into the slug → invalid.
+        // Only one marker is peeled; a second leaks into the slug → invalid.
         assert_eq!(parse("1-[1]-x.BRIEF.DONE.md"), None);
     }
 

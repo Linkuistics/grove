@@ -1,5 +1,5 @@
-// Shared leaf vocabulary that outlived the old-format reader/grower (swept in
-// 090/9.4 once the 060 migration unwired the old verb path). Two items survive:
+// Shared leaf vocabulary that outlived the old-format reader/grower. Two items
+// survive:
 //
 //   * `Kind` — the leaf-kind enum, a **closed, parameterised set of seventeen**
 //     (five producers, each with its own `review-` and `integrate-review-` step,
@@ -14,7 +14,7 @@
 //
 // Everything else this module once held — the `NNN-slug` / `done/` reader and
 // grower (`add`, `insert`, header rewriting, cross-ref surfacing) — was the old
-// verb path, made dead by the 060 migration and deleted in 090.
+// verb path, made dead by the migration and deleted with it.
 
 use anyhow::{bail, Result};
 
@@ -324,7 +324,7 @@ impl Kind {
 }
 
 /// Split `NNN-rest` (NNN exactly three ASCII digits) into `(NNN, rest)`. The
-/// old-format prefix parser; `pub(crate)` so `grove migrate` (060/020) can reuse
+/// old-format prefix parser; `pub(crate)` so `grove migrate` (`tree_migrate`) can reuse
 /// it read-only to consume an old `NNN-slug` tree (it is the *only* surviving
 /// consumer of the old format — task-tree-scheme).
 pub(crate) fn split_prefix(name: &str) -> Option<(u32, &str)> {

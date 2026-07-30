@@ -15,9 +15,15 @@ the grove release it *lands before*"), and with no standing heading it can only 
 obeyed retroactively, by whoever cuts the release and no longer has the context.
 Appending to the top `## v<N>.<m>.<p>` section instead is not the alternative:
 that heading is tagged, and adding to it falsifies a release that shipped without
-the change. **`cargo release` does not rewrite this file** — `release.toml`
-carries no `pre-release-replacements` — so renaming `## Unreleased` to the version
-being cut is a manual step of the release, recorded there beside the tag push.
+the change. **The cut closes the heading for you** — `release.toml`'s
+`pre-release-replacements` renames `## Unreleased` to the version being released
+and puts a fresh empty one back, so the standing heading is structural rather than
+a step someone has to remember. Two consequences for anyone editing this file.
+Leave the heading exactly as `## Unreleased` on a line of its own: the replacement
+anchors on it, and a cut that cannot find it aborts before writing anything. And
+every *other* mention of the string in this file is safe **because** it is inline —
+never start a line with a bare `## Unreleased` in prose, or the release aborts on
+an ambiguous match.
 
 **A change to anything the grove binary does not carry is logged in the section
 of the grove release it lands before**, prefixed with the component it touched —
@@ -166,7 +172,43 @@ stood at the graft — a closed record, not part of the versioned sequence above
   *in-session-finish-cycle*, `docs/specs/task-kind-taxonomy.md` and `CONTEXT.md`
   were reworked in place to cite it.
 
-### Fixed
+- **`release.toml`: the cut now closes this file's `## Unreleased` heading itself.**
+  `pre-release-replacements` renames it to the version being released and re-seeds
+  an empty one, replacing the `BEFORE the cut:` note that asked the releaser to do
+  it by hand. The standing heading was ratified one entry above this one on the
+  grounds that a session must be able to log its change when it makes it; a manual
+  rename made the other half of that convention depend on remembering a step, in
+  the one file whose whole value is an accurate record of what changed and when. A
+  forgotten rename is invisible except on inspection — the release's entries sit
+  under "Unreleased", above its own empty version heading.
+
+  **One replacement does both halves**, because the match does not consume the
+  blank lines around the heading: writing `## Unreleased` back *plus* the version
+  heading below it leaves the accumulated entries where they are, now under the
+  version. So no `<!-- next-header -->` marker was added — cargo-release's
+  documented idiom needs two replacements and puts an anchor comment in the file,
+  and the heading is already its own anchor.
+
+  **`exactly = 1` is the guard, and this file's own prose is what it guards
+  against.** `search` is a regex, and the string `## Unreleased` appears many times
+  here — in the preamble's explanation of the convention, and now in this entry
+  about it — a count that rises every time someone documents the thing. Only the
+  heading is ever a *whole line*, which is why the search is anchored
+  `^## Unreleased$` (cargo-release compiles it with multiline mode on, so the
+  anchors bind per line). An unanchored search aborts the cut — "at most 1
+  replacements expected, found N" — rather than corrupting anything, and a releaser
+  who renames by hand first, or drops the standing heading, fails the same loud way.
+  The preamble now states the one constraint an editor of this file is under.
+
+  Two things were checked in a throwaway workspace fixture rather than assumed,
+  and both corrected the reasoning this change started from. Replacements run once
+  per **released crate** regardless of `consolidate-commits`, which affects only
+  commit grouping — and `file` resolves against each released crate's own manifest
+  directory, so the root `CHANGELOG.md` is unreachable from any other member. What
+  keeps grove's cut to one crate is cargo-release's **default crate selection**, not
+  a per-member opt-out: `release.toml` credited a `release = false` on a
+  `harness-pane` member, and there is no such crate — the one member,
+  `codex-bridge`, carries only `publish = false`. Corrected there.
 
 - **`leaf-add-chain` / `leaf-add-pair` could leave a partial chain node behind
   when the permanent-key space ran out.** The node directory was created before

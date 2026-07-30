@@ -22,12 +22,11 @@
 # have no `.git` to export to, so they accumulate until a colocated command
 # runs.
 #
-# BEFORE the cut: rename `CHANGELOG.md`'s `## Unreleased` heading to the version
-# being released. Sessions log their changes under that heading as they make them
-# (the file's own preamble has the reasoning), and there are no
-# `pre-release-replacements` below — so nothing renames it but you, and a cut that
-# forgets leaves the release's entries filed under "Unreleased" above its own
-# empty version heading.
+# The `CHANGELOG.md` heading rename is automated — see `pre-release-replacements`
+# at the foot of this file. Nothing to do by hand, and nothing to remember: the
+# cut renames `## Unreleased` to the version and puts a fresh empty one back.
+# A missing standing heading aborts the cut before any write, so the failure is
+# loud rather than a release filed under "Unreleased".
 #
 # Push is not automated; after release:
 #   jj bookmark set main -r <release-change>
@@ -85,8 +84,75 @@ pre-release-commit-message = "chore: release v{{version}}"
 # commit. This is what makes `{{version}}` render in the message above: in a
 # *consolidated* commit (cargo-release's default for a workspace) `{{version}}`
 # is ambiguous across members and is left unrendered — producing a literal
-# "chore: release v{{version}}". grove only ever releases the one `grove` crate
-# (`harness-pane` is `release = false`), so a per-crate commit is a single,
-# correctly-rendered commit. (The tag templates above always rendered because
-# tagging is per-crate.)
+# "chore: release v{{version}}". grove only ever releases the one `grove` crate,
+# so a per-crate commit is a single, correctly-rendered commit. (The tag templates
+# above always rendered because tagging is per-crate.)
+#
+# What makes it one crate is **cargo-release's default crate selection**, not any
+# per-member opt-out: invoked at a workspace root that is itself a package,
+# `cargo release` operates on that package alone, and the `codex-bridge` member is
+# reached only by `--workspace` or `-p`. That member carries `publish = false` but
+# **no** `[package.metadata.release] release = false` — so do not read the single
+# crate as a property of the workspace. It is a property of the documented
+# invocation at the top of this file. (An earlier version of this comment credited
+# a `release = false` on a `harness-pane` member; there is no such crate, and the
+# opt-out never existed.)
 consolidate-commits = false
+
+# Close `CHANGELOG.md`'s standing `## Unreleased` heading as part of the cut, and
+# re-seed an empty one. Sessions log their changes under that heading as they make
+# them (the file's own preamble has the reasoning), which only works if something
+# renames it at release time — and a manual step in a comment is defeated by
+# forgetting it, in the one file whose whole value is an accurate record of what
+# changed and when.
+#
+# One replacement does both halves. The match does not consume the surrounding
+# blank lines, so writing the heading back *plus* the version heading below it
+# leaves the accumulated entries exactly where they are, now under the version:
+#
+#   ## Unreleased            ## Unreleased
+#                     ──▶
+#   ### Added                ## v16.3.0
+#   - a thing
+#                            ### Added
+#                            - a thing
+#
+# Three things about this were checked against cargo-release 1.1.2 in a throwaway
+# workspace fixture rather than assumed, because each one has a silent failure mode:
+#
+# `search` is a **regex**, compiled with multiline mode on — which is what makes
+# `^## Unreleased$` viable and is the whole reason this is safe. The string
+# `## Unreleased` occurs many times in `CHANGELOG.md`, in the preamble's own prose
+# *about* this convention and in the entry describing this change; only the heading
+# is ever a whole line. An unanchored search matches every one of them, and the
+# count rises each time someone documents the convention — so do not "simplify" the
+# anchors away, and do not replace them with a match count.
+#
+# `exactly = 1` is a guard, not decoration. It turns every way this can go wrong
+# into an abort before any write: the unanchored search above fails with "at most 1
+# replacements expected, found 3", and a releaser who already renamed the heading by
+# hand — or deleted the standing one — fails the same way instead of shipping a
+# release whose entries are filed under the wrong heading.
+#
+# It cannot double-apply. Replacements run once **per released crate** (regardless
+# of `consolidate-commits`, which affects only how the commits are grouped), and
+# `file` resolves against each released crate's *own* manifest directory — so the
+# root `CHANGELOG.md` is only ever reached by the root crate. Should someone cut
+# with `--workspace`, `codex-bridge` has no `CHANGELOG.md` and the run aborts
+# ("unable to find file .../codex-bridge/CHANGELOG.md to perform replace") rather
+# than renaming anything twice.
+#
+# Robust to an empty `## Unreleased` — a release of work already filed under a
+# version yields an empty `## v<next>` between the standing heading and the previous
+# release, which is correct and, more to the point, does not lose the standing
+# heading. The anchor is the heading, never the content beneath it.
+#
+# Verify a change here with a plain `cargo release patch` (no `--execute`): the dry
+# run prints a unified diff of every replacement, so the rewrite is observable
+# without cutting anything. The stronger check does not need this repo at all — a
+# throwaway two-member workspace with a copy of this file and of `CHANGELOG.md`
+# reproduces the whole thing, including the `--workspace` and empty-section cases,
+# and is how the claims above were established.
+pre-release-replacements = [
+  { file = "CHANGELOG.md", search = "^## Unreleased$", replace = "## Unreleased\n\n## v{{version}}", exactly = 1 },
+]

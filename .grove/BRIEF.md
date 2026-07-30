@@ -49,7 +49,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `changelog-unreleased-k13` | `impl` | **done** — `## Unreleased` ratified; this grove's shipped work logged under it |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
 | `confirmation-prose-k15` … `-k17` | `impl` chain | **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
-| `changelog-release-rename-k18` | `impl` | make `cargo release` rename `## Unreleased`, rather than the prose note `k13` left — raised by `k13` |
+| `changelog-release-rename-k18` | `impl` | **done** — `cargo release` now renames `## Unreleased` itself, replacing the prose note `k13` left — raised by `k13` |
 | `walkthrough-harness-routing-k19` | `impl` | fix the walkthrough's obsolete one-stamped-harness claim — raised by `k16` |
 | `retire-help-node-path-k20` | `impl` | replace `grove retire --help`'s original-scheme node-path example — raised by `k16` |
 
@@ -178,13 +178,69 @@ also retro-explains why `chain-as-node-k7` has no entry of its own while `k9`
 does. The prose chain should therefore write **one** `### Changed` entry covering
 both the decision and its enactment, citing `docs/adr/confirmation-boundary.md`.
 
-**The heading's release-time cost is real and only half-paid.** `release.toml`
-carries no `pre-release-replacements`, so `cargo release` does not touch
-`CHANGELOG.md` — the rename to `## v<next>` is a *manual* step. `k13` recorded it
-in `release.toml`'s usage comment beside the tag push, and externalized
-automating it as `changelog-release-rename-k18` rather than absorbing it: proving
-a replacement works needs a `cargo release` dry run, which `release.toml`'s own
-preamble says the harness classifier refuses as opaque.
+**The heading's release-time cost was real and is now paid** (`k18`). `k13` left
+the rename as a *manual* step in `release.toml`'s usage comment beside the tag
+push, and externalized automating it as `changelog-release-rename-k18` rather than
+absorbing it: proving a replacement works needs a `cargo release` dry run, which
+`release.toml`'s own preamble says the harness classifier refuses as opaque.
+
+**What `changelog-release-rename-k18` shipped, and the two premises it
+falsified.** `release.toml` now carries one `pre-release-replacements` entry:
+`search = "^## Unreleased$"`, `replace = "## Unreleased\n\n## v{{version}}"`,
+`exactly = 1`. One replacement does both halves — the match does not consume the
+blank lines around the heading, so writing the heading back *plus* the version
+heading below it leaves the accumulated entries where they are, now under the
+version. cargo-release's documented `<!-- next-header -->` idiom was **not** used:
+it needs two replacements and plants an anchor comment in the file, and the heading
+is already its own anchor. `CHANGELOG.md`'s preamble no longer says the cut leaves
+this file alone, and states the one constraint an editor is now under (never start
+a prose line with a bare `## Unreleased`).
+
+Verified by *executing* a real cut, not only configuring one — in a throwaway
+two-member workspace fixture holding byte-identical copies of `release.toml` and
+`CHANGELOG.md`. **That rig is the carry-forward**: it needs no `.git`, which
+matters because this working tree is a jj-native secondary workspace where
+`cargo release` cannot run at all. A plain `cargo release patch` there prints a
+unified diff of every replacement; `--execute` leaves the real bytes
+(`## Unreleased` standing and empty, `## v16.2.1` below it). The empty-section case
+from this leaf's Notes holds — the anchor is the heading, never the content beneath
+it — and `exactly = 1` was watched failing loudly rather than corrupting.
+
+1. **`consolidate-commits` has nothing to do with it.** This leaf's Notes inherited
+   from `release.toml` the premise that `consolidate-commits = false` "means
+   replacements run per crate". Measured both ways: replacements run once per
+   *released crate* **regardless**, and that setting affects only how commits are
+   grouped. What actually bounds it is cargo-release's **default crate selection**
+   (a workspace root that is itself a package releases that package alone; the
+   member is reached only by `--workspace`/`-p`), plus `file` resolving against each
+   released crate's *own* manifest dir — so the root `CHANGELOG.md` is unreachable
+   from any other member and can never be renamed twice.
+2. **`release.toml` credited the exclusion to a crate that does not exist.** It said
+   "`harness-pane` is `release = false`". There is no `harness-pane` in this
+   workspace; the one member is `codex-bridge`, and it carries `publish = false` and
+   **no** `[package.metadata.release] release = false`. Both the crate and the
+   opt-out were fictional, and the true reason is the invocation, not the manifest.
+   Corrected in place with the mechanism named.
+
+**Do not cite a match count, and this is the third generation of the same lesson.**
+The obvious way to document `exactly = 1` is "the string occurs 3 times, only one is
+a heading" — which was true when this session started and false by the time it
+finished, because the changelog entry *about* the anchoring adds more occurrences.
+It went 3 → 9 mid-session and the first draft of both surfaces asserted a stale
+number. Same class as `k11`'s "a file list goes stale, the claim cannot" and `k17`'s
+"a finding against a heading must sweep the summary layer": **a count of a string in
+a file that documents that string is self-invalidating.** Both surfaces now state
+the structural fact (only the heading is ever a whole line) and say explicitly not
+to replace it with a count.
+
+**One thing observed but deliberately not acted on.** `cargo release patch
+--execute --no-confirm` ran **permitted** in the fixture, where `release.toml`'s
+preamble says the classifier refuses `cargo release … --execute` as opaque. That is
+*not* evidence against the claim — a throwaway repo in the scratchpad is a different
+target from the real cut in the colocated workspace — so the claim is untouched and
+no leaf was cut for it. What did change: `k18`'s own new comment was rewritten to
+stop *re-asserting* it, pointing at the fixture rig instead. Whoever next runs a real
+cut is the one positioned to settle it.
 
 **A live-binary observation, not a defect.** `grove-llm leaf-add-chain` here wrote
 a **flat** three-leaf chain (`k15`–`k17`), not the `-chain/` node directory

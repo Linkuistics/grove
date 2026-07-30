@@ -778,3 +778,61 @@ fn retire_resolves_a_bare_node_path_in_worktree() {
     })
     .unwrap();
 }
+
+/// Harvest every token in `help` that **offers itself as a tree-entry name** —
+/// a word whose leading digit run is followed by `-`, which under
+/// task-tree-scheme's grammar can only be a position prefix. Path segments are
+/// split, so a nested example is checked segment by segment, and the
+/// punctuation a doc comment puts around an example (backticks, parens, commas)
+/// is trimmed. The digits-then-dash shape is what keeps an incidental number in
+/// the prose (a version, a count) out of the candidate set.
+fn node_name_candidates(help: &str) -> Vec<String> {
+    help.split_whitespace()
+        .flat_map(|w| w.split('/'))
+        .map(|w| w.trim_matches(|c: char| !c.is_ascii_alphanumeric()))
+        .filter(|w| {
+            let digits = w.bytes().take_while(|b| b.is_ascii_digit()).count();
+            digits > 0 && w.as_bytes().get(digits) == Some(&b'-')
+        })
+        .map(str::to_string)
+        .collect()
+}
+
+#[test]
+fn retire_help_teaches_the_current_node_grammar() {
+    // `grove retire --help` is the one surface a human copies a node reference
+    // from at a terminal, and it went on teaching the removed original scheme
+    // (`003-session-store`: three-digit, keyless) long after task-tree-scheme
+    // replaced it — found by executing help, not by reading source.
+    //
+    // Pin the **grammar, not the example's spelling**, by running each offered
+    // name through the real parser: a reworded or renumbered example keeps
+    // passing, while one that drops the permanent `-k<key>` cannot. That is
+    // also precisely what rejects the original scheme, whose position width was
+    // never the discriminator (`tree_id::parse_position` is lenient on padding;
+    // the missing terminal key is what fails).
+    //
+    // The `<slug>-k<key>` handle the same help offers is deliberately not
+    // pinned here: it carries no position, so it has nothing that renumbering
+    // or a scheme change can make stale.
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_grove"))
+        .args(["retire", "--help"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "grove retire --help failed: {out:?}");
+    let help = String::from_utf8_lossy(&out.stdout);
+
+    let candidates = node_name_candidates(&help);
+    assert!(
+        !candidates.is_empty(),
+        "grove retire --help offers no example node name at all: {help}"
+    );
+    for name in &candidates {
+        let parsed = grove::tree_id::parse(name);
+        assert!(
+            parsed.as_ref().is_some_and(grove::tree_id::Entry::is_node),
+            "`{name}` in `grove retire --help` is not a current node name \
+             (task-tree-scheme: `NN-<slug>-k<key>`), parsed as {parsed:?}: {help}"
+        );
+    }
+}

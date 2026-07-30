@@ -51,7 +51,9 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `confirmation-prose-k15` … `-k17` | `impl` chain | **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
 | `changelog-release-rename-k18` | `impl` | **done** — `cargo release` now renames `## Unreleased` itself, replacing the prose note `k13` left — raised by `k13` |
 | `walkthrough-harness-routing-k19` | `impl` | **done** — the walkthrough's obsolete one-stamped-harness claim, in *both* pages that carried it; raised by `k16` |
-| `retire-help-node-path-k20` | `impl` | replace `grove retire --help`'s original-scheme node-path example — raised by `k16` |
+| `retire-help-node-path-k20` | `impl` | **done** — `grove retire --help`'s original-scheme node-path example replaced, and the grammar pinned by a test; raised by `k16` |
+| `retire-no-launch-help-k21` | `impl` | `grove retire --no-launch` has no description at all — the only undescribed option in either binary; raised by `k20` |
+| `driving-original-scheme-example-k22` | `impl` | `content/driving.md`'s worked research-leaf example cites original-scheme, keyless work items in *provisioned* content; raised by `k20` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -404,6 +406,41 @@ commands via `after_long_help` (already carries the four-level order), and
 so this is stale prose corrected against it — the `stale-module-headers-k14` /
 `confirmation-prose-integrate-k17` class, both verified CHANGELOG-free by
 `jj diff --stat`. `cargo test`: 622 passed, 0 failed.
+
+**What `retire-help-node-path-k20` fixed, and the property it turned out to be
+pinning.** `grove retire --help`'s `<PATH>` now offers a current node path
+(`04-session-store-k7`), the nested case, and the stable `<slug>-k<key>` handle —
+the handle being legitimate *because* `launch::retire` substitutes the argument
+into the prompt verbatim and parses nothing, so what it accepts is whatever the
+**session** can resolve, and `resolve` handles node directories by key, bare slug
+and full handle alike. The removed example was **unusable, not merely stale**:
+measured against a planted node fixture, all three current forms resolve and
+`003-session-store` matches nothing.
+
+1. **The three-digit width was never the discriminator**, which the leaf's own
+   Context implied it was. `tree_id::parse_position` is lenient on padding, so
+   `003` parses as position 3 — the missing terminal `-k<digits>` is what rejects
+   the old scheme. A test written against the digit width would have pinned the
+   wrong property and passed on any keyless two-digit name. The test that shipped
+   runs each offered name through `tree_id::parse` instead, so it pins the
+   **grammar** and not the example's spelling; falsified by mutation both ways.
+2. **`grove retire --help` was the only stale help surface, established by
+   executing all of them** — both binaries, every subcommand, dumped and scanned.
+   That is `k11`'s "grep the claim, not the file list" applied *before* a miss
+   rather than after one, and the same scan is what found `k21`.
+3. **A fourth-generation grep trap, worse than `k17`'s.** `rg -r` is `--replace`,
+   not a recursive flag, so `rg -rn '<pattern>' .` **succeeds** and prints every
+   match with the pattern substituted away — a plausible-looking hit list with
+   fabricated contents, where `k17`'s `rg -E` at least errored. Check the output
+   resembles what you asked for, not merely that it is non-empty.
+
+**`k20` also settled the CHANGELOG question `k19` left open, and on a stronger
+basis than inheritance.** Every existing `--help` mention in `CHANGELOG.md` is
+*incidental* — help named as a surface some shipped change was documented on, never
+as a change in itself — so there is no precedent for a help-text-only entry, and
+creating one would make the "stale prose corrected against already-shipped
+behaviour" rule depend on which prose surface carried the staleness. `k21` and
+`k22` inherit that answer; both are CHANGELOG-free unless they change behaviour.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

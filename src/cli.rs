@@ -128,7 +128,12 @@ pub struct MigrateArgs {
 
 #[derive(Parser)]
 pub struct RetireArgs {
-    /// Node path within the current worktree's `.grove/` (e.g. `003-session-store`).
+    /// The node to retire, addressed inside the current worktree's `.grove/`:
+    /// either its relative directory path — `04-session-store-k7`, or
+    /// `04-design-k7/02-store-k9` for a node nested in another — or its stable
+    /// `<slug>-k<key>` handle, `session-store-k7`, which the session resolves
+    /// with `grove-llm resolve` (task-tree-scheme §5). Taken verbatim: nothing
+    /// here parses it.
     pub path: String,
     /// Harness to launch: claude, codex, or pi (default: auto-detected from
     /// the repo's harness directories). Writes a lasting binding to

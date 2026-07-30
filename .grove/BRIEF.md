@@ -50,7 +50,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
 | `confirmation-prose-k15` … `-k17` | `impl` chain | **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
 | `changelog-release-rename-k18` | `impl` | **done** — `cargo release` now renames `## Unreleased` itself, replacing the prose note `k13` left — raised by `k13` |
-| `walkthrough-harness-routing-k19` | `impl` | fix the walkthrough's obsolete one-stamped-harness claim — raised by `k16` |
+| `walkthrough-harness-routing-k19` | `impl` | **done** — the walkthrough's obsolete one-stamped-harness claim, in *both* pages that carried it; raised by `k16` |
 | `retire-help-node-path-k20` | `impl` | replace `grove retire --help`'s original-scheme node-path example — raised by `k16` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
@@ -383,6 +383,27 @@ rather than deleted, per `docs-reconcile-k6`'s pattern.
 `cargo test` green in full. The chain touched no code, so `confirmation-boundary`
 is now fully enacted in prose and `CHANGELOG.md` carries the one `### Changed`
 entry `k15` wrote for it.
+
+**What `walkthrough-harness-routing-k19` fixed, and the second copy it found.**
+`k16` flagged `docs/workflows/multi-step.md`; the repo-wide grep found the *same*
+obsolete model one page over, in `start.md`, and there it was worse — stated as an
+**invariant** ("a single grove never spans harnesses mid-flight") that per-kind
+routing exists to break, and met *first* by anyone reading the set in order. Fixed
+in the same pass as the flagged finding's extent. Both passages now name the full
+`leaf → kind → family → stamp` precedence and cast the stamp as the **fallback**;
+neither wanted deleting, because the error was one of **scope, not of fact** — the
+stamp is still written and still read, it just stopped being the whole answer.
+
+Checked and left alone, so `k20` need not re-derive them: `docs/grove.md` (`:64`,
+`:79` describe the stamp as a binding and `:77` already documents per-kind
+resolution), `docs/workflows/finish.md:137` (stamp *cleanup*, no routing claim),
+`src/cli.rs`'s `--harness` help plus the `MODEL_ENV_HELP` attached to the same
+commands via `after_long_help` (already carries the four-level order), and
+`src/loop_driver.rs`'s doc comments (`:845`). **No `CHANGELOG.md` entry**, and
+`k20` faces the same question: the behaviour shipped and was logged when it landed,
+so this is stale prose corrected against it — the `stale-module-headers-k14` /
+`confirmation-prose-integrate-k17` class, both verified CHANGELOG-free by
+`jj diff --stat`. `cargo test`: 622 passed, 0 failed.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

@@ -51,7 +51,8 @@ pub enum Command {
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
-    /// is a directory holding `BRIEF.md` + numbered children), returning the
+    /// is a directory of numbered children, optionally headed by a `BRIEF.md`),
+    /// returning the
     /// first live leaf and skipping briefs and terminal leaves — retired
     /// (`DONE`) and abandoned (`ABANDONED`, ADR *pruning*) alike. Empty stdout
     /// (and a diagnostic on stderr) when the grove has no live leaves.
@@ -118,15 +119,21 @@ pub enum Command {
     /// node by its key (`[n]` / `n` / `<slug>-k<key>`) or its path. Prints the
     /// new leaf's absolute path on stdout. Working-tree change only — no commit.
     LeafAdd(LeafAddArgs),
-    /// Append a whole **review chain** under `<parent>` in one call — `<stem>`,
-    /// `<stem>-review`, `<stem>-integrate` — deriving the two step kinds from
-    /// the one producer kind you name.
+    /// Append a whole **review chain** under `<parent>` in one call — a
+    /// `<stem>-chain` **node directory** holding `<stem>`, `<stem>-review`,
+    /// `<stem>-integrate` — deriving the two step kinds from the one producer
+    /// kind you name.
     ///
-    /// Three contiguous leaves with three consecutive fresh keys:
+    /// A node and its three children, with four consecutive fresh keys:
     ///
-    ///   NN+0  `<stem>`            **Kind:** `<producer>`
-    ///   NN+1  `<stem>-review`     **Kind:** `review-<producer>`
-    ///   NN+2  `<stem>-integrate`  **Kind:** `integrate-review-<producer>`
+    ///   NN    `<stem>-chain/`       the chain node — no `BRIEF.md`
+    ///     01  `<stem>`              **Kind:** `<producer>`
+    ///     02  `<stem>-review`       **Kind:** `review-<producer>`
+    ///     03  `<stem>-integrate`    **Kind:** `integrate-review-<producer>`
+    ///
+    /// The directory is what makes the group structural in any tree viewer, and
+    /// it is **brief-less by rule** — that absence is how the Retire cascade
+    /// tells a chain from a decomposition, so a chain node closes silently.
     ///
     /// You name the producer kind; the verb **derives** the other two. That
     /// derivation is what it is for: `--kind review-impl` beside a `design`
@@ -136,22 +143,25 @@ pub enum Command {
     /// months, a subsystem; a one-file change wants a mid-session subagent
     /// instead (`driving.md`).
     ///
-    /// All three leaves are created or none is. Prints their three absolute
-    /// paths on stdout, one per line in position order — and prints nothing at
-    /// all if the shape could not be created. Working-tree change only — no
-    /// commit. `leaf-add` is untouched and cutting no chain stays a normal
-    /// choice; retrofitting steps onto a producer that already ran is
-    /// `leaf-insert`'s job, not this verb's.
+    /// The whole shape is created or none of it is. Prints **four** absolute
+    /// paths on stdout, the node directory first then its three leaves in
+    /// position order — and prints nothing at all if the shape could not be
+    /// created. Working-tree change only — no commit. Cutting no chain stays a
+    /// normal choice; a step decided on *after* its producer already ran is
+    /// `leaf-add <chain-node> <stem>-review` when the producer sits in a chain
+    /// node, and `leaf-insert` when it was cut as a plain leaf.
     LeafAddChain(LeafAddChainArgs),
-    /// Append a whole **research vendor pair** under `<parent>` in one call —
-    /// `<stem>-a`, `<stem>-b`, `<stem>-combine` — with both producers' vendors
-    /// declared, and refused if the two are the same.
+    /// Append a whole **research vendor pair** under `<parent>` in one call — a
+    /// `<stem>-pair` **node directory** holding `<stem>-a`, `<stem>-b`,
+    /// `<stem>-combine` — with both producers' vendors declared, and refused if
+    /// the two are the same.
     ///
-    /// Three contiguous leaves with three consecutive fresh keys:
+    /// A node and its three children, with four consecutive fresh keys:
     ///
-    ///   NN+0  `<stem>-a`        **Kind:** research, **Harness:** `<harness-a>`
-    ///   NN+1  `<stem>-b`        **Kind:** research, **Harness:** `<harness-b>`
-    ///   NN+2  `<stem>-combine`  **Kind:** combine-research
+    ///   NN    `<stem>-pair/`     the chain node — no `BRIEF.md`
+    ///     01  `<stem>-a`         **Kind:** research, **Harness:** `<harness-a>`
+    ///     02  `<stem>-b`         **Kind:** research, **Harness:** `<harness-b>`
+    ///     03  `<stem>-combine`   **Kind:** combine-research
     ///
     /// `research` is the one kind with no `review-` sibling, so its shape is a
     /// pair rather than a chain and gets its own verb. **Both producers declare
@@ -161,10 +171,10 @@ pub enum Command {
     /// pair is refused. Cut one when a question is load-bearing enough to pay
     /// for two vendors' corpora and blind spots.
     ///
-    /// All three leaves are created or none is. Prints their three absolute
-    /// paths on stdout, one per line in position order — and prints nothing at
-    /// all if the shape could not be created. Working-tree change only — no
-    /// commit.
+    /// The whole shape is created or none of it is. Prints **four** absolute
+    /// paths on stdout, the node directory first then its three leaves in
+    /// position order — and prints nothing at all if the shape could not be
+    /// created. Working-tree change only — no commit.
     LeafAddPair(LeafAddPairArgs),
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
@@ -350,9 +360,10 @@ pub struct LeafAddChainArgs {
     /// Parent node — `.` for the grove root, or a node by its key
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
     pub parent: String,
-    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
-    /// dashes). The steps are `<stem>`, `<stem>-review`, `<stem>-integrate` —
-    /// suffixed, not prefixed, so a chain sorts together under its stem.
+    /// Shared stem for the node and all three leaves (lowercase ASCII letters,
+    /// digits, dashes). The node is `<stem>-chain` and the steps are `<stem>`,
+    /// `<stem>-review`, `<stem>-integrate` — suffixed, not prefixed, so a
+    /// chain's handles sort together under its stem.
     pub stem: String,
     #[arg(long = "kind", help = CHAIN_KIND_HELP)]
     pub kind: String,
@@ -369,10 +380,10 @@ pub struct LeafAddPairArgs {
     /// Parent node — `.` for the grove root, or a node by its key
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
     pub parent: String,
-    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
-    /// dashes). The steps are `<stem>-a`, `<stem>-b`, `<stem>-combine` — the two
-    /// producers are `a` and `b` because they are peers, not a leader and a
-    /// follow-up.
+    /// Shared stem for the node and all three leaves (lowercase ASCII letters,
+    /// digits, dashes). The node is `<stem>-pair` and the steps are `<stem>-a`,
+    /// `<stem>-b`, `<stem>-combine` — the two producers are `a` and `b` because
+    /// they are peers, not a leader and a follow-up.
     pub stem: String,
     /// Harness for the first survey, written as its `**Harness:**` line.
     /// Required, and must differ from `--harness-b`.

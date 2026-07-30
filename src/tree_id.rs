@@ -6,8 +6,19 @@
 // hierarchy, so a name encodes only its *per-level* position, not a global path:
 //
 //     leaf       NN-[DONE-|ABANDONED-]<slug>-k<key>.md
-//     node dir   NN-<slug>-k<key>             (a directory holding BRIEF.md + children)
+//     node dir   NN-<slug>-k<key>             (a directory holding children, and
+//                                              *optionally* a BRIEF.md charter)
 //     brief      BRIEF.md                     (the containing node's charter)
+//
+// **A charter is optional, and its presence is what distinguishes the two node
+// species** (task-tree-scheme). A *decomposition* node (`leaf-decompose`;
+// `root-init` for the root) always carries one — it means *this proved bigger
+// than one session*, and the charter is the context those sessions need. A
+// *chain* node (`leaf-add-chain` / `leaf-add-pair`) never does — it means *these
+// steps compose one artifact*, declared whole at construction, with no charter
+// anyone is in a position to write. Readers that care discriminate by the
+// **file's presence**, never by a name pattern: `-chain` / `-pair` is ordinary
+// slug text a human may use for anything.
 //
 // Three orthogonal parts: the per-level **position** `NN` (a 2-digit zero-padded
 // decimal; the sole sort input *within one directory*; rewritten on renumber), the
@@ -45,8 +56,9 @@ pub enum Outcome {
     Abandoned,
 }
 
-/// A parsed tree-entry name — the three on-disk shapes a node directory holds:
-/// its own `BRIEF.md` charter, leaf-file children, and node-directory children.
+/// A parsed tree-entry name — the three on-disk shapes a node directory may
+/// hold: its own `BRIEF.md` charter, leaf-file children, and node-directory
+/// children.
 ///
 /// Leaf-vs-node is inferred from the `.md` suffix (a leaf is a file ending in
 /// `.md`; a node is a bare directory name). A verb that already has the real
@@ -55,8 +67,9 @@ pub enum Outcome {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
     /// `BRIEF.md` — the containing node's charter. Position-less and unkeyed; it
-    /// heads its directory. Every node directory (including the root `.grove/`)
-    /// holds exactly one.
+    /// heads its directory. **At most one per node directory, and a node may
+    /// carry none**: a decomposition node always does, a chain node never does,
+    /// and that presence is the discriminator (see the module header).
     Brief,
     /// `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` — a leaf child (a unit of work).
     Leaf {
@@ -309,16 +322,58 @@ pub fn sort_key(name: &str) -> (u8, u32, String) {
 /// node dirs) + 1`, or `1` for an empty tree. Keys live in the names (no counter
 /// file) and `DONE` leaves stay in the tree, so the max is always visible and keys
 /// are never reused. The verb flattens the whole directory tree into the iterator.
-pub fn next_key<I, S>(names: I) -> u32
+pub fn next_key<I, S>(names: I) -> Result<u32>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    names
+    next_keys(names, 1).map(|run| run[0])
+}
+
+/// A run of `count` **consecutive** fresh keys — `next_key`, then the `count - 1`
+/// after it — which a caller consumes one key per entry. What a composite verb
+/// allocates for a whole shape at once, so its keys run consecutively from one
+/// snapshot rather than being re-derived per write.
+///
+/// Returned as a `Vec` rather than a `Range`, because a run may legitimately end
+/// on `u32::MAX` and a half-open `Range<u32>` cannot name that end.
+///
+/// **Allocation is fallible, and that is what keeps it total.** Keys are `u32`
+/// and never reused (ADR *pruning*), so the space is finite and `max + 1` can
+/// leave it. Unchecked, that is a debug panic and — worse — a release wrap: a
+/// composite verb would hand its last step a wrapped `k0`, breaking the
+/// four-consecutive-fresh-keys contract *and* lowering the visible max so the
+/// next `leaf-add` re-issues a live key. A `Result` puts the refusal where every
+/// caller already resolves before its first write, so an exhausted keyspace costs
+/// an error and no filesystem mutation.
+pub fn next_keys<I, S>(names: I, count: u32) -> Result<Vec<u32>>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let max = names
         .into_iter()
         .filter_map(|n| parse(n.as_ref()).and_then(|e| e.key()))
-        .max()
-        .map_or(1, |m| m + 1)
+        .max();
+    let exhausted = || {
+        anyhow::anyhow!(
+            "the permanent key space is exhausted: the tree's highest key is {} and {count} \
+             fresh consecutive key(s) are needed. Keys are never reused (ADR *pruning*), so \
+             there is nothing to reclaim — the tree has to be rebuilt with lower keys.",
+            max.map_or_else(|| "none".to_string(), |m| m.to_string())
+        )
+    };
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    let first = match max {
+        None => 1,
+        Some(m) => m.checked_add(1).ok_or_else(exhausted)?,
+    };
+    // The run's *last* key is what must be representable — `first + count`, the
+    // half-open end, is not, and a run ending exactly on `u32::MAX` is legitimate.
+    let last = first.checked_add(count - 1).ok_or_else(exhausted)?;
+    Ok((first..=last).collect())
 }
 
 /// Validate a slug: non-empty, lowercase ASCII + digits + `-`, no leading/trailing
@@ -589,18 +644,18 @@ mod tests {
     #[test]
     fn next_key_empty_tree_is_one() {
         let none: Vec<&str> = Vec::new();
-        assert_eq!(next_key(none), 1);
+        assert_eq!(next_key(none).unwrap(), 1);
     }
 
     #[test]
     fn next_key_is_max_plus_one() {
-        assert_eq!(next_key(["01-a-k1.md", "02-b-k2.md"]), 3);
+        assert_eq!(next_key(["01-a-k1.md", "02-b-k2.md"]).unwrap(), 3);
     }
 
     #[test]
     fn next_key_counts_retired_done_leaves() {
         // The `DONE` leaf carries the max key; it must still bump next_key.
-        assert_eq!(next_key(["01-DONE-a-k3.md", "02-b-k2.md"]), 4);
+        assert_eq!(next_key(["01-DONE-a-k3.md", "02-b-k2.md"]).unwrap(), 4);
     }
 
     #[test]
@@ -609,18 +664,53 @@ mod tests {
         // the tree, so a future `leaf-add` never re-issues it. `next_key` already
         // maxes over every parsed name regardless of outcome — asserted here so a
         // future refactor cannot quietly regress the property the ADR rests on.
-        assert_eq!(next_key(["01-ABANDONED-a-k3.md", "02-b-k2.md"]), 4);
+        assert_eq!(next_key(["01-ABANDONED-a-k3.md", "02-b-k2.md"]).unwrap(), 4);
     }
 
     #[test]
     fn next_key_counts_node_directories() {
         // A node lives as a bare directory name — its key still counts.
-        assert_eq!(next_key(["05-node-k3", "01-b-k2.md"]), 4);
+        assert_eq!(next_key(["05-node-k3", "01-b-k2.md"]).unwrap(), 4);
     }
 
     #[test]
     fn next_key_ignores_foreign_and_brief() {
-        assert_eq!(next_key(["README.md", "BRIEF.md", "01-a-k1.md"]), 2);
+        assert_eq!(
+            next_key(["README.md", "BRIEF.md", "01-a-k1.md"]).unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn next_keys_hands_out_a_consecutive_run_from_the_max() {
+        assert_eq!(next_keys(["01-a-k4.md"], 4).unwrap(), vec![5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn next_keys_refuses_a_run_that_would_leave_the_keyspace() {
+        // The arm the composite verbs stand on. Unchecked, `max + 1 + i` panics in
+        // debug and — the worse half — *wraps* in release, so the last step of a
+        // shape gets `k0`: a key below every other in the tree, which both breaks
+        // the consecutive-fresh-keys contract and lowers the visible max so the
+        // next `leaf-add` re-issues a live key ([[Permanent key]] is the counter).
+        // Three near-ceiling cases: the run that does not fit, the one that fits
+        // exactly, and `max` sitting on the ceiling itself.
+        let over = next_keys(["01-a-k4294967292.md"], 4)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            over.contains("key space is exhausted") && over.contains("4294967292"),
+            "the refusal names the ceiling it hit: {over}"
+        );
+        assert_eq!(
+            next_keys(["01-a-k4294967291.md"], 4).unwrap(),
+            vec![4294967292, 4294967293, 4294967294, 4294967295],
+            "the last run that fits is still handed out — the refusal is a ceiling, not a margin"
+        );
+        assert!(
+            next_keys(["01-a-k4294967295.md"], 1).is_err(),
+            "max already at the ceiling: even one fresh key is unavailable"
+        );
     }
 
     // ---- round-trip ---------------------------------------------------------

@@ -4,8 +4,10 @@
 // pre-order; ancestor briefs root→leaf; reference-by-permanent-key) and changes
 // only the **walk**: in v1 the whole tree was encoded into flat filenames, so a
 // verb was a single `read_dir` + version-sort over `.grove/`; in v2 the
-// filesystem carries the hierarchy (a node is a *directory* holding `BRIEF.md` +
-// children), so the same verbs become filesystem-shape walks:
+// filesystem carries the hierarchy (a node is a *directory* holding its children,
+// and optionally a `BRIEF.md` charter — a chain node carries none, which is why
+// `brief-chain`'s tolerance of a missing level is load-bearing rather than
+// incidental), so the same verbs become filesystem-shape walks:
 //
 //   * `pick`        — recursive depth-first pre-order over node dirs;
 //   * `brief-chain` — the leaf's ancestor *directories* root→leaf, each `BRIEF.md`;

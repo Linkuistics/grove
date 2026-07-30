@@ -1,6 +1,7 @@
 // Fixture-driven tests for `grove-llm pick` on the **v2 directory scheme**
 // (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node is a
-// directory `NN-<slug>-k<key>/` holding a `BRIEF.md` + numbered children; leaves
+// directory `NN-<slug>-k<key>/` of numbered children, optionally headed by a
+// `BRIEF.md`; leaves
 // are files `NN-[DONE-]<slug>-k<key>.md`. `pick` is a recursive depth-first
 // pre-order walk returning the first live leaf (not a brief, not `DONE`). Each
 // test stands up a real git repo so `git rev-parse --show-toplevel` resolves to

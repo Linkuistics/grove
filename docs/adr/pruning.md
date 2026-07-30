@@ -28,10 +28,18 @@ difference.
 
 **Pruning is HITL.** An agent never prunes on its own. Abandoning planned work is a
 commitment-shaped decision, and the same guard applies as to the retire cascade's
-"ask before treating a node as done". An AFK session — every kind but
-`requirements` and `prototype` — that finds a leaf dead says so and stops; the
+"ask before treating a **brief-carrying** node as done". An AFK session — every kind
+but `requirements` and `prototype` — that finds a leaf dead says so and stops; the
 loop stalling on an abandonment decision is the system working, not a fault
 (*task-kind-taxonomy*, HITL/AFK).
+
+The qualifier matters more here than the parallel does. A **chain node** carries no
+charter and closes silently (*task-tree-scheme*), so the cascade never asks about
+one — but `leaf-prune` given a chain node still marks every live step in it, and
+that is still HITL. The guard tracks *who decides*, not *which node species*: the
+cascade's confirmation is narrow because a brief-less node has no context anyone
+could be asked to promote, whereas abandonment is a decision no node shape makes
+for you.
 
 ## The durable record
 

@@ -108,9 +108,11 @@ b2a1d9c chore(grove): retire record-policy-adr-k5
 
 Two things to notice. First, the retired leaf stays exactly where it lived — `03-design-token-bucket-k3/01-DONE-record-policy-adr-k5.md` — marked with the `DONE` infix, so the tree shows *where* each completed leaf belonged without any parallel shadow tree. Second, `03-design-token-bucket-k3/` now has no live leaf: its only child is done. The node is **implicitly** done — a brief is context, not a task, so a node is never marked `DONE`; its done-ness *is* the absence of any live leaf in its subtree.
 
-## A node-level retirement is asked, not assumed
+## A brief-carrying node's retirement is asked, not assumed
 
 When `03-design-token-bucket-k3/`'s last live leaf retired, the session's *judge retirement* step walked the parent chain, noticed the node had no live leaf left, and **asked the user** before treating it as done — a confirmation gives them a moment to add a follow-up leaf if the node is not actually finished. In this walkthrough the user said *not yet*, so the session fired its completion signal and the loop moved on to `04-implement-k4.md`. Node-level retirement is deliberate, not automatic — grove guides, it does not gate.
+
+`03-design-token-bucket-k3/` is a **decomposition** node: `leaf-decompose` gave it a `BRIEF.md`, and that charter is exactly what the confirmation exists to promote. The *other* node species — a **chain node**, the `<stem>-chain/` or `<stem>-pair/` directory `leaf-add-chain` / `leaf-add-pair` writes — carries no charter by rule, so it closes **silently**: there is nothing to promote and nothing to decide. The discriminator is the file's presence, not the name.
 
 Retiring a node moves nothing on disk (there is no `done/` to move into): its leaves are already marked done in place, and its `BRIEF.md` stays where it is. What retirement *does* is **promote** anything from the node's brief that future siblings should still see — up to the parent brief, an ADR, or the glossary — so it stays in the brief chain after the node goes quiet. To do that out of band — or whenever a prior session forgot to ask — the user runs `grove retire`, in-worktree:
 

@@ -376,7 +376,19 @@ same leaf template. Four keys per shape, not three — the node holds the first.
 Stdout is four absolute paths, the node directory then its three leaves, so a
 caller can immediately `leaf-add <node>` a late step into it. A generated shape is
 **byte-identical to the same directory and leaves cut by hand**, so nothing
-downstream can tell them apart; `leaf-add`, `leaf-insert` and `pick` are untouched.
+downstream can tell them apart; `leaf-insert` and `pick` are untouched.
+
+**`leaf-add` needed one change, and it is the affordance rather than a
+concession.** Its parent guard required a `BRIEF.md` at `<parent>` — the v2
+translation of v1's "no brief at that position" check, written when every node was
+a decomposition node and so always carried one. A chain node is brief-less by
+rule, so the old guard refused `leaf-add <chain-node> <stem>-late-step`: the one
+case this shape exists to make possible, a step decided on after its producer
+already ran, appending *inside* the node instead of behind every unrelated live
+leaf. The guard now reads the directory's **name**, which is what ADR
+*task-tree-scheme* already said node-ness was; the charter distinguishes the two
+*species*, not node from non-node. Nothing else about `leaf-add` moved — it still
+makes exactly one leaf and inspects no tree.
 
 **One call is one mutation.** This is the part that is *not* `leaf-add` three
 times over, and it is the reason a composite verb is worth having rather than a
@@ -491,8 +503,9 @@ now parameterises three leaves instead of one.
 **This does not gate** (constraint 5), and the test is the one the request itself
 named: a verb that makes the chain the *easy* path is compatible; a verb that
 makes a bare `leaf-add` harder, or that validates a tree's chain-completeness, is
-not. `leaf-add` is untouched, no tree is inspected, nothing is warned about, and
-skipping a chain stays a normal choice. The refusals above are **authoring-time
+not. A bare `leaf-add` got *easier*, not harder — its parent guard loosened so it
+can append into a chain node (above) — no tree is inspected, nothing is warned
+about, and skipping a chain stays a normal choice. The refusals above are **authoring-time
 argument validation** with a human present, the same class as `--kind reserch`
 and `--harness bogus` — not grove refusing work on process grounds.
 
@@ -601,16 +614,25 @@ parallel old-and-new guidance is how *compose-task-chains-k29* failed the first
 time — and ADR *cli-binary-split*'s normative enumeration lists both. The
 guidance nonetheless reaches real sessions only when the next release is cut.
 
-**The same obligation is open again** for the chain-node shape. This document, ADR
-*task-tree-scheme* and `CONTEXT.md` now describe a shape the verbs do not yet
-write, and `content/` plus `docs/grove.md` still describe the flat one — correctly,
-because they describe what ships. They are the implementation's job, on the same
-discipline: **replace** the flat-shape guidance rather than let the two sit side by
-side. The surfaces are `content/SKILL.md` (Decompose, and the node definition),
-`content/TASK-FORMAT.md`, `content/BRIEF-FORMAT.md` (which asserts every node
-carries a charter), `content/driving.md`, `content/prompts/*.md` and
-`docs/grove.md` — plus the Retire step's cascade prose, where "ask before treating
-a node as done" becomes "ask before treating a *brief-carrying* node as done".
+**The same obligation was raised and discharged again** for the chain-node shape.
+Both verbs now write the node; `content/SKILL.md` (Decompose and the node
+definition), `content/TASK-FORMAT.md`, `content/BRIEF-FORMAT.md`,
+`content/driving.md`, `content/prompts/*.md` and `docs/grove.md` describe that
+shape in place of the flat one, and the Retire step's cascade prose now reads *ask
+before treating a **brief-carrying** node as done*. The guidance still reaches
+real sessions only when the next release is cut.
+
+**Two lessons from the second pass, both about what a file list misses.** The
+implementation leaf's surface list was written before the work and was short by
+two kinds of reader. First, prose *outside* it: ADR *task-kind-taxonomy* still
+carried the reversed "a chain — deliberately not a node" reasoning, `docs/adr/pruning.md`
+and `docs/workflows/multi-step.md` still stated the cascade confirmation
+unqualified, and `src/tree_id.rs`'s id-model commentary still defined a node as a
+directory *holding* `BRIEF.md`. Second, this very document: a spec that reconciles
+other surfaces has to reconcile its own normative claims in the same pass, or it
+becomes the parallel guidance it warned about. The habit that catches both is to
+**grep for the claim**, not to walk a list of files — the claim is the thing that
+went stale, and it does not know which file it is in.
 
 ### Routing
 

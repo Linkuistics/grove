@@ -47,6 +47,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `chain-node-k9` … `-integrate-k11` | `impl` chain | implement that decision |
 | `retire-confirmation-k12` | `design` | whether the Retire cascade needs confirmation at all |
 | `changelog-unreleased-k13` | `impl` | nothing this grove shipped is in `CHANGELOG.md`, and `v16.2.0` is already tagged — raised by `k8` |
+| `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -92,6 +93,39 @@ end-to-end against a real fixture that `pick`, `brief-chain`, `resolve`,
    the question and now decides it against a live instance rather than in the
    abstract. It should add the other four rows of its table, not re-litigate this
    one entry's placement unless it is discarding the heading entirely.
+
+**What `chain-node-integrate-k11` found on triage.** All three of `k10`'s findings
+were real — each reproduced or grepped before being touched, none accepted on
+assertion — and all three are applied. Two things are worth carrying forward.
+
+1. **The High finding was a contract violation, not an arithmetic slip, and the
+   fix says where.** `add_run` created the node directory and *then* derived each
+   child's key as unchecked `node_key + 1 + i`, which smuggled one resolution step
+   past the mutation boundary — so the only failure it could express there was a
+   partial tree. Reproduced exactly as `k10` reported (a live two-step node left
+   behind); now the whole four-key run is allocated before the first write, beside
+   slug validation and the destination check. `next_key` became fallible and
+   `next_keys` joined it, so key exhaustion is a modelled fact in one place rather
+   than a panic in three. The release half was worse than the debug half: wrapping
+   gives the last step `k0`, which both breaks the consecutive-keys contract and
+   *lowers the visible max*, so the next `leaf-add` re-issues a live key.
+2. **Grepping for the claim found three more stale surfaces than reading found**,
+   and two were `grove-llm --help` — the only surface a human at a terminal reads,
+   still documenting three contiguous leaves and three printed paths. `k10`'s own
+   item 4 said to grep rather than trust `k9`'s file list, and then found its three
+   by reading. A file list is written before the work and goes stale; the claim
+   cannot, because it *is* what went stale. The spec now records that as the
+   lesson, with its own normative staleness as the second half of it.
+
+`k10`'s **rejected candidate** (concurrent composite calls racing for the same
+keys) is upheld as rejected: ADR *task-tree-scheme* defines a grove tree as
+single-worktree, single-writer, and the one-snapshot logic is correct under it.
+The `u32` ceiling is now a *refusal* under that same assumption, not a lock.
+
+Externalized rather than absorbed: `stale-module-headers-k14`, five `src/` module
+headers still declaring themselves isolated from a v1 verb path this repo deleted.
+Same failure class, different generation — noticed while editing those very
+headers for the chain-node claim.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

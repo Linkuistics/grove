@@ -10,7 +10,8 @@
 //     `2.2` rewrote `2.2.1`→`2.3.1`… across the **whole subtree** — O(subtree)
 //     filename + header rewrites.
 //   * v2 carries the hierarchy in directories (a node is a *directory* holding
-//     `BRIEF.md` + children), so a renumber is a single **rename of a directory**
+//     its children, and optionally a `BRIEF.md` charter — see `tree_id`'s header
+//     for the two species), so a renumber is a single **rename of a directory**
 //     and the subtree — child names *and* keys — rides along untouched. The shift
 //     is O(siblings at one level), the "cascade collapse" task-tree-scheme celebrates.
 //
@@ -32,7 +33,7 @@
 
 use crate::harness::Harness;
 use crate::leaf::Kind;
-use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
+use crate::tree_id::{next_key, next_keys, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -60,7 +61,7 @@ pub fn leaf_add(
     let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
 
     let position = next_child_position(&parent_abs)?;
-    let key = next_key(collect_all_names(&grove_abs)?);
+    let key = next_key(collect_all_names(&grove_abs)?)?;
     let entry = Entry::Leaf {
         position,
         slug: slug.to_string(),
@@ -133,8 +134,21 @@ fn add_run(
     // keys after the node's. Re-reading per step would give the same answer today
     // — nothing else is writing — but deriving both once is what makes contiguous
     // positions and consecutive keys a property rather than a race.
+    //
+    // **The whole key run is allocated here, before the first write**, rather than
+    // derived per step from the node's. Deriving them later is unchecked
+    // arithmetic *after* `create_dir` — the one window where a failure can leave a
+    // node directory behind, which is precisely what this verb exists to prevent.
+    // `next_keys` refuses an exhausted keyspace, so that refusal lands here, with
+    // the tree untouched.
     let node_position = next_child_position(&parent_abs)?;
-    let node_key = next_key(collect_all_names(&grove_abs)?);
+    let step_count = u32::try_from(steps.len()).expect("a shape has a handful of steps");
+    let mut keys = next_keys(collect_all_names(&grove_abs)?, 1 + step_count)
+        .context("allocating the shape's keys (nothing was created)")?
+        .into_iter();
+    let node_key = keys
+        .next()
+        .expect("a run of 1 + steps keys always yields the node's");
     let node_dir = parent_abs.join(
         Entry::Node {
             position: node_position,
@@ -153,11 +167,9 @@ fn add_run(
     fs::create_dir(&node_dir).with_context(|| format!("creating {}", node_dir.display()))?;
 
     let mut created = vec![node_dir.clone()];
-    for (i, step) in steps.iter().enumerate() {
-        let i = i as u32;
-        let key = node_key + 1 + i;
+    for (i, (step, key)) in steps.iter().zip(keys).enumerate() {
         let entry = Entry::Leaf {
-            position: i + 1,
+            position: i as u32 + 1,
             slug: step.slug.clone(),
             key,
             outcome: Outcome::Live,
@@ -347,7 +359,7 @@ pub fn leaf_insert(
 
     // The new leaf's fresh key is stable across the renumber (renames preserve
     // keys), so it is computed once over the pre-renumber tree.
-    let new_key = next_key(collect_all_names(&grove_abs)?);
+    let new_key = next_key(collect_all_names(&grove_abs)?)?;
 
     // Every positioned sibling at or after the target's slot shifts up by one.
     let mut affected: Vec<(Entry, PathBuf)> = read_children(&parent_abs)?
@@ -1297,6 +1309,37 @@ mod tests {
             list(&g),
             vec!["BRIEF.md"],
             "the node directory and the two steps inside it must not survive the failure"
+        );
+    }
+
+    #[test]
+    fn a_run_that_cannot_get_four_fresh_keys_creates_nothing_at_all() {
+        // The arm `chain-node-review-k10` broke the shape on: keys were derived
+        // per step as `node_key + 1 + i`, *after* `create_dir`, so a tree near the
+        // `u32` ceiling panicked mid-write (debug) or wrapped to `k0` (release),
+        // leaving a live two-step node behind — the wrong-but-well-formed residue
+        // that reads exactly like a deliberately cut partial chain.
+        //
+        // The property is not "the arithmetic is checked" but **where the refusal
+        // lands**: key exhaustion is a *resolution* failure, so it belongs beside
+        // slug validation and the destination check, before the first write. This
+        // is the reproduction from the finding, asserted as a refusal.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        touch(&g, "01-old-k4294967292.md", "old-k4294967292");
+
+        let err = leaf_add_chain(&g, &g, "sync", Kind::Impl)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("nothing was created"),
+            "the refusal says what the tree now holds: {err}"
+        );
+        assert_eq!(
+            list(&g),
+            vec!["01-old-k4294967292.md", "BRIEF.md"],
+            "no node directory, not even an empty one"
         );
     }
 

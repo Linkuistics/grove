@@ -1,6 +1,7 @@
 // Fixture-driven tests for `grove-llm resolve <ref>` on the **v2 directory
 // scheme** (task-tree-scheme). The tree is a real directory tree under `.grove/`: a node
-// is a directory `NN-<slug>-k<key>/` holding a `BRIEF.md` + numbered children;
+// is a directory `NN-<slug>-k<key>/` of numbered children, optionally headed by a
+// `BRIEF.md`;
 // leaves are files `NN-[DONE-]<slug>-k<key>.md`. `resolve` turns a reference into
 // the current path of the entity it names, searching the whole tree — live
 // leaves, retired (`DONE`) leaves, and node directories alike:

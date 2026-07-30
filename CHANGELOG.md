@@ -67,6 +67,20 @@ stood at the graft — a closed record, not part of the versioned sequence above
   design and the lapsed arguments; ADRs *task-tree-scheme* and *task-kind-taxonomy*
   carry the two node species and the charter discriminator.
 
+### Fixed
+
+- **`leaf-add-chain` / `leaf-add-pair` could leave a partial chain node behind
+  when the permanent-key space ran out.** The node directory was created before
+  each child's key was derived, and the derivation was unchecked `node_key + 1 + i`
+  arithmetic — so a tree whose highest key sat near the `u32` ceiling panicked
+  mid-write (debug) or *wrapped* to `k0` (release), leaving a live two-step node
+  that reads exactly like a deliberately cut partial chain. Both verbs now
+  allocate the whole four-key run **before the first write** and refuse an
+  exhausted keyspace with the tree untouched, which is where every other
+  resolution failure already lands. `leaf-add` and `leaf-insert` share the same
+  fallible allocator; neither could produce a partial tree, but both had the same
+  panic.
+
 ## v16.2.0
 
 ### Added

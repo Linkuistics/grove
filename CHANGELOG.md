@@ -255,6 +255,44 @@ stood at the graft — a closed record, not part of the versioned sequence above
   an unwanted write to `$HOME`, so reproducing it there would cost a manual repair
   of every installed link.
 
+- **`grove retire --no-launch` now checks the readiness it reports — and, for the
+  first time, says what it does.** The option shipped with no description at all,
+  rendering as a padded blank row beside two described ones; it was the only
+  undescribed option in either binary. Writing the description was not cosmetic,
+  because the two dry runs were not the same thing: `grove do --no-launch`
+  resolves everything a launch would fail on (*model-per-task-kind*: "`--no-launch`
+  resolves the launch it declines to perform"), while retire's resolved the
+  harness, printed `would exec claude`, and returned before loading the prompt or
+  pre-flighting anything.
+
+  **The asymmetry is fixed rather than documented**, because that rule was never
+  `do`-specific — a flag that reports *readiness* on both verbs cannot be a
+  checked claim on one of them. Retire's dry run now runs the launch's own code
+  path up to the exec: it loads and substitutes the `retire` prompt, and assembles
+  the invocation, which is what runs the codex sandbox pre-flight and derives the
+  VCS-store grants. **The prompt is the sharp case and it is unique to this verb** —
+  `grove retire` never provisions, so it reads a global skill dir some *earlier*
+  `grove do` had to have written, which is the one launch dependency a user cannot
+  see and precisely the one the old dry run sat on top of.
+
+  The exec itself is the one step a dry run cannot share, so it stands in the
+  strongest predicate on it: the binary is on `PATH`. That is checked against
+  `harness.exec_bin` and not the loop's overridable bin name — `grove retire` has
+  no bin seam, and checking the name it does not use would report on a binary this
+  verb never runs.
+
+  **What stays asymmetric, and why it is not a defect:** the report still names no
+  leaf, kind or model, because `grove retire` resolves none. It peeks no leaf and
+  passes the harness no model, so `grove do --no-launch`'s per-kind routing report
+  has no counterpart here.
+
+  A new guard walks both binaries' clap models and fails on anything a help
+  surface *lists* without describing — arguments and subcommands alike. Asserted
+  against the model rather than the rendered text: scraping `--help` for a token
+  followed by nothing has to reproduce clap's two layouts and its wrapping, and
+  that parser is likelier to be wrong than the thing it checks — wrong in the
+  direction that manufactures a false clean.
+
 ## v16.2.0
 
 ### Added

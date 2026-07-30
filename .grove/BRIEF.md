@@ -52,8 +52,9 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `changelog-release-rename-k18` | `impl` | **done** — `cargo release` now renames `## Unreleased` itself, replacing the prose note `k13` left — raised by `k13` |
 | `walkthrough-harness-routing-k19` | `impl` | **done** — the walkthrough's obsolete one-stamped-harness claim, in *both* pages that carried it; raised by `k16` |
 | `retire-help-node-path-k20` | `impl` | **done** — `grove retire --help`'s original-scheme node-path example replaced, and the grammar pinned by a test; raised by `k16` |
-| `retire-no-launch-help-k21` | `impl` | `grove retire --no-launch` has no description at all — the only undescribed option in either binary; raised by `k20` |
+| `retire-no-launch-help-k21` | `impl` | **done** — `grove retire --no-launch` described, and its dry run made a checked claim; raised by `k20` |
 | `driving-original-scheme-example-k22` | `impl` | `content/driving.md`'s worked research-leaf example cites original-scheme, keyless work items in *provisioned* content; raised by `k20` |
+| `retire-harness-stamp-claim-k23` | `impl` | `grove retire --help` claims `--harness` writes a stamp; `maybe_stamp`'s one call site is in `do_grove` — raised by `k21` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -441,6 +442,57 @@ as a change in itself — so there is no precedent for a help-text-only entry, a
 creating one would make the "stale prose corrected against already-shipped
 behaviour" rule depend on which prose surface carried the staleness. `k21` and
 `k22` inherit that answer; both are CHANGELOG-free unless they change behaviour.
+
+**What `retire-no-launch-help-k21` decided, and the seam that nearly caught it
+out.** The asymmetry is **fixed, not stated**: *model-per-task-kind* records
+"`--no-launch` resolves the launch it declines to perform … it runs the identical
+code path rather than a parallel config check" as a property of the *flag*, with
+no verb carve-out, so a dry run that resolved only the harness was an unchecked
+readiness claim. Retire's dry run now runs the launch's own path up to the exec —
+`load_prompt` + substitute, then the invocation assembly that fires the codex
+sandbox pre-flight and derives the VCS-store grants. The residual asymmetry (the
+report names no leaf, kind or model) is a **fact about the verb** — retire peeks
+no leaf and passes no model — and is stated in three places rather than fixed.
+
+1. **The prompt is the finding, and it is unique to this verb.** `grove retire`
+   **never provisions** (`provision_all` has one caller, `do_grove`), so
+   `load_prompt` reads a global skill dir some *earlier* `grove do` had to have
+   written — the one launch dependency a user cannot see, and the one the old dry
+   run returned directly on top of. Verified end-to-end in a scratch tree, both
+   ways; and against a **real codex**, where an untrusted tree now hits the
+   read-only refusal `codex-grant-refused-k35` added and retire's dry run had
+   never reached.
+2. **The two verbs exec through different bin seams, so the symmetric-looking
+   helper is the wrong one.** `loop_driver::harness_bin` honours
+   `GROVE_HARNESS_BIN[_<NAME>]`; `exec_harness` has no seam at all. Reusing
+   `preflight_check` would have checked a *different binary* than retire runs —
+   this leaf's own defect class, reached by reaching for the obvious helper — and
+   would additionally fail the dry run on `GROVE_<KIND>_HARNESS` overrides retire
+   routes on none of. The check is `harness.exec_bin`, and it is the one step the
+   dry run cannot share (the launch finds out by trying).
+3. **Fifth-generation grep trap, with a new edge: `--help` text is the wrong
+   instrument entirely.** Re-running `k20`'s scan by awk over rendered output
+   emitted `awk: newline in string` *and* two false positives (`-h`, `-V`, both
+   described) in one run. Worse than `k17`'s `rg -E` or `k20`'s `rg -r`, because a
+   scraper must also reproduce clap's **two layouts** — a multi-paragraph
+   description switches the *whole command* into long-help form, so this leaf's
+   own fix changed how every sibling row renders. The shipped guard
+   (`tests/help_surfaces.rs`) walks `clap::Command` for both binaries, where the
+   question is a fact rather than a rendering; falsified by mutation, it names
+   `grove retire :: argument \`no_launch\`` — the original defect exactly.
+   **`k22` should not scrape help text.**
+
+**`k21` is the first of the `k19`–`k22` run to earn a `CHANGELOG.md` entry**, and
+it confirms `k20`'s rule rather than bending it: those leaves are CHANGELOG-free
+*because they corrected stale prose against already-shipped behaviour*, and this
+one changed behaviour. `k22` edits `content/` only, so it stays free.
+
+Externalized rather than absorbed: `retire-harness-stamp-claim-k23`.
+`RetireArgs::harness`'s doc is a verbatim copy of `StartArgs::harness`'s and
+claims it writes a stamp; `maybe_stamp` has exactly one call site and it is in
+`do_grove`. Left standing deliberately — it needs a *decision* (is the doc wrong,
+or should `retire --harness` stamp?), not a reword — and it is why `k21`'s
+`--no-launch` description omits the "It writes no stamp" clause `do`'s carries.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

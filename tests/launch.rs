@@ -762,11 +762,44 @@ fn retire_hints_herdr_with_the_harness_it_launched() {
     );
 }
 
+/// Everything a `grove retire` **launch** depends on, planted so a `--no-launch`
+/// dry run reaches its own subject matter — the retire dry run now resolves the
+/// launch it declines to perform (retire-no-launch-help-k21), so its
+/// preconditions are the launch's.
+///
+/// Both are retire-specific and neither is covered by [`dry_run_env`].
+/// `grove retire` **never provisions**, so its prompt has to be planted by hand
+/// in the global skill dir `init_repo` pointed `GROVE_SKILL_DIR` at (the same
+/// reason `codex_retire_argv` plants one). And `exec_harness` has no bin seam —
+/// it execs `harness.exec_bin` through PATH, which `GROVE_HARNESS_BIN` does not
+/// redirect — so the fake must carry the harness's own name.
+fn retire_launch_deps(skill_root: &std::path::Path, harness_bin: &str) -> support::EnvGuard {
+    let prompts = skill_root.join("global-skill/prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("retire.md"), "RETIRE {{NODE_PATH}}").unwrap();
+
+    let bindir = skill_root.join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    write_exec(&bindir.join(harness_bin), "#!/bin/sh\nexit 0\n");
+
+    let mut env = support::EnvGuard::new();
+    env.set(
+        "PATH",
+        format!(
+            "{}:{}",
+            bindir.display(),
+            std::env::var("PATH").unwrap_or_default()
+        ),
+    );
+    env
+}
+
 #[test]
 fn retire_resolves_a_bare_node_path_in_worktree() {
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
+    let _env = retire_launch_deps(repo.path(), "claude");
 
     // `retire` takes a bare in-worktree node path — no `<name>/` prefix. The
     // two-part `<name>/<node-path>` addressing died with the canonical
@@ -777,6 +810,86 @@ fn retire_resolves_a_bare_node_path_in_worktree() {
         no_launch: true,
     })
     .unwrap();
+}
+
+#[test]
+fn the_retire_dry_run_fails_when_the_prompt_it_would_load_is_not_provisioned() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    // Deliberately *not* `retire_launch_deps`: the bin is planted, the prompt is
+    // not. `grove retire` never provisions, so this is the state of any machine
+    // whose `grove do` has not yet run for this harness — the one launch
+    // dependency a user cannot see, and the one the dry run used to sit on top
+    // of while reporting that it would exec.
+    let bindir = repo.path().join("bin");
+    fs::create_dir_all(&bindir).unwrap();
+    write_exec(&bindir.join("claude"), "#!/bin/sh\nexit 0\n");
+    let mut env = support::EnvGuard::new();
+    env.set(
+        "PATH",
+        format!(
+            "{}:{}",
+            bindir.display(),
+            std::env::var("PATH").unwrap_or_default()
+        ),
+    );
+
+    let err = launch::retire(&RetireArgs {
+        path: "03-some-leaf-k3".into(),
+        harness: None,
+        no_launch: true,
+    })
+    .expect_err("a dry run must fail on the prompt a real launch would fail on");
+    assert!(
+        err.to_string().contains("retire.md"),
+        "the diagnostic must name the prompt it could not read (got: {err})"
+    );
+}
+
+#[test]
+fn the_retire_dry_run_fails_when_the_binary_it_would_exec_is_absent() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    // The prompt resolves; only the exec's own precondition is missing. Checking
+    // it is the one place the dry run cannot share the launch's code path — the
+    // launch finds out by trying — so it is checked explicitly, and against
+    // `harness.exec_bin` rather than the loop's overridable bin name.
+    let prompts = repo.path().join("global-skill/prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("retire.md"), "RETIRE {{NODE_PATH}}").unwrap();
+
+    // A PATH holding `git` **and nothing else**, rather than an empty one:
+    // `repo::toplevel` shells out to git before any of this is reached, so an
+    // empty PATH fails one step too early and would pass on a build where the
+    // harness check had been deleted. Linking the real git in is what makes
+    // "claude is absent" a fact about this PATH instead of a fact about the
+    // machine the suite happens to run on.
+    let bindir = repo.path().join("git-only-bin");
+    fs::create_dir_all(&bindir).unwrap();
+    let git = String::from_utf8(
+        Command::new("sh")
+            .args(["-c", "command -v git"])
+            .output()
+            .unwrap()
+            .stdout,
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(git.trim(), bindir.join("git")).unwrap();
+    let mut env = support::EnvGuard::new();
+    env.set("PATH", &bindir);
+
+    let err = launch::retire(&RetireArgs {
+        path: "03-some-leaf-k3".into(),
+        harness: None,
+        no_launch: true,
+    })
+    .expect_err("`would exec claude` is a claim, and an absent claude falsifies it");
+    assert!(
+        err.to_string().contains("claude is not on PATH"),
+        "the diagnostic must name the binary it would have exec'd (got: {err})"
+    );
 }
 
 /// Harvest every token in `help` that **offers itself as a tree-entry name** —

@@ -90,15 +90,48 @@ pub fn retire(args: &RetireArgs) -> Result<()> {
     let repo_path = repo::resolve(None)?;
     let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
 
+    // The prompt is loaded and the invocation assembled *above* the no-launch
+    // return, for the reason `do`'s two config checks are
+    // (no-launch-config-check-k20, and *model-per-task-kind*: "`--no-launch`
+    // resolves the launch it declines to perform"). The rule generalises to this
+    // verb even though what there is to resolve does not: `retire` peeks no leaf
+    // and loads no model, so its whole resolution is the harness, the prompt and
+    // the grants — and a dry run that stopped at the harness reported readiness
+    // for a launch it had checked almost none of.
+    //
+    // The prompt is the sharp case and it is unique to this verb: `grove retire`
+    // **never provisions** (only `do_grove` calls `provision_all`), so
+    // `load_prompt` reads a global skill dir some *earlier* `grove do` had to
+    // have written for this harness. That is the one launch dependency a user
+    // cannot see and the one the old dry run sat directly on top of.
+    let prompt = load_prompt(harness, "retire")?;
+    let prompt = substitute(&prompt, &[("NODE_PATH", &args.path)]);
+
     if args.no_launch {
+        // Built and dropped: assembling the invocation runs the codex sandbox
+        // pre-flight and derives the VCS-store grants, which is the resolution
+        // being reported on; a `Command` that is never spawned does nothing else.
+        let _cmd = retire_command(harness, &repo_path, &worktree, &name, &prompt)?;
+        // The exec is the one thing a dry run cannot inherit from the launch, so
+        // it stands in the strongest available predicate on it. `harness.exec_bin`
+        // and not `loop_driver::harness_bin`: that seam is the *loop*'s, and
+        // `exec_harness` deliberately has none — checking the overridable name
+        // here would report on a binary this verb never runs.
+        if !crate::harness::exec_bin_on_path(harness.exec_bin) {
+            anyhow::bail!(
+                "{} is not on PATH, so this grove's retire session could not be \
+                 launched on \"{}\" (nothing was launched)",
+                harness.exec_bin,
+                harness.name
+            );
+        }
         eprintln!(
-            "grove: would exec {} for retire (no-launch)",
+            "grove: ready in {} — would exec {} for retire (no-launch)",
+            worktree.display(),
             harness.exec_bin
         );
         return Ok(());
     }
-    let prompt = load_prompt(harness, "retire")?;
-    let prompt = substitute(&prompt, &[("NODE_PATH", &args.path)]);
     exec_harness(harness, &repo_path, &worktree, &name, &prompt)
 }
 
@@ -634,6 +667,31 @@ fn exec_harness(
     grove_name: &str,
     prompt: &str,
 ) -> Result<()> {
+    let mut cmd = retire_command(harness, repo_path, worktree, grove_name, prompt)?;
+    let status = cmd
+        .status()
+        .with_context(|| format!("execing {}", harness.exec_bin))?;
+    if !status.success() {
+        anyhow::bail!("{} exited non-zero", harness.exec_bin);
+    }
+    Ok(())
+}
+
+/// Assemble the `grove retire` invocation — everything the launch resolves
+/// **except the exec itself**, which is the only step [`retire`]'s `--no-launch`
+/// dry run skips.
+///
+/// Extracted for that dry run rather than inlined, so the report and the launch
+/// it predicts cannot come to disagree: `--no-launch` runs this identical code
+/// path rather than a parallel re-derivation of it (*model-per-task-kind*, the
+/// same reason `readiness` reads `launch_verb` from the driver).
+fn retire_command(
+    harness: &Harness,
+    repo_path: &Path,
+    worktree: &Path,
+    grove_name: &str,
+    prompt: &str,
+) -> Result<Command> {
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -663,13 +721,7 @@ fn exec_harness(
     // for why this one is *not* driver-only the way `append_turn_hooks` is.
     set_herdr_agent_hint(&mut cmd, harness);
 
-    let status = cmd
-        .status()
-        .with_context(|| format!("execing {}", harness.exec_bin))?;
-    if !status.success() {
-        anyhow::bail!("{} exited non-zero", harness.exec_bin);
-    }
-    Ok(())
+    Ok(cmd)
 }
 
 #[cfg(test)]

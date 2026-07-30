@@ -141,6 +141,15 @@ pub struct RetireArgs {
     /// for this grove until removed.
     #[arg(long = "harness")]
     pub harness: Option<String>,
+    /// Report launch readiness and exit without exec'ing the harness. Readiness
+    /// is a **checked** claim, as on `grove do`: the flag resolves everything
+    /// the real launch would — the harness, its `retire` prompt (which this
+    /// verb, unlike `grove do`, never provisions), the codex sandbox pre-flight
+    /// and the VCS-store grants — and fails wherever that launch would.
+    ///
+    /// It names no leaf, kind or model, because `grove retire` resolves none:
+    /// it peeks no leaf and passes the harness no model, so the per-kind
+    /// routing `grove do --no-launch` reports on has no counterpart here.
     #[arg(long = "no-launch")]
     pub no_launch: bool,
 }

@@ -55,7 +55,8 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-no-launch-help-k21` | `impl` | **done** — `grove retire --no-launch` described, and its dry run made a checked claim; raised by `k20` |
 | `driving-original-scheme-example-k22` | `impl` | **done** — `content/driving.md`'s worked research-leaf example cited original-scheme, keyless work items in *provisioned* content; raised by `k20` |
 | `retire-harness-stamp-claim-k23` | `impl` | **done** — the doc was wrong, not the behaviour: only the verb that drives the grove writes the stamp; raised by `k21` |
-| `src-position-citations-k24` | `impl` | two `src/` comments still cite dead `.grove/` positions — the class `k14` reported as swept to zero; raised by `k22` |
+| `src-position-citations-k24` | `impl` | **done** — two `src/` comments citing dead `.grove/` positions; one of them was a *false claim*, not just a stale citation; raised by `k22` |
+| `nonsrc-position-citations-k25` | `impl` | the same class in `tests/` (4, including a live `D<n>`) and `codex-bridge/src/` (1, cross-repo); raised by `k24` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -268,9 +269,12 @@ folded in (`lib.rs` also claimed `leaf` survives *solely* as a migration input,
 which is false — `Kind` is live everywhere). **`src/` module headers no longer cite
 `.grove/` positions** — every `11.x`, `070/040`, `060/020` and `D<n>` is
 gone. (As written this claimed *"`src/` comments no longer cite `.grove/`
-positions **at all**"*; `k22` falsified that — two citations survive outside the
-swept comment species and pattern list, now `src-position-citations-k24`. Kept
-quoted-and-refuted rather than deleted.) That is not a style preference: ADR *task-tree-scheme* §5 binds "commit
+positions **at all**"*; `k22` falsified that — two citations survived outside the
+swept comment species and pattern list. `src-position-citations-k24` has since
+fixed both, so the claim is **now true of `src/`** — but only of `src/`: `k24`
+found the same class live in `tests/` and `codex-bridge/src/`, which is
+`nonsrc-position-citations-k25`. Kept quoted-and-refuted rather than deleted.)
+That is not a style preference: ADR *task-tree-scheme* §5 binds "commit
 messages and **prose**" to `<slug>-k<key>` and forbids the position, and a source
 comment is prose; the referent is deleted twice over, since `.grove/` dies at the
 finish cycle. Where a citation was load-bearing it became an **ADR slug** or a
@@ -619,6 +623,66 @@ pattern list*, and these are a function doc comment and an unlisted spelling.
 `k22` measured the negative space too, so `k24` inherits it: `D<n>` is genuinely
 at zero, and every remaining dotted-decimal or three-digit token in `src/` is a
 version, a timing, the v1 grammar *as subject*, or migration fixture data.
+
+**What `src-position-citations-k24` fixed, and the one site that was a false
+claim rather than a stale citation.** `provision.rs:7` was the easy half — the
+parenthetical was redundant beside the two ADR slugs four words earlier, so the
+position went and "now deleted" carries what survived. `leaf_id.rs:143` was not:
+*"Public so the grow verbs (030) can parse a bare `<parent-id>`/`<target-id>`
+positional"* names **a consumer that does not exist**. `leaf_id::parse_position`
+has exactly one call site — `parse`, in its own module — and the grow verbs parse
+their positional through `tree_id::parse_position`, a different function under the
+same name returning one `u32` instead of a `Vec<u32>`. Its **second** clause ("*and
+the position prefix of a `# …` header*") is false too: `tree_migrate` rewrites v1
+headers by token substitution (`rewrite_header_line`), building the old token from
+an already-parsed id rather than parsing a prefix. So swapping `(030)` for an
+ADR slug would have **laundered a false sentence into a well-cited one**; this is
+`retire-harness-stamp-claim-k23`'s lesson inverted — there a true clause was
+load-bearing on a false neighbour, here a false clause was hiding behind a
+plausible citation. The residue was turned into the warning `k14` already wanted
+(`tree_id.rs:36` and `leaf_id.rs:15` each warn about the same-named pair), so the
+fix names a **module path**, which is `k14`'s own settled rule.
+
+1. **The method was enumerate-then-classify, and that is the reusable part.**
+   `k14` swept an *enumerated pattern list* and leaked; re-running a longer list
+   would only move the leak. Instead: extract **every** numeric-bearing token from
+   every comment in `src/` (95 distinct), then classify all 95. That is complete by
+   construction rather than complete-as-far-as-the-list, and it is what surfaced
+   `k25`.
+2. **The discriminator is dereference-vs-subject, and it is semantic.** A position
+   is an instance when the reader must *look the work item up* to use the comment;
+   it is fine when the position **is** the subject — `tree_migrate`'s golden v1
+   fixture ("node 11 — brief + DONE children + live leaves", whose literal strings
+   sit three lines below), a byte count, a synthetic grammar illustration. Nine such
+   sites survive in `src/` and are correct. **This is why no guard test shipped**:
+   any regex either flags those nine or narrows to a pattern list, re-committing
+   `k14`'s defect while wearing a test's authority.
+3. **Sixth-generation grep lesson, and it is a new move rather than another trap.**
+   `k17`/`k20`/`k21` each learned to check *that the command ran*. That is not
+   sufficient — a correct-but-blind instrument also reads clean. So the clean result
+   was falsified two ways: a **positive control** (the same `rg` must find
+   `task-tree-scheme` in `src/`, and does) and a **cross-tree control** (the same
+   dereference patterns must find the class *somewhere*, and do — in `tests/` and
+   `codex-bridge/`). A flag error or a bad pattern reads clean **everywhere**;
+   clean-here-plus-dirty-there cannot be produced by a broken instrument. `D<n>` in
+   `src/` is therefore re-derived at zero, not inherited from `k22`.
+
+Externalized rather than absorbed: `nonsrc-position-citations-k25` — four sites in
+`tests/` (including `harness_stamp.rs:85`'s `D5:`, the class `k14` and `k22` both
+reported at zero, because neither claim ever reached `tests/`) and one in
+`codex-bridge/src/main.rs`, which cites a **foreign repo's** `.grove/` path plus
+that dead brief's `D2/D3/D6` and so needs a *decision* (promote the load-bearing
+reason, or drop the pointer), not a reword. **The scope narrowing is the third
+generation of `k14`'s defect**: `k14` narrowed by comment species and pattern
+list, `k24` inherited a narrowing by *directory* — and `codex-bridge/src/main.rs`
+**is** a `src/` path, just not the root crate's, so even the word "`src/`" did not
+mean what a reader of the claim would take it to mean. **A claim's scope is part
+of the claim, and a scope stated as a path goes stale exactly as a file list
+does.**
+
+CHANGELOG-free, the fourth leaf running to confirm `k20`'s rule: no behaviour
+changed — two comments corrected against shipped behaviour. `cargo test`: 628
+passed, 0 failed; clippy and `cargo fmt --check` clean.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

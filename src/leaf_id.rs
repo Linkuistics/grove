@@ -139,10 +139,12 @@ pub fn parse(name: &str) -> Option<LeafId> {
 
 /// Parse a dotted-decimal position string (`2.3.1`) into its integer vector.
 /// Strict: each `.`-separated part must be non-empty digits (so `2..3`, `1.`,
-/// and a leading/trailing `.` all reject) and an empty string rejects. Public so
-/// the grow verbs (030) can parse a bare `<parent-id>`/`<target-id>` positional
-/// and the position prefix of a `# …` header (the id model is the foundation
-/// every verb consumes).
+/// and a leading/trailing `.` all reject) and an empty string rejects. Its only
+/// call site is `parse`, above: the grow verbs parse their bare
+/// `<parent>`/`<target>` positional through `tree_id::parse_position` instead — a
+/// different function under the same name, returning one `u32` per-level position
+/// rather than a vector. Kept `pub` as part of the frozen v1 surface, per this
+/// module's header.
 pub fn parse_position(s: &str) -> Option<Vec<u32>> {
     if s.is_empty() {
         return None;

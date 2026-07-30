@@ -4,7 +4,7 @@
 //! retained methodology and extracts it to the global personal skill dir
 //! (`~/.claude/skills/grove/`) on `grove do`. Because the skill travels inside
 //! the binary, it can never drift from it — this replaces the old fetch-tarball +
-//! materialise-per-harness + `VERSION.md` model (whose deletion is leaf 090).
+//! materialise-per-harness + `VERSION.md` model, now deleted.
 //!
 //! Extraction is idempotent against a content-hash stamp: a warm launch is a
 //! cheap no-op; a binary built from changed `content/` re-extracts. The hash —

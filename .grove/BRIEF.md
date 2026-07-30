@@ -48,7 +48,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-confirmation-k12` | `design` | **decided**: the Retire cascade asks nothing; it checks, promotes and reports |
 | `changelog-unreleased-k13` | `impl` | **done** — `## Unreleased` ratified; this grove's shipped work logged under it |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
-| `confirmation-prose-k15` … `-k17` | `impl` chain | `k15` + `k16` **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
+| `confirmation-prose-k15` … `-k17` | `impl` chain | **done** — reconcile `content/`, `docs/` and `src/` prose to that decision |
 | `changelog-release-rename-k18` | `impl` | make `cargo release` rename `## Unreleased`, rather than the prose note `k13` left — raised by `k13` |
 | `walkthrough-harness-routing-k19` | `impl` | fix the walkthrough's obsolete one-stamped-harness claim — raised by `k16` |
 | `retire-help-node-path-k20` | `impl` | replace `grove retire --help`'s original-scheme node-path example — raised by `k16` |
@@ -58,7 +58,13 @@ Done-when above is therefore no longer the whole of what this grove will produce
 reversing a decision the ADR, the spec and the glossary each recorded. The three
 arguments that had rejected it lapsed: `leaf-add-chain` made node creation
 proactive, the node is **brief-less by rule** so it buys no unearned `BRIEF.md`,
-and a brief-less node is never asked the Retire cascade's confirmation. The
+and a brief-less node's close has no close-time **work** — no `Done when` rollup to
+check, no brief to promote — where a decomposition node's has both. (That third
+argument was originally *"a brief-less node is never asked the cascade's
+confirmation"*; `retire-confirmation-k12` has since removed that confirmation for
+**every** node species, so the objection is doubly dead and the `BRIEF.md`
+discriminator now selects close-time work rather than who gets asked. See the
+`retire-confirmation-k12` summary below.) The
 decisive new argument *for* it is that a directory makes the group **structural**
 in every tree viewer (`yazi`, Finder, `ls -R`), not just in the one grove controls.
 Children keep the stem (`skill-review-k4`, not `review-k4`) because `resolve`
@@ -292,6 +298,35 @@ walkthrough were externalized, not absorbed: `walkthrough-harness-routing-k19`
 owns the last paragraph's obsolete claim that one bootstrap-chosen/stamped
 harness runs every task, and `retire-help-node-path-k20` owns `grove retire
 --help`'s removed original-scheme example `003-session-store`.
+
+**What `confirmation-prose-integrate-k17` applied, closing the chain.** Both
+findings reproduced by grep before being touched, both real, both applied; nothing
+upheld as rejected, and **no finding against the ADR**, so
+`docs/adr/confirmation-boundary.md` is untouched. The carry-forward above is fixed
+in place: a brief-less node's close has no close-time **work**, which is the
+discriminator's job since `k12` — the falsified sentence kept *quoted-and-refuted*
+rather than deleted, per `docs-reconcile-k6`'s pattern.
+
+1. **The post-fix grep found a third instance `k16` did not**, in the file
+   `k16` was already reviewing: `skill-repo-prior-art.md`'s own **Takeaways**
+   roll-up still called G5 a live convergence, one structural level above the
+   heading `k16` flagged. Applied in the same pass — it is the flagged finding's
+   extent, not new work. The generalisable form, and the reason it recurs: `k16`
+   read the *section*; a roll-up summarises sections and is not reached by
+   correcting one. **When a finding is against a heading, sweep the document's
+   summary layer too.**
+2. **Two grep traps that manufacture a false clean**, both hit this session and
+   both worth knowing given this grove re-runs claim greps *as evidence*: `rg -E`
+   is `--encoding`, **not** GNU grep's extended-regex flag, so with `2>/dev/null`
+   a flag error is indistinguishable from a clean sweep; and `.grove/` is a
+   **dotdir** `rg` skips without `--hidden` — the live mandate sits outside the
+   default search space, which is why `k16` specified a "hidden-path" grep.
+   `k18`–`k20` each re-verify a claim by grep; use `--hidden`, and check the
+   command ran.
+
+`cargo test` green in full. The chain touched no code, so `confirmation-boundary`
+is now fully enacted in prose and `CHANGELOG.md` carries the one `### Changed`
+entry `k15` wrote for it.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

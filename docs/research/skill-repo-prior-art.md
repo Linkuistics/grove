@@ -1157,8 +1157,10 @@ to decompose; grove keeps that judgment with the human at the seam (cheaper, no 
 but it's worth noting as the automated counterpart to grove's `leaf-decompose` instinct.
 
 **G5 [grove] — done-ness: a manual parent roll-up that *prompts* the human vs grove's
-implicit-via-absence that *asks* the human — convergent on "never auto-complete the parent," and
-grove's model can't drift (Q5).** task-master stores status as a **mutable 6-value field** —
+implicit-via-absence, which cannot drift from its children — the durable divergence. The
+survey-time *convergence* on "never auto-complete the parent without a human" has since lapsed on
+grove's side: grove dropped that gate (ADR *confirmation-boundary*), so read the convergence as
+dated evidence, not as current guidance (Q5).** task-master stores status as a **mutable 6-value field** —
 `pending | done | in-progress | review | deferred | cancelled` (`src/constants/task-status.js:16-23`).
 When the last subtask of a parent goes `done`, it **does not auto-complete the parent** — it
 *suggests*: *"All subtasks of parent task N are now marked as done… Consider updating the parent
@@ -1221,9 +1223,12 @@ context derived from the worktree. **G2** records the next-task fork (semantic p
 positional first-live-leaf) *and* the convergence beneath it — both recompute the frontier on demand
 and store no task cursor. **G4** is the strongest version of the front-loaded-plan-vs-lazy-tree fork
 (superpowers-G6): task-master had to add an `update-*` patch-loop to repair its stale one-shot PRD
-parse, and caps at two levels, where grove grows lazily and recurses without limit. **G5** is a
-convergence — both refuse to auto-complete a parent and defer to the human — with grove's implicit
-done-ness unable to drift from its children where task-master's status *field* can; carry the honest
+parse, and caps at two levels, where grove grows lazily and recurses without limit. **G5** was a
+convergence *at survey time* — both refused to auto-complete a parent without the human — and grove
+has since dropped its half (ADR *confirmation-boundary*: a node is never marked, so the answer
+changed no bytes). What survives is the mechanism half: grove's implicit done-ness cannot drift from
+its children where task-master's status *field* can — and that integrity is the very premise the ADR
+used to *remove* the gate. The survey was not wrong; its conclusion was drawn one step early. Carry the honest
 note that task-master's `review`/`deferred`/`cancelled` express lifecycle states grove's binary
 infix deliberately omits. **G6** adds that grove's one-worktree-per-grove lets git do the
 concurrency isolation task-master must hand-build as tags + cross-tag move validation. Net: no

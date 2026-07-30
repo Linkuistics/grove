@@ -556,6 +556,12 @@ correct handle. The handle resolves only inside the tree that issued it, a reade
 rarely in that tree, and it dies at the [[Complete finish cycle]]; anchor a worked
 example on a durable artifact instead (task-tree-scheme §5). A *synthetic* name
 illustrating the grammar is fine — there the position is the subject.
+_Avoid_: citing an **index into** a work item — a review finding (`B5`), a numbered
+decision, a bare key (`k29`) — by that index alone. The handle rule governs naming an
+*item*, not indexing into one, so a bare index satisfies it in full and still resolves
+nowhere; write the pair, `branch-review-k14 B5`. An unscoped index is **worse** than a
+bare position: a position merely fails to resolve, while a number can resolve
+*incorrectly* against an unrelated live series of the same shape (task-tree-scheme §5).
 
 **DONE infix**:
 The in-place retirement marker: the literal `DONE` placed right after the position in a retired leaf's filename (`NN-DONE-<slug>-k<key>.md`), at a fixed column. Written by `leaf-retire`. Leaves only — a node is never marked done (its done-ness is the absence of a live leaf in its subtree, however those leaves finished). The leaf keeps its position and key, and its file contents are untouched. Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf states.

@@ -57,7 +57,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-harness-stamp-claim-k23` | `impl` | **done** — the doc was wrong, not the behaviour: only the verb that drives the grove writes the stamp; raised by `k21` |
 | `src-position-citations-k24` | `impl` | **done** — two `src/` comments citing dead `.grove/` positions; one of them was a *false claim*, not just a stale citation; raised by `k22` |
 | `nonsrc-position-citations-k25` | `impl` | **done** — the same class outside the root crate's `src/`; the five-site list was an undercount by four, and `Cargo.toml` is in no tree at all; raised by `k24` |
-| `dangling-finding-tags-k26` | `impl` | nine `B<n>` review-finding tags across ~25 `src/`+`tests/` comments that resolve nowhere — same family, different claim's surface; raised by `k25` |
+| `dangling-finding-tags-k26` | `impl` | **done** — 48 unscoped finding-index tags (`B<n>`/`T<n>`/`F<n>`) in `src/`+`tests/`; the referent was never missing, it was *unscoped*, and `k25`'s "`T<n>` is correct" was the set's worst case; raised by `k25` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -753,14 +753,97 @@ settled as correct: synthetic fixture paths in test literals, the
 Externalized rather than absorbed: `dangling-finding-tags-k26` — nine `B<n>`
 tags over ~25 comment sites in `src/` and `tests/` that resolve nowhere in the
 repo. Same failure family, **different claim's surface** (a finding id, not a
-position), so no earlier claim is falsified by it. Its premise is measured rather
+position), so *"no earlier claim is falsified by it"*. Its premise is measured rather
 than assumed, per this leaf's own lesson: they **are** recoverable, as
 `branch-review-k14`'s findings at `d65c033^` in this repo's history — so `k26`'s
-options are wider than the codex-bridge decision was.
+options are wider than the codex-bridge decision was. (The quoted clause is
+**false** and is kept refuted rather than deleted: `k26` falsified this very
+leaf's classification of `T<n>` as a correct citation resolving into the live plan
+doc. It resolves, and to the *wrong* referent — see `k26`'s summary below. The
+recoverability premise held, and understated the case: the findings are reachable
+one-step from the commit log, not only at `d65c033^`.)
 
 CHANGELOG-free, the fifth leaf running to confirm `k20`'s rule: no behaviour
 changed, no test shipped. `cargo test`: 628 passed, 0 failed — unchanged from
 `k24`, which is correct; clippy and `cargo fmt --check` clean.
+
+**What `dangling-finding-tags-k26` decided, and the finding that makes it a class
+rather than a sweep.** 48 tag instances over 46 comment lines in 11 files, zero
+code. **The referent was never missing — it was *unscoped*.** A `B5` is a valid
+index into a namespace the comment never names, and all 48 index just **two**
+artifacts (`branch-review-k14`; `chain-construction-review-k39`), both nameable by
+a handle that resolves in this repo's commit log today. So the fix is to write the
+**pair** — `branch-review-k14 B5`, never `B5` — not to delete the number and not
+to promote substance. Nothing was promoted, because the substance is already
+inline at every site: each comment states its own finding and the tag adds only
+provenance. The house pattern was again one file over (`leaf-harness-k15`,
+`codex-grant-refused-k35`, `required-model-vars-k18` are all cited bare in these
+very files, and all resolve), which is `k22`'s lesson on its third outing.
+
+1. **`k25` classified `T<n>` as *correct* and it is the worst case in the set.**
+   All eight review `T<n>` tags collide with the **live** plan doc's Task numbers
+   (`T1` = "pi row + codex profiles", `T2` = "stamp fix", …), so `T2` in
+   `tests/provision.rs` dereferenced *cleanly* to the wrong referent. Hence the
+   generalisation, now the class fix: **a bare index is worse than a bare
+   position, not better** — a position at least fails legibly, while an unscoped
+   number can resolve **incorrectly** against an unrelated live series of the same
+   shape. `k25`'s "shape is a bad proxy; reachability is the fact" needed a third
+   clause: reachability is not enough either, because a reachable referent can be
+   the wrong one.
+2. **Both premises of this leaf's own Context about `F1`/`F2` were false, in the
+   direction that made the work easier.** They are not
+   `chain-node-review-k10`'s findings (whose findings are unnumbered —
+   High/Medium/Medium) and are not "dangling-in-waiting" pending this grove's
+   finish cycle. They are `chain-construction-review-k39`'s, from an
+   **already-finished** grove, restated *in full* in
+   `chain-construction-integrate-k40`'s commit message. So the "fourth case"
+   dissolves: `F<n>` is the same class as `B<n>`, differing only in which handle
+   scopes it. Recovered by `jj file annotate` → commit description, not by
+   grepping `.grove/`, where they appear nowhere.
+3. **The `B<n>` dereference is one-step, which is what earns the number its
+   place.** Each of the four fix commits restates its findings substantively and
+   names them individually (`review-fix-routing-k17: … (B2, B5, B6, B7)`), so
+   `jj log --grep branch-review-k14` resolves the reference without anyone needing
+   to know the leaf file survives at `d65c033^`. A handle alone would collapse all
+   48 sites onto the same seven commits with no way to narrow.
+4. **Enumerate-then-classify caught a sibling the stated scope could not.**
+   `B<n>`/`T<n>`/`F<n>` is a *pattern list* — `k14`'s original defect — so the
+   sweep ran `k24`'s method instead: every `[A-Za-z]{1,3}[0-9]+` token in every
+   code comment repo-wide (54 distinct), all 54 classified. That found
+   `tests/leaf_chain.rs:341`'s bare **`k29`** — the identical defect one letter
+   over, 320 lines from the only line that scopes it — plus a second unscoped
+   "The review's" in the same comment. Both fixed inline as the rule's extent, not
+   externalized: one word each, in a file already being edited. `k0`/`k1`/`k3` in
+   fixtures, `K3` (a product name), `p1` (herdr's pane handle), `arg0`, `u32`,
+   `v1`/`v2`, and `z0` (a false positive from `[A-Za-z0-9_|]`) are all the
+   **index-as-subject** class `k24` settled as correct.
+
+Recorded as two paragraphs in ADR *task-tree-scheme* §5 — an extension in place on
+`k22`'s precedent, since it is one rule about durable references gaining a second
+instance, not a new decision — with the matching `_Avoid_` on `CONTEXT.md`'s
+[[Work-item handle]]. §5's existing rule does **not** imply it: the rule governs
+how an item is *named*, and an index into an item's *contents* names no item at
+all, so prose can satisfy §5 in full and still resolve nowhere. Every other §5
+citation was checked and none is falsified — they cite the handle grammar or
+`resolve`, not §5's scope. **No lexical guard shipped**, inherited from
+`k24`/`k25` and re-derived rather than assumed: the discriminator is *which
+namespace an index belongs to*, which is semantic, so any regex either flags the
+correct index-as-subject sites or narrows to a pattern list.
+
+Verified by the claim grep over code comments repo-wide with **no directory
+narrowing**, plus `k24`'s two controls (a positive control, and a cross-tree
+control — the same pattern must still find the class in `docs/superpowers/plans/`
+and `docs/research/`, where the index *is* the subject or is dated evidence, and
+it does). The four bare `B7`/`B1/T7` hits that remain are **intra-block
+back-references** whose comment block opens with the handle — the same grammar the
+codebase uses for ADR slugs — confirmed by reading each block, not by assuming.
+The tag inventory was diffed against `@-` and is byte-identical (48 instances,
+same distribution), so the rewrapping neither lost nor invented a citation.
+
+CHANGELOG-free, the sixth leaf running to confirm `k20`'s rule: no behaviour
+changed, no test shipped, and an ADR paragraph is *recorded* rather than landed
+(`k13`). `cargo test`: 628 passed, 0 failed — unchanged from `k24`/`k25`, which is
+correct; clippy and `cargo fmt --check` clean.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

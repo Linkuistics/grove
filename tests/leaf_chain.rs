@@ -4,7 +4,7 @@
 //
 // The library owns the shape and its all-or-nothing contract (`src/tree_grow.rs`
 // unit tests). What only the binary can show is the *command* contract, which is
-// where the review's F1 landed:
+// where chain-construction-review-k39's F1 landed:
 //
 //   * **stdout is the shape or it is nothing** — four absolute paths, the chain
 //     node's directory first so a caller can `leaf-add <node>` a late step
@@ -153,9 +153,10 @@ fn the_printed_node_path_is_a_parent_leaf_add_accepts() {
 
 #[test]
 fn a_failed_run_prints_no_path_at_all() {
-    // F1's stdout half. Printing as each path lands would let stdout describe a
-    // mutation the command reports as failed — and here the run is rolled back,
-    // so those paths do not exist by the time the caller reads them.
+    // chain-construction-review-k39 F1's stdout half. Printing as each path
+    // lands would let stdout describe a mutation the command reports as failed —
+    // and here the run is rolled back, so those paths do not exist by the time
+    // the caller reads them.
     //
     // The obstruction is a *file* wearing the node's name: the tree reconciles
     // parsed names against real filesystem kinds, so it is invisible to position
@@ -335,9 +336,10 @@ fn chain_refuses_research_and_sends_the_caller_to_the_pair_verb() {
 
 #[test]
 fn both_verbs_are_listed_beside_leaf_add_in_help() {
-    // The review's one conditional verdict: the design's answer to "how does a
-    // session come to use it" is *placement*, and `--help` is the surface a
-    // session re-orients on. A verb absent from it is k29's failure repeated.
+    // chain-construction-review-k39's one conditional verdict: the design's
+    // answer to "how does a session come to use it" is *placement*, and `--help`
+    // is the surface a session re-orients on. A verb absent from it is
+    // compose-task-chains-k29's failure repeated.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .arg("--help")

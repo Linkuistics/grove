@@ -240,9 +240,9 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
 
 #[test]
 fn no_launch_does_not_stamp_the_grove() {
-    // B3: `--no-launch` is documented as "report readiness, don't exec" — a
-    // dry run. It must not durably rebind the grove, even with an explicit
-    // `--harness` (the one case that would otherwise always stamp).
+    // branch-review-k14 B3: `--no-launch` is documented as "report readiness,
+    // don't exec" — a dry run. It must not durably rebind the grove, even with
+    // an explicit `--harness` (the one case that would otherwise always stamp).
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
@@ -437,9 +437,9 @@ fn the_readiness_report_names_the_next_leaf_its_kind_and_the_resolved_model() {
 
 #[test]
 fn a_failed_provision_never_leaves_a_permanent_stamp() {
-    // B4: the stamp must only be written once every step that could bail
-    // (provisioning, PATH resolution) has already succeeded — otherwise a
-    // failed bind is permanent, with no verb to clear it.
+    // branch-review-k14 B4: the stamp must only be written once every step that
+    // could bail (provisioning, PATH resolution) has already succeeded —
+    // otherwise a failed bind is permanent, with no verb to clear it.
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
@@ -464,7 +464,8 @@ fn a_failed_provision_never_leaves_a_permanent_stamp() {
     assert!(result.is_err(), "a foreign skill dir must still bail");
     assert!(
         !grove::harness_stamp::path(repo.path(), &name).exists(),
-        "a failed provision must not leave a permanent bad binding (B4)"
+        "a failed provision must not leave a permanent bad binding \
+         (branch-review-k14 B4)"
     );
 }
 
@@ -516,7 +517,8 @@ fn do_fails_preflight_when_a_per_kind_override_binary_is_missing() {
 
     assert!(
         !grove::harness_stamp::path(repo.path(), &name).exists(),
-        "a pre-flight failure must not leave a permanent stamp (B4)"
+        "a pre-flight failure must not leave a permanent stamp \
+         (branch-review-k14 B4)"
     );
 
     // …and the dry run reports the same failure (no-launch-config-check-k20):

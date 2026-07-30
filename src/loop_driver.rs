@@ -196,9 +196,10 @@ pub fn run_loop(
         // Route the launch by the picked leaf's kind: per-kind harness
         // override first (GROVE_<KIND>_HARNESS), then model-per-task-kind
         // against whichever harness actually launches. Resolved *before*
-        // loading the prompt (B7): the prompt must come from the harness that
-        // actually launches, not the stamped one — reading it first would
-        // silently serve the wrong harness's copy whenever a reroute happens.
+        // loading the prompt (branch-review-k14 B7): the prompt must come from
+        // the harness that actually launches, not the stamped one — reading it
+        // first would silently serve the wrong harness's copy whenever a
+        // reroute happens.
         let launch = resolve_launch(harness, worktree, verb)?;
 
         // codex-gitdir-grant / codex-grant-refused-k35: before spawning, confirm
@@ -288,8 +289,9 @@ pub fn run_loop(
 /// was resolved *against* that harness, and `rerouted` (whether `harness`
 /// differs from the grove's stamped one, i.e. a per-kind `GROVE_<KIND>_HARNESS`
 /// override fired) is what stops the legacy unscoped `GROVE_HARNESS_BIN` leaking
-/// into a rerouted launch via [`harness_bin`] (B5). Splitting them across the
-/// signature invited a caller to pair a harness with another launch's model.
+/// into a rerouted launch via [`harness_bin`] (branch-review-k14 B5). Splitting
+/// them across the signature invited a caller to pair a harness with another
+/// launch's model.
 ///
 /// Prints one diagnostic line naming the resolved `(harness, model)` on every
 /// launch, routed or not: the trial's central invariant ("K3 reviews
@@ -508,10 +510,11 @@ fn env_parse_f64(key: &str) -> Option<f64> {
 /// one loop) always wins. The legacy unscoped `GROVE_HARNESS_BIN` beats
 /// `exec_bin` only when `harness` is the one the grove is stamped to
 /// (`!rerouted`) — once a per-kind override reroutes to a *different*
-/// harness, a single global bin override is incoherent (B5: it would exec the
-/// stamped harness's wrapper under the rerouted harness's flag template), so
-/// a reroute falls straight to `exec_bin` instead. Both env seams treat `""`
-/// as unset via [`env_nonempty`], like every other var in this file.
+/// harness, a single global bin override is incoherent (branch-review-k14 B5:
+/// it would exec the stamped harness's wrapper under the rerouted harness's
+/// flag template), so a reroute falls straight to `exec_bin` instead. Both env
+/// seams treat `""` as unset via [`env_nonempty`], like every other var in this
+/// file.
 fn harness_bin(harness: &Harness, rerouted: bool) -> String {
     let scoped = env_nonempty(&format!(
         "GROVE_HARNESS_BIN_{}",
@@ -564,11 +567,11 @@ fn kind_suffixes(kind: Kind) -> Vec<String> {
 /// The harness axis outranks the kind axis because the two are different
 /// *kinds* of constraint. Crossing the harness axis can yield a value that is
 /// not merely less specific but **invalid** for the binary being launched — a
-/// codex profile name is garbage to pi (B2) — while a family's model is less
-/// specific yet still the user's own choice, and still valid. Kind-major
-/// ordering would let a set harness-scoped family var lose to an unscoped
-/// exact-kind var written with a different harness in mind, which is the
-/// precise failure the harness axis exists to prevent.
+/// codex profile name is garbage to pi (branch-review-k14 B2) — while a
+/// family's model is less specific yet still the user's own choice, and still
+/// valid. Kind-major ordering would let a set harness-scoped family var lose to
+/// an unscoped exact-kind var written with a different harness in mind, which is
+/// the precise failure the harness axis exists to prevent.
 ///
 /// A **rerouted** launch (`harness` is not the one the grove is stamped to)
 /// consults no unscoped var at all: the list truncates to keys 1–2, so a
@@ -1086,7 +1089,7 @@ impl std::fmt::Display for Readiness {
 
 /// Read an env var, treating an empty string as unset — the convention every
 /// env seam in this file follows (`GROVE_HARNESS_BIN` was the one holdout,
-/// B5).
+/// branch-review-k14 B5).
 fn env_nonempty(var: &str) -> Option<String> {
     std::env::var(var).ok().filter(|s| !s.is_empty())
 }
@@ -1115,11 +1118,12 @@ fn leaf_harness_installed(harness: &'static Harness, rerouted: bool) -> Result<(
 }
 
 /// The outcome of peeking the next live leaf — three genuinely different
-/// situations `resolve_launch` must not conflate (B6): `Empty` has no leaf to
-/// route *on purpose* (the finish-cycle iteration), while `Degraded` means the
-/// peek itself failed and the leaf's launch is simply unknown. The distinction
-/// is what keeps the finish-cycle iteration exempt from the required-model rule
-/// while a genuinely unresolvable leaf refuses to launch at all.
+/// situations `resolve_launch` must not conflate (branch-review-k14 B6):
+/// `Empty` has no leaf to route *on purpose* (the finish-cycle iteration),
+/// while `Degraded` means the peek itself failed and the leaf's launch is
+/// simply unknown. The distinction is what keeps the finish-cycle iteration
+/// exempt from the required-model rule while a genuinely unresolvable leaf
+/// refuses to launch at all.
 ///
 /// `Leaf` carries **both** routing facts the peek returns: the kind, always,
 /// and the harness the leaf declares for itself when it declares one

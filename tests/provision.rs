@@ -103,12 +103,12 @@ fn provision_replaces_a_symlinked_grove_entry_with_a_real_dir() {
     let meta = fs::symlink_metadata(&linked).unwrap();
     assert!(meta.is_dir(), "the symlink becomes a real directory");
     assert!(linked.join("SKILL.md").is_file());
-    // Regression guard, not a live-risk check (T2): removing the symlink must
-    // never affect `real`'s own content. This can't currently be violated by
-    // *how* the symlink is removed — `std::fs::remove_dir_all` documents
-    // (see its "TOCTOU race conditions" section, stable since 1.0.0) that on
-    // every platform except Miri/QNX/Redox/VxWorks (none grove targets) it
-    // `lstat`s a top-level symlink argument and unlinks rather than
+    // Regression guard, not a live-risk check (branch-review-k14 T2): removing
+    // the symlink must never affect `real`'s own content. This can't currently
+    // be violated by *how* the symlink is removed — `std::fs::remove_dir_all`
+    // documents (see its "TOCTOU race conditions" section, stable since 1.0.0)
+    // that on every platform except Miri/QNX/Redox/VxWorks (none grove targets)
+    // it `lstat`s a top-level symlink argument and unlinks rather than
     // recursing, exactly like `remove_file` — verified against this repo's
     // own std (rustc 1.97.1, `sys/fs/unix.rs::remove_dir_all_modern` and the
     // `sys/fs/common.rs` fallback both special-case it). So `rust-version`
@@ -129,10 +129,10 @@ fn provision_refuses_a_foreign_directory() {
 
     let err = provision_target(&dest).unwrap_err().to_string();
 
-    // T8: the message interpolates `dest`, never the offending file's own
-    // name — an `err.contains("precious")` disjunct here would never be true
-    // and silently widen the assertion; assert only the clause the message
-    // actually satisfies.
+    // branch-review-k14 T8: the message interpolates `dest`, never the
+    // offending file's own name — an `err.contains("precious")` disjunct here
+    // would never be true and silently widen the assertion; assert only the
+    // clause the message actually satisfies.
     assert!(
         err.contains("not a grove-provisioned"),
         "must refuse to clobber a dir grove didn't write (err: {err})"
@@ -151,9 +151,10 @@ fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
     fs::create_dir_all(home.path().join(".claude")).unwrap();
     fs::create_dir_all(home.path().join(".pi")).unwrap();
 
-    // T7: restoring `HOME` while unconditionally *removing* `GROVE_SKILL_DIR`
-    // (never restoring whatever it held before) left the ambient env
-    // asymmetrically clobbered; `EnvGuard` restores both the same way.
+    // branch-review-k14 T7: restoring `HOME` while unconditionally *removing*
+    // `GROVE_SKILL_DIR` (never restoring whatever it held before) left the
+    // ambient env asymmetrically clobbered; `EnvGuard` restores both the same
+    // way.
     let mut env = EnvGuard::new();
     env.set("HOME", home.path()).remove("GROVE_SKILL_DIR");
 
@@ -180,8 +181,9 @@ fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
 
 #[test]
 fn provision_all_does_not_let_a_foreign_secondary_harness_block_the_primary() {
-    // B9: a foreign dir under an *unrelated* harness must never abort the
-    // primary's own provisioning, or the whole `grove do` launch.
+    // branch-review-k14 B9: a foreign dir under an *unrelated* harness must
+    // never abort the primary's own provisioning, or the whole `grove do`
+    // launch.
     let _g = support::lock_env(&ENV_LOCK);
     let home = TempDir::new().unwrap();
 
@@ -222,8 +224,8 @@ fn provision_all_does_not_let_a_foreign_secondary_harness_block_the_primary() {
 #[test]
 fn provision_all_still_bails_when_the_primarys_own_dir_is_foreign() {
     // The contract still requires bailing on a foreign dir for the harness
-    // actually about to launch — B9 narrows the blast radius, it does not
-    // remove the guard.
+    // actually about to launch — branch-review-k14 B9 narrows the blast radius,
+    // it does not remove the guard.
     let _g = support::lock_env(&ENV_LOCK);
     let home = TempDir::new().unwrap();
 

@@ -117,6 +117,26 @@ artifact** instead (a `docs/research/` survey, an ADR), naming the item by slug 
 subject alone where it predates this scheme and never had a key. `content/driving.md`
 and `docs/driving-a-grove.md` are the worked examples.
 
+**An index *into* a work item must carry that item's handle, and this does not
+follow from the rule above.** The rule so far governs how an item is **named**; a
+review finding (`B5`), a numbered decision, a bare key (`k29`) — any index into an
+item's *contents* — names no work item at all, so prose can satisfy the handle rule
+in full and still carry a reference that resolves nowhere. Write the pair:
+`branch-review-k14 B5`, not `B5`. Scoped, it is recoverable exactly as a handle
+is, because the commits that acted on the findings name them individually.
+
+**A bare index is worse than a bare position, not better.** A position at least
+fails to resolve, and its failure is legible; an unscoped number can resolve
+**incorrectly** against an unrelated live series that happens to share its shape,
+handing the reader a plausible wrong referent with nothing to signal the
+substitution. `src/` and `tests/` are the worked example: nine `B<n>` and eight
+`T<n>` from `branch-review-k14`, where every one of the `T<n>` also indexed a live
+plan's Task numbers — so `T2` dereferenced cleanly to "stamp fix" instead of "the
+CRITICAL symlink assertion is vacuous". Because the discriminator is *which*
+namespace an index belongs to, and that is semantic, no lexical guard can enforce
+this: a regex either flags the legitimate index-as-subject sites (a fixture's
+`k0`, a grammar illustration) or narrows to a pattern list.
+
 ## Comparator and verbs
 
 The comparator is numeric per-level order, so a node's brief heads its own subtree and

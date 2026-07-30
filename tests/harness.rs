@@ -34,10 +34,10 @@ fn harness_rows_carry_the_launch_and_skills_contract() {
     assert_eq!(pi.name_args, &["-n"]);
 }
 
-// T1: this used to assert a copy-pasted literal ("claude, codex, pi") against
-// another literal, so hardcoding `known_names()`'s own body — exactly the
-// derivation-vs-hardcode distinction its name claims to check — left it
-// green (mutation-verified). That specific mutation turns out to be
+// branch-review-k14 T1: this used to assert a copy-pasted literal ("claude,
+// codex, pi") against another literal, so hardcoding `known_names()`'s own body
+// — exactly the derivation-vs-hardcode distinction its name claims to check —
+// left it green (mutation-verified). That specific mutation turns out to be
 // unfalsifiable by *any* runtime assertion: `HARNESSES` is a fixed `const`
 // with no test-time seam to vary its contents, so a hardcode and a real
 // derivation are byte-identical in their output today, whichever one

@@ -37,8 +37,9 @@ pub const STAMP_FILE: &str = ".grove-content-hash";
 /// The primary provisions first and its failure still bails — the contract's
 /// "refuse a foreign dir" applies in full to the harness actually about to
 /// launch. Every other harness is best-effort: a foreign dir under an
-/// unrelated harness is reported on stderr and skipped, never propagated, so
-/// one harness's directory state can never block another's launch (B9).
+/// unrelated harness is reported on stderr and skipped, never propagated, so one
+/// harness's directory state can never block another's launch
+/// (branch-review-k14 B9).
 pub fn provision_all(primary: &'static Harness) -> Result<()> {
     if std::env::var_os("GROVE_SKILL_DIR").is_some() {
         let dest = skill_dir_for(primary)?; // the override wins inside
@@ -149,8 +150,8 @@ pub fn provision_target(dest: &Path) -> Result<bool> {
 /// leaves `dest` exactly as it was (absent, or the old warm dir), never
 /// non-empty-without-a-stamp. That half-written state used to be
 /// indistinguishable from a foreign directory to `provision_target`'s guard,
-/// wedging every later `grove do` (B8) — a regression from the pre-stamp path,
-/// which self-healed.
+/// wedging every later `grove do` (branch-review-k14 B8) — a regression from
+/// the pre-stamp path, which self-healed.
 fn sync_to_stamp(
     dest: &Path,
     want_hash: &str,
@@ -315,10 +316,10 @@ mod tests {
 
         // Simulate an interrupt mid-extract: the writer starts dropping files
         // into place, then fails before the stamp is ever written — exactly the
-        // Ctrl-C / SIGTERM / ENOSPC case (B8). `dest` itself must never be left
-        // non-empty-without-a-stamp: that state is indistinguishable from a
-        // foreign directory to `provision_target`'s guard, and wedges every
-        // later `grove do`.
+        // Ctrl-C / SIGTERM / ENOSPC case (branch-review-k14 B8). `dest` itself
+        // must never be left non-empty-without-a-stamp: that state is
+        // indistinguishable from a foreign directory to `provision_target`'s
+        // guard, and wedges every later `grove do`.
         let result = sync_to_stamp(&dest, "hash1", |d| {
             std::fs::write(d.join("partial.txt"), "oops").unwrap();
             anyhow::bail!("simulated interrupt")

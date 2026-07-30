@@ -57,9 +57,9 @@ fn multi_harness_repo_still_stamps_without_explicit() {
     );
 }
 
-// T6: an unknown name in the stamp *file* itself (hand-edited, or written by a
-// newer grove with a harness this binary doesn't know) must fail loudly, not
-// silently fall through to detection.
+// branch-review-k14 T6: an unknown name in the stamp *file* itself (hand-edited,
+// or written by a newer grove with a harness this binary doesn't know) must fail
+// loudly, not silently fall through to detection.
 #[test]
 fn unknown_name_in_the_stamp_file_fails_loudly() {
     let repo = TempDir::new().unwrap();
@@ -115,8 +115,8 @@ fn grove_stamps_dir_is_gitignored_by_the_projects_own_gitignore() {
     );
 }
 
-// T6: an unknown name via the explicit `--harness` flag must fail loudly too
-// — the same contract as an unknown stamp, on the other input to
+// branch-review-k14 T6: an unknown name via the explicit `--harness` flag must
+// fail loudly too — the same contract as an unknown stamp, on the other input to
 // `resolve_for_launch`.
 #[test]
 fn unknown_name_via_explicit_harness_fails_loudly() {

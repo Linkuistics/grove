@@ -1175,11 +1175,12 @@ mod tests {
 
     #[test]
     fn pair_declares_both_producers_so_two_vendors_is_a_fact_in_the_tree() {
-        // F2, and the reason `--harness-a` exists at all. Declaring only the
-        // second leaves the first resolving through leaf → kind → family →
-        // stamp at *launch* time — a forecast about routing policy, which can
-        // change after the leaves are cut, so the pair could quietly become two
-        // surveys on one vendor without a byte of the tree changing.
+        // chain-construction-review-k39 F2, and the reason `--harness-a` exists
+        // at all. Declaring only the second leaves the first resolving through
+        // leaf → kind → family → stamp at *launch* time — a forecast about
+        // routing policy, which can change after the leaves are cut, so the pair
+        // could quietly become two surveys on one vendor without a byte of the
+        // tree changing.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let paths = leaf_add_pair(&g, &g, "sync-survey", claude(), codex()).unwrap();
@@ -1203,9 +1204,10 @@ mod tests {
 
     #[test]
     fn pair_refuses_two_producers_on_one_harness_before_writing_anything() {
-        // The other half of F2: requiring a declaration is not enough if the two
-        // declarations may be equal — that emits exactly the state the verb
-        // claims to prevent, a pair that looks like one and is not.
+        // The other half of chain-construction-review-k39 F2: requiring a
+        // declaration is not enough if the two declarations may be equal — that
+        // emits exactly the state the verb claims to prevent, a pair that looks
+        // like one and is not.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let err = leaf_add_pair(&g, &g, "survey", codex(), codex())
@@ -1230,7 +1232,7 @@ mod tests {
         assert_eq!(list(&g), vec!["BRIEF.md"], "nothing was created");
     }
 
-    // ---- one call, one mutation (F1) ----------------------------------------
+    // ---- one call, one mutation (chain-construction-review-k39 F1) ----------
 
     /// Occupy a run's **node** destination with an entry the numbering does not
     /// see: a *file* carrying a node's name. `read_children` reconciles each

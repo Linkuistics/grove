@@ -23,7 +23,8 @@ use tempfile::TempDir;
 // override + the fake's bookkeeping handles); serialize so cargo's parallel
 // runner doesn't cross test wires. A prior test's panic mid-mutation poisons
 // this lock; `support::lock_env` tolerates that (`EnvGuard`'s `Drop` already
-// restored the env before the panic unwound past it — see B1/T7).
+// restored the env before the panic unwound past it — see branch-review-k14
+// B1/T7).
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 // This build's own `grove-llm`, pinned (via the `GROVE_LLM_BIN` seam) in every
@@ -857,7 +858,7 @@ exit 0
     // dogfoods per-kind model + harness routing envs (BRIEF.md Notes), and
     // this very test suite may be running *inside* a rerouted review session
     // — ambient `GROVE_REVIEW_IMPL_HARNESS`/`GROVE_PI_REVIEW_IMPL_MODEL` would silently
-    // reroute iteration 3 (B1).
+    // reroute iteration 3 (branch-review-k14 B1).
     let mut env = EnvGuard::new();
     env.clear_grove_env()
         .set("GROVE_HARNESS_BIN", &fake)
@@ -1221,11 +1222,12 @@ exit 0
     );
 }
 
-// T6, carried across the inversion: an *empty-string* model var must still
-// behave exactly like an unset one — a blank `GROVE_REQUIREMENTS_MODEL=` (e.g.
-// from a shell template that never filled in a value) must never reach the
-// harness as a literal empty `--model`. What changed is only the consequence:
-// "treated as unset" now means the loud refusal above rather than a bare launch.
+// branch-review-k14 T6, carried across the inversion: an *empty-string* model
+// var must still behave exactly like an unset one — a blank
+// `GROVE_REQUIREMENTS_MODEL=` (e.g. from a shell template that never filled in a
+// value) must never reach the harness as a literal empty `--model`. What changed
+// is only the consequence: "treated as unset" now means the loud refusal above
+// rather than a bare launch.
 //
 // The start path, so this covers the standalone-kind shape the sibling test
 // cannot: `requirements` has no family, so its error lists two keys, not four.
@@ -1867,14 +1869,15 @@ exit 0
 // invariant. Proven with two distinct fake binaries wired through the
 // per-harness bin seam, so the argv log shows *which* harness ran each leaf.
 //
-// T4/B7: uses **real per-harness skill dirs under a scratch `$HOME`**, not a
-// shared `GROVE_SKILL_DIR` override — that override "collapses the sweep to
-// that single dir" (`provision::provision_all`'s doc) regardless of harness,
-// which makes a shared-dir fixture structurally blind to B7 (`load_prompt`
-// reading the *stamped* harness's prompt copy, not the post-reroute launch
-// harness's): both harnesses would read the identical file either way. With
-// distinct codex/pi prompt copies, this test also proves B7 directly — the
-// rerouted review session must read *pi's* continue prompt, not codex's.
+// branch-review-k14 T4/B7: uses **real per-harness skill dirs under a scratch
+// `$HOME`**, not a shared `GROVE_SKILL_DIR` override — that override "collapses
+// the sweep to that single dir" (`provision::provision_all`'s doc) regardless of
+// harness, which makes a shared-dir fixture structurally blind to B7
+// (`load_prompt` reading the *stamped* harness's prompt copy, not the
+// post-reroute launch harness's): both harnesses would read the identical file
+// either way. With distinct codex/pi prompt copies, this test also proves B7
+// directly — the rerouted review session must read *pi's* continue prompt, not
+// codex's.
 #[test]
 fn review_leaf_reroutes_to_the_review_harness() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -1891,8 +1894,9 @@ fn review_leaf_reroutes_to_the_review_harness() {
         "git init failed"
     );
 
-    // Real per-harness skill dirs under a scratch $HOME (T4) — see the
-    // function doc above for why a shared GROVE_SKILL_DIR can't prove B7.
+    // Real per-harness skill dirs under a scratch $HOME (branch-review-k14 T4) —
+    // see the function doc above for why a shared GROVE_SKILL_DIR can't prove
+    // B7.
     let home = worktree.join("scratch-home");
     let codex_prompts = home.join(".codex/skills/grove/prompts");
     let pi_prompts = home.join(".pi/agent/skills/grove/prompts");
@@ -1985,7 +1989,7 @@ exit 0
 
     // Review leaf: rerouted to pi, with pi's scoped model — the launch flag
     // template must be the *post-override* harness's (--model, not --profile)
-    // — and pi's own continue prompt, not codex's (B7).
+    // — and pi's own continue prompt, not codex's (branch-review-k14 B7).
     assert_eq!(
         rows[1][0], "pi",
         "review must reroute to GROVE_REVIEW_IMPL_HARNESS"
@@ -1998,14 +2002,15 @@ exit 0
     assert_eq!(
         rows[1][2], "PI CONTINUE PROMPT",
         "the rerouted review session must read pi's own continue prompt, not \
-         codex's (B7: load_prompt must read the launching harness's copy)"
+         codex's (branch-review-k14 B7: load_prompt must read the launching \
+         harness's copy)"
     );
 }
 
-// B2: the harness-agnostic base var must not survive a reroute — a codex
-// profile name (or any value meant for the *stamped* harness) is garbage on
-// the harness a per-kind override reroutes to. Only the harness-scoped var may
-// supply a model once a reroute has happened.
+// branch-review-k14 B2: the harness-agnostic base var must not survive a reroute
+// — a codex profile name (or any value meant for the *stamped* harness) is
+// garbage on the harness a per-kind override reroutes to. Only the
+// harness-scoped var may supply a model once a reroute has happened.
 //
 // What that means changed with required-model-vars-k18: the rerouted leaf used
 // to launch with no `--model` at all, and now fails loudly, because "resolves
@@ -2757,8 +2762,8 @@ fn preflight_check_rejects_an_unknown_family_harness_name() {
     );
 }
 
-// B5: the legacy unscoped `GROVE_HARNESS_BIN` must not leak into a
-// per-kind-rerouted launch — once one loop can launch two harnesses, a
+// branch-review-k14 B5: the legacy unscoped `GROVE_HARNESS_BIN` must not leak
+// into a per-kind-rerouted launch — once one loop can launch two harnesses, a
 // single global bin override is incoherent (it would exec the *stamped*
 // harness's wrapper under the *rerouted* harness's flag template). Proven by
 // putting a distinctly-named `pi` executable on PATH (the `exec_bin`
@@ -2872,11 +2877,11 @@ exit 0
     );
 }
 
-// B5: an empty-string `GROVE_HARNESS_BIN` must behave like unset — parallel
-// to the model-var and kind-harness-override empty-string guards (env_model,
-// harness_override) — not like a literal empty-string binary path, which
-// would fail every launch (`harness_bin` was the only env seam in the file
-// treating `""` as set).
+// branch-review-k14 B5: an empty-string `GROVE_HARNESS_BIN` must behave like
+// unset — parallel to the model-var and kind-harness-override empty-string
+// guards (env_model, harness_override) — not like a literal empty-string binary
+// path, which would fail every launch (`harness_bin` was the only env seam in
+// the file treating `""` as set).
 #[test]
 fn empty_string_harness_bin_is_treated_as_unset() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -2972,12 +2977,12 @@ fn degraded_peek_error(vars: &[(&str, &str)]) -> String {
     .to_string()
 }
 
-// B6: a degraded kind peek (grove-llm missing/failing/unparseable) must not
-// silently cancel an active per-kind harness override by launching on the
-// stamped harness — that is exactly the "K3 reviews everywhere" invariant a
-// silent fallback here would defeat. `harness_override`'s own doc already
-// makes this argument for an unknown *value*; this proves it also holds for
-// a degraded *peek*.
+// branch-review-k14 B6: a degraded kind peek (grove-llm
+// missing/failing/unparseable) must not silently cancel an active per-kind
+// harness override by launching on the stamped harness — that is exactly the
+// "K3 reviews everywhere" invariant a silent fallback here would defeat.
+// `harness_override`'s own doc already makes this argument for an unknown
+// *value*; this proves it also holds for a degraded *peek*.
 #[test]
 fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -3068,7 +3073,7 @@ fn an_off_kind_harness_override_typo_is_caught_immediately() {
 // path takes a shortcut straight to `Kind::Requirements` (fresh-grove-start-
 // contract) without ever calling `resolve_kind`, so this alone cannot prove
 // the *continue* path's peek honours the same contract — see the sibling
-// test below for that (T3).
+// test below for that (branch-review-k14 T3).
 #[test]
 fn unknown_review_harness_fails_loudly() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -3106,7 +3111,7 @@ fn unknown_review_harness_fails_loudly() {
     );
 }
 
-// T3: the continue path's kind peek must honour the same
+// branch-review-k14 T3: the continue path's kind peek must honour the same
 // unknown-override-fails-loudly contract as the start path above — that path
 // short-circuits to `Kind::Requirements` and never calls `resolve_kind`
 // (src/loop_driver.rs:279-281), so it cannot exercise `GROVE_REVIEW_IMPL_HARNESS`
@@ -3161,10 +3166,10 @@ fn unknown_review_harness_fails_loudly_on_the_continue_path() {
     );
 }
 
-// T6: an empty-string `GROVE_<KIND>_HARNESS` must be treated as unset (like
-// the empty-string model var), not as a route to an empty-named harness —
-// `harness_override` already guards this (`!name.is_empty()`); this proves it
-// end-to-end rather than trusting the guard is reached.
+// branch-review-k14 T6: an empty-string `GROVE_<KIND>_HARNESS` must be treated as
+// unset (like the empty-string model var), not as a route to an empty-named
+// harness — `harness_override` already guards this (`!name.is_empty()`); this
+// proves it end-to-end rather than trusting the guard is reached.
 #[test]
 fn empty_string_kind_harness_override_is_treated_as_unset() {
     let _g = support::lock_env(&ENV_LOCK);

@@ -61,11 +61,12 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         // requirement exists to expose — the same partial-configuration
         // invisibility, back through the dry-run door.
         //
-        // The guard still sits above `maybe_stamp` (B3): reporting is free to
-        // read anything, but a documented dry run must never permanently rebind
-        // the grove. Both checks it now runs are side-effect free — pre-flight
-        // is a PATH lookup, and the kind peek only spawns `grove-llm kind`,
-        // which reads the tree and writes nothing.
+        // The guard still sits above `maybe_stamp` (branch-review-k14 B3):
+        // reporting is free to read anything, but a documented dry run must
+        // never permanently rebind the grove. Both checks it now runs are
+        // side-effect free — pre-flight is a PATH lookup, and the kind peek
+        // only spawns `grove-llm kind`, which reads the tree and writes
+        // nothing.
         let readiness = crate::loop_driver::readiness(harness, &worktree)?;
         eprintln!(
             "grove: ready in {} — {readiness} (no-launch)",
@@ -77,7 +78,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     // The stamp is written only here, after provisioning, the no-launch return
     // and the pre-flight check have all already succeeded: a provisioning
     // failure — or a harness whose binary isn't installed — must never leave a
-    // stamp with no recovery path (B4).
+    // stamp with no recovery path (branch-review-k14 B4).
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
     crate::loop_driver::run(harness, &repo_path, &worktree, &name)

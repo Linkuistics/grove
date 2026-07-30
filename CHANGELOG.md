@@ -8,12 +8,30 @@ version. Entries under it are grouped `### Added` / `### Changed` / `### Fixed`
 where a release has enough of each to be worth grouping, and a flat list
 otherwise.
 
+**`## Unreleased` accumulates what the next cut will carry.** A session logs its
+change when it makes it, so the heading has to exist before the release that
+closes it does — the rule below already presupposes exactly that ("the section of
+the grove release it *lands before*"), and with no standing heading it can only be
+obeyed retroactively, by whoever cuts the release and no longer has the context.
+Appending to the top `## v<N>.<m>.<p>` section instead is not the alternative:
+that heading is tagged, and adding to it falsifies a release that shipped without
+the change. **`cargo release` does not rewrite this file** — `release.toml`
+carries no `pre-release-replacements` — so renaming `## Unreleased` to the version
+being cut is a manual step of the release, recorded there beside the tag push.
+
 **A change to anything the grove binary does not carry is logged in the section
 of the grove release it lands before**, prefixed with the component it touched —
 e.g. *"`linkuistics` / `using-jujutsu`: …"*, or *"`herdr-plugin`: …"*. It gets no
 `##` heading of its own: this file is not those components' release ledger, it is
 the record of what changed and when. A grove release that happens to contain only
 such changes still gets a version, because the binary is what was cut.
+
+**A decision earns its entry when its behaviour lands, not when it is recorded.**
+A `design` session that reworks the ADR set and changes nothing a reader runs has
+shipped nothing yet, so an ADR-only commit is deliberately absent from this file;
+the entry belongs to the change that enacts the decision, and names the ADR there.
+The reversal then reads as one entry rather than as a promise followed by a
+delivery.
 
 **A skills entry names no version, because the plugins carry none.** Neither
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
@@ -26,6 +44,45 @@ The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
 ## Unreleased
+
+### Added
+
+- **`linkuistics` / `using-codebase-memory`: query a codebase knowledge graph
+  from any shell.** `codebase-memory-mcp` serves the same fourteen tools over MCP
+  and over a CLI (`codebase-memory-mcp cli <tool> '<json>'`); the skill documents
+  the CLI surface, so the capability reaches every harness that has a shell rather
+  than the three that speak MCP. Pi is the one that forces the question — it
+  refuses MCP by design — and an MCP-only answer would have stranded it while
+  costing three config dialects for the rest. The second payoff is composition: a
+  question that spans several graph queries becomes one script instead of a
+  round-trip per call.
+
+  **What makes it a skill rather than a link to a README is the silent failure
+  modes**, each re-derived against `codebase-memory-mcp 0.8.1` by running every
+  command it documents. On failure stdout is *empty* and the error goes to stderr,
+  so the obvious `| jq` idiom shows nothing and masks the exit status behind
+  `jq`'s own 0. Malformed JSON arguments are discarded rather than reported — you
+  are told "project not found", the same message an unindexed project gives.
+  `search_graph` truncates at a default `limit` of 200 and flags it only in
+  `has_more`/`total`; `trace_path` caps callers at 100 and flags nothing at all.
+  `min_degree` gates on **total** degree, so neither `relationship` nor
+  `direction` makes it directional and a "high fan-in" recipe built on it is
+  wrong. And `trace_path` on a bare `function_name` that several symbols share
+  resolves to **none** of them — zero callers, exit 0 — where the
+  `qualified_name` answers. Each of these reads as a valid empty or short answer,
+  which is what makes them worth a document.
+
+  It also says when *not* to use the CLI: where the MCP tools are available they
+  are better for single queries — typed arguments, no shell quoting — and in
+  Claude Code an absent `mcp__codebase-memory-mcp__*` tool means "deferred, not
+  yet loaded", not "server not running".
+
+  Shipping it needed no distribution machinery: `install.sh` globs the skills
+  directory, so codex, gemini and pi pick it up on the next run, and the plugin
+  manifest lists no skills. What the manifest did need was to *describe* it —
+  `plugins/linkuistics/.claude-plugin/plugin.json` gains the capability in its
+  description and three keywords, which is the whole of what marketplace
+  discovery has to go on.
 
 ### Changed
 
@@ -80,6 +137,39 @@ stood at the graft — a closed record, not part of the versioned sequence above
   resolution failure already lands. `leaf-add` and `leaf-insert` share the same
   fallible allocator; neither could produce a partial tree, but both had the same
   panic.
+
+- **`install.sh` silently re-pointed every installed skill when run from a side
+  working tree.** It derives its link source from `${BASH_SOURCE[0]}` and
+  unconditionally re-links, so a run from a linked git worktree or a secondary jj
+  workspace — the normal place to develop an unmerged skill — repointed all 48
+  links (16 skills × 3 harnesses) at a tree that disappears when that tree is
+  removed. It printed `linked` 48 times and looked like a success; the damage
+  surfaced later, as skills that had simply stopped existing. It now probes
+  whether the tree it lives in is the repo's main checkout and **refuses** if not,
+  because a warning is the wrong shape for damage that is silent and delayed.
+  `--force` opts into the one legitimate case, testing an unmerged skill live, and
+  says on stderr what it is doing.
+
+  **The probe is jj-first, mirroring the binary's `repo::vcs_of`**
+  (*symmetric-vcs-rule*, which now names three enforcers rather than two). That
+  ordering is load-bearing rather than merely consistent: a secondary jj workspace
+  of a *colocated* repo is not a git worktree, so a git-first probe answers "not a
+  repository" and misses precisely the case the guard exists for. It reads with
+  `--ignore-working-copy`, since every other jj invocation snapshots as a side
+  effect and an install-time audit has no business mutating the tree it is
+  auditing.
+
+  **No probeable VCS disables the guard rather than blocking**, and the marker has
+  to sit at the script's own directory: probing without that check would let
+  `git rev-parse` walk *up* out of an unpacked or vendored copy of this repo and
+  judge it by the enclosing repository, refusing an install that is fine.
+
+  `install.test.sh` covers it — dependency-free (bats is not assumed), eleven
+  cases built as real working trees in a scratch directory and run against an
+  isolated `HOME`: nine tree shapes across git, jj, colocated jj and no-VCS, plus
+  two argument checks. The isolation is not tidiness — the defect under test *is*
+  an unwanted write to `$HOME`, so reproducing it there would cost a manual repair
+  of every installed link.
 
 ## v16.2.0
 

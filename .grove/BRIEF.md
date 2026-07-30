@@ -46,9 +46,10 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `chain-as-node-k7` | `design` | **decided**: a review chain / vendor pair becomes a node directory |
 | `chain-node-k9` … `-integrate-k11` | `impl` chain | implement that decision |
 | `retire-confirmation-k12` | `design` | **decided**: the Retire cascade asks nothing; it checks, promotes and reports |
-| `changelog-unreleased-k13` | `impl` | nothing this grove shipped is in `CHANGELOG.md`, and `v16.2.0` is already tagged — raised by `k8` |
+| `changelog-unreleased-k13` | `impl` | **done** — `## Unreleased` ratified; this grove's shipped work logged under it |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
 | `confirmation-prose-k15` … `-k17` | `impl` chain | reconcile `content/`, `docs/` and `src/` prose to that decision |
+| `changelog-release-rename-k18` | `impl` | make `cargo release` rename `## Unreleased`, rather than the prose note `k13` left — raised by `k13` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -143,6 +144,39 @@ changed** (it now selects whether a closing node has close-time work, not whethe
 to ask), so `chain-as-node-k7` is untouched; and the confirmation was attached to a
 *loop step* while the HITL/AFK mark is a property of a *kind*, which is why it
 stalled AFK leaves by construction.
+
+**What `changelog-unreleased-k13` decided, and the one entry it deliberately did
+not write.** The `## Unreleased` heading is **ratified**, and the argument is not
+"a release has to go somewhere" — it is that the preamble's existing rule already
+presupposes the heading ("logged in the section of the grove release it *lands
+before*"), so without a standing one that rule is obeyable only retroactively, by
+whoever cuts the release and no longer has the context. That is exactly the hole
+`k8` fell into. Recorded in `CHANGELOG.md`'s preamble, which is where the
+convention lives once `.grove/` is gone.
+
+All four rows of `k13`'s table are logged: the skill and its manifest
+registration as **one** `### Added` entry (a manifest that lists no skills is not
+a separate shipped change — what it needed was a *description*, which is all
+marketplace discovery has), `install.sh`'s guard under `### Fixed`, and the
+chain-node work already logged by `k9`.
+
+**`retire-confirmation-k12` gets no entry yet, on purpose, and
+`confirmation-prose-k15`…`-k17` owns the one it will get.** `k12` touched
+`docs/adr/`, `docs/specs/` and `CONTEXT.md` and **no `content/`** — so the
+methodology the binary actually carries still describes the old cascade, and
+nothing a user runs has changed. The generalisation is now a preamble rule: *a
+decision earns its entry when its behaviour lands, not when it is recorded.* It
+also retro-explains why `chain-as-node-k7` has no entry of its own while `k9`
+does. The prose chain should therefore write **one** `### Changed` entry covering
+both the decision and its enactment, citing `docs/adr/confirmation-boundary.md`.
+
+**The heading's release-time cost is real and only half-paid.** `release.toml`
+carries no `pre-release-replacements`, so `cargo release` does not touch
+`CHANGELOG.md` — the rename to `## v<next>` is a *manual* step. `k13` recorded it
+in `release.toml`'s usage comment beside the tag push, and externalized
+automating it as `changelog-release-rename-k18` rather than absorbing it: proving
+a replacement works needs a `cargo release` dry run, which `release.toml`'s own
+preamble says the harness classifier refuses as opaque.
 
 **A live-binary observation, not a defect.** `grove-llm leaf-add-chain` here wrote
 a **flat** three-leaf chain (`k15`–`k17`), not the `-chain/` node directory
@@ -277,6 +311,10 @@ when-only, and upstream's version is injected every session and will tempt an
 implementer to strip the capability clause. Read both; house wins.
 
 **Test fixture:** `Users-antony-Development-herdr` — a *live, drifting* index
-(23,641/97,504 at plan time, 23,681/97,906 at scoping). This repo is **not**
-indexed. Treat every exact figure as a re-check, and keep counts out of the
-skill.
+(23,641/97,504 at plan time, 23,681/97,906 at scoping). Treat every exact figure
+as a re-check, and keep counts out of the skill.
+
+**This repo is indexed now**, where scoping recorded it as not —
+`Users-antony-Development-grove.using-codebase-memory` appears in
+`list_projects` as of `k13`. A leaf working in `src/` can query the graph rather
+than only grep.

@@ -22,6 +22,13 @@
 # have no `.git` to export to, so they accumulate until a colocated command
 # runs.
 #
+# BEFORE the cut: rename `CHANGELOG.md`'s `## Unreleased` heading to the version
+# being released. Sessions log their changes under that heading as they make them
+# (the file's own preamble has the reasoning), and there are no
+# `pre-release-replacements` below — so nothing renames it but you, and a cut that
+# forgets leaves the release's entries filed under "Unreleased" above its own
+# empty version heading.
+#
 # Push is not automated; after release:
 #   jj bookmark set main -r <release-change>
 #   jj git push -b main                     # bookmark: jj drives the mutation

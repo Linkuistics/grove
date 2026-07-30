@@ -45,3 +45,13 @@ they are the actual work.
 - `cargo test` passes (the provisioning tests hash `content/`).
 
 ## Notes
+
+Decided: **option 2, in the form `docs/driving-a-grove.md` already established**
+for a different dead workstream — bare slug or subject, pointers anchored on
+durable artifacts, plus a predates-the-scheme note. Option 1 is impossible (that
+grove is pre-key; its commit messages are keyless too), option 3 rejected because
+*any* `.grove/` is private and mortal, so a live example regenerates the defect.
+The worked example keeps its force: the sequence survives as a relation, and the
+four downstream leaves are now named by subject, read off the surviving survey's
+`## Synthesis` headings. Class fix in ADR *task-tree-scheme* §5 + `CONTEXT.md`.
+Full carry-forward in the root brief; `src-position-citations-k24` externalized.

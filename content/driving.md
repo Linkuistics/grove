@@ -12,9 +12,12 @@ it.
 
 The dogfood reference throughout this doc is the
 `capture-issues-for-later-groves` workstream in the grove project's own
-repo, which is the worked example for every pattern below. Paths point at
-artifacts in that workstream so a reader can trace a real chain
-end-to-end.
+repo, which is the worked example for every pattern below. Its `.grove/`
+tree is long gone — every tree is deleted at its finish cycle — so the
+pointers below name **durable artifacts** instead: the survey under
+`docs/research/`, and the ADRs. That workstream also predates the
+stable-key naming scheme (ADR *task-tree-scheme*), so its leaves are named
+here by slug or subject alone; they never had a `-k<key>` handle to cite.
 
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
@@ -52,13 +55,15 @@ grilling would otherwise have to learn from scratch.
   this before, and what happened to them?" — that question itself is the
   signal.
 
-The grove workstream's leaf
-`050-research-in-repo-issue-trackers.md` (retired) is the worked
-example. It was inserted *after* the design's first ADRs had been
-written but *before* four downstream planning leaves (060, 070, 080,
-090). Its findings de-risked the sync-semantics grilling specifically
-(the post-mortem survey's "Synthesis for 060" section pre-judged most
-of the design tree the 060 grilling had to walk).
+The grove workstream's `research-in-repo-issue-trackers` leaf (long
+retired) is the worked example. It was inserted *after* the design's
+first ADRs had been written but *before* the four downstream planning
+leaves that would consume it — sync semantics and inbox shape, the
+`grove meta` rename, the LLM/CLI boundary audit, and the TUI. Its
+findings de-risked the sync-semantics grilling specifically: the
+survey's `## Synthesis` section answered that leaf's questions ahead of
+time, pre-judging most of the design tree the grilling then had to walk
+(`docs/research/in-repo-issue-tracker-postmortems.md`).
 
 ## How to write a research leaf brief
 
@@ -66,12 +71,15 @@ The single most leveraged move is to **name the downstream questions the
 research must answer**, leaf by leaf. The researcher doesn't have to
 guess what's load-bearing.
 
-The 050 leaf's brief (since retired) put it this way:
+That leaf's brief did exactly this — restated here in subject names,
+because the original addressed its audience by position:
 
-> The audience is four open planning leaves: 060, 070, 080, 090. Each
-> system section ends with a *takeaway for grove* pointing at the
-> leaf(es) its lesson informs. The final **Synthesis** section answers
-> the leaf-specific questions in one place.
+> The audience is the four open planning leaves: sync semantics and
+> inbox shape, the `grove meta` rename, the LLM/CLI boundary audit,
+> and the TUI. Each system section ends with a *takeaway for grove*
+> pointing at the leaf(es) its lesson informs. The final
+> **Synthesis** section answers the leaf-specific questions in one
+> place.
 
 Followed by a list of concrete questions per leaf. The output
 (`docs/research/in-repo-issue-tracker-postmortems.md`) is structured
@@ -79,7 +87,7 @@ around those questions.
 
 **Bias the search.** "What's already been tried" produces broad,
 shallow surveys. "What went wrong after years of real multi-user,
-multi-machine use" produces post-mortems. The 050 brief explicitly
+multi-machine use" produces post-mortems. The survey brief explicitly
 demanded post-mortem framing per system, and explicitly biased toward
 *non-obvious paradigms* (the previous prior-art survey had already
 established that Linear/GitHub-Issues integration was the obvious
@@ -94,13 +102,13 @@ the ones that cannot.
 
 **Demand a citation per failure-mode claim.** "git-bug had this
 problem" without an issue link, blog post, or thread quote is mood,
-not evidence. The 050 brief required primary sources; the resulting
+not evidence. The survey brief required primary sources; the resulting
 postmortem doc cites primary issues by URL and quotes from them
 directly. When you later sit down to write an ADR, those citations
 *are* the ADR's rationale section.
 
 **Acknowledge missing sources.** When the researcher searches and
-finds silence, that's a finding too. The 050 doc flags multiple "no
+finds silence, that's a finding too. The survey doc flags multiple "no
 primary source found" notes (e.g. Google's internal use or non-use of
 git-appraise, CRDT-merge surprises in Radicle COBs) — the absence is
 itself a confidence signal, and recording it stops future readers from
@@ -186,14 +194,14 @@ Two things happen when you ask:
    something to teach. Don't dismiss the divergence — interrogate
    it.
 
-In the 060 grilling, the LLM's recommendation for inbox-shape was
-"directory of files" (heavily pre-judged by the research). The
-recommendation for entry-naming was a UUID short-suffix. The user's
-"WDYT, but the slug should be descriptive" steer shifted the
-sub-decision toward content-hash suffixes for idempotency — a
-materially better outcome than either party's initial proposal. That
-particular step exists in the conversation record because the user
-asked for the LLM's view before committing.
+In the sync-semantics grilling, the LLM's recommendation for
+inbox-shape was "directory of files" (heavily pre-judged by the
+research). The recommendation for entry-naming was a UUID
+short-suffix. The user's "WDYT, but the slug should be descriptive"
+steer shifted the sub-decision toward content-hash suffixes for
+idempotency — a materially better outcome than either party's initial
+proposal. That particular step exists in the conversation record
+because the user asked for the LLM's view before committing.
 
 ### Ask for pushback when the LLM agrees too easily
 
@@ -216,9 +224,9 @@ load-bearing. Two questions in one prompt — even closely related ones
 Where two questions truly interdepend, sequence them: ask the
 *foundational* one first, propose the recommended answer, wait, then
 ask the *derived* one with the foundational answer already in hand.
-The 060 grilling sequenced Q1 (shape) before Q5 (entry naming)
-specifically because the entry-naming decision is only meaningful
-once shape is settled.
+The sync-semantics grilling sequenced Q1 (shape) before Q5 (entry
+naming) specifically because the entry-naming decision is only
+meaningful once shape is settled.
 
 ### Record decisions inline, while they're fresh
 
@@ -254,9 +262,9 @@ set is current-state, so a finding that overturns a recorded decision
 rewrites (or merges / deletes) that ADR rather than spawning a
 superseding one; see *Reworking ADRs and briefs* below.
 
-The 060 grilling's "Findings adopted" pattern is the bridge in both
-directions: the research doc gets a section pointing forward at the
-ADRs its findings landed in, and each ADR has a rationale section
+The sync-semantics grilling's "Findings adopted" pattern is the bridge
+in both directions: the research doc gets a section pointing forward at
+the ADRs its findings landed in, and each ADR has a rationale section
 citing the survey by primary source. A future reader of either
 artifact can trace the evidence chain without re-doing the research.
 

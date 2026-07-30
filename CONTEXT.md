@@ -543,6 +543,11 @@ _Avoid_: **deleting** a leaf to abandon it (`git rm`, or just removing the file 
 **Work-item handle** / **title** (`<slug>-k<key>`):
 The position-free in-file `# …` header of a task or brief (`# <slug>-k<key>`, or `# <slug>-k<key> — brief` for a node; the root brief is `# <grove name> — brief`) **and** the canonical way to name a work item in commit messages and prose (task-tree-scheme §5). Stable across renumber, because it omits the mutable position. `resolve` also accepts the full handle, not just the bare key.
 _Avoid_: naming a work item by its position or directory path in a commit message.
+_Avoid_: citing a **real** work item in provisioned `content/` at all — not even by a
+correct handle. The handle resolves only inside the tree that issued it, a reader is
+rarely in that tree, and it dies at the [[Complete finish cycle]]; anchor a worked
+example on a durable artifact instead (task-tree-scheme §5). A *synthetic* name
+illustrating the grammar is fine — there the position is the subject.
 
 **DONE infix**:
 The in-place retirement marker: the literal `DONE` placed right after the position in a retired leaf's filename (`NN-DONE-<slug>-k<key>.md`), at a fixed column. Written by `leaf-retire`. Leaves only — a node is never marked done (its done-ness is the absence of a live leaf in its subtree, however those leaves finished). The leaf keeps its position and key, and its file contents are untouched. Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf states.

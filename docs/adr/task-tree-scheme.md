@@ -105,6 +105,18 @@ its own slug does not collide with its first child's. The redundancy in a listin
 is the price of the handle staying self-describing after the tree that explained it
 no longer exists.
 
+**Provisioned methodology content cites no real work item at all** — a stricter rule
+than the one above, and it does not follow from it. `content/` is swept into every
+harness's global skill dir, so a session reading it is almost never inside the tree
+that holds the item named, and that tree is deleted at its finish cycle regardless.
+A *synthetic* name illustrating the grammar (`01-sync-design-k13.md`) is fine, because
+the position is then the subject rather than a pointer; a reference to a real item is
+not, whether it spells a position or a correct `<slug>-k<key>` handle — the handle is
+resolvable only inside the tree that issued it. Anchor a worked example on a **durable
+artifact** instead (a `docs/research/` survey, an ADR), naming the item by slug or
+subject alone where it predates this scheme and never had a key. `content/driving.md`
+and `docs/driving-a-grove.md` are the worked examples.
+
 ## Comparator and verbs
 
 The comparator is numeric per-level order, so a node's brief heads its own subtree and

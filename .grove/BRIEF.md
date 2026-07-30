@@ -53,8 +53,9 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `walkthrough-harness-routing-k19` | `impl` | **done** — the walkthrough's obsolete one-stamped-harness claim, in *both* pages that carried it; raised by `k16` |
 | `retire-help-node-path-k20` | `impl` | **done** — `grove retire --help`'s original-scheme node-path example replaced, and the grammar pinned by a test; raised by `k16` |
 | `retire-no-launch-help-k21` | `impl` | **done** — `grove retire --no-launch` described, and its dry run made a checked claim; raised by `k20` |
-| `driving-original-scheme-example-k22` | `impl` | `content/driving.md`'s worked research-leaf example cites original-scheme, keyless work items in *provisioned* content; raised by `k20` |
+| `driving-original-scheme-example-k22` | `impl` | **done** — `content/driving.md`'s worked research-leaf example cited original-scheme, keyless work items in *provisioned* content; raised by `k20` |
 | `retire-harness-stamp-claim-k23` | `impl` | `grove retire --help` claims `--harness` writes a stamp; `maybe_stamp`'s one call site is in `do_grove` — raised by `k21` |
+| `src-position-citations-k24` | `impl` | two `src/` comments still cite dead `.grove/` positions — the class `k14` reported as swept to zero; raised by `k22` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -264,9 +265,12 @@ headers for the chain-node claim.
 "Built **isolated**" headers plus `leaf_id`'s D9 variant now describe their module
 as it is today; `leaf.rs` and `lib.rs` carried two more of the same class and were
 folded in (`lib.rs` also claimed `leaf` survives *solely* as a migration input,
-which is false — `Kind` is live everywhere). **`src/` comments no longer cite
-`.grove/` positions at all** — every `11.x`, `070/040`, `060/020` and `D<n>` is
-gone. That is not a style preference: ADR *task-tree-scheme* §5 binds "commit
+which is false — `Kind` is live everywhere). **`src/` module headers no longer cite
+`.grove/` positions** — every `11.x`, `070/040`, `060/020` and `D<n>` is
+gone. (As written this claimed *"`src/` comments no longer cite `.grove/`
+positions **at all**"*; `k22` falsified that — two citations survive outside the
+swept comment species and pattern list, now `src-position-citations-k24`. Kept
+quoted-and-refuted rather than deleted.) That is not a style preference: ADR *task-tree-scheme* §5 binds "commit
 messages and **prose**" to `<slug>-k<key>` and forbids the position, and a source
 comment is prose; the referent is deleted twice over, since `.grove/` dies at the
 finish cycle. Where a citation was load-bearing it became an **ADR slug** or a
@@ -493,6 +497,79 @@ claims it writes a stamp; `maybe_stamp` has exactly one call site and it is in
 `do_grove`. Left standing deliberately — it needs a *decision* (is the doc wrong,
 or should `retire --harness` stamp?), not a reword — and it is why `k21`'s
 `--no-launch` description omits the "It writes no stamp" clause `do`'s carries.
+
+**What `driving-original-scheme-example-k22` decided, and the precedent that
+decided it.** The leaf offered three options and said not to default. Option 1
+(*recover the handles from history*) is **impossible, not merely laborious**:
+`capture-issues-for-later-groves` ran entirely pre-key, so its own commit
+messages name items `050`, `060/010`, `090/030` — the surviving record is keyless
+too, and §5's canonical form cannot be constructed for those referents at all.
+Option 3 (*replace the example with a live one*) is **rejected on a stronger
+ground than freshness**: `content/` is provisioned into groves with no
+relationship to this repo, and *any* `.grove/` is private to one working tree and
+deleted at its finish cycle — so citing a live tree regenerates the defect on a
+timer. Option 2 was taken, but its form came from evidence rather than
+invention.
+
+1. **The house pattern already existed one file over, and that is the finding.**
+   `docs/driving-a-grove.md` — this doc's contributor-facing sibling — had already
+   solved the identical problem for a *different* dead workstream
+   (`refactor-to-archon`): it names leaves by **bare slug**
+   (`loop-substrate-spike`), anchors every pointer on **durable artifacts** ("the
+   research doc, the ADRs"), and carries a *predates-the-scheme* note. So
+   `content/driving.md` was not merely stale — it was the copy that never received
+   a convention its sibling already ran, and the fix is to apply that convention.
+   Bare slugs are right *because* these leaves predate keys: the slug is the
+   position-free part of a handle whose key never existed.
+2. **The Context under-counted the class by six sites, and the miss is the
+   familiar one.** It enumerated `content/driving.md:55-61`; the grep found **13
+   lines** — six more `050`/`060` references scattered through *How to write a
+   research leaf brief* and three grilling sections, plus the preamble's claim
+   that "*paths point at artifacts in that workstream so a reader can trace a real
+   chain end-to-end*", which is the summary layer over the very defect and is
+   flatly false once `.grove/` is gone. `k17`'s rule earned another generation:
+   **a finding against a section does not reach the document's summary layer.**
+3. **One blockquote put two established rules in direct conflict.** The sibling's
+   rule (and `k15`'s, for `docs/research/`) is that quotations keep their original
+   wording because dated evidence is immutable — but the quoted sentence's entire
+   content *was* `060, 070, 080, 090`. Resolved by what the quote is **for**: it
+   illustrates a *move*, not a historical fact, and **a quotation in a teaching
+   document teaches its form** — a reader copies the shape, positional names
+   included. So it is now openly re-set in subject names and says so, rather than
+   passing off an edited quote as verbatim. The four leaves are named by subject
+   (sync semantics + inbox shape, the `grove meta` rename, the LLM/CLI boundary
+   audit, the TUI), read off the surviving survey's own `## Synthesis` headings
+   and corroborated in the commit log — not from memory, and strictly more
+   informative than the positions ever were.
+
+**The class fix is one paragraph in ADR *task-tree-scheme* §5, and it does not
+follow from §5's existing rule.** §5 as written was satisfiable by writing a
+*correct* `<slug>-k<key>` handle into provisioned content — which an outside
+reader equally cannot follow, since a handle resolves only inside the tree that
+issued it. The addition draws the line where it actually falls: a **synthetic**
+name illustrating the grammar is fine (the position is then the subject), a
+reference to a **real** work item is not, whatever its spelling; anchor worked
+examples on durable artifacts. `CONTEXT.md`'s [[Work-item handle]] carries the
+matching `_Avoid_`. Verified the rule holds over the repo rather than being
+shipped already-violated: every `-k<key>` in `content/` is synthetic
+(`sync-design`, `sync-survey`, `extract`, `plan`, `spec`, `build`, `mid`), and
+`content/TASK-FORMAT.md`/`SKILL.md`'s filename-grammar illustrations are the
+legitimate case the rule carves out.
+
+CHANGELOG-free, and it confirms `k20`'s rule rather than bending it: no
+behaviour changed, and an ADR paragraph is a *recorded* convention — "*a decision
+earns its entry when its behaviour lands, not when it is recorded*" (`k13`).
+`cargo test`: 627 passed, 0 failed.
+
+Externalized rather than absorbed: `src-position-citations-k24`. Two `src/`
+comments still cite dead `.grove/` positions — `leaf_id.rs:143` ("the grow verbs
+(030)") and `provision.rs:7` ("whose deletion is leaf 090") — which makes
+`stale-module-headers-k14`'s claim below **false as written**. Both narrowings in
+`k14`'s Done-when leaked: it swept module headers (`//!`) against an *enumerated
+pattern list*, and these are a function doc comment and an unlisted spelling.
+`k22` measured the negative space too, so `k24` inherits it: `D<n>` is genuinely
+at zero, and every remaining dotted-decimal or three-digit token in `src/` is a
+version, a timing, the v1 grammar *as subject*, or migration fixture data.
 
 **Divergence 1 — Tasks 1 and 2 merged.** They write the *same file*, and the
 plan says to run it under `superpowers:subagent-driven-development`, where

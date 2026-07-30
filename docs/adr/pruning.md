@@ -26,20 +26,22 @@ An abandonment that vanished would render a path that was considered and rejecte
 as one never considered at all, and a future reader would have no way to tell the
 difference.
 
-**Pruning is HITL.** An agent never prunes on its own. Abandoning planned work is a
-commitment-shaped decision, and the same guard applies as to the retire cascade's
-"ask before treating a **brief-carrying** node as done". An AFK session — every kind
-but `requirements` and `prototype` — that finds a leaf dead says so and stops; the
-loop stalling on an abandonment decision is the system working, not a fault
+**Pruning is HITL, and it is the loop's one *per-leaf* human gate.** An agent never
+prunes on its own. It clears both tests in *confirmation-boundary*: the mark is a
+real write, and what it asserts — *this path is not worth taking* — is a decision
+the session cannot establish, only the human can. An AFK session — every kind but
+`requirements` and `prototype` — that finds a leaf dead says so and stops; the loop
+stalling on an abandonment decision is the system working, not a fault
 (*task-kind-taxonomy*, HITL/AFK).
 
-The qualifier matters more here than the parallel does. A **chain node** carries no
-charter and closes silently (*task-tree-scheme*), so the cascade never asks about
-one — but `leaf-prune` given a chain node still marks every live step in it, and
-that is still HITL. The guard tracks *who decides*, not *which node species*: the
-cascade's confirmation is narrow because a brief-less node has no context anyone
-could be asked to promote, whereas abandonment is a decision no node shape makes
-for you.
+The contrast with the Retire cascade's node close sharpens rather than weakens
+this. A node close asks nothing, because it **writes nothing** — done-ness is the
+absence of a live leaf, and a node closed in error is reopened by one `leaf-add`.
+An `ABANDONED` infix outlives the session that wrote it and reads as though a human
+decided; there is no equivalent of "just add a leaf" that unsays it. The guard
+tracks *who decides*, and it is indifferent to node species: `leaf-prune` given a
+**chain node** marks every live step in it, and that is HITL exactly as marking one
+leaf is.
 
 ## The durable record
 

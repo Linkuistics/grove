@@ -45,9 +45,10 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `install-workspace-guard-k8` | `impl` | **done** — `install.sh` hijacking a skill install from a secondary workspace; found by `distribution-k5`, and the reason this grove's third done-when is only half-verified |
 | `chain-as-node-k7` | `design` | **decided**: a review chain / vendor pair becomes a node directory |
 | `chain-node-k9` … `-integrate-k11` | `impl` chain | implement that decision |
-| `retire-confirmation-k12` | `design` | whether the Retire cascade needs confirmation at all |
+| `retire-confirmation-k12` | `design` | **decided**: the Retire cascade asks nothing; it checks, promotes and reports |
 | `changelog-unreleased-k13` | `impl` | nothing this grove shipped is in `CHANGELOG.md`, and `v16.2.0` is already tagged — raised by `k8` |
 | `stale-module-headers-k14` | `impl` | five `src/` module headers still isolate themselves from a deleted v1 verb path — raised by `k11` |
+| `confirmation-prose-k15` … `-k17` | `impl` chain | reconcile `content/`, `docs/` and `src/` prose to that decision |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
 `.grove/` dies at the finish cycle. A chain gets its own **node directory** —
@@ -121,6 +122,37 @@ assertion — and all three are applied. Two things are worth carrying forward.
 keys) is upheld as rejected: ADR *task-tree-scheme* defines a grove tree as
 single-worktree, single-writer, and the one-snapshot logic is correct under it.
 The `u32` ceiling is now a *refusal* under that same assumption, not a lock.
+
+**What `retire-confirmation-k12` decided.** The Retire cascade's per-node
+confirmation is **gone, for every node species**. Its replacement is a
+verify-and-report obligation the session discharges itself: check the node's brief
+`Done when` against what the subtree delivered, `leaf-add` the missing work if the
+check fails and the gap can be named, escalate if it cannot, promote what survives
+upward, and name the closed node by its handle in the commit message. Leaf
+retirement (never confirmed), pruning (still HITL) and the finish cycle's single
+gate are all unchanged — and that gate is now the loop's *only* routine human one.
+The generating rule is two ordered tests: does the answer change what is written,
+and if so is the fact the session's to establish or the human's to decide. A node
+close fails the first — a node is never marked, so the question gated an inference
+and a node closed in error is reopened by one `leaf-add`. Recorded in the **new**
+ADR `docs/adr/confirmation-boundary.md`, with `pruning`, `task-tree-scheme`,
+`task-kind-taxonomy`, `in-session-finish-cycle`, `docs/specs/task-kind-taxonomy.md`
+and `CONTEXT.md` reworked in place to cite it; nothing here is the durable record.
+Two things worth carrying: the `BRIEF.md` discriminator **survives with its job
+changed** (it now selects whether a closing node has close-time work, not whether
+to ask), so `chain-as-node-k7` is untouched; and the confirmation was attached to a
+*loop step* while the HITL/AFK mark is a property of a *kind*, which is why it
+stalled AFK leaves by construction.
+
+**A live-binary observation, not a defect.** `grove-llm leaf-add-chain` here wrote
+a **flat** three-leaf chain (`k15`–`k17`), not the `-chain/` node directory
+`chain-node-k9` implemented — the Homebrew binary on `PATH` is the tagged
+`v16.2.0`, which predates that work, while `Cargo.toml` also reads `16.2.0`. A flat
+chain is a valid tree by design (the ADR says flat chains are never migrated), so
+nothing is broken and the leaves stand as cut. But the working tree and the tagged
+release now claim one version with different behaviour, which is
+`changelog-unreleased-k13`'s neighbourhood — worth deciding there rather than
+inventing a leaf for it.
 
 Externalized rather than absorbed: `stale-module-headers-k14`, five `src/` module
 headers still declaring themselves isolated from a v1 verb path this repo deleted.

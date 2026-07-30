@@ -35,9 +35,12 @@ review chain or a vendor pair — never carries one; it means *these steps compo
 one artifact*, a shape declared whole at construction. The discriminator is the
 **presence of the file**, never a pattern in the name, which is what lets the
 Retire cascade tell them apart without any reader parsing the step-suffix
-convention (*task-kind-taxonomy*, which owns the chain decision). Nothing enforces
-either species: a `BRIEF.md` written into a chain node simply makes it
-brief-carrying.
+convention (*task-kind-taxonomy*, which owns the chain decision). What the cascade
+does with the answer is decide whether a closing node has **work to do** — a
+`Done when` rollup to check against the subtree, and a brief to promote upward —
+not whether to ask the human, which it no longer does of any node
+(*confirmation-boundary*). Nothing enforces either species: a `BRIEF.md` written
+into a chain node simply makes it brief-carrying.
 
 ## Naming grammar
 

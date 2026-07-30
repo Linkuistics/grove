@@ -64,8 +64,10 @@ reason that is not about chains at all. The three-leaf shape is not a workaround
 for a missing construct: a leaf is the only unit the loop can be *at*, so cutting
 one artifact into three leaves **is** how grove represents "one artifact, three
 sessions" — the state is the tree, and there is nowhere smaller to put it. The
-node's close skips the Retire cascade's confirmation, but by being **brief-less**
-rather than by being a unit: the cascade asks of brief-carrying nodes only.
+node's close asks nothing — but so does every node's close now
+(*confirmation-boundary*), and what being **brief-less** buys it is narrower and
+still real: no `Done when` to check and no brief to promote, so it closes with
+nothing to do rather than merely nothing to say.
 
 ## Gate on write, degrade on read
 
@@ -114,9 +116,10 @@ trees are ephemeral, so it expires on its own.
 - **Making a chain a first-class *group* — a unit `pick` will not leave, closing
   without confirmation (rejected).** None of its three motivating costs survives.
   A chain's steps are a node's children at adjacent positions, so `pick` does not
-  wander out of one mid-chain; the Retire cascade's confirmation is asked of
-  **brief-carrying** nodes and a chain node is brief-less by rule, so it already
-  closes with none; and the one real gap — a sibling-level `leaf-insert` splitting
+  wander out of one mid-chain; the Retire cascade asks nothing of any node
+  (*confirmation-boundary*), and a brief-less one additionally has no `Done when`
+  to check and no brief to promote, so its close is a no-op twice over; and the one
+  real gap — a sibling-level `leaf-insert` splitting
   a chain, where containment would not — closed as a **by-product** of the
   grouping becoming structural, not by adopting the group construct. Note that the
   gap closed without `pick` learning anything: it is the same stateless local walk.

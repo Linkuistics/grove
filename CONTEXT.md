@@ -8,7 +8,7 @@ The grove CLI and methodology. This glossary holds terms specific to this codeba
 The `grove` binary embeds `content/` and, on every `grove do`, sweeps it out to **every installed harness's** personal global skill dir — `provision_all` writes the launching harness's dir unconditionally plus every other harness whose home root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via `skill_dir_for(harness)` (`$HOME/<harness.skills_dir>/grove`; pi nests under `agent/`) — idempotent per target against a content-hash stamp (task-tree-scheme). `content/` stays canonical; the binary is the only writer of any of these dirs, and `launch::load_prompt(harness, verb)` reads the launcher prompts from the *launching* harness's own copy (no repo-local mirror). `provision_target` guards each write: a symlink (the old cross-harness link-farm layout) is replaced as a link, never deleted through; a dir with no grove stamp and real content is refused outright, so a foreign dir can never be silently clobbered. Claude Code skill precedence is **enterprise > personal > project** (Claude Code docs): a **personal** skill *overrides* a same-named **project** skill (`<repo>/.claude/skills/grove/`), so the binary-provisioned global copy always wins there. A leftover project mirror is therefore **dead, shadowed code** — not an active override — and is removed (070/050) so it cannot mislead a contributor into editing it; no new project mirror should be re-added (edit `content/` and rebuild instead). This is now the only distribution model: the old fetch+materialise machinery and its `cli`/`repo`/`worktree` `VERSION.md` drift were deleted in 090, along with `grove install`/`uninstall`/`status`.
 
 **Complete finish cycle**:
-The terminal, whole-grove sequence that retires a grove once it has no live leaves left: (1) promote durable artifacts from the briefs (ADRs, docs, glossary); (2) delete `.grove/` in a focused commit; (3) signal the loop with `grove-llm complete --done`. Nothing after: integrating the branch and tearing down the working tree are **not** grove workflow — both belong to plain git/gh or jj, and the user's own worktree tooling (user-owned-worktrees). Driven by the in-session LLM, not Rust automation (in-session-finish-cycle); proposed and executed only on explicit human confirmation, so a headless run with no human reports the plan and stops; resumed from VCS/filesystem state with no progress marker (constraint 1). Triggered whenever `grove-llm pick` reports no live leaves — or errors because `.grove/` is already gone, the partial-finish resume case. Distinct from the per-leaf Retire step (which marks one leaf done in place with a `DONE` infix); the finish cycle is what retiring the *last* leaf leads into. The former `grove finish` verb that launched this was removed (do-is-sole-lifecycle-verb): finishing is a step of the loop, not a launched verb.
+The terminal, whole-grove sequence that retires a grove once it has no live leaves left: (1) promote durable artifacts from the briefs (ADRs, docs, glossary); (2) delete `.grove/` in a focused commit; (3) signal the loop with `grove-llm complete --done`. Nothing after: integrating the branch and tearing down the working tree are **not** grove workflow — both belong to plain git/gh or jj, and the user's own worktree tooling (user-owned-worktrees). Driven by the in-session LLM, not Rust automation (in-session-finish-cycle); proposed and executed only on explicit human confirmation, so a headless run with no human reports the plan and stops; resumed from VCS/filesystem state with no progress marker (constraint 1). Triggered whenever `grove-llm pick` reports no live leaves — or errors because `.grove/` is already gone, the partial-finish resume case. Its single confirmation is the loop's **only routine human gate** ([[Confirmation boundary]]), and it absorbs the whole-grove case the Retire cascade used to ask separately: `pick` reporting empty *is* the "is this grove done?" question, asked once where something is actually deleted. Distinct from the per-leaf Retire step (which marks one leaf done in place with a `DONE` infix); the finish cycle is what retiring the *last* leaf leads into. The former `grove finish` verb that launched this was removed (do-is-sole-lifecycle-verb): finishing is a step of the loop, not a launched verb.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 
 **Grove name**:
@@ -107,7 +107,8 @@ arguments that decided it have all lapsed: `leaf-add-chain` / `leaf-add-pair` ar
 proactive shape-emitting verbs, so node creation is no longer `leaf-decompose`'s
 *reactive* monopoly; a chain node is **brief-less by rule**, so it buys no
 `BRIEF.md` any step had to earn; and the cascade confirmation it was said to
-introduce is not asked of a brief-less node. What survives of the old reasoning is
+introduce was never asked of a brief-less node, and is now asked of no node at all
+([[Confirmation boundary]]). What survives of the old reasoning is
 that node-ness now means two things — which the `BRIEF.md` discriminator keeps
 legible rather than overloaded ([[Node directory]]).
 _Avoid_: treating either as enforced — grove validates no ordering between
@@ -157,6 +158,41 @@ that grills itself has broken the distinction (`grilling.md`).
 _Avoid_: "`planning` is HITL" — it flipped to AFK when grilling moved to
 `requirements`. Planning keeps its methodological force but no longer
 interrogates.
+_Avoid_: attaching a *mandatory* question to a **loop step** rather than a kind —
+every kind runs every step, so a question in the Retire or Commit step overrides
+the mark by construction and stalls AFK kinds at a moment nothing in the tree
+predicts. That is what the Retire cascade's confirmation did before
+[[Confirmation boundary]] removed it.
+
+**Confirmation boundary**:
+The rule deciding which moments in the loop stop and ask a human, applied in two
+ordered tests: **(1) does the answer change what is written?** — if every answer
+leaves the same bytes on disk, do not ask; **(2) if it does, is the fact the
+session's to establish or the human's to decide?** — a session can establish *what
+it did*, never *what is worth doing*. Four moments sit near the line and it
+separates them: [[DONE infix]] (writes; the session holds the fact) and a **node
+close** (writes nothing at all) ask nothing; [[Pruning]] (the mark asserts a human
+decided against a path) and the [[Complete finish cycle]] (deletes `.grove/`) ask.
+So the finish cycle's single gate is the loop's **only routine human gate**, and
+everything else a session asks is an **escalation** — discretionary, triggered by
+evidence the session actually met, and always legitimate ([[HITL]]/[[AFK]]: the
+mark predicts, it does not permit). What replaced the node-close confirmation is a
+**verify-and-report** obligation the session discharges itself: check the node's
+brief `Done when` against what the subtree delivered, `leaf-add` the missing work
+if the check fails and the gap can be named, escalate if it cannot, promote what
+survives upward, and name the closed node by its [[Work-item handle]] in the
+commit message. The human reviews the close in the diff instead of being
+interrupted before it. See ADR *confirmation-boundary*.
+_Avoid_: "all retirements need confirmation" — it over-reads the design in both
+directions. Marking a *leaf* done was never confirmed (mechanical bookkeeping);
+only the node close changed.
+_Avoid_: reading the removal as a friction argument. The load-bearing fact is that
+a node is **never marked** ([[Node directory]]), so the question gated an
+*inference*, and a node closed in error is reopened by one `leaf-add` with nothing
+to undo. A confirmation that gates a real write ([[Pruning]]) is untouched.
+_Avoid_: re-adding a per-ancestor question as the cascade recurses — that is the
+wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
+into that cycle's own confirmation, giving up to four questions about one fact.
 
 **Kind routing** (`GROVE_<KIND>_HARNESS`, `GROVE_<KIND>_MODEL`):
 How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
@@ -471,12 +507,15 @@ artifact*, a shape declared whole at construction, with no charter anyone is in 
 position to write. The discriminator is a **file's presence, never a name
 pattern** — which is what lets the Retire cascade tell them apart without reading
 the step-suffix convention back (task-kind-taxonomy).
-Three consequences. The cascade's confirmation is asked of **brief-carrying nodes
-only** — a chain node closing is implicitly done, silently. `brief-chain`'s
-tolerance of a missing level is now **load-bearing** rather than incidental (it
-was "some nodes do not carry one *yet*"; one species never will). And nothing is
-enforced: a human who writes a `BRIEF.md` into a chain node has simply made it
-brief-carrying, and gets the confirmation that follows from that.
+Three consequences. It decides whether a closing node has **work to do** — a
+brief-carrying node has a `Done when` rollup to check against its subtree and a
+brief to promote upward, a chain node has neither and closes as a silent no-op. (It
+decides nothing about *asking*, which the cascade no longer does of any node —
+[[Confirmation boundary]].) `brief-chain`'s tolerance of a missing level is now
+**load-bearing** rather than incidental (it was "some nodes do not carry one
+*yet*"; one species never will). And nothing is enforced: a human who writes a
+`BRIEF.md` into a chain node has simply made it brief-carrying, and gets the
+close-time work that follows from that.
 _Avoid_: calling a node a "file" — a node is always a directory.
 _Avoid_: "every node has a charter", or reading a bare directory as malformed —
 both were true only before chain nodes existed.
@@ -516,7 +555,11 @@ writes an `ABANDONED` infix in place (`NN-ABANDONED-<slug>-k<key>.md`), exactly 
 grove's metaphor names the pair: a `DONE` leaf is **harvested**, an abandoned one is
 **pruned**. Deciding against a path is a normal outcome of exploration, not an
 exception — but it is **[[HITL]]**: an agent never prunes on its own, and an AFK
-session that finds a leaf dead says so and stops.
+session that finds a leaf dead says so and stops. It is the loop's one *per-leaf*
+human gate, and it clears both of the [[Confirmation boundary]]'s tests — the mark
+is a real write, and what it asserts (*this path is not worth taking*) is the
+human's to decide. Contrast a **node close**, which asks nothing because it writes
+nothing.
 Given a **node**, `leaf-prune` marks every *live* leaf in that subtree (leaving
 `DONE` ones alone) and refuses the grove root. The arity asymmetry with `leaf-retire`
 is deliberate: retirement is *incremental* (one leaf per session, as work completes),

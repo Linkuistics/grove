@@ -193,8 +193,10 @@ start from why the answer changed rather than from the conclusion:
   a chain node is **brief-less by rule** (below), so no brief is written at all.
 - *"The Retire cascade asks the human before treating a node as done, which is
   pure noise for a chain whose integrate step finishing means it is finished by
-  construction."* Dead, and it is the brief-less rule that kills it — the cascade
-  asks of **brief-carrying nodes only**, so a chain node closes silently.
+  construction."* Dead twice over. The brief-less rule killed it first — the
+  confirmation was asked of brief-carrying nodes only — and the cascade has since
+  stopped asking about **any** node (ADR *confirmation-boundary*), so there is no
+  confirmation left for a chain to be exempt from.
 
 What survives is that node-ness now means two things: *this proved bigger than one
 session*, and *these steps compose one artifact*. The `BRIEF.md` discriminator is
@@ -202,15 +204,20 @@ what keeps that a distinction rather than an overload.
 
 **The node is brief-less by rule**, and the rule does real work beyond saving a
 stub. It gives the Retire cascade a discriminator that is a **file's presence, not
-a name pattern** — so the cascade can skip a chain's confirmation without any
+a name pattern** — so the cascade can tell a chain from a decomposition without any
 reader parsing the step suffix, which is the line the next section says must never
-be crossed. A charter-writing alternative was available and rejected: the verb
+be crossed. What it discriminates has since narrowed: not *whether to ask the
+human* (the cascade asks nothing of any node — *confirmation-boundary*) but
+*whether the closing node has work to do at all*, since a brief-carrying node
+carries a `Done when` rollup to check against its subtree and a brief to promote
+upward, and a chain node carries neither. A charter-writing alternative was
+available and rejected: the verb
 could emit a stub naming the artifact, which `brief-chain` would then deliver to
 all three sessions as shared context. It loses on constraint 4 — the stub is
 written because a step demanded it, by a verb that knows only a stem — and on the
 discriminator, which a brief-carrying chain node would destroy. Nothing is
 enforced: a human who writes a `BRIEF.md` into a chain node has made it
-brief-carrying and gets the confirmation that follows.
+brief-carrying and gets the close-time work that follows.
 
 **The children keep the stem; the node takes a `-chain` / `-pair` token.** The
 tempting shape is `NN-<stem>-k<key>/` holding `01-impl`, `02-review`,
@@ -270,8 +277,10 @@ human deliberately shaped, demand no action, and re-trigger on every insert.
 
 Beyond the grammar, a chain was costed as a **first-class group**: a thing `pick`
 will not walk out of once its first step is done, and whose close skips the Retire
-cascade's confirmation. It is not adopted, and the reasons are worth keeping
-because the request is a natural one to raise again.
+cascade's confirmation — which the cascade has since stopped asking of any node
+(*confirmation-boundary*), so that half of the motivation is gone outright. It is
+not adopted, and the reasons are worth keeping because the request is a natural one
+to raise again.
 
 **Two of the three motivating costs are not real.**
 
@@ -282,13 +291,15 @@ because the request is a natural one to raise again.
   ordering grove offers anywhere, so the chain is not the weaker case, it is the
   ordinary one. A chain also survives a step being decomposed with no special
   handling: the nested node is walked in place and the remaining steps follow it.
-- **A chain's close asks nothing.** The cascade's confirmation is asked of
-  **brief-carrying** nodes, and a chain node is brief-less by rule — so the noise
-  the group construct would remove is not there to remove. (This bullet used to
-  read "the confirmation is asked per node, and a chain is not a node", which was a
-  second argument *against* node-per-chain. Making the chain a node did not
-  resurrect the cost; the brief-less rule is what keeps it dead, and the
-  discriminator is a file's presence rather than any reading of the naming.)
+- **A chain's close asks nothing.** No node's close asks anything
+  (*confirmation-boundary*), and a brief-less one additionally has no `Done when`
+  to check and no brief to promote — so the noise the group construct would remove
+  is not there to remove, on two independent grounds. (This bullet has been wrong
+  in two earlier spellings: first "the confirmation is asked per node, and a chain
+  is not a node", an argument *against* node-per-chain; then "asked of
+  brief-carrying nodes only", which survived the chain becoming a node but not the
+  confirmation being dropped. The claim that held throughout is the conclusion, and
+  the reason it held is that the cost was never real.)
 
 **The one real gap has closed** — as a by-product, not by adopting the group
 construct. It was that contiguity is unprotected against a sibling-level
@@ -314,7 +325,7 @@ a human can say *this goes first*; immunity would mean a defect found mid-review
 cannot be sequenced ahead of the integrate step, which is grove refusing work on
 process grounds — the one thing constraint 5 forbids outright. Note which way that
 cuts: the request was framed as *removing* a gate (a confirmation with one sensible
-answer), but the confirmation is never asked of a chain, while the containment
+answer), but no such confirmation is asked of any node, while the containment
 would be a real gate. Constraint 3 is the milder objection and points the same way —
 a `**Chain:**` field is schema in the one place the spine keeps freeform — but it
 is not the load-bearing one, since the kind-inference mark needs no field at all.
@@ -589,7 +600,8 @@ reader who needs it already is.
   constraint 5.
   **The chain node does not cross this line, and the tempting way to build it
   would.** Two readers now need to know a chain node from a decomposition node —
-  the Retire cascade, and anything that reports on a tree — and the obvious
+  the Retire cascade (to decide whether a closing node has a `Done when` to check
+  and a brief to promote), and anything that reports on a tree — and the obvious
   discriminator is the `-chain` / `-pair` token in the node's slug. That is a name
   parse, and it inherits every objection above: the token is ordinary slug text a
   human may omit, misspell, or use for something else. The discriminator is
@@ -618,8 +630,10 @@ guidance nonetheless reaches real sessions only when the next release is cut.
 Both verbs now write the node; `content/SKILL.md` (Decompose and the node
 definition), `content/TASK-FORMAT.md`, `content/BRIEF-FORMAT.md`,
 `content/driving.md`, `content/prompts/*.md` and `docs/grove.md` describe that
-shape in place of the flat one, and the Retire step's cascade prose now reads *ask
-before treating a **brief-carrying** node as done*. The guidance still reaches
+shape in place of the flat one. (The Retire step's cascade prose was narrowed to
+*ask before treating a **brief-carrying** node as done* in the same pass, and has
+since been rewritten again — the cascade now asks nothing and instead checks,
+promotes and reports; see ADR *confirmation-boundary*.) The guidance still reaches
 real sessions only when the next release is cut.
 
 **Two lessons from the second pass, both about what a file list misses.** The
@@ -633,6 +647,13 @@ other surfaces has to reconcile its own normative claims in the same pass, or it
 becomes the parallel guidance it warned about. The habit that catches both is to
 **grep for the claim**, not to walk a list of files — the claim is the thing that
 went stale, and it does not know which file it is in.
+
+The lesson has since been paid a third time, and the sharpest way round: the
+confirmation those surfaces were painstakingly reconciled *to* was itself dropped
+soon after (*confirmation-boundary*), and the grep for it turned up three more
+restatements — in this document and the glossary — that a reading pass had walked
+straight past. A claim reconciled everywhere is still only as durable as the
+decision under it.
 
 ### Routing
 
@@ -804,7 +825,9 @@ No new seams. The work tests through the existing partition:
   - the *absence of a `BRIEF.md`* — write one and a test must fail. This reads
     like a cosmetic assertion and is not: brief-presence is the discriminator the
     Retire cascade uses to tell a chain node from a decomposition node, so a stray
-    charter silently restores the confirmation the design removed;
+    charter silently promotes a chain into the species that carries close-time work
+    — a `Done when` rollup to check and a brief to promote, neither of which a
+    chain has;
   - the *rollback* — a run that fails mid-write must leave no node directory
     behind, which is the whole-shape-or-nothing property restated for the shape
     that now has a container.
@@ -814,7 +837,8 @@ No new seams. The work tests through the existing partition:
 - **Grammar enforcement or linting.** See *The grammar is documented, not
   enforced*.
 - **A chain as a first-class group** — a unit `pick` will not walk out of, closing
-  without the cascade's confirmation. See *A chain is not a unit either*; the cost
+  without the cascade's (since-dropped) confirmation. See *A chain is not a unit
+  either*; the cost
   is `pick`'s walk, and all three costs it would have removed are now gone without
   it — two were never real, and the third (a sibling insert splitting a chain)
   closed when chains became node directories.

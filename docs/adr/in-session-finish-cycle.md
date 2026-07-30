@@ -45,6 +45,13 @@ commit.
 The real risk is finishing the *wrong* grove, which one clear plan-and-confirm
 addresses.
 
+**It is also the loop's only routine human gate** (*confirmation-boundary*), and
+it absorbs the whole-grove case the Retire cascade used to ask separately. The
+cascade asks nothing of any node, root included; `pick` reporting no live leaves
+*is* the "is this grove done?" question, and it gets asked here — once, at the
+point where something is actually deleted, rather than as the last of a run of
+per-ancestor questions the cascade walked up to it.
+
 Headless behaviour needs no mode detection: the LLM **proposes the teardown and
 waits** for explicit human confirmation, never running steps 2–3 unprompted. A
 headless run with no human present ends the turn with the plan as output and runs

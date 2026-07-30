@@ -48,3 +48,21 @@ The two doc comments being byte-identical copies is what let this survive: the
 sentence is true of the struct it was written for. Worth a glance at whether any
 *other* claim rides the same copy — `resolve_for_launch`'s auto-detection half is
 shared and correct, but that is the only other clause.
+
+**Decided: the doc was wrong.** The behaviour stands, under the rule *a lasting
+binding is written by the action that asks for one* — already in the codebase as
+`do`'s `maybe_stamp` sitting below its `--no-launch` return, now generalised in
+ADR *model-per-task-kind* with `grove retire --harness` as its second instance.
+Symmetry was rejected on **cost asymmetry**: an unpersisted `--harness` surprises
+once, immediately; a retire that rebound the grove would redirect every later
+`grove do` and be found sessions later. Recorded in both `--harness` docs (each
+naming the other verb), `maybe_stamp`'s "one call site, deliberately", the ADR,
+`CONTEXT.md`, `README.md`, `docs/grove.md` and `docs/workflows/start.md`.
+
+The other clause turned out **imprecise rather than correct**: the default is the
+stamp *then* auto-detection, and the parenthetical only read as true in the
+company of the stamping sentence — so removing that sentence from `RetireArgs`
+would have left a false default behind. Both structs now state it in full.
+
+Full carry-forward in the root brief. CHANGELOG-free per `k20`'s rule; no leaf
+externalized — the four extra surfaces are the flagged finding's extent.

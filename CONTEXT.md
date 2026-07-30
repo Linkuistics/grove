@@ -210,10 +210,14 @@ already *executed* under it.
 *Harness*: **leaf beats kind beats family beats stamp** — a leaf's own
 `**Harness:** <name>` line first, then `GROVE_<KIND>_HARNESS`, then
 `GROVE_<FAMILY>_HARNESS`; unset everywhere means the **stamped** harness, which
-is an explicit on-disk binding, not a default. The per-leaf line exists for the
-[[Review chain]]'s counterpart, the vendor pair, and is read **strictly** — an
-unrecognised name refuses to launch rather than degrading as a [[Task kind]]
-does, because a wrong harness runs the leaf on a vendor the tree said not to.
+is an explicit on-disk binding, not a default. Both launcher verbs *read* the
+stamp; **only `grove do` writes it** (`maybe_stamp` has one call site, in
+`do_grove`), because a lasting binding is written by the action that asks for
+one — which a `grove retire --harness` and a `grove do --no-launch` are alike in
+not being. The per-leaf line exists for the [[Review chain]]'s counterpart, the
+vendor pair, and is read **strictly** — an unrecognised name refuses to launch
+rather than degrading as a [[Task kind]] does, because a wrong harness runs the
+leaf on a vendor the tree said not to.
 *Model*: four keys, **harness-major** — `GROVE_<HARNESS>_<KIND>_MODEL` >
 `GROVE_<HARNESS>_<FAMILY>_MODEL` > `GROVE_<KIND>_MODEL` > `GROVE_<FAMILY>_MODEL`
 — because the harness axis is a *correctness* axis (a codex profile name is
@@ -254,6 +258,10 @@ caused is gone with it, except for a harness that takes no model flag at all.
 _Avoid_: "there is no fallback chain" unqualified — falling back *across* kinds
 is still rejected, but resolving within a **family** the user configured as a set
 is carved out.
+_Avoid_: "`--harness` writes the stamp" as a property of the **flag** — it is a
+property of the **verb**, and only `grove do` has it. The false spelling is what
+survived a byte-identical doc comment copied from `StartArgs` onto `RetireArgs`,
+where it read as true of the struct it was written for.
 
 **Spec** (`docs/specs/<slug>.md`):
 The human-facing, team-shareable design of an *area* of the system — problem,

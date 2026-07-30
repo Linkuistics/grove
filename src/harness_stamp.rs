@@ -58,6 +58,16 @@ pub fn resolve_for_launch(
 ///
 /// A single-harness repo with no explicit flag stays stamp-free: detection is
 /// already deterministic there.
+///
+/// **One call site, [`crate::launch::do_grove`], and deliberately so.** The
+/// stamp binds the *grove*, so the only verb that writes it is the one that
+/// drives the grove (do-is-sole-lifecycle-verb). `grove retire --harness`
+/// resolves a harness for its one session and leaves the binding untouched, for
+/// the same reason the call sits below `do`'s own `--no-launch` return (B3):
+/// **a lasting binding is written by the action that asks for one**, and
+/// neither a dry run nor a by-hand node retire is asking. Adding a second call
+/// site means deciding that rule again — not merely reaching for symmetry
+/// (model-per-task-kind).
 pub fn maybe_stamp(
     repo: &Path,
     name: &str,

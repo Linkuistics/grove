@@ -54,7 +54,7 @@ Done-when above is therefore no longer the whole of what this grove will produce
 | `retire-help-node-path-k20` | `impl` | **done** — `grove retire --help`'s original-scheme node-path example replaced, and the grammar pinned by a test; raised by `k16` |
 | `retire-no-launch-help-k21` | `impl` | **done** — `grove retire --no-launch` described, and its dry run made a checked claim; raised by `k20` |
 | `driving-original-scheme-example-k22` | `impl` | **done** — `content/driving.md`'s worked research-leaf example cited original-scheme, keyless work items in *provisioned* content; raised by `k20` |
-| `retire-harness-stamp-claim-k23` | `impl` | `grove retire --help` claims `--harness` writes a stamp; `maybe_stamp`'s one call site is in `do_grove` — raised by `k21` |
+| `retire-harness-stamp-claim-k23` | `impl` | **done** — the doc was wrong, not the behaviour: only the verb that drives the grove writes the stamp; raised by `k21` |
 | `src-position-citations-k24` | `impl` | two `src/` comments still cite dead `.grove/` positions — the class `k14` reported as swept to zero; raised by `k22` |
 
 **What `chain-as-node-k7` decided**, since the tree below builds on it and
@@ -560,6 +560,55 @@ CHANGELOG-free, and it confirms `k20`'s rule rather than bending it: no
 behaviour changed, and an ADR paragraph is a *recorded* convention — "*a decision
 earns its entry when its behaviour lands, not when it is recorded*" (`k13`).
 `cargo test`: 627 passed, 0 failed.
+
+**What `retire-harness-stamp-claim-k23` decided, and the four surfaces the
+Context did not know about.** The doc was wrong; the behaviour stands. The rule
+is *a lasting binding is written by the action that asks for one* — which is not
+a new principle but the one already in the codebase as `do`'s `maybe_stamp`
+sitting **below** its `--no-launch` return ("a documented dry run must never
+permanently rebind the grove"). `grove retire --harness` is the same shape: a
+one-off by-hand verb, outside the routing lattice entirely (it peeks no leaf and
+passes no model), is a strange place to write that lattice's fallback. Symmetry
+across the two verbs was the obvious alternative and is rejected on **cost
+asymmetry** — an unpersisted `--harness` surprises once and immediately, while a
+retire that rebound the grove redirects every later `grove do` and is found
+sessions later. Recorded as a Consequences bullet in ADR *model-per-task-kind*
+(the record that already held the `--no-launch` half, so the set stays minimal —
+it is one rule with two instances, not a new decision), with a *what would reopen
+it* trigger; plus both `--harness` doc comments, `maybe_stamp`'s doc, `CONTEXT.md`,
+`README.md`, `docs/grove.md` and `docs/workflows/start.md`.
+
+1. **The claim rode five surfaces, and four were verb-generalised prose the leaf
+   never named** — `README.md`'s "Session launchers stamp … whenever `--harness`
+   is passed explicitly", `docs/grove.md`'s "The CLI writes a one-line stamp"
+   (twice, one of them directly after the paragraph that already lists the two
+   verbs' *other* asymmetries), and `docs/workflows/start.md`'s "Passing
+   `--harness` explicitly **always** writes the stamp". `k11`'s rule again, and
+   the fix needed no invention: `.gitignore:15` already said "Written by any
+   `grove do --harness <name>`" — the one surface that had scoped it to the verb,
+   which is `k22`'s *the house pattern already existed one file over*.
+2. **The leaf's "only other clause is shared and correct" is falsified.** The
+   default is the **stamp, then** auto-detection; "(default: auto-detected from
+   the repo's harness directories)" only read as true in the company of the
+   stamping sentence that followed it. So deleting the false clause from
+   `RetireArgs` would have promoted an imprecise one into being the whole account
+   of the default. Both structs now state it in full. **A clause rescued by its
+   neighbour is not correct — it is load-bearing on the sentence you are deleting.**
+3. **The guard is a *real* launch, and that is the whole point of it.** The cheap
+   version — assert no stamp after `retire --no-launch` — passes on the exact
+   regression it exists to catch, because a retire that grew a `maybe_stamp` would
+   put it where `do`'s is: below the no-launch return. `retire_never_stamps_the_grove`
+   spawns a fake harness through PATH (`exec_harness` has no bin seam) with an
+   explicit `--harness`, the one trigger that always stamps on `do`. Falsified by
+   mutation. Verified by hand too, both halves against one fixture: `retire
+   --harness` left no stamp, `do --harness` wrote `claude`, and `retire --harness
+   pi` against that stamped grove launched pi while leaving the stamp reading
+   `claude`.
+
+CHANGELOG-free, the third leaf running to confirm `k20`'s rule: no behaviour
+changed — stale prose corrected against shipped behaviour, an ADR paragraph
+(*recorded*, not landed — `k13`), and a test. Verified by `jj diff --stat`.
+`cargo test`: 628 passed, 0 failed; clippy and `cargo fmt --check` clean.
 
 Externalized rather than absorbed: `src-position-citations-k24`. Two `src/`
 comments still cite dead `.grove/` positions — `leaf_id.rs:143` ("the grow verbs

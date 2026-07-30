@@ -104,10 +104,14 @@ pub enum Command {
 #[derive(Parser)]
 #[command(after_long_help = MODEL_ENV_HELP)]
 pub struct StartArgs {
-    /// Harness to launch: claude, codex, or pi (default: auto-detected from
-    /// the repo's harness directories). Writes a lasting binding to
-    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
-    /// for this grove until removed.
+    /// Harness to launch: claude, codex, or pi. Defaults to the harness this
+    /// grove is stamped to, else auto-detection from the repo's harness
+    /// directories.
+    ///
+    /// Writes a lasting binding to `.grove-stamps/<name>`, read by every later
+    /// `grove do`/`grove retire` for this grove until removed. `grove do` is
+    /// the only verb that writes it: `grove retire --harness` picks a harness
+    /// for its one session and leaves the binding alone.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     /// Report launch readiness and exit without exec'ing the harness: names the
@@ -135,10 +139,15 @@ pub struct RetireArgs {
     /// with `grove-llm resolve` (task-tree-scheme §5). Taken verbatim: nothing
     /// here parses it.
     pub path: String,
-    /// Harness to launch: claude, codex, or pi (default: auto-detected from
-    /// the repo's harness directories). Writes a lasting binding to
-    /// `.grove-stamps/<name>`, read by every later `grove do`/`grove retire`
-    /// for this grove until removed.
+    /// Harness to launch: claude, codex, or pi. Defaults to the harness this
+    /// grove is stamped to (`.grove-stamps/<name>`), else auto-detection from
+    /// the repo's harness directories.
+    ///
+    /// Selects the harness for **this session only** — unlike `grove do
+    /// --harness`, it writes no stamp. The stamp binds the grove, and the grove
+    /// is bound by the verb that drives it: retiring one node by hand is no
+    /// reason to rebind every later `grove do`. Pass `--harness` to `grove do`
+    /// to make a binding last.
     #[arg(long = "harness")]
     pub harness: Option<String>,
     /// Report launch readiness and exit without exec'ing the harness. Readiness

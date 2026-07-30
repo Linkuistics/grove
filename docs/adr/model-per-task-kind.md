@@ -252,7 +252,21 @@ only for a harness that is exempt because it takes no model flag at all.
   on `grove-llm` being resolvable and on the harness binary being on PATH. Both
   are conditions of the launch it is reporting on, so a dry run that passed
   without them would be reporting on a launch that could not happen. It still
-  writes no stamp — a documented dry run must never permanently rebind the grove.
+  writes no stamp, which is the rule below rather than an exception to it.
+- **A lasting binding is written by the action that asks for one, so only
+  `grove do` stamps.** The stamp binds the *grove* — it is this record's last
+  precedence level, consulted by every later launch — so the verb that writes it
+  is the one that owns the grove's lifecycle (do-is-sole-lifecycle-verb). Two
+  consequences of the one rule: `grove do --no-launch` reports readiness without
+  rebinding, and `grove retire --harness` resolves a harness for its single
+  by-hand session and leaves the binding alone. Symmetry across the two verbs
+  was the obvious alternative and is **rejected on cost asymmetry**: an
+  unpersisted `--harness` surprises the user once, immediately, at no cost,
+  while a retire that rebound the grove would redirect every later `grove do`
+  and be discovered long afterwards. `grove retire` is also outside this
+  record's routing lattice entirely — it peeks no leaf and passes no model — so
+  it is a strange place to write the lattice's fallback. What would reopen it:
+  a second verb that drives the grove across sessions rather than launching one.
 - **Not backward compatible, deliberately.** A grove that ran with no
   configuration now errors until its kinds resolve. Full coverage is about **nine**
   vars — seven standalone kinds plus two family vars — against a ceiling of 95 (17

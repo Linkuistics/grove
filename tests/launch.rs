@@ -264,6 +264,48 @@ fn no_launch_does_not_stamp_the_grove() {
     );
 }
 
+#[test]
+fn retire_never_stamps_the_grove() {
+    // The other half of the same rule, and the one the help text got wrong for
+    // as long as `RetireArgs::harness`'s doc comment was a byte-identical copy
+    // of `StartArgs`' (retire-harness-stamp-claim-k23): a lasting binding is
+    // written by the action that asks for one, so `grove do` writes the stamp
+    // and `grove retire --harness` resolves a harness for its single by-hand
+    // session and leaves the binding alone (model-per-task-kind).
+    //
+    // A **real** launch, deliberately, not the `--no-launch` dry run the
+    // sibling above uses. `do`'s `maybe_stamp` sits *below* its no-launch
+    // return, so a retire that grew one would put it in the same place — and a
+    // dry-run assertion would pass on exactly the regression this exists to
+    // catch. `exec_harness` has no bin seam, so the fake carries the harness's
+    // own name and the launch really spawns it.
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let _env = retire_launch_deps(repo.path(), "claude");
+    let name = repo
+        .path()
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned();
+
+    // Explicit `--harness`: the trigger that always stamps on `grove do`, so
+    // the absence below is this verb's own behaviour rather than `maybe_stamp`
+    // declining a single-harness repo it was never asked about.
+    launch::retire(&RetireArgs {
+        path: "01-x-k1".into(),
+        harness: Some("claude".into()),
+        no_launch: false,
+    })
+    .unwrap();
+
+    assert!(
+        !grove::harness_stamp::path(repo.path(), &name).exists(),
+        "retiring one node by hand must not rebind every later `grove do`"
+    );
+}
+
 /// Plant a minimal v2 task tree with one leaf of `kind`, live or retired.
 /// Committed, so the adoption migration (which runs above the no-launch return)
 /// sees a clean v2 tree and no-ops.

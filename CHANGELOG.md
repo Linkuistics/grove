@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v16.3.0
+
 ### Added
 
 - **`linkuistics` / `using-codebase-memory`: query a codebase knowledge graph

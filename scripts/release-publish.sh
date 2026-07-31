@@ -8,9 +8,14 @@
 # Prerequisite: ./scripts/release-build.sh has just run successfully.
 # Env: GROVE_TAP_DIR (default ~/Development/homebrew-taps).
 #
-# This script is one of the two gestures the harness classifier refuses as an
-# opaque invocation (see release.toml). Its two steps run fine spelled out by
-# hand; that is the expected path for an agent-driven cut, not a workaround.
+# This script was recorded as one of the two gestures the harness classifier
+# refuses as an opaque invocation. Measured on 2026-07-31 it ran permitted, in
+# the same agent-driven cut that published v16.3.0 — so run it directly rather
+# than planning around a refusal. Refusal is not inherent to the invocation: it
+# depends on the session's own harness and permission configuration, which this
+# script cannot see. If a session's classifier does refuse, its two steps run
+# fine spelled out by hand — that is the fallback, not the expected path.
+# See release.toml's preamble for the full note.
 #
 # ---------------------------------------------------------------------------
 # Proving the *installed* binary carries the release

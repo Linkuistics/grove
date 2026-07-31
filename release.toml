@@ -38,12 +38,25 @@
 #
 # Two things worth knowing before an agent-driven cut.
 #
-# The scripted forms of both outward-facing gestures get refused as opaque
-# invocations by the harness's own command classifier — `cargo release …
-# --execute` here, and `scripts/release-publish.sh` at the end. Their
-# constituent commands (`gh release create`, the tap `cp`/`commit`/`push`) run
-# fine spelled out, so expect to hand the cut to the human and to run the
-# publish step by hand. Nothing about the scripts needs changing.
+# The scripted forms of both outward-facing gestures — `cargo release …
+# --execute` here, and `scripts/release-publish.sh` at the end — were recorded
+# as refused by the harness's own command classifier, so the expectation was to
+# hand the cut to the human and run the publish by hand. **Measured against the
+# real target on 2026-07-31 and both ran permitted**: one agent-driven cut took
+# v16.2.0 → v16.3.0, tagged, pushed bookmark and tag, built all three targets
+# and published the GitHub Release and the tap, with neither script refused.
+#
+# So do not plan around a refusal — but do not invert the claim either. What was
+# settled is that refusal is not *inherent* to these invocations; the classifier
+# reads the session's own harness and permission configuration, which the repo
+# cannot see from here. Treat it as a per-session fact: run the script, and fall
+# back to spelling out its constituent commands (`gh release create`, the tap
+# `cp`/`commit`/`push`) only if that session's classifier actually refuses.
+# Either way nothing about the scripts needs changing.
+#
+# (The earlier note said a permitted run in a throwaway fixture was no evidence,
+# because a scratch repo is a different target from the real cut, and left it to
+# "whoever next runs a real cut" to settle. This is that cut.)
 #
 # Installing the new build mid-session is safe, and the proofs belong in the
 # same session as the install. The driver's version-skew guard is the first

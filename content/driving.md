@@ -332,6 +332,72 @@ renames, or plumbing:
 When the decision is also hard to reverse, this pairs with the doubt pass
 below: cite the source *and* have a fresh context try to break it.
 
+## Verifying a claim about the repo itself
+
+The counterpart to the section above. Sessions assert things about their own
+codebase constantly — *"every X is now Y"*, *"that pattern is gone"*, *"this
+appears in five places"* — and a repo-wide grep is the usual evidence. It is a
+**worse instrument than it looks**, because each of its failure modes produces a
+*clean-looking* result.
+
+**Check the output resembles what you asked for, not merely that the command
+exited 0.**
+
+- **The flag you meant is a different flag.** In ripgrep, `-E` is `--encoding`,
+  not GNU grep's extended-regex; `-r` is `--replace`, so `rg -rn '<pat>' .`
+  *succeeds* and prints every match with the pattern substituted away — a
+  plausible hit list with fabricated contents. Add `2>/dev/null` and a flag
+  error becomes indistinguishable from a clean sweep.
+- **The search space excludes what you are searching for.** `.grove/` is a
+  dotdir ripgrep skips without `--hidden` — the live mandate sits outside the
+  default search space.
+- **Rendered output is the wrong surface.** Scraping `--help` means reproducing
+  the renderer's layout rules, and a multi-paragraph description can silently
+  switch a whole command into a different layout. Ask the library for the fact
+  (walk the command tree) rather than parsing what it printed.
+- **The instrument is correct but blind.** A well-formed pattern that matches
+  nothing *anywhere* reads exactly like a clean repo. This is the mode that
+  survives careful flag-checking, and only the control pair catches it.
+
+**Two controls turn a clean result into evidence.** A broken instrument reads
+clean *everywhere*, so clean-here alone proves nothing — but clean-here plus
+dirty-there cannot be produced by a broken instrument.
+
+- A **positive control**: the same command with the same flags must find
+  something you know is present in the same trees.
+- A **cross-tree control**: the same pattern must still find the class where it
+  legitimately lives — the docs that discuss it, the fixtures that illustrate it.
+
+**Enumerate, then classify. Do not sweep a pattern list.** A list of patterns is
+complete only as far as the list, and re-running it with a longer list moves the
+leak rather than closing it. Extract *every* candidate token from the whole
+surface, then classify each one. That is complete by construction, and it is
+what finds the sibling class nobody thought to list.
+
+**Three ways a sweep is narrowed without anyone deciding to narrow it**, each of
+which has passed for "done" and then leaked:
+
+- **By claim, not file list.** A file list is written *before* the work and goes
+  stale; the claim cannot, because the claim *is* what went stale. Grep the
+  claim.
+- **By scope.** A claim's scope is part of the claim, and a scope stated as a
+  path or a set of directories goes stale exactly as a file list does — and can
+  never reach the files that are in **no** tree (a root manifest, a dotfile).
+- **By structural level.** A finding against a *section* does not reach the
+  document's **summary layer**. A roll-up summarises sections and is not touched
+  by correcting one, so when a finding lands against a heading, sweep the
+  abstract, the table, and the overview too.
+
+**Never document a claim with a count of itself.** *"The string occurs three
+times, only one is a heading"* is self-invalidating the moment the sentence
+stating it adds another occurrence. State the structural fact instead (*only the
+heading is ever a whole line*), and say explicitly not to replace it with a
+count.
+
+**A clause rescued by its neighbour is not correct** — it is load-bearing on the
+sentence you are about to delete. Before removing a false clause, check whether
+the true one beside it only reads as true in its company.
+
 ## Doubting a decision before it stands
 
 "Ask the LLM WDYT" and "ask for pushback" are the cheap version of doubt: the

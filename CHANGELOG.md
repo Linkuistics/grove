@@ -92,6 +92,45 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ### Changed
 
+- **The provisioned methodology gains a section on verifying a claim about the
+  repo itself** (`content/driving.md`), the counterpart to its existing section on
+  verifying framework decisions against the source. Sessions assert things about
+  their own codebase constantly and reach for a repo-wide grep as the evidence;
+  the section's point is that **every one of that instrument's failure modes
+  produces a clean-looking result**, so a clean sweep is not yet evidence.
+
+  It names the four modes — a flag that is not the flag you meant (ripgrep's `-E`
+  is `--encoding`, `-r` is `--replace`, and `rg -rn` therefore *succeeds* while
+  printing fabricated contents), a search space that excludes the target (`.grove/`
+  is a dotdir skipped without `--hidden`), rendered `--help` text as the wrong
+  surface entirely, and the residual case of an instrument that is well-formed but
+  blind. Only the last needs new machinery: a **positive control** plus a
+  **cross-tree control**, on the reasoning that a broken instrument reads clean
+  *everywhere*, so clean-here-plus-dirty-there cannot be faked.
+
+  The rest is about sweeps that get narrowed without anyone deciding to narrow
+  them: grep the **claim**, never a file list written before the work; a claim's
+  **scope** is part of the claim and goes stale exactly as a file list does, and a
+  scope stated as a set of trees can never reach a file that is in no tree; and a
+  finding against a *section* does not reach the document's **summary layer**.
+  Plus two smaller rules — never document a claim with a count of itself, since
+  the sentence stating the count invalidates it, and a clause that only reads as
+  true beside a false neighbour is load-bearing on the sentence you are deleting.
+  Enumerate-then-classify replaces pattern-list sweeping throughout: a pattern list
+  is complete only as far as the list, so a longer one moves the leak rather than
+  closing it.
+
+- **ADR *task-tree-scheme* §5 now covers an index *into* a work item**, not only
+  how an item is named — a review finding (`B5`), a numbered decision, a bare key
+  (`k29`). The rule as written governed naming, so prose could satisfy it in full
+  and still carry a reference resolving nowhere; the addition requires the pair
+  (`branch-review-k14 B5`). The load-bearing half is that **a bare index is worse
+  than a bare position**: a position at least fails to resolve, while an unscoped
+  number can resolve *incorrectly* against an unrelated live series that shares
+  its shape. `src/` and `tests/` are swept to match — 48 such citations across 11
+  files, comments only, no behaviour change. `CONTEXT.md`'s *Work-item handle*
+  carries the matching `_Avoid_`.
+
 - **A review chain and a vendor pair are now a *node directory*** — reversing the
   "a chain gets no node directory of its own" line v16.2.0 shipped. `leaf-add-chain`
   and `leaf-add-pair` write `NN-<stem>-chain-k<key>/` (or `-pair-`) holding their

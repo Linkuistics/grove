@@ -37,7 +37,7 @@ flowchart TD
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
     commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
     retire{"parent chain — node now has no live leaf?"}
-    ret["Ask user; promote brief up; leaves already marked (done/abandoned) in place"]
+    ret["Brief-carrying node: verify Done when; promote brief up; report close. Brief-less node: no-op"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
     exec -->|planning| plan --> commit

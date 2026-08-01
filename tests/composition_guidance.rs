@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use assert_cmd::Command;
 
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
@@ -25,6 +27,101 @@ fn assert_absent(surface: &str, text: &str, rejected: &str) {
         !text.contains(&rejected),
         "{surface} still contains obsolete guidance {rejected:?}"
     );
+}
+
+fn github_heading_anchor(heading: &str) -> String {
+    let mut anchor = String::new();
+    for character in heading.chars() {
+        match character {
+            ' ' => anchor.push('-'),
+            character if character.is_alphanumeric() || matches!(character, '-' | '_') => {
+                anchor.extend(character.to_lowercase());
+            }
+            _ => {}
+        }
+    }
+    anchor
+}
+
+fn top_level_heading_anchors(markdown: &str) -> Vec<String> {
+    let mut inside_fence = false;
+    markdown
+        .lines()
+        .filter_map(|line| {
+            if line.starts_with("```") {
+                inside_fence = !inside_fence;
+                return None;
+            }
+            if inside_fence {
+                return None;
+            }
+
+            line.strip_prefix("## ")
+                .filter(|heading| *heading != "In this guide")
+                .map(github_heading_anchor)
+        })
+        .collect()
+}
+
+#[test]
+fn driving_navigation_lint_models_github_anchor_edges() {
+    assert_eq!(
+        top_level_heading_anchors(
+            "## Same\n```markdown\n## Hidden example\n```\n## Same\n## The seam — and `code/path`"
+        ),
+        ["same", "same", "the-seam--and-codepath"]
+    );
+}
+
+#[test]
+fn driving_reference_navigation_targets_top_level_sections() {
+    let (_, after_navigation_heading) = DRIVING
+        .split_once("## In this guide\n")
+        .expect("content/driving.md must have an In this guide section");
+    let navigation = after_navigation_heading
+        .lines()
+        .skip_while(|line| line.is_empty())
+        .take_while(|line| !line.is_empty());
+    let mut navigation_anchors = Vec::new();
+
+    for line in navigation {
+        assert!(
+            line.starts_with("- ") || line.starts_with("  [") || line.starts_with("  and ["),
+            "content/driving.md navigation must stay one level deep: {line:?}"
+        );
+
+        for link in line.split("](#").skip(1) {
+            let (anchor, _) = link
+                .split_once(')')
+                .expect("each navigation anchor link must end after its target");
+            navigation_anchors.push(anchor.to_owned());
+        }
+    }
+
+    let section_anchors = top_level_heading_anchors(DRIVING);
+    let unique_section_anchors = section_anchors.iter().collect::<HashSet<_>>();
+    assert_eq!(
+        unique_section_anchors.len(),
+        section_anchors.len(),
+        "content/driving.md top-level headings must have unique GitHub anchors"
+    );
+    assert!(
+        !navigation_anchors.is_empty() && navigation_anchors.len() < section_anchors.len(),
+        "content/driving.md navigation must be selective rather than repeat the section outline"
+    );
+
+    let mut next_section = 0;
+    for navigation_anchor in navigation_anchors {
+        let relative_position = section_anchors[next_section..]
+            .iter()
+            .position(|section_anchor| section_anchor == &navigation_anchor)
+            .unwrap_or_else(|| {
+                panic!(
+                    "content/driving.md navigation target {navigation_anchor:?} must name a later top-level section"
+                )
+            });
+        next_section += relative_position + 1;
+    }
 }
 
 #[test]

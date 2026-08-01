@@ -14,6 +14,23 @@ The examples are stated as reusable shapes rather than as the history of the
 workstream that first produced them. A finished grove deletes its task tree;
 the lesson belongs here only when it still helps a future session.
 
+## In this guide
+
+- **Starting and research:** [when not to start](#when-not-to-start-a-grove),
+  [commissioning prior art](#when-to-commission-prior-art-research),
+  and [running vendor pairs](#running-the-vendor-pair).
+- **Requirements and durable evidence:**
+  [grilling](#when-to-invoke-a-design-discussion-grilling),
+  [retiring research](#when-to-retire-research-into-adrs-versus-leave-it-in-docsresearch),
+  and [verifying against the source](#verifying-framework-decisions-against-the-source).
+- **Doubt and decomposition:**
+  [doubting in one leaf](#doubting-inside-a-picked-grove-leaf),
+  [escalating to a review chain](#the-review-chain--when-doubt-earns-its-own-leaves),
+  [externalizing work](#externalizing-surfaced-work),
+  and [triaging stalled work](#prune-reorder-or-file-an-issue--the-triage-a-status-word-would-hide).
+- **Quick reference:** [anti-patterns](#anti-patterns) and
+  [the shortest version](#the-shortest-version).
+
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Chart the map" step 2's no-fog

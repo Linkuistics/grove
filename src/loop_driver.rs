@@ -534,7 +534,7 @@ fn harness_bin(harness: &Harness, rerouted: bool) -> String {
 /// them, so the nineteen suffixes cannot drift from the nineteen labels — the
 /// failure mode being a var name the user writes correctly and grove never
 /// reads. The grammar is unambiguous because harness names, kind labels and
-/// family labels share no token (`docs/specs/task-kind-taxonomy.md`).
+/// family labels share no token (`docs/ARCHITECTURE.md#task-kind-taxonomy`).
 fn env_suffix(label: &str) -> String {
     label.to_uppercase().replace('-', "_")
 }
@@ -897,7 +897,7 @@ fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Res
     // Leaf beats kind beats family beats stamp: a declaration on the leaf is a
     // fact about *this* leaf ("this one goes elsewhere because its sibling does
     // not"), which is strictly more specific than a policy that knows nothing
-    // about any tree (`docs/specs/task-kind-taxonomy.md`, *Routing*).
+    // about any tree (`docs/ARCHITECTURE.md#task-kind-taxonomy`).
     let launch = match leaf_harness {
         Some(h) => {
             leaf_harness_installed(h, h.name != stamped.name)?;

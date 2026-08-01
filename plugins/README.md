@@ -3,9 +3,9 @@
 Two Claude Code plugins live here — `linkuistics` and `testanyware` — published
 through the marketplace declared in
 [`../.claude-plugin/marketplace.json`](../.claude-plugin/marketplace.json). They
-share this repo with the grove CLI because the two change in lockstep
-([`../docs/adr/skills-monorepo.md`](../docs/adr/skills-monorepo.md)); they ship by
-their own path and are installed separately from grove.
+share this repo with the Grove CLI because the two change in lockstep
+([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); they ship by their own
+path and are installed separately from Grove.
 
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
@@ -71,13 +71,14 @@ the move. Only where you add the marketplace *from* changed.
 ```
 git clone https://github.com/Linkuistics/grove.git
 cd grove
-./install.sh
+./plugins/install.sh
 ```
 
-[`../install.sh`](../install.sh) symlinks each `linkuistics` skill directory into
-`~/.codex/skills/` and `~/.gemini/skills/` (only for harnesses that are
-installed). Because the targets are symlinks, `git pull` refreshes the content in
-place — re-run the script only when skills are added or removed.
+[`install.sh`](install.sh) symlinks each `linkuistics` skill directory into
+`~/.codex/skills/`, `~/.gemini/skills/`, and `~/.pi/agent/skills/` (only for
+harnesses that are installed). Because the targets are symlinks, `git pull`
+refreshes the content in place — re-run the script only when skills are added
+or removed.
 
 **Run it from the repo's main checkout.** The script links from whichever tree it
 lives in and re-links every skill unconditionally, so running it from a linked
@@ -112,9 +113,9 @@ nobody, `/plugin update` reports "already at the latest version", and nothing
 reports the omission
 ([Version management](https://code.claude.com/docs/en/plugins-reference#version-management)).
 Churn is noisy and self-correcting; staleness is silent, and this repo has no CI and
-no `pre-commit` hook (jj snapshots the working copy) to catch it. The full trade is
-the *neither plugin declares a `version`* consequence in
-[`../docs/adr/skills-monorepo.md`](../docs/adr/skills-monorepo.md).
+no `pre-commit` hook (jj snapshots the working copy) to catch it. The repository
+and delivery boundary is described in
+[the architecture](../docs/ARCHITECTURE.md#skills-monorepo).
 
 One trap: `claude plugin validate --strict` warns on the missing `version` and so
 fails on both manifests. That warning is expected — silencing it by adding a
@@ -130,3 +131,6 @@ Edit the `SKILL.md` under `<plugin>/skills/<name>/` and commit. Keep
 and the body concise — an invoked skill stays in context for the rest of the
 session. The house conventions are the `authoring-conventions` skill itself
 (`/authoring-conventions`).
+
+Source snapshots, licences, and the ideas adapted by individual skills are in
+[`linkuistics/PROVENANCE.md`](linkuistics/PROVENANCE.md).

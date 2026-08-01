@@ -82,11 +82,9 @@ fn unknown_name_in_the_stamp_file_fails_loudly() {
     );
 }
 
-// `.grove-stamps/` must not dirty `git status` in every migrated repo — the
-// migration runbook's step 6 (`docs/superpowers/specs/2026-07-18-codex-pi-
-// harness-switch-design.md`) mandates one explicit `grove do --harness` per
-// grove, which creates it, and that now happens in the *main* repo, where the
-// user is likely mid-work.
+// `.grove-stamps/` must not dirty `git status`: an explicit
+// `grove do --harness` creates the machine-local binding in the main repo,
+// where the user is likely mid-work.
 #[test]
 fn grove_stamps_dir_is_gitignored_by_the_projects_own_gitignore() {
     let gitignore = fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/.gitignore")).unwrap();

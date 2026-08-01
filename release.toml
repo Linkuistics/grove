@@ -1,4 +1,5 @@
 # cargo-release configuration.
+# See docs/RELEASING.md for the complete Grove + Homebrew release procedure.
 #
 # Usage:
 #   cargo install cargo-release           # one-time
@@ -93,23 +94,8 @@ tag-message = "Release v{{version}}"
 # Single consistent commit message shape across releases.
 pre-release-commit-message = "chore: release v{{version}}"
 
-# Give each released crate its own commit instead of one consolidated workspace
-# commit. This is what makes `{{version}}` render in the message above: in a
-# *consolidated* commit (cargo-release's default for a workspace) `{{version}}`
-# is ambiguous across members and is left unrendered — producing a literal
-# "chore: release v{{version}}". grove only ever releases the one `grove` crate,
-# so a per-crate commit is a single, correctly-rendered commit. (The tag templates
-# above always rendered because tagging is per-crate.)
-#
-# What makes it one crate is **cargo-release's default crate selection**, not any
-# per-member opt-out: invoked at a workspace root that is itself a package,
-# `cargo release` operates on that package alone, and the `codex-bridge` member is
-# reached only by `--workspace` or `-p`. That member carries `publish = false` but
-# **no** `[package.metadata.release] release = false` — so do not read the single
-# crate as a property of the workspace. It is a property of the documented
-# invocation at the top of this file. (An earlier version of this comment credited
-# a `release = false` on a `harness-pane` member; there is no such crate, and the
-# opt-out never existed.)
+# Keep the release commit per-crate so `{{version}}` is unambiguous in the
+# commit message. Grove has one released crate.
 consolidate-commits = false
 
 # Close `CHANGELOG.md`'s standing `## Unreleased` heading as part of the cut, and
@@ -147,25 +133,16 @@ consolidate-commits = false
 # hand — or deleted the standing one — fails the same way instead of shipping a
 # release whose entries are filed under the wrong heading.
 #
-# It cannot double-apply. Replacements run once **per released crate** (regardless
-# of `consolidate-commits`, which affects only how the commits are grouped), and
-# `file` resolves against each released crate's *own* manifest directory — so the
-# root `CHANGELOG.md` is only ever reached by the root crate. Should someone cut
-# with `--workspace`, `codex-bridge` has no `CHANGELOG.md` and the run aborts
-# ("unable to find file .../codex-bridge/CHANGELOG.md to perform replace") rather
-# than renaming anything twice.
+# It cannot double-apply: Grove has one crate and cargo-release runs this
+# replacement once relative to its manifest directory.
 #
 # Robust to an empty `## Unreleased` — a release of work already filed under a
 # version yields an empty `## v<next>` between the standing heading and the previous
 # release, which is correct and, more to the point, does not lose the standing
 # heading. The anchor is the heading, never the content beneath it.
 #
-# Verify a change here with a plain `cargo release patch` (no `--execute`): the dry
-# run prints a unified diff of every replacement, so the rewrite is observable
-# without cutting anything. The stronger check does not need this repo at all — a
-# throwaway two-member workspace with a copy of this file and of `CHANGELOG.md`
-# reproduces the whole thing, including the `--workspace` and empty-section cases,
-# and is how the claims above were established.
+# Verify a change here with `cargo release patch` (without `--execute`); the dry
+# run prints the replacement diff without cutting a release.
 pre-release-replacements = [
   { file = "CHANGELOG.md", search = "^## Unreleased$", replace = "## Unreleased\n\n## v{{version}}", exactly = 1 },
 ]

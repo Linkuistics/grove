@@ -1,5 +1,5 @@
 // The LLM-driven CLI surface — `grove-llm`. See cli-binary-split
-// (`docs/adr/cli-binary-split.md`) for the audience-split
+// (`docs/ARCHITECTURE.md#cli-binary-split`) for the audience-split
 // rationale: every verb here exists for the LLM driving a grove session to
 // invoke deterministically, not for a human at a terminal.
 //
@@ -30,8 +30,8 @@ use std::path::{Path, PathBuf};
     version,
     about = "Grove: LLM-driven verbs for mid-session use",
     long_about = "Verbs the LLM driving a grove session invokes deterministically. \
-Audience-split from the human-facing `grove` binary per cli-binary-split; \
-none of these verbs are meant for direct human use."
+They are separated from the human-facing `grove` binary; none of these verbs \
+are meant for direct human use."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -54,7 +54,7 @@ pub enum Command {
     /// is a directory of numbered children, optionally headed by a `BRIEF.md`),
     /// returning the
     /// first live leaf and skipping briefs and terminal leaves — retired
-    /// (`DONE`) and abandoned (`ABANDONED`, ADR *pruning*) alike. Empty stdout
+    /// (`DONE`) and abandoned (`ABANDONED`) alike. Empty stdout
     /// (and a diagnostic on stderr) when the grove has no live leaves.
     Pick,
     /// Print the BRIEF.md chain for a leaf, root→leaf, one absolute path per
@@ -67,9 +67,8 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Print a leaf's task **kind** — one of the closed seventeen (ADR
-    /// `task-kind-taxonomy`; the set and each kind's discipline are
-    /// `docs/specs/task-kind-taxonomy.md`) — read from its `**Kind:**` line.
+    /// Print a leaf's task **kind** — one of the closed seventeen documented in
+    /// `docs/ARCHITECTURE.md#task-kind-taxonomy` — read from its `**Kind:**` line.
     /// With no argument the kind is read for `pick`'s next live leaf; on an
     /// empty grove it prints the standard "no live leaves" diagnostic on stderr
     /// (mirroring `brief-chain`) and exits 0. A missing or unrecognised
@@ -79,7 +78,7 @@ pub enum Command {
     /// silently — it is not a degrade. The output is a single lowercase token +
     /// newline (`--with-harness` may add a second line — see the flag). The
     /// self-driving loop calls this to resolve each session's launch harness and
-    /// model from the picked leaf (model-per-task-kind).
+    /// model from the picked leaf.
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
@@ -98,12 +97,12 @@ pub enum Command {
         with_harness: bool,
     },
     /// Resolve a reference to its current file path, searching live, retired
-    /// (`DONE`), **and** abandoned (`ABANDONED`, ADR *pruning*) entries alike
+    /// (`DONE`), **and** abandoned (`ABANDONED`) entries alike
     /// across the whole directory tree. A permanent key (`[n]` or bare `n`,
     /// optionally `[n]-slug`) resolves the unique keyed entry; a bare slug
     /// resolves by slug (0 ⇒ not found, 1 ⇒ that entry, >1 ⇒ ambiguous, listing
     /// each match's key so you re-query by key); the full `<slug>-k<key>` handle
-    /// (task-tree-scheme §5) resolves by its terminal key. A node resolves to
+    /// resolves by its terminal key. A node resolves to
     /// its **directory** path (append `/BRIEF.md` to read its charter). Prints
     /// the path on stdout; a `DONE` or `ABANDONED` match also prints its own
     /// note on stderr (so the two are distinguishable — a resolved dead end
@@ -196,7 +195,7 @@ pub enum Command {
     /// `# <slug>-k<key>` header retitled with ` — brief`) and
     /// atomically growing a first child `01-<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
-    /// leaf's own kind** (task-kind-taxonomy) unless `--kind` overrides it.
+    /// leaf's own kind** unless `--kind` overrides it.
     /// Prints the brief's absolute path then the first child's, one per line.
     /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
@@ -205,10 +204,10 @@ pub enum Command {
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
     /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
-    /// (`ABANDONED`, ADR *pruning*) leaf. Prints the retired file's absolute
+    /// (`ABANDONED`) leaf. Prints the retired file's absolute
     /// path on stdout. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
-    /// Mark abandoned work `ABANDONED` in place (ADR *pruning*). **HITL: only
+    /// Mark abandoned work `ABANDONED` in place. **HITL: only
     /// call this after explicit human confirmation** — grove never abandons
     /// planned work on its own (constraint 5: grove guides, it does not gate —
     /// the gate is yours, not the CLI's). `<path>` is a live leaf file **or** a
@@ -227,7 +226,7 @@ pub enum Command {
     /// found and left alone are reported on stderr. Working-tree change only —
     /// no commit.
     LeafPrune(LeafPruneArgs),
-    /// Signal task completion to the self-driving loop (self-driving-loop). Run this as
+    /// Signal task completion to the self-driving loop. Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
     /// ends this harness session and starts the next task with fresh context.
     ///
@@ -248,7 +247,7 @@ pub enum Command {
     /// **Not for you to call.** grove injects this as a claude hook at launch
     /// (`--settings`, per session, persisting nothing) so the harness can tell
     /// grove what the loop driver structurally cannot see: what is happening
-    /// *inside* a session (herdr-turn-boundary-hooks, herdr-mid-turn-blockers).
+    /// *inside* a session.
     ///
     /// The driver is the harness's parent, so it sees a session start and a
     /// session end and nothing between them — a session that stalls mid-session
@@ -320,7 +319,7 @@ combine-research. An unrecognised value errors, listing all seventeen";
 /// `--harness` help for the two verbs that *create* a leaf. Optional and rarely
 /// used by design: it exists for the **vendor pair** — two `research` leaves and
 /// the `combine-research` step that follows them — which is the one shape a
-/// kind→harness policy cannot express (`docs/specs/task-kind-taxonomy.md`).
+/// kind→harness policy cannot express (`docs/ARCHITECTURE.md#task-kind-taxonomy`).
 /// Everything else routes by policy or falls through to the stamp, so the help
 /// names the case rather than inviting general use.
 const HARNESS_HELP: &str = "Harness this one leaf launches on, written into a \

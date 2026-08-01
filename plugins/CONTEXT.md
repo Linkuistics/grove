@@ -95,13 +95,13 @@ The version Claude Code derives for a [[Plugin]] when neither its manifest nor i
 the **repo** and not the subdirectory — so both plugins here report one shared version
 string. It is the **cache key** an update is decided on, and it moves with every commit,
 so every push delivers. Both plugins use it deliberately
-(`docs/adr/skills-monorepo.md`); the alternative, an explicit semver, *pins* — a skill
+([architecture](../docs/ARCHITECTURE.md#skills-monorepo)); the alternative, an explicit semver, *pins* — a skill
 change shipped without a bump reaches no consumer and raises no error.
 _Avoid_: adding a `version` to silence `claude plugin validate --strict`, which pins
 delivery on a bump nothing in this repo can check; reading the SHA as identifying a
 plugin's own content, when it identifies the repo's.
 
-**Symlink install** (`install.sh`):
+**Symlink install** (`plugins/install.sh`):
 The delivery path for harnesses that read `SKILL.md` but have no [[Plugin]]
 mechanism: symlink each skill directory into that harness's personal skills folder
 (`~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills`). Because the targets are links, a `git pull`
@@ -109,13 +109,13 @@ updates content in place — re-run only when skills are added or removed.
 _Avoid_: running it for Claude Code, which installs by [[Marketplace]].
 
 **Workspace guard**:
-`install.sh`'s refusal to run from anywhere but the repo's **main checkout**,
+`plugins/install.sh`'s refusal to run from anywhere but the repo's **main checkout**,
 since it links from the tree it lives in and re-links *every* skill
 unconditionally — so a linked git worktree or secondary jj workspace would
 capture the whole install and dangle it on teardown. The failure is otherwise
 unobservable: a symlink to a vanished target reads as "skill not installed", not
-as an error. `--force` opts in deliberately. The probe is jj-first, sharing
-`docs/adr/symmetric-vcs-rule.md` with the `grove` binary.
+as an error. `--force` opts in deliberately. The probe is jj-first, sharing the
+[VCS seam](../docs/ARCHITECTURE.md#symmetric-vcs-rule) with the `grove` binary.
 _Avoid_: reading it as a jj feature — a linked `git worktree` trips it identically.
 
 ## Flagged ambiguities

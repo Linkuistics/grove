@@ -36,7 +36,7 @@ confirmation prompt), **never `deny`**. The point is a deliberate speed-bump in
 front of damage, not a wall — you keep the override.
 
 > Adapted from `garrytan/gstack`'s `careful` / `freeze` / `guard` skill class
-> (survey finding `gstack-S5`, quoted in `docs/research/skill-repo-prior-art.md`).
+> (source and snapshot in [`../../PROVENANCE.md`](../../PROVENANCE.md)).
 > gstack ships three composable slash commands; we ship **one** composed skill —
 > a hand-invoked skill pays zero standing context cost, so the only thing the
 > three-way split would buy us is conceptual surface, not savings. The mechanism

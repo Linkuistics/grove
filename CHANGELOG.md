@@ -43,13 +43,32 @@ delivery.
 `plugins/<name>/.claude-plugin/plugin.json` declares a `version`: both are
 versioned by commit SHA, so every push delivers and there is no bump to record
 (*skills-monorepo* has the trade, and adding a `version` would quietly undo it).
-The skills reaching codex, gemini and pi by `install.sh` are symlinks, so they
-were never in a version's path either.
+The skills reaching codex, gemini and pi by `plugins/install.sh` are symlinks,
+so they were never in a version's path either.
 
 The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
 ## Unreleased
+
+### Changed
+
+- **The repository is smaller and its human-facing documentation has clear
+  ownership.** The root README now describes the products and their installation
+  paths, while focused usage, configuration, architecture, and release guides
+  carry the operational detail. The portable plugin installer and its tests now
+  live with the plugins they install, Herdr fork maintenance lives beside that
+  plugin, and the retained Linkuistics source provenance is consolidated into a
+  single record.
+
+### Removed
+
+- **Obsolete bridge code and historical planning artifacts no longer obscure
+  the maintained system.** The unused `codex-bridge` crate and stale generated
+  stamps are gone, and superseded ADR, research, specification, and workflow
+  documents have been folded into the maintained guides or removed. Grove's
+  live machine-local `.grove-stamps/` harness binding remains documented and
+  unchanged.
 
 ## v16.3.0
 
@@ -240,16 +259,6 @@ stood at the graft — a closed record, not part of the versioned sequence above
   replacements expected, found N" — rather than corrupting anything, and a releaser
   who renames by hand first, or drops the standing heading, fails the same loud way.
   The preamble now states the one constraint an editor of this file is under.
-
-  Two things were checked in a throwaway workspace fixture rather than assumed,
-  and both corrected the reasoning this change started from. Replacements run once
-  per **released crate** regardless of `consolidate-commits`, which affects only
-  commit grouping — and `file` resolves against each released crate's own manifest
-  directory, so the root `CHANGELOG.md` is unreachable from any other member. What
-  keeps grove's cut to one crate is cargo-release's **default crate selection**, not
-  a per-member opt-out: `release.toml` credited a `release = false` on a
-  `harness-pane` member, and there is no such crate — the one member,
-  `codex-bridge`, carries only `publish = false`. Corrected there.
 
 - **`leaf-add-chain` / `leaf-add-pair` could leave a partial chain node behind
   when the permanent-key space ran out.** The node directory was created before

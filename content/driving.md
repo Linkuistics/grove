@@ -10,14 +10,9 @@ grounding framework decisions in the source, doubting a decision before it
 stands, and externalizing surfaced work into new leaves rather than absorbing
 it.
 
-The dogfood reference throughout this doc is the
-`capture-issues-for-later-groves` workstream in the grove project's own
-repo, which is the worked example for every pattern below. Its `.grove/`
-tree is long gone — every tree is deleted at its finish cycle — so the
-pointers below name **durable artifacts** instead: the survey under
-`docs/research/`, and the ADRs. That workstream also predates the
-stable-key naming scheme (ADR *task-tree-scheme*), so its leaves are named
-here by slug or subject alone; they never had a `-k<key>` handle to cite.
+The examples are stated as reusable shapes rather than as the history of the
+workstream that first produced them. A finished grove deletes its task tree;
+the lesson belongs here only when it still helps a future session.
 
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
@@ -55,15 +50,10 @@ grilling would otherwise have to learn from scratch.
   this before, and what happened to them?" — that question itself is the
   signal.
 
-The grove workstream's `research-in-repo-issue-trackers` leaf (long
-retired) is the worked example. It was inserted *after* the design's
-first ADRs had been written but *before* the four downstream planning
-leaves that would consume it — sync semantics and inbox shape, the
-`grove meta` rename, the LLM/CLI boundary audit, and the TUI. Its
-findings de-risked the sync-semantics grilling specifically: the
-survey's `## Synthesis` section answered that leaf's questions ahead of
-time, pre-judging most of the design tree the grilling then had to walk
-(`docs/research/in-repo-issue-tracker-postmortems.md`).
+A useful research leaf sits *after* the design questions are visible but
+*before* the downstream leaves that need the answers. Its synthesis should
+answer those leaves' questions directly, so later grilling can spend its time
+on the remaining decisions instead of rediscovering prior-art failure modes.
 
 ## How to write a research leaf brief
 
@@ -71,8 +61,7 @@ The single most leveraged move is to **name the downstream questions the
 research must answer**, leaf by leaf. The researcher doesn't have to
 guess what's load-bearing.
 
-That leaf's brief did exactly this — restated here in subject names,
-because the original addressed its audience by position:
+For example, a brief can name its audience by subject rather than position:
 
 > The audience is the four open planning leaves: sync semantics and
 > inbox shape, the `grove meta` rename, the LLM/CLI boundary audit,
@@ -81,9 +70,8 @@ because the original addressed its audience by position:
 > **Synthesis** section answers the leaf-specific questions in one
 > place.
 
-Followed by a list of concrete questions per leaf. The output
-(`docs/research/in-repo-issue-tracker-postmortems.md`) is structured
-around those questions.
+Follow that paragraph with concrete questions per downstream leaf, and
+structure the output around those questions.
 
 **Bias the search.** "What's already been tried" produces broad,
 shallow surveys. "What went wrong after years of real multi-user,

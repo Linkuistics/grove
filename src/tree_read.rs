@@ -210,7 +210,7 @@ fn target_leaf(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Pat
 /// Read a leaf task file's declared launch harness from its `**Harness:** <name>`
 /// line (`content/TASK-FORMAT.md`) — the per-leaf routing axis, which exists for
 /// the vendor pair a kind→harness function cannot express
-/// (`docs/specs/task-kind-taxonomy.md`, *Routing*). Parsed exactly like
+/// (`docs/ARCHITECTURE.md#task-kind-taxonomy`). Parsed exactly like
 /// [`read_kind`]: first line carrying the marker, first whitespace token after
 /// it, trailing commentary tolerated.
 ///

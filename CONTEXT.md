@@ -48,9 +48,9 @@ on read** (an unrecognised `**Kind:**` line warns and is treated as `impl`, so a
 hand-edited leaf can never jam the loop — constraint 5). `leaf-decompose` gives
 the first child its parent leaf's kind, so a research leaf that proves bigger
 becomes a research node. `work` was renamed `impl`; it still *reads* as `impl`,
-silently, but is refused on write. See ADR *task-kind-taxonomy* for why the set
-is closed and parameterised, and `docs/specs/task-kind-taxonomy.md` for the
-membership and each kind's discipline.
+silently, but is refused on write. See the architecture's
+[task-kind taxonomy](docs/ARCHITECTURE.md#task-kind-taxonomy) for why the set is
+closed and parameterised and for each kind's discipline.
 _Avoid_: adding a kind that carries no behaviour beyond a name — a kind must earn
 its place with a distinct discipline, and an eighteenth is a change to this closed
 set, not a free-text label.
@@ -91,8 +91,8 @@ token exists for the same reason: without it the node's slug collides with its
 own first child's.
 The convention remains a **habit nothing parses**; the guidance a session reads
 while cutting leaves carries it (`content/SKILL.md`'s Decompose step,
-`content/TASK-FORMAT.md`, and the bootstrap prompt), and
-`docs/specs/task-kind-taxonomy.md` holds the reasoning.
+`content/TASK-FORMAT.md`, and the bootstrap prompt), and the architecture's
+[task-kind taxonomy](docs/ARCHITECTURE.md#task-kind-taxonomy) holds the reasoning.
 **Sequencing and construction are separate questions with opposite answers.**
 Sequencing gets no mechanism — see the _Avoid_ on units below. Construction gets
 one call per shape (`leaf-add-chain` / `leaf-add-pair`), because deriving
@@ -371,8 +371,9 @@ which takes the fix by **merge** so it never needs a force-push. Tracked closely
 against upstream. The carry is **permanent**: offering the patch upstream was
 considered and rejected, so only upstream reaching the same separation
 independently would end it — which makes every additional hunk a rebase
-obligation forever, and is why the patch stays at two. See ADR
-*herdr-optional-ui* for the decision, and `docs/specs/herdr-fork-maintenance.md`
+obligation forever, and is why the patch stays at two. See the architecture's
+[Herdr integration](docs/ARCHITECTURE.md#herdr-optional-ui) for the decision,
+and [`herdr-plugin/MAINTENANCE.md`](herdr-plugin/MAINTENANCE.md)
 for how the carry is actually maintained (rebase cycle, version suffix scheme,
 the required build environment, and how to verify a rebase).
 _Avoid_: reading `herdr --version` to tell which build is installed — it prints
@@ -604,7 +605,12 @@ differs only in *reason*, which is prose and belongs in the ADR, not the filenam
 1. The **CLI tool** / Rust crate published as `grove` — the verbs `do`, `migrate`, `retire`, etc.
 2. The **methodology** embedded in `content/SKILL.md` and provisioned to the global skill dir.
 3. A single **workstream** — one named task tree at `.grove/` inside the working tree the user provides, named for that working tree's basename ([[Grove name]]), no canonical path. `grove do` operates on this sense.
-4. The **repo** `Linkuistics/grove`, which since the skills graft holds two products — grove *and* the `linkuistics` / `testanyware` plugins under `plugins/` (`docs/adr/skills-monorepo.md`). So "grove's README / CHANGELOG / ADR set" now names artifacts shared with a second bounded context; this glossary covers only senses 1–3, and `CONTEXT-MAP.md` routes the rest.
+4. The **repo** `Linkuistics/grove`, which holds two products — Grove and the
+   `linkuistics` / `testanyware` plugins under `plugins/` (see
+   [repository products](docs/ARCHITECTURE.md#skills-monorepo)). So "Grove's
+   README / CHANGELOG / docs" names artifacts shared with a second bounded
+   context; this glossary covers only senses 1–3, and `CONTEXT-MAP.md` routes
+   the rest.
 
 When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove", "the grove repo".
 

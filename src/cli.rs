@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 /// Extra `grove do --help` section documenting the per-kind routing env vars —
 /// both axes, which harness runs a leaf and which model that harness loads
-/// (model-per-task-kind). The rationale lives in the ADR and the membership in
-/// `docs/specs/task-kind-taxonomy.md`; this is the discoverable how-to.
+/// The rationale and kind membership live in
+/// `docs/ARCHITECTURE.md#task-kind-taxonomy`; this is the discoverable how-to.
 const MODEL_ENV_HELP: &str = "\
 Environment variables:
   Every leaf declares a KIND, drawn from a closed set of seventeen: five
@@ -82,14 +82,14 @@ pub struct Cli {
 pub enum Command {
     /// Start or continue a grove — the sole lifecycle entry verb, run from
     /// inside the working tree (any git or jj working tree; the grove name is
-    /// its basename — user-owned-worktrees).
+    /// its basename).
     ///
     /// Inspects the grove's state and dispatches: no `.grove/` yet → open a
     /// bootstrap session; a live tree → continue. When the grove has no live
     /// leaves left, the in-session loop proposes the complete finish cycle.
     Do(StartArgs),
-    /// Migrate this worktree's `.grove/` to the v2 **directory** scheme
-    /// (task-tree-scheme) in place — from either the v1-flat `<dotted>-[<key>]-<slug>`
+    /// Migrate this worktree's `.grove/` to the v2 **directory** scheme in
+    /// place — from either the v1-flat `<dotted>-[<key>]-<slug>`
     /// format or the old `NNN-slug/` + `done/` directory format. A reviewable
     /// working-tree change (file moves + `# …` header rewrites, no commit) —
     /// review the diff, then commit. No-op on an already-v2 tree or a missing/foreign `.grove/`.
@@ -136,7 +136,7 @@ pub struct RetireArgs {
     /// either its relative directory path — `04-session-store-k7`, or
     /// `04-design-k7/02-store-k9` for a node nested in another — or its stable
     /// `<slug>-k<key>` handle, `session-store-k7`, which the session resolves
-    /// with `grove-llm resolve` (task-tree-scheme §5). Taken verbatim: nothing
+    /// with `grove-llm resolve`. Taken verbatim: nothing
     /// here parses it.
     pub path: String,
     /// Harness to launch: claude, codex, or pi. Defaults to the harness this

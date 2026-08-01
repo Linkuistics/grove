@@ -493,7 +493,7 @@ it: ADR philosophy in `linkuistics:decision-records`, and what a test seam is
 and how to judge one in `linkuistics:codebase-design`. The plugin is developed
 in grove's own repo (`plugins/linkuistics/`), but the `grove` binary provisions
 only grove's methodology — never the plugin — so it is installed on its own,
-through the Claude Code marketplace or the repo's `install.sh`.
+through the Claude Code marketplace or the repo's `plugins/install.sh`.
 Self-containment is not a constraint for either body of guidance —
 `ADR-FORMAT.md` and `SPEC-FORMAT.md` keep only grove's placement and recording
 conventions. A session raising or reworking an ADR, or sketching a spec's test

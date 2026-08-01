@@ -22,7 +22,7 @@ pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
 }
 
 /// Every task-kind label, in taxonomy order (ADR `task-kind-taxonomy`;
-/// membership in `docs/specs/task-kind-taxonomy.md`) — the same strings a live
+/// membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) — the same strings a live
 /// task file's `**Kind:**` line carries, and what the env-var suffixes below are
 /// formed from. Spelled out here rather than reached for from the crate so
 /// these tests stay honest about *which* names they use, independent of

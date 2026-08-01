@@ -18,8 +18,8 @@ course-correction is still cheap** — before you build on top of it. By the tim
 a post-hoc gate runs, the wrong direction is already load-bearing.
 
 > The discipline below is adapted from `addyosmani/agent-skills`'
-> `doubt-driven-development` (survey finding `addyosmani-S1`, quoted in
-> `docs/research/skill-repo-prior-art.md`). It is **convergent** — `gstack-G2`,
+> `doubt-driven-development` (MIT; source and snapshot in
+> [`../../PROVENANCE.md`](../../PROVENANCE.md)). It is **convergent** — `gstack-G2`,
 > `superpowers-G4`, and `wshobson-G2` independently reached the
 > don't-bias-the-reviewer rule. The core that transfers is the *discipline*, not
 > the upstream's ecosystem scaffolding.

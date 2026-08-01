@@ -2125,7 +2125,7 @@ exit 0
 // One variable states a policy covering all five kinds of a family:
 // `GROVE_REVIEW_HARNESS` / `GROVE_REVIEW_MODEL` govern every `review-*` leaf,
 // and the exact-kind var beats them. Driven through the whole-`grove do` seam
-// the spec names (docs/specs/task-kind-taxonomy.md, *Test seams*): the real
+// the architecture names (docs/ARCHITECTURE.md#task-kind-taxonomy): the real
 // driver, a fake binary per vendor, assertions on the recorded argv.
 
 /// Drive the real loop over exactly one leaf of `kind`, with `vars` layered on

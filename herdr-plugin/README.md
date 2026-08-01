@@ -79,12 +79,13 @@ the new cwd and fails to spawn. The cwd override buys nothing here anyway.
 It reports no state. herdr's `idle` / `working` / `blocked` for a `grove do` pane comes
 from the `grove` binary over herdr's socket, and full lifecycle authority is a
 compiled-in allowlist nothing outside herdr's binary can join — so this plugin owns UI
-and only UI. See grove's ADR *herdr-optional-ui* for the split, and
-*herdr-turn-boundary-hooks* for the in-session half of the state surface.
+and only UI. See [Grove's architecture](../docs/ARCHITECTURE.md#herdr-optional-ui)
+for the split and the in-session state surface.
 
 ## How it works
 
-The only contract is grove's published directory scheme, ADR *task-tree-scheme*:
+The only contract is Grove's published
+[task-tree scheme](../docs/ARCHITECTURE.md#task-tree-scheme):
 
 ```
 .grove/
@@ -115,3 +116,9 @@ Foreign files under `.grove/` are ignored rather than reported, matching `pick`.
 unrecognised or missing `**Kind:**` reads as `impl`, and the retired `work` spelling
 still reads as `impl` — the same degrade-on-read rule grove itself applies, so a
 hand-edited task file can never make the viewer complain.
+
+## Maintaining the fork
+
+Grove's pane-state integration is shipped from a maintained Herdr fork. Its
+branch model, build constraints, release sequence, restart procedure, and
+acceptance checks are in [MAINTENANCE.md](MAINTENANCE.md).

@@ -238,8 +238,7 @@ line beside `**Kind:**`:
 Almost no leaf carries one. It exists for the **vendor pair** — two `research`
 leaves that differ only by which vendor runs them, plus the `combine-research`
 step after them — which is the one shape a kind→harness policy cannot express,
-because a policy maps each kind to *one* harness
-(`docs/specs/task-kind-taxonomy.md`, *Routing*). Everything else is a policy
+because a policy maps each kind to *one* harness. Everything else is a policy
 (`GROVE_<KIND>_HARNESS`) or falls through to the harness the grove is stamped
 to. For the pair itself, `leaf-add-pair` writes **both** producers' declarations
 — that is the shape it exists for. Otherwise write one with

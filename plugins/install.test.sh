@@ -2,7 +2,8 @@
 # Tests for install.sh, and for its workspace guard in particular. Dependency-
 # free (bats is not assumed): build each working-tree shape in a scratch
 # directory, run the real install.sh against an isolated HOME, assert the exit
-# status, the number of symlinks created, and the diagnostic. Run: ./install.test.sh
+# status, the number of symlinks created, and the diagnostic.
+# Run: bash plugins/install.test.sh
 #
 # SAFETY. Every run sets HOME to a throwaway directory and nothing here ever
 # writes the real one. That is not incidental tidiness: the defect under test
@@ -24,7 +25,7 @@ skip=0
 # One dummy skill per real skill, so a full run links the same count the real
 # repo does — the expectation stays correct when a skill is added or removed.
 mapfile -t skill_names < <(
-  find "${here}/plugins/linkuistics/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
+  find "${here}/linkuistics/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
 )
 expected_links=$((${#skill_names[@]} * 3))
 
@@ -38,7 +39,7 @@ export GIT_AUTHOR_NAME="grove test" GIT_AUTHOR_EMAIL="test@example.invalid"
 export GIT_COMMITTER_NAME="grove test" GIT_COMMITTER_EMAIL="test@example.invalid"
 export JJ_USER="grove test" JJ_EMAIL="test@example.invalid"
 
-# make_repo <dir>: the install-relevant shape of this repo — install.sh plus
+# make_repo <dir>: the install-relevant shape of this repo — plugins/install.sh plus
 # one skill directory per real skill. Each carries a SKILL.md because git and
 # jj do not track empty directories, and a secondary workspace that checked out
 # no skills would fail install.sh's skills-directory check before ever reaching
@@ -46,7 +47,7 @@ export JJ_USER="grove test" JJ_EMAIL="test@example.invalid"
 make_repo() {
   local dir="$1" name
   mkdir -p "${dir}/plugins/linkuistics/skills"
-  cp "${script}" "${dir}/install.sh"
+  cp "${script}" "${dir}/plugins/install.sh"
   for name in "${skill_names[@]}"; do
     mkdir -p "${dir}/plugins/linkuistics/skills/${name}"
     printf -- '---\nname: %s\ndescription: fixture\n---\n' "${name}" \
@@ -70,7 +71,7 @@ check() {
   local home output status links problem=""
   home="$(make_home)"
   set +e
-  output="$(HOME="${home}" bash "${dir}/install.sh" "$@" 2>&1)"
+  output="$(HOME="${home}" bash "${dir}/plugins/install.sh" "$@" 2>&1)"
   status=$?
   set -e
   links="$(find "${home}" -type l | wc -l | tr -d ' ')"
@@ -95,7 +96,7 @@ check() {
 # --- argument handling -------------------------------------------------------
 
 make_repo "${scratch}/args"
-check "--help exits 0 without linking" 0 0 'usage: ./install.sh' "${scratch}/args" --help
+check "--help exits 0 without linking" 0 0 'usage: ./plugins/install.sh' "${scratch}/args" --help
 check "unknown argument is rejected" 2 0 'unknown argument: --nope' "${scratch}/args" --nope
 
 # --- git: a plain checkout installs, a linked worktree does not --------------

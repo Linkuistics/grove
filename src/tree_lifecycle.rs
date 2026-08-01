@@ -46,7 +46,7 @@ use std::path::{Path, PathBuf};
 /// The kind is fixed, with no `--kind` flag: a brand-new grove's first session
 /// takes the human's own words as its only input — nothing else is on disk —
 /// which is the generating rule for **HITL**, and `requirements` is the kind
-/// that rule names (`docs/specs/task-kind-taxonomy.md`, *HITL and AFK*). It
+/// that rule names (`docs/ARCHITECTURE.md#task-kind-taxonomy`). It
 /// being fixed is also load-bearing for routing: the loop driver launches the
 /// `start` session *before* this verb has run, so it can only route the
 /// bootstrap by construction (`fresh-grove-start-contract`).

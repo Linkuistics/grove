@@ -12,8 +12,8 @@ colocated repo they desync the two views of history in ways that compound
 commands with jj spellings. For translating a specific git command or concept
 to jj, load the `git-to-jj-mapping` skill.
 
-> Adapted, with independent prose, from the MIT/Apache prior art surveyed in
-> `docs/research/jj-agent-prior-art.md`: danverbraganza/jujutsu-skill (MIT —
+> Adapted, with independent prose, from the MIT/Apache prior art listed in
+> [`../../PROVENANCE.md`](../../PROVENANCE.md): danverbraganza/jujutsu-skill (MIT —
 > agent-environment rules), RealAdarsh/jj-skill (MIT — colocated
 > git-read-only policy), carbon-language/carbon-lang (Apache-2.0 —
 > symmetric detection), muloka/claude-plugins (Apache-2.0 — working-copy
@@ -32,8 +32,8 @@ picks — in this order:
 
 Both probes walk up from the current directory, so subdirectories and
 colocated repos resolve correctly. The repo's state alone picks the
-interface — never convert a repo to jj and never suggest converting; repo
-setup belongs to the human (`docs/adr/symmetric-vcs-rule.md`).
+interface — never convert a repo to jj and never suggest converting;
+repository setup belongs to the human.
 
 Trust the probe over harness metadata. A harness environment banner may
 report a colocated repo as "a git repository" — that metadata is computed
@@ -181,7 +181,8 @@ git is for reading only** (`git log`, `git status`, or whatever a build tool
 shells out to). This is stricter than taste. A field post-mortem documents
 the failure: after out-of-band git mutations, files tracked by jj appeared
 "deleted" in git's staging area, and agents that then fell back to git *made
-the desync worse* (`docs/research/jj-agent-prior-art.md` §Q3). If git output
+the desync worse* (the factual failure catalogue linked from
+[`../../PROVENANCE.md`](../../PROVENANCE.md)). If git output
 ever looks impossible in a colocated repo, stop running git and check
 `jj st` — jj's view is the authoritative one. Detached HEAD in git output
 is normal here, not an error: jj does not keep git's HEAD on a branch.

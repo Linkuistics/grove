@@ -4,7 +4,7 @@
 //   * `Kind` — the leaf-kind enum, a **closed, parameterised set of seventeen**
 //     (five producers, each with its own `review-` and `integrate-review-` step,
 //     plus `research` and `combine-research` — ADR `task-kind-taxonomy`,
-//     membership in `docs/specs/task-kind-taxonomy.md`) written into a task
+//     membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) written into a task
 //     file's `**Kind:**` line. Live: the grow/lifecycle verbs (`tree_grow` /
 //     `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`) parse and
 //     carry it.
@@ -67,7 +67,7 @@ impl Family {
 /// force (the loop's sole Execute branch, the only kind that grows the tree);
 /// every other kind produces some artifact, differing in discipline and in
 /// routing (`model-per-task-kind`). Each kind's discipline and its HITL/AFK
-/// mark are `docs/specs/task-kind-taxonomy.md`; this enum owns only the set and
+/// mark are `docs/ARCHITECTURE.md#task-kind-taxonomy`; this enum owns only the set and
 /// its spelling.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -96,7 +96,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in taxonomy order (producers, research, reviews,
-    /// integrations — the order `docs/specs/task-kind-taxonomy.md` presents
+    /// integrations — the order `docs/ARCHITECTURE.md#task-kind-taxonomy` presents
     /// them). The single source of truth for the *set*, as [`Kind::label`] is
     /// for its *spelling*: parsing, the `--kind` error listing, and the loop
     /// driver's env-var sweep all derive from these two, so none of them can

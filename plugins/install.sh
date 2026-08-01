@@ -15,17 +15,17 @@
 # are symlinks, a later `git pull` in this repo updates the content in place —
 # no need to re-run this script unless skills are added or removed.
 #
-# Usage: ./install.sh [--force]
+# Usage: ./plugins/install.sh [--force]
 
 set -euo pipefail
 IFS=$'\n\t'
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 skills_dir="${repo_root}/plugins/linkuistics/skills"
 
 print_usage() {
   cat <<'EOF'
-usage: ./install.sh [--force]
+usage: ./plugins/install.sh [--force]
 
   --force      link from this tree even when it is not the repo's main
                checkout — every link then dangles once this tree is
@@ -128,8 +128,8 @@ unconditionally — so installing from here would re-point *all* of them at this
 tree. Nothing would report it: a symlink whose target later disappears reads as
 "skill not installed", not as an error.
 
-  install normally:  cd "${main_repo}" && ./install.sh
-  link here anyway:  ./install.sh --force
+  install normally:  cd "${main_repo}" && ./plugins/install.sh
+  link here anyway:  ./plugins/install.sh --force
                      (deliberate — e.g. testing an unmerged skill live; re-run
                       from the main repo afterwards to repair the links)
 EOF

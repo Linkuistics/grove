@@ -13,8 +13,8 @@ alternatives rejected for a reason. **ADRs hold the present; the VCS holds the p
 
 > The minimal template, the three-part when-to-write test, and the qualifying
 > examples below are distilled from the ADR-format material in `mattpocock/skills`
-> (MIT) — the snapshot frozen at `@b8be62ff`, surveyed in
-> `docs/research/skill-repo-prior-art.md`. The minimum-coherent-set framing —
+> (MIT) at `b8be62ff`; full attribution is in
+> [`../../PROVENANCE.md`](../../PROVENANCE.md). The minimum-coherent-set framing —
 > current-state over changelog, edit-in-place rework, and identity by slug rather
 > than number — is original to this skill.
 

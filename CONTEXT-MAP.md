@@ -1,7 +1,8 @@
 # Context Map
 
 Two bounded contexts share this repo. They ship by different paths and change in
-lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
+lockstep, which is why they live together — see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#skills-monorepo).
 
 ## Contexts
 
@@ -22,7 +23,8 @@ lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
 
 - **Shared target: the personal skill directory.** Both contexts write into the
   same per-harness namespace. The `grove` binary sweeps `content/` to
-  `~/.claude/skills/grove/` (and the codex and pi equivalents); `install.sh`
+  `~/.claude/skills/grove/` (and the Codex and Pi equivalents);
+  `plugins/install.sh`
   symlinks each **`linkuistics`** skill into `~/.codex/skills/`,
   `~/.gemini/skills/` and `~/.pi/agent/skills/` (`testanyware` ships by
   marketplace only).
@@ -31,17 +33,13 @@ lockstep, which is why they live together — `docs/adr/skills-monorepo.md`.
   context provision the other's content is a question about precedence and
   double-provisioning, not a local change.
 
-- **An ADR is owned by one context, never shared — but the whole set is one flat
-  root `docs/adr/`.** `task-tree-scheme` is grove's decision, `symmetric-vcs-rule`
-  is the skills'; ownership is recorded *here*, not in the directory layout, and a
-  slug is unique **repo-wide**. Ownership is about who **maintains** the record,
-  not about whose code it binds: `symmetric-vcs-rule` also governs the `grove`
-  binary's jj-first probe, and stays one record rather than two because it is one
-  decision with two enforcers. The set stays flat because the two contexts are not
-  peers: grove's *is* the repo root, so a per-context split would exile the skills'
-  one record while leaving the root set just as mixed
-  (`content/ADR-FORMAT.md` states the rule and when flat is right). A term that has
-  an ADR is defined in the glossary of whichever context **owns** it, never both.
+- **A durable record has one owner.** If future work creates `docs/adr/` or
+  `docs/specs/`, its slug is unique repo-wide and its maintaining context is
+  recorded here. Ownership names who keeps the record current, not every
+  component it binds: the jj-first VCS rule, for example, is shared by the Grove
+  binary and the plugin installer. `content/ADR-FORMAT.md` defines when a flat
+  root set is appropriate. A term is defined in the glossary of its owning
+  context, never both.
 
 ## Choosing a context
 
@@ -56,6 +54,7 @@ different places on purpose — the root `plugins/` directory belongs to the ski
 context, so grove's herdr plugin sits beside it rather than inside it.
 
 A skill's *subject matter* belongs to neither glossary — jj's model lives in
-`using-jujutsu` and `docs/adr/symmetric-vcs-rule.md`, testanyware's VM vocabulary
+`using-jujutsu` and the architecture's
+[VCS seam](docs/ARCHITECTURE.md#symmetric-vcs-rule), Testanyware's VM vocabulary
 in `using-testanyware`. If a topic seems to need both glossaries, say so rather
 than picking one.

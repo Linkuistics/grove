@@ -14,8 +14,8 @@ flowcharts, naming, file organization. This note records only where *our house* 
 differently, plus the few conventions we adopt; it does **not** duplicate the upstream
 skill.
 
-> Citations like `superpowers-S3` resolve to a quoted primary source in
-> `docs/research/skill-repo-prior-art.md` (the prior-art survey this delta distills).
+> Citation keys such as `superpowers-S3` identify the primary sources and
+> adopted claims listed in [`../../PROVENANCE.md`](../../PROVENANCE.md).
 
 ## The one real override: description shape
 

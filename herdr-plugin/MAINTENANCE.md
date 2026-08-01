@@ -1,11 +1,12 @@
-# herdr-fork-maintenance
+# Maintaining the Herdr fork
 
 ## Problem
 
-grove's pane-state surface depends on a two-hunk patch to herdr that upstream
+Grove's pane-state surface depends on a two-hunk patch to Herdr that upstream
 does not carry, and — since offering it upstream was considered and rejected —
-is not expected to. ADR *herdr-optional-ui* records that decision and the
-principle the patch encodes. This spec covers the consequence: the fork is a
+is not expected to. [Grove's architecture](../docs/ARCHITECTURE.md#herdr-optional-ui)
+records that decision and the principle the patch encodes. This runbook covers
+the consequence: the fork is a
 **permanent carry**, so rebasing it onto each new upstream release is recurring
 work, and it has enough traps to lose an afternoon to on the first attempt.
 
@@ -281,7 +282,8 @@ binary; it only bites while building a rig.
 ## Out of scope
 
 - **Upstreaming.** Decided against, for **both** patches — the fork is ours to
-  maintain, not a staging area for contributions. See ADR *herdr-optional-ui*
+  maintain, not a staging area for contributions. See
+  [Grove's architecture](../docs/ARCHITECTURE.md#herdr-optional-ui)
   for the reasoning on the authority patch and for what would reopen it. Do not
   open PRs or file issues against `ogulcancelik/herdr`. The tap formula's
   `caveats` say the same thing, because `brew info` is where a user meets this

@@ -1,5 +1,5 @@
 // The composite grow verbs — `grove-llm leaf-add-chain` and `leaf-add-pair` —
-// exercised through the real binary (`docs/specs/task-kind-taxonomy.md`,
+// exercised through the real binary (`docs/ARCHITECTURE.md#task-kind-taxonomy`,
 // *Constructing a chain is one call*).
 //
 // The library owns the shape and its all-or-nothing contract (`src/tree_grow.rs`

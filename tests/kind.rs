@@ -1,7 +1,7 @@
 // Fixture-driven tests for `grove-llm kind` on the **v2 directory scheme**
 // (task-tree-scheme). `kind` prints a leaf's task kind — one of the closed
 // seventeen (ADR `task-kind-taxonomy`; membership in
-// `docs/specs/task-kind-taxonomy.md`) — read from its `**Kind:**` line through
+// `docs/ARCHITECTURE.md#task-kind-taxonomy`) — read from its `**Kind:**` line through
 // `leaf::Kind::parse_read` (the read-side counterpart of the `--kind` write
 // gate). It is the primitive the self-driving loop uses to choose each
 // session's launch harness and model by the picked leaf's kind

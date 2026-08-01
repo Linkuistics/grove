@@ -1,17 +1,3 @@
-# grove is a single-package cargo workspace (the root `grove` package / CLI),
-# plus one extra member: `codex-bridge`, the falsification harness for
-# AgentAnyware's `success-demonstration-k11` grove (see that crate's own
-# top-of-file doc comment). It is a separate crate deliberately — it shares
-# no code with `grove`'s own `[lib]`, needs dependencies (`uuid`, `base64`,
-# `serde_json`) the shipped `grove`/`grove-llm` binaries have no reason to
-# carry, and staying un-depended-on by the `grove` package is what keeps it
-# off `grove`'s shipped surface without any packaging step having to know to
-# exclude it. The TUI tower (rmux/ratatui app + Fleet) was deleted in the
-# `shed-tui` leaf (self-extension-core-and-methodology / self-driving-loop) —
-# grove's own runtime is the self-driving loop driver + the tree verbs.
-[workspace]
-members = ["codex-bridge"]
-
 [package]
 name = "grove"
 version = "16.3.0"

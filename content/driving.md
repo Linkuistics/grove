@@ -18,11 +18,13 @@ the lesson belongs here only when it still helps a future session.
 
 - **Starting and research:** [when not to start](#when-not-to-start-a-grove),
   [commissioning prior art](#when-to-commission-prior-art-research),
-  and [running vendor pairs](#running-the-vendor-pair).
+  [writing a research leaf](#how-to-write-a-research-leaf-brief), and
+  [running vendor pairs](#running-the-vendor-pair).
 - **Requirements and durable evidence:**
   [grilling](#when-to-invoke-a-design-discussion-grilling),
   [retiring research](#when-to-retire-research-into-adrs-versus-leave-it-in-docsresearch),
-  and [verifying against the source](#verifying-framework-decisions-against-the-source).
+  [verifying framework decisions](#verifying-framework-decisions-against-the-source),
+  and [verifying repo claims](#verifying-a-claim-about-the-repo-itself).
 - **Doubt and decomposition:**
   [doubting in one leaf](#doubting-inside-a-picked-grove-leaf),
   [escalating to a review chain](#the-review-chain--when-doubt-earns-its-own-leaves),

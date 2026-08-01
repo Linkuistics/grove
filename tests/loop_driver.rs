@@ -836,7 +836,8 @@ fn loop_selects_model_by_kind() {
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
@@ -1052,6 +1053,12 @@ fn one_launch_grove_do(repo_path: &std::path::Path) -> std::process::Command {
     let fake = repo_path.join("fake-claude.sh");
     write_exec(&fake, "#!/bin/sh\nexit 0\n");
 
+    grove_do_command(repo_path)
+}
+
+fn grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
+    let skill_dir = repo_path.join("global-skill");
+    let fake = repo_path.join("fake-claude.sh");
     let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
     cmd.args(["do"]).current_dir(repo_path);
     for name in support::grove_env_names() {
@@ -1112,6 +1119,166 @@ fn launch_line_names_the_routed_leaf_by_its_stable_handle() {
         "the launch diagnostic must name the routed leaf by its stable handle \
          and its kind (stderr: {stderr:?})"
     );
+}
+
+#[test]
+fn a_review_diversity_warning_is_emitted_once_and_prepended_to_the_prompt() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let mut cmd = one_launch_grove_do(repo_path);
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-build-review-k2.md"),
+        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
+         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+    )
+    .unwrap();
+
+    let prompt_log = repo_path.join("prompt");
+    write_exec(
+        &repo_path.join("fake-claude.sh"),
+        r#"#!/bin/sh
+for arg in "$@"; do prompt="$arg"; done
+printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
+exit 0
+"#,
+    );
+    let output = cmd
+        .env("GROVE_REVIEW_MODEL", "opus")
+        .env("GROVE_TEST_PROMPT", &prompt_log)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let prompt = fs::read_to_string(&prompt_log).unwrap();
+    let warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/\"opus\", review-target=claude/\"opus\"); launch continues";
+
+    assert!(output.status.success(), "review launch was gated: {stderr}");
+    assert_eq!(stderr.matches(warning).count(), 1, "stderr: {stderr}");
+    assert!(
+        prompt.starts_with(&format!("{warning}\n\n")),
+        "prompt: {prompt}"
+    );
+    assert_eq!(
+        launch_line(&stderr),
+        "grove: launching claude (model: opus) — build-review-k2 (review-impl)",
+        "the advisory warning must not change the resolved launch: {stderr}"
+    );
+
+    let restarted = grove_do_command(repo_path)
+        .env("GROVE_REVIEW_MODEL", "sonnet")
+        .env("GROVE_TEST_PROMPT", &prompt_log)
+        .output()
+        .unwrap();
+    let restarted_stderr = String::from_utf8_lossy(&restarted.stderr).into_owned();
+    let restarted_prompt = fs::read_to_string(&prompt_log).unwrap();
+    let restarted_warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness, producer-target=claude/\"opus\", review-target=claude/\"sonnet\"); launch continues";
+
+    assert!(
+        restarted.status.success(),
+        "restarted review launch was gated: {restarted_stderr}"
+    );
+    assert_eq!(
+        restarted_stderr.matches(restarted_warning).count(),
+        1,
+        "stderr: {restarted_stderr}"
+    );
+    assert!(
+        restarted_prompt.starts_with(&format!("{restarted_warning}\n\n")),
+        "prompt: {restarted_prompt}"
+    );
+    assert_eq!(
+        launch_line(&restarted_stderr),
+        "grove: launching claude (model: sonnet) — build-review-k2 (review-impl)",
+        "the fresh driver must compare its changed route with the historical receipt: \
+         {restarted_stderr}"
+    );
+}
+
+#[test]
+fn uncheckable_review_metadata_warns_without_inventing_a_producer() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+    let _setup_only = one_launch_grove_do(repo_path);
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+
+    let prompt_log = repo_path.join("prompt");
+    write_exec(
+        &repo_path.join("fake-claude.sh"),
+        r#"#!/bin/sh
+for arg in "$@"; do prompt="$arg"; done
+printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
+exit 0
+"#,
+    );
+    let cases = [
+        (
+            "missing relationship",
+            "**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+            "producer=unknown, uncheckable(reason=review-relationship-missing)",
+        ),
+        (
+            "malformed relationship",
+            "**Reviews:** not/a/handle\n**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+            "producer=unknown, uncheckable(reason=review-relationship-malformed)",
+        ),
+        (
+            "missing receipt",
+            "**Reviews:** build-k1\n",
+            "producer=build-k1, uncheckable(reason=producer-receipt-missing)",
+        ),
+        (
+            "receipt missing required model",
+            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\"}\n",
+            "producer=build-k1, uncheckable(reason=producer-receipt-malformed)",
+        ),
+        (
+            "receipt producer mismatch",
+            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+            "producer=build-k1, uncheckable(reason=receipt-producer-mismatch)",
+        ),
+    ];
+
+    for (case, metadata, expected) in cases {
+        fs::write(
+            repo_path.join(".grove/01-build-review-k2.md"),
+            format!("# build-review-k2\n\n**Kind:** review-impl\n{metadata}"),
+        )
+        .unwrap();
+        let output = grove_do_command(repo_path)
+            .env("GROVE_REVIEW_MODEL", "sonnet")
+            .env("GROVE_TEST_PROMPT", &prompt_log)
+            .output()
+            .unwrap();
+        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+        let prompt = fs::read_to_string(&prompt_log).unwrap();
+        let warning = stderr
+            .lines()
+            .find(|line| line.starts_with("grove: review target diversity warning"))
+            .unwrap_or_else(|| panic!("{case}: warning missing from stderr: {stderr}"));
+
+        assert!(output.status.success(), "{case}: launch gated: {stderr}");
+        assert!(
+            warning.contains("review=build-review-k2"),
+            "{case}: {warning}"
+        );
+        assert!(warning.contains(expected), "{case}: {warning}");
+        assert_eq!(stderr.matches(warning).count(), 1, "{case}: {stderr}");
+        assert!(
+            prompt.starts_with(&format!("{warning}\n\n")),
+            "{case}: prompt did not preserve the notice: {prompt}"
+        );
+        if expected.contains("producer=unknown") {
+            assert!(
+                !warning.contains("claimant-k9"),
+                "{case}: receipt claimant leaked as producer identity: {warning}"
+            );
+        }
+    }
 }
 
 // The other half: when there is no leaf to name, the line degrades to its
@@ -1972,7 +2139,11 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
-printf 'codex\t%s\t%s\n' "$*" "$prompt" >> "$GROVE_TEST_LOG"
+printf 'codex\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$prompt" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
@@ -1991,7 +2162,11 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
-printf 'pi\t%s\t%s\n' "$*" "$prompt" >> "$GROVE_TEST_LOG"
+printf 'pi\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$prompt" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 exit 0
 "#,
     );
@@ -2050,11 +2225,12 @@ exit 0
         "the rerouted review leaf resolves models against pi (argv: {:?})",
         rows[1][1]
     );
-    assert_eq!(
-        rows[1][2], "PI CONTINUE PROMPT",
+    assert!(
+        rows[1][2].ends_with("PI CONTINUE PROMPT"),
         "the rerouted review session must read pi's own continue prompt, not \
          codex's (branch-review-k14 B7: load_prompt must read the launching \
-         harness's copy)"
+         harness's copy); prompt: {:?}",
+        rows[1][2]
     );
 }
 
@@ -2252,7 +2428,9 @@ fn drive_one_leaf(
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
-printf '{name}\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+printf '{name}\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
@@ -2855,7 +3033,9 @@ fn unscoped_harness_bin_does_not_leak_across_a_reroute() {
 n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
-printf 'wrapper\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+printf 'wrapper\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
@@ -2874,7 +3054,9 @@ exit 0
     write_exec(
         &bindir.join("pi"),
         r#"#!/bin/sh
-printf 'realpi\t%s\n' "$*" >> "$GROVE_TEST_LOG"
+printf 'realpi\t' >> "$GROVE_TEST_LOG"
+printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
+printf '\n' >> "$GROVE_TEST_LOG"
 exit 0
 "#,
     );

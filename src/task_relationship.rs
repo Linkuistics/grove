@@ -1,9 +1,10 @@
 //! Stable relationships carried by Grove task files.
 //!
-//! The interface keeps three coupled concerns local: parsing the `Reviews` /
+//! The interface keeps four coupled concerns local: parsing the `Reviews` /
 //! `Integrates` / producer-launch lines, validating the ephemeral foreground
-//! session target before retirement, and atomically replacing the linked
-//! review's receipt. Callers never scan siblings or edit task-file metadata.
+//! session target before retirement, atomically replacing the linked review's
+//! receipt, and comparing that receipt with the review target at launch.
+//! Callers never scan siblings or edit task-file metadata.
 
 use crate::harness;
 use crate::tree_id::{parse, validate_slug, Entry};
@@ -25,7 +26,17 @@ const PRODUCER_LAUNCH_MARKER: &str = "**Producer launch:**";
 #[serde(deny_unknown_fields)]
 pub struct LaunchTarget {
     pub harness: String,
+    #[serde(deserialize_with = "deserialize_nullable_model")]
     pub model: Option<String>,
+}
+
+fn deserialize_nullable_model<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer)
 }
 
 /// Ephemeral context exported only to the real foreground session. It is
@@ -100,6 +111,171 @@ impl TaskRelationships {
             producer_launch,
         })
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Metadata<T> {
+    Missing,
+    Malformed,
+    Present(T),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ReviewTargetDiversity {
+    Diverse,
+    Matching {
+        producer: String,
+        producer_target: LaunchTarget,
+        harness: bool,
+        model: bool,
+    },
+    Uncheckable {
+        producer: Option<String>,
+        reason: &'static str,
+    },
+}
+
+/// Read one routed review task and render its advisory target-diversity notice.
+///
+/// Every metadata failure becomes an `uncheckable` notice rather than an error:
+/// the resolved route remains launch correctness, while diversity only guides.
+pub(crate) fn review_diversity_notice(
+    review_path: &Path,
+    review_handle: &str,
+    review_target: &LaunchTarget,
+) -> Option<String> {
+    let comparison = match fs::read_to_string(review_path) {
+        Ok(text) => compare_review_target_diversity(
+            parsed_metadata(parse_handle_marker(&text, REVIEWS_MARKER)),
+            parsed_metadata(parse_receipt_marker(&text)),
+            review_target,
+        ),
+        Err(_) => ReviewTargetDiversity::Uncheckable {
+            producer: None,
+            reason: "review-task-unreadable",
+        },
+    };
+    match comparison {
+        ReviewTargetDiversity::Diverse => None,
+        _ => Some(render_review_diversity_warning(
+            review_handle,
+            review_target,
+            &comparison,
+        )),
+    }
+}
+
+fn parsed_metadata<T>(value: Result<Option<T>>) -> Metadata<T> {
+    match value {
+        Ok(Some(value)) => Metadata::Present(value),
+        Ok(None) => Metadata::Missing,
+        Err(_) => Metadata::Malformed,
+    }
+}
+
+fn compare_review_target_diversity(
+    relationship: Metadata<String>,
+    receipt: Metadata<ProducerLaunchReceipt>,
+    review_target: &LaunchTarget,
+) -> ReviewTargetDiversity {
+    let producer = match relationship {
+        Metadata::Missing => {
+            return ReviewTargetDiversity::Uncheckable {
+                producer: None,
+                reason: "review-relationship-missing",
+            };
+        }
+        Metadata::Malformed => {
+            return ReviewTargetDiversity::Uncheckable {
+                producer: None,
+                reason: "review-relationship-malformed",
+            };
+        }
+        Metadata::Present(producer) => producer,
+    };
+    let receipt = match receipt {
+        Metadata::Missing => {
+            return ReviewTargetDiversity::Uncheckable {
+                producer: Some(producer),
+                reason: "producer-receipt-missing",
+            };
+        }
+        Metadata::Malformed => {
+            return ReviewTargetDiversity::Uncheckable {
+                producer: Some(producer),
+                reason: "producer-receipt-malformed",
+            };
+        }
+        Metadata::Present(receipt) => receipt,
+    };
+    if receipt.producer != producer {
+        return ReviewTargetDiversity::Uncheckable {
+            producer: Some(producer),
+            reason: "receipt-producer-mismatch",
+        };
+    }
+
+    let harness = receipt.target.harness == review_target.harness;
+    let model = match (&receipt.target.model, &review_target.model) {
+        (Some(producer), Some(review)) => producer == review,
+        (None, None) => harness,
+        _ => false,
+    };
+    if !harness && !model {
+        ReviewTargetDiversity::Diverse
+    } else {
+        ReviewTargetDiversity::Matching {
+            producer,
+            producer_target: receipt.target,
+            harness,
+            model,
+        }
+    }
+}
+
+fn render_review_diversity_warning(
+    review_handle: &str,
+    review_target: &LaunchTarget,
+    comparison: &ReviewTargetDiversity,
+) -> String {
+    let review_target = render_launch_target(review_target);
+    match comparison {
+        ReviewTargetDiversity::Diverse => String::new(),
+        ReviewTargetDiversity::Matching {
+            producer,
+            producer_target,
+            harness,
+            model,
+        } => {
+            let matching = match (*harness, *model) {
+                (true, true) => "harness+model",
+                (true, false) => "harness",
+                (false, true) => "model",
+                (false, false) => unreachable!("a matching result has at least one axis"),
+            };
+            format!(
+                "grove: review target diversity warning (review={review_handle}, \
+                 producer={producer}, matching={matching}, producer-target={}, \
+                 review-target={review_target}); launch continues",
+                render_launch_target(producer_target)
+            )
+        }
+        ReviewTargetDiversity::Uncheckable { producer, reason } => format!(
+            "grove: review target diversity warning (review={review_handle}, producer={}, \
+             uncheckable(reason={reason}), producer-target=unavailable, \
+             review-target={review_target}); launch continues",
+            producer.as_deref().unwrap_or("unknown")
+        ),
+    }
+}
+
+fn render_launch_target(target: &LaunchTarget) -> String {
+    let model = target
+        .model
+        .as_ref()
+        .map(|model| format!("{model:?}"))
+        .unwrap_or_else(|| format!("default({})", target.harness));
+    format!("{}/{model}", target.harness)
 }
 
 /// Retirement's advisory side effect, prepared under the tree's exclusive lock
@@ -500,6 +676,298 @@ mod tests {
                 harness: "claude".to_string(),
                 model: None,
             }
+        );
+    }
+
+    #[test]
+    fn review_target_comparison_covers_matching_and_default_model_axes() {
+        let cases = [
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("sonnet".to_string()),
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: Some("opus".to_string()),
+                    },
+                    harness: true,
+                    model: false,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("shared".to_string()),
+                },
+                LaunchTarget {
+                    harness: "codex".to_string(),
+                    model: Some("shared".to_string()),
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: Some("shared".to_string()),
+                    },
+                    harness: false,
+                    model: true,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: Some("opus".to_string()),
+                    },
+                    harness: true,
+                    model: true,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                LaunchTarget {
+                    harness: "codex".to_string(),
+                    model: Some("o3".to_string()),
+                },
+                ReviewTargetDiversity::Diverse,
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: None,
+                    },
+                    harness: true,
+                    model: true,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                LaunchTarget {
+                    harness: "codex".to_string(),
+                    model: None,
+                },
+                ReviewTargetDiversity::Diverse,
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: None,
+                    },
+                    harness: true,
+                    model: false,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                ReviewTargetDiversity::Matching {
+                    producer: "build-k1".to_string(),
+                    producer_target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: Some("opus".to_string()),
+                    },
+                    harness: true,
+                    model: false,
+                },
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: None,
+                },
+                LaunchTarget {
+                    harness: "codex".to_string(),
+                    model: Some("o3".to_string()),
+                },
+                ReviewTargetDiversity::Diverse,
+            ),
+            (
+                LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+                LaunchTarget {
+                    harness: "codex".to_string(),
+                    model: None,
+                },
+                ReviewTargetDiversity::Diverse,
+            ),
+        ];
+
+        for (producer_target, review_target, expected) in cases {
+            let receipt = ProducerLaunchReceipt {
+                producer: "build-k1".to_string(),
+                target: producer_target,
+            };
+            assert_eq!(
+                compare_review_target_diversity(
+                    Metadata::Present("build-k1".to_string()),
+                    Metadata::Present(receipt),
+                    &review_target,
+                ),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn review_target_comparison_classifies_every_uncheckable_metadata_case() {
+        let target = LaunchTarget {
+            harness: "codex".to_string(),
+            model: Some("o3".to_string()),
+        };
+        let receipt = || ProducerLaunchReceipt {
+            producer: "build-k1".to_string(),
+            target: LaunchTarget {
+                harness: "claude".to_string(),
+                model: Some("opus".to_string()),
+            },
+        };
+        let cases = [
+            (
+                Metadata::Missing,
+                Metadata::Present(receipt()),
+                None,
+                "review-relationship-missing",
+            ),
+            (
+                Metadata::Malformed,
+                Metadata::Present(receipt()),
+                None,
+                "review-relationship-malformed",
+            ),
+            (
+                Metadata::Present("build-k1".to_string()),
+                Metadata::Missing,
+                Some("build-k1"),
+                "producer-receipt-missing",
+            ),
+            (
+                Metadata::Present("build-k1".to_string()),
+                Metadata::Malformed,
+                Some("build-k1"),
+                "producer-receipt-malformed",
+            ),
+            (
+                Metadata::Present("build-k1".to_string()),
+                Metadata::Present(ProducerLaunchReceipt {
+                    producer: "other-k9".to_string(),
+                    target: LaunchTarget {
+                        harness: "claude".to_string(),
+                        model: Some("opus".to_string()),
+                    },
+                }),
+                Some("build-k1"),
+                "receipt-producer-mismatch",
+            ),
+        ];
+
+        for (relationship, receipt, producer, reason) in cases {
+            assert_eq!(
+                compare_review_target_diversity(relationship, receipt, &target),
+                ReviewTargetDiversity::Uncheckable {
+                    producer: producer.map(str::to_string),
+                    reason,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn review_warning_names_only_a_valid_relationship_and_renders_defaults() {
+        let review_target = LaunchTarget {
+            harness: "claude".to_string(),
+            model: None,
+        };
+        let matching = ReviewTargetDiversity::Matching {
+            producer: "build-k1".to_string(),
+            producer_target: review_target.clone(),
+            harness: true,
+            model: true,
+        };
+        assert_eq!(
+            render_review_diversity_warning("build-review-k2", &review_target, &matching),
+            "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/default(claude), review-target=claude/default(claude)); launch continues"
+        );
+
+        let uncheckable = ReviewTargetDiversity::Uncheckable {
+            producer: None,
+            reason: "review-relationship-malformed",
+        };
+        assert_eq!(
+            render_review_diversity_warning("build-review-k2", &review_target, &uncheckable),
+            "grove: review target diversity warning (review=build-review-k2, producer=unknown, uncheckable(reason=review-relationship-malformed), producer-target=unavailable, review-target=claude/default(claude)); launch continues"
+        );
+
+        let explicit = LaunchTarget {
+            harness: "claude".to_string(),
+            model: Some("default(claude)\nnext-line".to_string()),
+        };
+        let rendered = render_launch_target(&explicit);
+        assert_eq!(rendered, "claude/\"default(claude)\\nnext-line\"");
+        assert!(!rendered.contains('\n'));
+        assert_ne!(rendered, render_launch_target(&review_target));
+    }
+
+    #[test]
+    fn a_receipt_must_carry_model_even_when_its_value_is_null() {
+        let error = TaskRelationships::parse(
+            "**Reviews:** build-k1\n\
+             **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\"}\n",
+        )
+        .unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("missing field `model`"),
+            "unexpected parse error: {error:#}"
         );
     }
 

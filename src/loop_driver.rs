@@ -69,7 +69,7 @@
 
 use crate::complete::{self, Disposition};
 use crate::harness::Harness;
-use crate::leaf::Kind;
+use crate::leaf::{Family, Kind};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::hash_map::DefaultHasher;
@@ -318,6 +318,12 @@ fn launch_session(
         routed_leaf(launch).map_or(String::new(), |leaf| format!(" — {leaf}"))
     );
 
+    let review_notice = review_diversity_notice(launch);
+    let launched_prompt = review_notice.as_ref().map_or_else(
+        || prompt.to_string(),
+        |notice| format!("{notice}\n\n{prompt}"),
+    );
+
     let mut cmd = Command::new(&bin);
     if !harness.name_args.is_empty() {
         cmd.args(harness.name_args).arg(session_name);
@@ -342,7 +348,7 @@ fn launch_session(
     // Resolved against `grove_llm_bin()`, the same binary the agent's own verbs
     // run, so the hook cannot drift from the driver that injected it.
     crate::launch::append_turn_hooks(&mut cmd, harness, Path::new(&grove_llm_bin()));
-    cmd.arg(prompt);
+    cmd.arg(&launched_prompt);
     cmd.current_dir(worktree);
     // Scrub the whole launch-scoped environment, then grant back the signal
     // path this driver owns and the target fact it just resolved. Scrub-then-
@@ -375,8 +381,25 @@ fn launch_session(
     // `launch::set_herdr_agent_hint` for both asymmetries.
     crate::launch::set_herdr_agent_hint(&mut cmd, harness);
 
+    if let Some(notice) = review_notice {
+        eprintln!("{notice}");
+    }
+
     let child = cmd.spawn().context("launching the harness session")?;
     wait_with_watcher(child, signal_file)
+}
+
+fn review_diversity_notice(launch: &Launch) -> Option<String> {
+    let kind = launch.kind?;
+    if !matches!(kind.family(), Some(Family::Review)) {
+        return None;
+    }
+    let leaf = launch.routed_leaf.as_ref()?;
+    let target = crate::task_relationship::LaunchTarget {
+        harness: launch.harness.name.to_string(),
+        model: launch.model.clone(),
+    };
+    crate::task_relationship::review_diversity_notice(&leaf.path, &leaf.handle, &target)
 }
 
 /// The watcher's state machine: idle until the completion signal file

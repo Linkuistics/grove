@@ -227,16 +227,18 @@ into that cycle's own confirmation, giving up to four questions about one fact.
 **Kind routing** (`GROVE_<KIND>_HARNESS`, `GROVE_<KIND>_MODEL`):
 How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
 **which model** that harness loads, both keyed on the leaf's [[Task kind]]. The
-driver peeks the leaf (`grove-llm kind --with-harness`) every iteration and
+driver peeks the leaf (`grove-llm kind --with-harness --json`) every iteration and
 resolves two axes via each harness's native launch flags — no router, no proxy.
-The peek is a **forecast, not a reservation**: it runs before the session exists,
-so the session's own [[Pick]] is the fact and **the fact wins** — no leaf identity
-is handed across, because that would be authoritative state outside the tree
-(constraint 1) and would let a stale forecast override a `leaf-insert`, the one
-verb that exists to preempt. A disagreement therefore costs **one session's
-routing**, self-healing at the next iteration off the same zero-state
-re-derivation that gives restart ≡ continuation; what it cannot undo is a leaf
-already *executed* under it.
+The structured form returns path, stable handle, kind and declared harness from
+that one guarded read; readiness, the launch line, and the internal [[Review
+target receipt]] context retain it rather than picking again. The peek is a
+**forecast, not a reservation**: it runs before the session exists, so the
+session's own [[Pick]] is the fact and **the fact wins**. The retained handle is
+evidence of what target launched, never authority to override a later
+`leaf-insert`, the verb that exists to preempt. A disagreement therefore costs
+**one session's routing** and makes the receipt uncheckable, self-healing at the
+next iteration off the same zero-state re-derivation that gives restart ≡
+continuation; what it cannot undo is a leaf already *executed* under it.
 *Harness*: **leaf beats kind beats family beats stamp** — a leaf's own
 `**Harness:** <name>` line first, then `GROVE_<KIND>_HARNESS`, then
 `GROVE_<FAMILY>_HARNESS`; unset everywhere means the **stamped** harness, which
@@ -299,12 +301,20 @@ artifact, materialised best-effort in the linked review leaf so a later review
 compares against what actually ran rather than recomputing history from changed
 [[Kind routing]] configuration. The driver exports one internal
 `GROVE_SESSION_TARGET` JSON value after scrubbing inherited context; it includes
-the resolved worktree identity, harness, and nullable model selector.
-`leaf-retire` accepts it only when that worktree matches and the producer is
-still [[Pick]]'s answer, finds exactly one declaring review among the producer's
-siblings, and atomically rewrites that review before applying the producer's
-[[DONE infix]]. Any missing, stale, ambiguous, malformed, or unwritable receipt
-is **uncheckable**: diagnose it, still retire, and still launch the review.
+the resolved worktree identity, stable handle from the exact structured routing
+peek, harness, and nullable model selector. `leaf-retire` accepts it only when
+that worktree, routed handle, and the factual current [[Pick]] all name the
+retiring producer. It applies the [[DONE infix]] first, then unconditionally and
+atomically replaces any existing receipt in the one sibling review declaring
+`**Reviews:** <producer-handle>`. Any missing, stale, ambiguous, malformed, or
+unwritable receipt is **uncheckable**: diagnose it, still retire, and still
+launch the review. A receipt whose `producer` disagrees with a valid `Reviews`
+relationship is specifically `receipt-producer-mismatch`; the relationship is
+the only producer identity the warning may name. Grove itself never writes a
+receipt beside a live producer. Manually restoring a live producer without
+removing its receipt creates an out-of-contract generation ambiguity; a later
+successful retirement replaces it, while a failed replacement diagnoses that
+the remaining value may be stale.
 At review launch Grove recomputes the review target and warns if either harness
 or exact model selector matches, or if the comparison is uncheckable; the same
 compact notice goes to stderr and the session prompt so a full-screen harness
@@ -637,20 +647,40 @@ bare position: a position merely fails to resolve, while a number can resolve
 **Promotion transaction** (`PROMOTING-<final-node-name>/`):
 The reserved, fail-closed sibling directory used while
 `grove-llm leaf-promote-chain` turns the currently picked plain producer into a
-brief-less [[Review chain]] without changing the producer's handle. The command
-prebuilds the generated steps there, moves the producer into child `01` through
-the VCS-aware rename seam, then lands the complete node with one same-parent
-rename. Every reader and mutator recursively refuses while the prefix exists, so
-an interruption can expose neither review-before-producer ordering nor a key run
-another grow verb can reuse. Retrying promotion by producer handle reuses and
+brief-less [[Review chain]] without changing the producer's handle. Under the
+exclusive [[Tree access lock]], the command prebuilds the generated steps there
+and moves the producer into child `01` through the VCS-aware rename seam. In
+plain Git it then rewrites the staged producer index entry to its final path
+while the reserved witness still exists; the complete node lands last with one
+plain same-parent filesystem rename. Jujutsu never touches Git's index and uses
+that same final rename. Every reader and mutator recursively refuses while the
+prefix exists, so an interruption can expose neither review-before-producer
+ordering, a key run another grow verb can reuse, nor a filesystem-complete tree
+whose index still names `PROMOTING-`. Recovery runs before ordinary
+pick/liveness gates and accepts a stable producer handle, the stale picked path,
+or the exact reserved path from a generic diagnostic. Retrying reuses and
 finishes or reverses that exact transaction; a reported failure rolls it back
 and prints no success output. All other foreign names remain leniently ignored.
-This is crash-consistent semantic atomicity, not a claim that portable
-filesystems offer one atomic file-to-directory replacement syscall.
+This is process-interruption consistency, not a power-loss durability claim;
+Grove performs no ordered `fsync` protocol.
 See ADR *promotion-transactions-fail-closed*.
 _Avoid_: deleting the directory as if it were an unknown foreign file — after
 the producer move it may contain the only copy of that task. Recover through
-`leaf-promote-chain <producer-handle>`.
+the exact `leaf-promote-chain <PROMOTING-path>` command a refusing reader prints.
+
+**Tree access lock**:
+The process-scoped advisory lock every steady-state task-tree reader and mutator
+takes on an open descriptor for the root `.grove/` directory before inspecting
+names. Readers hold it shared and mutators exclusive; exported operations acquire
+once and pass the guard into lock-neutral helpers. The directory is the invariant
+all those commands already require, so a missing optional `BRIEF.md` never jams
+the tree and no lock file or state bytes are created. Acquisition first tries
+without blocking, prints one waiting diagnostic on contention, then waits until
+the owning process exits or releases it. `root-init` sits below this seam because
+it creates `.grove/` itself. Direct human edits remain outside the cooperative
+serialization. See ADR *promotion-transactions-fail-closed*.
+_Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
+and existing tree readers deliberately tolerate their absence.
 
 **DONE infix**:
 The in-place retirement marker: the literal `DONE` placed right after the
@@ -659,8 +689,9 @@ position in a retired leaf's filename
 Leaves only — a node is never marked done (its done-ness is the absence of a
 live leaf in its subtree, however those leaves finished). The retired leaf keeps
 its position and key, and **its own contents remain untouched**. Retiring a
-reviewed producer may first best-effort rewrite its sibling review's [[Review
-target receipt]]; that advisory side effect never blocks the filename rename.
+reviewed producer applies this filename rename first, then best-effort replaces
+its sibling review's [[Review target receipt]]; that advisory side effect never
+blocks or reverses the terminal rename.
 Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf
 states.
 _Avoid_: moving a retired leaf into a separate folder or list — retirement is in place, so the tree always shows complete state.

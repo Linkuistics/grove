@@ -86,3 +86,13 @@ rather than absorb multiple sessions of work.
   behavior, including optional cross-model review.
 - Different harness and model are preferred, not gated: warn if either matches
   the producer, then continue.
+- Promotion serialises every steady-state task-tree command on the root
+  `.grove/` directory,
+  recovers a `PROMOTING-*` witness before normal producer gates, and in plain Git
+  prepares final index paths while that witness still blocks the tree before the
+  final filesystem rename.
+- Producer launch identity comes from the same structured peek that routes the
+  session. Retirement applies `DONE` first and then unconditionally replaces the
+  linked review receipt; directly restoring a live producer while retaining an
+  old receipt is an explicit hand-edit limitation, not a generation Grove
+  guesses.

@@ -64,9 +64,13 @@ grove-llm leaf-promote-chain <picked-producer> [--json]
 ```
 
 `<picked-producer>` accepts the absolute path returned by `grove-llm pick` or a
-stable key/handle that resolves to it. The operation takes no parent, stem, kind,
-or harness flags: all four are facts already carried by the picked producer, and
-review routing remains policy-owned.
+stable key/handle that resolves to it. A path argument is reduced to its stable
+producer handle before the operation resolves the current location, so the same
+path remains an idempotent retry after promotion relocated or retired the
+producer. The exact `PROMOTING-*` path named by a fail-closed diagnostic is also
+accepted, but only as a recovery reference while that transaction exists. The
+operation takes no parent, stem, kind, or harness flags: all four are facts
+already carried by the picked producer, and review routing remains policy-owned.
 
 Given a picked `05-sync-design-k12.md` and a tree whose maximum key is `k20`,
 promotion produces:
@@ -109,18 +113,35 @@ non-degrading parser: the seventeen current labels and the supported legacy
 error rather than `impl`. It refuses terminal leaves, `research`,
 `combine-research`, `review-*`, and `integrate-review-*`.
 
-An already-scheduled review is detected two ways. Stable relationship metadata
-is authoritative when present; an immediate parent with no `BRIEF.md` is the
-compatibility signal for a legacy or hand-cut chain whose metadata is absent.
-The idempotent completed-promotion case is recognised before that refusal. A
-refused run changes nothing, consumes no key, and names the appropriate Grove
-action.
+An already-scheduled review is detected two ways. Promotion scans the producer's
+whole sibling level for tasks declaring `**Reviews:** <producer-handle>`;
+exactly one is authoritative, multiple claimants are a malformed conflict, and
+the scan works for both node-contained and metadata-bearing flat chains. A
+non-root immediate parent with no `BRIEF.md` is the structural compatibility
+signal for a composition-managed node whose metadata is absent. The grove root
+is excluded because its own `BRIEF.md` is optional and its absence cannot
+classify every root-level producer as already composed. The idempotent
+completed-promotion case is recognised before either refusal. A metadata-free
+flat chain has no stable relationship Grove can discover without turning its
+suffixes or positions into grammar; promotion does not guess. Such a legacy
+chain must be annotated with the stable relationship before its producer is
+passed to promotion. A refused run changes nothing, consumes no key, and names
+the appropriate Grove action.
 
-A retry by stable producer handle is idempotent while the already-created shape
-is complete and that producer remains the picked leaf: it returns the same four
-paths with `changed: false`. It also resumes the exact pending transaction for
-that handle; it never allocates a second key run or nests another review chain.
-A conflicting shape errors with the exact paths that need inspection.
+A retry by stable producer handle, or by the stale picked path from which that
+handle can be recovered, is idempotent while the already-created shape is
+complete: it returns the same four current paths with `changed: false` whether
+the relocated producer is live, terminal, still picked, or pre-empted by a later
+insert. Completed-shape recognition is therefore ordered before liveness and
+current-pick validation; those gates apply only to a new promotion. The same
+reference also resumes the exact pending transaction for that handle; the
+explicit `PROMOTING-*` path is the recovery form when only a generic reader's
+diagnostic is available. Pending recovery is selected before ordinary path
+resolution, liveness, kind, or current-pick validation, because a producer
+already moved into the reserved directory is deliberately invisible to those
+normal readers. Recovery scans only the reserved transaction for the stable
+producer identity and never allocates a second key run or nests another review
+chain. A conflicting shape errors with the exact paths that need inspection.
 
 ### Crash-consistent transaction
 
@@ -129,40 +150,65 @@ decision supplies the portable atomicity boundary.
 
 Every participating task-tree operation enters one tree-access seam before it
 checks for a pending promotion or reads names. The seam holds a process-scoped
-advisory lock on the open root `.grove/BRIEF.md`: readers (`pick`, `kind`,
-`resolve`, `brief-chain`) take a shared lock for the whole read, while every
-mutator takes an exclusive lock from pre-validation through rollback or success
-output. Lock acquisition waits for the current operation and process termination
-releases it automatically; no PID, owner record, or lock-state bytes are stored
-in the task tree. `root-init`, which has no root brief to lock, retains its
-atomic create-or-refuse contract. Direct human edits remain outside this
-cooperative CLI serialization, as they are for every Grove invariant.
+advisory lock on an open descriptor for the root `.grove/` directory, whose
+existence is the invariant every steady-state tree command already requires;
+briefs remain lazy and optional. Readers (`pick`, `kind`, `resolve`,
+`brief-chain`) take a shared lock for the whole read, while every mutator takes
+an exclusive lock from pre-validation through rollback or success output.
+Lock acquisition first tries without blocking; on contention it prints one
+`waiting for active Grove tree operation` diagnostic and then waits without a
+timeout. Process termination releases the lock automatically; no PID, owner
+record, lock file, or lock-state bytes are stored in the task tree. `root-init`,
+which creates `.grove/` itself, retains its atomic create-or-refuse contract.
+Direct human edits remain outside this cooperative CLI serialization, as they
+are for every Grove invariant.
 
-Promotion acquires the exclusive lock before it pre-validates the source, exact
-kind, derived kinds, destination, generated content, and three-key allocation.
-It then builds the final children under a reserved sibling directory whose name
-is `PROMOTING-<final-node-name>/`. The generated review and integration are
-written first; the producer is moved byte-for-byte into child position `01`
-through Grove's VCS-aware rename seam; the complete directory is landed through
-that same seam by a same-parent rename that strips `PROMOTING-`. The lock makes
-the validation, key allocation, and landing one serializable tree mutation;
+Promotion acquires the exclusive lock and scans for a pending promotion first.
+A matching producer handle, stale picked path, or exact transaction path enters
+recovery before the normal producer gates; any other pending transaction refuses
+the call. Only with no pending transaction does promotion pre-validate the
+source, exact kind, derived kinds, destination, generated content, and three-key
+allocation. It then builds the final children under a reserved sibling directory
+whose name is `PROMOTING-<final-node-name>/`. The generated review and
+integration are written first and the producer is moved byte-for-byte into child
+position `01` through Grove's VCS-aware rename seam. The lock makes validation,
+key allocation, index preparation, and landing one serializable tree mutation;
 `PROMOTING-` remains the durable fail-closed witness if the process disappears
-and releases the lock mid-operation.
+and releases the lock before the final filesystem rename.
 
-Both the source-to-staging move and staging-to-final landing obey the existing
-Jujutsu-first VCS rule. Native and colocated Jujutsu use filesystem renames and
-never touch Git's index. In a plain Git tree, a tracked producer is moved at
-both stages through the Git-aware adapter so the index ends with only the final
-child path and no `PROMOTING-` path; an untracked producer remains untracked.
-Rollback applies the inverse moves through the same adapter. Generated tasks
-move with their containing directory without becoming staged merely because a
-tracked producer shares that directory.
+The source-to-staging move obeys the existing Jujutsu-first VCS rule. Native and
+colocated Jujutsu use a filesystem rename and never touch Git's index. In a
+plain Git tree, the existing Git-aware adapter moves a tracked producer into
+staging; an untracked producer remains untracked.
+
+The staging-to-final landing has a narrower transaction-specific adapter. For a
+tracked producer in plain Git, Grove first rewrites the already-staged producer
+index entry from its `PROMOTING-*` child path to the final child path while the
+reserved directory is still present. That index rewrite is itself committed
+under Git's index lock and preserves the stage-0 entry's blob, mode, and index
+flags; an unmerged/multi-stage producer is rejected before any mutation. It does
+not add the generated review or integration. Interruption before or during the
+index transaction therefore leaves the on-disk `PROMOTING-*` witness in place.
+Once the index names only the final producer path, Grove lands the complete
+directory with one plain same-parent filesystem rename. After that syscall
+returns, both the parsed tree and Git's index name only final paths; there is no
+filesystem-complete/index-stale window in which a commit can capture the
+reserved prefix. Jujutsu and an untracked Git producer need no index preparation
+and use the same final filesystem rename. Recovery and rollback accept the
+source, staging, or final index spelling that an interrupted Git preparation may
+leave and normalise it while the reserved witness still blocks every other tree
+operation.
 
 `PROMOTING-` is a reserved transaction prefix, not a task-tree entry. Every tree
 reader and mutator first checks for it recursively. If one exists, `pick`,
 `kind`, `resolve`, key allocation, and every grow/retire verb refuse with the
-producer handle and the recovery command. They never skip the transaction and
-continue into later work. Other foreign files remain leniently ignored.
+exact reserved path and
+`grove-llm leaf-promote-chain <reserved-path>` as the recovery command. A generic
+reader does not read generated task contents or infer a producer from child
+position merely to improve that diagnostic. The promotion recovery branch may
+scan the reserved transaction after it holds the exclusive lock. Readers never
+skip the transaction and continue into later work. Other foreign files remain
+leniently ignored.
 
 This gives the operation one observable invariant across interruption:
 
@@ -173,20 +219,23 @@ This gives the operation one observable invariant across interruption:
 - After the landing rename, the only parsed shape is the complete review chain,
   whose first live child is the unchanged producer.
 
-Every reported failure before landing attempts to reverse the producer move and
-remove the transaction, leaving the original tree byte-for-byte. If rollback
-itself fails, the reserved directory remains as a fail-closed recovery marker;
-the error names its exact paths and `leaf-promote-chain <producer-handle>` is the
-only mutator allowed to inspect and finish or reverse it. No partial state is
-runnable, no new key can be issued around it, and plain or JSON stdout is emitted
-only after the final rename succeeds.
+Every reported failure before landing attempts to reverse the producer move,
+normalise any prepared Git index entry, and remove the transaction, leaving the
+original tree byte-for-byte. If rollback itself fails, the reserved directory
+remains as a fail-closed recovery marker; the error names its exact paths and
+`leaf-promote-chain <reserved-path>` is the only mutator allowed to inspect and
+finish or reverse it. No partial state is runnable, no new key can be issued
+around it, and plain or JSON stdout is emitted only after the final rename
+succeeds.
 
-The guarantee is process-interruption consistency: after a filesystem call has
-returned, a concurrent Grove process or a process restarted after exit, signal,
-or panic observes either the original producer plus a blocking transaction or
-the complete chain. Grove does not `fsync` generated files or parent directories,
-so it makes no durability claim across power loss, kernel failure, storage-cache
-loss, or a filesystem that violates its documented rename semantics. The final
+The guarantee is process-interruption consistency: after a filesystem or
+Git-index transaction has returned, a concurrent Grove process or a process
+restarted after exit, signal, or panic observes either the original producer
+plus a blocking transaction, a blocking transaction recoverable across its
+possible Git index spellings, or the complete chain with final index paths.
+Grove does not `fsync` generated files, the index, or parent directories, so it
+makes no durability claim across power loss, kernel failure, storage-cache loss,
+or a filesystem that violates its documented rename semantics. The final
 same-parent rename is an atomic namespace-visibility seam, not a power-loss
 commit. Power-loss durability would require an ordered file-and-directory sync
 protocol and is outside this design.
@@ -205,12 +254,23 @@ After promotion, the producer session follows one sequence:
 While the producer is still the factual pick, retirement validates and snapshots
 the candidate launch context and unique sibling relationship under the exclusive
 tree lock. It applies the producer's `DONE` rename first. Only after that
-terminal transition succeeds does it make a best-effort atomic rewrite of the
-review task with the producer launch receipt. A failed `DONE` rename writes no
-receipt; a failed post-`DONE` rewrite leaves the initial generated review task
-receipt-free and therefore uncheckable. Under this protocol a valid receipt is
-never present beside a live producer, so a prior session whose terminal rename
-failed cannot leave an authoritative target for a later finisher to preserve.
+terminal transition succeeds does it make a best-effort atomic replacement of
+the review task's producer launch receipt. Replacement is unconditional: an
+existing `**Producer launch:**` line is overwritten rather than preserved or
+treated as idempotent. A failed `DONE` rename writes no receipt; a failed
+post-`DONE` write leaves a normally generated review task receipt-free and
+therefore uncheckable. Under this protocol Grove itself never writes a valid
+receipt beside a live producer, so a failed finisher cannot leave its target for
+a later Grove finisher to preserve.
+
+Directly removing a producer's `DONE` infix, reverting only its terminal rename,
+or otherwise restoring a live producer without also removing its receipt is
+outside that cooperative guarantee: it creates a pre-existing receipt Grove
+cannot distinguish from the current retirement generation without adding new
+authoritative state. A later successful retirement still replaces it. If that
+post-`DONE` replacement also fails, the diagnostic must say the pre-existing
+receipt may be stale; an operator must remove it before relying on the advisory
+comparison. Grove does not block retirement on that hand-edited metadata state.
 
 The metadata write remains advisory and may never reverse or mask the successful
 terminal rename: missing or stale session context, no unique sibling
@@ -235,13 +295,26 @@ rather than guessed.
 After scrubbing inherited Grove session context, the loop driver's one real
 foreground-session spawn exports a single `GROVE_SESSION_TARGET` JSON value with
 the resolved worktree identity, the stable handle of the leaf used by that exact
-routing peek, the harness, and the nullable model selector. The launch resolver
-retains the handle beside the kind and target, and the launch diagnostic renders
-that retained value rather than performing a second pick. Every other harness
-spawn uses the shared scrub helper and receives no such value. The worktree
-identity is the same resolved root Grove uses for the loop, so a meta-grove's
-tests in temporary trees and a nested grove cannot accidentally claim the outer
-session's target.
+routing peek, the harness, and the nullable model selector. The peek is one
+structured `grove-llm kind --with-harness --json` call returning the picked
+leaf's path, stable handle, kind, and optional declared harness from one
+tree-read guard. A leaf result is exactly one JSON object with string `path`,
+`handle`, and `kind` fields plus `harness` as a string or `null`, for example:
+
+```json
+{"path":"/work/.grove/05-sync-design-k12.md","handle":"sync-design-k12","kind":"design","harness":null}
+```
+
+No live leaf is the JSON literal `null`. Failure is non-zero with no partial JSON
+on stdout. The launch resolver retains that one result beside the effective
+target; readiness output, the launch diagnostic, and the session-target value
+render it without a second pick. A non-null structured result without a handle,
+an old binary that does not implement the JSON contract, or malformed JSON is a
+routing-peek/version-skew failure and stops before launch under the existing
+no-guess rule. Every other harness spawn uses the shared scrub helper and
+receives no session-target value. The worktree identity is the same resolved
+root Grove uses for the loop, so a meta-grove's tests in temporary trees and a
+nested grove cannot accidentally claim the outer session's target.
 
 The driver may have no routed leaf during fresh-grove start, and a `leaf-insert`
 may make the session's factual pick differ from the earlier routing peek. Both
@@ -274,13 +347,14 @@ later configuration. It does not record an interactive model change made inside
 the harness, which Grove cannot observe.
 
 The relationship lookup is deliberately local and cardinality-checked:
-retirement scans only the producer's sibling tasks inside its brief-less chain
-node and writes the receipt only when exactly one live or terminal review task
-declares `**Reviews:** <producer-handle>`. Zero or multiple claimants are
-`uncheckable`, never a tree-wide guess. After the terminal producer rename, the
+retirement scans the producer's whole sibling level and writes the receipt only
+when exactly one live or terminal review task declares
+`**Reviews:** <producer-handle>`. This supports both current brief-less chain
+nodes and metadata-bearing flat chains without a tree-wide guess. Zero or
+multiple claimants are `uncheckable`. After the terminal producer rename, the
 sibling task is rewritten through a temporary file and rename, so an interrupted
-write cannot truncate it. There is no receipt-before-`DONE` state for a later
-finisher to mistake as current.
+write cannot truncate it. There is no Grove-written authoritative
+receipt-before-`DONE` state for a later finisher to mistake as current.
 
 At every `review-*` launch, Grove first resolves the review's own effective
 target using the existing leaf → kind → family → stamp harness policy and the
@@ -295,13 +369,16 @@ the producer launch receipt:
   warn that diversity could not be verified.
 
 A warning always names the review handle. It names a producer handle only when
-one came from a valid stable `**Reviews:**` declaration (and a receipt's
-`producer` field must agree with it). With an absent or malformed relationship,
-the warning renders `producer=unknown` plus the exact reason; it never infers a
-producer from sibling position, a filename suffix, or the preceding leaf. When
-available, the warning also renders both targets, the matching or unavailable
-axis, and the review routing configuration. A null model is rendered as
-`default(<harness>)`, making cross-harness default comparison visible.
+one came from a valid stable `**Reviews:**` declaration. If a syntactically
+valid receipt's `producer` disagrees with that relationship, the comparison is
+`uncheckable(reason=receipt-producer-mismatch)`, names the relationship's
+producer, and does not treat the receipt claimant as an identity source. With an
+absent or malformed relationship, the warning renders `producer=unknown` plus
+the exact reason; it never infers a producer from sibling position, a filename
+suffix, or the preceding leaf. When available, the warning also renders both
+targets, the matching or unavailable axis, and the review routing
+configuration. A null model is rendered as `default(<harness>)`, making
+cross-harness default comparison visible.
 
 The driver renders the result twice from one comparison value: a compact stderr
 diagnostic immediately before spawn and a routing-notice block prepended to the
@@ -330,17 +407,19 @@ outside `.grove/`.
 ## Module interfaces
 
 The task-tree access module exposes shared-read and exclusive-mutation guards
-over one Grove root. Exported operations acquire exactly once and pass the guard
-through internal lock-neutral helpers, so a mutator can call pick/resolve logic
-without recursively locking or opening a race. Pending-promotion detection runs
-only while a guard is held.
+over one open Grove-root directory descriptor. Exported operations acquire
+exactly once and pass the guard through internal lock-neutral helpers, so a
+mutator can call pick/resolve logic without recursively locking or opening a
+race. Pending-promotion detection runs only while a guard is held. The routing
+peek returns path, handle, kind, and declared harness from that same guarded
+read; launch callers never reconstruct leaf identity with another pick.
 
 The tree-mutation module exposes one promotion operation returning a promotion
 result with the node, relocated producer, review, and integration identities. It
-hides exact task-kind validation, relationship/legacy-chain checks, path
-resolution, key allocation, templates, transaction recovery, VCS-specific
-movement, and rollback. All tree operations share one pending-promotion guard;
-callers do not reproduce the reserved-prefix scan.
+hides exact task-kind validation, sibling relationship checks, stale-path
+normalisation, key allocation, templates, transaction recovery, Git index
+preparation, VCS-specific movement, and rollback. All tree operations share one
+pending-promotion guard; callers do not reproduce the reserved-prefix scan.
 
 Task relationship parsing owns `Reviews`, `Integrates`, and the producer launch
 receipt. It exposes a cardinality-checked sibling lookup rather than a tree-wide
@@ -360,37 +439,52 @@ these interfaces to environment lookup or task-file parsing.
 ## Test seams
 
 - Exercise promotion through the `grove-llm` interface in temporary trees:
-  root and nested producers, all five producer kinds, the legacy `work` alias,
-  strict refusal of missing/garbled kinds, source byte/handle/key preservation,
-  unchanged sibling positions, fresh keys, no `BRIEF.md`, exact
-  relationships/default task content, and pick order before and after retire.
-  Cover metadata-bearing, legacy brief-less, and decomposition-node parents.
+  root and nested producers (including a root with no `BRIEF.md`), all five
+  producer kinds, the legacy `work` alias, strict refusal of missing/garbled
+  kinds, source byte/handle/key preservation, unchanged sibling positions, fresh
+  keys, no generated `BRIEF.md`, exact relationships/default task content, and
+  pick order before and after retire. Cover metadata-bearing, non-root legacy
+  brief-less, and decomposition-node parents.
 - Drive two subprocesses through barriers around pre-validation and allocation:
   promotion versus promotion and promotion versus every existing mutator. Assert
-  the second operation waits, positions and tree-wide keys remain unique, and a
-  shared reader can observe neither a missing producer nor a later runnable leaf.
-  Kill the lock holder and prove the waiter acquires the released lock and then
-  recovers any `PROMOTING-` witness.
+  the second operation emits one wait diagnostic, positions and tree-wide keys
+  remain unique, and a shared reader can observe neither a missing producer nor
+  a later runnable leaf. The second promoter must accept the same now-stale path
+  and return the completed shape with `changed: false`, including when retirement
+  or a new insert acquires the lock first and makes the producer terminal or no
+  longer picked. Kill the lock holder and prove the waiter acquires the released
+  lock and then recovers any `PROMOTING-` witness before applying ordinary
+  picked-producer gates.
 - Inject a reported failure at every create, write, and rename point. Assert no
   stdout, no consumed key, no residual transaction, and the original producer
   bytes/path after successful rollback. Separately interrupt after every
-  mutation and assert every reader/mutator fails closed on `PROMOTING-`, retry
-  reuses the same keys, and the first runnable leaf after recovery is always the
-  producer. These are process-interruption tests, not power-loss simulations.
-  Cover tracked Git, untracked Git, native Jujutsu, and colocated Jujutsu through
-  the existing rename adapter; after landing and rollback, assert Git's index has
-  no `PROMOTING-` path or accidentally staged generated task.
+  mutation and assert every reader/mutator fails closed on `PROMOTING-`, the
+  diagnostic names only the exact transaction path and path-based recovery
+  command, retry reuses the same keys, and the first runnable leaf after recovery
+  is always the producer. These are process-interruption tests, not power-loss
+  simulations. Cover tracked Git, untracked Git, native Jujutsu, and colocated
+  Jujutsu. In tracked Git, interrupt before, during, and after the index-prefix
+  rewrite and final filesystem rename; every pre-land state must retain the
+  reserved directory, and every post-land state must have only final index paths
+  with no accidentally staged generated task. Preserve a normal stage-0 entry's
+  blob, mode, and index flags, and refuse an unmerged producer before mutation.
 - Test relationship and receipt parsing through generated leaves, including a
   `DONE` producer after renumbering, zero and duplicate sibling claimants, an
   interrupted task-file rewrite, a failed `DONE` rename that writes no receipt,
-  and a successful `DONE` rename followed by a failed receipt write. The last
-  case must leave no authoritative prior-session target. Metadata failures must
-  produce `uncheckable`, never block retirement or launch.
+  a pre-existing receipt that a successful retirement unconditionally replaces,
+  a receipt whose producer disagrees with the `Reviews` relationship, and a
+  successful `DONE` rename followed by a failed receipt write. The normal
+  receipt-free failure case must leave no authoritative prior-session target;
+  the hand-edited pre-existing-receipt failure must diagnose that the remaining
+  value may be stale. Metadata failures produce `uncheckable` and never block
+  retirement or launch.
 - Exercise inherited session context with matching and mismatched worktree
   identities, matching and mismatched routed-leaf handles, a source that is and
   is not the current pick, a launch-window `leaf-insert`, a nested driver that
-  replaces the outer target, fresh-grove start with no routed leaf, and the
-  meta-grove test scrub list.
+  replaces the outer target, fresh-grove start with no routed leaf, malformed or
+  handle-free structured peek output that stops before launch, and the meta-grove
+  test scrub list. Assert one structured peek supplies readiness, launch-line,
+  routing, and receipt identity without a second pick.
 - Table-test target comparison for same harness only, same model only, both,
   neither, same-harness null defaults, cross-harness null defaults, null versus
   explicit selectors, and unknown receipts.
@@ -411,8 +505,8 @@ these interfaces to environment lookup or task-file parsing.
 Implementation is incomplete until the current-state contract is reconciled in
 all of these places:
 
-- `CONTEXT.md`: Review chain, ownership discriminator, promotion transaction,
-  launch receipt, and the `DONE` side effect.
+- `CONTEXT.md`: Review chain, ownership discriminator, tree-access lock,
+  promotion transaction, launch receipt, and the `DONE` side effect.
 - `content/SKILL.md`, `content/driving.md`, and `content/TASK-FORMAT.md`: the
   leaf-wide reviewer allowance, exact promotion/handoff sequence, integration
   placement, research exclusions, and replacement of the old three-round and
@@ -424,21 +518,34 @@ all of these places:
 - `docs/ARCHITECTURE.md`: transaction/pending-reader semantics beside the task
   tree, stable relationships beside composition, and receipt comparison beside
   task-kind routing.
-- `grove-llm --help`, `grove-llm leaf-promote-chain --help`, `docs/USAGE.md`,
-  and `docs/CONFIGURATION.md`: the operation, recovery diagnostic, advisory
-  warning, and routing knobs that resolve it. `GROVE_SESSION_TARGET` is reserved
-  internal context, not a user configuration knob.
+- `grove-llm --help`, `grove-llm kind --help`,
+  `grove-llm leaf-promote-chain --help`, `docs/USAGE.md`, and
+  `docs/CONFIGURATION.md`: the structured routing-peek contract, operation,
+  recovery diagnostic, advisory warning, and routing knobs that resolve it.
+  `GROVE_SESSION_TARGET` is reserved internal context, not a user configuration
+  knob.
 
 ## Compatibility
 
 Old binaries and hand-edited task files ignore the new freeform relationship and
 receipt lines. Old or manually composed review leaves without them still launch
-and receive an `uncheckable` warning; no tree migration is required. A producer
-already inside a brief-less legacy chain is not promotable even without
-metadata. Composite shapes remain reproducible with ordinary Markdown and
-filesystem operations, but the previous claim that `leaf-add-chain` is
-byte-identical to three bare `leaf-add` calls narrows: the manual form must also
-write the stable relationship lines to reproduce the current generated shape.
+and receive an `uncheckable` warning; no tree migration is required for reading
+or launching them. A producer inside any non-root brief-less composition node is
+not promotable even without metadata; the grove root is never classified by
+brief absence. A metadata-bearing flat chain is detected through the producer's
+whole sibling level. A metadata-free flat legacy chain cannot be associated
+without forbidden suffix/position inference; annotate its review with
+`**Reviews:** <producer-handle>` before invoking promotion. Composite shapes
+remain reproducible with ordinary Markdown and filesystem operations, but the
+previous claim that `leaf-add-chain` is byte-identical to three bare `leaf-add`
+calls narrows: the manual form must also write the stable relationship lines to
+reproduce the current generated shape.
+
+Decomposing a `review-*` leaf moves its relationship and receipt into the new
+node brief under the existing lifecycle contract; the generated first child has
+no relationship and its launch comparison is therefore `uncheckable` unless the
+operator explicitly reattaches stable metadata. Grove does not infer the parent
+review relationship from the child's position.
 
 `PROMOTING-` is the one newly reserved foreign-name prefix. A current binary
 must recover such a directory before any tree work proceeds; all other foreign

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v16.3.1
+
 ### Changed
 
 - **The repository is smaller and its human-facing documentation has clear

@@ -346,7 +346,9 @@ selector string or JSON `null`. All five are required on a newly written
 receipt. Readers require `producer`, `harness`, and `model`; they accept
 `session` and `generation` as an all-or-nothing legacy omission under the ADR's
 compatibility rule, and ignore unknown keys. Wrong JSON types, empty or invalid
-known values, and a one-field legacy omission are malformed.
+known values, and a one-field legacy omission are malformed. Under this rule,
+legacy node receipts are uncheckable; only a direct leaf can derive both omitted
+facts.
 
 At `review-*` launch, the driver resolves the review target and passes it with
 the retained evidence to the ADR-defined pure comparison. The launch layer
@@ -406,8 +408,8 @@ metadata failure as an advisory diagnostic. A terminal linked review yields a
 Routing retains one resolver whose result contains an effective launch target.
 A session-context parser validates worktree identity, routed-leaf identity, and
 current-pick identity before yielding a handoff target. A pure diversity
-comparison accepts an optional relationship identity, optional producer receipt,
-and the resolved review target; it returns `diverse`, the matching axes, or an
+comparison accepts the retained checkable/uncheckable review evidence and the
+resolved review target; it returns `diverse`, the matching axes, or an
 `uncheckable` reason with an optional producer handle. The launch layer renders
 the same result to stderr and the prompt, including a checkable source-session
 handle when it differs from the producer. Callers and tests do not reach through

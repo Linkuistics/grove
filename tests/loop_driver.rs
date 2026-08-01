@@ -1131,7 +1131,12 @@ fn a_review_diversity_warning_is_emitted_once_and_prepended_to_the_prompt() {
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
-        repo_path.join(".grove/01-build-review-k2.md"),
+        repo_path.join(".grove/01-DONE-build-k1.md"),
+        "# build-k1\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join(".grove/02-build-review-k2.md"),
         "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
          **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
     )
@@ -1152,8 +1157,9 @@ exit 0
         .output()
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let prompt = fs::read_to_string(&prompt_log).unwrap();
-    let warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/\"opus\", review-target=claude/\"opus\"); launch continues";
+    let prompt = fs::read_to_string(&prompt_log)
+        .unwrap_or_else(|error| panic!("prompt was not written ({error}); stderr: {stderr}"));
+    let warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/\"opus\", review-target=claude/\"opus\"); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues";
 
     assert!(output.status.success(), "review launch was gated: {stderr}");
     assert_eq!(stderr.matches(warning).count(), 1, "stderr: {stderr}");
@@ -1174,7 +1180,7 @@ exit 0
         .unwrap();
     let restarted_stderr = String::from_utf8_lossy(&restarted.stderr).into_owned();
     let restarted_prompt = fs::read_to_string(&prompt_log).unwrap();
-    let restarted_warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness, producer-target=claude/\"opus\", review-target=claude/\"sonnet\"); launch continues";
+    let restarted_warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness, producer-target=claude/\"opus\", review-target=claude/\"sonnet\"); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues";
 
     assert!(
         restarted.status.success(),
@@ -1207,7 +1213,12 @@ fn a_fully_diverse_review_launch_is_silent_and_keeps_the_prompt_unprefixed() {
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
-        repo_path.join(".grove/01-build-review-k2.md"),
+        repo_path.join(".grove/01-DONE-build-k1.md"),
+        "# build-k1\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join(".grove/02-build-review-k2.md"),
         "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
          **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
     )
@@ -1246,6 +1257,201 @@ exit 0
         launch_line(&stderr),
         "grove: launching codex (model: sol-high) — build-review-k2 (review-impl)"
     );
+}
+
+#[test]
+fn a_decomposed_review_warning_names_the_factual_session_separately() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let mut cmd = one_launch_grove_do(repo_path);
+    fs::create_dir_all(repo_path.join(".grove/01-bundle-k1")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-bundle-k1/BRIEF.md"),
+        "# bundle-k1 — brief\n",
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join(".grove/01-bundle-k1/01-DONE-implement-k4.md"),
+        "# implement-k4\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    fs::write(
+        repo_path.join(".grove/02-bundle-review-k8.md"),
+        "# bundle-review-k8\n\n**Kind:** review-impl\n**Reviews:** bundle-k1\n\
+         **Producer launch:** {\"producer\":\"bundle-k1\",\"session\":\"implement-k4\",\"generation\":\"k4\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+    )
+    .unwrap();
+
+    let prompt_log = repo_path.join("prompt");
+    write_exec(
+        &repo_path.join("fake-claude.sh"),
+        r#"#!/bin/sh
+for arg in "$@"; do prompt="$arg"; done
+printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
+exit 0
+"#,
+    );
+    let output = cmd
+        .env("GROVE_REVIEW_MODEL", "opus")
+        .env("GROVE_TEST_PROMPT", &prompt_log)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let warning = stderr
+        .lines()
+        .find(|line| line.starts_with("grove: review target diversity warning"))
+        .unwrap_or_else(|| panic!("warning missing from stderr: {stderr}"));
+
+    assert!(output.status.success(), "review launch was gated: {stderr}");
+    assert!(
+        warning.contains("producer=bundle-k1, session=implement-k4"),
+        "{warning}"
+    );
+    assert!(warning
+        .contains("applies only if factual pick is review=bundle-review-k8; discard otherwise"));
+    assert!(
+        fs::read_to_string(&prompt_log)
+            .unwrap()
+            .starts_with(&format!("{warning}\n\n")),
+        "the retained notice must be prepended to the prompt"
+    );
+}
+
+#[test]
+fn the_loop_uses_review_evidence_from_its_guarded_peek_without_rereading_the_task() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let worktree = repo.path();
+    init_worktree(worktree);
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    let review_path = worktree.join(".grove/01-retained-review-k2.md");
+    fs::write(
+        &review_path,
+        "# retained-review-k2\n\n**Kind:** review-impl\n",
+    )
+    .unwrap();
+
+    let fake_llm = worktree.join("fake-grove-llm.sh");
+    write_exec(
+        &fake_llm,
+        r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf 'grove-llm %s\n' "$GROVE_TEST_VERSION"
+else
+  printf '%s\n' "$GROVE_TEST_PEEK"
+fi
+"#,
+    );
+    let prompt_log = worktree.join("prompt");
+    let fake_harness = worktree.join("fake-claude.sh");
+    write_exec(
+        &fake_harness,
+        r#"#!/bin/sh
+for arg in "$@"; do prompt="$arg"; done
+printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
+exit 0
+"#,
+    );
+    let peek = serde_json::json!({
+        "path": review_path,
+        "handle": "retained-review-k2",
+        "kind": "review-impl",
+        "harness": null,
+        "review": {
+            "status": "checkable",
+            "producer": "bundle-k1",
+            "session": "implement-k4",
+            "generation": "k4",
+            "producer-target": {"harness": "claude", "model": "opus"}
+        }
+    })
+    .to_string();
+    let skill_dir = worktree.join("global-skill");
+    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
+    fs::write(skill_dir.join("prompts/continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", &fake_llm)
+        .set("GROVE_HARNESS_BIN", &fake_harness)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_REVIEW_MODEL", "opus")
+        .set("GROVE_TEST_PROMPT", &prompt_log)
+        .set("GROVE_TEST_VERSION", env!("CARGO_PKG_VERSION"))
+        .set("GROVE_TEST_PEEK", &peek);
+
+    let outcome = loop_driver::run_loop(harness, worktree, worktree, "retained").unwrap();
+    let prompt = fs::read_to_string(&prompt_log).unwrap();
+
+    assert_eq!(outcome, LoopOutcome::Stopped);
+    assert!(prompt.contains("producer=bundle-k1, session=implement-k4"));
+    assert!(
+        !prompt.contains("uncheckable"),
+        "the task on disk intentionally lacks the relationship; rereading it would discard the guarded evidence: {prompt}"
+    );
+}
+
+#[test]
+fn a_review_peek_without_the_review_field_is_rejected_as_version_skew() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let worktree = repo.path();
+    init_worktree(worktree);
+    fs::create_dir_all(worktree.join(".grove")).unwrap();
+    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    let review_path = worktree.join(".grove/01-review-k2.md");
+    fs::write(&review_path, "# review-k2\n\n**Kind:** review-impl\n").unwrap();
+
+    let fake_llm = worktree.join("fake-grove-llm.sh");
+    write_exec(
+        &fake_llm,
+        r#"#!/bin/sh
+if [ "$1" = "--version" ]; then
+  printf 'grove-llm %s\n' "$GROVE_TEST_VERSION"
+else
+  printf '%s\n' "$GROVE_TEST_PEEK"
+fi
+"#,
+    );
+    let launch_log = worktree.join("launch-log");
+    let fake_harness = worktree.join("fake-claude.sh");
+    write_exec(
+        &fake_harness,
+        "#!/bin/sh\nprintf 'launched\\n' > \"$GROVE_TEST_LOG\"\n",
+    );
+    let peek = serde_json::json!({
+        "path": review_path,
+        "handle": "review-k2",
+        "kind": "review-impl",
+        "harness": null
+    })
+    .to_string();
+    let skill_dir = worktree.join("global-skill");
+    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
+    fs::write(skill_dir.join("prompts/continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let harness = harness::by_name("claude").unwrap();
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_LLM_BIN", &fake_llm)
+        .set("GROVE_HARNESS_BIN", &fake_harness)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_REVIEW_MODEL", "opus")
+        .set("GROVE_TEST_LOG", &launch_log)
+        .set("GROVE_TEST_VERSION", env!("CARGO_PKG_VERSION"))
+        .set("GROVE_TEST_PEEK", &peek);
+
+    let error = loop_driver::run_loop(harness, worktree, worktree, "skewed-review")
+        .expect_err("a review wire predating retained evidence must not launch")
+        .to_string();
+
+    assert!(error.contains("could not be resolved"), "{error}");
+    assert!(!launch_log.exists(), "the skewed wire launched a session");
 }
 
 #[test]

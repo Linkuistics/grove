@@ -98,7 +98,9 @@ artifact and promotion under the unchanged producer handle, retire the
 relocated producer, and hand back with `grove-llm complete`. Do not spawn another
 doubt reviewer. Grove now owns the review target and warns rather than blocks
 when the scheduled reviewer does not differ from the producer on both harness
-and exact model selector.
+and exact model selector. The receipt may name a decomposed producer's distinct
+factual source session and generation; consume Grove's scoped warning rather
+than reconstructing that history or starting another review cycle.
 
 ## The process — CLAIM → EXTRACT → DOUBT → RECONCILE → STOP
 

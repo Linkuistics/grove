@@ -9,7 +9,7 @@
 use crate::harness;
 use crate::tree_id::{parse, validate_slug, Entry};
 use anyhow::{bail, Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -76,12 +76,83 @@ impl SessionTarget {
 }
 
 /// Historical producer target materialised in the review task that consumes it.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+/// `session` and `generation` are absent only on a legacy direct-leaf receipt.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct ProducerLaunchReceipt {
     pub producer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation: Option<String>,
     #[serde(flatten)]
     pub target: LaunchTarget,
+}
+
+#[derive(Default)]
+enum Present<T> {
+    #[default]
+    Missing,
+    Value(T),
+}
+
+impl<'de, T> Deserialize<'de> for Present<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        T::deserialize(deserializer).map(Self::Value)
+    }
+}
+
+#[derive(Deserialize)]
+struct ProducerLaunchReceiptWire {
+    producer: String,
+    #[serde(default)]
+    session: Present<String>,
+    #[serde(default)]
+    generation: Present<String>,
+    harness: String,
+    #[serde(deserialize_with = "deserialize_nullable_model")]
+    model: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for ProducerLaunchReceipt {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = ProducerLaunchReceiptWire::deserialize(deserializer)?;
+        let (session, generation) = match (wire.session, wire.generation) {
+            (Present::Missing, Present::Missing) => (None, None),
+            (Present::Value(session), Present::Value(generation)) => {
+                (Some(session), Some(generation))
+            }
+            _ => {
+                return Err(serde::de::Error::custom(
+                    "receipt fields `session` and `generation` must either both be present or both be absent",
+                ))
+            }
+        };
+        Ok(Self {
+            producer: wire.producer,
+            session,
+            generation,
+            target: LaunchTarget {
+                harness: wire.harness,
+                model: wire.model,
+            },
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ProducerReceiptCandidate {
+    pub path: PathBuf,
+    pub handle: String,
+    pub generation: u32,
 }
 
 /// All stable relationship metadata a task file may carry. The next slice's
@@ -92,6 +163,23 @@ pub struct TaskRelationships {
     pub reviews: Option<String>,
     pub integrates: Option<String>,
     pub producer_launch: Option<ProducerLaunchReceipt>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum ReviewEvidence {
+    Checkable {
+        producer: String,
+        session: String,
+        generation: String,
+        #[serde(rename = "producer-target")]
+        producer_target: LaunchTarget,
+    },
+    Uncheckable {
+        #[serde(deserialize_with = "deserialize_nullable_model")]
+        producer: Option<String>,
+        reason: String,
+    },
 }
 
 impl TaskRelationships {
@@ -113,11 +201,134 @@ impl TaskRelationships {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Metadata<T> {
-    Missing,
-    Malformed,
-    Present(T),
+pub(crate) fn review_evidence_unlocked(grove_root: &Path, review_path: &Path) -> ReviewEvidence {
+    let text = match fs::read_to_string(review_path) {
+        Ok(text) => text,
+        Err(_) => return uncheckable(None, "review-task-unreadable"),
+    };
+    let producer = match parse_handle_marker(&text, REVIEWS_MARKER) {
+        Ok(Some(producer)) => producer,
+        Ok(None) => return uncheckable(None, "review-relationship-missing"),
+        Err(_) => return uncheckable(None, "review-relationship-malformed"),
+    };
+    let receipt = match parse_receipt_marker(&text) {
+        Ok(Some(receipt)) => receipt,
+        Ok(None) => return uncheckable(Some(producer), "producer-receipt-missing"),
+        Err(_) => return uncheckable(Some(producer), "producer-receipt-malformed"),
+    };
+    if receipt.producer != producer {
+        return uncheckable(Some(producer), "receipt-producer-mismatch");
+    }
+
+    let producer_path = match crate::tree_read::resolve_unlocked(grove_root, &producer) {
+        Ok(crate::tree_read::Resolution::Found { path, .. })
+            if path_handle(&path).as_deref() == Some(producer.as_str()) =>
+        {
+            path
+        }
+        Ok(crate::tree_read::Resolution::NotFound) => {
+            return uncheckable(Some(producer), "reviewed-producer-missing")
+        }
+        _ => return uncheckable(Some(producer), "reviewed-producer-unresolvable"),
+    };
+    let producer_is_node = producer_path.is_dir();
+    if producer_is_node {
+        if !producer_path.join("BRIEF.md").is_file() {
+            return uncheckable(Some(producer), "reviewed-producer-not-decomposition");
+        }
+        match contains_live_leaf(&producer_path) {
+            Ok(true) => return uncheckable(Some(producer), "reviewed-producer-live"),
+            Err(_) => return uncheckable(Some(producer), "reviewed-producer-unreadable"),
+            Ok(false) => {}
+        }
+    } else if !is_terminal_leaf(&producer_path) {
+        return uncheckable(Some(producer), "reviewed-producer-live");
+    }
+
+    let generation_key = match crate::tree_read::producer_generation_unlocked(&producer_path) {
+        Ok(generation) => generation,
+        Err(_) => return uncheckable(Some(producer), "producer-generation-unreadable"),
+    };
+    let generation = format!("k{generation_key}");
+    let (session, recorded_generation) = match (&receipt.session, &receipt.generation) {
+        (Some(session), Some(generation)) => (session.clone(), generation.clone()),
+        (None, None) if !producer_is_node => (producer.clone(), generation.clone()),
+        (None, None) => return uncheckable(Some(producer), "producer-receipt-legacy-node"),
+        _ => return uncheckable(Some(producer), "producer-receipt-malformed"),
+    };
+    if recorded_generation != generation {
+        return uncheckable(Some(producer), "producer-generation-mismatch");
+    }
+
+    let source_path = match crate::tree_read::resolve_unlocked(grove_root, &session) {
+        Ok(crate::tree_read::Resolution::Found { path, .. })
+            if path_handle(&path).as_deref() == Some(session.as_str()) =>
+        {
+            path
+        }
+        Ok(crate::tree_read::Resolution::NotFound) => {
+            return uncheckable(Some(producer), "producer-session-missing")
+        }
+        _ => return uncheckable(Some(producer), "producer-session-unresolvable"),
+    };
+    if producer_is_node {
+        if !source_path.starts_with(&producer_path) || !is_terminal_leaf(&source_path) {
+            return uncheckable(Some(producer), "producer-session-not-terminal-descendant");
+        }
+    } else if source_path != producer_path {
+        return uncheckable(Some(producer), "producer-session-mismatch");
+    }
+
+    ReviewEvidence::Checkable {
+        producer,
+        session,
+        generation,
+        producer_target: receipt.target,
+    }
+}
+
+fn uncheckable(producer: Option<String>, reason: &str) -> ReviewEvidence {
+    ReviewEvidence::Uncheckable {
+        producer,
+        reason: reason.to_string(),
+    }
+}
+
+fn path_handle(path: &Path) -> Option<String> {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(parse)
+        .and_then(|entry| entry.handle())
+}
+
+fn is_terminal_leaf(path: &Path) -> bool {
+    matches!(
+        path.file_name()
+            .and_then(|name| name.to_str())
+            .and_then(parse),
+        Some(Entry::Leaf {
+            outcome: crate::tree_id::Outcome::Done | crate::tree_id::Outcome::Abandoned,
+            ..
+        })
+    )
+}
+
+fn contains_live_leaf(node: &Path) -> Result<bool> {
+    for entry in fs::read_dir(node).with_context(|| format!("reading {}", node.display()))? {
+        let entry = entry?;
+        let Some(parsed) = entry.file_name().to_str().and_then(parse) else {
+            continue;
+        };
+        match parsed {
+            Entry::Leaf {
+                outcome: crate::tree_id::Outcome::Live,
+                ..
+            } => return Ok(true),
+            Entry::Node { .. } if contains_live_leaf(&entry.path())? => return Ok(true),
+            _ => {}
+        }
+    }
+    Ok(false)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -125,36 +336,29 @@ enum ReviewTargetDiversity {
     Diverse,
     Matching {
         producer: String,
+        session: String,
         producer_target: LaunchTarget,
         harness: bool,
         model: bool,
     },
     Uncheckable {
         producer: Option<String>,
-        reason: &'static str,
+        reason: String,
     },
 }
 
-/// Read one routed review task and render its advisory target-diversity notice.
+/// Render the advisory target-diversity notice from the guarded routing peek.
 ///
-/// Every metadata failure becomes an `uncheckable` notice rather than an error:
-/// the resolved route remains launch correctness, while diversity only guides.
+/// The caller retains this evidence from the same structured peek that selected
+/// the route. Consuming it directly is load-bearing: rereading the task after
+/// the shared tree guard opens a TOCTOU window where the warning can describe a
+/// different review than the launch was routed for.
 pub(crate) fn review_diversity_notice(
-    review_path: &Path,
     review_handle: &str,
+    evidence: &ReviewEvidence,
     review_target: &LaunchTarget,
 ) -> Option<String> {
-    let comparison = match fs::read_to_string(review_path) {
-        Ok(text) => compare_review_target_diversity(
-            parsed_metadata(parse_handle_marker(&text, REVIEWS_MARKER)),
-            parsed_metadata(parse_receipt_marker(&text)),
-            review_target,
-        ),
-        Err(_) => ReviewTargetDiversity::Uncheckable {
-            producer: None,
-            reason: "review-task-unreadable",
-        },
-    };
+    let comparison = compare_review_target_diversity(evidence, review_target);
     match comparison {
         ReviewTargetDiversity::Diverse => None,
         _ => Some(render_review_diversity_warning(
@@ -165,58 +369,27 @@ pub(crate) fn review_diversity_notice(
     }
 }
 
-fn parsed_metadata<T>(value: Result<Option<T>>) -> Metadata<T> {
-    match value {
-        Ok(Some(value)) => Metadata::Present(value),
-        Ok(None) => Metadata::Missing,
-        Err(_) => Metadata::Malformed,
-    }
-}
-
 fn compare_review_target_diversity(
-    relationship: Metadata<String>,
-    receipt: Metadata<ProducerLaunchReceipt>,
+    evidence: &ReviewEvidence,
     review_target: &LaunchTarget,
 ) -> ReviewTargetDiversity {
-    let producer = match relationship {
-        Metadata::Missing => {
+    let (producer, session, producer_target) = match evidence {
+        ReviewEvidence::Checkable {
+            producer,
+            session,
+            producer_target,
+            ..
+        } => (producer, session, producer_target),
+        ReviewEvidence::Uncheckable { producer, reason } => {
             return ReviewTargetDiversity::Uncheckable {
-                producer: None,
-                reason: "review-relationship-missing",
+                producer: producer.clone(),
+                reason: reason.clone(),
             };
         }
-        Metadata::Malformed => {
-            return ReviewTargetDiversity::Uncheckable {
-                producer: None,
-                reason: "review-relationship-malformed",
-            };
-        }
-        Metadata::Present(producer) => producer,
     };
-    let receipt = match receipt {
-        Metadata::Missing => {
-            return ReviewTargetDiversity::Uncheckable {
-                producer: Some(producer),
-                reason: "producer-receipt-missing",
-            };
-        }
-        Metadata::Malformed => {
-            return ReviewTargetDiversity::Uncheckable {
-                producer: Some(producer),
-                reason: "producer-receipt-malformed",
-            };
-        }
-        Metadata::Present(receipt) => receipt,
-    };
-    if receipt.producer != producer {
-        return ReviewTargetDiversity::Uncheckable {
-            producer: Some(producer),
-            reason: "receipt-producer-mismatch",
-        };
-    }
 
-    let harness = receipt.target.harness == review_target.harness;
-    let model = match (&receipt.target.model, &review_target.model) {
+    let harness = producer_target.harness == review_target.harness;
+    let model = match (&producer_target.model, &review_target.model) {
         (Some(producer), Some(review)) => producer == review,
         (None, None) => harness,
         _ => false,
@@ -225,8 +398,9 @@ fn compare_review_target_diversity(
         ReviewTargetDiversity::Diverse
     } else {
         ReviewTargetDiversity::Matching {
-            producer,
-            producer_target: receipt.target,
+            producer: producer.clone(),
+            session: session.clone(),
+            producer_target: producer_target.clone(),
             harness,
             model,
         }
@@ -243,6 +417,7 @@ fn render_review_diversity_warning(
         ReviewTargetDiversity::Diverse => String::new(),
         ReviewTargetDiversity::Matching {
             producer,
+            session,
             producer_target,
             harness,
             model,
@@ -253,17 +428,24 @@ fn render_review_diversity_warning(
                 (false, true) => "model",
                 (false, false) => unreachable!("a matching result has at least one axis"),
             };
+            let source_session = if session != producer {
+                format!(", session={session}")
+            } else {
+                String::new()
+            };
             format!(
                 "grove: review target diversity warning (review={review_handle}, \
-                 producer={producer}, matching={matching}, producer-target={}, \
-                 review-target={review_target}); launch continues",
+                 producer={producer}{source_session}, matching={matching}, producer-target={}, \
+                 review-target={review_target}); applies only if factual pick is \
+                 review={review_handle}; discard otherwise; launch continues",
                 render_launch_target(producer_target)
             )
         }
         ReviewTargetDiversity::Uncheckable { producer, reason } => format!(
             "grove: review target diversity warning (review={review_handle}, producer={}, \
              uncheckable(reason={reason}), producer-target=unavailable, \
-             review-target={review_target}); launch continues",
+             review-target={review_target}); applies only if factual pick is \
+             review={review_handle}; discard otherwise; launch continues",
             producer.as_deref().unwrap_or("unknown")
         ),
     }
@@ -286,6 +468,16 @@ pub(crate) enum ReceiptPlan {
     Uncheckable(ReceiptDiagnostic),
 }
 
+pub(crate) struct ReceiptPlans(Vec<ReceiptPlan>);
+
+impl ReceiptPlans {
+    pub(crate) fn materialize(self) {
+        for plan in self.0 {
+            plan.materialize();
+        }
+    }
+}
+
 impl ReceiptPlan {
     pub(crate) fn materialize(self) {
         if let Some(diagnostic) = self.materialization_diagnostic() {
@@ -298,7 +490,7 @@ impl ReceiptPlan {
             Self::NotReviewed => None,
             Self::Uncheckable(diagnostic) => Some(diagnostic),
             Self::Ready(receipt) => {
-                let producer = receipt.producer.clone();
+                let producer = receipt.receipt.producer.clone();
                 let stale = receipt.replaced_existing;
                 if let Err(error) = receipt.write() {
                     Some(ReceiptDiagnostic {
@@ -320,58 +512,107 @@ impl ReceiptPlan {
     }
 }
 
-pub(crate) fn prepare_producer_receipt(
+pub(crate) fn prepare_producer_receipts(
     grove_root: &Path,
-    producer_path: &Path,
-    producer_handle: &str,
+    factual_leaf_path: &Path,
+    factual_leaf_handle: &str,
+    candidates: Vec<ProducerReceiptCandidate>,
     current_pick: Result<Option<PathBuf>>,
-) -> ReceiptPlan {
-    match prepare(grove_root, producer_path, producer_handle, current_pick) {
-        Ok(Some(receipt)) => ReceiptPlan::Ready(receipt),
-        Ok(None) => ReceiptPlan::NotReviewed,
-        Err(problem) => ReceiptPlan::Uncheckable(problem),
+) -> ReceiptPlans {
+    let mut plans = Vec::new();
+    let mut live_reviews = Vec::new();
+    for candidate in candidates {
+        match unique_review_sibling(&candidate.path, &candidate.handle) {
+            Ok(None) => plans.push(ReceiptPlan::NotReviewed),
+            Ok(Some((_, outcome))) if outcome != crate::tree_id::Outcome::Live => {
+                plans.push(ReceiptPlan::Uncheckable(ReceiptDiagnostic {
+                    producer: candidate.handle,
+                    reason: "review-terminal",
+                    detail: "the linked review is terminal and remains byte-identical".to_string(),
+                }));
+            }
+            Ok(Some((review_path, _))) => live_reviews.push((candidate, review_path)),
+            Err(error) => plans.push(ReceiptPlan::Uncheckable(diagnostic(
+                &candidate.handle,
+                error,
+            ))),
+        }
     }
+
+    if live_reviews.is_empty() {
+        return ReceiptPlans(plans);
+    }
+
+    let session = validate_session_target(
+        grove_root,
+        factual_leaf_path,
+        factual_leaf_handle,
+        current_pick,
+    );
+    for (candidate, review_path) in live_reviews {
+        let plan = match &session {
+            Ok(session) => {
+                let receipt = ProducerLaunchReceipt {
+                    producer: candidate.handle.clone(),
+                    session: Some(factual_leaf_handle.to_string()),
+                    generation: Some(format!("k{}", candidate.generation)),
+                    target: session.target.clone(),
+                };
+                match PreparedReceipt::new(review_path, receipt) {
+                    Ok(receipt) => ReceiptPlan::Ready(receipt),
+                    Err(error) => ReceiptPlan::Uncheckable(diagnostic(&candidate.handle, error)),
+                }
+            }
+            Err(problem) => ReceiptPlan::Uncheckable(ReceiptDiagnostic {
+                producer: candidate.handle,
+                reason: problem.reason,
+                detail: problem.detail.clone(),
+            }),
+        };
+        plans.push(plan);
+    }
+    ReceiptPlans(plans)
 }
 
-fn prepare(
-    grove_root: &Path,
-    producer_path: &Path,
-    producer_handle: &str,
-    current_pick: Result<Option<PathBuf>>,
-) -> std::result::Result<Option<PreparedReceipt>, ReceiptDiagnostic> {
-    let review_path = unique_review_sibling(producer_path, producer_handle)
-        .map_err(|error| diagnostic(producer_handle, error))?;
-    let Some(review_path) = review_path else {
-        return Ok(None);
-    };
+struct SessionProblem {
+    reason: &'static str,
+    detail: String,
+}
 
-    let raw = std::env::var(SESSION_TARGET_ENV).map_err(|_| ReceiptDiagnostic {
-        producer: producer_handle.to_string(),
+fn validate_session_target(
+    grove_root: &Path,
+    factual_leaf_path: &Path,
+    factual_leaf_handle: &str,
+    current_pick: Result<Option<PathBuf>>,
+) -> std::result::Result<SessionTarget, SessionProblem> {
+    let raw = std::env::var(SESSION_TARGET_ENV).map_err(|_| SessionProblem {
         reason: "session-target-missing",
         detail: format!("{SESSION_TARGET_ENV} is absent"),
     })?;
     if raw.is_empty() {
-        return Err(ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+        return Err(SessionProblem {
             reason: "session-target-missing",
             detail: format!("{SESSION_TARGET_ENV} is empty"),
         });
     }
-    let session: SessionTarget = serde_json::from_str(&raw).map_err(|error| ReceiptDiagnostic {
-        producer: producer_handle.to_string(),
+    let session: SessionTarget = serde_json::from_str(&raw).map_err(|error| SessionProblem {
         reason: "session-target-malformed",
         detail: error.to_string(),
     })?;
-    validate_handle(&session.handle).map_err(|error| ReceiptDiagnostic {
-        producer: producer_handle.to_string(),
+    validate_handle(&session.handle).map_err(|error| SessionProblem {
         reason: "session-target-malformed",
         detail: format!("invalid routed handle: {error:#}"),
     })?;
     if harness::by_name(&session.target.harness).is_none() {
-        return Err(ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+        return Err(SessionProblem {
             reason: "session-target-malformed",
             detail: format!("unknown harness {:?}", session.target.harness),
+        });
+    }
+    if session.target.model.as_deref() == Some("") {
+        return Err(SessionProblem {
+            reason: "session-target-malformed",
+            detail: "model selector is empty".to_string(),
         });
     }
 
@@ -379,14 +620,12 @@ fn prepare(
         .parent()
         .unwrap_or(grove_root)
         .canonicalize()
-        .map_err(|error| ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+        .map_err(|error| SessionProblem {
             reason: "worktree-unresolvable",
             detail: error.to_string(),
         })?;
     if session.worktree != worktree {
-        return Err(ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+        return Err(SessionProblem {
             reason: "worktree-mismatch",
             detail: format!(
                 "session target names {}, retiring tree is {}",
@@ -395,38 +634,34 @@ fn prepare(
             ),
         });
     }
-    if session.handle != producer_handle {
-        return Err(ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+    if session.handle != factual_leaf_handle {
+        return Err(SessionProblem {
             reason: "routed-handle-mismatch",
             detail: format!("session target names {}", session.handle),
         });
     }
 
-    let picked = current_pick.map_err(|error| ReceiptDiagnostic {
-        producer: producer_handle.to_string(),
+    let picked = current_pick.map_err(|error| SessionProblem {
         reason: "current-pick-unreadable",
         detail: format!("{error:#}"),
     })?;
-    let producer_identity = producer_path
-        .canonicalize()
-        .map_err(|error| ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
-            reason: "producer-unresolvable",
-            detail: error.to_string(),
-        })?;
+    let factual_leaf_identity =
+        factual_leaf_path
+            .canonicalize()
+            .map_err(|error| SessionProblem {
+                reason: "producer-unresolvable",
+                detail: error.to_string(),
+            })?;
     let picked_identity = picked
         .as_deref()
         .map(Path::canonicalize)
         .transpose()
-        .map_err(|error| ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+        .map_err(|error| SessionProblem {
             reason: "current-pick-unreadable",
             detail: error.to_string(),
         })?;
-    if picked_identity.as_deref() != Some(producer_identity.as_path()) {
-        return Err(ReceiptDiagnostic {
-            producer: producer_handle.to_string(),
+    if picked_identity.as_deref() != Some(factual_leaf_identity.as_path()) {
+        return Err(SessionProblem {
             reason: "factual-pick-mismatch",
             detail: picked_identity.map_or_else(
                 || "the tree has no live factual pick".to_string(),
@@ -434,21 +669,12 @@ fn prepare(
             ),
         });
     }
-
-    let receipt = ProducerLaunchReceipt {
-        producer: producer_handle.to_string(),
-        target: session.target,
-    };
-    PreparedReceipt::new(review_path, receipt)
-        .map(Some)
-        .map_err(|error| diagnostic(producer_handle, error))
+    Ok(session)
 }
 
 pub(crate) struct PreparedReceipt {
     path: PathBuf,
-    producer: String,
-    content: String,
-    permissions: fs::Permissions,
+    receipt: ProducerLaunchReceipt,
     replaced_existing: bool,
 }
 
@@ -456,23 +682,30 @@ impl PreparedReceipt {
     fn new(path: PathBuf, receipt: ProducerLaunchReceipt) -> Result<Self> {
         let original = fs::read_to_string(&path)
             .with_context(|| format!("reading linked review task {}", path.display()))?;
-        let permissions = fs::metadata(&path)
-            .with_context(|| format!("reading permissions for {}", path.display()))?
-            .permissions();
+        let relationships = TaskRelationships::parse(&original)?;
+        if relationships.reviews.as_deref() != Some(receipt.producer.as_str()) {
+            bail!(
+                "linked review task no longer declares `{REVIEWS_MARKER} {}`",
+                receipt.producer
+            );
+        }
         let replaced_existing = original
             .lines()
             .any(|line| line.trim_start().starts_with(PRODUCER_LAUNCH_MARKER));
-        let content = render_replaced_receipt(&original, &receipt)?;
         Ok(Self {
             path,
-            producer: receipt.producer,
-            content,
-            permissions,
+            receipt,
             replaced_existing,
         })
     }
 
     fn write(self) -> Result<()> {
+        let original = fs::read_to_string(&self.path)
+            .with_context(|| format!("re-reading linked review task {}", self.path.display()))?;
+        let permissions = fs::metadata(&self.path)
+            .with_context(|| format!("reading permissions for {}", self.path.display()))?
+            .permissions();
+        let content = render_replaced_receipt(&original, &self.receipt)?;
         let parent = self
             .path
             .parent()
@@ -482,7 +715,7 @@ impl PreparedReceipt {
         })?;
         temporary
             .as_file_mut()
-            .write_all(self.content.as_bytes())
+            .write_all(content.as_bytes())
             .with_context(|| {
                 format!(
                     "writing producer launch receipt for {}",
@@ -491,7 +724,7 @@ impl PreparedReceipt {
             })?;
         temporary
             .as_file_mut()
-            .set_permissions(self.permissions)
+            .set_permissions(permissions)
             .with_context(|| format!("preserving permissions for {}", self.path.display()))?;
         temporary
             .persist(&self.path)
@@ -533,7 +766,10 @@ fn diagnostic(producer: &str, error: anyhow::Error) -> ReceiptDiagnostic {
     }
 }
 
-fn unique_review_sibling(producer_path: &Path, producer_handle: &str) -> Result<Option<PathBuf>> {
+fn unique_review_sibling(
+    producer_path: &Path,
+    producer_handle: &str,
+) -> Result<Option<(PathBuf, crate::tree_id::Outcome)>> {
     let parent = producer_path
         .parent()
         .with_context(|| format!("producer has no sibling level: {}", producer_path.display()))?;
@@ -549,13 +785,13 @@ fn unique_review_sibling(producer_path: &Path, producer_handle: &str) -> Result<
         let Some(name) = name.to_str() else {
             continue;
         };
-        if !matches!(parse(name), Some(Entry::Leaf { .. })) {
+        let Some(Entry::Leaf { outcome, .. }) = parse(name) else {
             continue;
-        }
+        };
         let text = fs::read_to_string(entry.path())
             .with_context(|| format!("reading task file {}", entry.path().display()))?;
         if parse_handle_marker(&text, REVIEWS_MARKER)?.as_deref() == Some(producer_handle) {
-            matches.push(entry.path());
+            matches.push((entry.path(), outcome));
         }
     }
     match matches.len() {
@@ -565,7 +801,7 @@ fn unique_review_sibling(producer_path: &Path, producer_handle: &str) -> Result<
             "more than one sibling ({count}) declares `{REVIEWS_MARKER} {producer_handle}`: {}",
             matches
                 .iter()
-                .map(|path| path.display().to_string())
+                .map(|(path, _)| path.display().to_string())
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -604,15 +840,42 @@ fn parse_receipt_marker(text: &str) -> Result<Option<ProducerLaunchReceipt>> {
             .with_context(|| format!("parsing `{PRODUCER_LAUNCH_MARKER}` JSON"))?;
         validate_handle(&parsed.producer)
             .with_context(|| format!("invalid receipt producer {:?}", parsed.producer))?;
+        if let Some(session) = &parsed.session {
+            validate_handle(session)
+                .with_context(|| format!("invalid receipt session {session:?}"))?;
+        }
+        if let Some(generation) = &parsed.generation {
+            validate_generation(generation)
+                .with_context(|| format!("invalid receipt generation {generation:?}"))?;
+        }
         if harness::by_name(&parsed.target.harness).is_none() {
             bail!(
                 "producer launch receipt names unknown harness {:?}",
                 parsed.target.harness
             );
         }
+        if parsed.target.model.as_deref() == Some("") {
+            bail!("producer launch receipt carries an empty model selector");
+        }
         receipt = Some(parsed);
     }
     Ok(receipt)
+}
+
+fn validate_generation(generation: &str) -> Result<u32> {
+    let digits = generation
+        .strip_prefix('k')
+        .with_context(|| "generation must start with `k`")?;
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        bail!("generation must be `k<positive digits>`");
+    }
+    let key = digits
+        .parse::<u32>()
+        .context("generation key is too large")?;
+    if key == 0 {
+        bail!("generation key must be positive");
+    }
+    Ok(key)
 }
 
 fn validate_handle(handle: &str) -> Result<()> {
@@ -693,6 +956,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: Some("opus".to_string()),
@@ -712,6 +976,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: Some("shared".to_string()),
@@ -731,6 +996,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: Some("opus".to_string()),
@@ -761,6 +1027,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: None,
@@ -791,6 +1058,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: None,
@@ -810,6 +1078,7 @@ mod tests {
                 },
                 ReviewTargetDiversity::Matching {
                     producer: "build-k1".to_string(),
+                    session: "build-k1".to_string(),
                     producer_target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: Some("opus".to_string()),
@@ -843,79 +1112,43 @@ mod tests {
         ];
 
         for (producer_target, review_target, expected) in cases {
-            let receipt = ProducerLaunchReceipt {
+            let evidence = ReviewEvidence::Checkable {
                 producer: "build-k1".to_string(),
-                target: producer_target,
+                session: "build-k1".to_string(),
+                generation: "k1".to_string(),
+                producer_target,
             };
             assert_eq!(
-                compare_review_target_diversity(
-                    Metadata::Present("build-k1".to_string()),
-                    Metadata::Present(receipt),
-                    &review_target,
-                ),
+                compare_review_target_diversity(&evidence, &review_target),
                 expected
             );
         }
     }
 
     #[test]
-    fn review_target_comparison_classifies_every_uncheckable_metadata_case() {
+    fn review_target_comparison_preserves_every_uncheckable_evidence_reason() {
         let target = LaunchTarget {
             harness: "codex".to_string(),
             model: Some("o3".to_string()),
         };
-        let receipt = || ProducerLaunchReceipt {
-            producer: "build-k1".to_string(),
-            target: LaunchTarget {
-                harness: "claude".to_string(),
-                model: Some("opus".to_string()),
-            },
-        };
         let cases = [
-            (
-                Metadata::Missing,
-                Metadata::Present(receipt()),
-                None,
-                "review-relationship-missing",
-            ),
-            (
-                Metadata::Malformed,
-                Metadata::Present(receipt()),
-                None,
-                "review-relationship-malformed",
-            ),
-            (
-                Metadata::Present("build-k1".to_string()),
-                Metadata::Missing,
-                Some("build-k1"),
-                "producer-receipt-missing",
-            ),
-            (
-                Metadata::Present("build-k1".to_string()),
-                Metadata::Malformed,
-                Some("build-k1"),
-                "producer-receipt-malformed",
-            ),
-            (
-                Metadata::Present("build-k1".to_string()),
-                Metadata::Present(ProducerLaunchReceipt {
-                    producer: "other-k9".to_string(),
-                    target: LaunchTarget {
-                        harness: "claude".to_string(),
-                        model: Some("opus".to_string()),
-                    },
-                }),
-                Some("build-k1"),
-                "receipt-producer-mismatch",
-            ),
+            (None, "review-relationship-missing"),
+            (None, "review-relationship-malformed"),
+            (Some("build-k1"), "producer-receipt-missing"),
+            (Some("build-k1"), "producer-receipt-malformed"),
+            (Some("build-k1"), "receipt-producer-mismatch"),
         ];
 
-        for (relationship, receipt, producer, reason) in cases {
+        for (producer, reason) in cases {
+            let evidence = ReviewEvidence::Uncheckable {
+                producer: producer.map(str::to_string),
+                reason: reason.to_string(),
+            };
             assert_eq!(
-                compare_review_target_diversity(relationship, receipt, &target),
+                compare_review_target_diversity(&evidence, &target),
                 ReviewTargetDiversity::Uncheckable {
                     producer: producer.map(str::to_string),
-                    reason,
+                    reason: reason.to_string(),
                 }
             );
         }
@@ -929,22 +1162,23 @@ mod tests {
         };
         let matching = ReviewTargetDiversity::Matching {
             producer: "build-k1".to_string(),
+            session: "finish-k7".to_string(),
             producer_target: review_target.clone(),
             harness: true,
             model: true,
         };
         assert_eq!(
             render_review_diversity_warning("build-review-k2", &review_target, &matching),
-            "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/default(claude), review-target=claude/default(claude)); launch continues"
+            "grove: review target diversity warning (review=build-review-k2, producer=build-k1, session=finish-k7, matching=harness+model, producer-target=claude/default(claude), review-target=claude/default(claude)); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues"
         );
 
         let uncheckable = ReviewTargetDiversity::Uncheckable {
             producer: None,
-            reason: "review-relationship-malformed",
+            reason: "review-relationship-malformed".to_string(),
         };
         assert_eq!(
             render_review_diversity_warning("build-review-k2", &review_target, &uncheckable),
-            "grove: review target diversity warning (review=build-review-k2, producer=unknown, uncheckable(reason=review-relationship-malformed), producer-target=unavailable, review-target=claude/default(claude)); launch continues"
+            "grove: review target diversity warning (review=build-review-k2, producer=unknown, uncheckable(reason=review-relationship-malformed), producer-target=unavailable, review-target=claude/default(claude)); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues"
         );
 
         let explicit = LaunchTarget {
@@ -972,9 +1206,99 @@ mod tests {
     }
 
     #[test]
+    fn receipt_wire_is_extensible_and_legacy_identity_is_all_or_nothing() {
+        let modern = TaskRelationships::parse(
+            "**Reviews:** build-k1\n\
+             **Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k7\",\"generation\":\"k9\",\"harness\":\"claude\",\"model\":\"opus\",\"future\":true}\n",
+        )
+        .unwrap()
+        .producer_launch
+        .unwrap();
+        assert_eq!(modern.session.as_deref(), Some("finish-k7"));
+        assert_eq!(modern.generation.as_deref(), Some("k9"));
+
+        let legacy = TaskRelationships::parse(
+            "**Reviews:** build-k1\n\
+             **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":null}\n",
+        )
+        .unwrap()
+        .producer_launch
+        .unwrap();
+        assert_eq!((legacy.session, legacy.generation), (None, None));
+
+        for invalid in [
+            r#"{"producer":"build-k1","session":"finish-k7","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":null,"generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":null,"harness":"claude","model":"opus"}"#,
+        ] {
+            let text = format!("**Reviews:** build-k1\n**Producer launch:** {invalid}\n");
+            assert!(
+                TaskRelationships::parse(&text).is_err(),
+                "accepted {invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn review_evidence_wire_requires_nullable_producer_and_rejects_unknown_fields() {
+        let explicit_null =
+            r#"{"status":"uncheckable","producer":null,"reason":"receipt-missing"}"#;
+        assert!(serde_json::from_str::<ReviewEvidence>(explicit_null).is_ok());
+        assert!(serde_json::from_str::<ReviewEvidence>(
+            r#"{"status":"uncheckable","reason":"receipt-missing"}"#
+        )
+        .is_err());
+        assert!(serde_json::from_str::<ReviewEvidence>(
+            r#"{"status":"uncheckable","producer":null,"reason":"receipt-missing","future":true}"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn receipt_wire_rejects_invalid_known_values_and_old_strict_readers_reject_new_fields() {
+        for invalid in [
+            r#"{"session":"finish-k7","generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"claude"}"#,
+            r#"{"producer":"bad handle","session":"finish-k7","generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"bad handle","generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k0","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"unknown","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"claude","model":""}"#,
+            r#"{"producer":1,"session":"finish-k7","generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":7,"generation":"k9","harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":9,"harness":"claude","model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":7,"model":"opus"}"#,
+            r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"claude","model":7}"#,
+        ] {
+            let text = format!("**Reviews:** build-k1\n**Producer launch:** {invalid}\n");
+            assert!(
+                TaskRelationships::parse(&text).is_err(),
+                "accepted {invalid}"
+            );
+        }
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        #[allow(dead_code)]
+        struct LegacyStrictReceipt {
+            producer: String,
+            harness: String,
+            #[serde(deserialize_with = "deserialize_nullable_model")]
+            model: Option<String>,
+        }
+        let new_receipt = r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"claude","model":"opus"}"#;
+        assert!(serde_json::from_str::<LegacyStrictReceipt>(new_receipt).is_err());
+    }
+
+    #[test]
     fn replacement_is_adjacent_and_unconditional() {
         let receipt = ProducerLaunchReceipt {
             producer: "build-k1".to_string(),
+            session: Some("build-k1".to_string()),
+            generation: Some("k1".to_string()),
             target: LaunchTarget {
                 harness: "claude".to_string(),
                 model: Some("opus".to_string()),
@@ -1015,6 +1339,8 @@ mod tests {
                 review.clone(),
                 ProducerLaunchReceipt {
                     producer: "build-k1".to_string(),
+                    session: Some("build-k1".to_string()),
+                    generation: Some("k1".to_string()),
                     target: LaunchTarget {
                         harness: "claude".to_string(),
                         model: Some("opus".to_string()),
@@ -1039,5 +1365,34 @@ mod tests {
             );
             assert!(done.is_file(), "receipt failure must not reverse DONE");
         }
+    }
+
+    #[test]
+    fn materialisation_re_reads_the_review_after_done() {
+        let tmp = TempDir::new().unwrap();
+        let review = tmp.path().join("02-build-review-k2.md");
+        fs::write(&review, "**Reviews:** build-k1\noriginal\n").unwrap();
+        let prepared = PreparedReceipt::new(
+            review.clone(),
+            ProducerLaunchReceipt {
+                producer: "build-k1".to_string(),
+                session: Some("finish-k7".to_string()),
+                generation: Some("k9".to_string()),
+                target: LaunchTarget {
+                    harness: "claude".to_string(),
+                    model: Some("opus".to_string()),
+                },
+            },
+        )
+        .unwrap();
+        fs::write(&review, "**Reviews:** build-k1\noriginal\nlate edit\n").unwrap();
+
+        assert!(ReceiptPlan::Ready(prepared)
+            .materialization_diagnostic()
+            .is_none());
+
+        let rendered = fs::read_to_string(review).unwrap();
+        assert!(rendered.contains("late edit\n"));
+        assert!(rendered.contains("\"session\":\"finish-k7\""));
     }
 }

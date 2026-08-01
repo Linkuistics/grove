@@ -407,7 +407,7 @@ fn json_returns_path_handle_kind_and_declared_harness_from_one_leaf_read() {
     assert_eq!(
         stdout,
         format!(
-            "{{\"path\":\"{}\",\"handle\":\"survey-k7\",\"kind\":\"research\",\"harness\":\"codex\"}}\n",
+            "{{\"path\":\"{}\",\"handle\":\"survey-k7\",\"kind\":\"research\",\"harness\":\"codex\",\"review\":null}}\n",
             grove::json::escape(&path.display().to_string())
         )
     );
@@ -425,8 +425,155 @@ fn json_represents_an_undeclared_harness_as_null() {
     assert!(
         stdout.contains("\"handle\":\"build-k1\"")
             && stdout.contains("\"kind\":\"impl\"")
-            && stdout.contains("\"harness\":null"),
+            && stdout.contains("\"harness\":null")
+            && stdout.contains("\"review\":null"),
         "the JSON object must carry every launch fact: {stdout:?}"
+    );
+}
+
+fn build_finished_producer_with_review(repo: &Path, receipt: &str) -> PathBuf {
+    let chain = repo.join(".grove/01-build-chain-k10");
+    let producer = chain.join("01-build-k1");
+    touch(&producer, "BRIEF.md");
+    touch_leaf(&producer, "01-DONE-author-k8.md", "impl");
+    touch_leaf(&producer, "02-DONE-finish-k9.md", "integrate-review-impl");
+    let review = chain.join("02-build-review-k2.md");
+    fs::write(
+        &review,
+        format!(
+            "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n**Producer launch:** {receipt}\n"
+        ),
+    )
+    .unwrap();
+    touch_leaf(&chain, "03-build-integrate-k3.md", "integrate-review-impl");
+    review
+}
+
+#[test]
+fn json_returns_validated_decomposed_producer_evidence() {
+    let tmp = init_repo();
+    let review = build_finished_producer_with_review(
+        tmp.path(),
+        r#"{"producer":"build-k1","session":"finish-k9","generation":"k9","harness":"claude","model":"opus"}"#,
+    );
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
+
+    assert!(ok, "the structured peek failed: {stderr:?}");
+    let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        value["path"],
+        review.canonicalize().unwrap().display().to_string()
+    );
+    assert_eq!(
+        value["review"],
+        serde_json::json!({
+            "status": "checkable",
+            "producer": "build-k1",
+            "session": "finish-k9",
+            "generation": "k9",
+            "producer-target": {"harness": "claude", "model": "opus"}
+        })
+    );
+}
+
+#[test]
+fn json_derives_session_and_generation_for_a_legacy_direct_leaf_receipt() {
+    let tmp = init_repo();
+    let chain = tmp.path().join(".grove/01-build-chain-k4");
+    touch_leaf(&chain, "01-DONE-build-k1.md", "impl");
+    let review = chain.join("02-build-review-k2.md");
+    fs::write(
+        &review,
+        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
+         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+    )
+    .unwrap();
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+    );
+
+    assert!(ok, "legacy direct evidence failed: {stderr}");
+    let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        value["review"],
+        serde_json::json!({
+            "status": "checkable",
+            "producer": "build-k1",
+            "session": "build-k1",
+            "generation": "k1",
+            "producer-target": {"harness": "claude", "model": "opus"}
+        })
+    );
+}
+
+#[test]
+fn json_rejects_legacy_node_and_stale_generation_receipts() {
+    for (receipt, reason) in [
+        (
+            r#"{"producer":"build-k1","harness":"claude","model":"opus"}"#,
+            "producer-receipt-legacy-node",
+        ),
+        (
+            r#"{"producer":"build-k1","session":"finish-k9","generation":"k8","harness":"claude","model":"opus"}"#,
+            "producer-generation-mismatch",
+        ),
+        (
+            r#"{"producer":"build-k1","session":"missing-k77","generation":"k9","harness":"claude","model":"opus"}"#,
+            "producer-session-missing",
+        ),
+    ] {
+        let tmp = init_repo();
+        let review = build_finished_producer_with_review(tmp.path(), receipt);
+
+        let (stdout, stderr, ok) = run(
+            tmp.path(),
+            &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+        );
+
+        assert!(ok, "{reason}: structured peek failed: {stderr:?}");
+        let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+        assert_eq!(
+            value["review"],
+            serde_json::json!({
+                "status": "uncheckable",
+                "producer": "build-k1",
+                "reason": reason
+            }),
+            "receipt {receipt}"
+        );
+    }
+}
+
+#[test]
+fn json_rejects_a_source_session_outside_the_reviewed_producer() {
+    let tmp = init_repo();
+    let review = build_finished_producer_with_review(
+        tmp.path(),
+        r#"{"producer":"build-k1","session":"outside-k7","generation":"k9","harness":"claude","model":"opus"}"#,
+    );
+    touch_leaf(
+        &tmp.path().join(".grove/01-build-chain-k10"),
+        "04-DONE-outside-k7.md",
+        "impl",
+    );
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+    );
+
+    assert!(ok, "source validation failed: {stderr}");
+    let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        value["review"],
+        serde_json::json!({
+            "status": "uncheckable",
+            "producer": "build-k1",
+            "reason": "producer-session-not-terminal-descendant"
+        })
     );
 }
 

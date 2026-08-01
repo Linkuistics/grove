@@ -192,7 +192,7 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
 fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
     let grove_abs = canonical_grove_root(grove_root)?;
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
-    let (done_name, producer_handle) = match parse(&name) {
+    let (done_name, factual_leaf_handle, factual_leaf_key) = match parse(&name) {
         Some(Entry::Leaf {
             outcome: Outcome::Live,
             position,
@@ -207,7 +207,7 @@ fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> 
                 outcome: Outcome::Done,
             }
             .name();
-            (done_name, producer_handle)
+            (done_name, producer_handle, key)
         }
         Some(Entry::Leaf {
             outcome: Outcome::Done,
@@ -233,18 +233,87 @@ fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> 
     // is retained as a diagnostic plan rather than returned: metadata must
     // never become lifecycle-critical.
     let producer_path = parent_abs.join(&name);
-    let receipt = crate::task_relationship::prepare_producer_receipt(
+    let receipt_candidates = producer_receipt_candidates(
         &grove_abs,
         &producer_path,
-        &producer_handle,
+        &factual_leaf_handle,
+        factual_leaf_key,
+    )?;
+    let receipts = crate::task_relationship::prepare_producer_receipts(
+        &grove_abs,
+        &producer_path,
+        &factual_leaf_handle,
+        receipt_candidates,
         crate::tree_read::pick_unlocked(&grove_abs),
     );
     // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
     rename_entry(&parent_abs, &name, &done_name)?;
     // DONE first, receipt second. A post-rename write failure reports
     // uncheckable metadata and deliberately cannot reverse or mask retirement.
-    receipt.materialize();
+    receipts.materialize();
     Ok(done_path)
+}
+
+fn producer_receipt_candidates(
+    grove_root: &Path,
+    factual_leaf_path: &Path,
+    factual_leaf_handle: &str,
+    factual_leaf_key: u32,
+) -> Result<Vec<crate::task_relationship::ProducerReceiptCandidate>> {
+    let mut candidates = vec![crate::task_relationship::ProducerReceiptCandidate {
+        path: factual_leaf_path.to_path_buf(),
+        handle: factual_leaf_handle.to_string(),
+        generation: factual_leaf_key,
+    }];
+    let mut ancestor = factual_leaf_path.parent();
+    while let Some(node) = ancestor {
+        if node == grove_root {
+            break;
+        }
+        if node.join("BRIEF.md").is_file()
+            && node_closes_when_leaf_retires(node, factual_leaf_path)?
+        {
+            let entry = node
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(parse)
+                .with_context(|| format!("invalid decomposition node {}", node.display()))?;
+            let handle = entry
+                .handle()
+                .with_context(|| format!("decomposition node has no handle: {}", node.display()))?;
+            candidates.push(crate::task_relationship::ProducerReceiptCandidate {
+                path: node.to_path_buf(),
+                handle,
+                generation: crate::tree_read::producer_generation_unlocked(node)?,
+            });
+        }
+        ancestor = node.parent();
+    }
+    Ok(candidates)
+}
+
+fn node_closes_when_leaf_retires(node: &Path, factual_leaf_path: &Path) -> Result<bool> {
+    let mut live = Vec::new();
+    collect_live_leaves(node, &mut live)?;
+    Ok(live.as_slice() == [factual_leaf_path])
+}
+
+fn collect_live_leaves(node: &Path, live: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(node).with_context(|| format!("reading {}", node.display()))? {
+        let entry = entry?;
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
+            continue;
+        };
+        match parse(&name) {
+            Some(Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            }) => live.push(entry.path()),
+            Some(Entry::Node { .. }) => collect_live_leaves(&entry.path(), live)?,
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`

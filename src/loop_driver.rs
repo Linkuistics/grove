@@ -399,7 +399,7 @@ fn review_diversity_notice(launch: &Launch) -> Option<String> {
         harness: launch.harness.name.to_string(),
         model: launch.model.clone(),
     };
-    crate::task_relationship::review_diversity_notice(&leaf.path, &leaf.handle, &target)
+    crate::task_relationship::review_diversity_notice(&leaf.handle, leaf.review.as_ref()?, &target)
 }
 
 /// The watcher's state machine: idle until the completion signal file
@@ -864,6 +864,7 @@ struct RoutedLeaf {
     handle: String,
     kind: Kind,
     declared_harness: Option<&'static Harness>,
+    review: Option<crate::task_relationship::ReviewEvidence>,
 }
 
 /// Resolve where and on what the next session launches: peek the picked
@@ -1170,6 +1171,17 @@ struct RoutedLeafWire {
     handle: String,
     kind: String,
     harness: Option<String>,
+    #[serde(deserialize_with = "deserialize_nullable_review")]
+    review: Option<crate::task_relationship::ReviewEvidence>,
+}
+
+fn deserialize_nullable_review<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<crate::task_relationship::ReviewEvidence>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<crate::task_relationship::ReviewEvidence>::deserialize(deserializer)
 }
 
 /// Peek the next live leaf's launch facts by running `grove-llm kind
@@ -1264,11 +1276,21 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
                     }
                 },
             };
+            let review_kind = matches!(kind.family(), Some(Family::Review));
+            if review_kind != wire.review.is_some() {
+                eprintln!(
+                    "grove: review evidence from `grove-llm kind --with-harness --json` \
+                     does not match routed kind {:?}",
+                    wire.kind
+                );
+                return KindPeek::Degraded;
+            }
             KindPeek::Leaf(RoutedLeaf {
                 path: wire.path,
                 handle: wire.handle,
                 kind,
                 declared_harness,
+                review: wire.review,
             })
         }
         Ok(_) => {

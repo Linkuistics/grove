@@ -214,7 +214,11 @@ suffix, require a `review-X` after every `X`, or reject a partial chain. It does
 parse the explicit `Reviews` / `Integrates` relationships and the review's
 best-effort `Producer launch` receipt for promotion, retirement, and the
 advisory target-diversity warning; it never reconstructs those facts from a
-filename or position. `leaf-add` still means one leaf, and skipping a chain is a
+filename or position. A new receipt names the reviewed producer, the factual
+source session that closed it, and the producer generation (greatest permanent
+key in its subtree). A direct leaf supplies all three facts itself; a reviewed
+decomposition node can name a different closing session. Pruning supplies no
+handoff receipt. `leaf-add` still means one leaf, and skipping a chain is a
 normal choice.
 
 ## Suggested shape

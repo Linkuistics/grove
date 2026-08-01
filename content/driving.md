@@ -508,10 +508,14 @@ Six habits make the chain worth its three sessions:
   reason. Reach for a `**Harness:**` line only where a policy genuinely cannot
   express the shape, which is the vendor pair and nothing else.
 - **Treat diversity as a warning, not a gate.** Producer retirement applies
-  `DONE` first, then writes the linked review's `Producer launch` receipt
-  best-effort. Review launch warns unless both its harness and exact model
-  selector differ from the producer, or when comparison is uncheckable, and
-  still launches. Grove owns that route; do not add a competing doubt reviewer.
+  `DONE` first, then writes the live linked review's `Producer launch` receipt
+  best-effort. A direct producer names itself as source session; a reviewed
+  decomposition node names the factual closing leaf and an independently
+  computed producer generation, so reorder stays current and reopen becomes
+  stale. Review launch consumes evidence retained by the guarded routing peek,
+  warns unless both harness and exact model selector differ (or comparison is
+  uncheckable), scopes the notice to the factual pick, and still launches. Grove
+  owns that route; do not add a competing doubt reviewer.
 
 grove does not require a review after every producer or parse step suffixes and
 positions as grammar; skipping a chain remains normal. It does parse the stable
@@ -622,6 +626,11 @@ live. The doubt always resolves to one of three existing mechanisms:
   "Retire"). The path was considered on its merits and rejected; the leaf
   stays in the tree `ABANDONED`, and the *why* goes to the ADR set, not the
   filename (ADR *pruning*).
+
+Scope the prune to the decision. Pruning only a reviewed producer deliberately
+writes no handoff receipt and leaves its sibling review next, uncheckable. When
+the producer, review, and integration path are all rejected, prune the enclosing
+review-chain node instead so every live step closes together.
 
 Misfiling any of the three corrupts the tree in a different way: reordering a
 decided-against leaf keeps a dead end reading as "still coming"; pruning a

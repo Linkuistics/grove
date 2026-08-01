@@ -263,7 +263,8 @@ bytes and handle inside a derived brief-less chain, leaving a recoverable
 `PROMOTING-*` witness on interruption. Finish to a reviewable boundary, commit
 artifact plus promotion under that handle, retire the returned producer path,
 then complete. Retirement writes the review's `Producer launch` receipt
-best-effort after `DONE`; diversity warnings never block launch.
+best-effort after `DONE`, naming the producer, factual source session, and
+producer generation; diversity warnings never block launch.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), optionally
@@ -329,6 +330,17 @@ its position and key in its directory. The infix is filename-only — the file's
 contents (including its `# <slug>-k<key>` header) are untouched. Mechanical
 bookkeeping, no need to ask.
 
+That same retirement may also close reviewed, brief-carrying decomposition
+ancestors. While your leaf is still the factual pick, Grove prepares one
+best-effort `Producer launch` receipt for the direct leaf and each such ancestor:
+`producer` names the reviewed entity, `session` names this factual source
+session, and `generation` is the greatest permanent key in the producer's
+subtree. `DONE` lands first. Only a live linked review is rewritten; a terminal
+review stays byte-identical and reports `review-terminal`. Receipt failure is
+advisory and never reverses retirement. This side effect is why a reviewed node
+close can change its live review task even though the node itself is never
+marked.
+
 The other case: a session finds the leaf's path decided against, not done. This
 is **pruning**, and it is **HITL — an agent never prunes on its own**: an AFK
 session (every kind but `requirements` and `prototype`) that discovers this says
@@ -337,6 +349,10 @@ loop stalling on an abandonment decision is the system working, not a fault.
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
 ones alone, and refuses the grove root) to mark it `ABANDONED` in place.
+Pruning a reviewed producer writes no handoff receipt and leaves a sibling
+review live, next and deliberately uncheckable. If the human is abandoning the
+whole reviewed path, prune the enclosing review-chain node instead; that marks
+producer, review, and integration scope together.
 `.grove/` dies at the finish cycle, so the mark records only *that* the path
 closed — the durable *why* (what was rejected, why, and what would reopen it)
 goes to the **ADR set**, the positive fact the abandonment establishes, if it
@@ -347,11 +363,12 @@ Then walk the parent chain: if a node now has no live leaf left in its subtree �
 however its leaves finished — it is **implicitly done** — a brief is context,
 not a task, so it is never marked done; its done-ness *is* the absence of a live
 child. **The close asks the human nothing, for either node species.** A node is
-never marked, so whatever a human answered the tree was byte-identical
-afterwards — and a node closed in error is reopened by one `leaf-add`, with
-nothing to undo. That is the first of the two tests deciding where grove *does*
-ask; ADR *confirmation-boundary* carries both, and the second is why pruning and
-the finish cycle still do.
+never marked. A reviewed close may best-effort update its live review's factual
+handoff receipt, but that is a fact this session establishes rather than a human
+judgement; `leaf-add` reopens a close in error and changes its generation. That
+is the first of the two tests deciding where grove *does* ask; ADR
+*confirmation-boundary* carries both, and the second is why pruning and the
+finish cycle still do.
 
 Instead the session **verifies and reports**. On a **brief-carrying** node:
 

@@ -185,6 +185,7 @@ pub struct LaunchPeek {
     pub handle: String,
     pub kind: Kind,
     pub harness: Option<&'static Harness>,
+    pub review: Option<crate::task_relationship::ReviewEvidence>,
 }
 
 /// The complete routed-leaf fact the loop driver needs before it can launch a
@@ -219,11 +220,14 @@ pub fn launch_peek(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option
         .with_context(|| format!("routed path is not a keyed Grove task: {}", path.display()))?;
     let kind = read_kind(&path)?;
     let harness = read_harness(&path)?;
+    let review = matches!(kind.family(), Some(crate::leaf::Family::Review))
+        .then(|| crate::task_relationship::review_evidence_unlocked(guard.root(), &path));
     Ok(Some(LaunchPeek {
         path,
         handle,
         kind,
         harness,
+        review,
     }))
 }
 
@@ -589,6 +593,30 @@ fn collect_all(dir: &Path, out: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Stable generation for a reviewed producer entity: the greatest permanent
+/// key in the producer itself and, for a decomposition node, its whole subtree.
+/// Position and outcome infixes deliberately do not participate.
+pub(crate) fn producer_generation_unlocked(producer: &Path) -> Result<u32> {
+    let producer_entry = producer
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(parse)
+        .with_context(|| format!("invalid reviewed producer {}", producer.display()))?;
+    let mut generation = producer_entry
+        .key()
+        .with_context(|| format!("reviewed producer has no key: {}", producer.display()))?;
+    if matches!(producer_entry, Entry::Node { .. }) {
+        let mut descendants = Vec::new();
+        collect_all(producer, &mut descendants)?;
+        for (entry, _) in descendants {
+            if let Some(key) = entry.key() {
+                generation = generation.max(key);
+            }
+        }
+    }
+    Ok(generation)
 }
 
 #[cfg(test)]

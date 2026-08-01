@@ -98,9 +98,12 @@ pub enum Command {
         #[arg(long = "with-harness")]
         with_harness: bool,
         /// Emit the picked leaf as one JSON object containing `path`, stable
-        /// `handle`, `kind`, and nullable declared `harness`. An empty grove is
-        /// the JSON literal `null`. The loop driver combines this with
-        /// `--with-harness` and retains the result for the whole launch.
+        /// `handle`, `kind`, nullable declared `harness`, and `review`. Review
+        /// is null for other kinds; a review carries guarded checkable or
+        /// uncheckable evidence, with historical routing nested beneath
+        /// `producer-target`. An empty grove is the JSON literal `null`. The
+        /// loop driver combines this with `--with-harness` and retains the
+        /// result for the whole launch without reopening task metadata.
         #[arg(long)]
         json: bool,
     },
@@ -170,6 +173,10 @@ pub enum Command {
     /// key/handle, the same now-stale path on an idempotent retry, or the exact
     /// transaction path named by a fail-closed diagnostic. Prints node,
     /// relocated producer, review, and integration paths after success only.
+    /// Finish to a reviewable boundary, commit under the unchanged producer
+    /// handle, then retire the relocated producer. That `DONE` handoff records
+    /// producer, factual source session, and producer generation best-effort in
+    /// the live review.
     LeafPromoteChain(LeafPromoteChainArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call — a
     /// `<stem>-pair` **node directory** holding `<stem>-a`, `<stem>-b`,
@@ -225,9 +232,12 @@ pub enum Command {
     /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
     /// (`ABANDONED`) leaf. Prints the retired file's absolute
     /// path on stdout. When one sibling review declares `Reviews` for this
-    /// producer, retirement applies `DONE` first and then writes its
-    /// `Producer launch` receipt best-effort; receipt failure warns but never
-    /// reverses or blocks retirement. Working-tree change only — no commit.
+    /// producer, or this transition closes a reviewed brief-carrying ancestor,
+    /// retirement prepares a `Producer launch` receipt naming the producer,
+    /// factual source session, and producer generation. It applies `DONE` first
+    /// and writes only a live review best-effort; a terminal review stays
+    /// byte-identical with `review-terminal`, and any receipt failure warns but
+    /// never reverses or blocks retirement. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
     /// Mark abandoned work `ABANDONED` in place. **HITL: only
     /// call this after explicit human confirmation** — grove never abandons
@@ -245,8 +255,10 @@ pub enum Command {
     /// The `ABANDONED` infix is filename-only — every marked leaf's
     /// `# <slug>-k<key>` header stays byte-identical. Prints each newly-marked
     /// leaf's absolute path on stdout, one per line; any already-`DONE` leaves
-    /// found and left alone are reported on stderr. Working-tree change only —
-    /// no commit.
+    /// found and left alone are reported on stderr. Pruning writes no producer
+    /// receipt: pruning only a producer leaves its sibling review live and
+    /// uncheckable; prune the enclosing chain to close the whole reviewed path.
+    /// Working-tree change only — no commit.
     LeafPrune(LeafPruneArgs),
     /// Signal task completion to the self-driving loop. Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
@@ -586,20 +598,30 @@ fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool, json: bool) -> Result<
             handle: String::new(),
             kind,
             harness: None,
+            review: None,
         })
     };
     match facts {
         Some(facts) if json => {
-            let harness = facts.harness.map_or_else(
-                || "null".to_string(),
-                |harness| format!("\"{}\"", crate::json::escape(harness.name)),
-            );
+            #[derive(serde::Serialize)]
+            struct StructuredPeek<'a> {
+                path: String,
+                handle: &'a str,
+                kind: &'static str,
+                harness: Option<&'static str>,
+                review: &'a Option<crate::task_relationship::ReviewEvidence>,
+            }
+            let output = StructuredPeek {
+                path: facts.path.display().to_string(),
+                handle: &facts.handle,
+                kind: facts.kind.label(),
+                harness: facts.harness.map(|harness| harness.name),
+                review: &facts.review,
+            };
             println!(
-                "{{\"path\":\"{}\",\"handle\":\"{}\",\"kind\":\"{}\",\"harness\":{}}}",
-                crate::json::escape(&facts.path.display().to_string()),
-                crate::json::escape(&facts.handle),
-                facts.kind.label(),
-                harness
+                "{}",
+                serde_json::to_string(&output)
+                    .context("serialising the structured routing peek")?
             );
         }
         Some(facts) => {

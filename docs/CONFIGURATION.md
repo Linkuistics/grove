@@ -110,15 +110,22 @@ An in-session model switch overrides the launch value for that session only.
 
 Grove owns the target of every scheduled `review-*` leaf through the same
 harness and model policy above. A finishing producer records its actual launch
-harness and exact model selector best-effort in the related review task. Review
-launch resolves current policy again and warns unless both its harness and model
+harness and exact model selector best-effort in the related review task. The
+structured `kind --with-harness --json` peek validates that receipt under the
+tree guard and nests the historical route beneath `producer-target`; the driver
+retains it without a second metadata read. A direct receipt's source session is
+the producer. A decomposed receipt may name the factual closing leaf separately,
+plus a producer generation that changes on supported reopen. Review launch
+resolves current policy again and warns unless both its harness and model
 selector differ from the producer's. A harness-managed default compares equal
 only to another default on the same harness.
 
 This check is **advisory**. A matching axis, missing receipt, malformed stable
 relationship, or unavailable historical target produces one warning in stderr
 and the launched prompt but never changes or blocks the resolved command. A
-one-harness installation therefore warns on every review by design.
+one-harness installation therefore warns on every review by design. The notice
+names a distinct validated source session and says it applies only when the
+session's factual pick is the addressed review; a preempted session discards it.
 
 `GROVE_SESSION_TARGET` carries the retained structured routing peek from the
 loop driver to its foreground session so retirement can write that receipt. It

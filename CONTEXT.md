@@ -201,7 +201,9 @@ leaves the same bytes on disk, do not ask; **(2) if it does, is the fact the
 session's to establish or the human's to decide?** — a session can establish *what
 it did*, never *what is worth doing*. Four moments sit near the line and it
 separates them: [[DONE infix]] (writes; the session holds the fact) and a **node
-close** (writes nothing at all) ask nothing; [[Pruning]] (the mark asserts a human
+close** ask nothing. The node receives no lifecycle mark; a reviewed close may
+best-effort write the factual handoff receipt that the session itself
+establishes, not a human judgement. [[Pruning]] (the mark asserts a human
 decided against a path) and the [[Complete finish cycle]] (deletes `.grove/`) ask.
 So the finish cycle's single gate is the loop's **only routine human gate**, and
 everything else a session asks is an **escalation** — discretionary, triggered by
@@ -216,10 +218,12 @@ interrupted before it. See ADR *confirmation-boundary*.
 _Avoid_: "all retirements need confirmation" — it over-reads the design in both
 directions. Marking a *leaf* done was never confirmed (mechanical bookkeeping);
 only the node close changed.
-_Avoid_: reading the removal as a friction argument. The load-bearing fact is that
-a node is **never marked** ([[Node directory]]), so the question gated an
-*inference*, and a node closed in error is reopened by one `leaf-add` with nothing
-to undo. A confirmation that gates a real write ([[Pruning]]) is untouched.
+_Avoid_: reading the removal as a friction argument. A node is **never marked**
+([[Node directory]]), so the question gated an *inference*. A reviewed close's
+receipt is a best-effort fact owned by the closing session, and generation makes
+it stale if `leaf-add` reopens the node; it does not turn that inference into a
+human decision. A confirmation that gates a judgement-bearing write
+([[Pruning]]) is untouched.
 _Avoid_: re-adding a per-ancestor question as the cascade recurses — that is the
 wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
 into that cycle's own confirmation, giving up to four questions about one fact.
@@ -229,9 +233,11 @@ How the self-driving loop decides **which harness** runs the picked [[Leaf]] and
 **which model** that harness loads, both keyed on the leaf's [[Task kind]]. The
 driver peeks the leaf (`grove-llm kind --with-harness --json`) every iteration and
 resolves two axes via each harness's native launch flags — no router, no proxy.
-The structured form returns path, stable handle, kind and declared harness from
-that one guarded read; readiness, the launch line, and the internal [[Review
-target receipt]] context retain it rather than picking again. The peek is a
+The structured form returns path, stable handle, kind, declared harness, and
+validated review evidence from that one guarded read. Historical routing is
+nested under `producer-target`; readiness, the launch line, warning comparison,
+and the internal [[Review target receipt]] context retain the result rather than
+picking or opening review metadata again. The peek is a
 **forecast, not a reservation**: it runs before the session exists, so the
 session's own [[Pick]] is the fact and **the fact wins**. The retained handle is
 evidence of what target launched, never authority to override a later
@@ -304,23 +310,44 @@ compares against what actually ran rather than recomputing history from changed
 the resolved worktree identity, stable handle from the exact structured routing
 peek, harness, and nullable model selector. `leaf-retire` accepts it only when
 that worktree, routed handle, and the factual current [[Pick]] all name the
-retiring producer. It applies the [[DONE infix]] first, then unconditionally and
-atomically replaces any existing receipt in the one sibling review declaring
-`**Reviews:** <producer-handle>`. Any missing, stale, ambiguous, malformed, or
-unwritable receipt is **uncheckable**: diagnose it, still retire, and still
-launch the review. A receipt whose `producer` disagrees with a valid `Reviews`
-relationship is specifically `receipt-producer-mismatch`; the relationship is
-the only producer identity the warning may name. Grove itself never writes a
-receipt beside a live producer. Manually restoring a live producer without
-removing its receipt creates an out-of-contract generation ambiguity; a later
-successful retirement replaces it, while a failed replacement diagnoses that
-the remaining value may be stale.
+retiring leaf. For a direct reviewed leaf that leaf is both `producer` and the
+factual source session. When the same `DONE` transition leaves a reviewed,
+brief-carrying decomposition ancestor with no live descendant, the ancestor is
+`producer` and the closing leaf is `session`, regardless of either leaf's kind.
+Every new receipt also carries the producer generation: its greatest permanent
+key, or the greatest key anywhere in a producer node's subtree. Reorder is
+generation-stable; a supported reopen by `leaf-add` issues a new key and makes
+old evidence mechanically stale.
+
+Retirement prepares those facts while the leaf is still live, applies the
+[[DONE infix]] first, then atomically replaces any existing receipt in the one
+**live** sibling review declaring `**Reviews:** <producer-handle>`. A terminal
+review remains byte-identical and yields `review-terminal`; materialisation
+re-reads a live review after `DONE`, so an intervening edit survives. Any
+missing, stale, ambiguous, malformed, or unwritable receipt is **uncheckable**:
+diagnose it, still retire, and still launch the review. A receipt whose
+`producer` disagrees with a valid `Reviews` relationship is specifically
+`receipt-producer-mismatch`; the relationship is the only producer identity the
+warning may name. Legacy receipts derive source and generation only for direct
+leaf producers; legacy node receipts are uncheckable. Unknown receipt keys are
+ignored.
+
+Pruning records no producer handoff. Pruning only a producer node leaves its
+sibling review live and next in pick order, with missing receipt evidence; to
+abandon the complete reviewed path, prune the enclosing review-chain node.
+Grove itself never writes a receipt beside a live producer. Manually restoring
+a live producer without removing its receipt creates an out-of-contract
+generation ambiguity; a later successful retirement replaces it, while a
+failed replacement diagnoses that the remaining value may be stale.
 At review launch Grove recomputes the review target and warns if either harness
 or exact model selector matches, or if the comparison is uncheckable; the same
 compact notice goes to stderr and the session prompt so a full-screen harness
 cannot erase the only useful copy. A one-harness installation therefore warns
 on every review by design — the confirmed contract is "silent only when both
-axes differ," and diversity guides rather than gates. See ADR
+axes differ," and diversity guides rather than gates. A checkable node receipt
+names its distinct source session. The notice says it applies only when the
+session's factual `pick` is its addressed review handle and must be discarded
+otherwise. See ADR
 *review-target-receipts*.
 _Avoid_: using this inherited context to decide whether doubt/Grove composition
 applies — only the current session's own Bootstrap-and-pick procedure establishes

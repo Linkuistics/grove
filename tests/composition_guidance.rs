@@ -1,6 +1,7 @@
 use assert_cmd::Command;
 
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+const CONTEXT: &str = include_str!("../CONTEXT.md");
 const DRIVING: &str = include_str!("../content/driving.md");
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
 const DOUBT_SKILL: &str =
@@ -8,6 +9,7 @@ const DOUBT_SKILL: &str =
 const ARCHITECTURE: &str = include_str!("../docs/ARCHITECTURE.md");
 const USAGE: &str = include_str!("../docs/USAGE.md");
 const CONFIGURATION: &str = include_str!("../docs/CONFIGURATION.md");
+const SPEC: &str = include_str!("../docs/specs/doubt-grove-review-mechanics.md");
 
 fn assert_contains(surface: &str, text: &str, expected: &str) {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -131,13 +133,30 @@ fn project_guides_name_the_implemented_composition_seams() {
 
 #[test]
 fn llm_help_exposes_the_structured_peek_promotion_and_receipt_handoff() {
+    let root = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .arg("--help")
+        .output()
+        .unwrap();
+    let root = String::from_utf8_lossy(&root.stdout);
+    for expected in ["Producer launch", "source session", "generation"] {
+        assert_contains("grove-llm --help", &root, expected);
+    }
+
     let kind = Command::cargo_bin("grove-llm")
         .unwrap()
         .args(["kind", "--help"])
         .output()
         .unwrap();
     let kind = String::from_utf8_lossy(&kind.stdout);
-    for expected in ["--json", "stable", "handle", "harness"] {
+    for expected in [
+        "--json",
+        "stable",
+        "handle",
+        "harness",
+        "review",
+        "producer-target",
+    ] {
         assert_contains("grove-llm kind --help", &kind, expected);
     }
 
@@ -147,7 +166,13 @@ fn llm_help_exposes_the_structured_peek_promotion_and_receipt_handoff() {
         .output()
         .unwrap();
     let promotion = String::from_utf8_lossy(&promotion.stdout);
-    for expected in ["currently picked plain producer", "PROMOTING-", "--json"] {
+    for expected in [
+        "currently picked plain producer",
+        "PROMOTING-",
+        "--json",
+        "source session",
+        "generation",
+    ] {
         assert_contains("grove-llm leaf-promote-chain --help", &promotion, expected);
     }
 
@@ -163,4 +188,42 @@ fn llm_help_exposes_the_structured_peek_promotion_and_receipt_handoff() {
         "Producer launch",
     );
     assert_contains("grove-llm leaf-retire --help", &retirement, "best-effort");
+}
+
+#[test]
+fn canonical_guidance_explains_decomposed_receipts_and_pruning_scope() {
+    for (surface, text, expected) in [
+        ("CONTEXT.md", CONTEXT, "factual source session"),
+        ("CONTEXT.md", CONTEXT, "producer generation"),
+        ("content/SKILL.md", GROVE_SKILL, "factual source session"),
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "prune the enclosing review-chain node",
+        ),
+        ("content/driving.md", DRIVING, "producer generation"),
+        ("content/TASK-FORMAT.md", TASK_FORMAT, "source session"),
+        (
+            "doubt-driven-development/SKILL.md",
+            DOUBT_SKILL,
+            "source session",
+        ),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE, "producer-target"),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE, "no second tree read"),
+        ("docs/USAGE.md", USAGE, "producer generation"),
+        (
+            "docs/USAGE.md",
+            USAGE,
+            "prune the enclosing review-chain node",
+        ),
+        ("docs/CONFIGURATION.md", CONFIGURATION, "producer-target"),
+        ("docs/CONFIGURATION.md", CONFIGURATION, "factual pick"),
+        (
+            "receipt mechanics spec",
+            SPEC,
+            "legacy node receipts are uncheckable",
+        ),
+    ] {
+        assert_contains(surface, text, expected);
+    }
 }

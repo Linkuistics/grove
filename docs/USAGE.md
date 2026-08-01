@@ -125,9 +125,20 @@ hands control back to Grove. An interrupted promotion leaves a visible
 it.
 
 Grove records the finishing producer's effective harness and model best-effort
-in the linked review task. When the review launches, Grove warns unless both its
-harness and exact model selector differ from the producer's. The warning is
-advisory: the review still launches, including when comparison is unavailable.
+in the linked review task. A direct leaf is both producer and factual source
+session. If retiring a descendant closes a reviewed decomposition node, the
+receipt instead names that node as producer, the closing leaf as source session,
+and the producer generation (the greatest permanent key in its subtree). Reorder
+keeps the generation; a supported reopen changes it, so an old receipt cannot
+silently look current.
+
+When the review launches, Grove warns unless both its harness and exact model
+selector differ from the producer's. The warning is advisory, is scoped to the
+review handle returned by the session's factual pick, and names a distinct
+validated source session. The review still launches when comparison is
+unavailable. Pruning only the producer records no handoff and leaves that review
+next and uncheckable; to abandon the entire reviewed path, prune the enclosing
+review-chain node.
 
 ## Finish
 

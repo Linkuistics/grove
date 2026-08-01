@@ -391,7 +391,7 @@ fn reviewed_producer_retirement_writes_a_receipt_in_a_jj_native_tree() {
     assert!(exists(repo, ".grove/01-build-chain-k4/01-DONE-build-k1.md"));
     assert!(
         read(repo, ".grove/01-build-chain-k4/02-build-review-k2.md").contains(
-            "**Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"pi\",\"model\":null}"
+            "**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"build-k1\",\"generation\":\"k1\",\"harness\":\"pi\",\"model\":null}"
         )
     );
     assert!(

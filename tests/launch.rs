@@ -454,7 +454,7 @@ fn readiness_retains_one_structured_peek_even_if_the_tree_changes_after_it() {
 set -euo pipefail
 IFS=$'\n\t'
 printf 'peek\n' >> "$GROVE_TEST_PEEK_CALLS"
-printf '{"path":"%s","handle":"a-k1","kind":"impl","harness":null}\n' "$GROVE_TEST_ROUTE_PATH"
+printf '{"path":"%s","handle":"a-k1","kind":"impl","harness":null,"review":null}\n' "$GROVE_TEST_ROUTE_PATH"
 mv "$PWD/.grove/01-a-k1.md" "$PWD/.grove/02-a-k1.md"
 printf '# earlier-k9\n\n**Kind:** design\n' > "$PWD/.grove/01-earlier-k9.md"
 "#,

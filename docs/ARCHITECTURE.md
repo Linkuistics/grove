@@ -241,8 +241,11 @@ one-off session from completing an unrelated outer loop.
 ## Harness and model routing
 
 The launcher performs one structured peek returning the next leaf's path,
-stable handle, kind, and optional harness line. It retains that one result for
-readiness, the launch line, routing, and producer-target handoff, then applies
+stable handle, kind, optional harness line, and guarded review evidence. A
+checkable review nests its historical route under `producer-target`; an
+uncheckable one carries a reason and only a relationship-backed producer. The
+driver retains that one result for readiness, the launch line, routing,
+producer-target handoff, and warning comparison, with no second tree read, then applies
 the policy described in [CONFIGURATION.md](CONFIGURATION.md): leaf, kind,
 family, primary binding for harness selection; harness-scoped kind,
 harness-scoped family, unscoped kind, unscoped family for models. Missing or
@@ -251,19 +254,32 @@ invalid routing fails before spawn rather than launching the wrong agent.
 Routing uses each harness's native model/profile flag. There is no proxy,
 router service, or persisted model state.
 
-The foreground producer session receives its effective target as internal
-launch context. When `leaf-retire` finds one sibling review whose `Reviews`
-relationship names that producer, it applies `DONE` first and then atomically
-replaces the review's best-effort `**Producer launch:**` receipt. Worktree,
-routed-handle, and factual-pick mismatches make the receipt uncheckable but never
-reverse retirement.
+The foreground session receives its effective target as internal launch
+context. Before `leaf-retire` changes the factual picked leaf, it identifies a
+direct reviewed producer and every reviewed, brief-carrying decomposition
+ancestor that this transition will close. The receipt names the reviewed
+producer, the factual source session, and the producer generation (the greatest
+permanent key at or below the producer). Reorder preserves generation; reopening
+a node with `leaf-add` changes it. Retirement applies `DONE` first and then
+atomically replaces the review's best-effort `**Producer launch:**` receipt only
+in a live linked review. A terminal review
+remains byte-identical and reports `review-terminal`; post-`DONE` materialisation
+re-reads a live task so an intervening edit survives. Worktree, routed-handle,
+factual-pick, relationship, source, or generation mismatches are uncheckable but
+never reverse retirement.
 
 At `review-*` launch the driver compares that historical receipt with the
 review's newly resolved target. It warns unless both harness and exact model
 selector differ, emitting one advisory notice to stderr and the session prompt
-without blocking launch. Missing, malformed, or mismatched stable
+without blocking launch. A distinct checkable source session is named, and the
+notice applies only if the session's factual pick is the addressed review.
+Missing, malformed, or mismatched stable
 relationships are uncheckable rather than inferred from positions. See [Review
 target receipts](adr/review-target-receipts.md).
+
+Pruning creates no producer handoff. Pruning only a producer leaves a sibling
+review live and next, deliberately uncheckable; pruning the enclosing chain
+closes all live steps in that reviewed path.
 
 <a id="self-extension-core-and-methodology"></a>
 ## Embedded methodology

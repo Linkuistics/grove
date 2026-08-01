@@ -82,7 +82,7 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
     }
 
     let producer_kind = read_strict_producer_kind(&producer_path)?;
-    let (review_kind, integration_kind) = producer_kind.review_steps_or_refuse()?;
+    let (review_kind, integration_kind) = promotion_review_steps_or_refuse(producer_kind)?;
     let parent = producer_path
         .parent()
         .context("producer has no parent directory")?;
@@ -90,13 +90,17 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
     let existing_reviews = declarations(parent, "Reviews", &producer_handle)?;
     if !existing_reviews.is_empty() {
         bail!(
-            "producer {producer_handle} already has scheduled review work: {}",
+            "producer {producer_handle} already has scheduled review work: {}; run that \
+             scheduled review, or correct stale **Reviews:** metadata rather than nesting \
+             another chain",
             display_paths(&existing_reviews)
         );
     }
     if parent != grove_root && !parent.join("BRIEF.md").is_file() {
         bail!(
-            "producer {producer_handle} is already inside a brief-less composition-managed node: {}",
+            "producer {producer_handle} is already inside a brief-less composition-managed \
+             node: {}; finish this producer to its existing review boundary, and add stable \
+             relationship metadata if its review steps were composed by hand",
             parent.display()
         );
     }
@@ -287,7 +291,7 @@ fn recover_pending(transaction: &Path, producer_reference: &str) -> Result<Promo
         }
     }
     let producer_kind = read_strict_producer_kind(&source_path)?;
-    let (review_kind, integration_kind) = producer_kind.review_steps_or_refuse()?;
+    let (review_kind, integration_kind) = promotion_review_steps_or_refuse(producer_kind)?;
     let review_key = node_key
         .checked_add(1)
         .context("promotion review key overflow")?;
@@ -535,16 +539,14 @@ fn completed_shape(grove_root: &Path, producer_key: u32) -> Result<Option<Promot
         return Ok(None);
     }
     let review_path = reviews[0].clone();
-    let review_name = file_name(&review_path)?;
-    let (_, review_slug, review_key) = leaf_identity(&review_name)?;
+    let (review_slug, review_key) = item_identity(&review_path)?;
     let review_handle = handle(&review_slug, review_key);
     let integrations = declarations(parent, "Integrates", &review_handle)?;
     if integrations.len() != 1 {
         return Ok(None);
     }
     let integration_path = integrations[0].clone();
-    let integration_name = file_name(&integration_path)?;
-    let (_, integration_slug, integration_key) = leaf_identity(&integration_name)?;
+    let (integration_slug, integration_key) = item_identity(&integration_path)?;
 
     Ok(Some(PromotionResult {
         node: PromotedItem {
@@ -615,15 +617,59 @@ fn read_strict_producer_kind(path: &Path) -> Result<Kind> {
     })
 }
 
+fn promotion_review_steps_or_refuse(kind: Kind) -> Result<(Kind, Kind)> {
+    if let Some(steps) = kind.review_steps() {
+        return Ok(steps);
+    }
+    match kind {
+        Kind::Research | Kind::CombineResearch => bail!(
+            "`{}` leaves are not promotable; use `leaf-add-pair` for independent \
+             surveys, or put a load-bearing derived decision in its own producer review chain",
+            kind.label()
+        ),
+        Kind::ReviewRequirements
+        | Kind::ReviewDesign
+        | Kind::ReviewPlanning
+        | Kind::ReviewPrototype
+        | Kind::ReviewImpl => bail!(
+            "`{}` is already a review-chain step; run this review leaf, or promote the \
+             producer named by its **Reviews:** relationship",
+            kind.label()
+        ),
+        Kind::IntegrateReviewRequirements
+        | Kind::IntegrateReviewDesign
+        | Kind::IntegrateReviewPlanning
+        | Kind::IntegrateReviewPrototype
+        | Kind::IntegrateReviewImpl => bail!(
+            "`{}` is an integration step and is not promotable; run this integration leaf, \
+             and put substantial redesign in a new producer review chain inside the owning \
+             chain node",
+            kind.label()
+        ),
+        Kind::Requirements | Kind::Design | Kind::Planning | Kind::Prototype | Kind::Impl => bail!(
+            "producer kind `{}` did not derive review steps",
+            kind.label()
+        ),
+    }
+}
+
 fn declarations(directory: &Path, field: &str, value: &str) -> Result<Vec<PathBuf>> {
     let marker = format!("**{field}:**");
     let mut matches = Vec::new();
     for entry in sorted_entries(directory)? {
-        if !entry.file_type()?.is_file() {
-            continue;
-        }
         let path = entry.path();
-        let body = match fs::read_to_string(&path) {
+        let file_type = entry.file_type()?;
+        // Decomposing a task moves its stable metadata into the new node's
+        // brief. Return the node path so callers keep the same handle/path
+        // abstraction whether the relationship carrier is a leaf or a node.
+        let body_path = if file_type.is_file() {
+            path.clone()
+        } else if file_type.is_dir() {
+            path.join("BRIEF.md")
+        } else {
+            continue;
+        };
+        let body = match fs::read_to_string(&body_path) {
             Ok(body) => body,
             Err(_) => continue,
         };
@@ -636,6 +682,15 @@ fn declarations(directory: &Path, field: &str, value: &str) -> Result<Vec<PathBu
         }
     }
     Ok(matches)
+}
+
+fn item_identity(path: &Path) -> Result<(String, u32)> {
+    match parse(&file_name(path)?) {
+        Some(Entry::Leaf { slug, key, .. }) | Some(Entry::Node { slug, key, .. }) => {
+            Ok((slug, key))
+        }
+        _ => bail!("expected a task-tree leaf or node: {}", path.display()),
+    }
 }
 
 fn live_leaves(directory: &Path) -> Result<Vec<(u32, String, u32, PathBuf)>> {

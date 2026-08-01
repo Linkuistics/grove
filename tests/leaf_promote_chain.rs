@@ -6,6 +6,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
+type GroveFixture = fn() -> (TempDir, PathBuf);
+
 fn grove(kind: &str) -> (TempDir, PathBuf) {
     let tmp = TempDir::new().unwrap();
     std::process::Command::new("git")
@@ -22,6 +24,98 @@ fn grove(kind: &str) -> (TempDir, PathBuf) {
         format!("# sync-k1\n\n**Kind:** {kind}\n\n## Goal\n\nKeep these bytes.\n"),
     )
     .unwrap();
+    (tmp, producer)
+}
+
+fn grove_with_tail(kind: &str) -> (TempDir, PathBuf, PathBuf) {
+    let (tmp, producer) = grove(kind);
+    let tail = tmp.path().join(".grove/02-tail-k2.md");
+    fs::write(&tail, "# tail-k2\n\n**Kind:** impl\n").unwrap();
+    (tmp, producer, tail)
+}
+
+fn nested_positioned_grove(kind: &str) -> (TempDir, PathBuf) {
+    let tmp = TempDir::new().unwrap();
+    std::process::Command::new("git")
+        .args(["init", "-q"])
+        .arg(tmp.path())
+        .status()
+        .unwrap();
+    let root = tmp.path().join(".grove");
+    let parent = root.join("01-decomposition-k1");
+    fs::create_dir_all(&parent).unwrap();
+    fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
+    fs::write(parent.join("BRIEF.md"), "# decomposition-k1 — brief\n").unwrap();
+    fs::write(
+        parent.join("01-DONE-first-k2.md"),
+        "# first-k2\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    let producer = parent.join("02-sync-k3.md");
+    fs::write(
+        &producer,
+        format!("# sync-k3\n\n**Kind:** {kind}\n\n## Goal\n\nKeep these bytes.\n"),
+    )
+    .unwrap();
+    fs::write(
+        parent.join("03-last-k4.md"),
+        "# last-k4\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    (tmp, producer)
+}
+
+fn native_jj_grove() -> (TempDir, PathBuf) {
+    let tmp = TempDir::new().unwrap();
+    vcs(
+        tmp.path(),
+        "jj",
+        &[
+            "--config",
+            "user.name=Test",
+            "--config",
+            "user.email=t@example.com",
+            "--config",
+            "git.colocate=false",
+            "git",
+            "init",
+            "--quiet",
+            ".",
+        ],
+    );
+    let root = tmp.path().join(".grove");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
+    let producer = root.join("01-sync-k1.md");
+    fs::write(&producer, "# sync-k1\n\n**Kind:** impl\n").unwrap();
+    (tmp, producer)
+}
+
+fn colocated_jj_grove() -> (TempDir, PathBuf) {
+    let (tmp, producer) = grove("impl");
+    vcs(
+        tmp.path(),
+        "git",
+        &["config", "user.email", "t@example.com"],
+    );
+    vcs(tmp.path(), "git", &["config", "user.name", "Test"]);
+    vcs(tmp.path(), "git", &["add", ".grove/01-sync-k1.md"]);
+    vcs(tmp.path(), "git", &["commit", "-q", "-m", "fixture"]);
+    vcs(
+        tmp.path(),
+        "jj",
+        &[
+            "--config",
+            "user.name=Test",
+            "--config",
+            "user.email=t@example.com",
+            "git",
+            "init",
+            "--colocate",
+            "--quiet",
+            ".",
+        ],
+    );
     (tmp, producer)
 }
 
@@ -63,6 +157,20 @@ fn wait_for(path: &Path) {
         );
         thread::sleep(Duration::from_millis(10));
     }
+}
+
+fn pending_transaction(root: &Path) -> PathBuf {
+    fs::read_dir(root)
+        .unwrap()
+        .filter_map(Result::ok)
+        .find(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("PROMOTING-")
+        })
+        .expect("promotion transaction witness")
+        .path()
 }
 
 fn vcs(worktree: &Path, binary: &str, args: &[&str]) -> String {
@@ -115,6 +223,29 @@ fn promotion_preserves_the_producer_and_builds_a_related_review_chain() {
 }
 
 #[test]
+fn promotion_inside_a_decomposition_preserves_its_position_and_siblings() {
+    let (tmp, producer) = nested_positioned_grove("impl");
+    let original = fs::read(&producer).unwrap();
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &["leaf-promote-chain", producer.to_str().unwrap()],
+    );
+
+    assert!(ok, "nested promotion failed: {stderr}");
+    let paths = stdout.lines().map(PathBuf::from).collect::<Vec<_>>();
+    assert!(paths[0].ends_with("01-decomposition-k1/02-sync-chain-k5"));
+    assert!(paths[1].ends_with("02-sync-chain-k5/01-sync-k3.md"));
+    assert!(paths[2].ends_with("02-sync-chain-k5/02-sync-review-k6.md"));
+    assert!(paths[3].ends_with("02-sync-chain-k5/03-sync-integrate-k7.md"));
+    assert_eq!(fs::read(&paths[1]).unwrap(), original);
+    let parent = tmp.path().join(".grove/01-decomposition-k1");
+    assert!(parent.join("BRIEF.md").exists());
+    assert!(parent.join("01-DONE-first-k2.md").exists());
+    assert!(parent.join("03-last-k4.md").exists());
+}
+
+#[test]
 fn promotion_is_idempotent_by_stale_path_and_json_reports_unchanged_handles() {
     let (tmp, producer) = grove("impl");
     let stale = producer.to_string_lossy().into_owned();
@@ -155,6 +286,21 @@ fn promotion_strictly_refuses_non_producers_and_garbled_kinds_without_writing() 
             2,
             "no transaction or chain for {kind:?}: {stderr}"
         );
+        match kind {
+            "research" => assert!(
+                stderr.contains("leaves are not promotable")
+                    && stderr.contains("use `leaf-add-pair`"),
+                "{stderr}"
+            ),
+            "review-impl" => assert!(
+                stderr.contains("run this review leaf")
+                    && stderr
+                        .contains("promote the producer named by its **Reviews:** relationship")
+                    && !stderr.contains("Pass the producer kind"),
+                "{stderr}"
+            ),
+            _ => {}
+        }
     }
 }
 
@@ -294,30 +440,7 @@ fn an_empty_pending_witness_recovers_by_its_exact_path() {
 
 #[test]
 fn a_colocated_jj_tree_moves_files_without_touching_the_git_index() {
-    let (tmp, producer) = grove("impl");
-    vcs(
-        tmp.path(),
-        "git",
-        &["config", "user.email", "t@example.com"],
-    );
-    vcs(tmp.path(), "git", &["config", "user.name", "Test"]);
-    vcs(tmp.path(), "git", &["add", ".grove/01-sync-k1.md"]);
-    vcs(tmp.path(), "git", &["commit", "-q", "-m", "fixture"]);
-    vcs(
-        tmp.path(),
-        "jj",
-        &[
-            "--config",
-            "user.name=Test",
-            "--config",
-            "user.email=t@example.com",
-            "git",
-            "init",
-            "--colocate",
-            "--quiet",
-            ".",
-        ],
-    );
+    let (tmp, producer) = colocated_jj_grove();
 
     let (_, stderr, ok) = run(
         tmp.path(),
@@ -349,6 +472,26 @@ fn completed_shape_retry_stays_idempotent_after_the_producer_retires() {
     assert!(ok, "terminal idempotent retry failed: {stderr}");
     assert!(stdout.contains("\"changed\":false"), "{stdout}");
     assert!(stdout.contains("01-DONE-sync-k1.md"), "{stdout}");
+}
+
+#[test]
+fn completed_shape_retry_recognises_a_decomposed_review_relationship() {
+    let (tmp, producer) = grove("impl");
+    let stale = producer.to_string_lossy().into_owned();
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-promote-chain", &stale]);
+    assert!(ok, "promotion failed: {stderr}");
+    let paths = stdout.lines().map(str::to_string).collect::<Vec<_>>();
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", &paths[1]]);
+    assert!(ok, "retirement failed: {stderr}");
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-decompose", &paths[2], "first-pass"]);
+    assert!(ok, "review decomposition failed: {stderr}");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-promote-chain", &stale, "--json"]);
+
+    assert!(ok, "decomposed-review retry failed: {stderr}");
+    assert!(stdout.contains("\"changed\":false"), "{stdout}");
+    assert!(stdout.contains("02-sync-review-k3"), "{stdout}");
+    assert!(stdout.contains("03-sync-integrate-k4.md"), "{stdout}");
 }
 
 #[test]
@@ -437,6 +580,100 @@ fn a_serialized_second_promoter_waits_then_returns_the_completed_shape() {
             == 1,
         "{second_stderr}"
     );
+}
+
+#[test]
+fn every_existing_mutator_waits_for_promotion_before_touching_the_tree() {
+    for mutator in [
+        "leaf-add",
+        "leaf-insert",
+        "leaf-decompose",
+        "leaf-retire",
+        "leaf-prune",
+    ] {
+        let (tmp, producer, tail) = grove_with_tail("impl");
+        let barrier = tmp.path().join("promotion-barrier");
+        let promoter = std::process::Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+            .current_dir(tmp.path())
+            .args(["leaf-promote-chain", producer.to_str().unwrap()])
+            .env("GROVE_TEST_PROMOTION_PAUSE_AT", "after-transaction-created")
+            .env("GROVE_TEST_PROMOTION_BARRIER", &barrier)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        wait_for(&barrier);
+
+        let tail = tail.to_string_lossy().into_owned();
+        let args = match mutator {
+            "leaf-add" => vec!["leaf-add".to_string(), ".".to_string(), "later".to_string()],
+            "leaf-insert" => vec![
+                "leaf-insert".to_string(),
+                tail.clone(),
+                "earlier".to_string(),
+            ],
+            "leaf-decompose" => {
+                vec![
+                    "leaf-decompose".to_string(),
+                    tail.clone(),
+                    "first".to_string(),
+                ]
+            }
+            "leaf-retire" => vec!["leaf-retire".to_string(), tail.clone()],
+            "leaf-prune" => vec!["leaf-prune".to_string(), tail],
+            _ => unreachable!(),
+        };
+        let waiter = std::process::Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+            .current_dir(tmp.path())
+            .args(&args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        thread::sleep(Duration::from_millis(100));
+        fs::remove_file(&barrier).unwrap();
+
+        let promotion_output = promoter.wait_with_output().unwrap();
+        let mutator_output = waiter.wait_with_output().unwrap();
+        assert!(
+            promotion_output.status.success(),
+            "{mutator}: {}",
+            String::from_utf8_lossy(&promotion_output.stderr)
+        );
+        assert!(
+            mutator_output.status.success(),
+            "{mutator}: {}",
+            String::from_utf8_lossy(&mutator_output.stderr)
+        );
+        let mutator_stderr = String::from_utf8_lossy(&mutator_output.stderr);
+        assert_eq!(
+            mutator_stderr
+                .matches("waiting for active Grove tree operation")
+                .count(),
+            1,
+            "{mutator}: {mutator_stderr}"
+        );
+
+        let root = tmp.path().join(".grove");
+        assert!(root.join("01-sync-chain-k3/01-sync-k1.md").exists());
+        assert!(root.join("01-sync-chain-k3/02-sync-review-k4.md").exists());
+        assert!(root
+            .join("01-sync-chain-k3/03-sync-integrate-k5.md")
+            .exists());
+        let expected = match mutator {
+            "leaf-add" => root.join("03-later-k6.md"),
+            "leaf-insert" => root.join("02-earlier-k6.md"),
+            "leaf-decompose" => root.join("02-tail-k2/01-first-k6.md"),
+            "leaf-retire" => root.join("02-DONE-tail-k2.md"),
+            "leaf-prune" => root.join("02-ABANDONED-tail-k2.md"),
+            _ => unreachable!(),
+        };
+        assert!(
+            expected.exists(),
+            "{mutator}: missing {}",
+            expected.display()
+        );
+    }
 }
 
 #[test]
@@ -562,12 +799,37 @@ fn a_proactively_scheduled_chain_is_refused_instead_of_nested_or_claimed() {
         stderr.contains("already has scheduled review work"),
         "{stderr}"
     );
+    assert!(stderr.contains("run that scheduled review"), "{stderr}");
     assert_eq!(
         fs::read_dir(tmp.path().join(".grove/01-sync-chain-k1"))
             .unwrap()
             .filter_map(Result::ok)
             .count(),
         before
+    );
+}
+
+#[test]
+fn a_metadata_free_composition_node_refusal_names_the_next_action() {
+    let (tmp, producer) = grove("impl");
+    fs::remove_file(producer).unwrap();
+    let node = tmp.path().join(".grove/01-manual-chain-k2");
+    fs::create_dir(&node).unwrap();
+    let producer = node.join("01-sync-k1.md");
+    fs::write(&producer, "# sync-k1\n\n**Kind:** impl\n").unwrap();
+
+    let (stdout, stderr, ok) = run(
+        tmp.path(),
+        &["leaf-promote-chain", producer.to_str().unwrap()],
+    );
+
+    assert!(!ok);
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("composition-managed node"), "{stderr}");
+    assert!(
+        stderr.contains("finish this producer to its existing review boundary")
+            && stderr.contains("add stable relationship metadata"),
+        "{stderr}"
     );
 }
 
@@ -614,28 +876,8 @@ fn strict_read_accepts_all_five_producers_and_the_legacy_work_alias() {
 
 #[test]
 fn native_jj_promotion_needs_no_git_repository() {
-    let tmp = TempDir::new().unwrap();
-    vcs(
-        tmp.path(),
-        "jj",
-        &[
-            "--config",
-            "user.name=Test",
-            "--config",
-            "user.email=t@example.com",
-            "--config",
-            "git.colocate=false",
-            "git",
-            "init",
-            "--quiet",
-            ".",
-        ],
-    );
+    let (tmp, producer) = native_jj_grove();
     let root = tmp.path().join(".grove");
-    fs::create_dir(&root).unwrap();
-    fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
-    let producer = root.join("01-sync-k1.md");
-    fs::write(&producer, "# sync-k1\n\n**Kind:** impl\n").unwrap();
 
     let (_, stderr, ok) = run(
         tmp.path(),
@@ -648,30 +890,125 @@ fn native_jj_promotion_needs_no_git_repository() {
 }
 
 #[test]
+fn native_and_colocated_jj_reported_failures_restore_the_original_tree() {
+    let fixtures: [(&str, GroveFixture); 2] = [
+        ("native", native_jj_grove),
+        ("colocated", colocated_jj_grove),
+    ];
+    for (name, fixture) in fixtures {
+        let (tmp, producer) = fixture();
+
+        let (stdout, stderr, ok) = run_with_env(
+            tmp.path(),
+            &["leaf-promote-chain", producer.to_str().unwrap()],
+            &[("GROVE_TEST_PROMOTION_FAIL_AT", "after-producer-move")],
+        );
+
+        assert!(!ok, "{name} jj failure unexpectedly succeeded");
+        assert_eq!(stdout, "");
+        assert!(stderr.contains("after-producer-move"), "{name}: {stderr}");
+        assert!(producer.exists(), "{name}: producer was not restored");
+        assert!(
+            fs::read_dir(tmp.path().join(".grove"))
+                .unwrap()
+                .filter_map(Result::ok)
+                .all(|entry| !entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("PROMOTING-")),
+            "{name}: transaction survived reported rollback"
+        );
+        if name == "colocated" {
+            let index = vcs(tmp.path(), "git", &["ls-files"]);
+            assert!(index.lines().any(|line| line == ".grove/01-sync-k1.md"));
+            assert!(!index.contains("sync-chain"), "{index}");
+        }
+    }
+}
+
+#[test]
+fn native_and_colocated_jj_recover_after_process_interruption() {
+    let fixtures: [(&str, GroveFixture); 2] = [
+        ("native", native_jj_grove),
+        ("colocated", colocated_jj_grove),
+    ];
+    for (name, fixture) in fixtures {
+        let (tmp, producer) = fixture();
+        let barrier = tmp.path().join("promotion-barrier");
+        let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+            .current_dir(tmp.path())
+            .args(["leaf-promote-chain", producer.to_str().unwrap()])
+            .env("GROVE_TEST_PROMOTION_PAUSE_AT", "after-producer-move")
+            .env("GROVE_TEST_PROMOTION_BARRIER", &barrier)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        wait_for(&barrier);
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        let pending = pending_transaction(&tmp.path().join(".grove"));
+        let (_, stderr, ok) = run(tmp.path(), &["pick"]);
+        assert!(
+            !ok && stderr.contains(pending.to_str().unwrap()),
+            "{name}: {stderr}"
+        );
+        if name == "colocated" {
+            let index = vcs(tmp.path(), "git", &["ls-files"]);
+            assert!(index.lines().any(|line| line == ".grove/01-sync-k1.md"));
+            assert!(!index.contains("PROMOTING-"), "{index}");
+        }
+
+        let (_, stderr, ok) = run(
+            tmp.path(),
+            &["leaf-promote-chain", pending.to_str().unwrap()],
+        );
+
+        assert!(ok, "{name}: recovery failed: {stderr}");
+        assert!(!pending.exists());
+        assert!(tmp
+            .path()
+            .join(".grove/01-sync-chain-k2/01-sync-k1.md")
+            .exists());
+    }
+}
+
+#[test]
 fn tracked_git_reported_failure_restores_the_original_index_path() {
-    let (tmp, producer) = grove("impl");
-    vcs(
-        tmp.path(),
-        "git",
-        &["config", "user.email", "t@example.com"],
-    );
-    vcs(tmp.path(), "git", &["config", "user.name", "Test"]);
-    vcs(tmp.path(), "git", &["add", ".grove/01-sync-k1.md"]);
-    vcs(tmp.path(), "git", &["commit", "-q", "-m", "fixture"]);
+    for checkpoint in [
+        "after-generated-steps",
+        "after-producer-move",
+        "after-index-prepare",
+    ] {
+        let (tmp, producer) = grove("impl");
+        vcs(
+            tmp.path(),
+            "git",
+            &["config", "user.email", "t@example.com"],
+        );
+        vcs(tmp.path(), "git", &["config", "user.name", "Test"]);
+        vcs(tmp.path(), "git", &["add", ".grove/01-sync-k1.md"]);
+        vcs(tmp.path(), "git", &["commit", "-q", "-m", "fixture"]);
 
-    let (stdout, _, ok) = run_with_env(
-        tmp.path(),
-        &["leaf-promote-chain", producer.to_str().unwrap()],
-        &[("GROVE_TEST_PROMOTION_FAIL_AT", "after-index-prepare")],
-    );
+        let (stdout, stderr, ok) = run_with_env(
+            tmp.path(),
+            &["leaf-promote-chain", producer.to_str().unwrap()],
+            &[("GROVE_TEST_PROMOTION_FAIL_AT", checkpoint)],
+        );
 
-    assert!(!ok);
-    assert_eq!(stdout, "");
-    assert!(producer.exists());
-    let index = vcs(tmp.path(), "git", &["ls-files", "--stage"]);
-    assert!(index.contains(".grove/01-sync-k1.md"), "{index}");
-    assert!(
-        !index.contains("PROMOTING-") && !index.contains("sync-chain"),
-        "{index}"
-    );
+        assert!(!ok, "{checkpoint} unexpectedly succeeded");
+        assert_eq!(stdout, "");
+        assert!(stderr.contains(checkpoint), "{stderr}");
+        assert!(producer.exists());
+        let index = vcs(tmp.path(), "git", &["ls-files", "--stage"]);
+        assert!(
+            index.contains(".grove/01-sync-k1.md"),
+            "{checkpoint}: {index}"
+        );
+        assert!(
+            !index.contains("PROMOTING-") && !index.contains("sync-chain"),
+            "{checkpoint}: {index}"
+        );
+    }
 }

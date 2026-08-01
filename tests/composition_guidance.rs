@@ -36,8 +36,30 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
     ] {
         assert_contains(surface, text, "whole picked leaf");
         assert_contains(surface, text, "leaf-promote-chain");
-        assert_contains(surface, text, "integrate-review-*");
-        assert_contains(surface, text, "research");
+    }
+
+    for (surface, text, integration_rule, research_rule) in [
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "substantial redesign inside the owning chain node",
+            "every research-pair leaf spawn none",
+        ),
+        (
+            "content/driving.md",
+            DRIVING,
+            "new producer review chain inside the owning chain node",
+            "The two `research` producers and `combine-research` use their two-corpus and adversarial-combine disciplines instead",
+        ),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "`integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node",
+            "`research` / `combine-research` | none; the pair and combiner own breadth and doubt",
+        ),
+    ] {
+        assert_contains(surface, text, integration_rule);
+        assert_contains(surface, text, research_rule);
     }
 
     assert_absent("content/driving.md", DRIVING, "after three rounds");
@@ -66,8 +88,8 @@ fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
         "grove-llm pick",
         "whole picked leaf",
         "leaf-promote-chain",
-        "integrate-review-*",
-        "research",
+        "Substantial redesign becomes a new producer review chain inside the owning chain node",
+        "`research` and `combine-research` invoke none",
         "Outside that predicate",
     ] {
         assert_contains("doubt-driven-development/SKILL.md", DOUBT_SKILL, expected);

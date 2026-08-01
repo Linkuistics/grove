@@ -1198,6 +1198,57 @@ exit 0
 }
 
 #[test]
+fn a_fully_diverse_review_launch_is_silent_and_keeps_the_prompt_unprefixed() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let mut cmd = one_launch_grove_do(repo_path);
+    fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(
+        repo_path.join(".grove/01-build-review-k2.md"),
+        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
+         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+    )
+    .unwrap();
+
+    let prompt_log = repo_path.join("prompt");
+    let fake_codex = repo_path.join("fake-codex.sh");
+    write_fake_codex(
+        &fake_codex,
+        r#"#!/bin/sh
+for arg in "$@"; do prompt="$arg"; done
+printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
+exit 0
+"#,
+    );
+    let output = cmd
+        .env("GROVE_REVIEW_HARNESS", "codex")
+        .env("GROVE_CODEX_REVIEW_MODEL", "sol-high")
+        .env("GROVE_HARNESS_BIN_CODEX", &fake_codex)
+        .env("GROVE_TEST_PROMPT", &prompt_log)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    let prompt = fs::read_to_string(&prompt_log).unwrap();
+
+    assert!(output.status.success(), "diverse review failed: {stderr}");
+    assert!(
+        !stderr.contains("review target diversity warning"),
+        "stderr: {stderr}"
+    );
+    assert!(
+        !prompt.contains("review target diversity warning"),
+        "prompt: {prompt}"
+    );
+    assert_eq!(
+        launch_line(&stderr),
+        "grove: launching codex (model: sol-high) — build-review-k2 (review-impl)"
+    );
+}
+
+#[test]
 fn uncheckable_review_metadata_warns_without_inventing_a_producer() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();

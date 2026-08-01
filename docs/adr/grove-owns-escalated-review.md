@@ -1,15 +1,21 @@
 # Grove owns escalated review
 
-While a session is executing the leaf returned by Grove's pick step,
-doubt-driven development may spend at most one in-session fresh-context
-reviewer. A second review need — including re-review after a substantive,
-non-mechanical fix — is represented as a Grove review chain, and a producer
-that already has a scheduled Grove review invokes no duplicate doubt reviewer.
-Outside a picked Grove leaf, doubt-driven development keeps its standalone
-bounded-cycle behavior. This division binds because letting both orchestrators
-own the same review multiplies reviews and bypasses Grove's fresh-session routing,
-while disabling in-session doubt entirely makes a narrow unexpected check pay for
-three Grove sessions.
+Once the current session has run Grove's Bootstrap, invoked `grove-llm pick`
+itself, and adopted the returned leaf, doubt-driven development may spend at
+most one in-session fresh-context reviewer across that leaf. Each independently
+materialised reviewer counts — a diverse-lens pass with N subagents spends N —
+and a second review need, including re-review after a substantive,
+non-mechanical fix, is represented as a Grove review chain. A producer that
+already has a scheduled Grove review invokes no duplicate doubt reviewer;
+review leaves and research-pair leaves invoke none.
+
+The ownership predicate is the session's own Bootstrap-and-pick procedure, not
+checkout state or an inherited environment variable. Outside a picked Grove
+leaf, doubt-driven development keeps its standalone bounded-cycle behavior.
+This division binds because letting both orchestrators own the same review
+multiplies reviews and bypasses Grove's fresh-session routing, while disabling
+in-session doubt entirely makes a narrow unexpected check pay for three Grove
+sessions.
 
 ## Considered options
 

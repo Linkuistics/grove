@@ -41,6 +41,8 @@ lockstep, which is why they live together — see
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md) and
+  [`promotion-transactions-fail-closed`](docs/adr/promotion-transactions-fail-closed.md)
+  and [`review-target-receipts`](docs/adr/review-target-receipts.md), plus
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md):
   the doubt skill participates in their contract, but the picked leaf, task
   tree, review routing, and lifecycle are Grove's maintaining seam.

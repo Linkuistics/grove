@@ -30,6 +30,11 @@ work so a fresh session and Grove's routing policy choose the reviewer.
 - `doubt-grove-design-k3` → `doubt-grove-design-review-k4` →
   `doubt-grove-design-integrate-k5`: specify and adversarially verify the
   cross-skill contract, promotion semantics, routing warning, and test seams.
+- `doubt-grove-design-hardening-k11` →
+  `doubt-grove-design-hardening-review-k12` →
+  `doubt-grove-design-hardening-integrate-k13`: close the second-pass
+  concurrency, durability, receipt-freshness, VCS, and warning-identity holes
+  before implementation consumes the design.
 - `doubt-grove-implementation-k7` → `doubt-grove-implementation-review-k8` →
   `doubt-grove-implementation-integrate-k9`: implement the agreed design,
   adversarially review it, and apply verified findings.
@@ -44,7 +49,9 @@ rather than absorb multiple sessions of work.
 - Glossary: `CONTEXT.md`, especially **Review chain / vendor pair**, **Task
   kind**, **Kind routing**, and **Pick**.
 - Design: `docs/specs/doubt-grove-review-mechanics.md`.
-- Decision: `docs/adr/grove-owns-escalated-review.md`.
+- Decisions: `docs/adr/grove-owns-escalated-review.md`,
+  `docs/adr/promotion-transactions-fail-closed.md`, and
+  `docs/adr/review-target-receipts.md`.
 - Grove methodology: `content/SKILL.md`, `content/driving.md`, and
   `content/TASK-FORMAT.md`.
 - Doubt guidance: `plugins/linkuistics/skills/doubt-driven-development/SKILL.md`.
@@ -56,7 +63,8 @@ rather than absorb multiple sessions of work.
 ## Notes
 
 - The special composition rule applies only while executing the leaf returned
-  by Grove's pick step, not merely because a checkout contains `.grove/`.
+  by the current session's own Bootstrap and pick step, not merely because a
+  checkout contains `.grove/` or a descendant inherited `GROVE_*` context.
 - If a producer is already in a review chain, its scheduled `review-*` and
   `integrate-review-*` leaves satisfy doubt-driven development's fresh-context
   review requirement. The producer spawns no duplicate doubt reviewer.
@@ -64,6 +72,9 @@ rather than absorb multiple sessions of work.
   fresh-context adversarial read. An integration leaf may spend one narrow
   in-session reviewer; substantial redesign becomes follow-up Grove work.
 - The one-review allowance is leaf-wide, not per decision or artifact.
+- A reviewer is one independently materialised fresh context. A diverse-lens
+  pass with N subagents spends N reviewers; one reviewer covering several named
+  axes still spends one.
 - After the allowed reviewer finds a substantive actionable issue, incorporating
   the fix normally creates a second review need and therefore promotion. Trivial
   findings, noise, accepted visible trade-offs, or fixes conclusively covered by

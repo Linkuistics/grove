@@ -106,9 +106,14 @@ fits the current leaf, while a load-bearing artifact, repeated review cycle, or
 multi-axis review belongs in the tree so a fresh session and [[Kind routing]]
 choose its model and harness. The distinction is orchestration scale, not whether
 the review is adversarial — both are. A picked Grove leaf may spend **at most
-one** in-session reviewer across the whole leaf; a second review need is the
-mechanical signal that review has become tree-sized work. This rule applies only
-while executing a picked leaf, never merely because a `.grove/` directory exists.
+one** in-session reviewer across the whole leaf; one reviewer means one
+independently materialised fresh context, so a diverse-lens pass with N subagents
+spends N reviewers. A second review need is the mechanical signal that review has
+become tree-sized work.
+This rule applies only after the current session ran [[Bootstrap]], invoked
+`grove-llm pick` itself, and adopted the returned leaf — never merely because a
+`.grove/` directory or inherited `GROVE_*` value exists. The session procedure is
+the discriminator; launch context is inherited metadata and cannot be one.
 An allowed reviewer that finds a substantive actionable issue normally creates
 that second need after the producer changes; promote the producer atomically,
 finish it only to a reviewable boundary, then retire and signal so Grove launches
@@ -144,11 +149,11 @@ the narrower property the flat shape lacked — **a sibling-level `leaf-insert` 
 no longer split a chain**, because the steps are children rather than siblings.
 That was the one real gap in the flat shape, and it closed as a by-product of the
 grouping rather than by teaching `pick` anything.
-_Avoid_: `leaf-insert` for a chain step decided on *after* its producer ran, if
-the producer already sits in a chain node — `leaf-add <chain-node> <stem>-review`
-appends *inside* the node, which puts it immediately after its stem-mates and
-ahead of everything outside. `leaf-insert` is still the answer when the producer
-was cut as a plain leaf, which no directory can retrofit.
+_Avoid_: hand-cutting review and integration leaves around a picked plain
+producer. `grove-llm leaf-promote-chain <producer>` moves that producer into a
+brief-less review-chain node without changing its handle and derives both steps.
+If a legacy or hand-cut producer already sits under a brief-less node, it is
+already composition-managed and promotion refuses rather than nesting chains.
 _Avoid_: naming a construction verb `chain-add` — "chain" is overloaded (see
 *Flagged ambiguities*), and the `leaf-add-` prefix is what anchors the sense and
 puts the verb beside the `leaf-add` a session already calls.
@@ -287,6 +292,31 @@ _Avoid_: "`--harness` writes the stamp" as a property of the **flag** — it is 
 property of the **verb**, and only `grove do` has it. The false spelling is what
 survived a byte-identical doc comment copied from `StartArgs` onto `RetireArgs`,
 where it read as true of the struct it was written for.
+
+**Review target receipt** (`**Producer launch:**`):
+The effective harness and model of the producer session that retires a reviewed
+artifact, materialised best-effort in the linked review leaf so a later review
+compares against what actually ran rather than recomputing history from changed
+[[Kind routing]] configuration. The driver exports one internal
+`GROVE_SESSION_TARGET` JSON value after scrubbing inherited context; it includes
+the resolved worktree identity, harness, and nullable model selector.
+`leaf-retire` accepts it only when that worktree matches and the producer is
+still [[Pick]]'s answer, finds exactly one declaring review among the producer's
+siblings, and atomically rewrites that review before applying the producer's
+[[DONE infix]]. Any missing, stale, ambiguous, malformed, or unwritable receipt
+is **uncheckable**: diagnose it, still retire, and still launch the review.
+At review launch Grove recomputes the review target and warns if either harness
+or exact model selector matches, or if the comparison is uncheckable; the same
+compact notice goes to stderr and the session prompt so a full-screen harness
+cannot erase the only useful copy. A one-harness installation therefore warns
+on every review by design — the confirmed contract is "silent only when both
+axes differ," and diversity guides rather than gates. See ADR
+*review-target-receipts*.
+_Avoid_: using this inherited context to decide whether doubt/Grove composition
+applies — only the current session's own Bootstrap-and-pick procedure establishes
+that.
+_Avoid_: making receipt failure block retirement or review; an advisory route
+property cannot become lifecycle correctness by accident.
 
 **Spec** (`docs/specs/<slug>.md`):
 The human-facing, team-shareable design of an *area* of the system — problem,
@@ -536,9 +566,10 @@ A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbe
 **decomposition node** (written by `leaf-decompose`; `root-init` for the root)
 always carries one: it means *this work proved bigger than one session*, and the
 charter is the context those extra sessions need. A **chain node** (written by
-`leaf-add-chain` / `leaf-add-pair`) never does: it means *these steps compose one
-artifact*, a shape declared whole at construction, with no charter anyone is in a
-position to write. The discriminator is a **file's presence, never a name
+`leaf-add-chain` / `leaf-add-pair`, or atomically retrofitted around a picked
+producer by `leaf-promote-chain`) never does: it means *these steps compose one
+artifact*, with no charter anyone is in a position to write. The discriminator
+is a **file's presence, never a name
 pattern** — which is what lets the Retire cascade tell them apart without reading
 the step-suffix convention back (task-kind-taxonomy).
 Three consequences. It decides whether a closing node has **work to do** — a
@@ -562,7 +593,21 @@ child's for `resolve`, and it is ordinary slug text a human may not use; the
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
 **Pick** (`grove-llm pick`):
-The loop's dispatcher: the **first live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates that* — no priority, no grouping, no set of leaves that must finish before another is considered. Ordering in a grove is **contiguity**, at every level, and it is the only ordering grove offers: a [[Review chain]]'s steps run in sequence because they are one node's children at adjacent [[Position]]s, exactly as a decomposition's are. It reads no file contents and carries no state, re-deriving the loop's place every iteration — which is what makes restart ≡ continuation (self-driving-loop). Empty stdout plus a stderr diagnostic means no live leaves anywhere: the [[Complete finish cycle]] trigger. Its value is that a human computes it **by eye** — `find .grove` shows the tree and the next session is the first name with no outcome infix — which is what makes "the tree is the only state" worth something rather than merely true.
+The loop's dispatcher: absent a pending [[Promotion transaction]], the **first
+live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates
+that* — no priority, no grouping, no set of leaves that must finish before
+another is considered. A transaction is not a scheduling input: it is a
+fail-closed malformed-tree condition that every reader and mutator refuses until
+the interrupted operation is recovered. Ordering in a grove is **contiguity**,
+at every level, and it is the only ordering grove offers: a [[Review chain]]'s
+steps run in sequence because they are one node's children at adjacent
+[[Position]]s, exactly as a decomposition's are. It reads no task file contents
+and carries no state, re-deriving the loop's place every iteration — which is
+what makes restart ≡ continuation (self-driving-loop). Empty stdout plus a
+stderr diagnostic means no live leaves anywhere: the [[Complete finish cycle]]
+trigger. Its value is that a human computes it **by eye** — `find .grove` shows
+the tree and the next session is the first name with no outcome infix — which is
+what makes "the tree is the only state" worth something rather than merely true.
 _Avoid_: expecting `pick` to **schedule** — to finish a group before considering an earlier live leaf, or to skip a leaf that is merely blocked. Answering "is a group in flight?" needs either state outside the tree (constraint 1) or a rule that skips live work and ranks groups, turning the walk into a scheduler no reader of `find .grove` can predict (task-tree-scheme, *`pick` is a walk, not a scheduler*).
 
 **Position** (`NN`):
@@ -589,8 +634,35 @@ nowhere; write the pair, `branch-review-k14 B5`. An unscoped index is **worse** 
 bare position: a position merely fails to resolve, while a number can resolve
 *incorrectly* against an unrelated live series of the same shape (task-tree-scheme §5).
 
+**Promotion transaction** (`PROMOTING-<final-node-name>/`):
+The reserved, fail-closed sibling directory used while
+`grove-llm leaf-promote-chain` turns the currently picked plain producer into a
+brief-less [[Review chain]] without changing the producer's handle. The command
+prebuilds the generated steps there, moves the producer into child `01` through
+the VCS-aware rename seam, then lands the complete node with one same-parent
+rename. Every reader and mutator recursively refuses while the prefix exists, so
+an interruption can expose neither review-before-producer ordering nor a key run
+another grow verb can reuse. Retrying promotion by producer handle reuses and
+finishes or reverses that exact transaction; a reported failure rolls it back
+and prints no success output. All other foreign names remain leniently ignored.
+This is crash-consistent semantic atomicity, not a claim that portable
+filesystems offer one atomic file-to-directory replacement syscall.
+See ADR *promotion-transactions-fail-closed*.
+_Avoid_: deleting the directory as if it were an unknown foreign file — after
+the producer move it may contain the only copy of that task. Recover through
+`leaf-promote-chain <producer-handle>`.
+
 **DONE infix**:
-The in-place retirement marker: the literal `DONE` placed right after the position in a retired leaf's filename (`NN-DONE-<slug>-k<key>.md`), at a fixed column. Written by `leaf-retire`. Leaves only — a node is never marked done (its done-ness is the absence of a live leaf in its subtree, however those leaves finished). The leaf keeps its position and key, and its file contents are untouched. Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf states.
+The in-place retirement marker: the literal `DONE` placed right after the
+position in a retired leaf's filename
+(`NN-DONE-<slug>-k<key>.md`), at a fixed column. Written by `leaf-retire`.
+Leaves only — a node is never marked done (its done-ness is the absence of a
+live leaf in its subtree, however those leaves finished). The retired leaf keeps
+its position and key, and **its own contents remain untouched**. Retiring a
+reviewed producer may first best-effort rewrite its sibling review's [[Review
+target receipt]]; that advisory side effect never blocks the filename rename.
+Its sibling mark is `ABANDONED` ([[Pruning]]); the two are the only terminal leaf
+states.
 _Avoid_: moving a retired leaf into a separate folder or list — retirement is in place, so the tree always shows complete state.
 
 **Pruning** / **ABANDONED infix** (`leaf-prune`):

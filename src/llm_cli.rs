@@ -76,10 +76,11 @@ pub enum Command {
     /// `**Kind:**` line **degrades**: it warns on stderr and prints `impl`
     /// rather than erroring, so a hand-edited or foreign task file can never jam
     /// the self-driving loop. The previous spelling `work` resolves to `impl`
-    /// silently — it is not a degrade. The output is a single lowercase token +
-    /// newline (`--with-harness` may add a second line — see the flag). The
-    /// self-driving loop calls this to resolve each session's launch harness and
-    /// model from the picked leaf.
+    /// silently — it is not a degrade. The default output is a single lowercase
+    /// token + newline (`--with-harness` may add a second line — see the flag);
+    /// `--json` selects the structured launch-peek shape. The self-driving loop
+    /// calls this to resolve each session's launch harness and model from the
+    /// picked leaf.
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
@@ -96,6 +97,12 @@ pub enum Command {
         /// never inspects the harness line at all.
         #[arg(long = "with-harness")]
         with_harness: bool,
+        /// Emit the picked leaf as one JSON object containing `path`, stable
+        /// `handle`, `kind`, and nullable declared `harness`. An empty grove is
+        /// the JSON literal `null`. The loop driver combines this with
+        /// `--with-harness` and retains the result for the whole launch.
+        #[arg(long)]
+        json: bool,
     },
     /// Resolve a reference to its current file path, searching live, retired
     /// (`DONE`), **and** abandoned (`ABANDONED`) entries alike
@@ -469,7 +476,8 @@ pub fn run() -> Result<()> {
         Command::Kind {
             leaf_path,
             with_harness,
-        } => cmd_kind(leaf_path.as_deref(), with_harness),
+            json,
+        } => cmd_kind(leaf_path.as_deref(), with_harness, json),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafAddChain(args) => cmd_leaf_add_chain(&args),
@@ -557,33 +565,55 @@ fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool) -> Result<()> {
+fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool, json: bool) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
     // Normalize a cwd-relative path to what `tree_read::kind` accepts (absolute
     // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
     // stays `None` so the verb defaults to `pick`'s next live leaf.
     let leaf = leaf_path.map(normalize_leaf_path);
-    // Two output shapes from one verb, and the plain one is the contract: the
-    // kind alone, a single lowercase token. `--with-harness` adds a second line
-    // *only* when the leaf declares a harness, so the one consumer that opts in
-    // reads `lines[1]` or finds nothing — and no other caller, human or agent,
-    // sees a byte of change.
-    let facts = if with_harness {
+    // Three output shapes from one verb, and the plain one is the compatibility
+    // contract: the kind alone, a single lowercase token. `--with-harness`
+    // adds a second line only when the leaf declares a harness; `--json`
+    // emits the complete routed-leaf fact used by the loop driver.
+    let facts = if with_harness || json {
         tree_read::launch_peek(&grove_root, leaf.as_deref())?
     } else {
-        tree_read::kind(&grove_root, leaf.as_deref())?.map(|k| (k, None))
+        tree_read::kind(&grove_root, leaf.as_deref())?.map(|kind| tree_read::LaunchPeek {
+            path: PathBuf::new(),
+            handle: String::new(),
+            kind,
+            harness: None,
+        })
     };
     match facts {
-        Some((kind, harness)) => {
-            println!("{}", kind.label());
-            if let Some(harness) = harness {
+        Some(facts) if json => {
+            let harness = facts.harness.map_or_else(
+                || "null".to_string(),
+                |harness| format!("\"{}\"", crate::json::escape(harness.name)),
+            );
+            println!(
+                "{{\"path\":\"{}\",\"handle\":\"{}\",\"kind\":\"{}\",\"harness\":{}}}",
+                crate::json::escape(&facts.path.display().to_string()),
+                crate::json::escape(&facts.handle),
+                facts.kind.label(),
+                harness
+            );
+        }
+        Some(facts) => {
+            println!("{}", facts.kind.label());
+            if let Some(harness) = facts.harness {
                 println!("{}", harness.name);
             }
         }
-        None => eprintln!(
-            "grove {}: no live leaves; this grove is done",
-            label(&worktree)
-        ),
+        None => {
+            if json {
+                println!("null");
+            }
+            eprintln!(
+                "grove {}: no live leaves; this grove is done",
+                label(&worktree)
+            );
+        }
     }
     Ok(())
 }

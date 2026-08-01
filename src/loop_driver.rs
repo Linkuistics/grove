@@ -25,13 +25,12 @@
 //       v=$(grove-llm --version | awk '{print $NF}')     # version-skew guard
 //       [ -n "$v" ] && [ "$v" != "<own compiled-in version>" ] && break
 //       rm -f "$sig"
-//       # One peek, two facts: the kind on line 1, and the harness the leaf
-//       # declares for itself on line 2 when it carries a `**Harness:**` line.
-//       # A declaration beats every policy var and the stamp.
+//       # One structured peek captures the routed leaf and both launch facts.
+//       # A declared harness beats every policy var and the stamp.
 //       if [ -d "$wt/.grove" ]; then
-//         peek=$(grove-llm kind --with-harness) || exit 1
-//         kind=$(printf '%s\n' "$peek" | sed -n 1p)
-//         leaf_harness=$(printf '%s\n' "$peek" | sed -n 2p)
+//         peek=$(grove-llm kind --with-harness --json) || exit 1
+//         kind=$(printf '%s\n' "$peek" | jq -r '.kind // empty')
+//         leaf_harness=$(printf '%s\n' "$peek" | jq -r '.harness // empty')
 //       else
 //         kind=requirements; leaf_harness=
 //       fi
@@ -72,6 +71,7 @@ use crate::complete::{self, Disposition};
 use crate::harness::Harness;
 use crate::leaf::Kind;
 use anyhow::{Context, Result};
+use serde::Deserialize;
 use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsString;
 use std::hash::{Hash, Hasher};
@@ -315,7 +315,7 @@ fn launch_session(
         "grove: launching {} (model: {}){}",
         harness.name,
         model.unwrap_or("default"),
-        routed_leaf(worktree, launch.kind).map_or(String::new(), |leaf| format!(" — {leaf}"))
+        routed_leaf(launch).map_or(String::new(), |leaf| format!(" — {leaf}"))
     );
 
     let mut cmd = Command::new(&bin);
@@ -344,16 +344,30 @@ fn launch_session(
     crate::launch::append_turn_hooks(&mut cmd, harness, Path::new(&grove_llm_bin()));
     cmd.arg(prompt);
     cmd.current_dir(worktree);
-    // Scrub the whole control channel, then grant back the one path this driver
-    // owns. Scrub-then-grant rather than grant-only, and via the shared helper
-    // rather than open-coded, because inheritance is the default: a `grove do`
-    // launched from inside a session that itself carried one of these (nested
-    // groves) must not leak a stale, unrelated handle — and the retired PID
-    // handles are not exported at all any more (driver-side-kill-k2), since the
-    // driver kills its own child directly. This is the *one* site that grants;
-    // every other harness spawn only scrubs (`launch::scrub_loop_control_env`).
+    // Scrub the whole launch-scoped environment, then grant back the signal
+    // path this driver owns and the target fact it just resolved. Scrub-then-
+    // grant rather than grant-only, and via the shared helper rather than
+    // open-coded, because inheritance is the default: a `grove do` launched
+    // from inside a session that itself carried one of these (nested groves)
+    // must not leak stale metadata or an unrelated control handle. The retired
+    // PID handles are not exported at all any more (driver-side-kill-k2), since
+    // the driver kills its own child directly. This is the *one* site that
+    // grants; every other harness spawn only scrubs
+    // (`launch::scrub_loop_control_env`).
     crate::launch::scrub_loop_control_env(&mut cmd);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
+    if let Some(leaf) = &launch.routed_leaf {
+        let target = crate::task_relationship::SessionTarget::for_launch(
+            worktree,
+            leaf.handle.clone(),
+            harness.name,
+            launch.model.clone(),
+        );
+        cmd.env(
+            crate::task_relationship::SESSION_TARGET_ENV,
+            target.to_json()?,
+        );
+    }
     // herdr-pane-misdetection: name the harness for herdr's foreground-process
     // detection, which otherwise scores the process group `grove` leads and can
     // elect a `codex mcp-server` helper. Unlike `append_turn_hooks` above, this
@@ -815,6 +829,18 @@ struct Launch {
     model: Option<String>,
     rerouted: bool,
     kind: Option<Kind>,
+    routed_leaf: Option<RoutedLeaf>,
+}
+
+/// Identity and routing facts returned by one structured `grove-llm kind`
+/// subprocess. Retained inside [`Launch`] so no downstream consumer picks or
+/// re-reads the leaf to reconstruct what this launch was routed on.
+#[derive(Clone, Debug)]
+struct RoutedLeaf {
+    path: PathBuf,
+    handle: String,
+    kind: Kind,
+    declared_harness: Option<&'static Harness>,
 }
 
 /// Resolve where and on what the next session launches: peek the picked
@@ -851,7 +877,7 @@ struct Launch {
 /// would double that cost for a declaration almost no leaf carries.
 fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Result<Launch> {
     validate_all_harness_overrides()?;
-    let peek = if verb == "start" {
+    let (kind, leaf_harness, routed_leaf) = if verb == "start" {
         // Start-path is `requirements` by construction: `.grove/` does not exist
         // yet (the agent runs `root-init` inside that session), and root-init's
         // first leaf is always requirements — fresh-grove-start-contract. No
@@ -859,40 +885,40 @@ fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Res
         // silent. This is the one launch grove routes without reading a file,
         // so `GROVE_REQUIREMENTS_MODEL` (or a harness-scoped spelling of it) is
         // the single var a brand-new grove cannot start without.
-        KindPeek::Leaf(Kind::Requirements, None)
+        (Kind::Requirements, None, None)
     } else {
-        resolve_kind(worktree)
-    };
-    let (kind, leaf_harness) = match peek {
-        KindPeek::Leaf(k, h) => (k, h),
-        // Empty grove (no live leaf — the finish-cycle iteration): no leaf to
-        // route, and no task to require a model *for*. An absence of the
-        // question, not a default — and legitimately nothing to select on,
-        // unlike a degraded peek below.
-        KindPeek::Empty => {
-            return Ok(Launch {
-                harness: stamped,
-                model: None,
-                rerouted: false,
-                kind: None,
-            })
-        }
-        // The peek itself failed (missing grove-llm, non-zero exit,
-        // unparseable output, or a leaf declaring a harness grove does not
-        // know) — genuinely unknown, not "nothing to route". This now bails in
-        // **every** case, where it previously bailed only under a configured
-        // harness override: the asymmetry that spared a model-only config
-        // ("a missing model is a nicety, a misroute is not") died with the
-        // requirement below, since an unknown kind can no longer be routed by
-        // guessing on either axis (model-per-task-kind).
-        KindPeek::Degraded => anyhow::bail!(
-            "grove: the next leaf's launch could not be resolved (see the diagnostic \
+        match resolve_kind(worktree) {
+            KindPeek::Leaf(leaf) => (leaf.kind, leaf.declared_harness, Some(leaf)),
+            // Empty grove (no live leaf — the finish-cycle iteration): no leaf to
+            // route, and no task to require a model *for*. An absence of the
+            // question, not a default — and legitimately nothing to select on,
+            // unlike a degraded peek below.
+            KindPeek::Empty => {
+                return Ok(Launch {
+                    harness: stamped,
+                    model: None,
+                    rerouted: false,
+                    kind: None,
+                    routed_leaf: None,
+                })
+            }
+            // The peek itself failed (missing grove-llm, non-zero exit,
+            // unparseable output, or a leaf declaring a harness grove does not
+            // know) — genuinely unknown, not "nothing to route". This now bails in
+            // **every** case, where it previously bailed only under a configured
+            // harness override: the asymmetry that spared a model-only config
+            // ("a missing model is a nicety, a misroute is not") died with the
+            // requirement below, since an unknown kind can no longer be routed by
+            // guessing on either axis (model-per-task-kind).
+            KindPeek::Degraded => anyhow::bail!(
+                "grove: the next leaf's launch could not be resolved (see the diagnostic \
              above). Every routing axis reads that leaf — the harness it declares \
              for itself, the harness its kind routes to (GROVE_<KIND>_HARNESS / \
              GROVE_<FAMILY>_HARNESS), and the model that harness loads, which is now \
              required (model-per-task-kind) — so grove refuses to guess and launch on \
              the stamped harness. Fix `grove-llm kind` and re-run."
-        ),
+            ),
+        }
     };
     // Leaf beats kind beats family beats stamp: a declaration on the leaf is a
     // fact about *this* leaf ("this one goes elsewhere because its sibling does
@@ -918,6 +944,7 @@ fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Res
             model: None,
             rerouted,
             kind: Some(kind),
+            routed_leaf,
         });
     }
     let model = model_for(launch, kind, rerouted)
@@ -927,6 +954,7 @@ fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Res
         model: Some(model),
         rerouted,
         kind: Some(kind),
+        routed_leaf,
     })
 }
 
@@ -985,7 +1013,12 @@ pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness
         None => Next::Finish,
         Some(kind) if verb == "start" => Next::Bootstrap(kind),
         Some(kind) => Next::Leaf {
-            path: picked_leaf(worktree),
+            path: launch.routed_leaf.as_ref().map(|leaf| {
+                leaf.path
+                    .strip_prefix(worktree)
+                    .unwrap_or(&leaf.path)
+                    .to_path_buf()
+            }),
             kind,
         },
     };
@@ -1011,42 +1044,12 @@ pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness
 /// of what each session in a loop was on — and a position moves under
 /// `leaf-insert`.
 ///
-/// **The pairing is honest about what it is.** The handle comes from the
-/// in-process walk and the kind from the peek subprocess, so the two could in
-/// principle disagree; they are microseconds apart, and this is *reporting, not
-/// routing* — the same pairing [`readiness`] already makes in [`Next::Leaf`].
-/// Reporting the peek's kind rather than re-reading the leaf's is also the
-/// point: the kind shown is the one the launch actually resolved on.
-fn routed_leaf(worktree: &Path, kind: Option<Kind>) -> Option<String> {
-    let kind = kind?;
-    let leaf = picked_leaf(worktree)?;
-    let handle = crate::tree_id::parse(leaf.file_name()?.to_str()?)?.handle()?;
-    Some(format!("{handle} ({})", kind.label()))
-}
-
-/// The leaf the readiness line and the launch diagnostic name, walked
-/// **in-process** rather than through a second `grove-llm` call. This is
-/// *reporting*, not routing: every fact either line's launch turns on already
-/// came off the peek subprocess above, so a failed walk costs the line a leaf
-/// and nothing else — which is why it degrades to `None` instead of failing a
-/// dry run, or a launch, that has otherwise succeeded.
-///
-/// It is a third pick per iteration on the live path, knowingly
-/// (session-leaf-binding-k28 scoped de-duplicating the picks out): an
-/// in-process directory walk against a `grove-llm kind` peek measured at
-/// ~0–30ms is not the cost worth optimising, and the alternative is a launch
-/// line that cannot say what it launched for.
-///
-/// Relative to the worktree, unlike `grove-llm pick`'s absolute output: the
-/// readiness line already opens with the worktree, and repeating it inside the
-/// leaf path pushed the informative half off the right of the terminal.
-/// [`routed_leaf`] reads only the file name, so the choice is the readiness
-/// line's alone.
-fn picked_leaf(worktree: &Path) -> Option<PathBuf> {
-    let leaf = crate::tree_read::pick(&worktree.join(".grove"))
-        .ok()
-        .flatten()?;
-    Some(leaf.strip_prefix(worktree).unwrap_or(&leaf).to_path_buf())
+/// Handle and kind come from the same guarded structured peek retained by
+/// [`Launch`]. The diagnostic therefore describes the exact leaf whose facts
+/// selected this session, even if the tree changes after the peek.
+fn routed_leaf(launch: &Launch) -> Option<String> {
+    let leaf = launch.routed_leaf.as_ref()?;
+    Some(format!("{} ({})", leaf.handle, leaf.kind.label()))
 }
 
 impl std::fmt::Display for Readiness {
@@ -1132,9 +1135,18 @@ fn leaf_harness_installed(harness: &'static Harness, rerouted: bool) -> Result<(
 /// harness without a kind, which the read path makes impossible (kind degrades
 /// to `impl` rather than going missing).
 enum KindPeek {
-    Leaf(Kind, Option<&'static Harness>),
+    Leaf(RoutedLeaf),
     Empty,
     Degraded,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RoutedLeafWire {
+    path: PathBuf,
+    handle: String,
+    kind: String,
+    harness: Option<String>,
 }
 
 /// Peek the next live leaf's launch facts by running `grove-llm kind
@@ -1146,15 +1158,15 @@ enum KindPeek {
 /// saw, `resolve_launch` decides what that means. The child's stderr is
 /// inherited, not captured — see the note on the spawn below.
 ///
-/// The output is one or two lines: the kind, then the declared harness when
-/// there is one. Both ends of that shape move together — the driver's
-/// per-session version-skew guard already refuses to run a `grove-llm` that is
-/// not this exact build, so there is no window in which a two-line reader meets
-/// a one-line writer.
+/// The output is one JSON object containing the absolute path, stable handle,
+/// kind, and nullable declared harness, or `null` for an empty grove. Both ends
+/// of that shape move together: the driver's per-session version-skew guard
+/// refuses to run a `grove-llm` that is not this exact build.
 fn resolve_kind(worktree: &Path) -> KindPeek {
     let out = Command::new(grove_llm_bin())
         .arg("kind")
         .arg("--with-harness")
+        .arg("--json")
         .current_dir(worktree)
         // Inherit stderr rather than capture it. `kind` *degrades* on an
         // unrecognised `**Kind:**` line — it warns and prints `work`, on a
@@ -1166,42 +1178,75 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
         .output();
     match out {
         Ok(o) if o.status.success() => {
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            let mut lines = stdout.lines().map(str::trim).filter(|l| !l.is_empty());
-            let Some(token) = lines.next() else {
-                return KindPeek::Empty; // empty grove: no leaf to select on
+            let wire: Option<RoutedLeafWire> = match serde_json::from_slice(&o.stdout) {
+                Ok(wire) => wire,
+                Err(error) => {
+                    eprintln!(
+                        "grove: malformed JSON from `grove-llm kind --with-harness --json`: {error}"
+                    );
+                    return KindPeek::Degraded;
+                }
             };
+            let Some(wire) = wire else {
+                return KindPeek::Empty;
+            };
+            if !wire.path.is_absolute() {
+                eprintln!(
+                    "grove: routed leaf path from `grove-llm kind --with-harness --json` \
+                     is not absolute: {}",
+                    wire.path.display()
+                );
+                return KindPeek::Degraded;
+            }
+            let path_handle = wire
+                .path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(crate::tree_id::parse)
+                .and_then(|entry| entry.handle());
+            if path_handle.as_deref() != Some(wire.handle.as_str()) {
+                eprintln!(
+                    "grove: routed leaf handle {:?} does not match path {} from \
+                     `grove-llm kind --with-harness --json`",
+                    wire.handle,
+                    wire.path.display()
+                );
+                return KindPeek::Degraded;
+            }
             // The read-side parser, not the write gate: this token came *out*
             // of `grove-llm kind`, so it is a read. That is also why the alias
             // matters here — a stale `grove-llm` predating the `work` → `impl`
             // rename prints `work`, which is exactly the mismatched-binary case
             // this arm exists to guard, and it resolves rather than degrading.
-            let Some(kind) = Kind::parse_read(token) else {
+            let Some(kind) = Kind::parse_read(&wire.kind) else {
                 // Not expected from a real `grove-llm kind` (it self-degrades
                 // unparseable task-file tokens to `impl` before printing) —
                 // this guards against a mismatched/stale `grove-llm` binary.
-                eprintln!("grove: unrecognized task kind {token:?} from `grove-llm kind`");
+                eprintln!(
+                    "grove: unrecognized task kind {:?} from `grove-llm kind --with-harness --json`",
+                    wire.kind
+                );
                 return KindPeek::Degraded;
             };
-            // The optional second line: the harness the leaf declared. The verb
-            // already validated it against the registry and would have exited
-            // non-zero otherwise, so an unknown name here is the same
-            // stale-binary case as above, not a user's typo — which is why this
-            // degrades rather than reporting the leaf's own error a second time
-            // in worse words.
-            let harness = match lines.next() {
+            let declared_harness = match wire.harness.as_deref() {
                 None => None,
                 Some(name) => match crate::harness::by_name(name) {
                     Some(h) => Some(h),
                     None => {
                         eprintln!(
-                            "grove: unrecognized harness {name:?} from `grove-llm kind --with-harness`"
+                            "grove: unrecognized harness {name:?} from \
+                             `grove-llm kind --with-harness --json`"
                         );
                         return KindPeek::Degraded;
                     }
                 },
             };
-            KindPeek::Leaf(kind, harness)
+            KindPeek::Leaf(RoutedLeaf {
+                path: wire.path,
+                handle: wire.handle,
+                kind,
+                declared_harness,
+            })
         }
         Ok(_) => {
             // The child's own diagnostic already reached stderr (inherited above).

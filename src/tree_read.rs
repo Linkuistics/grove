@@ -175,31 +175,56 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
     }
 }
 
-/// Both facts the loop driver needs before it can launch a session: the leaf's
-/// kind, and the harness that leaf *declares* for itself if it declares one
-/// (`leaf-harness-k15`). `Ok(None)` is the empty-grove signal, exactly as
-/// [`kind`] gives it.
+/// The one guarded routing peek the loop driver retains for the lifetime of a
+/// launch. Path and stable handle are facts about the exact leaf whose kind and
+/// optional harness declaration were read, so readiness, diagnostics, routing,
+/// and producer session context never reconstruct identity with another pick.
+#[derive(Clone, Debug)]
+pub struct LaunchPeek {
+    pub path: PathBuf,
+    pub handle: String,
+    pub kind: Kind,
+    pub harness: Option<&'static Harness>,
+}
+
+/// The complete routed-leaf fact the loop driver needs before it can launch a
+/// session: canonical path, stable handle, kind, and the harness that leaf
+/// *declares* for itself if it declares one (`leaf-harness-k15`). `Ok(None)` is
+/// the empty-grove signal, exactly as [`kind`] gives it.
 ///
 /// One function, and one leaf resolution, because the driver peeks **once**: the
 /// peek is a subprocess on every iteration of the loop (`model-per-task-kind`,
 /// *Consequences*), and a second verb call to read a line out of the same file
 /// would double that cost for a declaration almost no leaf carries.
 ///
-/// The two fields degrade differently on purpose, which is why this returns a
-/// pair rather than one fallible whole: `read_kind` never fails on content, so a
-/// garbled kind still yields a launch, while [`read_harness`] **refuses** — an
-/// unrecognised harness name aborts the peek rather than resolving to anything.
-pub fn launch_peek(
-    grove_root: &Path,
-    leaf_path: Option<&Path>,
-) -> Result<Option<(Kind, Option<&'static Harness>)>> {
+/// Kind and harness degrade differently on purpose: `read_kind` never fails on
+/// content, so a garbled kind still yields a launch, while [`read_harness`]
+/// **refuses** — an unrecognised harness name aborts the peek rather than
+/// resolving to anything.
+pub fn launch_peek(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<LaunchPeek>> {
     let guard = tree_access::read(grove_root)?;
     let Some(leaf) = target_leaf_unlocked(guard.root(), leaf_path)? else {
         return Ok(None);
     };
-    let kind = read_kind(&leaf)?;
-    let harness = read_harness(&leaf)?;
-    Ok(Some((kind, harness)))
+    let path = leaf
+        .canonicalize()
+        .with_context(|| format!("resolving routed leaf {}", leaf.display()))?;
+    let entry = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(parse)
+        .with_context(|| format!("routed path is not a Grove leaf: {}", path.display()))?;
+    let handle = entry
+        .handle()
+        .with_context(|| format!("routed path is not a keyed Grove task: {}", path.display()))?;
+    let kind = read_kind(&path)?;
+    let harness = read_harness(&path)?;
+    Ok(Some(LaunchPeek {
+        path,
+        handle,
+        kind,
+        harness,
+    }))
 }
 
 /// The leaf a leaf-reading verb operates on: the given path (absolute, or

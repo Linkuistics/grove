@@ -58,6 +58,11 @@ fn the_shared_scrub_list_covers_the_loop_control_channel() {
          both EnvGuard (this process) and every subprocess env_remove call site \
          read, so dropping it re-opens the kill channel on both paths at once"
     );
+    assert!(
+        names.iter().any(|n| n == "GROVE_SESSION_TARGET"),
+        "grove_env_names() must include GROVE_SESSION_TARGET — nested drivers, \
+         probes, and test harnesses must not inherit an outer producer's launch identity"
+    );
 }
 
 /// Belt and braces are only belt and braces if they are independent. The cargo
@@ -73,6 +78,12 @@ fn both_guards_are_present_and_neither_subsumes_the_other() {
     assert!(
         text.contains("GROVE_SIGNAL_FILE"),
         "{} must carry the [env] override for GROVE_SIGNAL_FILE",
+        config.display()
+    );
+    assert!(
+        text.contains("GROVE_SESSION_TARGET"),
+        "{} must force-clear GROVE_SESSION_TARGET so a meta-grove's tests cannot \
+         materialise their parent session's receipt in a temporary tree",
         config.display()
     );
     assert!(

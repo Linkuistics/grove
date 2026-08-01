@@ -358,6 +358,49 @@ fn leaf_retire_marks_done_in_place_in_a_jj_native_tree() {
 }
 
 #[test]
+fn reviewed_producer_retirement_writes_a_receipt_in_a_jj_native_tree() {
+    let tmp = jj_native();
+    let repo = tmp.path();
+    let chain = repo.join(".grove/01-build-chain-k4");
+    touch(
+        &chain.join("01-build-k1.md"),
+        "# build-k1\n\n**Kind:** impl\n",
+    );
+    touch(
+        &chain.join("02-build-review-k2.md"),
+        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n",
+    );
+    let identity = grove::json::escape(&repo.canonicalize().unwrap().display().to_string());
+    let target = format!(
+        "{{\"worktree\":\"{identity}\",\"handle\":\"build-k1\",\"harness\":\"pi\",\"model\":null}}"
+    );
+
+    let output = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(repo)
+        .args(["leaf-retire", ".grove/01-build-chain-k4/01-build-k1.md"])
+        .env("GROVE_SESSION_TARGET", target)
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "leaf-retire failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(exists(repo, ".grove/01-build-chain-k4/01-DONE-build-k1.md"));
+    assert!(
+        read(repo, ".grove/01-build-chain-k4/02-build-review-k2.md").contains(
+            "**Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"pi\",\"model\":null}"
+        )
+    );
+    assert!(
+        !exists(repo, ".git"),
+        "receipt materialisation must not fall back to git in a jj-native tree"
+    );
+}
+
+#[test]
 fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
     // The bulk-rename case: one prune of a node marks every live leaf beneath it,
     // so a single verb call issues several renames in a jj tree.

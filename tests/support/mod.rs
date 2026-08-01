@@ -96,11 +96,12 @@ const HERDR_PANE_ENV: [&str; 3] = ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE
 /// (guard-loop-signal-k37, pinned to the codex sandbox pre-flight, which spawns
 /// the harness binary outside `launch_session` — the one site that scopes it).
 ///
-/// `.cargo/config.toml` force-overrides the same variable for everything cargo
-/// runs. The two guards are independent on purpose: that one covers tests which
-/// never touch these helpers, this one covers a test binary executed directly
-/// rather than through cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 1] = ["GROVE_SIGNAL_FILE"];
+/// `.cargo/config.toml` force-overrides the same signal variable and clears the
+/// advisory session target for everything cargo runs. The two guards are
+/// independent on purpose: that one covers tests which never touch these
+/// helpers, this one covers a test binary executed directly rather than through
+/// cargo. Neither subsumes the other.
+const LOOP_CONTROL_ENV: [&str; 2] = ["GROVE_SIGNAL_FILE", "GROVE_SESSION_TARGET"];
 
 /// Every ambient env var that steers a `grove do` launch or its side effects:
 /// the GROVE_* routing / model-selection surface (see

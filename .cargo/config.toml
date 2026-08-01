@@ -15,7 +15,9 @@
 # that do not use the shared helpers at all. `tests/support/mod.rs`
 # (`LOOP_CONTROL_ENV`) carries the in-process and subprocess half; the two are
 # deliberately independent, because a test binary executed directly rather than
-# through cargo gets only the latter.
+# through cargo gets only the latter. The same guards clear
+# `GROVE_SESSION_TARGET`: it is advisory, not kill authority, but leaking a real
+# session's routed producer into a retirement test could write a false receipt.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo, so a
 # cargo-launched `grove-llm complete` signals the inert path instead of a live
@@ -24,3 +26,4 @@
 # installed or `./target/debug/` binary directly, never through cargo.
 [env]
 GROVE_SIGNAL_FILE = { value = "target/grove-test-signal/inert.signal", relative = true, force = true }
+GROVE_SESSION_TARGET = { value = "", force = true }

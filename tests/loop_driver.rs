@@ -1430,6 +1430,57 @@ fn plant_one_impl_leaf(worktree: &std::path::Path) {
     fs::write(grove.join("01-a-k1.md"), "# a-k1\n\n**Kind:** impl\n").unwrap();
 }
 
+#[test]
+fn the_foreground_session_receives_the_retained_routing_target() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_worktree(worktree);
+    plant_one_impl_leaf(worktree);
+
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+
+    let log = worktree.join("session-target.log");
+    let fake = worktree.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "${GROVE_SESSION_TARGET:-unset}" > "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_CLAUDE_IMPL_MODEL", "sonnet");
+
+    let outcome = loop_driver::run_loop(
+        harness::by_name("claude").unwrap(),
+        worktree,
+        worktree,
+        "targetgrove",
+    )
+    .unwrap();
+
+    assert_eq!(outcome, LoopOutcome::Stopped);
+    let target = fs::read_to_string(log).unwrap();
+    let identity = grove::json::escape(&worktree.canonicalize().unwrap().display().to_string());
+    assert!(
+        target.contains(&format!("\"worktree\":\"{identity}\""))
+            && target.contains("\"handle\":\"a-k1\"")
+            && target.contains("\"harness\":\"claude\"")
+            && target.contains("\"model\":\"sonnet\""),
+        "the session target must come from the same structured routing peek: {target:?}"
+    );
+}
+
 // The refusal, at the seam the field report came from: `read-only` must stop the
 // launch **before** the spawn, with a message naming what to change. Refusing
 // rather than elevating to `workspace-write` is the decision (codex-gitdir-grant)

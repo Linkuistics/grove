@@ -392,6 +392,73 @@ fn with_harness_on_an_empty_grove_is_still_the_no_live_leaves_signal() {
     assert!(stderr.contains("no live leaves"), "got {stderr:?}");
 }
 
+// ── `--json`: the loop driver's retained routing peek ─────────────────────
+
+#[test]
+fn json_returns_path_handle_kind_and_declared_harness_from_one_leaf_read() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch_leaf_with_harness(&grove, "01-survey-k7.md", "research", "codex");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
+
+    assert!(ok, "the structured peek failed: {stderr:?}");
+    let path = grove.join("01-survey-k7.md").canonicalize().unwrap();
+    assert_eq!(
+        stdout,
+        format!(
+            "{{\"path\":\"{}\",\"handle\":\"survey-k7\",\"kind\":\"research\",\"harness\":\"codex\"}}\n",
+            grove::json::escape(&path.display().to_string())
+        )
+    );
+}
+
+#[test]
+fn json_represents_an_undeclared_harness_as_null() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch_leaf(&grove, "01-build-k1.md", "impl");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
+
+    assert!(ok, "the structured peek failed: {stderr:?}");
+    assert!(
+        stdout.contains("\"handle\":\"build-k1\"")
+            && stdout.contains("\"kind\":\"impl\"")
+            && stdout.contains("\"harness\":null"),
+        "the JSON object must carry every launch fact: {stdout:?}"
+    );
+}
+
+#[test]
+fn json_uses_literal_null_for_an_empty_grove() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove, "BRIEF.md");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
+
+    assert!(ok, "an empty grove is not a structured-peek error");
+    assert_eq!(stdout, "null\n");
+    assert!(stderr.contains("no live leaves"), "got {stderr:?}");
+}
+
+#[test]
+fn json_failure_prints_no_partial_document() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch_leaf_with_harness(&grove, "01-survey-k1.md", "research", "codx");
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
+
+    assert!(!ok, "an invalid declared harness must still refuse");
+    assert!(
+        stdout.is_empty(),
+        "a failed peek emitted partial JSON: {stdout:?}"
+    );
+    assert!(stderr.contains("codx"), "got {stderr:?}");
+}
+
 #[test]
 fn kind_listed_in_grove_llm_help() {
     let out = Command::cargo_bin("grove-llm")

@@ -436,6 +436,89 @@ fn the_readiness_report_names_the_next_leaf_its_kind_and_the_resolved_model() {
 }
 
 #[test]
+fn readiness_retains_one_structured_peek_even_if_the_tree_changes_after_it() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    plant_leaf(repo.path(), "impl", false);
+    let routed_path = repo
+        .path()
+        .join(".grove/01-a-k1.md")
+        .canonicalize()
+        .unwrap();
+    let calls = repo.path().join("peek-calls");
+    let fake_llm = repo.path().join("fake-grove-llm.sh");
+    write_exec(
+        &fake_llm,
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+printf 'peek\n' >> "$GROVE_TEST_PEEK_CALLS"
+printf '{"path":"%s","handle":"a-k1","kind":"impl","harness":null}\n' "$GROVE_TEST_ROUTE_PATH"
+mv "$PWD/.grove/01-a-k1.md" "$PWD/.grove/02-a-k1.md"
+printf '# earlier-k9\n\n**Kind:** design\n' > "$PWD/.grove/01-earlier-k9.md"
+"#,
+    );
+    let mut env = dry_run_env(repo.path());
+    env.set("GROVE_LLM_BIN", &fake_llm)
+        .set("GROVE_TEST_PEEK_CALLS", &calls)
+        .set("GROVE_TEST_ROUTE_PATH", &routed_path)
+        .set("GROVE_IMPL_MODEL", "sonnet");
+
+    let line =
+        grove::loop_driver::readiness(grove::harness::by_name("claude").unwrap(), repo.path())
+            .unwrap()
+            .to_string();
+
+    assert!(
+        line.contains("01-a-k1.md") && !line.contains("01-earlier-k9.md"),
+        "readiness must render the retained forecast, not pick again: {line:?}"
+    );
+    assert_eq!(fs::read_to_string(calls).unwrap(), "peek\n");
+}
+
+#[test]
+fn malformed_or_handle_free_structured_peeks_refuse_readiness() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    plant_leaf(repo.path(), "impl", false);
+    let path = repo
+        .path()
+        .join(".grove/01-a-k1.md")
+        .canonicalize()
+        .unwrap();
+    let fake_llm = repo.path().join("fake-grove-llm.sh");
+    write_exec(
+        &fake_llm,
+        r#"#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+printf '%s\n' "$GROVE_TEST_PEEK_PAYLOAD"
+"#,
+    );
+    let mut env = dry_run_env(repo.path());
+    env.set("GROVE_LLM_BIN", &fake_llm);
+
+    let handle_free = format!(
+        "{{\"path\":\"{}\",\"kind\":\"impl\",\"harness\":null}}",
+        grove::json::escape(&path.display().to_string())
+    );
+    for payload in ["not-json", handle_free.as_str()] {
+        env.set("GROVE_TEST_PEEK_PAYLOAD", payload);
+        let error =
+            grove::loop_driver::readiness(grove::harness::by_name("claude").unwrap(), repo.path())
+                .err()
+                .expect("an uncheckable routing peek must refuse before launch")
+                .to_string();
+        assert!(
+            error.contains("launch could not be resolved"),
+            "the refusal must use the routing no-guess contract: {error}"
+        );
+    }
+}
+
+#[test]
 fn a_failed_provision_never_leaves_a_permanent_stamp() {
     // branch-review-k14 B4: the stamp must only be written once every step that
     // could bail (provisioning, PATH resolution) has already succeeded —

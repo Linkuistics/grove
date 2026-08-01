@@ -215,9 +215,9 @@ pub(crate) fn append_codex_vcs_store_grant(
     Ok(())
 }
 
-/// The loop driver's **control channel** (self-driving-loop) — the variables
-/// that carry authority over a live session, and the exact set
-/// [`scrub_loop_control_env`] removes.
+/// The loop driver's **launch-scoped environment** (self-driving-loop) — the
+/// variables that carry authority or identify the routed producer, and the
+/// exact set [`scrub_loop_control_env`] removes.
 ///
 /// `GROVE_SIGNAL_FILE` is the driver's kill channel: it watches that path while
 /// its harness child runs and applies grace → SIGTERM → kill-grace → SIGKILL the
@@ -227,10 +227,19 @@ pub(crate) fn append_codex_vcs_store_grant(
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
 /// (driver-side-kill), kept here because a stale, unrelated PID leaking into a
 /// nested grove is the same class of mistake one notch quieter.
-const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
+/// `GROVE_SESSION_TARGET` is advisory rather than authoritative, but stale
+/// metadata could misattribute a later producer retirement, so it follows the
+/// same scrub-by-default rule.
+const LOOP_CONTROL_ENV: [&str; 4] = [
+    "GROVE_SIGNAL_FILE",
+    "GROVE_HARNESS_PID",
+    "GROVE_CLAUDE_PID",
+    crate::task_relationship::SESSION_TARGET_ENV,
+];
 
 /// **Any harness spawn that is not the session itself must scrub the loop's
-/// control environment** (guard-loop-signal-k37, codex-grant-refused-k35).
+/// launch-scoped environment** (guard-loop-signal-k37,
+/// codex-grant-refused-k35).
 ///
 /// Authority to end a `grove do` session is granted by an environment variable,
 /// and an environment is inherited, not addressed: a spawn that merely declines

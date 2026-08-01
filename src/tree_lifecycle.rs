@@ -192,19 +192,23 @@ pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
 fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
     let grove_abs = canonical_grove_root(grove_root)?;
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
-    let done_name = match parse(&name) {
+    let (done_name, producer_handle) = match parse(&name) {
         Some(Entry::Leaf {
             outcome: Outcome::Live,
             position,
             slug,
             key,
-        }) => Entry::Leaf {
-            position,
-            slug,
-            key,
-            outcome: Outcome::Done,
+        }) => {
+            let producer_handle = format!("{slug}-k{key}");
+            let done_name = Entry::Leaf {
+                position,
+                slug,
+                key,
+                outcome: Outcome::Done,
+            }
+            .name();
+            (done_name, producer_handle)
         }
-        .name(),
         Some(Entry::Leaf {
             outcome: Outcome::Done,
             ..
@@ -224,8 +228,22 @@ fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> 
     if done_path.exists() {
         bail!("destination already exists: {}", done_path.display());
     }
+    // Snapshot the advisory receipt plan while the producer is still live and
+    // while this function holds the tree's exclusive lock. Every failure here
+    // is retained as a diagnostic plan rather than returned: metadata must
+    // never become lifecycle-critical.
+    let producer_path = parent_abs.join(&name);
+    let receipt = crate::task_relationship::prepare_producer_receipt(
+        &grove_abs,
+        &producer_path,
+        &producer_handle,
+        crate::tree_read::pick_unlocked(&grove_abs),
+    );
     // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
     rename_entry(&parent_abs, &name, &done_name)?;
+    // DONE first, receipt second. A post-rename write failure reports
+    // uncheckable metadata and deliberately cannot reverse or mask retirement.
+    receipt.materialize();
     Ok(done_path)
 }
 

@@ -63,6 +63,43 @@ Step 3 (DOUBT) **spawns a fresh-context subagent**, so this skill runs from the
   reasoning, then walk the steps. This is **not** fresh-context review (you carry
   your own context), so flag the result as degraded.
 
+## Composition with Grove
+
+Grove owns review escalation only when this exact session ran Grove's
+**Bootstrap**, invoked `grove-llm pick` itself, and adopted the returned leaf.
+A `.grove/` directory or inherited `GROVE_*` value is not enough. Outside that
+predicate, use the standalone process below unchanged.
+
+Inside it, the rules here replace per-artifact verification, re-looping,
+diverse-lens fan-out, and optional cross-model follow-ups as needed to enforce
+one budget across the **whole picked leaf**:
+
+- A plain `requirements`, `design`, `planning`, `prototype`, or `impl` producer
+  may materialise at most one fresh-context reviewer. Every independently
+  spawned reviewer counts. A cross-model reviewer may be that one only after the
+  normal explicit authorisation; it is never an additional cycle.
+- A second review need runs `grove-llm leaf-promote-chain <picked-producer>`.
+  This normally follows a substantive actionable finding whose non-mechanical
+  fix needs re-review. Trivial findings, noise, visible accepted trade-offs, and
+  fixes conclusively covered by an executable test seam do not force promotion.
+- A producer already inside a review chain invokes none: its scheduled
+  `review-*` leaf supplies the fresh context. A `review-*` leaf invokes none
+  because it is already the adversarial read and must produce findings, not
+  fixes.
+- An `integrate-review-*` leaf may spend one narrow reviewer. Substantial
+  redesign becomes a new producer review chain inside the owning chain node; an
+  integration leaf is not promotable.
+- `research` and `combine-research` invoke none. The pair supplies independent
+  corpora and the combiner supplies the adversarial move; put a load-bearing
+  derived decision in its own reviewed producer chain.
+
+After promotion, finish only to a coherent reviewable boundary, commit the
+artifact and promotion under the unchanged producer handle, retire the
+relocated producer, and hand back with `grove-llm complete`. Do not spawn another
+doubt reviewer. Grove now owns the review target and warns rather than blocks
+when the scheduled reviewer does not differ from the producer on both harness
+and exact model selector.
+
 ## The process — CLAIM → EXTRACT → DOUBT → RECONCILE → STOP
 
 Copy this checklist when applying the skill:
@@ -214,8 +251,9 @@ forcing function, not an obstacle.)
 ## Verification
 
 - [ ] Every non-trivial decision was named as a CLAIM before it stood.
-- [ ] At least one fresh-context review per non-trivial artifact (a TDD RED test
-      satisfies this for behavioural claims).
+- [ ] Outside a Grove-owned picked leaf, at least one fresh-context review per
+      non-trivial artifact (a TDD RED test satisfies this for behavioural
+      claims); inside one, the leaf-wide allowance and scheduled review own it.
 - [ ] The reviewer received ARTIFACT + CONTRACT — **not** the CLAIM, not your reasoning.
 - [ ] The reviewer's prompt was adversarial ("find issues"), not validating.
 - [ ] Findings were classified against the artifact text using the precedence:

@@ -161,6 +161,19 @@ the sole branch here, and the only kind that grows the tree generatively:
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
   as any kind may.
 
+**Review ownership inside a picked leaf.** This applies only after the session
+ran Bootstrap, invoked `grove-llm pick` itself, and adopted its result — checkout
+state and inherited `GROVE_*` values do not count. A picked plain producer may
+materialise at most one reviewer across the **whole picked leaf**; each
+independent diverse-lens context counts. A second need — normally re-review
+after a substantive non-mechanical fix — runs `grove-llm leaf-promote-chain
+<picked-producer>`; trivia, noise, visible trade-offs, and test-conclusive fixes
+do not force it. A chained producer, `review-*`, and every research-pair leaf
+spawn none; `integrate-review-*` may spend one narrow reviewer, then externalises
+substantial redesign inside the owning chain node. Outside this predicate doubt
+keeps its standalone cycles. Grove routes external review and warns unless both
+harness and exact model differ, but never blocks on diversity.
+
 Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for placement;
 the `linkuistics:decision-records` skill for the philosophy, format, and
 when-to-write test), and write a spec only at a genuine agreement point
@@ -197,9 +210,10 @@ yourself *out* of one rather than into it. **Each is one call**, so cutting the
 whole shape is no more work than cutting the first leaf of it:
 - **The review chain** — `X` → `review-X` → `integrate-review-X`: a fresh
   context asked to *disprove*, then a leaf licensed to act on what it found.
-  Cut it when the artifact is load-bearing — a spec, a decomposition you will
-  build on for months, a subsystem. A one-file change wants the cheap version
-  instead, a mid-session subagent (`driving.md`).
+  Cut it proactively when the artifact is load-bearing — a spec, a
+  decomposition you will build on for months, a subsystem. One narrow,
+  unexpected doubt in a picked plain producer may use its single in-session
+  reviewer instead (`driving.md`).
 
       grove-llm leaf-add-chain <parent> <stem> --kind <producer>
 
@@ -219,50 +233,37 @@ whole shape is no more work than cutting the first leaf of it:
   "two corpora" a fact in the tree rather than a guess about what routing policy
   will say weeks later. An equal pair is refused.
 
-**Each shape is a node directory** — `<stem>-chain/` or `<stem>-pair/`, appended
-at `<parent>`'s next free position (`.` for the grove root, or a node by key or
-path), holding its three steps as children at `01`–`03`. Four keys per shape, not
-three: the node holds the first. Stdout is **four** absolute paths, the node
-directory first, so you can `leaf-add <node> <stem>-late-step` straight into it.
-**The whole shape lands or none of it does**: a run that fails is rolled back —
-one recursive remove of a directory that did not exist beforehand — and prints
-nothing, so you never get a live prefix of a chain that reads like a deliberately
-partial one. A generated shape is byte-identical to the same directory and leaves
-cut by hand.
+**Each shape is a node directory** — `<stem>-chain/` or `<stem>-pair/` — holding
+its three steps at `01`–`03`. Four keys per shape: the node holds the first, and
+stdout prints its path before the three leaves. **The whole shape lands or none
+does**; failure rolls back and prints nothing. It is byte-identical to the same
+manual shape only with its stable relationships: the review declares
+`**Reviews:** <producer-handle>` and integration declares `**Integrates:**
+<review-handle>`.
 
-**The node carries no `BRIEF.md`, by rule.** A charter says *this proved bigger
-than one session*; a chain has no such context to write, and a stub written
-because a step demanded it is what constraint 4 forbids. Its absence is also the
-**discriminator** the Retire step reads (below) — a file test, never a parse of
-the `-chain` / `-pair` token, which is ordinary slug text nothing keys on. Write a
-`BRIEF.md` into one yourself and you have simply made it brief-carrying; nothing
-is enforced.
+**The node carries no `BRIEF.md`, by rule.** A charter means work proved bigger;
+a composed shape has no new context to charter. Absence is also Retire's
+**discriminator** — a file test, never a parse of ordinary `-chain` / `-pair`
+slug text. Add a brief yourself and the node simply becomes brief-carrying.
 
 **The stem gets a step suffix, not a prefix** — `<stem>` / `<stem>-review` /
-`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine` — so
-`find .grove` shows the *process*, not just the work, without opening a file. The
-children keep the stem (`sync-design-review-k13`, not `review-k13`) and the node
-takes the `-chain` / `-pair` token, both for the same reason: `resolve` matches a
-bare slug **exactly**, and `.grove/` dies at the finish cycle leaving commit
-messages as the only record, so a handle has to stay unique tree-wide *and* name
-its artifact once the tree that explained it is gone. The suffix goes on the end
-because that is what keeps a chain's *handles* together under their stem; a prefix
-(`review-<stem>`) sorts every review beside every other review.
+`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. Children keep
+the stem and the node takes `-chain` / `-pair` so bare slugs stay unique and
+surviving commit handles still name their artifact. A terminal suffix also keeps
+stem-mates together; `review-<stem>` would group unrelated reviews.
 
-None of this is enforced and none of it is parsed. grove validates no ordering
-between leaves — a grammar is a relation *between* leaves and grove expresses
-none (*task-kind-taxonomy*) — and skipping a chain is a normal choice, not a
-violation: `leaf-add` is untouched and cuts one leaf as it always did. The verbs
-*write* the convention; nothing ever reads it back. A chain is not a **unit**
-either: containment is not immunity. `pick` descends a chain node in pre-order
-exactly as it descends any node and walks straight out into the next sibling once
-its steps are done — it returns the first live leaf in the tree with nothing
-grouping them (*task-tree-scheme*). What the directory *does* protect is
-contiguity: a sibling-level `leaf-insert` can no longer land between a chain's
-steps, and a step decided on **after** its producer ran is `leaf-add <chain-node>
-<stem>-late-step`, which appends *inside* the node — immediately after its
-stem-mates and ahead of everything outside. Only a producer cut as a **plain
-leaf** still needs `leaf-insert`; no directory can retrofit that.
+Filename convention is not grammar: Grove validates no ordering and never
+infers relationships from suffixes or positions. Explicit `Reviews` / `Integrates`
+lines serve promotion and handoff. Nor is a chain a scheduling **unit**: `pick`
+walks out after its children, though sibling insertion cannot split them.
+
+When a **currently picked plain producer** needs fresh review, run `grove-llm
+leaf-promote-chain <picked-producer>`. It atomically preserves the producer's
+bytes and handle inside a derived brief-less chain, leaving a recoverable
+`PROMOTING-*` witness on interruption. Finish to a reviewable boundary, commit
+artifact plus promotion under that handle, retire the returned producer path,
+then complete. Retirement writes the review's `Producer launch` receipt
+best-effort after `DONE`; diversity warnings never block launch.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), optionally

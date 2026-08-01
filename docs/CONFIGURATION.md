@@ -106,6 +106,25 @@ values are profile names accepted by `--profile`; define a profile in
 `$CODEX_HOME/<name>.config.toml` so it can bind both model and reasoning effort.
 An in-session model switch overrides the launch value for that session only.
 
+## Review target diversity
+
+Grove owns the target of every scheduled `review-*` leaf through the same
+harness and model policy above. A finishing producer records its actual launch
+harness and exact model selector best-effort in the related review task. Review
+launch resolves current policy again and warns unless both its harness and model
+selector differ from the producer's. A harness-managed default compares equal
+only to another default on the same harness.
+
+This check is **advisory**. A matching axis, missing receipt, malformed stable
+relationship, or unavailable historical target produces one warning in stderr
+and the launched prompt but never changes or blocks the resolved command. A
+one-harness installation therefore warns on every review by design.
+
+`GROVE_SESSION_TARGET` carries the retained structured routing peek from the
+loop driver to its foreground session so retirement can write that receipt. It
+is reserved internal context, not user configuration: do not set or export it.
+Auxiliary and nested harness spawns scrub it before launching.
+
 ## Example
 
 This configuration keeps Claude as the primary harness, sends all reviews to a
@@ -144,8 +163,9 @@ These are test, wrapper, or operational seams rather than normal routing:
 | `GROVE_KILL_GRACE_KILL` | Seconds between `SIGTERM` and `SIGKILL`. |
 
 Grace values are clamped to 0–3600 seconds; invalid or non-finite values use
-the built-in defaults. `GROVE_SIGNAL_FILE` is an internal loop-control channel,
-not user configuration, and should not be exported manually.
+the built-in defaults. `GROVE_SIGNAL_FILE` and `GROVE_SESSION_TARGET` are
+internal loop channels, not user configuration, and should not be exported
+manually.
 
 Herdr is optional. Its plugin installation and key binding live in
 [`herdr-plugin/README.md`](../herdr-plugin/README.md); Grove's task behavior is

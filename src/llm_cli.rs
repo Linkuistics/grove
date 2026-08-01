@@ -224,7 +224,10 @@ pub enum Command {
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
     /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
     /// (`ABANDONED`) leaf. Prints the retired file's absolute
-    /// path on stdout. Working-tree change only — no commit.
+    /// path on stdout. When one sibling review declares `Reviews` for this
+    /// producer, retirement applies `DONE` first and then writes its
+    /// `Producer launch` receipt best-effort; receipt failure warns but never
+    /// reverses or blocks retirement. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
     /// Mark abandoned work `ABANDONED` in place. **HITL: only
     /// call this after explicit human confirmation** — grove never abandons

@@ -144,6 +144,37 @@ cross-leaf grammar. The research pair is the reason a leaf may declare its own
 harness; a kind-level rule cannot route two leaves of the same kind to two
 vendors.
 
+Once a session has run Bootstrap and adopted its own `pick`, a plain producer
+may spend one in-session fresh-context reviewer across the whole leaf. A second
+review need promotes that producer into a review chain. Producers already in a
+chain, `review-*`, and research-pair leaves spend none; an
+`integrate-review-*` leaf may spend one narrow reviewer and externalises
+substantial redesign as a new producer review chain inside the owning node.
+Sessions outside that procedural predicate retain standalone doubt behavior.
+
+Generated chains carry stable task relationships independently of their names:
+the review declares `**Reviews:** <producer-handle>` and integration declares
+`**Integrates:** <review-handle>`. Names and positions remain presentation and
+walk order, never relationship grammar.
+
+### Tree access lock and promotion transaction
+
+Every steady-state task-tree reader holds a shared **Tree access lock** on the
+open `.grove/` directory; every mutator holds it exclusively through validation,
+rollback, or success output. `leaf-promote-chain` uses that seam to move the
+currently picked plain producer into a new brief-less review-chain node without
+changing its stable handle or bytes. It derives the two remaining kinds and
+relationships, allocates fresh keys, and emits paths only after the whole shape
+lands.
+
+The operation builds beneath a reserved `PROMOTING-<final-node-name>/` witness
+and lands the directory with one same-parent rename. Every other task-tree
+command refuses while a witness exists and names `leaf-promote-chain` recovery.
+Jujutsu uses filesystem renames; tracked plain Git prepares the producer's final
+index path while the witness still blocks readers. The contract is
+process-interruption consistency, not power-loss durability. See [Promotion
+transactions fail closed](adr/promotion-transactions-fail-closed.md).
+
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
 <a id="fresh-grove-start-contract"></a>
@@ -209,14 +240,30 @@ one-off session from completing an unrelated outer loop.
 <a id="model-per-task-kind"></a>
 ## Harness and model routing
 
-The launcher peeks only at the next leaf's kind and optional harness line. It
-then applies the policy described in [CONFIGURATION.md](CONFIGURATION.md): leaf,
-kind, family, primary binding for harness selection; harness-scoped kind,
+The launcher performs one structured peek returning the next leaf's path,
+stable handle, kind, and optional harness line. It retains that one result for
+readiness, the launch line, routing, and producer-target handoff, then applies
+the policy described in [CONFIGURATION.md](CONFIGURATION.md): leaf, kind,
+family, primary binding for harness selection; harness-scoped kind,
 harness-scoped family, unscoped kind, unscoped family for models. Missing or
 invalid routing fails before spawn rather than launching the wrong agent.
 
 Routing uses each harness's native model/profile flag. There is no proxy,
 router service, or persisted model state.
+
+The foreground producer session receives its effective target as internal
+launch context. When `leaf-retire` finds one sibling review whose `Reviews`
+relationship names that producer, it applies `DONE` first and then atomically
+replaces the review's best-effort `**Producer launch:**` receipt. Worktree,
+routed-handle, and factual-pick mismatches make the receipt uncheckable but never
+reverse retirement.
+
+At `review-*` launch the driver compares that historical receipt with the
+review's newly resolved target. It warns unless both harness and exact model
+selector differ, emitting one advisory notice to stderr and the session prompt
+without blocking launch. Missing, malformed, or mismatched stable
+relationships are uncheckable rather than inferred from positions. See [Review
+target receipts](adr/review-target-receipts.md).
 
 <a id="self-extension-core-and-methodology"></a>
 ## Embedded methodology

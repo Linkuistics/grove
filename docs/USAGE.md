@@ -100,6 +100,35 @@ The runtime methodology is [`content/SKILL.md`](../content/SKILL.md). The CLI
 embeds that directory and provisions it to the selected harness's personal
 skill directory on `grove do`.
 
+## Review composition and handoff
+
+After a session has run Grove's Bootstrap and adopted its own picked leaf, a
+plain producer may use at most **one in-session** fresh-context reviewer across
+that whole leaf. A producer already in a review chain, a `review-*` session, and
+the three research-pair sessions use none. An `integrate-review-*` session may
+use one narrow reviewer; substantial redesign becomes a new reviewed producer
+inside the owning chain node. Outside a picked Grove session, the standalone
+doubt-driven-development procedure is unchanged.
+
+If a plain producer needs a second review, the agent runs:
+
+```sh
+grove-llm leaf-promote-chain <picked-producer>
+```
+
+This atomically moves the producer into a brief-less review-chain node while
+preserving its stable handle, then creates the related review and integration
+leaves. The producer finishes only to a coherent **reviewable boundary**,
+commits the artifact and promotion together, retires its relocated path, and
+hands control back to Grove. An interrupted promotion leaves a visible
+`PROMOTING-*` witness that Grove refuses to walk until the same command recovers
+it.
+
+Grove records the finishing producer's effective harness and model best-effort
+in the linked review task. When the review launches, Grove warns unless both its
+harness and exact model selector differ from the producer's. The warning is
+advisory: the review still launches, including when comparison is unavailable.
+
 ## Finish
 
 After the last live leaf is retired, the running session proposes one complete

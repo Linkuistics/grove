@@ -386,59 +386,53 @@ count.
 sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
 
-## Doubting a decision before it stands
+## Doubting inside a picked Grove leaf
 
-"Ask the LLM WDYT" and "ask for pushback" are the cheap version of doubt: the
-same context second-guessing itself. But a long session turns its own
-assumptions into "facts," and the context that produced a decision shares its
-blind spots. The stronger move is to materialise a reviewer that **never saw
-your reasoning** and ask it to *disprove*, not approve.
+The composition rule starts from a procedural fact: this session ran
+Bootstrap, invoked `grove-llm pick` itself, and adopted the returned leaf.
+Merely finding `.grove/` or inheriting `GROVE_*` values does not activate it.
+Outside that predicate, follow doubt-driven development's standalone bounded
+cycle unchanged.
 
-Reach for it when a decision clears the bar that already governs ADRs — hard to
-reverse, surprising, or a real trade-off — *or* when it asserts a correctness
-property the compiler can't check for you: thread-safety, ordering,
-idempotence, an invariant. One trigger, two consequences: such a decision may
-deserve an ADR, and it deserves a doubt pass before it stands. Don't doubt
-every keystroke — that is theatre.
+Inside it, a picked plain producer may materialise **at most one** fresh-context
+reviewer across the **whole picked leaf**. The allowance is not per decision or
+artifact. Each independently spawned diverse-lens reviewer counts, and an
+explicitly chosen cross-model reviewer would spend the same one allowance; do
+not offer a second pass after it.
 
-The pass:
+Use that one pass for a narrow, unexpected claim whose correctness the compiler
+cannot establish:
 
-1. **State the claim** in two or three lines, plus why it matters. If you can't
-   write it that compactly, you have a vibe, not a decision.
-2. **Extract the smallest reviewable unit** — the diff, or the proposal plus
-   the constraints it must satisfy. Strip your reasoning out of it.
-3. **Spawn a fresh-context reviewer** — a harness subagent (`code-reviewer`, or
-   a plain `Explore`) — and hand it the artifact and the contract *but not your
-   conclusion*; passing the conclusion biases it toward agreeing. Frame it
-   adversarially: "find what's wrong; assume the author is overconfident." A
-   mid-session subagent is fine under constraint 2 — read-don't-run governs
-   *bootstrap*, not the tools you reach for while working.
-4. **Reconcile.** Each finding is one of: a contract you stated unclearly (fix
-   the contract), a real issue (fix the artifact), a real trade-off (accept it,
-   visibly), or noise raised for want of context (note it, move on). You are
-   still the one deciding — a fresh reviewer can be wrong precisely because it
-   is fresh.
-5. **Stop** when a pass turns up only trivia, or after three rounds. Three
-   unresolved rounds is information about the artifact, not a reason to grind a
-   fourth.
+1. State the claim and why it matters.
+2. Extract only the artifact and its contract, stripping the conclusion.
+3. Give one fresh context the artifact and contract with an adversarial "find
+   what is wrong" prompt.
+4. Re-read the artifact and classify every finding as contract misread, valid
+   and actionable, visible trade-off, or noise.
 
-This is in-flight doubt, before the commit — not the post-hoc review of a
-finished branch, by which point course-correction is expensive.
+If the pass finds a substantive actionable issue, a non-mechanical fix normally
+creates a second review need. Do not spawn it: promote the producer into Grove's
+review chain and finish only to a coherent reviewable boundary. Trivial findings,
+noise, visible accepted trade-offs, and fixes conclusively covered by an
+executable test seam stay inside the leaf.
+
+The other kinds are deliberate exceptions. A producer already in a chain runs
+no in-session reviewer because its `review-*` is scheduled. A `review-*` leaf is
+already the adversarial read and produces findings, not fixes. An
+`integrate-review-*` leaf may use one narrow reviewer; substantial redesign is a
+new producer review chain inside the owning chain node. The two `research`
+producers and `combine-research` use their two-corpus and adversarial-combine
+disciplines instead. A load-bearing decision derived from research gets its own
+reviewed producer chain.
 
 ## The review chain — when doubt earns its own leaves
 
-The doubt pass above is the cheap end of one ladder. Its top end is the **review
-chain**: `X` → `review-X` → `integrate-review-X`, three leaves instead of a
-mid-session subagent. Same move — a fresh context asked to *disprove* — but with
-a real session's reach: its own harness (so a different vendor can review what
-yours produced), its own model, and a third leaf explicitly licensed to change
-the artifact.
-
-Escalate from the pass to the chain when the artifact is **big enough that a
-subagent cannot hold it**, when you want it read by a **different vendor** than
-wrote it, or when acting on the findings is itself **more than a session's
-work**. A one-file change wants the pass. A landed spec, a decomposition you
-will build on for months, or a subsystem wants the chain.
+The review chain is `X` → `review-X` → `integrate-review-X`: a producer, a fresh
+context asked to disprove it, and a leaf licensed to act on verified findings.
+Cut one proactively for a load-bearing artifact such as a landed spec, a
+decomposition others will build on, or a subsystem. Promote reactively when a
+picked plain producer reaches the second-review boundary above. This is an
+orchestration boundary, not a proxy for artifact size or vendor preference.
 
 Cutting one under node `[12]`, for a design that has not been written yet:
 
@@ -454,27 +448,22 @@ producer is a perfectly valid invocation, and what it buys is a reviewer reading
 for correctness, security and tests where it should be asking whether the ADRs
 are a minimum coherent set — a discipline mismatch nothing downstream detects.
 
-Five habits make the chain worth its three sessions:
+Six habits make the chain worth its three sessions:
 
-- **Cut the steps together; a late one goes *inside* the node.** One call gets the
-  steps contiguous and, because the node contains them, safe from a sibling-level
-  `leaf-insert` splitting them later. Deciding on the review *after* the producer
-  has run is then cheap — `leaf-add` into the chain node appends immediately after
-  its stem-mates, ahead of everything outside it:
+- **Cut planned chains together.** `leaf-add-chain` derives the two later kinds,
+  keeps all three steps contiguous inside one brief-less node, and writes stable
+  `Reviews` / `Integrates` relationships. A late step for an existing chain uses
+  `leaf-add <chain-node> <stem>-late-step`, keeping it ahead of work outside.
+- **Promote a picked plain producer atomically.** Once its one-review allowance
+  is spent and more review is needed, run:
 
-      grove-llm leaf-add <chain-node> sync-design-review --kind review-design
-      grove-llm leaf-add <chain-node> sync-design-integrate --kind integrate-review-design
+      grove-llm leaf-promote-chain <picked-producer>
 
-  (The node's path is the first line the chain verb printed, and `resolve
-  sync-design-chain` finds it again.) `leaf-insert` is still the answer for a
-  producer that was cut as a **plain leaf**, where there is no node to append
-  into and `leaf-add` would land the step behind every unrelated live leaf:
-
-      grove-llm leaf-insert <next-sibling> sync-design-review --kind review-design
-
-  Either retrofit is the one case you still transcribe the kinds by hand, so read
-  them off the producer rather than from memory. There is no retrofit verb: it
-  has not come up often enough to earn one.
+  It moves the producer byte-for-byte into a new brief-less node, preserves its
+  handle, derives both steps and relationships, and prints node, relocated
+  producer, review, and integration paths. A `PROMOTING-*` witness makes an
+  interruption fail closed; retry the stable handle, stale path, or exact
+  witness path rather than cutting leaves by hand.
 - **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
   `<stem>-integrate`, under a `<stem>-chain/` node. The chain verb does this for
   you, and it is what makes `find .grove` — and any file manager — show the chain
@@ -488,26 +477,28 @@ Five habits make the chain worth its three sessions:
   was the point. `review-prototype` is the sharpest case: it is *not* a code
   review — a prototype is judged on whether it informed a decision, and polish
   in one is a defect.
-- **The integrate step triages; it does not capitulate.** Each finding is one of
+- **The `integrate-review-*` step triages; it does not capitulate.** Each finding is one of
   four things: a contract you stated unclearly (fix the contract), a real issue
   (fix the artifact), a real trade-off (accept it *visibly*), or noise raised for
-  want of context (note it, move on). Performative agreement with a confident
-  reviewer is the failure mode, and a fresh reviewer can be wrong *because* it is
-  fresh.
-- **Route the review, don't hand-place it.** "Reviews go to codex" is a policy —
+  want of context (note it, move on). If integration discovers substantial
+  redesign, add a new producer review chain **inside the owning chain node** so
+  it runs before work outside; an integration leaf itself is not promotable.
+- **Route the review, don't hand-place it.** "Reviews go to codex" is policy —
   one `GROVE_REVIEW_HARNESS` line covering all five `review-*` kinds — not a
   per-leaf declaration. `leaf-add-chain` refuses `--harness` for exactly this
   reason. Reach for a `**Harness:**` line only where a policy genuinely cannot
   express the shape, which is the vendor pair and nothing else.
+- **Treat diversity as a warning, not a gate.** Producer retirement applies
+  `DONE` first, then writes the linked review's `Producer launch` receipt
+  best-effort. Review launch warns unless both its harness and exact model
+  selector differ from the producer, or when comparison is uncheckable, and
+  still launches. Grove owns that route; do not add a competing doubt reviewer.
 
-grove **enforces none of this**. It does not check that a `review-X` leaf follows
-an `X` leaf, and will not warn when one does not — a grammar is a relation
-*between* leaves, and grove expresses no relation between leaves. The chain is
-yours to compose, and skipping it is a normal choice, not a violation.
-
-It does not **group** them either. A chain is not a unit `pick` refuses to walk out
-of, so a `leaf-insert` aimed between two steps splits it — deliberately, because
-that verb exists precisely so you can preempt. One more insert puts it back.
+grove does not require a review after every producer or parse step suffixes and
+positions as grammar; skipping a chain remains normal. It does parse the stable
+relationships needed for promotion and producer handoff. A chain is still not a
+scheduling unit: `pick` walks through it and then into the next sibling, but a
+sibling-level insert cannot split its contained children.
 
 ## Externalizing surfaced work
 

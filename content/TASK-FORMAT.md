@@ -97,6 +97,21 @@ decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
 
+**In-session doubt is budgeted across the whole picked leaf**, once the current
+session has run Bootstrap and adopted its own `grove-llm pick` result:
+
+| picked session | in-session reviewer allowance | next substantial review |
+|---|---|---|
+| plain producer | at most one; every independently materialised reviewer counts | `leaf-promote-chain` the picked producer |
+| producer already in a review chain | none; `review-*` is already scheduled | finish to the scheduled review boundary |
+| `review-*` | none; this session is the adversarial read | record findings for integration |
+| `integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node |
+| `research` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
+
+Outside that Bootstrap-and-pick predicate, doubt-driven development keeps its
+standalone bounded cycles. The allowance is leaf-wide, not per artifact or
+decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
+
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
 
@@ -149,7 +164,9 @@ producer declared is not a pair, just a forecast that the first will route
 somewhere else. Four keys per shape, not three — the node holds the first, and
 stdout is four absolute paths with the node's leading. The whole shape lands or
 none of it does, and a generated shape is byte-identical to the same directory
-and leaves cut by hand with `mkdir` plus `leaf-add`.
+and leaves cut by hand with `mkdir` plus `leaf-add` **and the same stable
+relationships**: the review carries `**Reviews:** <producer-handle>` and the
+integration carries `**Integrates:** <review-handle>`.
 
 The naming matters because the *kind* lives inside the file while the **process**
 shows up in `find .grove`:
@@ -182,21 +199,23 @@ Two things that shape looks like it could be and is not:
   *does* buy is that a sibling-level `leaf-insert` can no longer split the steps,
   and that a step decided on *after* its producer ran is
   `leaf-add <chain-node> <stem>-late-step`, appending **inside** the node —
-  immediately after its stem-mates, ahead of everything outside. Only a producer
-  cut as a plain leaf still needs `leaf-insert`; no directory retrofits that, and
-  there is deliberately no retrofit verb.
+  immediately after its stem-mates, ahead of everything outside. A **currently
+  picked plain producer** that now needs review uses `grove-llm
+  leaf-promote-chain <picked-producer>`: the operation atomically creates the
+  brief-less node, preserves the producer's handle and bytes, derives the review
+  and integration leaves, and writes their stable relationships.
 
 The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step
 relation the pair does not have.
 
-All of this is **convention, not grammar, and nothing parses it**. grove does not
-validate that a `review-X` leaf follows an `X` leaf, does not read the suffix,
-and will not warn when a chain is absent — a grammar is a relation *between*
-leaves and grove expresses none. The composite verbs *write* the convention and
-nothing ever reads it back; `leaf-add` still makes exactly one leaf, because the
-call that means one leaf must keep meaning one leaf. Skipping a chain is a normal
-choice, and a partially-cut one is legal.
+The names and ordering remain **convention, not grammar**. grove does not read a
+suffix, require a `review-X` after every `X`, or reject a partial chain. It does
+parse the explicit `Reviews` / `Integrates` relationships and the review's
+best-effort `Producer launch` receipt for promotion, retirement, and the
+advisory target-diversity warning; it never reconstructs those facts from a
+filename or position. `leaf-add` still means one leaf, and skipping a chain is a
+normal choice.
 
 ## Suggested shape
 

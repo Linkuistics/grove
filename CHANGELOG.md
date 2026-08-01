@@ -51,6 +51,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- Add `grove-llm leaf-promote-chain` to atomically promote a picked producer leaf into a brief-less review chain while preserving its stable handle, with fail-closed locking and recovery.
+- Record producer receipts for review targets, including source session, generation, and effective target metadata, with support for decomposed producers.
+
+### Changed
+
+- Coordinate doubt-driven review with Grove so each picked leaf gets at most one in-session reviewer, substantial findings become Grove-managed review work, and same-harness or same-model review launches produce advisory warnings.
+
 ## v16.4.0
 
 ### Added

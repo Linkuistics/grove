@@ -100,6 +100,28 @@ one call per shape (`leaf-add-chain` / `leaf-add-pair`), because deriving
 derivation grove owns rather than a judgement, and the escalation call stays with
 the caller (*Constructing a chain is one call*; the bar a verb must clear is ADR
 *cli-binary-split*).
+The review chain is also the grove-scale counterpart to an **in-session doubt
+cycle**: doubt is the cheap move for one narrow, unexpected decision that still
+fits the current leaf, while a load-bearing artifact, repeated review cycle, or
+multi-axis review belongs in the tree so a fresh session and [[Kind routing]]
+choose its model and harness. The distinction is orchestration scale, not whether
+the review is adversarial — both are. A picked Grove leaf may spend **at most
+one** in-session reviewer across the whole leaf; a second review need is the
+mechanical signal that review has become tree-sized work. This rule applies only
+while executing a picked leaf, never merely because a `.grove/` directory exists.
+An allowed reviewer that finds a substantive actionable issue normally creates
+that second need after the producer changes; promote the producer atomically,
+finish it only to a reviewable boundary, then retire and signal so Grove launches
+the fresh review leaf. Trivial findings, noise, a visible accepted trade-off, or
+a fix conclusively covered by an executable test seam do not force promotion.
+Once escalated, Grove owns the review
+target: its routing policy chooses the harness and model, preferably both
+different from the producer's, while a same-target resolution warns rather than
+gates execution (constraint 5).
+_Avoid_: using many in-session doubt reviewers as a substitute for cutting a
+review chain; once review itself is substantial work, externalise it to the tree.
+_Avoid_: letting the doubt skill launch a competing cross-model review after the
+work has been escalated to Grove; that bypasses the review kind's routing policy.
 _Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
 every other review and scatters the chains the naming exists to reveal.
 _Avoid_: "a chain gets no node directory of its own" — reversed. The three
@@ -139,7 +161,10 @@ _Avoid_: running the *researchers* adversarially — that discards the breadth t
 pair was run for. The adversarial move belongs to `combine-research`, whose
 discipline is that **agreement without independent primary sourcing is a red
 flag, not a confirmation** (two vendors on overlapping corpora can agree on
-something false).
+something false). None of a pair's three leaves runs an in-session doubt
+reviewer: the two producers already supply independent corpora and the combiner
+already supplies the adversarial move. A load-bearing decision derived from the
+combined research belongs in its own reviewed producer chain.
 
 **HITL** / **AFK**:
 Whether a [[Task kind]] resolves through live exchange with a human who speaks for

@@ -27,6 +27,7 @@
 
 use crate::harness::Harness;
 use crate::leaf::Kind;
+use crate::tree_access;
 use crate::tree_id::{next_key, next_keys, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
@@ -50,6 +51,17 @@ pub fn leaf_add(
     kind: Kind,
     harness: Option<&'static Harness>,
 ) -> Result<PathBuf> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_add_unlocked(guard.root(), parent_dir, slug, kind, harness)
+}
+
+pub(crate) fn leaf_add_unlocked(
+    grove_root: &Path,
+    parent_dir: &Path,
+    slug: &str,
+    kind: Kind,
+    harness: Option<&'static Harness>,
+) -> Result<PathBuf> {
     validate_slug(slug)?;
     let grove_abs = canonical_grove_root(grove_root)?;
     let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
@@ -66,7 +78,7 @@ pub fn leaf_add(
     if path.exists() {
         bail!("destination already exists: {}", path.display());
     }
-    write_template(&path, slug, key, kind, harness)?;
+    write_task_template(&path, slug, key, kind, harness, &[], None)?;
     Ok(path)
 }
 
@@ -77,6 +89,13 @@ struct Step {
     slug: String,
     kind: Kind,
     harness: Option<&'static Harness>,
+    relationship: Option<StepRelationship>,
+}
+
+#[derive(Clone, Copy)]
+enum StepRelationship {
+    Reviews(usize),
+    Integrates(usize),
 }
 
 /// Append a whole **shape** — a **chain node** directory holding its steps as
@@ -137,12 +156,9 @@ fn add_run(
     // the tree untouched.
     let node_position = next_child_position(&parent_abs)?;
     let step_count = u32::try_from(steps.len()).expect("a shape has a handful of steps");
-    let mut keys = next_keys(collect_all_names(&grove_abs)?, 1 + step_count)
-        .context("allocating the shape's keys (nothing was created)")?
-        .into_iter();
-    let node_key = keys
-        .next()
-        .expect("a run of 1 + steps keys always yields the node's");
+    let keys = next_keys(collect_all_names(&grove_abs)?, 1 + step_count)
+        .context("allocating the shape's keys (nothing was created)")?;
+    let node_key = keys[0];
     let node_dir = parent_abs.join(
         Entry::Node {
             position: node_position,
@@ -161,15 +177,45 @@ fn add_run(
     fs::create_dir(&node_dir).with_context(|| format!("creating {}", node_dir.display()))?;
 
     let mut created = vec![node_dir.clone()];
-    for (i, (step, key)) in steps.iter().zip(keys).enumerate() {
+    let step_handles: Vec<String> = steps
+        .iter()
+        .zip(keys.iter().skip(1))
+        .map(|(step, key)| format!("{}-k{key}", step.slug))
+        .collect();
+    for (i, (step, key)) in steps.iter().zip(keys.iter().skip(1)).enumerate() {
         let entry = Entry::Leaf {
             position: i as u32 + 1,
             slug: step.slug.clone(),
-            key,
+            key: *key,
             outcome: Outcome::Live,
         };
         let path = node_dir.join(entry.name());
-        if let Err(e) = write_template(&path, &step.slug, key, step.kind, step.harness) {
+        let (metadata, goal) = match step.relationship {
+            Some(StepRelationship::Reviews(target)) => (
+                vec![format!("**Reviews:** {}", step_handles[target])],
+                Some(format!(
+                    "Adversarially review `{}` and record concrete findings for its integration step.",
+                    step_handles[target]
+                )),
+            ),
+            Some(StepRelationship::Integrates(target)) => (
+                vec![format!("**Integrates:** {}", step_handles[target])],
+                Some(format!(
+                    "Apply the verified findings from `{}` while preserving the reviewed artifact's contract.",
+                    step_handles[target]
+                )),
+            ),
+            None => (Vec::new(), None),
+        };
+        if let Err(e) = write_task_template(
+            &path,
+            &step.slug,
+            *key,
+            step.kind,
+            step.harness,
+            &metadata,
+            goal.as_deref(),
+        ) {
             return Err(roll_back(e, &node_dir));
         }
         created.push(path);
@@ -216,6 +262,16 @@ pub fn leaf_add_chain(
     stem: &str,
     producer: Kind,
 ) -> Result<Vec<PathBuf>> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_add_chain_unlocked(guard.root(), parent_dir, stem, producer)
+}
+
+fn leaf_add_chain_unlocked(
+    grove_root: &Path,
+    parent_dir: &Path,
+    stem: &str,
+    producer: Kind,
+) -> Result<Vec<PathBuf>> {
     // The stem is validated in its own right, not merely through the slugs it
     // builds: `foo-` is a bad slug, but `foo--review` would pass, so validating
     // only the derived names would let a malformed stem through on two of three.
@@ -230,16 +286,19 @@ pub fn leaf_add_chain(
                 slug: stem.to_string(),
                 kind: producer,
                 harness: None,
+                relationship: None,
             },
             Step {
                 slug: format!("{stem}-review"),
                 kind: review,
                 harness: None,
+                relationship: Some(StepRelationship::Reviews(0)),
             },
             Step {
                 slug: format!("{stem}-integrate"),
                 kind: integrate,
                 harness: None,
+                relationship: Some(StepRelationship::Integrates(1)),
             },
         ],
     )
@@ -270,6 +329,17 @@ pub fn leaf_add_pair(
     harness_a: &'static Harness,
     harness_b: &'static Harness,
 ) -> Result<Vec<PathBuf>> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_add_pair_unlocked(guard.root(), parent_dir, stem, harness_a, harness_b)
+}
+
+fn leaf_add_pair_unlocked(
+    grove_root: &Path,
+    parent_dir: &Path,
+    stem: &str,
+    harness_a: &'static Harness,
+    harness_b: &'static Harness,
+) -> Result<Vec<PathBuf>> {
     validate_slug(stem)?;
     if harness_a.name == harness_b.name {
         bail!(
@@ -290,16 +360,19 @@ pub fn leaf_add_pair(
                 slug: format!("{stem}-a"),
                 kind: Kind::Research,
                 harness: Some(harness_a),
+                relationship: None,
             },
             Step {
                 slug: format!("{stem}-b"),
                 kind: Kind::Research,
                 harness: Some(harness_b),
+                relationship: None,
             },
             Step {
                 slug: format!("{stem}-combine"),
                 kind: Kind::CombineResearch,
                 harness: None,
+                relationship: None,
             },
         ],
     )
@@ -330,6 +403,17 @@ pub struct Renumber {
 /// Returns the new leaf's path and the renumber log (ascending by new position);
 /// pass the log to [`surface_cross_refs`] to lint stray position-prefixed refs.
 pub fn leaf_insert(
+    grove_root: &Path,
+    target: &Path,
+    slug: &str,
+    kind: Kind,
+    harness: Option<&'static Harness>,
+) -> Result<(PathBuf, Vec<Renumber>)> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_insert_unlocked(guard.root(), target, slug, kind, harness)
+}
+
+fn leaf_insert_unlocked(
     grove_root: &Path,
     target: &Path,
     slug: &str,
@@ -396,7 +480,7 @@ pub fn leaf_insert(
             renumbers
         );
     }
-    write_template(&path, slug, new_key, kind, harness)?;
+    write_task_template(&path, slug, new_key, kind, harness, &[], None)?;
     Ok((path, renumbers))
 }
 
@@ -409,6 +493,15 @@ pub fn leaf_insert(
 /// per hit. A stable `<slug>-k<key>` reference is *not* surfaced (it did not move);
 /// only the position-prefixed form is stale. Empty renumber log ⇒ nothing to do.
 pub fn surface_cross_refs(
+    grove_root: &Path,
+    renumbers: &[Renumber],
+    out: &mut impl std::io::Write,
+) -> Result<()> {
+    let guard = tree_access::read(grove_root)?;
+    surface_cross_refs_unlocked(guard.root(), renumbers, out)
+}
+
+fn surface_cross_refs_unlocked(
     grove_root: &Path,
     renumbers: &[Renumber],
     out: &mut impl std::io::Write,
@@ -665,20 +758,27 @@ fn stem(name: &str) -> &str {
 /// harness writes **no line**, not an empty one: the peek treats an empty
 /// `**Harness:**` line as an unfinished declaration and refuses to launch, so a
 /// template that emitted one would break every leaf grove creates.
-fn write_template(
+pub(crate) fn write_task_template(
     path: &Path,
     slug: &str,
     key: u32,
     kind: Kind,
     harness: Option<&'static Harness>,
+    metadata: &[String],
+    goal: Option<&str>,
 ) -> Result<()> {
     let kind_label = kind.label();
-    let harness_line = match harness {
-        Some(h) => format!("**Harness:** {}\n", h.name),
-        None => String::new(),
-    };
+    let mut declarations = format!("**Kind:** {kind_label}\n");
+    if let Some(harness) = harness {
+        declarations.push_str(&format!("**Harness:** {}\n", harness.name));
+    }
+    for line in metadata {
+        declarations.push_str(line);
+        declarations.push('\n');
+    }
+    let goal = goal.unwrap_or("");
     let body = format!(
-        "# {slug}-k{key}\n\n**Kind:** {kind_label}\n{harness_line}\n## Goal\n\n## Context\n\n## Done when\n\n## Notes\n",
+        "# {slug}-k{key}\n\n{declarations}\n## Goal\n\n{goal}\n\n## Context\n\n## Done when\n\n## Notes\n",
     );
     fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
     Ok(())
@@ -1386,9 +1486,10 @@ mod tests {
 
     #[test]
     fn a_shape_is_byte_identical_to_the_same_node_and_leaves_cut_by_hand() {
-        // Constraint 6, and the claim the spec makes: nothing about a generated
-        // chain is distinguishable afterwards. If this ever diverges, the verbs
-        // have started writing a *format* rather than a convention.
+        // Constraint 6, and the claim the spec makes: a generated chain is the
+        // same standard markdown/filesystem shape a human can cut and annotate.
+        // The stable relationships are part of that hand-authored shape now;
+        // omitting them would deliberately create a legacy metadata-free chain.
         //
         // "By hand" is now `mkdir` + three `leaf-add`s into the bare directory,
         // which is only possible because node-ness is the name plus being a
@@ -1415,6 +1516,30 @@ mod tests {
             )
             .unwrap(),
         ];
+        write_task_template(
+            &by_hand[2],
+            "sync-review",
+            3,
+            Kind::ReviewDesign,
+            None,
+            &["**Reviews:** sync-k2".to_string()],
+            Some(
+                "Adversarially review `sync-k2` and record concrete findings for its integration step.",
+            ),
+        )
+        .unwrap();
+        write_task_template(
+            &by_hand[3],
+            "sync-integrate",
+            4,
+            Kind::IntegrateReviewDesign,
+            None,
+            &["**Integrates:** sync-review-k3".to_string()],
+            Some(
+                "Apply the verified findings from `sync-review-k3` while preserving the reviewed artifact's contract.",
+            ),
+        )
+        .unwrap();
         assert_eq!(names_of(&generated), names_of(&by_hand));
         let hand_bodies: Vec<String> = by_hand[1..].iter().map(|p| body(p)).collect();
         assert_eq!(generated_bodies, hand_bodies);

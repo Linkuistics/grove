@@ -1,12 +1,12 @@
-# doubt-grove-implementation-k7
+# doubt-grove-implementation-k7 — brief
 
 **Kind:** impl
 
 ## Goal
 
-Implement the reviewed doubt/Grove composition design as one green vertical
-slice across CLI behavior, routing, canonical methodology, and marketplace skill
-guidance.
+Implement the reviewed doubt/Grove composition design as a sequence of green,
+independently testable slices across task-tree mutation, producer handoff,
+review launch routing, and the canonical guidance surfaces.
 
 ## Context
 
@@ -27,5 +27,7 @@ for Rust discovery and preserve jj/git symmetry.
 
 ## Notes
 
-If this cannot remain one focused low-context session after reading the design,
-decompose this leaf before implementing and do only its first vertical child.
+The implementation proved larger than one focused session after bootstrap. Its
+ordered children preserve the design's dependency direction: promotion first,
+then the receipt written during producer handoff, then the warning consumed at
+review launch, then a final canonical-guidance reconciliation.

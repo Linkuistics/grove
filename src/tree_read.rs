@@ -27,6 +27,7 @@
 
 use crate::harness::Harness;
 use crate::leaf::Kind;
+use crate::tree_access;
 use crate::tree_id::{parse, sort_key, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -43,9 +44,11 @@ use std::path::{Path, PathBuf};
 /// stdout + a "no live leaves" stderr diagnostic). Lenient on foreign/malformed
 /// names (a stray `README.md` never jams the loop). Never reads file contents.
 pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
-    if !grove_root.is_dir() {
-        bail!("grove root not found: {}", grove_root.display());
-    }
+    let guard = tree_access::read(grove_root)?;
+    pick_unlocked(guard.root())
+}
+
+pub(crate) fn pick_unlocked(grove_root: &Path) -> Result<Option<PathBuf>> {
     pick_in(grove_root)
 }
 
@@ -89,6 +92,11 @@ fn pick_in(dir: &Path) -> Result<Option<PathBuf>> {
 /// so its own directory's brief is the deepest one collected. `leaf_path` is
 /// absolute or relative to `grove_root`, and must resolve to a path under it.
 pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
+    let guard = tree_access::read(grove_root)?;
+    brief_chain_unlocked(guard.root(), leaf_path)
+}
+
+fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
     }
@@ -160,7 +168,8 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
 /// `impl`) — so a hand-edited or foreign task file can never jam the
 /// self-driving loop.
 pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
-    match target_leaf(grove_root, leaf_path)? {
+    let guard = tree_access::read(grove_root)?;
+    match target_leaf_unlocked(guard.root(), leaf_path)? {
         Some(leaf) => read_kind(&leaf).map(Some),
         None => Ok(None),
     }
@@ -184,7 +193,8 @@ pub fn launch_peek(
     grove_root: &Path,
     leaf_path: Option<&Path>,
 ) -> Result<Option<(Kind, Option<&'static Harness>)>> {
-    let Some(leaf) = target_leaf(grove_root, leaf_path)? else {
+    let guard = tree_access::read(grove_root)?;
+    let Some(leaf) = target_leaf_unlocked(guard.root(), leaf_path)? else {
         return Ok(None);
     };
     let kind = read_kind(&leaf)?;
@@ -196,14 +206,14 @@ pub fn launch_peek(
 /// relative to `grove_root`), else [`pick`]'s next live leaf. `Ok(None)` is the
 /// empty grove — the same "no live leaves" signal `pick` gives, which the CLI
 /// renders as the standard stderr diagnostic.
-fn target_leaf(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
+fn target_leaf_unlocked(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<PathBuf>> {
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
     }
     Ok(match leaf_path {
         Some(p) if p.is_absolute() => Some(p.to_path_buf()),
         Some(p) => Some(grove_root.join(p)),
-        None => pick(grove_root)?,
+        None => pick_unlocked(grove_root)?,
     })
 }
 
@@ -363,9 +373,11 @@ fn entry_outcome(e: &Entry) -> Outcome {
 ///
 /// The root brief (`BRIEF.md`, the one unkeyed singleton) is unreferenceable.
 pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
-    if !grove_root.is_dir() {
-        bail!("grove root not found: {}", grove_root.display());
-    }
+    let guard = tree_access::read(grove_root)?;
+    resolve_unlocked(guard.root(), reference)
+}
+
+pub(crate) fn resolve_unlocked(grove_root: &Path, reference: &str) -> Result<Resolution> {
     let mut all = Vec::new();
     collect_all(grove_root, &mut all)?;
 

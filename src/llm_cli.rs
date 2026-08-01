@@ -19,6 +19,7 @@ use crate::leaf::Kind;
 use crate::repo;
 use crate::tree_grow;
 use crate::tree_lifecycle;
+use crate::tree_promotion;
 use crate::tree_read::{self, Resolution};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -152,6 +153,17 @@ pub enum Command {
     /// `leaf-add <chain-node> <stem>-review` when the producer sits in a chain
     /// node, and `leaf-insert` when it was cut as a plain leaf.
     LeafAddChain(LeafAddChainArgs),
+    /// Atomically promote the currently picked plain producer into a brief-less
+    /// review-chain node while preserving the producer's stable handle and task
+    /// bytes. The command derives the review and integration kinds, writes
+    /// stable `Reviews` / `Integrates` relationships, and uses a visible
+    /// `PROMOTING-*` witness so interruption is fail-closed and recoverable.
+    ///
+    /// `<picked-producer>` accepts the absolute path printed by `pick`, a stable
+    /// key/handle, the same now-stale path on an idempotent retry, or the exact
+    /// transaction path named by a fail-closed diagnostic. Prints node,
+    /// relocated producer, review, and integration paths after success only.
+    LeafPromoteChain(LeafPromoteChainArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call — a
     /// `<stem>-pair` **node directory** holding `<stem>-a`, `<stem>-b`,
     /// `<stem>-combine` — with both producers' vendors declared, and refused if
@@ -377,6 +389,17 @@ pub struct LeafAddChainArgs {
 }
 
 #[derive(Parser)]
+pub struct LeafPromoteChainArgs {
+    /// The currently picked plain producer: absolute picked path, stable key or
+    /// handle, stale pre-promotion path, or exact `PROMOTING-*` recovery path.
+    pub picked_producer: String,
+    /// Emit one JSON object containing paths, stable handles, and whether this
+    /// call changed the tree. Failures print no stdout.
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Parser)]
 pub struct LeafAddPairArgs {
     /// Parent node — `.` for the grove root, or a node by its key
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
@@ -450,6 +473,7 @@ pub fn run() -> Result<()> {
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafAddChain(args) => cmd_leaf_add_chain(&args),
+        Command::LeafPromoteChain(args) => cmd_leaf_promote_chain(&args),
         Command::LeafAddPair(args) => cmd_leaf_add_pair(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
@@ -624,6 +648,32 @@ fn cmd_leaf_add_chain(args: &LeafAddChainArgs) -> Result<()> {
     let parent_dir = resolve_parent(&grove_root, &args.parent)?;
     let paths = tree_grow::leaf_add_chain(&grove_root, &parent_dir, &args.stem, producer)?;
     print_paths(&paths);
+    Ok(())
+}
+
+fn cmd_leaf_promote_chain(args: &LeafPromoteChainArgs) -> Result<()> {
+    let (_, grove_root) = grove_paths()?;
+    let result = tree_promotion::promote(&grove_root, &args.picked_producer)
+        .map_err(|error| anyhow::anyhow!("promotion-failed: {error:#}"))?;
+    if args.json {
+        fn item(name: &str, item: &tree_promotion::PromotedItem) -> String {
+            format!(
+                "\"{name}\":{{\"path\":\"{}\",\"handle\":\"{}\"}}",
+                crate::json::escape(&item.path.display().to_string()),
+                crate::json::escape(&item.handle)
+            )
+        }
+        println!(
+            "{{\"changed\":{},{},{},{},{}}}",
+            result.changed,
+            item("node", &result.node),
+            item("producer", &result.producer),
+            item("review", &result.review),
+            item("integration", &result.integration),
+        );
+    } else {
+        print_paths(&result.paths().map(Path::to_path_buf));
+    }
     Ok(())
 }
 

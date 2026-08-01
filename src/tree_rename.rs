@@ -28,8 +28,18 @@
 
 use anyhow::{bail, Context, Result};
 use std::fs;
+use std::io::Write;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+
+#[derive(Clone, Debug)]
+pub(crate) struct GitIndexEntry {
+    mode: String,
+    object_id: String,
+    assume_unchanged: bool,
+    skip_worktree: bool,
+    fsmonitor_valid: bool,
+}
 
 /// Rename the tree entry `src` → `dst` (both relative to `dir`), taking git's
 /// index along when git is tracking it. A node directory carries its whole subtree
@@ -47,6 +57,212 @@ pub fn rename_entry(dir: &Path, src: impl AsRef<Path>, dst: impl AsRef<Path>) ->
     } else {
         plain_rename(dir, src, dst)
     }
+}
+
+/// Capture the one normal stage-0 entry `git mv` would move. Jujutsu returns
+/// `None` even when a colocated Git index contains the path: jj owns that
+/// working copy and promotion must not touch its index.
+pub(crate) fn capture_git_index_entry(dir: &Path, path: &Path) -> Result<Option<GitIndexEntry>> {
+    if matches!(crate::repo::vcs_of(dir), Some(crate::repo::Vcs::Jj { .. })) {
+        return Ok(None);
+    }
+    let output = git_output(
+        dir,
+        &["ls-files", "--stage", "--full-name", "--"],
+        Some(path),
+    )?;
+    if output.trim().is_empty() {
+        return Ok(None);
+    }
+    let records: Vec<_> = output.lines().collect();
+    if records.len() != 1 {
+        bail!(
+            "cannot promote an unmerged or multiply-staged producer {}: {} index records",
+            path.display(),
+            records.len()
+        );
+    }
+    let (header, _) = records[0]
+        .split_once('\t')
+        .context("parsing git ls-files --stage output")?;
+    let mut fields = header.split_whitespace();
+    let mode = fields.next().context("git index entry has no mode")?;
+    let object_id = fields.next().context("git index entry has no object id")?;
+    let stage = fields.next().context("git index entry has no stage")?;
+    if stage != "0" {
+        bail!(
+            "cannot promote an unmerged producer {} (index stage {stage})",
+            path.display()
+        );
+    }
+    if object_id.chars().all(|character| character == '0') {
+        bail!(
+            "cannot promote intent-to-add producer {} before it has an index object",
+            path.display()
+        );
+    }
+
+    let ordinary_tag = git_ls_files_tag(dir, "-v", path)?;
+    let fsmonitor_tag = git_ls_files_tag(dir, "-f", path)?;
+    Ok(Some(GitIndexEntry {
+        mode: mode.to_string(),
+        object_id: object_id.to_string(),
+        assume_unchanged: ordinary_tag.is_ascii_lowercase(),
+        skip_worktree: ordinary_tag.eq_ignore_ascii_case(&'S'),
+        fsmonitor_valid: fsmonitor_tag.is_ascii_lowercase(),
+    }))
+}
+
+/// Rewrite the already-staged producer path to its final spelling under one Git
+/// index lock while the `PROMOTING-*` filesystem witness still blocks readers.
+/// Generated review tasks are deliberately absent from the index.
+pub(crate) fn prepare_promotion_index(
+    dir: &Path,
+    entry: &GitIndexEntry,
+    staging_path: &Path,
+    final_path: &Path,
+) -> Result<()> {
+    rewrite_index_path(dir, entry, staging_path, final_path)
+        .context("preparing final producer path in the Git index")
+}
+
+/// Best-effort normalisation used by rollback: if the final index path already
+/// landed, move it back to the original spelling; if the index still names the
+/// staging path, `rename_entry` will reverse that ordinary `git mv` itself.
+pub(crate) fn restore_promotion_index(
+    dir: &Path,
+    original_entry: &GitIndexEntry,
+    original_path: &Path,
+    staging_path: &Path,
+    final_path: &Path,
+) -> Result<()> {
+    if capture_git_index_entry(dir, final_path)?.is_some() {
+        rewrite_index_path(dir, original_entry, final_path, original_path)?;
+    } else if capture_git_index_entry(dir, staging_path)?.is_none()
+        && capture_git_index_entry(dir, original_path)?.is_none()
+    {
+        bail!(
+            "producer index entry is at none of its recoverable paths: {}, {}, {}",
+            original_path.display(),
+            staging_path.display(),
+            final_path.display()
+        );
+    }
+    Ok(())
+}
+
+fn rewrite_index_path(
+    dir: &Path,
+    entry: &GitIndexEntry,
+    old_path: &Path,
+    new_path: &Path,
+) -> Result<()> {
+    let old_repo_path = repo_relative_path(dir, old_path)?;
+    let new_repo_path = repo_relative_path(dir, new_path)?;
+    let repo_root = git_toplevel(dir)?;
+    let zero_object_id = "0".repeat(entry.object_id.len());
+    let input = format!(
+        "0 {zero_object_id}\t{old_repo_path}\n{} {}\t{new_repo_path}\n",
+        entry.mode, entry.object_id
+    );
+    let mut child = Command::new("git")
+        .arg("-C")
+        .arg(&repo_root)
+        .args(["update-index", "--index-info"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("starting git update-index --index-info")?;
+    child
+        .stdin
+        .as_mut()
+        .context("git update-index stdin was not piped")?
+        .write_all(input.as_bytes())
+        .context("writing git index path transaction")?;
+    let output = child
+        .wait_with_output()
+        .context("waiting for git update-index --index-info")?;
+    if !output.status.success() {
+        bail!(
+            "git update-index {} -> {} failed: {}",
+            old_path.display(),
+            new_path.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    restore_index_flags(Path::new(&repo_root), entry, &new_repo_path)
+}
+
+fn restore_index_flags(dir: &Path, entry: &GitIndexEntry, repo_path: &str) -> Result<()> {
+    for (enabled, flag) in [
+        (entry.assume_unchanged, "--assume-unchanged"),
+        (entry.skip_worktree, "--skip-worktree"),
+        (entry.fsmonitor_valid, "--fsmonitor-valid"),
+    ] {
+        if !enabled {
+            continue;
+        }
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .arg("update-index")
+            .arg(flag)
+            .arg("--")
+            .arg(repo_path)
+            .output()
+            .with_context(|| format!("restoring Git index flag {flag}"))?;
+        if !output.status.success() {
+            bail!(
+                "git update-index {flag} failed for {repo_path}: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+    }
+    Ok(())
+}
+
+fn git_ls_files_tag(dir: &Path, flag: &str, path: &Path) -> Result<char> {
+    let output = git_output(dir, &["ls-files", flag, "--full-name", "--"], Some(path))?;
+    output.chars().next().with_context(|| {
+        format!(
+            "git ls-files {flag} returned no entry for {}",
+            path.display()
+        )
+    })
+}
+
+fn repo_relative_path(dir: &Path, path: &Path) -> Result<String> {
+    let prefix = git_output(dir, &["rev-parse", "--show-prefix"], None)?;
+    let prefix = prefix.trim_end_matches(['\n', '\r']);
+    Ok(format!(
+        "{}{}",
+        prefix,
+        path.to_string_lossy().trim_start_matches('/')
+    ))
+}
+
+fn git_toplevel(dir: &Path) -> Result<String> {
+    Ok(git_output(dir, &["rev-parse", "--show-toplevel"], None)?
+        .trim()
+        .to_string())
+}
+
+fn git_output(dir: &Path, args: &[&str], path: Option<&Path>) -> Result<String> {
+    let mut command = Command::new("git");
+    command.arg("-C").arg(dir).args(args);
+    if let Some(path) = path {
+        command.arg(path);
+    }
+    let output = command.output().context("running git index command")?;
+    if !output.status.success() {
+        bail!(
+            "git {} failed: {}",
+            args.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 /// Whether git holds `path` (relative to `dir`) in its index — `git mv`'s

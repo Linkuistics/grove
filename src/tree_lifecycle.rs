@@ -31,7 +31,8 @@
 // replaced is gone.
 
 use crate::leaf::Kind;
-use crate::tree_grow::leaf_add;
+use crate::tree_access;
+use crate::tree_grow::{leaf_add, leaf_add_unlocked};
 use crate::tree_id::{parse, sort_key, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
@@ -105,6 +106,16 @@ pub fn leaf_decompose(
     first_child_slug: &str,
     kind_override: Option<Kind>,
 ) -> Result<(PathBuf, PathBuf)> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_decompose_unlocked(guard.root(), leaf_path, first_child_slug, kind_override)
+}
+
+fn leaf_decompose_unlocked(
+    grove_root: &Path,
+    leaf_path: &Path,
+    first_child_slug: &str,
+    kind_override: Option<Kind>,
+) -> Result<(PathBuf, PathBuf)> {
     // Validate the child slug up front, before any filesystem mutation, so a bad
     // slug leaves the leaf un-decomposed (no half-built childless node directory).
     validate_slug(first_child_slug)?;
@@ -164,7 +175,7 @@ pub fn leaf_decompose(
     // Grow the first child at `01` (enforce-first-child) — delegated to `leaf_add`
     // so it is byte-identical to a hand-added child and gets the next fresh key. The
     // node now exists (the BRIEF.md we just created), so the parent guard passes.
-    let child_path = leaf_add(&grove_abs, &node_dir, first_child_slug, kind, harness)?;
+    let child_path = leaf_add_unlocked(&grove_abs, &node_dir, first_child_slug, kind, harness)?;
     Ok((brief_path, child_path))
 }
 
@@ -174,6 +185,11 @@ pub fn leaf_decompose(
 /// brief, a node directory, and an already-`DONE` leaf. Returns the retired file's
 /// absolute path. Working-tree only — no commit.
 pub fn leaf_retire(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_retire_unlocked(guard.root(), leaf_path)
+}
+
+fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> {
     let grove_abs = canonical_grove_root(grove_root)?;
     let (parent_abs, name) = resolve_leaf_file(&grove_abs, leaf_path)?;
     let done_name = match parse(&name) {
@@ -241,6 +257,11 @@ pub struct PruneResult {
 /// caller (the LLM driving the session) must already have explicit human
 /// confirmation before calling this at all.
 pub fn leaf_prune(grove_root: &Path, path: &Path) -> Result<PruneResult> {
+    let guard = tree_access::write(grove_root)?;
+    leaf_prune_unlocked(guard.root(), path)
+}
+
+fn leaf_prune_unlocked(grove_root: &Path, path: &Path) -> Result<PruneResult> {
     let grove_abs = canonical_grove_root(grove_root)?;
     let target_abs = resolve_entry(&grove_abs, path)?;
 

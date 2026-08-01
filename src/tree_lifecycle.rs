@@ -233,17 +233,17 @@ fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> 
     // is retained as a diagnostic plan rather than returned: metadata must
     // never become lifecycle-critical.
     let producer_path = parent_abs.join(&name);
-    let receipt_candidates = producer_receipt_candidates(
+    let receipt_discoveries = producer_receipt_candidates(
         &grove_abs,
         &producer_path,
         &factual_leaf_handle,
         factual_leaf_key,
-    )?;
+    );
     let receipts = crate::task_relationship::prepare_producer_receipts(
         &grove_abs,
         &producer_path,
         &factual_leaf_handle,
-        receipt_candidates,
+        receipt_discoveries,
         crate::tree_read::pick_unlocked(&grove_abs),
     );
     // The `DONE` infix is filename-only — the `# <handle>` header is byte-identical.
@@ -259,61 +259,66 @@ fn producer_receipt_candidates(
     factual_leaf_path: &Path,
     factual_leaf_handle: &str,
     factual_leaf_key: u32,
-) -> Result<Vec<crate::task_relationship::ProducerReceiptCandidate>> {
-    let mut candidates = vec![crate::task_relationship::ProducerReceiptCandidate {
-        path: factual_leaf_path.to_path_buf(),
-        handle: factual_leaf_handle.to_string(),
-        generation: factual_leaf_key,
-    }];
+) -> Vec<crate::task_relationship::ProducerReceiptDiscovery> {
+    use crate::task_relationship::{ProducerReceiptCandidate, ProducerReceiptDiscovery};
+
+    let mut discoveries = vec![ProducerReceiptDiscovery::Candidate(
+        ProducerReceiptCandidate {
+            path: factual_leaf_path.to_path_buf(),
+            handle: factual_leaf_handle.to_string(),
+            generation: factual_leaf_key,
+        },
+    )];
     let mut ancestor = factual_leaf_path.parent();
     while let Some(node) = ancestor {
         if node == grove_root {
             break;
         }
-        if node.join("BRIEF.md").is_file()
-            && node_closes_when_leaf_retires(node, factual_leaf_path)?
-        {
-            let entry = node
+        if node.join("BRIEF.md").is_file() {
+            let handle = match node
                 .file_name()
                 .and_then(|name| name.to_str())
                 .and_then(parse)
-                .with_context(|| format!("invalid decomposition node {}", node.display()))?;
-            let handle = entry
-                .handle()
-                .with_context(|| format!("decomposition node has no handle: {}", node.display()))?;
-            candidates.push(crate::task_relationship::ProducerReceiptCandidate {
-                path: node.to_path_buf(),
-                handle,
-                generation: crate::tree_read::producer_generation_unlocked(node)?,
-            });
+            {
+                Some(Entry::Node { slug, key, .. }) => format!("{slug}-k{key}"),
+                _ => {
+                    discoveries.push(ProducerReceiptDiscovery::Uncheckable {
+                        producer: None,
+                        detail: format!("invalid decomposition node {}", node.display()),
+                    });
+                    ancestor = node.parent();
+                    continue;
+                }
+            };
+            match node_closes_when_leaf_retires(node, factual_leaf_path) {
+                Ok(false) => {}
+                Ok(true) => match crate::tree_read::producer_generation_unlocked(node) {
+                    Ok(generation) => discoveries.push(ProducerReceiptDiscovery::Candidate(
+                        ProducerReceiptCandidate {
+                            path: node.to_path_buf(),
+                            handle,
+                            generation,
+                        },
+                    )),
+                    Err(error) => discoveries.push(ProducerReceiptDiscovery::Uncheckable {
+                        producer: Some(handle),
+                        detail: format!("{error:#}"),
+                    }),
+                },
+                Err(error) => discoveries.push(ProducerReceiptDiscovery::Uncheckable {
+                    producer: Some(handle),
+                    detail: format!("{error:#}"),
+                }),
+            }
         }
         ancestor = node.parent();
     }
-    Ok(candidates)
+    discoveries
 }
 
 fn node_closes_when_leaf_retires(node: &Path, factual_leaf_path: &Path) -> Result<bool> {
-    let mut live = Vec::new();
-    collect_live_leaves(node, &mut live)?;
+    let live = crate::tree_read::live_leaf_paths_unlocked(node)?;
     Ok(live.as_slice() == [factual_leaf_path])
-}
-
-fn collect_live_leaves(node: &Path, live: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in fs::read_dir(node).with_context(|| format!("reading {}", node.display()))? {
-        let entry = entry?;
-        let Some(name) = entry.file_name().to_str().map(str::to_string) else {
-            continue;
-        };
-        match parse(&name) {
-            Some(Entry::Leaf {
-                outcome: Outcome::Live,
-                ..
-            }) => live.push(entry.path()),
-            Some(Entry::Node { .. }) => collect_live_leaves(&entry.path(), live)?,
-            _ => {}
-        }
-    }
-    Ok(())
 }
 
 /// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`

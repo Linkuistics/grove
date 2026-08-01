@@ -581,6 +581,30 @@ fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
     Ok(entries.into_iter().map(|(_, e, p)| (e, p)).collect())
 }
 
+/// Return every live leaf below a node using the same lenient entry
+/// classification as [`pick`], [`resolve`], and generation reads. Callers use
+/// this one seam for node-liveness decisions so foreign kind mismatches cannot
+/// make lifecycle and routing observe different trees.
+pub(crate) fn live_leaf_paths_unlocked(node: &Path) -> Result<Vec<PathBuf>> {
+    let mut live = Vec::new();
+    collect_live_leaf_paths(node, &mut live)?;
+    Ok(live)
+}
+
+fn collect_live_leaf_paths(node: &Path, live: &mut Vec<PathBuf>) -> Result<()> {
+    for (entry, path) in read_level(node)? {
+        match entry {
+            Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            } => live.push(path),
+            Entry::Node { .. } => collect_live_leaf_paths(&path, live)?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// Recursively collect every parsed entry in the tree — leaves (live and `DONE`),
 /// node directories, and briefs — each with its absolute path, in pre-order.
 /// The shared scan behind [`resolve`]'s tree-wide key/slug search.

@@ -26,11 +26,11 @@ const PRODUCER_LAUNCH_MARKER: &str = "**Producer launch:**";
 #[serde(deny_unknown_fields)]
 pub struct LaunchTarget {
     pub harness: String,
-    #[serde(deserialize_with = "deserialize_nullable_model")]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub model: Option<String>,
 }
 
-fn deserialize_nullable_model<'de, D>(
+fn deserialize_required_nullable<'de, D>(
     deserializer: D,
 ) -> std::result::Result<Option<String>, D::Error>
 where
@@ -115,7 +115,7 @@ struct ProducerLaunchReceiptWire {
     #[serde(default)]
     generation: Present<String>,
     harness: String,
-    #[serde(deserialize_with = "deserialize_nullable_model")]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     model: Option<String>,
 }
 
@@ -155,6 +155,14 @@ pub(crate) struct ProducerReceiptCandidate {
     pub generation: u32,
 }
 
+pub(crate) enum ProducerReceiptDiscovery {
+    Candidate(ProducerReceiptCandidate),
+    Uncheckable {
+        producer: Option<String>,
+        detail: String,
+    },
+}
+
 /// All stable relationship metadata a task file may carry. The next slice's
 /// review-target comparison reads through this same seam rather than inventing
 /// a second parser.
@@ -176,7 +184,7 @@ pub enum ReviewEvidence {
         producer_target: LaunchTarget,
     },
     Uncheckable {
-        #[serde(deserialize_with = "deserialize_nullable_model")]
+        #[serde(deserialize_with = "deserialize_required_nullable")]
         producer: Option<String>,
         reason: String,
     },
@@ -236,13 +244,21 @@ pub(crate) fn review_evidence_unlocked(grove_root: &Path, review_path: &Path) ->
         if !producer_path.join("BRIEF.md").is_file() {
             return uncheckable(Some(producer), "reviewed-producer-not-decomposition");
         }
-        match contains_live_leaf(&producer_path) {
-            Ok(true) => return uncheckable(Some(producer), "reviewed-producer-live"),
+        match crate::tree_read::live_leaf_paths_unlocked(&producer_path) {
+            Ok(live) if !live.is_empty() => {
+                return uncheckable(Some(producer), "reviewed-producer-live")
+            }
             Err(_) => return uncheckable(Some(producer), "reviewed-producer-unreadable"),
-            Ok(false) => {}
+            Ok(_) => {}
         }
-    } else if !is_terminal_leaf(&producer_path) {
-        return uncheckable(Some(producer), "reviewed-producer-live");
+    } else {
+        match leaf_outcome(&producer_path) {
+            Some(crate::tree_id::Outcome::Done) => {}
+            Some(crate::tree_id::Outcome::Abandoned) => {
+                return uncheckable(Some(producer), "reviewed-producer-not-done")
+            }
+            _ => return uncheckable(Some(producer), "reviewed-producer-live"),
+        }
     }
 
     let generation_key = match crate::tree_read::producer_generation_unlocked(&producer_path) {
@@ -272,8 +288,11 @@ pub(crate) fn review_evidence_unlocked(grove_root: &Path, review_path: &Path) ->
         _ => return uncheckable(Some(producer), "producer-session-unresolvable"),
     };
     if producer_is_node {
-        if !source_path.starts_with(&producer_path) || !is_terminal_leaf(&source_path) {
+        if !source_path.starts_with(&producer_path) {
             return uncheckable(Some(producer), "producer-session-not-terminal-descendant");
+        }
+        if leaf_outcome(&source_path) != Some(crate::tree_id::Outcome::Done) {
+            return uncheckable(Some(producer), "producer-session-not-done-descendant");
         }
     } else if source_path != producer_path {
         return uncheckable(Some(producer), "producer-session-mismatch");
@@ -301,34 +320,15 @@ fn path_handle(path: &Path) -> Option<String> {
         .and_then(|entry| entry.handle())
 }
 
-fn is_terminal_leaf(path: &Path) -> bool {
-    matches!(
-        path.file_name()
-            .and_then(|name| name.to_str())
-            .and_then(parse),
-        Some(Entry::Leaf {
-            outcome: crate::tree_id::Outcome::Done | crate::tree_id::Outcome::Abandoned,
-            ..
-        })
-    )
-}
-
-fn contains_live_leaf(node: &Path) -> Result<bool> {
-    for entry in fs::read_dir(node).with_context(|| format!("reading {}", node.display()))? {
-        let entry = entry?;
-        let Some(parsed) = entry.file_name().to_str().and_then(parse) else {
-            continue;
-        };
-        match parsed {
-            Entry::Leaf {
-                outcome: crate::tree_id::Outcome::Live,
-                ..
-            } => return Ok(true),
-            Entry::Node { .. } if contains_live_leaf(&entry.path())? => return Ok(true),
-            _ => {}
-        }
+fn leaf_outcome(path: &Path) -> Option<crate::tree_id::Outcome> {
+    match path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .and_then(parse)
+    {
+        Some(Entry::Leaf { outcome, .. }) => Some(outcome),
+        _ => None,
     }
-    Ok(false)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -516,12 +516,23 @@ pub(crate) fn prepare_producer_receipts(
     grove_root: &Path,
     factual_leaf_path: &Path,
     factual_leaf_handle: &str,
-    candidates: Vec<ProducerReceiptCandidate>,
+    discoveries: Vec<ProducerReceiptDiscovery>,
     current_pick: Result<Option<PathBuf>>,
 ) -> ReceiptPlans {
     let mut plans = Vec::new();
     let mut live_reviews = Vec::new();
-    for candidate in candidates {
+    for discovery in discoveries {
+        let candidate = match discovery {
+            ProducerReceiptDiscovery::Candidate(candidate) => candidate,
+            ProducerReceiptDiscovery::Uncheckable { producer, detail } => {
+                plans.push(ReceiptPlan::Uncheckable(ReceiptDiagnostic::new(
+                    producer.as_deref().unwrap_or("unknown"),
+                    "receipt-preparation-failed",
+                    detail,
+                )));
+                continue;
+            }
+        };
         match unique_review_sibling(&candidate.path, &candidate.handle) {
             Ok(None) => plans.push(ReceiptPlan::NotReviewed),
             Ok(Some((_, outcome))) if outcome != crate::tree_id::Outcome::Live => {
@@ -532,10 +543,7 @@ pub(crate) fn prepare_producer_receipts(
                 }));
             }
             Ok(Some((review_path, _))) => live_reviews.push((candidate, review_path)),
-            Err(error) => plans.push(ReceiptPlan::Uncheckable(diagnostic(
-                &candidate.handle,
-                error,
-            ))),
+            Err(diagnostic) => plans.push(ReceiptPlan::Uncheckable(diagnostic)),
         }
     }
 
@@ -560,7 +568,7 @@ pub(crate) fn prepare_producer_receipts(
                 };
                 match PreparedReceipt::new(review_path, receipt) {
                     Ok(receipt) => ReceiptPlan::Ready(receipt),
-                    Err(error) => ReceiptPlan::Uncheckable(diagnostic(&candidate.handle, error)),
+                    Err(diagnostic) => ReceiptPlan::Uncheckable(diagnostic),
                 }
             }
             Err(problem) => ReceiptPlan::Uncheckable(ReceiptDiagnostic {
@@ -679,15 +687,38 @@ pub(crate) struct PreparedReceipt {
 }
 
 impl PreparedReceipt {
-    fn new(path: PathBuf, receipt: ProducerLaunchReceipt) -> Result<Self> {
-        let original = fs::read_to_string(&path)
-            .with_context(|| format!("reading linked review task {}", path.display()))?;
-        let relationships = TaskRelationships::parse(&original)?;
-        if relationships.reviews.as_deref() != Some(receipt.producer.as_str()) {
-            bail!(
-                "linked review task no longer declares `{REVIEWS_MARKER} {}`",
-                receipt.producer
-            );
+    fn new(
+        path: PathBuf,
+        receipt: ProducerLaunchReceipt,
+    ) -> std::result::Result<Self, ReceiptDiagnostic> {
+        let producer = receipt.producer.clone();
+        let original = fs::read_to_string(&path).map_err(|error| {
+            ReceiptDiagnostic::new(
+                &producer,
+                "receipt-preparation-failed",
+                format!("reading linked review task {}: {error}", path.display()),
+            )
+        })?;
+        let reviews = parse_handle_marker(&original, REVIEWS_MARKER).map_err(|error| {
+            ReceiptDiagnostic::new(
+                &producer,
+                "review-relationship-malformed",
+                format!("{error:#}"),
+            )
+        })?;
+        TaskRelationships::parse(&original).map_err(|error| {
+            ReceiptDiagnostic::new(
+                &producer,
+                "receipt-preparation-failed",
+                format!("{error:#}"),
+            )
+        })?;
+        if reviews.as_deref() != Some(producer.as_str()) {
+            return Err(ReceiptDiagnostic::new(
+                &producer,
+                "review-relationship-malformed",
+                format!("linked review task no longer declares `{REVIEWS_MARKER} {producer}`"),
+            ));
         }
         let replaced_existing = original
             .lines()
@@ -734,6 +765,7 @@ impl PreparedReceipt {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct ReceiptDiagnostic {
     producer: String,
     reason: &'static str,
@@ -741,6 +773,14 @@ pub(crate) struct ReceiptDiagnostic {
 }
 
 impl ReceiptDiagnostic {
+    fn new(producer: &str, reason: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            producer: producer.to_string(),
+            reason,
+            detail: detail.into(),
+        }
+    }
+
     fn report(self) {
         eprintln!(
             "grove: producer launch receipt uncheckable (producer={}, reason={}): {}; \
@@ -750,35 +790,44 @@ impl ReceiptDiagnostic {
     }
 }
 
-fn diagnostic(producer: &str, error: anyhow::Error) -> ReceiptDiagnostic {
-    let detail = format!("{error:#}");
-    let reason = if detail.contains("more than one sibling") {
-        "review-relationship-ambiguous"
-    } else if detail.contains("Reviews") {
-        "review-relationship-malformed"
-    } else {
-        "receipt-preparation-failed"
-    };
-    ReceiptDiagnostic {
-        producer: producer.to_string(),
-        reason,
-        detail,
-    }
-}
-
 fn unique_review_sibling(
     producer_path: &Path,
     producer_handle: &str,
-) -> Result<Option<(PathBuf, crate::tree_id::Outcome)>> {
-    let parent = producer_path
-        .parent()
-        .with_context(|| format!("producer has no sibling level: {}", producer_path.display()))?;
+) -> std::result::Result<Option<(PathBuf, crate::tree_id::Outcome)>, ReceiptDiagnostic> {
+    let parent = producer_path.parent().ok_or_else(|| {
+        ReceiptDiagnostic::new(
+            producer_handle,
+            "receipt-preparation-failed",
+            format!("producer has no sibling level: {}", producer_path.display()),
+        )
+    })?;
     let mut matches = Vec::new();
-    for entry in fs::read_dir(parent)
-        .with_context(|| format!("reading producer sibling level {}", parent.display()))?
-    {
-        let entry = entry?;
-        if !entry.file_type()?.is_file() {
+    let entries = fs::read_dir(parent).map_err(|error| {
+        ReceiptDiagnostic::new(
+            producer_handle,
+            "receipt-preparation-failed",
+            format!(
+                "reading producer sibling level {}: {error}",
+                parent.display()
+            ),
+        )
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|error| {
+            ReceiptDiagnostic::new(
+                producer_handle,
+                "receipt-preparation-failed",
+                format!("reading an entry in {}: {error}", parent.display()),
+            )
+        })?;
+        let file_type = entry.file_type().map_err(|error| {
+            ReceiptDiagnostic::new(
+                producer_handle,
+                "receipt-preparation-failed",
+                format!("reading file type for {}: {error}", entry.path().display()),
+            )
+        })?;
+        if !file_type.is_file() {
             continue;
         }
         let name = entry.file_name();
@@ -788,23 +837,39 @@ fn unique_review_sibling(
         let Some(Entry::Leaf { outcome, .. }) = parse(name) else {
             continue;
         };
-        let text = fs::read_to_string(entry.path())
-            .with_context(|| format!("reading task file {}", entry.path().display()))?;
-        if parse_handle_marker(&text, REVIEWS_MARKER)?.as_deref() == Some(producer_handle) {
+        let text = fs::read_to_string(entry.path()).map_err(|error| {
+            ReceiptDiagnostic::new(
+                producer_handle,
+                "receipt-preparation-failed",
+                format!("reading task file {}: {error}", entry.path().display()),
+            )
+        })?;
+        let reviews = parse_handle_marker(&text, REVIEWS_MARKER).map_err(|error| {
+            ReceiptDiagnostic::new(
+                producer_handle,
+                "review-relationship-malformed",
+                format!("{}: {error:#}", entry.path().display()),
+            )
+        })?;
+        if reviews.as_deref() == Some(producer_handle) {
             matches.push((entry.path(), outcome));
         }
     }
     match matches.len() {
         0 => Ok(None),
         1 => Ok(matches.pop()),
-        count => bail!(
-            "more than one sibling ({count}) declares `{REVIEWS_MARKER} {producer_handle}`: {}",
-            matches
-                .iter()
-                .map(|(path, _)| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+        count => Err(ReceiptDiagnostic::new(
+            producer_handle,
+            "review-relationship-ambiguous",
+            format!(
+                "more than one sibling ({count}) declares `{REVIEWS_MARKER} {producer_handle}`: {}",
+                matches
+                    .iter()
+                    .map(|(path, _)| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        )),
     }
 }
 
@@ -940,6 +1005,17 @@ mod tests {
                 model: None,
             }
         );
+    }
+
+    #[test]
+    fn receipt_diagnostic_reason_does_not_depend_on_human_readable_error_text() {
+        let tmp = TempDir::new().unwrap();
+        let producer = tmp.path().join("Reviews-in-path").join("01-build-k1.md");
+
+        let diagnostic = unique_review_sibling(&producer, "build-k1").unwrap_err();
+
+        assert_eq!(diagnostic.reason, "receipt-preparation-failed");
+        assert!(diagnostic.detail.contains("Reviews-in-path"));
     }
 
     #[test]
@@ -1286,7 +1362,7 @@ mod tests {
         struct LegacyStrictReceipt {
             producer: String,
             harness: String,
-            #[serde(deserialize_with = "deserialize_nullable_model")]
+            #[serde(deserialize_with = "deserialize_required_nullable")]
             model: Option<String>,
         }
         let new_receipt = r#"{"producer":"build-k1","session":"finish-k7","generation":"k9","harness":"claude","model":"opus"}"#;

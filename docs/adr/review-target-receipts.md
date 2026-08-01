@@ -74,9 +74,9 @@ The writer establishes the historical fact that static tree state cannot later
 reconstruct: before `DONE`, `session` must be the routed factual pick; for a leaf
 producer it is the producer itself, and for an ancestor node it is a descendant
 whose removal from the live set closes that node. The reader validates every
-fact still present: the explicit relationship resolves to a terminal leaf or a
-brief-carrying node with no live descendant, the source is that leaf or a
-terminal descendant, and the generation still matches. Hand-edited Markdown can
+fact still present: the explicit relationship resolves to a `DONE` leaf or a
+brief-carrying node with no live descendant, the source is that `DONE` leaf or a
+`DONE` descendant, and the generation still matches. Hand-edited Markdown can
 lie about the historical close just as it can lie about `Reviews`; the metadata
 is advisory rather than authenticated.
 
@@ -91,7 +91,7 @@ The freshness guarantee covers Grove's cooperative transitions: Grove writes a
 receipt only after the leaf outcome that completes its producer entity, and a
 successful later close replaces any existing line in a live linked review. A
 terminal review is skipped because no later launch consumes the replacement.
-Directly restoring a terminal leaf while leaving its old receipt remains a
+Directly restoring a `DONE` leaf while leaving its old receipt remains a
 generation ambiguity, because that unsupported edit adds no key. Grove still
 does not block retirement on advisory metadata; if a post-`DONE` replacement
 fails, review either rejects the prior generation as stale or, for that
@@ -116,7 +116,7 @@ and integration live, so depth-first pick schedules them next as uncheckable. To
 abandon the whole reviewed path, the human prunes the enclosing review-chain
 node.
 
-The receipt is an advisory side effect of the terminal leaf transition, not a
+The receipt is an advisory side effect of the `DONE` leaf transition, not a
 node lifecycle mark. Closing a reviewed decomposition node can therefore change
 the live linked review's bytes even though the node itself remains unmarked. The
 no-confirmation rule still holds because the session establishes the factual

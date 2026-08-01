@@ -380,6 +380,73 @@ fn closing_a_decomposed_producer_records_the_factual_session_and_generation() {
 }
 
 #[test]
+fn foreign_entry_kinds_do_not_block_or_silently_downgrade_node_handoff() {
+    for foreign_shape in ["node-shaped-file", "leaf-shaped-directory"] {
+        let tmp = init_repo();
+        let repo = tmp.path();
+        let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
+        let producer = closing_leaf.parent().unwrap();
+        match foreign_shape {
+            "node-shaped-file" => write(&producer.join("04-foreign-k99"), "foreign\n"),
+            "leaf-shaped-directory" => {
+                fs::create_dir(producer.join("04-foreign-k99.md")).unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let target = session_target(repo, "finish-k6");
+
+        let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
+
+        assert!(
+            ok,
+            "{foreign_shape}: foreign entry blocked retirement: {stderr}"
+        );
+        assert!(
+            producer.join("03-DONE-finish-k6.md").is_file(),
+            "{foreign_shape}: DONE did not land"
+        );
+        let review_text = fs::read_to_string(&review).unwrap();
+        assert!(
+            review_text.contains(
+                "**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k6\",\"generation\":\"k9\""
+            ),
+            "{foreign_shape}: checkable node handoff was silently lost: {review_text:?} {stderr}"
+        );
+
+        let (stdout, stderr, ok) = llm(
+            repo,
+            &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+        );
+        assert!(ok, "{foreign_shape}: evidence read failed: {stderr}");
+        let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+        assert_eq!(
+            evidence["review"]["status"], "checkable",
+            "{foreign_shape}: reader and pick classified different trees: {evidence}"
+        );
+    }
+}
+
+#[test]
+fn invalid_brief_carrying_ancestor_is_advisory_and_done_still_lands() {
+    let tmp = init_repo();
+    let repo = tmp.path();
+    let foreign_ancestor = repo.join(".grove/scratch");
+    let leaf = foreign_ancestor.join("01-leaf-k2.md");
+    write(&foreign_ancestor.join("BRIEF.md"), "# scratch — brief\n");
+    write(&leaf, "# leaf-k2\n\n**Kind:** impl\n");
+    commit_fixture(repo);
+
+    let (_, stderr, ok) = retire(repo, &leaf, None);
+
+    assert!(ok, "advisory ancestor metadata blocked DONE: {stderr}");
+    assert!(foreign_ancestor.join("01-DONE-leaf-k2.md").is_file());
+    assert!(
+        stderr.contains("reason=receipt-preparation-failed"),
+        "candidate failure was not diagnosed after DONE: {stderr}"
+    );
+}
+
+#[test]
 fn a_terminal_linked_review_is_preserved_and_diagnosed() {
     let tmp = init_repo();
     let repo = tmp.path();
@@ -390,6 +457,47 @@ fn a_terminal_linked_review_is_preserved_and_diagnosed() {
 
     assert!(ok, "retirement failed: {stderr}");
     assert_eq!(fs::read_to_string(review).unwrap(), original_review);
+    assert!(stderr.contains("review-terminal"), "{stderr}");
+}
+
+#[test]
+fn a_terminal_review_stays_terminal_and_byte_identical_across_reopen_and_reclose() {
+    let tmp = init_repo();
+    let repo = tmp.path();
+    let (closing_leaf, review, original_review) = build_decomposed_review_chain(repo, "impl", true);
+    let target = session_target(repo, "finish-k6");
+    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
+    assert!(ok, "initial close failed: {stderr}");
+
+    let producer = closing_leaf.parent().unwrap();
+    let (stdout, stderr, ok) = llm(
+        repo,
+        &[
+            "leaf-add",
+            producer.to_str().unwrap(),
+            "refinish",
+            "--kind",
+            "impl",
+        ],
+    );
+    assert!(ok, "supported reopen failed: {stderr}");
+    let refinish = PathBuf::from(stdout.trim());
+    let handle = refinish
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .trim_end_matches(".md")
+        .split_once('-')
+        .unwrap()
+        .1;
+    let target = session_target(repo, handle);
+
+    let (_, stderr, ok) = retire(repo, &refinish, Some(&target));
+
+    assert!(ok, "reclose failed: {stderr}");
+    assert_eq!(fs::read_to_string(&review).unwrap(), original_review);
+    assert!(review.is_file(), "terminal review was reactivated");
     assert!(stderr.contains("review-terminal"), "{stderr}");
 }
 
@@ -604,5 +712,63 @@ fn pruning_the_producer_and_pruning_the_enclosing_chain_have_distinct_scope() {
     assert!(
         ok && stdout.is_empty(),
         "chain still has a live pick: {stdout} {stderr}"
+    );
+}
+
+#[test]
+fn abandoned_producers_and_source_sessions_never_form_checkable_handoffs() {
+    let tmp = init_repo();
+    let repo = tmp.path();
+    let legacy_receipt = r#"{"producer":"build-k1","harness":"claude","model":"opus"}"#;
+    let (producer, review) = build_review_chain(repo, Some(legacy_receipt));
+    let abandoned = producer.parent().unwrap().join("01-ABANDONED-build-k1.md");
+    fs::rename(&producer, &abandoned).unwrap();
+
+    let (stdout, stderr, ok) = llm(
+        repo,
+        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+    );
+    assert!(ok, "abandoned producer evidence failed: {stderr}");
+    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        evidence["review"],
+        serde_json::json!({
+            "status": "uncheckable",
+            "producer": "build-k1",
+            "reason": "reviewed-producer-not-done"
+        })
+    );
+
+    let tmp = init_repo();
+    let repo = tmp.path();
+    let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
+    let abandoned = closing_leaf
+        .parent()
+        .unwrap()
+        .join("03-ABANDONED-finish-k6.md");
+    fs::rename(&closing_leaf, &abandoned).unwrap();
+    let original = fs::read_to_string(&review).unwrap();
+    fs::write(
+        &review,
+        original.replace(
+            "**Reviews:** build-k1\n",
+            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k6\",\"generation\":\"k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
+        ),
+    )
+    .unwrap();
+
+    let (stdout, stderr, ok) = llm(
+        repo,
+        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
+    );
+    assert!(ok, "abandoned source evidence failed: {stderr}");
+    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(
+        evidence["review"],
+        serde_json::json!({
+            "status": "uncheckable",
+            "producer": "build-k1",
+            "reason": "producer-session-not-done-descendant"
+        })
     );
 }

@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Coding standards, software-design and version-control disciplines as lazily-loaded agent skills, plus GUI testing in isolated VMs. Two plugins: linkuistics and testanyware.",
+  "description": "Coding standards, software design, project simplification, and version-control disciplines as lazily loaded agent skills, plus GUI testing in isolated VMs. Two plugins: linkuistics and testanyware.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"
@@ -9,7 +9,7 @@
     {
       "name": "linkuistics",
       "source": "./plugins/linkuistics",
-      "description": "Linkuistics coding-standards skills: universal principles, per-language style guides, CLI and deep-module design, an in-flight adversarial-verify discipline, plus a user-invoked safety guardrail that gates destructive operations."
+      "description": "Linkuistics engineering-practice skills: coding standards, CLI and deep-module design, decision records, contract-preserving project simplification, in-flight adversarial verification, Jujutsu-native version control, codebase-graph queries, and a user-invoked safety guardrail."
     },
     {
       "name": "testanyware",

@@ -51,6 +51,15 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- **`linkuistics` / `simplify-project`: reduce a mature repository's maintenance
+  surface without hiding compatibility changes.** The skill starts from a broad
+  preservation contract — runtime, CLI help, configuration, persisted formats,
+  install paths, package contents, and release mechanics — then applies
+  evidence-backed keep/fold/move/delete decisions, assigns each retained fact a
+  canonical owner, and verifies public surfaces before and after the reduction.
+
 ## v16.3.1
 
 ### Changed

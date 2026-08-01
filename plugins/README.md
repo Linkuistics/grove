@@ -10,7 +10,7 @@ path and are installed separately from Grove.
 The vocabulary of authoring, packaging, triggering and installing a skill is in
 [`CONTEXT.md`](CONTEXT.md).
 
-## `linkuistics` — coding-standards skills
+## `linkuistics` — engineering-practice skills
 
 A suite of agent **skills** that load lazily — only when relevant to the file or
 task at hand — across Claude Code, Codex, and other agents supporting the
@@ -30,6 +30,7 @@ task at hand — across Claude Code, Codex, and other agents supporting the
 | `decision-records` | by description | ADRs as a minimum coherent set describing the design's current state — current-state over changelog, identity by slug not number |
 | `doubt-driven-development` | by description | in-flight adversarial verify — spawn a fresh-context reviewer to disprove a non-trivial decision before it stands |
 | `git-to-jj-mapping` | by description | on-demand git→jj reference — command and concept translation, loaded only when a specific translation is needed |
+| `simplify-project` | by description | contract-preserving repository simplification — consolidate current-state docs, remove proven-dead artifacts, reconcile every consumer |
 | `using-jujutsu` | by description | drive version control through Jujutsu natively when the repo is jj-enabled (`.jj/` present); git, silently, everywhere else |
 | `authoring-conventions` | by hand (`/authoring-conventions`, user-invoked) | house `SKILL.md` conventions — a thin delta over superpowers' `writing-skills` |
 | `guardrail` | by hand (`/guardrail`, user-invoked) | session-scoped `PreToolUse` gate — pauses for confirmation before destructive shell commands or edits outside the project ("freeze") |

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v16.4.0
+
 ### Added
 
 - **`linkuistics` / `simplify-project`: reduce a mature repository's maintenance

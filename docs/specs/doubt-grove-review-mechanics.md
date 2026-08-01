@@ -127,13 +127,36 @@ A conflicting shape errors with the exact paths that need inspection.
 The [Promotion transactions fail closed](../adr/promotion-transactions-fail-closed.md)
 decision supplies the portable atomicity boundary.
 
-The operation pre-validates the source, exact kind, derived kinds, destination,
-generated content, and three-key allocation before writing. It then builds the
-final children under a reserved sibling directory whose name is
-`PROMOTING-<final-node-name>/`. The generated review and integration are written
-first; the producer is moved byte-for-byte into child position `01` through
-Grove's VCS-aware rename seam; the complete directory is landed by one
-same-parent rename that strips `PROMOTING-`.
+Every participating task-tree operation enters one tree-access seam before it
+checks for a pending promotion or reads names. The seam holds a process-scoped
+advisory lock on the open root `.grove/BRIEF.md`: readers (`pick`, `kind`,
+`resolve`, `brief-chain`) take a shared lock for the whole read, while every
+mutator takes an exclusive lock from pre-validation through rollback or success
+output. Lock acquisition waits for the current operation and process termination
+releases it automatically; no PID, owner record, or lock-state bytes are stored
+in the task tree. `root-init`, which has no root brief to lock, retains its
+atomic create-or-refuse contract. Direct human edits remain outside this
+cooperative CLI serialization, as they are for every Grove invariant.
+
+Promotion acquires the exclusive lock before it pre-validates the source, exact
+kind, derived kinds, destination, generated content, and three-key allocation.
+It then builds the final children under a reserved sibling directory whose name
+is `PROMOTING-<final-node-name>/`. The generated review and integration are
+written first; the producer is moved byte-for-byte into child position `01`
+through Grove's VCS-aware rename seam; the complete directory is landed through
+that same seam by a same-parent rename that strips `PROMOTING-`. The lock makes
+the validation, key allocation, and landing one serializable tree mutation;
+`PROMOTING-` remains the durable fail-closed witness if the process disappears
+and releases the lock mid-operation.
+
+Both the source-to-staging move and staging-to-final landing obey the existing
+Jujutsu-first VCS rule. Native and colocated Jujutsu use filesystem renames and
+never touch Git's index. In a plain Git tree, a tracked producer is moved at
+both stages through the Git-aware adapter so the index ends with only the final
+child path and no `PROMOTING-` path; an untracked producer remains untracked.
+Rollback applies the inverse moves through the same adapter. Generated tasks
+move with their containing directory without becoming staged merely because a
+tracked producer shares that directory.
 
 `PROMOTING-` is a reserved transaction prefix, not a task-tree entry. Every tree
 reader and mutator first checks for it recursively. If one exists, `pick`,
@@ -156,9 +179,17 @@ itself fails, the reserved directory remains as a fail-closed recovery marker;
 the error names its exact paths and `leaf-promote-chain <producer-handle>` is the
 only mutator allowed to inspect and finish or reverse it. No partial state is
 runnable, no new key can be issued around it, and plain or JSON stdout is emitted
-only after the final rename succeeds. This is crash-consistent semantic
-atomicity over portable filesystem operations, not an unsupported claim that a
-file-to-directory replacement is one power-loss-atomic syscall.
+only after the final rename succeeds.
+
+The guarantee is process-interruption consistency: after a filesystem call has
+returned, a concurrent Grove process or a process restarted after exit, signal,
+or panic observes either the original producer plus a blocking transaction or
+the complete chain. Grove does not `fsync` generated files or parent directories,
+so it makes no durability claim across power loss, kernel failure, storage-cache
+loss, or a filesystem that violates its documented rename semantics. The final
+same-parent rename is an atomic namespace-visibility seam, not a power-loss
+commit. Power-loss durability would require an ordered file-and-directory sync
+protocol and is outside this design.
 
 ## Producer handoff
 
@@ -171,17 +202,27 @@ After promotion, the producer session follows one sequence:
 3. Retire the producer using the relocated path returned by promotion.
 4. Run `grove-llm complete` as the final action.
 
-Before the producer receives its `DONE` infix, retirement makes a best-effort
-write of the producer's actual Grove launch target into the linked review task.
-The write is advisory and may never block the terminal rename: missing or stale
-session context, no unique sibling relationship, malformed metadata, or a write
-failure emits a diagnostic and retirement still marks the producer `DONE`.
+While the producer is still the factual pick, retirement validates and snapshots
+the candidate launch context and unique sibling relationship under the exclusive
+tree lock. It applies the producer's `DONE` rename first. Only after that
+terminal transition succeeds does it make a best-effort atomic rewrite of the
+review task with the producer launch receipt. A failed `DONE` rename writes no
+receipt; a failed post-`DONE` rewrite leaves the initial generated review task
+receipt-free and therefore uncheckable. Under this protocol a valid receipt is
+never present beside a live producer, so a prior session whose terminal rename
+failed cannot leave an authoritative target for a later finisher to preserve.
+
+The metadata write remains advisory and may never reverse or mask the successful
+terminal rename: missing or stale session context, no unique sibling
+relationship, malformed metadata, or a write failure emits a diagnostic and
+retirement still reports the producer `DONE`. The next review warns that
+diversity is uncheckable when no valid receipt was materialised.
 
 If the session stops after promotion but before retirement, pick returns the
-still-live producer at child position `01`; the eventual retiring session
-overwrites the receipt with its own target. Once retired, the unchanged
-depth-first walk returns the review, then integration, before any later sibling
-outside the chain.
+still-live producer at child position `01`; no producer receipt exists yet. The
+session that eventually performs the successful terminal rename is the only one
+that may write the receipt. Once retired, the unchanged depth-first walk returns
+the review, then integration, before any later sibling outside the chain.
 
 ## Advisory target diversity
 
@@ -193,26 +234,39 @@ rather than guessed.
 
 After scrubbing inherited Grove session context, the loop driver's one real
 foreground-session spawn exports a single `GROVE_SESSION_TARGET` JSON value with
-the resolved worktree identity, harness, and nullable model selector. Every
-other harness spawn uses the shared scrub helper and receives no such value. The
-worktree identity is the same resolved root Grove uses for the loop, so a
-meta-grove's tests in temporary trees and a nested grove cannot accidentally
-claim the outer session's target.
+the resolved worktree identity, the stable handle of the leaf used by that exact
+routing peek, the harness, and the nullable model selector. The launch resolver
+retains the handle beside the kind and target, and the launch diagnostic renders
+that retained value rather than performing a second pick. Every other harness
+spawn uses the shared scrub helper and receives no such value. The worktree
+identity is the same resolved root Grove uses for the loop, so a meta-grove's
+tests in temporary trees and a nested grove cannot accidentally claim the outer
+session's target.
+
+The driver may have no routed leaf during fresh-grove start, and a `leaf-insert`
+may make the session's factual pick differ from the earlier routing peek. Both
+cases deliberately yield an uncheckable producer target: retirement accepts the
+ephemeral context only when its worktree matches, its routed-leaf handle equals
+the retiring producer, and that producer is still the leaf returned by the
+retirement-time `pick`. The routed handle verifies what target actually
+launched; it never overrides the task tree's factual pick.
 
 Producer retirement materialises validated context in the linked review leaf
 beside the stable `**Reviews:**` relation:
 
 ```markdown
-**Producer launch:** {"harness":"claude","model":"opus"}
+**Producer launch:** {"producer":"sync-design-k12","harness":"claude","model":"opus"}
 ```
 
-The `model` value is `null` for a harness-managed default. Defaults are scoped
-to their harness rather than treated as one cross-vendor model identity.
-Retirement accepts the ephemeral context only when its worktree identity matches
-the retiring tree and the retiring producer is still the leaf returned by
-`pick`. Descendants inherit environment, but those two checks make a stale value
-unusable in another tree or for another leaf. A nested driver scrubs and replaces
-the value for its own foreground session.
+The `producer` must agree with the stable `**Reviews:**` relationship. The
+`model` value is `null` for a harness-managed default. Model identity is exact
+and implementable: two non-null selectors match when their strings match;
+`null` matches `null` only when the harness names also match; and a null and
+non-null selector never match. Equivalently, a default model's identity is
+`default(<harness>)`, not one cross-vendor `default`. Descendants inherit
+environment, but the worktree, routed-leaf, and factual-pick checks make a stale
+value unusable in another tree or for another leaf. A nested driver scrubs and
+replaces the value for its own foreground session.
 
 The receipt records the target that actually launched the producer session that
 retires the task, not the target that the producer kind would resolve to under
@@ -223,10 +277,10 @@ The relationship lookup is deliberately local and cardinality-checked:
 retirement scans only the producer's sibling tasks inside its brief-less chain
 node and writes the receipt only when exactly one live or terminal review task
 declares `**Reviews:** <producer-handle>`. Zero or multiple claimants are
-`uncheckable`, never a tree-wide guess. The sibling task is rewritten through a
-temporary file and rename, so an interrupted write cannot truncate it. A
-successful receipt followed by a failed `DONE` rename is safe: the still-live
-producer's eventual retirement overwrites the receipt.
+`uncheckable`, never a tree-wide guess. After the terminal producer rename, the
+sibling task is rewritten through a temporary file and rename, so an interrupted
+write cannot truncate it. There is no receipt-before-`DONE` state for a later
+finisher to mistake as current.
 
 At every `review-*` launch, Grove first resolves the review's own effective
 target using the existing leaf → kind → family → stamp harness policy and the
@@ -240,13 +294,20 @@ the producer launch receipt:
 - If the relationship or receipt is absent, malformed, or explicitly unknown,
   warn that diversity could not be verified.
 
-Every warning names the producer and review handles, both available targets, the
-matching or unavailable axis, and points to review routing configuration. The
-driver renders it twice from one comparison result: a compact stderr diagnostic
-immediately before spawn and a routing-notice block prepended to the review
-session's normal prompt. The prompt copy survives a full-screen harness taking
-over the terminal and remains visible in the session transcript. It is context
-for the operator, not an instruction to soften the adversarial review.
+A warning always names the review handle. It names a producer handle only when
+one came from a valid stable `**Reviews:**` declaration (and a receipt's
+`producer` field must agree with it). With an absent or malformed relationship,
+the warning renders `producer=unknown` plus the exact reason; it never infers a
+producer from sibling position, a filename suffix, or the preceding leaf. When
+available, the warning also renders both targets, the matching or unavailable
+axis, and the review routing configuration. A null model is rendered as
+`default(<harness>)`, making cross-harness default comparison visible.
+
+The driver renders the result twice from one comparison value: a compact stderr
+diagnostic immediately before spawn and a routing-notice block prepended to the
+review session's normal prompt. The prompt copy survives a full-screen harness
+taking over the terminal and remains visible in the session transcript. It is
+context for the operator, not an instruction to soften the adversarial review.
 
 The warning is emitted once per actual review spawn. It never alters the already
 resolved review target and never blocks launch. An invalid review route continues
@@ -268,6 +329,12 @@ outside `.grove/`.
 
 ## Module interfaces
 
+The task-tree access module exposes shared-read and exclusive-mutation guards
+over one Grove root. Exported operations acquire exactly once and pass the guard
+through internal lock-neutral helpers, so a mutator can call pick/resolve logic
+without recursively locking or opening a race. Pending-promotion detection runs
+only while a guard is held.
+
 The tree-mutation module exposes one promotion operation returning a promotion
 result with the node, relocated producer, review, and integration identities. It
 hides exact task-kind validation, relationship/legacy-chain checks, path
@@ -282,12 +349,13 @@ foreground launch context before applying the normal filename-only terminal
 outcome, but treats every metadata failure as an advisory diagnostic.
 
 Routing retains one resolver whose result contains an effective launch target.
-A session-context parser validates worktree identity and current-pick identity
-before yielding a producer target. A pure diversity comparison accepts an
-optional producer receipt plus the resolved review target and returns `diverse`,
-the matching axes, or `uncheckable`; the launch layer renders the same result to
-stderr and the prompt. Callers and tests do not reach through these interfaces
-to environment lookup or task-file parsing.
+A session-context parser validates worktree identity, routed-leaf identity, and
+current-pick identity before yielding a producer target. A pure diversity
+comparison accepts an optional relationship identity, optional producer receipt,
+and the resolved review target; it returns `diverse`, the matching axes, or an
+`uncheckable` reason with an optional producer handle. The launch layer renders
+the same result to stderr and the prompt. Callers and tests do not reach through
+these interfaces to environment lookup or task-file parsing.
 
 ## Test seams
 
@@ -297,27 +365,40 @@ to environment lookup or task-file parsing.
   unchanged sibling positions, fresh keys, no `BRIEF.md`, exact
   relationships/default task content, and pick order before and after retire.
   Cover metadata-bearing, legacy brief-less, and decomposition-node parents.
+- Drive two subprocesses through barriers around pre-validation and allocation:
+  promotion versus promotion and promotion versus every existing mutator. Assert
+  the second operation waits, positions and tree-wide keys remain unique, and a
+  shared reader can observe neither a missing producer nor a later runnable leaf.
+  Kill the lock holder and prove the waiter acquires the released lock and then
+  recovers any `PROMOTING-` witness.
 - Inject a reported failure at every create, write, and rename point. Assert no
   stdout, no consumed key, no residual transaction, and the original producer
   bytes/path after successful rollback. Separately interrupt after every
   mutation and assert every reader/mutator fails closed on `PROMOTING-`, retry
   reuses the same keys, and the first runnable leaf after recovery is always the
-  producer. Cover tracked Git, untracked Git, native Jujutsu, and colocated
-  Jujutsu through the existing rename adapter.
+  producer. These are process-interruption tests, not power-loss simulations.
+  Cover tracked Git, untracked Git, native Jujutsu, and colocated Jujutsu through
+  the existing rename adapter; after landing and rollback, assert Git's index has
+  no `PROMOTING-` path or accidentally staged generated task.
 - Test relationship and receipt parsing through generated leaves, including a
   `DONE` producer after renumbering, zero and duplicate sibling claimants, an
-  interrupted task-file rewrite, and a failed receipt write followed by a
-  successful `DONE` rename. Metadata failures must produce `uncheckable`, never
-  block retirement or launch.
+  interrupted task-file rewrite, a failed `DONE` rename that writes no receipt,
+  and a successful `DONE` rename followed by a failed receipt write. The last
+  case must leave no authoritative prior-session target. Metadata failures must
+  produce `uncheckable`, never block retirement or launch.
 - Exercise inherited session context with matching and mismatched worktree
-  identities, a source that is and is not the current pick, a nested driver that
-  replaces the outer target, and the meta-grove test scrub list.
+  identities, matching and mismatched routed-leaf handles, a source that is and
+  is not the current pick, a launch-window `leaf-insert`, a nested driver that
+  replaces the outer target, fresh-grove start with no routed leaf, and the
+  meta-grove test scrub list.
 - Table-test target comparison for same harness only, same model only, both,
-  neither, default-model selectors, and unknown receipts.
+  neither, same-harness null defaults, cross-harness null defaults, null versus
+  explicit selectors, and unknown receipts.
 - Drive fake harnesses through the loop to prove the warning is emitted once,
   appears in both stderr and the launched prompt, leaves the resolved review
   command unchanged, compares changed configuration to the historical producer
-  receipt, and reaches the same result from a fresh driver process.
+  receipt, reaches the same result from a fresh driver process, and renders an
+  absent/malformed relationship as `producer=unknown` without naming a sibling.
 - Assert contradiction-shaped documentation facts: Grove's three-round
   in-session loop, old size/vendor-only escalation trigger, and "no retrofit
   verb" text are absent; one-review-per-picked-leaf, promotion, integration
@@ -379,6 +460,6 @@ discriminator, and the Herdr tree viewer continue to read filenames or
 - Replacing research-pair breadth and combine discipline with doubt reviewers.
 - Changing doubt-driven development in sessions that are not executing a picked
   Grove leaf.
-- Claiming one power-loss-atomic file-to-directory replacement syscall. The
-  portable contract is a fail-closed transaction plus an atomic final directory
-  rename.
+- Providing power-loss durability. The portable contract is process-interruption
+  consistency through serialization, a fail-closed transaction, and an atomic
+  final directory rename; it performs no ordered `fsync` protocol.

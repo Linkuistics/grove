@@ -1,17 +1,31 @@
 # Review target receipts
 
-Grove records the effective harness and model of the producer session that
-retires a reviewed artifact inside the linked review task, then recomputes the
-review target at launch and compares the two. The foreground launch exports one
-session-target value containing the worktree and stable handle from one
-structured routing peek as well as the resolved target. The same guarded peek
-supplies routing, readiness, and launch diagnostics; no later pick reconstructs
-the routed identity. Retirement accepts the context only when the worktree,
-routed handle, and factual current pick all name the retiring producer. It
-applies the `DONE` infix first and unconditionally replaces any producer receipt
-best-effort only after that succeeds, so a failed terminal rename writes no
-receipt and a normal failed receipt write leaves diversity uncheckable without
-blocking retirement.
+Grove records the effective harness and model of the session that hands a
+reviewed artifact to its review, then recomputes the review target at launch and
+compares the two. For a leaf producer, that source session is the producer
+itself. For a producer decomposed into a brief-carrying node, it is the factual
+picked leaf whose successful retirement leaves the node with no live
+descendant: the same session that verifies the node's `Done when` and reports
+its close. One retirement that closes several reviewed decomposition ancestors
+supplies the same handoff target to each. This is deliberately the aggregate
+artifact's **handoff target**, not a claim to represent every session that
+contributed to it. A producer entity closed only by pruning remains deliberately
+uncheckable: an `ABANDONED` transition records a human decision against work,
+not a session that produced the artifact for review.
+
+The foreground launch exports one session-target value containing the worktree
+and source-session handle from one structured routing peek as well as the
+resolved target. The same guarded peek supplies routing, readiness, and launch
+diagnostics; no later pick reconstructs the routed identity. While the factual
+leaf is still live and the tree is exclusively locked, retirement validates the
+worktree, routed handle, current pick, and which reviewed producer entities this
+`DONE` transition will complete. It applies the `DONE` infix first and
+unconditionally replaces each prepared producer receipt best-effort only after
+that succeeds, so a failed terminal rename writes no receipt and a normal failed
+receipt write leaves diversity uncheckable without blocking retirement.
+Each producer entity must have exactly one leaf sibling declaring its explicit
+`Reviews` relationship; zero, duplicate, malformed, or non-leaf claimants are
+advisory-uncheckable and never chosen by position.
 
 This binds because current routing configuration cannot reconstruct a historical
 launch after the configuration changes, while a route ledger or signal payload
@@ -23,15 +37,57 @@ actually launched; it never overrides Grove's later factual pick. A non-empty
 structured peek without that handle is a launch-time routing failure, not a
 target Grove guesses with a second read.
 
-The freshness guarantee covers Grove's cooperative transition: Grove never
-writes an authoritative receipt beside a live producer, and a successful later
-retirement replaces any existing line. Directly restoring a live producer while
-leaving its old receipt creates a generation ambiguity that the task tree does
-not encode. Grove still does not block retirement on advisory metadata; if the
-post-`DONE` replacement then fails, it diagnoses that the retained receipt may be
-stale and the operator must remove it before relying on comparison. Eliminating
-that hand-edit limitation would require a new authoritative retirement-generation
-marker and is not part of this decision.
+Every newly written receipt names both identities: `producer` is the entity in
+the stable `Reviews` relationship, while `session` is the factual leaf whose
+launch target was recorded. It also names the producer `generation`, defined as
+the greatest permanent key at or below that producer entity. A leaf's generation
+is its own key; a node's generation is the maximum key in its subtree. Review
+launch resolves the explicit producer handle and recomputes this value before
+trusting the receipt. Terminal entries remain in place and every supported node
+reopen adds a fresh globally monotonic key, so a failed replacement after
+reopen/reclose leaves an old receipt detectably stale; reordering does not alter
+the generation. Existing receipts without `session` and `generation` remain
+checkable only for direct leaf producers, where both facts derive unambiguously
+from `producer`.
+
+The writer establishes the historical fact that static tree state cannot later
+reconstruct: before `DONE`, `session` must be the routed factual pick; for a leaf
+producer it is the producer itself, and for an ancestor node it is a descendant
+whose removal from the live set closes that node. The reader validates every
+fact still present: the explicit relationship resolves to a terminal leaf or a
+brief-carrying node with no live descendant, the source is that leaf or a
+terminal descendant, and the generation still matches. Hand-edited Markdown can
+lie about the historical close just as it can lie about `Reviews`; the metadata
+is advisory rather than authenticated.
+
+For a routed review, relationship, receipt, source, and generation validation
+comes from the same shared tree read as the structured routing peek. That result
+is a forecast, not a reservation: a later mutation may change the factual pick
+before the harness starts, and the session's own Bootstrap-and-pick fact still
+wins. Grove never performs a second unlocked tree read and mistakes it for the
+peek's state.
+
+The freshness guarantee covers Grove's cooperative transitions: Grove writes a
+receipt only after the leaf outcome that completes its producer entity, and a
+successful later close replaces any existing line. Directly restoring a
+terminal leaf while leaving its old receipt remains a generation ambiguity,
+because that unsupported edit adds no key. Grove still does not block retirement
+on advisory metadata; if a post-`DONE` replacement fails, review either rejects
+the prior generation as stale or, for that hand-edited direct-leaf case,
+diagnoses that the retained value may be stale.
+
+A prepared plan retains the review path and receipt facts, not a pre-`DONE`
+rendering of the whole task file. Materialisation re-reads the review task after
+`DONE`, replaces only the receipt line in that current text, and atomically
+renames the result. The tree lock serializes Grove commands; a direct editor
+racing between that final read and rename remains outside the cooperative
+guarantee, as direct edits do for every task-tree mutation.
+
+A receipt has no scheduling authority. Reopening a producer after its linked
+review is already terminal neither reopens nor duplicates that review; if the
+new generation needs adversarial review, ordinary tree work must name a new
+review chain or step. This is the same guide-not-gate rule under which Grove does
+not require a review after every producer.
 
 Model equality is exact: equal non-null selector strings match, two harness
 defaults match only under the same harness, and a default never matches an
@@ -49,11 +105,33 @@ producer remains the only named producer.
   a target that a later finisher may be unable to overwrite. Reopen only if the
   receipt and terminal outcome can be committed atomically as one portable
   operation.
-- **Add a retirement generation solely to validate manually restored leaves.**
-  Rejected because it changes filename-only retirement or introduces another
-  authoritative tree artifact for a state Grove itself never produces. Reopen if
-  manual removal of `DONE` while retaining dependent metadata becomes a supported
-  lifecycle operation rather than an operator-created malformed state.
+- **Render the entire review task before applying `DONE`.** Rejected because a
+  later materialisation can erase an edit made between preparation and the
+  terminal transition. Reopen only if review tasks stop being ordinary editable
+  Markdown or the two files gain a real multi-file transaction.
+- **Leave every decomposed producer deliberately uncheckable.** Rejected because
+  node closure already has one factual session responsible for verifying and
+  handing off the aggregate result, and discarding that target would make a
+  common review shape warn without using available evidence. Reopen if the
+  node-close contract stops assigning the closing session that responsibility.
+- **Aggregate every contributing child target.** Rejected because it would
+  accumulate authoritative receipt state while the producer remains live and
+  turn one advisory comparison into set ownership, partial-write, and cleanup
+  semantics. Reopen if review must prove diversity from every contributor rather
+  than guide diversity from the handoff context.
+- **Use only the closing session without recording a producer generation.**
+  Rejected because `leaf-add` may legitimately reopen a completed node; if the
+  next post-`DONE` replacement then fails, the old target would look current.
+  Reopen only if reviewed producer nodes become immutable after close.
+- **Automatically reopen a terminal review when its producer reopens.** Rejected
+  because receipts are advisory evidence, not scheduling state, and Grove does
+  not enforce a review after every producer. Reopen only if review relationships
+  become an enforced lifecycle grammar rather than optional composition.
+- **Add a generation solely to validate manually restored leaf producers.**
+  Rejected because a direct terminal-leaf edit adds no task-tree fact from which
+  a new generation can be derived. Reopen if removing `DONE` becomes a supported
+  lifecycle operation that also issues a fresh permanent key or explicit
+  generation.
 - **Recompute the producer's target from current configuration.** Rejected
   because kind, family, harness, and model configuration may change between the
   producer and review sessions, yielding a precise comparison against a target

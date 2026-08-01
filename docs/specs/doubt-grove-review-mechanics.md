@@ -251,71 +251,27 @@ After promotion, the producer session follows one sequence:
 3. Retire the producer using the relocated path returned by promotion.
 4. Run `grove-llm complete` as the final action.
 
-While the retiring leaf is still the factual pick, retirement validates and
-snapshots the candidate launch context under the exclusive tree lock. Its
-receipt candidates are the leaf itself and every brief-carrying ancestor that
-this `DONE` transition will leave with no live descendant. A candidate produces
-a plan only when one sibling review explicitly declares `**Reviews:**` for its
-stable handle. The same factual leaf may therefore supply the handoff target for
-several newly closing reviewed ancestors, matching the Retire cascade in which
-that session verifies and reports each close.
+The [Review target receipts](../adr/review-target-receipts.md) decision owns the
+handoff identity, generation, freshness, terminal-review, and advisory-failure
+policy. At the lifecycle interface, retirement prepares facts for the direct
+leaf and each reviewed decomposition ancestor this transition would close while
+the leaf is still the factual pick and the exclusive tree guard is held. It
+applies `DONE` first, then materialises a prepared receipt only into a live
+linked review. Materialisation re-reads the review task, replaces only the
+receipt line, and atomically renames the result; it never rolls back or masks the
+terminal outcome. A close cascade may identify several reviewed ancestors, but
+at most one linked review can be live because a live inner review is a live
+descendant of every outer producer.
 
-Retirement applies the leaf's `DONE` rename first. Only after that terminal
-transition succeeds does it make each prepared best-effort atomic replacement
-of a review task's producer launch receipt. Replacement is unconditional: an
-existing `**Producer launch:**` line is overwritten rather than preserved or
-treated as idempotent. A failed `DONE` rename writes no receipt; a failed
-post-`DONE` write leaves a normally generated review task receipt-free and
-therefore uncheckable. Metadata failure never reverses or masks the one
-lifecycle write. A prepared plan retains the review path and new receipt facts,
-not a rendering of the task's pre-`DONE` contents. Materialisation re-reads the
-task after `DONE`, replaces only the receipt line in that current text, and
-atomically renames the result. Grove's tree lock excludes cooperating commands;
-a direct editor racing between that final read and rename remains outside the
-same cooperative guarantee as every other task-tree mutation.
-
-Every prepared receipt carries a producer generation: the greatest permanent
-key at or below the reviewed producer entity. For a leaf this is its own key; for
-a node it is the maximum key in its subtree. Terminal entries remain in place,
-and every supported node reopen adds a fresh globally monotonic key, so a stale
-receipt from an earlier close fails generation validation if replacement after
-the new close fails. Reordering leaves generation unchanged. Directly removing
-a leaf producer's `DONE` infix remains outside the cooperative guarantee: that
-hand edit issues no key, so a failed later replacement can leave an
-indistinguishable receipt and must diagnose that it may be stale.
-
-The receipt does not schedule review. If a producer is reopened after its
-linked review is already terminal, the new close may replace that terminal
-task's evidence but does not reactivate it. A new generation that needs review
-must be represented by new tree work, consistent with Grove's rule that review
-composition is habitual rather than enforced.
-
-The metadata write remains advisory and may never reverse or mask the successful
-terminal rename: missing or stale session context, no unique sibling
-relationship, malformed metadata, or a write failure emits a diagnostic and
-retirement still reports the producer `DONE`. The next review warns that
-diversity is uncheckable when no valid receipt was materialised.
-
-If the session stops after promotion or decomposition but before retirement,
-pick returns the still-live producer or its first live descendant; no current
-producer receipt exists yet. The session that eventually performs the
-successful terminal rename that closes the producer entity supplies the
-receipt. Once the entity has no live descendant, the unchanged depth-first walk
-returns the review, then integration, before any later sibling outside the
-chain.
-
-`leaf-prune` does not supply a producer handoff target. If an `ABANDONED`
-transition removes the final live descendant, the linked review remains
-uncheckable: that session records a human decision against a path, not the
-target of work that produced the aggregate artifact.
+Source selection, confirmation, restart, reopen, and pruning consequences are
+defined solely by the cited ADR. The lifecycle choreography above consumes those
+decisions; it adds no independent kind or scheduling rule.
 
 ## Advisory target diversity
 
-The [Review target receipts](../adr/review-target-receipts.md) decision keeps the
-comparison tied to the factual session that handed the producer entity to
-review. An effective launch target is the harness name plus the exact model
-selector Grove passed to that harness; a harness-managed default is represented
-explicitly rather than guessed.
+The [Review target receipts](../adr/review-target-receipts.md) decision owns the
+historical target, equality, warning, and advisory-failure policy. This section
+specifies only its transport, wire, and rendering interfaces.
 
 After scrubbing inherited Grove session context, the loop driver's one real
 foreground-session spawn exports a single `GROVE_SESSION_TARGET` JSON value with
@@ -332,15 +288,17 @@ for example:
 {"path":"/work/.grove/05-sync-design-k12.md","handle":"sync-design-k12","kind":"design","harness":null,"review":null}
 ```
 
-For a review, the evidence object carries either the validated producer receipt
-or an `uncheckable` reason and the producer handle only when it came from a valid
-`Reviews` relationship. It does not carry the review's effective target, which
-the driver resolves after the peek. The driver retains this evidence beside the
+For a review, the evidence object carries either validated producer evidence or
+an `uncheckable` reason and the producer handle only when it came from a valid
+`Reviews` relationship. The historical effective target is nested under
+`producer-target`, distinguishing it from the leaf's top-level declared
+`harness`. The object does not carry the review's effective target, which the
+driver resolves after the peek. The driver retains this evidence beside the
 routed leaf and performs the pure target comparison later; it never re-opens the
-task tree to reconstruct review metadata outside the peek's guard.
+task tree outside the peek's guard.
 
 ```json
-{"review":{"status":"checkable","producer":"sync-design-k12","session":"sync-docs-k27","generation":"k27","harness":"claude","model":"opus"}}
+{"review":{"status":"checkable","producer":"sync-design-k12","session":"sync-docs-k27","generation":"k31","producer-target":{"harness":"claude","model":"opus"}}}
 {"review":{"status":"uncheckable","producer":"sync-design-k12","reason":"producer-generation-mismatch"}}
 ```
 
@@ -359,14 +317,9 @@ identity is the same resolved
 root Grove uses for the loop, so a meta-grove's tests in temporary trees and a
 nested grove cannot accidentally claim the outer session's target.
 
-The driver may have no routed leaf during fresh-grove start, and a `leaf-insert`
-may make the session's factual pick differ from the earlier routing peek. Both
-cases deliberately yield an uncheckable producer target: retirement accepts the
-ephemeral context only when its worktree matches, its routed-leaf handle equals
-the retiring source session, and that session is still the leaf returned by the
-retirement-time `pick`. The routed handle verifies what target actually
-launched; it never overrides the task tree's factual pick or substitutes for the
-explicit producer relationship.
+The session-context validator applies the ADR's worktree, routed-handle, and
+factual-pick gates while the facts remain observable. The routed handle is launch
+evidence, never authority over the task tree.
 
 Producer retirement materialises validated context in the linked review leaf
 beside the stable `**Reviews:**` relation. A direct leaf producer records itself
@@ -380,108 +333,41 @@ A decomposed producer records the node as the reviewed entity and the factual
 leaf whose retirement closed it as the source session:
 
 ```markdown
-**Producer launch:** {"producer":"sync-design-k12","session":"sync-docs-k27","generation":"k27","harness":"claude","model":"opus"}
+**Producer launch:** {"producer":"sync-design-k12","session":"sync-docs-k27","generation":"k31","harness":"claude","model":"opus"}
 ```
 
-`producer` must agree with the stable `**Reviews:**` relationship. `session`
-names whose effective target follows, and must agree with the validated routed
-handle and factual pick used to prepare the close. `generation` is the maximum
-permanent key at or below the producer entity, encoded as `k<key>`, and must
-still match the task tree at review launch. The `model` value is `null` for a
-harness-managed default.
-Model identity is exact and implementable: two non-null selectors match when
-their strings match; `null` matches `null` only when the harness names also
-match; and a null and non-null selector never match. Equivalently, a default
-model's identity is `default(<harness>)`, not one cross-vendor `default`.
-Descendants inherit environment, but the worktree, routed-session, factual-pick,
-closing-ancestor, and generation checks make stale context unusable in another
-tree, for another leaf, or after a supported node reopen. A nested driver scrubs
-and replaces the value for its own foreground session.
+The decomposed example deliberately separates the source session (`k27`) from
+the producer generation (`k31`): an early-position child inserted after later
+children existed can own the maximum key while a different last-position leaf
+performs the close. New writers emit five known fields: `producer` and `session`
+are valid stable-handle strings, `generation` is a positive `k<key>` string,
+`harness` is a known harness-name string, and `model` is either a non-empty exact
+selector string or JSON `null`. All five are required on a newly written
+receipt. Readers require `producer`, `harness`, and `model`; they accept
+`session` and `generation` as an all-or-nothing legacy omission under the ADR's
+compatibility rule, and ignore unknown keys. Wrong JSON types, empty or invalid
+known values, and a one-field legacy omission are malformed.
 
-Receipt preparation establishes the event facts while they are observable. For
-a direct producer, `session` is the producer itself. For a closing node,
-`session` is a descendant factual leaf and every other descendant is already
-terminal before its transition. Review-peek validation checks the static facts
-that remain: the explicit producer resolves to a terminal leaf or a
-brief-carrying node with no live descendants; the source is that leaf or a
-terminal descendant; and the generation matches. It cannot reconstruct the
-historical order of hand-edited Markdown and does not pretend that advisory
-metadata is authenticated.
+At `review-*` launch, the driver resolves the review target and passes it with
+the retained evidence to the ADR-defined pure comparison. The launch layer
+renders that result without re-reading or reinterpreting receipt policy.
 
-The receipt records the target that actually launched the session that hands the
-producer entity to review, not the target that the producer kind would resolve
-to under later configuration. For a decomposed node this is intentionally one
-handoff context, not an aggregate of every contributing child target. It does
-not record an interactive model change made inside the harness, which Grove
-cannot observe.
+The renderer emits one compact block to stderr and prepends the same block to the
+session prompt. It names the review, a relationship-backed producer or
+`producer=unknown`, the validated source `session` for a checkable result when it
+differs from the producer, both available targets, matching or unavailable axes,
+and routing configuration. It does not present a session from uncheckable
+evidence as factual. A null model renders as `default(<harness>)`.
 
-The relationship lookup is deliberately local and cardinality-checked: for
-each direct or newly closing producer candidate, retirement scans that entity's
-whole sibling level and writes the receipt only when exactly one live or
-terminal review task declares `**Reviews:** <producer-handle>`. This supports
-leaf and decomposed-node producers in current brief-less chain nodes, plus
-metadata-bearing flat chains, without a tree-wide guess. Zero or multiple
-claimants are `uncheckable`. After the terminal leaf rename, each sibling task
-is rewritten through a temporary file and rename, so an interrupted write
-cannot truncate it. There is no Grove-written current-generation receipt before
-the `DONE` transition that closes its producer entity.
-
-At every `review-*` launch, Grove first resolves the review's own effective
-target using the existing leaf → kind → family → stamp harness policy and the
-existing harness-scoped → unscoped model policy. It then compares that target to
-the producer launch receipt:
-
-- If harnesses match, warn.
-- If exact model selectors match, warn.
-- If both match, emit one warning naming both matching axes.
-- If both differ, stay silent.
-- If the receipt's source session or producer generation cannot be validated,
-  warn that comparison is uncheckable.
-- If the relationship or receipt is absent, malformed, or explicitly unknown,
-  warn that diversity could not be verified.
-
-A warning always names the review handle. It names a producer handle only when
-one came from a valid stable `**Reviews:**` declaration. If a syntactically
-valid receipt's `producer` disagrees with that relationship, the comparison is
-`uncheckable(reason=receipt-producer-mismatch)`, names the relationship's
-producer, and does not treat the receipt claimant as an identity source. With an
-absent or malformed relationship, the warning renders `producer=unknown` plus
-the exact reason; it never infers a producer from sibling position, a filename
-suffix, or the preceding leaf. When available, the warning also renders both
-targets, the matching or unavailable axis, and the review routing
-configuration. A null model is rendered as `default(<harness>)`, making
-cross-harness default comparison visible.
-
-The driver renders the result twice from one comparison value: a compact stderr
-diagnostic immediately before spawn and a routing-notice block prepended to the
-review session's normal prompt. The prompt copy survives a full-screen harness
-taking over the terminal and remains visible in the session transcript. It is
-context for the operator, not an instruction to soften the adversarial review.
-
-The warning is emitted once per actual review spawn. It never alters the already
-resolved review target and never blocks launch. An invalid review route continues
-to fail under the existing routing contract; that is launch correctness, not a
-diversity gate.
-
-The guarded review evidence remains a routing forecast, not a reservation. A
-tree mutation after the peek can pre-empt the review before the harness starts;
-the session's own Bootstrap and factual `pick` still win, so it works the newly
-live producer descendant rather than the routed review. The next loop iteration
-re-derives both route and evidence from the tree.
-
-A one-harness installation will deliberately warn on every review because the
-harness axis cannot differ. That is an accepted, visible consequence of the
-confirmed requirement to warn unless both axes differ, not an exception signal
-the implementation may silently suppress. Keeping the notice to one compact
-block per spawn and making it transcript-visible bounds the cost.
-
-The launch receipt lives in the task tree, while the review target and producer
-generation are recomputed on every iteration. A direct producer restart records
-the target of the session that retires it; a decomposed producer restart records
-the target of the factual descendant session that closes it. A review restart
-compares its newly resolved target against the same validated receipt.
-Configuration may change between the two without creating a cache, signal
-payload, route ledger, or other state outside `.grove/`.
+The notice is explicitly addressed to its routed review handle and says it
+applies only if the session's own `grove-llm pick` returns that handle. The
+guarded evidence remains a forecast: an insert or reopen in the launch window
+can hand the session another leaf, in which case it discards the prepended notice
+and follows factual pick. A one-harness installation still warns on every
+review, and a fully diverse comparison stays silent, as required. Prompt tests
+can prove the notice is scoped and the session is instructed to discard it; they
+cannot prove absence of model influence. The cited ADR owns that visible
+launch-window trade-off.
 
 ## Module interfaces
 
@@ -492,7 +378,11 @@ mutator can call pick/resolve logic without recursively locking or opening a
 race. Pending-promotion detection runs only while a guard is held. The routing
 peek returns path, handle, kind, declared harness, and validated review evidence
 from that same guarded read; launch callers never reconstruct leaf or receipt
-identity with another tree read.
+identity with another tree read. `grove-llm kind --with-harness --json` remains
+that single launcher-peek entry point deliberately: renaming it would add a
+second public concept for the same guarded read. Its help text describes the full
+payload, and its nested historical target is named `producer-target` so it cannot
+be confused with the top-level declared `harness`.
 
 The tree-mutation module exposes one promotion operation returning a promotion
 result with the node, relocated producer, review, and integration identities. It
@@ -510,7 +400,8 @@ tree seam. Producer retirement asks the relationship module to prepare receipt
 plans from that candidate set before applying the normal filename-only terminal
 outcome. A plan stores facts rather than rendered task content; materialisation
 re-reads after `DONE`, replaces only the receipt marker, and treats every
-metadata failure as an advisory diagnostic.
+metadata failure as an advisory diagnostic. A terminal linked review yields a
+`review-terminal` skip diagnostic rather than a materialisation plan.
 
 Routing retains one resolver whose result contains an effective launch target.
 A session-context parser validates worktree identity, routed-leaf identity, and
@@ -518,7 +409,8 @@ current-pick identity before yielding a handoff target. A pure diversity
 comparison accepts an optional relationship identity, optional producer receipt,
 and the resolved review target; it returns `diverse`, the matching axes, or an
 `uncheckable` reason with an optional producer handle. The launch layer renders
-the same result to stderr and the prompt. Callers and tests do not reach through
+the same result to stderr and the prompt, including a checkable source-session
+handle when it differs from the producer. Callers and tests do not reach through
 these interfaces to environment lookup or task-file parsing.
 
 The loop driver retains the structured peek's review evidence through target
@@ -560,10 +452,19 @@ after the tree guard is released.
 - Test relationship and receipt parsing through generated leaves, including a
   `DONE` producer after renumbering, zero and duplicate sibling claimants, an
   interrupted task-file rewrite, a failed `DONE` rename that writes no receipt,
-  a pre-existing receipt that a successful retirement unconditionally replaces,
-  direct and decomposed producers whose receipts name distinct producer/session
-  handles, one leaf closing multiple reviewed decomposition ancestors, and
-  generation stability under reorder versus change after supported reopen,
+  a pre-existing receipt in a live review that successful retirement
+  unconditionally replaces, direct and decomposed producers whose receipts name
+  distinct producer/session handles, and producer-, review-, and
+  integration-kind descendants serving as the closing session. Close multiple
+  reviewed decomposition ancestors and prove at most one linked review is live;
+  terminal reviews remain byte-identical and produce a `review-terminal` skip
+  diagnostic. Cover generation stability under reorder versus change after
+  supported reopen, and
+  insert a highest-key child ahead of existing children so the receipt's
+  generation differs from its later closing session. Include a receipt with
+  unknown keys, legacy receipts lacking `session`/`generation` for both direct
+  and node producers, a one-field legacy omission, every wrong JSON type, empty
+  or invalid handle/key/target values, and every missing required core field,
   a receipt whose producer disagrees with the `Reviews` relationship, and a
   successful `DONE` rename followed by a failed receipt write. The normal
   receipt-free failure case must leave no authoritative prior-session target;
@@ -572,8 +473,10 @@ after the tree guard is released.
   mechanically. Edit the review task after receipt preparation but before
   materialisation and prove the post-`DONE` re-read preserves that edit. Also
   prove reopening a producer whose linked review is already terminal does not
-  reactivate the review, and a producer closed by pruning remains uncheckable.
-  Metadata failures produce `uncheckable` and never block retirement or launch.
+  reactivate or rewrite the review. A producer closed by pruning remains
+  uncheckable and leaves its sibling review next in pick order; pruning the
+  enclosing chain marks every live step. Metadata failures produce
+  `uncheckable` and never block retirement or launch.
 - Exercise inherited session context with matching and mismatched worktree
   identities, matching and mismatched routed-leaf handles, a source that is and
   is not the current pick, a launch-window `leaf-insert`, a nested driver that
@@ -591,6 +494,10 @@ after the tree guard is released.
   command unchanged, compares changed configuration to the historical producer
   receipt, reaches the same result from a fresh driver process, and renders an
   absent/malformed relationship as `producer=unknown` without naming a sibling.
+  A decomposed-producer warning names its distinct source session. Mutate the
+  tree in the launch window and prove the notice tells a session whose factual
+  pick differs to discard it. Assert the structured evidence nests the historical
+  target under `producer-target` rather than overloading `harness`/`model`.
 - Assert contradiction-shaped documentation facts: Grove's three-round
   in-session loop, old size/vendor-only escalation trigger, and "no retrofit
   verb" text are absent; one-review-per-picked-leaf, promotion, integration
@@ -604,12 +511,14 @@ Implementation is incomplete until the current-state contract is reconciled in
 all of these places:
 
 - `CONTEXT.md`: Review chain, ownership discriminator, tree-access lock,
-  promotion transaction, direct/decomposed launch receipt, producer generation,
-  and the `DONE` side effect.
+  promotion transaction, direct/decomposed launch receipt, source session,
+  producer generation, the advisory node-close write, and the `DONE` side
+  effect.
 - `content/SKILL.md`, `content/driving.md`, and `content/TASK-FORMAT.md`: the
   leaf-wide reviewer allowance, exact promotion/handoff sequence, integration
-  placement, research exclusions, and replacement of the old three-round and
-  manual-retrofit guidance.
+  placement, chain-level pruning guidance, research exclusions, the
+  confirmation-boundary wording for reviewed node closes, and replacement of
+  the old three-round and manual-retrofit guidance.
 - `plugins/linkuistics/skills/doubt-driven-development/SKILL.md`: an explicit
   Grove composition section that suspends per-artifact verification, re-looping,
   diverse-lens, and optional cross-model review as necessary to obey the
@@ -620,19 +529,21 @@ all of these places:
 - `grove-llm --help`, `grove-llm kind --help`,
   `grove-llm leaf-promote-chain --help`, `docs/USAGE.md`, and
   `docs/CONFIGURATION.md`: the structured routing-peek contract, operation,
-  recovery diagnostic, advisory warning, and routing knobs that resolve it.
+  nested `producer-target` evidence, source-session warning, launch-window notice
+  scope, recovery diagnostic, and routing knobs that resolve it.
   `GROVE_SESSION_TARGET` is reserved internal context, not a user configuration
   knob.
 
 ## Compatibility
 
-Old binaries and hand-edited task files ignore the new freeform relationship and
-receipt fields. New readers derive `session = producer` and the producer's own
-key as `generation` for a legacy direct-leaf receipt; the same missing fields on
-a node producer are uncheckable because a node never launched and its generation
-cannot be assumed. Old or manually composed review leaves without relationships
-still launch and receive an `uncheckable` warning; no tree migration is required
-for reading or launching them. A producer inside any non-root brief-less
+Receipt-field backward/forward behavior is owned by the
+[Review target receipts](../adr/review-target-receipts.md) decision; the wire
+shape above defines accepted types. The observable compatibility consequence is
+that binaries predating the extensible-reader rule can call a newer receipt
+malformed, while current readers require no task-tree migration and neither case
+blocks review launch. Old or manually composed review leaves without
+relationships still launch and receive an `uncheckable` warning. A producer
+inside any non-root brief-less
 composition node is not promotable even without metadata; the grove root is
 never classified by brief absence. A metadata-bearing flat chain is detected
 through the producer's whole sibling level. A metadata-free flat legacy chain
@@ -664,11 +575,8 @@ discriminator, and the Herdr tree viewer continue to read filenames or
 - Enforcing that every producer has a review or treating a chain as a scheduling
   unit.
 - Blocking a review because its target is not diverse.
-- Proving that a review differs from every session that contributed to a
-  decomposed producer; the receipt compares against the node-closing handoff
-  session.
-- Automatically reopening or duplicating a terminal review when later work
-  reopens its producer; receipts carry evidence, not scheduling authority.
+- Changing the handoff-coverage or review-scheduling policy owned by the
+  [Review target receipts](../adr/review-target-receipts.md) decision.
 - Inferring model aliases or observing an interactive model switch inside a
   launched harness.
 - Replacing research-pair breadth and combine discipline with doubt reviewers.
@@ -677,3 +585,6 @@ discriminator, and the Herdr tree viewer continue to read filenames or
 - Providing power-loss durability. The portable contract is process-interruption
   consistency through serialization, a fail-closed transaction, and an atomic
   final directory rename; it performs no ordered `fsync` protocol.
+- Mechanically proving that a launch-window routing notice did not influence a
+  session whose factual pick changed; Grove scopes the notice but does not bind
+  the session to the routing forecast.

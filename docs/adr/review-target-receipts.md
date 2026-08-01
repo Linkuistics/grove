@@ -6,12 +6,15 @@ compares the two. For a leaf producer, that source session is the producer
 itself. For a producer decomposed into a brief-carrying node, it is the factual
 picked leaf whose successful retirement leaves the node with no live
 descendant: the same session that verifies the node's `Done when` and reports
-its close. One retirement that closes several reviewed decomposition ancestors
-supplies the same handoff target to each. This is deliberately the aggregate
-artifact's **handoff target**, not a claim to represent every session that
-contributed to it. A producer entity closed only by pruning remains deliberately
-uncheckable: an `ABANDONED` transition records a human decision against work,
-not a session that produced the artifact for review.
+its close. The source session is kind-agnostic: a nested producer, review, or
+integration leaf may be responsible for that handoff. Its factual responsibility
+matters; substituting producer-kind routing would turn the receipt into a guess
+about authorship. One retirement that closes several reviewed decomposition
+ancestors supplies the same handoff target to each. This is deliberately the
+aggregate artifact's **handoff target**, not a claim to represent every session
+that contributed to it. A producer entity closed only by pruning remains
+deliberately uncheckable: an `ABANDONED` transition records a human decision
+against work, not a session that produced the artifact for review.
 
 The foreground launch exports one session-target value containing the worktree
 and source-session handle from one structured routing peek as well as the
@@ -20,12 +23,21 @@ diagnostics; no later pick reconstructs the routed identity. While the factual
 leaf is still live and the tree is exclusively locked, retirement validates the
 worktree, routed handle, current pick, and which reviewed producer entities this
 `DONE` transition will complete. It applies the `DONE` infix first and
-unconditionally replaces each prepared producer receipt best-effort only after
-that succeeds, so a failed terminal rename writes no receipt and a normal failed
-receipt write leaves diversity uncheckable without blocking retirement.
+best-effort replaces each prepared producer receipt only after that succeeds, so
+a failed terminal rename writes no receipt and a normal failed receipt write
+leaves diversity uncheckable without blocking retirement. Replacement is
+unconditional only for a **live** linked review. A terminal review will never
+launch to consume new evidence, so Grove skips that write and emits an advisory
+`uncheckable(reason=review-terminal)` diagnostic instead of changing a completed
+task in an unrelated work item. Consequently a close cascade can
+identify several reviewed producer ancestors but at most one can have a live
+linked review: a live inner review is itself a live descendant of every outer
+producer.
+
 Each producer entity must have exactly one leaf sibling declaring its explicit
 `Reviews` relationship; zero, duplicate, malformed, or non-leaf claimants are
-advisory-uncheckable and never chosen by position.
+advisory-uncheckable and never chosen by position. A terminal claimant still
+establishes the relationship, but is not a receipt-write target.
 
 This binds because current routing configuration cannot reconstruct a historical
 launch after the configuration changes, while a route ledger or signal payload
@@ -50,6 +62,14 @@ the generation. Existing receipts without `session` and `generation` remain
 checkable only for direct leaf producers, where both facts derive unambiguously
 from `producer`.
 
+The receipt wire format is extensible advisory metadata. Readers accept unknown
+JSON keys so adding evidence later does not turn a newer receipt into malformed
+data for an older tolerant reader; required known keys and their values remain
+strictly validated. Binaries shipped before this rule may reject the added
+`session` and `generation` keys and warn that the receipt is malformed. That
+version skew is bounded by the advisory launch rule and cannot be repaired by a
+new writer.
+
 The writer establishes the historical fact that static tree state cannot later
 reconstruct: before `DONE`, `session` must be the routed factual pick; for a leaf
 producer it is the producer itself, and for an ancestor node it is a descendant
@@ -69,12 +89,13 @@ peek's state.
 
 The freshness guarantee covers Grove's cooperative transitions: Grove writes a
 receipt only after the leaf outcome that completes its producer entity, and a
-successful later close replaces any existing line. Directly restoring a
-terminal leaf while leaving its old receipt remains a generation ambiguity,
-because that unsupported edit adds no key. Grove still does not block retirement
-on advisory metadata; if a post-`DONE` replacement fails, review either rejects
-the prior generation as stale or, for that hand-edited direct-leaf case,
-diagnoses that the retained value may be stale.
+successful later close replaces any existing line in a live linked review. A
+terminal review is skipped because no later launch consumes the replacement.
+Directly restoring a terminal leaf while leaving its old receipt remains a
+generation ambiguity, because that unsupported edit adds no key. Grove still
+does not block retirement on advisory metadata; if a post-`DONE` replacement
+fails, review either rejects the prior generation as stale or, for that
+hand-edited direct-leaf case, diagnoses that the retained value may be stale.
 
 A prepared plan retains the review path and receipt facts, not a pre-`DONE`
 rendering of the whole task file. Materialisation re-reads the review task after
@@ -89,6 +110,20 @@ new generation needs adversarial review, ordinary tree work must name a new
 review chain or step. This is the same guide-not-gate rule under which Grove does
 not require a review after every producer.
 
+Pruning retains its exact-target scope. A producer entity closed by `ABANDONED`
+supplies no handoff receipt; pruning only that producer leaves a sibling review
+and integration live, so depth-first pick schedules them next as uncheckable. To
+abandon the whole reviewed path, the human prunes the enclosing review-chain
+node.
+
+The receipt is an advisory side effect of the terminal leaf transition, not a
+node lifecycle mark. Closing a reviewed decomposition node can therefore change
+the live linked review's bytes even though the node itself remains unmarked. The
+no-confirmation rule still holds because the session establishes the factual
+handoff; no human judgement about whether the path is worth doing is being
+recorded. A close in error is reopened with `leaf-add`, and generation validation
+makes the prior advisory receipt detectably stale.
+
 Model equality is exact: equal non-null selector strings match, two harness
 defaults match only under the same harness, and a default never matches an
 explicit selector. An uncheckable warning always names its review; it names a
@@ -97,6 +132,14 @@ producer only from a valid stable relationship and otherwise says
 If a receipt's producer disagrees with a valid `Reviews` relationship, the
 result is `uncheckable(reason=receipt-producer-mismatch)` and the relationship's
 producer remains the only named producer.
+
+Whenever a **checkable** receipt's `session` differs from `producer`, a rendered
+warning names that validated source session so the operator can see the exact
+handoff target being compared. An uncheckable receipt may carry a syntactically
+valid session from stale or inconsistent evidence, so its warning never presents
+that value as the factual handoff. A fully diverse launch remains silent by
+design; that silence establishes diversity from the one recorded handoff target,
+not from every contributor to a decomposed producer.
 
 ## Considered options
 
@@ -119,6 +162,22 @@ producer remains the only named producer.
   turn one advisory comparison into set ownership, partial-write, and cleanup
   semantics. Reopen if review must prove diversity from every contributor rather
   than guide diversity from the handoff context.
+- **Restrict a decomposed producer's source session to a producer kind.**
+  Rejected because the factual leaf responsible for checking and closing the
+  aggregate may be a nested review or integration leaf; substituting an earlier
+  producer target would reconstruct authorship rather than record the handoff.
+  Reopen if diversity must target authoring provenance and Grove records that
+  provenance explicitly.
+- **Record a contributor count beside one target.** Rejected because a count
+  changes no diversity claim and is either invisible in the required silent
+  success case or forces a new success notice. The warning instead names the
+  validated source session for a checkable receipt when it differs from the
+  producer. Reopen if audit-visible successful comparisons become a requirement.
+- **Withhold a routing notice unless the session will execute that review.**
+  Rejected because the driver has only a forecast; another pre-spawn read narrows
+  but cannot close the launch window, while binding the session to that result
+  would override factual pick. The notice is scoped to its review handle instead.
+  Reopen if a harness can accept context after the session performs its own pick.
 - **Use only the closing session without recording a producer generation.**
   Rejected because `leaf-add` may legitimately reopen a completed node; if the
   next post-`DONE` replacement then fails, the old target would look current.
@@ -127,6 +186,10 @@ producer remains the only named producer.
   because receipts are advisory evidence, not scheduling state, and Grove does
   not enforce a review after every producer. Reopen only if review relationships
   become an enforced lifecycle grammar rather than optional composition.
+- **Replace a receipt in a terminal review.** Rejected because no future launch
+  consumes it, while the write changes a completed task in the commit for a
+  different work item. Reopen only if terminal review evidence gains a durable
+  consumer outside the task tree.
 - **Add a generation solely to validate manually restored leaf producers.**
   Rejected because a direct terminal-leaf edit adds no task-tree fact from which
   a new generation can be derived. Reopen if removing `DONE` becomes a supported

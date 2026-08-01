@@ -43,6 +43,8 @@ rather than absorb multiple sessions of work.
 
 - Glossary: `CONTEXT.md`, especially **Review chain / vendor pair**, **Task
   kind**, **Kind routing**, and **Pick**.
+- Design: `docs/specs/doubt-grove-review-mechanics.md`.
+- Decision: `docs/adr/grove-owns-escalated-review.md`.
 - Grove methodology: `content/SKILL.md`, `content/driving.md`, and
   `content/TASK-FORMAT.md`.
 - Doubt guidance: `plugins/linkuistics/skills/doubt-driven-development/SKILL.md`.

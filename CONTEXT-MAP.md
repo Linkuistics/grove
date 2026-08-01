@@ -39,7 +39,11 @@ lockstep, which is why they live together — see
   component it binds: the jj-first VCS rule, for example, is shared by the Grove
   binary and the plugin installer. `content/ADR-FORMAT.md` defines when a flat
   root set is appropriate. A term is defined in the glossary of its owning
-  context, never both.
+  context, never both. The **grove** context owns
+  [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md) and
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md):
+  the doubt skill participates in their contract, but the picked leaf, task
+  tree, review routing, and lifecycle are Grove's maintaining seam.
 
 ## Choosing a context
 

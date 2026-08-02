@@ -263,7 +263,7 @@ dependencies = [
 
 [[package]]
 name = "grove"
-version = "16.4.0"
+version = "16.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v16.5.0
+
 ### Added
 
 - Add `grove-llm leaf-promote-chain` to atomically promote a picked producer leaf into a brief-less review chain while preserving its stable handle, with fail-closed locking and recovery.

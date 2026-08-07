@@ -17,6 +17,7 @@ pub mod llm_cli;
 pub mod loop_driver;
 pub mod provision;
 pub mod repo;
+pub mod session_config;
 pub mod task_relationship;
 pub mod tree_access;
 pub mod tree_grow;

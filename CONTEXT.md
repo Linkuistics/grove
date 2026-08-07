@@ -10,16 +10,25 @@ The `grove` binary embeds `content/` and, on every invocation, sweeps it out to 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
 (1) promote durable artifacts from the briefs; (2) delete `.grove/` in a focused
-commit; (3) signal the loop with `grove-llm complete --done`. When an ordinary
-pick finds no live leaf, the driver mechanically adds the finish leaf and runs
-the ordinary pick/config/launch path again. A declined, interrupted, or crashed
-finish remains a live leaf and is resumed normally. Teardown still requires
-explicit human confirmation; it is the loop's only routine human gate. Branch
-integration and working-tree removal remain outside Grove.
+commit whose message names the finish leaf's [[Work-item handle]]; (3) signal
+the loop with `grove-llm complete --done`. After configuration has passed full
+validation, an empty driver pick mechanically appends one working-tree-only
+`finish` leaf at the grove root using the next position and permanent key, then
+runs the ordinary pick/config/launch path again. Only the driver may create this
+kind. A live finish leaf is reused rather than duplicated. A declined finish
+exits without a completion signal, leaving that leaf live for an explicit later
+resume; an interrupted or crashed finish has the same restart behavior. On
+success the deletion commit consumes the uncommitted leaf with the rest of the
+tree, so the leaf is never separately retired or committed. `leaf-retire` and
+`leaf-prune` both refuse `finish`; decline means leaving it live. The deletion
+commit is scoped to `.grove/` in Git and jj, leaving every unrelated staged,
+working-tree, or working-copy change outside it. Teardown still requires explicit
+human confirmation; it is the loop's only routine human gate. Branch integration
+and working-tree removal remain outside Grove.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 
 **Grove name**:
-The working-tree directory's basename — never a branch, a bookmark, or a canonical layout. Resolved **jj-first**: a `.jj/` directory heading the tree makes it jj-enabled (native, secondary workspace, or colocated — `.jj/` wins even with a `.git` beside it) and the workspace root is the directory holding `.jj/`; only a not-jj-enabled tree falls back to `git rev-parse --show-toplevel`. The closest marker walking up decides, so a plain-git checkout nested under a jj tree stays git. Names the root brief (`# <name> — brief`), the harness session (`<repo-basename>: <name> grove`), and the harness stamp (`<repo>/.grove-stamps/<name>`).
+The working-tree directory's basename — never a branch, a bookmark, or a canonical layout. Resolved **jj-first**: a `.jj/` directory heading the tree makes it jj-enabled (native, secondary workspace, or colocated — `.jj/` wins even with a `.git` beside it) and the workspace root is the directory holding `.jj/`; only a not-jj-enabled tree falls back to `git rev-parse --show-toplevel`. The closest marker walking up decides, so a plain-git checkout nested under a jj tree stays git. The name supplies the root brief (`# <name> — brief`) and the harness session name (`<repo-basename>: <name> grove`); Grove stores no repository-local harness binding or stamp.
 _Avoid_: "the grove name equals the branch name" — grove reads no branch anywhere.
 _Avoid_: describing resolution as git-with-jj-fallback — it is the other way round, in `repo.rs` and in every tree-mutation verb (a jj tree renames with `fs::rename`; `git mv` is the fallback).
 
@@ -40,6 +49,8 @@ runs the ordinary authoritative [[Pick]] and launches that requirements leaf
 through [[Grove configuration]]. There is no special rootless session: every
 session owns a real selected leaf, and a grove begins with requirements gathering
 by construction. The first requirements session's commit folds the scaffold in.
+Full configuration validation precedes this mutation, so a missing or malformed
+personal config leaves a rootless working tree byte-identical.
 _Avoid_: "the bootstrap leaf is planning" — that was the pre-taxonomy answer, and it survives only by marking `planning` HITL again. The bootstrap session may still *cut* leaves (the requirements/design/planning fusion a small workstream is allowed); the label names the discipline that always applies.
 _Avoid_: asking the first agent to run `grove-llm root-init`; the driver creates
 the leaf it must select before the agent exists.
@@ -48,35 +59,54 @@ the leaf it must select before the agent exists.
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
 **Session kind**:
-The launch-and-discipline label encoded in a [[Leaf]]'s filename as
+The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
 `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`. The kind is routing
 metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
-The parser matches the longest member of the closed kind set, so hyphenated kinds
-remain unambiguous. The closed set
+The leaf parser matches the longest member of the closed kind set, so hyphenated
+kinds remain unambiguous. A [[Node directory]] is kind-free by construction and
+is never passed through this parser, including when its slug begins with a kind
+token. The closed set
 has nineteen members: five producers — `requirements`, `design`, `planning`,
 `prototype`, and `impl` — each with its corresponding `review-` and
 `integrate-review-` kind, plus `research-a`, `research-b`,
 `combine-research`, and `finish`. `research-a` and `research-b` share the research discipline
 but are distinct configuration keys, so a vendor pair needs no harness metadata
 in either task file. Every session kind resolves one complete target through
-[[Grove configuration]]. A live filename with the task position/key shape but a
-missing or unknown session kind is malformed and stops traversal with the path
-and valid kind set; it never degrades to `impl`. Foreign non-task files remain
-ignored.
+[[Grove configuration]]. Every task-shaped `.md` leaf filename — live, `DONE`,
+or `ABANDONED` — must carry a known kind. A missing or unknown kind is malformed
+and stops tree operations with the path and valid kind set; it never degrades to
+`impl`. Terminal validation is load-bearing for permanent-key allocation and
+filename-only viewers. Foreign non-task files remain ignored. `finish` is
+driver-reserved: grow and terminal verbs refuse it even though the driver and
+reader share the same closed set.
 _Avoid_: **task kind** — the label shapes and launches a session, and no longer
 lives in a `**Kind:**` task-file field.
 _Avoid_: plain `research` — a vendor pair uses the independently configurable
 `research-a` and `research-b` kinds.
 
 **Session-kind migration**:
-The one-time, atomic conversion `grove` applies to a live tree whose legacy
-leaves store `**Kind:**` or `**Harness:**` inside Markdown rather than carrying a
-[[Session kind]] in the filename. It renames every deterministic leaf into the
-new filename grammar, removes both obsolete metadata lines, maps the two
-structural children of a vendor pair to `research-a` and `research-b`, and lands
-the conversion in one focused commit before ordinary selection. An ambiguous
-standalone `research` leaf stops with actionable guidance; migration never guesses
-which configured research target it meant.
+The one-time, fail-closed conversion `grove` applies before ordinary selection
+to every legacy task-tree shape. If the tree also uses the original `NNN-slug/`
+or v1 flat dotted-decimal layout, directory migration is the first phase and
+session-kind filenames are the second; both phases land as one recoverable
+transaction and one focused commit, never as a runnable mixed grammar.
+
+Migration renames every deterministic leaf, live or terminal, and removes the
+obsolete `**Kind:**`, `**Harness:**`, and `**Producer launch:**` lines while
+preserving `Reviews` and `Integrates`. A missing legacy kind takes the old
+read-side default `impl`; `work`, `review-work`, and `integrate-review-work` map
+to their `impl` spellings; the two structural research children of a vendor pair
+map to `research-a` and `research-b`. A standalone `research` leaf, an unknown
+kind, or a structurally ambiguous pair stops before mutation with actionable
+guidance rather than guessing a configured target.
+
+Full config validation precedes migration. Process interruption never exposes a
+runnable mixed grammar: the next invocation either recovers the conversion or
+refuses tree work with an actionable recovery diagnostic. The design owns the
+transaction mechanism and whether it reuses or generalises the existing
+promotion seam. The resulting commit is path-scoped to `.grove/` in plain Git
+and fileset-scoped in jj, leaving unrelated dirty Git changes or jj working-copy
+changes outside the migration commit.
 
 **Review chain** / **vendor pair**:
 The two composition patterns over the [[Session kind]] set. The **review chain**
@@ -126,10 +156,11 @@ one** in-session reviewer across the whole leaf; one reviewer means one
 independently materialised fresh context, so a diverse-lens pass with N subagents
 spends N reviewers. A second review need is the mechanical signal that review has
 become tree-sized work.
-This rule applies only when the Grove driver launched the current session for a
-selected leaf and the session ran [[Bootstrap]] for that mandate — never merely
-because a `.grove/` directory exists. The driver's selected-leaf mandate is the
-discriminator.
+This rule applies only when the Grove driver launched the current session with
+an explicit selected-leaf mandate in `${prompt}` and the session adopted that
+mandate by running [[Bootstrap]] — never merely because a `.grove/` directory
+exists or a process inherited Grove control variables. The prompt-visible
+Bootstrap-and-mandate fact replaces the old session-side-pick discriminator.
 An allowed reviewer that finds a substantive actionable issue normally creates
 that second need after the producer changes; promote the producer atomically,
 finish it only to a reviewable boundary, then retire and signal so Grove launches
@@ -186,11 +217,13 @@ combined research belongs in its own reviewed producer chain.
 **HITL** / **AFK**:
 Whether a [[Session kind]] resolves through live exchange with a human who speaks for
 themselves (`requirements`, `prototype`, `finish`) or is driven by the agent alone (every
-other kind). The generating rule: a kind is HITL when **a human's own words are
-the session's input or its deliverable** — not merely when a human would want to
-read the output, which is true of everything and which the VCS already serves. A
-HITL leaf reached by an unattended relaunch of the self-driving loop stalls until
-a human arrives; that is correct, not a fault.
+other kind). The generating rule: a kind is HITL when its normal successful path
+requires human-originated input the session cannot supply for itself — the
+human's own words for `requirements` and `prototype`, or the explicit teardown
+decision for `finish`. Merely wanting to read an output does not qualify, which
+is true of everything and which the VCS already serves. A HITL leaf reached by
+an unattended relaunch of the self-driving loop stalls until a human arrives;
+that is correct, not a fault.
 The mark **predicts, it does not permit**: *any* kind may stop and ask a human,
 and doing so is always legitimate. `design` often will;
 `integrate-review-requirements` is the borderline cell (it edits what was asked
@@ -213,10 +246,9 @@ leaves the same bytes on disk, do not ask; **(2) if it does, is the fact the
 session's to establish or the human's to decide?** — a session can establish *what
 it did*, never *what is worth doing*. Four moments sit near the line and it
 separates them: [[DONE infix]] (writes; the session holds the fact) and a **node
-close** ask nothing. The node receives no lifecycle mark; a reviewed close may
-best-effort write the factual handoff receipt that the session itself
-establishes, not a human judgement. [[Pruning]] (the mark asserts a human
-decided against a path) and the [[Complete finish cycle]] (deletes `.grove/`) ask.
+close** ask nothing. The node receives no lifecycle mark or review-target side
+effect. [[Pruning]] (the mark asserts a human decided against a path) and the
+[[Complete finish cycle]] (deletes `.grove/`) ask.
 So the finish cycle's single gate is the loop's **only routine human gate**, and
 everything else a session asks is an **escalation** — discretionary, triggered by
 evidence the session actually met, and always legitimate ([[HITL]]/[[AFK]]: the
@@ -231,11 +263,9 @@ _Avoid_: "all retirements need confirmation" — it over-reads the design in bot
 directions. Marking a *leaf* done was never confirmed (mechanical bookkeeping);
 only the node close changed.
 _Avoid_: reading the removal as a friction argument. A node is **never marked**
-([[Node directory]]), so the question gated an *inference*. A reviewed close's
-receipt is a best-effort fact owned by the closing session, and generation makes
-it stale if `leaf-add` reopens the node; it does not turn that inference into a
-human decision. A confirmation that gates a judgement-bearing write
-([[Pruning]]) is untouched.
+([[Node directory]]), so the question gated an *inference*. Review targets are
+configuration policy and no close-time receipt survives; a confirmation that
+gates a judgement-bearing write ([[Pruning]]) is untouched.
 _Avoid_: re-adding a per-ancestor question as the cascade recurses — that is the
 wizard anti-pattern *in-session-finish-cycle* already rejects, and it terminated
 into that cycle's own confirmation, giving up to four questions about one fact.
@@ -246,31 +276,48 @@ one command-template string. The template chooses the executable or wrapper and
 every user-controlled argument, including harness, model, reasoning effort,
 approval, permission, and sandbox policy. Grove neither knows nor infers which
 harness the command ultimately runs. The template uses POSIX shell-word quoting,
-but Grove invokes no shell: it expands Grove-owned dynamic substitutions into
-individually escaped arguments, parses the result into argv, and executes it
-directly. The first word may be any executable or script on `PATH`; interactive
-shell aliases are not supported, and a wrapper should `exec` its underlying
-harness. The substitution set is scalar and data-only: `${prompt}` (required
-exactly once as the final template element), plus optional `${session_name}`,
-`${worktree}`, `${repo}`, and `${herdr_settings}`. Unknown substitutions are an
-error. The template itself supplies every harness-specific flag; Grove injects
-no hidden argument fragments.
+but Grove invokes no shell: it parses the template into argv, expands only the
+declared Grove-owned substitutions, and executes the result directly. The first
+word may be any executable or script on `PATH`; interactive shell aliases are
+not supported, and a wrapper must `exec` its underlying harness to preserve the
+driver's direct foreground-child ownership.
+
+The first template word is a literal executable or script name and contains no
+substitution. `${prompt}` is required exactly once in any later argv position.
+It is the complete Grove-authored session prompt: the embedded workflow plus the
+selected leaf's stable handle as its explicit mandate. Optional scalar
+substitutions are `${session_name}`, `${worktree}`, and `${repo}`. The one
+non-scalar exception is a whole-word `${herdr_settings}` splice, permitted at
+most once after the executable: outside a herdr pane it expands to zero
+arguments; inside one it expands to `--settings` plus the inline turn-hook JSON.
+A target opts into that harness-specific flag shape by placing the visible
+splice itself. Targets that need herdr's agent hint state it in their configured
+command, for example `env HERDR_AGENT=claude claude …`; Grove never infers the
+value or injects the variable. Unknown, embedded, word-zero, or multiply used
+substitutions are errors. Grove adds no hidden harness-specific argv fragments.
 
 A launch has no configuration precedence lattice: task files, command-line
 flags, repository-local stamps, and environment variables do not override or
 supplement this file. All nineteen session kinds must appear exactly once with
 complete targets; a missing, duplicate, or unknown kind is an error. There are
 no defaults, families, profiles, or inheritance. The driver re-reads and fully
-validates the file immediately before every launch, so an edit affects the next
-session. Validation failure launches nothing and leaves the selected leaf live
-and resumable; configuration is never cached across loop iterations. No
-user-settable `GROVE_*` environment configuration remains. Driver-created
-ephemeral control channels may still use the process environment, but they are
-internal capabilities rather than supported settings.
+validates the file before **any** task-tree mutation — including root-init,
+legacy migration, and finish-leaf materialisation — and again immediately before
+every launch, so an edit affects the next session. Validation failure launches
+nothing and leaves an existing selected leaf live and resumable; a rootless or
+pre-migration tree remains byte-identical. Configuration is never cached across
+loop iterations. No user-settable `GROVE_*` environment configuration remains.
+Driver-created ephemeral control channels may still use the process environment,
+but they are internal capabilities rather than supported settings.
+
 Grove never creates or edits the file because it cannot choose personal model,
-effort, approval, or wrapper policy. A missing file is a non-mutating error that
-prints the exact path and a complete copyable nineteen-kind example; no init
-command or implicit default exists.
+effort, approval, or wrapper policy. A missing or invalid file is a
+**task-tree-non-mutating** error that names the exact path and every missing,
+duplicate, or unknown kind; global skill provisioning retains its independent
+per-invocation contract. No init command or implicit default exists. Adding a
+session kind is therefore an intentional breaking configuration-schema change:
+a release must announce the required new entry, and older complete configs fail
+validation until their owner adds it.
 _Avoid_: "primary harness" — harness selection is a property of each session kind,
 not of the grove as a whole.
 _Avoid_: "thinking effort" — use **reasoning effort**, the launch-policy term.
@@ -283,12 +330,17 @@ policy has one home.
 **Kind routing**:
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's filename,
-obtains its complete session target from [[Grove configuration]], and passes the
-selected leaf to the launched session as its mandate. The session does not pick
-again. A leaf inserted ahead of the selection while the harness starts becomes
-the next iteration's work; it does not preempt the session already launched.
-Grove executes the configured command directly; it is not a model router or
-proxy.
+obtains its complete session target from [[Grove configuration]], and embeds the
+selected stable handle in `${prompt}` as the launched session's mandate. The
+session resolves that handle to its current path, rejects an unavailable or
+non-live result, Bootstraps the resolved leaf, and does not pick again. A leaf
+inserted ahead of the selection while the configured command starts may move the
+mandated leaf's path but not its handle; it becomes the next iteration's work
+and does not preempt the mandate already launched. A session started outside
+bare `grove` has no mandate and is not a Grove loop session; the supported
+continuation is to exit and run `grove`, while `grove-llm pick` remains a
+diagnostic/tree-interface verb rather than session dispatch. Grove executes the
+configured command directly; it is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
 leaf-level `**Harness:**` declaration as configuration fallbacks. Grove has one
 configuration source.
@@ -360,17 +412,19 @@ collapsed to their counts. **UI only, never state**: herdr's full lifecycle
 authority is a compiled-in allowlist nothing outside its binary can join, and a
 plugin has exactly the socket access `grove-llm` already has, so routing state
 through one would add a hop and buy nothing.
-Its **only** contract is the [[Node directory]] naming scheme (task-tree-scheme) —
-which is why chain nodes cost it **no change at all**: its node pattern matches any
-`NN-<slug>-k<key>/`, it never opens a `BRIEF.md`, and a finished chain therefore
-collapses to one counted line for free.
+Its filename-only contracts are the [[Node directory]] naming scheme and the
+[[Leaf]] grammar, including the closed [[Session kind]] set. Chain nodes still
+cost it **no change at all**: its node pattern matches any `NN-<slug>-k<key>/`,
+it never opens a `BRIEF.md`, and a finished chain therefore collapses to one
+counted line for free. Leaf parsing now carries the nineteen-kind set so it can
+separate a kind from the slug without opening the task body.
 It never invokes `grove` or `grove-llm`, opens no socket and writes no state, so
 the plugin and the binary version independently — the property that makes
-"optimised-for" real rather than aspirational. Consequently *changing the
-directory scheme is now also a plugin-compatibility question*. Filename-only
-parsing is what the scheme was designed for, so the whole shape costs one
-`scandir` per directory; the live leaf's session kind comes from its filename and
-no task body is opened;
+"optimised-for" real rather than aspirational. Consequently changing either the
+directory scheme, leaf grammar, or closed kind set is a plugin-compatibility
+question. Filename-only parsing is what the scheme was designed for, so the
+whole shape costs one `scandir` per directory; the live leaf's session kind
+comes from its filename and no task body is opened;
 refresh is a 1 s poll redrawing on change, not a filesystem watcher.
 Lives at the repo root, **not** under `plugins/` — that directory is the *skills*
 bounded context (Claude Code plugins behind `.claude-plugin/marketplace.json`),
@@ -458,27 +512,27 @@ The loop driver is the harness's **parent process**, so its whole observable
 vocabulary is *session started* / *session ended, with or without a completion
 signal*. It sees nothing **inside** a session — and a session that stalls
 mid-session on a [[HITL]] question ends no session, so driver-level reporting
-alone leaves it reading `working` forever. Hence a **second mechanism**: on every
-**claude** launch the driver appends `--settings` with an inline JSON hook block
-wiring four claude events to `grove-llm report-turn`, so the harness reports what
-the driver cannot see. Two are **turn boundaries** — `UserPromptSubmit` ⇒
-`working`; `Stop` ⇒ **`blocked` unless `$GROVE_SIGNAL_FILE` shows the task
-completed on purpose** (the discriminator, which needs no new model contract
-because `grove-llm complete` is already mandatory as every task's last action).
-Two are the **mid-turn pair** — `Notification` (matched to the dialog types
-claude raises only after six seconds of human silence) ⇒ `blocked`, and
-`PostToolUse` ⇒ `working`. That one is a *pair* because granting a permission
-fires no event of its own, so a mid-turn `blocked` needs a paired restore or it
-pins the pane until the turn ends; `PostToolUse` is the only event claude fires
-in between, which is why the restore is per-tool-call. A `done` disposition
-silences every row a machine can fire, leaving the driver's idle-then-release the
-last word. Injected **per launch, persisting nothing** (hooks are *unioned*
-across settings sources, so grove contends with neither herdr's own installed
-hook nor the user's), and **not injected at all** outside a herdr pane, so the
-argv is then byte-identical to a grove without them. **claude only**: codex has
-no turn-end hook event *and* persists hook trust per source-and-content-hash;
-pi's herdr extension already reports full lifecycle but reports `idle` at turn
-end — the same conflation. See ADR *herdr-turn-boundary-hooks*.
+alone leaves it reading `working` forever. Hence a **second mechanism** remains
+available through the explicit `${herdr_settings}` splice in [[Grove
+configuration]]. A command template that opts in receives no arguments outside
+a herdr pane and receives `--settings <inline-json>` inside one; Grove does not
+infer which harness consumes those arguments or append them to a target that
+omits the splice.
+
+The generated JSON wires four claude events to `grove-llm report-turn`. Two are
+**turn boundaries** — `UserPromptSubmit` ⇒ `working`; `Stop` ⇒ **`blocked`
+unless `$GROVE_SIGNAL_FILE` shows the task completed on purpose**. Two are the
+**mid-turn pair** — `Notification` (matched to the dialog types claude raises
+only after six seconds of human silence) ⇒ `blocked`, and `PostToolUse` ⇒
+`working`. That one is a pair because granting a permission fires no event of
+its own, so a mid-turn `blocked` needs a paired restore or it pins the pane until
+the turn ends. A `done` disposition silences every row a machine can fire,
+leaving the driver's idle-then-release the last word. The inline settings persist
+nothing and are unioned with other settings sources. The configuration owner
+places the splice only in a compatible target; codex has no turn-end hook event
+and persists hook trust per source-and-content-hash, while pi's herdr extension
+already reports full lifecycle but reports `idle` at turn end. See ADR
+*herdr-turn-boundary-hooks*.
 _Avoid_: claiming driver-level reporting closes the "stalled overnight on a
 question" case — it closes the half where the session **ended**; the hooks close
 the halves where the *turn* ended and where the turn is still running but a
@@ -508,17 +562,16 @@ is `grove` itself, which herdr cannot identify, so the fallback runs and a
 holding hook authority (before its first report; after release), since a landed
 report takes precedence over detection — which is why the bug hid behind grove's
 own status surface.
-**Fixed** by grove setting herdr's documented `HERDR_AGENT=<harness.name>` hint on
-the harness child at **both** launch sites (`launch::set_herdr_agent_hint`) — the
-extension point upstream added for host-visible wrappers, which is what grove is.
-It works because the probe consults every **non-leader** member of the foreground
-job for a hint *before* the group scoring that misfires, so no fork hunk and no
-process-group surgery is needed; it works on stock herdr too. Set
-**unconditionally**, not gated on [[herdr integration]]'s `in_pane` — the
-deliberate asymmetry with the [[Session-boundary visibility]] turn hooks, whose
-gate exists because they change the launch argv. The principle: **grove reports
-what it *is* (`grove`); it hints what it *launched*** — different fields, different
-jobs, both honest at once. Observed live 2026-07-28 against
+Preserved by making herdr's documented `HERDR_AGENT=<actual-harness>` hint an
+explicit part of each applicable command template, normally through an `env`
+prefix or a configured wrapper. Grove neither knows the actual harness nor sets
+the value. The probe consults every **non-leader** member of the foreground job
+for a hint before the group scoring that misfires, so no fork hunk and no
+process-group surgery is needed; it works on stock herdr too. The configured
+hint may be unconditional because an absent herdr simply ignores it. The
+principle remains: **grove reports what it is (`grove`); launch policy hints what
+it launched** — different fields, different owners, both honest at once.
+Observed live 2026-07-28 against
 `0.7.5-linkuistics.1`: identical panes read `codex` without the hint and `claude`
 with it, and a released `grove` pane re-acquired as `claude` and then read a
 stalled grilling session as `blocked` off claude's own manifest.
@@ -529,8 +582,9 @@ not the harness. That, not a stalled sweep, is why a released pane at
 _Avoid_: `strings`/`grep` over a herdr binary to check the feature is present —
 `b"HERDR_AGENT="` is a compile-time `strip_prefix` operand LLVM lowers to
 immediate byte compares, so it is absent from a binary that provably contains the
-code. Check the Homebrew install receipt's pinned revision instead. (The habit
-*does* work on grove's own side, where `cmd.env` needs the literal at runtime.)
+code. Check the Homebrew install receipt's pinned revision instead.
+_Avoid_: reintroducing a harness registry or hidden `cmd.env` call solely to set
+the hint — the configured target owns that harness-specific policy.
 _Avoid_: restructuring grove's process group (`setpgid`/`tcsetpgrp`) to win
 herdr's leader preference — it reaches the same result by rewriting the driver's
 signal topology, which [[Authority release]] and the loop's Ctrl-C survival both

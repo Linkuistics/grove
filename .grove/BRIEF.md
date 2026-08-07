@@ -8,17 +8,26 @@ tree, while one personal KDL file is the entirety of user launch policy.
 ## Done when
 
 - `~/.config/grove/config.kdl` is the only user configuration and contains one
-  complete command template for every session kind.
+  complete command template for every session kind, including any
+  harness-specific herdr launch policy.
 - A single driver-side pick selects each real leaf; its filename supplies the
-  session kind and the launched session does not pick again.
+  session kind, `${prompt}` carries its stable handle as the mandate, and the
+  launched session resolves that handle without picking again.
 - Bare `grove` initializes requirements, migrates legacy trees, drives the loop,
-  and materializes a resumable finish leaf without subcommands or flags.
+  and materializes a resumable finish leaf without subcommands or flags;
+  complete config validation precedes every one of those mutations.
 - Legacy harness/model routing, stamps, user-settable environment overrides,
   task-body kind/harness fields, one-off retire/migrate commands, review target
-  receipts, and diversity warnings are removed.
+  receipts, diversity warnings, structured harness-routing peeks,
+  `GROVE_SESSION_TARGET`, and grow-verb harness flags are removed.
 - Git and jj behavior, migration, error paths, direct process execution, and the
-  self-driving loop are verified through the agreed seams; user documentation
-  and the minimum coherent ADR/spec set describe the resulting system.
+  self-driving loop are verified through the agreed seams; `content/`, the
+  doubt skill, the herdr tree viewer, user documentation, and the minimum
+  coherent ADR/spec set all describe the resulting system.
+- Herdr turn-level reporting and correct harness re-detection remain available,
+  but only through visible command-template policy: `${herdr_settings}` is an
+  explicit optional argv splice and `HERDR_AGENT` is set by the configured
+  command, never inferred or secretly injected by Grove.
 
 ## Decomposition
 
@@ -37,14 +46,19 @@ tree, while one personal KDL file is the entirety of user launch policy.
 - Current behavior to reconcile: `docs/CONFIGURATION.md`, `docs/USAGE.md`, and
   `docs/ARCHITECTURE.md`.
 - Existing records in scope: `docs/adr/review-target-receipts.md`,
-  `docs/adr/grove-owns-escalated-review.md`, and
+  `docs/adr/grove-owns-escalated-review.md`,
+  `docs/adr/promotion-transactions-fail-closed.md`, and
   `docs/specs/doubt-grove-review-mechanics.md`.
 - Test seams: the bare `grove` process in isolated Git/jj worktrees with fake
   commands, and the internal `grove-llm` tree interface.
 
 ## Notes
 
-The chosen configuration representation is one POSIX-shell-word command-template
-string per session kind, parsed into argv and executed directly without a shell.
-Grove substitutes only escaped scalar data and never infers the harness, model,
-or reasoning effort from the configured command.
+Confirmed and closed to design: one bare command; one strict nineteen-kind KDL
+configuration; one POSIX-shell-word command-template string per kind, executed
+directly without a shell; one authoritative driver pick; real requirements and
+finish leaves; automatic restart-safe legacy migration; no receipts or diversity
+warnings; and no inferred harness, model, or reasoning effort. `${prompt}` occurs
+once after a literal executable word, not necessarily last. The exact KDL node
+shape, diagnostic rendering, migration transaction implementation, and minimum
+coherent ADR/spec reshaping remain design work.

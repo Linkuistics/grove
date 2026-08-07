@@ -164,6 +164,11 @@ pipelines, globs, aliases, and tilde expansion are not interpreted. A user who
 needs those behaviors places them in an executable wrapper and configures that
 wrapper as word zero.
 
+An unquoted `#` reached between shell words would make the word splitter treat
+the rest of that line as a comment. Grove rejects that form rather than silently
+launching a truncated command. Quote or escape the `#` to pass it literally;
+an unquoted `#` inside an existing word, such as `tag#1`, is already literal.
+
 Substitution values are argv values, not text splices, so spaces or shell
 metacharacters in repository paths, session names, prompts, and JSON never
 change argument boundaries. `${herdr_settings}` is the only substitution whose

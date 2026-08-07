@@ -93,6 +93,33 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
 }
 
 #[test]
+fn raw_kdl_strings_are_valid_command_templates() {
+    let home = TempDir::new().unwrap();
+    let mut document = String::from(
+        r##"requirements r#"runner --label "quoted value" ${prompt}"#
+"##,
+    );
+    for kind in &SESSION_KINDS[1..] {
+        document.push_str(&format!("{kind} {:?}\n", "runner ${prompt}"));
+    }
+    write_raw_config(home.path(), &document);
+
+    let config = SessionConfig::load(home.path()).unwrap();
+    let context = ExpansionContext {
+        prompt: "mandate",
+        session_name: "session",
+        worktree: Path::new("/worktree"),
+        repository: Path::new("/repo"),
+        herdr_settings: None,
+    };
+
+    assert_eq!(
+        config.expand("requirements", &context).unwrap(),
+        vec!["runner", "--label", "quoted value", "mandate"]
+    );
+}
+
+#[test]
 fn scalar_substitutions_each_expand_to_one_argument() {
     let home = TempDir::new().unwrap();
     write_config(home.path(), "runner ${session_name} ${repo} ${prompt}");
@@ -210,7 +237,9 @@ fn schema_and_template_failures_are_aggregated_with_source_locations() {
     assert!(error.contains("exactly one positional argument"));
     assert!(error.contains(&format!("{display_path}:7:1")));
     assert!(error.contains("command template has unmatched quotes"));
-    assert!(error.contains("command template must contain `${prompt}` exactly once"));
+    assert!(error.contains(&format!(
+        "{display_path}:1:1: session kind `requirements`: command template must contain `${{prompt}}` exactly once"
+    )));
 }
 
 #[test]
@@ -254,6 +283,14 @@ fn invalid_placeholder_forms_are_rejected() {
             "runner ${unknown} ${prompt}",
             "unknown substitution `${unknown}`",
         ),
+        (
+            "runner ${a}${prompt}",
+            "substitutions must occupy a complete shell word",
+        ),
+        (
+            "runner ${prompt}${session_name}",
+            "substitutions must occupy a complete shell word",
+        ),
     ];
 
     for (template, expected) in cases {
@@ -267,6 +304,20 @@ fn invalid_placeholder_forms_are_rejected() {
             "expected {expected:?} for template {template:?}, got:\n{error}"
         );
     }
+}
+
+#[test]
+fn empty_word_zero_reports_one_diagnostic() {
+    let home = TempDir::new().unwrap();
+    write_config(home.path(), "'' runner ${prompt}");
+
+    let error = load_error(home.path());
+
+    assert_eq!(
+        error.matches("word zero must be a literal").count(),
+        1,
+        "{error}"
+    );
 }
 
 #[test]
@@ -286,6 +337,52 @@ fn shell_metacharacters_remain_literal_arguments() {
         config.expand("requirements", &context).unwrap(),
         vec!["runner", "$(touch nope)", "*", ">", "mandate"]
     );
+}
+
+#[test]
+fn unquoted_shell_comment_introducers_are_rejected_instead_of_truncating_argv() {
+    for template in [
+        "runner ${prompt} --color #ff0000 --verbose",
+        "runner ${prompt} #ff0000 --trailing",
+    ] {
+        let home = TempDir::new().unwrap();
+        write_config(home.path(), template);
+
+        let error = load_error(home.path());
+
+        assert!(
+            error.contains("`#` starts a comment in a command template"),
+            "expected a comment diagnostic for template {template:?}, got:\n{error}"
+        );
+    }
+}
+
+#[test]
+fn quoted_escaped_and_midword_hashes_remain_literal_arguments() {
+    for (template, expected) in [
+        ("runner ${prompt} --color '#ff0000'", "#ff0000"),
+        ("runner ${prompt} --color \\#ff0000", "#ff0000"),
+        ("runner ${prompt} --tag tag#1", "tag#1"),
+    ] {
+        let home = TempDir::new().unwrap();
+        write_config(home.path(), template);
+        let config = SessionConfig::load(home.path()).unwrap();
+        let context = ExpansionContext {
+            prompt: "mandate",
+            session_name: "session",
+            worktree: Path::new("/worktree"),
+            repository: Path::new("/repo"),
+            herdr_settings: None,
+        };
+
+        let argv = config.expand("requirements", &context).unwrap();
+
+        assert_eq!(
+            argv.last().unwrap(),
+            &OsString::from(expected),
+            "{template:?}"
+        );
+    }
 }
 
 #[test]

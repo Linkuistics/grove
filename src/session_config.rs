@@ -6,9 +6,12 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
-use kdl::{KdlDocument, KdlNode, KdlValue};
+use kdl::{KdlDocument, KdlNode};
 
 const CONFIG_PATH: &str = ".config/grove/config.kdl";
+// This is the expand-side kind set. Once filename kinds replace the legacy
+// leaf grammar, derive it from `leaf::Kind::ALL` so adding a kind invalidates
+// every old complete configuration by construction.
 const REQUIRED_KINDS: [&str; 19] = [
     "requirements",
     "review-requirements",
@@ -236,9 +239,9 @@ fn validate_node(source: &str, node: &KdlNode) -> NodeValidation {
     }
 
     let template = if positional.len() == 1 {
-        match positional[0].value() {
-            KdlValue::String(template) => validate_template(location, template, &mut diagnostics),
-            _ => {
+        match positional[0].value().as_string() {
+            Some(template) => validate_template(&kind, location, template, &mut diagnostics),
+            None => {
                 diagnostics.push(at_node(
                     location,
                     "session kind's sole argument must be a string".to_owned(),
@@ -259,24 +262,36 @@ fn validate_node(source: &str, node: &KdlNode) -> NodeValidation {
 }
 
 fn validate_template(
+    kind: &str,
     location: SourceLocation,
     template: &str,
     diagnostics: &mut Vec<ValidationDiagnostic>,
 ) -> Option<Vec<TemplateWord>> {
+    if contains_shell_comment_start(template) {
+        diagnostics.push(at_template(
+            location,
+            kind,
+            "`#` starts a comment in a command template; quote it to pass it literally".to_owned(),
+        ));
+        return None;
+    }
+
     let words = match shell_words::split(template) {
         Ok(words) => words,
         Err(_) => {
-            diagnostics.push(at_node(
+            diagnostics.push(at_template(
                 location,
+                kind,
                 "command template has unmatched quotes".to_owned(),
             ));
             return None;
         }
     };
 
-    if words.is_empty() || words[0].is_empty() {
-        diagnostics.push(at_node(
+    if words.is_empty() {
+        diagnostics.push(at_template(
             location,
+            kind,
             "word zero must be a literal non-empty executable".to_owned(),
         ));
     }
@@ -284,10 +299,11 @@ fn validate_template(
     let mut compiled = Vec::with_capacity(words.len());
     let mut counts: HashMap<&'static str, usize> = HashMap::new();
     for (index, word) in words.into_iter().enumerate() {
-        let parsed = parse_template_word(&word, location, diagnostics);
+        let parsed = parse_template_word(kind, &word, location, diagnostics);
         if index == 0 && !matches!(parsed, TemplateWord::Literal(ref value) if !value.is_empty()) {
-            diagnostics.push(at_node(
+            diagnostics.push(at_template(
                 location,
+                kind,
                 "word zero must be a literal executable".to_owned(),
             ));
         }
@@ -298,8 +314,9 @@ fn validate_template(
     }
 
     if counts.get("${prompt}").copied().unwrap_or_default() != 1 {
-        diagnostics.push(at_node(
+        diagnostics.push(at_template(
             location,
+            kind,
             "command template must contain `${prompt}` exactly once".to_owned(),
         ));
     }
@@ -310,8 +327,9 @@ fn validate_template(
         "${herdr_settings}",
     ] {
         if counts.get(name).copied().unwrap_or_default() > 1 {
-            diagnostics.push(at_node(
+            diagnostics.push(at_template(
                 location,
+                kind,
                 format!("`{name}` may appear at most once"),
             ));
         }
@@ -320,7 +338,48 @@ fn validate_template(
     Some(compiled)
 }
 
+#[derive(Clone, Copy)]
+enum ShellWordScanState {
+    Delimiter,
+    DelimiterBackslash,
+    Unquoted,
+    UnquotedBackslash,
+    SingleQuoted,
+    DoubleQuoted,
+    DoubleQuotedBackslash,
+}
+
+fn contains_shell_comment_start(template: &str) -> bool {
+    use ShellWordScanState::*;
+
+    let mut state = Delimiter;
+    for character in template.chars() {
+        state = match (state, character) {
+            (Delimiter, '#') => return true,
+            (Delimiter, '\'') => SingleQuoted,
+            (Delimiter, '"') => DoubleQuoted,
+            (Delimiter, '\\') => DelimiterBackslash,
+            (Delimiter, '\t' | ' ' | '\n') => Delimiter,
+            (Delimiter, _) => Unquoted,
+            (DelimiterBackslash, '\n') => Delimiter,
+            (DelimiterBackslash, _) => Unquoted,
+            (Unquoted, '\'') => SingleQuoted,
+            (Unquoted, '"') => DoubleQuoted,
+            (Unquoted, '\\') => UnquotedBackslash,
+            (Unquoted, '\t' | ' ' | '\n') => Delimiter,
+            (Unquoted, _) | (UnquotedBackslash, _) => Unquoted,
+            (SingleQuoted, '\'') => Unquoted,
+            (SingleQuoted, _) => SingleQuoted,
+            (DoubleQuoted, '"') => Unquoted,
+            (DoubleQuoted, '\\') => DoubleQuotedBackslash,
+            (DoubleQuoted, _) | (DoubleQuotedBackslash, _) => DoubleQuoted,
+        };
+    }
+    false
+}
+
 fn parse_template_word(
+    kind: &str,
     word: &str,
     location: SourceLocation,
     diagnostics: &mut Vec<ValidationDiagnostic>,
@@ -332,12 +391,17 @@ fn parse_template_word(
         "${repo}" => TemplateWord::Repository,
         "${herdr_settings}" => TemplateWord::HerdrSettings,
         _ if is_whole_substitution(word) => {
-            diagnostics.push(at_node(location, format!("unknown substitution `{word}`")));
+            diagnostics.push(at_template(
+                location,
+                kind,
+                format!("unknown substitution `{word}`"),
+            ));
             TemplateWord::Literal(word.to_owned())
         }
         _ if word.contains("${") => {
-            diagnostics.push(at_node(
+            diagnostics.push(at_template(
                 location,
+                kind,
                 format!("substitutions must occupy a complete shell word, got `{word}`"),
             ));
             TemplateWord::Literal(word.to_owned())
@@ -360,7 +424,7 @@ impl TemplateWord {
 }
 
 fn is_whole_substitution(word: &str) -> bool {
-    word.starts_with("${") && word.ends_with('}')
+    word.starts_with("${") && word.ends_with('}') && word.matches('}').count() == 1
 }
 
 fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
@@ -368,6 +432,10 @@ fn at_node(location: SourceLocation, message: String) -> ValidationDiagnostic {
         location: Some(location),
         message,
     }
+}
+
+fn at_template(location: SourceLocation, kind: &str, message: String) -> ValidationDiagnostic {
+    at_node(location, format!("session kind `{kind}`: {message}"))
 }
 
 fn render_diagnostics(path: &Path, diagnostics: Vec<ValidationDiagnostic>) -> String {

@@ -25,6 +25,10 @@ last-moment guarded, path-scoped Git/jj teardown commit.
   gets exactly one `finish` leaf with the next position/key; a declined live
   finish is reused, duplicate finish is malformed, and later ordinary work
   preempts finish without starving it.
+- The generated task body is an ordinary `finish-k<key>` leaf with a Goal that
+  proposes the complete finish cycle and a Done-when that names its strict
+  promote durable material → `grove-llm finish-commit <finish-handle>` →
+  `grove-llm complete --done` order; it carries no body kind marker.
 - Finish is driver-reserved across generic grow/terminal/promotion verbs, while
   non-finish insertions may target it.
 - `grove-llm finish-commit <finish-handle>` revalidates the same live finish and
@@ -39,7 +43,8 @@ last-moment guarded, path-scoped Git/jj teardown commit.
   finish resumable.
 - Tests cover allocation/reuse/preemption, every reservation, post-launch work,
   malformed unborn finish, intermediate snapshots, scoped Git/jj preservation,
-  and clean loop stop.
+  finish deletion followed by root initialization with handle reuse and stale-
+  epoch refusal, and clean loop stop.
 - `cargo fmt --check` and `cargo test --locked` pass.
 
 ## Notes

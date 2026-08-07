@@ -5,13 +5,14 @@
 ## Goal
 
 Implement restart-safe automatic conversion of every accepted legacy tree into
-the current filename-kind format, including fresh-tree scaffolding and focused
-Git/jj commits.
+the current filename-kind format, including exact partial-scaffold recovery and
+focused Git/jj commits.
 
 ## Context
 
 - Depends on `session-config-integrate-k21` and
-  `session-kind-tree-integrate-k25`.
+  `session-kind-tree-integrate-k25`, plus the universal mutation seam established
+  by `tree-access-lock-integrate-k56`.
 - Binding design: `docs/specs/config-driven-sessions.md` sections "Fresh tree"
   and "Legacy migration", plus
   `docs/adr/promotion-transactions-fail-closed.md`.
@@ -31,9 +32,10 @@ Git/jj commits.
   blocks other readers/mutators, resumes every interruption point, rolls back
   reported pre-commit failures, verifies post-commit recovery, and writes
   `FORMAT` last.
-- Fresh-tree creation produces the exact root brief, requirements `plan-k1`
-  filename/body, and marker under the universal tree mutation seam; exact
-  partial scaffolds resume while foreign partial trees are refused.
+- An exact partial scaffold left by current-format root initialization resumes
+  under the universal mutation seam and writes `FORMAT` last; foreign partial
+  trees are refused. Ordinary scaffold and grow-verb writing remain owned by
+  `session-kind-tree-k23` rather than duplicated here.
 - Migration commits only `.grove/` in plain Git and jj, excludes the witness,
   handles tracked deletion and unborn repositories where specified, and
   preserves unrelated staged/working-copy changes.

@@ -5,17 +5,18 @@
 ## Goal
 
 Bind each foreground launch and ambient `grove-llm` operation to a live driver
-epoch, move all tree operations onto the universal working-tree lock, and make
-the loop signal path independently random per launch.
+epoch, closing stale-session and crash-handoff races around the already-landed
+lease, signal-channel, and Tree access seams.
 
 ## Context
 
-- Depends on `driver-lease-integrate-k33`.
+- Depends on `driver-lease-integrate-k33`,
+  `tree-access-lock-integrate-k56`, and `session-signal-path-integrate-k61`.
 - Binding design: `docs/adr/one-live-driver-per-working-tree.md`,
   `docs/adr/promotion-transactions-fail-closed.md`, and the process-ownership
   and toolchain sections of `docs/specs/config-driven-sessions.md`.
-- Primary code surfaces: the process-ownership module, `src/tree_access.rs`,
-  `src/loop_driver.rs`, `src/complete.rs`, `src/llm_cli.rs`, `src/launch.rs`,
+- Primary code surfaces: the process-ownership module, `src/loop_driver.rs`,
+  `src/complete.rs`, `src/llm_cli.rs`, `src/launch.rs`,
   `.cargo/config.toml`, and `tests/support/mod.rs` / env-hygiene / concurrency
   fixtures.
 
@@ -33,15 +34,16 @@ the loop signal path independently random per launch.
   30-second bound. Deterministic backend barriers/event traces prove open-lock-
   stat retries, guard lifetimes, handoff ordering, and the orphan bounded-stop
   path without exposing test controls as user configuration.
-- Tree readers/mutators lock the open working-tree root across root-init,
-  migration, ordinary verbs, promotion, and finish deletion; driver reads
-  release that guard before launch and every descriptor is close-on-exec.
-- Each launch draws an independent OS-random 128-bit signal suffix, retries
-  occupied paths, cleans abandoned signals only after exclusive crash handoff,
-  and records the accepted collision bound without claiming literal non-reuse.
+- Epoch and Tree access acquisition obey the fixed order: an ambient command
+  retains one shared epoch guard through one separately acquired tree operation,
+  while the driver releases exclusive epoch and Tree access guards before
+  spawn or another acquisition. Abandoned signal cleanup occurs only after the
+  replacement installs its inactive epoch.
 - Meta-grove env guards scrub the live signal/epoch authority from the suite;
   tests cover admitted-old/invalidated-new calls, orphan timeout, old signals,
-  finish-delete/root-recreate handle reuse, and no operation/launch overlap.
+  direct tree removal followed by root-init handle reuse, and no
+  operation/launch overlap. Finish-helper deletion coverage belongs to
+  `finish-lifecycle-k43`.
 - `cargo fmt --check` and `cargo test --locked` pass.
 
 ## Notes

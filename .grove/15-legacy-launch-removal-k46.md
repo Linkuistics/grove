@@ -41,3 +41,10 @@ complete.
 
 Do not remove composition relationships or review evidence here;
 `legacy-review-removal-k47` owns that independently rejectable contraction.
+
+This is a meta-grove: the installed v16.5.0 driver and its current `grove do`
+process continue to own this live workstream through finish. Do not install or
+upgrade to this branch's bare-command binary in that control path before the
+grove finishes. Exercise branch binaries only in isolated homes/worktrees with
+ambient loop authority scrubbed; `acceptance-verification-k50` performs the
+pre-install matrix.

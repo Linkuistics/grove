@@ -32,9 +32,11 @@ by the later automatic migration.
 - Current tree readers, pick/resolve/brief-chain, mutation verbs, promotion,
   and key allocation use the filename grammar and known format witness without
   reading `Kind`, `Harness`, or `Producer launch` from current task bodies.
-- Grow verbs write filename kinds; research pair construction has no harness
-  flags and emits `research-a`, `research-b`, `combine-research`; finish is
-  driver-reserved and skipped by pick while non-finish work remains.
+- `grove-llm root-init` writes the current requirements filename and body plus
+  `FORMAT` last; every grow verb writes filename kinds. Research pair
+  construction has no harness flags and emits `research-a`, `research-b`,
+  `combine-research`; finish is driver-reserved and skipped by pick while
+  non-finish work remains.
 - Tests cover longest matching, both terminal infixes, malformed names,
   finish eligibility/duplication/reservations, stable resolution, pair output,
   promotion relationships, and format-marker errors. The legacy adapter needed
@@ -43,5 +45,7 @@ by the later automatic migration.
 
 ## Notes
 
-Do not add automatic migration or driver-side root/finish allocation here;
-those are the next vertical slices.
+Do not add automatic legacy migration or driver-side root/finish allocation
+here. This slice owns deterministic current-format writing through the existing
+agent-side tree interface so its readers never reject trees its own writers
+produce.

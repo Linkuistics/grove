@@ -9,7 +9,7 @@ the minimum coherent durable description of the implemented system.
 
 ## Context
 
-- Depends on `methodology-and-viewer-k48`.
+- Depends on `methodology-and-viewer-integrate-k69`.
 - Primary artifacts: `CONTEXT.md`, `CONTEXT-MAP.md`, `README.md`,
   `CHANGELOG.md`,
   `docs/CONFIGURATION.md`, `docs/USAGE.md`, `docs/ARCHITECTURE.md`,

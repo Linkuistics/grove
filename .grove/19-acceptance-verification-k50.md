@@ -10,8 +10,8 @@ acceptance sweep.
 
 ## Context
 
-- Depends on `durable-docs-reconciliation-k49` and every preceding reviewed
-  implementation slice.
+- Depends on `durable-docs-reconciliation-integrate-k73` and every preceding
+  reviewed implementation slice.
 - Binding matrix: `docs/specs/config-driven-sessions.md` section "Test seams"
   and the root brief's complete Done-when list.
 - Verification commands include `cargo fmt --check`, `cargo test --locked`, and

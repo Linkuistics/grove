@@ -29,6 +29,9 @@ mandate-bearing direct process launch.
   lease, resolves/version-checks its sibling `grove-llm`, fully validates
   config, performs at most one required root/migration/live transition, picks
   once, reloads config, and launches the selected filename kind.
+- The exact absolute `grove-llm` path that passed the sibling version check is
+  also embedded in generated Herdr turn-hook JSON; hook execution cannot drift
+  to a different PATH-resolved helper.
 - The selected value contains path, handle, and kind from one guarded read;
   `${prompt}` carries the embedded continue launcher plus that handle as an
   explicit mandate, and no routing forecast, second pick, target environment,
@@ -43,7 +46,7 @@ mandate-bearing direct process launch.
 - Fake-command acceptance tests record exact argv, cwd, environment, prompt
   mandate, exit status, elapsed time, and signals for paths with spaces,
   non-final prompt, optional Herdr splice, spawn failure, launch-window insert,
-  and no-signal/nonzero exits.
+  no-signal/nonzero exits, and sibling-versus-PATH hook resolution.
 - `--help` and `--version` remain metadata-only. Empty-tree finish allocation is
   intentionally delegated to `finish-lifecycle-k43`; the current no-live path
   remains resumable until that next slice.

@@ -98,11 +98,19 @@ all four handles, and a `changed` boolean as one object. JSON failures use a
 stable error code, nonzero exit, and no partial stdout. The second plain path is
 therefore the value a producer may pass to `leaf-retire`.
 
-Promotion accepts only the live currently mandated producer, which must also be
-the current driver-selected leaf, and only one of the five producer kinds. The
-kind comes strictly from the current filename. It refuses terminal leaves,
+Promotion accepts the named live producer and only one of the five producer
+kinds. In a Grove session the caller's prompt-visible mandate authorizes that
+name; the command cannot observe prompt prose and therefore does not recompute
+pick as a proxy. This matters when a launch-window insert legitimately makes
+the mandated producer differ from the next walk result. The kind comes strictly
+from the current filename. Promotion refuses terminal leaves,
 unknown filename kinds, `research-a`, `research-b`, `combine-research`,
 `finish`, `review-*`, and `integrate-review-*`.
+
+The prompt mandate is workflow discipline rather than an unforgeable
+capability. The command trusts the explicit producer reference after structural
+validation; driver exclusivity and stale-session behavior are a separate process-
+ownership concern, not grounds for reconstructing hidden target metadata here.
 
 An already-scheduled review is detected through a sibling task declaring
 `**Reviews:** <producer-handle>` or through a non-root immediate parent with no
@@ -114,10 +122,10 @@ position. A refused new promotion changes nothing and consumes no key.
 A retry by stable producer handle or stale path is idempotent when the completed
 shape already exists: it returns the same four current paths with
 `changed: false`, even when the producer is terminal or no longer first after a
-later insert. Completed-shape recognition precedes the liveness/current-pick
-gates, which apply only to a new promotion. The same identity resumes an exact
-pending transaction; the explicit witness path is the recovery form when only a
-generic tree diagnostic is available.
+later insert. Completed-shape recognition precedes the new-promotion liveness
+and kind gates. The same identity resumes an exact pending transaction; the
+explicit witness path is the recovery form when only a generic tree diagnostic
+is available.
 
 ## Fail-closed transaction
 
@@ -126,16 +134,21 @@ decision supplies the portable atomicity boundary.
 
 Every participating task-tree operation acquires the shared tree-access seam
 before checking transaction state or reading names. The seam locks an open
-descriptor for root `.grove/`: readers hold a shared process-scoped advisory
-lock and mutators an exclusive lock. Exported operations acquire exactly once
-and pass the guard into lock-neutral helpers. A contended caller prints one
-waiting diagnostic, then waits without timeout. Process exit releases the lock;
-no PID, owner record, or lock file is stored. `root-init`, which creates the root
-itself, remains below this seam.
+descriptor for the working-tree root: readers hold a shared process-scoped
+advisory lock and mutators an exclusive lock. Exported operations acquire
+exactly once and pass the guard into lock-neutral helpers. A contended caller
+prints one waiting diagnostic, then waits without timeout. Process exit releases
+the lock; no PID, owner record, or lock file is stored. The working-tree root
+exists before `.grove/`, so root initialization, finish deletion, and ordinary
+tree operations now share the same seam. Descriptors are close-on-exec, and the
+driver releases its read guard after copying a selected value and before
+foreground launch so the mandated session can mutate the tree. The lock supplies
+live-process serialization only; promotion's witness and landing protocol supply
+its process-interruption guarantee.
 
 Promotion holds the exclusive lock and handles pending recovery before ordinary
-source resolution, liveness, kind, or pick validation. With no pending
-transaction it pre-validates the producer, derived kinds, destination,
+source resolution, liveness, or kind validation. With no pending transaction it
+pre-validates the producer, derived kinds, destination,
 relationships, content, and three-key allocation. It builds the replacement
 under a reserved sibling directory:
 
@@ -209,9 +222,9 @@ the review leaf and selects its complete command from personal configuration.
 ## Module interfaces
 
 The task-tree access module exposes shared-read and exclusive-mutation guards
-over one open Grove-root descriptor. Pending-promotion detection runs only while
-a guard is held. This is an internal seam; ordinary tree commands remain the
-external interface.
+over one open working-tree-root descriptor. Pending-promotion detection runs
+only while a guard is held. This is an internal seam; ordinary tree commands
+remain the external interface.
 
 The promotion module exposes one operation returning node, relocated producer,
 review, and integration identities. It hides filename-kind validation, sibling
@@ -231,8 +244,9 @@ review solely by its filename kind and complete personal configuration.
   producers, all five producer kinds, strict unknown-kind refusal, source
   bytes/handle/key preservation, unchanged sibling positions, fresh keys, no
   generated `BRIEF.md`, exact filename kinds and relationships, and pick order
-  before and after retirement. Cover relationship-bearing legacy shapes,
-  non-root brief-less parents, and decomposition-node parents.
+  before and after retirement. Cover a live mandated producer displaced by a
+  launch-window insert, relationship-bearing legacy shapes, non-root brief-less
+  parents, and decomposition-node parents.
 - Drive subprocesses through barriers around pre-validation and allocation:
   promotion versus promotion and promotion versus every existing mutator.
   Assert one wait diagnostic, unique positions/keys, no observable missing

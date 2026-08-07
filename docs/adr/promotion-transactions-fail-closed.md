@@ -1,15 +1,23 @@
 # Promotion transactions fail closed
 
 Every participating task-tree command takes a process-scoped advisory lock on an
-open descriptor for the root `.grove/` directory before inspecting the tree:
-readers hold a shared lock and mutators an exclusive lock. The root directory is
-the invariant these commands already require; `BRIEF.md` remains lazy and
-optional. `leaf-promote-chain` holds the exclusive lock while it stages its
-complete replacement node under the reserved
+open descriptor for the working-tree root before inspecting the tree: readers
+hold a shared lock and mutators an exclusive lock. The working-tree directory is
+the invariant that exists both before `.grove/` initialization and through its
+finish deletion, so driver lifecycle mutations and agent tree verbs serialize
+on the same seam; `BRIEF.md` remains lazy and optional. `leaf-promote-chain`
+holds the exclusive lock while it stages its complete replacement node under
+the reserved
 `PROMOTING-<final-node-name>/` prefix, moves the producer into that directory,
 prepares any plain-Git index entries to name their final paths, and lands the
 node with one plain same-parent filesystem rename. The kernel releases the lock
-on process termination; the prefix then remains as the durable witness that
+on process termination; descriptors are close-on-exec, and driver reads release
+their guard immediately after copying a selection and before launching the
+configured foreground child. The lock prevents concurrent observation and key
+allocation; it does not make a multi-path mutation crash-atomic, so an operation
+that promises process-interruption recovery retains an explicit in-tree
+transaction witness. The prefix remains
+the durable witness that
 every subsequent task-tree reader and mutator refuses, except promotion recovery
 addressed by the exact reserved path or stable producer identity. Concurrent
 commands therefore cannot allocate the same key run, and an interrupted
@@ -34,16 +42,18 @@ source, staging, or final index spelling an interruption may leave before
 removing the witness.
 
 Recovery is selected before normal source resolution, liveness, kind, or
-current-pick validation: after the producer has moved, those ordinary gates are
+shape validation: after the producer has moved, those ordinary gates are
 supposed to be unable to see it. Generic refusing commands name only the exact
 reserved path and the path-based recovery command; they neither read task
 contents nor infer a producer from position for a better diagnostic. A promoter
 holding the exclusive lock may scan the reserved transaction and match the
 stable producer identity. A stale absolute picked path is reduced to that stable
 identity. Completed-shape recognition precedes the new-promotion liveness and
-current-pick gates, so a serialized second promoter returns the current shape
+kind gates, so a serialized second promoter returns the current shape
 idempotently even if retirement or an insert acquires the lock first and makes
-the relocated producer terminal or no longer picked.
+the relocated producer terminal or no longer first. A new promotion never
+recomputes pick: the caller's prompt mandate is the authority, and an inserted
+earlier leaf may legitimately differ from that mandated producer.
 
 The guarantee covers cooperating Grove commands and process interruption after
 completed filesystem or Git-index transactions. Grove performs no ordered
@@ -70,9 +80,14 @@ rename behavior are outside the contract.
   complete transaction without recognising a reserved marker.
 - **Use an external journal or persistent lock file.** Rejected because Grove's
   task tree is its only workflow state and must remain intelligible without
-  Grove installed. Locking the already-open root directory changes no artifact
-  bytes and releases with its descriptor. Reopen only if that artifact-only
-  constraint changes.
+  Grove installed. Locking the already-open working-tree directory changes no
+  artifact bytes and releases with its descriptor. Reopen only if that
+  artifact-only constraint changes.
+- **Lock the `.grove/` root descriptor.** Rejected because it does not exist when
+  root initialization must serialize and is removed by the finish transaction.
+  A separate lifecycle lock would introduce an acquisition-order contract and
+  still split one tree invariant across two seams. Reopen only if root creation
+  and deletion stop participating in the same task-tree mutation protocol.
 - **Land a tracked Git transaction with `git mv`.** Rejected because its
   filesystem rename and index update are not one atomic observation: an
   interruption can remove the on-disk witness while leaving the index to commit

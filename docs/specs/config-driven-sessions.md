@@ -26,17 +26,19 @@ This follows the [complete session configuration](../adr/complete-session-config
 decision.
 
 One bare `grove` command owns the whole lifecycle. On every iteration it
-validates configuration before any task-tree mutation, brings the tree to a
-runnable current shape, performs one authoritative pick, reloads configuration,
-and launches the selected kind. The selected leaf's stable handle is embedded
-in `${prompt}` as the session mandate. A launched session resolves that handle
-and never picks again.
+resolves and version-checks its sibling `grove-llm`, validates configuration
+before any task-tree mutation, brings the tree to a runnable current shape,
+performs one authoritative pick, reloads configuration, and launches the
+selected kind. The selected leaf's stable handle is embedded in `${prompt}` as
+the session mandate. A launched session resolves that handle and never picks
+again.
 
 The resulting flow is:
 
 ```text
 bare grove
   -> provision embedded methodology independently of launch policy
+  -> resolve the sibling grove-llm and reject version skew
   -> load and fully validate ~/.config/grove/config.kdl
   -> recover or perform at most one required lifecycle transition
        absent tree  -> create root brief + requirements leaf
@@ -128,7 +130,7 @@ splitting, Grove validates and expands these whole-word substitutions:
 
 | Substitution | Expansion |
 |---|---|
-| `${prompt}` | The complete embedded Grove workflow plus the selected leaf's stable-handle mandate, as one argument. Required exactly once. |
+| `${prompt}` | The embedded `continue.md` launcher plus the selected leaf's stable-handle mandate, as one argument. Required exactly once. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`, as one argument. Optional. |
 | `${worktree}` | The absolute root of the working tree that owns `.grove/`, as one argument. Optional. |
 | `${repo}` | The absolute root of the main repository: the default jj workspace root, or the parent of Git's common directory. Optional. |
@@ -138,14 +140,21 @@ Every substitution occupies a complete parsed word. Embedded substitutions,
 unknown `${...}` names, a substitution in word zero, and more than one use of
 the same substitution are errors. `${prompt}` may appear at any nonzero argv
 position; it is not required to be last. Each optional substitution appears
-zero or one time.
+zero or one time. `${herdr_settings}` may have literal words after it; outside
+Herdr its one placeholder word is simply elided, and inside Herdr its two argv
+values are inserted at that position without consuming or reinterpreting any
+neighboring word. The configuration owner places the splice only in a target
+whose command understands Claude's `--settings` argument and hook schema;
+Grove cannot infer or validate that compatibility from an opaque template.
 
-The first parsed word is a non-empty literal executable or script name. Grove
-passes the remaining words directly to it with the working tree as the current
-directory. Shell variables, command substitutions, redirections, pipelines,
-globs, aliases, and tilde expansion are not interpreted. A user who needs those
-behaviors places them in an executable wrapper and configures that wrapper as
-word zero.
+The first parsed word is a non-empty literal executable or script name. “Word
+zero” means exactly that first shell-split word: in `env HERDR_AGENT=claude
+claude ...`, it is `env`, while the assignment and `claude` are ordinary later
+arguments. Grove passes those words directly with the working tree as the
+current directory. Shell variables, command substitutions, redirections,
+pipelines, globs, aliases, and tilde expansion are not interpreted. A user who
+needs those behaviors places them in an executable wrapper and configures that
+wrapper as word zero.
 
 Substitution values are argv values, not text splices, so spaces or shell
 metacharacters in repository paths, session names, prompts, and JSON never
@@ -169,7 +178,8 @@ Configuration is all-or-nothing. A successful load proves:
 - no unknown top-level node, property, child block, or extra argument exists;
 - every node's sole argument is a string;
 - every template shell-splits successfully and obeys the executable,
-  substitution, and `${prompt}` rules above.
+  substitution, and `${prompt}` rules above, including a specific missing-
+  `${prompt}` error.
 
 A syntax error reports the exact config path and KDL source span. Once syntax is
 available, schema and template validation is aggregate rather than first-error:
@@ -182,17 +192,44 @@ back to another kind.
 Validation does not attempt to identify the configured program or understand
 its arguments. Failure to resolve or spawn the selected literal executable is a
 launch error naming the selected kind and executable; wrappers and commands
-later in an `env` invocation remain opaque by design.
+later in an `env` invocation remain opaque by design. The foreground wait keeps
+the child's exit status and elapsed time. When a session ends without a
+completion signal, the driver reports both. A nonzero exit additionally names
+the selected kind, configured word zero, and config path as a likely configured-
+command failure. This diagnostic applies regardless of how quickly the process
+failed; a time threshold would hide slow failures without making an intentional
+zero-status exit clearer.
 
 The driver reads and validates the whole file immediately before every launch.
 It also validates before root initialization, migration or migration recovery,
 and finish-leaf materialization. When one of those mutations occurs, the driver
 loads the file again before launch rather than reusing the pre-mutation value.
-An edit therefore affects the next session, while a missing or invalid config
-leaves a rootless, legacy, current, or pending-migration tree byte-identical.
-There is no cache across loop iterations.
+An invalid pre-mutation read leaves the corresponding rootless, legacy,
+current, or pending-migration tree byte-identical. If the file becomes invalid
+after a successful mutation and before the second read, that completed mutation
+remains as resumable tree state (and migration may already have its focused
+commit), while no session launches. There is no cache across loop iterations.
 
 ## Session kinds live in filenames
+
+Every current tree carries a positive format witness at `.grove/FORMAT` whose
+exact contents are:
+
+```text
+session-kinds-v1
+```
+
+Root initialization and legacy migration write it only after the complete
+current tree is ready. They create a same-directory temporary file and atomically
+rename it to `FORMAT`, so a process interruption exposes the old value or the
+complete new value, never a torn marker; ordered power-loss durability remains
+out of scope. Before interpreting absence as legacy, bare `grove` first recovers
+a migration witness or an exact partial root-init scaffold. Ordinary current-
+format readers require the known value, while an unknown value stops with an
+upgrade diagnostic. This marker is format metadata inside the task tree, not
+lifecycle state. It makes “already current” independent of slug text: a legacy
+`01-design-notes-k3.md` can no longer masquerade as a kind-bearing current leaf
+merely because `design` is a valid kind.
 
 The current leaf grammar is:
 
@@ -217,8 +254,15 @@ Task bodies no longer carry `**Kind:**`, `**Harness:**`, or
 relationships remain because they describe artifact composition rather than
 launch policy. Grow verbs write the chosen kind in the filename. The research
 pair produces `research-a`, `research-b`, and `combine-research`; it needs no
-per-leaf harness metadata. `finish` is driver-reserved and is refused by every
-generic grow, retire, and prune operation.
+per-leaf harness metadata.
+
+`finish` is driver-reserved. `leaf-add`, `leaf-insert`, `leaf-decompose`, and
+`leaf-add-chain` reject `--kind finish`; `leaf-add-pair` has fixed research
+kinds. Given an existing finish leaf, `leaf-retire`, `leaf-prune`,
+`leaf-decompose`, and `leaf-promote-chain` reject it as an operand. A normal
+`leaf-insert <finish> <slug> --kind <non-finish>` is permitted and sequences the
+new work before teardown; ordinary `leaf-add` may also append later work because
+finish selection cannot starve it.
 
 The optional Herdr tree viewer depends on this filename grammar as well as the
 node-directory grammar. It parses the same longest known kind before the slug
@@ -232,7 +276,14 @@ move together.
 The driver performs exactly one authoritative pick per loop iteration, after
 any required lifecycle mutation. That pick returns the selected leaf's absolute
 path, stable handle, and filename kind from one guarded tree read. It is not a
-routing forecast and is not repeated immediately before spawn.
+routing forecast and is not repeated immediately before spawn. The only
+eligibility rule beyond terminal-state filtering is driver-owned `finish`: if
+any non-finish leaf is live, the walk skips finish leaves and returns the first
+live non-finish leaf in depth-first pre-order; a finish leaf becomes eligible
+only when it is the sole live work. `grove-llm pick` uses the same rule so its
+diagnostic answer never disagrees with the driver. More than one live finish
+leaf is malformed and stops selection rather than making eligibility depend on
+which duplicate is encountered first.
 
 The driver selects the matching configuration target and constructs `${prompt}`
 with the stable handle as an explicit mandate. A configured command receives no
@@ -251,6 +302,18 @@ new fact from the tree. The prompt-visible mandate, not checkout state or an
 inherited environment value, is also the review-ownership predicate specified
 by [Grove owns escalated review](../adr/grove-owns-escalated-review.md).
 
+That authority split also governs `leaf-promote-chain`. The command accepts the
+named live producer after its normal producer-kind, relationship, parent-shape,
+and transaction checks, but it does not recompute pick or require the producer
+to be the current walk result. The prompt mandate is an agent-side authorization
+the tree command cannot observe; a second pick would reject the legitimate
+launch-window insertion case above while proving nothing about what the session
+was mandated to do. Completed-shape and pending-transaction recovery remain
+idempotent by stable producer identity. This is workflow discipline, not a
+security capability: the command trusts the explicit producer argument, and a
+separate design must decide how concurrent drivers and stale sessions are
+excluded without restoring hidden target metadata.
+
 `grove-llm kind --with-harness --json`, structured routing peeks,
 `GROVE_SESSION_TARGET`, producer target receipts, and diversity warnings have no
 role in this flow and are removed.
@@ -262,12 +325,47 @@ subcommands and lifecycle flags such as `--harness` and `--no-launch` are
 removed. Standard `--help` and `--version` metadata remain; any other argument
 is an error. `grove-llm` remains the agent-facing deterministic tree interface.
 
+### Toolchain and serialization
+
+On every iteration the driver resolves `grove-llm` beside its own current
+executable, falling back to `PATH` only when no sibling file exists. There is no
+user override. Before configuration validation or tree mutation it runs that
+exact binary's version check and stops on a missing, malformed, or different
+version. The same resolved absolute path is embedded in Herdr turn-hook JSON, so
+the hooks and the version-checked agent interface cannot drift. Version skew is
+a resumable no-mutation stop.
+
+Every cooperating tree reader and mutator serializes on one advisory lock over
+an open descriptor for the working-tree root, which exists before `.grove/` and
+survives its deletion. Readers hold it shared; root initialization, migration,
+finish allocation or deletion, and every ordinary tree mutation hold it
+exclusive. A contended command prints one waiting diagnostic and then waits.
+This replaces the narrower `.grove/`-descriptor lock: separate lifecycle and
+tree locks would require a global acquisition order and still leave root
+creation and finish deletion outside the invariant. Lock descriptors are close-
+on-exec. A driver releases its read guard immediately after copying the selected
+path, handle, and kind, before the second config read or foreground spawn, so the
+session can acquire an exclusive mutation guard and cannot inherit a lock that
+outlives the driver-side operation.
+
+The lock supplies live-process serialization, not crash atomicity. Each multi-
+path operation that promises process-interruption recovery still needs its own
+in-tree witness and recovery protocol; migration and promotion retain theirs.
+Single-path renames rely on filesystem atomicity, and no operation gains a
+power-loss guarantee merely by sharing this lock.
+
 ### Fresh tree
 
-When `.grove/` is absent, after full config validation the driver creates the
-root `BRIEF.md` and `01-requirements-plan-k1.md`. The leaf body is the ordinary
-`plan-k1` requirements task with no kind marker. Creation is working-tree only;
-the first requirements session's focused commit folds in the scaffold.
+When `.grove/` is absent, after full config validation and while holding the
+exclusive working-tree lock, the driver creates the root `BRIEF.md`,
+`01-requirements-plan-k1.md`, and finally the format witness. The leaf body is
+the ordinary `plan-k1` requirements task with no body kind marker. Creation is
+working-tree only; the first requirements session's focused commit folds in the
+scaffold. If the process stops partway through, the next invocation recognizes
+only an exact subset of this deterministic scaffold *before* general missing-
+marker classification, completes it under the same lock, and atomically replaces
+`FORMAT` last; any other unmarked entries route to migration or an ambiguity
+diagnostic rather than being overwritten.
 
 The driver then picks `plan-k1`, reloads config, and launches the
 `requirements` target with that handle as its mandate. A launch failure leaves a
@@ -284,28 +382,44 @@ stops without changing tree state.
 ### Finish leaf
 
 When the lifecycle liveness read finds no live leaf, after full config
-validation the driver appends a root leaf at the next position and with
-`max(tree key) + 1`:
+validation and under the exclusive tree lock the driver appends a root leaf at
+the next position and with `max(tree key) + 1`:
 
 ```text
 NN-finish-finish-k<key>.md
 ```
 
 Its stable handle is `finish-k<key>`. A finish leaf left live by an earlier
-decline makes the liveness read non-empty and is therefore reused without any
-allocation. The ordinary authoritative pick then selects the existing or newly
-created leaf, and the `finish` configuration target launches a HITL session.
+decline is reused without any allocation. If later work appears anywhere in the
+tree, authoritative selection skips the finish leaf until that work is
+terminal; when finish is again the sole live leaf, the same stable handle is
+selected. The `finish` configuration target then launches a HITL session.
 
 The finish session proposes the complete finish cycle and waits for explicit
 human confirmation. Declining or exiting writes no completion signal and leaves
 the same live finish leaf for a later bare `grove`. On confirmation it promotes
-durable brief material, commits deletion of `.grove/` under a message naming
-`finish-k<key>`, and runs `grove-llm complete --done` last.
+durable brief material, runs `grove-llm finish-commit <finish-handle>`, and then
+runs `grove-llm complete --done` last. `finish-commit` reacquires the exclusive
+working-tree lock, rejects any pending transaction, re-resolves the same live
+finish handle, and revalidates that no non-finish leaf is live before deleting
+or committing anything. If work appeared after launch, it names that work and
+leaves the tree byte-identical; the session exits without a completion signal so
+the next driver iteration selects the new work. On success the helper commits
+deletion of `.grove/` under a message naming `finish-k<key>`.
 
-The finish leaf is working-tree-only infrastructure for that deletion. It is
-never separately committed or retired: its addition and deletion cancel while
-the tracked task tree is removed in the focused finish commit. Generic terminal
-verbs reject it so an accidental `DONE` cannot make teardown look complete.
+The helper cannot attest that a human spoke through an opaque configured
+command. Explicit confirmation remains a finish-session obligation enforced by
+the embedded Grove methodology; `finish-commit` is the deterministic
+last-moment tree/VCS guard, not a security boundary or substitute for the HITL
+contract.
+
+No commit is made *for* the finish leaf and it is never retired. Its addition
+and deletion cancel from the final tree in the focused finish commit. Jujutsu
+may snapshot the live finish leaf in an intermediate working-copy commit, and a
+broad Git task commit may pick it up; neither changes the contract, because the
+successful deletion commit removes the whole tree and version control retains
+the intermediate history. Generic terminal verbs reject finish so an accidental
+`DONE` cannot make teardown look complete.
 
 ## Legacy migration
 
@@ -327,15 +441,18 @@ live, `DONE`, and `ABANDONED` leaves identically. For each legacy task body:
 - `requirements`, `design`, `planning`, `prototype`, `impl`, their review and
   integration forms, and `combine-research` map directly;
 - the first and second `research` children of an unambiguous legacy vendor pair
-  map to `research-a` and `research-b` respectively.
+  map to `research-a` and `research-b` respectively;
+- a standalone legacy `research` maps to `research-a`. A lone current
+  `research-a` is legal; the kind names one configured research discipline, not
+  structural membership in a pair.
 
 An unambiguous vendor pair is one brief-less node whose first three task
 children, in position order, are `research`, `research`, and
 `combine-research`. Terminal outcomes do not alter this classification. Extra
 foreign files are ignored; an extra task-shaped child or nested task node makes
-the pair structurally ambiguous. A standalone `research`, an empty or repeated
-kind marker, an unknown kind, or an ambiguous pair stops migration and names
-the exact paths rather than guessing a configured target.
+the pair structurally ambiguous. An empty or repeated kind marker, an unknown
+kind, or an ambiguous pair stops migration and names the exact paths rather
+than guessing a configured target.
 
 The established directory mapping remains deterministic. A v1 flat entity's
 dotted position becomes its chain of per-level positions and its existing key is
@@ -350,17 +467,22 @@ The destination filename receives the mapped kind. Migration removes every
 `**Kind:**`, `**Harness:**`, and `**Producer launch:**` line while preserving all
 other bytes, including `**Reviews:**` and `**Integrates:**`. Directory
 migration and kind migration are planned together, so no successful invocation
-exposes an intermediate layout as current.
+exposes an intermediate layout as current. The format witness lands last and is
+part of the same focused migration commit.
 
-A tree without a migration witness must be wholly legacy or wholly current. A
-mixture of kind-bearing and body-kind leaves is diagnosed as an interrupted or
-hand-edited conversion and is not guessed into either grammar. Foreign entries
-that are not task-shaped remain byte-identical at their existing relative paths;
-any collision between them and a planned current path stops before mutation.
+A tree without `.grove/FORMAT` is legacy regardless of whether a legacy slug
+begins with a current kind token. Migration parses those leaves through the
+legacy grammar and their body markers; it never first strips a filename prefix
+that happens to spell `design`, `review-impl`, or another current kind. A tree
+with the known marker is wholly current and body kind/harness/receipt markers
+are malformed remnants. A tree with an unknown marker value is a newer or
+foreign format and stops without mutation. Foreign entries that are not task-
+shaped remain byte-identical at their existing relative paths; any collision
+between them and a planned current path stops before mutation.
 
 ### Fail-closed transaction and recovery
 
-Migration holds the exclusive tree-access lock from source validation through
+Migration holds the exclusive working-tree lock from source validation through
 commit or reported failure. Before changing a source path it constructs a
 complete destination tree and deterministic source/destination plan beneath a
 reserved `.grove/MIGRATING-session-kinds/` witness. The witness contains the
@@ -391,10 +513,20 @@ launching a task session.
 
 Migration and finish commits preserve unrelated user work.
 
-- In plain Git, Grove stages final `.grove/` paths with an exclusion pathspec for
-  any migration witness, then commits with the same explicit `.grove/` pathspec
-  in only/path mode. Pre-existing staged entries outside that path remain staged
-  and absent from the Grove commit.
+- In plain Git, migration stages with
+  `git add -A -- .grove ':(exclude).grove/MIGRATING-session-kinds'`, then
+  commits with
+  `git commit --only -m <message> -- .grove ':(exclude).grove/MIGRATING-session-kinds'`.
+  Finish runs `git add -A -- .grove`, then
+  `git commit --only -m <message> -- .grove` after deletion. Git's only/path
+  mode includes tracked deletions under an absent
+  working-tree directory and works for an initial migration commit with no
+  `HEAD`; tests exercise both facts. Pre-existing staged entries outside
+  `.grove/` remain staged and absent from either commit. A valid Grove cannot
+  reach finish in an unborn repository without first recording either its
+  migration or a task commit; an externally hand-constructed terminal tree that
+  has never existed in `HEAD` is refused because there is no deletion for a
+  focused finish commit to record.
 - In Jujutsu, Grove commits a `.grove/` fileset, excluding any live transaction
   witness. Unrelated working-copy changes remain in the successor working-copy
   commit.
@@ -421,6 +553,9 @@ The design removes, rather than deprecates, these launch-policy surfaces:
 Internal loop-control environment is not a compatibility surface. The driver
 continues to scrub ambient control variables from non-foreground child commands
 and grants only its own signal path to the real foreground session.
+`GROVE_SIGNAL_FILE` remains that internal capability. Test suites inject tool
+paths, clocks, and kill-grace durations through internal module seams rather
+than supported `GROVE_LLM_BIN` or `GROVE_KILL_GRACE*` process configuration.
 
 The configuration schema has no partial compatibility mode. Adding or renaming
 a session kind requires a release note and a simultaneous edit to every complete
@@ -431,7 +566,21 @@ above; once migrated, no dual-format reader remains.
 Global skill provisioning survives but no longer selects or implies a launch
 harness. The binary still sweeps embedded `content/` to each installed known
 personal skill directory. That delivery registry is independent of the opaque
-configured commands and never contributes arguments or target identity.
+configured commands and never contributes arguments or target identity. The
+single surviving launcher is `content/prompts/continue.md`, augmented with the
+selected stable-handle mandate; `start.md` and `retire.md` disappear with their
+human lifecycle verbs. The launcher deliberately remains small and tells the
+target to use the provisioned Grove skill, so that provisioned methodology is a
+prerequisite of every configured target. Because target identity is opaque,
+Grove cannot prove that an arbitrary wrapper ultimately exposes the skill; a
+target without it fails as a configured session and receives the exit-status
+diagnostic rather than a guessed harness-specific provisioning action.
+
+`leaf-add-pair` remains the structural one-call constructor, with the signature
+`leaf-add-pair <parent> <stem>` and no harness flags. It emits `research-a`,
+`research-b`, and `combine-research`; choosing materially independent commands
+for the two research kinds is explicit configuration-owner policy, not a tree
+invariant Grove can verify by comparing opaque templates.
 
 ## Module interfaces
 
@@ -445,12 +594,15 @@ cannot request a default, family, harness, or model.
 The loop driver owns lifecycle order and one selected-leaf value per iteration.
 It asks the tree module to recover or perform the required transition, asks for
 one pick, reloads configuration, expands one command, and owns the foreground
-child. It does not re-open the tree through a routing adapter.
+child. Its wait result preserves exit status and elapsed time. It does not
+re-open the tree through a routing adapter.
 
-The tree module owns the leaf grammar, driver-only finish creation, current
-pick, and migration transaction. The repository module owns worktree/main-repo
-resolution and path/fileset-scoped commits. The Herdr module may produce the two
-settings arguments, but they cross into a session only when the visible
+The tree module owns the format witness, leaf grammar, finish eligibility,
+driver-only finish creation, guarded finish commit, current pick, universal
+working-tree lock, and migration transaction. The repository module owns
+worktree/main-repo resolution and path/fileset-scoped commits. The Herdr module
+may produce the two settings
+arguments, but they cross into a session only when the visible
 `${herdr_settings}` splice requests them.
 
 Deleting the configuration module would scatter KDL validation, shell-word and
@@ -470,30 +622,45 @@ environment, prompt mandate, and completion behavior.
 Through that seam, cover:
 
 - all KDL syntax, shape, duplicate/unknown/missing-kind, shell-word, and
-  substitution diagnostics, including aggregation and source spans;
+  substitution diagnostics, including missing `${prompt}`, aggregation, and
+  source spans;
 - one-argument scalar substitution, zero/two-argument Herdr expansion, paths
-  with spaces, prompt in non-final position, literal word zero, and absence of
-  shell evaluation;
+  with spaces, prompt in non-final position, words after the Herdr splice,
+  literal `env` as word zero, and absence of shell evaluation;
 - reloading between iterations and between a lifecycle mutation and launch;
-- no mutation for missing or invalid config in rootless, legacy, current,
-  empty, and pending-migration trees;
-- fresh root creation, one authoritative selection, mandate resolution, a
-  launch-window insert, spawn failure and restart;
-- finish allocation, reuse, decline, generic-terminal refusal, deletion commit
-  naming, and clean `--done` stop;
+- no mutation for a pre-mutation missing or invalid config in rootless, legacy,
+  current, empty, and pending-migration trees; plus a post-mutation invalid edit
+  that preserves the completed transition but launches nothing;
+- sibling/PATH `grove-llm` resolution, fatal missing/malformed/version-skew
+  checks before mutation, and the exact path reused by Herdr hooks;
+- fresh root creation and partial-scaffold recovery under the universal lock,
+  atomic format replacement, one authoritative selection, mandate resolution,
+  a launch-window insert, spawn failure and restart;
+- finish allocation, reuse, decline followed by later work, finish eligibility,
+  duplicate-finish refusal, per-verb reservation, `finish-commit` revalidation
+  when work appears after launch, deletion commit naming, Jujutsu/Git
+  intermediate finish snapshots, and clean `--done` stop;
 - migration of every accepted layout, aliases, terminal leaves, missing kinds,
-  vendor pairs, metadata removal, relationships, every ambiguity, collision,
-  interruption point, rollback failure, and post-commit witness recovery;
-- Git staged-change preservation and jj working-copy preservation for migration
-  and finish commits;
+  standalone research, vendor pairs, format-marker creation, kind-prefixed
+  legacy slugs, unknown marker values, metadata removal, relationships, every
+  ambiguity, collision, interruption point, rollback failure, and post-commit
+  witness recovery;
+- root-init, migration, finish, and ordinary mutator contention on the same
+  working-tree lock; driver guard release before launch; close-on-exec
+  descriptors; and successful session-side mutation without deadlock;
+- exact Git pathspec behavior for tracked deletion and unborn migration commits,
+  staged-change preservation, malformed unborn-finish refusal, and jj working-
+  copy preservation for migration and finish commits;
 - direct foreground ownership, no hidden argv/env injection, signal/no-signal
-  outcomes, and explicit versus absent Herdr settings.
+  outcomes with exit status and elapsed time, nonzero configured-command
+  diagnostics, and explicit versus absent Herdr settings.
 
 The `grove-llm` tree interface is the second seam. Exercise current filename
 parsing, longest-kind matching, malformed task-shaped names, stable resolution,
-pair generation, finish refusal, pick order, and migration refusal while a
-witness exists. The Herdr renderer gets filename-only fixtures for all nineteen
-kinds and both terminal infixes.
+pair generation without harness flags, per-verb finish refusal, finish-skipping
+pick order, mandate-authorized promotion after a launch-window insert, and
+migration refusal while a witness exists. The Herdr renderer gets filename-only
+fixtures for all nineteen kinds and both terminal infixes.
 
 Internal unit tests may cover pure KDL/template and migration-plan functions,
 but acceptance is stated only in observable process, tree, VCS, and argv terms;
@@ -508,6 +675,6 @@ tests do not reach through those interfaces to implementation state.
   environment overrides.
 - A shell command language inside configuration.
 - Enforcing cross-harness or cross-model review diversity.
-- Changing pick order, review relationships, promotion semantics, pruning
+- Changing non-finish depth-first order, review relationships, pruning
   authority, or completion-signal behavior.
 - Power-loss durability or branch/bookmark/worktree integration.

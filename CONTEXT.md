@@ -5,7 +5,7 @@ The grove CLI and methodology. This glossary holds terms specific to this codeba
 ## Language
 
 **Global skill provisioning** / **skill precedence**:
-The `grove` binary embeds `content/` and, on every invocation, sweeps it out to **every installed harness's** personal global skill dir — `provision_all` writes each target whose home root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via `skill_dir_for(harness)` (`$HOME/<harness.skills_dir>/grove`; pi nests under `agent/`) — idempotent per target against a content-hash stamp. `content/` stays canonical; the binary is the only writer of these dirs and uses its embedded launcher prompt rather than selecting a prompt copy by harness. `provision_target` guards each write: a symlink is replaced as a link, never deleted through; a dir with no grove stamp and real content is refused outright, so a foreign dir can never be silently clobbered.
+The `grove` binary embeds `content/` and, on every invocation, sweeps it out to **every installed harness's** personal global skill dir — `provision_all` writes each target whose home root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via `skill_dir_for(harness)` (`$HOME/<harness.skills_dir>/grove`; pi nests under `agent/`) — idempotent per target against a content-hash stamp. `content/` stays canonical; the binary is the only writer of these dirs. The single embedded launcher is `content/prompts/continue.md`, augmented with the selected leaf's stable-handle mandate; it tells the configured target to use this provisioned skill. `start.md` and `retire.md` disappear with their lifecycle verbs. Because Grove treats the configured command as opaque, exposing the provisioned skill is a target prerequisite it cannot infer or validate. `provision_target` guards each write: a symlink is replaced as a link, never deleted through; a dir with no grove stamp and real content is refused outright, so a foreign dir can never be silently clobbered.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
@@ -17,10 +17,20 @@ validation, an empty driver pick mechanically appends one working-tree-only
 runs the ordinary pick/config/launch path again. Only the driver may create this
 kind. A live finish leaf is reused rather than duplicated. A declined finish
 exits without a completion signal, leaving that leaf live for an explicit later
-resume; an interrupted or crashed finish has the same restart behavior. On
-success the deletion commit consumes the uncommitted leaf with the rest of the
-tree, so the leaf is never separately retired or committed. `leaf-retire` and
-`leaf-prune` both refuse `finish`; decline means leaving it live. The deletion
+resume; an interrupted or crashed finish has the same restart behavior. If later
+non-finish work appears, [[Pick]] skips finish until that work is terminal, so
+the sentinel cannot starve it. After confirmation,
+`grove-llm finish-commit <finish-handle>` revalidates under the exclusive
+[[Tree access lock]] that the
+same finish is live and no non-finish work appeared after launch; refusal leaves
+the tree untouched for the next driver iteration. The helper cannot attest the
+human decision through an opaque command — confirmation remains the HITL
+session's obligation. On success no commit is made *for* the finish
+leaf: its addition and deletion cancel from the final tree, although Jujutsu or
+a broad Git task commit may retain an intermediate snapshot in history. The
+leaf is never retired. `leaf-retire`, `leaf-prune`, `leaf-decompose`, and
+`leaf-promote-chain` refuse a finish operand; `leaf-insert` may target it to put
+ordinary work before teardown. The deletion
 commit is scoped to `.grove/` in Git and jj, leaving every unrelated staged,
 working-tree, or working-copy change outside it. Teardown still requires explicit
 human confirmation; it is the loop's only routine human gate. Branch integration
@@ -44,11 +54,14 @@ _Avoid_: treating a redirected `cargo test` as evidence the guard works — a re
 **root-init** / **fresh-grove start**:
 The mechanical first step of `grove` when the provided working tree has no
 `.grove/`. Before launching any agent, the driver creates `.grove/`, the root
-`BRIEF.md` stub, and `01-requirements-<slug>-k1.md` (default slug `plan`), then
-runs the ordinary authoritative [[Pick]] and launches that requirements leaf
-through [[Grove configuration]]. There is no special rootless session: every
-session owns a real selected leaf, and a grove begins with requirements gathering
-by construction. The first requirements session's commit folds the scaffold in.
+`BRIEF.md` stub, `01-requirements-<slug>-k1.md` (default slug `plan`), and the
+[[Tree format witness]], then runs the ordinary authoritative [[Pick]] and
+launches that requirements leaf through [[Grove configuration]]. The universal
+[[Tree access lock]] serializes the whole scaffold; `FORMAT` lands last and an
+exact partial scaffold is restart-completed rather than launched. There is no
+special rootless session: every session owns a real selected leaf, and a grove
+begins with requirements gathering by construction. The first requirements
+session's commit folds the scaffold in.
 Full configuration validation precedes this mutation, so a missing or malformed
 personal config leaves a rootless working tree byte-identical.
 _Avoid_: "the bootstrap leaf is planning" — that was the pre-taxonomy answer, and it survives only by marking `planning` HITL again. The bootstrap session may still *cut* leaves (the requirements/design/planning fusion a small workstream is allowed); the label names the discipline that always applies.
@@ -77,8 +90,9 @@ or `ABANDONED` — must carry a known kind. A missing or unknown kind is malform
 and stops tree operations with the path and valid kind set; it never degrades to
 `impl`. Terminal validation is load-bearing for permanent-key allocation and
 filename-only viewers. Foreign non-task files remain ignored. `finish` is
-driver-reserved: grow and terminal verbs refuse it even though the driver and
-reader share the same closed set.
+driver-reserved: generic grow verbs refuse creating it; retire, prune,
+decompose, and promotion refuse it as an operand; insertion may target it with a
+non-finish kind. The driver and reader still share the same closed set.
 _Avoid_: **task kind** — the label shapes and launches a session, and no longer
 lives in a `**Kind:**` task-file field.
 _Avoid_: plain `research` — a vendor pair uses the independently configurable
@@ -96,9 +110,15 @@ obsolete `**Kind:**`, `**Harness:**`, and `**Producer launch:**` lines while
 preserving `Reviews` and `Integrates`. A missing legacy kind takes the old
 read-side default `impl`; `work`, `review-work`, and `integrate-review-work` map
 to their `impl` spellings; the two structural research children of a vendor pair
-map to `research-a` and `research-b`. A standalone `research` leaf, an unknown
-kind, or a structurally ambiguous pair stops before mutation with actionable
-guidance rather than guessing a configured target.
+map to `research-a` and `research-b`, while a standalone `research` maps to
+`research-a`. An unknown kind or structurally ambiguous pair stops before
+mutation with actionable guidance rather than guessing a configured target.
+
+The positive `.grove/FORMAT` value `session-kinds-v1` is the only
+legacy/current discriminator. Without it the tree is legacy even when a slug
+begins with `design` or another current kind token; migration parses the whole
+legacy name and body marker, then writes the witness last. A known witness means
+current, and an unknown value stops without mutation.
 
 Full config validation precedes migration. Process interruption never exposes a
 runnable mixed grammar: the next invocation either recovers the conversion or
@@ -114,7 +134,11 @@ is `X` → `review-X` →
 `integrate-review-X`: sequential, **adversarial** (the reviewer's job is to find
 fault), and each step is a *different kind*, so per-kind routing alone expresses
 it. The **vendor pair** is `research-a` → `research-b` → `combine-research`:
-**breadth-and-confirmation** (two independently configured surveys, unioned).
+**breadth-and-confirmation** (two separately configured survey sessions,
+unioned). `leaf-add-pair <parent> <stem>` writes the three kinds with no harness
+flags. The configuration owner may choose materially independent targets, but
+Grove cannot enforce that property by comparing opaque command strings; the
+tree guarantees two sessions and the combine discipline, not two vendors.
 The fan is a **pair**, not an N-way fan-out, so the combine step is binary.
 Both are **a [[Node directory]] of their own** — `NN-<stem>-chain-k<key>/` and
 `NN-<stem>-pair-k<key>/` — holding their steps as children, **still named off the
@@ -284,12 +308,16 @@ driver's direct foreground-child ownership.
 
 The first template word is a literal executable or script name and contains no
 substitution. `${prompt}` is required exactly once in any later argv position.
-It is the complete Grove-authored session prompt: the embedded workflow plus the
-selected leaf's stable handle as its explicit mandate. Optional scalar
+It is the embedded `continue.md` launcher plus the selected leaf's stable handle
+as its explicit mandate; the launcher relies on [[Global skill provisioning]]
+rather than inlining a second copy of the methodology. Optional scalar
 substitutions are `${session_name}`, `${worktree}`, and `${repo}`. The one
 non-scalar exception is a whole-word `${herdr_settings}` splice, permitted at
 most once after the executable: outside a herdr pane it expands to zero
 arguments; inside one it expands to `--settings` plus the inline turn-hook JSON.
+Words may follow it and remain untouched in either case. “Word zero” is the
+literal first parsed word — `env` in `env HERDR_AGENT=claude claude …` — not the
+eventual program an opaque wrapper reaches.
 A target opts into that harness-specific flag shape by placing the visible
 splice itself. Targets that need herdr's agent hint state it in their configured
 command, for example `env HERDR_AGENT=claude claude …`; Grove never infers the
@@ -304,11 +332,22 @@ no defaults, families, profiles, or inheritance. The driver re-reads and fully
 validates the file before **any** task-tree mutation — including root-init,
 legacy migration, and finish-leaf materialisation — and again immediately before
 every launch, so an edit affects the next session. Validation failure launches
-nothing and leaves an existing selected leaf live and resumable; a rootless or
-pre-migration tree remains byte-identical. Configuration is never cached across
-loop iterations. No user-settable `GROVE_*` environment configuration remains.
+nothing and leaves an existing selected leaf live and resumable. An invalid
+**pre-mutation** read leaves a rootless or pre-migration tree byte-identical; if
+the file becomes invalid after a completed mutation but before the launch read,
+that mutation remains resumable and no session launches. Configuration is never
+cached across loop iterations. No user-settable `GROVE_*` environment configuration remains.
 Driver-created ephemeral control channels may still use the process environment,
 but they are internal capabilities rather than supported settings.
+
+Each iteration resolves `grove-llm` beside the running `grove` executable, with
+`PATH` only as the no-sibling fallback, and rejects a missing, malformed, or
+different version before configuration validation or tree mutation. There is no
+`GROVE_LLM_BIN` override. The same resolved path goes into Herdr turn hooks.
+Foreground waits preserve child status and elapsed time: every no-signal exit
+reports both, and a nonzero exit also names the session kind, configured word
+zero, and config path. Test-only tool, clock, and grace injection is an internal
+module seam, never supported environment configuration.
 
 Grove never creates or edits the file because it cannot choose personal model,
 effort, approval, or wrapper policy. A missing or invalid file is a
@@ -336,7 +375,10 @@ session resolves that handle to its current path, rejects an unavailable or
 non-live result, Bootstraps the resolved leaf, and does not pick again. A leaf
 inserted ahead of the selection while the configured command starts may move the
 mandated leaf's path but not its handle; it becomes the next iteration's work
-and does not preempt the mandate already launched. A session started outside
+and does not preempt the mandate already launched. `leaf-promote-chain` likewise
+trusts the named live producer after its structural gates and never recomputes
+pick: the CLI cannot observe prompt authority, and a second walk would reject
+this legitimate insertion case. A session started outside
 bare `grove` has no mandate and is not a Grove loop session; the supported
 continuation is to exit and run `grove`, while `grove-llm pick` remains a
 diagnostic/tree-interface verb rather than session dispatch. Grove executes the
@@ -598,13 +640,26 @@ defence.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 
+**Tree format witness** (`.grove/FORMAT`):
+The positive discriminator for the current session-kind filename grammar, with
+exact content `session-kinds-v1`. Root initialization and migration write it
+last by same-directory temporary write plus atomic rename, after the rest of the
+current tree is complete. Before absence means legacy, bare `grove` first
+recovers a migration witness or an exact partial root-init scaffold. A legacy
+slug may begin with a valid kind token; an unknown value means a newer or foreign
+format and stops without mutation. It is format metadata inside the artifact
+tree, not a phase, status, or counter file. Atomic replacement covers process
+interruption, not ordered power-loss durability.
+_Avoid_: inferring current format by parsing a filename prefix — a legacy slug
+such as `design-notes` makes that test silently change both kind and handle.
+
 **Node directory** / **node**:
 A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), optionally headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
 **Two species, discriminated by whether the directory carries a `BRIEF.md`.** A
 **decomposition node** (written by `leaf-decompose`; `root-init` for the root)
 always carries one: it means *this work proved bigger than one session*, and the
 charter is the context those extra sessions need. A **chain node** (written by
-`leaf-add-chain` / `leaf-add-pair`, or atomically retrofitted around a picked
+`leaf-add-chain` / `leaf-add-pair`, or atomically retrofitted around a named live
 producer by `leaf-promote-chain`) never does: it means *these steps compose one
 artifact*, with no charter anyone is in a position to write. The discriminator
 is a **file's presence, never a name
@@ -632,9 +687,13 @@ A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<k
 
 **Pick** (`grove-llm pick`):
 The loop's dispatcher: absent a pending [[Promotion transaction]], the **first
-live [[Leaf]] in depth-first pre-order** over `.grove/`, and *nothing modulates
-that* — no priority, no grouping, no set of leaves that must finish before
-another is considered. A transaction is not a scheduling input: it is a
+eligible live [[Leaf]] in depth-first pre-order** over `.grove/`. Eligibility
+has one lifecycle exception: a driver-owned `finish` sentinel is skipped while
+any non-finish leaf is live, then becomes eligible when it is the sole live
+leaf. Multiple live finish leaves are malformed and stop selection. Among
+non-finish leaves nothing modulates the walk — no priority, no
+grouping, no set of leaves that must finish before another is considered. A
+transaction is not a scheduling input: it is a
 fail-closed malformed-tree condition that every reader and mutator refuses until
 the interrupted operation is recovered. Ordering in a grove is **contiguity**,
 at every level, and it is the only ordering grove offers: a [[Review chain]]'s
@@ -645,8 +704,9 @@ is authoritative for the launched session; the next loop iteration re-derives
 its place from the tree, which is what makes restart ≡ continuation
 (self-driving-loop). An empty result tells the driver to materialise the
 [[Complete finish cycle]] as a `finish` leaf and then pick again. Its value is
-that a human computes it **by eye** — `find .grove` shows
-the tree and the next session is the first name with no outcome infix — which is
+that a human computes it **by eye** — `find .grove` shows the tree and the next
+session is the first non-finish name with no outcome infix, or the live finish
+name when none exists — which is
 what makes "the tree is the only state" worth something rather than merely true.
 _Avoid_: expecting `pick` to **schedule** — to finish a group before considering an earlier live leaf, or to skip a leaf that is merely blocked. Answering "is a group in flight?" needs either state outside the tree (constraint 1) or a rule that skips live work and ranks groups, turning the walk into a scheduler no reader of `find .grove` can predict (task-tree-scheme, *`pick` is a walk, not a scheduler*).
 
@@ -676,7 +736,7 @@ bare position: a position merely fails to resolve, while a number can resolve
 
 **Promotion transaction** (`PROMOTING-<final-node-name>/`):
 The reserved, fail-closed sibling directory used while
-`grove-llm leaf-promote-chain` turns the currently picked plain producer into a
+`grove-llm leaf-promote-chain` turns the named live plain producer into a
 brief-less [[Review chain]] without changing the producer's handle. Under the
 exclusive [[Tree access lock]], the command prebuilds the generated steps there
 and moves the producer into child `01` through the VCS-aware rename seam. In
@@ -694,23 +754,34 @@ and prints no success output. All other foreign names remain leniently ignored.
 This is process-interruption consistency, not a power-loss durability claim;
 Grove performs no ordered `fsync` protocol.
 See ADR *promotion-transactions-fail-closed*.
+The explicit producer reference is workflow discipline, not an unforgeable
+capability: the command structurally validates and trusts it, while concurrent-
+driver and stale-session exclusion are a separate process-ownership concern.
 _Avoid_: deleting the directory as if it were an unknown foreign file — after
 the producer move it may contain the only copy of that task. Recover through
 the exact `leaf-promote-chain <PROMOTING-path>` command a refusing reader prints.
 
 **Tree access lock**:
-The process-scoped advisory lock every steady-state task-tree reader and mutator
-takes on an open descriptor for the root `.grove/` directory before inspecting
-names. Readers hold it shared and mutators exclusive; exported operations acquire
-once and pass the guard into lock-neutral helpers. The directory is the invariant
-all those commands already require, so a missing optional `BRIEF.md` never jams
-the tree and no lock file or state bytes are created. Acquisition first tries
+The process-scoped advisory lock every task-tree reader and mutator takes on an
+open descriptor for the working-tree root before inspecting names. Readers hold
+it shared and mutators exclusive; exported operations acquire once and pass the
+guard into lock-neutral helpers. The working-tree directory exists before
+`.grove/` is created and through its deletion, so root initialization,
+migration, finish allocation/deletion, and agent tree verbs share one invariant;
+a missing optional `BRIEF.md` never jams the tree and no lock file or state bytes
+are created. Descriptors are close-on-exec; the driver releases its read guard
+as soon as it copies the selected path/handle/kind and before foreground launch,
+so the session never inherits or deadlocks on the lock. The lock serializes live
+processes but adds no crash atomicity; operations that promise process-
+interruption recovery use their own in-tree witnesses. Acquisition first tries
 without blocking, prints one waiting diagnostic on contention, then waits until
-the owning process exits or releases it. `root-init` sits below this seam because
-it creates `.grove/` itself. Direct human edits remain outside the cooperative
-serialization. See ADR *promotion-transactions-fail-closed*.
+the owning process exits or releases it. Direct human edits remain outside the
+cooperative serialization. See ADR *promotion-transactions-fail-closed*.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
 and existing tree readers deliberately tolerate their absence.
+_Avoid_: locking `.grove/` itself — it cannot serialize either its own creation
+or its finish deletion, and adding a second lifecycle lock creates an ordering
+contract instead of one seam.
 
 **DONE infix**:
 The in-place retirement marker: the literal `DONE` placed right after the

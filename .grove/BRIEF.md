@@ -59,6 +59,16 @@ configuration; one POSIX-shell-word command-template string per kind, executed
 directly without a shell; one authoritative driver pick; real requirements and
 finish leaves; automatic restart-safe legacy migration; no receipts or diversity
 warnings; and no inferred harness, model, or reasoning effort. `${prompt}` occurs
-once after a literal executable word, not necessarily last. The exact KDL node
-shape, diagnostic rendering, migration transaction implementation, and minimum
-coherent ADR/spec reshaping remain design work.
+once after a literal executable word, not necessarily last. The KDL document is
+nineteen flat kind nodes with one string each. `.grove/FORMAT` is the positive
+session-kind-format witness; the working-tree-root descriptor is the universal
+tree lock; a finish leaf is eligible only when no non-finish work remains; and a
+mandated producer may promote without a second pick. The embedded launcher plus
+mandate relies on the provisioned Grove skill, standalone legacy `research` maps
+to `research-a`, and pair target diversity is configuration-owner policy.
+No-signal exits retain status and elapsed time, scoped Git deletion uses
+only/path mode, and internal tool/grace injection is not user configuration.
+`docs/specs/config-driven-sessions.md` is the stable input to implementation
+planning. `driver-exclusivity-k14` separately owns concurrent-driver and stale-
+session/grove-generation binding, surfaced during integration without expanding
+the integrated design in place.

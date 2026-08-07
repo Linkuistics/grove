@@ -38,3 +38,17 @@ complete in isolation and adding a kind fails visibly in every old config.
   `${herdr_settings}` splice and configured `HERDR_AGENT` assignment let policy
   opt in without inference. Reopen only if every supported command shares one
   verified argument contract.
+- **Compare `research-a` and `research-b` targets to enforce vendor diversity.**
+  Rejected because opaque command strings do not expose a stable harness or
+  model identity: different wrappers may reach the same target and equal words
+  may still produce independent corpora. `leaf-add-pair` therefore records two
+  research sessions while material target diversity remains configuration-owner
+  policy. Reopen only if target identity becomes an explicit comparable part of
+  configuration without reintroducing harness inference.
+- **Inline the complete Grove methodology into every `${prompt}`.** Rejected
+  because the methodology and its kind-specific references are already the
+  provisioned Grove skill; duplicating roughly the whole skill in every launch
+  would enlarge prompts and create a second delivery path that can drift. The
+  embedded launcher plus mandate deliberately requires the configured target to
+  expose that provisioned skill. Reopen if arbitrary targets without skill
+  installation become a supported requirement.

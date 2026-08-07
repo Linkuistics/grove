@@ -274,8 +274,7 @@ selector differ, emitting one advisory notice to stderr and the session prompt
 without blocking launch. A distinct checkable source session is named, and the
 notice applies only if the session's factual pick is the addressed review.
 Missing, malformed, or mismatched stable
-relationships are uncheckable rather than inferred from positions. See [Review
-target receipts](adr/review-target-receipts.md).
+relationships are uncheckable rather than inferred from positions.
 
 Pruning creates no producer handoff. Pruning only a producer leaves a sibling
 review live and next, deliberately uncheckable; pruning the enclosing chain

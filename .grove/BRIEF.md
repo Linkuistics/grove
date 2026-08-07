@@ -45,7 +45,7 @@ tree, while one personal KDL file is the entirety of user launch policy.
   Session-kind migration, Review target diversity, Pick, Complete finish cycle.
 - Current behavior to reconcile: `docs/CONFIGURATION.md`, `docs/USAGE.md`, and
   `docs/ARCHITECTURE.md`.
-- Existing records in scope: `docs/adr/review-target-receipts.md`,
+- Records in scope: `docs/adr/complete-session-configuration.md`,
   `docs/adr/grove-owns-escalated-review.md`,
   `docs/adr/promotion-transactions-fail-closed.md`, and
   `docs/specs/doubt-grove-review-mechanics.md`.

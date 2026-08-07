@@ -266,6 +266,10 @@ fn plan(grove_root: &Path) -> Result<Plan> {
 /// un-opened tree. A v1-flat tree is *flat* (its only directories are foreign), so
 /// a directory is only ever a v2 node dir, an old `NNN-slug/` node, or `done/`.
 fn detect(grove_root: &Path) -> Result<Format> {
+    if grove_root.join("FORMAT").exists() {
+        crate::tree_format::require_current(grove_root)?;
+        return Ok(Format::V2);
+    }
     let mut has_v2 = false;
     let mut has_v1 = false;
     let mut has_old = false;
@@ -286,7 +290,12 @@ fn detect(grove_root: &Path) -> Result<Format> {
             }
         } else if ft.is_file() {
             if matches!(tree_id::parse(&name), Some(Entry::Leaf { .. })) {
-                has_v2 = true; // a v2 `…-k<key>.md` leaf
+                bail!(
+                    "current-format Grove leaf {:?} has no FORMAT witness; refusing legacy migration",
+                    name
+                );
+            } else if parse_legacy_v2_leaf(&name) {
+                has_v2 = true; // a legacy v2 `…-k<key>.md` leaf
             } else if leaf_id::parse(&name).is_some() {
                 has_v1 = true; // a v1-flat `<dotted>-[<key>]-<slug>` keyed file
             } else if name.strip_suffix(".md").and_then(split_prefix).is_some() {
@@ -303,6 +312,28 @@ fn detect(grove_root: &Path) -> Result<Format> {
     } else {
         Format::Empty
     })
+}
+
+/// Recognise only the kind-free leaf spelling produced by the legacy v2
+/// adapter. Current-format names are handled above and must have a witness.
+fn parse_legacy_v2_leaf(name: &str) -> bool {
+    let Some(stem) = name.strip_suffix(".md") else {
+        return false;
+    };
+    let Some((position, rest)) = stem.split_once('-') else {
+        return false;
+    };
+    if position.is_empty() || !position.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    let rest = rest.strip_prefix("DONE-").unwrap_or(rest);
+    let Some((slug, key)) = rest.rsplit_once("-k") else {
+        return false;
+    };
+    !slug.is_empty()
+        && key.bytes().all(|byte| byte.is_ascii_digit())
+        && !key.is_empty()
+        && tree_id::validate_slug(slug).is_ok()
 }
 
 /// Read a **v1-flat** tree: it is flat, so a single `read_dir` of the grove root,
@@ -414,21 +445,11 @@ fn render(grove_root: &Path, logicals: &[Logical]) -> Result<Vec<PlannedMove>> {
         } else {
             // A leaf file at its per-level position (the last dotted component).
             let per_level = *pos.last().expect("non-empty position");
-            let leaf = Entry::Leaf {
-                position: per_level,
-                slug: l.id.slug.clone(),
-                key,
-                // A migrated v1 tree never contains an abandoned mark (that
-                // concept postdates v1) — only `is_done` survives the crossing.
-                // Qualified (not imported bare) because this module's own
-                // `Outcome` (the migration result) already owns that name.
-                outcome: if l.id.is_done {
-                    tree_id::Outcome::Done
-                } else {
-                    tree_id::Outcome::Live
-                },
-            };
-            dest.push(leaf.name());
+            // This bounded adapter deliberately renders the pre-session-kind
+            // v2 name. session-kind-migration-k27 owns body-marker mapping and
+            // installation of the current FORMAT witness.
+            let outcome = if l.id.is_done { "DONE-" } else { "" };
+            dest.push(format!("{per_level:02}-{outcome}{}-k{key}.md", l.id.slug));
         }
 
         let from_rel = l

@@ -894,11 +894,9 @@ struct RoutedLeaf {
 /// whose whole purpose is to avoid looking to decide. The zero-subprocess
 /// launch went with it, knowingly (`model-per-task-kind`, *Consequences*).
 ///
-/// **A leaf's own `**Harness:**` declaration outranks both env vars**
-/// (`leaf-harness-k15`): leaf beats kind beats family beats stamp. It comes off
-/// the *same* peek — one subprocess returns both facts — because the peek
-/// already runs every iteration and a second one to read a neighbouring line
-/// would double that cost for a declaration almost no leaf carries.
+/// The structured peek retains its nullable harness field for wire
+/// compatibility, but current trees always return null: launch routing comes
+/// from policy and the stamp, never task-body metadata.
 fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Result<Launch> {
     validate_all_harness_overrides()?;
     let (kind, leaf_harness, routed_leaf) = if verb == "start" {
@@ -927,7 +925,7 @@ fn resolve_launch(stamped: &'static Harness, worktree: &Path, verb: &str) -> Res
                 })
             }
             // The peek itself failed (missing grove-llm, non-zero exit,
-            // unparseable output, or a leaf declaring a harness grove does not
+            // unparseable output, or a malformed current task filename
             // know) — genuinely unknown, not "nothing to route". This now bails in
             // **every** case, where it previously bailed only under a configured
             // harness override: the asymmetry that spared a model-only config
@@ -1187,28 +1185,24 @@ where
 /// Peek the next live leaf's launch facts by running `grove-llm kind
 /// --with-harness` against the worktree — the same verb (and code path) the
 /// launched agent would call. Any failure (binary missing, non-zero exit,
-/// unparseable output, or a leaf declaring a harness the verb rejects) yields
+/// unparseable output, or a malformed current tree) yields
 /// [`KindPeek::Degraded`] with a diagnostic rather than erroring here, so the
 /// *reporting* stays separate from the *policy*: this function says what it
 /// saw, `resolve_launch` decides what that means. The child's stderr is
 /// inherited, not captured — see the note on the spawn below.
 ///
 /// The output is one JSON object containing the absolute path, stable handle,
-/// kind, and nullable declared harness, or `null` for an empty grove. Both ends
-/// of that shape move together: the driver's per-session version-skew guard
-/// refuses to run a `grove-llm` that is not this exact build.
+/// filename kind, and nullable compatibility fields, or `null` for an empty
+/// grove. Both ends of that shape move together: the driver's per-session
+/// version-skew guard refuses to run a `grove-llm` that is not this exact build.
 fn resolve_kind(worktree: &Path) -> KindPeek {
     let out = Command::new(grove_llm_bin())
         .arg("kind")
         .arg("--with-harness")
         .arg("--json")
         .current_dir(worktree)
-        // Inherit stderr rather than capture it. `kind` *degrades* on an
-        // unrecognised `**Kind:**` line — it warns and prints `work`, on a
-        // **zero** exit — so the warning rides the success path. Capturing would
-        // swallow it and silently launch the leaf on the impl model, which in a
-        // typical config is the cheapest one: a silent downgrade with no way to
-        // see why. Inheriting surfaces every diagnostic, warning or error.
+        // Inherit stderr rather than capture it so strict current-tree
+        // diagnostics name the malformed filename or format witness directly.
         .stderr(Stdio::inherit())
         .output();
     match out {
@@ -1276,15 +1270,6 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
                     }
                 },
             };
-            let review_kind = matches!(kind.family(), Some(Family::Review));
-            if review_kind != wire.review.is_some() {
-                eprintln!(
-                    "grove: review evidence from `grove-llm kind --with-harness --json` \
-                     does not match routed kind {:?}",
-                    wire.kind
-                );
-                return KindPeek::Degraded;
-            }
             KindPeek::Leaf(RoutedLeaf {
                 path: wire.path,
                 handle: wire.handle,

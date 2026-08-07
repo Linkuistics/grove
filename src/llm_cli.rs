@@ -43,12 +43,12 @@ pub struct Cli {
 pub enum Command {
     /// Scaffold a brand-new grove's tree: create `.grove/`, write the root
     /// `BRIEF.md` charter, and lay down a first **requirements** leaf
-    /// `01-<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
+    /// `01-requirements-<slug>-k1.md` (default slug `plan`) — the kind is fixed, since the
     /// bootstrap session's only input is the human's own words. After this,
     /// `grove-llm pick` returns the new
     /// leaf — a fresh grove is no longer indistinguishable from a finished
     /// one. Refuses if `.grove/` already exists. Working-tree change only —
-    /// no commit.
+    /// no commit. Writes `.grove/FORMAT` last and prints it as the third path.
     RootInit(RootInitArgs),
     /// Print the absolute path of the next live leaf in this grove's tree — a
     /// recursive depth-first **pre-order** walk over the directory tree (a node
@@ -68,16 +68,14 @@ pub enum Command {
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
     },
-    /// Print a leaf's task **kind** — one of the closed seventeen documented in
-    /// `docs/ARCHITECTURE.md#task-kind-taxonomy` — read from its `**Kind:**` line.
+    /// Print a leaf's task **kind** — one of the closed nineteen — read from its
+    /// current-format filename.
     /// With no argument the kind is read for `pick`'s next live leaf; on an
     /// empty grove it prints the standard "no live leaves" diagnostic on stderr
-    /// (mirroring `brief-chain`) and exits 0. A missing or unrecognised
-    /// `**Kind:**` line **degrades**: it warns on stderr and prints `impl`
-    /// rather than erroring, so a hand-edited or foreign task file can never jam
-    /// the self-driving loop. The previous spelling `work` resolves to `impl`
-    /// silently — it is not a degrade. The default output is a single lowercase
-    /// token + newline (`--with-harness` may add a second line — see the flag);
+    /// (mirroring `brief-chain`) and exits 0. A task-shaped current filename
+    /// with a missing or unknown kind is malformed and errors visibly; foreign
+    /// files remain ignored. The default output is a single lowercase
+    /// token + newline (`--with-harness` is retained as a compatibility flag);
     /// `--json` selects the structured launch-peek shape. The self-driving loop
     /// calls this to resolve each session's launch harness and model from the
     /// picked leaf.
@@ -85,25 +83,16 @@ pub enum Command {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
-        /// Also print the harness the leaf declares for itself, on a **second
-        /// line**, when it carries a `**Harness:**` line (leaf-harness-k15).
-        /// Undeclared — the overwhelmingly common case — prints nothing extra,
-        /// so the output is byte-identical to the plain form. An unrecognised
-        /// harness name **errors** here rather than degrading, because a wrong
-        /// harness would run the leaf on a vendor the tree said not to.
-        ///
-        /// The loop driver's peek passes this: one subprocess, both launch
-        /// facts. Without it the verb prints the kind and nothing else, and
-        /// never inspects the harness line at all.
+        /// Compatibility flag used by the installed loop driver's structured
+        /// peek. Current task bodies carry no launch harness, so the plain form
+        /// remains one kind line and JSON always reports `harness: null`.
         #[arg(long = "with-harness")]
         with_harness: bool,
         /// Emit the picked leaf as one JSON object containing `path`, stable
-        /// `handle`, `kind`, nullable declared `harness`, and `review`. Review
-        /// is null for other kinds; a review carries guarded checkable or
-        /// uncheckable evidence, with historical routing nested beneath
-        /// `producer-target`. An empty grove is the JSON literal `null`. The
-        /// loop driver combines this with `--with-harness` and retains the
-        /// result for the whole launch without reopening task metadata.
+        /// `handle`, `kind`, and compatibility fields `harness` / `review`,
+        /// both null for current trees. An empty grove is the JSON literal
+        /// `null`. The loop driver combines this with `--with-harness` and
+        /// retains the result for the whole launch without reopening the tree.
         #[arg(long)]
         json: bool,
     },
@@ -137,9 +126,9 @@ pub enum Command {
     /// A node and its three children, with four consecutive fresh keys:
     ///
     ///   NN    `<stem>-chain/`       the chain node — no `BRIEF.md`
-    ///     01  `<stem>`              **Kind:** `<producer>`
-    ///     02  `<stem>-review`       **Kind:** `review-<producer>`
-    ///     03  `<stem>-integrate`    **Kind:** `integrate-review-<producer>`
+    ///     01  `<producer>-<stem>-k…`
+    ///     02  `review-<producer>-<stem>-review-k…`
+    ///     03  `integrate-review-<producer>-<stem>-integrate-k…`
     ///
     /// The directory is what makes the group structural in any tree viewer, and
     /// it is **brief-less by rule** — that absence is how the Retire cascade
@@ -174,29 +163,24 @@ pub enum Command {
     /// transaction path named by a fail-closed diagnostic. Prints node,
     /// relocated producer, review, and integration paths after success only.
     /// Finish to a reviewable boundary, commit under the unchanged producer
-    /// handle, then retire the relocated producer. That `DONE` handoff records
-    /// producer, factual source session, and producer generation best-effort in
-    /// the live review.
+    /// handle, then retire the relocated producer.
     LeafPromoteChain(LeafPromoteChainArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call — a
     /// `<stem>-pair` **node directory** holding `<stem>-a`, `<stem>-b`,
-    /// `<stem>-combine` — with both producers' vendors declared, and refused if
-    /// the two are the same.
+    /// `<stem>-combine` — with fixed filename kinds and no routing metadata in
+    /// task bodies.
     ///
     /// A node and its three children, with four consecutive fresh keys:
     ///
     ///   NN    `<stem>-pair/`     the chain node — no `BRIEF.md`
-    ///     01  `<stem>-a`         **Kind:** research, **Harness:** `<harness-a>`
-    ///     02  `<stem>-b`         **Kind:** research, **Harness:** `<harness-b>`
-    ///     03  `<stem>-combine`   **Kind:** combine-research
+    ///     01  `research-a-<stem>-a`
+    ///     02  `research-b-<stem>-b`
+    ///     03  `combine-research-<stem>-combine`
     ///
-    /// `research` is the one kind with no `review-` sibling, so its shape is a
-    /// pair rather than a chain and gets its own verb. **Both producers declare
-    /// their harness and the two must differ** — that declaration is the only
-    /// thing that makes "two corpora" a fact in the tree rather than a forecast
-    /// about routing policy, which can change after the leaves are cut. An equal
-    /// pair is refused. Cut one when a question is load-bearing enough to pay
-    /// for two vendors' corpora and blind spots.
+    /// Research has no `review-` sibling, so its shape is a pair rather than a
+    /// chain and gets its own verb. The two producer kinds are distinct routing
+    /// targets by construction. Cut one when a question is load-bearing enough
+    /// to pay for two independent corpora and blind spots.
     ///
     /// The whole shape is created or none of it is. Prints **four** absolute
     /// paths on stdout, the node directory first then its three leaves in
@@ -214,30 +198,27 @@ pub enum Command {
     /// renumber summary and stray position-prefixed cross-references go to
     /// stderr. Working-tree change only — no commit.
     LeafInsert(LeafInsertArgs),
-    /// Convert a live leaf file `NN-<slug>-k<key>.md` into a node **directory**
+    /// Convert a live leaf file `NN-<kind>-<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`
     /// becomes the node `k<key>`), moving the leaf body in as the node's
     /// `BRIEF.md` (`git mv`, or a plain rename in a jj-enabled tree; its
     /// `# <slug>-k<key>` header retitled with ` — brief`) and
-    /// atomically growing a first child `01-<first-child-slug>-k<new>.md` so the
+    /// atomically growing a first child
+    /// `01-<kind>-<first-child-slug>-k<new>.md` so the
     /// node is never childless. The first child **inherits the decomposed
     /// leaf's own kind** unless `--kind` overrides it.
     /// Prints the brief's absolute path then the first child's, one per line.
     /// Working-tree change only — no commit.
     LeafDecompose(LeafDecomposeArgs),
     /// Mark a live leaf retired in place by adding a `DONE` infix
-    /// (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`) — no `done/`
+    /// (`NN-<kind>-<slug>-k<key>.md` →
+    /// `NN-DONE-<kind>-<slug>-k<key>.md`) — no `done/`
     /// directory; the leaf keeps its position and key in its directory, and the
     /// file's contents (its `# <slug>-k<key>` header) are untouched. Refuses a
     /// brief, an already-retired (`DONE`) leaf, and an already-abandoned
     /// (`ABANDONED`) leaf. Prints the retired file's absolute
-    /// path on stdout. When one sibling review declares `Reviews` for this
-    /// producer, or this transition closes a reviewed brief-carrying ancestor,
-    /// retirement prepares a `Producer launch` receipt naming the producer,
-    /// factual source session, and producer generation. It applies `DONE` first
-    /// and writes only a live review best-effort; a terminal review stays
-    /// byte-identical with `review-terminal`, and any receipt failure warns but
-    /// never reverses or blocks retirement. Working-tree change only — no commit.
+    /// path on stdout. Task bodies are byte-identical; retirement writes no
+    /// launch-routing metadata. Working-tree change only — no commit.
     LeafRetire(LeafRetireArgs),
     /// Mark abandoned work `ABANDONED` in place. **HITL: only
     /// call this after explicit human confirmation** — grove never abandons
@@ -343,30 +324,19 @@ pub struct RootInitArgs {
 /// `--kind` help for the two verbs that *create* a leaf. One const rather than
 /// two hand-copied copies, and written **generatively** — the producers, then
 /// "each with its own `review-` and `integrate-review-` step" — because the
-/// point of a help string is to teach the shape of the set; the full seventeen
+/// point of a help string is to teach the shape of the set; the full nineteen
 /// are one `--kind reserch` away, from `Kind::parse`'s error.
-const KIND_HELP: &str = "Leaf kind (task-kind-taxonomy), written into the templated \
-`**Kind:**` line. Producers: requirements, design, planning, prototype, impl — each with \
-its own review-<producer> and integrate-review-<producer> step; plus research and \
-combine-research. An unrecognised value errors, listing all seventeen";
-
-/// `--harness` help for the two verbs that *create* a leaf. Optional and rarely
-/// used by design: it exists for the **vendor pair** — two `research` leaves and
-/// the `combine-research` step that follows them — which is the one shape a
-/// kind→harness policy cannot express (`docs/ARCHITECTURE.md#task-kind-taxonomy`).
-/// Everything else routes by policy or falls through to the stamp, so the help
-/// names the case rather than inviting general use.
-const HARNESS_HELP: &str = "Harness this one leaf launches on, written into a \
-`**Harness:**` line beside `**Kind:**` — it beats the per-kind and per-family policy \
-vars and the grove's own stamp. Omit unless this leaf must run on a different vendor \
-than its siblings (the research vendor pair). An unrecognised name errors";
+const KIND_HELP: &str = "Leaf kind, written into the filename. Producers: requirements, \
+design, planning, prototype, impl — each with its own review-<producer> and \
+integrate-review-<producer> step; plus research-a, research-b, and combine-research. \
+`finish` is driver-reserved and refused by this verb. An unrecognised value errors, \
+listing all nineteen";
 
 /// [`KIND_HELP`] for `leaf-decompose`, whose `--kind` overrides an inherited
 /// kind rather than supplying a default.
-const KIND_OVERRIDE_HELP: &str = "Override the first child's kind — one of the seventeen \
-(task-kind-taxonomy): requirements, design, planning, prototype, impl, each with its own \
-review-<producer> and integrate-review-<producer> step, plus research and \
-combine-research. Default: inherit the kind of the leaf being decomposed";
+const KIND_OVERRIDE_HELP: &str = "Override the first child's filename kind — one of the \
+nineteen session kinds except driver-reserved finish. Default: inherit the kind of the \
+leaf being decomposed";
 
 #[derive(Parser)]
 pub struct LeafAddArgs {
@@ -377,8 +347,6 @@ pub struct LeafAddArgs {
     pub slug: String,
     #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
-    #[arg(long = "harness", help = HARNESS_HELP)]
-    pub harness: Option<String>,
 }
 
 /// `--kind` help for `leaf-add-chain`, whose `--kind` names the chain's *head*
@@ -388,7 +356,8 @@ pub struct LeafAddArgs {
 const CHAIN_KIND_HELP: &str = "Kind of the leaf that heads the chain — one of the five \
 producers: requirements, design, planning, prototype, impl. The other two steps are \
 derived from it (review-<producer>, integrate-review-<producer>); you never name them. \
-`research` is refused, naming leaf-add-pair — its shape is the vendor pair";
+research-a, research-b, combine-research, and finish are refused; research uses \
+leaf-add-pair";
 
 #[derive(Parser)]
 pub struct LeafAddChainArgs {
@@ -402,12 +371,6 @@ pub struct LeafAddChainArgs {
     pub stem: String,
     #[arg(long = "kind", help = CHAIN_KIND_HELP)]
     pub kind: String,
-    /// Accepted only to be refused with the reason. Routing reviews is a
-    /// *policy* (`GROVE_REVIEW_HARNESS`, one line covering all five `review-*`
-    /// kinds), not a fact about one leaf — and clap's bare "unexpected argument"
-    /// would teach a session nothing at the one moment it is deciding.
-    #[arg(long = "harness", hide = true)]
-    pub harness: Option<String>,
 }
 
 #[derive(Parser)]
@@ -431,19 +394,6 @@ pub struct LeafAddPairArgs {
     /// `<stem>-b`, `<stem>-combine` — the two producers are `a` and `b` because
     /// they are peers, not a leader and a follow-up.
     pub stem: String,
-    /// Harness for the first survey, written as its `**Harness:**` line.
-    /// Required, and must differ from `--harness-b`.
-    #[arg(long = "harness-a")]
-    pub harness_a: String,
-    /// Harness for the second survey, written as its `**Harness:**` line.
-    /// Required, and must differ from `--harness-a`.
-    #[arg(long = "harness-b")]
-    pub harness_b: String,
-    /// Accepted only to be refused with the reason: a pair's kinds are fixed
-    /// (`research`, `research`, `combine-research`), so `research` would be the
-    /// flag's only legal value — a mode selector wearing a parameter's clothes.
-    #[arg(long = "kind", hide = true)]
-    pub kind: Option<String>,
 }
 
 #[derive(Parser)]
@@ -455,8 +405,6 @@ pub struct LeafInsertArgs {
     pub slug: String,
     #[arg(long = "kind", default_value = "impl", help = KIND_HELP)]
     pub kind: String,
-    #[arg(long = "harness", help = HARNESS_HELP)]
-    pub harness: Option<String>,
 }
 
 #[derive(Parser)]
@@ -657,9 +605,8 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    let harness = parse_harness(args.harness.as_deref())?;
     let parent_dir = resolve_parent(&grove_root, &args.parent)?;
-    let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind, harness)?;
+    let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind)?;
     println!("{}", path.display());
     Ok(())
 }
@@ -686,18 +633,6 @@ fn print_paths(paths: &[PathBuf]) {
 }
 
 fn cmd_leaf_add_chain(args: &LeafAddChainArgs) -> Result<()> {
-    // Argument refusals come before the repo is resolved: they are pure
-    // authoring-time validation, and a caller who mis-typed a flag is better
-    // served by hearing that than by hearing where they are standing.
-    if let Some(name) = &args.harness {
-        bail!(
-            "leaf-add-chain takes no --harness (got {name:?}). Routing reviews is a \
-             *policy*, not a fact about one leaf: set `GROVE_REVIEW_HARNESS={name}` once \
-             and every review this grove ever cuts goes there (`GROVE_INTEGRATE_REVIEW_HARNESS` \
-             for the integrate step). A `**Harness:**` line exists for the one shape no \
-             policy can express — the research vendor pair, which is `leaf-add-pair`."
-        );
-    }
     let producer = Kind::parse(&args.kind)?;
     let (_, grove_root) = grove_paths()?;
     let parent_dir = resolve_parent(&grove_root, &args.parent)?;
@@ -733,44 +668,18 @@ fn cmd_leaf_promote_chain(args: &LeafPromoteChainArgs) -> Result<()> {
 }
 
 fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
-    if let Some(kind) = &args.kind {
-        bail!(
-            "leaf-add-pair takes no --kind (got {kind:?}). A pair's kinds are fixed — \
-             research, research, combine-research — so `research` would be the flag's only \
-             legal value: a mode selector wearing a parameter's clothes. For a chain over \
-             some other producer, use `leaf-add-chain <parent> <stem> --kind {kind}`."
-        );
-    }
-    // Both names are parsed before anything is resolved or written, so a typo in
-    // the *second* one cannot leave the first survey on disk.
-    let harness_a = require_harness(&args.harness_a)?;
-    let harness_b = require_harness(&args.harness_b)?;
     let (_, grove_root) = grove_paths()?;
     let parent_dir = resolve_parent(&grove_root, &args.parent)?;
-    let paths =
-        tree_grow::leaf_add_pair(&grove_root, &parent_dir, &args.stem, harness_a, harness_b)?;
+    let paths = tree_grow::leaf_add_pair(&grove_root, &parent_dir, &args.stem)?;
     print_paths(&paths);
     Ok(())
-}
-
-/// [`parse_harness`] for a *required* name — the vendor pair's two producers,
-/// where an absent declaration is not an option ([`tree_grow::leaf_add_pair`]).
-fn require_harness(name: &str) -> Result<&'static crate::harness::Harness> {
-    crate::harness::by_name(name).ok_or_else(|| {
-        anyhow::anyhow!(
-            "--harness-a/--harness-b must each be one of {}, got {name:?}",
-            crate::harness::known_names()
-        )
-    })
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    let harness = parse_harness(args.harness.as_deref())?;
     let target = resolve_ref_or_path(&grove_root, &args.target)?;
-    let (path, renumbers) =
-        tree_grow::leaf_insert(&grove_root, &target, &args.slug, kind, harness)?;
+    let (path, renumbers) = tree_grow::leaf_insert(&grove_root, &target, &args.slug, kind)?;
 
     // The new leaf's path is the only stdout content; the renumber summary and
     // cross-references go to stderr so the LLM can parse stdout cleanly.

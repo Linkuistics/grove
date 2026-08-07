@@ -26,6 +26,9 @@ fn init_repo() -> TempDir {
         .args(["commit", "--allow-empty", "-m", "init"])
         .status()
         .unwrap();
+    let grove = tmp.path().join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), b"session-kinds-v1\n").unwrap();
     tmp
 }
 
@@ -69,14 +72,14 @@ fn name_of(stdout: &str) -> String {
 fn picks_first_live_leaf_in_numeric_order() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "02-second-k2.md");
-    touch(&grove, "01-first-k1.md");
-    touch(&grove, "10-tenth-k3.md");
+    touch(&grove, "02-impl-second-k2.md");
+    touch(&grove, "01-impl-first-k1.md");
+    touch(&grove, "10-impl-tenth-k3.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
     // Numeric per-level order: 1 < 2 < 10.
-    assert_eq!(name_of(&stdout), "01-first-k1.md");
+    assert_eq!(name_of(&stdout), "01-impl-first-k1.md");
 }
 
 #[test]
@@ -86,33 +89,33 @@ fn descends_a_node_directory_in_preorder() {
     touch(&grove, "BRIEF.md");
     let node = mknode(&grove, "01-node-k1");
     touch(&node, "BRIEF.md");
-    touch(&node, "01-inner-k2.md");
-    touch(&grove, "02-outer-k3.md");
+    touch(&node, "01-impl-inner-k2.md");
+    touch(&grove, "02-impl-outer-k3.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
     // Pre-order: the node at position 01 is fully explored before the sibling
     // leaf at 02, so its first live child wins; briefs are skipped.
-    assert_eq!(name_of(&stdout), "01-inner-k2.md");
+    assert_eq!(name_of(&stdout), "01-impl-inner-k2.md");
 }
 
 #[test]
 fn skips_retired_done_leaves() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-DONE-retired-k1.md");
-    touch(&grove, "02-live-k2.md");
+    touch(&grove, "01-DONE-impl-retired-k1.md");
+    touch(&grove, "02-impl-live-k2.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
-    assert_eq!(name_of(&stdout), "02-live-k2.md");
+    assert_eq!(name_of(&stdout), "02-impl-live-k2.md");
 }
 
 #[test]
 fn fully_retired_grove_prints_diagnostic_and_exits_zero() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-DONE-done-k1.md");
+    touch(&grove, "01-DONE-impl-done-k1.md");
 
     let (stdout, stderr, ok) = pick_stdout(tmp.path());
     assert!(ok, "fully-retired grove must still exit zero");
@@ -131,11 +134,11 @@ fn foreign_files_are_not_leaves() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "README.md");
-    touch(&grove, "01-real-k1.md");
+    touch(&grove, "01-impl-real-k1.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-real-k1.md");
+    assert_eq!(name_of(&stdout), "01-impl-real-k1.md");
 }
 
 #[test]
@@ -143,16 +146,17 @@ fn root_brief_is_not_a_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove, "BRIEF.md");
-    touch(&grove, "01-only-k1.md");
+    touch(&grove, "01-impl-only-k1.md");
 
     let (stdout, _, ok) = pick_stdout(tmp.path());
     assert!(ok);
-    assert_eq!(name_of(&stdout), "01-only-k1.md");
+    assert_eq!(name_of(&stdout), "01-impl-only-k1.md");
 }
 
 #[test]
 fn errors_when_grove_root_absent() {
     let tmp = init_repo();
+    fs::remove_dir_all(tmp.path().join(".grove")).unwrap();
     // No `.grove/` directory at all.
     let (_, stderr, ok) = pick_stdout(tmp.path());
     assert!(!ok, "expected error exit with no .grove/");

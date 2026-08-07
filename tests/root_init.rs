@@ -5,8 +5,8 @@
 // scaffold.
 //
 // The verb's output contract:
-// - stdout: two absolute paths, the root `BRIEF.md` first then the first leaf
-//   `01-<slug>-k1.md` (default slug `plan`, so `01-plan-k1.md`).
+// - stdout: three absolute paths: root `BRIEF.md`, first requirements leaf,
+//   then the `FORMAT` witness that makes the scaffold current.
 // - working-tree change only — makes NO git commit; the scaffold is left
 //   untracked for the first session's commit to fold in.
 // - refuses (non-zero exit) if `.grove/` already exists.
@@ -93,12 +93,20 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-plan-k1.md")
+        PathBuf::from(".grove/01-requirements-plan-k1.md")
+    );
+    assert_eq!(
+        rel_line(&stdout, tmp.path(), 2),
+        PathBuf::from(".grove/FORMAT")
     );
 
-    // Both exist on disk.
+    // Both entries and the format witness exist on disk.
     assert!(tmp.path().join(".grove/BRIEF.md").is_file());
-    assert!(tmp.path().join(".grove/01-plan-k1.md").is_file());
+    assert!(tmp
+        .path()
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert_eq!(read(tmp.path(), ".grove/FORMAT"), "session-kinds-v1\n");
 
     // The root brief carries the BRIEF-FORMAT headers and a `— brief` title.
     let brief = read(tmp.path(), ".grove/BRIEF.md");
@@ -117,14 +125,14 @@ fn root_init_creates_root_brief_and_first_requirements_leaf() {
     // and the `start` launch is routed on this kind with no leaf to peek. Its
     // header is the position-free handle `# <slug>-k<key>` (the v2 form
     // `leaf_add` writes).
-    let leaf = read(tmp.path(), ".grove/01-plan-k1.md");
+    let leaf = read(tmp.path(), ".grove/01-requirements-plan-k1.md");
     assert!(
         leaf.starts_with("# plan-k1\n"),
         "leaf header wrong: {leaf:?}"
     );
     assert!(
-        leaf.contains("**Kind:** requirements\n"),
-        "leaf not requirements: {leaf:?}"
+        !leaf.contains("**Kind:**"),
+        "kind leaked into body: {leaf:?}"
     );
 }
 
@@ -135,7 +143,7 @@ fn root_init_default_slug_is_plan() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-plan-k1.md")
+        PathBuf::from(".grove/01-requirements-plan-k1.md")
     );
 }
 
@@ -146,10 +154,10 @@ fn root_init_custom_slug_names_the_first_leaf() {
     assert!(ok);
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-design-the-api-k1.md")
+        PathBuf::from(".grove/01-requirements-design-the-api-k1.md")
     );
-    let leaf = read(tmp.path(), ".grove/01-design-the-api-k1.md");
-    assert!(leaf.contains("**Kind:** requirements\n"), "got {leaf:?}");
+    let leaf = read(tmp.path(), ".grove/01-requirements-design-the-api-k1.md");
+    assert!(!leaf.contains("**Kind:**"), "got {leaf:?}");
 }
 
 #[test]
@@ -210,7 +218,7 @@ fn after_root_init_pick_returns_the_new_leaf_not_done() {
     // pick must name the leaf on stdout...
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/01-plan-k1.md"),
+        PathBuf::from(".grove/01-requirements-plan-k1.md"),
         "pick did not return the scaffolded leaf"
     );
     // ...and must NOT report the grove as done (the empty-but-briefed trap).

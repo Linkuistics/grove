@@ -185,10 +185,11 @@ fn do_is_idempotent_on_the_same_working_tree() {
 }
 
 #[test]
-fn do_migrates_an_old_tree_on_adoption_before_driving() {
-    // `grove do` must flip an old-format `.grove/` to the v2 directory scheme
-    // (committed) before driving — even in no-launch mode, which runs the adoption
-    // setup then returns without launching a session.
+fn do_stops_after_the_bounded_layout_migration_until_session_kind_migration() {
+    // This increment retains the pre-existing layout adapter as bounded legacy
+    // input for session-kind-migration-k27, but current readers deliberately
+    // refuse its unwitnessed output. The later migration task owns deriving
+    // filename kinds, writing FORMAT, and resuming the launch.
     let _g = CWD_LOCK.lock().unwrap();
     let repo = init_repo();
     std::env::set_current_dir(repo.path()).unwrap();
@@ -216,11 +217,15 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
         .status()
         .unwrap();
 
-    launch::do_grove(&StartArgs {
+    let error = launch::do_grove(&StartArgs {
         harness: None,
         no_launch: true,
     })
-    .unwrap();
+    .expect_err("an unwitnessed legacy tree must not be launched as current");
+    assert!(
+        error.to_string().contains("launch could not be resolved"),
+        "legacy output must stop before launch: {error}"
+    );
 
     // The old directory layout is gone; the v2 keyed files are present (keys
     // assigned in DFS pre-order: the retired `old` leaf k1, the live one k2).
@@ -235,6 +240,10 @@ fn do_migrates_an_old_tree_on_adoption_before_driving() {
     assert!(
         worktree.join(".grove/02-live-k2.md").exists(),
         "live leaf should be migrated to its v2 name"
+    );
+    assert!(
+        !worktree.join(".grove/FORMAT").exists(),
+        "the bounded layout adapter must not claim session-kind migration"
     );
 }
 
@@ -308,23 +317,20 @@ fn retire_never_stamps_the_grove() {
     );
 }
 
-/// Plant a minimal v2 task tree with one leaf of `kind`, live or retired.
+/// Plant a minimal current task tree with one leaf of `kind`, live or retired.
 /// Committed, so the adoption migration (which runs above the no-launch return)
-/// sees a clean v2 tree and no-ops.
+/// sees a witnessed current tree and no-ops.
 fn plant_leaf(worktree: &std::path::Path, kind: &str, retired: bool) {
     let grove_dir = worktree.join(".grove");
     fs::create_dir_all(&grove_dir).unwrap();
     fs::write(grove_dir.join("BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(grove_dir.join("FORMAT"), "session-kinds-v1\n").unwrap();
     let name = if retired {
-        "01-DONE-a-k1.md"
+        format!("01-DONE-{kind}-a-k1.md")
     } else {
-        "01-a-k1.md"
+        format!("01-{kind}-a-k1.md")
     };
-    fs::write(
-        grove_dir.join(name),
-        format!("# a-k1\n\n**Kind:** {kind}\n"),
-    )
-    .unwrap();
+    fs::write(grove_dir.join(name), "# a-k1\n").unwrap();
     Command::new("git")
         .args(["-C", worktree.to_str().unwrap(), "add", "-A"])
         .status()
@@ -418,7 +424,7 @@ fn the_readiness_report_names_the_next_leaf_its_kind_and_the_resolved_model() {
         .to_string();
 
     assert!(
-        line.contains("01-a-k1.md") && line.contains("impl") && line.contains("sonnet"),
+        line.contains("01-impl-a-k1.md") && line.contains("impl") && line.contains("sonnet"),
         "readiness must name the leaf, its kind and the model (got: {line:?})"
     );
 
@@ -443,7 +449,7 @@ fn readiness_retains_one_structured_peek_even_if_the_tree_changes_after_it() {
     plant_leaf(repo.path(), "impl", false);
     let routed_path = repo
         .path()
-        .join(".grove/01-a-k1.md")
+        .join(".grove/01-impl-a-k1.md")
         .canonicalize()
         .unwrap();
     let calls = repo.path().join("peek-calls");
@@ -455,8 +461,8 @@ set -euo pipefail
 IFS=$'\n\t'
 printf 'peek\n' >> "$GROVE_TEST_PEEK_CALLS"
 printf '{"path":"%s","handle":"a-k1","kind":"impl","harness":null,"review":null}\n' "$GROVE_TEST_ROUTE_PATH"
-mv "$PWD/.grove/01-a-k1.md" "$PWD/.grove/02-a-k1.md"
-printf '# earlier-k9\n\n**Kind:** design\n' > "$PWD/.grove/01-earlier-k9.md"
+mv "$PWD/.grove/01-impl-a-k1.md" "$PWD/.grove/02-impl-a-k1.md"
+printf '# earlier-k9\n' > "$PWD/.grove/01-design-earlier-k9.md"
 "#,
     );
     let mut env = dry_run_env(repo.path());
@@ -471,7 +477,7 @@ printf '# earlier-k9\n\n**Kind:** design\n' > "$PWD/.grove/01-earlier-k9.md"
             .to_string();
 
     assert!(
-        line.contains("01-a-k1.md") && !line.contains("01-earlier-k9.md"),
+        line.contains("01-impl-a-k1.md") && !line.contains("01-design-earlier-k9.md"),
         "readiness must render the retained forecast, not pick again: {line:?}"
     );
     assert_eq!(fs::read_to_string(calls).unwrap(), "peek\n");
@@ -485,7 +491,7 @@ fn malformed_or_handle_free_structured_peeks_refuse_readiness() {
     plant_leaf(repo.path(), "impl", false);
     let path = repo
         .path()
-        .join(".grove/01-a-k1.md")
+        .join(".grove/01-impl-a-k1.md")
         .canonicalize()
         .unwrap();
     let fake_llm = repo.path().join("fake-grove-llm.sh");

@@ -43,6 +43,14 @@ by the later automatic migration.
   by migration remains isolated and explicitly tested.
 - `cargo fmt --check` and `cargo test --locked` pass.
 
+## Verification evidence
+
+- 2026-08-08: `cargo fmt --check` exited 0.
+- 2026-08-08: `cargo test --locked` exited 0; all 362 library tests and every
+  integration and documentation test target passed. The emitted warnings are
+  confined to legacy harness/producer-receipt code owned by
+  `legacy-launch-removal-k46` and `legacy-review-removal-k47`.
+
 ## Notes
 
 Do not add automatic legacy migration or driver-side root/finish allocation

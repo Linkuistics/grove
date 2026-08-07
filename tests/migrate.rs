@@ -330,48 +330,27 @@ fn migrate_noop_when_no_grove_dir() {
 }
 
 #[test]
-fn migrated_tree_drives_correctly_under_pick_and_brief_chain() {
+fn bounded_layout_migration_stops_before_session_kind_reads() {
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
     assert!(run_migrate(repo.path()).2);
 
-    // pick returns the first live leaf in pre-order: the live child inside the
-    // node `02-second-k2` precedes the live root leaf `04-last-k7`.
+    // This adapter only performs the older positional-layout conversion. The
+    // separate session-kind migration owns filename kinds and the FORMAT
+    // witness, so current readers must refuse this intermediate tree.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(repo.path())
         .arg("pick")
         .output()
         .unwrap();
-    let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        picked.ends_with("/.grove/02-second-k2/02-live-child-k4.md"),
-        "pick should return the first live leaf, got {picked:?}"
+        !out.status.success() && stderr.contains("FORMAT") && stderr.contains("must be migrated"),
+        "bounded migration must stop before current reads: {stderr}"
     );
-
-    // brief-chain for that leaf is root brief → the node's brief. Both files are
-    // named BRIEF.md, so distinguish them by their parent directory.
-    let out = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(repo.path())
-        .args(["brief-chain", &picked])
-        .output()
-        .unwrap();
-    let chain: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .map(|l| {
-            let p = Path::new(l);
-            assert_eq!(p.file_name().unwrap().to_string_lossy(), "BRIEF.md");
-            p.parent()
-                .unwrap()
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .into_owned()
-        })
-        .collect();
-    assert_eq!(chain, vec![".grove", "02-second-k2"]);
+    assert!(out.stdout.is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -468,9 +447,9 @@ fn adoption_migrates_and_commits_an_old_tree() {
 }
 
 #[test]
-fn adopted_tree_drives_under_pick() {
-    // After adoption, the committed v2 tree drives correctly: `pick` returns the
-    // first live leaf in pre-order.
+fn adopted_layout_tree_stops_before_session_kind_reads() {
+    // Adoption commits the bounded layout conversion, but must not silently
+    // absorb the later session-kind migration.
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
@@ -482,11 +461,12 @@ fn adopted_tree_drives_under_pick() {
         .arg("pick")
         .output()
         .unwrap();
-    let picked = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        picked.ends_with("/.grove/02-second-k2/02-live-child-k4.md"),
-        "adopted tree should drive under pick, got {picked:?}"
+        !out.status.success() && stderr.contains("FORMAT") && stderr.contains("must be migrated"),
+        "adopted layout tree must await session-kind migration: {stderr}"
     );
+    assert!(out.stdout.is_empty());
 }
 
 #[test]

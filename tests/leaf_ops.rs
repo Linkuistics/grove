@@ -1,13 +1,13 @@
 // Fixture-driven tests for `grove-llm leaf-decompose` and `grove-llm
-// leaf-retire` on the **v2 directory scheme** (task-tree-scheme):
+// leaf-retire` on the current witnessed directory scheme (task-tree-scheme):
 //
 //   - `leaf-decompose <leaf-path> <first-child-slug>` converts a live leaf file
-//     `NN-<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
+//     `NN-<kind>-<slug>-k<key>.md` into a node DIRECTORY `NN-<slug>-k<key>/` (**key
 //     preserved**), `git mv`ing the leaf body in as the node's `BRIEF.md` (its
 //     `# <slug>-k<key>` header retitled ` — brief`) and atomically growing a
-//     first child `01-<first-child-slug>-k<new>.md` so a node is never childless.
+//     first child `01-<kind>-<first-child-slug>-k<new>.md` so a node is never childless.
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
-//     (`NN-<slug>-k<key>.md` → `NN-DONE-<slug>-k<key>.md`), keeping the retired
+//     (`NN-<kind>-<slug>-k<key>.md` → `NN-DONE-<kind>-<slug>-k<key>.md`), keeping the retired
 //     leaf in its directory (no `done/` directory); the file body is untouched.
 //
 // Each test stands up a real git repo so the verb's `git mv` calls have tracked
@@ -64,6 +64,10 @@ fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
 }
 
 fn stage_all(repo: &Path) {
+    let grove = repo.join(".grove");
+    if grove.is_dir() {
+        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    }
     git(repo, &["add", "-A"]);
     git(repo, &["commit", "-m", "fixture"]);
 }
@@ -105,14 +109,14 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** planning\n\nbody body\n",
+        &grove.join("01-planning-target-k1.md"),
+        "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-planning-target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
 
@@ -123,15 +127,18 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
     );
     assert_eq!(
         rel_line(&stdout, tmp.path(), 1),
-        PathBuf::from(".grove/01-target-k1/01-sub-k2.md")
+        PathBuf::from(".grove/01-target-k1/01-planning-sub-k2.md")
     );
 
     // The leaf became a node directory, **key preserved** (k1); the old leaf
     // file is gone, replaced by the directory + its BRIEF.md.
     assert!(exists(tmp.path(), ".grove/01-target-k1/BRIEF.md"));
-    assert!(!exists(tmp.path(), ".grove/01-target-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-planning-target-k1.md"));
     // The first child exists so the node is never childless.
-    assert!(exists(tmp.path(), ".grove/01-target-k1/01-sub-k2.md"));
+    assert!(exists(
+        tmp.path(),
+        ".grove/01-target-k1/01-planning-sub-k2.md"
+    ));
 
     // The brief's position-free handle header is retitled with ` — brief`; the
     // rest of the body carries over verbatim.
@@ -146,26 +153,26 @@ fn decompose_converts_leaf_into_node_directory_with_first_child() {
 #[test]
 fn decompose_with_no_kind_flag_gives_the_first_child_the_parent_leafs_kind() {
     // task-kind-taxonomy: the first child inherits the decomposed leaf's own
-    // kind (here `research`) when `--kind` is not given.
+    // kind (here `research-a`) when `--kind` is not given.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** research\n\nbody body\n",
+        &grove.join("01-research-a-target-k1.md"),
+        "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-research-a-target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
-    let body = read(tmp.path(), child.to_str().unwrap());
-    assert!(
-        body.contains("**Kind:** research"),
-        "child must inherit the parent leaf's kind, got {body:?}"
+    assert_eq!(
+        child,
+        PathBuf::from(".grove/01-target-k1/01-research-a-sub-k2.md")
     );
+    assert!(!read(tmp.path(), child.to_str().unwrap()).contains("**Kind:**"));
 }
 
 #[test]
@@ -173,8 +180,8 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** research\n\nbody body\n",
+        &grove.join("01-research-b-target-k1.md"),
+        "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
@@ -182,7 +189,7 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
         tmp.path(),
         &[
             "leaf-decompose",
-            ".grove/01-target-k1.md",
+            ".grove/01-research-b-target-k1.md",
             "sub",
             "--kind",
             "review-impl",
@@ -190,40 +197,32 @@ fn decompose_kind_flag_overrides_the_parent_leafs_kind() {
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
-    let body = read(tmp.path(), child.to_str().unwrap());
-    assert!(
-        body.contains("**Kind:** review-impl"),
-        "--kind must override the parent leaf's kind, got {body:?}"
+    assert_eq!(
+        child,
+        PathBuf::from(".grove/01-target-k1/01-review-impl-sub-k2.md")
     );
+    assert!(!read(tmp.path(), child.to_str().unwrap()).contains("**Kind:**"));
 }
 
 #[test]
-fn decompose_carries_a_declared_harness_onto_the_first_child() {
-    // leaf-harness-k15, for the same reason the kind is inherited: decomposing
-    // says *this leaf was bigger than its brief assumed*, so the first child is
-    // that leaf's work continued. A vendor-bound `research` leaf whose child
-    // silently fell back to the stamp would be exactly the misroute the
-    // per-leaf axis exists to prevent — and the fallback would be invisible,
-    // because a leaf with no declaration is the normal case.
+fn decompose_does_not_copy_legacy_body_routing_to_the_first_child() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** research\n**Harness:** codex\n\nbody body\n",
+        &grove.join("01-research-a-target-k1.md"),
+        "# target-k1\n\n**Kind:** research-b\n**Harness:** codex\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-research-a-target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
     let body = read(tmp.path(), child.to_str().unwrap());
-    assert!(
-        body.contains("**Harness:** codex"),
-        "child must inherit the parent leaf's harness, got {body:?}"
-    );
+    assert!(!body.contains("**Harness:**"), "got {body:?}");
+    assert!(!body.contains("**Kind:**"), "got {body:?}");
 }
 
 #[test]
@@ -231,14 +230,14 @@ fn decompose_of_an_undeclared_leaf_writes_no_harness_line() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** impl\n\nbody body\n",
+        &grove.join("01-impl-target-k1.md"),
+        "# target-k1\n\nbody body\n",
     );
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
+        &["leaf-decompose", ".grove/01-impl-target-k1.md", "sub"],
     );
     assert!(ok, "leaf-decompose failed");
     let child = rel_line(&stdout, tmp.path(), 1);
@@ -247,32 +246,26 @@ fn decompose_of_an_undeclared_leaf_writes_no_harness_line() {
 }
 
 #[test]
-fn decompose_refuses_a_leaf_whose_harness_line_names_nothing_known() {
-    // The read side refuses rather than degrades, and that refusal reaches
-    // `leaf-decompose` too. Correct, not merely consistent: the leaf could not
-    // have launched either, and a human is present here to fix the line —
-    // whereas degrading would copy a broken declaration onto a new leaf and
-    // multiply the problem.
+fn decompose_ignores_an_unknown_legacy_body_harness() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(
-        &grove.join("01-target-k1.md"),
-        "# target-k1\n\n**Kind:** research\n**Harness:** codx\n",
+        &grove.join("01-research-b-target-k1.md"),
+        "# target-k1\n\n**Harness:** codx\n",
     );
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(
+    let (stdout, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-target-k1.md", "sub"],
-    );
-    assert!(!ok, "a bad harness declaration must refuse");
-    assert!(
-        stderr.contains("codx"),
-        "the error must name the offending token, got {stderr:?}"
+        &["leaf-decompose", ".grove/01-research-b-target-k1.md", "sub"],
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-target-k1/BRIEF.md"),
-        "a refused decompose must not leave a half-built node behind"
+        ok,
+        "body routing must not affect current decompose: {stderr}"
+    );
+    assert_eq!(
+        rel_line(&stdout, tmp.path(), 1),
+        PathBuf::from(".grove/01-target-k1/01-research-b-sub-k2.md")
     );
 }
 
@@ -300,12 +293,12 @@ fn decompose_rejects_a_brief() {
 fn decompose_rejects_a_retired_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-DONE-old-k1.md"), "# old-k1\n");
+    touch(&grove.join("01-DONE-impl-old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["leaf-decompose", ".grove/01-DONE-old-k1.md", "x"],
+        &["leaf-decompose", ".grove/01-DONE-impl-old-k1.md", "x"],
     );
     assert!(!ok, "decompose must refuse a retired leaf");
     assert!(
@@ -321,20 +314,20 @@ fn decompose_rejects_a_retired_leaf() {
 fn retire_adds_done_infix_in_place() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-target-k1.md"), "# target-k1\n");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
     stage_all(tmp.path());
 
-    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-target-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
     assert!(ok, "leaf-retire failed");
     assert_eq!(
         rel_line(&stdout, tmp.path(), 0),
-        PathBuf::from(".grove/01-DONE-target-k1.md")
+        PathBuf::from(".grove/01-DONE-impl-target-k1.md")
     );
-    assert!(exists(tmp.path(), ".grove/01-DONE-target-k1.md"));
-    assert!(!exists(tmp.path(), ".grove/01-target-k1.md"));
+    assert!(exists(tmp.path(), ".grove/01-DONE-impl-target-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-impl-target-k1.md"));
     // The DONE infix is filename-only — the body is byte-identical.
     assert_eq!(
-        read(tmp.path(), ".grove/01-DONE-target-k1.md"),
+        read(tmp.path(), ".grove/01-DONE-impl-target-k1.md"),
         "# target-k1\n"
     );
 }
@@ -358,10 +351,13 @@ fn retire_refuses_a_brief() {
 fn retire_refuses_an_already_done_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-DONE-old-k1.md"), "# old-k1\n");
+    touch(&grove.join("01-DONE-impl-old-k1.md"), "# old-k1\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-DONE-old-k1.md"]);
+    let (_, stderr, ok) = run(
+        tmp.path(),
+        &["leaf-retire", ".grove/01-DONE-impl-old-k1.md"],
+    );
     assert!(!ok, "retire must refuse an already-retired leaf");
     assert!(
         stderr.contains("already retired") || stderr.contains("DONE"),

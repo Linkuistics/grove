@@ -87,6 +87,10 @@ fn init_worktree(dir: &std::path::Path) {
     );
 }
 
+fn write_tree_format(grove: &std::path::Path) {
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+}
+
 #[test]
 fn loop_relaunches_on_signal_and_stops_without_one() {
     let _g = support::lock_env(&ENV_LOCK);
@@ -132,6 +136,7 @@ echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
 printf '%s\t%s\t%s\t%s\n' "$n" "${GROVE_HARNESS_PID:-unset}" "${GROVE_CLAUDE_PID:-unset}" "$prompt" >> "$GROVE_TEST_LOG"
 mkdir -p "$PWD/.grove"
+printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
 fi
@@ -519,6 +524,7 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 mkdir -p "$PWD/.grove"
+printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
 if [ "$n" -eq 1 ]; then
   : > "$GROVE_SIGNAL_FILE"
   exec sleep 30
@@ -793,7 +799,7 @@ exec sleep 30
 // live leaf's kind via the real `grove-llm kind` binary (wired in via the
 // `GROVE_LLM_BIN` seam, run against a real git worktree so `kind` resolves the
 // grove root). Asserts the exact `--model` per iteration, across three of the
-// seventeen kinds — requirements (start), then two continue kinds, one of them a
+// nineteen kinds — requirements (start), then two continue kinds, one of them a
 // *hyphenated* one (`impl`, then `review-impl`) — proving the scheme is a real
 // per-kind lookup and that the label → env-suffix mapping survives a hyphen.
 #[test]
@@ -840,11 +846,12 @@ printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
 printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
 fi
 if [ "$n" -eq 2 ]; then
-  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
+  mv "$PWD/.grove/01-impl-a-k1.md" "$PWD/.grove/01-review-impl-a-k1.md"
 fi
 if [ "$n" -lt 3 ]; then
   : > "$GROVE_SIGNAL_FILE"
@@ -911,18 +918,11 @@ exit 0
     );
 }
 
-// Degrade-on-read must be **loud** (task-kind-taxonomy). An unrecognised
-// `**Kind:**` line — a typo, a hand-edited file, or a tree written by a newer
-// grove — is treated as `impl`, which in a typical config is the *cheapest*
-// model: a silent downgrade. `grove-llm kind` warns on stderr but exits 0, so
-// the warning rides the **success** path; a driver that captures the child's
-// stderr swallows exactly the diagnostic that explains the downgrade.
-//
-// Runs the real `grove` binary as a subprocess (the only way to observe what the
-// operator actually sees on stderr) and asserts both halves: the warning reaches
-// them, *and* the leaf still launches — degrading, never jamming the loop.
+// Current-format task filenames are strict. An unknown session-kind token is a
+// malformed tree, so the driver surfaces the reader's diagnostic and launches
+// nothing.
 #[test]
-fn unrecognised_kind_warns_the_operator_and_still_launches() {
+fn unrecognised_filename_kind_refuses_to_launch() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
@@ -947,12 +947,9 @@ fn unrecognised_kind_warns_the_operator_and_still_launches() {
     // hits the degrade branch.
     fs::create_dir_all(repo_path.join(".claude")).unwrap();
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** reserch\n",
-    )
-    .unwrap();
+    fs::write(repo_path.join(".grove/01-reserch-a-k1.md"), "# a-k1\n").unwrap();
     git(&["add", "-A"]);
     git(&["commit", "-qm", "tree with an unrecognised kind"]);
 
@@ -999,18 +996,16 @@ exit 0
         .unwrap();
 
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
+    assert!(!out.status.success(), "malformed current tree launched");
     assert!(
-        stderr.contains("unrecognised") && stderr.contains("reserch"),
-        "the operator must SEE why the leaf was downgraded — `grove-llm kind`'s \
-         degrade warning rides a zero exit, so capturing the child's stderr \
-         swallows it (stderr: {stderr:?})"
+        stderr.contains("malformed Grove leaf") && stderr.contains("reserch"),
+        "the refusal must name the malformed filename and token (stderr: {stderr:?})"
     );
 
     let argv = fs::read_to_string(&log).unwrap_or_default();
     assert!(
-        argv.contains("--model sonnet"),
-        "an unrecognised kind degrades to `impl` and still launches — a typo must \
-         never jam the unattended loop (argv: {argv:?})"
+        argv.is_empty(),
+        "an unrecognised current filename kind must not launch (argv: {argv:?})"
     );
 }
 
@@ -1018,7 +1013,7 @@ exit 0
 /// The launch diagnostic goes to the operator's terminal, not through any value
 /// an in-process `run_loop` test can inspect, so these drive the real `grove do`
 /// binary as a subprocess — the same route
-/// [`unrecognised_kind_warns_the_operator_and_still_launches`] takes.
+/// [`unrecognised_filename_kind_refuses_to_launch`] takes.
 ///
 /// Plants a git repo with `.claude/` (so the harness detects as claude), a
 /// provisioned skill dir, and a fake harness that exits without signalling — the
@@ -1098,15 +1093,16 @@ fn launch_line_names_the_routed_leaf_by_its_stable_handle() {
 
     let mut cmd = one_launch_grove_do(repo_path);
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
-        repo_path.join(".grove/01-DONE-spec-k1.md"),
-        "# spec-k1\n\n**Kind:** design\n",
+        repo_path.join(".grove/01-DONE-design-spec-k1.md"),
+        "# spec-k1\n",
     )
     .unwrap();
     fs::write(
-        repo_path.join(".grove/02-picked-k7.md"),
-        "# picked-k7\n\n**Kind:** design\n",
+        repo_path.join(".grove/02-design-picked-k7.md"),
+        "# picked-k7\n",
     )
     .unwrap();
 
@@ -1122,22 +1118,23 @@ fn launch_line_names_the_routed_leaf_by_its_stable_handle() {
 }
 
 #[test]
-fn a_review_diversity_warning_is_emitted_once_and_prepended_to_the_prompt() {
+fn producer_launch_body_metadata_does_not_affect_a_review_launch() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
     let mut cmd = one_launch_grove_do(repo_path);
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
-        repo_path.join(".grove/01-DONE-build-k1.md"),
-        "# build-k1\n\n**Kind:** impl\n",
+        repo_path.join(".grove/01-DONE-impl-build-k1.md"),
+        "# build-k1\n",
     )
     .unwrap();
     fs::write(
-        repo_path.join(".grove/02-build-review-k2.md"),
-        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
+        repo_path.join(".grove/02-review-impl-build-review-k2.md"),
+        "# build-review-k2\n\n**Reviews:** build-k1\n\
          **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
     )
     .unwrap();
@@ -1159,18 +1156,19 @@ exit 0
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     let prompt = fs::read_to_string(&prompt_log)
         .unwrap_or_else(|error| panic!("prompt was not written ({error}); stderr: {stderr}"));
-    let warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness+model, producer-target=claude/\"opus\", review-target=claude/\"opus\"); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues";
-
     assert!(output.status.success(), "review launch was gated: {stderr}");
-    assert_eq!(stderr.matches(warning).count(), 1, "stderr: {stderr}");
     assert!(
-        prompt.starts_with(&format!("{warning}\n\n")),
+        !stderr.contains("review target diversity warning"),
+        "stderr: {stderr}"
+    );
+    assert!(
+        !prompt.contains("review target diversity warning"),
         "prompt: {prompt}"
     );
     assert_eq!(
         launch_line(&stderr),
         "grove: launching claude (model: opus) — build-review-k2 (review-impl)",
-        "the advisory warning must not change the resolved launch: {stderr}"
+        "body metadata must not change the resolved launch: {stderr}"
     );
 
     let restarted = grove_do_command(repo_path)
@@ -1180,25 +1178,22 @@ exit 0
         .unwrap();
     let restarted_stderr = String::from_utf8_lossy(&restarted.stderr).into_owned();
     let restarted_prompt = fs::read_to_string(&prompt_log).unwrap();
-    let restarted_warning = "grove: review target diversity warning (review=build-review-k2, producer=build-k1, matching=harness, producer-target=claude/\"opus\", review-target=claude/\"sonnet\"); applies only if factual pick is review=build-review-k2; discard otherwise; launch continues";
-
     assert!(
         restarted.status.success(),
         "restarted review launch was gated: {restarted_stderr}"
     );
-    assert_eq!(
-        restarted_stderr.matches(restarted_warning).count(),
-        1,
+    assert!(
+        !restarted_stderr.contains("review target diversity warning"),
         "stderr: {restarted_stderr}"
     );
     assert!(
-        restarted_prompt.starts_with(&format!("{restarted_warning}\n\n")),
+        !restarted_prompt.contains("review target diversity warning"),
         "prompt: {restarted_prompt}"
     );
     assert_eq!(
         launch_line(&restarted_stderr),
         "grove: launching claude (model: sonnet) — build-review-k2 (review-impl)",
-        "the fresh driver must compare its changed route with the historical receipt: \
+        "the fresh driver must ignore the historical receipt: \
          {restarted_stderr}"
     );
 }
@@ -1211,15 +1206,16 @@ fn a_fully_diverse_review_launch_is_silent_and_keeps_the_prompt_unprefixed() {
 
     let mut cmd = one_launch_grove_do(repo_path);
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
-        repo_path.join(".grove/01-DONE-build-k1.md"),
-        "# build-k1\n\n**Kind:** impl\n",
+        repo_path.join(".grove/01-DONE-impl-build-k1.md"),
+        "# build-k1\n",
     )
     .unwrap();
     fs::write(
-        repo_path.join(".grove/02-build-review-k2.md"),
-        "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
+        repo_path.join(".grove/02-review-impl-build-review-k2.md"),
+        "# build-review-k2\n\n**Reviews:** build-k1\n\
          **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
     )
     .unwrap();
@@ -1260,13 +1256,14 @@ exit 0
 }
 
 #[test]
-fn a_decomposed_review_warning_names_the_factual_session_separately() {
+fn decomposed_producer_launch_metadata_is_ignored() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
 
     let mut cmd = one_launch_grove_do(repo_path);
     fs::create_dir_all(repo_path.join(".grove/01-bundle-k1")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
     fs::write(
         repo_path.join(".grove/01-bundle-k1/BRIEF.md"),
@@ -1274,13 +1271,13 @@ fn a_decomposed_review_warning_names_the_factual_session_separately() {
     )
     .unwrap();
     fs::write(
-        repo_path.join(".grove/01-bundle-k1/01-DONE-implement-k4.md"),
-        "# implement-k4\n\n**Kind:** impl\n",
+        repo_path.join(".grove/01-bundle-k1/01-DONE-impl-implement-k4.md"),
+        "# implement-k4\n",
     )
     .unwrap();
     fs::write(
-        repo_path.join(".grove/02-bundle-review-k8.md"),
-        "# bundle-review-k8\n\n**Kind:** review-impl\n**Reviews:** bundle-k1\n\
+        repo_path.join(".grove/02-review-impl-bundle-review-k8.md"),
+        "# bundle-review-k8\n\n**Reviews:** bundle-k1\n\
          **Producer launch:** {\"producer\":\"bundle-k1\",\"session\":\"implement-k4\",\"generation\":\"k4\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
     )
     .unwrap();
@@ -1300,23 +1297,16 @@ exit 0
         .output()
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let warning = stderr
-        .lines()
-        .find(|line| line.starts_with("grove: review target diversity warning"))
-        .unwrap_or_else(|| panic!("warning missing from stderr: {stderr}"));
-
     assert!(output.status.success(), "review launch was gated: {stderr}");
     assert!(
-        warning.contains("producer=bundle-k1, session=implement-k4"),
-        "{warning}"
+        !stderr.contains("review target diversity warning"),
+        "stderr: {stderr}"
     );
-    assert!(warning
-        .contains("applies only if factual pick is review=bundle-review-k8; discard otherwise"));
     assert!(
-        fs::read_to_string(&prompt_log)
+        !fs::read_to_string(&prompt_log)
             .unwrap()
-            .starts_with(&format!("{warning}\n\n")),
-        "the retained notice must be prepended to the prompt"
+            .contains("producer=bundle-k1, session=implement-k4"),
+        "body launch metadata must not enter the prompt"
     );
 }
 
@@ -1327,13 +1317,10 @@ fn the_loop_uses_review_evidence_from_its_guarded_peek_without_rereading_the_tas
     let worktree = repo.path();
     init_worktree(worktree);
     fs::create_dir_all(worktree.join(".grove")).unwrap();
+    write_tree_format(&worktree.join(".grove"));
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    let review_path = worktree.join(".grove/01-retained-review-k2.md");
-    fs::write(
-        &review_path,
-        "# retained-review-k2\n\n**Kind:** review-impl\n",
-    )
-    .unwrap();
+    let review_path = worktree.join(".grove/01-review-impl-retained-review-k2.md");
+    fs::write(&review_path, "# retained-review-k2\n").unwrap();
 
     let fake_llm = worktree.join("fake-grove-llm.sh");
     write_exec(
@@ -1403,9 +1390,10 @@ fn a_review_peek_without_the_review_field_is_rejected_as_version_skew() {
     let worktree = repo.path();
     init_worktree(worktree);
     fs::create_dir_all(worktree.join(".grove")).unwrap();
+    write_tree_format(&worktree.join(".grove"));
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    let review_path = worktree.join(".grove/01-review-k2.md");
-    fs::write(&review_path, "# review-k2\n\n**Kind:** review-impl\n").unwrap();
+    let review_path = worktree.join(".grove/01-review-impl-review-k2.md");
+    fs::write(&review_path, "# review-k2\n").unwrap();
 
     let fake_llm = worktree.join("fake-grove-llm.sh");
     write_exec(
@@ -1455,12 +1443,13 @@ fi
 }
 
 #[test]
-fn uncheckable_review_metadata_warns_without_inventing_a_producer() {
+fn uncheckable_review_body_metadata_is_ignored() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
     let _setup_only = one_launch_grove_do(repo_path);
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
 
     let prompt_log = repo_path.join("prompt");
@@ -1500,10 +1489,10 @@ exit 0
         ),
     ];
 
-    for (case, metadata, expected) in cases {
+    for (case, metadata, _expected) in cases {
         fs::write(
-            repo_path.join(".grove/01-build-review-k2.md"),
-            format!("# build-review-k2\n\n**Kind:** review-impl\n{metadata}"),
+            repo_path.join(".grove/01-review-impl-build-review-k2.md"),
+            format!("# build-review-k2\n\n{metadata}"),
         )
         .unwrap();
         let output = grove_do_command(repo_path)
@@ -1513,28 +1502,15 @@ exit 0
             .unwrap();
         let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
         let prompt = fs::read_to_string(&prompt_log).unwrap();
-        let warning = stderr
-            .lines()
-            .find(|line| line.starts_with("grove: review target diversity warning"))
-            .unwrap_or_else(|| panic!("{case}: warning missing from stderr: {stderr}"));
-
         assert!(output.status.success(), "{case}: launch gated: {stderr}");
         assert!(
-            warning.contains("review=build-review-k2"),
-            "{case}: {warning}"
+            !stderr.contains("review target diversity warning"),
+            "{case}: {stderr}"
         );
-        assert!(warning.contains(expected), "{case}: {warning}");
-        assert_eq!(stderr.matches(warning).count(), 1, "{case}: {stderr}");
         assert!(
-            prompt.starts_with(&format!("{warning}\n\n")),
-            "{case}: prompt did not preserve the notice: {prompt}"
+            !prompt.contains("review target diversity warning"),
+            "{case}: body metadata leaked into prompt: {prompt}"
         );
-        if expected.contains("producer=unknown") {
-            assert!(
-                !warning.contains("claimant-k9"),
-                "{case}: receipt claimant leaked as producer identity: {warning}"
-            );
-        }
     }
 }
 
@@ -1586,12 +1562,9 @@ fn a_kind_with_no_model_var_fails_loudly_instead_of_launching() {
     init_worktree(worktree);
 
     fs::create_dir_all(worktree.join(".grove")).unwrap();
+    write_tree_format(&worktree.join(".grove"));
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review-impl\n",
-    )
-    .unwrap();
+    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
 
     let skill_dir = worktree.join("global-skill");
     let prompts = skill_dir.join("prompts");
@@ -1765,8 +1738,9 @@ echo "$n" > "$GROVE_TEST_COUNTER"
 printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -1850,8 +1824,9 @@ exit 0
 fn plant_one_impl_leaf(worktree: &std::path::Path) {
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
+    write_tree_format(&grove);
     fs::write(grove.join("BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(grove.join("01-a-k1.md"), "# a-k1\n\n**Kind:** impl\n").unwrap();
+    fs::write(grove.join("01-impl-a-k1.md"), "# a-k1\n").unwrap();
 }
 
 #[test]
@@ -2178,8 +2153,9 @@ echo "$n" > "$GROVE_TEST_COUNTER"
 printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -2282,8 +2258,9 @@ echo "$n" > "$GROVE_TEST_COUNTER"
 printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -2403,8 +2380,9 @@ printf '%s' "$prompt" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
 printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -2536,8 +2514,9 @@ echo "$n" > "$GROVE_TEST_COUNTER"
 printf 'codex\t%s\n' "$*" >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -2665,12 +2644,9 @@ fn drive_one_leaf(
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
         .set("GROVE_TEST_KIND", kind)
-        // The leaf the fake materialises carries a `**Harness:**` line only when
-        // a case asks for one, by setting this in `vars` — so every existing
-        // case keeps writing the undeclared leaf it always wrote. Explicitly
-        // cleared rather than merely unset: `clear_grove_env` sweeps the routing
-        // surface, not the fixture's own handles, and a value left behind by the
-        // previous case in this binary would silently reroute the next one.
+        // Some compatibility cases still put a historical `**Harness:**` line
+        // in the body. Current trees route only from policy; the body line is
+        // deliberately inert.
         .remove("GROVE_TEST_LEAF_HARNESS");
 
     for name in ["claude", "codex", "pi"] {
@@ -2690,10 +2666,11 @@ printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
 printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** %s\n' "$GROVE_TEST_KIND" > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-${{GROVE_TEST_KIND}}-a-k1.md"
   if [ -n "$GROVE_TEST_LEAF_HARNESS" ]; then
-    printf '**Harness:** %s\n' "$GROVE_TEST_LEAF_HARNESS" >> "$PWD/.grove/01-a-k1.md"
+    printf '\n**Harness:** %s\n' "$GROVE_TEST_LEAF_HARNESS" >> "$PWD/.grove/01-${{GROVE_TEST_KIND}}-a-k1.md"
   fi
   : > "$GROVE_SIGNAL_FILE"
 fi
@@ -2755,7 +2732,7 @@ fn refusal_over_one_leaf(
 
 // The claim the family axis exists to make good on: *one* line covers all five
 // kinds of a family. Without it the same policy would be written five times and
-// hand-kept in sync, and the seventeen-kind set would not pay for itself
+// hand-kept in sync, and the nineteen-kind set would not pay for itself
 // (model-per-task-kind). All five, because "covers the family" is exactly the
 // property a per-kind implementation would satisfy for four of them.
 #[test]
@@ -3052,177 +3029,37 @@ fn preflight_check_catches_a_missing_family_override_binary() {
     );
 }
 
-// ── The per-leaf axis (leaf-harness-k15) ─────────────────────────────────
-//
-// A leaf may name its own harness on a `**Harness:**` line, and that beats every
-// policy var and the grove's own stamp. It exists for the **vendor pair** — two
-// `research` leaves differing only by vendor — which is the one shape a
-// kind→harness *function* cannot express, so `research` is the kind driven
-// throughout. Same seam as the family axis above: the real driver, a fake binary
-// per vendor, assertions on the recorded argv.
-
-// The claim itself. `research` has no policy var set anywhere here, so the only
-// thing that can move this leaf off the stamp is the line on the leaf.
+// Current tree bodies carry task prose and relationships, not launch routing.
+// A historical `**Harness:**` line is inert: the stamp wins when policy is
+// absent, and kind policy wins when it is present.
 #[test]
-fn a_leaf_declared_harness_launches_there_whatever_the_stamp() {
+fn a_body_harness_declaration_is_ignored() {
     let _g = support::lock_env(&ENV_LOCK);
     let rows = loop_over_one_leaf(
         "claude",
-        "research",
+        "impl",
         &[
             ("GROVE_TEST_LEAF_HARNESS", "codex"),
-            ("GROVE_CODEX_RESEARCH_MODEL", "sol-high"),
-        ],
-    );
-    assert_eq!(
-        rows[0].0, "claude",
-        "the requirements start path has no leaf to declare anything and stays on the stamp"
-    );
-    assert_eq!(rows[1].0, "codex", "the leaf's own declaration must win");
-    assert!(
-        rows[1].1.contains("--profile sol-high"),
-        "the leaf names the seat; the env names who sits in it — the model still \
-         comes from the (harness, kind) pair (argv: {:?})",
-        rows[1].1
-    );
-}
-
-// Precedence: leaf beats kind beats family beats stamp. The discriminating
-// fixture sets the *kind* var — the most specific thing the env can say about
-// this leaf — and still loses, which is the whole point of the axis: the pair's
-// second survey goes elsewhere *because its sibling does not*, and no policy
-// keyed on `research` can say that about one of two identical-kind leaves.
-#[test]
-fn a_leaf_declaration_beats_the_per_kind_policy() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "research",
-        &[
-            ("GROVE_RESEARCH_HARNESS", "pi"),
-            ("GROVE_TEST_LEAF_HARNESS", "codex"),
-            ("GROVE_CODEX_RESEARCH_MODEL", "sol-high"),
-            ("GROVE_PI_RESEARCH_MODEL", SCAFFOLD_MODEL),
-        ],
-    );
-    assert_eq!(
-        rows[1].0, "codex",
-        "a leaf declaration must outrank GROVE_<KIND>_HARNESS"
-    );
-}
-
-// `rerouted` is computed against the **stamp**, exactly as it is for the env
-// axis — so a leaf-declared reroute gets no unscoped model var and no global
-// binary override. Without this the pair's codex leaf could launch on a value
-// written for claude, which is the failure the reroute rule exists to prevent.
-#[test]
-fn a_leaf_declared_reroute_consults_no_unscoped_model_var() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let (err, rows) = refusal_over_one_leaf(
-        "claude",
-        "research",
-        &[
-            ("GROVE_TEST_LEAF_HARNESS", "codex"),
-            ("GROVE_RESEARCH_MODEL", "opus"),
-        ],
-    );
-    assert!(
-        err.contains("GROVE_CODEX_RESEARCH_MODEL"),
-        "the refusal must name the harness-scoped key, which is the whole \
-         lattice a rerouted launch has left (err: {err})"
-    );
-    assert_eq!(
-        rows.len(),
-        1,
-        "only the stamped bootstrap session ran (rows: {rows:?})"
-    );
-    assert!(
-        !rows.iter().any(|(_, argv)| argv.contains("opus")),
-        "the unscoped var must not cross the leaf-declared reroute (rows: {rows:?})"
-    );
-}
-
-// The other side of that rule: declaring the harness the grove is already
-// stamped to is **not** a reroute, so the unscoped var still applies. Otherwise
-// a leaf could be made unlaunchable by writing down the harness it was already
-// going to run on.
-#[test]
-fn declaring_the_stamped_harness_is_not_a_reroute() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "research",
-        &[
-            ("GROVE_TEST_LEAF_HARNESS", "claude"),
-            ("GROVE_RESEARCH_MODEL", "opus"),
+            ("GROVE_IMPL_MODEL", "opus"),
         ],
     );
     assert_eq!(rows[1].0, "claude");
-    assert!(
-        rows[1].1.contains("--model opus"),
-        "an unscoped var must still apply when nothing was rerouted (argv: {:?})",
-        rows[1].1
-    );
+    assert!(rows[1].1.contains("--model opus"), "rows: {rows:?}");
 }
 
-// Refuse, do not degrade. A wrong *harness* is not a wrong label: degrading
-// would run the leaf on a vendor the tree explicitly said not to. The read side
-// refuses (tests/kind.rs proves the message), which surfaces here as a peek the
-// driver cannot resolve — and the driver must then stop rather than fall back to
-// the stamp, which is the exact fallback the declaration forbade.
 #[test]
-fn an_unrecognised_leaf_harness_refuses_to_launch() {
+fn kind_policy_wins_over_a_body_harness_declaration() {
     let _g = support::lock_env(&ENV_LOCK);
-    let (err, rows) = refusal_over_one_leaf(
+    let rows = loop_over_one_leaf(
         "claude",
-        "research",
+        "impl",
         &[
-            ("GROVE_TEST_LEAF_HARNESS", "codx"),
-            ("GROVE_RESEARCH_MODEL", SCAFFOLD_MODEL),
+            ("GROVE_TEST_LEAF_HARNESS", "codex"),
+            ("GROVE_IMPL_HARNESS", "pi"),
+            ("GROVE_PI_IMPL_MODEL", SCAFFOLD_MODEL),
         ],
     );
-    assert!(
-        err.contains("could not be resolved") && err.contains("declares for itself"),
-        "the refusal must point at the leaf, since the operator's mistake is on \
-         it and not in the environment (err: {err})"
-    );
-    assert_eq!(
-        rows.len(),
-        1,
-        "the research leaf must not launch on the stamp (rows: {rows:?})"
-    );
-}
-
-// Pre-flight deliberately does not walk the tree for declarations — it cannot,
-// since the tree grows while the loop runs — so the not-installed case is caught
-// at launch, and must be caught *by name* rather than as a raw spawn failure.
-// Same instruction as the pre-flight refusals: which harness, which binary.
-#[test]
-fn a_leaf_declared_harness_that_is_not_installed_refuses_by_name() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let (err, rows) = refusal_over_one_leaf(
-        "claude",
-        "research",
-        &[
-            ("GROVE_TEST_LEAF_HARNESS", "pi"),
-            ("GROVE_HARNESS_BIN_PI", "/nonexistent/pi-binary"),
-            ("GROVE_PI_RESEARCH_MODEL", SCAFFOLD_MODEL),
-        ],
-    );
-    assert!(
-        err.contains("pi") && err.contains("/nonexistent/pi-binary"),
-        "the refusal must name the harness and the binary it looked for (err: {err})"
-    );
-    assert!(
-        err.contains("not on PATH"),
-        "…and say what is actually wrong, rather than reporting it as a \
-         mis-declared harness (err: {err})"
-    );
-    assert_eq!(
-        rows.len(),
-        1,
-        "nothing may launch in its place (rows: {rows:?})"
-    );
+    assert_eq!(rows[1].0, "pi");
 }
 
 // An unknown harness name in a family var fails loudly at pre-flight too, not
@@ -3295,8 +3132,9 @@ printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
 printf '\n' >> "$GROVE_TEST_LOG"
 if [ "$n" -eq 1 ]; then
   mkdir -p "$PWD/.grove"
+  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
   printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n\n**Kind:** review-impl\n' > "$PWD/.grove/01-a-k1.md"
+  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
   : > "$GROVE_SIGNAL_FILE"
 fi
 exit 0
@@ -3443,12 +3281,9 @@ fn degraded_peek_error(vars: &[(&str, &str)]) -> String {
     let worktree = worktree_dir.path();
     init_worktree(worktree);
     fs::create_dir_all(worktree.join(".grove")).unwrap();
+    write_tree_format(&worktree.join(".grove"));
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review-impl\n",
-    )
-    .unwrap();
+    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
 
     let mut env = EnvGuard::new();
     env.clear_grove_env()
@@ -3623,12 +3458,9 @@ fn unknown_review_harness_fails_loudly_on_the_continue_path() {
         "git init failed"
     );
     fs::create_dir_all(worktree.join(".grove")).unwrap();
+    write_tree_format(&worktree.join(".grove"));
     fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        worktree.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** review-impl\n",
-    )
-    .unwrap();
+    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
 
     let skill_dir = worktree.join("global-skill");
     let prompts = skill_dir.join("prompts");
@@ -4259,6 +4091,7 @@ n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
 n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 mkdir -p "$PWD/.grove"
+printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
 if [ "$n" -eq 1 ]; then
   : > "$GROVE_SIGNAL_FILE"
 else
@@ -4462,12 +4295,9 @@ fn a_sigtermed_driver_releases_the_pane_before_exiting() {
     // continue path without needing to bootstrap.
     fs::create_dir_all(repo_path.join(".claude")).unwrap();
     fs::create_dir_all(repo_path.join(".grove")).unwrap();
+    write_tree_format(&repo_path.join(".grove"));
     fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-a-k1.md"),
-        "# a-k1\n\n**Kind:** impl\n",
-    )
-    .unwrap();
+    fs::write(repo_path.join(".grove/01-impl-a-k1.md"), "# a-k1\n").unwrap();
     git(&["add", "-A"]);
     git(&["commit", "-qm", "tree"]);
 

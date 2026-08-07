@@ -1,11 +1,10 @@
 // Shared leaf vocabulary that outlived the old-format reader/grower. Two items
 // survive:
 //
-//   * `Kind` — the leaf-kind enum, a **closed, parameterised set of seventeen**
+//   * `Kind` — the leaf-kind enum, a **closed, parameterised set of nineteen**
 //     (five producers, each with its own `review-` and `integrate-review-` step,
-//     plus `research` and `combine-research` — ADR `task-kind-taxonomy`,
-//     membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) written into a task
-//     file's `**Kind:**` line. Live: the grow/lifecycle verbs (`tree_grow` /
+//     two research producers, their combine step, and finish) written into a
+//     current task filename. Live: the grow/lifecycle verbs (`tree_grow` /
 //     `tree_lifecycle`) and the `grove-llm` CLI surface (`llm_cli`) parse and
 //     carry it.
 //   * `split_prefix` — the old-format `NNN-slug` prefix parser. Per task-tree-scheme the
@@ -28,12 +27,12 @@ const WORK_ALIAS: &str = "work";
 /// `review-*` kinds and the five `integrate-review-*` kinds are each a set the
 /// user configures *as a set* ("reviews go to codex"), which is what makes
 /// resolving through a family a within-discipline lookup rather than the
-/// across-discipline fallback that same ADR rejects. The other seven kinds
+/// across-discipline fallback that same ADR rejects. The other nine kinds
 /// stand alone.
 ///
-/// A family is an **env-var concept only**: it is never a leaf's `**Kind:**`
-/// value, which is why `Kind::parse` refuses `review` and `read_kind` degrades
-/// it. Do not add a third without a live case behind it (constraint 4) — every
+/// A family is an **env-var concept only**: it is never a leaf filename kind,
+/// which is why `Kind::parse` refuses `review`. Do not add a third without a
+/// live case behind it (constraint 4) — every
 /// family multiplies the precedence table that has to stay testable.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Family {
@@ -59,10 +58,10 @@ impl Family {
     }
 }
 
-/// A leaf's declared session kind — a closed, **parameterised** set of
-/// seventeen (ADR `task-kind-taxonomy`): five producers, each with its own
-/// `review-` and `integrate-review-` step, plus `research` and
-/// `combine-research`. Adding an eighteenth is a deliberate code change, never
+/// A leaf's session kind — a closed, **parameterised** set of nineteen (ADR
+/// `task-kind-taxonomy`): five producers, each with its own `review-` and
+/// `integrate-review-` step, two research producers, their combine step, and the
+/// driver-owned finish step. Adding a twentieth is a deliberate code change, never
 /// a free-text label a leaf may coin. Only `Planning` carries methodological
 /// force (the loop's sole Execute branch, the only kind that grows the tree);
 /// every other kind produces some artifact, differing in discipline and in
@@ -78,8 +77,11 @@ pub enum Kind {
     Prototype,
     Impl,
     // Research and its binary combine step.
-    Research,
+    ResearchA,
+    ResearchB,
     CombineResearch,
+    // Driver-owned complete-finish-cycle sentinel.
+    Finish,
     // One adversarial read per producer.
     ReviewRequirements,
     ReviewDesign,
@@ -101,15 +103,17 @@ impl Kind {
     /// for its *spelling*: parsing, the `--kind` error listing, and the loop
     /// driver's env-var sweep all derive from these two, so none of them can
     /// drift from the enum. That mattered little at five kinds and matters a
-    /// lot at seventeen.
-    pub const ALL: [Kind; 17] = [
+    /// lot at nineteen.
+    pub const ALL: [Kind; 19] = [
         Kind::Requirements,
         Kind::Design,
         Kind::Planning,
         Kind::Prototype,
         Kind::Impl,
-        Kind::Research,
+        Kind::ResearchA,
+        Kind::ResearchB,
         Kind::CombineResearch,
+        Kind::Finish,
         Kind::ReviewRequirements,
         Kind::ReviewDesign,
         Kind::ReviewPlanning,
@@ -122,14 +126,14 @@ impl Kind {
         Kind::IntegrateReviewImpl,
     ];
 
-    /// The kind's [`Family`], or `None` for the seven that stand alone. The
+    /// The kind's [`Family`], or `None` for the nine that stand alone. The
     /// second half of routing's "specific beats general" rule: a kind with a
     /// family resolves its own var first, then the family's
     /// (`model-per-task-kind`).
     ///
     /// Written as an exhaustive `match` rather than derived from the label,
     /// for two reasons the label direction cannot supply. First, the compiler
-    /// forces an eighteenth kind to *declare* its family instead of inheriting
+    /// forces a twentieth kind to *declare* its family instead of inheriting
     /// one by accident of spelling. Second, the two family labels overlap as
     /// strings — `integrate-review-impl` contains `review` — so any
     /// substring/prefix derivation is one loose matcher away from routing every
@@ -142,8 +146,10 @@ impl Kind {
             | Kind::Planning
             | Kind::Prototype
             | Kind::Impl
-            | Kind::Research
-            | Kind::CombineResearch => None,
+            | Kind::ResearchA
+            | Kind::ResearchB
+            | Kind::CombineResearch
+            | Kind::Finish => None,
             Kind::ReviewRequirements
             | Kind::ReviewDesign
             | Kind::ReviewPlanning
@@ -159,7 +165,7 @@ impl Kind {
 
     /// The two steps that follow this kind in a **review chain** — its
     /// `review-` sibling and its `integrate-review-` sibling — or `None` for the
-    /// twelve kinds that head no chain (`research` and `combine-research`, whose
+    /// fourteen kinds that head no chain (the research and finish kinds plus
     /// shape is the vendor pair, and the ten steps themselves, which are already
     /// in one).
     ///
@@ -167,13 +173,13 @@ impl Kind {
     /// it clears ADR *cli-binary-split*'s second leg: `<producer>` ⇒
     /// `review-<producer>` ⇒ `integrate-review-<producer>` is exactly what
     /// *parameterised, not flat* bought, and a session transcribing it from a
-    /// seventeen-row table by hand can produce a **wrong-but-well-formed**
+    /// nineteen-row table by hand can produce a **wrong-but-well-formed**
     /// result — `--kind review-impl` beside a `design` producer is a perfectly
     /// valid invocation that the `--kind` write-gate cannot catch. A derivation
     /// can.
     ///
     /// Exhaustive `match` rather than a label transform, for [`Kind::family`]'s
-    /// two reasons: the compiler forces an eighteenth kind to *declare* whether
+    /// two reasons: the compiler forces a twentieth kind to *declare* whether
     /// it heads a chain instead of inheriting one by accident of spelling, and
     /// the two family labels overlap as strings (`integrate-review-impl`
     /// contains `review`), so any prefix derivation is one loose matcher away
@@ -187,8 +193,10 @@ impl Kind {
             Kind::Planning => Some((Kind::ReviewPlanning, Kind::IntegrateReviewPlanning)),
             Kind::Prototype => Some((Kind::ReviewPrototype, Kind::IntegrateReviewPrototype)),
             Kind::Impl => Some((Kind::ReviewImpl, Kind::IntegrateReviewImpl)),
-            Kind::Research
+            Kind::ResearchA
+            | Kind::ResearchB
             | Kind::CombineResearch
+            | Kind::Finish
             | Kind::ReviewRequirements
             | Kind::ReviewDesign
             | Kind::ReviewPlanning
@@ -210,13 +218,19 @@ impl Kind {
         if let Some(steps) = self.review_steps() {
             return Ok(steps);
         }
-        if matches!(self, Kind::Research | Kind::CombineResearch) {
+        if matches!(
+            self,
+            Kind::ResearchA | Kind::ResearchB | Kind::CombineResearch
+        ) {
             bail!(
                 "`{}` heads no review chain — research composes as a **vendor pair** \
                  (two surveys unioned by a `combine-research` step). Use \
-                 `leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <name>`.",
+                 `leaf-add-pair <parent> <stem>`.",
                 self.label()
             );
+        }
+        if self == Kind::Finish {
+            bail!("`finish` is driver-reserved and cannot head a review chain");
         }
         bail!(
             "`{}` is already a review-chain *step*, not the producer that heads one. \
@@ -248,7 +262,7 @@ impl Kind {
     /// `work` is refused here rather than silently accepted: it is the previous
     /// spelling of `impl`, and the gate exists to retrain a human who is present
     /// to be retrained. The error names the replacement instead of only listing
-    /// the seventeen, because "not in the list" is unhelpful for a word that was
+    /// the nineteen, because "not in the list" is unhelpful for a word that was
     /// correct last week.
     pub fn parse(s: &str) -> Result<Kind> {
         if let Some(kind) = Kind::from_label(s) {
@@ -257,28 +271,22 @@ impl Kind {
         if s == WORK_ALIAS {
             bail!(
                 "--kind `work` was renamed `impl` (task-kind-taxonomy); use `--kind impl`. \
-                 A task file still saying `**Kind:** work` keeps reading as `impl` and needs \
-                 no edit."
+                 Legacy migration still reads `work` as `impl`."
             );
         }
         bail!("--kind must be one of {}, got {:?}", Kind::label_list(), s)
     }
 
-    /// The read-side counterpart of [`Kind::parse`], and the reason the
-    /// `work` → `impl` rename is safe: it additionally accepts `work` as
-    /// `Impl`, **silently**. That asymmetry is grove's existing gate-on-write /
-    /// degrade-on-read rule (task-kind-taxonomy), not a new one — an alias is a
-    /// read-side concession, and a warning on a file whose only sin is the
-    /// previous spelling would be noise on every task file of every live grove.
-    ///
-    /// `None` means genuinely unrecognised; deciding what *that* means is the
-    /// caller's (`tree_read::read_kind` warns and degrades to `Impl`).
+    /// Compatibility parser for legacy migration and installed-driver wire
+    /// values. Current filename parsing uses the strict known-label set.
     pub(crate) fn parse_read(s: &str) -> Option<Kind> {
-        Kind::from_label(s).or_else(|| (s == WORK_ALIAS).then_some(Kind::Impl))
+        Kind::from_label(s)
+            .or_else(|| (s == WORK_ALIAS).then_some(Kind::Impl))
+            .or_else(|| (s == "research").then_some(Kind::ResearchA))
     }
 
-    /// The lowercase label written into a task file's `**Kind:**` line and
-    /// printed by `grove-llm kind`. The single source of truth for the label
+    /// The lowercase label written into a task filename and printed by
+    /// `grove-llm kind`. The single source of truth for the label
     /// direction: the grow verbs' leaf template (`tree_grow`), the `kind` verb,
     /// [`Kind::from_label`], and the loop driver's env-var suffixes all read
     /// through it, so none of them can disagree on the spelling.
@@ -289,8 +297,10 @@ impl Kind {
             Kind::Planning => "planning",
             Kind::Prototype => "prototype",
             Kind::Impl => "impl",
-            Kind::Research => "research",
+            Kind::ResearchA => "research-a",
+            Kind::ResearchB => "research-b",
             Kind::CombineResearch => "combine-research",
+            Kind::Finish => "finish",
             Kind::ReviewRequirements => "review-requirements",
             Kind::ReviewDesign => "review-design",
             Kind::ReviewPlanning => "review-planning",
@@ -308,13 +318,29 @@ impl Kind {
     /// hand-written, so the round-trip holds by construction. No aliases and no
     /// error text — the two parse entry points above layer their own policy on
     /// top of this one shared lookup.
-    fn from_label(s: &str) -> Option<Kind> {
+    pub(crate) fn from_label(s: &str) -> Option<Kind> {
         Kind::ALL.into_iter().find(|k| k.label() == s)
+    }
+
+    /// Split `<session-kind>-<slug>` using the longest known kind label. The
+    /// longest-match rule keeps `integrate-review-requirements` from being
+    /// consumed as a shorter prefix and makes the remaining slug the stable
+    /// identity portion of the filename.
+    pub(crate) fn split_filename_prefix(value: &str) -> Option<(Kind, &str)> {
+        Kind::ALL
+            .into_iter()
+            .filter_map(|kind| {
+                value
+                    .strip_prefix(kind.label())
+                    .and_then(|rest| rest.strip_prefix('-'))
+                    .map(|slug| (kind, slug))
+            })
+            .max_by_key(|(kind, _)| kind.label().len())
     }
 
     /// Every label, backtick-quoted and comma-joined, for the `--kind` error.
     /// Built from [`Kind::ALL`] so a new kind is listed the moment it exists.
-    fn label_list() -> String {
+    pub(crate) fn label_list() -> String {
         Kind::ALL
             .iter()
             .map(|k| format!("`{}`", k.label()))
@@ -360,11 +386,11 @@ mod inline_tests {
     }
 
     #[test]
-    fn the_set_is_seventeen_distinct_kinds() {
+    fn the_set_is_nineteen_distinct_kinds() {
         // The count and the distinctness are the two things `ALL` can get wrong
         // that the compiler cannot catch (a duplicated entry, a forgotten one
         // paired with a duplicate). Spelled out against the spec's own figure.
-        assert_eq!(Kind::ALL.len(), 17);
+        assert_eq!(Kind::ALL.len(), 19);
         let mut labels: Vec<&str> = Kind::ALL.iter().map(|k| k.label()).collect();
         labels.sort_unstable();
         let distinct = labels.len();
@@ -413,8 +439,11 @@ mod inline_tests {
         );
         for k in Kind::ALL.iter().filter(|k| k.review_steps().is_none()) {
             let err = k.review_steps_or_refuse().unwrap_err().to_string();
-            let expected = if matches!(k, Kind::Research | Kind::CombineResearch) {
+            let expected = if matches!(k, Kind::ResearchA | Kind::ResearchB | Kind::CombineResearch)
+            {
                 "leaf-add-pair"
+            } else if *k == Kind::Finish {
+                "driver-reserved"
             } else {
                 "already a review-chain"
             };
@@ -448,8 +477,10 @@ mod inline_tests {
                 "planning",
                 "prototype",
                 "impl",
-                "research",
+                "research-a",
+                "research-b",
                 "combine-research",
+                "finish",
                 "review-requirements",
                 "review-design",
                 "review-planning",
@@ -533,22 +564,24 @@ mod inline_tests {
     }
 
     #[test]
-    fn the_seven_standalone_kinds_have_no_family() {
+    fn the_nine_standalone_kinds_have_no_family() {
         for k in [
             Kind::Requirements,
             Kind::Design,
             Kind::Planning,
             Kind::Prototype,
             Kind::Impl,
-            Kind::Research,
+            Kind::ResearchA,
+            Kind::ResearchB,
             Kind::CombineResearch,
+            Kind::Finish,
         ] {
             assert_eq!(k.family(), None, "{} must stand alone", k.label());
         }
         // The count matters as much as the membership: the spec's routing
-        // arithmetic (about nine vars for full coverage) is seven standalone
+        // arithmetic is nine standalone
         // kinds plus two family vars.
-        assert_eq!(Kind::ALL.iter().filter(|k| k.family().is_none()).count(), 7);
+        assert_eq!(Kind::ALL.iter().filter(|k| k.family().is_none()).count(), 9);
     }
 
     // The `match` above is free to disagree with the labels, and nothing in the

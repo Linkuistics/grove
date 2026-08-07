@@ -1,13 +1,13 @@
 use crate::leaf::Kind;
 use crate::tree_access;
 use crate::tree_grow::write_task_template;
-use crate::tree_id::{next_keys, parse, sort_key, Entry, Outcome};
+use crate::tree_id::{next_keys, parse, parse_current, sort_key, Entry, Outcome};
 use crate::tree_read::{self, Resolution};
 use crate::tree_rename::{
     capture_git_index_entry, prepare_promotion_index, rename_entry, restore_promotion_index,
     GitIndexEntry,
 };
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;
@@ -69,18 +69,6 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
     let (position, producer_slug, producer_key) = live_leaf_identity(&producer_name)?;
     let producer_handle = handle(&producer_slug, producer_key);
 
-    let picked = tree_read::pick_unlocked(grove_root)?
-        .ok_or_else(|| anyhow!("no live leaves; there is no picked producer to promote"))?
-        .canonicalize()
-        .context("resolving the currently picked leaf")?;
-    if picked != producer_path {
-        bail!(
-            "only the currently picked producer can be promoted: picked {}, got {}",
-            picked.display(),
-            producer_path.display()
-        );
-    }
-
     let producer_kind = read_strict_producer_kind(&producer_path)?;
     let (review_kind, integration_kind) = promotion_review_steps_or_refuse(producer_kind)?;
     let parent = producer_path
@@ -135,6 +123,7 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
 
     let producer_child_name = Entry::Leaf {
         position: 1,
+        kind: producer_kind,
         slug: producer_slug.clone(),
         key: producer_key,
         outcome: Outcome::Live,
@@ -152,6 +141,7 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
     let review_handle = handle(&review_slug, review_key);
     let review_child_name = Entry::Leaf {
         position: 2,
+        kind: review_kind,
         slug: review_slug.clone(),
         key: review_key,
         outcome: Outcome::Live,
@@ -161,6 +151,7 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
     let integration_handle = handle(&integration_slug, integration_key);
     let integration_child_name = Entry::Leaf {
         position: 3,
+        kind: integration_kind,
         slug: integration_slug.clone(),
         key: integration_key,
         outcome: Outcome::Live,
@@ -316,6 +307,7 @@ fn recover_pending(transaction: &Path, producer_reference: &str) -> Result<Promo
 
     let producer_child_name = Entry::Leaf {
         position: 1,
+        kind: producer_kind,
         slug: producer_slug.clone(),
         key: producer_key,
         outcome: Outcome::Live,
@@ -323,6 +315,7 @@ fn recover_pending(transaction: &Path, producer_reference: &str) -> Result<Promo
     .name();
     let original_name = Entry::Leaf {
         position,
+        kind: producer_kind,
         slug: producer_slug.clone(),
         key: producer_key,
         outcome: Outcome::Live,
@@ -372,6 +365,7 @@ fn recover_pending(transaction: &Path, producer_reference: &str) -> Result<Promo
             path: final_node.join(
                 Entry::Leaf {
                     position: 2,
+                    kind: review_kind,
                     slug: review_slug,
                     key: review_key,
                     outcome: Outcome::Live,
@@ -384,6 +378,7 @@ fn recover_pending(transaction: &Path, producer_reference: &str) -> Result<Promo
             path: final_node.join(
                 Entry::Leaf {
                     position: 3,
+                    kind: integration_kind,
                     slug: integration_slug,
                     key: integration_key,
                     outcome: Outcome::Live,
@@ -411,6 +406,7 @@ fn write_generated_steps(
     let review_path = transaction.join(
         Entry::Leaf {
             position: 2,
+            kind: review_kind,
             slug: review_slug.to_string(),
             key: review_key,
             outcome: Outcome::Live,
@@ -421,8 +417,6 @@ fn write_generated_steps(
         &review_path,
         review_slug,
         review_key,
-        review_kind,
-        None,
         &[format!("**Reviews:** {producer_handle}")],
         Some(&format!(
             "Adversarially review `{producer_handle}` and record concrete findings for its integration step."
@@ -432,6 +426,7 @@ fn write_generated_steps(
     let integration_path = transaction.join(
         Entry::Leaf {
             position: 3,
+            kind: integration_kind,
             slug: integration_slug.to_string(),
             key: integration_key,
             outcome: Outcome::Live,
@@ -442,8 +437,6 @@ fn write_generated_steps(
         &integration_path,
         integration_slug,
         integration_key,
-        integration_kind,
-        None,
         &[format!("**Integrates:** {review_handle}")],
         Some(&format!(
             "Apply the verified findings from `{review_handle}` while preserving the reviewed artifact's contract."
@@ -595,26 +588,14 @@ fn resolve_producer(grove_root: &Path, reference: &str) -> Result<PathBuf> {
 }
 
 fn read_strict_producer_kind(path: &Path) -> Result<Kind> {
-    let body = fs::read_to_string(path)
-        .with_context(|| format!("reading producer kind from {}", path.display()))?;
-    let token = body.lines().find_map(|line| {
-        line.trim_start()
-            .strip_prefix("**Kind:**")
-            .map(str::trim)
-            .and_then(|rest| rest.split_whitespace().next())
-    });
-    let token = token.with_context(|| {
-        format!(
-            "producer {} must declare a non-empty **Kind:** line",
+    let name = file_name(path)?;
+    match parse_current(&name)? {
+        Some(Entry::Leaf { kind, .. }) => Ok(kind),
+        _ => bail!(
+            "producer is not a current-format Grove leaf: {}",
             path.display()
-        )
-    })?;
-    Kind::parse_read(token).with_context(|| {
-        format!(
-            "producer {} declares unknown kind {token:?}; promotion reads kinds strictly",
-            path.display()
-        )
-    })
+        ),
+    }
 }
 
 fn promotion_review_steps_or_refuse(kind: Kind) -> Result<(Kind, Kind)> {
@@ -622,7 +603,7 @@ fn promotion_review_steps_or_refuse(kind: Kind) -> Result<(Kind, Kind)> {
         return Ok(steps);
     }
     match kind {
-        Kind::Research | Kind::CombineResearch => bail!(
+        Kind::ResearchA | Kind::ResearchB | Kind::CombineResearch => bail!(
             "`{}` leaves are not promotable; use `leaf-add-pair` for independent \
              surveys, or put a load-bearing derived decision in its own producer review chain",
             kind.label()
@@ -646,6 +627,7 @@ fn promotion_review_steps_or_refuse(kind: Kind) -> Result<(Kind, Kind)> {
              chain node",
             kind.label()
         ),
+        Kind::Finish => bail!("`finish` is driver-reserved and cannot be promoted"),
         Kind::Requirements | Kind::Design | Kind::Planning | Kind::Prototype | Kind::Impl => bail!(
             "producer kind `{}` did not derive review steps",
             kind.label()
@@ -708,7 +690,8 @@ fn live_leaves(directory: &Path) -> Result<Vec<(u32, String, u32, PathBuf)>> {
             position,
             slug,
             key,
-        }) = parse(name)
+            ..
+        }) = parse_current(name)?
         {
             leaves.push((position, slug, key, entry.path()));
         }
@@ -728,7 +711,7 @@ fn collect_tree_names_into(directory: &Path, names: &mut Vec<String>) -> Result<
         let Some(name) = name.to_str() else {
             continue;
         };
-        let Some(parsed) = parse(name) else {
+        let Some(parsed) = parse_current(name)? else {
             continue;
         };
         names.push(name.to_string());
@@ -754,6 +737,7 @@ fn live_leaf_identity(name: &str) -> Result<(u32, String, u32)> {
             position,
             slug,
             key,
+            ..
         }) => Ok((position, slug, key)),
         Some(Entry::Leaf {
             outcome: Outcome::Done,

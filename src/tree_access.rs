@@ -31,6 +31,7 @@ impl TreeWriteGuard {
 pub fn read(grove_root: &Path) -> Result<TreeReadGuard> {
     let (root, root_directory) = acquire(grove_root, libc::LOCK_SH)?;
     refuse_pending(&root)?;
+    crate::tree_format::require_current(&root)?;
     Ok(TreeReadGuard {
         _root_directory: root_directory,
         root,
@@ -40,6 +41,7 @@ pub fn read(grove_root: &Path) -> Result<TreeReadGuard> {
 pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, root_directory) = acquire(grove_root, libc::LOCK_EX)?;
     refuse_pending(&root)?;
+    crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
         _root_directory: root_directory,
         root,
@@ -50,6 +52,7 @@ pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
 /// witness every other operation refuses.
 pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, root_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
         _root_directory: root_directory,
         root,

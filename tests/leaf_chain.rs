@@ -11,9 +11,8 @@
 //     straight into it; and a failed run prints no path at all, because the run
 //     was rolled back and stdout describing files that are no longer there is
 //     worse than silence;
-//   * the refusals **teach**, at the one moment a session is deciding — a
-//     `--harness` on a chain names the policy var, a `--kind` on a pair names
-//     the other verb;
+//   * routing metadata is absent — chain kind lives in filenames and the pair
+//     has fixed research-a/research-b/combine-research kinds;
 //   * both verbs sit beside `leaf-add` in `--help`, the bootstrap-recovery
 //     surface. That placement is the whole answer to *compose-task-chains-k29*'s
 //     failure mode (five documented surfaces, zero chains): a verb nobody
@@ -38,6 +37,7 @@ fn grove() -> TempDir {
     let root = tmp.path().join(".grove");
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
+    fs::write(root.join("FORMAT"), "session-kinds-v1\n").unwrap();
     tmp
 }
 
@@ -86,9 +86,9 @@ fn chain_prints_its_node_then_its_three_steps() {
     );
     for (line, expected) in lines.iter().zip([
         "01-sync-chain-k1",
-        "01-sync-chain-k1/01-sync-k2.md",
-        "01-sync-chain-k1/02-sync-review-k3.md",
-        "01-sync-chain-k1/03-sync-integrate-k4.md",
+        "01-sync-chain-k1/01-design-sync-k2.md",
+        "01-sync-chain-k1/02-review-design-sync-review-k3.md",
+        "01-sync-chain-k1/03-integrate-review-design-sync-integrate-k4.md",
     ]) {
         assert!(
             line.ends_with(expected) && line.starts_with('/'),
@@ -98,20 +98,9 @@ fn chain_prints_its_node_then_its_three_steps() {
 }
 
 #[test]
-fn pair_prints_its_node_and_declares_both_vendors() {
+fn pair_prints_its_node_and_fixed_research_kinds() {
     let t = grove();
-    let (stdout, stderr, ok) = run(
-        t.path(),
-        &[
-            "leaf-add-pair",
-            ".",
-            "survey",
-            "--harness-a",
-            "claude",
-            "--harness-b",
-            "codex",
-        ],
-    );
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", ".", "survey"]);
     assert!(ok, "pair should succeed: {stdout} {stderr}");
     assert_eq!(stdout.lines().count(), 4, "{stdout:?}");
     let node = "01-survey-pair-k1";
@@ -119,9 +108,15 @@ fn pair_prints_its_node_and_declares_both_vendors() {
         !t.path().join(".grove").join(node).join("BRIEF.md").exists(),
         "a chain node is brief-less by rule — the Retire cascade's discriminator"
     );
-    assert!(body(t.path(), &format!("{node}/01-survey-a-k2.md")).contains("**Harness:** claude"));
-    assert!(body(t.path(), &format!("{node}/02-survey-b-k3.md")).contains("**Harness:** codex"));
-    assert!(!body(t.path(), &format!("{node}/03-survey-combine-k4.md")).contains("**Harness:**"));
+    for name in [
+        format!("{node}/01-research-a-survey-a-k2.md"),
+        format!("{node}/02-research-b-survey-b-k3.md"),
+        format!("{node}/03-combine-research-survey-combine-k4.md"),
+    ] {
+        let contents = body(t.path(), &name);
+        assert!(!contents.contains("**Harness:**"), "got {contents:?}");
+        assert!(!contents.contains("**Kind:**"), "got {contents:?}");
+    }
 }
 
 #[test]
@@ -146,7 +141,7 @@ fn the_printed_node_path_is_a_parent_leaf_add_accepts() {
     assert!(
         added
             .trim()
-            .ends_with("01-sync-chain-k1/04-sync-second-review-k5.md"),
+            .ends_with("01-sync-chain-k1/04-impl-sync-second-review-k5.md"),
         "the late step lands inside the node, after its stem-mates: {added:?}"
     );
 }
@@ -184,16 +179,13 @@ fn a_failed_run_prints_no_path_at_all() {
     );
     assert_eq!(
         tree(t.path()),
-        vec!["01-sync-chain-k1", "BRIEF.md"],
+        vec!["01-sync-chain-k1", "BRIEF.md", "FORMAT"],
         "no half-built chain node left behind"
     );
 }
 
 #[test]
-fn chain_refuses_a_harness_and_names_the_policy_var() {
-    // Routing reviews is a policy, not a per-leaf fact. clap's bare "unexpected
-    // argument" would refuse correctly and teach nothing, which is the whole
-    // reason the flag is accepted-then-refused rather than absent.
+fn chain_rejects_the_removed_harness_flag() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
@@ -210,36 +202,34 @@ fn chain_refuses_a_harness_and_names_the_policy_var() {
     assert!(!ok);
     assert_eq!(stdout, "");
     assert!(
-        stderr.contains("GROVE_REVIEW_HARNESS"),
-        "the refusal names the mechanism that *does* express this: {stderr}"
+        stderr.contains("unexpected argument '--harness'"),
+        "the removed surface must be absent: {stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(
+        tree(t.path()),
+        vec!["BRIEF.md", "FORMAT"],
+        "nothing created"
+    );
 }
 
 #[test]
-fn pair_refuses_a_kind_and_names_the_chain_verb() {
+fn pair_refuses_a_kind_because_its_kinds_are_fixed() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
-        &[
-            "leaf-add-pair",
-            ".",
-            "survey",
-            "--harness-a",
-            "claude",
-            "--harness-b",
-            "codex",
-            "--kind",
-            "design",
-        ],
+        &["leaf-add-pair", ".", "survey", "--kind", "design"],
     );
     assert!(!ok);
     assert_eq!(stdout, "");
     assert!(
-        stderr.contains("leaf-add-chain"),
-        "the refusals point at each other: {stderr}"
+        stderr.contains("unexpected argument '--kind'"),
+        "the pair has no configurable kind: {stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(
+        tree(t.path()),
+        vec!["BRIEF.md", "FORMAT"],
+        "nothing created"
+    );
 }
 
 #[test]
@@ -251,50 +241,20 @@ fn chain_requires_a_producer_kind_rather_than_defaulting_to_impl() {
     let (stdout, _, ok) = run(t.path(), &["leaf-add-chain", ".", "sync"]);
     assert!(!ok, "--kind is required");
     assert_eq!(stdout, "");
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"]);
+    assert_eq!(tree(t.path()), vec!["BRIEF.md", "FORMAT"]);
 }
 
 #[test]
-fn pair_requires_both_vendors_named() {
+fn pair_help_exposes_no_routing_flags() {
     let t = grove();
-    for args in [
-        vec!["leaf-add-pair", ".", "survey"],
-        vec!["leaf-add-pair", ".", "survey", "--harness-a", "claude"],
-        vec!["leaf-add-pair", ".", "survey", "--harness-b", "codex"],
-    ] {
-        let (stdout, _, ok) = run(t.path(), &args);
-        assert!(!ok, "{args:?} should be refused");
-        assert_eq!(stdout, "", "{args:?}");
-    }
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"]);
+    let (stdout, _, ok) = run(t.path(), &["leaf-add-pair", "--help"]);
+    assert!(ok);
+    assert!(!stdout.contains("harness"), "got {stdout:?}");
+    assert!(!stdout.contains("--kind"), "got {stdout:?}");
 }
 
 #[test]
-fn pair_refuses_one_vendor_named_twice() {
-    let t = grove();
-    let (stdout, stderr, ok) = run(
-        t.path(),
-        &[
-            "leaf-add-pair",
-            ".",
-            "survey",
-            "--harness-a",
-            "codex",
-            "--harness-b",
-            "codex",
-        ],
-    );
-    assert!(!ok);
-    assert_eq!(stdout, "");
-    assert!(
-        stderr.contains("two vendors"),
-        "the refusal names the property the pair exists for: {stderr}"
-    );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
-}
-
-#[test]
-fn pair_refuses_an_unknown_vendor_before_writing() {
+fn pair_rejects_removed_harness_flags() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
@@ -305,33 +265,54 @@ fn pair_refuses_an_unknown_vendor_before_writing() {
             "--harness-a",
             "claude",
             "--harness-b",
-            "gemeni",
+            "codex",
         ],
     );
     assert!(!ok);
     assert_eq!(stdout, "");
-    assert!(stderr.contains("gemeni"), "{stderr}");
+    assert!(
+        stderr.contains("unexpected argument '--harness-a'"),
+        "{stderr}"
+    );
     assert_eq!(
         tree(t.path()),
-        vec!["BRIEF.md"],
-        "a typo in the *second* vendor must not leave the first survey on disk"
+        vec!["BRIEF.md", "FORMAT"],
+        "nothing created"
     );
 }
 
 #[test]
-fn chain_refuses_research_and_sends_the_caller_to_the_pair_verb() {
+fn pair_requires_parent_and_stem() {
+    let t = grove();
+    let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", "."]);
+    assert!(!ok);
+    assert_eq!(stdout, "");
+    assert!(stderr.contains("<STEM>"), "{stderr}");
+    assert_eq!(
+        tree(t.path()),
+        vec!["BRIEF.md", "FORMAT"],
+        "a malformed command must not leave a partial pair on disk"
+    );
+}
+
+#[test]
+fn chain_refuses_a_fixed_pair_step_as_a_producer() {
     let t = grove();
     let (stdout, stderr, ok) = run(
         t.path(),
-        &["leaf-add-chain", ".", "survey", "--kind", "research"],
+        &["leaf-add-chain", ".", "survey", "--kind", "research-a"],
     );
     assert!(!ok);
     assert_eq!(stdout, "");
     assert!(
         stderr.contains("leaf-add-pair"),
-        "research has a shape; it is the other verb's: {stderr}"
+        "a pair step cannot head a review chain: {stderr}"
     );
-    assert_eq!(tree(t.path()), vec!["BRIEF.md"], "nothing created");
+    assert_eq!(
+        tree(t.path()),
+        vec!["BRIEF.md", "FORMAT"],
+        "nothing created"
+    );
 }
 
 #[test]

@@ -5,7 +5,7 @@
 // The task tree is real **directories** — the filesystem carries the hierarchy, so
 // a name encodes only its *per-level* position, not a global path:
 //
-//     leaf       NN-[DONE-|ABANDONED-]<slug>-k<key>.md
+//     leaf       NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
 //     node dir   NN-<slug>-k<key>             (a directory holding children, and
 //                                              *optionally* a BRIEF.md charter)
 //     brief      BRIEF.md                     (the containing node's charter)
@@ -31,7 +31,7 @@
 // The `-k<key>` delimiter (amending task-tree-scheme's original `[<key>]`):
 // brackets are shell-glob metacharacters; `-k<key>` is glob-safe, and it stays
 // unambiguous because the key is mandatory and always rendered last — parse takes
-// the terminal `-k<digits>`, so `05-task-k9-k3.md` is slug `task-k9`, key `3`.
+// the terminal `-k<digits>`, so `05-impl-task-k9-k3.md` is slug `task-k9`, key `3`.
 //
 // **`leaf_id` is not a second opinion on any of this.** It parses the superseded
 // *v1-flat* names (`<dotted>-[<key>]-<slug>`) and survives only as `tree_migrate`'s
@@ -41,6 +41,7 @@
 // concluding which model it speaks (a name-matching indexer will get this wrong).
 // Pure functions only, dependency-free of the verb modules.
 
+use crate::leaf::Kind;
 use anyhow::{bail, Result};
 
 /// A leaf's outcome (ADR *pruning*): live, retired (`DONE`), or abandoned
@@ -74,9 +75,10 @@ pub enum Entry {
     /// carry none**: a decomposition node always does, a chain node never does,
     /// and that presence is the discriminator (see the module header).
     Brief,
-    /// `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` — a leaf child (a unit of work).
+    /// `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` — a leaf child.
     Leaf {
         position: u32,
+        kind: Kind,
         slug: String,
         key: u32,
         outcome: Outcome,
@@ -112,6 +114,14 @@ impl Entry {
         match self {
             Entry::Brief => None,
             Entry::Leaf { slug, .. } | Entry::Node { slug, .. } => Some(slug),
+        }
+    }
+
+    /// The filename-carried session kind, or `None` for a node/brief.
+    pub fn kind(&self) -> Option<Kind> {
+        match self {
+            Entry::Leaf { kind, .. } => Some(*kind),
+            Entry::Brief | Entry::Node { .. } => None,
         }
     }
 
@@ -167,6 +177,7 @@ impl Entry {
             Entry::Brief => "BRIEF.md".to_string(),
             Entry::Leaf {
                 position,
+                kind,
                 slug,
                 key,
                 outcome,
@@ -176,7 +187,14 @@ impl Entry {
                     Outcome::Done => "DONE-",
                     Outcome::Abandoned => "ABANDONED-",
                 };
-                format!("{:02}-{}{}-k{}.md", position, infix, slug, key)
+                format!(
+                    "{:02}-{}{}-{}-k{}.md",
+                    position,
+                    infix,
+                    kind.label(),
+                    slug,
+                    key
+                )
             }
             Entry::Node {
                 position,
@@ -223,10 +241,13 @@ pub fn parse(name: &str) -> Option<Entry> {
 
     if let Some(stem) = name.strip_suffix(".md") {
         // A leaf file: the `DONE`/`ABANDONED` outcome infix is permitted here.
-        let (position, outcome, slug, key) = parse_parts(stem, true)?;
+        let (position, outcome, routed_slug, key) = parse_parts(stem, true)?;
+        let (kind, slug) = Kind::split_filename_prefix(&routed_slug)?;
+        validate_slug(slug).ok()?;
         Some(Entry::Leaf {
             position,
-            slug,
+            kind,
+            slug: slug.to_string(),
             key,
             outcome,
         })
@@ -240,6 +261,29 @@ pub fn parse(name: &str) -> Option<Entry> {
             key,
         })
     }
+}
+
+/// Parse a name for a current-format tree. Foreign names remain ignorable, but
+/// every positioned, keyed Markdown filename is task-shaped and therefore must
+/// carry one of the nineteen known filename kinds. This distinction is what
+/// keeps `README.md` harmless without silently dropping a misspelled task.
+pub fn parse_current(name: &str) -> Result<Option<Entry>> {
+    if let Some(entry) = parse(name) {
+        return Ok(Some(entry));
+    }
+    let task_shaped = name
+        .strip_suffix(".md")
+        .and_then(|stem| parse_parts(stem, true))
+        .is_some();
+    if task_shaped {
+        bail!(
+            "malformed Grove leaf {name:?}: expected \
+             NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md with session kind \
+             one of {}",
+            Kind::label_list()
+        );
+    }
+    Ok(None)
 }
 
 /// Parse the inner `NN-[DONE-|ABANDONED-]<slug>-k<key>` of a stem (a leaf's part
@@ -411,6 +455,7 @@ mod tests {
     fn leaf(position: u32, slug: &str, key: u32) -> Entry {
         Entry::Leaf {
             position,
+            kind: Kind::Impl,
             slug: slug.to_string(),
             key,
             outcome: Outcome::Live,
@@ -420,6 +465,7 @@ mod tests {
     fn done_leaf(position: u32, slug: &str, key: u32) -> Entry {
         Entry::Leaf {
             position,
+            kind: Kind::Impl,
             slug: slug.to_string(),
             key,
             outcome: Outcome::Done,
@@ -429,6 +475,7 @@ mod tests {
     fn abandoned_leaf(position: u32, slug: &str, key: u32) -> Entry {
         Entry::Leaf {
             position,
+            kind: Kind::Impl,
             slug: slug.to_string(),
             key,
             outcome: Outcome::Abandoned,
@@ -447,7 +494,7 @@ mod tests {
 
     #[test]
     fn parse_leaf_file() {
-        assert_eq!(parse("05-add-k4.md"), Some(leaf(5, "add", 4)));
+        assert_eq!(parse("05-impl-add-k4.md"), Some(leaf(5, "add", 4)));
     }
 
     #[test]
@@ -463,13 +510,16 @@ mod tests {
 
     #[test]
     fn parse_done_leaf() {
-        assert_eq!(parse("05-DONE-add-k4.md"), Some(done_leaf(5, "add", 4)));
+        assert_eq!(
+            parse("05-DONE-impl-add-k4.md"),
+            Some(done_leaf(5, "add", 4))
+        );
     }
 
     #[test]
     fn parse_abandoned_leaf() {
         assert_eq!(
-            parse("05-ABANDONED-add-k4.md"),
+            parse("05-ABANDONED-impl-add-k4.md"),
             Some(abandoned_leaf(5, "add", 4))
         );
     }
@@ -482,18 +532,18 @@ mod tests {
     #[test]
     fn parse_lenient_on_unpadded_position() {
         // A hand-typed single-digit position still parses (rendering re-pads).
-        assert_eq!(parse("1-survey-k1.md"), Some(leaf(1, "survey", 1)));
+        assert_eq!(parse("1-impl-survey-k1.md"), Some(leaf(1, "survey", 1)));
     }
 
     #[test]
     fn parse_multidigit_position_and_key() {
-        assert_eq!(parse("12-foo-k123.md"), Some(leaf(12, "foo", 123)));
+        assert_eq!(parse("12-impl-foo-k123.md"), Some(leaf(12, "foo", 123)));
     }
 
     #[test]
     fn parse_slug_may_contain_dashes() {
         assert_eq!(
-            parse("01-multi-word-slug-k1.md"),
+            parse("01-impl-multi-word-slug-k1.md"),
             Some(leaf(1, "multi-word-slug", 1))
         );
     }
@@ -502,24 +552,27 @@ mod tests {
     fn parse_slug_containing_k_and_digits_round_trips() {
         // The crux of the `-k<key>` grammar: the key is the *terminal* `-k<digits>`,
         // so a slug that itself ends in `-k<digits>` is unambiguous.
-        assert_eq!(parse("05-task-k9-k3.md"), Some(leaf(5, "task-k9", 3)));
+        assert_eq!(parse("05-impl-task-k9-k3.md"), Some(leaf(5, "task-k9", 3)));
     }
 
     #[test]
     fn parse_slug_ending_in_k_letter() {
-        assert_eq!(parse("05-xk-k3.md"), Some(leaf(5, "xk", 3)));
+        assert_eq!(parse("05-impl-xk-k3.md"), Some(leaf(5, "xk", 3)));
     }
 
     #[test]
     fn parse_slug_ending_in_digit() {
-        assert_eq!(parse("05-abc5-k3.md"), Some(leaf(5, "abc5", 3)));
+        assert_eq!(parse("05-impl-abc5-k3.md"), Some(leaf(5, "abc5", 3)));
     }
 
     // ---- parse: kind is decided by the `.md` suffix -------------------------
 
     #[test]
     fn parse_md_suffix_is_leaf_bare_name_is_node() {
-        assert!(matches!(parse("05-foo-k5.md"), Some(Entry::Leaf { .. })));
+        assert!(matches!(
+            parse("05-impl-foo-k5.md"),
+            Some(Entry::Leaf { .. })
+        ));
         assert!(matches!(parse("05-foo-k5"), Some(Entry::Node { .. })));
     }
 
@@ -560,7 +613,7 @@ mod tests {
 
     #[test]
     fn parse_malformed_position_is_none() {
-        assert_eq!(parse("1.2-x-k1.md"), None);
+        assert_eq!(parse("1.2-impl-x-k1.md"), None);
         assert_eq!(parse("-x-k1.md"), None);
         assert_eq!(parse("x-foo-k1.md"), None);
     }
@@ -610,31 +663,31 @@ mod tests {
     #[test]
     fn compare_numeric_not_lexical() {
         // 9 < 10 — the exact case a dumb lexical sort of unpadded positions fails.
-        assert!(sort_key("9-a-k1.md") < sort_key("10-b-k2.md"));
+        assert!(sort_key("9-impl-a-k1.md") < sort_key("10-impl-b-k2.md"));
     }
 
     #[test]
     fn compare_brief_sorts_first() {
-        assert!(sort_key("BRIEF.md") < sort_key("01-a-k1.md"));
+        assert!(sort_key("BRIEF.md") < sort_key("01-impl-a-k1.md"));
     }
 
     #[test]
     fn compare_node_and_leaf_order_by_position() {
         // Mixed children (a node dir and a leaf file) order purely by position.
-        assert!(sort_key("01-a-k1") < sort_key("02-b-k2.md"));
-        assert!(sort_key("01-a-k1.md") < sort_key("02-b-k2"));
+        assert!(sort_key("01-a-k1") < sort_key("02-impl-b-k2.md"));
+        assert!(sort_key("01-impl-a-k1.md") < sort_key("02-b-k2"));
     }
 
     #[test]
     fn compare_foreign_sorts_last() {
-        assert!(sort_key("01-a-k1.md") < sort_key("README.md"));
+        assert!(sort_key("01-impl-a-k1.md") < sort_key("README.md"));
         assert!(sort_key("99-z-k9") < sort_key("README.md"));
     }
 
     #[test]
     fn compare_same_position_breaks_by_name() {
         // A malformed same-position collision still totally orders, by name.
-        assert!(sort_key("01-a-k1.md") < sort_key("01-b-k2.md"));
+        assert!(sort_key("01-impl-a-k1.md") < sort_key("01-impl-b-k2.md"));
     }
 
     #[test]
@@ -652,13 +705,16 @@ mod tests {
 
     #[test]
     fn next_key_is_max_plus_one() {
-        assert_eq!(next_key(["01-a-k1.md", "02-b-k2.md"]).unwrap(), 3);
+        assert_eq!(next_key(["01-impl-a-k1.md", "02-impl-b-k2.md"]).unwrap(), 3);
     }
 
     #[test]
     fn next_key_counts_retired_done_leaves() {
         // The `DONE` leaf carries the max key; it must still bump next_key.
-        assert_eq!(next_key(["01-DONE-a-k3.md", "02-b-k2.md"]).unwrap(), 4);
+        assert_eq!(
+            next_key(["01-DONE-impl-a-k3.md", "02-impl-b-k2.md"]).unwrap(),
+            4
+        );
     }
 
     #[test]
@@ -667,26 +723,29 @@ mod tests {
         // the tree, so a future `leaf-add` never re-issues it. `next_key` already
         // maxes over every parsed name regardless of outcome — asserted here so a
         // future refactor cannot quietly regress the property the ADR rests on.
-        assert_eq!(next_key(["01-ABANDONED-a-k3.md", "02-b-k2.md"]).unwrap(), 4);
+        assert_eq!(
+            next_key(["01-ABANDONED-impl-a-k3.md", "02-impl-b-k2.md"]).unwrap(),
+            4
+        );
     }
 
     #[test]
     fn next_key_counts_node_directories() {
         // A node lives as a bare directory name — its key still counts.
-        assert_eq!(next_key(["05-node-k3", "01-b-k2.md"]).unwrap(), 4);
+        assert_eq!(next_key(["05-node-k3", "01-impl-b-k2.md"]).unwrap(), 4);
     }
 
     #[test]
     fn next_key_ignores_foreign_and_brief() {
         assert_eq!(
-            next_key(["README.md", "BRIEF.md", "01-a-k1.md"]).unwrap(),
+            next_key(["README.md", "BRIEF.md", "01-impl-a-k1.md"]).unwrap(),
             2
         );
     }
 
     #[test]
     fn next_keys_hands_out_a_consecutive_run_from_the_max() {
-        assert_eq!(next_keys(["01-a-k4.md"], 4).unwrap(), vec![5, 6, 7, 8]);
+        assert_eq!(next_keys(["01-impl-a-k4.md"], 4).unwrap(), vec![5, 6, 7, 8]);
     }
 
     #[test]
@@ -698,7 +757,7 @@ mod tests {
         // next `leaf-add` re-issues a live key ([[Permanent key]] is the counter).
         // Three near-ceiling cases: the run that does not fit, the one that fits
         // exactly, and `max` sitting on the ceiling itself.
-        let over = next_keys(["01-a-k4294967292.md"], 4)
+        let over = next_keys(["01-impl-a-k4294967292.md"], 4)
             .unwrap_err()
             .to_string();
         assert!(
@@ -706,12 +765,12 @@ mod tests {
             "the refusal names the ceiling it hit: {over}"
         );
         assert_eq!(
-            next_keys(["01-a-k4294967291.md"], 4).unwrap(),
+            next_keys(["01-impl-a-k4294967291.md"], 4).unwrap(),
             vec![4294967292, 4294967293, 4294967294, 4294967295],
             "the last run that fits is still handed out — the refusal is a ceiling, not a margin"
         );
         assert!(
-            next_keys(["01-a-k4294967295.md"], 1).is_err(),
+            next_keys(["01-impl-a-k4294967295.md"], 1).is_err(),
             "max already at the ceiling: even one fresh key is unavailable"
         );
     }
@@ -721,21 +780,21 @@ mod tests {
     #[test]
     fn round_trip_leaf() {
         let e = leaf(5, "add", 4);
-        assert_eq!(e.name(), "05-add-k4.md");
+        assert_eq!(e.name(), "05-impl-add-k4.md");
         assert_eq!(parse(&e.name()), Some(e));
     }
 
     #[test]
     fn round_trip_done_leaf() {
         let e = done_leaf(5, "add", 4);
-        assert_eq!(e.name(), "05-DONE-add-k4.md");
+        assert_eq!(e.name(), "05-DONE-impl-add-k4.md");
         assert_eq!(parse(&e.name()), Some(e));
     }
 
     #[test]
     fn round_trip_abandoned_leaf() {
         let e = abandoned_leaf(5, "add", 4);
-        assert_eq!(e.name(), "05-ABANDONED-add-k4.md");
+        assert_eq!(e.name(), "05-ABANDONED-impl-add-k4.md");
         assert_eq!(parse(&e.name()), Some(e));
     }
 
@@ -757,7 +816,7 @@ mod tests {
     fn round_trip_slug_containing_k_segment() {
         // Proves render→parse survives a slug that mimics the key delimiter.
         let e = leaf(5, "task-k9", 3);
-        assert_eq!(e.name(), "05-task-k9-k3.md");
+        assert_eq!(e.name(), "05-impl-task-k9-k3.md");
         assert_eq!(parse(&e.name()), Some(e));
     }
 
@@ -765,7 +824,7 @@ mod tests {
 
     #[test]
     fn name_pads_position_to_two_digits() {
-        assert_eq!(leaf(5, "x", 1).name(), "05-x-k1.md");
+        assert_eq!(leaf(5, "x", 1).name(), "05-impl-x-k1.md");
         assert_eq!(node(5, "x", 1).name(), "05-x-k1");
     }
 
@@ -773,7 +832,7 @@ mod tests {
     fn name_keeps_three_digit_position_unclamped() {
         // Past 99 the FS lexical sort degrades (the documented ~99/level limit),
         // but rendering must not truncate — grove's own comparator stays numeric.
-        assert_eq!(leaf(100, "x", 1).name(), "100-x-k1.md");
+        assert_eq!(leaf(100, "x", 1).name(), "100-impl-x-k1.md");
     }
 
     // ---- handle -------------------------------------------------------------
@@ -809,9 +868,9 @@ mod tests {
 
     #[test]
     fn is_live_leaf_true_only_for_live_leaves() {
-        assert!(parse("01-a-k1.md").unwrap().is_live_leaf());
-        assert!(!parse("01-DONE-a-k1.md").unwrap().is_live_leaf());
-        assert!(!parse("01-ABANDONED-a-k1.md").unwrap().is_live_leaf());
+        assert!(parse("01-impl-a-k1.md").unwrap().is_live_leaf());
+        assert!(!parse("01-DONE-impl-a-k1.md").unwrap().is_live_leaf());
+        assert!(!parse("01-ABANDONED-impl-a-k1.md").unwrap().is_live_leaf());
         assert!(!parse("01-a-k1").unwrap().is_live_leaf()); // node dir
         assert!(!parse("BRIEF.md").unwrap().is_live_leaf());
     }
@@ -820,15 +879,15 @@ mod tests {
     fn kind_predicates_classify_each_shape() {
         assert!(parse("BRIEF.md").unwrap().is_brief());
         assert!(parse("01-a-k1").unwrap().is_node());
-        assert!(parse("01-DONE-a-k1.md").unwrap().is_done());
-        assert!(!parse("01-a-k1.md").unwrap().is_done());
+        assert!(parse("01-DONE-impl-a-k1.md").unwrap().is_done());
+        assert!(!parse("01-impl-a-k1.md").unwrap().is_done());
     }
 
     #[test]
     fn is_abandoned_true_only_for_abandoned_leaves() {
-        assert!(parse("01-ABANDONED-a-k1.md").unwrap().is_abandoned());
-        assert!(!parse("01-DONE-a-k1.md").unwrap().is_abandoned());
-        assert!(!parse("01-a-k1.md").unwrap().is_abandoned());
+        assert!(parse("01-ABANDONED-impl-a-k1.md").unwrap().is_abandoned());
+        assert!(!parse("01-DONE-impl-a-k1.md").unwrap().is_abandoned());
+        assert!(!parse("01-impl-a-k1.md").unwrap().is_abandoned());
         assert!(!parse("01-a-k1").unwrap().is_abandoned()); // node dir
         assert!(!parse("BRIEF.md").unwrap().is_abandoned());
     }
@@ -838,15 +897,15 @@ mod tests {
         // The outcome is a single enum, not two independent bools — the
         // impossible fourth state (both marks at once) is unrepresentable, so
         // this is really just confirming the accessors agree with each other.
-        let done = parse("01-DONE-a-k1.md").unwrap();
+        let done = parse("01-DONE-impl-a-k1.md").unwrap();
         assert!(done.is_done() && !done.is_abandoned());
-        let abandoned = parse("01-ABANDONED-a-k1.md").unwrap();
+        let abandoned = parse("01-ABANDONED-impl-a-k1.md").unwrap();
         assert!(abandoned.is_abandoned() && !abandoned.is_done());
     }
 
     #[test]
     fn accessors_return_parts_or_none_for_brief() {
-        let l = parse("07-foo-bar-k9.md").unwrap();
+        let l = parse("07-impl-foo-bar-k9.md").unwrap();
         assert_eq!(l.position(), Some(7));
         assert_eq!(l.key(), Some(9));
         assert_eq!(l.slug(), Some("foo-bar"));

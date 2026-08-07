@@ -1,5 +1,5 @@
 // Fixture-driven tests for `grove-llm leaf-add` and `grove-llm leaf-insert` on
-// the **v2 directory scheme** (task-tree-scheme). A parent/target is addressed by its
+// the current witnessed directory scheme (task-tree-scheme). A parent/target is addressed by its
 // permanent **key** (`[n]` / `n` / `<slug>-k<key>`) or its **path** — not a
 // dotted id:
 //
@@ -71,6 +71,10 @@ fn mknode(dir: &Path, name: &str, handle: &str) -> PathBuf {
 }
 
 fn stage_all(repo: &Path) {
+    let grove = repo.join(".grove");
+    if grove.is_dir() {
+        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    }
     git(repo, &["add", "-A"]);
     git(repo, &["commit", "-m", "fixture"]);
 }
@@ -121,12 +125,12 @@ fn add_to_empty_root_uses_position_one() {
     assert!(ok, "leaf-add failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-first-step-k1.md")
+        PathBuf::from(".grove/01-impl-first-step-k1.md")
     );
-    let body = read(tmp.path(), ".grove/01-first-step-k1.md");
+    let body = read(tmp.path(), ".grove/01-impl-first-step-k1.md");
     // The in-file header is the position-free handle `# <slug>-k<key>`.
     assert!(body.starts_with("# first-step-k1\n"), "header: {body:?}");
-    assert!(body.contains("**Kind:** impl\n"));
+    assert!(!body.contains("**Kind:**"));
     assert!(body.contains("## Goal\n"));
 }
 
@@ -135,7 +139,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
-    touch(&grove.join("01-existing-k1.md"), "# existing-k1\n");
+    touch(&grove.join("01-impl-existing-k1.md"), "# existing-k1\n");
     stage_all(tmp.path());
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "second"]);
@@ -143,7 +147,7 @@ fn add_to_nonempty_root_uses_next_position_and_fresh_key() {
     // Next root child is position 02; fresh key is max key (1) + 1 = 2.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/02-second-k2.md")
+        PathBuf::from(".grove/02-impl-second-k2.md")
     );
 }
 
@@ -152,7 +156,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-child-k2.md"), "# child-k2\n");
+    touch(&node.join("01-impl-child-k2.md"), "# child-k2\n");
     stage_all(tmp.path());
 
     // Parent referenced by its permanent key `1`.
@@ -161,7 +165,7 @@ fn add_under_a_node_by_key_uses_child_position() {
     // Next child under the node is position 02; fresh key is max (2) + 1 = 3.
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/02-second-k3.md")
+        PathBuf::from(".grove/01-node-k1/02-impl-second-k3.md")
     );
 }
 
@@ -177,12 +181,12 @@ fn add_under_a_node_by_path() {
     assert!(ok, "leaf-add by path failed");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-node-k1/01-only-k2.md")
+        PathBuf::from(".grove/01-node-k1/01-impl-only-k2.md")
     );
 }
 
 #[test]
-fn add_with_planning_kind_writes_planning_in_template() {
+fn add_with_planning_kind_writes_planning_in_filename() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
@@ -193,12 +197,14 @@ fn add_with_planning_kind_writes_planning_in_template() {
         &["leaf-add", ".", "plan-it", "--kind", "planning"],
     );
     assert!(ok);
-    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
-    assert!(body.contains("**Kind:** planning\n"), "got {body:?}");
+    let path = rel_path(&stdout, tmp.path());
+    assert_eq!(path, PathBuf::from(".grove/01-planning-plan-it-k1.md"));
+    let body = read(tmp.path(), path.to_str().unwrap());
+    assert!(!body.contains("**Kind:**"), "got {body:?}");
 }
 
 #[test]
-fn add_accepts_every_one_of_the_seventeen_kinds() {
+fn add_accepts_every_non_reserved_kind() {
     // task-kind-taxonomy: the whole parameterised set is writable, including the
     // hyphenated `review-*` and `integrate-review-*` steps — the labels most
     // likely to be mangled between the CLI, the enum, and the leaf template.
@@ -207,15 +213,23 @@ fn add_accepts_every_one_of_the_seventeen_kinds() {
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    for (i, label) in support::KIND_LABELS.iter().enumerate() {
+    for (i, label) in support::KIND_LABELS
+        .iter()
+        .filter(|label| **label != "finish")
+        .enumerate()
+    {
         let slug = format!("x{i}");
         let (stdout, stderr, ok) = run(tmp.path(), &["leaf-add", ".", &slug, "--kind", label]);
         assert!(ok, "--kind {label} rejected: {stderr:?}");
-        let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+        let path = rel_path(&stdout, tmp.path());
         assert!(
-            body.contains(&format!("**Kind:** {label}\n")),
-            "got {body:?}"
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .contains(&format!("-{label}-{slug}-")),
+            "got {path:?}"
         );
+        assert!(!read(tmp.path(), path.to_str().unwrap()).contains("**Kind:**"));
     }
 }
 
@@ -254,7 +268,7 @@ fn add_refuses_the_retired_work_kind_and_names_its_replacement() {
         "the error must name the replacement, got {stderr:?}"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-x-k1.md"),
+        !exists(tmp.path(), ".grove/01-impl-x-k1.md"),
         "a refused --kind must not leave a leaf behind"
     );
 }
@@ -268,17 +282,15 @@ fn add_defaults_to_impl_when_no_kind_is_given() {
 
     let (stdout, _, ok) = run(tmp.path(), &["leaf-add", ".", "x"]);
     assert!(ok);
-    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
-    assert!(body.contains("**Kind:** impl\n"), "got {body:?}");
+    let path = rel_path(&stdout, tmp.path());
+    assert_eq!(path, PathBuf::from(".grove/01-impl-x-k1.md"));
+    assert!(!read(tmp.path(), path.to_str().unwrap()).contains("**Kind:**"));
 }
 
-// ── `--harness`: the per-leaf routing declaration (leaf-harness-k15) ──────
+// ── Removed per-leaf routing declarations ──────────────────────────────────
 
 #[test]
-fn add_with_a_harness_writes_the_declaration_beside_the_kind() {
-    // The line the loop driver's peek reads. Adjacent to `**Kind:**`, because
-    // the two are one metadata block — a session skimming the file should see
-    // both routing facts together.
+fn add_rejects_the_removed_harness_flag_without_writing() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
@@ -291,17 +303,18 @@ fn add_with_a_harness_writes_the_declaration_beside_the_kind() {
             ".",
             "survey-b",
             "--kind",
-            "research",
+            "research-a",
             "--harness",
             "codex",
         ],
     );
-    assert!(ok, "--harness codex rejected: {stderr:?}");
-    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
+    assert!(!ok, "the removed --harness flag was accepted");
     assert!(
-        body.contains("**Kind:** research\n**Harness:** codex\n"),
-        "got {body:?}"
+        stderr.contains("unexpected argument '--harness'"),
+        "got {stderr:?}"
     );
+    assert!(stdout.is_empty());
+    assert!(!exists(tmp.path(), ".grove/01-research-a-survey-b-k1.md"));
 }
 
 #[test]
@@ -321,54 +334,44 @@ fn add_without_a_harness_writes_no_harness_line_at_all() {
 }
 
 #[test]
-fn add_rejects_an_unknown_harness_listing_the_registry() {
-    // The write gate, mirroring `--kind`'s: caught at authoring time, when a
-    // human is present to fix it, rather than hours later when the loop reaches
-    // the leaf.
+fn add_help_exposes_no_harness_flag() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
     stage_all(tmp.path());
 
-    let (_, stderr, ok) = run(tmp.path(), &["leaf-add", ".", "x", "--harness", "lemur"]);
-    assert!(!ok, "an unknown --harness must be refused on write");
-    assert!(
-        stderr.contains("claude") && stderr.contains("codex") && stderr.contains("pi"),
-        "the error must list the registry, got {stderr:?}"
-    );
-    assert!(
-        !exists(tmp.path(), ".grove/01-x-k1.md"),
-        "a refused --harness must not leave a leaf behind"
-    );
+    let (stdout, _, ok) = run(tmp.path(), &["leaf-add", "--help"]);
+    assert!(ok);
+    assert!(!stdout.contains("--harness"), "got {stdout:?}");
 }
 
 #[test]
-fn insert_carries_a_harness_declaration_too() {
-    // `leaf-insert` is the verb a planning session reaches for when the vendor
-    // pair has to sequence *ahead* of live leaves, so it needs the same flag —
-    // and this is the only thing that proves the two grow verbs share the
-    // template rather than each writing their own.
+fn insert_rejects_the_removed_harness_flag_without_writing() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch(&grove.join("BRIEF.md"), "# demo — brief\n");
-    touch(&grove.join("01-a-k1.md"), "# a-k1\n\n**Kind:** impl\n");
+    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
         &[
             "leaf-insert",
-            "01-a-k1.md",
+            "01-impl-a-k1.md",
             "survey-b",
             "--kind",
-            "research",
+            "research-a",
             "--harness",
             "pi",
         ],
     );
-    assert!(ok, "leaf-insert --harness failed: {stderr:?}");
-    let body = read(tmp.path(), rel_path(&stdout, tmp.path()).to_str().unwrap());
-    assert!(body.contains("**Harness:** pi\n"), "got {body:?}");
+    assert!(!ok, "the removed --harness flag was accepted");
+    assert!(
+        stderr.contains("unexpected argument '--harness'"),
+        "got {stderr:?}"
+    );
+    assert!(stdout.is_empty());
+    assert!(exists(tmp.path(), ".grove/01-impl-a-k1.md"));
 }
 
 #[test]
@@ -410,8 +413,8 @@ fn add_under_nonexistent_parent_errors() {
 fn insert_at_start_shifts_root_siblings_up_by_one() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-a-k1.md"), "# a-k1\n");
-    touch(&grove.join("02-b-k2.md"), "# b-k2\n");
+    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
+    touch(&grove.join("02-design-b-k2.md"), "# b-k2\n");
     stage_all(tmp.path());
 
     // Target the entry holding key 1 (leaf `a`).
@@ -420,19 +423,19 @@ fn insert_at_start_shifts_root_siblings_up_by_one() {
     // New leaf lands at position 01 with a fresh key (max 2 + 1 = 3).
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-fresh-k3.md")
+        PathBuf::from(".grove/01-impl-fresh-k3.md")
     );
     // The occupant and its later sibling each shift up by one; keys preserved.
     assert!(
-        exists(tmp.path(), ".grove/02-a-k1.md"),
+        exists(tmp.path(), ".grove/02-impl-a-k1.md"),
         "a not shifted to 02"
     );
     assert!(
-        exists(tmp.path(), ".grove/03-b-k2.md"),
+        exists(tmp.path(), ".grove/03-design-b-k2.md"),
         "b not shifted to 03"
     );
     assert!(
-        !exists(tmp.path(), ".grove/01-a-k1.md"),
+        !exists(tmp.path(), ".grove/01-impl-a-k1.md"),
         "old a still present"
     );
     // Renumber summary goes to stderr (stdout stays just the new path).
@@ -447,24 +450,24 @@ fn insert_cascades_a_node_subtree_with_position_free_headers() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     let node = mknode(&grove, "01-node-k1", "node-k1");
-    touch(&node.join("01-inner-k2.md"), "# inner-k2\n");
-    touch(&grove.join("02-outer-k3.md"), "# outer-k3\n");
+    touch(&node.join("01-prototype-inner-k2.md"), "# inner-k2\n");
+    touch(&grove.join("02-design-outer-k3.md"), "# outer-k3\n");
     stage_all(tmp.path());
 
     let (stdout, stderr, ok) = run(tmp.path(), &["leaf-insert", "1", "fresh"]);
     assert!(ok, "leaf-insert failed: {stderr}");
     assert_eq!(
         rel_path(&stdout, tmp.path()),
-        PathBuf::from(".grove/01-fresh-k4.md")
+        PathBuf::from(".grove/01-impl-fresh-k4.md")
     );
     // node 01 → 02 drags its whole subtree (the child rides along, name and key
     // unchanged); the unrelated sibling 02 → 03.
     assert!(
-        exists(tmp.path(), ".grove/02-node-k1/01-inner-k2.md"),
+        exists(tmp.path(), ".grove/02-node-k1/01-prototype-inner-k2.md"),
         "node dir + child not moved as a unit"
     );
     assert!(
-        exists(tmp.path(), ".grove/03-outer-k3.md"),
+        exists(tmp.path(), ".grove/03-design-outer-k3.md"),
         "outer not bumped"
     );
     assert!(
@@ -486,7 +489,7 @@ fn insert_requires_an_existing_target() {
     // target must exist. A nonexistent target is an error (not a silent append).
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove.join("01-a-k1.md"), "# a-k1\n");
+    touch(&grove.join("01-impl-a-k1.md"), "# a-k1\n");
     stage_all(tmp.path());
 
     let (_, stderr, ok) = run(tmp.path(), &["leaf-insert", "9", "tail"]);
@@ -496,7 +499,7 @@ fn insert_requires_an_existing_target() {
         "expected not-found diagnostic, got {stderr:?}"
     );
     // The pre-existing leaf is untouched.
-    assert!(exists(tmp.path(), ".grove/01-a-k1.md"));
+    assert!(exists(tmp.path(), ".grove/01-impl-a-k1.md"));
 }
 
 // ---------------------------------------------------------------------------

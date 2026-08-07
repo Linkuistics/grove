@@ -23,18 +23,20 @@ pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
 
 /// Every task-kind label, in taxonomy order (ADR `task-kind-taxonomy`;
 /// membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) — the same strings a live
-/// task file's `**Kind:**` line carries, and what the env-var suffixes below are
+/// task filename carries, and what the env-var suffixes below are
 /// formed from. Spelled out here rather than reached for from the crate so
 /// these tests stay honest about *which* names they use, independent of
 /// production wiring drifting under them unnoticed.
-pub const KIND_LABELS: [&str; 17] = [
+pub const KIND_LABELS: [&str; 19] = [
     "requirements",
     "design",
     "planning",
     "prototype",
     "impl",
-    "research",
+    "research-a",
+    "research-b",
     "combine-research",
+    "finish",
     "review-requirements",
     "review-design",
     "review-planning",
@@ -63,7 +65,7 @@ const RETIRED_KIND_SUFFIXES: [&str; 1] = ["WORK"];
 const HARNESS_NAMES: [&str; 3] = ["CLAUDE", "CODEX", "PI"];
 
 /// Every env-name suffix routing reads — uppercase, `-` → `_` — mirroring
-/// `loop_driver::all_routing_suffixes`: the seventeen kinds, the two families,
+/// `loop_driver::all_routing_suffixes`: the nineteen kinds, the two families,
 /// plus the retired spellings.
 fn kind_env_suffixes() -> Vec<String> {
     KIND_LABELS

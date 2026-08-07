@@ -28,7 +28,7 @@
 use crate::harness::Harness;
 use crate::leaf::Kind;
 use crate::tree_access;
-use crate::tree_id::{parse, sort_key, Entry, Outcome};
+use crate::tree_id::{parse, parse_current, sort_key, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -41,38 +41,48 @@ use std::path::{Path, PathBuf};
 /// explored before a later sibling leaf); a `DONE` leaf, an `ABANDONED` leaf
 /// (ADR *pruning*), the brief, and foreign names are skipped. `Ok(None)` means no
 /// live leaf anywhere — the loop's finish signal (the CLI renders it as empty
-/// stdout + a "no live leaves" stderr diagnostic). Lenient on foreign/malformed
-/// names (a stray `README.md` never jams the loop). Never reads file contents.
+/// stdout + a "no live leaves" stderr diagnostic). Foreign names such as a
+/// stray `README.md` are skipped; task-shaped names with missing or unknown
+/// kinds are rejected. Never reads file contents.
 pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
     let guard = tree_access::read(grove_root)?;
     pick_unlocked(guard.root())
 }
 
 pub(crate) fn pick_unlocked(grove_root: &Path) -> Result<Option<PathBuf>> {
-    pick_in(grove_root)
+    let mut live = Vec::new();
+    collect_live_leaf_entries(grove_root, &mut live)?;
+    let finish = live
+        .iter()
+        .filter(|(entry, _)| entry.kind() == Some(Kind::Finish))
+        .collect::<Vec<_>>();
+    if finish.len() > 1 {
+        bail!(
+            "multiple live `finish` leaves are malformed: {}",
+            finish
+                .iter()
+                .map(|(_, path)| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    if let Some((_, path)) = live
+        .iter()
+        .find(|(entry, _)| entry.kind() != Some(Kind::Finish))
+    {
+        return Ok(Some(path.clone()));
+    }
+    Ok(finish.first().map(|(_, path)| (*path).clone()))
 }
 
-/// The recursive heart of [`pick`]: the first live leaf in pre-order under `dir`,
-/// descending node directories as they are met.
-fn pick_in(dir: &Path) -> Result<Option<PathBuf>> {
+fn collect_live_leaf_entries(dir: &Path, live: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
     for (entry, path) in read_level(dir)? {
-        match entry {
-            // The first live leaf in pre-order is the answer.
+        match &entry {
             Entry::Leaf {
                 outcome: Outcome::Live,
                 ..
-            } => return Ok(Some(path)),
-            // Descend a node in place; its first live leaf (if any) wins before
-            // any later sibling at this level is considered.
-            Entry::Node { .. } => {
-                if let Some(found) = pick_in(&path)? {
-                    return Ok(Some(found));
-                }
-            }
-            // The charter brief and terminal (`DONE` / `ABANDONED`) leaves are
-            // skipped — a grove whose only remaining leaves are abandoned reports
-            // "no live leaves; this grove is done", correctly: the work is
-            // settled, however it settled (ADR *pruning*).
+            } => live.push((entry, path)),
+            Entry::Node { .. } => collect_live_leaf_entries(&path, live)?,
             Entry::Brief
             | Entry::Leaf {
                 outcome: Outcome::Done | Outcome::Abandoned,
@@ -80,7 +90,7 @@ fn pick_in(dir: &Path) -> Result<Option<PathBuf>> {
             } => {}
         }
     }
-    Ok(None)
+    Ok(())
 }
 
 /// `brief-chain`: the `BRIEF.md` of each of the leaf's **ancestor directories**,
@@ -112,6 +122,7 @@ fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathB
     let leaf_abs = candidate
         .canonicalize()
         .with_context(|| format!("resolving leaf path {}", candidate.display()))?;
+    current_leaf_entry(&leaf_abs)?;
     if !leaf_abs.starts_with(&grove_root) {
         bail!(
             "leaf path {} is not under grove root {}",
@@ -156,29 +167,25 @@ fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathB
     Ok(chain)
 }
 
-/// `kind [<leaf>]`: the task's kind — one of the closed seventeen
-/// (task-kind-taxonomy) — the loop driver keys model selection on
-/// (model-per-task-kind). With `leaf_path = Some`, read that leaf's
-/// `**Kind:**` line; with `None`, default to [`pick`]'s next live leaf and
+/// `kind [<leaf>]`: the task's kind — one of the closed nineteen — the loop
+/// driver keys model selection on. With `leaf_path = Some`, read that leaf's
+/// current-format filename; with `None`, default to [`pick`]'s next live leaf and
 /// return `Ok(None)` on an empty grove — the same "no live leaves" signal `pick`
 /// gives (the CLI renders it as the standard stderr diagnostic, mirroring
-/// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`. Reading
-/// goes through [`read_kind`], which **degrades** rather than errors on a
-/// missing or unrecognised `**Kind:**` line (warns to stderr, treated as
-/// `impl`) — so a hand-edited or foreign task file can never jam the
-/// self-driving loop.
+/// `brief-chain`). `leaf_path` is absolute or relative to `grove_root`.
+/// Task-shaped filenames with a missing or unknown kind fail strictly.
 pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>> {
     let guard = tree_access::read(grove_root)?;
     match target_leaf_unlocked(guard.root(), leaf_path)? {
-        Some(leaf) => read_kind(&leaf).map(Some),
+        Some(leaf) => current_leaf_entry(&leaf).map(|entry| entry.kind()),
         None => Ok(None),
     }
 }
 
 /// The one guarded routing peek the loop driver retains for the lifetime of a
-/// launch. Path and stable handle are facts about the exact leaf whose kind and
-/// optional harness declaration were read, so readiness, diagnostics, routing,
-/// and producer session context never reconstruct identity with another pick.
+/// launch. Path and stable handle are facts about the exact leaf whose filename
+/// kind was read, so readiness and diagnostics never reconstruct identity with
+/// another pick. Compatibility fields remain nullable for the installed driver.
 #[derive(Clone, Debug)]
 pub struct LaunchPeek {
     pub path: PathBuf,
@@ -189,19 +196,9 @@ pub struct LaunchPeek {
 }
 
 /// The complete routed-leaf fact the loop driver needs before it can launch a
-/// session: canonical path, stable handle, kind, and the harness that leaf
-/// *declares* for itself if it declares one (`leaf-harness-k15`). `Ok(None)` is
-/// the empty-grove signal, exactly as [`kind`] gives it.
-///
-/// One function, and one leaf resolution, because the driver peeks **once**: the
-/// peek is a subprocess on every iteration of the loop (`model-per-task-kind`,
-/// *Consequences*), and a second verb call to read a line out of the same file
-/// would double that cost for a declaration almost no leaf carries.
-///
-/// Kind and harness degrade differently on purpose: `read_kind` never fails on
-/// content, so a garbled kind still yields a launch, while [`read_harness`]
-/// **refuses** — an unrecognised harness name aborts the peek rather than
-/// resolving to anything.
+/// session: canonical path, stable handle, and filename kind. `harness` and
+/// `review` remain null compatibility fields. `Ok(None)` is the empty-grove
+/// signal, exactly as [`kind`] gives it.
 pub fn launch_peek(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<LaunchPeek>> {
     let guard = tree_access::read(grove_root)?;
     let Some(leaf) = target_leaf_unlocked(guard.root(), leaf_path)? else {
@@ -218,10 +215,11 @@ pub fn launch_peek(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option
     let handle = entry
         .handle()
         .with_context(|| format!("routed path is not a keyed Grove task: {}", path.display()))?;
-    let kind = read_kind(&path)?;
-    let harness = read_harness(&path)?;
-    let review = matches!(kind.family(), Some(crate::leaf::Family::Review))
-        .then(|| crate::task_relationship::review_evidence_unlocked(guard.root(), &path));
+    let kind = entry
+        .kind()
+        .with_context(|| format!("routed path is not a Grove leaf: {}", path.display()))?;
+    let harness = None;
+    let review = None;
     Ok(Some(LaunchPeek {
         path,
         handle,
@@ -239,11 +237,32 @@ fn target_leaf_unlocked(grove_root: &Path, leaf_path: Option<&Path>) -> Result<O
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
     }
-    Ok(match leaf_path {
+    let target = match leaf_path {
         Some(p) if p.is_absolute() => Some(p.to_path_buf()),
         Some(p) => Some(grove_root.join(p)),
         None => pick_unlocked(grove_root)?,
-    })
+    };
+    if let Some(path) = &target {
+        current_leaf_entry(path)?;
+    }
+    Ok(target)
+}
+
+fn current_leaf_entry(path: &Path) -> Result<Entry> {
+    if !path.is_file() {
+        bail!("Grove leaf not found: {}", path.display());
+    }
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .with_context(|| format!("Grove leaf has no UTF-8 filename: {}", path.display()))?;
+    match parse_current(name)? {
+        Some(entry @ Entry::Leaf { .. }) => Ok(entry),
+        _ => bail!(
+            "path is not a current-format Grove leaf: {}",
+            path.display()
+        ),
+    }
 }
 
 /// Read a leaf task file's declared launch harness from its `**Harness:** <name>`
@@ -315,7 +334,7 @@ pub(crate) fn read_harness(leaf_path: &Path) -> Result<Option<&'static Harness>>
 /// previous spelling to `impl` silently, so the six live groves carrying it read
 /// correctly and print no warning. Warning there would fire on every task file
 /// of every live grove and train the operator to ignore this diagnostic.
-pub(crate) fn read_kind(leaf_path: &Path) -> Result<Kind> {
+pub(crate) fn read_legacy_kind(leaf_path: &Path) -> Result<Kind> {
     let text = fs::read_to_string(leaf_path)
         .with_context(|| format!("reading task file {}", leaf_path.display()))?;
     for line in text.lines() {
@@ -560,7 +579,11 @@ fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
     for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
-        let Some(parsed) = parse(&name) else { continue };
+        let Some(parsed) = parse_current(&name)
+            .with_context(|| format!("reading current Grove entry {}", entry.path().display()))?
+        else {
+            continue;
+        };
         let is_dir = match entry.file_type() {
             Ok(t) => t.is_dir(),
             // A symlink or an entry we cannot stat is treated as foreign.
@@ -653,6 +676,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join(".grove");
         fs::create_dir_all(&root).unwrap();
+        crate::tree_format::write_current_last(&root).unwrap();
         (tmp, root)
     }
 
@@ -680,11 +704,11 @@ mod tests {
     #[test]
     fn pick_returns_first_live_leaf_in_per_level_order() {
         let (_t, g) = grove();
-        touch(&g, "02-b-k2.md");
-        touch(&g, "01-a-k1.md");
-        touch(&g, "10-c-k3.md");
+        touch(&g, "02-impl-b-k2.md");
+        touch(&g, "01-impl-a-k1.md");
+        touch(&g, "10-impl-c-k3.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-a-k1.md");
+        assert_eq!(name_of(&got), "01-impl-a-k1.md");
     }
 
     #[test]
@@ -693,19 +717,19 @@ mod tests {
         // v2 grammar zero-pads to two digits, but the comparator is numeric so an
         // unpadded hand-typed name still orders right.
         let (_t, g) = grove();
-        touch(&g, "10-b-k2.md");
-        touch(&g, "2-a-k1.md");
+        touch(&g, "10-impl-b-k2.md");
+        touch(&g, "2-impl-a-k1.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "2-a-k1.md");
+        assert_eq!(name_of(&got), "2-impl-a-k1.md");
     }
 
     #[test]
     fn pick_skips_done_leaves() {
         let (_t, g) = grove();
-        touch(&g, "01-DONE-a-k1.md");
-        touch(&g, "02-b-k2.md");
+        touch(&g, "01-DONE-impl-a-k1.md");
+        touch(&g, "02-impl-b-k2.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-b-k2.md");
+        assert_eq!(name_of(&got), "02-impl-b-k2.md");
     }
 
     #[test]
@@ -713,10 +737,10 @@ mod tests {
         // Symmetric with DONE (ADR *pruning*): an abandoned leaf is a terminal
         // state, skipped exactly like a retired one.
         let (_t, g) = grove();
-        touch(&g, "01-ABANDONED-a-k1.md");
-        touch(&g, "02-b-k2.md");
+        touch(&g, "01-ABANDONED-impl-a-k1.md");
+        touch(&g, "02-impl-b-k2.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-b-k2.md");
+        assert_eq!(name_of(&got), "02-impl-b-k2.md");
     }
 
     #[test]
@@ -726,10 +750,10 @@ mod tests {
         let (_t, g) = grove();
         let node = mknode(&g, "01-design-k1");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-child-k2.md");
-        touch(&g, "02-later-k3.md");
+        touch(&node, "01-impl-child-k2.md");
+        touch(&g, "02-impl-later-k3.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-child-k2.md");
+        assert_eq!(name_of(&got), "01-impl-child-k2.md");
     }
 
     #[test]
@@ -738,9 +762,9 @@ mod tests {
         touch(&g, "BRIEF.md");
         let node = mknode(&g, "01-node-k1");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-child-k2.md");
+        touch(&node, "01-impl-child-k2.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-child-k2.md");
+        assert_eq!(name_of(&got), "01-impl-child-k2.md");
     }
 
     #[test]
@@ -750,10 +774,10 @@ mod tests {
         let (_t, g) = grove();
         let node = mknode(&g, "01-done-node-k1");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-DONE-child-k2.md");
-        touch(&g, "02-live-k3.md");
+        touch(&node, "01-DONE-impl-child-k2.md");
+        touch(&g, "02-impl-live-k3.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-live-k3.md");
+        assert_eq!(name_of(&got), "02-impl-live-k3.md");
     }
 
     #[test]
@@ -764,10 +788,10 @@ mod tests {
         let (_t, g) = grove();
         let node = mknode(&g, "01-dead-node-k1");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-ABANDONED-child-k2.md");
-        touch(&g, "02-live-k3.md");
+        touch(&node, "01-ABANDONED-impl-child-k2.md");
+        touch(&g, "02-impl-live-k3.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-live-k3.md");
+        assert_eq!(name_of(&got), "02-impl-live-k3.md");
     }
 
     #[test]
@@ -777,9 +801,9 @@ mod tests {
         touch(&n1, "BRIEF.md");
         let n2 = mknode(&n1, "01-inner-k2");
         touch(&n2, "BRIEF.md");
-        touch(&n2, "01-deep-k3.md");
+        touch(&n2, "01-impl-deep-k3.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-deep-k3.md");
+        assert_eq!(name_of(&got), "01-impl-deep-k3.md");
     }
 
     #[test]
@@ -788,7 +812,7 @@ mod tests {
         touch(&g, "BRIEF.md");
         let node = mknode(&g, "01-node-k1");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-DONE-child-k2.md");
+        touch(&node, "01-DONE-impl-child-k2.md");
         assert_eq!(pick(&g).unwrap(), None);
     }
 
@@ -798,11 +822,11 @@ mod tests {
         // leaves" — correct: the work is settled, however it settled.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
-        touch(&g, "01-ABANDONED-a-k1.md");
+        touch(&g, "01-ABANDONED-impl-a-k1.md");
         let node = mknode(&g, "02-node-k2");
         touch(&node, "BRIEF.md");
-        touch(&node, "01-DONE-b-k3.md");
-        touch(&node, "02-ABANDONED-c-k4.md");
+        touch(&node, "01-DONE-impl-b-k3.md");
+        touch(&node, "02-ABANDONED-impl-c-k4.md");
         assert_eq!(pick(&g).unwrap(), None);
     }
 
@@ -817,9 +841,9 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "README.md");
         touch(&g, "notes.txt");
-        touch(&g, "01-a-k1.md");
+        touch(&g, "01-impl-a-k1.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-a-k1.md");
+        assert_eq!(name_of(&got), "01-impl-a-k1.md");
     }
 
     #[test]
@@ -835,10 +859,10 @@ mod tests {
         // A directory whose name parses as a leaf (`.md` suffix) is reconciled as
         // foreign — a leaf is a file. So it is neither returned nor descended.
         let (_t, g) = grove();
-        mknode(&g, "01-trap-k1.md");
-        touch(&g, "02-real-k2.md");
+        mknode(&g, "01-impl-trap-k1.md");
+        touch(&g, "02-impl-real-k2.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-real-k2.md");
+        assert_eq!(name_of(&got), "02-impl-real-k2.md");
     }
 
     #[test]
@@ -847,9 +871,9 @@ mod tests {
         // a node is a directory — so pick never tries to descend it.
         let (_t, g) = grove();
         touch(&g, "01-trap-k1");
-        touch(&g, "02-real-k2.md");
+        touch(&g, "02-impl-real-k2.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-real-k2.md");
+        assert_eq!(name_of(&got), "02-impl-real-k2.md");
     }
 
     #[test]
@@ -858,10 +882,10 @@ mod tests {
         // no live leaf reachable by the walk.
         let (_t, g) = grove();
         let legacy = mknode(&g, "done");
-        touch(&legacy, "09-old-k9.md");
-        touch(&g, "01-a-k1.md");
+        touch(&legacy, "09-impl-old-k9.md");
+        touch(&g, "01-impl-a-k1.md");
         let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "01-a-k1.md");
+        assert_eq!(name_of(&got), "01-impl-a-k1.md");
     }
 
     #[test]
@@ -881,7 +905,7 @@ mod tests {
     fn brief_chain_root_level_leaf_returns_only_root_brief() {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
-        let leaf = touch(&g, "01-a-k1.md");
+        let leaf = touch(&g, "01-impl-a-k1.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         assert_eq!(
             chain.iter().map(|p| name_of(p)).collect::<Vec<_>>(),
@@ -897,7 +921,7 @@ mod tests {
         touch(&n1, "BRIEF.md");
         let n2 = mknode(&n1, "01-node-k2");
         touch(&n2, "BRIEF.md");
-        let leaf = touch(&n2, "01-leaf-k3.md");
+        let leaf = touch(&n2, "01-impl-leaf-k3.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         // Each brief's parent dir distinguishes them; assert on the parent.
         assert_eq!(
@@ -920,7 +944,7 @@ mod tests {
         touch(&design, "BRIEF.md");
         let other = mknode(&g, "02-other-k3");
         touch(&other, "BRIEF.md");
-        let leaf = touch(&design, "01-leaf-k2.md");
+        let leaf = touch(&design, "01-impl-leaf-k2.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         assert_eq!(
             chain
@@ -939,7 +963,7 @@ mod tests {
         let n1 = mknode(&g, "02-mid-k1");
         let n2 = mknode(&n1, "01-node-k2");
         touch(&n2, "BRIEF.md");
-        let leaf = touch(&n2, "01-leaf-k3.md");
+        let leaf = touch(&n2, "01-impl-leaf-k3.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         assert_eq!(
             chain
@@ -956,7 +980,7 @@ mod tests {
         // No root BRIEF.md.
         let n1 = mknode(&g, "02-mid-k1");
         touch(&n1, "BRIEF.md");
-        let leaf = touch(&n1, "01-leaf-k2.md");
+        let leaf = touch(&n1, "01-impl-leaf-k2.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         assert_eq!(
             chain
@@ -974,7 +998,7 @@ mod tests {
         touch(&g, "BRIEF.md");
         let n1 = mknode(&g, "01-design-k1");
         touch(&n1, "BRIEF.md");
-        let leaf = touch(&n1, "01-DONE-leaf-k2.md");
+        let leaf = touch(&n1, "01-DONE-impl-leaf-k2.md");
         let chain = brief_chain(&g, &leaf).unwrap();
         assert_eq!(
             chain
@@ -991,8 +1015,8 @@ mod tests {
         touch(&g, "BRIEF.md");
         let n1 = mknode(&g, "01-design-k1");
         touch(&n1, "BRIEF.md");
-        touch(&n1, "01-leaf-k2.md");
-        let chain = brief_chain(&g, Path::new("01-design-k1/01-leaf-k2.md")).unwrap();
+        touch(&n1, "01-impl-leaf-k2.md");
+        let chain = brief_chain(&g, Path::new("01-design-k1/01-impl-leaf-k2.md")).unwrap();
         assert_eq!(
             chain
                 .iter()
@@ -1010,7 +1034,7 @@ mod tests {
         fs::write(&stray, b"# stub\n").unwrap();
         let err = brief_chain(&g, &stray).unwrap_err();
         assert!(
-            err.to_string().contains("not under grove root"),
+            err.to_string().contains("not a current-format Grove leaf"),
             "got {err}"
         );
     }
@@ -1021,7 +1045,7 @@ mod tests {
         touch(&g, "BRIEF.md");
         let err = brief_chain(&g, &g).unwrap_err();
         assert!(
-            err.to_string().contains("grove root, not a leaf"),
+            err.to_string().contains("Grove leaf not found"),
             "got {err}"
         );
     }
@@ -1030,7 +1054,7 @@ mod tests {
     fn brief_chain_errors_when_grove_root_absent() {
         let (_t, g) = grove();
         let missing = g.join("nope");
-        let err = brief_chain(&missing, Path::new("01-a-k1.md")).unwrap_err();
+        let err = brief_chain(&missing, Path::new("01-impl-a-k1.md")).unwrap_err();
         assert!(
             err.to_string().contains("grove root not found"),
             "got {err}"
@@ -1039,9 +1063,8 @@ mod tests {
 
     // ---- kind ---------------------------------------------------------------
 
-    /// Write a leaf whose body carries `body_after_header` verbatim after the
-    /// `# <slug>` header, returning its absolute path — so a test can set (or
-    /// omit, or garble) the `**Kind:**` line.
+    /// Write a leaf whose body carries arbitrary legacy routing metadata. The
+    /// current reader must derive kind solely from the filename.
     fn touch_body(dir: &Path, name: &str, body_after_header: &str) -> PathBuf {
         let p = dir.join(name);
         fs::write(&p, format!("# stub\n\n{body_after_header}").as_bytes()).unwrap();
@@ -1051,44 +1074,39 @@ mod tests {
     #[test]
     fn kind_reads_an_impl_leaf() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** impl\n\n## Goal\n");
+        let leaf = touch_body(&g, "01-impl-a-k1.md", "**Kind:** impl\n\n## Goal\n");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
     fn kind_reads_a_planning_leaf() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** planning\n\n## Goal\n");
+        let leaf = touch_body(&g, "01-planning-a-k1.md", "**Kind:** impl\n\n## Goal\n");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Planning));
     }
 
     #[test]
-    fn kind_reads_every_one_of_the_seventeen() {
-        // The whole set through the real file-reading path, not just
-        // `Kind::parse` — the marker-line scan is what a hyphenated label
-        // (`integrate-review-impl`) could plausibly trip over.
+    fn kind_reads_every_one_of_the_nineteen_from_filenames() {
         let (_t, g) = grove();
         for (i, want) in Kind::ALL.into_iter().enumerate() {
-            let name = format!("{:02}-a-k{}.md", i + 1, i + 1);
-            let leaf = touch_body(&g, &name, &format!("**Kind:** {}\n", want.label()));
+            let name = format!("{:02}-{}-a-k{}.md", i + 1, want.label(), i + 1);
+            let leaf = touch_body(&g, &name, "**Kind:** bogus\n**Harness:** bogus\n");
             assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(want));
         }
     }
 
     #[test]
-    fn kind_reads_the_legacy_work_label_as_impl() {
-        // The compatibility rule the rename stands on (task-kind-taxonomy): a
-        // live grove's task files say `work` and must keep resolving, silently.
+    fn kind_ignores_a_legacy_work_label_in_the_body() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** work\n\n## Goal\n");
+        let leaf = touch_body(&g, "01-impl-a-k1.md", "**Kind:** work\n\n## Goal\n");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
     fn kind_no_arg_defaults_to_picks_next_leaf() {
         let (_t, g) = grove();
-        touch(&g, "01-DONE-old-k1.md"); // skipped by pick
-        touch_body(&g, "02-live-k2.md", "**Kind:** planning\n");
+        touch(&g, "01-DONE-impl-old-k1.md"); // skipped by pick
+        touch_body(&g, "02-planning-live-k2.md", "**Kind:** impl\n");
         // No leaf arg ⇒ pick's next live leaf (02-live), whose kind is planning.
         assert_eq!(kind(&g, None).unwrap(), Some(Kind::Planning));
     }
@@ -1107,43 +1125,40 @@ mod tests {
         let (_t, g) = grove();
         let node = mknode(&g, "01-design-k1");
         touch(&node, "BRIEF.md");
-        touch_body(&node, "01-leaf-k2.md", "**Kind:** impl\n");
-        let got = kind(&g, Some(Path::new("01-design-k1/01-leaf-k2.md"))).unwrap();
+        touch_body(&node, "01-impl-leaf-k2.md", "**Kind:** impl\n");
+        let got = kind(&g, Some(Path::new("01-design-k1/01-impl-leaf-k2.md"))).unwrap();
         assert_eq!(got, Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_tolerates_trailing_commentary_on_the_kind_line() {
-        // TASK-FORMAT's own example writes `**Kind:** impl   (or: planning)`.
+    fn kind_ignores_trailing_commentary_on_a_legacy_kind_line() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** impl          (or: planning)\n");
+        let leaf = touch_body(
+            &g,
+            "01-impl-a-k1.md",
+            "**Kind:** impl          (or: planning)\n",
+        );
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_degrades_to_impl_on_a_missing_kind_line() {
-        // Read degrades (task-kind-taxonomy): a leaf with no `**Kind:**` line at
-        // all — `touch` writes only `# stub` — is treated as `impl`, never an
-        // error, so a hand-edited leaf can never jam the self-driving loop.
+    fn kind_reads_an_impl_filename_with_no_kind_line() {
         let (_t, g) = grove();
-        let leaf = touch(&g, "01-a-k1.md");
+        let leaf = touch(&g, "01-impl-a-k1.md");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_degrades_to_impl_on_a_garbled_kind_token() {
+    fn kind_ignores_a_garbled_kind_token_in_the_body() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** bogus\n");
+        let leaf = touch_body(&g, "01-impl-a-k1.md", "**Kind:** bogus\n");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
     #[test]
-    fn kind_degrades_on_a_family_name_written_as_a_kind() {
-        // `review` and `integrate-review` are *families* (the routing axis), not
-        // members of the set. Written on a leaf they are simply unrecognised —
-        // the degrade path, not a silent match against the five `review-*` kinds.
+    fn kind_ignores_a_family_name_written_in_the_body() {
         let (_t, g) = grove();
-        let leaf = touch_body(&g, "01-a-k1.md", "**Kind:** review\n");
+        let leaf = touch_body(&g, "01-impl-a-k1.md", "**Kind:** review\n");
         assert_eq!(kind(&g, Some(&leaf)).unwrap(), Some(Kind::Impl));
     }
 
@@ -1169,20 +1184,20 @@ mod tests {
     ///   BRIEF.md
     ///   01-design-k1/         node
     ///     BRIEF.md
-    ///     01-add-k2.md        live leaf, slug "add"
-    ///     02-remove-k3.md
-    ///   02-add-k4.DONE? -> 02-DONE-add-k4.md   retired leaf, slug "add"
-    ///   03-build-k5.md
+    ///     01-impl-add-k2.md        live leaf, slug "add"
+    ///     02-impl-remove-k3.md
+    ///   02-add-k4.DONE? -> 02-DONE-impl-add-k4.md   retired leaf, slug "add"
+    ///   03-impl-build-k5.md
     /// ```
     fn resolve_fixture() -> (TempDir, PathBuf) {
         let (tmp, g) = grove();
         touch(&g, "BRIEF.md");
         let design = mknode(&g, "01-design-k1");
         touch(&design, "BRIEF.md");
-        touch(&design, "01-add-k2.md");
-        touch(&design, "02-remove-k3.md");
-        touch(&g, "02-DONE-add-k4.md");
-        touch(&g, "03-build-k5.md");
+        touch(&design, "01-impl-add-k2.md");
+        touch(&design, "02-impl-remove-k3.md");
+        touch(&g, "02-DONE-impl-add-k4.md");
+        touch(&g, "03-impl-build-k5.md");
         (tmp, g)
     }
 
@@ -1191,7 +1206,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[2]").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "01-add-k2.md");
+                assert_eq!(name_of(&path), "01-impl-add-k2.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
@@ -1204,7 +1219,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "4").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "02-DONE-add-k4.md");
+                assert_eq!(name_of(&path), "02-DONE-impl-add-k4.md");
                 assert_eq!(outcome, Outcome::Done, "the key-4 task is DONE");
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1222,10 +1237,10 @@ mod tests {
         // the tree itself.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
-        touch(&g, "01-ABANDONED-spike-k1.md");
+        touch(&g, "01-ABANDONED-impl-spike-k1.md");
         match resolve(&g, "[1]").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
+                assert_eq!(name_of(&path), "01-ABANDONED-impl-spike-k1.md");
                 assert_eq!(outcome, Outcome::Abandoned);
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1233,7 +1248,7 @@ mod tests {
         // The full `<slug>-k<key>` handle resolves it too.
         match resolve(&g, "spike-k1").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "01-ABANDONED-spike-k1.md");
+                assert_eq!(name_of(&path), "01-ABANDONED-impl-spike-k1.md");
                 assert_eq!(outcome, Outcome::Abandoned);
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1252,7 +1267,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "[5]-whatever").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "03-build-k5.md");
+                assert_eq!(name_of(&path), "03-impl-build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1285,7 +1300,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "03-build-k5.md");
+                assert_eq!(name_of(&path), "03-impl-build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1298,7 +1313,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "remove").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "02-remove-k3.md");
+                assert_eq!(name_of(&path), "02-impl-remove-k3.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
                 assert_eq!(outcome, Outcome::Live);
             }
@@ -1321,10 +1336,10 @@ mod tests {
                 // root-level `02-DONE-add-k4`.
                 assert_eq!(matches.len(), 2);
                 assert_eq!(matches[0].key, 2);
-                assert_eq!(name_of(&matches[0].path), "01-add-k2.md");
+                assert_eq!(name_of(&matches[0].path), "01-impl-add-k2.md");
                 assert_eq!(matches[0].outcome, Outcome::Live);
                 assert_eq!(matches[1].key, 4);
-                assert_eq!(name_of(&matches[1].path), "02-DONE-add-k4.md");
+                assert_eq!(name_of(&matches[1].path), "02-DONE-impl-add-k4.md");
                 assert_eq!(matches[1].outcome, Outcome::Done);
             }
             other => panic!("expected Ambiguous, got {other:?}"),
@@ -1365,7 +1380,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "build-k5").unwrap() {
             Resolution::Found { path, outcome } => {
-                assert_eq!(name_of(&path), "03-build-k5.md");
+                assert_eq!(name_of(&path), "03-impl-build-k5.md");
                 assert_eq!(outcome, Outcome::Live);
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1379,7 +1394,7 @@ mod tests {
         let (_t, g) = resolve_fixture();
         match resolve(&g, "add-k2").unwrap() {
             Resolution::Found { path, .. } => {
-                assert_eq!(name_of(&path), "01-add-k2.md");
+                assert_eq!(name_of(&path), "01-impl-add-k2.md");
                 assert_eq!(name_of(path.parent().unwrap()), "01-design-k1");
             }
             other => panic!("expected Found, got {other:?}"),
@@ -1406,13 +1421,13 @@ mod tests {
         // (key 7) wins over a *different* entity that happens to hold key 5.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md");
-        touch(&g, "01-foo-k5-k7.md"); // slug "foo-k5", key 7
-        touch(&g, "02-other-k5.md"); // slug "other", key 5
+        touch(&g, "01-impl-foo-k5-k7.md"); // slug "foo-k5", key 7
+        touch(&g, "02-impl-other-k5.md"); // slug "other", key 5
         match resolve(&g, "foo-k5").unwrap() {
             Resolution::Found { path, .. } => {
                 assert_eq!(
                     name_of(&path),
-                    "01-foo-k5-k7.md",
+                    "01-impl-foo-k5-k7.md",
                     "the real slug match must win over the key-5 handle fallback"
                 );
             }
@@ -1433,22 +1448,22 @@ mod tests {
     #[test]
     fn render_found_prints_path_no_stderr() {
         let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/03-build-k5.md"),
+            path: PathBuf::from("/g/.grove/03-impl-build-k5.md"),
             outcome: Outcome::Live,
         };
         let (out, err) = render_resolution("[5]", &r);
-        assert_eq!(out, "/g/.grove/03-build-k5.md\n");
+        assert_eq!(out, "/g/.grove/03-impl-build-k5.md\n");
         assert!(err.is_empty(), "got {err:?}");
     }
 
     #[test]
     fn render_found_retired_notes_on_stderr_but_still_prints_path() {
         let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/02-DONE-add-k4.md"),
+            path: PathBuf::from("/g/.grove/02-DONE-impl-add-k4.md"),
             outcome: Outcome::Done,
         };
         let (out, err) = render_resolution("4", &r);
-        assert_eq!(out, "/g/.grove/02-DONE-add-k4.md\n");
+        assert_eq!(out, "/g/.grove/02-DONE-impl-add-k4.md\n");
         assert!(err.contains("retired"), "got {err:?}");
     }
 
@@ -1458,11 +1473,11 @@ mod tests {
         // `ABANDONED` entry must get its own stderr note, not silence
         // (silence is what a live match gets) and not the DONE wording.
         let r = Resolution::Found {
-            path: PathBuf::from("/g/.grove/01-ABANDONED-spike-k1.md"),
+            path: PathBuf::from("/g/.grove/01-ABANDONED-impl-spike-k1.md"),
             outcome: Outcome::Abandoned,
         };
         let (out, err) = render_resolution("1", &r);
-        assert_eq!(out, "/g/.grove/01-ABANDONED-spike-k1.md\n");
+        assert_eq!(out, "/g/.grove/01-ABANDONED-impl-spike-k1.md\n");
         assert!(err.contains("abandoned"), "got {err:?}");
         assert!(!err.contains("retired"), "got {err:?}");
     }
@@ -1480,12 +1495,12 @@ mod tests {
         let r = Resolution::Ambiguous(vec![
             AmbiguousMatch {
                 key: 2,
-                path: PathBuf::from("/g/.grove/01-design-k1/01-add-k2.md"),
+                path: PathBuf::from("/g/.grove/01-design-k1/01-impl-add-k2.md"),
                 outcome: Outcome::Live,
             },
             AmbiguousMatch {
                 key: 4,
-                path: PathBuf::from("/g/.grove/02-DONE-add-k4.md"),
+                path: PathBuf::from("/g/.grove/02-DONE-impl-add-k4.md"),
                 outcome: Outcome::Done,
             },
         ]);
@@ -1504,7 +1519,7 @@ mod tests {
     fn render_ambiguous_tags_an_abandoned_match() {
         let r = Resolution::Ambiguous(vec![AmbiguousMatch {
             key: 1,
-            path: PathBuf::from("/g/.grove/01-ABANDONED-spike-k1.md"),
+            path: PathBuf::from("/g/.grove/01-ABANDONED-impl-spike-k1.md"),
             outcome: Outcome::Abandoned,
         }]);
         let (_out, err) = render_resolution("spike", &r);
@@ -1524,9 +1539,9 @@ mod tests {
         touch(&g, "BRIEF.md");
         let n1 = mknode(&g, "01-scheme-k1");
         touch(&n1, "BRIEF.md");
-        touch(&n1, "01-DONE-id-model-k2.md");
-        let leaf = touch(&n1, "02-read-verbs-k3.md");
-        touch(&g, "02-shed-tui-k4.md");
+        touch(&n1, "01-DONE-impl-id-model-k2.md");
+        let leaf = touch(&n1, "02-impl-read-verbs-k3.md");
+        touch(&g, "02-impl-shed-tui-k4.md");
 
         let picked = pick(&g).unwrap().unwrap();
         assert_eq!(picked, leaf);

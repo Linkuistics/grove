@@ -20,6 +20,7 @@ pub mod repo;
 pub mod session_config;
 pub mod task_relationship;
 pub mod tree_access;
+pub mod tree_format;
 pub mod tree_grow;
 pub mod tree_id;
 pub mod tree_lifecycle;

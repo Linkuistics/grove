@@ -1,7 +1,6 @@
-// Producer handoff: retiring a reviewed producer writes its effective launch
-// target into the linked review task, but every metadata failure remains
-// advisory. These tests drive the real `grove-llm leaf-retire` interface so the
-// ordering is observable: `DONE` must land even when no receipt can.
+// Current session-kind trees keep launch routing out of task bodies. Retiring
+// or pruning a producer must preserve relationship prose byte-for-byte and
+// must not materialise the legacy `**Producer launch:**` receipt.
 
 use assert_cmd::Command;
 use std::fs;
@@ -40,7 +39,19 @@ fn write(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
 }
 
-fn commit_fixture(repo: &Path) {
+fn build_review_chain(repo: &Path, review_body: &str) -> (PathBuf, PathBuf) {
+    let grove = repo.join(".grove");
+    let chain = grove.join("01-build-chain-k4");
+    let producer = chain.join("01-impl-build-k1.md");
+    let review = chain.join("02-review-impl-build-review-k2.md");
+    write(&grove.join("FORMAT"), "session-kinds-v1\n");
+    write(&grove.join("BRIEF.md"), "# build — brief\n");
+    write(&producer, "# build-k1\n\n## Goal\n\nBuild it.\n");
+    write(&review, review_body);
+    write(
+        &chain.join("03-integrate-review-impl-build-integrate-k3.md"),
+        "# build-integrate-k3\n\n**Integrates:** build-review-k2\n",
+    );
     assert!(ProcessCommand::new("git")
         .args(["add", "-A"])
         .current_dir(repo)
@@ -53,88 +64,16 @@ fn commit_fixture(repo: &Path) {
         .status()
         .unwrap()
         .success());
-}
-
-fn build_review_chain(repo: &Path, existing_receipt: Option<&str>) -> (PathBuf, PathBuf) {
-    let chain = repo.join(".grove/01-build-chain-k4");
-    let producer = chain.join("01-build-k1.md");
-    let review = chain.join("02-build-review-k2.md");
-    write(
-        &producer,
-        "# build-k1\n\n**Kind:** impl\n\n## Goal\n\nBuild it.\n",
-    );
-    let receipt = existing_receipt
-        .map(|line| format!("**Producer launch:** {line}\n"))
-        .unwrap_or_default();
-    write(
-        &review,
-        &format!(
-            "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n{receipt}\n## Goal\n\nReview it.\n"
-        ),
-    );
-    write(
-        &chain.join("03-build-integrate-k3.md"),
-        "# build-integrate-k3\n\n**Kind:** integrate-review-impl\n**Integrates:** build-review-k2\n",
-    );
-    commit_fixture(repo);
     (producer, review)
 }
 
-fn build_decomposed_review_chain(
-    repo: &Path,
-    closing_kind: &str,
-    terminal_review: bool,
-) -> (PathBuf, PathBuf, String) {
-    let chain = repo.join(".grove/01-build-chain-k10");
-    let producer = chain.join("01-build-k1");
-    let closing_leaf = producer.join("03-finish-k6.md");
-    let review_name = if terminal_review {
-        "02-DONE-build-review-k2.md"
-    } else {
-        "02-build-review-k2.md"
-    };
-    let review = chain.join(review_name);
-    write(
-        &producer.join("BRIEF.md"),
-        "# build-k1 — brief\n\n## Done when\n\nThe build is finished.\n",
-    );
-    write(
-        &producer.join("01-DONE-highest-key-k9.md"),
-        "# highest-key-k9\n\n**Kind:** impl\n",
-    );
-    write(
-        &producer.join("02-DONE-earlier-k5.md"),
-        "# earlier-k5\n\n**Kind:** impl\n",
-    );
-    write(
-        &closing_leaf,
-        &format!("# finish-k6\n\n**Kind:** {closing_kind}\n"),
-    );
-    let review_body = "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\n## Goal\n\nReview it.\n";
-    write(&review, review_body);
-    write(
-        &chain.join("03-build-integrate-k3.md"),
-        "# build-integrate-k3\n\n**Kind:** integrate-review-impl\n**Integrates:** build-review-k2\n",
-    );
-    commit_fixture(repo);
-    (closing_leaf, review, review_body.to_string())
-}
-
-fn session_target(repo: &Path, handle: &str) -> String {
-    format!(
-        "{{\"worktree\":\"{}\",\"handle\":\"{handle}\",\"harness\":\"claude\",\"model\":\"opus\"}}",
-        grove::json::escape(&repo.canonicalize().unwrap().display().to_string())
-    )
-}
-
-fn retire(repo: &Path, producer: &Path, target: Option<&str>) -> (String, String, bool) {
+fn llm(repo: &Path, args: &[&str], session_target: Option<&str>) -> (String, String, bool) {
     let mut command = Command::cargo_bin("grove-llm").unwrap();
     command
         .current_dir(repo)
-        .arg("leaf-retire")
-        .arg(producer)
+        .args(args)
         .env_remove(SESSION_TARGET_ENV);
-    if let Some(target) = target {
+    if let Some(target) = session_target {
         command.env(SESSION_TARGET_ENV, target);
     }
     let output = command.output().unwrap();
@@ -145,630 +84,55 @@ fn retire(repo: &Path, producer: &Path, target: Option<&str>) -> (String, String
     )
 }
 
-fn llm(repo: &Path, args: &[&str]) -> (String, String, bool) {
-    let output = Command::cargo_bin("grove-llm")
-        .unwrap()
-        .current_dir(repo)
-        .args(args)
-        .env_remove(SESSION_TARGET_ENV)
-        .output()
-        .unwrap();
-    (
-        String::from_utf8_lossy(&output.stdout).into_owned(),
-        String::from_utf8_lossy(&output.stderr).into_owned(),
-        output.status.success(),
-    )
-}
-
 #[test]
-fn successful_retirement_materialises_the_producer_launch_receipt() {
+fn retiring_a_reviewed_producer_writes_no_launch_receipt() {
     let tmp = init_repo();
     let repo = tmp.path();
-    let (producer, review) = build_review_chain(repo, None);
-    let target = session_target(repo, "build-k1");
+    let review_body =
+        "# build-review-k2\n\n**Reviews:** build-k1\n\n## Goal\n\nReview the implementation.\n";
+    let (producer, review) = build_review_chain(repo, review_body);
+    let session_target = format!(
+        "{{\"worktree\":\"{}\",\"handle\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}}",
+        grove::json::escape(&repo.canonicalize().unwrap().display().to_string())
+    );
 
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
+    let (_, stderr, ok) = llm(
+        repo,
+        &["leaf-retire", producer.to_str().unwrap()],
+        Some(&session_target),
+    );
 
     assert!(ok, "retirement failed: {stderr}");
-    assert!(repo
-        .join(".grove/01-build-chain-k4/01-DONE-build-k1.md")
-        .is_file());
-    let review = fs::read_to_string(review).unwrap();
-    assert!(review.contains(
-        "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"build-k1\",\"generation\":\"k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n"
-    ));
-    assert!(
-        !stderr.contains("uncheckable"),
-        "valid metadata warned: {stderr}"
-    );
+    assert_eq!(fs::read_to_string(&review).unwrap(), review_body);
+    assert!(!review_body.contains("**Producer launch:**"));
+    assert!(producer.with_file_name("01-DONE-impl-build-k1.md").exists());
 }
 
 #[test]
-fn successful_retirement_unconditionally_replaces_a_prior_receipt() {
+fn retiring_preserves_preexisting_legacy_body_metadata_byte_for_byte() {
     let tmp = init_repo();
     let repo = tmp.path();
-    let old = r#"{"producer":"build-k1","harness":"codex","model":"old"}"#;
-    let (producer, review) = build_review_chain(repo, Some(old));
-    let target = session_target(repo, "build-k1");
+    let review_body = "# build-review-k2\n\n**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"old-k9\",\"harness\":\"pi\",\"model\":\"old\"}\n";
+    let (producer, review) = build_review_chain(repo, review_body);
 
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
+    let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()], None);
 
     assert!(ok, "retirement failed: {stderr}");
-    let review = fs::read_to_string(review).unwrap();
-    assert_eq!(review.matches("**Producer launch:**").count(), 1);
-    assert!(review.contains("\"harness\":\"claude\",\"model\":\"opus\""));
-    assert!(!review.contains("\"harness\":\"codex\""));
+    assert_eq!(fs::read_to_string(review).unwrap(), review_body);
 }
 
 #[test]
-fn missing_or_malformed_session_context_never_blocks_done() {
-    for target in [None, Some("not-json")] {
-        let tmp = init_repo();
-        let repo = tmp.path();
-        let (producer, review) = build_review_chain(repo, None);
-
-        let (_, stderr, ok) = retire(repo, &producer, target);
-
-        assert!(ok, "advisory metadata blocked retirement: {stderr}");
-        assert!(repo
-            .join(".grove/01-build-chain-k4/01-DONE-build-k1.md")
-            .is_file());
-        assert!(!fs::read_to_string(review)
-            .unwrap()
-            .contains("**Producer launch:**"));
-        assert!(
-            stderr.contains("uncheckable"),
-            "missing diagnostic: {stderr}"
-        );
-    }
-}
-
-#[test]
-fn stale_worktree_routed_handle_or_factual_pick_is_uncheckable() {
-    for (case, target_handle, target_worktree, preempt) in [
-        ("worktree", "build-k1", Some("/a/different/worktree"), false),
-        ("handle", "other-k99", None, false),
-        ("pick", "build-k1", None, true),
-    ] {
-        let tmp = init_repo();
-        let repo = tmp.path();
-        let (producer, review) = build_review_chain(repo, None);
-        if preempt {
-            write(
-                &repo.join(".grove/00-earlier-k9.md"),
-                "# earlier-k9\n\n**Kind:** impl\n",
-            );
-        }
-        let mut target = session_target(repo, target_handle);
-        if let Some(other) = target_worktree {
-            let current = grove::json::escape(&repo.canonicalize().unwrap().display().to_string());
-            target = target.replace(&current, other);
-        }
-
-        let (_, stderr, ok) = retire(repo, &producer, Some(&target));
-
-        assert!(ok, "{case}: advisory mismatch blocked retirement: {stderr}");
-        assert!(repo
-            .join(".grove/01-build-chain-k4/01-DONE-build-k1.md")
-            .is_file());
-        assert!(!fs::read_to_string(review)
-            .unwrap()
-            .contains("**Producer launch:**"));
-        assert!(stderr.contains("uncheckable"), "{case}: {stderr}");
-    }
-}
-
-#[test]
-fn duplicate_review_claimants_are_uncheckable_but_done_still_lands() {
+fn pruning_a_reviewed_producer_writes_no_launch_receipt() {
     let tmp = init_repo();
     let repo = tmp.path();
-    let (producer, review) = build_review_chain(repo, None);
-    let duplicate = repo.join(".grove/01-build-chain-k4/04-other-review-k8.md");
-    write(
-        &duplicate,
-        "# other-review-k8\n\n**Kind:** review-impl\n**Reviews:** build-k1\n",
-    );
-    let target = session_target(repo, "build-k1");
+    let review_body = "# build-review-k2\n\n**Reviews:** build-k1\n";
+    let (producer, review) = build_review_chain(repo, review_body);
 
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
+    let (_, stderr, ok) = llm(repo, &["leaf-prune", producer.to_str().unwrap()], None);
 
-    assert!(ok, "duplicate metadata blocked retirement: {stderr}");
-    assert!(repo
-        .join(".grove/01-build-chain-k4/01-DONE-build-k1.md")
-        .is_file());
-    assert!(!fs::read_to_string(review)
-        .unwrap()
-        .contains("**Producer launch:**"));
-    assert!(!fs::read_to_string(duplicate)
-        .unwrap()
-        .contains("**Producer launch:**"));
-    assert!(
-        stderr.contains("uncheckable") && stderr.contains("ambiguous"),
-        "{stderr}"
-    );
-}
-
-#[test]
-fn zero_malformed_and_non_leaf_review_claimants_have_explicit_cardinality_semantics() {
-    // Zero claimants: this producer simply has no receipt consumer.
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let producer = repo.join(".grove/01-build-k1.md");
-    write(&producer, "# build-k1\n\n**Kind:** impl\n");
-    commit_fixture(repo);
-    let target = session_target(repo, "build-k1");
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
-    assert!(ok, "unreviewed retirement failed: {stderr}");
-    assert!(
-        !stderr.contains("uncheckable"),
-        "zero is not ambiguity: {stderr}"
-    );
-
-    // A malformed leaf claimant makes relationship cardinality uncheckable.
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (producer, review) = build_review_chain(repo, None);
-    write(
-        &repo.join(".grove/01-build-chain-k4/04-malformed-review-k8.md"),
-        "# malformed-review-k8\n\n**Kind:** review-impl\n**Reviews:** not/a/handle\n",
-    );
-    let target = session_target(repo, "build-k1");
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
-    assert!(ok, "malformed relationship blocked DONE: {stderr}");
-    assert!(stderr.contains("uncheckable"), "{stderr}");
-    assert!(!fs::read_to_string(review)
-        .unwrap()
-        .contains("**Producer launch:**"));
-
-    // A node brief is not a claimant: only sibling task leaves can consume a
-    // producer receipt, even if hand-edited node metadata says otherwise.
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (producer, review) = build_review_chain(repo, None);
-    write(
-        &repo.join(".grove/01-build-chain-k4/04-not-a-claimant-k8/BRIEF.md"),
-        "# not-a-claimant-k8 — brief\n\n**Reviews:** build-k1\n",
-    );
-    let target = session_target(repo, "build-k1");
-    let (_, stderr, ok) = retire(repo, &producer, Some(&target));
-    assert!(ok, "non-leaf metadata blocked retirement: {stderr}");
-    assert!(fs::read_to_string(review)
-        .unwrap()
-        .contains("**Producer launch:**"));
-}
-
-#[test]
-fn a_failed_done_rename_writes_no_new_receipt() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let old = r#"{"producer":"build-k1","harness":"codex","model":"old"}"#;
-    let (producer, review) = build_review_chain(repo, Some(old));
-    write(
-        &repo.join(".grove/01-build-chain-k4/01-DONE-build-k1.md"),
-        "collision\n",
-    );
-    let target = session_target(repo, "build-k1");
-
-    let (_, _, ok) = retire(repo, &producer, Some(&target));
-
-    assert!(!ok, "a colliding DONE destination must fail retirement");
-    let review = fs::read_to_string(review).unwrap();
-    assert!(review.contains("\"harness\":\"codex\",\"model\":\"old\""));
-    assert!(!review.contains("\"harness\":\"claude\""));
-}
-
-#[test]
-fn closing_a_decomposed_producer_records_the_factual_session_and_generation() {
-    for closing_kind in ["impl", "review-impl", "integrate-review-impl"] {
-        let tmp = init_repo();
-        let repo = tmp.path();
-        let (closing_leaf, review, _) = build_decomposed_review_chain(repo, closing_kind, false);
-        let target = session_target(repo, "finish-k6");
-
-        let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-
-        assert!(ok, "{closing_kind}: retirement failed: {stderr}");
-        let review = fs::read_to_string(review).unwrap();
-        assert!(
-            review.contains(
-                "**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k6\",\"generation\":\"k9\",\"harness\":\"claude\",\"model\":\"opus\"}"
-            ),
-            "{closing_kind}: missing decomposed receipt in {review:?}"
-        );
-        assert!(!stderr.contains("uncheckable"), "{closing_kind}: {stderr}");
-    }
-}
-
-#[test]
-fn foreign_entry_kinds_do_not_block_or_silently_downgrade_node_handoff() {
-    for foreign_shape in ["node-shaped-file", "leaf-shaped-directory"] {
-        let tmp = init_repo();
-        let repo = tmp.path();
-        let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
-        let producer = closing_leaf.parent().unwrap();
-        match foreign_shape {
-            "node-shaped-file" => write(&producer.join("04-foreign-k99"), "foreign\n"),
-            "leaf-shaped-directory" => {
-                fs::create_dir(producer.join("04-foreign-k99.md")).unwrap();
-            }
-            _ => unreachable!(),
-        }
-        let target = session_target(repo, "finish-k6");
-
-        let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-
-        assert!(
-            ok,
-            "{foreign_shape}: foreign entry blocked retirement: {stderr}"
-        );
-        assert!(
-            producer.join("03-DONE-finish-k6.md").is_file(),
-            "{foreign_shape}: DONE did not land"
-        );
-        let review_text = fs::read_to_string(&review).unwrap();
-        assert!(
-            review_text.contains(
-                "**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k6\",\"generation\":\"k9\""
-            ),
-            "{foreign_shape}: checkable node handoff was silently lost: {review_text:?} {stderr}"
-        );
-
-        let (stdout, stderr, ok) = llm(
-            repo,
-            &["kind", "--with-harness", "--json", review.to_str().unwrap()],
-        );
-        assert!(ok, "{foreign_shape}: evidence read failed: {stderr}");
-        let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-        assert_eq!(
-            evidence["review"]["status"], "checkable",
-            "{foreign_shape}: reader and pick classified different trees: {evidence}"
-        );
-    }
-}
-
-#[test]
-fn invalid_brief_carrying_ancestor_is_advisory_and_done_still_lands() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let foreign_ancestor = repo.join(".grove/scratch");
-    let leaf = foreign_ancestor.join("01-leaf-k2.md");
-    write(&foreign_ancestor.join("BRIEF.md"), "# scratch — brief\n");
-    write(&leaf, "# leaf-k2\n\n**Kind:** impl\n");
-    commit_fixture(repo);
-
-    let (_, stderr, ok) = retire(repo, &leaf, None);
-
-    assert!(ok, "advisory ancestor metadata blocked DONE: {stderr}");
-    assert!(foreign_ancestor.join("01-DONE-leaf-k2.md").is_file());
-    assert!(
-        stderr.contains("reason=receipt-preparation-failed"),
-        "candidate failure was not diagnosed after DONE: {stderr}"
-    );
-}
-
-#[test]
-fn a_terminal_linked_review_is_preserved_and_diagnosed() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, original_review) = build_decomposed_review_chain(repo, "impl", true);
-    let target = session_target(repo, "finish-k6");
-
-    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-
-    assert!(ok, "retirement failed: {stderr}");
-    assert_eq!(fs::read_to_string(review).unwrap(), original_review);
-    assert!(stderr.contains("review-terminal"), "{stderr}");
-}
-
-#[test]
-fn a_terminal_review_stays_terminal_and_byte_identical_across_reopen_and_reclose() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, original_review) = build_decomposed_review_chain(repo, "impl", true);
-    let target = session_target(repo, "finish-k6");
-    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-    assert!(ok, "initial close failed: {stderr}");
-
-    let producer = closing_leaf.parent().unwrap();
-    let (stdout, stderr, ok) = llm(
-        repo,
-        &[
-            "leaf-add",
-            producer.to_str().unwrap(),
-            "refinish",
-            "--kind",
-            "impl",
-        ],
-    );
-    assert!(ok, "supported reopen failed: {stderr}");
-    let refinish = PathBuf::from(stdout.trim());
-    let handle = refinish
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .trim_end_matches(".md")
-        .split_once('-')
-        .unwrap()
-        .1;
-    let target = session_target(repo, handle);
-
-    let (_, stderr, ok) = retire(repo, &refinish, Some(&target));
-
-    assert!(ok, "reclose failed: {stderr}");
-    assert_eq!(fs::read_to_string(&review).unwrap(), original_review);
-    assert!(review.is_file(), "terminal review was reactivated");
-    assert!(stderr.contains("review-terminal"), "{stderr}");
-}
-
-#[test]
-fn one_done_transition_can_close_nested_reviewed_producers() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let chain = repo.join(".grove/01-outer-chain-k20");
-    let outer = chain.join("01-outer-k1");
-    let inner = outer.join("01-inner-k5");
-    let closing_leaf = inner.join("02-finish-k9.md");
-    let inner_review = outer.join("02-DONE-inner-review-k6.md");
-    let outer_review = chain.join("02-outer-review-k2.md");
-    write(
-        &outer.join("BRIEF.md"),
-        "# outer-k1 — brief\n\n## Done when\n\nOuter is complete.\n",
-    );
-    write(
-        &inner.join("BRIEF.md"),
-        "# inner-k5 — brief\n\n## Done when\n\nInner is complete.\n",
-    );
-    write(
-        &inner.join("01-DONE-earlier-k8.md"),
-        "# earlier-k8\n\n**Kind:** impl\n",
-    );
-    write(
-        &closing_leaf,
-        "# finish-k9\n\n**Kind:** integrate-review-impl\n",
-    );
-    let inner_review_body = "# inner-review-k6\n\n**Kind:** review-impl\n**Reviews:** inner-k5\n";
-    write(&inner_review, inner_review_body);
-    write(
-        &outer.join("03-DONE-inner-integrate-k7.md"),
-        "# inner-integrate-k7\n\n**Kind:** integrate-review-impl\n**Integrates:** inner-review-k6\n",
-    );
-    write(
-        &outer_review,
-        "# outer-review-k2\n\n**Kind:** review-impl\n**Reviews:** outer-k1\n",
-    );
-    write(
-        &chain.join("03-outer-integrate-k3.md"),
-        "# outer-integrate-k3\n\n**Kind:** integrate-review-impl\n**Integrates:** outer-review-k2\n",
-    );
-    commit_fixture(repo);
-    let target = session_target(repo, "finish-k9");
-
-    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-
-    assert!(ok, "retirement failed: {stderr}");
-    assert_eq!(fs::read_to_string(inner_review).unwrap(), inner_review_body);
-    assert!(stderr.contains("review-terminal"), "{stderr}");
-    assert!(fs::read_to_string(outer_review).unwrap().contains(
-        "**Producer launch:** {\"producer\":\"outer-k1\",\"session\":\"finish-k9\",\"generation\":\"k9\",\"harness\":\"claude\",\"model\":\"opus\"}"
-    ));
-}
-
-#[test]
-fn a_close_cascade_materialises_at_most_one_live_linked_review() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let chain = repo.join(".grove/01-outer-chain-k20");
-    let outer = chain.join("01-outer-k1");
-    let inner = outer.join("01-inner-k5");
-    let closing_leaf = inner.join("02-finish-k9.md");
-    let inner_review = outer.join("02-inner-review-k6.md");
-    let outer_review = chain.join("02-outer-review-k2.md");
-    write(&outer.join("BRIEF.md"), "# outer-k1 — brief\n");
-    write(&inner.join("BRIEF.md"), "# inner-k5 — brief\n");
-    write(
-        &inner.join("01-DONE-earlier-k8.md"),
-        "# earlier-k8\n\n**Kind:** impl\n",
-    );
-    write(&closing_leaf, "# finish-k9\n\n**Kind:** impl\n");
-    write(
-        &inner_review,
-        "# inner-review-k6\n\n**Kind:** review-impl\n**Reviews:** inner-k5\n",
-    );
-    write(
-        &outer_review,
-        "# outer-review-k2\n\n**Kind:** review-impl\n**Reviews:** outer-k1\n",
-    );
-    commit_fixture(repo);
-    let target = session_target(repo, "finish-k9");
-
-    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-
-    assert!(ok, "retirement failed: {stderr}");
-    assert!(fs::read_to_string(inner_review).unwrap().contains(
-        "**Producer launch:** {\"producer\":\"inner-k5\",\"session\":\"finish-k9\",\"generation\":\"k9\""
-    ));
-    assert!(
-        !fs::read_to_string(outer_review)
-            .unwrap()
-            .contains("**Producer launch:**"),
-        "the live inner review keeps the outer producer open"
-    );
-}
-
-#[test]
-fn producer_generation_survives_reorder_and_changes_after_supported_reopen() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
-    let target = session_target(repo, "finish-k6");
-    let (_, stderr, ok) = retire(repo, &closing_leaf, Some(&target));
-    assert!(ok, "first close failed: {stderr}");
-
-    let producer = repo.join(".grove/01-build-chain-k10/01-build-k1");
-    let highest = producer.join("01-DONE-highest-key-k9.md");
-    let earlier = producer.join("02-DONE-earlier-k5.md");
-    let swap = producer.join("swap-highest");
-    fs::rename(&highest, &swap).unwrap();
-    fs::rename(&earlier, producer.join("01-DONE-earlier-k5.md")).unwrap();
-    fs::rename(&swap, producer.join("02-DONE-highest-key-k9.md")).unwrap();
-
-    let (stdout, stderr, ok) = llm(
-        repo,
-        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
-    );
-    assert!(ok, "reordered evidence failed: {stderr}");
-    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(evidence["review"]["generation"], "k9");
-
-    let (stdout, stderr, ok) = llm(
-        repo,
-        &[
-            "leaf-add",
-            producer.to_str().unwrap(),
-            "refinish",
-            "--kind",
-            "impl",
-        ],
-    );
-    assert!(ok, "supported reopen failed: {stderr}");
-    let refinish = PathBuf::from(stdout.trim());
-    // Strip only the position prefix; the remaining stable handle includes its key.
-    let handle = refinish
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .trim_end_matches(".md")
-        .split_once('-')
-        .unwrap()
-        .1
-        .to_string();
-    let target = session_target(repo, &handle);
-    let (_, stderr, ok) = retire(repo, &refinish, Some(&target));
-    assert!(ok, "reclose failed: {stderr}");
-
-    let receipt = fs::read_to_string(review).unwrap();
-    assert!(
-        receipt.contains(&format!("\"session\":\"{handle}\"")),
-        "{receipt}"
-    );
-    let generation = handle.rsplit_once('-').unwrap().1;
-    assert!(
-        receipt.contains(&format!("\"generation\":\"{generation}\"")),
-        "{receipt}"
-    );
-    assert!(!receipt.contains("\"generation\":\"k9\""), "{receipt}");
-}
-
-#[test]
-fn pruning_the_producer_and_pruning_the_enclosing_chain_have_distinct_scope() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
-    let producer = closing_leaf.parent().unwrap();
-
-    let (_, stderr, ok) = llm(repo, &["leaf-prune", producer.to_str().unwrap()]);
-    assert!(ok, "producer prune failed: {stderr}");
-    assert!(producer.join("03-ABANDONED-finish-k6.md").is_file());
-    let (picked, stderr, ok) = llm(repo, &["pick"]);
-    assert!(ok, "pick after producer prune failed: {stderr}");
-    assert_eq!(PathBuf::from(picked.trim()), review.canonicalize().unwrap());
-    let (stdout, stderr, ok) = llm(repo, &["kind", "--with-harness", "--json"]);
-    assert!(ok, "review evidence failed: {stderr}");
-    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        evidence["review"],
-        serde_json::json!({
-            "status": "uncheckable",
-            "producer": "build-k1",
-            "reason": "producer-receipt-missing"
-        })
-    );
-
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
-    let chain = closing_leaf.parent().unwrap().parent().unwrap();
-    let integrate = chain.join("03-build-integrate-k3.md");
-    let (_, stderr, ok) = llm(repo, &["leaf-prune", chain.to_str().unwrap()]);
-    assert!(ok, "chain prune failed: {stderr}");
-    assert!(closing_leaf
-        .parent()
-        .unwrap()
-        .join("03-ABANDONED-finish-k6.md")
-        .is_file());
-    assert!(review
-        .parent()
-        .unwrap()
-        .join("02-ABANDONED-build-review-k2.md")
-        .is_file());
-    assert!(integrate
-        .parent()
-        .unwrap()
-        .join("03-ABANDONED-build-integrate-k3.md")
-        .is_file());
-    let (stdout, stderr, ok) = llm(repo, &["pick"]);
-    assert!(
-        ok && stdout.is_empty(),
-        "chain still has a live pick: {stdout} {stderr}"
-    );
-}
-
-#[test]
-fn abandoned_producers_and_source_sessions_never_form_checkable_handoffs() {
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let legacy_receipt = r#"{"producer":"build-k1","harness":"claude","model":"opus"}"#;
-    let (producer, review) = build_review_chain(repo, Some(legacy_receipt));
-    let abandoned = producer.parent().unwrap().join("01-ABANDONED-build-k1.md");
-    fs::rename(&producer, &abandoned).unwrap();
-
-    let (stdout, stderr, ok) = llm(
-        repo,
-        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
-    );
-    assert!(ok, "abandoned producer evidence failed: {stderr}");
-    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        evidence["review"],
-        serde_json::json!({
-            "status": "uncheckable",
-            "producer": "build-k1",
-            "reason": "reviewed-producer-not-done"
-        })
-    );
-
-    let tmp = init_repo();
-    let repo = tmp.path();
-    let (closing_leaf, review, _) = build_decomposed_review_chain(repo, "impl", false);
-    let abandoned = closing_leaf
-        .parent()
-        .unwrap()
-        .join("03-ABANDONED-finish-k6.md");
-    fs::rename(&closing_leaf, &abandoned).unwrap();
-    let original = fs::read_to_string(&review).unwrap();
-    fs::write(
-        &review,
-        original.replace(
-            "**Reviews:** build-k1\n",
-            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"build-k1\",\"session\":\"finish-k6\",\"generation\":\"k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-        ),
-    )
-    .unwrap();
-
-    let (stdout, stderr, ok) = llm(
-        repo,
-        &["kind", "--with-harness", "--json", review.to_str().unwrap()],
-    );
-    assert!(ok, "abandoned source evidence failed: {stderr}");
-    let evidence: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        evidence["review"],
-        serde_json::json!({
-            "status": "uncheckable",
-            "producer": "build-k1",
-            "reason": "producer-session-not-done-descendant"
-        })
-    );
+    assert!(ok, "prune failed: {stderr}");
+    assert_eq!(fs::read_to_string(&review).unwrap(), review_body);
+    assert!(producer
+        .with_file_name("01-ABANDONED-impl-build-k1.md")
+        .exists());
 }

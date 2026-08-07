@@ -35,6 +35,9 @@ fn init_repo() -> TempDir {
         .args(["commit", "--allow-empty", "-m", "init"])
         .status()
         .unwrap();
+    let grove = tmp.path().join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), b"session-kinds-v1\n").unwrap();
     tmp
 }
 
@@ -79,9 +82,9 @@ fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
 fn kind_of_an_impl_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-build-k1.md", "impl");
+    touch_leaf(&grove, "01-impl-build-k1.md", "impl");
 
-    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-build-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-impl-build-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "impl\n");
 }
@@ -90,23 +93,23 @@ fn kind_of_an_impl_leaf() {
 fn kind_of_a_planning_leaf() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-design-k1.md", "planning");
+    touch_leaf(&grove, "01-planning-design-k1.md", "impl");
 
-    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-design-k1.md"]);
+    let (stdout, _, ok) = run(tmp.path(), &["kind", ".grove/01-planning-design-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "planning\n");
 }
 
 #[test]
-fn every_one_of_the_seventeen_round_trips_through_the_verb() {
+fn every_one_of_the_nineteen_round_trips_through_the_verb() {
     // The verb is the loop driver's only view of a leaf's kind, so the whole set
     // has to survive the file → stdout round trip, hyphens and all — a single
     // lowercase token plus a newline, with nothing on stderr.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     for (i, label) in support::KIND_LABELS.iter().enumerate() {
-        let name = format!("{:02}-a-k{}.md", i + 1, i + 1);
-        touch_leaf(&grove, &name, label);
+        let name = format!("{:02}-{label}-a-k{}.md", i + 1, i + 1);
+        touch_leaf(&grove, &name, "bogus");
         let (stdout, stderr, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);
         assert!(ok, "{label} failed: {stderr:?}");
         assert_eq!(stdout, format!("{label}\n"));
@@ -122,9 +125,9 @@ fn the_retired_work_label_reads_as_impl_without_a_warning() {
     // teach the operator to ignore the diagnostic that matters.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-build-k1.md", "work");
+    touch_leaf(&grove, "01-impl-build-k1.md", "work");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-build-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-build-k1.md"]);
     assert!(ok);
     assert_eq!(stdout, "impl\n");
     assert!(
@@ -141,7 +144,7 @@ fn no_arg_form_reads_picks_next_leaf() {
     let node = mknode(&grove, "01-node-k1");
     touch(&node, "BRIEF.md");
     // pick's next live leaf is the node's first child — a planning leaf.
-    touch_leaf(&node, "01-first-k2.md", "planning");
+    touch_leaf(&node, "01-planning-first-k2.md", "impl");
 
     let (stdout, _, ok) = run(tmp.path(), &["kind"]);
     assert!(ok);
@@ -164,69 +167,58 @@ fn empty_grove_prints_no_live_leaves_on_stderr_and_exits_zero() {
 }
 
 #[test]
-fn missing_kind_line_degrades_to_impl_with_a_warning() {
-    // Read degrades (task-kind-taxonomy): a leaf with no `**Kind:**` line at
-    // all is treated as `impl`, warning on stderr but still exiting 0, so a
-    // hand-edited or foreign task file can never jam the self-driving loop.
+fn a_body_with_no_kind_line_does_not_affect_the_filename_kind() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch(&grove, "01-broken-k1.md"); // `# stub` only — no `**Kind:**` line
+    touch(&grove, "01-impl-broken-k1.md"); // `# stub` only — no `**Kind:**` line
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
-    assert!(ok, "a missing Kind line must degrade, not error");
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
+    assert!(ok, "the filename supplies the kind");
     assert_eq!(stdout, "impl\n");
-    assert!(
-        stderr.contains("01-broken-k1.md"),
-        "warning must name the file, got {stderr:?}"
-    );
-    assert!(
-        !stderr.contains("panicked"),
-        "must not panic, got {stderr:?}"
-    );
+    assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
 }
 
 #[test]
-fn garbled_kind_token_degrades_to_impl_with_a_warning() {
+fn a_garbled_body_kind_is_ignored() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-broken-k1.md", "sideways");
+    touch_leaf(&grove, "01-impl-broken-k1.md", "sideways");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
-    assert!(ok, "an unrecognised kind token must degrade, not error");
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
+    assert!(ok, "body kind tokens are not parsed");
     assert_eq!(stdout, "impl\n");
-    assert!(
-        stderr.contains("01-broken-k1.md"),
-        "warning must name the file, got {stderr:?}"
-    );
+    assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
 }
 
 #[test]
-fn a_family_name_written_as_a_kind_degrades() {
+fn a_family_name_written_in_the_body_is_ignored() {
     // `review` and `integrate-review` are routing *families*, not members of the
     // set. On a leaf they are unrecognised — a naive prefix match would quietly
     // pick one of the five `review-*` kinds and misroute the session.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    for (name, label) in [("01-a-k1.md", "review"), ("02-b-k2.md", "integrate-review")] {
+    for (name, label) in [
+        ("01-impl-a-k1.md", "review"),
+        ("02-impl-b-k2.md", "integrate-review"),
+    ] {
         touch_leaf(&grove, name, label);
         let (stdout, stderr, ok) = run(tmp.path(), &["kind", &format!(".grove/{name}")]);
-        assert!(ok, "{label} must degrade, not error");
+        assert!(ok, "{label} is body text, not routing input");
         assert_eq!(stdout, "impl\n", "{label} must not match a review-* kind");
-        assert!(!stderr.is_empty(), "{label} must warn");
+        assert!(stderr.is_empty(), "{label} must not warn: {stderr:?}");
     }
 }
 
 #[test]
-fn a_kind_hand_edited_to_reserch_degrades_to_impl_with_exit_zero() {
-    // The Done-when example verbatim: a typo'd kind must never error.
+fn a_typoed_body_kind_is_ignored_with_exit_zero() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-broken-k1.md", "reserch");
+    touch_leaf(&grove, "01-impl-broken-k1.md", "reserch");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-broken-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-impl-broken-k1.md"]);
     assert!(ok, "exit 0 even on a typo'd kind");
     assert_eq!(stdout, "impl\n");
-    assert!(!stderr.is_empty(), "a warning must still be printed");
+    assert!(stderr.is_empty(), "body metadata is ignored: {stderr:?}");
 }
 
 // ── `--with-harness`: the loop driver's peek (leaf-harness-k15) ──────────
@@ -249,20 +241,21 @@ fn touch_leaf_with_harness(dir: &Path, name: &str, kind_label: &str, harness: &s
 }
 
 #[test]
-fn with_harness_prints_the_declaration_on_a_second_line() {
+fn with_harness_compatibility_flag_does_not_read_body_metadata() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-survey-k1.md", "research", "codex");
+    touch_leaf_with_harness(&grove, "01-research-a-survey-k1.md", "impl", "codex");
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
-        &["kind", "--with-harness", ".grove/01-survey-k1.md"],
+        &[
+            "kind",
+            "--with-harness",
+            ".grove/01-research-a-survey-k1.md",
+        ],
     );
     assert!(ok, "a declared harness is not an error: {stderr:?}");
-    assert_eq!(
-        stdout, "research\ncodex\n",
-        "kind first, then the declared harness — the order the driver parses"
-    );
+    assert_eq!(stdout, "research-a\n", "only the filename kind is returned");
 }
 
 #[test]
@@ -273,12 +266,12 @@ fn with_harness_adds_nothing_when_the_leaf_declares_none() {
     // whether the flag was passed.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-build-k1.md", "impl");
+    touch_leaf(&grove, "01-impl-build-k1.md", "impl");
 
-    let (plain, _, _) = run(tmp.path(), &["kind", ".grove/01-build-k1.md"]);
+    let (plain, _, _) = run(tmp.path(), &["kind", ".grove/01-impl-build-k1.md"]);
     let (with_flag, stderr, ok) = run(
         tmp.path(),
-        &["kind", "--with-harness", ".grove/01-build-k1.md"],
+        &["kind", "--with-harness", ".grove/01-impl-build-k1.md"],
     );
     assert!(ok, "{stderr:?}");
     assert_eq!(with_flag, plain);
@@ -293,45 +286,31 @@ fn the_plain_form_never_reads_the_harness_line() {
     // the declaration.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-survey-k1.md", "research", "codx");
+    touch_leaf_with_harness(&grove, "01-research-a-survey-k1.md", "impl", "codx");
 
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-survey-k1.md"]);
+    let (stdout, stderr, ok) = run(tmp.path(), &["kind", ".grove/01-research-a-survey-k1.md"]);
     assert!(ok, "the plain form must not gate on the harness line");
-    assert_eq!(stdout, "research\n");
+    assert_eq!(stdout, "research-a\n");
     assert!(stderr.is_empty(), "and must not warn about it: {stderr:?}");
 }
 
 #[test]
-fn an_unrecognised_harness_refuses_naming_the_file_and_the_registry() {
-    // Refuse, do not degrade (leaf-harness-k15): degrading here would run the
-    // leaf on a vendor the tree explicitly said not to, which is the silent
-    // misroute the whole per-leaf axis exists to make impossible. The message
-    // has to carry both halves of the fix — *which* file, and what it may say.
+fn an_unrecognised_body_harness_is_ignored() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-survey-k1.md", "research", "codx");
+    touch_leaf_with_harness(&grove, "01-impl-survey-k1.md", "research", "codx");
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
-        &["kind", "--with-harness", ".grove/01-survey-k1.md"],
+        &["kind", "--with-harness", ".grove/01-impl-survey-k1.md"],
     );
-    assert!(!ok, "an unknown harness must exit non-zero");
-    assert!(
-        stdout.is_empty(),
-        "nothing may be printed for the driver to act on: {stdout:?}"
-    );
-    assert!(
-        stderr.contains("01-survey-k1.md") && stderr.contains("codx"),
-        "the refusal must name the file and the offending token: {stderr:?}"
-    );
-    assert!(
-        stderr.contains("claude") && stderr.contains("codex") && stderr.contains("pi"),
-        "…and list the registry, so the fix needs no second command: {stderr:?}"
-    );
+    assert!(ok, "body harness metadata is not parsed: {stderr:?}");
+    assert_eq!(stdout, "impl\n");
+    assert!(stderr.is_empty());
 }
 
 #[test]
-fn an_empty_harness_line_refuses_rather_than_reading_as_undeclared() {
+fn an_empty_body_harness_line_is_ignored() {
     // A `**Harness:**` with nothing after it is a declaration its author did not
     // finish, not the absence of one. Reading it as undeclared would silently
     // run the leaf on the stamp — the same failure as an unknown name, arrived
@@ -340,41 +319,38 @@ fn an_empty_harness_line_refuses_rather_than_reading_as_undeclared() {
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(
-        grove.join("01-survey-k1.md"),
+        grove.join("01-impl-survey-k1.md"),
         b"# stub\n\n**Kind:** research\n**Harness:**\n",
     )
     .unwrap();
 
     let (_, stderr, ok) = run(
         tmp.path(),
-        &["kind", "--with-harness", ".grove/01-survey-k1.md"],
+        &["kind", "--with-harness", ".grove/01-impl-survey-k1.md"],
     );
-    assert!(!ok, "an empty declaration must refuse");
-    assert!(
-        stderr.contains("01-survey-k1.md") && stderr.contains("empty"),
-        "the refusal must say what is wrong with the line: {stderr:?}"
-    );
+    assert!(ok, "body harness metadata is not parsed: {stderr:?}");
+    assert!(stderr.is_empty());
 }
 
 #[test]
-fn with_harness_tolerates_trailing_commentary_like_the_kind_line() {
+fn with_harness_ignores_trailing_body_commentary() {
     // Same parse as `**Kind:**` — first whitespace token, rest ignored — so a
     // leaf that explains *why* it names a vendor still routes.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(
-        grove.join("01-survey-k1.md"),
+        grove.join("01-impl-survey-k1.md"),
         b"# stub\n\n**Kind:** research\n**Harness:** codex   (the pair's second survey)\n",
     )
     .unwrap();
 
     let (stdout, stderr, ok) = run(
         tmp.path(),
-        &["kind", "--with-harness", ".grove/01-survey-k1.md"],
+        &["kind", "--with-harness", ".grove/01-impl-survey-k1.md"],
     );
     assert!(ok, "{stderr:?}");
-    assert_eq!(stdout, "research\ncodex\n");
+    assert_eq!(stdout, "impl\n");
 }
 
 #[test]
@@ -395,19 +371,22 @@ fn with_harness_on_an_empty_grove_is_still_the_no_live_leaves_signal() {
 // ── `--json`: the loop driver's retained routing peek ─────────────────────
 
 #[test]
-fn json_returns_path_handle_kind_and_declared_harness_from_one_leaf_read() {
+fn json_compatibility_shape_uses_filename_kind_and_no_declared_harness() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-survey-k7.md", "research", "codex");
+    touch_leaf_with_harness(&grove, "01-research-a-survey-k7.md", "impl", "codex");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
 
     assert!(ok, "the structured peek failed: {stderr:?}");
-    let path = grove.join("01-survey-k7.md").canonicalize().unwrap();
+    let path = grove
+        .join("01-research-a-survey-k7.md")
+        .canonicalize()
+        .unwrap();
     assert_eq!(
         stdout,
         format!(
-            "{{\"path\":\"{}\",\"handle\":\"survey-k7\",\"kind\":\"research\",\"harness\":\"codex\",\"review\":null}}\n",
+            "{{\"path\":\"{}\",\"handle\":\"survey-k7\",\"kind\":\"research-a\",\"harness\":null,\"review\":null}}\n",
             grove::json::escape(&path.display().to_string())
         )
     );
@@ -417,7 +396,7 @@ fn json_returns_path_handle_kind_and_declared_harness_from_one_leaf_read() {
 fn json_represents_an_undeclared_harness_as_null() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf(&grove, "01-build-k1.md", "impl");
+    touch_leaf(&grove, "01-impl-build-k1.md", "impl");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
 
@@ -435,9 +414,13 @@ fn build_finished_producer_with_review(repo: &Path, receipt: &str) -> PathBuf {
     let chain = repo.join(".grove/01-build-chain-k10");
     let producer = chain.join("01-build-k1");
     touch(&producer, "BRIEF.md");
-    touch_leaf(&producer, "01-DONE-author-k8.md", "impl");
-    touch_leaf(&producer, "02-DONE-finish-k9.md", "integrate-review-impl");
-    let review = chain.join("02-build-review-k2.md");
+    touch_leaf(&producer, "01-DONE-impl-author-k8.md", "impl");
+    touch_leaf(
+        &producer,
+        "02-DONE-integrate-review-impl-finish-k9.md",
+        "integrate-review-impl",
+    );
+    let review = chain.join("02-review-impl-build-review-k2.md");
     fs::write(
         &review,
         format!(
@@ -445,12 +428,16 @@ fn build_finished_producer_with_review(repo: &Path, receipt: &str) -> PathBuf {
         ),
     )
     .unwrap();
-    touch_leaf(&chain, "03-build-integrate-k3.md", "integrate-review-impl");
+    touch_leaf(
+        &chain,
+        "03-integrate-review-impl-build-integrate-k3.md",
+        "integrate-review-impl",
+    );
     review
 }
 
 #[test]
-fn json_returns_validated_decomposed_producer_evidence() {
+fn json_does_not_read_decomposed_producer_receipts() {
     let tmp = init_repo();
     let review = build_finished_producer_with_review(
         tmp.path(),
@@ -465,24 +452,15 @@ fn json_returns_validated_decomposed_producer_evidence() {
         value["path"],
         review.canonicalize().unwrap().display().to_string()
     );
-    assert_eq!(
-        value["review"],
-        serde_json::json!({
-            "status": "checkable",
-            "producer": "build-k1",
-            "session": "finish-k9",
-            "generation": "k9",
-            "producer-target": {"harness": "claude", "model": "opus"}
-        })
-    );
+    assert_eq!(value["review"], serde_json::Value::Null);
 }
 
 #[test]
-fn json_derives_session_and_generation_for_a_legacy_direct_leaf_receipt() {
+fn json_does_not_read_a_legacy_direct_leaf_receipt() {
     let tmp = init_repo();
     let chain = tmp.path().join(".grove/01-build-chain-k4");
-    touch_leaf(&chain, "01-DONE-build-k1.md", "impl");
-    let review = chain.join("02-build-review-k2.md");
+    touch_leaf(&chain, "01-DONE-impl-build-k1.md", "impl");
+    let review = chain.join("02-review-impl-build-review-k2.md");
     fs::write(
         &review,
         "# build-review-k2\n\n**Kind:** review-impl\n**Reviews:** build-k1\n\
@@ -497,34 +475,21 @@ fn json_derives_session_and_generation_for_a_legacy_direct_leaf_receipt() {
 
     assert!(ok, "legacy direct evidence failed: {stderr}");
     let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        value["review"],
-        serde_json::json!({
-            "status": "checkable",
-            "producer": "build-k1",
-            "session": "build-k1",
-            "generation": "k1",
-            "producer-target": {"harness": "claude", "model": "opus"}
-        })
-    );
+    assert_eq!(value["review"], serde_json::Value::Null);
 }
 
 #[test]
-fn json_rejects_legacy_node_and_stale_generation_receipts() {
-    for (receipt, reason) in [
-        (
-            r#"{"producer":"build-k1","harness":"claude","model":"opus"}"#,
-            "producer-receipt-legacy-node",
-        ),
+fn json_ignores_legacy_node_and_stale_generation_receipts() {
+    for receipt in [
+        (r#"{"producer":"build-k1","harness":"claude","model":"opus"}"#,),
         (
             r#"{"producer":"build-k1","session":"finish-k9","generation":"k8","harness":"claude","model":"opus"}"#,
-            "producer-generation-mismatch",
         ),
         (
             r#"{"producer":"build-k1","session":"missing-k77","generation":"k9","harness":"claude","model":"opus"}"#,
-            "producer-session-missing",
         ),
     ] {
+        let receipt = receipt.0;
         let tmp = init_repo();
         let review = build_finished_producer_with_review(tmp.path(), receipt);
 
@@ -533,22 +498,18 @@ fn json_rejects_legacy_node_and_stale_generation_receipts() {
             &["kind", "--with-harness", "--json", review.to_str().unwrap()],
         );
 
-        assert!(ok, "{reason}: structured peek failed: {stderr:?}");
+        assert!(ok, "structured peek failed: {stderr:?}");
         let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
         assert_eq!(
             value["review"],
-            serde_json::json!({
-                "status": "uncheckable",
-                "producer": "build-k1",
-                "reason": reason
-            }),
+            serde_json::Value::Null,
             "receipt {receipt}"
         );
     }
 }
 
 #[test]
-fn json_rejects_a_source_session_outside_the_reviewed_producer() {
+fn json_ignores_a_source_session_outside_the_reviewed_producer() {
     let tmp = init_repo();
     let review = build_finished_producer_with_review(
         tmp.path(),
@@ -556,7 +517,7 @@ fn json_rejects_a_source_session_outside_the_reviewed_producer() {
     );
     touch_leaf(
         &tmp.path().join(".grove/01-build-chain-k10"),
-        "04-DONE-outside-k7.md",
+        "04-DONE-impl-outside-k7.md",
         "impl",
     );
 
@@ -567,14 +528,7 @@ fn json_rejects_a_source_session_outside_the_reviewed_producer() {
 
     assert!(ok, "source validation failed: {stderr}");
     let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
-    assert_eq!(
-        value["review"],
-        serde_json::json!({
-            "status": "uncheckable",
-            "producer": "build-k1",
-            "reason": "producer-session-not-terminal-descendant"
-        })
-    );
+    assert_eq!(value["review"], serde_json::Value::Null);
 }
 
 #[test]
@@ -591,19 +545,17 @@ fn json_uses_literal_null_for_an_empty_grove() {
 }
 
 #[test]
-fn json_failure_prints_no_partial_document() {
+fn json_ignores_an_invalid_body_harness() {
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
-    touch_leaf_with_harness(&grove, "01-survey-k1.md", "research", "codx");
+    touch_leaf_with_harness(&grove, "01-impl-survey-k1.md", "research", "codx");
 
     let (stdout, stderr, ok) = run(tmp.path(), &["kind", "--with-harness", "--json"]);
 
-    assert!(!ok, "an invalid declared harness must still refuse");
-    assert!(
-        stdout.is_empty(),
-        "a failed peek emitted partial JSON: {stdout:?}"
-    );
-    assert!(stderr.contains("codx"), "got {stderr:?}");
+    assert!(ok, "body harness metadata is not parsed: {stderr:?}");
+    let value: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(value["harness"], serde_json::Value::Null);
+    assert_eq!(value["kind"], "impl");
 }
 
 #[test]

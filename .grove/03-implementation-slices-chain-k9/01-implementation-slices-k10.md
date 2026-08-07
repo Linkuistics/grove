@@ -38,3 +38,22 @@ implementation leaves that each land green and demonstrate useful behavior.
   performed in this planning session.
 
 ## Notes
+
+The implementation sequence is expand, cut over, then contract:
+
+- `receipt-guidance-test-cleanup-k17` first repairs the already-surfaced
+  canonical-guidance regression without restoring receipt terminology.
+- Reviewed expansion slices establish `session-config-k19`,
+  `session-kind-tree-k23`, `session-kind-migration-k27`, `driver-lease-k31`,
+  and `session-epoch-k35` behind independently executable seams.
+- Reviewed cutover slices make the configured driver active in
+  `lifecycle-cutover-k39` and complete teardown in `finish-lifecycle-k43`.
+- `legacy-launch-removal-k46` and `legacy-review-removal-k47` contract the old
+  surfaces only after the replacement is green; `methodology-and-viewer-k48`
+  and `durable-docs-reconciliation-k49` reconcile the two durable presentation
+  layers; `acceptance-verification-k50` proves the integrated matrix.
+
+The seven load-bearing code seams use review chains. The five later mechanical,
+documentation, and acceptance leaves remain single-session work with their own
+full-suite checks. Every dependency is named by stable handle in the child task
+that consumes it.

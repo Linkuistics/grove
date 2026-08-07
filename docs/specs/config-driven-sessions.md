@@ -310,9 +310,10 @@ the tree command cannot observe; a second pick would reject the legitimate
 launch-window insertion case above while proving nothing about what the session
 was mandated to do. Completed-shape and pending-transaction recovery remain
 idempotent by stable producer identity. This is workflow discipline, not a
-security capability: the command trusts the explicit producer argument, and a
-separate design must decide how concurrent drivers and stale sessions are
-excluded without restoring hidden target metadata.
+security capability: the command trusts the explicit producer argument. The
+[one-live-driver-per-working-tree](../adr/one-live-driver-per-working-tree.md)
+decision excludes concurrent drivers and stale sessions without restoring
+hidden target metadata.
 
 `grove-llm kind --with-harness --json`, structured routing peeks,
 `GROVE_SESSION_TARGET`, producer target receipts, and diversity warnings have no
@@ -335,6 +336,89 @@ version. The same resolved absolute path is embedded in Herdr turn-hook JSON, so
 the hooks and the version-checked agent interface cannot drift. Version skew is
 a resumable no-mutation stop.
 
+### Process ownership and session epochs
+
+After resolving the working tree, bare `grove` acquires its **driver lease**
+before provisioning embedded content, reporting Herdr state, reading
+configuration, or inspecting or mutating `.grove/`. It opens the working-tree
+root, derives its filesystem device and inode identity, and takes a nonblocking
+exclusive advisory lock on the corresponding control file in the OS temporary
+directory. The open root descriptor keeps that identity allocated even if an
+external actor renames or removes the path. Symlink and relative-path aliases
+therefore contend on one lease, while two working trees in the same repository
+and two same-named working trees use different leases.
+
+Contention is not a tree operation to wait out. A second driver exits nonzero
+immediately, names the canonical working tree, and says that its existing Grove
+driver must stop before another can start. The owner holds the lease until the
+loop has handled its terminal signal/no-signal/error disposition and finished
+Herdr reporting. Normal return, panic, and process death all close the descriptor
+and release the kernel lock. A leftover control file carries no ownership
+and requires no stale-PID cleanup.
+
+Acquiring the driver lease writes a fresh random driver nonce into the locked
+control file. That nonce is ephemeral process identity, not configuration and
+not task-tree state. Every descriptor opened by this protocol is close-on-exec,
+and the epoch write guard is dropped before spawn, so the opaque configured
+command and any helpers it spawns cannot keep ownership alive after the driver
+exits.
+
+The driver also owns a stable per-working-tree **session epoch** control file.
+On acquisition, and before any lifecycle work, a new driver takes this file
+exclusively and writes an inactive epoch, invalidating any record left by a
+crashed predecessor. Immediately before each foreground spawn it takes the file
+exclusively again and writes an active record containing:
+
+- the current driver nonce;
+- the working-tree filesystem identity; and
+- that launch's unique absolute `GROVE_SIGNAL_FILE` path.
+
+The signal path changes on every launch and remains the only loop-control value
+exported to the configured command. It doubles as the session's opaque epoch
+token; Grove exports no new target, kind, model, or generation environment
+value. Signal files and epoch records live under the OS temporary directory,
+and the driver removes the per-launch signal file after use.
+
+When `GROVE_SIGNAL_FILE` is present, every agent-facing `grove-llm` operation
+that reads or mutates the task tree, plus `complete`, first takes a shared guard
+on the session epoch file. Before opening `.grove/`, it verifies the exact
+signal path, driver nonce, and working-tree identity and verifies that the
+driver lease is currently locked. It holds the shared epoch guard until the
+operation returns. A missing, inactive, unlocked, malformed, wrong-worktree, or
+mismatched epoch fails with one stale-session diagnostic and no tree access or
+completion signal. Pure version reporting and Herdr's best-effort turn reporter
+do not need task authority. A command invoked manually without
+`GROVE_SIGNAL_FILE` remains an ordinary human/diagnostic tree command; the
+protocol prevents accidental stale Grove sessions, not a caller deliberately
+discarding its ambient context.
+
+After the foreground child is reaped, the driver takes the epoch file
+exclusively and marks it inactive before interpreting the completion signal or
+starting another iteration. A tree command admitted just before driver death may
+finish while holding its shared guard. Any replacement driver acquires the
+driver lease and then the epoch file exclusively before performing work, so it
+waits for that admitted operation, installs a new nonce, and rejects every later
+call from the orphaned session. An old session racing after the new driver has
+the lease sees either an unlocked predecessor, an inactive epoch, or the new
+driver nonce; it can never overlap the replacement driver's tree work.
+
+The lock order is fixed: a driver takes the driver lease, then an exclusive
+session epoch guard, releases the epoch guard, and only then enters task-tree
+operations; an ambient `grove-llm` command takes a shared epoch guard before the
+Tree access lock. The driver never waits for the epoch guard while holding a
+Tree access guard. The two seams therefore compose without deadlock: the driver
+lease serializes loop lifetimes, the session epoch serializes launch authority,
+and the Tree access lock serializes individual tree observations and mutations.
+
+Stable handles remain scoped to the live task tree and carry no persistent
+grove-generation suffix. Across finish deletion and later root initialization,
+even if a new tree reuses `plan-k1`, the old session's epoch is inactive and its
+unique signal path no longer matches. The session epoch supplies the missing
+generation binding without adding lifecycle bytes to `.grove/`; restart still
+derives every durable fact from the tree. This follows the
+[one-live-driver-per-working-tree](../adr/one-live-driver-per-working-tree.md)
+decision.
+
 Every cooperating tree reader and mutator serializes on one advisory lock over
 an open descriptor for the working-tree root, which exists before `.grove/` and
 survives its deletion. Readers hold it shared; root initialization, migration,
@@ -344,9 +428,10 @@ This replaces the narrower `.grove/`-descriptor lock: separate lifecycle and
 tree locks would require a global acquisition order and still leave root
 creation and finish deletion outside the invariant. Lock descriptors are close-
 on-exec. A driver releases its read guard immediately after copying the selected
-path, handle, and kind, before the second config read or foreground spawn, so the
-session can acquire an exclusive mutation guard and cannot inherit a lock that
-outlives the driver-side operation.
+path, handle, and kind, before the second config read or foreground spawn. This
+is the Tree access read guard, not the driver lease: the session can acquire an
+exclusive tree-mutation guard while the driver continues to own the loop, and
+cannot inherit a lock that outlives the driver-side operation.
 
 The lock supplies live-process serialization, not crash atomicity. Each multi-
 path operation that promises process-interruption recovery still needs its own
@@ -597,6 +682,14 @@ one pick, reloads configuration, expands one command, and owns the foreground
 child. Its wait result preserves exit status and elapsed time. It does not
 re-open the tree through a routing adapter.
 
+The process-ownership module exposes a small interface: acquire one driver
+lease for a resolved working tree, activate/invalidate one session epoch around
+a spawn, and validate optional ambient session context while returning a guard
+held through one `grove-llm` operation. It hides filesystem-identity keys,
+temporary paths, random nonces, advisory-lock probing, epoch serialization, and
+crash handoff. The loop driver and agent CLI use the same module, so no caller
+reimplements the race-sensitive protocol.
+
 The tree module owns the format witness, leaf grammar, finish eligibility,
 driver-only finish creation, guarded finish commit, current pick, universal
 working-tree lock, and migration transaction. The repository module owns
@@ -646,8 +739,20 @@ Through that seam, cover:
   ambiguity, collision, interruption point, rollback failure, and post-commit
   witness recovery;
 - root-init, migration, finish, and ordinary mutator contention on the same
-  working-tree lock; driver guard release before launch; close-on-exec
+  working-tree lock; Tree access guard release before launch; close-on-exec
   descriptors; and successful session-side mutation without deadlock;
+- immediate refusal of two bare drivers in one working tree before either can
+  duplicate a launch; independence of same-named worktrees and Git/jj
+  workspaces; canonical-path aliases; release on normal exit and forced process
+  death; and driver/session descriptors absent after configured-command exec;
+- a tree command admitted immediately before driver death completing before a
+  replacement driver proceeds; later calls from the orphaned session failing;
+  epoch rotation between two launches of one driver; an old completion signal
+  having no effect on the new launch; and manual commands without loop context
+  retaining their current behavior;
+- finish deletion followed by root initialization in the same working-tree
+  path, including reuse of `plan-k1`, where the old session cannot resolve,
+  mutate, or complete and the newly launched session can;
 - exact Git pathspec behavior for tracked deletion and unborn migration commits,
   staged-change preservation, malformed unborn-finish refusal, and jj working-
   copy preservation for migration and finish commits;
@@ -675,6 +780,8 @@ tests do not reach through those interfaces to implementation state.
   environment overrides.
 - A shell command language inside configuration.
 - Enforcing cross-harness or cross-model review diversity.
+- Treating driver/session leases as authentication against a caller that
+  deliberately strips or forges its ambient loop-control context.
 - Changing non-finish depth-first order, review relationships, pruning
   authority, or completion-signal behavior.
 - Power-loss durability or branch/bookmark/worktree integration.

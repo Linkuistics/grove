@@ -41,12 +41,14 @@ tree, while one personal KDL file is the entirety of user launch policy.
 
 ## Pointers
 
-- Glossary: `CONTEXT.md` — Grove configuration, Session kind, Kind routing,
-  Session-kind migration, Review target diversity, Pick, Complete finish cycle.
+- Glossary: `CONTEXT.md` — Grove configuration, Driver lease, Session epoch,
+  Session kind, Kind routing, Session-kind migration, Review target diversity,
+  Pick, Complete finish cycle.
 - Current behavior to reconcile: `docs/CONFIGURATION.md`, `docs/USAGE.md`, and
   `docs/ARCHITECTURE.md`.
 - Records in scope: `docs/adr/complete-session-configuration.md`,
   `docs/adr/grove-owns-escalated-review.md`,
+  `docs/adr/one-live-driver-per-working-tree.md`,
   `docs/adr/promotion-transactions-fail-closed.md`, and
   `docs/specs/doubt-grove-review-mechanics.md`.
 - Test seams: the bare `grove` process in isolated Git/jj worktrees with fake
@@ -69,6 +71,8 @@ to `research-a`, and pair target diversity is configuration-owner policy.
 No-signal exits retain status and elapsed time, scoped Git deletion uses
 only/path mode, and internal tool/grace injection is not user configuration.
 `docs/specs/config-driven-sessions.md` is the stable input to implementation
-planning. `driver-exclusivity-k14` separately owns concurrent-driver and stale-
-session/grove-generation binding, surfaced during integration without expanding
-the integrated design in place.
+planning. `driver-exclusivity-k14` establishes a process-scoped driver lease and
+per-launch session epoch: a second driver is refused, admitted old operations
+finish before crash handoff, later orphan calls fail, lock descriptors never
+cross exec, and epoch rotation makes a durable grove-generation suffix
+unnecessary.

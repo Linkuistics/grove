@@ -42,6 +42,7 @@ lockstep, which is why they live together — see
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
+  [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`promotion-transactions-fail-closed`](docs/adr/promotion-transactions-fail-closed.md),
   and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).
   The doubt skill participates in the review-ownership and promotion contracts,

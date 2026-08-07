@@ -47,8 +47,8 @@ A grove whose subject *is* the grove machinery — this repo. The distinguishing
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 
 **Loop control channel** (`GROVE_SIGNAL_FILE`):
-The path the loop driver watches while its harness child runs; its **appearance alone** ends the session (grace → SIGTERM → kill-grace → SIGKILL), with content read only to tell `Relaunch` from `Done` (self-driving-loop). It is therefore **ambient authority**: `launch_session` exports it into the session, and every descendant of that session inherits the ability to end it. The invariant sits on the exporting side — **`launch_session` is the only site that sets it, and every other harness spawn must scrub it**, the same rule already applied to `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID`. `signal_file_path` keys the path on worktree identity, which stops a *foreign* grove's write, not a descendant's. In a [[Meta-grove]] the suite is such a descendant, so its guards are structural: `.cargo/config.toml`'s `[env]` override with `force = true` plus the shared `tests/support` scrub list, asserted by `tests/env_hygiene.rs`.
-_Avoid_: proposing to authenticate the signal (a per-session nonce, a token in the file) — the credential is inherited exactly as the path is, so authority granted through the environment cannot be authenticated from inside it. Withhold it at the spawn instead.
+The unique-per-launch path the loop driver watches while its harness child runs; its **appearance alone** ends the session (grace → SIGTERM → kill-grace → SIGKILL), with content read only to tell `Relaunch` from `Done` (self-driving-loop). It is therefore **ambient authority**: the foreground launch is the only site that sets it, and every other harness spawn must scrub it. The exact path also names the active [[Session epoch]]: an ambient `grove-llm` tree operation must match the live driver's epoch before it can touch the tree, so a descendant of a previous launch cannot act on the next one. The path remains inherited rather than secret — this is freshness and process-ownership binding, not authentication. In a [[Meta-grove]] the suite is such a descendant, so its guards are structural: `.cargo/config.toml`'s `[env]` override with `force = true` plus the shared `tests/support` scrub list, asserted by `tests/env_hygiene.rs`.
+_Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
 
 **root-init** / **fresh-grove start**:
@@ -70,6 +70,16 @@ the leaf it must select before the agent exists.
 
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
+
+**Driver lease**:
+The exclusive, process-scoped ownership of one working tree by one bare `grove` driver. Immediately after resolving the working tree, the driver opens its root and nonblockingly locks a temp control file keyed by that root's filesystem device/inode identity; an alias reaches the same lease, while a different Git worktree or jj workspace does not. The driver holds it through the whole loop and final Herdr disposition. Kernel release on return, panic, or process death makes restart ordinary continuation; stale temp-file bytes and PIDs carry no ownership. The root and lock descriptors are close-on-exec, so an opaque configured command cannot leak ownership into a helper. See ADR *one-live-driver-per-working-tree*.
+_Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate temp file.
+_Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
+
+**Session epoch**:
+The ephemeral launch-generation binding between one live [[Driver lease]], one working-tree identity, and one unique [[Loop control channel]] path. The driver writes an active record under an exclusive temp-file guard before spawn and invalidates it after the child is reaped; an ambient `grove-llm` tree command holds a shared guard and validates the record for its whole operation. A replacement driver takes that guard exclusively before tree work, so an operation admitted just before the old driver dies finishes first and all later orphan calls fail. Descriptors stay close-on-exec; the signal path is the only exported value, and the record carries no leaf, kind, model, or hidden target. Manual commands with no loop-control context remain available. The epoch is workflow consistency, not authentication. See ADR *one-live-driver-per-working-tree*.
+_Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
+_Avoid_: inferring authority from the existence or bytes of a temp file. The live kernel locks bind the record; unlocked leftovers mean nothing.
 
 **Session kind**:
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
@@ -371,7 +381,8 @@ How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's filename,
 obtains its complete session target from [[Grove configuration]], and embeds the
 selected stable handle in `${prompt}` as the launched session's mandate. The
-session resolves that handle to its current path, rejects an unavailable or
+session first validates its [[Session epoch]], then resolves that handle to its
+current path, rejects an unavailable or
 non-live result, Bootstraps the resolved leaf, and does not pick again. A leaf
 inserted ahead of the selection while the configured command starts may move the
 mandated leaf's path but not its handle; it becomes the next iteration's work

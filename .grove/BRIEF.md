@@ -73,6 +73,11 @@ only/path mode, and internal tool/grace injection is not user configuration.
 `docs/specs/config-driven-sessions.md` is the stable input to implementation
 planning. `driver-exclusivity-k14` establishes a process-scoped driver lease and
 per-launch session epoch: a second driver is refused, admitted old operations
-finish before crash handoff, later orphan calls fail, lock descriptors never
-cross exec, and epoch rotation makes a durable grove-generation suffix
-unnecessary.
+finish before crash handoff, orphan calls begun after exclusive invalidation
+fail, lock descriptors never cross exec, and epoch rotation makes a durable
+grove-generation suffix
+unnecessary. Its integrated contract places untracked controls in the exact
+Git-worktree or jj-workspace administration area rather than an ambient temp
+directory, uses OS-random 128-bit process and launch identities, revalidates
+locked file identity, and bounds every epoch handoff so an orphan produces a
+visible `blocked` stop instead of parking the loop.

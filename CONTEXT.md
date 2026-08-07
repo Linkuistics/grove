@@ -5,7 +5,24 @@ The grove CLI and methodology. This glossary holds terms specific to this codeba
 ## Language
 
 **Global skill provisioning** / **skill precedence**:
-The `grove` binary embeds `content/` and, on every invocation, sweeps it out to **every installed harness's** personal global skill dir — `provision_all` writes each target whose home root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via `skill_dir_for(harness)` (`$HOME/<harness.skills_dir>/grove`; pi nests under `agent/`) — idempotent per target against a content-hash stamp. `content/` stays canonical; the binary is the only writer of these dirs. The single embedded launcher is `content/prompts/continue.md`, augmented with the selected leaf's stable-handle mandate; it tells the configured target to use this provisioned skill. `start.md` and `retire.md` disappear with their lifecycle verbs. Because Grove treats the configured command as opaque, exposing the provisioned skill is a target prerequisite it cannot infer or validate. `provision_target` guards each write: a symlink is replaced as a link, never deleted through; a dir with no grove stamp and real content is refused outright, so a foreign dir can never be silently clobbered.
+The `grove` binary embeds `content/` and, on every bare lifecycle invocation,
+sweeps it out to **every installed harness's** personal global skill dir before
+trying to own a working tree — `provision_all` writes each target whose home
+root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via
+`skill_dir_for(harness)` (`$HOME/<harness.skills_dir>/grove`; pi nests under
+`agent/`) — idempotent per target against a content-hash stamp. A refused second
+driver therefore still refreshes the independently delivered methodology.
+Standard `grove --help` and `grove --version` are metadata-only and perform no
+provisioning, Herdr reporting, repository discovery, or locking. `content/`
+stays canonical; the binary is the only writer of these dirs. The single
+embedded launcher is `content/prompts/continue.md`, augmented with the selected
+leaf's stable-handle mandate; it tells the configured target to use this
+provisioned skill. `start.md` and `retire.md` disappear with their lifecycle
+verbs. Because Grove treats the configured command as opaque, exposing the
+provisioned skill is a target prerequisite it cannot infer or validate.
+`provision_target` guards each write: a symlink is replaced as a link, never
+deleted through; a dir with no grove stamp and real content is refused outright,
+so a foreign dir can never be silently clobbered.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
@@ -47,7 +64,27 @@ A grove whose subject *is* the grove machinery — this repo. The distinguishing
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 
 **Loop control channel** (`GROVE_SIGNAL_FILE`):
-The unique-per-launch path the loop driver watches while its harness child runs; its **appearance alone** ends the session (grace → SIGTERM → kill-grace → SIGKILL), with content read only to tell `Relaunch` from `Done` (self-driving-loop). It is therefore **ambient authority**: the foreground launch is the only site that sets it, and every other harness spawn must scrub it. The exact path also names the active [[Session epoch]]: an ambient `grove-llm` tree operation must match the live driver's epoch before it can touch the tree, so a descendant of a previous launch cannot act on the next one. The path remains inherited rather than secret — this is freshness and process-ownership binding, not authentication. In a [[Meta-grove]] the suite is such a descendant, so its guards are structural: `.cargo/config.toml`'s `[env]` override with `force = true` plus the shared `tests/support` scrub list, asserted by `tests/env_hygiene.rs`.
+The collision-resistant per-launch path the loop driver watches while its
+harness child runs;
+its **appearance alone** ends the session (grace → SIGTERM → kill-grace →
+SIGKILL), with content read only to tell `Relaunch` from `Done`
+(self-driving-loop). The path lives in the working tree's VCS-administration
+control directory and carries a fresh 128-bit suffix from the OS cryptographic
+randomness source — never a PID, time, address, iteration, or task key. A driver
+removes the path after post-reap epoch invalidation; a replacement removes
+abandoned signal files only after taking the lease and exclusively invalidating
+the old epoch. An occupied draw is retried; after cleanup, literal cross-restart
+non-reuse has the accepted one-in-`2^128` collision bound rather than a durable
+tombstone. It is therefore **ambient authority**: the foreground launch is
+the only site that sets it, and every other harness spawn must scrub it. The
+exact path also names the active [[Session epoch]]: an ambient `grove-llm` tree
+operation must match the live driver's epoch before it can touch the tree, so a
+descendant of a previous launch cannot act on the next one. The path remains
+inherited rather than secret — this is freshness and process-ownership binding,
+not authentication. In a [[Meta-grove]] the suite is such a descendant, so its
+guards are structural: `.cargo/config.toml`'s `[env]` override with `force =
+true` plus the shared `tests/support` scrub list, asserted by
+`tests/env_hygiene.rs`.
 _Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
 
@@ -72,14 +109,59 @@ the leaf it must select before the agent exists.
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
 **Driver lease**:
-The exclusive, process-scoped ownership of one working tree by one bare `grove` driver. Immediately after resolving the working tree, the driver opens its root and nonblockingly locks a temp control file keyed by that root's filesystem device/inode identity; an alias reaches the same lease, while a different Git worktree or jj workspace does not. The driver holds it through the whole loop and final Herdr disposition. Kernel release on return, panic, or process death makes restart ordinary continuation; stale temp-file bytes and PIDs carry no ownership. The root and lock descriptors are close-on-exec, so an opaque configured command cannot leak ownership into a helper. See ADR *one-live-driver-per-working-tree*.
-_Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate temp file.
+The exclusive, process-scoped ownership of one working tree by one bare `grove`
+driver. After independent methodology provisioning, the invocation reports
+Herdr `working`, resolves the working tree, opens its root, and nonblockingly
+locks a control file derived from the closest on-disk VCS marker: the current
+workspace's `.jj/grove/` without following its shared-repository link, or the
+canonical per-worktree Git directory from its `.git` directory/gitfile, never
+Git's common directory. The resolver invokes no VCS discovery and ignores
+`GIT_DIR`, `GIT_WORK_TREE`, and other ambient selectors; no `TMPDIR` or per-user
+runtime namespace participates.
+An alias reaches the same lease, while a different Git worktree or jj workspace
+does not. Acquisition and every later lifecycle/launch transition revalidate
+the locked descriptor's device/inode against the path; a replacement race gets
+bounded retries, and loss by external VCS-administration mutation stops the
+driver visibly. The lease record carries a per-process 128-bit nonce from OS
+cryptographic randomness. The driver holds the root and lease through the whole
+loop and final Herdr disposition. Kernel release on return, panic, or process
+death makes restart ordinary continuation; leftover bytes and PIDs carry no
+ownership. The descriptors are close-on-exec, so an opaque configured command
+cannot leak ownership into a helper. A refused second driver reports `blocked`
+to Herdr and holds authority like every other error stop. See ADR
+*one-live-driver-per-working-tree*.
+_Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
 
 **Session epoch**:
-The ephemeral launch-generation binding between one live [[Driver lease]], one working-tree identity, and one unique [[Loop control channel]] path. The driver writes an active record under an exclusive temp-file guard before spawn and invalidates it after the child is reaped; an ambient `grove-llm` tree command holds a shared guard and validates the record for its whole operation. A replacement driver takes that guard exclusively before tree work, so an operation admitted just before the old driver dies finishes first and all later orphan calls fail. Descriptors stay close-on-exec; the signal path is the only exported value, and the record carries no leaf, kind, model, or hidden target. Manual commands with no loop-control context remain available. The epoch is workflow consistency, not authentication. See ADR *one-live-driver-per-working-tree*.
+The ephemeral launch-generation binding between one live [[Driver lease]], one
+working-tree identity, and one collision-resistant [[Loop control channel]]
+path. A driver
+writes the stable per-workspace epoch file at three exclusive-guarded points:
+inactive after lease acquisition, active before every spawn, and inactive after
+every reap before reading the signal. Each guard is a separate scope and is
+released before another guard, tree operation, or spawn. An ambient `grove-llm`
+tree command holds a shared guard for its whole operation, validates the exact
+record, and probes liveness with a nonblocking exclusive attempt on the lease;
+successful acquisition is closed immediately and means stale, while contention
+plus the matching nonce means a driver is live. The shared epoch guard closes
+the probe race by forcing a replacement to wait for an already-admitted
+operation. Every shared or exclusive epoch acquisition identity-revalidates its
+opened-and-locked path and retries an open/lock replacement race. Acquiring the
+shared guard is admission: an old call admitted before exclusive invalidation
+may finish and block handoff, while calls begun after invalidation fail. Every
+epoch acquisition emits one contention diagnostic and has a
+fixed internal 30-second bound. If an orphan keeps a shared guard after reap,
+the driver times out and stops `blocked` without consuming the signal or
+launching again; restart continues after that operation releases. Descriptors
+stay close-on-exec; the signal path is the only exported value, and the record
+carries no leaf, kind, model, or hidden target. Manual commands with no loop-
+control context remain available. The epoch prevents stale access through
+`grove-llm`, not direct file edits, commits, or forged signal writes; it is
+workflow consistency, not authentication. See ADR
+*one-live-driver-per-working-tree*.
 _Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
-_Avoid_: inferring authority from the existence or bytes of a temp file. The live kernel locks bind the record; unlocked leftovers mean nothing.
+_Avoid_: inferring authority from the existence or bytes of a control file. The live kernel locks bind the record; unlocked leftovers mean nothing.
 
 **Session kind**:
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
@@ -346,9 +428,11 @@ nothing and leaves an existing selected leaf live and resumable. An invalid
 **pre-mutation** read leaves a rootless or pre-migration tree byte-identical; if
 the file becomes invalid after a completed mutation but before the launch read,
 that mutation remains resumable and no session launches. Configuration is never
-cached across loop iterations. No user-settable `GROVE_*` environment configuration remains.
-Driver-created ephemeral control channels may still use the process environment,
-but they are internal capabilities rather than supported settings.
+cached across loop iterations. No user-settable `GROVE_*` environment
+configuration remains. The driver still exports the unique
+`GROVE_SIGNAL_FILE` capability to its foreground child; its path and the other
+VCS-administration control files are internal orchestration, never settings
+selected by the ambient environment.
 
 Each iteration resolves `grove-llm` beside the running `grove` executable, with
 `PATH` only as the no-sibling fallback, and rejects a missing, malformed, or

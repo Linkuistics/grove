@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** tree-access-lock-k52
+**Producer launch:** {"producer":"tree-access-lock-k52","session":"tree-access-lock-k52","generation":"k52","harness":"codex","model":"sol-xhigh"}
 
 ## Goal
 

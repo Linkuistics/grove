@@ -56,6 +56,7 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     // Validate before touching the filesystem so a bad slug never leaves a stray
     // `.grove/` behind.
     validate_slug(slug)?;
+    let _guard = tree_access::write_for_root_init(worktree)?;
 
     let grove_root = worktree.join(".grove");
     if grove_root.exists() {

@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 const PROMOTING_PREFIX: &str = "PROMOTING-";
 
 pub struct TreeReadGuard {
-    _root_directory: File,
+    _worktree_directory: File,
     root: PathBuf,
 }
 
 pub struct TreeWriteGuard {
-    _root_directory: File,
+    _worktree_directory: File,
     root: PathBuf,
 }
 
@@ -29,21 +29,23 @@ impl TreeWriteGuard {
 }
 
 pub fn read(grove_root: &Path) -> Result<TreeReadGuard> {
-    let (root, root_directory) = acquire(grove_root, libc::LOCK_SH)?;
+    let (root, worktree_directory) = acquire(grove_root, libc::LOCK_SH)?;
+    require_grove_root(&root)?;
     refuse_pending(&root)?;
     crate::tree_format::require_current(&root)?;
     Ok(TreeReadGuard {
-        _root_directory: root_directory,
+        _worktree_directory: worktree_directory,
         root,
     })
 }
 
 pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
-    let (root, root_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    require_grove_root(&root)?;
     refuse_pending(&root)?;
     crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
-        _root_directory: root_directory,
+        _worktree_directory: worktree_directory,
         root,
     })
 }
@@ -51,26 +53,53 @@ pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
 /// Promotion takes the same exclusive lock but must inspect and recover the
 /// witness every other operation refuses.
 pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
-    let (root, root_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    require_grove_root(&root)?;
     crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
-        _root_directory: root_directory,
+        _worktree_directory: worktree_directory,
         root,
     })
 }
 
+/// Root initialization takes the ordinary exclusive tree lock before `.grove/`
+/// exists. It deliberately skips current-format and pending-transaction checks:
+/// the caller owns the absence check and complete scaffold while this guard lives.
+pub(crate) fn write_for_root_init(worktree: &Path) -> Result<TreeWriteGuard> {
+    let worktree_directory = acquire_worktree(worktree, libc::LOCK_EX)?;
+    Ok(TreeWriteGuard {
+        _worktree_directory: worktree_directory,
+        root: worktree.join(".grove"),
+    })
+}
+
 fn acquire(grove_root: &Path, operation: libc::c_int) -> Result<(PathBuf, File)> {
-    if !grove_root.is_dir() {
-        bail!("grove root not found: {}", grove_root.display());
-    }
+    let worktree = grove_root.parent().with_context(|| {
+        format!(
+            "grove root {} has no working-tree parent",
+            grove_root.display()
+        )
+    })?;
+    let worktree_directory = acquire_worktree(worktree, operation)?;
     // Keep the caller's spelling for returned paths. On macOS `/var` and
     // `/private/var` name the same inode; canonicalising here would make adding
     // locking observably rewrite every `pick` path even though the descriptor
     // lock itself already follows the filesystem identity.
     let root = grove_root.to_path_buf();
-    let root_directory = File::open(&root)
-        .with_context(|| format!("opening grove root {} for tree access", root.display()))?;
-    let descriptor = root_directory.as_raw_fd();
+    Ok((root, worktree_directory))
+}
+
+fn acquire_worktree(worktree: &Path, operation: libc::c_int) -> Result<File> {
+    if !worktree.is_dir() {
+        bail!("working tree root not found: {}", worktree.display());
+    }
+    let worktree_directory = File::open(worktree).with_context(|| {
+        format!(
+            "opening working tree root {} for tree access",
+            worktree.display()
+        )
+    })?;
+    let descriptor = worktree_directory.as_raw_fd();
     let first = unsafe { libc::flock(descriptor, operation | libc::LOCK_NB) };
     if first != 0 {
         let error = std::io::Error::last_os_error();
@@ -83,10 +112,17 @@ fn acquire(grove_root: &Path, operation: libc::c_int) -> Result<(PathBuf, File)>
                     .context("waiting for the active Grove tree operation");
             }
         } else {
-            return Err(error).context("locking the Grove task tree");
+            return Err(error).context("locking the Grove working tree");
         }
     }
-    Ok((root, root_directory))
+    Ok(worktree_directory)
+}
+
+fn require_grove_root(grove_root: &Path) -> Result<()> {
+    if !grove_root.is_dir() {
+        bail!("grove root not found: {}", grove_root.display());
+    }
+    Ok(())
 }
 
 fn refuse_pending(grove_root: &Path) -> Result<()> {
@@ -135,4 +171,19 @@ fn find_pending_in(directory: &Path) -> Result<Option<PathBuf>> {
 
 pub(crate) fn promoting_prefix() -> &'static str {
     PROMOTING_PREFIX
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn worktree_lock_descriptor_is_close_on_exec() {
+        let worktree = tempfile::tempdir().unwrap();
+        let guard = write_for_root_init(worktree.path()).unwrap();
+        let flags = unsafe { libc::fcntl(guard._worktree_directory.as_raw_fd(), libc::F_GETFD) };
+
+        assert_ne!(flags, -1, "F_GETFD failed");
+        assert_ne!(flags & libc::FD_CLOEXEC, 0, "tree lock leaked across exec");
+    }
 }

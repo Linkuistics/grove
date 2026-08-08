@@ -132,6 +132,21 @@ pub fn materialize_finish(worktree: &Path) -> Result<crate::tree_read::SelectedL
 pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     let _guard = tree_access::write_for_lifecycle(worktree)?;
     let grove_root = worktree.join(".grove");
+    match fs::symlink_metadata(&grove_root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            bail!("this grove is already finished: {}", grove_root.display())
+        }
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking grove root {}", grove_root.display()))
+        }
+        Ok(metadata) if !metadata.file_type().is_dir() => {
+            bail!("grove root is not a directory: {}", grove_root.display())
+        }
+        Ok(_) => {}
+    }
+    tree_access::refuse_pending(&grove_root)?;
+    crate::tree_format::require_current(&grove_root)?;
     let selection = crate::tree_read::select_unlocked(&grove_root)?
         .context("the requested finish leaf is no longer live")?;
     if selection.kind != Kind::Finish {

@@ -1,5 +1,6 @@
 use assert_cmd::cargo::CommandCargoExt;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Output};
 use tempfile::TempDir;
@@ -45,6 +46,13 @@ fn git(repository: &Path, arguments: &[&str]) -> String {
         .unwrap()
         .trim()
         .to_string()
+}
+
+fn write_executable(path: &Path, body: &str) {
+    fs::write(path, body).unwrap();
+    let mut permissions = fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions).unwrap();
 }
 
 fn init_git(repository: &Path) {
@@ -244,6 +252,79 @@ fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
     assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
+#[test]
+fn finish_commit_refuses_pending_transactions_before_deleting_the_tree() {
+    for (witness_name, expected_diagnostic) in [
+        (
+            "MIGRATING-session-kinds",
+            "pending Grove session-kind migration",
+        ),
+        (
+            "PROMOTING-finish-chain-k3",
+            "pending Grove promotion transaction",
+        ),
+    ] {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(witness_name);
+        init_git(&repository);
+        seed_committed_terminal_grove(&repository);
+        let grove = repository.join(".grove");
+        fs::create_dir(grove.join(witness_name)).unwrap();
+        let before = tree_snapshot(&grove);
+        let head_before = git(&repository, &["rev-parse", "HEAD"]);
+
+        let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+        assert!(!output.status.success(), "{witness_name} was admitted");
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains(expected_diagnostic),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(tree_snapshot(&grove), before);
+        assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+    }
+}
+
+#[test]
+fn finish_commit_refuses_an_unknown_tree_format_before_deleting_the_tree() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("unknown-format");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let grove = repository.join(".grove");
+    fs::write(grove.join("FORMAT"), "session-kinds-v2\n").unwrap();
+    let before = tree_snapshot(&grove);
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("unsupported Grove tree format"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(tree_snapshot(&grove), before);
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+}
+
+#[test]
+fn retrying_finish_commit_after_teardown_reports_already_finished() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("already-finished");
+    init_git(&repository);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("this grove is already finished"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join(if colocated {
@@ -253,7 +334,17 @@ fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
     });
     init_jj(&repository, colocated);
     seed_jj_terminal_grove(&repository);
-    let git_index_before = colocated.then(|| git(&repository, &["ls-files", "--stage"]));
+    if colocated {
+        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
+        run("git", &repository, &["add", "staged.txt"]);
+        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+    }
+    let outside_git_index_before = colocated.then(|| {
+        git(
+            &repository,
+            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+        )
+    });
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
@@ -273,8 +364,19 @@ fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {
         &["log", "-r", "@-", "--no-graph", "-T", "description"],
     );
     assert!(description.contains("finish-k2"));
-    if let Some(index_before) = git_index_before {
-        assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+    if let Some(index_before) = outside_git_index_before {
+        assert_eq!(
+            git(
+                &repository,
+                &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+            ),
+            index_before
+        );
+        assert_eq!(
+            git(&repository, &["ls-files", "--stage", "--", ".grove"]),
+            "",
+            "the colocated Git index must not re-stage the deleted grove"
+        );
     }
 }
 
@@ -293,6 +395,51 @@ fn native_jj_finish_commit_preserves_unrelated_working_copy_changes() {
 #[test]
 fn colocated_jj_finish_commit_preserves_unrelated_work_and_the_git_index() {
     assert_jj_finish_commit_preserves_other_work(true);
+}
+
+#[test]
+fn colocated_jj_finish_refuses_before_commit_when_success_index_cannot_be_prepared() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("colocated-jj-index-failure");
+    init_jj(&repository, true);
+    seed_jj_terminal_grove(&repository);
+    fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
+    run("git", &repository, &["add", "staged.txt"]);
+    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+    let outside_index_before = git(
+        &repository,
+        &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+    );
+    let parent_before = git_like_jj_output(
+        &repository,
+        &["log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+    );
+    let git_directory = repository.join(git(&repository, &["rev-parse", "--git-dir"]));
+    fs::write(git_directory.join("grove-finish-index.lock"), "occupied\n").unwrap();
+    fs::write(
+        git_directory.join("grove-finish-success-index.lock"),
+        "occupied\n",
+    )
+    .unwrap();
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    assert_eq!(
+        git(
+            &repository,
+            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+        ),
+        outside_index_before
+    );
+    assert_eq!(
+        git_like_jj_output(
+            &repository,
+            &["log", "-r", "@-", "--no-graph", "-T", "commit_id"],
+        ),
+        parent_before,
+        "index preparation must fail before jj records the finish commit"
+    );
 }
 
 #[test]
@@ -316,6 +463,34 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("no tracked state in HEAD"));
     assert_eq!(tree_snapshot(&grove), before);
+}
+
+#[test]
+fn failed_plain_git_finish_commit_restores_the_preexisting_index() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("failed-git-commit");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
+    run("git", &repository, &["add", "staged.txt"]);
+    run("git", &repository, &["config", "--unset", "core.hooksPath"]);
+    let hook = repository.join(".git/hooks/pre-commit");
+    fs::create_dir_all(hook.parent().unwrap()).unwrap();
+    write_executable(
+        &hook,
+        "#!/bin/sh\nprintf 'blocked finish commit\\n' >&2\nexit 1\n",
+    );
+    let index_before = git(&repository, &["ls-files", "--stage"]);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("blocked finish commit"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
 }
 
 #[test]

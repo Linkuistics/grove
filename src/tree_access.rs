@@ -185,7 +185,7 @@ fn require_grove_root(grove_root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn refuse_pending(grove_root: &Path) -> Result<()> {
+pub(crate) fn refuse_pending(grove_root: &Path) -> Result<()> {
     refuse_pending_migration(grove_root)?;
     if let Some(path) = find_pending(grove_root)? {
         bail!(

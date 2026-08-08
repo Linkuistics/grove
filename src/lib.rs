@@ -24,6 +24,7 @@ pub mod tree_grow;
 pub mod tree_id;
 pub mod tree_lifecycle;
 pub mod tree_migrate;
+pub(crate) mod tree_migration_transaction;
 pub mod tree_promotion;
 pub mod tree_read;
 pub mod tree_rename;

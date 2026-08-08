@@ -10,6 +10,7 @@ thread_local! {
 }
 
 const PROMOTING_PREFIX: &str = "PROMOTING-";
+pub(crate) const MIGRATION_TRANSACTION: &str = "MIGRATING-session-kinds";
 
 pub struct TreeReadGuard {
     _worktree_directory: File,
@@ -64,7 +65,20 @@ pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
 pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
     require_grove_root(&root)?;
+    refuse_pending_migration(&root)?;
     crate::tree_format::require_current(&root)?;
+    Ok(TreeWriteGuard {
+        _worktree_directory: worktree_directory,
+        root,
+    })
+}
+
+/// Session-kind migration owns the exclusive tree lock across planning,
+/// recovery, landing, and commit. It must admit both a legacy tree and its own
+/// pending witness, so the caller owns those validations while this guard lives.
+pub(crate) fn write_for_migration(grove_root: &Path) -> Result<TreeWriteGuard> {
+    let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
+    require_grove_root(&root)?;
     Ok(TreeWriteGuard {
         _worktree_directory: worktree_directory,
         root,
@@ -171,6 +185,7 @@ fn require_grove_root(grove_root: &Path) -> Result<()> {
 }
 
 fn refuse_pending(grove_root: &Path) -> Result<()> {
+    refuse_pending_migration(grove_root)?;
     if let Some(path) = find_pending(grove_root)? {
         bail!(
             "pending Grove promotion transaction: {}. Recover it with: \
@@ -180,6 +195,19 @@ fn refuse_pending(grove_root: &Path) -> Result<()> {
         );
     }
     Ok(())
+}
+
+fn refuse_pending_migration(grove_root: &Path) -> Result<()> {
+    let migration = grove_root.join(MIGRATION_TRANSACTION);
+    match fs::symlink_metadata(&migration) {
+        Ok(_) => bail!(
+            "pending Grove session-kind migration: {}. To recover it, rerun bare `grove`",
+            migration.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error)
+            .with_context(|| format!("checking migration witness {}", migration.display())),
+    }
 }
 
 pub(crate) fn find_pending(grove_root: &Path) -> Result<Option<PathBuf>> {
@@ -221,6 +249,68 @@ pub(crate) fn promoting_prefix() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reader_refuses_a_pending_session_kind_migration_before_format_validation() {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        let witness = grove_root.join("MIGRATING-session-kinds");
+        fs::create_dir_all(&witness).unwrap();
+
+        let error = match read(&grove_root) {
+            Ok(_) => panic!("reader admitted a pending migration"),
+            Err(error) => error,
+        };
+        let diagnostic = error.to_string();
+
+        assert!(diagnostic.contains("pending Grove session-kind migration"));
+        assert!(diagnostic.contains(&witness.display().to_string()));
+        assert!(diagnostic.contains("rerun bare `grove`"));
+    }
+
+    #[test]
+    fn reader_refuses_a_malformed_session_kind_migration_witness() {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        fs::write(grove_root.join(MIGRATION_TRANSACTION), "not a directory\n").unwrap();
+
+        let error = match read(&grove_root) {
+            Ok(_) => panic!("reader admitted a malformed migration witness"),
+            Err(error) => error,
+        };
+
+        assert!(error
+            .to_string()
+            .contains("pending Grove session-kind migration"));
+    }
+
+    #[test]
+    fn migration_writer_admits_its_pending_legacy_transaction() {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        fs::create_dir_all(grove_root.join(MIGRATION_TRANSACTION)).unwrap();
+
+        let guard = write_for_migration(&grove_root).unwrap();
+
+        assert_eq!(guard.root(), grove_root);
+    }
+
+    #[test]
+    fn promotion_writer_refuses_a_pending_session_kind_migration() {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        fs::create_dir_all(grove_root.join(MIGRATION_TRANSACTION)).unwrap();
+
+        let error = match write_for_promotion(&grove_root) {
+            Ok(_) => panic!("promotion admitted a pending migration"),
+            Err(error) => error,
+        };
+
+        assert!(error
+            .to_string()
+            .contains("pending Grove session-kind migration"));
+    }
 
     #[test]
     fn worktree_lock_descriptor_is_close_on_exec() {

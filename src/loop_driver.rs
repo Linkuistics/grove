@@ -75,12 +75,13 @@ use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
 use crate::harness::Harness;
 use crate::leaf::{Family, Kind};
+use crate::session_config::{ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::ffi::OsString;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
 /// Why the loop stopped — the loop's terminal disposition, made first-class so
@@ -95,6 +96,171 @@ pub enum LoopOutcome {
     /// version-skewed `grove-llm` — driver-version-skew-k11); resumable by
     /// re-running `grove do` from the same working tree.
     Stopped,
+}
+
+/// Entry point for the bare config-driven lifecycle.
+pub fn run_configured(
+    repo_path: &Path,
+    worktree: &Path,
+    name: &str,
+    driver_lease: DriverLease,
+) -> Result<()> {
+    ignore_interrupts();
+    install_termination_handler();
+    run_configured_loop_with_lease(repo_path, worktree, name, &driver_lease).map(|_| ())
+}
+
+fn run_configured_loop_with_lease(
+    repo_path: &Path,
+    worktree: &Path,
+    name: &str,
+    driver_lease: &DriverLease,
+) -> Result<LoopOutcome> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .context("$HOME is not set; cannot locate ~/.config/grove/config.kdl")?;
+    let config_path = SessionConfig::path(&home);
+    let repo_name = repo_path
+        .file_name()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "repo".to_string());
+    let session_name = format!("{repo_name}: {name} grove");
+
+    loop {
+        driver_lease
+            .revalidate()
+            .context("revalidating driver lease before loop transition")?;
+        let _grove_llm = checked_grove_llm()?;
+        let _pre_transition_config = SessionConfig::load(&home)?;
+
+        crate::tree_lifecycle::transition_to_current(worktree)?;
+        let Some(selection) = crate::tree_read::select(&worktree.join(".grove"))? else {
+            eprintln!(
+                "grove {name}: no live leaves; the finish lifecycle is not materialized by this build"
+            );
+            return Ok(LoopOutcome::Stopped);
+        };
+
+        let config = SessionConfig::load(&home)?;
+        let prompt = mandate_prompt(&selection.handle)?;
+        let argv = config.expand(
+            selection.kind.label(),
+            &ExpansionContext {
+                prompt: &prompt,
+                session_name: &session_name,
+                worktree,
+                repository: repo_path,
+            },
+        )?;
+
+        driver_lease
+            .revalidate()
+            .context("revalidating driver lease before foreground launch")?;
+        let signal_channel = driver_lease
+            .allocate_signal_channel()
+            .context("allocating a fresh foreground-session signal channel")?;
+        let ended = launch_configured_session(
+            &argv,
+            &selection,
+            &config_path,
+            worktree,
+            signal_channel.path(),
+            driver_lease,
+        );
+        let (ended, signal) = complete_post_reap_epoch_handoff(
+            ended,
+            || driver_lease.invalidate_session_epoch(),
+            |ended| {
+                reset_terminal();
+                (ended, complete::read_signal(signal_channel.path()))
+            },
+        )?;
+
+        if let Err(error) = driver_lease.remove_signal_channel(signal_channel) {
+            eprintln!(
+                "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error:#}"
+            );
+        }
+
+        if ended.end == SessionEnd::Interrupted {
+            eprintln!("grove: interrupted — stopping the loop.");
+            return Ok(LoopOutcome::Stopped);
+        }
+
+        match signal {
+            Some(Disposition::Relaunch) => continue,
+            Some(Disposition::Done) => {
+                eprintln!("grove: grove finished — loop complete.");
+                return Ok(LoopOutcome::Finished);
+            }
+            None => {
+                eprintln!(
+                    "grove: session ended without a completion signal — status {}, elapsed {:.3}s; loop stopped.",
+                    ended.status,
+                    ended.elapsed.as_secs_f64()
+                );
+                if !ended.status.success() {
+                    eprintln!(
+                        "       configured session kind `{}` failed via {:?} from {}.",
+                        selection.kind.label(),
+                        argv[0],
+                        config_path.display()
+                    );
+                }
+                return Ok(LoopOutcome::Stopped);
+            }
+        }
+    }
+}
+
+fn mandate_prompt(handle: &str) -> Result<String> {
+    let launcher = crate::provision::continue_prompt()?;
+    Ok(format!(
+        "{launcher}\n\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n"
+    ))
+}
+
+fn launch_configured_session(
+    argv: &[OsString],
+    selection: &crate::tree_read::SelectedLeaf,
+    config_path: &Path,
+    worktree: &Path,
+    signal_file: &Path,
+    driver_lease: &DriverLease,
+) -> Result<WatchedSession> {
+    let (executable, arguments) = argv
+        .split_first()
+        .context("validated Grove command expanded to an empty argv")?;
+    eprintln!(
+        "grove: launching {} with configured {:?} — {}",
+        selection.kind.label(),
+        executable,
+        selection.handle
+    );
+    let mut command = Command::new(executable);
+    command.args(arguments).current_dir(worktree);
+    crate::launch::scrub_loop_control_env(&mut command);
+    command.env("GROVE_SIGNAL_FILE", signal_file);
+
+    driver_lease
+        .activate_session_epoch(signal_file)
+        .context("activating the foreground session epoch before spawn")?;
+    let child = command.spawn().with_context(|| {
+        format!(
+            "launching configured session kind `{}` via {:?} from {}",
+            selection.kind.label(),
+            executable,
+            config_path.display()
+        )
+    })?;
+    wait_with_watcher_result(
+        child,
+        signal_file,
+        (
+            Duration::from_secs_f64(DEFAULT_GRACE),
+            Duration::from_secs_f64(DEFAULT_KILL_GRACE),
+        ),
+    )
 }
 
 /// Entry point: install the signal handlers, then run the loop. The real
@@ -260,10 +426,10 @@ fn run_loop_with_lease(
     }
 }
 
-fn complete_post_reap_epoch_handoff<T>(
-    ended: Result<SessionEnd>,
+fn complete_post_reap_epoch_handoff<E, T>(
+    ended: Result<E>,
     invalidate: impl FnOnce() -> Result<()>,
-    continue_after_invalidation: impl FnOnce(SessionEnd) -> T,
+    continue_after_invalidation: impl FnOnce(E) -> T,
 ) -> Result<T> {
     const INVALIDATION_CONTEXT: &str =
         "post-reap session epoch invalidation blocked; completion signal left unconsumed";
@@ -410,6 +576,12 @@ enum SessionEnd {
     Interrupted,
 }
 
+struct WatchedSession {
+    end: SessionEnd,
+    status: ExitStatus,
+    elapsed: Duration,
+}
+
 /// How often the watcher checks the child's liveness and the signal file.
 /// Not a tunable seam — `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` below are
 /// the only knobs a test (or an operator) needs.
@@ -438,23 +610,31 @@ const DEFAULT_KILL_GRACE: f64 = 5.0;
 /// ordering is deliberate: the handler performs only an async-signal-safe
 /// atomic store, while the watcher signals and reaps the child on a normal
 /// stack.
-fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<SessionEnd> {
-    let (grace, kill_grace) = kill_graces();
+fn wait_with_watcher(child: Child, signal_file: &Path) -> Result<SessionEnd> {
+    wait_with_watcher_result(child, signal_file, kill_graces()).map(|ended| ended.end)
+}
+
+fn wait_with_watcher_result(
+    mut child: Child,
+    signal_file: &Path,
+    (grace, kill_grace): (Duration, Duration),
+) -> Result<WatchedSession> {
+    let started = Instant::now();
     let mut watch = Watch::Running;
     let mut interrupted = false;
     loop {
-        if child
-            .try_wait()
-            .context("waiting on the harness session")?
-            .is_some()
-        {
+        if let Some(status) = child.try_wait().context("waiting on the harness session")? {
             // A completion kill makes the harness exit non-zero (or via
             // signal); that is the normal exit path, not an error. The signal
             // file — not the exit status — decides relaunch.
-            return Ok(if interrupted {
-                SessionEnd::Interrupted
-            } else {
-                SessionEnd::Exited
+            return Ok(WatchedSession {
+                end: if interrupted {
+                    SessionEnd::Interrupted
+                } else {
+                    SessionEnd::Exited
+                },
+                status,
+                elapsed: started.elapsed(),
             });
         }
         // A signalled driver forwards the signal to its child and hands over to
@@ -479,17 +659,71 @@ fn wait_with_watcher(mut child: Child, signal_file: &Path) -> Result<SessionEnd>
             }
             Watch::Terminated(at) if at.elapsed() >= kill_grace => {
                 unsafe { libc::kill(child.id() as i32, libc::SIGKILL) };
-                child.wait().context("reaping the killed harness session")?;
-                return Ok(if interrupted {
-                    SessionEnd::Interrupted
-                } else {
-                    SessionEnd::Exited
+                let status = child.wait().context("reaping the killed harness session")?;
+                return Ok(WatchedSession {
+                    end: if interrupted {
+                        SessionEnd::Interrupted
+                    } else {
+                        SessionEnd::Exited
+                    },
+                    status,
+                    elapsed: started.elapsed(),
                 });
             }
             other => other,
         };
         std::thread::sleep(POLL_INTERVAL);
     }
+}
+
+/// Resolve the exact agent-side binary used by a configured session and reject
+/// missing, malformed, or skewed versions before configuration or tree access.
+fn checked_grove_llm() -> Result<OsString> {
+    let binary = if let Ok(executable) = std::env::current_exe() {
+        match executable.parent().map(|parent| parent.join("grove-llm")) {
+            Some(sibling) if sibling.is_file() => sibling.into_os_string(),
+            _ => OsString::from("grove-llm"),
+        }
+    } else {
+        OsString::from("grove-llm")
+    };
+    let display = binary.to_string_lossy();
+    let output = Command::new(&binary)
+        .arg("--version")
+        .output()
+        .with_context(|| format!("could not run `{display} --version`"))?;
+    if !output.status.success() {
+        anyhow::bail!("`{display} --version` failed ({})", output.status);
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let version = parse_checked_version(&stdout).with_context(|| {
+        format!(
+            "unrecognised `{display} --version` output {:?}",
+            stdout.trim()
+        )
+    })?;
+    if version != DRIVER_VERSION {
+        anyhow::bail!(
+            "grove/grove-llm version skew: driver is {DRIVER_VERSION}, `{display}` is {version}"
+        );
+    }
+    Ok(binary)
+}
+
+fn parse_checked_version(stdout: &str) -> Option<&str> {
+    let mut lines = stdout.lines();
+    let mut words = lines.next()?.split_whitespace();
+    if words.next()? != "grove-llm" {
+        return None;
+    }
+    let version = words.next()?;
+    if words.next().is_some()
+        || !version.starts_with(|character: char| character.is_ascii_digit())
+        || lines.any(|line| !line.trim().is_empty())
+    {
+        return None;
+    }
+    Some(version)
 }
 
 /// Upper bound on either grace. A session-end grace beyond this is operator
@@ -1473,7 +1707,7 @@ mod tests {
 
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
-        let launch = Err(anyhow::anyhow!(
+        let launch: Result<SessionEnd> = Err(anyhow::anyhow!(
             "launching the harness session: executable was not found"
         ));
         let continuation_called = std::cell::Cell::new(false);

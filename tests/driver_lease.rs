@@ -1,7 +1,7 @@
 mod support;
 
 use grove::driver_lease::DriverLease;
-use grove::{harness, harness_stamp, loop_driver};
+use grove::{harness, loop_driver};
 use std::fs;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -19,6 +19,28 @@ const EXEC_READY: &str = "GROVE_TEST_LEASE_EXEC_READY";
 const EXEC_RELEASED: &str = "GROVE_TEST_LEASE_EXEC_RELEASED";
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+const SESSION_KINDS: &[&str] = &[
+    "requirements",
+    "review-requirements",
+    "integrate-review-requirements",
+    "design",
+    "review-design",
+    "integrate-review-design",
+    "planning",
+    "review-planning",
+    "integrate-review-planning",
+    "prototype",
+    "review-prototype",
+    "integrate-review-prototype",
+    "impl",
+    "review-impl",
+    "integrate-review-impl",
+    "research-a",
+    "research-b",
+    "combine-research",
+    "finish",
+];
 
 fn fake_git_worktree(path: &Path) {
     fs::create_dir_all(path.join(".git")).unwrap();
@@ -68,21 +90,29 @@ fn write_executable(path: &Path, body: &str) {
     fs::set_permissions(path, permissions).unwrap();
 }
 
-fn grove_driver(root: &Path, harness: &Path, skill_dir: &Path) -> Command {
+fn shell_quote(path: &Path) -> String {
+    let value = path.to_str().unwrap();
+    assert!(!value.contains('\''), "test fixture path contains a quote");
+    format!("'{value}'")
+}
+
+fn grove_driver(root: &Path, harness: &Path, home: &Path) -> Command {
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let template = format!("{} '${{prompt}}'", shell_quote(harness));
+    let document = SESSION_KINDS
+        .iter()
+        .map(|kind| format!("{kind} {template:?}\n"))
+        .collect::<String>();
+    fs::write(config_dir.join("config.kdl"), document).unwrap();
+
     let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
-    command
-        .args(["do", "--harness", "claude"])
-        .current_dir(root);
+    command.current_dir(root);
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
-    command
-        .env("GROVE_HARNESS_BIN", harness)
-        .env("GROVE_LLM_BIN", env!("CARGO_BIN_EXE_grove-llm"))
-        .env("GROVE_SKILL_DIR", skill_dir)
-        .env("GROVE_IMPL_MODEL", "test-model")
-        .env("GROVE_KILL_GRACE", "0")
-        .env("GROVE_KILL_GRACE_KILL", "0");
+    command.env("HOME", home);
     command
 }
 
@@ -257,11 +287,6 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
     let foreign = tmp.path().join("foreign");
     init_git_worktree(&intended);
     init_git_worktree(&foreign);
-    run_command(
-        "git",
-        &intended,
-        &["config", "core.worktree", foreign.to_str().unwrap()],
-    );
     fs::create_dir_all(intended.join(".grove")).unwrap();
     fs::write(intended.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
@@ -276,9 +301,9 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
             launch_log.display()
         ),
     );
-    let skill_dir = tmp.path().join("global-skill");
+    let home = tmp.path().join("home");
 
-    let output = grove_driver(&intended, &fake_harness, &skill_dir)
+    let output = grove_driver(&intended, &fake_harness, &home)
         .env("GIT_DIR", foreign.join(".git"))
         .env("GIT_WORK_TREE", &foreign)
         .env("GIT_COMMON_DIR", foreign.join(".git"))
@@ -299,13 +324,12 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
         intended.canonicalize().unwrap().to_str().unwrap(),
         "foreground harness inherited a foreign Git worktree"
     );
-    let grove_name = intended.file_name().unwrap().to_string_lossy();
     assert!(
-        harness_stamp::path(&intended, &grove_name).exists(),
-        "driver stamped a repository other than its leased worktree"
+        !intended.join(".grove-stamps").exists(),
+        "config-driven launch must not create a harness stamp"
     );
     assert!(
-        !harness_stamp::path(&foreign, &grove_name).exists(),
+        !foreign.join(".grove-stamps").exists(),
         "driver wrote launch state into the environment-selected repository"
     );
 }
@@ -626,8 +650,9 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
             duplicate_launch.display()
         ),
     );
-    let skill_dir = tmp.path().join("global-skill");
-    let mut first_command = grove_driver(&root, &fake_harness, &skill_dir);
+    let home = tmp.path().join("home");
+    let skill_dir = home.join(".codex/skills/grove");
+    let mut first_command = grove_driver(&root, &fake_harness, &home);
     first_command.stdout(Stdio::null()).stderr(Stdio::null());
     let first = DriverProcess::spawn(&mut first_command);
     wait_for(&first_ready);
@@ -643,9 +668,7 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     fs::remove_file(skill_dir.join("SKILL.md")).unwrap();
     fs::write(skill_dir.join(".grove-content-hash"), "stale-hash\n").unwrap();
 
-    let second = grove_driver(&root, &fake_harness, &skill_dir)
-        .output()
-        .unwrap();
+    let second = grove_driver(&root, &fake_harness, &home).output().unwrap();
 
     assert!(
         !second.status.success(),
@@ -768,8 +791,8 @@ fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
             ready.display()
         ),
     );
-    let skill_dir = tmp.path().join("global-skill");
-    let mut driver_command = grove_driver(&root, &fake_harness, &skill_dir);
+    let home = tmp.path().join("home");
+    let mut driver_command = grove_driver(&root, &fake_harness, &home);
     driver_command.stdout(Stdio::null()).stderr(Stdio::null());
     let driver = DriverProcess::spawn(&mut driver_command);
     wait_for(&ready);
@@ -878,12 +901,9 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
             first_ready.display()
         ),
     );
-    let skill_dir = tmp.path().join("global-skill");
-    let mut first_command = grove_driver(&root, &first_harness, &skill_dir);
-    first_command
-        .env("GROVE_REQUIREMENTS_MODEL", "test-model")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    let home = tmp.path().join("home");
+    let mut first_command = grove_driver(&root, &first_harness, &home);
+    first_command.stdout(Stdio::null()).stderr(Stdio::null());
     let first_driver = DriverProcess::spawn(&mut first_command);
     wait_for(&first_ready);
     let old_signal = PathBuf::from(fs::read_to_string(&first_signal_log).unwrap());
@@ -918,11 +938,8 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
             second_ready.display()
         ),
     );
-    let mut second_command = grove_driver(&root, &second_harness, &skill_dir);
-    second_command
-        .env("GROVE_REQUIREMENTS_MODEL", "test-model")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+    let mut second_command = grove_driver(&root, &second_harness, &home);
+    second_command.stdout(Stdio::null()).stderr(Stdio::null());
     let mut second_driver = DriverProcess::spawn(&mut second_command);
     wait_for(&second_ready);
     let new_signal = PathBuf::from(fs::read_to_string(&second_signal_log).unwrap());

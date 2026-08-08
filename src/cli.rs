@@ -73,10 +73,7 @@ two lines, and one FAMILY var does the work of five kinds:
     version,
     about = "Grove: hierarchical workstream tool for AI agents"
 )]
-pub struct Cli {
-    #[command(subcommand)]
-    pub command: Command,
-}
+pub struct Cli {}
 
 #[derive(Subcommand)]
 pub enum Command {
@@ -164,10 +161,6 @@ pub struct RetireArgs {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    let cli = Cli::parse();
-    match cli.command {
-        Command::Do(args) => crate::launch::do_grove(&args),
-        Command::Migrate(args) => crate::tree_migrate::run(&args),
-        Command::Retire(args) => crate::launch::retire(&args),
-    }
+    let _cli = Cli::parse();
+    crate::launch::bare_grove()
 }

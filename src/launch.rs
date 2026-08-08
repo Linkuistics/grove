@@ -7,16 +7,26 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-/// State-dispatching launcher: the sole lifecycle entry verb, run from inside
-/// the working tree (user-owned-worktrees) — grove never creates, attaches, or
-/// relocates it. The worktree is the canonical root holding cwd's closest
-/// on-disk `.jj` or `.git` marker, jj-first and independent of ambient Git
-/// selectors, and the grove name is its basename. Once resolved, it drives the
-/// **whole self-driving loop** (self-driving-loop): one fresh foreground
-/// harness session per task, relaunching on each completion signal until the
-/// agent stops signalling (empty `pick` → finish, or a human interrupt). The
-/// launched sessions handle all in-context judgement — including proposing the
-/// complete finish cycle once the grove has no live leaves left.
+/// Drive the config-defined lifecycle from the current working tree. This is
+/// the sole path reached by the human-facing bare command: provision installed
+/// harnesses, acquire the workspace lease, and run one configured foreground
+/// session per selected task until the agent stops signalling.
+pub fn bare_grove() -> Result<()> {
+    crate::provision::provision_installed()?;
+
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let driver_lease = crate::driver_lease::DriverLease::acquire(&cwd)?;
+    let worktree = driver_lease.worktree_root().to_path_buf();
+    let repository = repo::main_repo_of(&worktree)?;
+    let name = worktree_name(&worktree);
+
+    crate::loop_driver::run_configured(&repository, &worktree, &name, driver_lease)
+}
+
+/// Retained implementation of the removed `grove do` interface.
+///
+/// This compatibility seam remains reachable only by internal tests until the
+/// dedicated legacy-removal work item deletes the old launcher.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
     let cwd = std::env::current_dir().context("getting cwd")?;
     let discovered_worktree = repo::workspace_control(&cwd)?.worktree_root().to_path_buf();
@@ -263,6 +273,10 @@ const LOOP_CONTROL_ENV: [&str; 4] = [
     crate::task_relationship::SESSION_TARGET_ENV,
 ];
 
+/// Repository selectors are process-global overrides: `current_dir` alone does
+/// not stop Git-aware children from following an inherited foreign repository.
+const REPOSITORY_CONTEXT_ENV: [&str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"];
+
 /// **Any harness spawn that is not the session itself must scrub the loop's
 /// launch-scoped environment** (guard-loop-signal-k37,
 /// codex-grant-refused-k35).
@@ -286,7 +300,7 @@ const LOOP_CONTROL_ENV: [&str; 4] = [
 /// interesting part, and a second site open-coding it is how the first one came
 /// to be missed.
 pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
-    for name in LOOP_CONTROL_ENV {
+    for name in LOOP_CONTROL_ENV.into_iter().chain(REPOSITORY_CONTEXT_ENV) {
         cmd.env_remove(name);
     }
 }

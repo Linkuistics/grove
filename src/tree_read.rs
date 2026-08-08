@@ -46,10 +46,28 @@ use std::path::{Path, PathBuf};
 /// kinds are rejected. Never reads file contents.
 pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
     let guard = tree_access::read(grove_root)?;
-    pick_unlocked(guard.root())
+    Ok(select_unlocked(guard.root())?.map(|selection| selection.path))
 }
 
 pub(crate) fn pick_unlocked(grove_root: &Path) -> Result<Option<PathBuf>> {
+    Ok(select_unlocked(grove_root)?.map(|selection| selection.path))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SelectedLeaf {
+    pub path: PathBuf,
+    pub handle: String,
+    pub kind: Kind,
+}
+
+/// Select one live leaf and copy every launch fact while one shared tree guard
+/// is held. Callers never need to reopen or reparse the tree before launch.
+pub fn select(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
+    let guard = tree_access::read(grove_root)?;
+    select_unlocked(guard.root())
+}
+
+fn select_unlocked(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
     #[cfg(test)]
     tree_access::assert_guard_held(grove_root);
 
@@ -69,13 +87,27 @@ pub(crate) fn pick_unlocked(grove_root: &Path) -> Result<Option<PathBuf>> {
                 .join(", ")
         );
     }
-    if let Some((_, path)) = live
+    let selected = if let Some(selected) = live
         .iter()
         .find(|(entry, _)| entry.kind() != Some(Kind::Finish))
     {
-        return Ok(Some(path.clone()));
-    }
-    Ok(finish.first().map(|(_, path)| (*path).clone()))
+        Some(selected)
+    } else {
+        finish.first().copied()
+    };
+    selected
+        .map(|(entry, path)| {
+            Ok(SelectedLeaf {
+                path: path.clone(),
+                handle: entry
+                    .handle()
+                    .context("selected live leaf has no stable handle")?,
+                kind: entry
+                    .kind()
+                    .context("selected live leaf has no session kind")?,
+            })
+        })
+        .transpose()
 }
 
 fn collect_live_leaf_entries(dir: &Path, live: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
@@ -606,6 +638,29 @@ mod tests {
     }
 
     // ---- pick ---------------------------------------------------------------
+
+    #[test]
+    fn select_returns_path_handle_and_kind_from_one_guarded_observation() {
+        let (_t, g) = grove();
+        let path = touch(&g, "01-review-impl-selected-k7.md");
+        tree_access::reset_acquisition_count();
+
+        let selected = select(&g).unwrap().unwrap();
+
+        assert_eq!(
+            selected,
+            SelectedLeaf {
+                path,
+                handle: "selected-k7".to_string(),
+                kind: Kind::ReviewImpl,
+            }
+        );
+        assert_eq!(
+            tree_access::acquisition_count(),
+            1,
+            "selection must not reopen the tree to derive launch facts"
+        );
+    }
 
     #[test]
     fn pick_returns_first_live_leaf_in_per_level_order() {

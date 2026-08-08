@@ -28,6 +28,35 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
+/// The one launcher embedded into every config-driven session prompt.
+pub fn continue_prompt() -> Result<&'static str> {
+    let file = CONTENT
+        .get_file("prompts/continue.md")
+        .context("embedded Grove content is missing prompts/continue.md")?;
+    std::str::from_utf8(file.contents()).context("embedded prompts/continue.md is not UTF-8")
+}
+
+/// Provision Grove into every installed harness root without selecting a
+/// primary harness. Configured commands are opaque, so the bare driver cannot
+/// infer which harness they eventually reach.
+pub fn provision_installed() -> Result<()> {
+    let home = home_dir()?;
+    for harness in HARNESSES {
+        if !home.join(harness.project_dir).is_dir() {
+            continue;
+        }
+        let destination = home.join(harness.skills_dir).join("grove");
+        if provision_target(&destination)? {
+            eprintln!(
+                "grove: provisioned the {} skill at {}",
+                harness.name,
+                destination.display()
+            );
+        }
+    }
+    Ok(())
+}
+
 /// Provision the embedded methodology for every harness on this machine:
 /// `primary` (the harness about to launch) unconditionally, plus every other
 /// harness whose home root (`~/.claude`, `~/.codex`, `~/.pi`) exists. Logging

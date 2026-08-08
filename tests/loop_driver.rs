@@ -37,6 +37,7 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 // *machine's* PATH happens to carry — a mismatched installed release would
 // stop the loop before the session under test ever launched.
 const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
+const LEGACY_DRIVER_PROCESS: &str = "GROVE_TEST_LEGACY_DRIVER_PROCESS";
 
 // Model selection is **required** (model-per-task-kind, *A kind with no model
 // is a configuration error*): a picked leaf whose kind resolves no model var
@@ -48,6 +49,26 @@ const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
 // meaningless so a reader does not go looking for significance in it. The tests
 // that *are* about model selection name their own models.
 const SCAFFOLD_MODEL: &str = "scaffold-model";
+
+#[test]
+fn legacy_grove_do_process() -> anyhow::Result<()> {
+    if std::env::var_os(LEGACY_DRIVER_PROCESS).is_none() {
+        return Ok(());
+    }
+    grove::launch::do_grove(&grove::cli::StartArgs {
+        harness: None,
+        no_launch: false,
+    })
+}
+
+fn legacy_grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
+    let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+    command
+        .args(["--exact", "legacy_grove_do_process", "--nocapture"])
+        .current_dir(repo_path)
+        .env(LEGACY_DRIVER_PROCESS, "1");
+    command
+}
 
 fn write_exec(path: &std::path::Path, body: &str) {
     fs::write(path, body).unwrap();
@@ -264,8 +285,7 @@ while :; do sleep 0.1; done
     });
 
     let orphan_stderr = repo_path.join("orphan-stderr");
-    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    command.arg("do").current_dir(&worktree);
+    let mut command = legacy_grove_do_command(&worktree);
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
@@ -576,8 +596,7 @@ exit 0
 "#,
     );
 
-    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    command.args(["do"]).current_dir(&worktree);
+    let mut command = legacy_grove_do_command(&worktree);
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
@@ -656,8 +675,7 @@ exit 0
 "#,
     );
 
-    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    command.args(["do"]).current_dir(&worktree);
+    let mut command = legacy_grove_do_command(&worktree);
     for name in support::grove_env_names() {
         command.env_remove(name);
     }
@@ -1352,8 +1370,7 @@ exit 0
     // does not isolate it. Scrub the full routing/model surface before layering
     // the scenario's own vars, or this repo's own dogfooded `~/.zshenv` (or a
     // session running these tests under itself) can steer the subprocess.
-    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    cmd.args(["do"]).current_dir(repo_path);
+    let mut cmd = legacy_grove_do_command(repo_path);
     for name in support::grove_env_names() {
         cmd.env_remove(name);
     }
@@ -1425,8 +1442,7 @@ fn one_launch_grove_do(repo_path: &std::path::Path) -> std::process::Command {
 fn grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
     let skill_dir = repo_path.join("global-skill");
     let fake = repo_path.join("fake-claude.sh");
-    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    cmd.args(["do"]).current_dir(repo_path);
+    let mut cmd = legacy_grove_do_command(repo_path);
     for name in support::grove_env_names() {
         cmd.env_remove(name);
     }
@@ -4184,8 +4200,7 @@ exit 0
     let skewed = repo_path.join("skewed-grove-llm.sh");
     write_exec(&skewed, "#!/bin/sh\necho 'grove-llm 99.0.0'\n");
 
-    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    cmd.args(["do"]).current_dir(repo_path);
+    let mut cmd = legacy_grove_do_command(repo_path);
     for name in support::grove_env_names() {
         cmd.env_remove(name);
     }
@@ -4473,8 +4488,7 @@ exec sleep 60
 "#,
     );
 
-    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
-    cmd.arg("do").current_dir(repo_path);
+    let mut cmd = legacy_grove_do_command(repo_path);
     for name in support::grove_env_names() {
         cmd.env_remove(name);
     }

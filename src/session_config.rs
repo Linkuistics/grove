@@ -73,8 +73,12 @@ struct NodeValidation {
 }
 
 impl SessionConfig {
+    pub fn path(home: &Path) -> std::path::PathBuf {
+        home.join(CONFIG_PATH)
+    }
+
     pub fn load(home: &Path) -> Result<Self> {
-        let path = home.join(CONFIG_PATH);
+        let path = Self::path(home);
         let source = read_source(&path)?;
         let document: KdlDocument = source.parse().map_err(|error: kdl::KdlError| {
             let location = source_location(&source, error.span.offset());

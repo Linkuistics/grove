@@ -107,11 +107,6 @@ fn llm(repo: &Path, args: &[&str]) -> (String, String, bool) {
     bin("grove-llm", repo, args)
 }
 
-/// Drive the real `grove` binary (the human verbs — `migrate` lives here).
-fn grove(repo: &Path, args: &[&str]) -> (String, String, bool) {
-    bin("grove", repo, args)
-}
-
 fn bin(name: &str, repo: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin(name)
         .unwrap()
@@ -443,8 +438,9 @@ fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
 
 #[test]
 fn migrate_converts_an_old_tree_in_a_jj_native_tree() {
-    // `grove migrate` moves the whole tree at once and — unlike the adoption hook
-    // — makes no commit, so this is the rename set alone, in a tree with no git.
+    // The retained compatibility engine moves the whole tree at once and —
+    // unlike the adoption hook — makes no commit, so this is the rename set
+    // alone, in a tree with no git. The human verb was removed at cutover.
     let tmp = jj_native();
     let repo = tmp.path();
     let g = repo.join(".grove");
@@ -456,8 +452,8 @@ fn migrate_converts_an_old_tree_in_a_jj_native_tree() {
         "# 010-child\n\nchild body\n",
     );
 
-    let (stdout, stderr, ok) = grove(repo, &["migrate"]);
-    assert!(ok, "grove migrate failed: {stderr}");
+    let outcome = grove::tree_migrate::migrate(repo).unwrap();
+    assert!(matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)));
 
     assert_eq!(
         tree(repo),
@@ -467,10 +463,6 @@ fn migrate_converts_an_old_tree_in_a_jj_native_tree() {
             "02-second-k2/BRIEF.md",
             "BRIEF.md",
         ],
-    );
-    assert!(
-        stdout.contains("migrated"),
-        "expected a rename summary, got {stdout:?}"
     );
 }
 
@@ -599,8 +591,8 @@ fn migrate_in_a_colocated_tree_leaves_the_git_index_alone() {
     let repo = tmp.path();
     let before = git_index(repo);
 
-    let (_, stderr, ok) = grove(repo, &["migrate"]);
-    assert!(ok, "grove migrate failed: {stderr}");
+    let outcome = grove::tree_migrate::migrate(repo).unwrap();
+    assert!(matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)));
 
     assert_eq!(
         tree(repo),

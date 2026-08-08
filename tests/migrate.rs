@@ -1,5 +1,5 @@
-// End-to-end tests for the human verb `grove migrate` and the adoption hook
-// `tree_migrate::migrate_on_adoption`: the one-time, in-place conversion of an
+// End-to-end tests for the retained migration engine and the automatic adoption
+// hook `tree_migrate::migrate_on_adoption`: the one-time, in-place conversion of an
 // old tree to the **v2 directory scheme** (task-tree-scheme). The migration accepts the
 // old `NNN-slug/` + `done/` directory format (exercised here) and the v1-flat
 // `<dotted>-[<key>]-<slug>` format alike, lowering both to v2 node directories +
@@ -8,7 +8,9 @@
 // `src/tree_migrate.rs` cannot: the `git mv`s, the on-disk header rewrites to the
 // position-free `# <slug>-k<key>` handle, the no-commit contract, the
 // empty-directory cleanup, idempotency, and that the migrated tree drives
-// correctly under `grove-llm pick` / `brief-chain`.
+// correctly under `grove-llm pick` / `brief-chain`. The human `migrate` verb was
+// removed by lifecycle-cutover-k39; these tests call the compatibility engine
+// directly until legacy-launch-removal-k46 removes it.
 
 use assert_cmd::Command;
 use std::fs;
@@ -85,17 +87,20 @@ fn porcelain(repo: &Path) -> String {
 }
 
 fn run_migrate(repo: &Path) -> (String, String, bool) {
-    let out = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(repo)
-        .arg("migrate")
-        .output()
-        .unwrap();
-    (
-        String::from_utf8_lossy(&out.stdout).into_owned(),
-        String::from_utf8_lossy(&out.stderr).into_owned(),
-        out.status.success(),
-    )
+    match grove::tree_migrate::migrate(repo) {
+        Ok(grove::tree_migrate::Outcome::Migrated(renames)) => {
+            (format!("migrated {renames:#?}"), String::new(), true)
+        }
+        Ok(grove::tree_migrate::Outcome::AlreadyV2) => {
+            (String::new(), "already v2\n".to_string(), true)
+        }
+        Ok(grove::tree_migrate::Outcome::NothingToMigrate) => (
+            String::new(),
+            "no .grove/ tree to migrate\n".to_string(),
+            true,
+        ),
+        Err(error) => (String::new(), format!("{error:#}"), false),
+    }
 }
 
 fn exists(repo: &Path, rel: &str) -> bool {
@@ -399,30 +404,19 @@ fn bounded_layout_migration_stops_before_session_kind_reads() {
 // CLI surface
 
 #[test]
-fn migrate_accepts_an_explicit_worktree_path() {
-    // `grove migrate <path>` migrates `<path>/.grove`, run from anywhere.
+fn retained_migration_engine_accepts_an_explicit_worktree_path() {
     let repo = init_repo();
     build_old_fixture(repo.path());
     stage_commit(repo.path());
-    let elsewhere = TempDir::new().unwrap();
 
-    let out = Command::cargo_bin("grove")
-        .unwrap()
-        .current_dir(elsewhere.path())
-        .arg("migrate")
-        .arg(repo.path())
-        .output()
-        .unwrap();
-    assert!(
-        out.status.success(),
-        "migrate <path> failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
+    let outcome = grove::tree_migrate::migrate(repo.path()).unwrap();
+
+    assert!(matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)));
     assert_eq!(tree(repo.path()), expected_new_tree());
 }
 
 #[test]
-fn grove_binary_exposes_migrate() {
+fn grove_binary_does_not_expose_migrate() {
     let out = Command::cargo_bin("grove")
         .unwrap()
         .arg("--help")
@@ -430,14 +424,14 @@ fn grove_binary_exposes_migrate() {
         .unwrap();
     let s = String::from_utf8_lossy(&out.stdout);
     assert!(
-        s.contains("migrate"),
-        "grove --help should list migrate: {s}"
+        !s.contains("migrate"),
+        "grove --help leaked the retired migrate verb: {s}"
     );
 }
 
 #[test]
 fn grove_llm_binary_does_not_expose_migrate() {
-    // `migrate` is a human verb (noun-less, on `grove`), not an LLM verb.
+    // Migration is an automatic bare-lifecycle transition, not an agent verb.
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .arg("--help")

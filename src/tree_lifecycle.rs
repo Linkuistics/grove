@@ -78,6 +78,128 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     Ok(vec![brief_path, leaf_path, format_path])
 }
 
+/// Complete only the deterministic fresh-tree scaffold that `root_init` owns.
+/// The caller must hold the universal exclusive tree guard. `Ok(false)` leaves
+/// a non-scaffold tree untouched so the migration planner can classify it.
+pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bool> {
+    #[cfg(test)]
+    tree_access::assert_guard_held(grove_root);
+
+    let worktree = grove_root.parent().with_context(|| {
+        format!(
+            "partial root scaffold {} has no working-tree parent",
+            grove_root.display()
+        )
+    })?;
+    let brief_path = grove_root.join("BRIEF.md");
+    let leaf_name = Entry::Leaf {
+        position: 1,
+        kind: Kind::Requirements,
+        slug: "plan".to_string(),
+        key: 1,
+        outcome: Outcome::Live,
+    }
+    .name();
+    let leaf_path = grove_root.join(&leaf_name);
+    let format_temporary_path = grove_root.join(".FORMAT.tmp");
+    let expected_brief = root_brief_body(&grove_name(worktree));
+    let expected_leaf = crate::tree_grow::task_template_body("plan", 1, &[], None);
+
+    let expected = [
+        (brief_path.as_path(), expected_brief.as_bytes()),
+        (leaf_path.as_path(), expected_leaf.as_bytes()),
+        (
+            format_temporary_path.as_path(),
+            crate::tree_format::CURRENT_FILE_CONTENTS.as_bytes(),
+        ),
+    ];
+
+    // `.FORMAT.tmp` is writer-owned transaction state, never legacy tree
+    // content. Validate it before deciding that the surrounding entries belong
+    // to a legacy tree; otherwise `write_current_last` could follow and truncate
+    // a near-match symlink during migration.
+    validate_partial_scaffold_file(
+        &format_temporary_path,
+        crate::tree_format::CURRENT_FILE_CONTENTS.as_bytes(),
+    )?;
+
+    let mut unexpected = Vec::new();
+    let mut entries = fs::read_dir(grove_root)
+        .with_context(|| format!("reading partial root scaffold {}", grove_root.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        if !expected.iter().any(|(path, _)| path == &entry.path()) {
+            unexpected.push(entry.path());
+        }
+    }
+
+    if !unexpected.is_empty() {
+        let has_exact_scaffold_file = expected
+            .iter()
+            .any(|(path, body)| path.is_file() && fs::read(path).is_ok_and(|found| found == *body));
+        if has_exact_scaffold_file {
+            bail!(
+                "ambiguous partial root scaffold at {}: exact fresh-tree content is mixed with \
+                 unexpected entries: {}",
+                grove_root.display(),
+                unexpected
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+        return Ok(false);
+    }
+
+    for (path, expected_body) in expected {
+        validate_partial_scaffold_file(path, expected_body)?;
+    }
+
+    if !brief_path.exists() {
+        write_root_brief(&brief_path, &grove_name(worktree))?;
+    }
+    if !leaf_path.exists() {
+        let created = leaf_add_unlocked(grove_root, grove_root, "plan", Kind::Requirements)?;
+        anyhow::ensure!(
+            created.canonicalize()? == leaf_path.canonicalize()?,
+            "partial root recovery created unexpected first leaf {}; expected {}",
+            created.display(),
+            leaf_path.display()
+        );
+    }
+    crate::tree_format::write_current_last(grove_root)?;
+    Ok(true)
+}
+
+fn validate_partial_scaffold_file(path: &Path, expected_body: &[u8]) -> Result<bool> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking partial root scaffold path {}", path.display()))
+        }
+    };
+    if !metadata.file_type().is_file() {
+        bail!(
+            "partial root scaffold path collision at {}: expected a regular file",
+            path.display()
+        );
+    }
+    let body = fs::read(path)
+        .with_context(|| format!("reading partial root scaffold file {}", path.display()))?;
+    if body != expected_body {
+        bail!(
+            "partial root scaffold file {} differs from the deterministic fresh-tree content; \
+             refusing to overwrite it",
+            path.display()
+        );
+    }
+    Ok(true)
+}
+
 /// `leaf-decompose <leaf-path> <first-child-slug>`: convert a live leaf file
 /// `NN-<kind>-<slug>-k<key>.md` into a node directory `NN-<slug>-k<key>/` (**key
 /// preserved**) holding a `BRIEF.md` (seeded from the leaf body, its `# <handle>`
@@ -572,11 +694,15 @@ fn grove_name(worktree: &Path) -> String {
 /// no prose (the bootstrap session fills them). The root brief is the one
 /// unkeyed, position-free singleton, unchanged across schemes.
 fn write_root_brief(path: &Path, name: &str) -> Result<()> {
-    let body = format!(
-        "# {name} — brief\n\n## Goal\n\n## Done when\n\n## Decomposition\n\n## Pointers\n\n## Notes\n",
-    );
+    let body = root_brief_body(name);
     fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
     Ok(())
+}
+
+fn root_brief_body(name: &str) -> String {
+    format!(
+        "# {name} — brief\n\n## Goal\n\n## Done when\n\n## Decomposition\n\n## Pointers\n\n## Notes\n",
+    )
 }
 
 /// Retitle a freshly-decomposed node brief's first-line handle header by appending

@@ -726,17 +726,26 @@ pub(crate) fn write_task_template(
     metadata: &[String],
     goal: Option<&str>,
 ) -> Result<()> {
+    let body = task_template_body(slug, key, metadata, goal);
+    fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
+    Ok(())
+}
+
+pub(crate) fn task_template_body(
+    slug: &str,
+    key: u32,
+    metadata: &[String],
+    goal: Option<&str>,
+) -> String {
     let mut declarations = String::new();
     for line in metadata {
         declarations.push_str(line);
         declarations.push('\n');
     }
     let goal = goal.unwrap_or("");
-    let body = format!(
+    format!(
         "# {slug}-k{key}\n\n{declarations}\n## Goal\n\n{goal}\n\n## Context\n\n## Done when\n\n## Notes\n",
-    );
-    fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
-    Ok(())
+    )
 }
 
 fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {

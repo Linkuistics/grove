@@ -18,6 +18,7 @@ const MANIFEST_VERSION: u32 = 1;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TransactionOutcome {
     Migrated,
+    RootInitRecovered,
     AlreadyCurrent,
 }
 
@@ -103,9 +104,21 @@ fn run_observed(
         }
     }
 
-    let plan = tree_migrate::plan_current(grove_root)?;
-    if grove_root.join("FORMAT").exists() {
+    if path_entry_exists(&grove_root.join("FORMAT"))? {
+        crate::tree_format::require_current(grove_root)?;
         return Ok(TransactionOutcome::AlreadyCurrent);
+    }
+    if crate::tree_lifecycle::recover_partial_root_init_unlocked(grove_root)? {
+        return Ok(TransactionOutcome::RootInitRecovered);
+    }
+
+    let plan = tree_migrate::plan_current(grove_root)?;
+    if plan.files.is_empty() {
+        anyhow::bail!(
+            "Grove root {} is neither an exact partial fresh-tree scaffold nor a recognizable \
+             legacy tree; refusing to install a current-format witness",
+            grove_root.display()
+        );
     }
 
     let manifest = match prepare(grove_root, &transaction, plan, &mut observer) {
@@ -218,7 +231,7 @@ fn finish_transaction(
     observer: &mut impl FnMut(&Transition) -> Result<()>,
 ) -> Result<()> {
     land(grove_root, transaction, manifest, observer)?;
-    if grove_root.join("FORMAT").exists() {
+    if path_entry_exists(&grove_root.join("FORMAT"))? {
         crate::tree_format::require_current(grove_root)?;
     } else {
         crate::tree_format::write_current_last(grove_root)?;
@@ -542,6 +555,14 @@ fn create_parent(path: &Path) -> Result<()> {
         .with_context(|| format!("creating migration directory {}", parent.display()))
 }
 
+fn path_entry_exists(path: &Path) -> Result<bool> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error).with_context(|| format!("checking path entry {}", path.display())),
+    }
+}
+
 fn sha256(body: &[u8]) -> String {
     format!("{:x}", Sha256::digest(body))
 }
@@ -576,6 +597,254 @@ mod tests {
         fs::write(grove_root.join("020-node/BRIEF.md"), "# 020-node — brief\n").unwrap();
         fs::write(grove_root.join("020-node/010-child.md"), "# 010-child\n").unwrap();
         (worktree, grove_root)
+    }
+
+    const ROOT_BRIEF: u8 = 0b01;
+    const ROOT_LEAF: u8 = 0b10;
+
+    fn partial_root_scaffold(present: u8) -> (tempfile::TempDir, PathBuf, Vec<u8>, Vec<u8>) {
+        let worktree = tempfile::tempdir().unwrap();
+        crate::tree_lifecycle::root_init(worktree.path(), "plan").unwrap();
+        let grove_root = worktree.path().join(".grove");
+        let expected_brief = fs::read(grove_root.join("BRIEF.md")).unwrap();
+        let expected_leaf = fs::read(grove_root.join("01-requirements-plan-k1.md")).unwrap();
+
+        fs::remove_dir_all(&grove_root).unwrap();
+        fs::create_dir(&grove_root).unwrap();
+        if present & ROOT_BRIEF != 0 {
+            fs::write(grove_root.join("BRIEF.md"), &expected_brief).unwrap();
+        }
+        if present & ROOT_LEAF != 0 {
+            fs::write(
+                grove_root.join("01-requirements-plan-k1.md"),
+                &expected_leaf,
+            )
+            .unwrap();
+        }
+
+        (worktree, grove_root, expected_brief, expected_leaf)
+    }
+
+    #[test]
+    fn every_exact_partial_root_scaffold_is_completed_without_a_migration_commit() {
+        for present in 0..=(ROOT_BRIEF | ROOT_LEAF) {
+            let (_worktree, grove_root, expected_brief, expected_leaf) =
+                partial_root_scaffold(present);
+            let commits = Cell::new(0);
+
+            let outcome = run(&grove_root, || {
+                commits.set(commits.get() + 1);
+                Ok(())
+            })
+            .unwrap_or_else(|error| {
+                panic!("partial scaffold mask {present:#04b} failed: {error:#}")
+            });
+
+            assert_eq!(outcome, TransactionOutcome::RootInitRecovered);
+            assert_eq!(commits.get(), 0, "partial scaffold mask {present:#04b}");
+            assert_eq!(
+                fs::read(grove_root.join("BRIEF.md")).unwrap(),
+                expected_brief,
+                "partial scaffold mask {present:#04b}"
+            );
+            assert_eq!(
+                fs::read(grove_root.join("01-requirements-plan-k1.md")).unwrap(),
+                expected_leaf,
+                "partial scaffold mask {present:#04b}"
+            );
+            assert_eq!(
+                fs::read(grove_root.join("FORMAT")).unwrap(),
+                b"session-kinds-v1\n",
+                "partial scaffold mask {present:#04b}"
+            );
+            assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+        }
+    }
+
+    #[test]
+    fn an_exact_interrupted_format_temporary_file_is_reused_by_recovery() {
+        let (_worktree, grove_root, expected_brief, expected_leaf) =
+            partial_root_scaffold(ROOT_BRIEF | ROOT_LEAF);
+        fs::write(grove_root.join(".FORMAT.tmp"), b"session-kinds-v1\n").unwrap();
+
+        let outcome = run(&grove_root, || anyhow::bail!("must not commit")).unwrap();
+
+        assert_eq!(outcome, TransactionOutcome::RootInitRecovered);
+        assert_eq!(
+            fs::read(grove_root.join("BRIEF.md")).unwrap(),
+            expected_brief
+        );
+        assert_eq!(
+            fs::read(grove_root.join("01-requirements-plan-k1.md")).unwrap(),
+            expected_leaf
+        );
+        assert_eq!(
+            fs::read(grove_root.join("FORMAT")).unwrap(),
+            b"session-kinds-v1\n"
+        );
+        assert!(!grove_root.join(".FORMAT.tmp").exists());
+    }
+
+    #[test]
+    fn a_complete_current_root_bypasses_partial_recovery() {
+        let worktree = tempfile::tempdir().unwrap();
+        crate::tree_lifecycle::root_init(worktree.path(), "plan").unwrap();
+        let grove_root = worktree.path().join(".grove");
+        let commits = Cell::new(0);
+
+        let outcome = run(&grove_root, || {
+            commits.set(commits.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(outcome, TransactionOutcome::AlreadyCurrent);
+        assert_eq!(commits.get(), 0);
+    }
+
+    #[test]
+    fn differing_partial_scaffold_bodies_are_refused_without_writing_missing_files() {
+        for (present, path) in [
+            (ROOT_BRIEF, "BRIEF.md"),
+            (ROOT_LEAF, "01-requirements-plan-k1.md"),
+        ] {
+            let (_worktree, grove_root, _, _) = partial_root_scaffold(present);
+            fs::write(grove_root.join(path), b"near match\n").unwrap();
+
+            let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+
+            let diagnostic = format!("{error:#}");
+            assert!(diagnostic.contains("partial root scaffold"), "{diagnostic}");
+            assert!(diagnostic.contains(path), "{diagnostic}");
+            assert_eq!(fs::read(grove_root.join(path)).unwrap(), b"near match\n");
+            assert!(!grove_root.join("FORMAT").exists());
+            if present == ROOT_BRIEF {
+                assert!(!grove_root.join("01-requirements-plan-k1.md").exists());
+            } else {
+                assert!(!grove_root.join("BRIEF.md").exists());
+            }
+        }
+    }
+
+    #[test]
+    fn extra_task_structure_makes_an_exact_partial_scaffold_ambiguous() {
+        let (_worktree, grove_root, expected_brief, _) = partial_root_scaffold(ROOT_BRIEF);
+        fs::write(
+            grove_root.join("02-task-k2.md"),
+            b"# task-k2\n\n**Kind:** impl\n",
+        )
+        .unwrap();
+
+        let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(
+            diagnostic.contains("ambiguous partial root scaffold"),
+            "{diagnostic}"
+        );
+        assert!(diagnostic.contains("02-task-k2.md"), "{diagnostic}");
+        assert_eq!(
+            fs::read(grove_root.join("BRIEF.md")).unwrap(),
+            expected_brief
+        );
+        assert!(grove_root.join("02-task-k2.md").is_file());
+        assert!(!grove_root.join("01-requirements-plan-k1.md").exists());
+        assert!(!grove_root.join("FORMAT").exists());
+    }
+
+    #[test]
+    fn scaffold_path_collisions_are_refused_without_overwrite() {
+        let (_worktree, grove_root, expected_brief, _) = partial_root_scaffold(ROOT_BRIEF);
+        let leaf_path = grove_root.join("01-requirements-plan-k1.md");
+        fs::create_dir(&leaf_path).unwrap();
+        fs::write(leaf_path.join("foreign.txt"), b"keep\n").unwrap();
+
+        let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("partial root scaffold"), "{diagnostic}");
+        assert!(
+            diagnostic.contains("01-requirements-plan-k1.md"),
+            "{diagnostic}"
+        );
+        assert_eq!(
+            fs::read(grove_root.join("BRIEF.md")).unwrap(),
+            expected_brief
+        );
+        assert_eq!(fs::read(leaf_path.join("foreign.txt")).unwrap(), b"keep\n");
+        assert!(!grove_root.join("FORMAT").exists());
+    }
+
+    #[test]
+    fn a_foreign_only_partial_root_is_not_promoted_to_an_empty_current_grove() {
+        let (_worktree, grove_root, _, _) = partial_root_scaffold(0);
+        fs::write(grove_root.join("notes.txt"), b"keep\n").unwrap();
+
+        let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(
+            diagnostic.contains("exact partial fresh-tree scaffold"),
+            "{diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("recognizable legacy tree"),
+            "{diagnostic}"
+        );
+        assert_eq!(fs::read(grove_root.join("notes.txt")).unwrap(), b"keep\n");
+        assert!(!grove_root.join("BRIEF.md").exists());
+        assert!(!grove_root.join("01-requirements-plan-k1.md").exists());
+        assert!(!grove_root.join("FORMAT").exists());
+        assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+    }
+
+    #[test]
+    fn legacy_migration_refuses_a_symlinked_format_temporary_file_without_clobbering_target() {
+        let (worktree, grove_root) = legacy_tree();
+        let external = worktree.path().join("external-format-target");
+        fs::write(&external, b"keep\n").unwrap();
+        std::os::unix::fs::symlink(&external, grove_root.join(".FORMAT.tmp")).unwrap();
+        let commits = Cell::new(0);
+
+        let error = run(&grove_root, || {
+            commits.set(commits.get() + 1);
+            Ok(())
+        })
+        .unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains(".FORMAT.tmp"), "{diagnostic}");
+        assert_eq!(commits.get(), 0);
+        assert_eq!(fs::read(&external).unwrap(), b"keep\n");
+        assert!(fs::symlink_metadata(grove_root.join(".FORMAT.tmp"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!grove_root.join("FORMAT").exists());
+    }
+
+    #[test]
+    fn legacy_migration_refuses_a_dangling_format_symlink_without_replacing_it() {
+        let (worktree, grove_root) = legacy_tree();
+        let missing_target = worktree.path().join("missing-format-target");
+        std::os::unix::fs::symlink(&missing_target, grove_root.join("FORMAT")).unwrap();
+        let commits = Cell::new(0);
+
+        let error = run(&grove_root, || {
+            commits.set(commits.get() + 1);
+            Ok(())
+        })
+        .unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("FORMAT"), "{diagnostic}");
+        assert_eq!(commits.get(), 0);
+        assert!(fs::symlink_metadata(grove_root.join("FORMAT"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(grove_root.join("01-task-k1.md").is_file());
+        assert!(!grove_root.join("01-impl-task-k1.md").exists());
     }
 
     #[test]

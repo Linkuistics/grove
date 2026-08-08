@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const CURRENT_FILE_CONTENTS: &str = "session-kinds-v1\n";
+pub(crate) const CURRENT_FILE_CONTENTS: &str = "session-kinds-v1\n";
 
 pub fn require_current(grove_root: &Path) -> Result<()> {
     let path = grove_root.join("FORMAT");

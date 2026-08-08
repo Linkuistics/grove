@@ -1,4 +1,6 @@
-use crate::tree_access::{self, MIGRATION_TRANSACTION};
+#[cfg(test)]
+use crate::tree_access;
+use crate::tree_access::MIGRATION_TRANSACTION;
 use crate::tree_migrate;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -58,6 +60,7 @@ struct ManifestFile {
     destination_sha256: String,
 }
 
+#[cfg(test)]
 pub(crate) fn run(
     grove_root: &Path,
     commit: impl FnMut() -> Result<()>,
@@ -65,15 +68,51 @@ pub(crate) fn run(
     run_observed(grove_root, commit, |_| Ok(()))
 }
 
+pub(crate) fn run_unlocked(
+    grove_root: &Path,
+    commit: impl FnMut() -> Result<()>,
+) -> Result<TransactionOutcome> {
+    run_observed_unlocked(grove_root, commit, |_| Ok(()))
+}
+
+#[cfg(test)]
 fn run_observed(
+    grove_root: &Path,
+    commit: impl FnMut() -> Result<()>,
+    observer: impl FnMut(&Transition) -> Result<()>,
+) -> Result<TransactionOutcome> {
+    let guard = tree_access::write_for_migration(grove_root)?;
+    run_observed_unlocked(guard.root(), commit, observer)
+}
+
+fn run_observed_unlocked(
     grove_root: &Path,
     mut commit: impl FnMut() -> Result<()>,
     mut observer: impl FnMut(&Transition) -> Result<()>,
 ) -> Result<TransactionOutcome> {
-    let guard = tree_access::write_for_migration(grove_root)?;
-    let grove_root = guard.root();
+    #[cfg(test)]
+    tree_access::assert_guard_held(grove_root);
+
+    let format = grove_root.join("FORMAT");
+    let format_exists = path_entry_exists(&format)?;
+    if format_exists {
+        crate::tree_format::require_current(grove_root)?;
+    }
+
     let transaction = grove_root.join(MIGRATION_TRANSACTION);
-    if transaction.exists() {
+    let transaction_exists = match fs::symlink_metadata(&transaction) {
+        Ok(metadata) if metadata.file_type().is_dir() => true,
+        Ok(_) => anyhow::bail!(
+            "session-kind migration witness is not a directory: {}",
+            transaction.display()
+        ),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking migration witness {}", transaction.display()))
+        }
+    };
+    if transaction_exists {
         if !transaction.join(READY_FILE).is_file() {
             fs::remove_dir_all(&transaction).with_context(|| {
                 format!(
@@ -104,8 +143,7 @@ fn run_observed(
         }
     }
 
-    if path_entry_exists(&grove_root.join("FORMAT"))? {
-        crate::tree_format::require_current(grove_root)?;
+    if format_exists {
         return Ok(TransactionOutcome::AlreadyCurrent);
     }
     if crate::tree_lifecycle::recover_partial_root_init_unlocked(grove_root)? {
@@ -573,6 +611,27 @@ mod tests {
     use std::cell::Cell;
     use std::fs;
     use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::process::Command;
+
+    fn initialize_git(worktree: &Path) {
+        for arguments in [
+            &["init", "-q"][..],
+            &["config", "user.email", "grove-test@example.com"][..],
+            &["config", "user.name", "Grove Test"][..],
+            &["config", "core.hooksPath", "/dev/null"][..],
+        ] {
+            let output = Command::new("git")
+                .current_dir(worktree)
+                .args(arguments)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {arguments:?} failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
 
     fn legacy_tree() -> (tempfile::TempDir, std::path::PathBuf) {
         let worktree = tempfile::tempdir().unwrap();
@@ -901,7 +960,8 @@ mod tests {
         assert!(!transitions.is_empty());
 
         for (interrupt_at, interrupted_transition) in transitions.iter().enumerate() {
-            let (_worktree, grove_root) = old_nnn_tree();
+            let (worktree, grove_root) = old_nnn_tree();
+            initialize_git(worktree.path());
             let mut observed = 0;
             let interrupted = catch_unwind(AssertUnwindSafe(|| {
                 let _ = run_observed(
@@ -922,7 +982,7 @@ mod tests {
                 interrupted_transition
             );
 
-            run(&grove_root, || Ok(())).unwrap_or_else(|error| {
+            crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(|error| {
                 panic!(
                     "boundary {interrupt_at} ({:?}) did not recover: {error:#}",
                     interrupted_transition
@@ -972,7 +1032,8 @@ mod tests {
         assert!(!rollback_transitions.is_empty());
 
         for (interrupt_at, interrupted_transition) in rollback_transitions.iter().enumerate() {
-            let (_worktree, grove_root) = old_nnn_tree();
+            let (worktree, grove_root) = old_nnn_tree();
+            initialize_git(worktree.path());
             let mut observed = 0;
             let interrupted = catch_unwind(AssertUnwindSafe(|| {
                 let _ = run_observed(
@@ -998,7 +1059,7 @@ mod tests {
                 interrupted_transition
             );
 
-            run(&grove_root, || Ok(())).unwrap_or_else(|error| {
+            crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(|error| {
                 panic!(
                     "rollback boundary {interrupt_at} ({:?}) did not recover: {error:#}",
                     interrupted_transition

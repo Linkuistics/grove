@@ -1,5 +1,5 @@
 // The **migration** (task-tree-scheme): the one-time, in-place conversion of a task
-// tree to the current **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
+// tree to the v2 **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
 // `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It runs on
 // adoption, from `grove do` (`launch.rs`) and the `grove migrate` verb (`cli.rs`),
 // and it accepts **two** superseded source formats:
@@ -27,11 +27,12 @@
 // node's brief takes its key before its children), starting at `1` — deterministic
 // and re-runnable, so the fixtures below pin exact output.
 //
-// **This is the only live reader of either old format**, and the two modules that
-// still parse them exist for it alone: `leaf::split_prefix` (`NNN-slug`) and
-// `leaf_id::parse` (v1-flat). Note `leaf_id` exports `parse` / `sort_key` /
-// `next_key` / `validate_slug` under the same names as `tree_id` — the import list
-// below is what distinguishes them.
+// The old human/adoption entry points remain compatibility callers until the
+// lifecycle cutover. They share the universal lifecycle guard with the current
+// transition below, but retain their bounded v2-only behavior. `plan_current`
+// is the authoritative combined layout + filename-kind plan consumed by
+// `tree_lifecycle::transition_to_current`; the later driver cutover calls that
+// transition exactly once rather than sequencing both migration APIs itself.
 
 use crate::cli::MigrateArgs;
 use crate::leaf::{split_prefix, Kind};
@@ -125,11 +126,20 @@ struct Logical {
     old_token: String,
 }
 
-/// Migrate the `.grove/` tree under `worktree` to v2-directories in place (no
-/// commit). Idempotent: a clean no-op on an already-v2 tree and on a
-/// missing/foreign `.grove/`.
+/// Compatibility migration to v2-directories in place (no commit). The whole
+/// operation shares the lifecycle guard with current-format transitions.
+/// Idempotent: a clean no-op on an already-v2 tree and on a missing/foreign
+/// `.grove/`.
 pub fn migrate(worktree: &Path) -> Result<Outcome> {
+    let _guard = crate::tree_access::write_for_lifecycle(worktree)?;
+    migrate_unlocked(worktree)
+}
+
+fn migrate_unlocked(worktree: &Path) -> Result<Outcome> {
     let grove_root = worktree.join(".grove");
+    #[cfg(test)]
+    crate::tree_access::assert_guard_held(&grove_root);
+
     if !grove_root.is_dir() {
         return Ok(Outcome::NothingToMigrate);
     }
@@ -156,7 +166,8 @@ pub fn migrate(worktree: &Path) -> Result<Outcome> {
 /// after a completed migrate sees a v2 tree ([`Outcome::AlreadyV2`]) and does
 /// nothing.
 pub fn migrate_on_adoption(worktree: &Path, name: &str) -> Result<Outcome> {
-    let outcome = migrate(worktree)?;
+    let _guard = crate::tree_access::write_for_lifecycle(worktree)?;
+    let outcome = migrate_unlocked(worktree)?;
     if let Outcome::Migrated(_) = &outcome {
         commit_migration(worktree, name)?;
     }
@@ -2340,6 +2351,26 @@ mod tests {
             migrate(tmp.path()).unwrap(),
             Outcome::NothingToMigrate
         ));
+    }
+
+    #[test]
+    fn compatibility_migration_entry_points_share_the_lifecycle_guard() {
+        let (_temporary, grove_root) = git_grove(&[
+            ("BRIEF.md", "# my-grove — brief\n"),
+            ("01-plan-k1.md", "# plan-k1\n"),
+        ]);
+        let worktree = grove_root.parent().unwrap();
+
+        crate::tree_access::reset_acquisition_count();
+        assert!(matches!(migrate(worktree).unwrap(), Outcome::AlreadyV2));
+        assert_eq!(crate::tree_access::acquisition_count(), 1);
+
+        crate::tree_access::reset_acquisition_count();
+        assert!(matches!(
+            migrate_on_adoption(worktree, "my-grove").unwrap(),
+            Outcome::AlreadyV2
+        ));
+        assert_eq!(crate::tree_access::acquisition_count(), 1);
     }
 
     // ---- jj-enabled trees (jj-first) ----------------------------------------

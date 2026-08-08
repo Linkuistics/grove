@@ -22,7 +22,7 @@ pub struct TreeWriteGuard {
     root: PathBuf,
 }
 
-pub(crate) struct RootInitWriteGuard {
+pub(crate) struct LifecycleWriteGuard {
     _worktree_directory: File,
 }
 
@@ -76,6 +76,7 @@ pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
 /// Session-kind migration owns the exclusive tree lock across planning,
 /// recovery, landing, and commit. It must admit both a legacy tree and its own
 /// pending witness, so the caller owns those validations while this guard lives.
+#[cfg(test)]
 pub(crate) fn write_for_migration(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
     require_grove_root(&root)?;
@@ -85,12 +86,12 @@ pub(crate) fn write_for_migration(grove_root: &Path) -> Result<TreeWriteGuard> {
     })
 }
 
-/// Root initialization takes the ordinary exclusive tree lock before `.grove/`
-/// exists. It deliberately skips current-format and pending-transaction checks:
-/// the caller owns the absence check and complete scaffold while this guard lives.
-pub(crate) fn write_for_root_init(worktree: &Path) -> Result<RootInitWriteGuard> {
+/// Lifecycle transitions take the ordinary exclusive tree lock before `.grove/`
+/// necessarily exists. The caller owns root classification and every mutation
+/// performed while this guard lives.
+pub(crate) fn write_for_lifecycle(worktree: &Path) -> Result<LifecycleWriteGuard> {
     let worktree_directory = acquire_worktree(worktree, libc::LOCK_EX)?;
-    Ok(RootInitWriteGuard {
+    Ok(LifecycleWriteGuard {
         _worktree_directory: worktree_directory,
     })
 }
@@ -315,7 +316,7 @@ mod tests {
     #[test]
     fn worktree_lock_descriptor_is_close_on_exec() {
         let worktree = tempfile::tempdir().unwrap();
-        let guard = write_for_root_init(worktree.path()).unwrap();
+        let guard = write_for_lifecycle(worktree.path()).unwrap();
         let flags = unsafe { libc::fcntl(guard._worktree_directory.as_raw_fd(), libc::F_GETFD) };
 
         assert_ne!(flags, -1, "F_GETFD failed");

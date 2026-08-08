@@ -39,6 +39,51 @@ use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CurrentTransition {
+    RootInitialized,
+    RootInitRecovered,
+    Migrated,
+    AlreadyCurrent,
+}
+
+/// Classify or complete the one lifecycle transition needed before current-tree
+/// selection. The whole observation and any resulting mutation share one
+/// exclusive working-tree guard.
+pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
+    let _guard = tree_access::write_for_lifecycle(worktree)?;
+    let grove_root = worktree.join(".grove");
+    match fs::symlink_metadata(&grove_root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            root_init_unlocked(worktree, "plan")?;
+            return Ok(CurrentTransition::RootInitialized);
+        }
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking grove root {}", grove_root.display()))
+        }
+        Ok(metadata) if !metadata.file_type().is_dir() => {
+            bail!("grove root is not a directory: {}", grove_root.display())
+        }
+        Ok(_) => {}
+    }
+    let name = grove_name(worktree);
+    let transaction = crate::tree_migration_transaction::run_unlocked(&grove_root, || {
+        crate::repo::commit_session_kind_migration(worktree, &name)
+    })?;
+    match transaction {
+        crate::tree_migration_transaction::TransactionOutcome::RootInitRecovered => {
+            Ok(CurrentTransition::RootInitRecovered)
+        }
+        crate::tree_migration_transaction::TransactionOutcome::Migrated => {
+            Ok(CurrentTransition::Migrated)
+        }
+        crate::tree_migration_transaction::TransactionOutcome::AlreadyCurrent => {
+            Ok(CurrentTransition::AlreadyCurrent)
+        }
+    }
+}
+
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root
 /// `BRIEF.md` (the one unkeyed singleton) and a first **requirements** leaf
 /// `01-requirements-<slug>-k1.md`. Returns the absolute paths created:
@@ -56,12 +101,25 @@ pub fn root_init(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     // Validate before touching the filesystem so a bad slug never leaves a stray
     // `.grove/` behind.
     validate_slug(slug)?;
-    let _guard = tree_access::write_for_root_init(worktree)?;
+    let _guard = tree_access::write_for_lifecycle(worktree)?;
 
     let grove_root = worktree.join(".grove");
-    if grove_root.exists() {
-        bail!("grove root already exists: {}", grove_root.display());
+    match fs::symlink_metadata(&grove_root) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking grove root {}", grove_root.display()))
+        }
+        Ok(_) => bail!("grove root already exists: {}", grove_root.display()),
     }
+    root_init_unlocked(worktree, slug)
+}
+
+fn root_init_unlocked(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
+    let grove_root = worktree.join(".grove");
+    #[cfg(test)]
+    tree_access::assert_guard_held(&grove_root);
+
     fs::create_dir_all(&grove_root)
         .with_context(|| format!("creating {}", grove_root.display()))?;
 
@@ -900,6 +958,185 @@ mod tests {
         let (_t, wt) = worktree();
         assert!(root_init(&wt, "BRIEF").is_err());
         assert!(!wt.join(".grove").exists());
+    }
+
+    #[test]
+    fn transition_initializes_an_absent_grove_under_one_exclusive_guard() {
+        let (_temporary, worktree) = worktree();
+        tree_access::reset_acquisition_count();
+
+        let outcome = transition_to_current(&worktree).unwrap();
+
+        let grove_root = worktree.join(".grove");
+        assert_eq!(outcome, CurrentTransition::RootInitialized);
+        assert_eq!(tree_access::acquisition_count(), 1);
+        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
+        assert_eq!(
+            name_of(&crate::tree_read::pick(&grove_root).unwrap().unwrap()),
+            "01-requirements-plan-k1.md"
+        );
+    }
+
+    #[test]
+    fn transition_leaves_a_current_grove_unchanged_and_ready_for_pick() {
+        let (_temporary, worktree) = worktree();
+        let grove_root = worktree.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        let leaf = touch(&grove_root, "01-impl-task-k1.md", "task-k1");
+        crate::tree_format::write_current_last(&grove_root).unwrap();
+        tree_access::reset_acquisition_count();
+
+        let outcome = transition_to_current(&worktree).unwrap();
+
+        assert_eq!(outcome, CurrentTransition::AlreadyCurrent);
+        assert_eq!(tree_access::acquisition_count(), 1);
+        assert_eq!(crate::tree_read::pick(&grove_root).unwrap(), Some(leaf));
+    }
+
+    #[test]
+    fn transition_completes_an_exact_partial_root_scaffold_before_pick() {
+        let (_temporary, worktree) = worktree();
+        let created = root_init(&worktree, "plan").unwrap();
+        fs::remove_file(&created[2]).unwrap();
+        tree_access::reset_acquisition_count();
+
+        let outcome = transition_to_current(&worktree).unwrap();
+
+        let grove_root = worktree.join(".grove");
+        assert_eq!(outcome, CurrentTransition::RootInitRecovered);
+        assert_eq!(tree_access::acquisition_count(), 1);
+        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v1\n");
+        assert_eq!(
+            name_of(&crate::tree_read::pick(&grove_root).unwrap().unwrap()),
+            "01-requirements-plan-k1.md"
+        );
+    }
+
+    #[test]
+    fn transition_migrates_a_legacy_leaf_then_exposes_the_current_pick() {
+        let (_temporary, worktree) = worktree();
+        run_git(&worktree, &["init", "-q"]);
+        run_git(&worktree, &["config", "user.email", "t@example.com"]);
+        run_git(&worktree, &["config", "user.name", "Test"]);
+        let grove_root = worktree.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        touch_body(
+            &grove_root,
+            "01-task-k1.md",
+            "# task-k1\n\n**Kind:** impl\n\n## Goal\nShip.\n",
+        );
+        tree_access::reset_acquisition_count();
+
+        let outcome = transition_to_current(&worktree).unwrap();
+
+        let migrated = grove_root.join("01-impl-task-k1.md");
+        assert_eq!(outcome, CurrentTransition::Migrated);
+        assert_eq!(tree_access::acquisition_count(), 1);
+        assert!(!grove_root.join("01-task-k1.md").exists());
+        assert!(!body(&migrated).contains("**Kind:**"));
+        assert_eq!(crate::tree_read::pick(&grove_root).unwrap(), Some(migrated));
+        let subject = Command::new("git")
+            .args(["log", "-1", "--format=%s"])
+            .current_dir(&worktree)
+            .output()
+            .unwrap();
+        assert!(subject.status.success());
+        assert_eq!(
+            String::from_utf8(subject.stdout).unwrap(),
+            "grove(my-grove): migrate task tree to session-kind filenames\n"
+        );
+    }
+
+    #[test]
+    fn transition_refuses_an_unknown_format_before_mutation_or_commit() {
+        let (_temporary, worktree) = worktree();
+        let grove_root = worktree.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        let leaf = touch(&grove_root, "01-impl-task-k1.md", "task-k1");
+        fs::write(grove_root.join("FORMAT"), "session-kinds-v99\n").unwrap();
+        let leaf_before = body(&leaf);
+        tree_access::reset_acquisition_count();
+
+        let error = transition_to_current(&worktree).unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("unsupported Grove tree format"),
+            "unexpected error: {error:#}"
+        );
+        assert_eq!(tree_access::acquisition_count(), 1);
+        assert_eq!(body(&leaf), leaf_before);
+        assert_eq!(body(&grove_root.join("FORMAT")), "session-kinds-v99\n");
+    }
+
+    #[test]
+    fn transition_checks_an_unknown_format_before_recovering_a_pending_witness() {
+        let (_temporary, worktree) = worktree();
+        let grove_root = worktree.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        fs::write(grove_root.join("FORMAT"), "session-kinds-v99\n").unwrap();
+        let witness = grove_root.join(crate::tree_access::MIGRATION_TRANSACTION);
+        fs::create_dir(&witness).unwrap();
+
+        let error = transition_to_current(&worktree).unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("unsupported Grove tree format"),
+            "unexpected error: {error:#}"
+        );
+        assert!(
+            witness.is_dir(),
+            "unknown format must prevent recovery mutation"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn transition_refuses_a_dangling_pending_witness_in_a_current_tree() {
+        use std::os::unix::fs::symlink;
+
+        let (_temporary, worktree) = worktree();
+        let grove_root = worktree.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        touch(&grove_root, "BRIEF.md", "my-grove — brief");
+        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        let witness = grove_root.join(crate::tree_access::MIGRATION_TRANSACTION);
+        symlink(grove_root.join("missing-witness"), &witness).unwrap();
+
+        let error = transition_to_current(&worktree).unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("migration witness is not a directory"),
+            "unexpected error: {error:#}"
+        );
+        assert!(fs::symlink_metadata(witness)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn transition_does_not_classify_a_dangling_grove_symlink_as_absent() {
+        use std::os::unix::fs::symlink;
+
+        let (_temporary, worktree) = worktree();
+        let grove_root = worktree.join(".grove");
+        symlink(worktree.join("missing-grove"), &grove_root).unwrap();
+
+        let error = transition_to_current(&worktree).unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("not a directory"),
+            "unexpected error: {error:#}"
+        );
+        assert!(fs::symlink_metadata(grove_root)
+            .unwrap()
+            .file_type()
+            .is_symlink());
     }
 
     // ---- leaf-decompose -----------------------------------------------------

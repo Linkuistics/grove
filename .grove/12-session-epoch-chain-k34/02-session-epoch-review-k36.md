@@ -15,13 +15,19 @@ Adversarially review `session-epoch-k35` and record concrete findings for its in
   shared admission, guard leakage across exec, orphaned descendants, signal
   reuse/cleanup timing, wrong-worktree aliases, and accidental authentication
   claims.
+- This review is inspection-only. Inspect the producer's committed diff,
+  source, specifications, and recorded verification evidence. Do not run test,
+  build, lint, or format commands, edit production or test code, or redo the
+  implementation.
+- Record findings only. `session-epoch-integrate-k37` owns every fix and all
+  post-fix verification.
 
 ## Done when
 
 - Findings are recorded here with severity and a concrete interleaving/event
   trace or black-box reproducer, or an explicit no-finding result.
-- At least one admitted-old/replacement-driver race and one orphan timeout are
-  independently exercised.
+- The review cites inspected source, specifications, diff, and the producer's
+  recorded race and orphan-timeout evidence rather than re-running it.
 - No production or test code is changed.
 
 ## Notes

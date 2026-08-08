@@ -73,8 +73,12 @@ fault.
   vendors on overlapping corpora can agree on something false, so **agreement
   without independent primary sourcing is a red flag, not a confirmation**.
 
-**review-\*** (all AFK) — a fresh-context adversarial read of *one* artifact,
-producing findings, not a fix. Five reads, because they look for different
+**review-\*** (all AFK) — an inspection-only, fresh-context adversarial read of
+*one* artifact. Inspect the producer's committed changes, source, requirements
+or specifications, and recorded verification evidence. A review does not run
+test, build, lint, or format commands, edit production or test code, or redo the
+implementation. Its output is findings only; the paired `integrate-review-*`
+task owns every fix and all post-fix verification. Five reads look for different
 things: `review-requirements` (is anything missing? is each requirement
 falsifiable? is a solution smuggled in as a requirement?), `review-design` (does
 it satisfy the requirements? are the ADRs a minimum coherent set? are the seams

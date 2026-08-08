@@ -15,13 +15,20 @@ Adversarially review `lifecycle-cutover-k39` and record concrete findings for it
   mutation before tool/version/config checks, direct-exec argv boundaries,
   prompt authority, config reload, launch-window insertion, and status/elapsed
   diagnostics.
+- This review is inspection-only. Inspect the producer's committed diff,
+  source, specifications, and recorded verification evidence. Do not run test,
+  build, lint, or format commands, edit production or test code, or redo the
+  implementation.
+- Record findings only. `lifecycle-cutover-integrate-k41` owns every fix and all
+  post-fix verification.
 
 ## Done when
 
 - Findings are recorded here with severity, observable fake-command/tree
   evidence, and the threatened contract, or an explicit no-finding result.
-- At least one invalid-config mutation guard and one mandate-versus-insert case
-  are independently exercised.
+- The review cites inspected source, specifications, diff, and the producer's
+  recorded invalid-config and mandate-versus-insert evidence rather than
+  re-running it.
 - No production or test code is changed.
 
 ## Notes

@@ -15,14 +15,20 @@ Adversarially review `driver-lease-k31` and record concrete findings for its int
   Git-common-dir leakage, jj workspace sharing, external selector influence,
   lock/path replacement races, descriptor inheritance, and Herdr disposition
   ordering.
+- This review is inspection-only. Inspect the producer's committed diff,
+  source, specifications, and recorded verification evidence. Do not run test,
+  build, lint, or format commands, edit production or test code, or redo the
+  implementation.
+- Record findings only. `driver-lease-integrate-k33` owns every fix and all
+  post-fix verification.
 
 ## Done when
 
 - Findings are recorded here with severity, race/interleaving evidence or a
   black-box reproducer, and the violated contract, or an explicit no-finding
   result.
-- Same-tree contention and different-workspace independence are independently
-  exercised in at least Git and jj shapes.
+- The review cites inspected source, specifications, diff, and the producer's
+  recorded Git and jj contention evidence rather than re-running it.
 - No production or test code is changed.
 
 ## Notes

@@ -496,6 +496,10 @@ Six habits make the chain worth its three sessions:
   was the point. `review-prototype` is the sharpest case: it is *not* a code
   review — a prototype is judged on whether it informed a decision, and polish
   in one is a defect.
+- **The review is inspection-only.** Inspect the producer's committed diff,
+  source, requirements or specifications, and recorded verification evidence.
+  Do not run test, build, lint, or format commands or redo the implementation;
+  the paired integration task owns every fix and all post-fix verification.
 - **The `integrate-review-*` step triages; it does not capitulate.** Each finding is one of
   four things: a contract you stated unclearly (fix the contract), a real issue
   (fix the artifact), a real trade-off (accept it *visibly*), or noise raised for

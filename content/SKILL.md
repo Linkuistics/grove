@@ -156,6 +156,11 @@ the sole branch here, and the only kind that grows the tree generatively:
   `design` turns that into a spec or an ADR set; `impl` produces code, docs, or
   tests; the `review-*` kinds produce findings and the `integrate-review-*` kinds
   apply them.
+- A `review-*` session is **inspection-only**: inspect the producer's committed
+  changes, source, requirements or specifications, and recorded verification
+  evidence. Do not run test, build, lint, or format commands, edit production or
+  test code, or redo the implementation. Review output is findings only; the
+  paired `integrate-review-*` task owns every fix and all post-fix verification.
 - A **planning task** cuts the design into vertical slices and **grows the
   tree** (Decompose, below). It no longer interrogates — grilling moved to
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,

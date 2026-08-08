@@ -133,9 +133,11 @@ fn run_loop_with_lease(
     name: &str,
     driver_lease: &DriverLease,
 ) -> Result<LoopOutcome> {
-    driver_lease
-        .cleanup_abandoned_signal_channels()
-        .context("cleaning signal channels abandoned by a previous driver")?;
+    if let Err(error) = driver_lease.cleanup_abandoned_signal_channels() {
+        eprintln!(
+            "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error:#}"
+        );
+    }
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -217,9 +219,11 @@ fn run_loop_with_lease(
         reset_terminal();
 
         let signal = complete::read_signal(signal_channel.path());
-        driver_lease
-            .remove_signal_channel(signal_channel)
-            .context("removing the interpreted foreground-session signal channel")?;
+        if let Err(error) = driver_lease.remove_signal_channel(signal_channel) {
+            eprintln!(
+                "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error:#}"
+            );
+        }
 
         // Interruption still wins over any signal content. Reading first lets
         // the driver retire exactly this launch's accepted channel only after

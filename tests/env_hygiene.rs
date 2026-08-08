@@ -102,19 +102,15 @@ fn both_guards_are_present_and_neither_subsumes_the_other() {
     );
 }
 
-/// The value the override points at must be **inert** — outside either
-/// workspace-administration control directory where this checkout's driver can
-/// allocate a random channel.
+/// The configured value is an explicit tripwire: its basename cannot be one of
+/// Grove's `signal-<32 lowercase hex>` channels, regardless of which Git or jj
+/// workspace-administration directory owns the live driver.
 #[test]
 fn the_overridden_signal_path_is_one_no_driver_watches() {
     let sig = PathBuf::from(std::env::var_os("GROVE_SIGNAL_FILE").expect("set by cargo config"));
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for control_dir in [root.join(".git/grove"), root.join(".jj/grove")] {
-        assert!(
-            !sig.starts_with(&control_dir),
-            "the override resolves inside Grove's workspace control directory ({}), \
-             where a live driver may watch a random signal channel",
-            control_dir.display()
-        );
-    }
+    assert_eq!(
+        sig.file_name().and_then(|name| name.to_str()),
+        Some("inert.signal"),
+        "the cargo override must keep a basename Grove's random channel allocator cannot produce"
+    );
 }

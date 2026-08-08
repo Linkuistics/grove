@@ -231,14 +231,18 @@ fn loop_finishes_clean_on_a_done_signal() {
     fs::create_dir_all(&prompts).unwrap();
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
     init_worktree(&worktree);
+    fs::create_dir_all(worktree.join(".claude")).unwrap();
     let control_dir = worktree.join(".git/grove");
     fs::create_dir_all(&control_dir).unwrap();
     let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
+    let blocked_signal = control_dir.join("signal-11111111111111111111111111111111");
     let unrelated_control = control_dir.join("signal-not-a-grove-channel");
     fs::write(&abandoned_signal, "old completion\n").unwrap();
+    fs::create_dir(&blocked_signal).unwrap();
     fs::write(&unrelated_control, "keep me\n").unwrap();
 
     let counter = repo_path.join("counter");
@@ -260,24 +264,33 @@ exit 0
 "#,
     );
 
-    let harness = harness::by_name("claude").unwrap();
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    command.args(["do"]).current_dir(&worktree);
+    for name in support::grove_env_names() {
+        command.env_remove(name);
+    }
+    let output = command
+        .env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .env("GROVE_SKILL_DIR", &skill_dir)
+        .env("GROVE_TEST_COUNTER", &counter)
+        .env("GROVE_TEST_LOG", &log)
+        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
 
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: the single iteration is the start path ⇒ requirements.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Finished,
-        "a `done` signal must end the loop with a clean finish"
+    assert!(
+        output.status.success(),
+        "abandoned-channel housekeeping must not prevent launch: {stderr}"
+    );
+    assert!(
+        stderr.contains("could not clean every signal channel abandoned by a previous driver"),
+        "an abandoned-channel cleanup failure must remain visible: {stderr}"
+    );
+    assert!(
+        stderr.contains("grove finished — loop complete"),
+        "a `done` signal must end the loop with a clean finish: {stderr}"
     );
 
     let log = fs::read_to_string(&log).unwrap();
@@ -290,10 +303,82 @@ exit 0
         !abandoned_signal.exists(),
         "a replacement driver must clean abandoned signal channels after acquiring the lease"
     );
+    assert!(
+        blocked_signal.is_dir(),
+        "an unremovable abandoned channel must remain inert while the loop continues"
+    );
     assert_eq!(
         fs::read_to_string(unrelated_control).unwrap(),
         "keep me\n",
         "cleanup must ignore names outside Grove's exact channel grammar"
+    );
+}
+
+#[test]
+fn a_signal_removal_failure_does_not_override_a_done_disposition() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
+
+    let worktree = repo_path.join(".grove-worktrees/loopgrove");
+    init_worktree(&worktree);
+    fs::create_dir_all(worktree.join(".claude")).unwrap();
+    let control_dir = worktree.join(".git/grove");
+    let signal_log = repo_path.join("signal-log");
+
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+printf 'done\n' > "$GROVE_SIGNAL_FILE"
+printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_SIGNAL_LOG"
+chmod 0500 "$(dirname "$GROVE_SIGNAL_FILE")"
+exit 0
+"#,
+    );
+
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    command.args(["do"]).current_dir(&worktree);
+    for name in support::grove_env_names() {
+        command.env_remove(name);
+    }
+    let output = command
+        .env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .env("GROVE_SKILL_DIR", &skill_dir)
+        .env("GROVE_TEST_SIGNAL_LOG", &signal_log)
+        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
+        .output()
+        .unwrap();
+
+    let mut permissions = fs::metadata(&control_dir).unwrap().permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&control_dir, permissions).unwrap();
+    let signal_path = PathBuf::from(fs::read_to_string(signal_log).unwrap().trim());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "channel housekeeping must not make a clean finish fail: {stderr}"
+    );
+    assert!(
+        stderr.contains("could not remove the interpreted foreground-session signal channel"),
+        "the removal failure must remain visible: {stderr}"
+    );
+    assert!(
+        stderr.contains("grove finished — loop complete"),
+        "the interpreted done disposition must remain authoritative: {stderr}"
+    );
+    assert!(
+        signal_path.exists(),
+        "the fixture must force the removal failure whose outcome precedence this test exercises"
     );
 }
 

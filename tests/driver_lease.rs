@@ -128,6 +128,10 @@ fn lease_path(root: &Path) -> PathBuf {
     root.join(".git/grove/driver.lease")
 }
 
+fn epoch_path(root: &Path) -> PathBuf {
+    root.join(".git/grove/session.epoch")
+}
+
 fn record_nonce(record: &str) -> &str {
     record
         .lines()
@@ -486,6 +490,35 @@ fn each_owner_writes_one_fresh_128_bit_process_nonce() {
 }
 
 #[test]
+fn a_new_owner_installs_an_inactive_epoch_for_its_exact_lease() {
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("worktree");
+    fake_git_worktree(&root);
+
+    let _lease = DriverLease::acquire(&root).unwrap();
+
+    let lease_record = fs::read_to_string(lease_path(&root)).unwrap();
+    let epoch_record = fs::read_to_string(epoch_path(&root)).unwrap();
+    assert!(epoch_record.contains("state=inactive\n"));
+    assert!(epoch_record.contains(&format!("nonce={}\n", record_nonce(&lease_record))));
+    for line in lease_record
+        .lines()
+        .filter(|line| line.starts_with("worktree-"))
+    {
+        assert!(
+            epoch_record.lines().any(|epoch_line| epoch_line == line),
+            "epoch record omitted lease identity line {line:?}: {epoch_record:?}"
+        );
+    }
+    assert!(
+        !epoch_record
+            .lines()
+            .any(|line| line.starts_with("signal-path-hex=")),
+        "inactive epochs must not retain a launch signal path: {epoch_record:?}"
+    );
+}
+
+#[test]
 fn a_non_directory_control_location_fails_before_a_lease_is_created() {
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
@@ -711,4 +744,266 @@ fn lease_path_loss_after_tree_selection_refuses_the_foreground_launch() {
         !launch_log.exists(),
         "foreground harness launched after lease loss"
     );
+}
+
+#[test]
+fn grove_llm_admits_only_the_live_epoch_while_version_remains_exempt() {
+    let _environment_lock = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("worktree");
+    init_git_worktree(&root);
+    let grove = root.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# test — brief\n").unwrap();
+    fs::write(grove.join("01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    let ready = tmp.path().join("harness-ready");
+    let signal_log = tmp.path().join("signal-path");
+    let fake_harness = tmp.path().join("fake-claude.sh");
+    write_executable(
+        &fake_harness,
+        &format!(
+            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            signal_log.display(),
+            ready.display()
+        ),
+    );
+    let skill_dir = tmp.path().join("global-skill");
+    let mut driver_command = grove_driver(&root, &fake_harness, &skill_dir);
+    driver_command.stdout(Stdio::null()).stderr(Stdio::null());
+    let driver = DriverProcess::spawn(&mut driver_command);
+    wait_for(&ready);
+    let live_signal = PathBuf::from(fs::read_to_string(&signal_log).unwrap());
+
+    let live = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .arg("pick")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &live_signal)
+        .output()
+        .unwrap();
+    assert!(
+        live.status.success(),
+        "live epoch was refused: {}",
+        String::from_utf8_lossy(&live.stderr)
+    );
+
+    let wrong_signal = live_signal.with_file_name("signal-22222222222222222222222222222222");
+    let misdirected_complete = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .args(["complete", "--signal-file"])
+        .arg(&wrong_signal)
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &live_signal)
+        .output()
+        .unwrap();
+    assert!(
+        !misdirected_complete.status.success(),
+        "complete wrote outside the admitted epoch"
+    );
+    assert!(
+        !wrong_signal.exists(),
+        "complete created a signal path other than the active epoch's channel"
+    );
+    assert!(
+        String::from_utf8_lossy(&misdirected_complete.stderr)
+            .contains("does not match the admitted session epoch"),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&misdirected_complete.stderr)
+    );
+
+    let stale = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .arg("pick")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &wrong_signal)
+        .output()
+        .unwrap();
+    assert!(
+        !stale.status.success(),
+        "mismatched epoch unexpectedly picked"
+    );
+    assert!(
+        String::from_utf8_lossy(&stale.stderr).contains("stale Grove session"),
+        "unexpected stderr: {}",
+        String::from_utf8_lossy(&stale.stderr)
+    );
+
+    let version = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .arg("--version")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &wrong_signal)
+        .output()
+        .unwrap();
+    assert!(
+        version.status.success(),
+        "--version must not need a live epoch: {}",
+        String::from_utf8_lossy(&version.stderr)
+    );
+    drop(driver);
+}
+
+#[test]
+fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
+    let _environment_lock = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let root = tmp.path().join("worktree");
+    init_git_worktree(&root);
+    let grove_llm = env!("CARGO_BIN_EXE_grove-llm");
+
+    let initialize = |root: &Path| {
+        let output = Command::new(grove_llm)
+            .arg("root-init")
+            .current_dir(root)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "root-init failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            root.join(".grove/01-requirements-plan-k1.md").exists(),
+            "root-init did not allocate plan-k1"
+        );
+    };
+    initialize(&root);
+
+    let first_ready = tmp.path().join("first-ready");
+    let first_signal_log = tmp.path().join("first-signal-path");
+    let first_harness = tmp.path().join("first-claude.sh");
+    write_executable(
+        &first_harness,
+        &format!(
+            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            first_signal_log.display(),
+            first_ready.display()
+        ),
+    );
+    let skill_dir = tmp.path().join("global-skill");
+    let mut first_command = grove_driver(&root, &first_harness, &skill_dir);
+    first_command
+        .env("GROVE_REQUIREMENTS_MODEL", "test-model")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    let first_driver = DriverProcess::spawn(&mut first_command);
+    wait_for(&first_ready);
+    let old_signal = PathBuf::from(fs::read_to_string(&first_signal_log).unwrap());
+
+    let old_pick = Command::new(grove_llm)
+        .arg("pick")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        old_pick.status.success(),
+        "the first session was not admitted"
+    );
+    assert!(
+        String::from_utf8_lossy(&old_pick.stdout).contains("plan-k1"),
+        "the first session did not resolve plan-k1"
+    );
+
+    drop(first_driver);
+    fs::remove_dir_all(root.join(".grove")).unwrap();
+    initialize(&root);
+
+    let second_ready = tmp.path().join("second-ready");
+    let second_signal_log = tmp.path().join("second-signal-path");
+    let second_harness = tmp.path().join("second-claude.sh");
+    write_executable(
+        &second_harness,
+        &format!(
+            "#!/bin/sh\nprintf '%s' \"$GROVE_SIGNAL_FILE\" > '{}'\ntouch '{}'\ntrap 'exit 0' TERM\nwhile :; do sleep 1; done\n",
+            second_signal_log.display(),
+            second_ready.display()
+        ),
+    );
+    let mut second_command = grove_driver(&root, &second_harness, &skill_dir);
+    second_command
+        .env("GROVE_REQUIREMENTS_MODEL", "test-model")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    let mut second_driver = DriverProcess::spawn(&mut second_command);
+    wait_for(&second_ready);
+    let new_signal = PathBuf::from(fs::read_to_string(&second_signal_log).unwrap());
+    assert_ne!(
+        new_signal, old_signal,
+        "a new launch reused the old signal path"
+    );
+
+    let stale_pick = Command::new(grove_llm)
+        .arg("pick")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        !stale_pick.status.success(),
+        "the old session resolved the new plan-k1"
+    );
+    assert!(
+        String::from_utf8_lossy(&stale_pick.stderr).contains("stale Grove session"),
+        "unexpected stale-session diagnostic: {}",
+        String::from_utf8_lossy(&stale_pick.stderr)
+    );
+
+    let stale_mutation = Command::new(grove_llm)
+        .args(["leaf-add", ".", "stale-mutation"])
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        !stale_mutation.status.success(),
+        "the old session mutated the reinitialized tree"
+    );
+    assert!(
+        !root.join(".grove/02-impl-stale-mutation-k2.md").exists(),
+        "stale mutation allocated a leaf in the new tree"
+    );
+
+    let stale_complete = Command::new(grove_llm)
+        .arg("complete")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        !stale_complete.status.success(),
+        "the old session completed the reinitialized tree"
+    );
+    assert!(
+        !old_signal.exists(),
+        "stale complete recreated its old signal"
+    );
+
+    let new_pick = Command::new(grove_llm)
+        .arg("pick")
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &new_signal)
+        .output()
+        .unwrap();
+    assert!(
+        new_pick.status.success(),
+        "the new session was refused: {}",
+        String::from_utf8_lossy(&new_pick.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&new_pick.stdout).contains("plan-k1"),
+        "the new session did not resolve the reused plan-k1 handle"
+    );
+
+    fs::write(&old_signal, "done\n").unwrap();
+    thread::sleep(Duration::from_millis(150));
+    assert!(
+        second_driver
+            .child
+            .as_mut()
+            .unwrap()
+            .try_wait()
+            .unwrap()
+            .is_none(),
+        "an old completion signal affected the new foreground launch"
+    );
+    drop(second_driver);
 }

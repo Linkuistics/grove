@@ -27,6 +27,18 @@ fn resolve_opts_carries_the_done_disposition() {
 }
 
 #[test]
+fn an_empty_signal_environment_is_no_loop_context() {
+    assert_eq!(std::env::var_os("GROVE_SIGNAL_FILE"), Some("".into()));
+
+    let opts = complete::resolve_opts(None, Disposition::Relaunch);
+
+    assert!(
+        opts.signal_file.is_none(),
+        "the meta-grove's empty environment guard became a real signal path"
+    );
+}
+
+#[test]
 fn relaunch_signal_is_read_back_as_relaunch() {
     let tmp = TempDir::new().unwrap();
     let sig = tmp.path().join("loop.signal");

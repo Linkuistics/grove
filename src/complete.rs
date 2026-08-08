@@ -78,8 +78,11 @@ pub struct CompleteOpts {
 /// fallback): the default verb relaunches, the `--done` flag finishes.
 pub fn resolve_opts(signal_file: Option<PathBuf>, disposition: Disposition) -> CompleteOpts {
     CompleteOpts {
-        signal_file: signal_file
-            .or_else(|| std::env::var_os("GROVE_SIGNAL_FILE").map(PathBuf::from)),
+        signal_file: signal_file.or_else(|| {
+            std::env::var_os("GROVE_SIGNAL_FILE")
+                .filter(|value| !value.is_empty())
+                .map(PathBuf::from)
+        }),
         disposition,
     }
 }

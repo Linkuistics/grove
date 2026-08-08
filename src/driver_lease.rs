@@ -4,11 +4,16 @@ use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::fd::{AsRawFd, RawFd};
+use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 const LEASE_FILE_NAME: &str = "driver.lease";
+const EPOCH_FILE_NAME: &str = "session.epoch";
 const IDENTITY_RETRY_LIMIT: usize = 8;
+const EPOCH_HANDOFF_TIMEOUT: Duration = Duration::from_secs(30);
+const EPOCH_WAIT_INTERVAL: Duration = Duration::from_millis(10);
 const SIGNAL_FILE_PREFIX: &str = "signal-";
 const SIGNAL_DRAW_RETRY_LIMIT: usize = 8;
 
@@ -16,6 +21,41 @@ const SIGNAL_DRAW_RETRY_LIMIT: usize = 8;
 struct FileIdentity {
     device: u64,
     inode: u64,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ProcessRecord {
+    worktree_identity: FileIdentity,
+    worktree_root: PathBuf,
+    nonce: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct EpochRecord {
+    process: ProcessRecord,
+    signal_path: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LockMode {
+    Shared,
+    Exclusive,
+}
+
+impl LockMode {
+    fn operation(self) -> libc::c_int {
+        match self {
+            Self::Shared => libc::LOCK_SH,
+            Self::Exclusive => libc::LOCK_EX,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Shared => "shared",
+            Self::Exclusive => "exclusive",
+        }
+    }
 }
 
 impl FileIdentity {
@@ -38,13 +78,35 @@ pub struct DriverLease {
     _worktree_directory: File,
     worktree_identity: FileIdentity,
     lease_path: PathBuf,
-    _lease_file: File,
+    lease_file: File,
     lease_identity: FileIdentity,
+    nonce: String,
 }
 
 #[derive(Debug)]
 pub(crate) struct SignalChannel {
     path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct SessionEpochGuard {
+    _epoch_file: File,
+    signal_path: PathBuf,
+}
+
+impl SessionEpochGuard {
+    pub(crate) fn require_signal_path(&self, signal_path: Option<&Path>) -> Result<()> {
+        if signal_path != Some(self.signal_path.as_path()) {
+            bail!(
+                "completion signal path does not match the admitted session epoch: expected {}, got {}",
+                self.signal_path.display(),
+                signal_path
+                    .map(|path| path.display().to_string())
+                    .unwrap_or_else(|| "<none>".to_string())
+            );
+        }
+        Ok(())
+    }
 }
 
 impl SignalChannel {
@@ -55,6 +117,10 @@ impl SignalChannel {
 
 impl DriverLease {
     pub fn acquire(path: &Path) -> Result<Self> {
+        Self::acquire_with(path, || {})
+    }
+
+    fn acquire_with(path: &Path, before_initial_epoch_handoff: impl FnOnce()) -> Result<Self> {
         let control = repo::workspace_control(path)?;
         fs::create_dir_all(control.control_dir()).with_context(|| {
             format!(
@@ -79,20 +145,27 @@ impl DriverLease {
         );
 
         let lease_path = control.control_dir().join(LEASE_FILE_NAME);
-        let (mut lease_file, lease_identity) = acquire_lease_file(&lease_path, &worktree_root)?;
-        let nonce = random_nonce()?;
-        write_record(&mut lease_file, worktree_identity, &hex_nonce(nonce)?)?;
+        let (lease_file, lease_identity) = acquire_lease_file(&lease_path, &worktree_root)?;
+        let nonce = hex_nonce(random_nonce()?)?;
 
-        let lease = Self {
+        let mut lease = Self {
             worktree_root,
             control_dir,
             _worktree_directory: worktree_directory,
             worktree_identity,
             lease_path,
-            _lease_file: lease_file,
+            lease_file,
             lease_identity,
+            nonce,
         };
         lease.revalidate()?;
+        before_initial_epoch_handoff();
+        lease.initialize_epoch_record()?;
+        if let Err(error) = lease.cleanup_abandoned_signal_channels() {
+            eprintln!(
+                "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error:#}"
+            );
+        }
         Ok(lease)
     }
 
@@ -115,6 +188,14 @@ impl DriverLease {
     pub(crate) fn remove_signal_channel(&self, channel: SignalChannel) -> Result<()> {
         remove_file_if_present(&channel.path)
             .with_context(|| format!("removing signal channel {}", channel.path.display()))
+    }
+
+    pub(crate) fn activate_session_epoch(&self, signal_path: &Path) -> Result<()> {
+        self.write_epoch_record(Some(signal_path), "pre-spawn activation")
+    }
+
+    pub(crate) fn invalidate_session_epoch(&self) -> Result<()> {
+        self.write_epoch_record(None, "post-reap invalidation")
     }
 
     /// Remove channels abandoned by a previous driver only after this lease
@@ -174,6 +255,70 @@ impl DriverLease {
         }
         Ok(())
     }
+
+    fn write_epoch_record(&self, signal_path: Option<&Path>, operation: &str) -> Result<()> {
+        let path = self.control_dir.join(EPOCH_FILE_NAME);
+        let mut file = acquire_epoch_file(&path, LockMode::Exclusive, operation)?;
+        write_epoch_contents(
+            &mut file,
+            self.worktree_identity,
+            &self.worktree_root,
+            &self.nonce,
+            signal_path,
+        )
+    }
+
+    fn initialize_epoch_record(&mut self) -> Result<()> {
+        let path = self.control_dir.join(EPOCH_FILE_NAME);
+        let mut epoch_file = acquire_epoch_file(&path, LockMode::Exclusive, "driver acquisition")?;
+        // Keep the predecessor's lease bytes intact until exclusive epoch
+        // handoff succeeds. An operation that already holds shared admission
+        // may still probe those bytes while this replacement waits; publishing
+        // the new nonce early would reject an operation the old epoch admitted.
+        write_epoch_contents(
+            &mut epoch_file,
+            self.worktree_identity,
+            &self.worktree_root,
+            &self.nonce,
+            None,
+        )?;
+        write_record(
+            &mut self.lease_file,
+            self.worktree_identity,
+            &self.worktree_root,
+            &self.nonce,
+        )
+    }
+}
+
+fn write_epoch_contents(
+    file: &mut File,
+    worktree_identity: FileIdentity,
+    worktree_root: &Path,
+    nonce: &str,
+    signal_path: Option<&Path>,
+) -> Result<()> {
+    file.set_len(0)
+        .context("truncating previous session epoch record")?;
+    file.seek(SeekFrom::Start(0))
+        .context("rewinding session epoch record")?;
+    writeln!(
+        file,
+        "state={}",
+        if signal_path.is_some() {
+            "active"
+        } else {
+            "inactive"
+        }
+    )?;
+    writeln!(file, "worktree-device={}", worktree_identity.device)?;
+    writeln!(file, "worktree-inode={}", worktree_identity.inode)?;
+    writeln!(file, "worktree-path-hex={}", encode_path(worktree_root)?)?;
+    writeln!(file, "nonce={nonce}")?;
+    if let Some(signal_path) = signal_path {
+        writeln!(file, "signal-path-hex={}", encode_path(signal_path)?)?;
+    }
+    file.flush().context("flushing session epoch record")
 }
 
 fn allocate_signal_channel_with(
@@ -250,6 +395,106 @@ fn remove_file_if_present(path: &Path) -> Result<()> {
 
 fn acquire_lease_file(path: &Path, worktree_root: &Path) -> Result<(File, FileIdentity)> {
     acquire_lease_file_with_hook(path, worktree_root, |_, _| Ok(()))
+}
+
+fn acquire_epoch_file(path: &Path, mode: LockMode, operation: &str) -> Result<File> {
+    acquire_epoch_file_with(
+        path,
+        mode,
+        operation,
+        EPOCH_HANDOFF_TIMEOUT,
+        Instant::now,
+        || std::thread::sleep(EPOCH_WAIT_INTERVAL),
+        |_, _| Ok(()),
+        |_, _| Ok(()),
+        || {
+            eprintln!(
+                "waiting for {} session epoch lock for {operation}",
+                mode.label()
+            );
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn acquire_epoch_file_with(
+    path: &Path,
+    mode: LockMode,
+    operation: &str,
+    timeout: Duration,
+    mut now: impl FnMut() -> Instant,
+    mut wait: impl FnMut(),
+    mut after_open: impl FnMut(usize, &Path) -> Result<()>,
+    mut after_lock: impl FnMut(usize, &Path) -> Result<()>,
+    mut report_contention: impl FnMut(),
+) -> Result<File> {
+    let deadline = now()
+        .checked_add(timeout)
+        .context("computing session epoch handoff deadline")?;
+    let mut reported_contention = false;
+
+    for attempt in 1..=IDENTITY_RETRY_LIMIT {
+        let mut options = OpenOptions::new();
+        options.read(true);
+        if mode == LockMode::Exclusive {
+            options.write(true).create(true).mode(0o600);
+        }
+        let file = options
+            .open(path)
+            .with_context(|| format!("opening session epoch file {}", path.display()))?;
+        ensure_close_on_exec(file.as_raw_fd())?;
+        after_open(attempt, path).context("running session epoch post-open barrier")?;
+
+        loop {
+            let result = unsafe { libc::flock(file.as_raw_fd(), mode.operation() | libc::LOCK_NB) };
+            if result == 0 {
+                break;
+            }
+            let error = std::io::Error::last_os_error();
+            if !matches!(
+                error.raw_os_error(),
+                Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN
+            ) {
+                return Err(error).with_context(|| {
+                    format!("locking {} session epoch for {operation}", mode.label())
+                });
+            }
+            if !reported_contention {
+                report_contention();
+                reported_contention = true;
+            }
+            if now() >= deadline {
+                bail!(
+                    "timed out after {}s waiting for {} session epoch lock for {operation}",
+                    timeout.as_secs(),
+                    mode.label()
+                );
+            }
+            wait();
+        }
+
+        after_lock(attempt, path).context("running session epoch post-lock barrier")?;
+        let descriptor_identity = FileIdentity::from_metadata(
+            &file
+                .metadata()
+                .context("reading locked session epoch identity")?,
+        );
+        let path_identity = FileIdentity::from_metadata(
+            &fs::metadata(path)
+                .with_context(|| format!("reading session epoch path {}", path.display()))?,
+        );
+        if descriptor_identity == path_identity {
+            return Ok(file);
+        }
+        if attempt == IDENTITY_RETRY_LIMIT {
+            bail!(
+                "session epoch path {} was replaced during acquisition {} times",
+                path.display(),
+                IDENTITY_RETRY_LIMIT
+            );
+        }
+    }
+    bail!("session epoch acquisition exhausted its bounded retries")
 }
 
 fn acquire_lease_file_with_hook(
@@ -342,15 +587,219 @@ fn hex_nonce(nonce: [u8; 16]) -> Result<String> {
     Ok(rendered)
 }
 
-fn write_record(file: &mut File, worktree_identity: FileIdentity, nonce: &str) -> Result<()> {
+fn encode_path(path: &Path) -> Result<String> {
+    let mut rendered = String::with_capacity(path.as_os_str().as_bytes().len() * 2);
+    for byte in path.as_os_str().as_bytes() {
+        write!(&mut rendered, "{byte:02x}").context("encoding working-tree path")?;
+    }
+    Ok(rendered)
+}
+
+fn decode_path(value: &str) -> Result<PathBuf> {
+    if value.len() % 2 != 0 {
+        bail!("working-tree path hex has odd length");
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    for offset in (0..value.len()).step_by(2) {
+        let byte = u8::from_str_radix(&value[offset..offset + 2], 16)
+            .context("decoding working-tree path hex")?;
+        bytes.push(byte);
+    }
+    Ok(PathBuf::from(std::ffi::OsString::from_vec(bytes)))
+}
+
+fn record_field<'a>(record: &'a str, name: &str) -> Result<&'a str> {
+    let prefix = format!("{name}=");
+    let mut values = record.lines().filter_map(|line| line.strip_prefix(&prefix));
+    let value = values
+        .next()
+        .with_context(|| format!("missing {name} field"))?;
+    if values.next().is_some() {
+        bail!("duplicate {name} field");
+    }
+    Ok(value)
+}
+
+fn parse_process_record(record: &str) -> Result<ProcessRecord> {
+    let device = record_field(record, "worktree-device")?
+        .parse::<u64>()
+        .context("parsing working-tree device")?;
+    let inode = record_field(record, "worktree-inode")?
+        .parse::<u64>()
+        .context("parsing working-tree inode")?;
+    let worktree_root = decode_path(record_field(record, "worktree-path-hex")?)?;
+    let nonce = record_field(record, "nonce")?;
+    if nonce.len() != 32
+        || !nonce
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        bail!("driver nonce is not 128-bit lowercase hex");
+    }
+    Ok(ProcessRecord {
+        worktree_identity: FileIdentity { device, inode },
+        worktree_root,
+        nonce: nonce.to_string(),
+    })
+}
+
+fn read_record(file: &mut File, label: &str) -> Result<String> {
+    file.seek(SeekFrom::Start(0))
+        .with_context(|| format!("rewinding {label}"))?;
+    let mut record = String::new();
+    file.read_to_string(&mut record)
+        .with_context(|| format!("reading {label}"))?;
+    Ok(record)
+}
+
+fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
+    let record = read_record(file, "session epoch record")?;
+    let process = parse_process_record(&record)?;
+    let signal_path = match record_field(&record, "state")? {
+        "inactive" => {
+            if record
+                .lines()
+                .any(|line| line.starts_with("signal-path-hex="))
+            {
+                bail!("inactive session epoch unexpectedly carries a signal path");
+            }
+            None
+        }
+        "active" => Some(decode_path(record_field(&record, "signal-path-hex")?)?),
+        state => bail!("unknown session epoch state {state:?}"),
+    };
+    Ok(EpochRecord {
+        process,
+        signal_path,
+    })
+}
+
+fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) -> Result<()> {
+    let lease_path = control_dir.join(LEASE_FILE_NAME);
+    for attempt in 1..=IDENTITY_RETRY_LIMIT {
+        let mut lease_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&lease_path)
+            .with_context(|| format!("opening driver lease file {}", lease_path.display()))?;
+        ensure_close_on_exec(lease_file.as_raw_fd())?;
+        let lease_record =
+            parse_process_record(&read_record(&mut lease_file, "driver lease record")?)?;
+        let probe = unsafe { libc::flock(lease_file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+        let probe_error = (probe != 0).then(std::io::Error::last_os_error);
+        let descriptor_identity = FileIdentity::from_metadata(
+            &lease_file
+                .metadata()
+                .context("reading probed driver lease identity")?,
+        );
+        let path_identity = FileIdentity::from_metadata(
+            &fs::metadata(&lease_path)
+                .with_context(|| format!("reading driver lease path {}", lease_path.display()))?,
+        );
+        if descriptor_identity != path_identity {
+            if attempt == IDENTITY_RETRY_LIMIT {
+                bail!(
+                    "driver lease path {} was replaced during liveness probe {} times",
+                    lease_path.display(),
+                    IDENTITY_RETRY_LIMIT
+                );
+            }
+            continue;
+        }
+        if lease_record != epoch.process {
+            bail!("driver lease record does not match the admitted session epoch");
+        }
+        if probe == 0 {
+            bail!("driver lease is unlocked");
+        }
+        let error = probe_error.expect("failed flock records an OS error");
+        if matches!(
+            error.raw_os_error(),
+            Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN
+        ) {
+            return Ok(());
+        }
+        return Err(error).with_context(|| format!("probing driver lease for {operation}"));
+    }
+    bail!("driver lease liveness probe exhausted its bounded retries")
+}
+
+/// Admit one agent-side operation when it carries a live loop-control context.
+///
+/// The returned guard owns the shared epoch lock and must remain alive through
+/// the operation's separately acquired Tree access guard. With no ambient
+/// signal path this is a manual command and no driver epoch is required.
+pub(crate) fn admit_ambient_session(
+    path: &Path,
+    operation: &str,
+) -> Result<Option<SessionEpochGuard>> {
+    let Some(signal_path) = std::env::var_os("GROVE_SIGNAL_FILE")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+    else {
+        return Ok(None);
+    };
+    let current_control = repo::workspace_control(path)?;
+    let control_dir = signal_path.parent().with_context(|| {
+        format!(
+            "stale Grove session for {operation}: signal path has no control-directory parent: {}",
+            signal_path.display()
+        )
+    })?;
+    let epoch_path = control_dir.join(EPOCH_FILE_NAME);
+    let mut epoch_file = acquire_epoch_file(&epoch_path, LockMode::Shared, operation)
+        .with_context(|| format!("stale Grove session for {operation}"))?;
+    let epoch = read_epoch_record(&mut epoch_file)
+        .with_context(|| format!("stale Grove session for {operation}"))?;
+
+    if epoch.process.worktree_root != current_control.worktree_root() {
+        bail!(
+            "wrong working tree for {operation}: session belongs to {}, command resolved {}",
+            epoch.process.worktree_root.display(),
+            current_control.worktree_root().display()
+        );
+    }
+    let current_identity = FileIdentity::from_metadata(
+        &fs::metadata(current_control.worktree_root()).with_context(|| {
+            format!(
+                "reading current working-tree identity {}",
+                current_control.worktree_root().display()
+            )
+        })?,
+    );
+    if epoch.process.worktree_identity != current_identity {
+        bail!("stale Grove session for {operation}: working-tree identity changed");
+    }
+    if epoch.signal_path.as_deref() != Some(signal_path.as_path()) {
+        bail!(
+            "stale Grove session for {operation}: loop-control path does not match the active epoch"
+        );
+    }
+    probe_live_lease(control_dir, &epoch, operation)
+        .with_context(|| format!("stale Grove session for {operation}"))?;
+    Ok(Some(SessionEpochGuard {
+        _epoch_file: epoch_file,
+        signal_path,
+    }))
+}
+
+fn write_record(
+    file: &mut File,
+    worktree_identity: FileIdentity,
+    worktree_root: &Path,
+    nonce: &str,
+) -> Result<()> {
     file.set_len(0)
         .context("truncating previous driver lease record")?;
     file.seek(SeekFrom::Start(0))
         .context("rewinding driver lease record")?;
     write!(
         file,
-        "worktree-device={}\nworktree-inode={}\nnonce={}\n",
-        worktree_identity.device, worktree_identity.inode, nonce
+        "worktree-device={}\nworktree-inode={}\nworktree-path-hex={}\nnonce={}\n",
+        worktree_identity.device,
+        worktree_identity.inode,
+        encode_path(worktree_root)?,
+        nonce
     )
     .context("writing driver lease record")?;
     file.flush().context("flushing driver lease record")
@@ -359,8 +808,40 @@ fn write_record(file: &mut File, worktree_identity: FileIdentity, nonce: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::{Cell, RefCell};
     use std::collections::VecDeque;
+    use std::ffi::OsString;
+    use std::sync::{mpsc, Mutex, MutexGuard};
+    use std::thread;
+    use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct SignalEnvironment {
+        previous: Option<OsString>,
+    }
+
+    impl SignalEnvironment {
+        fn set(path: Option<&Path>) -> (MutexGuard<'static, ()>, Self) {
+            let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+            let previous = std::env::var_os("GROVE_SIGNAL_FILE");
+            match path {
+                Some(path) => std::env::set_var("GROVE_SIGNAL_FILE", path),
+                None => std::env::remove_var("GROVE_SIGNAL_FILE"),
+            }
+            (lock, Self { previous })
+        }
+    }
+
+    impl Drop for SignalEnvironment {
+        fn drop(&mut self) {
+            match self.previous.take() {
+                Some(previous) => std::env::set_var("GROVE_SIGNAL_FILE", previous),
+                None => std::env::remove_var("GROVE_SIGNAL_FILE"),
+            }
+        }
+    }
 
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
@@ -427,7 +908,7 @@ mod tests {
 
         for (label, descriptor) in [
             ("working-tree root", lease._worktree_directory.as_raw_fd()),
-            ("driver lease", lease._lease_file.as_raw_fd()),
+            ("driver lease", lease.lease_file.as_raw_fd()),
         ] {
             let flags = unsafe { libc::fcntl(descriptor, libc::F_GETFD) };
             assert_ne!(flags, -1, "reading {label} descriptor flags failed");
@@ -588,6 +1069,341 @@ mod tests {
         assert!(
             format!("{error:#}").contains("simulated unreadable directory entry"),
             "the aggregate warning must preserve enumeration failures: {error:#}"
+        );
+    }
+
+    #[test]
+    fn activation_and_invalidation_replace_one_stable_epoch_record() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let epoch_path = root.join(".git/grove").join(EPOCH_FILE_NAME);
+        let epoch_identity = FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap());
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+
+        lease.activate_session_epoch(&signal_path).unwrap();
+
+        let active = fs::read_to_string(&epoch_path).unwrap();
+        assert!(active.starts_with("state=active\n"), "{active:?}");
+        assert!(
+            active.contains(&format!(
+                "signal-path-hex={}\n",
+                encode_path(&signal_path).unwrap()
+            )),
+            "{active:?}"
+        );
+        assert_eq!(
+            FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap()),
+            epoch_identity,
+            "activation must rewrite the stable epoch file rather than replace it"
+        );
+
+        lease.invalidate_session_epoch().unwrap();
+
+        let inactive = fs::read_to_string(&epoch_path).unwrap();
+        assert!(inactive.starts_with("state=inactive\n"), "{inactive:?}");
+        assert!(!inactive.contains("signal-path-hex="), "{inactive:?}");
+        assert_eq!(
+            FileIdentity::from_metadata(&fs::metadata(&epoch_path).unwrap()),
+            epoch_identity,
+            "invalidation must keep the same stable epoch file"
+        );
+    }
+
+    #[test]
+    fn epoch_acquisition_retries_open_lock_path_replacement_in_event_order() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join(EPOCH_FILE_NAME);
+        fs::write(&path, "old epoch\n").unwrap();
+        let events = RefCell::new(Vec::new());
+        let start = Instant::now();
+
+        let guard = acquire_epoch_file_with(
+            &path,
+            LockMode::Exclusive,
+            "test replacement race",
+            Duration::from_secs(30),
+            || start,
+            || {},
+            |attempt, path| {
+                events.borrow_mut().push(format!("open-{attempt}"));
+                if attempt == 1 {
+                    fs::rename(path, path.with_extension("old"))?;
+                    fs::write(path, "replacement epoch\n")?;
+                }
+                Ok(())
+            },
+            |attempt, _| {
+                events.borrow_mut().push(format!("lock-{attempt}"));
+                Ok(())
+            },
+            || events.borrow_mut().push("contended".to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            events.into_inner(),
+            ["open-1", "lock-1", "open-2", "lock-2"]
+        );
+        assert_eq!(
+            FileIdentity::from_metadata(&guard.metadata().unwrap()),
+            FileIdentity::from_metadata(&fs::metadata(&path).unwrap())
+        );
+    }
+
+    #[test]
+    fn an_orphaned_epoch_guard_times_out_post_reap_once_at_the_fixed_bound() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join(EPOCH_FILE_NAME);
+        fs::write(&path, "active epoch\n").unwrap();
+        let owner = File::open(&path).unwrap();
+        assert_eq!(unsafe { libc::flock(owner.as_raw_fd(), libc::LOCK_EX) }, 0);
+        let elapsed = Cell::new(Duration::ZERO);
+        let contention_reports = Cell::new(0);
+        let start = Instant::now();
+
+        let error = acquire_epoch_file_with(
+            &path,
+            LockMode::Exclusive,
+            "post-reap session epoch invalidation",
+            Duration::from_secs(30),
+            || start + elapsed.get(),
+            || elapsed.set(elapsed.get() + Duration::from_secs(10)),
+            |_, _| Ok(()),
+            |_, _| Ok(()),
+            || contention_reports.set(contention_reports.get() + 1),
+        )
+        .unwrap_err();
+
+        assert_eq!(contention_reports.get(), 1);
+        assert_eq!(elapsed.get(), Duration::from_secs(30));
+        assert!(
+            error.to_string().contains(
+                "timed out after 30s waiting for exclusive session epoch lock for post-reap session epoch invalidation"
+            ),
+            "unexpected error: {error:#}"
+        );
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "active epoch\n",
+            "a timed-out post-reap acquisition rewrote the epoch"
+        );
+    }
+
+    #[test]
+    fn manual_agent_operations_need_no_driver_epoch() {
+        let (_lock, _environment) = SignalEnvironment::set(None);
+
+        let admission =
+            admit_ambient_session(Path::new("/not-a-working-tree"), "manual pick").unwrap();
+
+        assert!(admission.is_none());
+    }
+
+    #[test]
+    fn an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
+
+        let admission = admit_ambient_session(&root, "test pick")
+            .unwrap()
+            .expect("ambient loop context must return a held admission guard");
+
+        let epoch_path = root.join(".git/grove").join(EPOCH_FILE_NAME);
+        let probe = File::open(&epoch_path).unwrap();
+        assert_ne!(
+            unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0,
+            "exclusive invalidation overlapped the admitted ambient operation"
+        );
+
+        drop(probe);
+        drop(lease);
+        let (started_tx, started_rx) = mpsc::channel();
+        let (result_tx, result_rx) = mpsc::channel();
+        let replacement_root = root.clone();
+        let replacement = thread::spawn(move || {
+            let _ = started_tx.send(());
+            let result = DriverLease::acquire(&replacement_root);
+            if result_tx.send(result).is_err() {
+                panic!("replacement result receiver disappeared");
+            }
+        });
+        started_rx.recv().unwrap();
+        assert!(
+            matches!(
+                result_rx.recv_timeout(Duration::from_millis(50)),
+                Err(mpsc::RecvTimeoutError::Timeout)
+            ),
+            "replacement invalidated the epoch before the admitted operation returned"
+        );
+
+        drop(admission);
+        let replacement_lease = result_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("replacement did not acquire after the ambient guard dropped")
+            .unwrap();
+        replacement.join().unwrap();
+
+        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("loop-control path does not match the active epoch"),
+            "a new call from the old session was not refused: {error:#}"
+        );
+        drop(replacement_lease);
+    }
+
+    #[test]
+    fn replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let old_lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        old_lease.activate_session_epoch(&signal_path).unwrap();
+        let lease_path = root.join(".git/grove").join(LEASE_FILE_NAME);
+        let old_record = fs::read_to_string(&lease_path).unwrap();
+        let epoch_guard = File::open(root.join(".git/grove").join(EPOCH_FILE_NAME)).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(epoch_guard.as_raw_fd(), libc::LOCK_SH) },
+            0
+        );
+        drop(old_lease);
+
+        let (reached_tx, reached_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let replacement_root = root.clone();
+        let replacement = thread::spawn(move || {
+            DriverLease::acquire_with(&replacement_root, || {
+                reached_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+            })
+        });
+        reached_rx.recv().unwrap();
+
+        assert_eq!(
+            fs::read_to_string(&lease_path).unwrap(),
+            old_record,
+            "replacement published its nonce before acquiring exclusive epoch handoff"
+        );
+        release_tx.send(()).unwrap();
+        drop(epoch_guard);
+        let replacement_lease = replacement.join().unwrap().unwrap();
+        assert_ne!(fs::read_to_string(&lease_path).unwrap(), old_record);
+        drop(replacement_lease);
+    }
+
+    #[test]
+    fn ambient_context_from_another_worktree_names_both_roots() {
+        let tmp = TempDir::new().unwrap();
+        let owner_root = tmp.path().join("owner");
+        let foreign_root = tmp.path().join("foreign");
+        fs::create_dir_all(owner_root.join(".git")).unwrap();
+        fs::create_dir_all(foreign_root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&owner_root).unwrap();
+        let signal_path = owner_root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
+
+        let error = admit_ambient_session(&foreign_root, "test pick").unwrap_err();
+
+        let message = format!("{error:#}");
+        assert!(message.contains("wrong working tree"), "{message}");
+        assert!(
+            message.contains(owner_root.canonicalize().unwrap().to_str().unwrap()),
+            "{message}"
+        );
+        assert!(
+            message.contains(foreign_root.canonicalize().unwrap().to_str().unwrap()),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn a_rotated_epoch_refuses_the_old_signal_path() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let old_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let new_signal = root.join(".git/grove/signal-22222222222222222222222222222222");
+        lease.activate_session_epoch(&old_signal).unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&old_signal));
+
+        drop(
+            admit_ambient_session(&root, "test pick")
+                .unwrap()
+                .expect("the old signal must be admitted while its epoch is live"),
+        );
+        lease.activate_session_epoch(&new_signal).unwrap();
+
+        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("loop-control path does not match the active epoch"),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn an_epoch_signal_path_round_trips_record_separator_bytes() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp
+            .path()
+            .join(OsString::from_vec(b"worktree-\n-name".to_vec()));
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
+
+        drop(
+            admit_ambient_session(&root, "test pick")
+                .unwrap()
+                .expect("the exact signal path must survive epoch serialization"),
+        );
+        let record = fs::read_to_string(root.join(".git/grove/session.epoch")).unwrap();
+        assert!(record.contains("signal-path-hex="), "{record:?}");
+    }
+
+    #[test]
+    fn an_active_epoch_without_a_live_lease_is_stale() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
+        drop(lease);
+
+        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("driver lease is unlocked"),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn a_malformed_epoch_is_stale() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        fs::write(root.join(".git/grove/session.epoch"), "state=active\n").unwrap();
+        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
+
+        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        assert!(
+            format!("{error:#}").contains("stale Grove session"),
+            "unexpected error: {error:#}"
         );
     }
 }

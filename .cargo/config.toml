@@ -10,9 +10,11 @@
 # `: > "$GROVE_SIGNAL_FILE"`, so any harness spawn that does not scope the
 # variable writes the *live* path and kills the developer's terminal.
 #
-# Force-override it for everything cargo runs. This is the half that cannot be
-# forgotten — it applies whether or not a test remembers to scrub, and to tests
-# that do not use the shared helpers at all. `tests/support/mod.rs`
+# Force-clear it for everything cargo runs. Empty is deliberately stronger than
+# redirecting to an inert path: `grove-llm` now treats every nonempty signal path
+# as session-epoch authority and validates it before tree access. This is the
+# half that cannot be forgotten — it applies whether or not a test remembers to
+# scrub, and to tests that do not use the shared helpers at all. `tests/support/mod.rs`
 # (`LOOP_CONTROL_ENV`) carries the in-process and subprocess half; the two are
 # deliberately independent, because a test binary executed directly rather than
 # through cargo gets only the latter. The same guards clear
@@ -20,10 +22,9 @@
 # session's routed producer into a retirement test could write a false receipt.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo, so a
-# cargo-launched `grove-llm complete` signals the inert path instead of a live
-# loop. That is the intended reading — a dev-built binary should not fire a real
-# loop by accident. The agent's own end-of-task signal is unaffected: it runs an
-# installed or `./target/debug/` binary directly, never through cargo.
+# cargo-launched `grove-llm complete` behaves like a manual command instead of
+# firing a live loop. The agent's own end-of-task signal is unaffected: it runs
+# an installed or `./target/debug/` binary directly, never through cargo.
 [env]
-GROVE_SIGNAL_FILE = { value = "target/grove-test-signal/inert.signal", relative = true, force = true }
+GROVE_SIGNAL_FILE = { value = "", force = true }
 GROVE_SESSION_TARGET = { value = "", force = true }

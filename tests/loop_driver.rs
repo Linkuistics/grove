@@ -93,6 +93,69 @@ fn write_tree_format(grove: &std::path::Path) {
 }
 
 #[test]
+fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    let worktree = repo_path.join("worktree");
+    init_worktree(&worktree);
+    let observed_epoch = repo_path.join("observed-epoch");
+    let observed_signal = repo_path.join("observed-signal");
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+cp "$PWD/.git/grove/session.epoch" "$GROVE_TEST_OBSERVED_EPOCH"
+printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_OBSERVED_SIGNAL"
+exit 0
+"#,
+    );
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_OBSERVED_EPOCH", &observed_epoch)
+        .set("GROVE_TEST_OBSERVED_SIGNAL", &observed_signal)
+        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
+
+    let outcome = loop_driver::run_loop(
+        harness::by_name("claude").unwrap(),
+        repo_path,
+        &worktree,
+        "worktree",
+    )
+    .unwrap();
+
+    assert_eq!(outcome, LoopOutcome::Stopped);
+    let during_launch = fs::read_to_string(&observed_epoch).unwrap();
+    let signal_path = fs::read_to_string(&observed_signal).unwrap();
+    assert!(
+        during_launch.starts_with("state=active\n"),
+        "{during_launch:?}"
+    );
+    let signal_hex = signal_path
+        .trim_end()
+        .as_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join("");
+    assert!(
+        during_launch.contains(&format!("signal-path-hex={signal_hex}\n")),
+        "{during_launch:?}"
+    );
+    let after_reap = fs::read_to_string(worktree.join(".git/grove/session.epoch")).unwrap();
+    assert!(after_reap.starts_with("state=inactive\n"), "{after_reap:?}");
+    assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
+}
+
+#[test]
 fn loop_relaunches_on_signal_and_stops_without_one() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();

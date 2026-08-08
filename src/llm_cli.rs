@@ -15,6 +15,7 @@
 // only thing that reads an old (v1-flat or `NNN-slug`) tree, once, on adoption.
 
 use crate::complete;
+use crate::driver_lease;
 use crate::leaf::Kind;
 use crate::repo;
 use crate::tree_access;
@@ -262,6 +263,27 @@ pub enum Command {
     Complete(CompleteArgs),
 }
 
+impl Command {
+    fn operation_label(&self) -> &'static str {
+        match self {
+            Self::RootInit(_) => "grove-llm root-init",
+            Self::Pick => "grove-llm pick",
+            Self::BriefChain { .. } => "grove-llm brief-chain",
+            Self::Kind { .. } => "grove-llm kind",
+            Self::Resolve { .. } => "grove-llm resolve",
+            Self::LeafAdd(_) => "grove-llm leaf-add",
+            Self::LeafAddChain(_) => "grove-llm leaf-add-chain",
+            Self::LeafPromoteChain(_) => "grove-llm leaf-promote-chain",
+            Self::LeafAddPair(_) => "grove-llm leaf-add-pair",
+            Self::LeafInsert(_) => "grove-llm leaf-insert",
+            Self::LeafDecompose(_) => "grove-llm leaf-decompose",
+            Self::LeafRetire(_) => "grove-llm leaf-retire",
+            Self::LeafPrune(_) => "grove-llm leaf-prune",
+            Self::Complete(_) => "grove-llm complete",
+        }
+    }
+}
+
 #[derive(Parser)]
 pub struct CompleteArgs {
     /// Finish the whole grove instead of relaunching: signal the loop to stop
@@ -393,6 +415,8 @@ pub struct LeafPruneArgs {
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
+    let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
+    let session_epoch = driver_lease::admit_ambient_session(&cwd, cli.command.operation_label())?;
     match cli.command {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
@@ -411,17 +435,23 @@ pub fn run() -> Result<()> {
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
-        Command::Complete(args) => cmd_complete(&args),
+        Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
     }
 }
 
-fn cmd_complete(args: &CompleteArgs) -> Result<()> {
+fn cmd_complete(
+    args: &CompleteArgs,
+    session_epoch: Option<&driver_lease::SessionEpochGuard>,
+) -> Result<()> {
     let disposition = if args.done {
         complete::Disposition::Done
     } else {
         complete::Disposition::Relaunch
     };
     let opts = complete::resolve_opts(args.signal_file.clone(), disposition);
+    if let Some(session_epoch) = session_epoch {
+        session_epoch.require_signal_path(opts.signal_file.as_deref())?;
+    }
     complete::signal_complete(&opts)
 }
 

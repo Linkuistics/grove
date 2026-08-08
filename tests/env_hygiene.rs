@@ -34,14 +34,12 @@ fn the_suite_cannot_reach_a_live_loop_signal_file() {
              fake harness writing it kills that session."
         )
     });
-    let sig = PathBuf::from(&raw);
-
     assert!(
-        sig.starts_with(manifest_dir().join("target")),
-        "GROVE_SIGNAL_FILE points outside this repo's target/ ({}). That is a live \
-         loop's kill channel: a fake harness writing it SIGTERMs the session `cargo \
-         test` was typed into. `.cargo/config.toml` must force-override it.",
-        sig.display()
+        raw.is_empty(),
+        "GROVE_SIGNAL_FILE must be force-cleared under cargo, not redirected to {:?}: \
+         any nonempty value now carries session-epoch authority and makes cargo-launched \
+         `grove-llm` commands stale-fail before their test seam",
+        raw
     );
 }
 
@@ -102,15 +100,13 @@ fn both_guards_are_present_and_neither_subsumes_the_other() {
     );
 }
 
-/// The configured value is an explicit tripwire: its basename cannot be one of
-/// Grove's `signal-<32 lowercase hex>` channels, regardless of which Git or jj
-/// workspace-administration directory owns the live driver.
+/// Empty is the only inert value on both axes: fake harnesses cannot write a
+/// live channel, and the agent CLI treats it as manual/no ambient context.
 #[test]
-fn the_overridden_signal_path_is_one_no_driver_watches() {
-    let sig = PathBuf::from(std::env::var_os("GROVE_SIGNAL_FILE").expect("set by cargo config"));
-    assert_eq!(
-        sig.file_name().and_then(|name| name.to_str()),
-        Some("inert.signal"),
-        "the cargo override must keep a basename Grove's random channel allocator cannot produce"
+fn the_overridden_signal_context_is_empty() {
+    let signal = std::env::var_os("GROVE_SIGNAL_FILE").expect("set by cargo config");
+    assert!(
+        signal.is_empty(),
+        "the cargo override must remove both write authority and epoch admission: {signal:?}"
     );
 }

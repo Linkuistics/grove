@@ -133,11 +133,6 @@ fn run_loop_with_lease(
     name: &str,
     driver_lease: &DriverLease,
 ) -> Result<LoopOutcome> {
-    if let Err(error) = driver_lease.cleanup_abandoned_signal_channels() {
-        eprintln!(
-            "grove: warning: could not clean every signal channel abandoned by a previous driver; continuing because fresh channel allocation does not depend on an empty control directory: {error:#}"
-        );
-    }
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -212,7 +207,12 @@ fn run_loop_with_lease(
             &session_name,
             &prompt,
             signal_channel.path(),
+            driver_lease,
+        );
+        driver_lease.invalidate_session_epoch().context(
+            "post-reap session epoch invalidation blocked; completion signal left unconsumed",
         )?;
+        let ended = ended?;
 
         // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
         // screen; reset before relaunching (and on the way out).
@@ -286,6 +286,7 @@ fn launch_session(
     session_name: &str,
     prompt: &str,
     signal_file: &Path,
+    driver_lease: &DriverLease,
 ) -> Result<SessionEnd> {
     let harness = launch.harness;
     let model = launch.model.as_deref();
@@ -351,6 +352,9 @@ fn launch_session(
         eprintln!("{notice}");
     }
 
+    driver_lease
+        .activate_session_epoch(signal_file)
+        .context("activating the foreground session epoch before spawn")?;
     let child = cmd.spawn().context("launching the harness session")?;
     wait_with_watcher(child, signal_file)
 }
@@ -1174,6 +1178,11 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
         // Inherit stderr rather than capture it so strict current-tree
         // diagnostics name the malformed filename or format witness directly.
         .stderr(Stdio::inherit());
+    // This is a driver-internal tree read, not the live agent session.  An
+    // outer driver may have launched this driver with its own completion
+    // authority, which must not leak into the helper and be mistaken for this
+    // worktree's epoch.
+    crate::launch::scrub_loop_control_env(&mut command);
     crate::repo::anchor_git_worktree_environment(&mut command, worktree);
     let out = command.output();
     match out {

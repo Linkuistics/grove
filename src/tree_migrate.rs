@@ -199,9 +199,10 @@ fn commit_migration(worktree: &Path, name: &str) -> Result<()> {
 
 /// Run `jj <args>` in `dir`, bailing with stderr on a non-zero exit.
 fn jj(dir: &Path, args: &[&str]) -> Result<()> {
-    let out = Command::new("jj")
-        .current_dir(dir)
-        .args(args)
+    let mut command = Command::new("jj");
+    command.current_dir(dir).args(args);
+    repo::anchor_git_worktree_environment(&mut command, dir);
+    let out = command
         .output()
         .with_context(|| format!("running jj {}", args.join(" ")))?;
     if !out.status.success() {
@@ -216,10 +217,10 @@ fn jj(dir: &Path, args: &[&str]) -> Result<()> {
 
 /// Run `git -C <dir> <args>`, bailing with stderr on a non-zero exit.
 fn git(dir: &Path, args: &[&str]) -> Result<()> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(dir)
-        .args(args)
+    let mut command = Command::new("git");
+    command.arg("-C").arg(dir).args(args);
+    repo::anchor_git_worktree_environment(&mut command, dir);
+    let out = command
         .output()
         .with_context(|| format!("running git {}", args.join(" ")))?;
     if !out.status.success() {

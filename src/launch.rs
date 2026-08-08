@@ -9,20 +9,20 @@ use std::process::Command;
 
 /// State-dispatching launcher: the sole lifecycle entry verb, run from inside
 /// the working tree (user-owned-worktrees) — grove never creates, attaches, or
-/// relocates it. The worktree is cwd's working-tree root ([`repo::toplevel`]:
-/// the jj workspace root in a jj-enabled tree, else git's toplevel), and
-/// the grove name is its basename. Once resolved, it drives the **whole
-/// self-driving loop** (self-driving-loop): one fresh foreground harness
-/// session per task, relaunching on each completion signal until the agent stops
-/// signalling (empty `pick` → finish, or a human interrupt). The launched
-/// sessions handle all in-context judgement — including proposing the
+/// relocates it. The worktree is the canonical root holding cwd's closest
+/// on-disk `.jj` or `.git` marker, jj-first and independent of ambient Git
+/// selectors, and the grove name is its basename. Once resolved, it drives the
+/// **whole self-driving loop** (self-driving-loop): one fresh foreground
+/// harness session per task, relaunching on each completion signal until the
+/// agent stops signalling (empty `pick` → finish, or a human interrupt). The
+/// launched sessions handle all in-context judgement — including proposing the
 /// complete finish cycle once the grove has no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
     let cwd = std::env::current_dir().context("getting cwd")?;
-    let worktree = repo::toplevel(&cwd)?;
-    let name = worktree_name(&worktree);
+    let discovered_worktree = repo::workspace_control(&cwd)?.worktree_root().to_path_buf();
+    let name = worktree_name(&discovered_worktree);
 
-    let repo_path = repo::resolve(None)?;
+    let repo_path = repo::main_repo_of(&discovered_worktree)?;
     let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
 
     // Provision the global skill from the embedded methodology for every
@@ -31,38 +31,27 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     crate::provision::provision_all(harness)?;
 
     // Provisioning is independent delivery and deliberately remains available
-    // even when another driver owns this working tree. Ownership begins here,
-    // before any task-tree observation, migration, config check, or launch.
+    // even when another driver owns this working tree. Foreground ownership
+    // begins here, before any task-tree observation, migration, config check,
+    // or launch. The read-only no-launch path deliberately takes no lease and
+    // therefore must return before the adoption migration below.
     // Resolve it from cwd's on-disk marker rather than Git discovery so ambient
     // GIT_DIR/GIT_WORK_TREE/TMPDIR values cannot split one workspace's lease.
-    let driver_lease = crate::driver_lease::DriverLease::acquire(&cwd)?;
-    let discovered_worktree = worktree
-        .canonicalize()
-        .with_context(|| format!("canonicalizing working tree {}", worktree.display()))?;
-    anyhow::ensure!(
-        driver_lease.worktree_root() == discovered_worktree,
-        "on-disk working tree {} disagrees with VCS-discovered working tree {}",
-        driver_lease.worktree_root().display(),
-        discovered_worktree.display()
-    );
-    driver_lease
-        .revalidate()
-        .context("revalidating driver lease before lifecycle transition")?;
-
-    // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
-    // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
-    // reviewable commit, so every task the loop launches sees only v2. A no-op on
-    // a v2/empty/absent tree, so it is safe on every `grove do` (idempotent;
-    // restart ≡ continuation).
-    if let crate::tree_migrate::Outcome::Migrated(renames) =
-        crate::tree_migrate::migrate_on_adoption(&worktree, &name)?
-    {
-        eprintln!(
-            "grove: migrated {} task-tree file{} to the v2 directory scheme (committed for review)",
-            renames.len(),
-            if renames.len() == 1 { "" } else { "s" }
-        );
-    }
+    let driver_lease = if args.no_launch {
+        None
+    } else {
+        Some(crate::driver_lease::DriverLease::acquire(&cwd)?)
+    };
+    let worktree = match driver_lease.as_ref() {
+        Some(lease) => {
+            lease
+                .revalidate()
+                .context("revalidating driver lease before lifecycle transition")?;
+            lease.worktree_root().to_path_buf()
+        }
+        None => discovered_worktree,
+    };
+    let name = worktree_name(&worktree);
 
     // Both config checks run *above* the no-launch return, not below it
     // (no-launch-config-check-k20). The pre-flight check covers not just the
@@ -95,12 +84,29 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
         return Ok(());
     }
 
+    // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
+    // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
+    // reviewable commit, so every task the loop launches sees only v2. This is
+    // below the no-launch return because readiness inspection is side-effect
+    // free, and above every foreground tree operation while the lifetime lease
+    // is held. A no-op on a v2/empty/absent tree (restart ≡ continuation).
+    if let crate::tree_migrate::Outcome::Migrated(renames) =
+        crate::tree_migrate::migrate_on_adoption(&worktree, &name)?
+    {
+        eprintln!(
+            "grove: migrated {} task-tree file{} to the v2 directory scheme (committed for review)",
+            renames.len(),
+            if renames.len() == 1 { "" } else { "s" }
+        );
+    }
+
     // The stamp is written only here, after provisioning, the no-launch return
     // and the pre-flight check have all already succeeded: a provisioning
     // failure — or a harness whose binary isn't installed — must never leave a
     // stamp with no recovery path (branch-review-k14 B4).
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
+    let driver_lease = driver_lease.context("driver lease missing before foreground launch")?;
     crate::loop_driver::run(harness, &repo_path, &worktree, &name, driver_lease)
 }
 

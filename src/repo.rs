@@ -181,6 +181,20 @@ pub fn main_repo_of(cwd: &Path) -> Result<PathBuf> {
     }
 }
 
+/// Make one subprocess resolve Git operations against the exact on-disk
+/// worktree Grove already selected.
+///
+/// Removing repository selectors prevents an inherited Git context from
+/// choosing a foreign repository. Setting `GIT_WORK_TREE` also overrides a
+/// hostile `core.worktree` while leaving Git to discover the selected root's
+/// own `.git` marker.
+pub(crate) fn anchor_git_worktree_environment(command: &mut Command, worktree: &Path) {
+    command
+        .env_remove("GIT_DIR")
+        .env("GIT_WORK_TREE", worktree)
+        .env_remove("GIT_COMMON_DIR");
+}
+
 /// `jj workspace root --name default` — the main repo of a jj-enabled tree.
 /// `--ignore-working-copy` keeps the probe read-only: without it every jj
 /// command snapshots the working copy, a mutation no resolution step should
@@ -231,10 +245,14 @@ fn git_show_toplevel(cwd: &Path) -> Result<PathBuf> {
 /// via `--add-dir` (codex-gitdir-grant; jj trees derive their grants from the
 /// main workspace root instead).
 pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
-    let out = Command::new("git")
+    let worktree = workspace_control(cwd)?.worktree_root().to_path_buf();
+    let mut command = Command::new("git");
+    command
         .arg("rev-parse")
         .arg("--git-common-dir")
-        .current_dir(cwd)
+        .current_dir(&worktree);
+    anchor_git_worktree_environment(&mut command, &worktree);
+    let out = command
         .output()
         .context("running git rev-parse --git-common-dir")?;
     if !out.status.success() {
@@ -245,6 +263,6 @@ pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
     if common.is_absolute() {
         Ok(common)
     } else {
-        Ok(cwd.join(common))
+        Ok(worktree.join(common))
     }
 }

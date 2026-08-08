@@ -1,7 +1,7 @@
 mod support;
 
 use grove::driver_lease::DriverLease;
-use grove::{harness, loop_driver};
+use grove::{harness, harness_stamp, loop_driver};
 use std::fs;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -16,7 +16,7 @@ const HOLDER_ROOT: &str = "GROVE_TEST_LEASE_HOLDER_ROOT";
 const HOLDER_READY: &str = "GROVE_TEST_LEASE_HOLDER_READY";
 const HOLDER_PANIC: &str = "GROVE_TEST_LEASE_HOLDER_PANIC";
 const EXEC_READY: &str = "GROVE_TEST_LEASE_EXEC_READY";
-const EXEC_PID: &str = "GROVE_TEST_LEASE_EXEC_PID";
+const EXEC_RELEASED: &str = "GROVE_TEST_LEASE_EXEC_RELEASED";
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -47,6 +47,20 @@ fn run_command(binary: &str, directory: &Path, arguments: &[&str]) {
     );
 }
 
+fn command_stdout(binary: &str, directory: &Path, arguments: &[&str]) -> String {
+    let output = Command::new(binary)
+        .args(arguments)
+        .current_dir(directory)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{binary} {arguments:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap().trim().to_string()
+}
+
 fn write_executable(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut permissions = fs::metadata(path).unwrap().permissions();
@@ -72,21 +86,41 @@ fn grove_driver(root: &Path, harness: &Path, skill_dir: &Path) -> Command {
     command
 }
 
-fn terminate_driver(child: &mut Child) {
+fn stop_driver(child: &mut Child) -> bool {
     unsafe {
         libc::kill(child.id() as libc::pid_t, libc::SIGTERM);
     }
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
         if child.try_wait().unwrap().is_some() {
-            return;
+            return true;
         }
         if Instant::now() >= deadline {
             child.kill().unwrap();
             let _ = child.wait();
-            panic!("driver did not stop after SIGTERM");
+            return false;
         }
         thread::sleep(Duration::from_millis(10));
+    }
+}
+
+struct DriverProcess {
+    child: Option<Child>,
+}
+
+impl DriverProcess {
+    fn spawn(command: &mut Command) -> Self {
+        Self {
+            child: Some(command.spawn().unwrap()),
+        }
+    }
+}
+
+impl Drop for DriverProcess {
+    fn drop(&mut self) {
+        if let Some(child) = self.child.as_mut() {
+            let _ = stop_driver(child);
+        }
     }
 }
 
@@ -156,7 +190,7 @@ fn lease_holder_process() {
         return;
     };
     let ready = PathBuf::from(std::env::var_os(HOLDER_READY).unwrap());
-    let _lease = DriverLease::acquire(Path::new(&root)).unwrap();
+    let lease = DriverLease::acquire(Path::new(&root)).unwrap();
     fs::write(&ready, b"ready").unwrap();
 
     if std::env::var_os(HOLDER_PANIC).is_some() {
@@ -165,17 +199,22 @@ fn lease_holder_process() {
 
     if let Some(exec_ready) = std::env::var_os(EXEC_READY) {
         let exec_ready = PathBuf::from(exec_ready);
-        let pid_path = PathBuf::from(std::env::var_os(EXEC_PID).unwrap());
         let script = format!("printf ready > '{}'; sleep 30", exec_ready.display());
-        let descendant = Command::new("sh")
+        let mut descendant = Command::new("sh")
             .args(["-c", &script])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        fs::write(pid_path, descendant.id().to_string()).unwrap();
         wait_for(&exec_ready);
+        drop(lease);
+        let released = PathBuf::from(std::env::var_os(EXEC_RELEASED).unwrap());
+        fs::write(released, b"released").unwrap();
+        let mut input = Vec::new();
+        std::io::stdin().read_to_end(&mut input).unwrap();
+        let _ = descendant.kill();
+        let _ = descendant.wait();
         return;
     }
 
@@ -205,6 +244,66 @@ fn an_alias_equivalent_second_owner_is_refused_immediately() {
     );
     assert!(error.to_string().contains(root.to_str().unwrap()));
     drop(holder);
+}
+
+#[test]
+fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
+    let tmp = TempDir::new().unwrap();
+    let intended = tmp.path().join("intended");
+    let foreign = tmp.path().join("foreign");
+    init_git_worktree(&intended);
+    init_git_worktree(&foreign);
+    run_command(
+        "git",
+        &intended,
+        &["config", "core.worktree", foreign.to_str().unwrap()],
+    );
+    fs::create_dir_all(intended.join(".grove")).unwrap();
+    fs::write(intended.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
+    fs::write(intended.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
+
+    let launch_log = tmp.path().join("launch-log");
+    let fake_harness = tmp.path().join("fake-claude.sh");
+    write_executable(
+        &fake_harness,
+        &format!(
+            "#!/bin/sh\ngit rev-parse --show-toplevel > '{}'\n",
+            launch_log.display()
+        ),
+    );
+    let skill_dir = tmp.path().join("global-skill");
+
+    let output = grove_driver(&intended, &fake_harness, &skill_dir)
+        .env("GIT_DIR", foreign.join(".git"))
+        .env("GIT_WORK_TREE", &foreign)
+        .env("GIT_COMMON_DIR", foreign.join(".git"))
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "driver rejected its on-disk worktree: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        launch_log.exists(),
+        "driver did not launch the intended grove"
+    );
+    assert_eq!(
+        fs::read_to_string(&launch_log).unwrap().trim(),
+        intended.canonicalize().unwrap().to_str().unwrap(),
+        "foreground harness inherited a foreign Git worktree"
+    );
+    let grove_name = intended.file_name().unwrap().to_string_lossy();
+    assert!(
+        harness_stamp::path(&intended, &grove_name).exists(),
+        "driver stamped a repository other than its leased worktree"
+    );
+    assert!(
+        !harness_stamp::path(&foreign, &grove_name).exists(),
+        "driver wrote launch state into the environment-selected repository"
+    );
 }
 
 #[test]
@@ -431,28 +530,26 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
     fake_git_worktree(&root);
     let ready = tmp.path().join("holder-ready");
     let exec_ready = tmp.path().join("exec-ready");
-    let pid_path = tmp.path().join("exec-pid");
+    let released = tmp.path().join("lease-released");
     let mut child = Command::new(std::env::current_exe().unwrap())
         .args(["--exact", "lease_holder_process", "--nocapture"])
         .env(HOLDER_ROOT, &root)
         .env(HOLDER_READY, &ready)
         .env(EXEC_READY, &exec_ready)
-        .env(EXEC_PID, &pid_path)
-        .stdin(Stdio::null())
+        .env(EXEC_RELEASED, &released)
+        .stdin(Stdio::piped())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
     wait_for(&ready);
     wait_for(&exec_ready);
-    assert!(child.wait().unwrap().success());
-    let descendant_pid: libc::pid_t = fs::read_to_string(&pid_path).unwrap().parse().unwrap();
+    wait_for(&released);
 
     DriverLease::acquire(&root).unwrap().revalidate().unwrap();
 
-    unsafe {
-        libc::kill(descendant_pid, libc::SIGKILL);
-    }
+    drop(child.stdin.take());
+    assert!(child.wait().unwrap().success());
 }
 
 #[test]
@@ -465,27 +562,51 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     fs::write(root.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(root.join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
     fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
+    run_command("git", &root, &["add", ".grove"]);
+    run_command(
+        "git",
+        &root,
+        &[
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=t@example.com",
+            "commit",
+            "-q",
+            "-m",
+            "seed current grove",
+        ],
+    );
 
     let gate = tmp.path().join("harness-active");
+    let harness_pid = tmp.path().join("harness-pid");
     let first_ready = tmp.path().join("first-ready");
     let duplicate_launch = tmp.path().join("duplicate-launch");
     let fake_harness = tmp.path().join("fake-claude.sh");
     write_executable(
         &fake_harness,
         &format!(
-            "#!/bin/sh\nif mkdir '{}' 2>/dev/null; then\n  touch '{}'\n  trap 'exit 0' TERM\n  while :; do sleep 1; done\nelse\n  touch '{}'\n  exit 0\nfi\n",
+            "#!/bin/sh\nprintf '%s' \"$$\" > '{}'\nif mkdir '{}' 2>/dev/null; then\n  touch '{}'\n  trap 'exit 0' TERM\n  while :; do sleep 1; done\nelse\n  touch '{}'\n  exit 0\nfi\n",
+            harness_pid.display(),
             gate.display(),
             first_ready.display(),
             duplicate_launch.display()
         ),
     );
     let skill_dir = tmp.path().join("global-skill");
-    let mut first = grove_driver(&root, &fake_harness, &skill_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+    let mut first_command = grove_driver(&root, &fake_harness, &skill_dir);
+    first_command.stdout(Stdio::null()).stderr(Stdio::null());
+    let first = DriverProcess::spawn(&mut first_command);
     wait_for(&first_ready);
+    wait_for(&harness_pid);
+    fs::remove_file(root.join(".grove/FORMAT")).unwrap();
+    fs::remove_file(root.join(".grove/01-impl-test-k1.md")).unwrap();
+    fs::write(
+        root.join(".grove/1-[1]-test.md"),
+        "# test-k1\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    let head_before_second = command_stdout("git", &root, &["rev-parse", "HEAD"]);
     fs::remove_file(skill_dir.join("SKILL.md")).unwrap();
     fs::write(skill_dir.join(".grove-content-hash"), "stale-hash\n").unwrap();
 
@@ -507,7 +628,30 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
         !duplicate_launch.exists(),
         "second driver launched a harness"
     );
-    terminate_driver(&mut first);
+    assert!(
+        root.join(".grove/1-[1]-test.md").exists(),
+        "second driver migrated the live driver's task tree"
+    );
+    assert!(
+        !root.join(".grove/FORMAT").exists(),
+        "second driver wrote the current-format witness"
+    );
+    assert_eq!(
+        command_stdout("git", &root, &["rev-parse", "HEAD"]),
+        head_before_second,
+        "second driver committed a migration before acquiring ownership"
+    );
+    drop(first);
+    let harness_pid: libc::pid_t = fs::read_to_string(harness_pid).unwrap().parse().unwrap();
+    assert_eq!(
+        unsafe { libc::kill(harness_pid, 0) },
+        -1,
+        "driver drop orphaned harness process {harness_pid}"
+    );
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH)
+    );
 }
 
 #[test]

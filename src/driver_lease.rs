@@ -32,10 +32,10 @@ impl FileIdentity {
 #[derive(Debug)]
 pub struct DriverLease {
     worktree_root: PathBuf,
-    worktree_directory: File,
+    _worktree_directory: File,
     worktree_identity: FileIdentity,
     lease_path: PathBuf,
-    lease_file: File,
+    _lease_file: File,
     lease_identity: FileIdentity,
 }
 
@@ -70,10 +70,10 @@ impl DriverLease {
 
         let lease = Self {
             worktree_root,
-            worktree_directory,
+            _worktree_directory: worktree_directory,
             worktree_identity,
             lease_path,
-            lease_file,
+            _lease_file: lease_file,
             lease_identity,
         };
         lease.revalidate()?;
@@ -86,12 +86,6 @@ impl DriverLease {
 
     /// Confirm that the paths still name the descriptors this process owns.
     pub fn revalidate(&self) -> Result<()> {
-        let pinned_root = FileIdentity::from_metadata(
-            &self
-                .worktree_directory
-                .metadata()
-                .context("reading pinned working-tree identity")?,
-        );
         let current_root =
             FileIdentity::from_metadata(&fs::metadata(&self.worktree_root).with_context(|| {
                 format!(
@@ -99,19 +93,13 @@ impl DriverLease {
                     self.worktree_root.display()
                 )
             })?);
-        if pinned_root != self.worktree_identity || current_root != self.worktree_identity {
+        if current_root != self.worktree_identity {
             bail!(
                 "working tree root was replaced while Grove held its driver lease: {}",
                 self.worktree_root.display()
             );
         }
 
-        let pinned_lease = FileIdentity::from_metadata(
-            &self
-                .lease_file
-                .metadata()
-                .context("reading held driver lease identity")?,
-        );
         let current_lease =
             FileIdentity::from_metadata(&fs::metadata(&self.lease_path).with_context(|| {
                 format!(
@@ -119,7 +107,7 @@ impl DriverLease {
                     self.lease_path.display()
                 )
             })?);
-        if pinned_lease != self.lease_identity || current_lease != self.lease_identity {
+        if current_lease != self.lease_identity {
             bail!(
                 "driver lease path was replaced while Grove held ownership: {}",
                 self.lease_path.display()
@@ -295,5 +283,27 @@ mod tests {
                 .contains("was replaced during acquisition 8 times"),
             "unexpected error: {error:#}"
         );
+    }
+
+    #[test]
+    fn acquired_driver_descriptors_are_close_on_exec() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+
+        let lease = DriverLease::acquire(&root).unwrap();
+
+        for (label, descriptor) in [
+            ("working-tree root", lease._worktree_directory.as_raw_fd()),
+            ("driver lease", lease._lease_file.as_raw_fd()),
+        ] {
+            let flags = unsafe { libc::fcntl(descriptor, libc::F_GETFD) };
+            assert_ne!(flags, -1, "reading {label} descriptor flags failed");
+            assert_ne!(
+                flags & libc::FD_CLOEXEC,
+                0,
+                "{label} descriptor can leak across exec"
+            );
+        }
     }
 }

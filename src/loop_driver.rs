@@ -354,6 +354,7 @@ fn launch_session(
     // grants; every other harness spawn only scrubs
     // (`launch::scrub_loop_control_env`).
     crate::launch::scrub_loop_control_env(&mut cmd);
+    crate::repo::anchor_git_worktree_environment(&mut cmd, worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
     if let Some(leaf) = &launch.routed_leaf {
         let target = crate::task_relationship::SessionTarget::for_launch(
@@ -1180,15 +1181,22 @@ where
 /// grove. Both ends of that shape move together: the driver's per-session
 /// version-skew guard refuses to run a `grove-llm` that is not this exact build.
 fn resolve_kind(worktree: &Path) -> KindPeek {
-    let out = Command::new(grove_llm_bin())
+    let mut command = Command::new(grove_llm_bin());
+    command
         .arg("kind")
         .arg("--with-harness")
         .arg("--json")
         .current_dir(worktree)
+        // The driver has already resolved and leased this exact on-disk
+        // worktree. Repository-selection variables from its caller must not
+        // redirect the internal tree reader away from that root. Supplying the
+        // authoritative worktree also overrides a foreign `core.worktree` in
+        // local Git configuration.
         // Inherit stderr rather than capture it so strict current-tree
         // diagnostics name the malformed filename or format witness directly.
-        .stderr(Stdio::inherit())
-        .output();
+        .stderr(Stdio::inherit());
+    crate::repo::anchor_git_worktree_environment(&mut command, worktree);
+    let out = command.output();
     match out {
         Ok(o) if o.status.success() => {
             let wire: Option<RoutedLeafWire> = match serde_json::from_slice(&o.stdout) {

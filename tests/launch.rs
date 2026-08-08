@@ -1,6 +1,7 @@
 mod support;
 
 use grove::cli::{RetireArgs, StartArgs};
+use grove::driver_lease::DriverLease;
 use grove::launch;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
@@ -91,6 +92,15 @@ fn init_repo() -> TempDir {
     tmp
 }
 
+fn git_head(worktree: &std::path::Path) -> Vec<u8> {
+    let output = Command::new("git")
+        .args(["-C", worktree.to_str().unwrap(), "rev-parse", "HEAD"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    output.stdout
+}
+
 #[test]
 fn do_reports_readiness_in_no_launch_mode() {
     let _g = CWD_LOCK.lock().unwrap();
@@ -105,6 +115,49 @@ fn do_reports_readiness_in_no_launch_mode() {
         no_launch: true,
     })
     .unwrap();
+}
+
+#[test]
+fn no_launch_reports_readiness_while_a_driver_owns_the_worktree() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
+    let _driver_lease = DriverLease::acquire(repo.path()).unwrap();
+
+    launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .expect("a read-only readiness check must remain available beside a live driver");
+}
+
+#[test]
+fn no_launch_does_not_migrate_a_live_drivers_legacy_tree() {
+    let _g = CWD_LOCK.lock().unwrap();
+    let repo = init_repo();
+    std::env::set_current_dir(repo.path()).unwrap();
+    let _env = dry_run_env(repo.path());
+    fs::create_dir_all(repo.path().join(".grove")).unwrap();
+    fs::write(repo.path().join(".grove/BRIEF.md"), "# test — brief\n").unwrap();
+    fs::write(
+        repo.path().join(".grove/1-[1]-test.md"),
+        "# test-k1\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+    let head_before = git_head(repo.path());
+    let _driver_lease = DriverLease::acquire(repo.path()).unwrap();
+
+    launch::do_grove(&StartArgs {
+        harness: None,
+        no_launch: true,
+    })
+    .expect_err("a read-only check must report a pending migration without performing it");
+
+    assert!(repo.path().join(".grove/1-[1]-test.md").exists());
+    assert!(!repo.path().join(".grove/01-impl-test-k1.md").exists());
+    assert!(!repo.path().join(".grove/FORMAT").exists());
+    assert_eq!(git_head(repo.path()), head_before);
 }
 
 #[test]
@@ -219,7 +272,7 @@ fn do_stops_after_the_bounded_layout_migration_until_session_kind_migration() {
 
     let error = launch::do_grove(&StartArgs {
         harness: None,
-        no_launch: true,
+        no_launch: false,
     })
     .expect_err("an unwitnessed legacy tree must not be launched as current");
     assert!(
@@ -318,8 +371,7 @@ fn retire_never_stamps_the_grove() {
 }
 
 /// Plant a minimal current task tree with one leaf of `kind`, live or retired.
-/// Committed, so the adoption migration (which runs above the no-launch return)
-/// sees a witnessed current tree and no-ops.
+/// Committed so readiness observes the same stable witnessed tree as a launch.
 fn plant_leaf(worktree: &std::path::Path, kind: &str, retired: bool) {
     let grove_dir = worktree.join(".grove");
     fs::create_dir_all(&grove_dir).unwrap();

@@ -20,9 +20,9 @@ behind the already-complete bare configured driver.
 - All `GROVE_<KIND|FAMILY>_HARNESS`, `GROVE_*_MODEL`, executable, skill-dir,
   kill-grace, and `GROVE_LLM_BIN` user overrides are absent from production and
   tests.
-- Harness/model inference, sandbox probing or grants, hidden naming/model/Herdr
-  argv, and implicit `HERDR_AGENT` injection are gone; configured argv and the
-  visible `${herdr_settings}` splice are the only launch policy.
+- Harness/model inference, sandbox probing or grants, and hidden naming/model or
+  other harness-specific argv/environment injection are gone; configured argv
+  is the only launch policy.
 - Direct-process launch tests, `cargo fmt --check`, and `cargo test --locked`
   pass.
 

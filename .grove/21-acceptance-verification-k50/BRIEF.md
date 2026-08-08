@@ -25,11 +25,10 @@ acceptance sweep.
   already-covered case: KDL diagnostics/argv, two config reads, sibling-tool
   skew, metadata-only flags, root/migration/live/finish transitions, one pick
   and mandate, direct child lifecycle, leases/epochs/races/timeouts, Git/jj
-  scoped commits, and Herdr opt-in behavior.
+  scoped commits, and the absence of hidden harness-specific launch policy.
 - The `grove-llm` matrix covers current filename parsing, all nineteen kinds,
   malformed/terminal trees, finish rules, pair generation, stable resolution,
-  promotion after insertion, and migration-witness refusal; viewer fixtures
-  cover the same filename grammar.
+  promotion after insertion, and migration-witness refusal.
 - Legacy-surface sweeps prove removed runtime and documentation policy with
   positive and cross-tree controls, while legitimate loop-control and durable
   historical discussion remain classified.
@@ -42,9 +41,9 @@ acceptance sweep.
 ## Decomposition
 
 - `process-acceptance-verification-k81` proves configuration, launch, lifecycle,
-  lease, epoch, and Herdr process behavior.
+  lease, epoch, and process behavior.
 - `tree-vcs-acceptance-verification-k90` proves filename grammar, tree verbs,
-  migration, finish, viewer, and scoped Git/jj behavior.
+  migration, finish, and scoped Git/jj behavior.
 - `release-acceptance-verification-k91` proves removed surfaces, durable docs,
   release health, and the root brief's complete acceptance rollup.
 

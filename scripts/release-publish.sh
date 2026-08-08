@@ -22,28 +22,26 @@
 #
 # `brew upgrade` after this leaves the obvious question — does the installed
 # grove actually do the new thing? `strings` on the binary is a weak answer and
-# sometimes a wrong one (a compile-time literal LLVM lowers to immediate byte
-# compares is absent from a binary that provably contains the code). Drive it
-# functionally instead. One nested launch yields several proofs at once:
+# sometimes a wrong one. Drive it functionally instead. One isolated launch
+# yields several proofs at once:
 #
 #   scratch=$(mktemp -d) && cd "$scratch" && git init -q .
 #   grove-llm root-init                       # a live tree for `pick` to walk
-#   printf '#!/bin/sh\necho "HERDR_AGENT=$HERDR_AGENT"\n' > fake && chmod +x fake
-#   env -u HERDR_ENV \
+#   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
+#   chmod +x fake
+#   env -u GROVE_SIGNAL_FILE \
 #       GROVE_HARNESS_BIN_CLAUDE="$PWD/fake" GROVE_CLAUDE_MODEL=opus \
 #       grove do --harness claude
 #
-# `env -u HERDR_ENV` keeps the nested driver from reporting into the operator's
-# own herdr pane. `--harness claude` plus an explicit model are needed because a
-# scratch tree has no stamp and no detectable harness. The fake exits 0 without
-# signalling, so the nested loop stops itself after one iteration.
+# `--harness claude` plus an explicit model are needed because a scratch tree
+# has no stamp and no detectable harness. The fake exits 0 without signalling,
+# so the nested loop stops itself after one iteration.
 #
-# What that shows: the driver's launch line (routing diagnostics), HERDR_AGENT
-# reaching the harness child (the fake echoes it), and — because `grove do`
-# re-provisions the skill from the binary — the methodology surfaces, which is a
-# far better proof that guidance shipped than any check on the binary. A fourth
+# What that shows: the driver's launch line (routing diagnostics), a fresh
+# completion-signal path reaching the harness child, and — because `grove do`
+# re-provisions the skill from the binary — the methodology surfaces. A fourth
 # comes free from the scratch tree being untrusted by codex:
-# `grove do --harness codex --no-launch` there exercises the sandbox pre-flight
+# `grove do --harness codex --no-launch` there exercises the sandbox preflight
 # refusal end to end.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why

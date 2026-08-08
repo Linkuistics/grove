@@ -8,8 +8,7 @@ tree, while one personal KDL file is the entirety of user launch policy.
 ## Done when
 
 - `~/.config/grove/config.kdl` is the only user configuration and contains one
-  complete command template for every session kind, including any
-  harness-specific herdr launch policy.
+  complete command template for every session kind.
 - A single driver-side pick selects each real leaf; its filename supplies the
   session kind, `${prompt}` carries its stable handle as the mandate, and the
   launched session resolves that handle without picking again.
@@ -22,12 +21,8 @@ tree, while one personal KDL file is the entirety of user launch policy.
   `GROVE_SESSION_TARGET`, and grow-verb harness flags are removed.
 - Git and jj behavior, migration, error paths, direct process execution, and the
   self-driving loop are verified through the agreed seams; `content/`, the
-  doubt skill, the herdr tree viewer, user documentation, and the minimum
-  coherent ADR/spec set all describe the resulting system.
-- Herdr turn-level reporting and correct harness re-detection remain available,
-  but only through visible command-template policy: `${herdr_settings}` is an
-  explicit optional argv splice and `HERDR_AGENT` is set by the configured
-  command, never inferred or secretly injected by Grove.
+  doubt skill, user documentation, and the minimum coherent ADR/spec set all
+  describe the resulting system.
 
 ## Decomposition
 

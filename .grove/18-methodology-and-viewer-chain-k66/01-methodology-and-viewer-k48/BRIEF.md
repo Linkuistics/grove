@@ -8,15 +8,13 @@ bare-command, configured-session, nineteen-kind behavior.
 ## Context
 
 - Depends on `legacy-review-removal-integrate-k65` so canonical guidance is
-  written from the final executable surfaces, not transitional compatibility;
-  `herdr-session-kind-viewer-k51` already owns the separately versioned viewer.
+  written from the final executable surfaces, not transitional compatibility.
 - Primary artifacts: `content/SKILL.md`, `content/TASK-FORMAT.md`,
   `content/driving.md`, `content/prompts/`,
   `plugins/linkuistics/skills/doubt-driven-development/`, and
   guidance/navigation tests.
 - The root brief explicitly requires prompts, the nineteen-kind taxonomy,
-  doubt/Grove review ownership, and filename-only viewer parsing to move in
-  lockstep.
+  doubt/Grove review ownership, and filename grammar to move in lockstep.
 
 ## Done when
 
@@ -31,9 +29,8 @@ bare-command, configured-session, nineteen-kind behavior.
 - `content/prompts/continue.md` is the only embedded launcher. Obsolete
   `start.md` and `retire.md` are deleted, and build/provision tests prove removed
   prompts are not embedded or swept.
-- Canonical guidance cites the filename-only viewer contract established by
-  `herdr-session-kind-viewer-k51` without coupling methodology provisioning to
-  viewer installation or implementation.
+- Canonical guidance states the filename-only task grammar without coupling it
+  to an external renderer.
 - Canonical-guidance, reference-navigation, and provisioning tests pass without
   restoring receipt-era language. `cargo fmt --check` and
   `cargo test --locked` pass.
@@ -43,14 +40,14 @@ bare-command, configured-session, nineteen-kind behavior.
 - `lifecycle-methodology-k79` reconciles Bootstrap, configuration, the bare
   lifecycle, mandate, finish, and the single embedded launcher.
 - `session-kind-methodology-k86` reconciles the nineteen filename kinds and the
-  filename-only viewer compatibility contract.
+  filename grammar contract.
 - `review-methodology-k87` reconciles Grove/doubt review ownership and removes
   receipt and diversity-era guidance.
 
 ## Notes
 
 Keep the skill procedural. Durable architecture and user-facing prose belong to
-`durable-docs-reconciliation-k49`; viewer code and fixtures stay in k51.
+`durable-docs-reconciliation-k49`.
 
 Each child updates every canonical surface for one behavior, leaving usable
 guidance after every commit. The outer review remains atomic because it judges

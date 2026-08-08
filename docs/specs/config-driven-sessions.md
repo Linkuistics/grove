@@ -5,7 +5,7 @@
 Grove currently reconstructs one session command from several independent
 sources: a repository marker and local stamp select a primary harness; task
 bodies and environment variables can reroute a leaf; more variables select a
-model; and harness-specific code appends naming, sandbox, and Herdr arguments.
+model; and harness-specific code appends naming and sandbox arguments.
 The driver therefore knows too much about the programs it launches while a
 reader cannot see the complete launch policy in one place.
 
@@ -38,7 +38,7 @@ The resulting flow is:
 ```text
 bare grove
   -> provision embedded methodology independently of launch policy
-  -> report Herdr working and acquire this working tree's driver lease
+  -> acquire this working tree's driver lease
   -> resolve the sibling grove-llm and reject version skew
   -> load and fully validate ~/.config/grove/config.kdl
   -> recover or perform at most one required lifecycle transition
@@ -54,11 +54,9 @@ bare grove
 ```
 
 `grove --help` and `grove --version` stop before this flow: they provision
-nothing, report nothing, discover no repository, and acquire no lease. On the
-bare lifecycle path, provisioning precedes ownership so a refused second driver
-still receives the independently delivered methodology. Herdr `working` is
-reported before lease acquisition; contention follows the ordinary error path,
-reports `blocked`, and retains authority for that pane.
+nothing, discover no repository, and acquire no lease. On the bare lifecycle
+path, provisioning precedes ownership so a refused second driver still receives
+the independently delivered methodology.
 
 ## Configuration file
 
@@ -70,8 +68,8 @@ complete command template. Nodes have no properties and no child blocks.
 Comments and insignificant ordering are permitted.
 
 ```kdl
-requirements "env HERDR_AGENT=claude claude ${herdr_settings} --model opus ${prompt}"
-review-requirements "env HERDR_AGENT=codex grove-codex-review ${worktree} ${prompt}"
+requirements "claude --model opus ${prompt}"
+review-requirements "grove-codex-review ${worktree} ${prompt}"
 integrate-review-requirements "grove-claude --session ${session_name} ${prompt}"
 
 design "grove-claude --session ${session_name} ${prompt}"
@@ -94,7 +92,7 @@ research-a "grove-claude --session ${session_name} ${prompt}"
 research-b "grove-codex-research ${repo} ${prompt}"
 combine-research "grove-claude --session ${session_name} ${prompt}"
 
-finish "env HERDR_AGENT=claude claude ${herdr_settings} --model opus ${prompt}"
+finish "claude --model opus ${prompt}"
 ```
 
 The wrapper names are illustrative. A configured wrapper must `exec` its
@@ -142,22 +140,16 @@ splitting, Grove validates and expands these whole-word substitutions:
 | `${session_name}` | `<repo-basename>: <grove-name> grove`, as one argument. Optional. |
 | `${worktree}` | The absolute root of the working tree that owns `.grove/`, as one argument. Optional. |
 | `${repo}` | The absolute root of the main repository: the default jj workspace root, or the parent of Git's common directory. Optional. |
-| `${herdr_settings}` | Outside a Herdr pane, zero arguments. Inside one, `--settings` and Grove's inline turn-hook JSON as two arguments. Optional. |
 
 Every substitution occupies a complete parsed word. Embedded substitutions,
 unknown `${...}` names, a substitution in word zero, and more than one use of
 the same substitution are errors. `${prompt}` may appear at any nonzero argv
 position; it is not required to be last. Each optional substitution appears
-zero or one time. `${herdr_settings}` may have literal words after it; outside
-Herdr its one placeholder word is simply elided, and inside Herdr its two argv
-values are inserted at that position without consuming or reinterpreting any
-neighboring word. The configuration owner places the splice only in a target
-whose command understands Claude's `--settings` argument and hook schema;
-Grove cannot infer or validate that compatibility from an opaque template.
+zero or one time.
 
 The first parsed word is a non-empty literal executable or script name. “Word
-zero” means exactly that first shell-split word: in `env HERDR_AGENT=claude
-claude ...`, it is `env`, while the assignment and `claude` are ordinary later
+zero” means exactly that first shell-split word: in `env MODE=review runner
+...`, it is `env`, while the assignment and `runner` are ordinary later
 arguments. Grove passes those words directly with the working tree as the
 current directory. Shell variables, command substitutions, redirections,
 pipelines, globs, aliases, and tilde expansion are not interpreted. A user who
@@ -170,17 +162,15 @@ launching a truncated command. Quote or escape the `#` to pass it literally;
 an unquoted `#` inside an existing word, such as `tag#1`, is already literal.
 
 Substitution values are argv values, not text splices, so spaces or shell
-metacharacters in repository paths, session names, prompts, and JSON never
-change argument boundaries. `${herdr_settings}` is the only substitution whose
-arity is not one; requiring it to occupy a whole word makes its zero-or-two
-behavior unambiguous.
+metacharacters in repository paths, session names, and prompts never change
+argument boundaries.
 
 Grove adds no hidden harness-specific arguments or environment values. The
 configured command owns executable choice, harness, model, reasoning effort,
-approval and sandbox policy, session-name flags, repository grants, and
-`HERDR_AGENT`. Grove still owns its temporary loop-control channel, child
-lifecycle, current directory, and the generated prompt. Those are orchestration,
-not user launch policy.
+approval and sandbox policy, session-name flags, and repository grants. Grove
+still owns its temporary loop-control channel, child lifecycle, current
+directory, and the generated prompt. Those are orchestration, not user launch
+policy.
 
 ### Validation and diagnostics
 
@@ -279,12 +269,9 @@ kinds. Given an existing finish leaf, `leaf-retire`, `leaf-prune`,
 new work before teardown; ordinary `leaf-add` may also append later work because
 finish selection cannot starve it.
 
-The optional Herdr tree viewer depends on this filename grammar as well as the
-node-directory grammar. It parses one member of the same non-prefix kind-label
-set before the slug and never opens a task body merely to render kind. Adding a
-session kind is therefore a breaking configuration-schema and viewer-grammar
-change: the CLI, embedded methodology, viewer, examples, and all complete
-personal configs must move together.
+Adding a session kind is a breaking configuration-schema and filename-grammar
+change: the CLI, embedded methodology, examples, and all complete personal
+configs must move together.
 
 ## Authoritative selection and mandate
 
@@ -347,15 +334,13 @@ On every iteration the driver resolves `grove-llm` beside its own current
 executable, falling back to `PATH` only when no sibling file exists. There is no
 user override. Before configuration validation or tree mutation it runs that
 exact binary's version check and stops on a missing, malformed, or different
-version. The same resolved absolute path is embedded in Herdr turn-hook JSON, so
-the hooks and the version-checked agent interface cannot drift. Version skew is
-a resumable no-mutation stop.
+version. Version skew is a resumable no-mutation stop.
 
 ### Process ownership and session epochs
 
-The bare lifecycle path provisions embedded content first and reports Herdr
-`working`, then resolves the working tree and acquires its **driver lease**
-before configuration validation or any `.grove/` observation or mutation. The
+The bare lifecycle path provisions embedded content first, then resolves the
+working tree and acquires its **driver lease** before configuration validation
+or any `.grove/` observation or mutation. The
 repository adapter derives a control directory from the closest on-disk VCS
 marker for that exact workspace, without invoking VCS discovery or honoring
 repository-selection environment. A `.jj/` beside `.git` wins. For native,
@@ -384,9 +369,9 @@ repository or basename.
 
 Contention is not a tree operation to queue. A second driver exits nonzero
 immediately, names the canonical working tree, says the existing driver must
-stop, reports Herdr `blocked`, and retains authority for its pane. The owner
-holds the root and lease descriptors until the loop has handled its terminal
-signal/no-signal/error disposition and finished Herdr reporting. Before every
+stop, and leaves the existing driver as owner. The owner holds the root and
+lease descriptors until the loop has handled its terminal
+signal/no-signal/error disposition. Before every
 lifecycle transition and foreground launch it re-stats the lease path against
 the held descriptor; loss stops the loop visibly before more work. Normal
 return, panic, and process death close the descriptor and release the kernel
@@ -450,9 +435,9 @@ already-admitted operation returns.
 A cwd that resolves to another working tree receives a wrong-worktree
 diagnostic naming both roots. A missing, inactive, unlocked, malformed, or
 mismatched epoch receives a stale-session diagnostic. Both refuse before tree
-access or completion signaling. Pure `grove-llm --version` and Herdr's best-
-effort `report-turn` are explicitly exempt. A command invoked manually without
-`GROVE_SIGNAL_FILE` remains an ordinary human/diagnostic tree command.
+access or completion signaling. Pure `grove-llm --version` is explicitly
+exempt. A command invoked manually without `GROVE_SIGNAL_FILE` remains an
+ordinary human/diagnostic tree command.
 
 Every epoch lock acquisition first tries without blocking. On contention it
 prints one diagnostic naming the operation and lock mode, then waits for a fixed
@@ -719,8 +704,8 @@ The design removes, rather than deprecates, these launch-policy surfaces:
 - `grove do`, `grove migrate`, `grove retire`, and dry-run routing output;
 - structured harness-routing peeks, target receipts,
   `GROVE_SESSION_TARGET`, and review diversity warnings;
-- hidden model flags, Codex grants, session-name arguments, turn-hook arguments,
-  and `HERDR_AGENT` injection.
+- hidden model flags, Codex grants, session-name arguments, and other
+  harness-specific argument or environment injection.
 
 Internal loop-control environment is not a compatibility surface. The driver
 continues to scrub ambient control variables from non-foreground child commands
@@ -758,10 +743,10 @@ invariant Grove can verify by comparing opaque templates.
 
 The configuration module is deep. Its external interface loads one fixed file
 into a complete kind-to-template map and expands one selected template from a
-context containing prompt, session name, worktree, repository root, and optional
-Herdr settings. It hides KDL syntax handling, aggregate schema diagnostics,
-shell-word parsing, placeholder validation, and argv construction. Callers
-cannot request a default, family, harness, or model.
+context containing prompt, session name, worktree, and repository root. It hides
+KDL syntax handling, aggregate schema diagnostics, shell-word parsing,
+placeholder validation, and argv construction. Callers cannot request a
+default, family, harness, or model.
 
 The loop driver owns lifecycle order and one selected-leaf value per iteration.
 It asks the tree module to recover or perform the required transition, asks for
@@ -788,10 +773,7 @@ reimplements the race-sensitive protocol.
 The tree module owns the format witness, leaf grammar, finish eligibility,
 driver-only finish creation, guarded finish commit, current pick, universal
 working-tree lock, and migration transaction. The repository module owns
-worktree/main-repo resolution and path/fileset-scoped commits. The Herdr module
-may produce the two settings
-arguments, but they cross into a session only when the visible
-`${herdr_settings}` splice requests them.
+worktree/main-repo resolution and path/fileset-scoped commits.
 
 Deleting the configuration module would scatter KDL validation, shell-word and
 substitution rules, source diagnostics, and argv construction across every
@@ -812,19 +794,18 @@ Through that seam, cover:
 - all KDL syntax, shape, duplicate/unknown/missing-kind, shell-word, and
   substitution diagnostics, including missing `${prompt}`, aggregation, and
   source spans;
-- one-argument scalar substitution, zero/two-argument Herdr expansion, paths
-  with spaces, prompt in non-final position, words after the Herdr splice,
-  literal `env` as word zero, and absence of shell evaluation;
+- scalar substitution, paths with spaces, prompt in non-final position, literal
+  `env` as word zero, and absence of shell evaluation;
 - reloading between iterations and between a lifecycle mutation and launch;
 - no mutation for a pre-mutation missing or invalid config in rootless, legacy,
   current, empty, and pending-migration trees; plus a post-mutation invalid edit
   that preserves the completed transition but launches nothing;
-- sibling/PATH `grove-llm` resolution, fatal missing/malformed/version-skew
-  checks before mutation, and the exact path reused by Herdr hooks;
+- sibling/PATH `grove-llm` resolution and fatal missing/malformed/version-skew
+  checks before mutation;
 - metadata-only `--help`/`--version`; provisioning before lease acquisition on
-  the bare path; skill refresh plus Herdr `blocked` on a refused second driver;
-  and an unwritable workspace-administration control directory failing before
-  configuration or tree access;
+  the bare path; skill refresh on a refused second driver; and an unwritable
+  workspace-administration control directory failing before configuration or
+  tree access;
 - fresh root creation and partial-scaffold recovery under the universal lock,
   atomic format replacement, one authoritative selection, mandate resolution,
   a launch-window insert, spawn failure and restart;
@@ -863,9 +844,9 @@ Through that seam, cover:
   but blocking replacement invalidation, followed by refusal of calls that
   begin after invalidation;
   an orphaned tree command outliving its SIGKILLed foreground parent causing a
-  bounded `blocked` stop rather than parking or relaunching the loop; and
-  `grove-llm --version` plus `report-turn` succeeding against inactive or foreign
-  epochs while task-tree verbs still refuse;
+  bounded stop rather than parking or relaunching the loop; and `grove-llm
+  --version` succeeding against inactive or foreign epochs while task-tree verbs
+  still refuse;
 - 128-bit OS-random driver nonces generated once per process; an independent
   per-launch signal draw; occupied draws retried; no deterministic reuse; the
   accepted cross-restart collision bound recorded rather than asserted
@@ -880,15 +861,13 @@ Through that seam, cover:
   copy preservation for migration and finish commits;
 - direct foreground ownership, no hidden argv/env injection, signal/no-signal
   outcomes with exit status and elapsed time, nonzero configured-command
-  diagnostics, and explicit versus absent Herdr settings.
+  diagnostics, and child termination on driver shutdown.
 
 The `grove-llm` tree interface is the second seam. Exercise current filename
 parsing, the kind-label non-prefix invariant, malformed task-shaped names,
 stable resolution, pair generation without harness flags, per-verb finish
 refusal, finish-skipping pick order, mandate-authorized promotion after a
-launch-window insert, and migration refusal while a witness exists. The Herdr
-renderer gets filename-only fixtures for all nineteen kinds and both terminal
-infixes.
+launch-window insert, and migration refusal while a witness exists.
 
 Internal unit tests may cover pure KDL/template and migration-plan functions and
 the process-ownership backend's event trace. Acceptance remains stated in

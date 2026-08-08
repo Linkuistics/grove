@@ -13,7 +13,7 @@ Adversarially review `driver-lease-k31` and record concrete findings for its int
   `docs/adr/one-live-driver-per-working-tree.md`.
 - Attack control-directory aliasing, symlink/canonicalization behavior,
   Git-common-dir leakage, jj workspace sharing, external selector influence,
-  lock/path replacement races, descriptor inheritance, and Herdr disposition
+  lock/path replacement races, descriptor inheritance, and final disposition
   ordering.
 - This review is inspection-only. Inspect the producer's committed diff,
   source, specifications, and recorded verification evidence. Do not run test,

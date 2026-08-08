@@ -5,7 +5,7 @@ personal `~/.config/grove/config.kdl`; Grove executes the expanded argv directly
 and does not infer a harness, model, defaults, or hidden harness-specific
 arguments. This binds because launch policy includes choices Grove cannot own —
 model, reasoning effort, approval, sandboxing, wrappers, and harness-specific
-Herdr behavior — while splitting those choices across environment precedence,
+behavior — while splitting those choices across environment precedence,
 repository stamps, task metadata, and a built-in harness registry made the
 effective command impossible to inspect or validate as one value. The
 configuration deliberately repeats all nineteen targets so every session is
@@ -33,11 +33,6 @@ complete in isolation and adding a kind fails visibly in every old config.
   must supervise. A wrapper script supplies that power explicitly and can
   preserve ownership with `exec`. Reopen only if direct argv cannot express a
   required launch and wrappers cease to be viable.
-- **Infer optional Herdr and agent-hint arguments from the selected command.**
-  Rejected because target identity is intentionally opaque. The visible
-  `${herdr_settings}` splice and configured `HERDR_AGENT` assignment let policy
-  opt in without inference. Reopen only if every supported command shares one
-  verified argument contract.
 - **Compare `research-a` and `research-b` targets to enforce vendor diversity.**
   Rejected because opaque command strings do not expose a stable harness or
   model identity: different wrappers may reach the same target and equal words

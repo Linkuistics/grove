@@ -173,7 +173,3 @@ Grace values are clamped to 0–3600 seconds; invalid or non-finite values use
 the built-in defaults. `GROVE_SIGNAL_FILE` and `GROVE_SESSION_TARGET` are
 internal loop channels, not user configuration, and should not be exported
 manually.
-
-Herdr is optional. Its plugin installation and key binding live in
-[`herdr-plugin/README.md`](../herdr-plugin/README.md); Grove's task behavior is
-unchanged when Herdr is absent.

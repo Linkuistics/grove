@@ -61,7 +61,7 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
     let home = TempDir::new().unwrap();
     write_config(
         home.path(),
-        "env HERDR_AGENT=claude wrapper --before '${prompt}' --tree '${worktree}' --after",
+        "env RUN_MODE=review wrapper --before '${prompt}' --tree '${worktree}' --after",
     );
 
     let config = SessionConfig::load(home.path()).unwrap();
@@ -72,7 +72,6 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
         session_name: "grove: config grove",
         worktree,
         repository,
-        herdr_settings: None,
     };
 
     let argv = config.expand("requirements", &context).unwrap();
@@ -81,7 +80,7 @@ fn load_and_expand_preserve_argument_boundaries_and_prompt_position() {
         argv,
         vec![
             OsString::from("env"),
-            OsString::from("HERDR_AGENT=claude"),
+            OsString::from("RUN_MODE=review"),
             OsString::from("wrapper"),
             OsString::from("--before"),
             OsString::from("mandate; echo not-a-shell"),
@@ -110,7 +109,6 @@ fn raw_kdl_strings_are_valid_command_templates() {
         session_name: "session",
         worktree: Path::new("/worktree"),
         repository: Path::new("/repo"),
-        herdr_settings: None,
     };
 
     assert_eq!(
@@ -129,7 +127,6 @@ fn scalar_substitutions_each_expand_to_one_argument() {
         session_name: "grove repo: config grove",
         worktree: Path::new("/worktree"),
         repository: Path::new("/repos/main with spaces"),
-        herdr_settings: None,
     };
 
     let argv = config.expand("requirements", &context).unwrap();
@@ -141,42 +138,6 @@ fn scalar_substitutions_each_expand_to_one_argument() {
             OsString::from("grove repo: config grove"),
             OsString::from("/repos/main with spaces"),
             OsString::from("mandate"),
-        ]
-    );
-}
-
-#[test]
-fn herdr_splice_expands_zero_or_two_arguments_without_consuming_following_words() {
-    let home = TempDir::new().unwrap();
-    write_config(
-        home.path(),
-        "runner ${herdr_settings} --model opus ${prompt} --after",
-    );
-    let config = SessionConfig::load(home.path()).unwrap();
-    let mut context = ExpansionContext {
-        prompt: "mandate",
-        session_name: "session",
-        worktree: Path::new("/worktree"),
-        repository: Path::new("/repo"),
-        herdr_settings: None,
-    };
-
-    assert_eq!(
-        config.expand("requirements", &context).unwrap(),
-        vec!["runner", "--model", "opus", "mandate", "--after"]
-    );
-
-    context.herdr_settings = Some(["--settings", r#"{"hooks":{"Stop":[]}}"#]);
-    assert_eq!(
-        config.expand("requirements", &context).unwrap(),
-        vec![
-            "runner",
-            "--settings",
-            r#"{"hooks":{"Stop":[]}}"#,
-            "--model",
-            "opus",
-            "mandate",
-            "--after",
         ]
     );
 }
@@ -272,10 +233,6 @@ fn invalid_placeholder_forms_are_rejected() {
             "`${session_name}` may appear at most once",
         ),
         (
-            "runner ${herdr_settings} ${herdr_settings} ${prompt}",
-            "`${herdr_settings}` may appear at most once",
-        ),
-        (
             "runner prefix${prompt}",
             "substitutions must occupy a complete shell word",
         ),
@@ -307,6 +264,22 @@ fn invalid_placeholder_forms_are_rejected() {
 }
 
 #[test]
+fn herdr_settings_is_not_a_supported_substitution() {
+    let home = TempDir::new().unwrap();
+    write_config(
+        home.path(),
+        "runner ${herdr_settings} --model opus ${prompt}",
+    );
+
+    let error = load_error(home.path());
+
+    assert!(
+        error.contains("unknown substitution `${herdr_settings}`"),
+        "Herdr-specific launch policy must not remain in Grove configuration:\n{error}"
+    );
+}
+
+#[test]
 fn empty_word_zero_reports_one_diagnostic() {
     let home = TempDir::new().unwrap();
     write_config(home.path(), "'' runner ${prompt}");
@@ -330,7 +303,6 @@ fn shell_metacharacters_remain_literal_arguments() {
         session_name: "session",
         worktree: Path::new("/worktree"),
         repository: Path::new("/repo"),
-        herdr_settings: None,
     };
 
     assert_eq!(
@@ -372,7 +344,6 @@ fn quoted_escaped_and_midword_hashes_remain_literal_arguments() {
             session_name: "session",
             worktree: Path::new("/worktree"),
             repository: Path::new("/repo"),
-            herdr_settings: None,
         };
 
         let argv = config.expand("requirements", &context).unwrap();

@@ -16,7 +16,7 @@ launch behavior for the later lifecycle cutover.
   `docs/specs/config-driven-sessions.md` section "Process ownership and session
   epochs" through driver-lease ownership.
 - Primary code surfaces: `src/repo.rs`, a focused new process-ownership module,
-  `src/loop_driver.rs`, `src/herdr.rs`, and isolated Git/jj driver tests.
+  `src/loop_driver.rs`, and isolated Git/jj driver tests.
 - This is an expand slice: acquire the lease around the existing driver before
   `lifecycle-cutover-k39` replaces its routing policy.
 
@@ -30,8 +30,8 @@ launch behavior for the later lifecycle cutover.
   retries, writes a fresh OS-random 128-bit process nonce, and marks every
   descriptor close-on-exec.
 - A second driver for the same alias-equivalent working tree fails immediately
-  before configuration/tree access or launch, reports/retains Herdr `blocked`,
-  while distinct worktrees/workspaces remain independent.
+  before configuration/tree access or launch, while distinct
+  worktrees/workspaces remain independent.
 - The owner revalidates its lease before lifecycle/launch transitions and holds
   it through final disposition; normal return, panic, and process death release
   ownership without PID cleanup.

@@ -286,7 +286,7 @@ and must be migrated or annotated before promotion.
 `PROMOTING-*` remains reserved. A current binary recovers such a directory
 before any tree work; all other foreign files retain the normal lenient rule.
 Pick order, brief-chain behavior, terminal infixes, stable relationships, node
-brief discrimination, and the Herdr node grammar are unchanged.
+brief discrimination are unchanged.
 
 ## Out of scope
 

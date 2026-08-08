@@ -25,8 +25,8 @@ the minimum coherent durable description of the implemented system.
   stamps, routing environment, task-body kind/harness, legacy commands, or
   hidden harness policy.
 - Architecture describes the configuration, process-ownership, tree/migration,
-  bare-driver, finish, provisioning, and Herdr seams at their implemented
-  interfaces, with Git/jj symmetry and lock ordering explicit.
+  bare-driver, finish, and provisioning seams at their implemented interfaces,
+  with Git/jj symmetry and lock ordering explicit.
 - The ADR set remains minimal and coherent. The review-mechanics spec retains
   only promotion/lock/ownership material still binding after receipt and target
   comparison deletion; citations from briefs, other ADRs/specs, and docs resolve.

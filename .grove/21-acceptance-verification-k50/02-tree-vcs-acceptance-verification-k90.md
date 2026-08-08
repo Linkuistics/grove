@@ -4,8 +4,8 @@
 
 ## Goal
 
-Prove current tree grammar and operations, migration, finish, viewer, and scoped
-Git/jj behavior through their public seams.
+Prove current tree grammar and operations, migration, finish, and scoped Git/jj
+behavior through their public seams.
 
 ## Context
 
@@ -19,8 +19,7 @@ Git/jj behavior through their public seams.
 - The `grove-llm` matrix covers all nineteen kinds, malformed and terminal
   trees, finish rules, pair generation, stable resolution, promotion after
   insertion, migration-witness refusal, and current filename parsing.
-- Git/jj scoped commits and unrelated-work preservation are proven; viewer
-  fixtures cover the same filename grammar without opening task bodies.
+- Git/jj scoped commits and unrelated-work preservation are proven.
 - Only focused omissions are fixed, and focused tree/VCS tests plus
   `cargo fmt --check` and `cargo test --locked` pass.
 

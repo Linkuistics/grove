@@ -39,7 +39,6 @@ pub struct ExpansionContext<'a> {
     pub session_name: &'a str,
     pub worktree: &'a Path,
     pub repository: &'a Path,
-    pub herdr_settings: Option<[&'a str; 2]>,
 }
 
 pub struct SessionConfig {
@@ -53,7 +52,6 @@ enum TemplateWord {
     SessionName,
     Worktree,
     Repository,
-    HerdrSettings,
 }
 
 #[derive(Clone, Copy)]
@@ -105,11 +103,6 @@ impl SessionConfig {
                 TemplateWord::SessionName => argv.push(OsString::from(context.session_name)),
                 TemplateWord::Worktree => argv.push(context.worktree.as_os_str().to_owned()),
                 TemplateWord::Repository => argv.push(context.repository.as_os_str().to_owned()),
-                TemplateWord::HerdrSettings => {
-                    if let Some(settings) = context.herdr_settings {
-                        argv.extend(settings.into_iter().map(OsString::from));
-                    }
-                }
             }
         }
 
@@ -320,12 +313,7 @@ fn validate_template(
             "command template must contain `${prompt}` exactly once".to_owned(),
         ));
     }
-    for name in [
-        "${session_name}",
-        "${worktree}",
-        "${repo}",
-        "${herdr_settings}",
-    ] {
+    for name in ["${session_name}", "${worktree}", "${repo}"] {
         if counts.get(name).copied().unwrap_or_default() > 1 {
             diagnostics.push(at_template(
                 location,
@@ -389,7 +377,6 @@ fn parse_template_word(
         "${session_name}" => TemplateWord::SessionName,
         "${worktree}" => TemplateWord::Worktree,
         "${repo}" => TemplateWord::Repository,
-        "${herdr_settings}" => TemplateWord::HerdrSettings,
         _ if is_whole_substitution(word) => {
             diagnostics.push(at_template(
                 location,
@@ -418,7 +405,6 @@ impl TemplateWord {
             TemplateWord::SessionName => Some("${session_name}"),
             TemplateWord::Worktree => Some("${worktree}"),
             TemplateWord::Repository => Some("${repo}"),
-            TemplateWord::HerdrSettings => Some("${herdr_settings}"),
         }
     }
 }

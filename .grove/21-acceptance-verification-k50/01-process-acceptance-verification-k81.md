@@ -5,7 +5,7 @@
 ## Goal
 
 Prove the integrated Grove through its public configuration, foreground process,
-lifecycle, lease, epoch, and Herdr seams, fixing only focused omissions.
+lifecycle, lease, and epoch seams, fixing only focused omissions.
 
 ## Context
 
@@ -21,7 +21,7 @@ lifecycle, lease, epoch, and Herdr seams, fixing only focused omissions.
 - Acceptance evidence covers KDL diagnostics and argv, two config reads,
   sibling-tool skew, metadata-only flags, root/migration/live/finish
   transitions, one pick and mandate, direct child lifecycle, lease/epoch races
-  and timeouts, and Herdr opt-in behavior.
+  and timeouts, and the absence of hidden harness-specific launch policy.
 - Only focused defects discovered by the sweep are fixed; subsystem redesign is
   externalized as a new leaf.
 - Focused process tests, `cargo fmt --check`, and `cargo test --locked` pass.

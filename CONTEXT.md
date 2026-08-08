@@ -13,7 +13,7 @@ root (`~/.claude`, `~/.codex`, `~/.pi`) already exists, each via
 `agent/`) — idempotent per target against a content-hash stamp. A refused second
 driver therefore still refreshes the independently delivered methodology.
 Standard `grove --help` and `grove --version` are metadata-only and perform no
-provisioning, Herdr reporting, repository discovery, or locking. `content/`
+provisioning, repository discovery, or locking. `content/`
 stays canonical; the binary is the only writer of these dirs. The single
 embedded launcher is `content/prompts/continue.md`, augmented with the selected
 leaf's stable-handle mandate; it tells the configured target to use this
@@ -111,8 +111,8 @@ The per-session context-loading step of the grove loop: read the glossary, the a
 **Driver lease**:
 The exclusive, process-scoped ownership of one working tree by one bare `grove`
 driver. After independent methodology provisioning, the invocation reports
-Herdr `working`, resolves the working tree, opens its root, and nonblockingly
-locks a control file derived from the closest on-disk VCS marker: the current
+resolves the working tree, opens its root, and nonblockingly locks a control
+file derived from the closest on-disk VCS marker: the current
 workspace's `.jj/grove/` without following its shared-repository link, or the
 canonical per-worktree Git directory from its `.git` directory/gitfile, never
 Git's common directory. The resolver invokes no VCS discovery and ignores
@@ -124,12 +124,10 @@ the locked descriptor's device/inode against the path; a replacement race gets
 bounded retries, and loss by external VCS-administration mutation stops the
 driver visibly. The lease record carries a per-process 128-bit nonce from OS
 cryptographic randomness. The driver holds the root and lease through the whole
-loop and final Herdr disposition. Kernel release on return, panic, or process
+loop. Kernel release on return, panic, or process
 death makes restart ordinary continuation; leftover bytes and PIDs carry no
 ownership. The descriptors are close-on-exec, so an opaque configured command
-cannot leak ownership into a helper. A refused second driver reports `blocked`
-to Herdr and holds authority like every other error stop. See ADR
-*one-live-driver-per-working-tree*.
+cannot leak ownership into a helper. See ADR *one-live-driver-per-working-tree*.
 _Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
 
@@ -404,18 +402,11 @@ substitution. `${prompt}` is required exactly once in any later argv position.
 It is the embedded `continue.md` launcher plus the selected leaf's stable handle
 as its explicit mandate; the launcher relies on [[Global skill provisioning]]
 rather than inlining a second copy of the methodology. Optional scalar
-substitutions are `${session_name}`, `${worktree}`, and `${repo}`. The one
-non-scalar exception is a whole-word `${herdr_settings}` splice, permitted at
-most once after the executable: outside a herdr pane it expands to zero
-arguments; inside one it expands to `--settings` plus the inline turn-hook JSON.
-Words may follow it and remain untouched in either case. “Word zero” is the
-literal first parsed word — `env` in `env HERDR_AGENT=claude claude …` — not the
-eventual program an opaque wrapper reaches.
-A target opts into that harness-specific flag shape by placing the visible
-splice itself. Targets that need herdr's agent hint state it in their configured
-command, for example `env HERDR_AGENT=claude claude …`; Grove never infers the
-value or injects the variable. Unknown, embedded, word-zero, or multiply used
-substitutions are errors. Grove adds no hidden harness-specific argv fragments.
+substitutions are `${session_name}`, `${worktree}`, and `${repo}`. “Word zero”
+is the literal first parsed word — `env` in `env MODE=review agent …` — not the
+eventual program an opaque wrapper reaches. Unknown, embedded, word-zero, or
+multiply used substitutions are errors. Grove adds no hidden harness-specific
+argv fragments.
 
 A launch has no configuration precedence lattice: task files, command-line
 flags, repository-local stamps, and environment variables do not override or
@@ -438,7 +429,7 @@ selected by the ambient environment.
 Each iteration resolves `grove-llm` beside the running `grove` executable, with
 `PATH` only as the no-sibling fallback, and rejects a missing, malformed, or
 different version before configuration validation or tree mutation. There is no
-`GROVE_LLM_BIN` override. The same resolved path goes into Herdr turn hooks.
+`GROVE_LLM_BIN` override.
 Foreground waits preserve child status and elapsed time: every no-signal exit
 reports both, and a nonzero exit also names the session kind, configured word
 zero, and config path. Test-only tool, clock, and grace injection is an internal
@@ -514,225 +505,6 @@ grove finishes.
 _Avoid_: "a planning task writes the spec" — pre-taxonomy, from when `planning`
 covered grilling and design both. `design` is the producer whose deliverable is a
 spec, an ADR set, or both; `planning` consumes it and cuts the leaves.
-
-**herdr integration**:
-grove's relationship with [herdr](https://herdr.dev), the agent multiplexer whose
-sidebar rolls per-pane agent state up to tabs and workspaces: **optimised-for,
-never required** (ADR *herdr-optional-ui*). Split in two. **Semantic state**
-(`idle` / `working` / `blocked`) is reported *by grove* over herdr's unix socket,
-addressed by the `HERDR_*` variables herdr places in the pane environment —
-skipped entirely when they are absent, and a no-op if the socket refuses, or if
-the herdr on the other end is stock and drops the report ([[Authority patch]]).
-**Everything richer** — the tree, the live leaf, progress — is rendered by the
-[[Tree viewer plugin]], which reads `.grove/` directly; grove pushes it nothing.
-The split works because the tree on disk already *is* the status (constraint 1),
-so the only thing worth reporting is what no artifact records: whether the agent
-is mid-turn or has stopped and is waiting for a human. grove reports as agent
-**`grove`**, not as the harness it launched — a `grove` pane is a loop
-relaunching a *sequence* of sessions, and the harness may vary per leaf.
-_Avoid_: "grove requires herdr" or "herdr drives the loop" — with no herdr
-present every grove behaviour is unchanged, minus the status surface. Panes-per-leaf
-sequencing over the socket would be an amendment to the spine (constraint 6), not
-a feature.
-_Avoid_: treating the plugin as a state authority — herdr's *full lifecycle
-authority* is a compiled-in allowlist of `(source, agent)` pairs that nothing
-outside the binary can join; the plugin owns UI only.
-_Avoid_: pushing the live leaf — or anything else `.grove/` already records — as
-`pane.report_metadata`. Rejected in full (*herdr-optional-ui*), tokens and the
-zero-config presentation fields alike: `pane.report_agent` state is the **only**
-thing grove pushes, and the leaf's renderer is the [[Tree viewer plugin]].
-
-**Tree viewer plugin** (`herdr-plugin/`, plugin id `linkuistics.grove`):
-The rendering half of the [[herdr integration]] — a herdr plugin that draws a
-grove's task tree in a pane: the live leaf marked, its [[Session kind]], the done
-and pruned behind it, live [[Node directory]]s expanded and finished ones
-collapsed to their counts. **UI only, never state**: herdr's full lifecycle
-authority is a compiled-in allowlist nothing outside its binary can join, and a
-plugin has exactly the socket access `grove-llm` already has, so routing state
-through one would add a hop and buy nothing.
-Its filename-only contracts are the [[Node directory]] naming scheme and the
-[[Leaf]] grammar, including the closed [[Session kind]] set. Chain nodes still
-cost it **no change at all**: its node pattern matches any `NN-<slug>-k<key>/`,
-it never opens a `BRIEF.md`, and a finished chain therefore collapses to one
-counted line for free. Leaf parsing now carries the nineteen-kind set so it can
-separate a kind from the slug without opening the task body.
-It never invokes `grove` or `grove-llm`, opens no socket and writes no state, so
-the plugin and the binary version independently — the property that makes
-"optimised-for" real rather than aspirational. Consequently changing either the
-directory scheme, leaf grammar, or closed kind set is a plugin-compatibility
-question. Filename-only parsing is what the scheme was designed for, so the
-whole shape costs one `scandir` per directory; the live leaf's session kind
-comes from its filename and no task body is opened;
-refresh is a 1 s poll redrawing on change, not a filesystem watcher.
-Lives at the repo root, **not** under `plugins/` — that directory is the *skills*
-bounded context (Claude Code plugins behind `.claude-plugin/marketplace.json`),
-and this is grove's own context by subject. Installed separately again
-(`herdr plugin install Linkuistics/grove/herdr-plugin`); needs `python3` and
-nothing else, so there is no build step. Its pane is summoned by a plugin
-**action**, because a herdr keybinding can target an action but never a pane
-entrypoint.
-_Avoid_: opening its pane with `plugin pane open --cwd` — that **replaces** the
-plugin root as the process cwd, so herdr resolves the manifest's relative command
-against the new directory and the pane dies on spawn. The invoking pane's cwd
-already arrives in `HERDR_PLUGIN_CONTEXT_JSON` (on the split *and* the overlay
-path), which is why the override buys nothing.
-_Avoid_: resolving the grove from the plugin's *own* cwd — that is the plugin
-directory, which says nothing about the pane the human is looking at, and which
-(when linked from a checkout that is itself a grove) sits **under** one and would
-render the wrong tree.
-_Avoid_: treating a `herdr plugin link` as durable — it records the path, so
-linking a grove's throwaway working tree dies with that worktree.
-
-**Authority patch** / **session identity vs lifecycle state**:
-The two-hunk change grove carries in its herdr fork, encoding one principle: **a
-hook report that makes no session-identity claim neither conflicts with, nor
-clears, the identity owner**. herdr conflates the two concerns — who owns a
-pane's session identity (for resume) and who reports its lifecycle state — so
-its `set_hook_authority_at` lets the identity owner veto a differently-sourced
-state report, and clears the identity record on every accepted one. Both
-behaviours are gated on `session_ref.is_some()` by the patch. grove never sends a
-`session_ref`, so it reports state without disturbing the harness's session
-resume. Shipped from `linkuistics/taps` as upstream's version plus
-**`-linkuistics.<seq>`** — a sequence incrementing per ship and resetting when
-upstream's version bumps, because a commit sha does not order and Homebrew needs
-ordering to see an upgrade. Carried on **two** fork branches with different jobs:
-`authority-fix` off `upstream/master` holding *only* the fix (kept pure, so it
-stays reviewable and rebasable on its own), and `ui-layout` as the ship branch,
-which takes the fix by **merge** so it never needs a force-push. Tracked closely
-against upstream. The carry is **permanent**: offering the patch upstream was
-considered and rejected, so only upstream reaching the same separation
-independently would end it — which makes every additional hunk a rebase
-obligation forever, and is why the patch stays at two. See the architecture's
-[Herdr integration](docs/ARCHITECTURE.md#herdr-optional-ui) for the decision,
-and [`herdr-plugin/MAINTENANCE.md`](herdr-plugin/MAINTENANCE.md)
-for how the carry is actually maintained (rebase cycle, version suffix scheme,
-the required build environment, and how to verify a rebase).
-_Avoid_: reading `herdr --version` to tell which build is installed — it prints
-bare upstream `0.7.5` either way, since the suffix is Homebrew's, not Cargo's.
-Check the Cellar path or `brew list --versions`.
-_Avoid_: "grove joins herdr's authority allowlist" — verified false. Allowlist
-membership is a *stricter* path, not a fast lane: an allowlisted report must
-pass `route_full_lifecycle_hook_report`, which needs the label to parse to the
-detected agent and then requires a `session_ref` grove does not have, so every
-report would be dropped.
-_Avoid_: "grove needs a forked herdr" as a statement about the *loop* — only the
-status surface depends on it. Under stock herdr the reports are dropped and the
-pane falls back to screen detection, exactly as with no herdr at all.
-
-**Authority release**:
-grove's obligation to un-report **when it stops having an opinion about the
-pane**. herdr never expires a hook authority — there is no TTL, and its
-clear-on-process-exit path only fires for a label that parses to a known agent,
-which `grove` does not. So grove's last report is what the pane shows until
-something releases it. The loop driver releases on `complete --done` (after
-reporting `idle`) and on **SIGTERM/SIGHUP** — and deliberately **does not**
-release on a no-signal stop (`/exit`, Ctrl-C, a crash), on a version-skew stop,
-or on an error: those report **`blocked`** and hold it, because the grove has
-live leaves and genuinely needs a human. Releasing there would return the pane to
-screen detection, which reads a parked grove as `idle` — herdr's derived `done` —
-i.e. the very complaint the reporter exists to fix. SIGKILL, panic, OOM and power
-loss stay uncovered by design: the pane pins at grove's last state and the user
-recovers with `herdr pane release-agent`.
-_Avoid_: "release on every catchable exit" — that was the route decision's
-formulation and it is wrong; see the table in ADR *herdr-optional-ui*.
-_Avoid_: "grove needs a SIGINT handler" — the driver already sets SIGINT to
-`SIG_IGN` so it survives Ctrl-C and reaches the relaunch-vs-stop decision, so a
-Ctrl-C arrives as an ordinary no-signal stop and reports `blocked`. SIGTERM
-(with SIGHUP, the pane-close signal) is the case that needed new code.
-_Avoid_: calling the uncovered case "latching" — that named a *different*,
-now-dissolved failure where herdr dropped grove's later reports and froze the
-pane mid-loop. [[Authority patch]] fixed that; grove can always correct itself
-while it is alive.
-
-**Session-boundary visibility** / **Turn hooks** (the two reporting mechanisms,
-and why there are two):
-The loop driver is the harness's **parent process**, so its whole observable
-vocabulary is *session started* / *session ended, with or without a completion
-signal*. It sees nothing **inside** a session — and a session that stalls
-mid-session on a [[HITL]] question ends no session, so driver-level reporting
-alone leaves it reading `working` forever. Hence a **second mechanism** remains
-available through the explicit `${herdr_settings}` splice in [[Grove
-configuration]]. A command template that opts in receives no arguments outside
-a herdr pane and receives `--settings <inline-json>` inside one; Grove does not
-infer which harness consumes those arguments or append them to a target that
-omits the splice.
-
-The generated JSON wires four claude events to `grove-llm report-turn`. Two are
-**turn boundaries** — `UserPromptSubmit` ⇒ `working`; `Stop` ⇒ **`blocked`
-unless `$GROVE_SIGNAL_FILE` shows the task completed on purpose**. Two are the
-**mid-turn pair** — `Notification` (matched to the dialog types claude raises
-only after six seconds of human silence) ⇒ `blocked`, and `PostToolUse` ⇒
-`working`. That one is a pair because granting a permission fires no event of
-its own, so a mid-turn `blocked` needs a paired restore or it pins the pane until
-the turn ends. A `done` disposition silences every row a machine can fire,
-leaving the driver's idle-then-release the last word. The inline settings persist
-nothing and are unioned with other settings sources. The configuration owner
-places the splice only in a compatible target; codex has no turn-end hook event
-and persists hook trust per source-and-content-hash, while pi's herdr extension
-already reports full lifecycle but reports `idle` at turn end. See ADR
-*herdr-turn-boundary-hooks*.
-_Avoid_: claiming driver-level reporting closes the "stalled overnight on a
-question" case — it closes the half where the session **ended**; the hooks close
-the halves where the *turn* ended and where the turn is still running but a
-dialog is waiting, both on claude.
-_Avoid_: "the status surface stops at session boundaries" unqualified — true of
-the driver's own reporting, and true end-to-end on codex and pi, but false for a
-claude-hosted grove.
-_Avoid_: "the turn hooks fire only at turn boundaries" — that was the pre-
-mid-turn set of two, and the per-tool-call row is now by far the most frequent
-site in the whole surface.
-_Avoid_: reaching for `PermissionRequest` as the mid-turn block signal because it
-sounds more direct — it is a **decisional** hook (exit 2 *denies the
-permission*), and it fires the instant the prompt appears rather than waiting out
-the idle check that makes "unattended" mean something.
-_Avoid_: treating `grove-llm report-turn` as a verb the model calls. It is
-machinery the injected hook runs; it must exit zero and print nothing, because a
-`UserPromptSubmit` hook's stdout is injected into the conversation as context.
-
-**Pane mis-detection** / **agent hint** (`HERDR_AGENT`):
-herdr labelling a grove pane with the wrong agent — in practice `codex`, whatever
-harness grove actually launched — so its screen manifests evaluate against the
-wrong agent's UI. herdr identifies the agent from the pane's foreground **process
-group**: it prefers the group *leader*, and only falls back to scoring every
-process in the group when the leader is unrecognised. In a grove pane the leader
-is `grove` itself, which herdr cannot identify, so the fallback runs and a
-`codex`-named MCP helper outranks the real harness. Bites only where grove is not
-holding hook authority (before its first report; after release), since a landed
-report takes precedence over detection — which is why the bug hid behind grove's
-own status surface.
-Preserved by making herdr's documented `HERDR_AGENT=<actual-harness>` hint an
-explicit part of each applicable command template, normally through an `env`
-prefix or a configured wrapper. Grove neither knows the actual harness nor sets
-the value. The probe consults every **non-leader** member of the foreground job
-for a hint before the group scoring that misfires, so no fork hunk and no
-process-group surgery is needed; it works on stock herdr too. The configured
-hint may be unconditional because an absent herdr simply ignores it. The
-principle remains: **grove reports what it is (`grove`); launch policy hints what
-it launched** — different fields, different owners, both honest at once.
-Observed live 2026-07-28 against
-`0.7.5-linkuistics.1`: identical panes read `codex` without the hint and `claude`
-with it, and a released `grove` pane re-acquired as `claude` and then read a
-stalled grilling session as `blocked` off claude's own manifest.
-_Avoid_: expecting the hint to outlive the harness — it rides the harness's
-**exec-time environment**, so once the harness exits the pane reads `agent: null`,
-not the harness. That, not a stalled sweep, is why a released pane at
-`complete --done` never snaps back.
-_Avoid_: `strings`/`grep` over a herdr binary to check the feature is present —
-`b"HERDR_AGENT="` is a compile-time `strip_prefix` operand LLVM lowers to
-immediate byte compares, so it is absent from a binary that provably contains the
-code. Check the Homebrew install receipt's pinned revision instead.
-_Avoid_: reintroducing a harness registry or hidden `cmd.env` call solely to set
-the hint — the configured target owns that harness-specific policy.
-_Avoid_: restructuring grove's process group (`setpgid`/`tcsetpgrp`) to win
-herdr's leader preference — it reaches the same result by rewriting the driver's
-signal topology, which [[Authority release]] and the loop's Ctrl-C survival both
-rest on.
-_Avoid_: "MCP servers inherit the harness's process group, so a codex MCP server
-makes the pane read as codex" — true but the wrong half of the story, and it
-was the version this grove's root brief carried. herdr **already** defends
-against exactly that (upstream #161, fixed in v0.5.11, same claude+codex-MCP
-shape); grove sitting at the head of the process group is what disables that
-defence.
 
 ### Task-tree scheme (v2 directories, task-tree-scheme)
 

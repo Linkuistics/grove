@@ -27,10 +27,10 @@ an ambiguous match.
 
 **A change to anything the grove binary does not carry is logged in the section
 of the grove release it lands before**, prefixed with the component it touched —
-e.g. *"`linkuistics` / `using-jujutsu`: …"*, or *"`herdr-plugin`: …"*. It gets no
-`##` heading of its own: this file is not those components' release ledger, it is
-the record of what changed and when. A grove release that happens to contain only
-such changes still gets a version, because the binary is what was cut.
+e.g. *"`linkuistics` / `using-jujutsu`: …"*. It gets no `##` heading of its own:
+this file is not those components' release ledger, it is the record of what
+changed and when. A grove release that happens to contain only such changes
+still gets a version, because the binary is what was cut.
 
 **A decision earns its entry when its behaviour lands, not when it is recorded.**
 A `design` session that reworks the ADR set and changes nothing a reader runs has
@@ -50,6 +50,12 @@ The section at the foot of this file is the `Linkuistics/skills` changelog as it
 stood at the graft — a closed record, not part of the versioned sequence above.
 
 ## Unreleased
+
+### Removed
+
+- Remove Grove's Herdr-specific status reporting, hook injection, agent hint,
+  configuration splice, and bundled task-tree viewer. Grove's completion-signal
+  lifecycle remains unchanged.
 
 ## v16.5.0
 

@@ -2,7 +2,6 @@ pub mod cli;
 pub mod complete;
 pub mod harness;
 pub mod harness_stamp;
-pub mod herdr;
 pub mod json;
 pub mod launch;
 // `leaf` holds `Kind`, which is live everywhere, plus the old `NNN-slug`

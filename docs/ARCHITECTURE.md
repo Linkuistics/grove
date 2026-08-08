@@ -17,7 +17,6 @@ session, and continue until the tree is complete.
 | Relationship between Grove and the skill plugins | [`CONTEXT-MAP.md`](../CONTEXT-MAP.md) |
 | Methodology executed by agents | [`content/SKILL.md`](../content/SKILL.md) and its adjacent format guides |
 | Skill-plugin operation | [`plugins/README.md`](../plugins/README.md) |
-| Herdr plugin operation and maintenance | [`herdr-plugin/README.md`](../herdr-plugin/README.md) and [`herdr-plugin/MAINTENANCE.md`](../herdr-plugin/MAINTENANCE.md) |
 
 The three files under `docs/` are the maintained project guides. This is not a
 ban on durable artifacts produced by future Grove work: when a real decision,
@@ -34,17 +33,15 @@ title does not change the anchor.
 <a id="skills-monorepo"></a>
 ## Repository products
 
-The repository contains three independently installed products:
+The repository contains two independently installed products:
 
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI and methodology | `src/`, `content/`, `build.rs` | Homebrew installs `grove` and `grove-llm`; `grove do` provisions the embedded methodology. |
 | Agent skill plugins | `plugins/linkuistics/`, `plugins/testanyware/` | Claude marketplace or `plugins/install.sh` for portable Linkuistics skills. |
-| Optional Herdr tree viewer | `herdr-plugin/` | Herdr plugin installation. |
 
 Grove and the skill plugins share a repository because their documented
-interfaces evolve together, but they do not install one another. The Herdr
-viewer is optional and versions independently.
+interfaces evolve together, but they do not install one another.
 
 ## Runtime flow
 
@@ -292,25 +289,6 @@ The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
 source; repository-local or hand-edited copies are not supported.
 
-<a id="herdr-optional-ui"></a>
-<a id="herdr-turn-boundary-hooks"></a>
-<a id="optional-herdr-integration"></a>
-## Optional Herdr integration
-
-The Python plugin reads `.grove/` from disk and renders it. It does not call
-Grove, open a socket, or write state, so removing it cannot affect task
-execution.
-
-Separately, the Rust driver reports best-effort pane states when Herdr's pane
-environment is present. The driver sees session boundaries; Claude-only hooks
-report prompt, stop, dialog, and tool boundaries that occur inside a session.
-Those hooks are injected for a launched session and persist no harness
-configuration. Reporting failures are ignored, preserving the rule that Herdr
-is observability rather than authority.
-
-The maintained fork and release procedure is component-specific and lives in
-[`herdr-plugin/MAINTENANCE.md`](../herdr-plugin/MAINTENANCE.md).
-
 ## Main module seams
 
 | Module | Responsibility |
@@ -322,7 +300,6 @@ The maintained fork and release procedure is component-specific and lives in
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_migrate` | Filesystem task-tree model. |
 | `leaf`, `llm_cli`, `complete` | Task formats and deterministic agent command surface. |
 | `provision` | Embedded methodology installation. |
-| `herdr` | Optional pane-state reporting. |
 
 The modules are intentionally file-sized rather than wrapped in another
 service layer. The task tree, subprocess boundary, and VCS adapter are the
@@ -339,6 +316,4 @@ bash plugins/install.test.sh
 ```
 
 Integration tests use temporary Git and Jujutsu repositories, isolated home
-directories, fake harness executables, and the real `grove-llm` binary. The
-Herdr renderer remains dependency-free Python and can print one frame without a
-TTY for inspection or piping.
+directories, fake harness executables, and the real `grove-llm` binary.

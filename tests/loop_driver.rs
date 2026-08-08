@@ -264,65 +264,6 @@ exit 0
     );
 }
 
-// herdr-pane-misdetection: the driver names the harness it launched in the
-// child's environment, so herdr's foreground-process detection stops scoring the
-// process group `grove` leads and electing whatever helper wins — in practice a
-// `codex mcp-server`, whatever the pane is actually running.
-//
-// Asserted from inside a *real* spawned child rather than off the `Command`
-// builder (the unit tests in `src/launch.rs` cover the builder). The variable is
-// read by herdr out of the kernel's copy of the child's exec-time environment,
-// so what matters is that it survives the spawn — and this fixture is the only
-// place the driver's own launch path is exercised end to end.
-//
-// `clear_grove_env` scrubs the three `HERDR_*` pane variables, so this loop runs
-// as if there were no herdr at all — which is the point: the hint is ungated, and
-// must reach the child here exactly as it would inside a pane.
-#[test]
-fn the_loop_hints_herdr_with_the_harness_it_launched() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
-    fs::write(skill_dir.join("prompts/start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
-    let log = repo_path.join("log");
-
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "${HERDR_AGENT:-unset}" >> "$GROVE_TEST_LOG"
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    loop_driver::run_loop(harness, repo_path, &worktree, "hintgrove").unwrap();
-
-    assert_eq!(
-        fs::read_to_string(&log).unwrap().trim(),
-        "claude",
-        "grove reports the pane's *state* as agent `grove`, but hints the agent \
-         it *launched* — the two are different fields with different jobs, and \
-         the hint is what picks the screen manifest herdr parses the TUI with"
-    );
-}
-
 // Signal-file identity (signal-file-identity-k6): two `grove do` loops with
 // the *same grove name* but *different worktrees* must not interfere, even
 // running truly concurrently. Pre-fix, `signal_file_path` derived the path
@@ -4046,232 +3987,11 @@ exit 0
     }
 }
 
-// herdr pane-state reporting (herdr-optional-ui, report-plumbing-k8). The unit
-// tests in `src/herdr.rs` cover the state table and the transport separately;
-// what neither can prove is the **wiring** — that the driver reaches the right
-// report site at the right moment. So these drive the real loop against a fake
-// herdr: a `UnixListener` this test owns, addressed through the same
-// `HERDR_SOCKET_PATH`/`HERDR_PANE_ID` variables herdr itself puts in a pane.
-//
-// `support::grove_env_names` scrubs those three vars for every *other* test in
-// this file, precisely so a `cargo test` run cannot report into the developer's
-// own pane; these two set them back deliberately.
-
-// The happy path, end to end: two tasks then a finish. Every launch reports
-// `working`; a relaunch reports nothing of its own; `complete --done` reports
-// `idle` and *then* releases, in that order.
+// The real binary installs the SIGTERM/SIGHUP handler that forwards termination
+// to a live harness child; `run_loop`, which most tests call directly, stays
+// free of those process-global signal changes.
 #[test]
-fn a_finishing_loop_reports_working_per_task_then_idle_and_releases() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    // A repo: task 2 takes the continue path, whose kind peek is no longer
-    // skippable (see `init_worktree`).
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let sock = repo_path.join("herdr.sock");
-    let herdr = support::fake_herdr(&sock);
-
-    let counter = repo_path.join("counter");
-
-    // Task 1 relaunches; task 2 runs the finish cycle (`done`).
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-mkdir -p "$PWD/.grove"
-printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-if [ "$n" -eq 1 ]; then
-  : > "$GROVE_SIGNAL_FILE"
-else
-  printf 'done\n' > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        // Scaffolding: task 1 is the start path ⇒ requirements; task 2 peeks an
-        // empty `.grove/` (the finish-cycle iteration, exempt by construction).
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("HERDR_ENV", "1")
-        .set("HERDR_SOCKET_PATH", &sock)
-        .set("HERDR_PANE_ID", "wQ:p1");
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
-    assert_eq!(result.unwrap(), LoopOutcome::Finished);
-
-    drop(env);
-    let lines = herdr.lock().unwrap().clone();
-
-    assert_eq!(
-        support::reported(&lines),
-        vec![
-            ("pane.report_agent".into(), "working".into()),
-            ("pane.report_agent".into(), "working".into()),
-            ("pane.report_agent".into(), "idle".into()),
-            ("pane.release_agent".into(), String::new()),
-        ],
-        "one `working` per launch (a relaunch adds nothing of its own), then \
-         idle-then-release at the finish — release last, so a failed release \
-         leaves the pane reading done rather than pinned at working \
-         (lines: {lines:?})"
-    );
-}
-
-// The headline case (root BRIEF.md): a loop that stops without a completion
-// signal — `/exit`, Ctrl-C, or a crash — must report **`blocked`** and must
-// **keep** its authority. Releasing here would hand the pane back to screen
-// detection, which reads a parked grove as `idle`, which herdr surfaces as its
-// derived `done`: the exact "stalled overnight, shows as finished" complaint
-// this leaf exists to fix.
-#[test]
-fn a_loop_that_stops_without_a_signal_reports_blocked_and_holds_the_pane() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
-
-    let sock = repo_path.join("herdr.sock");
-    let herdr = support::fake_herdr(&sock);
-
-    // Never signals — stands in for `/exit`, a double Ctrl-C, or a crash.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("HERDR_ENV", "1")
-        .set("HERDR_SOCKET_PATH", &sock)
-        .set("HERDR_PANE_ID", "wQ:p1");
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    drop(env);
-    let lines = herdr.lock().unwrap().clone();
-
-    assert_eq!(
-        support::reported(&lines),
-        vec![
-            ("pane.report_agent".into(), "working".into()),
-            ("pane.report_agent".into(), "blocked".into()),
-        ],
-        "a parked loop reads `blocked`, and nothing releases it: the grove has \
-         live leaves and genuinely needs a human (lines: {lines:?})"
-    );
-}
-
-// herdr-optional-ui's load-bearing negative, at the loop level: with no herdr
-// in the environment the driver must not so much as look for a socket, and the
-// loop must behave exactly as it did before this feature existed.
-#[test]
-fn a_loop_with_no_herdr_in_the_environment_reports_nothing() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
-
-    // A listener is bound, but the pane vars are scrubbed — so a driver that
-    // reported regardless of the environment would still be caught here.
-    let sock = repo_path.join("herdr.sock");
-    let herdr = support::fake_herdr(&sock);
-
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    // `clear_grove_env` scrubs the HERDR_* trio too — the point of the test.
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "herdrgrove");
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Finished,
-        "the loop is unaffected by herdr's absence"
-    );
-
-    drop(env);
-    let lines = herdr.lock().unwrap().clone();
-
-    assert!(
-        support::reported(&lines).is_empty(),
-        "with no HERDR_* pane environment grove must report nothing at all \
-         (lines: {lines:?})"
-    );
-}
-
-// Release-on-exit, the one genuinely new mechanism here: herdr never expires a
-// hook authority, so a driver killed without releasing leaves the pane pinned
-// at whatever grove last reported. Only `loop_driver::run` installs the
-// SIGTERM/SIGHUP handler (`run_loop`, which every test above calls, deliberately
-// does not — it must stay free of process-global signal changes), so this is
-// the one case that has to drive the **real `grove do` binary** as a subprocess
-// and signal it for real.
-//
-// Also the only test that exercises handler→poll-loop→release end to end: the
-// handler itself may only flip an atomic (a socket round trip is not
-// async-signal-safe), so the release happening at all depends on the watcher's
-// poll loop noticing the flag and acting on it.
-#[test]
-fn a_sigtermed_driver_releases_the_pane_before_exiting() {
+fn a_sigtermed_driver_stops_and_reaps_its_child() {
     let _g = support::lock_env(&ENV_LOCK);
     let repo = TempDir::new().unwrap();
     let repo_path = repo.path();
@@ -4310,16 +4030,15 @@ fn a_sigtermed_driver_releases_the_pane_before_exiting() {
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
     fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
 
-    let sock = repo_path.join("herdr.sock");
-    let herdr = support::fake_herdr(&sock);
-
     // Never signals, never exits on its own — stands in for a session sitting
     // mid-task when the driver is killed from outside. `exec` so the pid the
     // driver signals is the sleeping process itself.
     let fake = repo_path.join("fake-claude.sh");
+    let launched = repo_path.join("launched");
     write_exec(
         &fake,
         r#"#!/bin/sh
+: > "$GROVE_TEST_LAUNCHED"
 exec sleep 60
 "#,
     );
@@ -4338,24 +4057,21 @@ exec sleep 60
         .env("GROVE_IMPL_MODEL", SCAFFOLD_MODEL)
         .env("GROVE_KILL_GRACE", "0.2")
         .env("GROVE_KILL_GRACE_KILL", "0.3")
-        .env("HERDR_ENV", "1")
-        .env("HERDR_SOCKET_PATH", &sock)
-        .env("HERDR_PANE_ID", "wQ:p1")
+        .env("GROVE_TEST_LAUNCHED", &launched)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
         .unwrap();
 
-    // Wait for the launch report, so the SIGTERM lands mid-session rather than
-    // racing the driver's own startup.
+    // Wait for the child marker so SIGTERM lands mid-session rather than racing
+    // the driver's own startup.
     let deadline = Instant::now() + Duration::from_secs(20);
-    while herdr.lock().unwrap().is_empty() && Instant::now() < deadline {
+    while !launched.exists() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(50));
     }
-    assert_eq!(
-        support::reported(&herdr.lock().unwrap()),
-        vec![("pane.report_agent".into(), "working".into())],
-        "the driver must have reported `working` before being signalled"
+    assert!(
+        launched.exists(),
+        "the harness child must launch before SIGTERM"
     );
 
     unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
@@ -4370,127 +4086,5 @@ exec sleep 60
             "a SIGTERM'd driver must stop, not hang"
         );
         std::thread::sleep(Duration::from_millis(50));
-    }
-
-    let lines = herdr.lock().unwrap().clone();
-    assert_eq!(
-        support::reported(&lines),
-        vec![
-            ("pane.report_agent".into(), "working".into()),
-            ("pane.release_agent".into(), String::new()),
-        ],
-        "a torn-down driver hands the pane back and says nothing else — herdr \
-         never expires an authority, so skipping this pins the pane at \
-         `working` forever (lines: {lines:?})"
-    );
-}
-
-// The turn-boundary hooks' *injection* (herdr-turn-boundary-hooks). The verb
-// they call is driven end to end in `tests/report_turn.rs` and the payload's
-// exact bytes are pinned in `src/launch.rs`; what only the real loop can prove
-// is that the flag reaches the argv of the harness that actually launches, and
-// — just as load-bearing — that it reaches nothing else.
-
-/// Run one start-path iteration of the real loop against an argv-logging fake
-/// harness, and return what it was launched with. `herdr` picks whether the
-/// pane environment is present; the socket path deliberately points at nothing,
-/// since these tests assert on the argv and a refused socket is a fast no-op.
-fn launched_argv(harness_name: &str, herdr: bool) -> String {
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    // A real repo, because a codex launch resolves the gitdir it grants back
-    // (codex-gitdir-grant) before it ever gets as far as the turn hooks.
-    init_worktree(worktree);
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-harness.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-    if herdr {
-        env.set("HERDR_ENV", "1")
-            .set("HERDR_SOCKET_PATH", worktree.join("nowhere.sock"))
-            .set("HERDR_PANE_ID", "wQ:p1");
-    }
-
-    let result = loop_driver::run_loop(
-        harness::by_name(harness_name).unwrap(),
-        worktree,
-        worktree,
-        "hookgrove",
-    );
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-    fs::read_to_string(&log).unwrap()
-}
-
-// All four, and each one's absence would make the surface worse than useless:
-// `Stop` alone would report `blocked` when the agent asks and never take it back
-// down once the human answers, and `Notification` alone would do the same to a
-// permission prompt (herdr-mid-turn-blockers).
-#[test]
-fn a_claude_launch_under_herdr_carries_both_turn_hooks() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let argv = launched_argv("claude", true);
-    assert!(
-        argv.contains("--settings"),
-        "a claude launch under herdr must inject the turn hooks (argv: {argv:?})"
-    );
-    for boundary in [
-        "report-turn start",
-        "report-turn end",
-        "report-turn waiting",
-        "report-turn tool",
-    ] {
-        assert!(
-            argv.contains(boundary),
-            "the injected settings must wire {boundary:?} (argv: {argv:?})"
-        );
-    }
-}
-
-// herdr-optional-ui's load-bearing negative, at its strongest: with no herdr in
-// the pane environment there is no hook to fire, nothing to spawn, and no new
-// surface to go wrong — the launch is byte-identical to a grove that never had
-// turn hooks.
-#[test]
-fn a_claude_launch_outside_herdr_carries_no_turn_hooks() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let argv = launched_argv("claude", false);
-    assert!(
-        !argv.contains("--settings") && !argv.contains("report-turn"),
-        "absent herdr, the hooks must not be injected at all (argv: {argv:?})"
-    );
-}
-
-// codex has no turn-end hook event, and pi has herdr's own full-lifecycle
-// extension already reporting on the same events. Injecting a claude-shaped
-// `--settings` into either would at best be ignored and at worst refuse the
-// launch outright.
-#[test]
-fn codex_and_pi_launches_never_carry_turn_hooks() {
-    let _g = support::lock_env(&ENV_LOCK);
-    for harness in ["codex", "pi"] {
-        let argv = launched_argv(harness, true);
-        assert!(
-            !argv.contains("--settings"),
-            "the turn hooks are claude-shaped and claude-only ({harness} argv: {argv:?})"
-        );
     }
 }

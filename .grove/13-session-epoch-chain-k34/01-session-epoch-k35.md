@@ -29,7 +29,7 @@ lease, signal-channel, and Tree access seams.
 - Ambient tree operations and `complete` hold one shared epoch admission guard
   through tree access, validate exact context, probe lease liveness, reject
   stale/wrong-worktree calls, and leave manual calls without loop context
-  available; `--version` and `report-turn` remain exempt.
+  available; `--version` remains exempt.
 - Every epoch acquisition reports contention once and has the fixed internal
   30-second bound. Deterministic backend barriers/event traces prove open-lock-
   stat retries, guard lifetimes, handoff ordering, and the orphan bounded-stop

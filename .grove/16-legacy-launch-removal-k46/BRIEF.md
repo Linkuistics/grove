@@ -26,9 +26,9 @@ complete.
 - All `GROVE_<KIND|FAMILY>_HARNESS`, `GROVE_*_MODEL`, executable, skill-dir,
   kill-grace, and `GROVE_LLM_BIN` user overrides are removed from production
   and tests; internal tool/clock/grace injection remains module-local.
-- Harness/model inference, sandbox probing/grants, hidden naming/model/Herdr
-  argv, and `HERDR_AGENT` injection are gone from the driver. The configured
-  argv and visible `${herdr_settings}` splice are the only launch policy.
+- Harness/model inference, sandbox probing/grants, and hidden naming/model or
+  other harness-specific argv/environment injection are gone from the driver.
+  The configured argv is the only launch policy.
 - `start.md`/`retire.md` code paths are unreachable pending their artifact
   deletion in `methodology-and-viewer-k48`; provisioning still refreshes every
   installed known skill directory before driver ownership.

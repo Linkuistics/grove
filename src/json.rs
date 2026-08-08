@@ -1,11 +1,9 @@
 // The one JSON primitive grove owns: escaping a string into a JSON string body.
 //
-// The fixed-shape hand-written JSON documents — herdr's report envelope
-// (`herdr.rs`), claude's injected hook settings (`launch.rs`), and a few CLI
-// payloads — share this one primitive. Structured documents that Grove also
-// parses (the routing peek and producer target receipts) use serde instead;
-// this helper remains for command strings and paths interpolated into the
-// hand-written shapes.
+// Fixed-shape hand-written CLI payloads share this primitive. Structured
+// documents that Grove also parses (the routing peek and producer target
+// receipts) use serde instead; this helper remains for command strings and
+// paths interpolated into the hand-written shapes.
 
 /// Escape `raw` for inclusion between the quotes of a JSON string.
 pub fn escape(raw: &str) -> String {

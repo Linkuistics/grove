@@ -11,17 +11,16 @@ never Git's common directory. It invokes no repository discovery and ignores
 in the exact workspace's VCS administration area, never in the tracked working
 copy or an environment-selected temporary directory. Symlink and relative-path
 aliases reach one lease; separate worktrees and workspaces remain independent.
-Standard `--help` and `--version` return without provisioning, Herdr reporting,
-repository discovery, or a lease.
+Standard `--help` and `--version` return without provisioning, repository
+discovery, or a lease.
 
 The lease is an exclusive, nonblocking advisory lock keyed by the filesystem
 device and inode of an already-open working-tree-root descriptor. Every lease
 and epoch acquisition opens and locks its control file, then compares the locked
 descriptor's identity with the path's current identity and retries a bounded
 number of times on an open/lock replacement race. The driver holds both root and
-lock descriptors until the loop
-has stopped and reported its final Herdr disposition, and revalidates the lock
-path before every lifecycle transition and foreground launch. A second driver
+lock descriptors until the loop has stopped, and revalidates the lock path
+before every lifecycle transition and foreground launch. A second driver
 fails immediately. Kernel release on return, panic, or process death makes
 restart ordinary continuation; leftover bytes carry no ownership or cleanup
 obligation.

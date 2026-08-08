@@ -55,11 +55,9 @@ A topic about the `.grove/` tree, the loop, the CLI verbs, or the binary and its
 provisioning is **grove**. A topic about writing, packaging, triggering or
 installing a `SKILL.md` is **skills**.
 
-The word "plugin" spans both, so route it by subject rather than by the word:
-`herdr-plugin/` renders the `.grove/` tree and is **grove**, while `plugins/`
-holds the Claude Code skill plugins and is **skills**. They also live in
-different places on purpose — the root `plugins/` directory belongs to the skills
-context, so grove's herdr plugin sits beside it rather than inside it.
+The word "plugin" in this repository refers to the Claude Code skill plugins
+under `plugins/`; route their authoring, packaging, triggering, and installation
+to the **skills** context.
 
 A skill's *subject matter* belongs to neither glossary — jj's model lives in
 `using-jujutsu` and the architecture's

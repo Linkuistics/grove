@@ -76,18 +76,9 @@ fn kind_env_suffixes() -> Vec<String> {
         .collect()
 }
 
-/// The pane environment herdr places in every pane it spawns, which the driver
-/// now reads to report its state (herdr-optional-ui). Scrubbed for a blunt
-/// reason: these tests are *themselves* usually run from inside a herdr pane, so
-/// without this every `run_loop` test would report `working`/`blocked` over the
-/// developer's own live pane — `cargo test` would visibly hijack the sidebar
-/// row of the terminal it was typed into. A test that wants the reporter awake
-/// sets these three back, pointing at a listener it owns.
-const HERDR_PANE_ENV: [&str; 3] = ["HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID"];
-
 /// The loop driver's **control channel** (self-driving-loop), scrubbed for the
-/// same reason as [`HERDR_PANE_ENV`] one notch up the severity scale: not a
-/// hijacked sidebar row, a dead terminal.
+/// duration of tests so a nested launch cannot signal the developer's live
+/// session.
 ///
 /// `GROVE_SIGNAL_FILE` is the path the driver watches while its harness child
 /// runs; its mere *appearance* triggers grace → SIGTERM → kill-grace → SIGKILL.
@@ -107,17 +98,15 @@ const LOOP_CONTROL_ENV: [&str; 2] = ["GROVE_SIGNAL_FILE", "GROVE_SESSION_TARGET"
 
 /// Every ambient env var that steers a `grove do` launch or its side effects:
 /// the GROVE_* routing / model-selection surface (see
-/// [`EnvGuard::clear_grove_env`]'s doc for the count), [`HERDR_PANE_ENV`], plus
-/// [`LOOP_CONTROL_ENV`].
+/// [`EnvGuard::clear_grove_env`]'s doc for the count), plus [`LOOP_CONTROL_ENV`].
 /// Shared by `EnvGuard` (scrubbing this test's own process env) and any test
 /// that instead needs to scrub a *subprocess*'s inherited env via
 /// `Command::env_remove` — a `Command` does not isolate itself from the
 /// parent's ambient env just because some vars are set explicitly.
 pub fn grove_env_names() -> Vec<String> {
     let suffixes = kind_env_suffixes();
-    let mut names = Vec::with_capacity(
-        suffixes.len() * (2 + HARNESS_NAMES.len()) + HERDR_PANE_ENV.len() + LOOP_CONTROL_ENV.len(),
-    );
+    let mut names =
+        Vec::with_capacity(suffixes.len() * (2 + HARNESS_NAMES.len()) + LOOP_CONTROL_ENV.len());
     for kind in &suffixes {
         names.push(format!("GROVE_{kind}_MODEL"));
         names.push(format!("GROVE_{kind}_HARNESS"));
@@ -125,7 +114,6 @@ pub fn grove_env_names() -> Vec<String> {
             names.push(format!("GROVE_{harness}_{kind}_MODEL"));
         }
     }
-    names.extend(HERDR_PANE_ENV.iter().map(|n| n.to_string()));
     names.extend(LOOP_CONTROL_ENV.iter().map(|n| n.to_string()));
     names
 }
@@ -229,10 +217,8 @@ impl EnvGuard {
     /// Scrub the loop driver's whole routing/model-selection surface —
     /// ([`KIND_LABELS`] + [`FAMILY_LABELS`]) × [base `GROVE_<KIND>_MODEL`, 3
     /// harness-scoped `GROVE_<HARNESS>_<KIND>_MODEL`, `GROVE_<KIND>_HARNESS`],
-    /// 95 live names plus the retired spellings — **plus the 3
-    /// [`HERDR_PANE_ENV`] vars**, so a loop under test
-    /// cannot report into the developer's own herdr pane, **plus
-    /// [`LOOP_CONTROL_ENV`]**, so it cannot kill the developer's own session.
+    /// 95 live names plus the retired spellings — plus [`LOOP_CONTROL_ENV`], so
+    /// it cannot kill the developer's own session.
     /// Every loop_driver
     /// test needs this: this branch's own dogfooded `~/.zshenv` (and the loop
     /// driver's own launch, for a session running these tests under itself)
@@ -255,66 +241,4 @@ impl Drop for EnvGuard {
             }
         }
     }
-}
-
-// ---------------------------------------------------------------------------
-// A fake herdr, for the tests that assert on what grove *reports* rather than
-// on what it does. Shared by `tests/loop_driver.rs` (the driver's four report
-// sites) and `tests/report_turn.rs` (the turn hooks' verb), because both need
-// the same thing: a real unix socket speaking herdr's newline-delimited JSON,
-// addressed through the same `HERDR_*` variables herdr itself puts in a pane.
-
-/// Bind a fake herdr on `path` and serve it from a background thread, appending
-/// each request line to the returned buffer.
-///
-/// The buffer is shared rather than returned from a `JoinHandle`, and the thread
-/// is deliberately never joined: `UnixListener::accept` has no timeout in `std`,
-/// so a joinable server would need an out-of-band way to be woken, and there
-/// isn't a reliable one once the socket path is gone. Sharing is also *correct*
-/// by ordering, not just convenient — the server appends a line **before**
-/// answering it, and the driver's own report waits for that answer, so every
-/// line is already in the buffer by the time `run_loop` returns.
-pub fn fake_herdr(path: &std::path::Path) -> std::sync::Arc<Mutex<Vec<String>>> {
-    let listener = std::os::unix::net::UnixListener::bind(path).unwrap();
-    let lines = std::sync::Arc::new(Mutex::new(Vec::new()));
-    let collected = std::sync::Arc::clone(&lines);
-    std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            let Ok(stream) = stream else { break };
-            let mut line = String::new();
-            if std::io::BufRead::read_line(&mut std::io::BufReader::new(&stream), &mut line).is_ok()
-            {
-                if !line.trim().is_empty() {
-                    collected.lock().unwrap().push(line.trim().to_string());
-                }
-                // Answer as herdr does, so the driver's read completes rather
-                // than spending its whole budget waiting on every report.
-                let _ = std::io::Write::write_all(
-                    &mut &stream,
-                    br#"{"id":"x","result":{"type":"ok"}}"#.as_slice(),
-                );
-                let _ = std::io::Write::write_all(&mut &stream, b"\n");
-            }
-        }
-    });
-    lines
-}
-
-/// The `(method, state)` pairs out of collected request lines — asserting on
-/// these rather than on raw JSON keeps the wiring assertions about *sequence*,
-/// while `src/herdr.rs`'s own tests pin the exact bytes.
-pub fn reported(lines: &[String]) -> Vec<(String, String)> {
-    lines
-        .iter()
-        .map(|line| {
-            let field = |key: &str| {
-                line.split(&format!("\"{key}\":\""))
-                    .nth(1)
-                    .and_then(|rest| rest.split('"').next())
-                    .unwrap_or("")
-                    .to_string()
-            };
-            (field("method"), field("state"))
-        })
-        .collect()
 }

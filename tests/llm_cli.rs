@@ -17,7 +17,14 @@ fn help_lists_only_llm_verbs() {
         assert!(s.contains(verb), "missing grove-llm verb `{verb}`: {s}");
     }
     // Launcher and admin verbs must not bleed into grove-llm's surface.
-    for forbidden in ["start", "continue", "takeover", "install", "update"] {
+    for forbidden in [
+        "start",
+        "continue",
+        "takeover",
+        "install",
+        "update",
+        "report-turn",
+    ] {
         assert!(
             !s.contains(&format!(" {} ", forbidden)),
             "grove-llm --help should not list `{}`: {s}",

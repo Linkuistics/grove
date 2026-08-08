@@ -19,8 +19,8 @@ durable description of the implemented system.
 ## Done when
 
 - Architecture describes configuration, process ownership, tree/migration,
-  bare driver, finish, provisioning, Herdr, Git/jj symmetry, and lock ordering
-  at their implemented seams.
+  bare driver, finish, provisioning, Git/jj symmetry, and lock ordering at their
+  implemented seams.
 - The ADR set is minimal and coherent; the review-mechanics spec retains only
   promotion, locking, and ownership material that still binds after receipt and
   target comparison deletion.

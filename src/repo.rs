@@ -11,6 +11,10 @@ use anyhow::{anyhow, bail, Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod migration_commit;
+
+pub use migration_commit::commit_session_kind_migration;
+
 /// The VCS that owns a working tree.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Vcs {

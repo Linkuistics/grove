@@ -68,6 +68,7 @@
 //     done
 
 use crate::complete::{self, Disposition};
+use crate::driver_lease::DriverLease;
 use crate::harness::Harness;
 use crate::leaf::{Family, Kind};
 use anyhow::{Context, Result};
@@ -133,10 +134,16 @@ pub fn signal_file_path(worktree: &Path, name: &str) -> PathBuf {
 /// process-global signal changes. The outcome is already reported on stderr by
 /// the loop body, so the caller can discard it.
 ///
-pub fn run(harness: &'static Harness, repo_path: &Path, worktree: &Path, name: &str) -> Result<()> {
+pub fn run(
+    harness: &'static Harness,
+    repo_path: &Path,
+    worktree: &Path,
+    name: &str,
+    driver_lease: DriverLease,
+) -> Result<()> {
     ignore_interrupts();
     install_termination_handler();
-    run_loop(harness, repo_path, worktree, name).map(|_| ())
+    run_loop_with_lease(harness, repo_path, worktree, name, &driver_lease).map(|_| ())
 }
 
 /// The loop body, free of process-global side effects. Returns why it stopped
@@ -147,6 +154,17 @@ pub fn run_loop(
     worktree: &Path,
     name: &str,
 ) -> Result<LoopOutcome> {
+    let driver_lease = DriverLease::acquire(worktree)?;
+    run_loop_with_lease(harness, repo_path, worktree, name, &driver_lease)
+}
+
+fn run_loop_with_lease(
+    harness: &'static Harness,
+    repo_path: &Path,
+    worktree: &Path,
+    name: &str,
+    driver_lease: &DriverLease,
+) -> Result<LoopOutcome> {
     let signal_file = signal_file_path(worktree, name);
     let repo_name = repo_path
         .file_name()
@@ -155,6 +173,10 @@ pub fn run_loop(
     let session_name = format!("{}: {} grove", repo_name, name);
 
     loop {
+        driver_lease
+            .revalidate()
+            .context("revalidating driver lease before loop transition")?;
+
         // Version-skew guard (driver-version-skew-k11): before anything else,
         // confirm the `grove-llm` the agent would invoke still matches this
         // driver. Per session, not per driver start — a `brew upgrade`
@@ -208,6 +230,10 @@ pub fn run_loop(
         )?;
 
         let prompt = crate::launch::load_prompt(launch.harness, verb)?;
+
+        driver_lease
+            .revalidate()
+            .context("revalidating driver lease before foreground launch")?;
 
         let ended = launch_session(&launch, worktree, &session_name, &prompt, &signal_file)?;
 

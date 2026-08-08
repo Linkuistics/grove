@@ -18,7 +18,8 @@ use std::process::Command;
 /// sessions handle all in-context judgement — including proposing the
 /// complete finish cycle once the grove has no live leaves left.
 pub fn do_grove(args: &StartArgs) -> Result<()> {
-    let worktree = repo::toplevel(&std::env::current_dir().context("getting cwd")?)?;
+    let cwd = std::env::current_dir().context("getting cwd")?;
+    let worktree = repo::toplevel(&cwd)?;
     let name = worktree_name(&worktree);
 
     let repo_path = repo::resolve(None)?;
@@ -28,6 +29,25 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     // installed harness (and the launching one unconditionally), so the skill
     // any session reads can never drift from this binary.
     crate::provision::provision_all(harness)?;
+
+    // Provisioning is independent delivery and deliberately remains available
+    // even when another driver owns this working tree. Ownership begins here,
+    // before any task-tree observation, migration, config check, or launch.
+    // Resolve it from cwd's on-disk marker rather than Git discovery so ambient
+    // GIT_DIR/GIT_WORK_TREE/TMPDIR values cannot split one workspace's lease.
+    let driver_lease = crate::driver_lease::DriverLease::acquire(&cwd)?;
+    let discovered_worktree = worktree
+        .canonicalize()
+        .with_context(|| format!("canonicalizing working tree {}", worktree.display()))?;
+    anyhow::ensure!(
+        driver_lease.worktree_root() == discovered_worktree,
+        "on-disk working tree {} disagrees with VCS-discovered working tree {}",
+        driver_lease.worktree_root().display(),
+        discovered_worktree.display()
+    );
+    driver_lease
+        .revalidate()
+        .context("revalidating driver lease before lifecycle transition")?;
 
     // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
     // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
@@ -81,7 +101,7 @@ pub fn do_grove(args: &StartArgs) -> Result<()> {
     // stamp with no recovery path (branch-review-k14 B4).
     harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
 
-    crate::loop_driver::run(harness, &repo_path, &worktree, &name)
+    crate::loop_driver::run(harness, &repo_path, &worktree, &name, driver_lease)
 }
 
 pub fn retire(args: &RetireArgs) -> Result<()> {

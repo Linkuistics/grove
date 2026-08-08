@@ -215,7 +215,7 @@ fn loop_finishes_clean_on_a_done_signal() {
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
@@ -292,12 +292,12 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
 
     let repo_a = TempDir::new().unwrap();
     let worktree_a = repo_a.path().join("wt");
-    fs::create_dir_all(&worktree_a).unwrap();
+    init_worktree(&worktree_a);
     fs::write(worktree_a.join("ROLE_ATTACKER"), "").unwrap();
 
     let repo_b = TempDir::new().unwrap();
     let worktree_b = repo_b.path().join("wt");
-    fs::create_dir_all(&worktree_b).unwrap();
+    init_worktree(&worktree_b);
 
     let skill_dir = repo_a.path().join("skill");
     fs::create_dir_all(skill_dir.join("prompts")).unwrap();
@@ -387,7 +387,7 @@ fn driver_kills_a_hung_session_that_signalled_done() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/killgrove");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     // `exec sleep 30`, not a plain `sleep 30`: exec replaces the shell's own
     // process image (same pid), so the pid the driver signals *is* the
@@ -533,7 +533,7 @@ fn driver_leaves_an_unsignalled_session_alone() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/killgrove4");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     // Never touches `$GROVE_SIGNAL_FILE`; just runs ~1.5s then exits on its
     // own. Small graces so a wrongly-early kill (guard dropped ⇒ SIGTERM at
@@ -593,7 +593,7 @@ fn driver_escalates_to_sigkill_when_the_session_ignores_sigterm() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/killgrove3");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let term_marker = repo_path.join("term-received");
 
@@ -686,7 +686,7 @@ fn driver_waits_the_grace_before_sending_sigterm() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/killgrove5");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     // Signals `done` immediately then hangs, same as the sibling kill tests
     // — `exec sleep 30` so the pid the driver signals is the sleeping
@@ -1583,7 +1583,7 @@ fn an_empty_string_model_var_fails_loudly_like_an_unset_one() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let log = repo_path.join("log");
     let fake = repo_path.join("fake-claude.sh");
@@ -2911,7 +2911,7 @@ fn a_family_harness_override_typo_is_caught_immediately() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let harness = harness::by_name("claude").unwrap();
 
@@ -3163,7 +3163,7 @@ fn empty_string_harness_bin_is_treated_as_unset() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     // A fake `claude` (harness::exec_bin) on PATH, so an empty
     // GROVE_HARNESS_BIN falling through to exec_bin is observable without
@@ -3310,7 +3310,7 @@ fn an_off_kind_harness_override_typo_is_caught_immediately() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let harness = harness::by_name("claude").unwrap();
 
@@ -3353,7 +3353,7 @@ fn unknown_review_harness_fails_loudly() {
     fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let harness = harness::by_name("claude").unwrap();
 
@@ -3445,7 +3445,7 @@ fn empty_string_kind_harness_override_is_treated_as_unset() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let log = repo_path.join("log");
     let fake = repo_path.join("fake-claude.sh");
@@ -3613,7 +3613,7 @@ fn a_version_skewed_grove_llm_stops_the_loop_before_any_session() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let log = repo_path.join("log");
     let fake = repo_path.join("fake-claude.sh");
@@ -3668,7 +3668,7 @@ fn an_unreadable_grove_llm_version_never_jams_the_loop() {
     fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
 
     let worktree = repo_path.join("wt");
-    fs::create_dir_all(&worktree).unwrap();
+    init_worktree(&worktree);
 
     let log = repo_path.join("log");
     let fake = repo_path.join("fake-claude.sh");

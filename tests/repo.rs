@@ -1,8 +1,13 @@
-use grove::repo::{main_repo_of, resolve, toplevel, vcs_of, Vcs};
+mod support;
+
+use grove::repo::{main_repo_of, resolve, toplevel, vcs_of, workspace_control, Vcs};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Mutex;
 use tempfile::TempDir;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn init_git_repo(path: &Path) {
     run("git", path, &["init", "-q", "."]);
@@ -104,6 +109,127 @@ fn vcs_of_unversioned_dir_is_none() {
     // TempDir lives under the system temp dir, which itself is unversioned.
     let tmp = TempDir::new().unwrap();
     assert!(vcs_of(tmp.path()).is_none());
+}
+
+// ---- workspace_control: environment-independent coordination paths -------
+
+#[test]
+fn workspace_control_in_plain_git_uses_that_checkout_s_git_directory() {
+    let tmp = TempDir::new().unwrap();
+    init_git_repo(tmp.path());
+    let nested = tmp.path().join("src/nested");
+    fs::create_dir_all(&nested).unwrap();
+
+    let control = workspace_control(&nested).unwrap();
+
+    assert_eq!(control.worktree_root(), canon(tmp.path()));
+    assert_eq!(
+        control.control_dir(),
+        canon(&tmp.path().join(".git")).join("grove")
+    );
+}
+
+#[test]
+fn workspace_control_in_a_linked_git_worktree_uses_its_own_gitdir() {
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    init_git_repo(&main);
+    run(
+        "git",
+        &main,
+        &[
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=Test",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "seed",
+        ],
+    );
+    let worktree = tmp.path().join("linked");
+    run(
+        "git",
+        &main,
+        &["worktree", "add", "-q", worktree.to_str().unwrap()],
+    );
+    let gitfile = fs::read_to_string(worktree.join(".git")).unwrap();
+    let gitdir = gitfile.strip_prefix("gitdir: ").unwrap().trim();
+
+    let control = workspace_control(&worktree).unwrap();
+
+    assert_eq!(control.worktree_root(), canon(&worktree));
+    assert_eq!(
+        control.control_dir(),
+        canon(&worktree.join(gitdir)).join("grove")
+    );
+    assert_ne!(
+        control.control_dir(),
+        canon(&main.join(".git")).join("grove")
+    );
+}
+
+#[test]
+fn workspace_control_in_colocated_jj_uses_the_workspace_jj_directory() {
+    let tmp = TempDir::new().unwrap();
+    init_git_repo(tmp.path());
+    run_jj(tmp.path(), &["git", "init", "--colocate", "--quiet", "."]);
+
+    let control = workspace_control(tmp.path()).unwrap();
+
+    assert_eq!(control.worktree_root(), canon(tmp.path()));
+    assert_eq!(control.control_dir(), canon(tmp.path()).join(".jj/grove"));
+}
+
+#[test]
+fn workspace_control_in_a_secondary_jj_workspace_does_not_follow_the_shared_repo() {
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    fs::create_dir_all(&main).unwrap();
+    init_jj_repo(&main);
+    let secondary = tmp.path().join("secondary");
+    run_jj(
+        &main,
+        &["workspace", "add", "--quiet", secondary.to_str().unwrap()],
+    );
+
+    let control = workspace_control(&secondary).unwrap();
+
+    assert_eq!(control.worktree_root(), canon(&secondary));
+    assert_eq!(control.control_dir(), canon(&secondary).join(".jj/grove"));
+    assert_ne!(control.control_dir(), canon(&main).join(".jj/grove"));
+}
+
+#[test]
+fn workspace_control_ignores_git_discovery_and_temporary_directory_environment() {
+    let _lock = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let intended = tmp.path().join("intended");
+    let foreign = tmp.path().join("foreign");
+    let fake_tmp = tmp.path().join("ambient-tmp");
+    fs::create_dir_all(&intended).unwrap();
+    fs::create_dir_all(&foreign).unwrap();
+    fs::create_dir_all(&fake_tmp).unwrap();
+    init_git_repo(&intended);
+    init_git_repo(&foreign);
+    let nested = intended.join("src");
+    fs::create_dir_all(&nested).unwrap();
+    let mut env = support::EnvGuard::new();
+    env.set("GIT_DIR", foreign.join(".git"))
+        .set("GIT_WORK_TREE", &foreign)
+        .set("GIT_COMMON_DIR", foreign.join(".git"))
+        .set("TMPDIR", &fake_tmp);
+
+    let control = workspace_control(&nested).unwrap();
+
+    assert_eq!(control.worktree_root(), canon(&intended));
+    assert_eq!(
+        control.control_dir(),
+        canon(&intended.join(".git")).join("grove")
+    );
 }
 
 // ---- toplevel: the working-tree root, either VCS --------------------------

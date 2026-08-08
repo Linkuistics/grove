@@ -8,6 +8,7 @@
 // the two VCSes genuinely differ.
 
 use anyhow::{anyhow, bail, Context, Result};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -24,6 +25,24 @@ pub enum Vcs {
     Jj { workspace_root: PathBuf },
     /// A plain git working tree (checkout or linked worktree), not jj-enabled.
     Git,
+}
+
+/// Canonical paths that scope Grove's untracked process coordination to one
+/// exact working tree or workspace.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkspaceControl {
+    worktree_root: PathBuf,
+    control_dir: PathBuf,
+}
+
+impl WorkspaceControl {
+    pub fn worktree_root(&self) -> &Path {
+        &self.worktree_root
+    }
+
+    pub fn control_dir(&self) -> &Path {
+        &self.control_dir
+    }
 }
 
 /// The VCS owning `path`, walking up from it: at each ancestor a `.jj/`
@@ -43,6 +62,75 @@ pub fn vcs_of(path: &Path) -> Option<Vcs> {
         }
     }
     None
+}
+
+/// Resolve the workspace-scoped directory for untracked Grove process
+/// coordination from the closest on-disk VCS marker. This deliberately does
+/// not invoke `git` or `jj`, so repository-selection environment variables and
+/// a shared repository store cannot redirect the result.
+pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
+    for candidate in path.ancestors() {
+        let jj_dir = candidate.join(".jj");
+        if jj_dir.is_dir() {
+            let worktree_root = candidate.canonicalize().with_context(|| {
+                format!("canonicalizing jj workspace root {}", candidate.display())
+            })?;
+            return Ok(WorkspaceControl {
+                control_dir: worktree_root.join(".jj/grove"),
+                worktree_root,
+            });
+        }
+
+        let git_marker = candidate.join(".git");
+        if git_marker.is_dir() {
+            let worktree_root = candidate.canonicalize().with_context(|| {
+                format!("canonicalizing Git working tree {}", candidate.display())
+            })?;
+            let git_dir = git_marker
+                .canonicalize()
+                .with_context(|| format!("canonicalizing {}", git_marker.display()))?;
+            return Ok(WorkspaceControl {
+                worktree_root,
+                control_dir: git_dir.join("grove"),
+            });
+        }
+        if git_marker.is_file() {
+            let worktree_root = candidate.canonicalize().with_context(|| {
+                format!("canonicalizing Git working tree {}", candidate.display())
+            })?;
+            let git_dir = gitfile_target(&git_marker)?;
+            return Ok(WorkspaceControl {
+                worktree_root,
+                control_dir: git_dir.join("grove"),
+            });
+        }
+    }
+
+    bail!("not in a git or jj working tree (path: {})", path.display())
+}
+
+fn gitfile_target(gitfile: &Path) -> Result<PathBuf> {
+    let contents = fs::read_to_string(gitfile)
+        .with_context(|| format!("reading Git worktree marker {}", gitfile.display()))?;
+    let target = contents
+        .lines()
+        .next()
+        .and_then(|line| line.strip_prefix("gitdir:"))
+        .map(str::trim)
+        .filter(|target| !target.is_empty())
+        .with_context(|| format!("malformed Git worktree marker {}", gitfile.display()))?;
+    let target = PathBuf::from(target);
+    let target = if target.is_absolute() {
+        target
+    } else {
+        gitfile
+            .parent()
+            .context("Git worktree marker has no parent")?
+            .join(target)
+    };
+    target
+        .canonicalize()
+        .with_context(|| format!("canonicalizing Git worktree gitdir {}", target.display()))
 }
 
 /// Resolve the repo path: if `arg` is Some, use it; otherwise use cwd's main

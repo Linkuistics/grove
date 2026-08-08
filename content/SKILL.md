@@ -452,7 +452,9 @@ a session asks is a discretionary escalation. On confirmation, run:
    is watching for the signal file — not this verb), so running it any earlier
    would cut teardown short. It writes only the launch's randomly named loop
    signal file in the workspace's VCS-administration control directory —
-   nothing about the working tree — so run it from any valid directory.
+   nothing in the working tree. It still resolves the current directory to
+   verify the live session epoch, so run it from inside that session's working
+   tree (which remains valid after `.grove/` is deleted).
    Outside `grove do` (no loop to stop) it is a safe no-op: just exit.
 
 Nothing after: integrating the grove's branch and tearing down the working tree

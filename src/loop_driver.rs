@@ -209,16 +209,19 @@ fn run_loop_with_lease(
             signal_channel.path(),
             driver_lease,
         );
-        driver_lease.invalidate_session_epoch().context(
-            "post-reap session epoch invalidation blocked; completion signal left unconsumed",
+        let (ended, signal) = complete_post_reap_epoch_handoff(
+            ended,
+            || driver_lease.invalidate_session_epoch(),
+            |ended| {
+                // A SIGTERM'd TUI can leave the terminal in raw mode / the
+                // alternate screen; reset before relaunching (and on the way
+                // out). Signal interpretation belongs in this continuation:
+                // it cannot run until invalidation has succeeded.
+                reset_terminal();
+                (ended, complete::read_signal(signal_channel.path()))
+            },
         )?;
-        let ended = ended?;
 
-        // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
-        // screen; reset before relaunching (and on the way out).
-        reset_terminal();
-
-        let signal = complete::read_signal(signal_channel.path());
         if let Err(error) = driver_lease.remove_signal_channel(signal_channel) {
             eprintln!(
                 "grove: warning: could not remove the interpreted foreground-session signal channel; preserving the session outcome: {error:#}"
@@ -254,6 +257,24 @@ fn run_loop_with_lease(
                 return Ok(LoopOutcome::Stopped);
             }
         }
+    }
+}
+
+fn complete_post_reap_epoch_handoff<T>(
+    ended: Result<SessionEnd>,
+    invalidate: impl FnOnce() -> Result<()>,
+    continue_after_invalidation: impl FnOnce(SessionEnd) -> T,
+) -> Result<T> {
+    const INVALIDATION_CONTEXT: &str =
+        "post-reap session epoch invalidation blocked; completion signal left unconsumed";
+
+    match (ended, invalidate()) {
+        (Ok(ended), Ok(())) => Ok(continue_after_invalidation(ended)),
+        (Err(launch_error), Ok(())) => Err(launch_error),
+        (Ok(_), Err(invalidation_error)) => Err(invalidation_error.context(INVALIDATION_CONTEXT)),
+        (Err(launch_error), Err(invalidation_error)) => Err(invalidation_error.context(format!(
+            "{INVALIDATION_CONTEXT}; foreground session also failed: {launch_error:#}"
+        ))),
     }
 }
 
@@ -1448,6 +1469,65 @@ mod tests {
         );
         assert_eq!(first.path().parent(), Some(expected_control_dir.as_path()));
         assert_eq!(second.path().parent(), Some(expected_control_dir.as_path()));
+    }
+
+    #[test]
+    fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
+        let launch = Err(anyhow::anyhow!(
+            "launching the harness session: executable was not found"
+        ));
+        let continuation_called = std::cell::Cell::new(false);
+
+        let error = complete_post_reap_epoch_handoff(
+            launch,
+            || {
+                Err(anyhow::anyhow!(
+                    "timed out waiting for exclusive session epoch lock"
+                ))
+            },
+            |_| continuation_called.set(true),
+        )
+        .unwrap_err();
+
+        let message = format!("{error:#}");
+        assert!(
+            message.contains(
+                "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+            ),
+            "{message}"
+        );
+        assert!(message.contains("executable was not found"), "{message}");
+        assert!(
+            message.contains("timed out waiting for exclusive session epoch lock"),
+            "{message}"
+        );
+        assert!(
+            !continuation_called.get(),
+            "signal interpretation must remain behind successful epoch invalidation"
+        );
+    }
+
+    #[test]
+    fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {
+        let continuation_called = std::cell::Cell::new(false);
+
+        let error = complete_post_reap_epoch_handoff(
+            Ok(SessionEnd::Exited),
+            || Err(anyhow::anyhow!("exclusive epoch handoff timed out")),
+            |_| continuation_called.set(true),
+        )
+        .unwrap_err();
+
+        assert!(
+            error.to_string().contains(
+                "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+            ),
+            "{error:#}"
+        );
+        assert!(
+            !continuation_called.get(),
+            "signal interpretation must remain behind successful epoch invalidation"
+        );
     }
 
     // The version-skew guard may only ever act on a token that *is* a

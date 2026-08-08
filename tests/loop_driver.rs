@@ -12,10 +12,12 @@ mod support;
 use grove::harness;
 use grove::loop_driver::{self, LoopOutcome};
 use grove::provision::STAMP_FILE;
-use std::fs;
+use std::fs::{self, File};
+use std::os::fd::AsRawFd;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
+use std::thread;
 use std::time::{Duration, Instant};
 use support::EnvGuard;
 use tempfile::TempDir;
@@ -153,6 +155,253 @@ exit 0
     let after_reap = fs::read_to_string(worktree.join(".git/grove/session.epoch")).unwrap();
     assert!(after_reap.starts_with("state=inactive\n"), "{after_reap:?}");
     assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
+}
+
+#[test]
+fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let repo = TempDir::new().unwrap();
+    let repo_path = repo.path();
+    let skill_dir = repo_path.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
+    let worktree = repo_path.join("worktree");
+    init_worktree(&worktree);
+    fs::create_dir_all(worktree.join(".claude")).unwrap();
+
+    let launch_ready = repo_path.join("launch-ready");
+    let tree_locked = repo_path.join("tree-locked");
+    let orphan_started = repo_path.join("orphan-started");
+    let epoch_held = repo_path.join("epoch-held");
+    let orphan_done = repo_path.join("orphan-done");
+    let term_received = repo_path.join("term-received");
+    let harness_pid = repo_path.join("harness-pid");
+    let observed_signal = repo_path.join("observed-signal");
+    let launch_count = repo_path.join("launch-count");
+    let fake = repo_path.join("fake-claude.sh");
+    write_exec(
+        &fake,
+        r#"#!/bin/sh
+n=$(cat "$GROVE_TEST_LAUNCH_COUNT" 2>/dev/null || echo 0)
+n=$((n + 1))
+printf '%s\n' "$n" > "$GROVE_TEST_LAUNCH_COUNT"
+printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_OBSERVED_SIGNAL"
+printf '%s\n' "$$" > "$GROVE_TEST_HARNESS_PID"
+: > "$GROVE_TEST_LAUNCH_READY"
+while [ ! -e "$GROVE_TEST_TREE_LOCKED" ]; do sleep 0.01; done
+(
+  "$GROVE_LLM_BIN" pick >/dev/null 2>"$GROVE_TEST_ORPHAN_STDERR"
+  : > "$GROVE_TEST_ORPHAN_DONE"
+) >/dev/null 2>"$GROVE_TEST_ORPHAN_STDERR" &
+: > "$GROVE_TEST_ORPHAN_STARTED"
+while [ ! -e "$GROVE_TEST_EPOCH_HELD" ]; do sleep 0.01; done
+: > "$GROVE_SIGNAL_FILE"
+trap ': > "$GROVE_TEST_TERM_RECEIVED"' TERM
+while :; do sleep 0.1; done
+"#,
+    );
+
+    let (release_tx, release_rx) = mpsc::channel();
+    let lock_worktree = worktree.clone();
+    let lock_launch_ready = launch_ready.clone();
+    let lock_tree_locked = tree_locked.clone();
+    let lock_orphan_started = orphan_started.clone();
+    let lock_epoch_held = epoch_held.clone();
+    let lock_thread = thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !lock_launch_ready.exists() {
+            assert!(Instant::now() < deadline, "fake harness did not start");
+            thread::sleep(Duration::from_millis(10));
+        }
+
+        let tree_guard = File::open(&lock_worktree).unwrap();
+        assert_eq!(
+            unsafe { libc::flock(tree_guard.as_raw_fd(), libc::LOCK_EX) },
+            0,
+            "locking the worktree failed"
+        );
+        fs::write(&lock_tree_locked, "").unwrap();
+
+        while !lock_orphan_started.exists() {
+            assert!(
+                Instant::now() < deadline,
+                "orphaned tree command did not start"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        let epoch_path = lock_worktree.join(".git/grove/session.epoch");
+        loop {
+            assert!(
+                Instant::now() < deadline,
+                "orphaned tree command never acquired shared epoch admission"
+            );
+            let probe = File::open(&epoch_path).unwrap();
+            let result = unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+            if result != 0 {
+                let error = std::io::Error::last_os_error();
+                assert!(
+                    matches!(
+                        error.raw_os_error(),
+                        Some(code) if code == libc::EWOULDBLOCK || code == libc::EAGAIN
+                    ),
+                    "probing shared epoch admission failed unexpectedly: {error}"
+                );
+                break;
+            }
+            assert_eq!(
+                unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_UN) },
+                0,
+                "releasing the epoch probe failed"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        fs::write(&lock_epoch_held, "").unwrap();
+        release_rx.recv().unwrap();
+        drop(tree_guard);
+    });
+
+    let orphan_stderr = repo_path.join("orphan-stderr");
+    let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_grove"));
+    command.arg("do").current_dir(&worktree);
+    for name in support::grove_env_names() {
+        command.env_remove(name);
+    }
+    let started = Instant::now();
+    let mut child = command
+        .env("GROVE_HARNESS_BIN", &fake)
+        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .env("GROVE_SKILL_DIR", &skill_dir)
+        .env("GROVE_TEST_LAUNCH_READY", &launch_ready)
+        .env("GROVE_TEST_TREE_LOCKED", &tree_locked)
+        .env("GROVE_TEST_ORPHAN_STARTED", &orphan_started)
+        .env("GROVE_TEST_EPOCH_HELD", &epoch_held)
+        .env("GROVE_TEST_ORPHAN_DONE", &orphan_done)
+        .env("GROVE_TEST_ORPHAN_STDERR", &orphan_stderr)
+        .env("GROVE_TEST_TERM_RECEIVED", &term_received)
+        .env("GROVE_TEST_HARNESS_PID", &harness_pid)
+        .env("GROVE_TEST_OBSERVED_SIGNAL", &observed_signal)
+        .env("GROVE_TEST_LAUNCH_COUNT", &launch_count)
+        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
+        .env("GROVE_KILL_GRACE", "0.2")
+        .env("GROVE_KILL_GRACE_KILL", "0.3")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let setup_deadline = Instant::now() + Duration::from_secs(15);
+    while !epoch_held.exists() && Instant::now() < setup_deadline {
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    if !epoch_held.exists() {
+        if child.try_wait().unwrap().is_none() {
+            child.kill().unwrap();
+        }
+        let output = child.wait_with_output().unwrap();
+        let _ = release_tx.send(());
+        let _ = lock_thread.join();
+        panic!(
+            "orphan contention fixture did not reach shared epoch admission: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let contention_observed = Instant::now();
+    let stop_deadline = contention_observed + Duration::from_secs(35);
+    let stopped_within_bound = loop {
+        if child.try_wait().unwrap().is_some() {
+            break true;
+        }
+        if Instant::now() >= stop_deadline {
+            child.kill().unwrap();
+            break false;
+        }
+        thread::sleep(Duration::from_millis(25));
+    };
+    let output = child.wait_with_output().unwrap();
+    let total_elapsed = started.elapsed();
+    let contention_elapsed = contention_observed.elapsed();
+    let orphan_outlived_killed_parent = !orphan_done.exists();
+    let signal_path = fs::read_to_string(&observed_signal)
+        .ok()
+        .map(|path| PathBuf::from(path.trim()));
+    let signal_was_left_unconsumed = signal_path.as_ref().is_some_and(|path| path.exists());
+
+    let _ = release_tx.send(());
+    lock_thread.join().unwrap();
+    let orphan_deadline = Instant::now() + Duration::from_secs(5);
+    while !orphan_done.exists() {
+        assert!(
+            Instant::now() < orphan_deadline,
+            "orphaned tree command did not finish after the tree lock was released: {}",
+            fs::read_to_string(&orphan_stderr).unwrap_or_default()
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stopped_within_bound,
+        "driver exceeded the 35s watchdog after contention began: {stderr}"
+    );
+    assert!(
+        !output.status.success(),
+        "epoch handoff must fail: {stderr}"
+    );
+    assert!(
+        stderr.contains(
+            "post-reap session epoch invalidation blocked; completion signal left unconsumed"
+        ),
+        "unexpected error: {stderr}"
+    );
+    assert!(
+        stderr.contains("timed out after 30s waiting for exclusive session epoch lock"),
+        "unexpected error: {stderr}"
+    );
+    let contention_report = "waiting for exclusive session epoch lock for post-reap invalidation";
+    assert_eq!(
+        stderr
+            .lines()
+            .filter(|line| *line == contention_report)
+            .count(),
+        1,
+        "real contention must be reported exactly once: {stderr}"
+    );
+    assert!(
+        total_elapsed >= Duration::from_secs(30),
+        "the fixed timeout fired too early: {total_elapsed:?}"
+    );
+    assert!(
+        contention_elapsed < Duration::from_secs(35),
+        "the fixed 30s timeout exceeded its process-level bound: {contention_elapsed:?}"
+    );
+    assert!(
+        term_received.exists(),
+        "the foreground parent must receive SIGTERM before forced death"
+    );
+    assert!(
+        orphan_outlived_killed_parent,
+        "the admitted background command must still be blocked after its foreground parent died"
+    );
+    let harness_pid: i32 = fs::read_to_string(harness_pid)
+        .unwrap()
+        .trim()
+        .parse()
+        .unwrap();
+    assert_eq!(unsafe { libc::kill(harness_pid, 0) }, -1);
+    assert_eq!(
+        std::io::Error::last_os_error().raw_os_error(),
+        Some(libc::ESRCH),
+        "the TERM-ignoring foreground parent must have been SIGKILLed"
+    );
+    assert!(signal_was_left_unconsumed);
+    assert_eq!(fs::read_to_string(&launch_count).unwrap().trim(), "1");
 }
 
 #[test]

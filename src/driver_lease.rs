@@ -408,11 +408,15 @@ fn acquire_epoch_file(path: &Path, mode: LockMode, operation: &str) -> Result<Fi
         |_, _| Ok(()),
         |_, _| Ok(()),
         || {
-            eprintln!(
-                "waiting for {} session epoch lock for {operation}",
-                mode.label()
-            );
+            eprintln!("{}", epoch_contention_diagnostic(mode, operation));
         },
+    )
+}
+
+fn epoch_contention_diagnostic(mode: LockMode, operation: &str) -> String {
+    format!(
+        "waiting for {} session epoch lock for {operation}",
+        mode.label()
     )
 }
 
@@ -675,6 +679,15 @@ fn read_epoch_record(file: &mut File) -> Result<EpochRecord> {
 }
 
 fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) -> Result<()> {
+    probe_live_lease_with_post_unlock_hook(control_dir, epoch, operation, |_| Ok(()))
+}
+
+fn probe_live_lease_with_post_unlock_hook(
+    control_dir: &Path,
+    epoch: &EpochRecord,
+    operation: &str,
+    mut after_successful_probe: impl FnMut(&Path) -> Result<()>,
+) -> Result<()> {
     let lease_path = control_dir.join(LEASE_FILE_NAME);
     for attempt in 1..=IDENTITY_RETRY_LIMIT {
         let mut lease_file = OpenOptions::new()
@@ -687,6 +700,15 @@ fn probe_live_lease(control_dir: &Path, epoch: &EpochRecord, operation: &str) ->
             parse_process_record(&read_record(&mut lease_file, "driver lease record")?)?;
         let probe = unsafe { libc::flock(lease_file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
         let probe_error = (probe != 0).then(std::io::Error::last_os_error);
+        if probe == 0 {
+            let unlock = unsafe { libc::flock(lease_file.as_raw_fd(), libc::LOCK_UN) };
+            if unlock != 0 {
+                return Err(std::io::Error::last_os_error())
+                    .context("releasing successful driver lease liveness probe");
+            }
+            after_successful_probe(&lease_path)
+                .context("running driver lease post-unlock check")?;
+        }
         let descriptor_identity = FileIdentity::from_metadata(
             &lease_file
                 .metadata()
@@ -770,7 +792,10 @@ pub(crate) fn admit_ambient_session(
     if epoch.process.worktree_identity != current_identity {
         bail!("stale Grove session for {operation}: working-tree identity changed");
     }
-    if epoch.signal_path.as_deref() != Some(signal_path.as_path()) {
+    let Some(epoch_signal_path) = epoch.signal_path.as_deref() else {
+        bail!("stale Grove session for {operation}: session epoch is inactive");
+    };
+    if epoch_signal_path != signal_path {
         bail!(
             "stale Grove session for {operation}: loop-control path does not match the active epoch"
         );
@@ -1192,6 +1217,17 @@ mod tests {
     }
 
     #[test]
+    fn the_epoch_contention_diagnostic_names_the_lock_mode_and_operation() {
+        let diagnostic = epoch_contention_diagnostic(LockMode::Exclusive, "post-reap invalidation");
+
+        assert!(diagnostic.contains("exclusive"), "{diagnostic}");
+        assert!(
+            diagnostic.contains("post-reap invalidation"),
+            "{diagnostic}"
+        );
+    }
+
+    #[test]
     fn manual_agent_operations_need_no_driver_epoch() {
         let (_lock, _environment) = SignalEnvironment::set(None);
 
@@ -1253,7 +1289,7 @@ mod tests {
 
         let error = admit_ambient_session(&root, "test pick").unwrap_err();
         assert!(
-            format!("{error:#}").contains("loop-control path does not match the active epoch"),
+            format!("{error:#}").contains("session epoch is inactive"),
             "a new call from the old session was not refused: {error:#}"
         );
         drop(replacement_lease);
@@ -1326,6 +1362,22 @@ mod tests {
     }
 
     #[test]
+    fn an_inactive_epoch_is_reported_without_claiming_a_session_is_active() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let _lease = DriverLease::acquire(&root).unwrap();
+        let stale_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
+        let (_lock, _environment) = SignalEnvironment::set(Some(&stale_signal));
+
+        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+
+        let message = format!("{error:#}");
+        assert!(message.contains("session epoch is inactive"), "{message}");
+        assert!(!message.contains("active epoch"), "{message}");
+    }
+
+    #[test]
     fn a_rotated_epoch_refuses_the_old_signal_path() {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
@@ -1369,6 +1421,45 @@ mod tests {
         );
         let record = fs::read_to_string(root.join(".git/grove/session.epoch")).unwrap();
         assert!(record.contains("signal-path-hex="), "{record:?}");
+    }
+
+    #[test]
+    fn a_successful_liveness_probe_releases_the_lease_before_validation() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let lease = DriverLease::acquire(&root).unwrap();
+        let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
+        lease.activate_session_epoch(&signal_path).unwrap();
+        let control_dir = root.join(".git/grove");
+        let mut epoch_file = File::open(control_dir.join(EPOCH_FILE_NAME)).unwrap();
+        let epoch = read_epoch_record(&mut epoch_file).unwrap();
+        drop(lease);
+        let mut observed_unlocked_probe = false;
+
+        let error = probe_live_lease_with_post_unlock_hook(
+            &control_dir,
+            &epoch,
+            "test pick",
+            |lease_path| {
+                let contender = File::open(lease_path)?;
+                let result =
+                    unsafe { libc::flock(contender.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
+                if result != 0 {
+                    return Err(std::io::Error::last_os_error())
+                        .context("successful liveness probe still held the driver lease");
+                }
+                observed_unlocked_probe = true;
+                Ok(())
+            },
+        )
+        .unwrap_err();
+
+        assert!(observed_unlocked_probe);
+        assert!(
+            format!("{error:#}").contains("driver lease is unlocked"),
+            "unexpected error: {error:#}"
+        );
     }
 
     #[test]

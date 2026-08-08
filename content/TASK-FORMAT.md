@@ -48,8 +48,13 @@ fault.
   spec, an ADR set, or both. A `design` session that finds itself cutting
   *implementation* leaves has drifted into planning's job and should externalize
   a `planning` leaf instead.
-- **planning** (AFK) — given the design, cut it into vertical slices and **grow
-  the tree**: turn an oversized leaf into a node — a **directory**
+- **planning** (AFK) — given the design, first find the **smallest independently
+  useful working increments** and order them by dependency. Create a separate
+  grove for every obvious stage that leaves the product working and delivers
+  useful, verifiable behavior for its successor; changes that cannot
+  independently leave the product working stay in one increment even when their
+  code edits are separable. Then cut the current increment into vertical slices
+  and **grow the tree**: turn an oversized leaf into a node — a **directory**
   `NN-<slug>-k<key>/` holding ordered child leaves, headed here by a `BRIEF.md`
   (a *decomposition* node; the chain node below is the brief-less species). The
   deliverable is *more tree*. The only kind with methodological force — the sole

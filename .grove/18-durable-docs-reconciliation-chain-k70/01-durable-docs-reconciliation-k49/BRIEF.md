@@ -1,6 +1,4 @@
-# durable-docs-reconciliation-k49
-
-**Kind:** impl
+# durable-docs-reconciliation-k49 — brief
 
 ## Goal
 
@@ -38,6 +36,19 @@ the minimum coherent durable description of the implemented system.
   positive and cross-tree controls; docs/navigation tests plus
   `cargo fmt --check` and `cargo test --locked` pass.
 
+## Decomposition
+
+- `user-docs-reconciliation-k80` updates the public configuration, lifecycle,
+  usage, release, and changelog surfaces.
+- `architecture-records-reconciliation-k88` updates architecture, ADRs, specs,
+  and their citations as one minimum coherent durable set.
+- `glossary-reconciliation-k89` updates bounded-context terminology and runs
+  the final cross-surface legacy-claim and navigation sweep.
+
 ## Notes
 
 Record structural facts, not self-invalidating occurrence counts.
+
+Each child is useful and green on its own. Architecture, ADRs, and specs remain
+one child because splitting that minimum coherent set would create contradictory
+binding records rather than independent product behavior.

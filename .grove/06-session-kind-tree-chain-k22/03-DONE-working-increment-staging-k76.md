@@ -41,3 +41,23 @@ must land together in one working increment.
 This is a throughput and context-size rule. Smaller working increments shorten
 implementation, review, and integration sessions without sacrificing a green
 handoff between them.
+
+## Working-increment audit
+
+- Decomposed `legacy-launch-removal-k46`, `legacy-review-removal-k47`,
+  `methodology-and-viewer-k48`, `durable-docs-reconciliation-k49`, and
+  `acceptance-verification-k50` into dependency-ordered children. Every child
+  leaves a working product or independently useful verification/documentation
+  handoff for its successor.
+- Retained `tree-access-lock-k52`, `session-kind-migration-k27`,
+  `driver-lease-k31`, `session-signal-path-k57`, `session-epoch-k35`,
+  `lifecycle-cutover-k39`, and `finish-lifecycle-k43` as single producers.
+  Their contracts are atomic at the behavior level: a partial lock, migration
+  transaction, ownership epoch, authoritative cutover, or guarded finish would
+  expose an incomplete protocol rather than a useful working increment.
+- Retained `herdr-session-kind-viewer-k51` and `msrv-claim-k74` as standalone
+  leaves because each already is one independently demonstrable increment.
+- Retained each producer's linked review and integration beside its producer.
+  An inspection-only review produces findings rather than product behavior, and
+  its integration is licensed only to repair that same reviewed artifact; the
+  three steps therefore do not form separate working increments.

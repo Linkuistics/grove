@@ -568,6 +568,22 @@ constraint 4), so don't ration leaves to keep the tree looking tidy.
      wide-refactor expand-contract exception) — MIT licensed; see
      LICENSES/mattpocock-skills.LICENSE. -->
 
+## Find working increments before child leaves
+
+Before slicing a design into leaves, search actively for the **smallest
+independently useful working increments** and order them by dependency. Create a
+separate grove for each obvious stage that leaves the product working and
+delivers useful, verifiable behavior on which its successor can build. Changes
+that cannot independently leave the product working stay in the same increment
+even when their code edits lie in different modules. Only then cut the current
+increment into child leaves.
+
+The boundary is product behavior, not code location or one design document's
+scope. Schema expansion, caller migration, lifecycle cutover, cleanup,
+methodology, and documentation often form dependency-ordered groves when every
+handoff remains green. A new schema and the only reader that makes it usable do
+not: neither half is a working increment on its own.
+
 ## What a good child leaf looks like
 
 Externalizing tells you *when* to split; this is what the split should

@@ -1,6 +1,4 @@
-# legacy-launch-removal-k46
-
-**Kind:** impl
+# legacy-launch-removal-k46 — brief
 
 ## Goal
 
@@ -37,6 +35,15 @@ complete.
 - Removed-surface sweeps use positive and cross-tree controls, and the full
   `cargo fmt --check` / `cargo test --locked` suite passes.
 
+## Decomposition
+
+- `legacy-command-surface-removal-k77` removes the obsolete public CLI and
+  persisted harness-stamp surface while keeping the bare driver green.
+- `routing-policy-removal-k82` then removes environment routing, target
+  inference, and hidden launch policy.
+- `legacy-launch-cleanup-k83` finally contracts dead modules, fixtures, and
+  metadata and proves the removed-surface sweep.
+
 ## Notes
 
 Do not remove composition relationships or review evidence here;
@@ -48,3 +55,6 @@ upgrade to this branch's bare-command binary in that control path before the
 grove finishes. Exercise branch binaries only in isolated homes/worktrees with
 ambient loop authority scrubbed; `acceptance-verification-k50` performs the
 pre-install matrix.
+
+Each child is a working-increment boundary suitable for a separate grove: the
+bare configured driver remains useful and verifiably green after every child.

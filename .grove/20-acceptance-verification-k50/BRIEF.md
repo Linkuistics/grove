@@ -1,6 +1,4 @@
-# acceptance-verification-k50
-
-**Kind:** impl
+# acceptance-verification-k50 — brief
 
 ## Goal
 
@@ -41,7 +39,19 @@ acceptance sweep.
 - The root brief's Done-when conditions can be checked directly against landed
   code, tests, content, docs, ADRs, and specs with no unnamed residue.
 
+## Decomposition
+
+- `process-acceptance-verification-k81` proves configuration, launch, lifecycle,
+  lease, epoch, and Herdr process behavior.
+- `tree-vcs-acceptance-verification-k90` proves filename grammar, tree verbs,
+  migration, finish, viewer, and scoped Git/jj behavior.
+- `release-acceptance-verification-k91` proves removed surfaces, durable docs,
+  release health, and the root brief's complete acceptance rollup.
+
 ## Notes
 
 Do not publish or integrate the branch; release and worktree teardown are
 outside this grove.
+
+Each child produces durable acceptance evidence and leaves the full suite green.
+Material redesign still becomes a new leaf rather than being absorbed here.

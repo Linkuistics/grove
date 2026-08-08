@@ -161,8 +161,13 @@ the sole branch here, and the only kind that grows the tree generatively:
   evidence. Do not run test, build, lint, or format commands, edit production or
   test code, or redo the implementation. Review output is findings only; the
   paired `integrate-review-*` task owns every fix and all post-fix verification.
-- A **planning task** cuts the design into vertical slices and **grows the
-  tree** (Decompose, below). It no longer interrogates — grilling moved to
+- A **planning task** must first find the **smallest independently useful
+  working increments** and order them by dependency, creating a separate grove
+  for every obvious stage that leaves the product working and delivers useful,
+  verifiable behavior for its successor. Changes that cannot independently leave
+  the product working stay in one increment even when their code edits are
+  separable. It then cuts the current increment into vertical slices and **grows
+  the tree** (Decompose, below). It no longer interrogates — grilling moved to
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
   as any kind may.
 

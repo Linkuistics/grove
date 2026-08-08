@@ -1,6 +1,4 @@
-# methodology-and-viewer-k48
-
-**Kind:** impl
+# methodology-and-viewer-k48 — brief
 
 ## Goal
 
@@ -40,7 +38,20 @@ bare-command, configured-session, nineteen-kind behavior.
   restoring receipt-era language. `cargo fmt --check` and
   `cargo test --locked` pass.
 
+## Decomposition
+
+- `lifecycle-methodology-k79` reconciles Bootstrap, configuration, the bare
+  lifecycle, mandate, finish, and the single embedded launcher.
+- `session-kind-methodology-k86` reconciles the nineteen filename kinds and the
+  filename-only viewer compatibility contract.
+- `review-methodology-k87` reconciles Grove/doubt review ownership and removes
+  receipt and diversity-era guidance.
+
 ## Notes
 
 Keep the skill procedural. Durable architecture and user-facing prose belong to
 `durable-docs-reconciliation-k49`; viewer code and fixtures stay in k51.
+
+Each child updates every canonical surface for one behavior, leaving usable
+guidance after every commit. The outer review remains atomic because it judges
+the completed provisioned methodology as one artifact.

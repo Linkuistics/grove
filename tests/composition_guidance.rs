@@ -78,6 +78,28 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
 }
 
 #[test]
+fn planning_guidance_prefers_dependency_ordered_working_increments() {
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+    ] {
+        assert_contains(
+            surface,
+            text,
+            "smallest independently useful working increments",
+        );
+        assert_contains(surface, text, "order them by dependency");
+        assert_contains(surface, text, "separate grove");
+        assert_contains(
+            surface,
+            text,
+            "cannot independently leave the product working",
+        );
+    }
+}
+
+#[test]
 fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
     for expected in [
         "## Composition with Grove",

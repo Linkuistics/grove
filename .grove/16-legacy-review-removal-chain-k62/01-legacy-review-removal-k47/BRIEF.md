@@ -1,6 +1,4 @@
-# legacy-review-removal-k47
-
-**Kind:** impl
+# legacy-review-removal-k47 — brief
 
 ## Goal
 
@@ -37,8 +35,21 @@ relationships and promotion.
 - Removed-surface sweeps enumerate then classify candidates with positive and
   cross-tree controls; `cargo fmt --check` and `cargo test --locked` pass.
 
+## Decomposition
+
+- `review-routing-removal-k78` removes routing peeks, ambient session targets,
+  comparisons, and diversity notices.
+- `review-receipt-removal-k84` removes producer launch receipts and retirement
+  side effects while preserving promotion and stable relationships.
+- `relationship-contraction-k85` contracts the surviving relationship module
+  and reconciles fixtures after the obsolete behavior is gone.
+
 ## Notes
 
 If `task_relationship.rs` remains shallow after deletion, split surviving
 composition and promotion helpers by responsibility rather than keeping a
 receipt-shaped shell.
+
+Each child leaves review-chain composition working. The enclosing review chain
+stays intact because its reviewer and integrator assess the completed node as
+one artifact; neither is a useful product increment without that producer.

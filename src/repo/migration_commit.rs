@@ -107,9 +107,8 @@ fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
 
 fn git_migration_already_committed(worktree: &Path, message: &str) -> Result<bool> {
     let paths = git_paths();
-    let subject = Command::new("git")
+    let subject = vcs_command(worktree, "git")
         .args(["log", "-1", "--format=%s"])
-        .current_dir(worktree)
         .output()
         .with_context(|| format!("reading Git HEAD subject in {}", worktree.display()))?;
     if !subject.status.success()
@@ -121,9 +120,8 @@ fn git_migration_already_committed(worktree: &Path, message: &str) -> Result<boo
         return Ok(false);
     }
 
-    let diff = Command::new("git")
+    let diff = vcs_command(worktree, "git")
         .args(["diff", "--quiet", "HEAD", "--", &paths[0], &paths[1]])
-        .current_dir(worktree)
         .output()
         .with_context(|| format!("checking recovered Git migration in {}", worktree.display()))?;
     match diff.status.code() {
@@ -223,9 +221,8 @@ fn commit_jj_migration(worktree: &Path, message: &str) -> Result<()> {
 
 fn jj_migration_already_committed(worktree: &Path, message: &str) -> Result<bool> {
     let fileset = jj_fileset();
-    let description = Command::new("jj")
+    let description = vcs_command(worktree, "jj")
         .args(["log", "-r", "@-", "--no-graph", "-T", "description"])
-        .current_dir(worktree)
         .output()
         .with_context(|| {
             format!(
@@ -248,9 +245,8 @@ fn jj_migration_already_committed(worktree: &Path, message: &str) -> Result<bool
         return Ok(false);
     }
 
-    let scoped_diff = Command::new("jj")
+    let scoped_diff = vcs_command(worktree, "jj")
         .args(["diff", "-r", "@", "--summary", fileset.as_str()])
-        .current_dir(worktree)
         .output()
         .with_context(|| {
             format!(
@@ -269,9 +265,8 @@ fn jj_migration_already_committed(worktree: &Path, message: &str) -> Result<bool
 }
 
 fn git_path(worktree: &Path, name: &str) -> Result<PathBuf> {
-    let output = Command::new("git")
+    let output = vcs_command(worktree, "git")
         .args(["rev-parse", "--git-path", name])
-        .current_dir(worktree)
         .output()
         .with_context(|| format!("resolving Git {name} path in {}", worktree.display()))?;
     if !output.status.success() {
@@ -294,8 +289,7 @@ fn git_path(worktree: &Path, name: &str) -> Result<PathBuf> {
 }
 
 fn run_vcs_command(worktree: &Path, binary: &str, arguments: &[&str]) -> Result<()> {
-    let output = Command::new(binary)
-        .current_dir(worktree)
+    let output = vcs_command(worktree, binary)
         .args(arguments)
         .output()
         .with_context(|| {
@@ -314,4 +308,14 @@ fn run_vcs_command(worktree: &Path, binary: &str, arguments: &[&str]) -> Result<
         );
     }
     Ok(())
+}
+
+fn vcs_command(worktree: &Path, binary: &str) -> Command {
+    let mut command = Command::new(binary);
+    command.current_dir(worktree);
+    crate::launch::scrub_internal_child_env(&mut command);
+    if binary == "git" {
+        crate::repo::anchor_git_worktree_environment(&mut command, worktree);
+    }
+    command
 }

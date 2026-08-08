@@ -300,7 +300,17 @@ const REPOSITORY_CONTEXT_ENV: [&str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMM
 /// interesting part, and a second site open-coding it is how the first one came
 /// to be missed.
 pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
-    for name in LOOP_CONTROL_ENV.into_iter().chain(REPOSITORY_CONTEXT_ENV) {
+    for name in LOOP_CONTROL_ENV {
+        cmd.env_remove(name);
+    }
+}
+
+/// Driver-internal and obsolete compatibility children must also ignore any
+/// repository selected by the process that launched Grove. Internal Git calls
+/// may subsequently anchor the authoritative worktree explicitly.
+pub(crate) fn scrub_internal_child_env(cmd: &mut Command) {
+    scrub_loop_control_env(cmd);
+    for name in REPOSITORY_CONTEXT_ENV {
         cmd.env_remove(name);
     }
 }
@@ -493,7 +503,7 @@ fn probe_codex_sandbox(
     // This is a harness spawn that is *not* the session, so it gets no authority
     // over the live one — see `scrub_loop_control_env`, whose rule this site is
     // the reason for.
-    scrub_loop_control_env(&mut cmd);
+    scrub_internal_child_env(&mut cmd);
 
     let mut child = match cmd.spawn() {
         Ok(child) => child,
@@ -595,7 +605,7 @@ fn retire_command(
     // not "the session itself" in `scrub_loop_control_env`'s sense: run from
     // inside a live `grove do`, it would otherwise inherit that loop's kill
     // channel and its `grove-llm complete` would end someone else's task.
-    scrub_loop_control_env(&mut cmd);
+    scrub_internal_child_env(&mut cmd);
 
     Ok(cmd)
 }
@@ -620,6 +630,9 @@ mod tests {
     #[test]
     fn a_scrubbed_spawn_removes_the_whole_control_channel() {
         let mut cmd = Command::new("true");
+        for name in REPOSITORY_CONTEXT_ENV {
+            cmd.env(name, "preserved");
+        }
         scrub_loop_control_env(&mut cmd);
         for name in LOOP_CONTROL_ENV {
             assert!(
@@ -627,6 +640,21 @@ mod tests {
                 "{name} must be removed, not merely left unset — an environment \
                  is inherited, not addressed"
             );
+        }
+        for name in REPOSITORY_CONTEXT_ENV {
+            assert!(
+                !env_is_scrubbed(&cmd, name),
+                "{name} is configured-command policy and must remain inherited"
+            );
+        }
+    }
+
+    #[test]
+    fn an_internal_child_scrubs_control_and_repository_context() {
+        let mut cmd = Command::new("true");
+        scrub_internal_child_env(&mut cmd);
+        for name in LOOP_CONTROL_ENV.into_iter().chain(REPOSITORY_CONTEXT_ENV) {
+            assert!(env_is_scrubbed(&cmd, name), "{name} must be removed");
         }
     }
 }

@@ -510,17 +510,18 @@ fn launch_session(
     crate::launch::append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
     cmd.arg(&launched_prompt);
     cmd.current_dir(worktree);
-    // Scrub the whole launch-scoped environment, then grant back the signal
-    // path this driver owns and the target fact it just resolved. Scrub-then-
+    // This obsolete compatibility launch keeps its historical repository
+    // anchoring: scrub the whole launch-scoped environment, then grant back the
+    // signal path this driver owns and the target fact it just resolved. Scrub-then-
     // grant rather than grant-only, and via the shared helper rather than
     // open-coded, because inheritance is the default: a `grove do` launched
     // from inside a session that itself carried one of these (nested groves)
     // must not leak stale metadata or an unrelated control handle. The retired
     // PID handles are not exported at all any more (driver-side-kill-k2), since
-    // the driver kills its own child directly. This is the *one* site that
-    // grants; every other harness spawn only scrubs
-    // (`launch::scrub_loop_control_env`).
-    crate::launch::scrub_loop_control_env(&mut cmd);
+    // the driver kills its own child directly. Internal and compatibility
+    // children use `launch::scrub_internal_child_env`; the configured foreground
+    // command uses the narrower `launch::scrub_loop_control_env` policy.
+    crate::launch::scrub_internal_child_env(&mut cmd);
     crate::repo::anchor_git_worktree_environment(&mut cmd, worktree);
     cmd.env("GROVE_SIGNAL_FILE", signal_file);
     if let Some(leaf) = &launch.routed_leaf {
@@ -1437,7 +1438,7 @@ fn resolve_kind(worktree: &Path) -> KindPeek {
     // outer driver may have launched this driver with its own completion
     // authority, which must not leak into the helper and be mistaken for this
     // worktree's epoch.
-    crate::launch::scrub_loop_control_env(&mut command);
+    crate::launch::scrub_internal_child_env(&mut command);
     crate::repo::anchor_git_worktree_environment(&mut command, worktree);
     let out = command.output();
     match out {

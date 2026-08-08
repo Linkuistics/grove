@@ -38,6 +38,58 @@ fn init_git_worktree(path: &Path) {
         .success());
 }
 
+fn run_command(binary: &str, directory: &Path, arguments: &[&str]) {
+    let output = Command::new(binary)
+        .args(arguments)
+        .current_dir(directory)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{binary} {arguments:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+fn init_jj_worktree(path: &Path, colocate: bool) {
+    fs::create_dir_all(path).unwrap();
+    let colocate = if colocate { "true" } else { "false" };
+    run_command(
+        "jj",
+        path,
+        &[
+            "--config",
+            &format!("git.colocate={colocate}"),
+            "git",
+            "init",
+            "--quiet",
+            ".",
+        ],
+    );
+    run_command(
+        "jj",
+        path,
+        &[
+            "config",
+            "set",
+            "--workspace",
+            "user.name",
+            "\"Grove Test\"",
+        ],
+    );
+    run_command(
+        "jj",
+        path,
+        &[
+            "config",
+            "set",
+            "--workspace",
+            "user.email",
+            "\"grove-test@example.com\"",
+        ],
+    );
+}
+
 fn write_executable(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut permissions = fs::metadata(path).unwrap().permissions();
@@ -136,8 +188,11 @@ shift
   for argument do
     printf 'arg=<%s>\n' "$argument"
   done
-  printf 'signal=<%s>\n' "${GROVE_SIGNAL_FILE:+present}"
+  printf 'signal=<%s>\n' "$GROVE_SIGNAL_FILE"
   printf 'target=<%s>\n' "${GROVE_SESSION_TARGET-unset}"
+  printf 'legacy_harness_pid=<%s>\n' "${GROVE_HARNESS_PID-unset}"
+  printf 'legacy_claude_pid=<%s>\n' "${GROVE_CLAUDE_PID-unset}"
+  printf 'unrelated=<%s>\n' "${UNRELATED_AMBIENT-unset}"
   printf 'harness=<%s>\n' "${GROVE_HARNESS_BIN-unset}"
   printf 'model=<%s>\n' "${GROVE_IMPL_MODEL-unset}"
   printf 'skill=<%s>\n' "${GROVE_SKILL_DIR-unset}"
@@ -158,7 +213,11 @@ exit 0
         .env_clear()
         .env("HOME", &home)
         .env("PATH", std::env::var_os("PATH").unwrap_or_default())
+        .env("GROVE_SIGNAL_FILE", fixture.path().join("stale-signal"))
+        .env("GROVE_HARNESS_PID", "stale-harness-pid")
+        .env("GROVE_CLAUDE_PID", "stale-claude-pid")
         .env("GROVE_SESSION_TARGET", "stale-target-must-not-leak")
+        .env("UNRELATED_AMBIENT", "preserved")
         .output()
         .unwrap();
 
@@ -181,13 +240,169 @@ exit 0
     assert!(log.contains("selected-work-k7"), "{log:?}");
     assert!(log.contains("do not call `grove-llm pick`"), "{log:?}");
     assert!(log.contains("\narg=<--after>\n"), "{log:?}");
-    assert!(log.contains("signal=<present>\n"), "{log:?}");
+    let signal = log
+        .lines()
+        .find_map(|line| line.strip_prefix("signal=<")?.strip_suffix('>'))
+        .expect("configured command did not record its signal path");
+    assert_ne!(
+        signal,
+        fixture.path().join("stale-signal").to_str().unwrap()
+    );
+    assert_eq!(
+        Path::new(signal).parent().unwrap(),
+        canonical_worktree.join(".git/grove")
+    );
     assert!(log.contains("target=<unset>\n"), "{log:?}");
+    assert!(log.contains("legacy_harness_pid=<unset>\n"), "{log:?}");
+    assert!(log.contains("legacy_claude_pid=<unset>\n"), "{log:?}");
+    assert!(log.contains("unrelated=<preserved>\n"), "{log:?}");
     assert!(log.contains("harness=<unset>\n"), "{log:?}");
     assert!(log.contains("model=<unset>\n"), "{log:?}");
     assert!(log.contains("skill=<unset>\n"), "{log:?}");
     assert!(log.contains("llm=<unset>\n"), "{log:?}");
     assert!(home.join(".codex/skills/grove/SKILL.md").is_file());
+}
+
+#[test]
+fn linked_worktree_expands_scalars_through_literal_env_word_zero() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+
+    let repository = fixture.path().join("main-repository");
+    init_git_worktree(&repository);
+    run_command(
+        "git",
+        &repository,
+        &[
+            "-c",
+            "user.email=t@example.com",
+            "-c",
+            "user.name=Test",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "seed",
+        ],
+    );
+    let worktree = fixture.path().join("linked-worktree");
+    run_command(
+        "git",
+        &repository,
+        &["worktree", "add", "-q", worktree.to_str().unwrap()],
+    );
+
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# linked — brief\n").unwrap();
+    fs::write(grove.join("01-impl-scalars-k7.md"), "# scalars-k7\n").unwrap();
+
+    let argv_log = fixture.path().join("scalar-argv.log");
+    let fake = fixture.path().join("record-scalars.sh");
+    write_executable(
+        &fake,
+        r#"#!/bin/sh
+printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
+    "$MODE" "$1" "$2" "$4" "$5" > "$3"
+"#,
+    );
+    let template = format!(
+        "env MODE='$(printf shell-evaluated)' {} '${{repo}}' '${{prompt}}' {} '${{worktree}}' '${{session_name}}'",
+        shell_quote(&fake),
+        shell_quote(&argv_log)
+    );
+    write_complete_config(&home, &template);
+
+    let output = run_grove(&home, &worktree);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let argv = fs::read_to_string(argv_log).unwrap();
+    assert!(argv.contains("mode=$(printf shell-evaluated)\n"), "{argv}");
+    assert!(
+        argv.contains(&format!(
+            "repo={}\n",
+            repository.canonicalize().unwrap().display()
+        )),
+        "{argv}"
+    );
+    assert!(
+        argv.contains(&format!(
+            "worktree={}\n",
+            worktree.canonicalize().unwrap().display()
+        )),
+        "{argv}"
+    );
+    assert!(
+        argv.contains("session=main-repository: linked-worktree grove\n"),
+        "{argv}"
+    );
+    assert!(argv.contains("resolve and execute `scalars-k7`"), "{argv}");
+}
+
+fn assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(colocate: bool) {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join(if colocate {
+        "colocated-jj"
+    } else {
+        "native-jj"
+    });
+    init_jj_worktree(&worktree, colocate);
+    assert_eq!(worktree.join(".git").exists(), colocate);
+
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# native-jj — brief\n").unwrap();
+    fs::write(
+        grove.join("01-legacy-k1.md"),
+        "# legacy-k1\n\n**Kind:** impl\n\n## Goal\nLaunch after migration.\n",
+    )
+    .unwrap();
+
+    let cwd_log = fixture.path().join("jj-cwd.log");
+    let fake = fixture.path().join("record-jj-cwd.sh");
+    write_executable(
+        &fake,
+        &format!("#!/bin/sh\npwd -P > {}\n", shell_quote(&cwd_log)),
+    );
+    write_complete_config(&home, &format!("{} '${{prompt}}'", shell_quote(&fake)));
+
+    let output = run_grove(&home, &worktree);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(cwd_log).unwrap().trim(),
+        worktree.canonicalize().unwrap().to_str().unwrap()
+    );
+    assert_eq!(
+        fs::read_to_string(grove.join("FORMAT")).unwrap(),
+        "session-kinds-v1\n"
+    );
+    assert!(!grove.join("01-legacy-k1.md").exists());
+    let migrated = grove.join("01-impl-legacy-k1.md");
+    assert!(migrated.is_file());
+    assert!(!fs::read_to_string(migrated).unwrap().contains("**Kind:**"));
+}
+
+#[test]
+fn bare_grove_migrates_and_launches_a_native_jj_legacy_tree() {
+    assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(false);
+}
+
+#[test]
+fn bare_grove_migrates_and_launches_a_colocated_jj_legacy_tree() {
+    assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(true);
 }
 
 #[test]
@@ -483,6 +698,16 @@ fn spawn_failure_names_the_kind_executable_and_config_without_retiring_the_leaf(
     assert!(
         stderr.contains(home.join(".config/grove/config.kdl").to_str().unwrap()),
         "{stderr}"
+    );
+    let leaked_signal_channels = fs::read_dir(worktree.join(".git/grove"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.file_name())
+        .filter(|name| name.to_string_lossy().starts_with("signal-"))
+        .collect::<Vec<_>>();
+    assert!(
+        leaked_signal_channels.is_empty(),
+        "spawn failure leaked signal channels: {leaked_signal_channels:?}"
     );
 
     let restart_marker = fixture.path().join("restart-launched");

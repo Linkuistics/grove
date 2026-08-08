@@ -281,12 +281,17 @@ fn an_alias_equivalent_second_owner_is_refused_immediately() {
 }
 
 #[test]
-fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
+fn driver_uses_the_on_disk_worktree_while_the_configured_command_inherits_git_context() {
     let tmp = TempDir::new().unwrap();
     let intended = tmp.path().join("intended");
     let foreign = tmp.path().join("foreign");
     init_git_worktree(&intended);
     init_git_worktree(&foreign);
+    run_command(
+        "git",
+        &intended,
+        &["config", "core.worktree", foreign.to_str().unwrap()],
+    );
     fs::create_dir_all(intended.join(".grove")).unwrap();
     fs::write(intended.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
@@ -294,11 +299,17 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
 
     let launch_log = tmp.path().join("launch-log");
     let fake_harness = tmp.path().join("fake-claude.sh");
+    let quoted_log = shell_quote(&launch_log);
     write_executable(
         &fake_harness,
         &format!(
-            "#!/bin/sh\ngit rev-parse --show-toplevel > '{}'\n",
-            launch_log.display()
+            "#!/bin/sh\n\
+             printf 'cwd=%s\\n' \"$(pwd -P)\" > {quoted_log}\n\
+             printf 'git_dir=%s\\n' \"${{GIT_DIR-<unset>}}\" >> {quoted_log}\n\
+             printf 'git_work_tree=%s\\n' \"${{GIT_WORK_TREE-<unset>}}\" >> {quoted_log}\n\
+             printf 'git_common_dir=%s\\n' \"${{GIT_COMMON_DIR-<unset>}}\" >> {quoted_log}\n\
+             unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR\n\
+             printf 'configured_top=%s\\n' \"$(git rev-parse --show-toplevel)\" >> {quoted_log}\n"
         ),
     );
     let home = tmp.path().join("home");
@@ -319,11 +330,15 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
         launch_log.exists(),
         "driver did not launch the intended grove"
     );
-    assert_eq!(
-        fs::read_to_string(&launch_log).unwrap().trim(),
-        intended.canonicalize().unwrap().to_str().unwrap(),
-        "foreground harness inherited a foreign Git worktree"
+    let expected = format!(
+        "cwd={}\ngit_dir={}\ngit_work_tree={}\ngit_common_dir={}\nconfigured_top={}\n",
+        intended.canonicalize().unwrap().display(),
+        foreign.join(".git").display(),
+        foreign.display(),
+        foreign.join(".git").display(),
+        foreign.canonicalize().unwrap().display()
     );
+    assert_eq!(fs::read_to_string(&launch_log).unwrap(), expected);
     assert!(
         !intended.join(".grove-stamps").exists(),
         "config-driven launch must not create a harness stamp"
@@ -332,6 +347,73 @@ fn driver_launch_uses_the_on_disk_worktree_despite_foreign_git_environment() {
         !foreign.join(".grove-stamps").exists(),
         "driver wrote launch state into the environment-selected repository"
     );
+}
+
+#[test]
+fn bare_migration_is_anchored_before_the_configured_command_inherits_git_context() {
+    let tmp = TempDir::new().unwrap();
+    let intended = tmp.path().join("intended");
+    let foreign = tmp.path().join("foreign");
+    init_git_worktree(&intended);
+    init_git_worktree(&foreign);
+    run_command("git", &intended, &["config", "user.name", "Grove Test"]);
+    run_command(
+        "git",
+        &intended,
+        &["config", "user.email", "grove-test@example.com"],
+    );
+    run_command(
+        "git",
+        &intended,
+        &["config", "core.worktree", foreign.to_str().unwrap()],
+    );
+    fs::create_dir_all(intended.join(".grove")).unwrap();
+    fs::write(intended.join(".grove/BRIEF.md"), "# intended — brief\n").unwrap();
+    fs::write(
+        intended.join(".grove/01-test-k1.md"),
+        "# test-k1\n\n**Kind:** impl\n",
+    )
+    .unwrap();
+
+    let launch_log = tmp.path().join("launch-log");
+    let fake_harness = tmp.path().join("fake-claude.sh");
+    write_executable(
+        &fake_harness,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n%s\\n%s\\n' \"$GIT_DIR\" \"$GIT_WORK_TREE\" \"$GIT_COMMON_DIR\" > {}\n",
+            shell_quote(&launch_log)
+        ),
+    );
+    let home = tmp.path().join("home");
+
+    let output = grove_driver(&intended, &fake_harness, &home)
+        .env("GIT_DIR", foreign.join(".git"))
+        .env("GIT_WORK_TREE", &foreign)
+        .env("GIT_COMMON_DIR", foreign.join(".git"))
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "bare migration was redirected by ambient Git context: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read_to_string(&launch_log).unwrap(),
+        format!(
+            "{}\n{}\n{}\n",
+            foreign.join(".git").display(),
+            foreign.display(),
+            foreign.join(".git").display()
+        )
+    );
+    assert_eq!(
+        fs::read_to_string(intended.join(".grove/FORMAT")).unwrap(),
+        "session-kinds-v1\n"
+    );
+    assert!(!intended.join(".grove/01-test-k1.md").exists());
+    assert!(intended.join(".grove/01-impl-test-k1.md").is_file());
+    assert!(!foreign.join(".grove").exists());
 }
 
 #[test]

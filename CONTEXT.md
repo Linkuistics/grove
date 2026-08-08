@@ -407,6 +407,12 @@ is the literal first parsed word — `env` in `env MODE=review agent …` — no
 eventual program an opaque wrapper reaches. Unknown, embedded, word-zero, or
 multiply used substitutions are errors. Grove adds no hidden harness-specific
 argv fragments.
+Before the configured foreground spawn it scrubs stale Grove control variables
+and grants its fresh `GROVE_SIGNAL_FILE`, but otherwise preserves the caller's
+environment — including `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, and local
+`core.worktree` behavior. Driver-internal lifecycle VCS children are separate:
+they scrub repository selectors, and Git is explicitly anchored to the leased
+working tree so personal launch context cannot redirect a migration commit.
 
 A launch has no configuration precedence lattice: task files, command-line
 flags, repository-local stamps, and environment variables do not override or

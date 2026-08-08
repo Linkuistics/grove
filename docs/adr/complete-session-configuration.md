@@ -10,6 +10,12 @@ repository stamps, task metadata, and a built-in harness registry made the
 effective command impossible to inspect or validate as one value. The
 configuration deliberately repeats all nineteen targets so every session is
 complete in isolation and adding a kind fails visibly in every old config.
+Before spawning the configured foreground command, Grove removes stale Grove
+control values and grants its fresh signal path; it otherwise preserves the
+caller's environment, including Git repository selectors. Driver-internal VCS
+commands follow the opposite rule: they scrub repository selectors and anchor
+Git explicitly to the leased working tree, so personal launch policy cannot
+redirect lifecycle mutations.
 
 ## Considered options
 

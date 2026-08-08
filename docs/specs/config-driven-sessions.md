@@ -172,6 +172,15 @@ still owns its temporary loop-control channel, child lifecycle, current
 directory, and the generated prompt. Those are orchestration, not user launch
 policy.
 
+Immediately before spawn, Grove removes any inherited `GROVE_SIGNAL_FILE`,
+retired `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID`, and stale
+`GROVE_SESSION_TARGET`, then grants only the fresh signal path for this launch.
+It does not remove or override `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, or
+a repository-local `core.worktree` for the opaque configured command. The
+configured owner expresses any such Git policy with literal `env` arguments or
+an executable wrapper; the driver's working-tree current directory is not a
+promise to rewrite the command's repository context.
+
 ### Validation and diagnostics
 
 Configuration is all-or-nothing. A successful load proves:
@@ -202,6 +211,12 @@ the selected kind, configured word zero, and config path as a likely configured-
 command failure. This diagnostic applies regardless of how quickly the process
 failed; a time threshold would hide slow failures without making an intentional
 zero-status exit clearer.
+
+Failure to spawn is a driver error and bare `grove` exits nonzero. Once the
+configured command has spawned, ending without a completion signal is a
+successful stop of the driver loop, so bare `grove` exits zero even when the
+child status is nonzero; the preserved status and launch-identity diagnostic
+carry that distinction to wrappers and operators.
 
 The driver reads and validates the whole file immediately before every launch.
 It also validates before root initialization, migration or migration recovery,
@@ -357,6 +372,14 @@ coordination namespace. A native jj workspace, a colocated jj workspace, a
 plain Git checkout, and a linked Git worktree therefore each get one workspace-
 scoped control directory.
 
+The same isolation applies to lifecycle VCS children. Before migration
+inspection, recovery, or commit, the driver scrubs stale Grove controls and
+repository selectors. Jujutsu then resolves from the authoritative workspace
+current directory; Git additionally receives `GIT_WORK_TREE` for the leased
+working tree, which overrides a conflicting local `core.worktree`. These
+internal commands are orchestration and do not inherit the configured
+foreground command's repository policy.
+
 The driver opens the working-tree root, records its filesystem device and inode,
 and opens the fixed lease file in that control directory. Acquisition takes a
 nonblocking exclusive advisory lock, then compares `fstat` of the locked
@@ -409,6 +432,9 @@ The signal file lives beside the controls and receives a fresh, independent
 `signal_file_path` deterministic-stability contract: Grove intentionally draws
 a new path for each launch and retries a path already present before spawn
 rather than clearing or truncating another channel.
+Allocation chooses an absent name but creates no file; the foreground session
+materializes the channel only when it signals. A spawn failure therefore leaves
+no signal artifact to clean up.
 The current driver removes the file only after post-reap epoch invalidation and
 signal interpretation. After a new driver owns the lease and has exclusively
 installed its inactive epoch, it removes abandoned `signal-*` files from crashed

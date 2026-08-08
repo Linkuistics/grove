@@ -55,6 +55,7 @@ pub(crate) fn leaf_add_unlocked(
     slug: &str,
     kind: Kind,
 ) -> Result<PathBuf> {
+    refuse_finish_kind(kind, "leaf-add")?;
     validate_slug(slug)?;
     let grove_abs = canonical_grove_root(grove_root)?;
     let parent_abs = resolve_parent_node(&grove_abs, parent_dir)?;
@@ -252,7 +253,7 @@ pub fn leaf_add_chain(
     leaf_add_chain_unlocked(guard.root(), parent_dir, stem, producer)
 }
 
-fn leaf_add_chain_unlocked(
+pub(crate) fn leaf_add_chain_unlocked(
     grove_root: &Path,
     parent_dir: &Path,
     stem: &str,
@@ -302,7 +303,7 @@ pub fn leaf_add_pair(grove_root: &Path, parent_dir: &Path, stem: &str) -> Result
     leaf_add_pair_unlocked(guard.root(), parent_dir, stem)
 }
 
-fn leaf_add_pair_unlocked(
+pub(crate) fn leaf_add_pair_unlocked(
     grove_root: &Path,
     parent_dir: &Path,
     stem: &str,
@@ -367,12 +368,13 @@ pub fn leaf_insert(
     leaf_insert_unlocked(guard.root(), target, slug, kind)
 }
 
-fn leaf_insert_unlocked(
+pub(crate) fn leaf_insert_unlocked(
     grove_root: &Path,
     target: &Path,
     slug: &str,
     kind: Kind,
 ) -> Result<(PathBuf, Vec<Renumber>)> {
+    refuse_finish_kind(kind, "leaf-insert")?;
     validate_slug(slug)?;
     let grove_abs = canonical_grove_root(grove_root)?;
     let target_abs = resolve_under_root(&grove_abs, target)?;
@@ -455,7 +457,7 @@ pub fn surface_cross_refs(
     surface_cross_refs_unlocked(guard.root(), renumbers, out)
 }
 
-fn surface_cross_refs_unlocked(
+pub(crate) fn surface_cross_refs_unlocked(
     grove_root: &Path,
     renumbers: &[Renumber],
     out: &mut impl std::io::Write,
@@ -758,6 +760,38 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         crate::tree_format::write_current_last(&root).unwrap();
         (tmp, root)
+    }
+
+    #[test]
+    fn leaf_add_rejects_finish_before_inspecting_the_tree() {
+        let (_tmp, grove_root) = grove();
+        let missing_root = grove_root.join("missing");
+
+        let error = leaf_add(&missing_root, &missing_root, "stop", Kind::Finish).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "`finish` is driver-reserved and cannot be created by `leaf-add`"
+        );
+    }
+
+    #[test]
+    fn leaf_insert_rejects_finish_before_inspecting_the_tree() {
+        let (_tmp, grove_root) = grove();
+        let missing_root = grove_root.join("missing");
+
+        let error = leaf_insert(
+            &missing_root,
+            &missing_root.join("01-impl-existing-k1.md"),
+            "stop",
+            Kind::Finish,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            "`finish` is driver-reserved and cannot be created by `leaf-insert`"
+        );
     }
 
     /// A `.grove/` inside a real git repo. Entries rename whether or not git is

@@ -17,6 +17,7 @@
 use crate::complete;
 use crate::leaf::Kind;
 use crate::repo;
+use crate::tree_access;
 use crate::tree_grow;
 use crate::tree_lifecycle;
 use crate::tree_promotion;
@@ -451,24 +452,29 @@ fn cmd_pick() -> Result<()> {
 
 fn cmd_brief_chain(leaf_path: Option<&Path>) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
-    let leaf: PathBuf = match leaf_path {
-        Some(p) => normalize_leaf_path(p),
-        None => match tree_read::pick(&grove_root)? {
-            Some(p) => p,
-            None => {
-                eprintln!(
-                    "grove {}: no live leaves; this grove is done",
-                    label(&worktree)
-                );
-                return Ok(());
-            }
-        },
+    let Some(chain) = brief_chain_for(&grove_root, leaf_path)? else {
+        eprintln!(
+            "grove {}: no live leaves; this grove is done",
+            label(&worktree)
+        );
+        return Ok(());
     };
-    let chain = tree_read::brief_chain(&grove_root, &leaf)?;
     for p in &chain {
         println!("{}", p.display());
     }
     Ok(())
+}
+
+fn brief_chain_for(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Vec<PathBuf>>> {
+    let guard = tree_access::read(grove_root)?;
+    let leaf = match leaf_path {
+        Some(path) => normalize_leaf_path(path),
+        None => match tree_read::pick_unlocked(guard.root())? {
+            Some(path) => path,
+            None => return Ok(None),
+        },
+    };
+    tree_read::brief_chain_unlocked(guard.root(), &leaf).map(Some)
 }
 
 fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool, json: bool) -> Result<()> {
@@ -548,20 +554,25 @@ fn cmd_resolve(reference: &str) -> Result<()> {
 fn cmd_leaf_add(args: &LeafAddArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
-    let path = tree_grow::leaf_add(&grove_root, &parent_dir, &args.slug, kind)?;
+    let path = leaf_add_for(&grove_root, &args.parent, &args.slug, kind)?;
     println!("{}", path.display());
     Ok(())
+}
+
+fn leaf_add_for(grove_root: &Path, parent: &str, slug: &str, kind: Kind) -> Result<PathBuf> {
+    let guard = tree_access::write(grove_root)?;
+    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
+    tree_grow::leaf_add_unlocked(guard.root(), &parent_dir, slug, kind)
 }
 
 /// Resolve the `<parent>` argument shared by the three appending verbs: `.` is
 /// the grove root (the root node); anything else is a node by key or path.
 /// `tree_grow` validates that the result is a real node directory.
-fn resolve_parent(grove_root: &Path, parent: &str) -> Result<PathBuf> {
+fn resolve_parent_unlocked(grove_root: &Path, parent: &str) -> Result<PathBuf> {
     if parent == "." {
         Ok(grove_root.to_path_buf())
     } else {
-        resolve_ref_or_path(grove_root, parent)
+        resolve_ref_or_path_unlocked(grove_root, parent)
     }
 }
 
@@ -578,10 +589,20 @@ fn print_paths(paths: &[PathBuf]) {
 fn cmd_leaf_add_chain(args: &LeafAddChainArgs) -> Result<()> {
     let producer = Kind::parse(&args.kind)?;
     let (_, grove_root) = grove_paths()?;
-    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
-    let paths = tree_grow::leaf_add_chain(&grove_root, &parent_dir, &args.stem, producer)?;
+    let paths = leaf_add_chain_for(&grove_root, &args.parent, &args.stem, producer)?;
     print_paths(&paths);
     Ok(())
+}
+
+fn leaf_add_chain_for(
+    grove_root: &Path,
+    parent: &str,
+    stem: &str,
+    producer: Kind,
+) -> Result<Vec<PathBuf>> {
+    let guard = tree_access::write(grove_root)?;
+    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
+    tree_grow::leaf_add_chain_unlocked(guard.root(), &parent_dir, stem, producer)
 }
 
 fn cmd_leaf_promote_chain(args: &LeafPromoteChainArgs) -> Result<()> {
@@ -612,41 +633,68 @@ fn cmd_leaf_promote_chain(args: &LeafPromoteChainArgs) -> Result<()> {
 
 fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
-    let parent_dir = resolve_parent(&grove_root, &args.parent)?;
-    let paths = tree_grow::leaf_add_pair(&grove_root, &parent_dir, &args.stem)?;
+    let paths = leaf_add_pair_for(&grove_root, &args.parent, &args.stem)?;
     print_paths(&paths);
     Ok(())
+}
+
+fn leaf_add_pair_for(grove_root: &Path, parent: &str, stem: &str) -> Result<Vec<PathBuf>> {
+    let guard = tree_access::write(grove_root)?;
+    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
+    tree_grow::leaf_add_pair_unlocked(guard.root(), &parent_dir, stem)
 }
 
 fn cmd_leaf_insert(args: &LeafInsertArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let kind = Kind::parse(&args.kind)?;
-    let target = resolve_ref_or_path(&grove_root, &args.target)?;
-    let (path, renumbers) = tree_grow::leaf_insert(&grove_root, &target, &args.slug, kind)?;
+    leaf_insert_for(
+        &grove_root,
+        &args.target,
+        &args.slug,
+        kind,
+        |locked_root, path, renumbers| {
+            // Keep the established CLI stream semantics: the standard print macros
+            // panic on a broken stdout/stderr, while cross-reference scanning
+            // remains the only fallible output operation returned as an error.
+            println!("{}", path.display());
+            if renumbers.is_empty() {
+                eprintln!("leaf-insert {}: no siblings to renumber", args.slug);
+            } else {
+                eprintln!(
+                    "leaf-insert {}: renumbered {} sibling{}:",
+                    args.slug,
+                    renumbers.len(),
+                    if renumbers.len() == 1 { "" } else { "s" }
+                );
+                for renumber in renumbers {
+                    eprintln!(
+                        "  {:02} -> {:02}  ({})",
+                        renumber.old_position, renumber.new_position, renumber.new_name
+                    );
+                }
+                eprintln!("cross-references to review (verb does not auto-rewrite):");
+                tree_grow::surface_cross_refs_unlocked(
+                    locked_root,
+                    renumbers,
+                    &mut std::io::stderr(),
+                )?;
+            }
+            Ok(())
+        },
+    )
+}
 
-    // The new leaf's path is the only stdout content; the renumber summary and
-    // cross-references go to stderr so the LLM can parse stdout cleanly.
-    println!("{}", path.display());
-    let mut stderr = std::io::stderr();
-    if renumbers.is_empty() {
-        eprintln!("leaf-insert {}: no siblings to renumber", args.slug);
-    } else {
-        eprintln!(
-            "leaf-insert {}: renumbered {} sibling{}:",
-            args.slug,
-            renumbers.len(),
-            if renumbers.len() == 1 { "" } else { "s" }
-        );
-        for r in &renumbers {
-            eprintln!(
-                "  {:02} -> {:02}  ({})",
-                r.old_position, r.new_position, r.new_name
-            );
-        }
-        eprintln!("cross-references to review (verb does not auto-rewrite):");
-        tree_grow::surface_cross_refs(&grove_root, &renumbers, &mut stderr)?;
-    }
-    Ok(())
+fn leaf_insert_for(
+    grove_root: &Path,
+    target: &str,
+    slug: &str,
+    kind: Kind,
+    after_insert: impl FnOnce(&Path, &Path, &[tree_grow::Renumber]) -> Result<()>,
+) -> Result<()> {
+    let guard = tree_access::write(grove_root)?;
+    let target = resolve_ref_or_path_unlocked(guard.root(), target)?;
+    let (path, renumbers) = tree_grow::leaf_insert_unlocked(guard.root(), &target, slug, kind)?;
+    after_insert(guard.root(), &path, &renumbers)
 }
 
 fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
@@ -728,11 +776,11 @@ fn grove_paths() -> Result<(PathBuf, PathBuf)> {
 // convenience (the reference branch). Tried as a path first so an explicit,
 // existing path always wins; only a non-existent path is re-tried as a reference,
 // so the two namespaces never collide in practice.
-fn resolve_ref_or_path(grove_root: &Path, arg: &str) -> Result<PathBuf> {
+fn resolve_ref_or_path_unlocked(grove_root: &Path, arg: &str) -> Result<PathBuf> {
     if let Some(path) = existing_path(grove_root, arg) {
         return Ok(path);
     }
-    match tree_read::resolve(grove_root, arg)? {
+    match tree_read::resolve_unlocked(grove_root, arg)? {
         Resolution::Found { path, .. } => Ok(path),
         Resolution::NotFound => bail!(
             "no entry matches {arg:?} (tried as a path under the grove root and as a key/slug)"
@@ -796,4 +844,103 @@ fn label(worktree: &Path) -> String {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| worktree.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tree_access;
+    use std::fs::{self, File};
+    use std::io::{self, Write};
+    use std::os::fd::AsRawFd;
+    use tempfile::TempDir;
+
+    fn grove_with_node() -> (TempDir, PathBuf) {
+        let worktree = TempDir::new().unwrap();
+        let paths = tree_lifecycle::root_init(worktree.path(), "plan").unwrap();
+        let grove_root = worktree.path().join(".grove");
+        tree_lifecycle::leaf_decompose(&grove_root, &paths[1], "first", Some(Kind::Impl)).unwrap();
+        (worktree, grove_root)
+    }
+
+    fn assert_one_acquisition(operation: impl FnOnce(&Path)) {
+        let (_worktree, grove_root) = grove_with_node();
+        tree_access::reset_acquisition_count();
+
+        operation(&grove_root);
+
+        assert_eq!(
+            tree_access::acquisition_count(),
+            1,
+            "one CLI command must acquire the tree lock exactly once"
+        );
+    }
+
+    #[test]
+    fn reference_taking_commands_acquire_the_tree_lock_once() {
+        assert_one_acquisition(|grove_root| {
+            leaf_add_for(grove_root, "1", "later", Kind::Impl).unwrap();
+        });
+        assert_one_acquisition(|grove_root| {
+            leaf_add_chain_for(grove_root, "1", "sync", Kind::Impl).unwrap();
+        });
+        assert_one_acquisition(|grove_root| {
+            leaf_add_pair_for(grove_root, "1", "survey").unwrap();
+        });
+        assert_one_acquisition(|grove_root| {
+            brief_chain_for(grove_root, None).unwrap().unwrap();
+        });
+    }
+
+    struct ExclusiveLockAssertingWriter {
+        worktree: PathBuf,
+        bytes: Vec<u8>,
+    }
+
+    impl Write for ExclusiveLockAssertingWriter {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            let directory = File::open(&self.worktree)?;
+            let result =
+                unsafe { libc::flock(directory.as_raw_fd(), libc::LOCK_SH | libc::LOCK_NB) };
+            assert_ne!(
+                result, 0,
+                "cross-reference output was written after leaf-insert released its exclusive lock"
+            );
+            self.bytes.extend_from_slice(buffer);
+            Ok(buffer.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn leaf_insert_lints_cross_references_under_its_only_exclusive_lock() {
+        let (worktree, grove_root) = grove_with_node();
+        fs::write(grove_root.join("NOTE.md"), "stale path: 01-impl-first-k2\n").unwrap();
+        let mut output = ExclusiveLockAssertingWriter {
+            worktree: worktree.path().to_path_buf(),
+            bytes: Vec::new(),
+        };
+        tree_access::reset_acquisition_count();
+
+        leaf_insert_for(
+            &grove_root,
+            "2",
+            "earlier",
+            Kind::Impl,
+            |locked_root, _, renumbers| {
+                tree_grow::surface_cross_refs_unlocked(locked_root, renumbers, &mut output)
+            },
+        )
+        .unwrap();
+
+        assert!(
+            String::from_utf8_lossy(&output.bytes).contains("NOTE.md:1"),
+            "fixture must exercise a cross-reference hit: {}",
+            String::from_utf8_lossy(&output.bytes)
+        );
+        assert_eq!(tree_access::acquisition_count(), 1);
+    }
 }

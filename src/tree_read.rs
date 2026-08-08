@@ -50,6 +50,9 @@ pub fn pick(grove_root: &Path) -> Result<Option<PathBuf>> {
 }
 
 pub(crate) fn pick_unlocked(grove_root: &Path) -> Result<Option<PathBuf>> {
+    #[cfg(test)]
+    tree_access::assert_guard_held(grove_root);
+
     let mut live = Vec::new();
     collect_live_leaf_entries(grove_root, &mut live)?;
     let finish = live
@@ -106,7 +109,10 @@ pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> 
     brief_chain_unlocked(guard.root(), leaf_path)
 }
 
-fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
+    #[cfg(test)]
+    tree_access::assert_guard_held(grove_root);
+
     if !grove_root.is_dir() {
         bail!("grove root not found: {}", grove_root.display());
     }
@@ -323,6 +329,9 @@ pub fn resolve(grove_root: &Path, reference: &str) -> Result<Resolution> {
 }
 
 pub(crate) fn resolve_unlocked(grove_root: &Path, reference: &str) -> Result<Resolution> {
+    #[cfg(test)]
+    tree_access::assert_guard_held(grove_root);
+
     let mut all = Vec::new();
     collect_all(grove_root, &mut all)?;
 

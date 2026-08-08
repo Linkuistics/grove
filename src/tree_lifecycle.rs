@@ -1,5 +1,5 @@
 // The **lifecycle verbs** (task-tree-scheme) — `root-init`, `leaf-decompose`,
-// `leaf-retire`, and `leaf-prune` — expressed against the real **directory
+// `leaf-retire`, `leaf-prune`, and the driver-owned finish lifecycle — expressed against the real **directory
 // tree**, built on the id model (`src/tree_id.rs`) and the grow verbs
 // (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
 // starts with one live leaf so it is never mistaken for finished; decompose
@@ -21,6 +21,9 @@
 //     — per ADR *pruning* — accepts a **node** too: marking every *live* leaf
 //     in the subtree (bulk, since one decision can kill many leaves at once),
 //     leaving `DONE` leaves alone.
+//   * the finish lifecycle materializes one resumable finish leaf for an otherwise
+//     empty tree, then revalidates and commits the tree's removal after explicit
+//     human confirmation.
 //
 // **Position-free headers:** a leaf/brief header is the stable handle
 // `# <slug>-k<key>` (`# … — brief` for a node), so `leaf-retire`/`leaf-prune`
@@ -32,8 +35,8 @@
 
 use crate::leaf::Kind;
 use crate::tree_access;
-use crate::tree_grow::leaf_add_unlocked;
-use crate::tree_id::{parse, parse_current, sort_key, validate_slug, Entry, Outcome};
+use crate::tree_grow::{collect_all_names, leaf_add_unlocked, next_child_position};
+use crate::tree_id::{next_key, parse, parse_current, sort_key, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -82,6 +85,73 @@ pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
             Ok(CurrentTransition::AlreadyCurrent)
         }
     }
+}
+
+/// Materialize the driver-owned finish sentinel after a shared selection found
+/// no live work. The exclusive re-selection closes the gap between that read
+/// and allocation: newly inserted ordinary work wins, and an existing finish
+/// is reused.
+pub fn materialize_finish(worktree: &Path) -> Result<crate::tree_read::SelectedLeaf> {
+    let _guard = tree_access::write_for_lifecycle(worktree)?;
+    let grove_root = worktree.join(".grove");
+    if let Some(selection) = crate::tree_read::select_unlocked(&grove_root)? {
+        return Ok(selection);
+    }
+
+    let position = next_child_position(&grove_root)?;
+    let key = next_key(collect_all_names(&grove_root)?)?;
+    let entry = Entry::Leaf {
+        position,
+        kind: Kind::Finish,
+        slug: "finish".to_string(),
+        key,
+        outcome: Outcome::Live,
+    };
+    let path = grove_root.join(entry.name());
+    let handle = format!("finish-k{key}");
+    let body = format!(
+        "# {handle}\n\n\
+         ## Goal\n\n\
+         Propose the complete finish cycle and wait for explicit human confirmation.\n\n\
+         ## Done when\n\n\
+         - Promote durable material from the grove briefs.\n\
+         - Run `grove-llm finish-commit {handle}`.\n\
+         - Run `grove-llm complete --done` as the last action.\n"
+    );
+    fs::write(&path, body).with_context(|| format!("writing {}", path.display()))?;
+    Ok(crate::tree_read::SelectedLeaf {
+        path,
+        handle,
+        kind: Kind::Finish,
+    })
+}
+
+/// Revalidate and commit the complete finish cycle's tree deletion. This is a
+/// deterministic last-moment guard; whether a human confirmed teardown is the
+/// calling finish session's responsibility.
+pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
+    let _guard = tree_access::write_for_lifecycle(worktree)?;
+    let grove_root = worktree.join(".grove");
+    let selection = crate::tree_read::select_unlocked(&grove_root)?
+        .context("the requested finish leaf is no longer live")?;
+    if selection.kind != Kind::Finish {
+        bail!(
+            "cannot finish while live work remains: {} ({})",
+            selection.handle,
+            selection.path.display()
+        );
+    }
+    if selection.handle != finish_handle {
+        bail!(
+            "requested finish handle {finish_handle:?} does not match the live finish leaf {}",
+            selection.handle
+        );
+    }
+
+    crate::repo::validate_finish_commit(worktree)?;
+    fs::remove_dir_all(&grove_root)
+        .with_context(|| format!("deleting completed grove {}", grove_root.display()))?;
+    crate::repo::commit_finish(worktree, finish_handle)
 }
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root

@@ -12,8 +12,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+mod finish_commit;
 mod migration_commit;
 
+pub use finish_commit::{commit_finish, validate_finish_commit};
 pub use migration_commit::commit_session_kind_migration;
 
 /// The VCS that owns a working tree.

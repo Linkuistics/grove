@@ -134,11 +134,9 @@ fn run_configured_loop_with_lease(
         let _pre_transition_config = SessionConfig::load(&home)?;
 
         crate::tree_lifecycle::transition_to_current(worktree)?;
-        let Some(selection) = crate::tree_read::select(&worktree.join(".grove"))? else {
-            eprintln!(
-                "grove {name}: no live leaves; the finish lifecycle is not materialized by this build"
-            );
-            return Ok(LoopOutcome::Stopped);
+        let selection = match crate::tree_read::select(&worktree.join(".grove"))? {
+            Some(selection) => selection,
+            None => crate::tree_lifecycle::materialize_finish(worktree)?,
         };
 
         let config = SessionConfig::load(&home)?;

@@ -971,6 +971,8 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         );
     };
     initialize(&root);
+    run_command("git", &root, &["add", "-A"]);
+    run_command("git", &root, &["commit", "-q", "-m", "first grove"]);
 
     let first_ready = tmp.path().join("first-ready");
     let first_signal_log = tmp.path().join("first-signal-path");
@@ -1005,8 +1007,41 @@ fn a_reinitialized_tree_reuses_plan_k1_without_reusing_the_old_session() {
         "the first session did not resolve plan-k1"
     );
 
+    let retire = Command::new(grove_llm)
+        .args([
+            "leaf-retire",
+            root.join(".grove/01-requirements-plan-k1.md")
+                .to_str()
+                .unwrap(),
+        ])
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        retire.status.success(),
+        "retiring the first grove failed: {}",
+        String::from_utf8_lossy(&retire.stderr)
+    );
+    fs::write(
+        root.join(".grove/02-finish-finish-k2.md"),
+        "# finish-k2\n\n## Goal\n\nFinish.\n",
+    )
+    .unwrap();
+    let finish = Command::new(grove_llm)
+        .args(["finish-commit", "finish-k2"])
+        .current_dir(&root)
+        .env("GROVE_SIGNAL_FILE", &old_signal)
+        .output()
+        .unwrap();
+    assert!(
+        finish.status.success(),
+        "finishing the first grove failed: {}",
+        String::from_utf8_lossy(&finish.stderr)
+    );
+    assert!(!root.join(".grove").exists());
+
     drop(first_driver);
-    fs::remove_dir_all(root.join(".grove")).unwrap();
     initialize(&root);
 
     let second_ready = tmp.path().join("second-ready");

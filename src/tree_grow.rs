@@ -593,7 +593,7 @@ fn resolve_under_root(grove_abs: &Path, path: &Path) -> Result<PathBuf> {
 /// direct children (leaves live and `DONE`, and node directories — a `DONE` slot
 /// is never reused), or `1` for an empty node. Reconciles each name's parsed kind
 /// with its real filesystem kind, so a mis-kinded foreign entry is not counted.
-fn next_child_position(dir: &Path) -> Result<u32> {
+pub(crate) fn next_child_position(dir: &Path) -> Result<u32> {
     let max = read_children(dir)?
         .iter()
         .filter_map(|(e, _)| e.position())
@@ -635,7 +635,7 @@ fn read_children(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
 /// Recursively collect every grove entry's name in the tree (leaves live and
 /// `DONE`, node directories, and briefs), descending node directories. Feeds
 /// `next_key`, which filters to the keyed names — so this only needs every name.
-fn collect_all_names(dir: &Path) -> Result<Vec<String>> {
+pub(crate) fn collect_all_names(dir: &Path) -> Result<Vec<String>> {
     let mut names = Vec::new();
     collect_names_into(dir, &mut names)?;
     Ok(names)

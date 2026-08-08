@@ -67,7 +67,7 @@ pub fn select(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
     select_unlocked(guard.root())
 }
 
-fn select_unlocked(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
+pub(crate) fn select_unlocked(grove_root: &Path) -> Result<Option<SelectedLeaf>> {
     #[cfg(test)]
     tree_access::assert_guard_held(grove_root);
 

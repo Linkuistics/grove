@@ -1052,7 +1052,7 @@ fn config_is_reloaded_after_a_completed_legacy_transition_before_launch() {
 }
 
 #[test]
-fn empty_current_tree_stops_without_launch_and_can_resume_later() {
+fn empty_current_tree_allocates_and_launches_one_resumable_finish_leaf() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -1068,7 +1068,7 @@ fn empty_current_tree_stops_without_launch_and_can_resume_later() {
     write_executable(
         &configured,
         r#"#!/bin/sh
-printf launched > "$1"
+printf '%s\n' "$2" > "$1"
 exit 0
 "#,
     );
@@ -1081,17 +1081,25 @@ exit 0
         ),
     );
 
-    let empty_output = run_grove(&home, &worktree);
+    let finish_output = run_grove(&home, &worktree);
 
-    assert!(empty_output.status.success());
-    assert!(!launch_log.exists());
     assert!(
-        String::from_utf8_lossy(&empty_output.stderr).contains("no live leaves"),
+        finish_output.status.success(),
         "{}",
-        String::from_utf8_lossy(&empty_output.stderr)
+        String::from_utf8_lossy(&finish_output.stderr)
     );
+    let finish = grove.join("02-finish-finish-k2.md");
+    assert!(finish.is_file());
+    let finish_body = fs::read_to_string(&finish).unwrap();
+    assert!(finish_body.starts_with("# finish-k2\n"));
+    assert!(finish_body.contains("grove-llm finish-commit finish-k2"));
+    assert!(finish_body.contains("grove-llm complete --done"));
+    assert!(!finish_body.contains("**Kind:**"));
+    assert!(fs::read_to_string(&launch_log)
+        .unwrap()
+        .contains("Grove mandate: resolve and execute `finish-k2`"));
 
-    fs::write(grove.join("02-design-resumed-k2.md"), "# resumed-k2\n").unwrap();
+    fs::write(grove.join("03-design-resumed-k3.md"), "# resumed-k3\n").unwrap();
     let resumed_output = run_grove(&home, &worktree);
 
     assert!(
@@ -1099,7 +1107,47 @@ exit 0
         "{}",
         String::from_utf8_lossy(&resumed_output.stderr)
     );
-    assert!(launch_log.is_file());
+    assert!(fs::read_to_string(&launch_log)
+        .unwrap()
+        .contains("Grove mandate: resolve and execute `resumed-k3`"));
+    assert_eq!(
+        fs::read_dir(&grove)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("finish-finish"))
+            .count(),
+        1
+    );
+
+    fs::rename(
+        grove.join("03-design-resumed-k3.md"),
+        grove.join("03-DONE-design-resumed-k3.md"),
+    )
+    .unwrap();
+    let reused_output = run_grove(&home, &worktree);
+
+    assert!(
+        reused_output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&reused_output.stderr)
+    );
+    assert!(fs::read_to_string(&launch_log)
+        .unwrap()
+        .contains("Grove mandate: resolve and execute `finish-k2`"));
+    assert_eq!(
+        fs::read_dir(&grove)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("finish-finish"))
+            .count(),
+        1
+    );
 }
 
 #[test]

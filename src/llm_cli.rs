@@ -8,7 +8,8 @@
 // drops context.
 //
 // The task-tree verbs (`pick` / `brief-chain` / `resolve` / `leaf-add` /
-// `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init`)
+// `leaf-insert` / `leaf-decompose` / `leaf-retire` / `leaf-prune` / `root-init` /
+// `finish-commit`)
 // speak the **v2 directory scheme** (task-tree-scheme): they dispatch to the
 // directory-based modules `tree_read` / `tree_grow` / `tree_lifecycle`. There is
 // no transitional dual-format reader — `grove migrate` (`tree_migrate`) is the
@@ -243,6 +244,14 @@ pub enum Command {
     /// uncheckable; prune the enclosing chain to close the whole reviewed path.
     /// Working-tree change only — no commit.
     LeafPrune(LeafPruneArgs),
+    /// Revalidate the live driver-owned finish leaf and the absence of ordinary
+    /// work under the exclusive tree lock, then delete and commit only
+    /// `.grove/`. This helper enforces tree and VCS facts; it does not infer or
+    /// automate the finish session's required human confirmation.
+    FinishCommit {
+        /// Stable handle of the launched finish leaf, for example `finish-k42`.
+        finish_handle: String,
+    },
     /// Signal task completion to the self-driving loop. Run this as
     /// the **last step** of a task, after commit + retire — it is how the loop
     /// ends this harness session and starts the next task with fresh context.
@@ -279,6 +288,7 @@ impl Command {
             Self::LeafDecompose(_) => "grove-llm leaf-decompose",
             Self::LeafRetire(_) => "grove-llm leaf-retire",
             Self::LeafPrune(_) => "grove-llm leaf-prune",
+            Self::FinishCommit { .. } => "grove-llm finish-commit",
             Self::Complete(_) => "grove-llm complete",
         }
     }
@@ -435,8 +445,14 @@ pub fn run() -> Result<()> {
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
         Command::LeafRetire(args) => cmd_leaf_retire(&args),
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
+        Command::FinishCommit { finish_handle } => cmd_finish_commit(&finish_handle),
         Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
     }
+}
+
+fn cmd_finish_commit(finish_handle: &str) -> Result<()> {
+    let (worktree, _) = grove_paths()?;
+    tree_lifecycle::finish_commit(&worktree, finish_handle)
 }
 
 fn cmd_complete(

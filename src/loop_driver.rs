@@ -20,11 +20,13 @@
 // (constraint 6, walk-away-able); routing (model-per-task-kind) is just two
 // lookups off the picked leaf before the launch:
 //
-//     sig="$TMPDIR/grove-loop-<name>-<worktree-identity-hash>.signal"
+//     # after owning the workspace lease, clean abandoned signal-<128-bit> paths
 //     while :; do
 //       v=$(grove-llm --version | awk '{print $NF}')     # version-skew guard
 //       [ -n "$v" ] && [ "$v" != "<own compiled-in version>" ] && break
-//       rm -f "$sig"
+//       # Draw a fresh OS-random 128-bit suffix in the workspace control dir;
+//       # retry occupied names without touching their contents.
+//       sig="$workspace_control/signal-<fresh-128-bit-suffix>"
 //       # One structured peek captures the routed leaf and both launch facts.
 //       # A declared harness beats every policy var and the stamp.
 //       if [ -d "$wt/.grove" ]; then
@@ -64,7 +66,9 @@
 //       # $GROVE_KILL_GRACE_KILL, kill -KILL $pid
 //       wait "$pid"
 //       stty sane 2>/dev/null
-//       [ -f "$sig" ] || break        # no completion signal → stop
+//       disposition=$(read_signal "$sig")
+//       rm -f "$sig"                  # only this launch's accepted channel
+//       [ -n "$disposition" ] || break # no completion signal → stop
 //     done
 
 use crate::complete::{self, Disposition};
@@ -73,9 +77,7 @@ use crate::harness::Harness;
 use crate::leaf::{Family, Kind};
 use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::collections::hash_map::DefaultHasher;
 use std::ffi::OsString;
-use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -93,40 +95,6 @@ pub enum LoopOutcome {
     /// version-skewed `grove-llm` — driver-version-skew-k11); resumable by
     /// re-running `grove do` from the same working tree.
     Stopped,
-}
-
-/// Relaunch-signal file path for a grove. Lives in the temp dir (ephemeral
-/// loop IPC, not durable grove state — signal-file-identity-k6) — keyed on
-/// `name` **and** the worktree's identity, so two `grove do` loops in
-/// different repos whose worktree basenames happen to collide (generic names
-/// like `bugs`/`plan`/`docs` are the norm) never share a file: a foreign
-/// write from one would otherwise be read as the other's own completion
-/// signal, SIGTERM its session mid-work, and misdirect the relaunch decision.
-/// `name` alone stays in the filename for operator legibility (`ls $TMPDIR`
-/// still reads as grove names); the hash is what actually disambiguates.
-/// Cleared at the start of every iteration.
-pub fn signal_file_path(worktree: &Path, name: &str) -> PathBuf {
-    let safe: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    // Canonicalise so the same worktree reached by two different paths (a
-    // symlink, a relative vs. absolute cwd) still hashes identically; fall
-    // back to the raw path on failure (e.g. a test fixture that races the
-    // directory's own creation) rather than erroring the whole loop over a
-    // signal-file naming nicety.
-    let identity = worktree
-        .canonicalize()
-        .unwrap_or_else(|_| worktree.to_path_buf());
-    let mut hasher = DefaultHasher::new();
-    identity.hash(&mut hasher);
-    std::env::temp_dir().join(format!("grove-loop-{safe}-{:016x}.signal", hasher.finish()))
 }
 
 /// Entry point: install the signal handlers, then run the loop. The real
@@ -165,7 +133,9 @@ fn run_loop_with_lease(
     name: &str,
     driver_lease: &DriverLease,
 ) -> Result<LoopOutcome> {
-    let signal_file = signal_file_path(worktree, name);
+    driver_lease
+        .cleanup_abandoned_signal_channels()
+        .context("cleaning signal channels abandoned by a previous driver")?;
     let repo_name = repo_path
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -195,12 +165,8 @@ fn run_loop_with_lease(
                 "       Re-run `grove do` from this working tree to continue on the new \
                  binary (restart ≡ continuation)."
             );
-            let _ = std::fs::remove_file(&signal_file);
             return Ok(LoopOutcome::Stopped);
         }
-
-        // Clear any stale signal from the previous iteration.
-        let _ = std::fs::remove_file(&signal_file);
 
         let verb = launch_verb(worktree);
 
@@ -235,25 +201,36 @@ fn run_loop_with_lease(
             .revalidate()
             .context("revalidating driver lease before foreground launch")?;
 
-        let ended = launch_session(&launch, worktree, &session_name, &prompt, &signal_file)?;
+        let signal_channel = driver_lease
+            .allocate_signal_channel()
+            .context("allocating a fresh foreground-session signal channel")?;
+        let ended = launch_session(
+            &launch,
+            worktree,
+            &session_name,
+            &prompt,
+            signal_channel.path(),
+        )?;
 
         // A SIGTERM'd TUI can leave the terminal in raw mode / the alternate
         // screen; reset before relaunching (and on the way out).
         reset_terminal();
 
-        // Check interruption before the signal file: an interrupt mid-session
-        // usually leaves no signal file and must not be read as the human's
-        // `/exit`.
+        let signal = complete::read_signal(signal_channel.path());
+        driver_lease
+            .remove_signal_channel(signal_channel)
+            .context("removing the interpreted foreground-session signal channel")?;
+
+        // Interruption still wins over any signal content. Reading first lets
+        // the driver retire exactly this launch's accepted channel only after
+        // the child has been reaped and its disposition interpreted.
         if ended == SessionEnd::Interrupted {
             eprintln!("grove: interrupted — stopping the loop.");
             eprintln!(
                 "       Re-run `grove do` from this working tree to resume (restart ≡ continuation)."
             );
-            let _ = std::fs::remove_file(&signal_file);
             return Ok(LoopOutcome::Stopped);
         }
-
-        let signal = complete::read_signal(&signal_file);
 
         match signal {
             // Per-task completion signal → relaunch with fresh context.
@@ -261,7 +238,6 @@ fn run_loop_with_lease(
             // `complete --done` (the Finish cycle's last action) → stop clean.
             Some(Disposition::Done) => {
                 eprintln!("grove: grove finished — loop complete.");
-                let _ = std::fs::remove_file(&signal_file);
                 return Ok(LoopOutcome::Finished);
             }
             // Human `/exit`/Ctrl-C, or a crash: no signal → stop. Re-running
@@ -271,7 +247,6 @@ fn run_loop_with_lease(
                 eprintln!(
                     "       Re-run `grove do` from this working tree to resume (restart ≡ continuation)."
                 );
-                let _ = std::fs::remove_file(&signal_file);
                 return Ok(LoopOutcome::Stopped);
             }
         }
@@ -1443,19 +1418,23 @@ mod tests {
         assert_eq!(sanitise_grace(None, 2.0), Duration::from_secs(2));
     }
 
-    // signal-file-identity-k6: two worktrees whose *basenames* collide
-    // (generic grove names like "bugs"/"plan"/"docs" are the norm) must not
-    // resolve to the same signal file just because `name` matches — that was
-    // the whole bug (path derived from `name` alone).
     #[test]
-    fn same_name_different_worktrees_get_different_signal_files() {
-        let a = tempfile::tempdir().unwrap();
-        let b = tempfile::tempdir().unwrap();
+    fn successive_launches_get_independent_workspace_signal_files() {
+        let worktree = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(worktree.path().join(".git")).unwrap();
+        let lease = DriverLease::acquire(worktree.path()).unwrap();
+
+        let first = lease.allocate_signal_channel().unwrap();
+        let second = lease.allocate_signal_channel().unwrap();
+        let expected_control_dir = worktree.path().canonicalize().unwrap().join(".git/grove");
+
         assert_ne!(
-            signal_file_path(a.path(), "bugs"),
-            signal_file_path(b.path(), "bugs"),
-            "distinct worktrees sharing a grove name must never share a signal file"
+            first.path(),
+            second.path(),
+            "each foreground launch needs an independent control channel"
         );
+        assert_eq!(first.path().parent(), Some(expected_control_dir.as_path()));
+        assert_eq!(second.path().parent(), Some(expected_control_dir.as_path()));
     }
 
     // The version-skew guard may only ever act on a token that *is* a
@@ -1468,18 +1447,5 @@ mod tests {
         assert_eq!(parse_version(""), None);
         assert_eq!(parse_version("zsh: command not found\n"), None);
         assert_eq!(parse_version("grove-llm dev-build\n"), None);
-    }
-
-    // The identity half must be stable, not just distinguishing — the same
-    // worktree is polled for the *same* file every iteration of one loop
-    // (signal_file_path is called fresh each time round the `loop {}`).
-    #[test]
-    fn same_worktree_and_name_is_stable_across_calls() {
-        let a = tempfile::tempdir().unwrap();
-        assert_eq!(
-            signal_file_path(a.path(), "bugs"),
-            signal_file_path(a.path(), "bugs"),
-            "the same worktree+name must resolve to the same path every time"
-        );
     }
 }

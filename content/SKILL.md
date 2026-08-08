@@ -450,8 +450,9 @@ a session asks is a discretionary escalation. On confirmation, run:
    distinct from a crash or Ctrl-C. It must come last: like the per-task signal
    it ends this session after a short grace (applied by the loop driver, which
    is watching for the signal file — not this verb), so running it any earlier
-   would cut teardown short. It writes only the loop's signal file (in the temp
-   dir) — nothing about the working tree — so run it from any valid directory.
+   would cut teardown short. It writes only the launch's randomly named loop
+   signal file in the workspace's VCS-administration control directory —
+   nothing about the working tree — so run it from any valid directory.
    Outside `grove do` (no loop to stop) it is a safe no-op: just exit.
 
 Nothing after: integrating the grove's branch and tearing down the working tree

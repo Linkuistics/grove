@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 
 const LEASE_FILE_NAME: &str = "driver.lease";
 const IDENTITY_RETRY_LIMIT: usize = 8;
+const SIGNAL_FILE_PREFIX: &str = "signal-";
+const SIGNAL_DRAW_RETRY_LIMIT: usize = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct FileIdentity {
@@ -32,11 +34,23 @@ impl FileIdentity {
 #[derive(Debug)]
 pub struct DriverLease {
     worktree_root: PathBuf,
+    control_dir: PathBuf,
     _worktree_directory: File,
     worktree_identity: FileIdentity,
     lease_path: PathBuf,
     _lease_file: File,
     lease_identity: FileIdentity,
+}
+
+#[derive(Debug)]
+pub(crate) struct SignalChannel {
+    path: PathBuf,
+}
+
+impl SignalChannel {
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
 impl DriverLease {
@@ -50,6 +64,7 @@ impl DriverLease {
         })?;
 
         let worktree_root = control.worktree_root().to_path_buf();
+        let control_dir = control.control_dir().to_path_buf();
         let worktree_directory = File::open(&worktree_root).with_context(|| {
             format!(
                 "opening working tree root {} for driver ownership",
@@ -65,11 +80,12 @@ impl DriverLease {
 
         let lease_path = control.control_dir().join(LEASE_FILE_NAME);
         let (mut lease_file, lease_identity) = acquire_lease_file(&lease_path, &worktree_root)?;
-        let nonce = process_nonce()?;
+        let nonce = random_nonce()?;
         write_record(&mut lease_file, worktree_identity, &hex_nonce(nonce)?)?;
 
         let lease = Self {
             worktree_root,
+            control_dir,
             _worktree_directory: worktree_directory,
             worktree_identity,
             lease_path,
@@ -82,6 +98,55 @@ impl DriverLease {
 
     pub fn worktree_root(&self) -> &Path {
         &self.worktree_root
+    }
+
+    pub(crate) fn allocate_signal_channel(&self) -> Result<SignalChannel> {
+        allocate_signal_channel_with(&self.control_dir, random_nonce, |path| {
+            match fs::symlink_metadata(path) {
+                Ok(_) => Ok(true),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+                Err(error) => {
+                    Err(error).with_context(|| format!("checking signal path {}", path.display()))
+                }
+            }
+        })
+    }
+
+    pub(crate) fn remove_signal_channel(&self, channel: SignalChannel) -> Result<()> {
+        if channel.path.parent() != Some(self.control_dir.as_path()) {
+            bail!(
+                "refusing to remove signal channel outside this driver lease's control directory: {}",
+                channel.path.display()
+            );
+        }
+        remove_file_if_present(&channel.path)
+            .with_context(|| format!("removing signal channel {}", channel.path.display()))
+    }
+
+    /// Remove channels abandoned by a previous driver only after this lease
+    /// owns the workspace. This stays separate from acquisition so the epoch
+    /// layer can sequence it after installing the replacement driver's
+    /// inactive record.
+    pub(crate) fn cleanup_abandoned_signal_channels(&self) -> Result<()> {
+        cleanup_abandoned_signal_channels_with(
+            &self.control_dir,
+            |control_dir| {
+                fs::read_dir(control_dir)
+                    .with_context(|| {
+                        format!(
+                            "listing abandoned signal channels in {}",
+                            control_dir.display()
+                        )
+                    })?
+                    .map(|entry| {
+                        entry
+                            .map(|entry| entry.path())
+                            .context("reading a Grove control-directory entry")
+                    })
+                    .collect()
+            },
+            remove_file_if_present,
+        )
     }
 
     /// Confirm that the paths still name the descriptors this process owns.
@@ -114,6 +179,59 @@ impl DriverLease {
             );
         }
         Ok(())
+    }
+}
+
+fn allocate_signal_channel_with(
+    control_dir: &Path,
+    mut draw_nonce: impl FnMut() -> Result<[u8; 16]>,
+    mut path_exists: impl FnMut(&Path) -> Result<bool>,
+) -> Result<SignalChannel> {
+    for _ in 0..SIGNAL_DRAW_RETRY_LIMIT {
+        let path = control_dir.join(format!("{SIGNAL_FILE_PREFIX}{}", hex_nonce(draw_nonce()?)?));
+        if !path_exists(&path)? {
+            return Ok(SignalChannel { path });
+        }
+    }
+    bail!(
+        "could not allocate a fresh signal path after {} occupied random draws in {}",
+        SIGNAL_DRAW_RETRY_LIMIT,
+        control_dir.display()
+    )
+}
+
+fn cleanup_abandoned_signal_channels_with(
+    control_dir: &Path,
+    mut list_paths: impl FnMut(&Path) -> Result<Vec<PathBuf>>,
+    mut remove_file: impl FnMut(&Path) -> Result<()>,
+) -> Result<()> {
+    for path in list_paths(control_dir)? {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if is_signal_channel_name(name) {
+            remove_file(&path)
+                .with_context(|| format!("removing abandoned signal channel {}", path.display()))?;
+        }
+    }
+    Ok(())
+}
+
+fn is_signal_channel_name(name: &str) -> bool {
+    let Some(suffix) = name.strip_prefix(SIGNAL_FILE_PREFIX) else {
+        return false;
+    };
+    suffix.len() == 32
+        && suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn remove_file_if_present(path: &Path) -> Result<()> {
+    match fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| format!("removing {}", path.display())),
     }
 }
 
@@ -194,7 +312,7 @@ fn ensure_close_on_exec(descriptor: RawFd) -> Result<()> {
     Ok(())
 }
 
-fn process_nonce() -> Result<[u8; 16]> {
+fn random_nonce() -> Result<[u8; 16]> {
     let mut source = File::open("/dev/urandom").context("opening OS randomness source")?;
     let mut nonce = [0_u8; 16];
     source
@@ -228,6 +346,7 @@ fn write_record(file: &mut File, worktree_identity: FileIdentity, nonce: &str) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
     use tempfile::TempDir;
 
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
@@ -305,5 +424,77 @@ mod tests {
                 "{label} descriptor can leak across exec"
             );
         }
+    }
+
+    #[test]
+    fn an_occupied_signal_draw_is_retried_without_touching_the_old_channel() {
+        let tmp = TempDir::new().unwrap();
+        let control_dir = tmp.path().join("control");
+        fs::create_dir_all(&control_dir).unwrap();
+        let occupied_nonce = [0x11; 16];
+        let fresh_nonce = [0x22; 16];
+        let occupied_path = control_dir.join(format!(
+            "{SIGNAL_FILE_PREFIX}{}",
+            hex_nonce(occupied_nonce).unwrap()
+        ));
+        fs::write(&occupied_path, "old completion\n").unwrap();
+        let mut draws = VecDeque::from([occupied_nonce, fresh_nonce]);
+
+        let channel = allocate_signal_channel_with(
+            &control_dir,
+            || Ok(draws.pop_front().unwrap()),
+            |path| Ok(fs::symlink_metadata(path).is_ok()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            channel.path(),
+            control_dir
+                .join(format!(
+                    "{SIGNAL_FILE_PREFIX}{}",
+                    hex_nonce(fresh_nonce).unwrap()
+                ))
+                .as_path()
+        );
+        assert_eq!(
+            fs::read_to_string(occupied_path).unwrap(),
+            "old completion\n"
+        );
+        assert!(
+            draws.is_empty(),
+            "the allocator must consume exactly two draws"
+        );
+    }
+
+    #[test]
+    fn abandoned_cleanup_uses_the_injected_filesystem_and_exact_channel_grammar() {
+        let control_dir = PathBuf::from("/workspace-control");
+        let valid = control_dir.join("signal-0123456789abcdef0123456789abcdef");
+        let uppercase = control_dir.join("signal-0123456789ABCDEF0123456789ABCDEF");
+        let malformed = control_dir.join("signal-not-a-channel");
+        let lease = control_dir.join(LEASE_FILE_NAME);
+        let mut listed_directory = None;
+        let mut removed = Vec::new();
+
+        cleanup_abandoned_signal_channels_with(
+            &control_dir,
+            |directory| {
+                listed_directory = Some(directory.to_path_buf());
+                Ok(vec![
+                    valid.clone(),
+                    uppercase.clone(),
+                    malformed.clone(),
+                    lease.clone(),
+                ])
+            },
+            |path| {
+                removed.push(path.to_path_buf());
+                Ok(())
+            },
+        )
+        .unwrap();
+
+        assert_eq!(listed_directory, Some(control_dir));
+        assert_eq!(removed, vec![valid]);
     }
 }

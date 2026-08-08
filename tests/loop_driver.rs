@@ -14,6 +14,7 @@ use grove::loop_driver::{self, LoopOutcome};
 use grove::provision::STAMP_FILE;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use support::EnvGuard;
@@ -118,6 +119,7 @@ fn loop_relaunches_on_signal_and_stops_without_one() {
 
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
+    let signal_log = repo_path.join("signal-log");
 
     // Fake claude: log <iter>\t<harness-pid-handle>\t<claude-pid-handle>\t<prompt>;
     // create `.grove/` after the first iteration so the loop switches
@@ -135,6 +137,7 @@ n=$((n + 1))
 echo "$n" > "$GROVE_TEST_COUNTER"
 for a in "$@"; do prompt="$a"; done
 printf '%s\t%s\t%s\t%s\n' "$n" "${GROVE_HARNESS_PID:-unset}" "${GROVE_CLAUDE_PID:-unset}" "$prompt" >> "$GROVE_TEST_LOG"
+printf '%s\n' "$GROVE_SIGNAL_FILE" >> "$GROVE_TEST_SIGNAL_LOG"
 mkdir -p "$PWD/.grove"
 printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
 if [ "$n" -lt 3 ]; then
@@ -153,6 +156,7 @@ exit 0
         .set("GROVE_SKILL_DIR", &skill_dir)
         .set("GROVE_TEST_COUNTER", &counter)
         .set("GROVE_TEST_LOG", &log)
+        .set("GROVE_TEST_SIGNAL_LOG", &signal_log)
         // Scaffolding: only the first (start ⇒ requirements) iteration needs a
         // model at all — the two continue iterations peek an *empty* `.grove/`,
         // which is the no-live-leaf exemption.
@@ -200,6 +204,20 @@ exit 0
     );
     assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
     assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
+
+    let signal_paths: Vec<PathBuf> = fs::read_to_string(signal_log)
+        .unwrap()
+        .lines()
+        .map(PathBuf::from)
+        .collect();
+    assert_eq!(signal_paths.len(), 3);
+    assert_ne!(signal_paths[0], signal_paths[1]);
+    assert_ne!(signal_paths[1], signal_paths[2]);
+    assert_ne!(signal_paths[0], signal_paths[2]);
+    assert!(
+        signal_paths.iter().all(|path| !path.exists()),
+        "the driver must remove each accepted channel after interpreting its session"
+    );
 }
 
 #[test]
@@ -216,6 +234,12 @@ fn loop_finishes_clean_on_a_done_signal() {
 
     let worktree = repo_path.join(".grove-worktrees/loopgrove");
     init_worktree(&worktree);
+    let control_dir = worktree.join(".git/grove");
+    fs::create_dir_all(&control_dir).unwrap();
+    let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
+    let unrelated_control = control_dir.join("signal-not-a-grove-channel");
+    fs::write(&abandoned_signal, "old completion\n").unwrap();
+    fs::write(&unrelated_control, "keep me\n").unwrap();
 
     let counter = repo_path.join("counter");
     let log = repo_path.join("log");
@@ -262,14 +286,23 @@ exit 0
         count, 1,
         "the loop must run exactly once then finish — no relaunch (log: {log:?})"
     );
+    assert!(
+        !abandoned_signal.exists(),
+        "a replacement driver must clean abandoned signal channels after acquiring the lease"
+    );
+    assert_eq!(
+        fs::read_to_string(unrelated_control).unwrap(),
+        "keep me\n",
+        "cleanup must ignore names outside Grove's exact channel grammar"
+    );
 }
 
 // Signal-file identity (signal-file-identity-k6): two `grove do` loops with
 // the *same grove name* but *different worktrees* must not interfere, even
-// running truly concurrently. Pre-fix, `signal_file_path` derived the path
-// from `name` alone (`$TMPDIR/grove-loop-<name>.signal`), so two worktrees
-// that happen to share a basename (generic names like "bugs"/"plan"/"docs"
-// are the norm) collided on one file.
+// running truly concurrently. The pre-fix deterministic path was derived from
+// `name` alone (`$TMPDIR/grove-loop-<name>.signal`), so two worktrees that
+// happened to share a basename (generic names like "bugs"/"plan"/"docs" are
+// the norm) collided on one file.
 //
 // Runs two `run_loop`s on real OS threads at the same time, both named
 // "samegrove": an "attacker" loop whose fake harness signals `done`

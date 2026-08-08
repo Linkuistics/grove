@@ -102,20 +102,19 @@ fn both_guards_are_present_and_neither_subsumes_the_other() {
     );
 }
 
-/// The value the override points at must be **inert** — somewhere no driver
-/// could ever be watching. `signal_file_path` always builds under the system
-/// temp dir, so the one hard requirement is that the override does not land
-/// there; `target/` satisfies that by construction, but assert the property
-/// rather than the location so the reason survives a future path change.
+/// The value the override points at must be **inert** — outside either
+/// workspace-administration control directory where this checkout's driver can
+/// allocate a random channel.
 #[test]
 fn the_overridden_signal_path_is_one_no_driver_watches() {
     let sig = PathBuf::from(std::env::var_os("GROVE_SIGNAL_FILE").expect("set by cargo config"));
-    let tmp = std::env::temp_dir();
-    assert!(
-        !sig.starts_with(&tmp),
-        "the override resolves into the system temp dir ({}), which is exactly where \
-         `signal_file_path` puts real loop signals — a collision there would make the \
-         suite fire some driver's completion signal instead of being inert",
-        tmp.display()
-    );
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for control_dir in [root.join(".git/grove"), root.join(".jj/grove")] {
+        assert!(
+            !sig.starts_with(&control_dir),
+            "the override resolves inside Grove's workspace control directory ({}), \
+             where a live driver may watch a random signal channel",
+            control_dir.display()
+        );
+    }
 }

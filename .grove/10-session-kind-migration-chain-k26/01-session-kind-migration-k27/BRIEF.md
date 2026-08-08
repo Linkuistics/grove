@@ -1,6 +1,4 @@
-# session-kind-migration-k27
-
-**Kind:** impl
+# session-kind-migration-k27 — brief
 
 ## Goal
 
@@ -46,5 +44,18 @@ focused Git/jj commits.
 
 ## Notes
 
-This slice builds the deterministic lifecycle transition. It does not yet make
+This node builds the deterministic lifecycle transition. It does not yet make
 bare `grove` the sole caller.
+
+## Decomposition
+
+- `session-kind-plan-k93`: compute and validate the complete current-format
+  destination without mutating the tree.
+- `session-kind-transaction-k94`: stage, land, roll back, and recover the
+  fail-closed migration transaction.
+- `partial-root-recovery-k95`: recognize and complete only the exact fresh-tree
+  partial scaffold.
+- `migration-scoped-commit-k96`: record migration through focused plain-Git and
+  Jujutsu commits without absorbing unrelated work.
+- `migration-transition-k97`: expose and exercise the single lifecycle
+  transition interface consumed by the later driver cutover.

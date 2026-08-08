@@ -34,7 +34,7 @@
 // below is what distinguishes them.
 
 use crate::cli::MigrateArgs;
-use crate::leaf::split_prefix;
+use crate::leaf::{split_prefix, Kind};
 use crate::leaf_id::{self, LeafId};
 use crate::repo;
 use crate::tree_id::{self, Entry};
@@ -86,6 +86,19 @@ enum Format {
 struct Plan {
     format: Format,
     moves: Vec<PlannedMove>,
+}
+
+/// The complete deterministic file plan consumed by the session-kind migration
+/// transaction. Planning reads source bytes but never mutates the tree.
+pub(crate) struct CurrentPlan {
+    pub(crate) files: Vec<PlannedFile>,
+}
+
+/// One deterministic task-file transformation in the current-format plan.
+pub(crate) struct PlannedFile {
+    pub(crate) from_rel: PathBuf,
+    pub(crate) to_rel: PathBuf,
+    pub(crate) body: Vec<u8>,
 }
 
 /// A single planned move plus the data to rewrite its first-line header.
@@ -260,6 +273,403 @@ fn plan(grove_root: &Path) -> Result<Plan> {
     Ok(Plan { format, moves })
 }
 
+/// Plan the complete legacy tree directly into the current filename-kind
+/// grammar. This is deliberately not wired to the legacy in-place executor:
+/// `session-kind-transaction-k94` is the first mutation owner for this plan.
+pub(crate) fn plan_current(grove_root: &Path) -> Result<CurrentPlan> {
+    if grove_root.join("FORMAT").exists() {
+        crate::tree_format::require_current(grove_root)?;
+        return Ok(CurrentPlan { files: Vec::new() });
+    }
+
+    require_unambiguous_legacy_layout(grove_root)?;
+    let legacy_plan = plan(grove_root)?;
+    let mut files = Vec::new();
+    match legacy_plan.format {
+        Format::V2 => {
+            plan_legacy_v2_node(grove_root, Path::new(""), &mut files)?;
+        }
+        Format::V1Flat | Format::OldNnn => {
+            plan_pre_v2_current(grove_root, &legacy_plan.moves, &mut files)?;
+        }
+        Format::Empty => {}
+    }
+    validate_current_plan(grove_root, &files)?;
+    files.sort_by(|left, right| left.from_rel.cmp(&right.from_rel));
+    Ok(CurrentPlan { files })
+}
+
+fn require_unambiguous_legacy_layout(grove_root: &Path) -> Result<()> {
+    let mut v2 = Vec::new();
+    let mut v1 = Vec::new();
+    let mut old = Vec::new();
+    collect_legacy_layout_markers(grove_root, Path::new(""), &mut v2, &mut v1, &mut old)?;
+
+    let format_count =
+        usize::from(!v2.is_empty()) + usize::from(!v1.is_empty()) + usize::from(!old.is_empty());
+    if format_count > 1 {
+        let mut markers = v2.into_iter().chain(v1).chain(old).collect::<Vec<_>>();
+        markers.sort();
+        bail!(
+            "ambiguous legacy tree layout in {}: {}",
+            grove_root.display(),
+            markers
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    Ok(())
+}
+
+fn collect_legacy_layout_markers(
+    directory: &Path,
+    relative: &Path,
+    v2: &mut Vec<PathBuf>,
+    v1: &mut Vec<PathBuf>,
+    old: &mut Vec<PathBuf>,
+) -> Result<()> {
+    for entry in
+        fs::read_dir(directory).with_context(|| format!("reading {}", directory.display()))?
+    {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if name == "BRIEF.md" {
+            continue;
+        }
+        let path = relative.join(&name);
+        let file_type = entry.file_type()?;
+        let mut recurse = false;
+        if file_type.is_dir() {
+            if matches!(tree_id::parse(&name), Some(Entry::Node { .. })) {
+                v2.push(path.clone());
+                recurse = true;
+            } else if name == "done" || split_prefix(&name).is_some() {
+                old.push(path.clone());
+                recurse = true;
+            }
+        } else if file_type.is_file() {
+            if parse_legacy_v2_leaf(&name) {
+                v2.push(path.clone());
+            } else if leaf_id::parse(&name).is_some() {
+                v1.push(path.clone());
+            } else if split_prefix(&name).is_some() {
+                old.push(path.clone());
+            }
+        }
+        if recurse {
+            collect_legacy_layout_markers(&entry.path(), &path, v2, v1, old)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_current_plan(grove_root: &Path, files: &[PlannedFile]) -> Result<()> {
+    let mut destinations = BTreeMap::new();
+    for file in files {
+        if let Some(previous_source) = destinations.insert(&file.to_rel, &file.from_rel) {
+            bail!(
+                "duplicate migration destination {} from {} and {}",
+                file.to_rel.display(),
+                previous_source.display(),
+                file.from_rel.display()
+            );
+        }
+        if file.from_rel == file.to_rel {
+            continue;
+        }
+
+        let destination = grove_root.join(&file.to_rel);
+        match fs::symlink_metadata(&destination) {
+            Ok(_) => bail!(
+                "migration destination collision: {} from {} already exists",
+                file.to_rel.display(),
+                file.from_rel.display()
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(error)
+                    .with_context(|| format!("checking destination {}", destination.display()));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn plan_pre_v2_current(
+    grove_root: &Path,
+    moves: &[PlannedMove],
+    files: &mut Vec<PlannedFile>,
+) -> Result<()> {
+    for planned in moves {
+        let source_path = grove_root.join(&planned.from_rel);
+        let source = fs::read_to_string(&source_path)
+            .with_context(|| format!("reading {}", source_path.display()))?;
+        let source = rewrite_body_header(&source, &planned.old_token, &planned.new_handle);
+        let (legacy_kind, body) = rewrite_legacy_metadata(&source_path, &source)?;
+
+        let to_rel =
+            if planned.to_rel.file_name().and_then(|name| name.to_str()) == Some("BRIEF.md") {
+                planned.to_rel.clone()
+            } else {
+                let file_name = planned
+                    .to_rel
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .context("legacy plan produced a non-UTF-8 destination")?;
+                let legacy = parse_legacy_v2_leaf_parts(file_name).with_context(|| {
+                    format!(
+                        "legacy plan produced invalid task destination {}",
+                        planned.to_rel.display()
+                    )
+                })?;
+                let current_name = Entry::Leaf {
+                    position: legacy.position,
+                    kind: resolve_standalone_kind(legacy_kind),
+                    slug: legacy.slug,
+                    key: legacy.key,
+                    outcome: legacy.outcome,
+                }
+                .name();
+                planned
+                    .to_rel
+                    .parent()
+                    .unwrap_or_else(|| Path::new(""))
+                    .join(current_name)
+            };
+
+        files.push(PlannedFile {
+            from_rel: planned.from_rel.clone(),
+            to_rel,
+            body: body.into_bytes(),
+        });
+    }
+    Ok(())
+}
+
+fn rewrite_body_header(body: &str, old_token: &str, new_handle: &str) -> String {
+    let (first, rest) = body.split_once('\n').unwrap_or((body, ""));
+    let Some(new_first) = rewrite_header_line(first, old_token, new_handle) else {
+        return body.to_string();
+    };
+    if body.contains('\n') {
+        format!("{new_first}\n{rest}")
+    } else {
+        new_first
+    }
+}
+
+fn plan_legacy_v2_node(node: &Path, node_rel: &Path, files: &mut Vec<PlannedFile>) -> Result<()> {
+    let mut entries = fs::read_dir(node)
+        .with_context(|| format!("reading {}", node.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+
+    let mut has_brief = false;
+    let mut child_nodes = Vec::new();
+    let mut leaves = Vec::new();
+
+    for entry in entries {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let from_rel = node_rel.join(&name);
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            if let Some(Entry::Node { position, .. }) = tree_id::parse(&name) {
+                let diagnostic_rel = if entry.path().join("BRIEF.md").is_file() {
+                    from_rel.join("BRIEF.md")
+                } else {
+                    from_rel.clone()
+                };
+                child_nodes.push((position, entry.path(), from_rel, diagnostic_rel));
+            }
+            continue;
+        }
+        if !file_type.is_file() {
+            continue;
+        }
+        if name == "BRIEF.md" {
+            has_brief = true;
+            if node_rel.as_os_str().is_empty() {
+                continue;
+            }
+            let source = fs::read_to_string(entry.path())
+                .with_context(|| format!("reading {}", entry.path().display()))?;
+            let (_kind, body) = rewrite_legacy_metadata(&entry.path(), &source)?;
+            files.push(PlannedFile {
+                from_rel: from_rel.clone(),
+                to_rel: from_rel,
+                body: body.into_bytes(),
+            });
+            continue;
+        }
+        let Some(legacy) = parse_legacy_v2_leaf_parts(&name) else {
+            continue;
+        };
+        let source = fs::read_to_string(entry.path())
+            .with_context(|| format!("reading {}", entry.path().display()))?;
+        let (kind, body) = rewrite_legacy_metadata(&entry.path(), &source)?;
+        leaves.push((
+            from_rel,
+            legacy,
+            kind.unwrap_or(LegacyKind::Known(Kind::Impl)),
+            body,
+        ));
+    }
+
+    leaves.sort_by_key(|(_, legacy, _, _)| legacy.position);
+    let mut task_children = leaves
+        .iter()
+        .map(|(path, legacy, kind, _)| (legacy.position, path.clone(), Some(*kind)))
+        .collect::<Vec<_>>();
+    task_children.extend(
+        child_nodes
+            .iter()
+            .map(|(position, _, _, diagnostic_rel)| (*position, diagnostic_rel.clone(), None)),
+    );
+    task_children.sort_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
+    let mut research_count = 0;
+    let mut vendor_candidate = false;
+    for (_, _, kind, _) in &leaves {
+        match kind {
+            LegacyKind::Research => research_count += 1,
+            LegacyKind::Known(Kind::CombineResearch) if research_count >= 2 => {
+                vendor_candidate = true;
+                break;
+            }
+            LegacyKind::Known(_) => {}
+        }
+    }
+    vendor_candidate &= !has_brief;
+    let vendor_pair = vendor_candidate
+        && child_nodes.is_empty()
+        && leaves.len() == 3
+        && matches!(leaves[0].2, LegacyKind::Research)
+        && matches!(leaves[1].2, LegacyKind::Research)
+        && matches!(leaves[2].2, LegacyKind::Known(Kind::CombineResearch));
+    if vendor_candidate && !vendor_pair {
+        bail!(
+            "ambiguous legacy vendor pair in {}: {}",
+            node.display(),
+            task_children
+                .iter()
+                .map(|(_, path, _)| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+
+    for (index, (from_rel, legacy, legacy_kind, body)) in leaves.into_iter().enumerate() {
+        let kind = match (vendor_pair, index, legacy_kind) {
+            (true, 0, LegacyKind::Research) => Kind::ResearchA,
+            (true, 1, LegacyKind::Research) => Kind::ResearchB,
+            (_, _, LegacyKind::Research) => Kind::ResearchA,
+            (_, _, LegacyKind::Known(kind)) => kind,
+        };
+        let to_name = Entry::Leaf {
+            position: legacy.position,
+            kind,
+            slug: legacy.slug,
+            key: legacy.key,
+            outcome: legacy.outcome,
+        }
+        .name();
+        files.push(PlannedFile {
+            from_rel,
+            to_rel: node_rel.join(to_name),
+            body: body.into_bytes(),
+        });
+    }
+
+    for (_, path, rel, _) in child_nodes {
+        plan_legacy_v2_node(&path, &rel, files)?;
+    }
+    Ok(())
+}
+
+struct LegacyV2Leaf {
+    position: u32,
+    slug: String,
+    key: u32,
+    outcome: tree_id::Outcome,
+}
+
+fn parse_legacy_v2_leaf_parts(name: &str) -> Option<LegacyV2Leaf> {
+    let stem = name.strip_suffix(".md")?;
+    let (position, rest) = stem.split_once('-')?;
+    if position.is_empty() || !position.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let position = position.parse().ok()?;
+    let (outcome, rest) = if let Some(rest) = rest.strip_prefix("DONE-") {
+        (tree_id::Outcome::Done, rest)
+    } else if let Some(rest) = rest.strip_prefix("ABANDONED-") {
+        (tree_id::Outcome::Abandoned, rest)
+    } else {
+        (tree_id::Outcome::Live, rest)
+    };
+    let (slug, key) = rest.rsplit_once("-k")?;
+    if slug.is_empty() || key.is_empty() || tree_id::validate_slug(slug).is_err() {
+        return None;
+    }
+    Some(LegacyV2Leaf {
+        position,
+        slug: slug.to_string(),
+        key: key.parse().ok()?,
+        outcome,
+    })
+}
+
+#[derive(Clone, Copy)]
+enum LegacyKind {
+    Known(Kind),
+    Research,
+}
+
+fn resolve_standalone_kind(kind: Option<LegacyKind>) -> Kind {
+    match kind.unwrap_or(LegacyKind::Known(Kind::Impl)) {
+        LegacyKind::Known(kind) => kind,
+        LegacyKind::Research => Kind::ResearchA,
+    }
+}
+
+fn rewrite_legacy_metadata(path: &Path, body: &str) -> Result<(Option<LegacyKind>, String)> {
+    let mut kind = None;
+    let mut rewritten = String::with_capacity(body.len());
+    for line in body.split_inclusive('\n') {
+        let content = line.trim_end_matches(['\r', '\n']);
+        if let Some(value) = content.strip_prefix("**Kind:**") {
+            if kind.is_some() {
+                bail!("repeated legacy kind marker in {}", path.display());
+            }
+            let value = value.trim();
+            if value.is_empty() {
+                bail!("empty legacy kind marker in {}", path.display());
+            }
+            kind =
+                Some(parse_legacy_kind(value).with_context(|| {
+                    format!("unknown legacy kind {value:?} in {}", path.display())
+                })?);
+        } else if content.starts_with("**Harness:**") || content.starts_with("**Producer launch:**")
+        {
+            continue;
+        } else {
+            rewritten.push_str(line);
+        }
+    }
+    Ok((kind, rewritten))
+}
+
+fn parse_legacy_kind(value: &str) -> Option<LegacyKind> {
+    match value {
+        "research" => Some(LegacyKind::Research),
+        "review-work" => Some(LegacyKind::Known(Kind::ReviewImpl)),
+        "integrate-review-work" => Some(LegacyKind::Known(Kind::IntegrateReviewImpl)),
+        "finish" => None,
+        _ => Kind::parse_read(value).map(LegacyKind::Known),
+    }
+}
+
 /// Classify a `.grove/` tree by scanning its top level (see [`Format`]). Precedence
 /// is V2 > V1Flat > OldNnn: a v2 marker means the tree is already migrated (never
 /// touched), then the v1-flat scheme this grove rode, then the old format for an
@@ -313,26 +723,7 @@ fn detect(grove_root: &Path) -> Result<Format> {
 /// Without the positive format witness, even a slug beginning with a current
 /// kind label remains legacy input.
 fn parse_legacy_v2_leaf(name: &str) -> bool {
-    let Some(stem) = name.strip_suffix(".md") else {
-        return false;
-    };
-    let Some((position, rest)) = stem.split_once('-') else {
-        return false;
-    };
-    if position.is_empty() || !position.bytes().all(|byte| byte.is_ascii_digit()) {
-        return false;
-    }
-    let rest = rest
-        .strip_prefix("DONE-")
-        .or_else(|| rest.strip_prefix("ABANDONED-"))
-        .unwrap_or(rest);
-    let Some((slug, key)) = rest.rsplit_once("-k") else {
-        return false;
-    };
-    !slug.is_empty()
-        && key.bytes().all(|byte| byte.is_ascii_digit())
-        && !key.is_empty()
-        && tree_id::validate_slug(slug).is_ok()
+    parse_legacy_v2_leaf_parts(name).is_some()
 }
 
 /// Read a **v1-flat** tree: it is flat, so a single `read_dir` of the grove root,
@@ -815,6 +1206,12 @@ mod tests {
             .collect()
     }
 
+    fn write(grove_root: &Path, path: &str, body: &str) {
+        let path = grove_root.join(path);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, body.as_bytes()).unwrap();
+    }
+
     // ---- detect -------------------------------------------------------------
 
     #[test]
@@ -906,6 +1303,375 @@ mod tests {
         let (_t, g) = grove();
         build(&g, &["BRIEF.md", "01-plan-k1.md", "done/010-old.md"]);
         assert_eq!(detect(&g).unwrap(), Format::V2);
+    }
+
+    #[test]
+    fn current_plan_maps_a_legacy_v2_kind_and_removes_only_obsolete_metadata() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(
+            &g,
+            "01-review-design-notes-k1.md",
+            "# review-design-notes-k1\n\n**Kind:** work\n**Harness:** codex\n\
+             **Reviews:** earlier-k9\n\
+             **Integrates:** combined-k8\n\
+             **Producer launch:** {\"producer\":\"earlier-k9\"}\n\n## Goal\nKeep me.\n",
+        );
+        write(&g, "notes.txt", "foreign\n");
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(plan.files.len(), 1);
+        let file = &plan.files[0];
+        assert_eq!(file.from_rel, Path::new("01-review-design-notes-k1.md"));
+        assert_eq!(file.to_rel, Path::new("01-impl-review-design-notes-k1.md"));
+        assert_eq!(
+            file.body,
+            b"# review-design-notes-k1\n\n**Reviews:** earlier-k9\n**Integrates:** combined-k8\n\n## Goal\nKeep me.\n"
+        );
+        assert!(g.join("01-review-design-notes-k1.md").is_file());
+        assert!(!g.join("01-impl-review-design-notes-k1.md").exists());
+        assert_eq!(
+            fs::read_to_string(g.join("notes.txt")).unwrap(),
+            "foreign\n"
+        );
+    }
+
+    #[test]
+    fn current_plan_walks_legacy_v2_nodes_and_preserves_outcomes() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(
+            &g,
+            "01-feature-k10/BRIEF.md",
+            "# feature-k10 — brief\n\n**Kind:** design\n## Goal\nShip.\n",
+        );
+        write(
+            &g,
+            "01-feature-k10/01-DONE-build-k11.md",
+            "# build-k11\n\n## Goal\nBuilt.\n",
+        );
+        write(
+            &g,
+            "01-feature-k10/02-ABANDONED-spike-k12.md",
+            "# spike-k12\n\n**Kind:** prototype\n## Goal\nProbe.\n",
+        );
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(
+            plan.files
+                .iter()
+                .map(|file| (
+                    file.from_rel.to_string_lossy().into_owned(),
+                    file.to_rel.to_string_lossy().into_owned(),
+                    String::from_utf8(file.body.clone()).unwrap(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "01-feature-k10/01-DONE-build-k11.md".into(),
+                    "01-feature-k10/01-DONE-impl-build-k11.md".into(),
+                    "# build-k11\n\n## Goal\nBuilt.\n".into(),
+                ),
+                (
+                    "01-feature-k10/02-ABANDONED-spike-k12.md".into(),
+                    "01-feature-k10/02-ABANDONED-prototype-spike-k12.md".into(),
+                    "# spike-k12\n\n## Goal\nProbe.\n".into(),
+                ),
+                (
+                    "01-feature-k10/BRIEF.md".into(),
+                    "01-feature-k10/BRIEF.md".into(),
+                    "# feature-k10 — brief\n\n## Goal\nShip.\n".into(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn current_plan_maps_every_accepted_legacy_kind_spelling() {
+        let cases = [
+            ("requirements", "requirements"),
+            ("design", "design"),
+            ("planning", "planning"),
+            ("prototype", "prototype"),
+            ("impl", "impl"),
+            ("work", "impl"),
+            ("review-requirements", "review-requirements"),
+            ("review-design", "review-design"),
+            ("review-planning", "review-planning"),
+            ("review-prototype", "review-prototype"),
+            ("review-impl", "review-impl"),
+            ("review-work", "review-impl"),
+            (
+                "integrate-review-requirements",
+                "integrate-review-requirements",
+            ),
+            ("integrate-review-design", "integrate-review-design"),
+            ("integrate-review-planning", "integrate-review-planning"),
+            ("integrate-review-prototype", "integrate-review-prototype"),
+            ("integrate-review-impl", "integrate-review-impl"),
+            ("integrate-review-work", "integrate-review-impl"),
+            ("research", "research-a"),
+            ("research-a", "research-a"),
+            ("research-b", "research-b"),
+            ("combine-research", "combine-research"),
+        ];
+        for (index, (legacy, current)) in cases.iter().enumerate() {
+            let (_t, g) = grove();
+            write(&g, "BRIEF.md", "# demo — brief\n");
+            let position = index + 1;
+            write(
+                &g,
+                &format!("{position:02}-task-k{position}.md"),
+                &format!("# task-k{position}\n\n**Kind:** {legacy}\n"),
+            );
+
+            let plan = plan_current(&g)
+                .unwrap_or_else(|error| panic!("legacy kind {legacy:?} was rejected: {error:#}"));
+
+            assert_eq!(
+                plan.files[0].to_rel,
+                PathBuf::from(format!("{position:02}-{current}-task-k{position}.md")),
+                "legacy kind {legacy:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn current_plan_rejects_invalid_legacy_kind_markers_with_the_source_path() {
+        let cases = [
+            ("**Kind:**\n", "empty legacy kind marker"),
+            (
+                "**Kind:** impl\n**Kind:** design\n",
+                "repeated legacy kind marker",
+            ),
+            ("**Kind:** sideways\n", "unknown legacy kind"),
+            ("**Kind:** finish\n", "unknown legacy kind"),
+        ];
+        for (body, expected) in cases {
+            let (_t, g) = grove();
+            write(&g, "BRIEF.md", "# demo — brief\n");
+            write(
+                &g,
+                "01-task-k1.md",
+                &format!("# task-k1\n\n{body}## Goal\n"),
+            );
+
+            let error = match plan_current(&g) {
+                Ok(_) => panic!("invalid marker was accepted: {body:?}"),
+                Err(error) => error,
+            };
+            let error = format!("{error:#}");
+
+            assert!(error.contains(expected), "unexpected error: {error}");
+            assert!(error.contains("01-task-k1.md"), "missing path: {error}");
+        }
+    }
+
+    #[test]
+    fn current_plan_assigns_sides_only_to_an_unambiguous_legacy_vendor_pair() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(
+            &g,
+            "01-vendor-k10/01-DONE-first-k11.md",
+            "# first-k11\n\n**Kind:** research\n",
+        );
+        write(
+            &g,
+            "01-vendor-k10/02-second-k12.md",
+            "# second-k12\n\n**Kind:** research\n",
+        );
+        write(
+            &g,
+            "01-vendor-k10/03-ABANDONED-combine-k13.md",
+            "# combine-k13\n\n**Kind:** combine-research\n",
+        );
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(
+            plan.files
+                .iter()
+                .map(|file| file.to_rel.to_string_lossy().into_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                "01-vendor-k10/01-DONE-research-a-first-k11.md",
+                "01-vendor-k10/02-research-b-second-k12.md",
+                "01-vendor-k10/03-ABANDONED-combine-research-combine-k13.md",
+            ]
+        );
+    }
+
+    #[test]
+    fn current_plan_rejects_legacy_vendor_pairs_with_extra_task_structure() {
+        for extra in ["04-extra-k14.md", "00-extra-k14/BRIEF.md"] {
+            let (_t, g) = grove();
+            write(&g, "BRIEF.md", "# demo — brief\n");
+            write(
+                &g,
+                "01-vendor-k10/01-first-k11.md",
+                "# first-k11\n\n**Kind:** research\n",
+            );
+            write(
+                &g,
+                "01-vendor-k10/02-second-k12.md",
+                "# second-k12\n\n**Kind:** research\n",
+            );
+            write(
+                &g,
+                "01-vendor-k10/03-combine-k13.md",
+                "# combine-k13\n\n**Kind:** combine-research\n",
+            );
+            write(&g, &format!("01-vendor-k10/{extra}"), "# extra-k14\n");
+
+            let error = match plan_current(&g) {
+                Ok(_) => panic!("ambiguous vendor pair with {extra} was accepted"),
+                Err(error) => format!("{error:#}"),
+            };
+
+            assert!(error.contains("ambiguous legacy vendor pair"), "{error}");
+            for path in [
+                "01-first-k11.md",
+                "02-second-k12.md",
+                "03-combine-k13.md",
+                extra,
+            ] {
+                assert!(error.contains(path), "missing {path:?} in: {error}");
+            }
+        }
+    }
+
+    #[test]
+    fn current_plan_maps_v1_flat_directly_to_kind_filenames() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(
+            &g,
+            "1-[7]-feature.DONE.md",
+            "# 1-[7]-feature\n\n**Kind:** work\n**Harness:** codex\n\
+             **Reviews:** design-k6\n\n## Goal\nShip.\n",
+        );
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(plan.files.len(), 1);
+        assert_eq!(plan.files[0].from_rel, Path::new("1-[7]-feature.DONE.md"));
+        assert_eq!(
+            plan.files[0].to_rel,
+            Path::new("01-DONE-impl-feature-k7.md")
+        );
+        assert_eq!(
+            plan.files[0].body,
+            b"# feature-k7\n\n**Reviews:** design-k6\n\n## Goal\nShip.\n"
+        );
+    }
+
+    #[test]
+    fn current_plan_maps_old_nnn_directly_to_kind_filenames() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(
+            &g,
+            "010-node/BRIEF.md",
+            "# 010-node — brief\n\n**Kind:** design\n## Goal\nGroup.\n",
+        );
+        write(
+            &g,
+            "010-node/020-task.md",
+            "# 020-task\n\n**Producer launch:** stale\n## Goal\nBuild.\n",
+        );
+
+        let plan = plan_current(&g).unwrap();
+
+        assert_eq!(
+            plan.files
+                .iter()
+                .map(|file| (
+                    file.from_rel.to_string_lossy().into_owned(),
+                    file.to_rel.to_string_lossy().into_owned(),
+                    String::from_utf8(file.body.clone()).unwrap(),
+                ))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "010-node/020-task.md".into(),
+                    "01-node-k1/01-impl-task-k2.md".into(),
+                    "# task-k2\n\n## Goal\nBuild.\n".into(),
+                ),
+                (
+                    "010-node/BRIEF.md".into(),
+                    "01-node-k1/BRIEF.md".into(),
+                    "# node-k1 — brief\n\n## Goal\nGroup.\n".into(),
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn current_plan_is_a_no_op_for_the_known_format_and_rejects_unknown_witnesses() {
+        let (_t, g) = grove();
+        write(&g, "FORMAT", "session-kinds-v1\n");
+        write(&g, "BRIEF.md", "# current — brief\n");
+        write(&g, "01-impl-task-k1.md", "# task-k1\n");
+
+        assert!(plan_current(&g).unwrap().files.is_empty());
+
+        write(&g, "FORMAT", "session-kinds-v99\n");
+        let error = match plan_current(&g) {
+            Ok(_) => panic!("unknown format witness was accepted"),
+            Err(error) => format!("{error:#}"),
+        };
+        assert!(error.contains("unsupported Grove tree format"), "{error}");
+        assert!(error.contains("FORMAT"), "{error}");
+    }
+
+    #[test]
+    fn current_plan_rejects_an_existing_destination_before_mutation() {
+        let (_t, g) = grove();
+        write(&g, "BRIEF.md", "# demo — brief\n");
+        write(&g, "01-task-k1.md", "# task-k1\n");
+        write(
+            &g,
+            "01-impl-task-k1.md/foreign.txt",
+            "must remain untouched\n",
+        );
+
+        let error = match plan_current(&g) {
+            Ok(_) => panic!("existing destination was accepted"),
+            Err(error) => format!("{error:#}"),
+        };
+
+        assert!(error.contains("migration destination collision"), "{error}");
+        assert!(error.contains("01-task-k1.md"), "{error}");
+        assert!(error.contains("01-impl-task-k1.md"), "{error}");
+        assert!(g.join("01-task-k1.md").is_file());
+        assert!(g.join("01-impl-task-k1.md/foreign.txt").is_file());
+    }
+
+    #[test]
+    fn current_plan_rejects_mixed_legacy_grammars_with_the_marker_paths() {
+        for (left, right) in [
+            ("01-task-k1.md", "1-[2]-other.md"),
+            ("1-[1]-task.md", "010-other.md"),
+            ("01-task-k1.md", "010-other.md"),
+            ("01-node-k1/01-task-k2.md", "01-node-k1/010-other.md"),
+        ] {
+            let (_t, g) = grove();
+            write(&g, "BRIEF.md", "# demo — brief\n");
+            write(&g, left, "# task\n");
+            write(&g, right, "# other\n");
+
+            let error = match plan_current(&g) {
+                Ok(_) => panic!("mixed legacy grammars were accepted: {left}, {right}"),
+                Err(error) => format!("{error:#}"),
+            };
+
+            assert!(error.contains("ambiguous legacy tree layout"), "{error}");
+            assert!(error.contains(left), "missing {left:?} in: {error}");
+            assert!(error.contains(right), "missing {right:?} in: {error}");
+        }
     }
 
     // ---- plan: v1-flat golden tree (this grove's exact shape) ---------------

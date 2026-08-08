@@ -754,10 +754,8 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     Ok(())
 }
 
-// The `--harness` write gate, mirroring `Kind::parse`'s: an unrecognised name is
-// refused at authoring time, when a human is present to fix it. The read side
-// (`tree_read::read_harness`) refuses too — unlike the kind axis, which degrades
-// on read — so this gate is a *sooner* failure, not the only one.
+// The write-side harness-name gate, mirroring `Kind::parse`: an unrecognised
+// name is refused at authoring time, when a human is present to fix it.
 fn parse_harness(name: Option<&str>) -> Result<Option<&'static crate::harness::Harness>> {
     let Some(name) = name else {
         return Ok(None);

@@ -2,8 +2,7 @@ use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const CURRENT: &str = "session-kinds-v1";
-const CURRENT_FILE_CONTENTS: &[u8] = b"session-kinds-v1\n";
+const CURRENT_FILE_CONTENTS: &str = "session-kinds-v1\n";
 
 pub fn require_current(grove_root: &Path) -> Result<()> {
     let path = grove_root.join("FORMAT");
@@ -18,13 +17,13 @@ pub fn require_current(grove_root: &Path) -> Result<()> {
         }
         Err(error) => return Err(error).with_context(|| format!("reading {}", path.display())),
     };
-    if contents != CURRENT_FILE_CONTENTS {
+    if contents != CURRENT_FILE_CONTENTS.as_bytes() {
         let found = String::from_utf8_lossy(&contents);
         bail!(
-            "unsupported Grove tree format {:?} in {}; this binary requires {:?}",
-            found.trim_end(),
+            "unsupported Grove tree format: found {:?} in {}; this binary requires {:?}",
+            found,
             path.display(),
-            CURRENT
+            CURRENT_FILE_CONTENTS
         );
     }
     Ok(())

@@ -1,18 +1,12 @@
-// Fixture-driven tests for `grove-llm kind` on the **v2 directory scheme**
-// (task-tree-scheme). `kind` prints a leaf's task kind — one of the closed
-// seventeen (ADR `task-kind-taxonomy`; membership in
-// `docs/ARCHITECTURE.md#task-kind-taxonomy`) — read from its `**Kind:**` line through
-// `leaf::Kind::parse_read` (the read-side counterpart of the `--kind` write
-// gate). It is the primitive the self-driving loop uses to choose each
-// session's launch harness and model by the picked leaf's kind
-// (model-per-task-kind). With no argument it reads `pick`'s next live leaf; on
-// an empty grove it emits the standard "no live leaves" diagnostic on stderr
-// and exits 0 (mirroring `brief-chain`). Reading **degrades**: a missing or
-// unrecognised `**Kind:**` line warns on stderr and is treated as `impl` rather
-// than erroring (write still gates — see `tests/leaf.rs`'s invalid-`--kind`
-// coverage). The one thing that is neither a match nor a degrade is the retired
-// spelling `work`, which resolves to `impl` *silently*. Each test stands up a
-// real git repo so `git rev-parse --show-toplevel` resolves to the fixture path.
+// Fixture-driven tests for `grove-llm kind` on the current session-kind tree.
+// `kind` separates one of the closed nineteen kinds from the leaf filename; it
+// never consults historical `**Kind:**` or `**Harness:**` body metadata. It is
+// the primitive the self-driving loop uses to choose each session's launch
+// harness and model. With no argument it reads `pick`'s next live leaf; on an
+// empty grove it emits the standard "no live leaves" diagnostic on stderr and
+// exits 0 (mirroring `brief-chain`). Unknown or malformed filename kinds refuse
+// rather than degrading. Each test stands up a real git repo so
+// `git rev-parse --show-toplevel` resolves to the fixture path.
 
 mod support;
 
@@ -41,7 +35,7 @@ fn init_repo() -> TempDir {
     tmp
 }
 
-/// Write a leaf task file with the given `**Kind:**` label, creating parent dirs.
+/// Write a leaf with an inert historical `**Kind:**` line, creating parent dirs.
 fn touch_leaf(dir: &Path, name: &str, kind_label: &str) {
     fs::create_dir_all(dir).unwrap();
     fs::write(
@@ -118,11 +112,8 @@ fn every_one_of_the_nineteen_round_trips_through_the_verb() {
 }
 
 #[test]
-fn the_retired_work_label_reads_as_impl_without_a_warning() {
-    // The compatibility rule the `work` → `impl` rename stands on
-    // (task-kind-taxonomy). Silence is half the contract: every task file of
-    // every live grove says `work`, so warning here would fire constantly and
-    // teach the operator to ignore the diagnostic that matters.
+fn a_retired_work_body_label_is_ignored() {
+    // Historical body routing metadata cannot override the current filename.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch_leaf(&grove, "01-impl-build-k1.md", "work");
@@ -132,7 +123,7 @@ fn the_retired_work_label_reads_as_impl_without_a_warning() {
     assert_eq!(stdout, "impl\n");
     assert!(
         stderr.is_empty(),
-        "the previous spelling is not a degrade — no warning, got {stderr:?}"
+        "body metadata must be inert, got {stderr:?}"
     );
 }
 
@@ -223,11 +214,9 @@ fn a_typoed_body_kind_is_ignored_with_exit_zero() {
 
 // ── `--with-harness`: the loop driver's peek (leaf-harness-k15) ──────────
 //
-// The second routing axis rides the *same* verb call, on a second line, so the
-// driver resolves both launch facts in one subprocess. Everything below is the
-// contract that flag carries — including the two ways it deliberately differs
-// from the kind axis: undeclared is the common answer, and a bad declaration
-// **refuses** where a bad kind degrades.
+// The flag remains as a wire-compatibility spelling. Plain output is still only
+// the filename kind; structured output carries nullable compatibility fields.
+// Neither form consults historical routing metadata in the task body.
 
 /// Write a leaf that declares both a kind and a harness, in the shape the leaf
 /// template writes them — the `**Harness:**` line immediately under `**Kind:**`.
@@ -259,11 +248,9 @@ fn with_harness_compatibility_flag_does_not_read_body_metadata() {
 }
 
 #[test]
-fn with_harness_adds_nothing_when_the_leaf_declares_none() {
-    // The zero-cost path, and the reason the driver can pass this flag
-    // unconditionally: for a leaf with no `**Harness:**` line the output is
-    // byte-identical to the plain form, so nothing downstream has to branch on
-    // whether the flag was passed.
+fn with_harness_compatibility_flag_preserves_plain_output() {
+    // The driver can pass this compatibility flag unconditionally: text output
+    // stays byte-identical to the plain form.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch_leaf(&grove, "01-impl-build-k1.md", "impl");
@@ -280,10 +267,8 @@ fn with_harness_adds_nothing_when_the_leaf_declares_none() {
 
 #[test]
 fn the_plain_form_never_reads_the_harness_line() {
-    // `kind` prints the kind. A leaf whose `**Harness:**` line is garbage still
-    // has a perfectly good kind, and asking for it must not fail — the refusal
-    // belongs to the *launch* path, which is the only caller that would act on
-    // the declaration.
+    // A historical `**Harness:**` line is inert; the filename remains the only
+    // source of task kind.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     touch_leaf_with_harness(&grove, "01-research-a-survey-k1.md", "impl", "codx");
@@ -311,10 +296,7 @@ fn an_unrecognised_body_harness_is_ignored() {
 
 #[test]
 fn an_empty_body_harness_line_is_ignored() {
-    // A `**Harness:**` with nothing after it is a declaration its author did not
-    // finish, not the absence of one. Reading it as undeclared would silently
-    // run the leaf on the stamp — the same failure as an unknown name, arrived
-    // at by a different typo.
+    // Even malformed historical routing metadata is inert.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();
@@ -334,8 +316,7 @@ fn an_empty_body_harness_line_is_ignored() {
 
 #[test]
 fn with_harness_ignores_trailing_body_commentary() {
-    // Same parse as `**Kind:**` — first whitespace token, rest ignored — so a
-    // leaf that explains *why* it names a vendor still routes.
+    // Commentary on historical body metadata does not participate in routing.
     let tmp = init_repo();
     let grove = tmp.path().join(".grove");
     fs::create_dir_all(&grove).unwrap();

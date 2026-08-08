@@ -167,10 +167,11 @@ _Avoid_: inferring authority from the existence or bytes of a control file. The 
 The launch-and-discipline label encoded only in a [[Leaf]] `.md` filename as
 `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`. The kind is routing
 metadata, not identity: the stable [[Work-item handle]] remains `<slug>-k<key>`.
-The leaf parser matches the longest member of the closed kind set, so hyphenated
-kinds remain unambiguous. A [[Node directory]] is kind-free by construction and
-is never passed through this parser, including when its slug begins with a kind
-token. The closed set
+The leaf parser separates exactly one member of the closed kind set. No kind
+label plus `-` prefixes another kind label, so rendered names remain
+unambiguous and round-trip without changing the stable slug. A [[Node directory]]
+is kind-free by construction and is never passed through this parser, including
+when its slug begins with a kind token. The closed set
 has nineteen members: five producers — `requirements`, `design`, `planning`,
 `prototype`, and `impl` — each with its corresponding `review-` and
 `integrate-review-` kind, plus `research-a`, `research-b`,
@@ -737,14 +738,14 @@ defence.
 
 **Tree format witness** (`.grove/FORMAT`):
 The positive discriminator for the current session-kind filename grammar, with
-exact content `session-kinds-v1`. Root initialization and migration write it
-last by same-directory temporary write plus atomic rename, after the rest of the
-current tree is complete. Before absence means legacy, bare `grove` first
-recovers a migration witness or an exact partial root-init scaffold. A legacy
-slug may begin with a valid kind token; an unknown value means a newer or foreign
-format and stops without mutation. It is format metadata inside the artifact
-tree, not a phase, status, or counter file. Atomic replacement covers process
-interruption, not ordered power-loss durability.
+exact LF-terminated content `session-kinds-v1\n`. Root initialization and
+migration write it last by same-directory temporary write plus atomic rename,
+after the rest of the current tree is complete. Before absence means legacy,
+bare `grove` first recovers a migration witness or an exact partial root-init
+scaffold. A legacy slug may begin with a valid kind token; an unknown value means
+a newer or foreign format and stops without mutation. It is format metadata
+inside the artifact tree, not a phase, status, or counter file. Atomic
+replacement covers process interruption, not ordered power-loss durability.
 _Avoid_: inferring current format by parsing a filename prefix — a legacy slug
 such as `design-notes` makes that test silently change both kind and handle.
 

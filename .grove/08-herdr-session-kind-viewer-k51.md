@@ -18,8 +18,9 @@ filename grammar as an independently demonstrable consumer of the tree format.
 
 ## Done when
 
-- The renderer matches the longest of all nineteen filename kinds after either
-  terminal infix and keeps the stable slug/key separate from routing metadata.
+- The renderer separates one of the nineteen non-prefix filename-kind labels
+  after either terminal infix and keeps the stable slug/key separate from
+  routing metadata.
 - Fixtures cover every kind, live/DONE/ABANDONED leaves, chain nodes, finish,
   malformed task-shaped names, and foreign files without opening task bodies.
 - Viewer documentation states the filename-only compatibility contract and

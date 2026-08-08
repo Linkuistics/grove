@@ -48,7 +48,7 @@ fn stderr(output: &std::process::Output) -> String {
 }
 
 #[test]
-fn filename_kind_uses_the_longest_known_prefix_and_body_routing_metadata_is_ignored() {
+fn filename_kind_is_unambiguous_and_body_routing_metadata_is_ignored() {
     let repository = init_repo();
     let grove = current_grove(repository.path());
     let leaf = write_leaf(
@@ -160,6 +160,25 @@ fn current_tree_reader_refuses_an_unknown_format_witness() {
     let error = stderr(&output);
     assert!(error.contains("session-kinds-v2"), "{error}");
     assert!(error.contains("session-kinds-v1"), "{error}");
+}
+
+#[test]
+fn current_tree_reader_exposes_a_missing_format_witness_newline() {
+    let repository = init_repo();
+    let grove = repository.path().join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1").unwrap();
+    write_leaf(&grove, "01-impl-work-k1.md", "# work-k1\n");
+
+    let output = grove_llm(repository.path(), &["pick"]);
+
+    assert!(!output.status.success());
+    let error = stderr(&output);
+    assert!(error.contains("found \"session-kinds-v1\""), "{error}");
+    assert!(
+        error.contains("requires \"session-kinds-v1\\n\""),
+        "{error}"
+    );
 }
 
 #[test]

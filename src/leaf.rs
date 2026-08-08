@@ -255,9 +255,9 @@ impl Kind {
 
     /// Write gates (task-kind-taxonomy): a grow verb rejects an unrecognised
     /// `--kind` with an error listing the whole set, so a typo is caught at
-    /// authoring time, when a human is present to fix it. Read degrades
-    /// instead — see [`Kind::parse_read`] and its caller `tree_read::read_kind`,
-    /// the read-path counterpart that never bails through this error.
+    /// authoring time, when a human is present to fix it. Legacy migration and
+    /// installed-driver wire compatibility use the private read parser below;
+    /// current task filenames never degrade.
     ///
     /// `work` is refused here rather than silently accepted: it is the previous
     /// spelling of `impl`, and the gate exists to retrain a human who is present
@@ -322,10 +322,10 @@ impl Kind {
         Kind::ALL.into_iter().find(|k| k.label() == s)
     }
 
-    /// Split `<session-kind>-<slug>` using the longest known kind label. The
-    /// longest-match rule keeps `integrate-review-requirements` from being
-    /// consumed as a shorter prefix and makes the remaining slug the stable
-    /// identity portion of the filename.
+    /// Split `<session-kind>-<slug>` using a known kind label. The closed label
+    /// set has a stronger invariant: no label plus `-` prefixes another label,
+    /// so every rendered filename has exactly one matching kind and round-trips
+    /// without changing the stable slug. Longest selection stays defensive.
     pub(crate) fn split_filename_prefix(value: &str) -> Option<(Kind, &str)> {
         Kind::ALL
             .into_iter()
@@ -464,6 +464,23 @@ mod inline_tests {
     }
 
     #[test]
+    fn filename_kind_labels_never_prefix_one_another() {
+        for kind in Kind::ALL {
+            let prefix = format!("{}-", kind.label());
+            for other in Kind::ALL {
+                if kind != other {
+                    assert!(
+                        !other.label().starts_with(&prefix),
+                        "kind labels {:?} and {:?} make filename parsing ambiguous",
+                        kind.label(),
+                        other.label()
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn the_labels_are_exactly_the_taxonomy_spellings() {
         // Pinned verbatim: these strings are a public surface (task files on
         // disk, env-var suffixes, `grove-llm kind` output), so a "harmless"
@@ -533,6 +550,14 @@ mod inline_tests {
             "the error must name the replacement: {err:?}"
         );
         assert!(err.contains("work"), "…and the word it replaces: {err:?}");
+    }
+
+    #[test]
+    fn legacy_research_reads_as_research_a_but_is_refused_on_write() {
+        assert_eq!(Kind::parse_read("research"), Some(Kind::ResearchA));
+        let err = Kind::parse("research").unwrap_err().to_string();
+        assert!(err.contains("research-a"), "{err}");
+        assert!(err.contains("research-b"), "{err}");
     }
 
     // The families, and the one grouping that a loose matcher gets wrong.
@@ -629,9 +654,9 @@ mod inline_tests {
     }
 
     #[test]
-    fn parse_read_still_reports_a_genuinely_unknown_label() {
+    fn parse_read_rejects_a_genuinely_unknown_label() {
         // The alias must not turn `parse_read` into "anything goes" — an
-        // unrecognised token still comes back `None`, so `read_kind` can warn.
+        // unrecognised wire or legacy-migration token still comes back `None`.
         assert_eq!(Kind::parse_read("reserch"), None);
         assert_eq!(Kind::parse_read(""), None);
     }

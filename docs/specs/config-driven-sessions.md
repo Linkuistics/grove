@@ -226,7 +226,7 @@ commit), while no session launches. There is no cache across loop iterations.
 ## Session kinds live in filenames
 
 Every current tree carries a positive format witness at `.grove/FORMAT` whose
-exact contents are:
+exact contents, including the terminating LF, are:
 
 ```text
 session-kinds-v1
@@ -250,11 +250,13 @@ The current leaf grammar is:
 NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
 ```
 
-The parser matches the longest member of the closed kind set after the optional
-outcome infix. This is necessary because `review-design` and `design`, for
-example, can both prefix a slug. The position remains mutable and the
-`<slug>-k<key>` handle remains stable; kind is routing metadata, not identity.
-Node directory names remain kind-free.
+After the optional outcome infix, the parser separates exactly one member of
+the closed kind set. The set maintains a non-prefix invariant: no kind label
+followed by `-` prefixes another kind label. Without that invariant, rendering a
+shorter kind plus a slug could produce the same bytes as a longer kind plus a
+different slug, so longest matching alone could not preserve identity. The
+position remains mutable and the `<slug>-k<key>` handle remains stable; kind is
+routing metadata, not identity. Node directory names remain kind-free.
 
 Every positioned, keyed Markdown filename is task-shaped and must contain a
 known kind, whether it is live, `DONE`, or `ABANDONED`. An absent or unknown kind
@@ -278,11 +280,11 @@ new work before teardown; ordinary `leaf-add` may also append later work because
 finish selection cannot starve it.
 
 The optional Herdr tree viewer depends on this filename grammar as well as the
-node-directory grammar. It parses the same longest known kind before the slug
-and never opens a task body merely to render kind. Adding a session kind is
-therefore a breaking configuration-schema and viewer-grammar change: the CLI,
-embedded methodology, viewer, examples, and all complete personal configs must
-move together.
+node-directory grammar. It parses one member of the same non-prefix kind-label
+set before the slug and never opens a task body merely to render kind. Adding a
+session kind is therefore a breaking configuration-schema and viewer-grammar
+change: the CLI, embedded methodology, viewer, examples, and all complete
+personal configs must move together.
 
 ## Authoritative selection and mandate
 
@@ -881,11 +883,12 @@ Through that seam, cover:
   diagnostics, and explicit versus absent Herdr settings.
 
 The `grove-llm` tree interface is the second seam. Exercise current filename
-parsing, longest-kind matching, malformed task-shaped names, stable resolution,
-pair generation without harness flags, per-verb finish refusal, finish-skipping
-pick order, mandate-authorized promotion after a launch-window insert, and
-migration refusal while a witness exists. The Herdr renderer gets filename-only
-fixtures for all nineteen kinds and both terminal infixes.
+parsing, the kind-label non-prefix invariant, malformed task-shaped names,
+stable resolution, pair generation without harness flags, per-verb finish
+refusal, finish-skipping pick order, mandate-authorized promotion after a
+launch-window insert, and migration refusal while a witness exists. The Herdr
+renderer gets filename-only fixtures for all nineteen kinds and both terminal
+infixes.
 
 Internal unit tests may cover pure KDL/template and migration-plan functions and
 the process-ownership backend's event trace. Acceptance remains stated in

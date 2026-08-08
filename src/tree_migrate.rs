@@ -289,12 +289,7 @@ fn detect(grove_root: &Path) -> Result<Format> {
                 has_old = true; // a `done/` mirror or an old `NNN-slug/` node dir
             }
         } else if ft.is_file() {
-            if matches!(tree_id::parse(&name), Some(Entry::Leaf { .. })) {
-                bail!(
-                    "current-format Grove leaf {:?} has no FORMAT witness; refusing legacy migration",
-                    name
-                );
-            } else if parse_legacy_v2_leaf(&name) {
+            if parse_legacy_v2_leaf(&name) {
                 has_v2 = true; // a legacy v2 `…-k<key>.md` leaf
             } else if leaf_id::parse(&name).is_some() {
                 has_v1 = true; // a v1-flat `<dotted>-[<key>]-<slug>` keyed file
@@ -314,8 +309,9 @@ fn detect(grove_root: &Path) -> Result<Format> {
     })
 }
 
-/// Recognise only the kind-free leaf spelling produced by the legacy v2
-/// adapter. Current-format names are handled above and must have a witness.
+/// Recognise the kind-free leaf spelling produced by the legacy v2 adapter.
+/// Without the positive format witness, even a slug beginning with a current
+/// kind label remains legacy input.
 fn parse_legacy_v2_leaf(name: &str) -> bool {
     let Some(stem) = name.strip_suffix(".md") else {
         return false;
@@ -326,7 +322,10 @@ fn parse_legacy_v2_leaf(name: &str) -> bool {
     if position.is_empty() || !position.bytes().all(|byte| byte.is_ascii_digit()) {
         return false;
     }
-    let rest = rest.strip_prefix("DONE-").unwrap_or(rest);
+    let rest = rest
+        .strip_prefix("DONE-")
+        .or_else(|| rest.strip_prefix("ABANDONED-"))
+        .unwrap_or(rest);
     let Some((slug, key)) = rest.rsplit_once("-k") else {
         return false;
     };

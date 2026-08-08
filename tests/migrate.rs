@@ -3,8 +3,8 @@
 // old tree to the **v2 directory scheme** (task-tree-scheme). The migration accepts the
 // old `NNN-slug/` + `done/` directory format (exercised here) and the v1-flat
 // `<dotted>-[<key>]-<slug>` format alike, lowering both to v2 node directories +
-// `NN-[DONE-]<slug>-k<key>.md` leaves. These drive the real `grove` binary on a
-// real git repo, so they exercise what the in-process unit tests in
+// `NN-[DONE-|ABANDONED-]<slug>-k<key>.md` leaves. These drive the real `grove`
+// binary on a real git repo, so they exercise what the in-process unit tests in
 // `src/tree_migrate.rs` cannot: the `git mv`s, the on-disk header rewrites to the
 // position-free `# <slug>-k<key>` handle, the no-commit contract, the
 // empty-directory cleanup, idempotency, and that the migrated tree drives
@@ -313,6 +313,48 @@ fn migrate_is_idempotent_noop_on_an_already_v2_tree() {
         porcelain(repo.path()).trim().is_empty(),
         "no changes on a v2 tree"
     );
+}
+
+#[test]
+fn migrate_recognizes_a_kind_prefixed_legacy_v2_slug_without_a_format_witness() {
+    let repo = init_repo();
+    let grove = repo.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("01-design-notes-k1.md"), "# design-notes-k1\n");
+    stage_commit(repo.path());
+    let before = head(repo.path());
+
+    let (_stdout, stderr, ok) = run_migrate(repo.path());
+
+    assert!(ok, "legacy-v2 detection should succeed: {stderr}");
+    assert!(stderr.contains("already v2"), "{stderr}");
+    assert_eq!(
+        head(repo.path()),
+        before,
+        "detection must not create a commit"
+    );
+    assert!(porcelain(repo.path()).trim().is_empty(), "no tree churn");
+}
+
+#[test]
+fn migrate_recognizes_an_abandoned_legacy_v2_leaf() {
+    let repo = init_repo();
+    let grove = repo.path().join(".grove");
+    touch(&grove.join("BRIEF.md"), "# demo — brief\n");
+    touch(&grove.join("01-ABANDONED-spike-k1.md"), "# spike-k1\n");
+    stage_commit(repo.path());
+    let before = head(repo.path());
+
+    let (_stdout, stderr, ok) = run_migrate(repo.path());
+
+    assert!(ok, "legacy-v2 detection should succeed: {stderr}");
+    assert!(stderr.contains("already v2"), "{stderr}");
+    assert_eq!(
+        head(repo.path()),
+        before,
+        "detection must not create a commit"
+    );
+    assert!(porcelain(repo.path()).trim().is_empty(), "no tree churn");
 }
 
 #[test]

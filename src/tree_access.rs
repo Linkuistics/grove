@@ -198,7 +198,7 @@ fn refuse_pending(grove_root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn refuse_pending_migration(grove_root: &Path) -> Result<()> {
+pub(crate) fn refuse_pending_migration(grove_root: &Path) -> Result<()> {
     let migration = grove_root.join(MIGRATION_TRANSACTION);
     match fs::symlink_metadata(&migration) {
         Ok(_) => bail!(

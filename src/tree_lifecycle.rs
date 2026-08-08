@@ -150,10 +150,39 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
         )
     })?;
     let brief_path = grove_root.join("BRIEF.md");
+    let mut entries = fs::read_dir(grove_root)
+        .with_context(|| format!("reading partial root scaffold {}", grove_root.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    let mut scaffold_leaf_candidates = entries.iter().filter_map(|entry| {
+        let name = entry.file_name();
+        let Entry::Leaf {
+            position: 1,
+            kind: Kind::Requirements,
+            slug,
+            key: 1,
+            outcome: Outcome::Live,
+        } = parse(name.to_str()?)?
+        else {
+            return None;
+        };
+        Some((entry.path(), slug))
+    });
+    let scaffold_leaf = scaffold_leaf_candidates.next();
+    if let Some((duplicate_path, _)) = scaffold_leaf_candidates.next() {
+        bail!(
+            "ambiguous partial root scaffold at {}: multiple first requirements leaves, including {}",
+            grove_root.display(),
+            duplicate_path.display()
+        );
+    }
+    let scaffold_slug = scaffold_leaf
+        .as_ref()
+        .map_or("plan", |(_, slug)| slug.as_str());
     let leaf_name = Entry::Leaf {
         position: 1,
         kind: Kind::Requirements,
-        slug: "plan".to_string(),
+        slug: scaffold_slug.to_string(),
         key: 1,
         outcome: Outcome::Live,
     }
@@ -161,7 +190,7 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     let leaf_path = grove_root.join(&leaf_name);
     let format_temporary_path = grove_root.join(".FORMAT.tmp");
     let expected_brief = root_brief_body(&grove_name(worktree));
-    let expected_leaf = crate::tree_grow::task_template_body("plan", 1, &[], None);
+    let expected_leaf = crate::tree_grow::task_template_body(scaffold_slug, 1, &[], None);
 
     let expected = [
         (brief_path.as_path(), expected_brief.as_bytes()),
@@ -176,16 +205,34 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     // content. Validate it before deciding that the surrounding entries belong
     // to a legacy tree; otherwise `write_current_last` could follow and truncate
     // a near-match symlink during migration.
-    validate_partial_scaffold_file(
+    let temporary_is_present = validate_partial_scaffold_file(
         &format_temporary_path,
         crate::tree_format::CURRENT_FILE_CONTENTS.as_bytes(),
     )?;
+    let scaffold_leaf_is_present = if scaffold_leaf.is_some() {
+        match partial_scaffold_file_match(&leaf_path, expected_leaf.as_bytes())? {
+            Some(true) => true,
+            Some(false)
+                if !temporary_is_present
+                    && crate::tree_migrate::has_explicit_legacy_kind(&leaf_path)? =>
+            {
+                // Legacy-v2 slugs are kind-free. A valid legacy slug such as
+                // `requirements-design` therefore overlaps the current
+                // `requirements` filename prefix without being root-init state.
+                return Ok(false);
+            }
+            Some(false) => {
+                validate_partial_scaffold_file(&leaf_path, expected_leaf.as_bytes())?;
+                unreachable!("a differing scaffold leaf is rejected")
+            }
+            None => false,
+        }
+    } else {
+        false
+    };
+    let brief_match = partial_scaffold_file_match(&brief_path, expected_brief.as_bytes())?;
 
     let mut unexpected = Vec::new();
-    let mut entries = fs::read_dir(grove_root)
-        .with_context(|| format!("reading partial root scaffold {}", grove_root.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         if !expected.iter().any(|(path, _)| path == &entry.path()) {
             unexpected.push(entry.path());
@@ -193,10 +240,7 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     }
 
     if !unexpected.is_empty() {
-        let has_exact_scaffold_file = expected
-            .iter()
-            .any(|(path, body)| path.is_file() && fs::read(path).is_ok_and(|found| found == *body));
-        if has_exact_scaffold_file {
+        if scaffold_leaf_is_present || temporary_is_present {
             bail!(
                 "ambiguous partial root scaffold at {}: exact fresh-tree content is mixed with \
                  unexpected entries: {}",
@@ -210,6 +254,9 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
         }
         return Ok(false);
     }
+    if scaffold_leaf.is_none() && !temporary_is_present && matches!(brief_match, Some(false)) {
+        return Ok(false);
+    }
 
     for (path, expected_body) in expected {
         validate_partial_scaffold_file(path, expected_body)?;
@@ -219,7 +266,7 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
         write_root_brief(&brief_path, &grove_name(worktree))?;
     }
     if !leaf_path.exists() {
-        let created = leaf_add_unlocked(grove_root, grove_root, "plan", Kind::Requirements)?;
+        let created = leaf_add_unlocked(grove_root, grove_root, scaffold_slug, Kind::Requirements)?;
         anyhow::ensure!(
             created.canonicalize()? == leaf_path.canonicalize()?,
             "partial root recovery created unexpected first leaf {}; expected {}",
@@ -232,9 +279,21 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
 }
 
 fn validate_partial_scaffold_file(path: &Path, expected_body: &[u8]) -> Result<bool> {
+    match partial_scaffold_file_match(path, expected_body)? {
+        None => Ok(false),
+        Some(true) => Ok(true),
+        Some(false) => bail!(
+            "partial root scaffold file {} differs from the deterministic fresh-tree content; \
+             refusing to overwrite it",
+            path.display()
+        ),
+    }
+}
+
+fn partial_scaffold_file_match(path: &Path, expected_body: &[u8]) -> Result<Option<bool>> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
             return Err(error)
                 .with_context(|| format!("checking partial root scaffold path {}", path.display()))
@@ -248,14 +307,7 @@ fn validate_partial_scaffold_file(path: &Path, expected_body: &[u8]) -> Result<b
     }
     let body = fs::read(path)
         .with_context(|| format!("reading partial root scaffold file {}", path.display()))?;
-    if body != expected_body {
-        bail!(
-            "partial root scaffold file {} differs from the deterministic fresh-tree content; \
-             refusing to overwrite it",
-            path.display()
-        );
-    }
-    Ok(true)
+    Ok(Some(body == expected_body))
 }
 
 /// `leaf-decompose <leaf-path> <first-child-slug>`: convert a live leaf file

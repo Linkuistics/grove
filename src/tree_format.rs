@@ -35,8 +35,36 @@ pub fn require_current(grove_root: &Path) -> Result<()> {
 pub fn write_current_last(grove_root: &Path) -> Result<PathBuf> {
     let path = grove_root.join("FORMAT");
     let temporary_path = grove_root.join(".FORMAT.tmp");
-    fs::write(&temporary_path, CURRENT_FILE_CONTENTS)
-        .with_context(|| format!("writing {}", temporary_path.display()))?;
+    match fs::symlink_metadata(&temporary_path) {
+        Ok(metadata) => {
+            if !metadata.file_type().is_file() {
+                bail!(
+                    "format witness temporary path is not a regular file: {}",
+                    temporary_path.display()
+                );
+            }
+            let found = fs::read(&temporary_path)
+                .with_context(|| format!("reading {}", temporary_path.display()))?;
+            if found != CURRENT_FILE_CONTENTS.as_bytes() {
+                bail!(
+                    "format witness temporary file has unexpected contents: {}",
+                    temporary_path.display()
+                );
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let mut options = fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            let mut temporary = options
+                .open(&temporary_path)
+                .with_context(|| format!("creating {}", temporary_path.display()))?;
+            std::io::Write::write_all(&mut temporary, CURRENT_FILE_CONTENTS.as_bytes())
+                .with_context(|| format!("writing {}", temporary_path.display()))?;
+        }
+        Err(error) => {
+            return Err(error).with_context(|| format!("checking {}", temporary_path.display()))
+        }
+    }
     fs::rename(&temporary_path, &path).with_context(|| format!("installing {}", path.display()))?;
     Ok(path)
 }

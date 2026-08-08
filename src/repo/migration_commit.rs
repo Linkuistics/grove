@@ -4,9 +4,24 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const GIT_PATHS: [&str; 2] = [".grove", ":(exclude).grove/MIGRATING-session-kinds"];
-const JJ_FILESET: &str = "root:.grove ~ root:.grove/MIGRATING-session-kinds";
 const INDEX_BACKUP_NAME: &str = "grove-session-kind-migration-index";
+
+fn git_paths() -> [String; 2] {
+    [
+        ".grove".to_string(),
+        format!(
+            ":(exclude).grove/{}",
+            crate::tree_access::MIGRATION_TRANSACTION
+        ),
+    ]
+}
+
+fn jj_fileset() -> String {
+    format!(
+        "root:.grove ~ root:.grove/{}",
+        crate::tree_access::MIGRATION_TRANSACTION
+    )
+}
 
 /// Record the automatic session-kind migration without absorbing changes
 /// outside `.grove/` or the live fail-closed migration witness.
@@ -23,6 +38,7 @@ pub fn commit_session_kind_migration(worktree: &Path, grove_name: &str) -> Resul
 }
 
 fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
+    let paths = git_paths();
     let git_index = git_path(worktree, "index")?;
     let backup_index = git_index.with_file_name(INDEX_BACKUP_NAME);
     if backup_index.exists() {
@@ -57,22 +73,12 @@ fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
     }
 
     let commit_result = (|| {
-        run_vcs_command(
-            worktree,
-            "git",
-            &["add", "-A", "--", GIT_PATHS[0], GIT_PATHS[1]],
-        )?;
+        run_vcs_command(worktree, "git", &["add", "-A", "--", &paths[0], &paths[1]])?;
         run_vcs_command(
             worktree,
             "git",
             &[
-                "commit",
-                "--only",
-                "-m",
-                message,
-                "--",
-                GIT_PATHS[0],
-                GIT_PATHS[1],
+                "commit", "--only", "-m", message, "--", &paths[0], &paths[1],
             ],
         )
     })();
@@ -100,6 +106,7 @@ fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
 }
 
 fn git_migration_already_committed(worktree: &Path, message: &str) -> Result<bool> {
+    let paths = git_paths();
     let subject = Command::new("git")
         .args(["log", "-1", "--format=%s"])
         .current_dir(worktree)
@@ -115,7 +122,7 @@ fn git_migration_already_committed(worktree: &Path, message: &str) -> Result<boo
     }
 
     let diff = Command::new("git")
-        .args(["diff", "--quiet", "HEAD", "--", GIT_PATHS[0], GIT_PATHS[1]])
+        .args(["diff", "--quiet", "HEAD", "--", &paths[0], &paths[1]])
         .current_dir(worktree)
         .output()
         .with_context(|| format!("checking recovered Git migration in {}", worktree.display()))?;
@@ -151,7 +158,8 @@ fn restore_git_index(git_index: &Path, backup_index: &Path, had_git_index: bool)
 }
 
 fn commit_jj_migration(worktree: &Path, message: &str) -> Result<()> {
-    let arguments = ["commit", "-m", message, JJ_FILESET];
+    let fileset = jj_fileset();
+    let arguments = ["commit", "-m", message, fileset.as_str()];
     if !worktree.join(".git").exists() {
         if jj_migration_already_committed(worktree, message)? {
             return Ok(());
@@ -214,6 +222,7 @@ fn commit_jj_migration(worktree: &Path, message: &str) -> Result<()> {
 }
 
 fn jj_migration_already_committed(worktree: &Path, message: &str) -> Result<bool> {
+    let fileset = jj_fileset();
     let description = Command::new("jj")
         .args(["log", "-r", "@-", "--no-graph", "-T", "description"])
         .current_dir(worktree)
@@ -240,7 +249,7 @@ fn jj_migration_already_committed(worktree: &Path, message: &str) -> Result<bool
     }
 
     let scoped_diff = Command::new("jj")
-        .args(["diff", "-r", "@", "--summary", JJ_FILESET])
+        .args(["diff", "-r", "@", "--summary", fileset.as_str()])
         .current_dir(worktree)
         .output()
         .with_context(|| {

@@ -297,13 +297,10 @@ fn land(
     for file in &manifest.files {
         let source = grove_root.join(&file.source);
         let moved = transaction.join(MOVED_DIRECTORY).join(&file.source);
-        if source.exists() {
+        if moved.exists() {
+            verify_hash(&moved, &file.source_sha256, "moved migration source")?;
+        } else if source.exists() {
             verify_hash(&source, &file.source_sha256, "migration source")?;
-            anyhow::ensure!(
-                !moved.exists(),
-                "migration source exists both in the tree and witness: {}",
-                file.source.display()
-            );
             create_parent(&moved)?;
             fs::rename(&source, &moved).with_context(|| {
                 format!(
@@ -658,6 +655,44 @@ mod tests {
         (worktree, grove_root)
     }
 
+    fn legacy_v2_node_tree() -> (tempfile::TempDir, std::path::PathBuf) {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        fs::create_dir_all(grove_root.join("01-feature-k10")).unwrap();
+        fs::write(
+            grove_root.join("BRIEF.md"),
+            "# demo — brief\n\n## Goal\nMigrate this tree.\n",
+        )
+        .unwrap();
+        fs::write(
+            grove_root.join("01-feature-k10/BRIEF.md"),
+            "# feature-k10 — brief\n\n**Kind:** impl\n",
+        )
+        .unwrap();
+        fs::write(
+            grove_root.join("01-feature-k10/01-child-k11.md"),
+            "# child-k11\n\n**Kind:** impl\n",
+        )
+        .unwrap();
+        (worktree, grove_root)
+    }
+
+    fn assert_old_nnn_tree_is_current(grove_root: &Path) {
+        assert!(grove_root.join("01-DONE-impl-old-k1.md").is_file());
+        assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
+        assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
+        assert!(!grove_root.join("done").exists());
+        assert!(!grove_root.join("020-node").exists());
+    }
+
+    fn assert_legacy_v2_node_tree_is_current(grove_root: &Path) {
+        assert!(grove_root.join("01-feature-k10/BRIEF.md").is_file());
+        assert!(grove_root
+            .join("01-feature-k10/01-impl-child-k11.md")
+            .is_file());
+        assert!(!grove_root.join("01-feature-k10/01-child-k11.md").exists());
+    }
+
     const ROOT_BRIEF: u8 = 0b01;
     const ROOT_LEAF: u8 = 0b10;
 
@@ -762,32 +797,28 @@ mod tests {
     }
 
     #[test]
-    fn differing_partial_scaffold_bodies_are_refused_without_writing_missing_files() {
-        for (present, path) in [
-            (ROOT_BRIEF, "BRIEF.md"),
-            (ROOT_LEAF, "01-requirements-plan-k1.md"),
-        ] {
-            let (_worktree, grove_root, _, _) = partial_root_scaffold(present);
-            fs::write(grove_root.join(path), b"near match\n").unwrap();
+    fn a_differing_partial_scaffold_leaf_is_refused_without_writing_a_brief() {
+        let (_worktree, grove_root, _, _) = partial_root_scaffold(ROOT_LEAF);
+        let leaf_path = grove_root.join("01-requirements-plan-k1.md");
+        fs::write(&leaf_path, b"near match\n").unwrap();
 
-            let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+        let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
 
-            let diagnostic = format!("{error:#}");
-            assert!(diagnostic.contains("partial root scaffold"), "{diagnostic}");
-            assert!(diagnostic.contains(path), "{diagnostic}");
-            assert_eq!(fs::read(grove_root.join(path)).unwrap(), b"near match\n");
-            assert!(!grove_root.join("FORMAT").exists());
-            if present == ROOT_BRIEF {
-                assert!(!grove_root.join("01-requirements-plan-k1.md").exists());
-            } else {
-                assert!(!grove_root.join("BRIEF.md").exists());
-            }
-        }
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("partial root scaffold"), "{diagnostic}");
+        assert!(
+            diagnostic.contains("01-requirements-plan-k1.md"),
+            "{diagnostic}"
+        );
+        assert_eq!(fs::read(leaf_path).unwrap(), b"near match\n");
+        assert!(!grove_root.join("BRIEF.md").exists());
+        assert!(!grove_root.join("FORMAT").exists());
     }
 
     #[test]
     fn extra_task_structure_makes_an_exact_partial_scaffold_ambiguous() {
-        let (_worktree, grove_root, expected_brief, _) = partial_root_scaffold(ROOT_BRIEF);
+        let (_worktree, grove_root, expected_brief, expected_leaf) =
+            partial_root_scaffold(ROOT_BRIEF | ROOT_LEAF);
         fs::write(
             grove_root.join("02-task-k2.md"),
             b"# task-k2\n\n**Kind:** impl\n",
@@ -807,7 +838,97 @@ mod tests {
             expected_brief
         );
         assert!(grove_root.join("02-task-k2.md").is_file());
-        assert!(!grove_root.join("01-requirements-plan-k1.md").exists());
+        assert_eq!(
+            fs::read(grove_root.join("01-requirements-plan-k1.md")).unwrap(),
+            expected_leaf
+        );
+        assert!(!grove_root.join("FORMAT").exists());
+    }
+
+    #[test]
+    fn an_untouched_root_brief_does_not_hide_a_legacy_v2_tree() {
+        let (_worktree, grove_root, expected_brief, _) = partial_root_scaffold(ROOT_BRIEF);
+        fs::write(
+            grove_root.join("01-plan-k1.md"),
+            b"# plan-k1\n\n**Kind:** requirements\n",
+        )
+        .unwrap();
+
+        let outcome = run(&grove_root, || Ok(())).unwrap();
+
+        assert_eq!(outcome, TransactionOutcome::Migrated);
+        assert_eq!(
+            fs::read(grove_root.join("BRIEF.md")).unwrap(),
+            expected_brief
+        );
+        assert!(grove_root.join("01-requirements-plan-k1.md").is_file());
+        assert!(grove_root.join("FORMAT").is_file());
+        assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+    }
+
+    #[test]
+    fn a_legacy_v2_slug_beginning_with_requirements_is_not_partial_root_init() {
+        let (_worktree, grove_root, _, _) = partial_root_scaffold(0);
+        fs::write(
+            grove_root.join("01-requirements-design-k1.md"),
+            b"# requirements-design-k1\n\n**Kind:** design\n",
+        )
+        .unwrap();
+
+        let outcome = run(&grove_root, || Ok(())).unwrap();
+
+        assert_eq!(outcome, TransactionOutcome::Migrated);
+        assert!(grove_root
+            .join("01-design-requirements-design-k1.md")
+            .is_file());
+        assert!(!grove_root.join("01-requirements-design-k1.md").exists());
+        assert!(grove_root.join("FORMAT").is_file());
+        assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+    }
+
+    #[test]
+    fn an_interrupted_custom_slug_root_init_recovers_its_original_leaf() {
+        let worktree = tempfile::tempdir().unwrap();
+        crate::tree_lifecycle::root_init(worktree.path(), "custom-plan").unwrap();
+        let grove_root = worktree.path().join(".grove");
+        let original_leaf = fs::read(grove_root.join("01-requirements-custom-plan-k1.md")).unwrap();
+        fs::remove_file(grove_root.join("FORMAT")).unwrap();
+
+        let outcome = run(&grove_root, || anyhow::bail!("must not commit")).unwrap();
+
+        assert_eq!(outcome, TransactionOutcome::RootInitRecovered);
+        assert_eq!(
+            fs::read(grove_root.join("01-requirements-custom-plan-k1.md")).unwrap(),
+            original_leaf
+        );
+        assert!(grove_root.join("FORMAT").is_file());
+        assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+    }
+
+    #[test]
+    fn a_custom_brief_only_tree_routes_to_legacy_classification() {
+        let (_worktree, grove_root, _, _) = partial_root_scaffold(0);
+        fs::write(
+            grove_root.join("BRIEF.md"),
+            "# custom — brief\n\n## Goal\nPreserve this.\n",
+        )
+        .unwrap();
+
+        let error = run(&grove_root, || anyhow::bail!("must not commit")).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(
+            diagnostic.contains("neither an exact partial fresh-tree scaffold"),
+            "{diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("nor a recognizable legacy tree"),
+            "{diagnostic}"
+        );
+        assert_eq!(
+            fs::read(grove_root.join("BRIEF.md")).unwrap(),
+            "# custom — brief\n\n## Goal\nPreserve this.\n".as_bytes()
+        );
         assert!(!grove_root.join("FORMAT").exists());
     }
 
@@ -883,6 +1004,42 @@ mod tests {
     }
 
     #[test]
+    fn migration_recovery_refuses_a_symlinked_format_temporary_file() {
+        let (worktree, grove_root) = legacy_tree();
+        let interrupted = catch_unwind(AssertUnwindSafe(|| {
+            let _ = run_observed(
+                &grove_root,
+                || Ok(()),
+                |transition| {
+                    if matches!(transition, Transition::FinalTreeVerified) {
+                        panic!("simulated process interruption");
+                    }
+                    Ok(())
+                },
+            );
+        }));
+        assert!(interrupted.is_err());
+        assert!(grove_root.join(MIGRATION_TRANSACTION).is_dir());
+
+        let external = worktree.path().join("external-format-target");
+        fs::write(&external, b"keep\n").unwrap();
+        std::os::unix::fs::symlink(&external, grove_root.join(".FORMAT.tmp")).unwrap();
+
+        let error = run(&grove_root, || Ok(())).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains(".FORMAT.tmp"), "{diagnostic}");
+        assert_eq!(fs::read(&external).unwrap(), b"keep\n");
+        assert!(fs::symlink_metadata(grove_root.join(".FORMAT.tmp"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(grove_root.join("01-task-k1.md").is_file());
+        assert!(!grove_root.join("FORMAT").exists());
+        assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+    }
+
+    #[test]
     fn legacy_migration_refuses_a_dangling_format_symlink_without_replacing_it() {
         let (worktree, grove_root) = legacy_tree();
         let missing_target = worktree.path().join("missing-format-target");
@@ -946,58 +1103,60 @@ mod tests {
 
     #[test]
     fn every_transaction_transition_boundary_recovers_after_interruption() {
-        let (_baseline_worktree, baseline_root) = old_nnn_tree();
-        let mut transitions = Vec::new();
-        run_observed(
-            &baseline_root,
-            || Ok(()),
-            |transition| {
-                transitions.push(transition.clone());
-                Ok(())
-            },
-        )
-        .unwrap();
-        assert!(!transitions.is_empty());
+        let fixtures: [(fn() -> (tempfile::TempDir, PathBuf), fn(&Path)); 2] = [
+            (old_nnn_tree, assert_old_nnn_tree_is_current),
+            (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
+        ];
 
-        for (interrupt_at, interrupted_transition) in transitions.iter().enumerate() {
-            let (worktree, grove_root) = old_nnn_tree();
-            initialize_git(worktree.path());
-            let mut observed = 0;
-            let interrupted = catch_unwind(AssertUnwindSafe(|| {
-                let _ = run_observed(
-                    &grove_root,
-                    || Ok(()),
-                    |_| {
-                        if observed == interrupt_at {
-                            panic!("simulated process interruption");
-                        }
-                        observed += 1;
-                        Ok(())
+        for (fixture, assert_current) in fixtures {
+            let (_baseline_worktree, baseline_root) = fixture();
+            let mut transitions = Vec::new();
+            run_observed(
+                &baseline_root,
+                || Ok(()),
+                |transition| {
+                    transitions.push(transition.clone());
+                    Ok(())
+                },
+            )
+            .unwrap();
+            assert!(!transitions.is_empty());
+
+            for (interrupt_at, interrupted_transition) in transitions.iter().enumerate() {
+                let (worktree, grove_root) = fixture();
+                initialize_git(worktree.path());
+                let mut observed = 0;
+                let interrupted = catch_unwind(AssertUnwindSafe(|| {
+                    let _ = run_observed(
+                        &grove_root,
+                        || Ok(()),
+                        |_| {
+                            if observed == interrupt_at {
+                                panic!("simulated process interruption");
+                            }
+                            observed += 1;
+                            Ok(())
+                        },
+                    );
+                }));
+                assert!(
+                    interrupted.is_err(),
+                    "boundary {interrupt_at} ({:?}) did not interrupt",
+                    interrupted_transition
+                );
+
+                crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(
+                    |error| {
+                        panic!(
+                            "boundary {interrupt_at} ({:?}) did not recover: {error:#}",
+                            interrupted_transition
+                        )
                     },
                 );
-            }));
-            assert!(
-                interrupted.is_err(),
-                "boundary {interrupt_at} ({:?}) did not interrupt",
-                interrupted_transition
-            );
-
-            crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(|error| {
-                panic!(
-                    "boundary {interrupt_at} ({:?}) did not recover: {error:#}",
-                    interrupted_transition
-                )
-            });
-            assert!(
-                grove_root.join("01-DONE-impl-old-k1.md").is_file(),
-                "boundary {interrupt_at}: {:?}",
-                interrupted_transition
-            );
-            assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
-            assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
-            assert!(!grove_root.join("done").exists());
-            assert!(!grove_root.join("020-node").exists());
-            assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+                assert_current(&grove_root);
+                assert!(grove_root.join("FORMAT").is_file());
+                assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+            }
         }
     }
 
@@ -1013,62 +1172,70 @@ mod tests {
             )
         }
 
-        let (_baseline_worktree, baseline_root) = old_nnn_tree();
-        let mut rollback_transitions = Vec::new();
-        run_observed(
-            &baseline_root,
-            || Ok(()),
-            |transition| {
-                if matches!(transition, Transition::FormatWritten) {
-                    anyhow::bail!("trigger baseline rollback");
-                }
-                if is_rollback(transition) {
-                    rollback_transitions.push(transition.clone());
-                }
-                Ok(())
-            },
-        )
-        .unwrap_err();
-        assert!(!rollback_transitions.is_empty());
+        let fixtures: [(fn() -> (tempfile::TempDir, PathBuf), fn(&Path)); 2] = [
+            (old_nnn_tree, assert_old_nnn_tree_is_current),
+            (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
+        ];
 
-        for (interrupt_at, interrupted_transition) in rollback_transitions.iter().enumerate() {
-            let (worktree, grove_root) = old_nnn_tree();
-            initialize_git(worktree.path());
-            let mut observed = 0;
-            let interrupted = catch_unwind(AssertUnwindSafe(|| {
-                let _ = run_observed(
-                    &grove_root,
-                    || Ok(()),
-                    |transition| {
-                        if matches!(transition, Transition::FormatWritten) {
-                            anyhow::bail!("trigger interrupted rollback");
-                        }
-                        if is_rollback(transition) {
-                            if observed == interrupt_at {
-                                panic!("simulated rollback interruption");
+        for (fixture, assert_current) in fixtures {
+            let (_baseline_worktree, baseline_root) = fixture();
+            let mut rollback_transitions = Vec::new();
+            run_observed(
+                &baseline_root,
+                || Ok(()),
+                |transition| {
+                    if matches!(transition, Transition::FormatWritten) {
+                        anyhow::bail!("trigger baseline rollback");
+                    }
+                    if is_rollback(transition) {
+                        rollback_transitions.push(transition.clone());
+                    }
+                    Ok(())
+                },
+            )
+            .unwrap_err();
+            assert!(!rollback_transitions.is_empty());
+
+            for (interrupt_at, interrupted_transition) in rollback_transitions.iter().enumerate() {
+                let (worktree, grove_root) = fixture();
+                initialize_git(worktree.path());
+                let mut observed = 0;
+                let interrupted = catch_unwind(AssertUnwindSafe(|| {
+                    let _ = run_observed(
+                        &grove_root,
+                        || Ok(()),
+                        |transition| {
+                            if matches!(transition, Transition::FormatWritten) {
+                                anyhow::bail!("trigger interrupted rollback");
                             }
-                            observed += 1;
-                        }
-                        Ok(())
+                            if is_rollback(transition) {
+                                if observed == interrupt_at {
+                                    panic!("simulated rollback interruption");
+                                }
+                                observed += 1;
+                            }
+                            Ok(())
+                        },
+                    );
+                }));
+                assert!(
+                    interrupted.is_err(),
+                    "rollback boundary {interrupt_at} ({:?}) did not interrupt",
+                    interrupted_transition
+                );
+
+                crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(
+                    |error| {
+                        panic!(
+                            "rollback boundary {interrupt_at} ({:?}) did not recover: {error:#}",
+                            interrupted_transition
+                        )
                     },
                 );
-            }));
-            assert!(
-                interrupted.is_err(),
-                "rollback boundary {interrupt_at} ({:?}) did not interrupt",
-                interrupted_transition
-            );
-
-            crate::tree_lifecycle::transition_to_current(worktree.path()).unwrap_or_else(|error| {
-                panic!(
-                    "rollback boundary {interrupt_at} ({:?}) did not recover: {error:#}",
-                    interrupted_transition
-                )
-            });
-            assert!(grove_root.join("01-DONE-impl-old-k1.md").is_file());
-            assert!(grove_root.join("02-node-k2/BRIEF.md").is_file());
-            assert!(grove_root.join("02-node-k2/01-impl-child-k3.md").is_file());
-            assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+                assert_current(&grove_root);
+                assert!(grove_root.join("FORMAT").is_file());
+                assert!(!grove_root.join(MIGRATION_TRANSACTION).exists());
+            }
         }
     }
 

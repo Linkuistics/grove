@@ -143,6 +143,7 @@ fn migrate_unlocked(worktree: &Path) -> Result<Outcome> {
     if !grove_root.is_dir() {
         return Ok(Outcome::NothingToMigrate);
     }
+    crate::tree_access::refuse_pending_migration(&grove_root)?;
     let plan = plan(&grove_root)?;
     match plan.format {
         Format::V2 => Ok(Outcome::AlreadyV2),
@@ -637,6 +638,12 @@ enum LegacyKind {
     Research,
 }
 
+#[derive(Clone, Copy)]
+struct MarkdownFence {
+    marker: char,
+    length: usize,
+}
+
 fn resolve_standalone_kind(kind: Option<LegacyKind>) -> Kind {
     match kind.unwrap_or(LegacyKind::Known(Kind::Impl)) {
         LegacyKind::Known(kind) => kind,
@@ -647,8 +654,31 @@ fn resolve_standalone_kind(kind: Option<LegacyKind>) -> Kind {
 fn rewrite_legacy_metadata(path: &Path, body: &str) -> Result<(Option<LegacyKind>, String)> {
     let mut kind = None;
     let mut rewritten = String::with_capacity(body.len());
+    let mut open_fence = None;
     for line in body.split_inclusive('\n') {
         let content = line.trim_end_matches(['\r', '\n']);
+        if let Some(fence) = open_fence {
+            rewritten.push_str(line);
+            if closes_markdown_fence(content, fence) {
+                open_fence = None;
+            }
+            continue;
+        }
+        if let Some(fence) = markdown_fence_start(content) {
+            open_fence = Some(fence);
+            rewritten.push_str(line);
+            continue;
+        }
+
+        let up_to_three_space_indented = strip_up_to_three_spaces(content);
+        if up_to_three_space_indented != content {
+            if let Some(marker) = legacy_routing_marker(up_to_three_space_indented) {
+                bail!(
+                    "indented legacy routing marker {marker:?} in {}; place task metadata at column zero or preserve examples in a fenced code block",
+                    path.display()
+                );
+            }
+        }
         if let Some(value) = content.strip_prefix("**Kind:**") {
             if kind.is_some() {
                 bail!("repeated legacy kind marker in {}", path.display());
@@ -669,6 +699,52 @@ fn rewrite_legacy_metadata(path: &Path, body: &str) -> Result<(Option<LegacyKind
         }
     }
     Ok((kind, rewritten))
+}
+
+/// Distinguish an accepted legacy-v2 leaf from interrupted root-init state when
+/// its kind-free slug happens to begin with the current `requirements-` prefix.
+pub(crate) fn has_explicit_legacy_kind(path: &Path) -> Result<bool> {
+    let body = fs::read_to_string(path)
+        .with_context(|| format!("reading legacy task candidate {}", path.display()))?;
+    Ok(rewrite_legacy_metadata(path, &body)?.0.is_some())
+}
+
+fn legacy_routing_marker(line: &str) -> Option<&'static str> {
+    ["**Kind:**", "**Harness:**", "**Producer launch:**"]
+        .into_iter()
+        .find(|marker| line.starts_with(marker))
+}
+
+fn strip_up_to_three_spaces(line: &str) -> &str {
+    line.strip_prefix("   ")
+        .or_else(|| line.strip_prefix("  "))
+        .or_else(|| line.strip_prefix(' '))
+        .unwrap_or(line)
+}
+
+fn markdown_fence_start(line: &str) -> Option<MarkdownFence> {
+    let line = strip_up_to_three_spaces(line);
+    let marker = line
+        .chars()
+        .next()
+        .filter(|marker| matches!(marker, '`' | '~'))?;
+    let length = line
+        .chars()
+        .take_while(|character| *character == marker)
+        .count();
+    if length < 3 || (marker == '`' && line[length..].contains('`')) {
+        return None;
+    }
+    Some(MarkdownFence { marker, length })
+}
+
+fn closes_markdown_fence(line: &str, fence: MarkdownFence) -> bool {
+    let line = strip_up_to_three_spaces(line);
+    let length = line
+        .chars()
+        .take_while(|character| *character == fence.marker)
+        .count();
+    length >= fence.length && line[length..].trim().is_empty()
 }
 
 fn parse_legacy_kind(value: &str) -> Option<LegacyKind> {
@@ -1317,6 +1393,21 @@ mod tests {
     }
 
     #[test]
+    fn compatibility_migration_refuses_a_pending_session_kind_transaction() {
+        let (worktree, grove_root) = grove();
+        write(&grove_root, "010-plan.md", "# 010-plan\n");
+        fs::create_dir(grove_root.join(crate::tree_access::MIGRATION_TRANSACTION)).unwrap();
+
+        let error = migrate(worktree.path()).unwrap_err();
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("pending Grove session-kind migration"));
+        assert!(diagnostic.contains(crate::tree_access::MIGRATION_TRANSACTION));
+        assert!(grove_root.join("010-plan.md").is_file());
+        assert!(!grove_root.join("01-plan-k1.md").exists());
+    }
+
+    #[test]
     fn current_plan_maps_a_legacy_v2_kind_and_removes_only_obsolete_metadata() {
         let (_t, g) = grove();
         write(&g, "BRIEF.md", "# demo — brief\n");
@@ -1346,6 +1437,61 @@ mod tests {
             fs::read_to_string(g.join("notes.txt")).unwrap(),
             "foreign\n"
         );
+    }
+
+    #[test]
+    fn current_plan_rejects_an_indented_legacy_routing_marker() {
+        let (_t, grove_root) = grove();
+        write(&grove_root, "BRIEF.md", "# demo — brief\n");
+        write(
+            &grove_root,
+            "01-task-k1.md",
+            "# task-k1\n\n  **Kind:** design\n\n## Goal\nKeep me.\n",
+        );
+
+        let Err(error) = plan_current(&grove_root) else {
+            panic!("indented routing marker was accepted");
+        };
+
+        let diagnostic = format!("{error:#}");
+        assert!(diagnostic.contains("01-task-k1.md"), "{diagnostic}");
+        assert!(diagnostic.contains("indented"), "{diagnostic}");
+        assert!(diagnostic.contains("**Kind:**"), "{diagnostic}");
+    }
+
+    #[test]
+    fn current_plan_preserves_legacy_routing_markers_in_fenced_examples() {
+        let (_t, grove_root) = grove();
+        write(&grove_root, "BRIEF.md", "# demo — brief\n");
+        let body = "# task-k1\n\n```markdown\n**Kind:** design\n**Harness:** codex\n\
+                    **Producer launch:** {\"producer\":\"example-k9\"}\n```\n";
+        write(&grove_root, "01-task-k1.md", body);
+
+        let plan = plan_current(&grove_root).unwrap();
+
+        assert_eq!(plan.files.len(), 1);
+        assert_eq!(plan.files[0].to_rel, Path::new("01-impl-task-k1.md"));
+        assert_eq!(plan.files[0].body, body.as_bytes());
+    }
+
+    #[test]
+    fn current_plan_does_not_treat_an_invalid_backtick_opener_as_a_fence() {
+        let (_t, grove_root) = grove();
+        write(&grove_root, "BRIEF.md", "# demo — brief\n");
+        write(
+            &grove_root,
+            "01-task-k1.md",
+            "# task-k1\n\n```bad`info\n**Kind:** design\n```\n",
+        );
+
+        let plan = plan_current(&grove_root).unwrap();
+
+        assert_eq!(plan.files.len(), 1);
+        assert_eq!(plan.files[0].to_rel, Path::new("01-design-task-k1.md"));
+        assert!(!plan.files[0]
+            .body
+            .windows(b"**Kind:**".len())
+            .any(|window| window == b"**Kind:**"));
     }
 
     #[test]

@@ -161,6 +161,17 @@ fn grove_llm(repository: &Path, arguments: &[&str]) -> Output {
         .unwrap()
 }
 
+fn grove_llm_with_path(repository: &Path, arguments: &[&str], path: &str) -> Output {
+    Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("PATH", path)
+        .args(arguments)
+        .output()
+        .unwrap()
+}
+
 fn write_complete_config(home: &Path, template: &str) {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
@@ -410,6 +421,76 @@ fn native_jj_finish_commit_preserves_unrelated_working_copy_changes() {
 #[test]
 fn colocated_jj_finish_commit_preserves_unrelated_work_and_the_git_index() {
     assert_jj_finish_commit_preserves_other_work(true);
+}
+
+fn assert_failed_jj_finish_restores_the_tree_and_repository(colocated: bool) {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join(if colocated {
+        "failed-colocated-jj"
+    } else {
+        "failed-native-jj"
+    });
+    init_jj(&repository, colocated);
+    seed_jj_terminal_grove(&repository);
+    if colocated {
+        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
+        run("git", &repository, &["add", "staged.txt"]);
+        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+    }
+
+    let grove = repository.join(".grove");
+    let tree_before = tree_snapshot(&grove);
+    let commit_before = git_like_jj_output(
+        &repository,
+        &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+    );
+    let index_before = colocated.then(|| {
+        let index = repository.join(git(&repository, &["rev-parse", "--git-path", "index"]));
+        fs::read(index).unwrap()
+    });
+
+    let real_jj = String::from_utf8(run("which", &repository, &["jj"]).stdout)
+        .unwrap()
+        .trim()
+        .to_owned();
+    let fake_bin = fixture.path().join("fake-bin");
+    fs::create_dir(&fake_bin).unwrap();
+    write_executable(
+        &fake_bin.join("jj"),
+        &format!(
+            "#!/bin/sh\nfor argument in \"$@\"; do\n  if [ \"$argument\" = commit ]; then\n    printf 'forced jj commit failure\\n' >&2\n    exit 1\n  fi\ndone\nexec {real_jj:?} \"$@\"\n"
+        ),
+    );
+    let path = format!("{}:{}", fake_bin.display(), std::env::var("PATH").unwrap());
+
+    let output = grove_llm_with_path(&repository, &["finish-commit", "finish-k2"], &path);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("forced jj commit failure"), "{stderr}");
+    assert!(grove.is_dir(), "the failed jj finish removed the task root");
+    assert_eq!(tree_snapshot(&grove), tree_before, "{stderr}");
+    assert_eq!(
+        git_like_jj_output(
+            &repository,
+            &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+        ),
+        commit_before
+    );
+    if let Some(index_before) = index_before {
+        let index = repository.join(git(&repository, &["rev-parse", "--git-path", "index"]));
+        assert_eq!(fs::read(index).unwrap(), index_before);
+    }
+}
+
+#[test]
+fn failed_native_jj_finish_restores_the_tree_and_preflight_commit() {
+    assert_failed_jj_finish_restores_the_tree_and_repository(false);
+}
+
+#[test]
+fn failed_colocated_jj_finish_restores_the_tree_preflight_commit_and_git_index() {
+    assert_failed_jj_finish_restores_the_tree_and_repository(true);
 }
 
 #[test]

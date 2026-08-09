@@ -17,21 +17,14 @@ const READY_FILE: &str = "READY";
 pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
     let preflight = preflight_root(worktree, grove_root)?;
     let attempt_identity = finish_attempt_identity()?;
-    if repo::vcs_of(worktree) != Some(repo::Vcs::Git) {
-        repo::validate_finish_commit(worktree)?;
-        fs::remove_dir_all(grove_root)
-            .with_context(|| format!("deleting completed grove {}", grove_root.display()))?;
-        return repo::commit_finish(worktree, finish_handle, &attempt_identity);
-    }
-
-    let prepared_commit = repo::prepare_plain_git_finish(worktree)?;
+    let prepared_commit = repo::prepare_finish(worktree)?;
     let transaction = prepare_transaction(
         grove_root,
         finish_handle,
         attempt_identity,
         preflight.entry_digests.clone(),
         &preflight.quarantine_directory,
-        prepared_commit.start_head(),
+        prepared_commit.start_anchor(),
         prepared_commit.deletion_fingerprint(),
     )?;
     evacuate(&transaction)?;
@@ -40,7 +33,7 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
             quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)
         }
         repo::FinishCommitOutcome::NotCommitted { proof, error } => {
-            match rollback(&transaction, &proof) {
+            match rollback(&transaction, proof) {
                 Ok(()) => Err(error),
                 Err(rollback_error) => Err(error.context(format!(
                     "finish rollback failed: {rollback_error:#}; recovery remains pending at {}",
@@ -81,7 +74,7 @@ struct FinishManifest {
     version: u32,
     finish_handle: String,
     attempt_identity: String,
-    repository_anchor: String,
+    repository_anchor: repo::FinishStartAnchor,
     deletion_fingerprint: [u8; 32],
     entries: Vec<RootEntryDigest>,
 }
@@ -185,7 +178,7 @@ fn prepare_transaction(
     attempt_identity: String,
     entries: Vec<RootEntryDigest>,
     quarantine_directory: &Path,
-    repository_anchor: &str,
+    repository_anchor: repo::FinishStartAnchor,
     deletion_fingerprint: [u8; 32],
 ) -> Result<PreparedTransaction> {
     fs::create_dir_all(quarantine_directory).with_context(|| {
@@ -221,7 +214,7 @@ fn prepare_transaction(
         version: 1,
         finish_handle: finish_handle.to_owned(),
         attempt_identity,
-        repository_anchor: repository_anchor.to_owned(),
+        repository_anchor,
         deletion_fingerprint,
         entries,
     };
@@ -267,8 +260,8 @@ fn evacuate(transaction: &PreparedTransaction) -> Result<()> {
     Ok(())
 }
 
-fn rollback(transaction: &PreparedTransaction, proof: &repo::GitStartProof) -> Result<()> {
-    proof.revalidate()?;
+fn rollback(transaction: &PreparedTransaction, proof: repo::FinishStartProof) -> Result<()> {
+    proof.revalidate_before_rollback()?;
     for expected in &transaction.manifest.entries {
         let source = entry_path(&transaction.original_tree, &expected.path);
         let destination = entry_path(&transaction.grove_root, &expected.path);
@@ -287,7 +280,7 @@ fn rollback(transaction: &PreparedTransaction, proof: &repo::GitStartProof) -> R
             );
         }
     }
-    proof.revalidate()?;
+    proof.revalidate_after_rollback()?;
     fs::remove_dir_all(&transaction.witness_path).with_context(|| {
         format!(
             "removing rolled-back finish transaction witness {}",
@@ -299,7 +292,7 @@ fn rollback(transaction: &PreparedTransaction, proof: &repo::GitStartProof) -> R
 fn quarantine_and_dispose(
     grove_root: &Path,
     quarantine_path: &Path,
-    proof: &repo::GitFinishProof,
+    proof: &repo::FinishProof,
 ) -> Result<()> {
     proof.revalidate()?;
     fs::rename(grove_root, quarantine_path).with_context(|| {

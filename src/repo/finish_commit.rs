@@ -1,5 +1,6 @@
 use super::{vcs_of, Vcs};
 use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Write;
@@ -17,13 +18,56 @@ pub(crate) struct PreparedGitFinish {
     hooks_path: PathBuf,
 }
 
+pub(crate) struct PreparedJjFinish {
+    worktree: PathBuf,
+    start: JjStartAnchor,
+    deletion_fingerprint: [u8; 32],
+    index_backup: Option<GitIndexBackup>,
+    success_index: Option<PathBuf>,
+}
+
+pub(crate) enum PreparedFinish {
+    Git(PreparedGitFinish),
+    Jj(PreparedJjFinish),
+}
+
 pub(crate) enum FinishCommitOutcome {
-    Committed(GitFinishProof),
+    Committed(FinishProof),
     NotCommitted {
-        proof: GitStartProof,
+        proof: FinishStartProof,
         error: anyhow::Error,
     },
     RecoveryPending(anyhow::Error),
+}
+
+pub(crate) enum FinishProof {
+    Git(GitFinishProof),
+    Jj(JjFinishProof),
+}
+
+pub(crate) enum FinishStartProof {
+    Git(GitStartProof),
+    Jj(JjStartProof),
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(tag = "vcs", rename_all = "kebab-case")]
+pub(crate) enum FinishStartAnchor {
+    PlainGit {
+        head: String,
+    },
+    Jujutsu {
+        commit_id: String,
+        change_id: String,
+        parent_commit_ids: Vec<String>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+pub(crate) struct JjStartAnchor {
+    commit_id: String,
+    change_id: String,
+    parent_commit_ids: Vec<String>,
 }
 
 pub(crate) struct GitFinishProof {
@@ -36,6 +80,22 @@ pub(crate) struct GitFinishProof {
 pub(crate) struct GitStartProof {
     worktree: PathBuf,
     start_head: String,
+}
+
+pub(crate) struct JjFinishProof {
+    worktree: PathBuf,
+    start: JjStartAnchor,
+    message: String,
+    deletion_fingerprint: [u8; 32],
+}
+
+pub(crate) struct JjStartProof {
+    worktree: PathBuf,
+    start: JjStartAnchor,
+    message: String,
+    deletion_fingerprint: [u8; 32],
+    index_backup: Option<GitIndexBackup>,
+    auto_track_configuration: String,
 }
 
 impl GitFinishProof {
@@ -63,11 +123,121 @@ impl GitStartProof {
     }
 }
 
-impl PreparedGitFinish {
-    pub(crate) fn start_head(&self) -> &str {
-        &self.start_head
+impl JjFinishProof {
+    fn revalidate(&self) -> Result<()> {
+        validate_exact_jj_finish(
+            &self.worktree,
+            &self.start,
+            &self.message,
+            self.deletion_fingerprint,
+        )
+    }
+}
+
+impl JjStartProof {
+    fn revalidate_before_rollback(&self) -> Result<()> {
+        validate_jj_uncommitted(
+            &self.worktree,
+            &self.start,
+            &self.message,
+            self.deletion_fingerprint,
+        )
     }
 
+    fn restore_index_preserving_backup(&mut self) -> Result<()> {
+        match &self.index_backup {
+            Some(backup) => backup.restore_preserving_backup(),
+            None => Ok(()),
+        }
+    }
+
+    fn revalidate_after_rollback(mut self) -> Result<()> {
+        let observed = jj_topology(
+            &self.worktree,
+            "@",
+            false,
+            Some(&self.auto_track_configuration),
+        )
+        .context("snapshotting the restored Jujutsu finish tree")?;
+        if observed != self.start {
+            bail!(
+                "Recovery pending: restored Jujutsu finish expected preflight commit {}, change {} at parents {:?}, but observed commit {}, change {} at parents {:?}",
+                self.start.commit_id,
+                self.start.change_id,
+                self.start.parent_commit_ids,
+                observed.commit_id,
+                observed.change_id,
+                observed.parent_commit_ids
+            );
+        }
+        if jj_deletion_fingerprint(&self.worktree, &self.start)? != self.deletion_fingerprint {
+            bail!(
+                "Recovery pending: restored Jujutsu grove does not match its preflight fingerprint"
+            );
+        }
+        self.restore_index_preserving_backup()?;
+        if let Some(backup) = self.index_backup.take() {
+            backup.discard();
+        }
+        Ok(())
+    }
+}
+
+impl FinishProof {
+    pub(crate) fn revalidate(&self) -> Result<()> {
+        match self {
+            Self::Git(proof) => proof.revalidate(),
+            Self::Jj(proof) => proof.revalidate(),
+        }
+    }
+}
+
+impl FinishStartProof {
+    pub(crate) fn revalidate_before_rollback(&self) -> Result<()> {
+        match self {
+            Self::Git(proof) => proof.revalidate(),
+            Self::Jj(proof) => proof.revalidate_before_rollback(),
+        }
+    }
+
+    pub(crate) fn revalidate_after_rollback(self) -> Result<()> {
+        match self {
+            Self::Git(proof) => proof.revalidate(),
+            Self::Jj(proof) => proof.revalidate_after_rollback(),
+        }
+    }
+}
+
+impl PreparedFinish {
+    pub(crate) fn start_anchor(&self) -> FinishStartAnchor {
+        match self {
+            Self::Git(prepared) => FinishStartAnchor::PlainGit {
+                head: prepared.start_head.clone(),
+            },
+            Self::Jj(prepared) => FinishStartAnchor::Jujutsu {
+                commit_id: prepared.start.commit_id.clone(),
+                change_id: prepared.start.change_id.clone(),
+                parent_commit_ids: prepared.start.parent_commit_ids.clone(),
+            },
+        }
+    }
+
+    pub(crate) fn deletion_fingerprint(&self) -> [u8; 32] {
+        match self {
+            Self::Git(prepared) => prepared.deletion_fingerprint(),
+            Self::Jj(prepared) => prepared.deletion_fingerprint,
+        }
+    }
+
+    pub(crate) fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
+        match self {
+            Self::Git(prepared) => prepared.commit(finish_handle, attempt_identity),
+            Self::Jj(prepared) => prepared.commit(finish_handle, attempt_identity),
+        }
+    }
+}
+
+impl PreparedGitFinish {
     pub(crate) fn deletion_fingerprint(&self) -> [u8; 32] {
         self.deletion_fingerprint
     }
@@ -114,7 +284,7 @@ impl PreparedGitFinish {
         };
         if committed.revalidate().is_ok() {
             self.index_backup.discard();
-            return FinishCommitOutcome::Committed(committed);
+            return FinishCommitOutcome::Committed(FinishProof::Git(committed));
         }
 
         let command_error = match command_result {
@@ -143,9 +313,22 @@ impl PreparedGitFinish {
             )));
         }
         FinishCommitOutcome::NotCommitted {
-            proof: start,
+            proof: FinishStartProof::Git(start),
             error: command_error,
         }
+    }
+}
+
+pub(crate) fn prepare_finish(worktree: &Path) -> Result<PreparedFinish> {
+    match vcs_of(worktree) {
+        Some(Vcs::Git) => Ok(PreparedFinish::Git(prepare_plain_git_finish(worktree)?)),
+        Some(Vcs::Jj { workspace_root }) => {
+            Ok(PreparedFinish::Jj(prepare_jj_finish(&workspace_root)?))
+        }
+        None => bail!(
+            "cannot commit the finished grove: {} is not a git or jj working tree",
+            worktree.display()
+        ),
     }
 }
 
@@ -229,52 +412,135 @@ pub fn validate_finish_commit(worktree: &Path) -> Result<()> {
     }
 }
 
-/// Commit only the already-removed `.grove/`, preserving unrelated staged or
-/// working-copy changes. The caller owns the tree lock and all finish facts.
-pub fn commit_finish(worktree: &Path, finish_handle: &str, attempt_identity: &str) -> Result<()> {
-    let message = finish_commit_message(finish_handle, attempt_identity);
-    match vcs_of(worktree) {
-        Some(Vcs::Git) => {
-            match prepare_plain_git_finish(worktree)?.commit(finish_handle, attempt_identity) {
-                FinishCommitOutcome::Committed(_) => Ok(()),
-                FinishCommitOutcome::NotCommitted { error, .. }
-                | FinishCommitOutcome::RecoveryPending(error) => Err(error),
+pub(crate) fn prepare_jj_finish(worktree: &Path) -> Result<PreparedJjFinish> {
+    let index_backup = worktree
+        .join(".git")
+        .exists()
+        .then(|| preserve_git_index(worktree))
+        .transpose()?;
+    let prepared = (|| -> Result<(JjStartAnchor, [u8; 32], Option<PathBuf>)> {
+        let start = jj_topology(worktree, "@", false, None)
+            .context("recording Jujutsu finish start topology")?;
+        let deletion_fingerprint = jj_deletion_fingerprint(worktree, &start)?;
+        let success_index = match &index_backup {
+            Some(backup) => backup.prepare_without_grove(worktree)?,
+            None => None,
+        };
+        Ok((start, deletion_fingerprint, success_index))
+    })();
+    match prepared {
+        Ok((start, deletion_fingerprint, success_index)) => Ok(PreparedJjFinish {
+            worktree: worktree.to_path_buf(),
+            start,
+            deletion_fingerprint,
+            index_backup,
+            success_index,
+        }),
+        Err(error) => {
+            if let Some(backup) = index_backup {
+                backup.discard();
             }
+            Err(error)
         }
-        Some(Vcs::Jj { workspace_root }) => commit_jj_finish(&workspace_root, &message),
-        None => bail!(
-            "cannot commit the finished grove: {} is not a git or jj working tree",
-            worktree.display()
-        ),
     }
 }
 
-fn commit_jj_finish(worktree: &Path, message: &str) -> Result<()> {
-    if !worktree.join(".git").exists() {
-        return run_vcs_command(worktree, "jj", &["commit", "-m", message, "root:.grove"]);
+impl PreparedJjFinish {
+    fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
+        let message = finish_commit_message(finish_handle, attempt_identity);
+        let fileset = format!("root:.grove ~ root:.grove/FINISHING-{finish_handle}");
+        let auto_track_configuration = format!(
+            "snapshot.auto-track={:?}",
+            format!("all() ~ root:.grove/FINISHING-{finish_handle}")
+        );
+        let command_result = run_vcs_command(
+            &self.worktree,
+            "jj",
+            &[
+                "--config",
+                &auto_track_configuration,
+                "commit",
+                "-m",
+                &message,
+                &fileset,
+            ],
+        );
+        self.classify_command_result(&message, &auto_track_configuration, command_result)
     }
 
-    let backup = preserve_git_index(worktree)?;
-    let success_index = match backup.prepare_without_grove(worktree) {
-        Ok(success_index) => success_index,
-        Err(error) => {
-            backup.discard();
-            return Err(error);
-        }
-    };
-
-    let result = run_vcs_command(worktree, "jj", &["commit", "-m", message, "root:.grove"]);
-    match result {
-        Ok(()) => backup.activate(success_index),
-        Err(command_error) => {
-            discard_temporary_index(success_index.as_deref());
-            match backup.restore() {
-                Ok(()) => Err(command_error),
-                Err(restore_error) => Err(command_error.context(format!(
-                    "also failed to restore the colocated Git index after the finish commit: {restore_error}"
-                ))),
+    fn classify_command_result(
+        mut self,
+        message: &str,
+        auto_track_configuration: &str,
+        command_result: Result<()>,
+    ) -> FinishCommitOutcome {
+        let committed = JjFinishProof {
+            worktree: self.worktree.clone(),
+            start: self.start.clone(),
+            message: message.to_owned(),
+            deletion_fingerprint: self.deletion_fingerprint,
+        };
+        let committed_error = match committed.revalidate() {
+            Ok(()) => {
+                if let Some(backup) = self.index_backup.take() {
+                    if let Err(index_error) = backup.activate(self.success_index.take()) {
+                        return FinishCommitOutcome::RecoveryPending(
+                            index_error.context(
+                                "activating the successful colocated Git index after the Jujutsu finish commit",
+                            ),
+                        );
+                    }
+                }
+                discard_temporary_index(self.success_index.as_deref());
+                return FinishCommitOutcome::Committed(FinishProof::Jj(committed));
             }
+            Err(error) => error,
+        };
+
+        let command_error = match command_result {
+            Err(error) => error,
+            Ok(()) => anyhow::anyhow!(
+                "Jujutsu reported a successful finish commit, but the exact scoped result could not be proven: {committed_error:#}"
+            ),
+        };
+        discard_temporary_index(self.success_index.take().as_deref());
+        let mut start = JjStartProof {
+            worktree: self.worktree,
+            start: self.start,
+            message: message.to_owned(),
+            deletion_fingerprint: self.deletion_fingerprint,
+            index_backup: self.index_backup,
+            auto_track_configuration: auto_track_configuration.to_owned(),
+        };
+        if let Err(topology_error) = start.revalidate_before_rollback() {
+            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
+                "{topology_error:#}; preserve divergent work, restore the recorded start or the exact teardown result, then retry"
+            )));
         }
+        if let Err(index_error) = start.restore_index_preserving_backup() {
+            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
+                "restoring the original colocated Git index failed: {index_error:#}"
+            )));
+        }
+        if let Err(topology_error) = start.revalidate_before_rollback() {
+            return FinishCommitOutcome::RecoveryPending(command_error.context(format!(
+                "Jujutsu topology changed after index restoration: {topology_error:#}"
+            )));
+        }
+        FinishCommitOutcome::NotCommitted {
+            proof: FinishStartProof::Jj(start),
+            error: command_error,
+        }
+    }
+}
+
+/// Commit the prepared `.grove/` deletion, preserving unrelated staged or
+/// working-copy changes. The caller owns the tree lock and all finish facts.
+pub fn commit_finish(worktree: &Path, finish_handle: &str, attempt_identity: &str) -> Result<()> {
+    match prepare_finish(worktree)?.commit(finish_handle, attempt_identity) {
+        FinishCommitOutcome::Committed(_) => Ok(()),
+        FinishCommitOutcome::NotCommitted { error, .. }
+        | FinishCommitOutcome::RecoveryPending(error) => Err(error),
     }
 }
 
@@ -308,6 +574,30 @@ impl GitIndexBackup {
 
     fn restore(self) -> Result<()> {
         restore_git_index(&self.git_index, &self.backup_index, self.had_git_index)
+    }
+
+    fn restore_preserving_backup(&self) -> Result<()> {
+        if self.had_git_index {
+            fs::copy(&self.backup_index, &self.git_index).with_context(|| {
+                format!(
+                    "restoring Git index {} from {}",
+                    self.git_index.display(),
+                    self.backup_index.display()
+                )
+            })?;
+            Ok(())
+        } else {
+            match fs::remove_file(&self.git_index) {
+                Ok(()) => Ok(()),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(error) => Err(error).with_context(|| {
+                    format!(
+                        "removing newly created Git index {}",
+                        self.git_index.display()
+                    )
+                }),
+            }
+        }
     }
 
     fn activate(self, success_index: Option<PathBuf>) -> Result<()> {
@@ -478,6 +768,226 @@ fn validate_exact_git_finish(
     Ok(())
 }
 
+fn validate_exact_jj_finish(
+    worktree: &Path,
+    start: &JjStartAnchor,
+    message: &str,
+    deletion_fingerprint: [u8; 32],
+) -> Result<()> {
+    let successor = jj_topology(worktree, "@", true, None)?;
+    let [candidate] = successor.parent_commit_ids.as_slice() else {
+        bail!(
+            "the Jujutsu finish result is not the exact parent of the current working-copy successor"
+        );
+    };
+    validate_jj_finish_candidate(worktree, start, candidate, message, deletion_fingerprint)
+}
+
+fn validate_jj_finish_candidate(
+    worktree: &Path,
+    start: &JjStartAnchor,
+    candidate_commit_id: &str,
+    message: &str,
+    deletion_fingerprint: [u8; 32],
+) -> Result<()> {
+    let candidate = jj_topology(worktree, candidate_commit_id, true, None)?;
+    if candidate.change_id != start.change_id
+        || candidate.parent_commit_ids != start.parent_commit_ids
+    {
+        bail!(
+            "the Jujutsu finish result has unexpected topology: recorded change {} at parents {:?}, observed change {} at parents {:?}",
+            start.change_id,
+            start.parent_commit_ids,
+            candidate.change_id,
+            candidate.parent_commit_ids
+        );
+    }
+    let observed_message = jj_stdout(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            candidate_commit_id,
+            "--no-graph",
+            "-T",
+            "description",
+        ],
+    )?;
+    if observed_message != message {
+        bail!(
+            "the Jujutsu finish result has the wrong message: expected {message:?}, observed {observed_message:?}"
+        );
+    }
+    if !jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "file",
+            "list",
+            "-r",
+            candidate_commit_id,
+            "root:.grove",
+        ],
+    )?
+    .is_empty()
+    {
+        bail!("the Jujutsu finish result still tracks `.grove/`");
+    }
+    if jj_deletion_fingerprint(worktree, start)? != deletion_fingerprint {
+        bail!("the recorded Jujutsu deletion fingerprint no longer matches its start anchor");
+    }
+
+    let changed = jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "diff",
+            "-r",
+            candidate_commit_id,
+            "-T",
+            "status ++ \"\\0\" ++ path ++ \"\\0\"",
+        ],
+    )?;
+    let fields = changed
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .collect::<Vec<_>>();
+    if fields.is_empty()
+        || fields.len() % 2 != 0
+        || fields
+            .chunks_exact(2)
+            .any(|entry| entry[0] != b"removed" || !entry[1].starts_with(b".grove/"))
+    {
+        bail!("the Jujutsu finish result changes paths outside the exact `.grove/` deletion");
+    }
+    Ok(())
+}
+
+fn validate_jj_uncommitted(
+    worktree: &Path,
+    start: &JjStartAnchor,
+    message: &str,
+    deletion_fingerprint: [u8; 32],
+) -> Result<()> {
+    let revset = format!("change_id({})", start.change_id);
+    let versions = jj_stdout(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            &revset,
+            "--no-graph",
+            "-T",
+            "commit_id ++ \"\\n\"",
+        ],
+    )?;
+    for candidate in versions.lines() {
+        if validate_jj_finish_candidate(worktree, start, candidate, message, deletion_fingerprint)
+            .is_ok()
+        {
+            bail!(
+                "Recovery pending: the exact Jujutsu finish result {} exists but is not the current successor's immediate parent",
+                candidate
+            );
+        }
+    }
+
+    let observed = jj_topology(worktree, "@", true, None)?;
+    if observed.change_id != start.change_id
+        || observed.parent_commit_ids != start.parent_commit_ids
+    {
+        bail!(
+            "Recovery pending: Jujutsu finish recorded change {} at parents {:?}, but observed change {} at parents {:?}",
+            start.change_id,
+            start.parent_commit_ids,
+            observed.change_id,
+            observed.parent_commit_ids
+        );
+    }
+    Ok(())
+}
+
+fn jj_topology(
+    worktree: &Path,
+    revision: &str,
+    ignore_working_copy: bool,
+    auto_track_configuration: Option<&str>,
+) -> Result<JjStartAnchor> {
+    let mut command = vcs_command(worktree, "jj");
+    if let Some(configuration) = auto_track_configuration {
+        command.args(["--config", configuration]);
+    }
+    if ignore_working_copy {
+        command.arg("--ignore-working-copy");
+    }
+    let output = command
+        .args([
+            "log",
+            "-r",
+            revision,
+            "--no-graph",
+            "-T",
+            "commit_id ++ \"\\n\" ++ change_id ++ \"\\n\" ++ parents.map(|parent| parent.commit_id()).join(\" \") ++ \"\\n\"",
+        ])
+        .output()
+        .with_context(|| format!("reading Jujutsu topology for {revision}"))?;
+    if !output.status.success() {
+        bail!(
+            "jj log -r {revision} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let body = String::from_utf8(output.stdout)?;
+    let mut lines = body.lines();
+    let commit_id = lines.next().context("Jujutsu topology omitted commit ID")?;
+    let change_id = lines.next().context("Jujutsu topology omitted change ID")?;
+    let parents = lines
+        .next()
+        .context("Jujutsu topology omitted parent commit IDs")?;
+    if commit_id.is_empty() || change_id.is_empty() || lines.next().is_some() {
+        bail!("Jujutsu topology output was malformed for {revision}");
+    }
+    Ok(JjStartAnchor {
+        commit_id: commit_id.to_owned(),
+        change_id: change_id.to_owned(),
+        parent_commit_ids: parents.split_whitespace().map(str::to_owned).collect(),
+    })
+}
+
+fn jj_deletion_fingerprint(worktree: &Path, start: &JjStartAnchor) -> Result<[u8; 32]> {
+    let mut hasher = Sha256::new();
+    let mut has_tracked_grove = false;
+    for parent in &start.parent_commit_ids {
+        let tree = jj_bytes(
+            worktree,
+            &[
+                "--ignore-working-copy",
+                "diff",
+                "--from",
+                "root()",
+                "--to",
+                parent,
+                "--git",
+                "root:.grove",
+            ],
+        )?;
+        has_tracked_grove |= !tree.is_empty();
+        hasher.update((parent.len() as u64).to_le_bytes());
+        hasher.update(parent.as_bytes());
+        hasher.update((tree.len() as u64).to_le_bytes());
+        hasher.update(tree);
+    }
+    if !has_tracked_grove {
+        bail!(
+            "cannot finish this Jujutsu grove: `.grove/` has no tracked state at the recorded parents of {}, so no focused deletion commit can be recorded",
+            start.commit_id
+        );
+    }
+    Ok(hasher.finalize().into())
+}
+
 fn tracked_grove_fingerprint(worktree: &Path, revision: &str) -> Result<[u8; 32]> {
     let entries = tracked_grove_bytes(worktree, revision)?;
     if entries.is_empty() {
@@ -507,6 +1017,33 @@ fn git_stdout(worktree: &Path, arguments: &[&str]) -> Result<String> {
     Ok(String::from_utf8(git_bytes(worktree, arguments)?)?
         .trim()
         .to_owned())
+}
+
+fn jj_stdout(worktree: &Path, arguments: &[&str]) -> Result<String> {
+    Ok(String::from_utf8(jj_bytes(worktree, arguments)?)?
+        .trim()
+        .to_owned())
+}
+
+fn jj_bytes(worktree: &Path, arguments: &[&str]) -> Result<Vec<u8>> {
+    let output = vcs_command(worktree, "jj")
+        .args(arguments)
+        .output()
+        .with_context(|| {
+            format!(
+                "running jj {} in {}",
+                arguments.join(" "),
+                worktree.display()
+            )
+        })?;
+    if !output.status.success() {
+        bail!(
+            "jj {} failed: {}",
+            arguments.join(" "),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    Ok(output.stdout)
 }
 
 fn git_bytes(worktree: &Path, arguments: &[&str]) -> Result<Vec<u8>> {
@@ -585,12 +1122,62 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{
-        finish_commit_message, prepare_plain_git_finish, run_vcs_command, FinishCommitOutcome,
+        finish_commit_message, prepare_jj_finish, prepare_plain_git_finish, run_vcs_command,
+        FinishCommitOutcome,
     };
     use anyhow::anyhow;
     use std::fs;
     use std::process::Command;
     use tempfile::TempDir;
+
+    fn native_jj_finish_fixture() -> TempDir {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        run_vcs_command(
+            repository,
+            "jj",
+            &[
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ],
+        )
+        .unwrap();
+        run_vcs_command(
+            repository,
+            "jj",
+            &[
+                "config",
+                "set",
+                "--workspace",
+                "user.name",
+                "\"Grove Test\"",
+            ],
+        )
+        .unwrap();
+        run_vcs_command(
+            repository,
+            "jj",
+            &[
+                "config",
+                "set",
+                "--workspace",
+                "user.email",
+                "\"grove-test@example.com\"",
+            ],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join("outside"), "before\n").unwrap();
+        run_vcs_command(repository, "jj", &["commit", "-m", "fixture"]).unwrap();
+        fs::write(repository.join(".grove/finish"), "finish\n").unwrap();
+        fs::write(repository.join("outside"), "after\n").unwrap();
+        fixture
+    }
 
     #[test]
     fn exact_git_finish_result_reclassifies_a_lost_command_as_committed() {
@@ -642,5 +1229,70 @@ mod tests {
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "divergent"]).unwrap();
         let error = proof.revalidate().unwrap_err();
         assert!(error.to_string().contains("not immediate"), "{error:#}");
+    }
+
+    #[test]
+    fn exact_jj_finish_result_reclassifies_a_lost_command_as_committed() {
+        let fixture = native_jj_finish_fixture();
+        let repository = fixture.path();
+        let prepared = prepare_jj_finish(repository).unwrap();
+        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
+        let auto_track_configuration =
+            "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
+        fs::remove_dir_all(repository.join(".grove")).unwrap();
+        run_vcs_command(
+            repository,
+            "jj",
+            &[
+                "--config",
+                auto_track_configuration,
+                "commit",
+                "-m",
+                &message,
+                "root:.grove ~ root:.grove/FINISHING-finish-k2",
+            ],
+        )
+        .unwrap();
+
+        let outcome = prepared.classify_command_result(
+            &message,
+            auto_track_configuration,
+            Err(anyhow!("lost result")),
+        );
+
+        let FinishCommitOutcome::Committed(proof) = outcome else {
+            panic!("the exact Jujutsu result was not classified as committed");
+        };
+        proof.revalidate().unwrap();
+
+        run_vcs_command(repository, "jj", &["new"]).unwrap();
+        let error = proof.revalidate().unwrap_err();
+        assert!(
+            error.to_string().contains("unexpected topology"),
+            "{error:#}"
+        );
+    }
+
+    #[test]
+    fn unexpected_jj_topology_stays_recovery_pending() {
+        let fixture = native_jj_finish_fixture();
+        let repository = fixture.path();
+        let prepared = prepare_jj_finish(repository).unwrap();
+        let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
+        let auto_track_configuration =
+            "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
+
+        fs::remove_dir_all(repository.join(".grove")).unwrap();
+        run_vcs_command(repository, "jj", &["new"]).unwrap();
+        let outcome = prepared.classify_command_result(
+            &message,
+            auto_track_configuration,
+            Err(anyhow!("command failed after changing topology")),
+        );
+
+        let FinishCommitOutcome::RecoveryPending(error) = outcome else {
+            panic!("unexpected Jujutsu topology was not retained for recovery");
+        };
+        assert!(format!("{error:#}").contains("command failed"), "{error:#}");
     }
 }

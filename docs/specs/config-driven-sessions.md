@@ -603,8 +603,8 @@ same live finish handle, and revalidates that no non-finish leaf is live before
 starting teardown. If work appeared after launch, it names that work and leaves
 the tree byte-identical; the session exits without a completion signal so the
 next driver iteration selects the new work. On success the helper has committed
-deletion of `.grove/` under a message naming `finish-k<key>` and has removed the
-task root from the working tree.
+deletion of `.grove/` under a message naming `finish-k<key>` plus the active
+finish-attempt identity and has removed the task root from the working tree.
 
 The helper cannot attest that a human spoke through an opaque configured
 command. Explicit confirmation remains a finish-session obligation enforced by
@@ -625,50 +625,71 @@ the intermediate history. Generic terminal verbs reject finish so an accidental
 Finish teardown is one fail-closed transaction, following the [task-tree
 transactions fail closed](../adr/task-tree-transactions-fail-closed.md)
 decision. The transaction keeps `.grove/` present until the repository has
-proven the exact scoped deletion commit and all success cleanup has completed.
+proven the exact scoped deletion commit and the atomic quarantine handoff has
+completed. Disposal after that handoff is cleanup-only and may finish later.
 At no pre-commit interruption point may the working tree expose task-root
 absence, because the next bare invocation would correctly classify that shape
 as a fresh grove.
 
-After the ordinary live-finish and no-other-work checks, repository validation
-that requires no tree mutation runs first. A validation failure leaves the task
-tree and Git index byte-identical and creates no Grove-authored repository
-revision; jj's ordinary read-side operation/snapshot bookkeeping is not promoted
-to a stronger byte-identity claim. The helper then
-creates this reserved directory inside the task root:
+After the ordinary live-finish and no-other-work checks, repository and
+quarantine validation that requires no tree mutation runs first. The expected
+tracked deletion fingerprint must be non-empty, the reserved witness prefix
+must be absent from the starting repository state, and the workspace-control
+directory must provide an untracked same-device rename target. The helper opens
+`.grove/` itself as a no-follow directory, compares that descriptor's identity
+with the locked working-tree-root entry, and retains it for descriptor-relative
+transaction operations; a symlink or any non-directory task root is refused
+before mutation. A wholly untracked task tree, including one ignored before it
+was ever recorded, has no deletion a focused finish commit can record, so finish
+refuses with the live tree unchanged and tells the operator to record it before
+retrying. A validation failure leaves the task tree and Git index byte-identical
+and creates no Grove-authored repository revision; jj's ordinary read-side
+operation/snapshot bookkeeping is not promoted to a stronger byte-identity
+claim. The helper then creates this reserved directory inside the task root:
 
 ```text
 .grove/FINISHING-<finish-handle>/
 ```
 
-It writes a manifest naming the handle, a repository-start anchor, the exact
-tracked deletion fingerprint expected from that anchor, and every ordinary root
-entry's type, digest, and recovery location. The start anchor is Git's `HEAD`,
-or jj's working-copy change identity and parent commit identities after its
-preflight snapshot. The expected deletion fingerprint is independent of the
-generated finish leaf: that leaf is normally working-tree-only and need never
-have existed in the starting VCS revision. Preparation rejects a reserved-name
-collision or second witness before mutation and writes a ready marker last; an
-incomplete witness contains no moved source and is discardable. Once ready, the
-helper evacuates every other `.grove/` entry beneath the witness by
-same-filesystem rename without following symlinks. The root now contains only
-the witness. Every ordinary tree reader and mutator refuses this shape, and the
-witness retains the only copies of the finish leaf, brief, format marker,
-terminal tree, and foreign root entries. Recovery is selected before format
-parsing, liveness, migration, or root initialization.
+It writes a manifest naming the handle and the active session epoch's opaque
+128-bit launch nonce as the finish-attempt identity, plus a repository-start
+anchor, the exact tracked deletion fingerprint expected from that anchor, and
+every ordinary root entry's type, recursive digest, and recovery location. The
+digest is a canonical no-follow SHA-256 Merkle digest over length-delimited
+records:
+directories hash their raw-name-byte-ordered child records; each record includes
+the root-relative path bytes, entry type, and applicable mode bits; regular files
+add their bytes and symlinks add the link-target bytes. Any other filesystem
+entry type is rejected before mutation with its path. The digest detects missing,
+substituted, or altered evacuated content without dereferencing a symlink or
+leaving directory meaning implementation-defined. The start anchor is Git's
+`HEAD`; for jj it is the exact preflight working-copy commit ID, its change
+identity, and its parent commit identities. The expected deletion
+fingerprint is independent of the generated finish leaf: that leaf is normally
+working-tree-only and need never have existed in the starting VCS revision.
+Preparation rejects a reserved-name collision or second witness before mutation
+and writes a ready marker last; an incomplete witness contains no moved source
+and is discardable. Once ready, the helper evacuates every other `.grove/`
+entry beneath the witness by same-filesystem rename without following symlinks.
+The root now contains only the witness. Every ordinary tree reader and mutator
+refuses this shape, and the witness retains the only copies of the finish leaf,
+brief, format marker, terminal tree, and foreign root entries. Recovery is
+selected before format parsing, liveness, migration, or root initialization.
 
 The tree transaction calls one deep repository seam that hides the Git, native
 jj, and colocated-jj adapters. Its result has three factual dispositions:
 
-- **Committed** — the exact immediate commit named by the requested finish
-  handle starts from the manifest's repository anchor, has the expected tracked
+- **Committed** — the exact immediate Git result derived from the recorded
+  `HEAD`, or the exact jj partial-commit result derived from the recorded
+  working-copy change and parents, is named by the requested finish handle and
+  carries the manifest's finish-attempt identity, has the expected tracked
   deletion fingerprint, touches no path outside `.grove/`, and leaves no tracked
-  `.grove/`; any required success-index activation is complete. The witness,
-  not the commit parent, proves the live finish leaf that authorized teardown.
+  `.grove/`; any required success-index activation is complete. The witness, not
+  the commit parent, proves the live finish leaf that authorized teardown.
 - **Not committed** — the exact commit is absent, Git `HEAD` still equals the
-  recorded start or jj still has the recorded working-copy change at the same
-  parents, and every repository-side staging/index mutation has been restored,
-  so restoring the task tree is safe.
+  recorded start or jj's current working-copy commit itself still has the
+  recorded change identity at the recorded parents, and every repository-side
+  staging/index mutation has been restored, so restoring the task tree is safe.
 - **Recovery pending** — the adapter cannot yet prove either complete success or
   a restored pre-commit repository state. It retains its auxiliary recovery
   material and the tree keeps the blocking witness.
@@ -683,11 +704,39 @@ starting repository topology still holds and restores its original index state.
 A different new revision, a rewritten message or tree, or any other topology
 change is **Recovery pending**, not evidence that no commit occurred.
 
+The disposition is not an unguarded enum that the tree caller may act on later.
+The deep repository seam retains the outcome context through the filesystem
+handoff and revalidates immediately before and after it. On **Not committed**,
+the transaction restores manifest entries while retaining the witness, snapshots
+or refreshes repository state, and removes the witness only when Git still
+equals the recorded `HEAD` or jj reproduces the exact recorded preflight commit
+ID. If the post-restore check changes, the root remains blocked by the witness
+and the observed state becomes **Recovery pending**. On **Committed**, it
+revalidates the attempt-bound exact result, renames the whole root to quarantine,
+and revalidates again before disposal; a changed result atomically renames the
+quarantine back to `.grove/` and remains blocked. Direct repository or
+filesystem mutation after the final successful gate is outside cooperating
+Grove guarantees, but any change observed at either gate is never acted on
+through a stale disposition.
+
+`Recovery pending` is fail-closed, not automatic history repair. Its diagnostic
+names the witness, recorded exact anchor, observed topology, and the two
+admissible ways to make retry decidable: preserve divergent work elsewhere and
+restore the exact recorded start so the next recovery can roll the tree back,
+or make the exact handle-and-attempt-named teardown result the immediate result
+so recovery can finish forward. The operator then reruns bare `grove` or the
+still-confirmed session's same `finish-commit`; Grove never resets, rebases, or edits the witness on the
+operator's behalf. Direct VCS commits that track the witness or change topology
+while the transaction is blocked enter this same procedure. This is the
+documented recovery exit for non-cooperating repository mutations, not a fourth
+repository disposition or durable state outside `.grove/`.
+
 The VCS adapters implement the same disposition as follows:
 
 - **Plain Git** first preserves the complete existing index. After evacuation,
   `git add -A` and `git commit --only` select `.grove/` while excluding the exact
-  `FINISHING-<finish-handle>/` witness. The internal commit uses an empty
+  `FINISHING-<finish-handle>/` witness. Its message names the stable handle and
+  opaque finish-attempt identity. The internal commit uses an empty
   workspace-control hooks path, disabling all user Git hooks: arbitrary hook
   side effects cannot be rolled back from an index image and therefore cannot
   coexist with the promise to preserve unrelated working-tree bytes. Signing
@@ -695,17 +744,31 @@ The VCS adapters implement the same disposition as follows:
   the index and proves `HEAD` is still the manifest anchor before returning
   **Not committed**. Failure of either proof returns **Recovery pending**.
   Unrelated staged and working-tree entries never enter the deletion commit.
-- **Native jj** commits the `.grove/` deletion fileset while excluding the exact
-  witness. Unrelated changes and the evacuated witness remain in the successor
-  working-copy commit. A failed command is **Not committed** only after the exact
-  result check says no teardown commit exists.
-- **Colocated jj** preserves the user's Git index and prepares the
-  `.grove/`-free success image before invoking `jj commit`. Preparation failure
-  restores the untouched index and is **Not committed**. After an exact commit
-  exists, recovery activates that success image; an activation failure is
-  **Recovery pending**, never grounds to roll history or the tree back. The
-  staged blob for every unrelated path remains exactly the user's pre-finish
-  blob even when its working-copy content differs.
+  The adapter requires the witness to remain absent from the index and every
+  candidate committed tree; if a direct broad commit tracks it, recovery is
+  pending until the operator restores one of the two provable topologies.
+- **Native jj** records exact preflight working-copy commit ID `C0`, change
+  identity `W`, and parent set `P`, then commits the `.grove/` deletion fileset
+  while excluding the exact witness. A partial `jj commit` keeps the selected
+  deletion in the commit with change identity `W` and parents `P`, and moves
+  unrelated changes plus the witness into a new successor working-copy commit.
+  **Committed** requires that attempt-bound exact handle-named parent of the
+  current successor. **Not committed** requires that exact result to be absent
+  from the current repository view and the current working-copy commit itself to
+  have identity `W` at `P`; after tree restoration its snapshot must reproduce
+  `C0` before witness removal. Merely finding `W` somewhere in history is never
+  sufficient for either rollback or success, so the predicates remain disjoint
+  after `jj edit`, rewrite, or workspace-topology changes.
+- **Colocated jj** copies the user's complete Git index before any jj command
+  can preflight-snapshot or export the working copy. It then snapshots, records
+  `C0`, `W`, and `P`, and prepares the `.grove/`-free success index before
+  invoking the same partial-commit protocol as native jj. Preparation or an
+  uncommitted command failure restores the pre-snapshot index before it may
+  return **Not committed**. After the exact committed parent exists, recovery activates the
+  success index; an activation failure is **Recovery pending**, never grounds to
+  roll history or the tree back. The staged blob for every unrelated path
+  remains exactly the user's pre-finish blob even when its working-copy content
+  differs.
 
 On **Not committed**, the tree transaction restores every manifest entry to its
 original path, verifies the complete current-format live finish tree, and only
@@ -723,10 +786,11 @@ quarantine, finish refuses with the live tree unchanged rather than falling back
 to a trackable worktree sibling or non-atomic copy. Rename failure leaves the
 original blocking witness and is idempotently recoverable from exact commit
 proof. Rename success is the one namespace transition to task-root absence; only
-after it may recursive disposal begin. Interruption or disposal failure
-therefore leaves a complete post-commit quarantine rather than an empty or
-partially deleted `.grove/`. The quarantine is cleanup garbage, never a finish
-receipt or lifecycle input. Its exact path is reported and best-effort disposal
+after it may descriptor-rooted, no-follow recursive disposal begin. Disposal
+unlinks a symlink as an entry and never traverses its target. Interruption or
+disposal failure therefore leaves a complete post-commit quarantine rather than
+an empty or partially deleted `.grove/`. The quarantine is cleanup garbage,
+never a finish receipt or lifecycle input. Its exact path is reported and best-effort disposal
 may be retried, but a proven commit plus absent task root remains successful
 teardown.
 
@@ -738,13 +802,21 @@ root then follows the ordinary **Fresh tree** contract in that invocation, as
 specified by the post-commit restart semantics. A still-running, already
 confirmed finish session may instead retry `finish-commit`; exact proof returns
 success without a second commit, allowing it to invoke `complete --done` last.
+If neither repository predicate holds, the driver stops on **Recovery pending**
+with the operator procedure above; it does not launch, select, or silently park
+on an uncheckable witness.
 
 Auxiliary Git-index backups or success images live in the workspace's VCS
 administration directory because they must not enter jj's working-copy commit.
 They are keyed to and valid only while the in-tree finish witness exists. Their
 unlocked bytes never classify a rootless invocation. A post-commit cleanup
 quarantine likewise carries no workflow meaning after the atomic task-root
-rename; stale auxiliaries and quarantines are cleanup candidates only.
+rename. `finish-commit` owns immediate best-effort no-follow disposal; a later
+driver, after it owns the lease and has invalidated the previous epoch, reaps
+quarantines and auxiliaries carrying Grove's valid cleanup-manifest marker and
+having no matching in-tree witness. Reaping never changes lifecycle
+classification or turns cleanup bytes into a receipt; a persistent filesystem
+error is reported and retried on the next owned invocation.
 
 This transaction promises process-interruption consistency, not ordered
 power-loss durability. It issues no `fsync` protocol.
@@ -761,18 +833,24 @@ was committed.
   `complete --done` last.
 - If the calling finish session loses the helper result, a retry does not trust
   `.grove/` task-root absence. Through the repository seam it requires the
-  immediate VCS result to prove the exact handle-named, `.grove/`-scoped
-  teardown commit. Because successful cleanup may already have disposed the
-  manifest, this retry proof is self-contained: the commit's own parent/result
-  delta only deletes `.grove/`, its message names the requested handle exactly,
-  and the result leaves no tracked task root. It never requires the generated
-  finish leaf in the parent. Git checks `HEAD`, while native and colocated jj
-  check the committed parent of the successor working-copy commit. A match
-  returns idempotent success, after which the already-confirmed session invokes
-  `complete --done`.
+  immediate VCS result to prove the exact handle-named, attempt-bound,
+  `.grove/`-scoped teardown commit. `finish-commit` requires the still-active
+  session epoch and reads the same opaque attempt identity from that launch
+  nonce. Because successful cleanup may already have disposed the manifest,
+  this retry proof is self-contained: the commit's own
+  parent/result delta only deletes `.grove/`, its message names the requested
+  handle and this launch's attempt identity exactly, and the result leaves no
+  tracked task root. It never requires the generated finish leaf in the parent.
+  Git checks `HEAD`, while native and colocated jj check the committed parent of
+  the successor working-copy commit. A match returns idempotent success, after
+  which the already-confirmed session invokes `complete --done`.
   No match is a refusal and never signals `done`. This is narrow command-outcome
   verification under the current finish invocation, not a rootless-driver
-  lifecycle discriminator.
+  lifecycle discriminator. The rootless proof is reached only when no task root
+  exists and only for the launch attempt that authored the commit. A new grove's
+  epoch necessarily has a different attempt identity, so even an external
+  reset and root removal cannot make an older reused-handle teardown satisfy the
+  new confirmed session.
 - If the configured session exits without a completion signal after the commit,
   the live driver follows the ordinary no-signal path: report status and elapsed
   time, then stop. It does not infer a human decision from task-root absence.
@@ -900,14 +978,21 @@ Migration and finish commits preserve unrelated user work.
   outside `.grove/` remain staged and absent from either commit. A valid Grove
   cannot reach finish in an unborn repository without first recording either
   its migration or a task commit; an externally hand-constructed terminal tree
-  that has never existed in `HEAD` is refused because there is no deletion for
-  a focused finish commit to record.
+  that has never existed in `HEAD` is refused before evacuation because there is
+  no non-empty deletion for a focused finish commit to record. The witness must
+  remain untracked; a direct broad commit that tracks it is an operator-recovery
+  case, not a candidate teardown result. The handle-plus-attempt commit message
+  makes rootless proof specific to the active finish launch without becoming a
+  later driver's lifecycle receipt.
 - In Jujutsu, Grove commits a `.grove/` fileset excluding the exact live
   migration or finish transaction witness. Unrelated working-copy changes and
-  the witness additions remain in the successor working-copy commit until
-  recovery removes the witness. A colocated workspace prepares its
-  `.grove/`-free Git success index before commit and activates it only after the
-  exact jj result is proven; native jj has no Git-index step.
+  the witness additions remain in the new successor working-copy commit until
+  recovery removes the witness; the selected deletion stays in the prior change
+  identity at its recorded parents and carries the handle-plus-attempt message.
+  A colocated workspace backs up the user's Git index before jj's preflight
+  snapshot, prepares its `.grove/`-free Git success index after that snapshot,
+  and activates the success image only after the exact jj result is proven;
+  native jj has no Git-index step.
 
 The same repository seam continues to resolve jj first, use filesystem renames
 in jj-enabled workspaces, and use Git only in plain Git trees.
@@ -999,9 +1084,12 @@ forward cleanup, and recovery ordering from the CLI and driver. The repository
 module owns worktree/main-repo resolution and path/fileset-scoped commits. Its
 internal finish seam consumes the transaction manifest and reports
 **Committed**, **Not committed**, or **Recovery pending** after comparing the
-requested handle with the immediate Git `HEAD` or jj committed parent. Git,
-native-jj, colocated-index, and lost-result behavior stay behind that seam, so
-tree lifecycle callers never reproduce VCS-specific commit-boundary rules.
+manifest anchor and requested handle with Git's current `HEAD` topology or jj's
+current working-copy/committed-parent topology. Git, native-jj,
+colocated-index, and lost-result behavior stay behind that seam. The seam keeps
+its outcome context through pre/post handoff revalidation instead of returning a
+staleable bare enum, so tree lifecycle callers never reproduce VCS-specific
+commit-boundary rules.
 
 Deleting the configuration module would scatter KDL validation, shell-word and
 substitution rules, source diagnostics, and argv construction across every
@@ -1039,7 +1127,7 @@ Through that seam, cover:
   a launch-window insert, spawn failure and restart;
 - finish allocation, reuse, decline followed by later work, finish eligibility,
   duplicate-finish refusal, per-verb reservation, `finish-commit` revalidation
-  when work appears after launch, deletion commit naming, Jujutsu/Git
+  when work appears after launch, handle-plus-attempt deletion commit naming, Jujutsu/Git
   intermediate finish snapshots, clean `--done` stop, and successful teardown
   followed by a configured child exiting without a signal: the driver preserves
   the real status/elapsed-time diagnostic and a later bare invocation launches a
@@ -1048,35 +1136,46 @@ Through that seam, cover:
   transition boundary: before readiness the original tree is untouched; after
   readiness every reader and unrelated mutator refuses the exact witness; an
   uncommitted interruption restores a byte-identical live finish tree; rollback
-  failure leaves the only copies under an actionable blocking witness; forward
-  rename failure does the same, while interruption after the atomic root rename
-  leaves a complete cleanup quarantine and no partial task root; exact commit
-  proof always recovers forward and never resurrects the tree;
+  failure leaves the only copies under an actionable blocking witness;
+  repository topology changes before or after rollback/forward handoff retain or
+  atomically restore the witness instead of consuming a stale disposition;
+  forward rename failure does the same, while interruption after the atomic root
+  rename leaves a complete cleanup quarantine and no partial task root; exact
+  commit proof always recovers forward and never resurrects the tree;
 - reserved-name collision, foreign files, symlink entries without target
-  traversal, manifest tampering, and multiple-witness refusal before any source
-  move;
+  traversal during evacuation and quarantine disposal, canonical recursive
+  directory digests, special-file refusal, manifest/content tampering, and
+  multiple-witness refusal before any source move; plus a symlinked or replaced
+  `.grove/` root refused by no-follow descriptor identity before mutation;
 - workspace-control quarantine preflight, including same-device success and a
   cross-device refusal that leaves the live tree and repository untouched;
 - plain-Git validation, index-backup, staging, hook suppression,
   injected/signing commit, index-restore, unexpected-`HEAD`, and lost-result
-  failures; native-jj commit, workspace-topology change, and lost-result
-  failures; and
-  colocated-jj backup, success-index preparation, commit, success-index
-  activation, and restore failures. Each uncommitted reported failure preserves
-  unrelated work and positively proves the recorded repository anchor, each
-  ambiguous result is classified by the exact handle-named scoped commit, and
-  each unexpected repository state retains both its auxiliary material and the
-  in-tree witness;
+  failures, including a wholly untracked tree (ignored before first record) and
+  a direct broad commit that tracks the witness; native-jj partial-commit change/parent identity,
+  exact preflight commit reproduction, `jj edit`/rewrite/workspace-topology
+  changes, exact-result absence, disjoint committed/not-committed predicates,
+  and lost-result failures; and colocated-jj pre-snapshot index backup ordering,
+  success-index preparation, commit, success-index activation, and restore
+  failures. Each uncommitted reported failure preserves unrelated work and
+  positively proves the recorded repository anchor, each ambiguous result is
+  classified by the exact handle-and-attempt-named scoped commit, and each unexpected
+  repository state retains both its auxiliary material and the in-tree witness;
 - bare-driver recovery of a pre-commit finish witness after full configuration
   validation, producing a selectable finish leaf and a fresh confirmation; plus
   committed-witness recovery completing teardown before the ordinary
   rootless/fresh transition, with no witness or index image becoming a finish
-  receipt on its own;
+  receipt on its own; and `Recovery pending` diagnostics naming the recorded and
+  observed topology plus both operator-restorable proof paths;
 - lost `finish-commit` results in plain Git, native jj, and colocated jj: an
-  exact immediate handle-named, `.grove/`-only deletion commit makes the retry
-  idempotently successful, while task-root absence without that proof never
-  emits `done`; include a prior completed grove with reused handles so an older
-  teardown commit cannot satisfy the new invocation;
+  exact immediate handle-and-attempt-named, `.grove/`-only deletion commit makes
+  the same active launch's retry idempotently successful, while task-root
+  absence without that proof never emits `done`; include a prior completed grove
+  with reused handles followed by external root removal/reset so the older
+  attempt cannot satisfy the new epoch;
+- quarantine disposal that unlinks rather than follows symlinks, immediate
+  best-effort cleanup, and later lease-owned reaping of orphaned internal
+  auxiliaries/quarantines without using them for lifecycle classification;
 - a completion signal written after the successful deletion commit followed by
   driver death before post-reap interpretation: replacement cleanup treats the
   abandoned channel as coordination rather than a finish receipt, then follows

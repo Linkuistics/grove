@@ -36,9 +36,10 @@ kind. A live finish leaf is reused rather than duplicated. A declined finish, or
 one interrupted before `finish-commit` begins, exits without a completion signal
 and leaves that leaf live for an explicit later resume. Once teardown begins,
 the [[Finish transaction]] keeps the task root present until the deletion commit
-is proven and cleanup succeeds; task-root absence never classifies an attempted
-finish as success. If later non-finish work appears, [[Pick]] skips finish until
-that work is terminal, so the sentinel cannot starve it. After confirmation,
+is proven and the atomic quarantine handoff succeeds; task-root absence never
+classifies an attempted finish as success. If later non-finish work appears,
+[[Pick]] skips finish until that work is terminal, so the sentinel cannot starve
+it. After confirmation,
 `grove-llm finish-commit <finish-handle>` revalidates under the exclusive
 [[Tree access lock]] that the
 same finish is live and no non-finish work appeared after launch; refusal leaves
@@ -55,14 +56,17 @@ working-tree, or working-copy change outside it. Teardown still requires explici
 human confirmation; it is the loop's only routine human gate. Branch integration
 and working-tree removal remain outside Grove.
 If the helper result is lost, a retry distrusts `.grove/` task-root absence and
-instead verifies the exact immediate handle-named, `.grove/`-scoped Git or jj
-commit it could have produced. With the witness already gone, the proof is
-self-contained in that immediate result: the exact handle-named message, a diff
-that only deletes `.grove/` from its own parent, and no tracked task root in the
-result. It never requires the working-tree-only finish leaf in the parent. A
-match is idempotent helper success for the still-confirmed session; no match
-never licenses `done`. This narrow
-command-outcome proof is not lifecycle state for a later bare driver. A
+instead verifies the exact immediate handle-and-attempt-named,
+`.grove/`-scoped Git or jj commit it could have produced. The opaque attempt
+identity is the active [[Session epoch]] launch nonce. With the
+witness already gone, the proof is self-contained in that immediate result: the
+exact handle-and-attempt message, a diff that only deletes `.grove/` from its
+own parent, and no tracked task root in the result. It never requires the
+working-tree-only finish leaf in the parent. A match is idempotent helper
+success only for the same still-active launch; no match never licenses `done`. This narrow
+command-outcome proof is not lifecycle state for a later bare driver. It is
+reachable only while the task root is absent, and a new grove or replacement
+launch has a different attempt even if it reuses the handle. A
 no-signal exit remains a no-signal stop after successful deletion: the driver
 reports the child's status and elapsed time rather than inferring confirmation
 from absence. If the driver itself dies before observing
@@ -80,25 +84,53 @@ _Avoid_: describing the finish as merging or deleting anything git-topological â
 **Finish transaction** (`FINISHING-<finish-handle>/`):
 The fail-closed transaction owned by `grove-llm finish-commit` after explicit
 finish confirmation. Under the exclusive [[Tree access lock]], it validates the
-live finish, writes a manifest-backed reserved witness inside `.grove/`, and
+live finish, opens and identity-revalidates `.grove/` itself as a real no-follow
+directory, writes a manifest-backed reserved witness inside it, and
 evacuates every ordinary root entry beneath that witness. Git or jj then commits
 only the deletions at the original paths, excluding the witness. The task root
 therefore remains visibly present and unwalkable throughout the uncertain
 pre-commit window rather than temporarily resembling a fresh grove.
 
+Preflight requires a non-empty tracked deletion fingerprint, an untracked
+witness prefix, and a same-device workspace-control quarantine; a wholly
+untracked task tree, including one ignored before it was recorded, is refused
+unchanged because it has no focused deletion to record. The manifest's
+root-entry digest is recursively defined and no-follow: SHA-256 covers
+length-delimited path/type/mode records, directories hash raw-name-byte-ordered
+children, files hash bytes, and symlinks hash their link-target bytes; other
+entry types are refused before mutation. For jj, the start anchor includes the
+exact preflight commit ID, current working-copy change, and its parents; a
+partial commit succeeds only when that change becomes the exact teardown parent
+of a new successor, while rollback
+requires that the current working-copy commit itself still be the recorded
+change at those parents. Colocated jj preserves the user's Git index before any
+preflight snapshot can export into it.
+
 Every ordinary tree reader and mutator refuses the witness. Recovery runs before
 format, liveness, or missing-root classification and asks the repository seam
-whether the exact immediate handle-named, `.grove/`-scoped commit exists. With
+whether the exact immediate handle-and-attempt-named, `.grove/`-scoped commit exists. With
 no proof, it first proves the recorded Git/jj starting topology still holds,
 then restores any Git/colocated-jj index backup before restoring the exact live
 finish tree; a failure of any proof or restoration leaves the witness in place
-with an actionable retry diagnostic. With proof, it never resurrects the tree:
+as **Recovery pending**. That diagnostic names the recorded and observed
+topology and asks the operator to preserve divergent work, restore either the
+exact start or the exact teardown result, and retry; Grove never rewrites the
+history automatically. With commit proof, it never resurrects the tree:
 it finishes repository cleanup and atomically renames the entire task root,
 witness intact, into a preflighted same-device workspace-control quarantine
-before recursive disposal. A workspace whose control directory cannot provide
-that atomic target is refused before mutation.
+before descriptor-rooted recursive disposal that unlinks rather than follows
+symlinks. A workspace whose control directory cannot provide that atomic target
+is refused before mutation.
+Repository classification is revalidated immediately before and after rollback
+or quarantine handoff. The witness is removed only after the restored repository
+reproduces its exact start; a changed forward result atomically returns the
+quarantine to `.grove/` and remains blocked.
 VCS-administration index images and post-commit quarantine are auxiliary cleanup,
-never rootless workflow state. Plain Git disables hooks for this internal commit
+never rootless workflow state. The helper attempts cleanup immediately and a
+later lease-owning driver reaps orphaned entries carrying a valid Grove cleanup
+manifest only when no matching in-tree witness owns them, without using cleanup
+bytes for lifecycle classification. Plain Git disables hooks for this internal
+commit
 because an index backup cannot reverse arbitrary hook side effects. See ADR
 *task-tree-transactions-fail-closed*.
 _Avoid_: deleting `.grove/` before the commit boundary and treating repository
@@ -218,7 +250,11 @@ stay close-on-exec; the signal path is the only exported value, and the record
 carries no leaf, kind, model, or hidden target. Manual commands with no loop-
 control context remain available. The epoch prevents stale access through
 `grove-llm`, not direct file edits, commits, or forged signal writes; it is
-workflow consistency, not authentication. See ADR
+workflow consistency, not authentication. The finish transaction also uses the
+active launch nonce as an opaque attempt identity and records it beside
+the stable handle in its internal deletion commit; only a rootless retry under
+that same active epoch accepts it. The historical nonce is audit data, not a
+credential or later-driver finish receipt. See ADR
 *one-live-driver-per-working-tree*.
 _Avoid_: a durable **grove generation** in `.grove/` or in a [[Work-item handle]]. Epoch rotation is stronger and catches stale sessions between every launch as well as after finish plus root recreation; stable handles remain identities within one task tree.
 _Avoid_: inferring authority from the existence or bytes of a control file. The live kernel locks bind the record; unlocked leftovers mean nothing.

@@ -97,14 +97,19 @@ durable state. A configured child that exits without a signal likewise retains
 the ordinary no-signal disposition; the driver does not infer `done` from
 task-root absence. A same-session `finish-commit` retry can
 recover a lost successful result only by verifying the exact, immediate,
-handle-named and `.grove/`-scoped commit through the Git or jj repository seam;
-with the witness already gone, the commit's own parent/result delta must only
-delete `.grove/`, its message must name the requested handle exactly, and no
+handle-named, finish-attempt-bound, and `.grove/`-scoped commit through the Git
+or jj repository seam. The helper uses the active session epoch's opaque 128-bit
+launch nonce as the attempt identity and includes it in the internal commit
+message; a retry under that same still-active epoch reads the same
+value, while a replacement launch cannot match the old attempt. With the witness
+already gone, the commit's own parent/result delta must only delete `.grove/`,
+its message must name the requested handle and attempt exactly, and no
 tracked task root may remain. It does not require the generated finish leaf in
 the parent because allocation is working-tree-only. Absence alone never licenses
-`done`. This is
-idempotence for the current teardown command, not workflow state consulted by a
-later driver. An operation already admitted under the crashed driver's epoch may
+`done`. This is idempotence for the current teardown command, not workflow state
+consulted by a later driver; the nonce in audit history is neither a credential
+nor a rootless lifecycle receipt. An operation already admitted under the
+crashed driver's epoch may
 also delay replacement
 invalidation; an orphan that holds the shared guard to the handoff bound makes
 that replacement stop `blocked` without creating a new task tree. Once the guard

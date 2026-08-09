@@ -840,12 +840,14 @@ mod tests {
     use std::cell::{Cell, RefCell};
     use std::collections::VecDeque;
     use std::ffi::OsString;
+    use std::process::Command;
     use std::sync::{mpsc, Mutex, MutexGuard};
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+    const FORK_SENSITIVE_TEST: &str = "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST";
 
     struct SignalEnvironment {
         previous: Option<OsString>,
@@ -870,6 +872,42 @@ mod tests {
                 None => std::env::remove_var("GROVE_SIGNAL_FILE"),
             }
         }
+    }
+
+    fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
+        let current_thread = thread::current();
+        let test_name = current_thread
+            .name()
+            .expect("the Rust test harness names every test thread");
+        let arguments: Vec<_> = std::env::args_os().collect();
+        let is_isolated_child = std::env::var_os(FORK_SENSITIVE_TEST)
+            == Some(OsString::from(test_name))
+            && arguments
+                .windows(2)
+                .any(|pair| pair[0] == "--exact" && pair[1] == test_name);
+        if is_isolated_child {
+            return true;
+        }
+
+        // flock locks survive fork until the child execs. A parallel unit test
+        // that launches a subprocess can therefore extend this test's lease
+        // briefly after its owner drops, even though every descriptor is
+        // close-on-exec. Re-run only the fork-sensitive assertion in a child
+        // test process with no parallel siblings; the production ordering and
+        // lock assertions remain unchanged inside that process.
+        let output = Command::new(std::env::current_exe().expect("locating the unit-test binary"))
+            .args(["--exact", test_name, "--nocapture"])
+            .env(FORK_SENSITIVE_TEST, test_name)
+            .output()
+            .expect("launching the isolated driver-lease test");
+        assert!(
+            output.status.success(),
+            "isolated driver-lease test {test_name} failed with {}\nstdout:\n{}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        false
     }
 
     fn replace_locked_path(attempt: usize, path: &Path) -> Result<()> {
@@ -1243,6 +1281,9 @@ mod tests {
 
     #[test]
     fn an_admitted_old_operation_finishes_before_replacement_invalidates_new_calls() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".git")).unwrap();
@@ -1301,6 +1342,9 @@ mod tests {
 
     #[test]
     fn replacement_keeps_the_old_lease_record_until_it_owns_epoch_handoff() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".git")).unwrap();
@@ -1429,6 +1473,9 @@ mod tests {
 
     #[test]
     fn a_successful_liveness_probe_releases_the_lease_before_validation() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".git")).unwrap();
@@ -1468,6 +1515,9 @@ mod tests {
 
     #[test]
     fn an_active_epoch_without_a_live_lease_is_stale() {
+        if !fork_sensitive_driver_lease_test_body_runs_here() {
+            return;
+        }
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join("worktree");
         fs::create_dir_all(root.join(".git")).unwrap();

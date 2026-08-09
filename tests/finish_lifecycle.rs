@@ -753,3 +753,185 @@ fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("grove finished"));
     assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
 }
+
+#[test]
+fn bare_driver_validates_config_before_recovering_an_interrupted_finish() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-recovers-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let grove = repository.join(".grove");
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!interrupted.status.success());
+    let witness = grove.join("FINISHING-finish-k2");
+    assert!(witness.is_dir());
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    fs::create_dir_all(home.join(".config/grove")).unwrap();
+    fs::write(
+        home.join(".config/grove/config.kdl"),
+        "finish \"sh -c true '${prompt}'\"\n",
+    )
+    .unwrap();
+    let invalid = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    assert!(!invalid.status.success());
+    assert!(witness.is_dir(), "invalid config mutated recovery state");
+
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-finish.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!witness.exists());
+    assert!(grove.join("02-finish-finish-k2.md").is_file());
+    assert!(fs::read_to_string(launch_log)
+        .unwrap()
+        .contains("finish-k2"));
+}
+
+#[test]
+fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-recovers-committed-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-commit")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!interrupted.status.success());
+    assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
+    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-requirements.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert!(fs::read_to_string(launch_log).unwrap().contains("plan-k1"));
+    let control = repository.join(".git/grove");
+    assert!(fs::read_dir(control).unwrap().all(|entry| !entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with("FINISHED-")));
+}
+
+#[test]
+fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-blocks-divergent-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!interrupted.status.success());
+    let witness = repository.join(".grove/FINISHING-finish-k2");
+    assert!(witness.is_dir());
+
+    fs::write(repository.join("divergent"), "preserve\n").unwrap();
+    git(&repository, &["add", "divergent"]);
+    git(&repository, &["commit", "-q", "-m", "divergent"]);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-launch.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(!blocked.status.success());
+    let diagnostic = String::from_utf8_lossy(&blocked.stderr);
+    assert!(diagnostic.contains("Recovery pending"), "{diagnostic}");
+    assert!(diagnostic.contains("recorded start"), "{diagnostic}");
+    assert!(diagnostic.contains("exact teardown result"), "{diagnostic}");
+    assert!(witness.is_dir());
+    assert!(!launch_log.exists());
+}

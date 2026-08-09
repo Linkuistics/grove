@@ -70,6 +70,12 @@ pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
         }
         Ok(_) => {}
     }
+    if crate::finish_transaction::recover_pending(worktree, &grove_root)?
+        == crate::finish_transaction::FinishRecovery::Committed
+    {
+        root_init_unlocked(worktree, "plan")?;
+        return Ok(CurrentTransition::RootInitialized);
+    }
     let name = grove_name(worktree);
     let transaction = crate::tree_migration_transaction::run_unlocked(&grove_root, || {
         crate::repo::commit_session_kind_migration(worktree, &name)

@@ -28,8 +28,10 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
         prepared_commit.deletion_fingerprint(),
     )?;
     evacuate(&transaction)?;
+    finish_test_checkpoint("after-evacuation")?;
     match prepared_commit.commit(finish_handle, &transaction.manifest.attempt_identity) {
         repo::FinishCommitOutcome::Committed(proof) => {
+            finish_test_checkpoint("after-commit")?;
             quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)
         }
         repo::FinishCommitOutcome::NotCommitted { proof, error } => {
@@ -46,6 +48,15 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
             transaction.witness_path.display()
         ))),
     }
+}
+
+/// Deterministic process-interruption seam for black-box recovery tests. The
+/// variable is deliberately test-prefixed and is not user configuration.
+fn finish_test_checkpoint(name: &str) -> Result<()> {
+    if std::env::var("GROVE_TEST_FINISH_FAIL_AT").as_deref() == Ok(name) {
+        bail!("injected finish interruption at {name}");
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -85,6 +96,134 @@ struct PreparedTransaction {
     original_tree: PathBuf,
     quarantine_path: PathBuf,
     manifest: FinishManifest,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FinishRecovery {
+    None,
+    RolledBack,
+    Committed,
+}
+
+pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<FinishRecovery> {
+    let mut witnesses = fs::read_dir(grove_root)
+        .with_context(|| {
+            format!(
+                "scanning task root for a pending finish transaction: {}",
+                grove_root.display()
+            )
+        })?
+        .filter_map(|entry| match entry {
+            Ok(entry) if entry.file_name().as_bytes().starts_with(WITNESS_PREFIX) => {
+                Some(Ok(entry.path()))
+            }
+            Ok(_) => None,
+            Err(error) => Some(Err(error)),
+        })
+        .collect::<std::io::Result<Vec<_>>>()?;
+    if witnesses.is_empty() {
+        return Ok(FinishRecovery::None);
+    }
+    witnesses.sort();
+    if witnesses.len() != 1 {
+        bail!(
+            "Recovery pending: multiple finish transaction witnesses exist: {}",
+            witnesses
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+
+    let witness_path = witnesses.pop().expect("one finish witness");
+    let ready = fs::read(witness_path.join(READY_FILE)).with_context(|| {
+        format!(
+            "Recovery pending: finish witness is not ready at {}",
+            witness_path.display()
+        )
+    })?;
+    if ready != b"ready\n" {
+        bail!(
+            "Recovery pending: finish witness has an invalid ready marker at {}",
+            witness_path.display()
+        );
+    }
+    let manifest_body = fs::read(witness_path.join(MANIFEST_FILE)).with_context(|| {
+        format!(
+            "Recovery pending: reading finish manifest at {}",
+            witness_path.display()
+        )
+    })?;
+    let manifest: FinishManifest = serde_json::from_slice(&manifest_body).with_context(|| {
+        format!(
+            "Recovery pending: parsing finish manifest at {}",
+            witness_path.display()
+        )
+    })?;
+    if manifest.version != 1 {
+        bail!(
+            "Recovery pending: unsupported finish manifest version {} at {}",
+            manifest.version,
+            witness_path.display()
+        );
+    }
+    let expected_witness = format!("FINISHING-{}", manifest.finish_handle);
+    if witness_path.file_name().and_then(|name| name.to_str()) != Some(&expected_witness) {
+        bail!(
+            "Recovery pending: finish manifest handle {} does not match witness {}",
+            manifest.finish_handle,
+            witness_path.display()
+        );
+    }
+    let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
+    let observed_entries = digest_root_entries(&original_tree).with_context(|| {
+        format!(
+            "Recovery pending: validating evacuated finish tree at {}",
+            original_tree.display()
+        )
+    })?;
+    if observed_entries != manifest.entries {
+        bail!(
+            "Recovery pending: evacuated finish tree does not match its manifest at {}",
+            witness_path.display()
+        );
+    }
+
+    let quarantine_directory = repo::workspace_control(worktree)?
+        .control_dir()
+        .to_path_buf();
+    let quarantine_path = quarantine_directory.join(format!(
+        "FINISHED-{}-{}",
+        manifest.finish_handle, manifest.attempt_identity
+    ));
+    let transaction = PreparedTransaction {
+        grove_root: grove_root.to_path_buf(),
+        witness_path: witness_path.clone(),
+        original_tree,
+        quarantine_path,
+        manifest,
+    };
+    match repo::recover_finish(
+        worktree,
+        &transaction.manifest.repository_anchor,
+        &transaction.manifest.finish_handle,
+        &transaction.manifest.attempt_identity,
+        transaction.manifest.deletion_fingerprint,
+    ) {
+        repo::FinishRecoveryOutcome::Committed(proof) => {
+            quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)?;
+            Ok(FinishRecovery::Committed)
+        }
+        repo::FinishRecoveryOutcome::NotCommitted(proof) => {
+            rollback(&transaction, proof)?;
+            Ok(FinishRecovery::RolledBack)
+        }
+        repo::FinishRecoveryOutcome::RecoveryPending(error) => Err(error.context(format!(
+            "Recovery pending at {}; preserve divergent work, restore the recorded start or the exact teardown result, then retry",
+            witness_path.display()
+        ))),
+    }
 }
 
 fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight> {
@@ -438,11 +577,64 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use super::{digest_root_entries, dispose_quarantine_with, ensure_same_device};
+    use super::{
+        digest_root_entries, dispose_quarantine_with, ensure_same_device, evacuate, preflight_root,
+        prepare_transaction, recover_pending, FinishRecovery,
+    };
+    use crate::repo;
     use std::fs;
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::path::Path;
+    use std::process::Command;
     use tempfile::TempDir;
+
+    fn run_git(repository: &Path, arguments: &[&str]) -> String {
+        let output = Command::new("git")
+            .current_dir(repository)
+            .args(arguments)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {arguments:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).unwrap().trim().to_owned()
+    }
+
+    fn evacuated_plain_git_transaction() -> TempDir {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        run_git(repository, &["init", "-q", "."]);
+        run_git(repository, &["config", "user.name", "Grove Test"]);
+        run_git(
+            repository,
+            &["config", "user.email", "grove-test@example.com"],
+        );
+        let grove_root = repository.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove_root.join("BRIEF.md"), "# fixture — brief\n").unwrap();
+        fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
+        run_git(repository, &["add", "-A"]);
+        run_git(repository, &["commit", "-q", "-m", "fixture"]);
+        fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
+
+        let preflight = preflight_root(repository, &grove_root).unwrap();
+        let prepared = repo::prepare_finish(repository).unwrap();
+        let transaction = prepare_transaction(
+            &grove_root,
+            "finish-k2",
+            "11111111111111111111111111111111".to_owned(),
+            preflight.entry_digests,
+            &preflight.quarantine_directory,
+            prepared.start_anchor(),
+            prepared.deletion_fingerprint(),
+        )
+        .unwrap();
+        evacuate(&transaction).unwrap();
+        fixture
+    }
 
     fn fixture(created_in_reverse: bool) -> TempDir {
         let fixture = TempDir::new().unwrap();
@@ -492,6 +684,55 @@ mod tests {
         fs::remove_file(right.path().join("link")).unwrap();
         symlink("beta", right.path().join("link")).unwrap();
         assert_ne!(digest_root_entries(right.path()).unwrap(), expected);
+    }
+
+    #[test]
+    fn restart_rolls_back_a_fully_evacuated_uncommitted_finish() {
+        let fixture = evacuated_plain_git_transaction();
+        let repository = fixture.path();
+        let grove_root = repository.join(".grove");
+
+        let recovered = recover_pending(repository, &grove_root).unwrap();
+
+        assert_eq!(recovered, FinishRecovery::RolledBack);
+        assert!(grove_root.join("02-finish-finish-k2.md").is_file());
+        assert!(!grove_root.join("FINISHING-finish-k2").exists());
+        assert_eq!(
+            run_git(repository, &["log", "-1", "--format=%s"]),
+            "fixture"
+        );
+    }
+
+    #[test]
+    fn lifecycle_recovers_a_finish_witness_before_ordinary_tree_classification() {
+        let fixture = evacuated_plain_git_transaction();
+        let repository = fixture.path();
+
+        let transition = crate::tree_lifecycle::transition_to_current(repository).unwrap();
+
+        assert_eq!(
+            transition,
+            crate::tree_lifecycle::CurrentTransition::AlreadyCurrent
+        );
+        assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+    }
+
+    #[test]
+    fn divergent_repository_keeps_the_witness_with_both_recovery_paths() {
+        let fixture = evacuated_plain_git_transaction();
+        let repository = fixture.path();
+        fs::write(repository.join("divergent"), "preserve\n").unwrap();
+        run_git(repository, &["add", "divergent"]);
+        run_git(repository, &["commit", "-q", "-m", "divergent"]);
+        let witness = repository.join(".grove/FINISHING-finish-k2");
+
+        let error = recover_pending(repository, &repository.join(".grove")).unwrap_err();
+
+        let message = format!("{error:#}");
+        assert!(message.contains("Recovery pending"), "{message}");
+        assert!(message.contains("recorded start"), "{message}");
+        assert!(message.contains("exact teardown result"), "{message}");
+        assert!(witness.is_dir());
     }
 
     #[test]

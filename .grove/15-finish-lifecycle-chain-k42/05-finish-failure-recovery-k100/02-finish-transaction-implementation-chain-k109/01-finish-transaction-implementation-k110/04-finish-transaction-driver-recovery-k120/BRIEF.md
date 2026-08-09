@@ -1,4 +1,4 @@
-# finish-transaction-driver-recovery-k120
+# finish-transaction-driver-recovery-k120 — brief
 
 **Kind:** impl
 

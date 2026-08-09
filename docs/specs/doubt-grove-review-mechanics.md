@@ -129,7 +129,7 @@ is available.
 
 ## Fail-closed transaction
 
-The [Promotion transactions fail closed](../adr/promotion-transactions-fail-closed.md)
+The [Task-tree transactions fail closed](../adr/task-tree-transactions-fail-closed.md)
 decision supplies the portable atomicity boundary.
 
 Every participating task-tree operation acquires the shared tree-access seam

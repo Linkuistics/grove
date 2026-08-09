@@ -44,7 +44,7 @@ tree, while one personal KDL file is the entirety of user launch policy.
 - Records in scope: `docs/adr/complete-session-configuration.md`,
   `docs/adr/grove-owns-escalated-review.md`,
   `docs/adr/one-live-driver-per-working-tree.md`,
-  `docs/adr/promotion-transactions-fail-closed.md`, and
+  `docs/adr/task-tree-transactions-fail-closed.md`, and
   `docs/specs/doubt-grove-review-mechanics.md`.
 - Test seams: the bare `grove` process in isolated Git/jj worktrees with fake
   commands, and the internal `grove-llm` tree interface.

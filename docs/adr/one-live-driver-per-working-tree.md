@@ -98,8 +98,11 @@ the ordinary no-signal disposition; the driver does not infer `done` from
 task-root absence. A same-session `finish-commit` retry can
 recover a lost successful result only by verifying the exact, immediate,
 handle-named and `.grove/`-scoped commit through the Git or jj repository seam;
-the commit's parent must contain the requested live finish leaf and its result
-must delete only `.grove/`. Absence alone never licenses `done`. This is
+with the witness already gone, the commit's own parent/result delta must only
+delete `.grove/`, its message must name the requested handle exactly, and no
+tracked task root may remain. It does not require the generated finish leaf in
+the parent because allocation is working-tree-only. Absence alone never licenses
+`done`. This is
 idempotence for the current teardown command, not workflow state consulted by a
 later driver. An operation already admitted under the crashed driver's epoch may
 also delay replacement

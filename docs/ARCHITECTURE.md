@@ -169,8 +169,8 @@ and lands the directory with one same-parent rename. Every other task-tree
 command refuses while a witness exists and names `leaf-promote-chain` recovery.
 Jujutsu uses filesystem renames; tracked plain Git prepares the producer's final
 index path while the witness still blocks readers. The contract is
-process-interruption consistency, not power-loss durability. See [Promotion
-transactions fail closed](adr/promotion-transactions-fail-closed.md).
+process-interruption consistency, not power-loss durability. See [Task-tree
+transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>

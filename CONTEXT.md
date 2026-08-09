@@ -34,9 +34,10 @@ validation, an empty driver pick mechanically appends one working-tree-only
 runs the ordinary pick/config/launch path again. Only the driver may create this
 kind. A live finish leaf is reused rather than duplicated. A declined finish, or
 one interrupted before `finish-commit` begins, exits without a completion signal
-and leaves that leaf live for an explicit later resume. Failures once teardown
-begins are outside this post-commit term and task-root absence does not classify
-them as success. If later non-finish work appears, [[Pick]] skips finish until
+and leaves that leaf live for an explicit later resume. Once teardown begins,
+the [[Finish transaction]] keeps the task root present until the deletion commit
+is proven and cleanup succeeds; task-root absence never classifies an attempted
+finish as success. If later non-finish work appears, [[Pick]] skips finish until
 that work is terminal, so the sentinel cannot starve it. After confirmation,
 `grove-llm finish-commit <finish-handle>` revalidates under the exclusive
 [[Tree access lock]] that the
@@ -55,9 +56,12 @@ human confirmation; it is the loop's only routine human gate. Branch integration
 and working-tree removal remain outside Grove.
 If the helper result is lost, a retry distrusts `.grove/` task-root absence and
 instead verifies the exact immediate handle-named, `.grove/`-scoped Git or jj
-commit it could have produced: the parent contains that live finish leaf and the
-result deletes only `.grove/`. A match is idempotent helper success for the
-still-confirmed session; no match never licenses `done`. This narrow
+commit it could have produced. With the witness already gone, the proof is
+self-contained in that immediate result: the exact handle-named message, a diff
+that only deletes `.grove/` from its own parent, and no tracked task root in the
+result. It never requires the working-tree-only finish leaf in the parent. A
+match is idempotent helper success for the still-confirmed session; no match
+never licenses `done`. This narrow
 command-outcome proof is not lifecycle state for a later bare driver. A
 no-signal exit remains a no-signal stop after successful deletion: the driver
 reports the child's status and elapsed time rather than inferring confirmation
@@ -72,6 +76,34 @@ by the single-command and artifact-only contracts. Reused handles belong to the
 new task tree and old cooperating sessions are rejected by [[Session epoch]]
 rotation.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
+
+**Finish transaction** (`FINISHING-<finish-handle>/`):
+The fail-closed transaction owned by `grove-llm finish-commit` after explicit
+finish confirmation. Under the exclusive [[Tree access lock]], it validates the
+live finish, writes a manifest-backed reserved witness inside `.grove/`, and
+evacuates every ordinary root entry beneath that witness. Git or jj then commits
+only the deletions at the original paths, excluding the witness. The task root
+therefore remains visibly present and unwalkable throughout the uncertain
+pre-commit window rather than temporarily resembling a fresh grove.
+
+Every ordinary tree reader and mutator refuses the witness. Recovery runs before
+format, liveness, or missing-root classification and asks the repository seam
+whether the exact immediate handle-named, `.grove/`-scoped commit exists. With
+no proof, it first proves the recorded Git/jj starting topology still holds,
+then restores any Git/colocated-jj index backup before restoring the exact live
+finish tree; a failure of any proof or restoration leaves the witness in place
+with an actionable retry diagnostic. With proof, it never resurrects the tree:
+it finishes repository cleanup and atomically renames the entire task root,
+witness intact, into a preflighted same-device workspace-control quarantine
+before recursive disposal. A workspace whose control directory cannot provide
+that atomic target is refused before mutation.
+VCS-administration index images and post-commit quarantine are auxiliary cleanup,
+never rootless workflow state. Plain Git disables hooks for this internal commit
+because an index backup cannot reverse arbitrary hook side effects. See ADR
+*task-tree-transactions-fail-closed*.
+_Avoid_: deleting `.grove/` before the commit boundary and treating repository
+history as a rollback source — a process death exposes an indistinguishable
+fresh-root shape.
 
 **Grove name**:
 The working-tree directory's basename — never a branch, a bookmark, or a canonical layout. Resolved **jj-first**: a `.jj/` directory heading the tree makes it jj-enabled (native, secondary workspace, or colocated — `.jj/` wins even with a `.git` beside it) and the workspace root is the directory holding `.jj/`; only a not-jj-enabled tree falls back to `git rev-parse --show-toplevel`. The closest marker walking up decides, so a plain-git checkout nested under a jj tree stays git. The name supplies the root brief (`# <name> — brief`) and the harness session name (`<repo-basename>: <name> grove`); Grove stores no repository-local harness binding or stamp.
@@ -657,7 +689,7 @@ finishes or reverses that exact transaction; a reported failure rolls it back
 and prints no success output. All other foreign names remain leniently ignored.
 This is process-interruption consistency, not a power-loss durability claim;
 Grove performs no ordered `fsync` protocol.
-See ADR *promotion-transactions-fail-closed*.
+See ADR *task-tree-transactions-fail-closed*.
 The explicit producer reference is workflow discipline, not an unforgeable
 capability: the command structurally validates and trusts it, while concurrent-
 driver and stale-session exclusion are a separate process-ownership concern.
@@ -680,7 +712,7 @@ processes but adds no crash atomicity; operations that promise process-
 interruption recovery use their own in-tree witnesses. Acquisition first tries
 without blocking, prints one waiting diagnostic on contention, then waits until
 the owning process exits or releases it. Direct human edits remain outside the
-cooperative serialization. See ADR *promotion-transactions-fail-closed*.
+cooperative serialization. See ADR *task-tree-transactions-fail-closed*.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
 and existing tree readers deliberately tolerate their absence.
 _Avoid_: locking `.grove/` itself — it cannot serialize either its own creation

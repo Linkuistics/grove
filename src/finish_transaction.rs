@@ -21,10 +21,9 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
     let prepared_commit = repo::prepare_finish(worktree, finish_handle, &attempt_identity)?;
     let transaction = prepare_transaction(
         grove_root,
+        preflight,
         finish_handle,
         attempt_identity,
-        preflight.entry_digests.clone(),
-        &preflight.quarantine_directory,
         prepared_commit.start_anchor(),
         prepared_commit.deletion_fingerprint(),
     )?;
@@ -82,7 +81,7 @@ enum EntryType {
 }
 
 struct FinishPreflight {
-    _grove_root: File,
+    grove_root_directory: File,
     entry_digests: Vec<RootEntryDigest>,
     quarantine_directory: PathBuf,
 }
@@ -99,6 +98,7 @@ struct FinishManifest {
 
 struct PreparedTransaction {
     grove_root: PathBuf,
+    grove_root_directory: File,
     witness_path: PathBuf,
     original_tree: PathBuf,
     quarantine_path: PathBuf,
@@ -133,6 +133,12 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
     ));
     let transaction = PreparedTransaction {
         grove_root: grove_root.to_path_buf(),
+        grove_root_directory: open_task_root(grove_root).with_context(|| {
+            format!(
+                "Recovery pending: opening task root without following symlinks at {}",
+                grove_root.display()
+            )
+        })?,
         witness_path: witness_path.clone(),
         original_tree,
         quarantine_path,
@@ -214,7 +220,6 @@ fn pending_manifest(grove_root: &Path) -> Result<Option<(PathBuf, FinishManifest
                 .join(", ")
         );
     }
-
     let witness_path = witnesses.pop().expect("one finish witness");
     if !fs::symlink_metadata(&witness_path)?.file_type().is_dir() {
         bail!(
@@ -303,32 +308,13 @@ fn read_regular_file_no_follow(path: &Path) -> Result<Vec<u8>> {
 }
 
 fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight> {
-    let grove_directory = OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
-        .open(grove_root)
-        .with_context(|| {
-            format!(
-                "opening task root without following symlinks: {}",
-                grove_root.display()
-            )
-        })?;
-    let descriptor_metadata = grove_directory.metadata().with_context(|| {
+    let grove_directory = open_task_root(grove_root).with_context(|| {
         format!(
-            "reading opened task-root identity: {}",
+            "opening task root without following symlinks: {}",
             grove_root.display()
         )
     })?;
-    let path_metadata = fs::symlink_metadata(grove_root)
-        .with_context(|| format!("revalidating task-root identity: {}", grove_root.display()))?;
-    if descriptor_metadata.dev() != path_metadata.dev()
-        || descriptor_metadata.ino() != path_metadata.ino()
-    {
-        bail!(
-            "task root changed while finish preflight opened it: {}",
-            grove_root.display()
-        );
-    }
+    let descriptor_metadata = revalidate_task_root(grove_root, &grove_directory)?;
 
     let control = repo::workspace_control(worktree)?;
     let control_parent = control.control_dir().parent().with_context(|| {
@@ -362,10 +348,39 @@ fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight>
         }
     }
     Ok(FinishPreflight {
-        _grove_root: grove_directory,
+        grove_root_directory: grove_directory,
         entry_digests: digest_root_entries(grove_root)?,
         quarantine_directory: control.control_dir().to_path_buf(),
     })
+}
+
+fn open_task_root(grove_root: &Path) -> Result<File> {
+    OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(grove_root)
+        .with_context(|| format!("opening task root directory: {}", grove_root.display()))
+}
+
+fn revalidate_task_root(grove_root: &Path, grove_directory: &File) -> Result<fs::Metadata> {
+    let descriptor_metadata = grove_directory.metadata().with_context(|| {
+        format!(
+            "reading opened task root identity: {}",
+            grove_root.display()
+        )
+    })?;
+    let path_metadata = fs::symlink_metadata(grove_root)
+        .with_context(|| format!("revalidating task root identity: {}", grove_root.display()))?;
+    if !path_metadata.file_type().is_dir()
+        || descriptor_metadata.dev() != path_metadata.dev()
+        || descriptor_metadata.ino() != path_metadata.ino()
+    {
+        bail!(
+            "task root changed while finish transaction held it open: {}",
+            grove_root.display()
+        );
+    }
+    Ok(descriptor_metadata)
 }
 
 fn finish_attempt_identity() -> Result<String> {
@@ -389,21 +404,22 @@ fn finish_attempt_identity() -> Result<String> {
 
 fn prepare_transaction(
     grove_root: &Path,
+    preflight: FinishPreflight,
     finish_handle: &str,
     attempt_identity: String,
-    entries: Vec<RootEntryDigest>,
-    quarantine_directory: &Path,
     repository_anchor: repo::FinishStartAnchor,
     deletion_fingerprint: [u8; 32],
 ) -> Result<PreparedTransaction> {
-    fs::create_dir_all(quarantine_directory).with_context(|| {
+    revalidate_task_root(grove_root, &preflight.grove_root_directory)?;
+    fs::create_dir_all(&preflight.quarantine_directory).with_context(|| {
         format!(
             "creating workspace-control quarantine directory {}",
-            quarantine_directory.display()
+            preflight.quarantine_directory.display()
         )
     })?;
-    let quarantine_path =
-        quarantine_directory.join(format!("FINISHED-{finish_handle}-{attempt_identity}"));
+    let quarantine_path = preflight
+        .quarantine_directory
+        .join(format!("FINISHED-{finish_handle}-{attempt_identity}"));
     if fs::symlink_metadata(&quarantine_path).is_ok() {
         bail!(
             "finish cleanup quarantine already exists: {}",
@@ -431,7 +447,7 @@ fn prepare_transaction(
         attempt_identity,
         repository_anchor,
         deletion_fingerprint,
-        entries,
+        entries: preflight.entry_digests.clone(),
     };
     let manifest_body =
         serde_json::to_vec_pretty(&manifest).context("serializing finish transaction manifest")?;
@@ -449,6 +465,7 @@ fn prepare_transaction(
     })?;
     Ok(PreparedTransaction {
         grove_root: grove_root.to_path_buf(),
+        grove_root_directory: preflight.grove_root_directory,
         witness_path,
         original_tree,
         quarantine_path,
@@ -461,6 +478,7 @@ fn entry_path(root: &Path, path: &[u8]) -> PathBuf {
 }
 
 fn evacuate(transaction: &PreparedTransaction) -> Result<()> {
+    revalidate_task_root(&transaction.grove_root, &transaction.grove_root_directory)?;
     for entry in &transaction.manifest.entries {
         let source = entry_path(&transaction.grove_root, &entry.path);
         let destination = entry_path(&transaction.original_tree, &entry.path);
@@ -647,7 +665,7 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 mod tests {
     use super::{
         digest_root_entries, ensure_same_device, evacuate, preflight_root, prepare_transaction,
-        recover_pending, FinishRecovery,
+        recover_pending, FinishRecovery, PreparedTransaction,
     };
     use crate::repo;
     use std::fs;
@@ -670,7 +688,7 @@ mod tests {
         String::from_utf8(output.stdout).unwrap().trim().to_owned()
     }
 
-    fn evacuated_plain_git_transaction() -> TempDir {
+    fn prepared_plain_git_transaction() -> (TempDir, PreparedTransaction) {
         let fixture = TempDir::new().unwrap();
         let repository = fixture.path();
         run_git(repository, &["init", "-q", "."]);
@@ -694,14 +712,18 @@ mod tests {
                 .unwrap();
         let transaction = prepare_transaction(
             &grove_root,
+            preflight,
             "finish-k2",
             "11111111111111111111111111111111".to_owned(),
-            preflight.entry_digests,
-            &preflight.quarantine_directory,
             prepared.start_anchor(),
             prepared.deletion_fingerprint(),
         )
         .unwrap();
+        (fixture, transaction)
+    }
+
+    fn evacuated_plain_git_transaction() -> TempDir {
+        let (fixture, transaction) = prepared_plain_git_transaction();
         evacuate(&transaction).unwrap();
         fixture
     }
@@ -754,6 +776,97 @@ mod tests {
         fs::remove_file(right.path().join("link")).unwrap();
         symlink("beta", right.path().join("link")).unwrap();
         assert_ne!(digest_root_entries(right.path()).unwrap(), expected);
+    }
+
+    #[test]
+    fn preparation_refuses_task_root_replacement_without_touching_the_replacement() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        run_git(repository, &["init", "-q", "."]);
+        run_git(repository, &["config", "user.name", "Grove Test"]);
+        run_git(
+            repository,
+            &["config", "user.email", "grove-test@example.com"],
+        );
+        let grove_root = repository.join(".grove");
+        fs::create_dir(&grove_root).unwrap();
+        fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
+        run_git(repository, &["add", "-A"]);
+        run_git(repository, &["commit", "-q", "-m", "fixture"]);
+        fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
+
+        let preflight = preflight_root(repository, &grove_root).unwrap();
+        let prepared =
+            repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
+                .unwrap();
+        let original_root = repository.join("original-grove");
+        fs::rename(&grove_root, &original_root).unwrap();
+        fs::create_dir(&grove_root).unwrap();
+        fs::write(grove_root.join("foreign"), "preserve\n").unwrap();
+
+        let result = prepare_transaction(
+            &grove_root,
+            preflight,
+            "finish-k2",
+            "11111111111111111111111111111111".to_owned(),
+            prepared.start_anchor(),
+            prepared.deletion_fingerprint(),
+        );
+
+        let error = result.err().expect("replaced task root must be refused");
+        let message = format!("{error:#}");
+        assert!(message.contains("task root changed"), "{message}");
+        assert_eq!(fs::read(grove_root.join("foreign")).unwrap(), b"preserve\n");
+        assert!(!grove_root.join("FINISHING-finish-k2").exists());
+        assert!(!original_root.join("FINISHING-finish-k2").exists());
+    }
+
+    #[test]
+    fn evacuation_refuses_task_root_replacement_without_moving_replacement_bytes() {
+        let (fixture, transaction) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        let grove_root = repository.join(".grove");
+        let original_root = repository.join("original-grove");
+        fs::rename(&grove_root, &original_root).unwrap();
+        fs::create_dir(&grove_root).unwrap();
+        fs::write(grove_root.join("FORMAT"), "replacement format\n").unwrap();
+        fs::write(grove_root.join("BRIEF.md"), "replacement brief\n").unwrap();
+        fs::write(
+            grove_root.join("01-DONE-impl-work-k1.md"),
+            "replacement work\n",
+        )
+        .unwrap();
+        fs::write(
+            grove_root.join("02-finish-finish-k2.md"),
+            "replacement finish\n",
+        )
+        .unwrap();
+        symlink(
+            original_root.join("FINISHING-finish-k2"),
+            grove_root.join("FINISHING-finish-k2"),
+        )
+        .unwrap();
+
+        let result = evacuate(&transaction);
+
+        let error = result.err().expect("replaced task root must be refused");
+        let message = format!("{error:#}");
+        assert!(message.contains("task root changed"), "{message}");
+        assert_eq!(
+            fs::read(grove_root.join("FORMAT")).unwrap(),
+            b"replacement format\n"
+        );
+        assert_eq!(
+            fs::read(grove_root.join("02-finish-finish-k2.md")).unwrap(),
+            b"replacement finish\n"
+        );
+        assert!(original_root
+            .join("FINISHING-finish-k2/original")
+            .read_dir()
+            .unwrap()
+            .next()
+            .is_none());
     }
 
     #[test]

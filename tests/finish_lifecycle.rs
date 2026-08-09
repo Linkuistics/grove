@@ -217,13 +217,27 @@ fn plain_git_finish_commit_deletes_only_the_grove_and_preserves_other_work() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(!repository.join(".grove").exists());
-    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    let subject = git(&repository, &["log", "-1", "--pretty=%s"]);
+    let attempt = subject
+        .strip_prefix("finish-k2 (finish attempt ")
+        .and_then(|subject| subject.strip_suffix("): remove completed grove task tree"))
+        .expect("finish commit subject must identify the handle and attempt");
+    assert_eq!(attempt.len(), 32, "{subject}");
+    assert!(
+        attempt.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "{subject}"
+    );
     let committed = git(&repository, &["show", "--pretty=", "--name-only", "HEAD"]);
     assert!(committed.contains(".grove/FORMAT"));
     assert!(!committed.contains("staged.txt"));
     assert_eq!(
         git(&repository, &["diff", "--cached", "--name-only"]),
         "staged.txt"
+    );
+    assert_eq!(
+        git(&repository, &["ls-files", "--stage", "--", ".grove"]),
+        "",
+        "the successful finish must leave no task-tree paths in the index"
     );
     assert_eq!(
         fs::read_to_string(repository.join("unstaged.txt")).unwrap(),
@@ -462,7 +476,8 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
     let output = grove_llm(&repository, &["finish-commit", "finish-k1"]);
 
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("no tracked state in HEAD"));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("no tracked state in HEAD"), "{stderr}");
     assert_eq!(tree_snapshot(&grove), before);
 }
 
@@ -519,7 +534,7 @@ fn finish_preflight_refuses_a_reserved_witness_collision_before_deletion() {
 }
 
 #[test]
-fn failed_plain_git_finish_commit_restores_the_preexisting_index() {
+fn plain_git_finish_commit_disables_user_hooks() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("failed-git-commit");
     init_git(&repository);
@@ -528,22 +543,94 @@ fn failed_plain_git_finish_commit_restores_the_preexisting_index() {
     run("git", &repository, &["add", "staged.txt"]);
     run("git", &repository, &["config", "--unset", "core.hooksPath"]);
     let hook = repository.join(".git/hooks/pre-commit");
+    let hook_marker = repository.join("hook-ran");
     fs::create_dir_all(hook.parent().unwrap()).unwrap();
     write_executable(
         &hook,
-        "#!/bin/sh\nprintf 'blocked finish commit\\n' >&2\nexit 1\n",
+        "#!/bin/sh\nprintf 'hook ran\\n' >hook-ran\nprintf 'blocked finish commit\\n' >&2\nexit 1\n",
     );
+    let index_before = git(
+        &repository,
+        &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+    );
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!hook_marker.exists(), "the user hook ran during finish");
+    assert_eq!(
+        git(
+            &repository,
+            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+        ),
+        index_before
+    );
+}
+
+#[test]
+fn failed_plain_git_finish_commit_restores_the_tree_and_index() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("failed-git-commit");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
+    run("git", &repository, &["add", "staged.txt"]);
+    let failing_gpg = repository.join("failing-gpg");
+    write_executable(&failing_gpg, "#!/bin/sh\nexit 1\n");
+    run(
+        "git",
+        &repository,
+        &["config", "gpg.program", failing_gpg.to_str().unwrap()],
+    );
+    run("git", &repository, &["config", "commit.gpgsign", "true"]);
+    let grove = repository.join(".grove");
+    let tree_before = tree_snapshot(&grove);
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
     let index_before = git(&repository, &["ls-files", "--stage"]);
 
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
     assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("blocked finish commit"),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    assert!(grove.is_dir(), "the failed finish removed the task root");
+    assert_eq!(tree_snapshot(&grove), tree_before);
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
     assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+}
+
+#[test]
+fn tree_readers_refuse_a_ready_finish_transaction() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("ready-finish-transaction");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let grove = repository.join(".grove");
+    let witness = grove.join("FINISHING-finish-k2");
+    let original = witness.join("original");
+    fs::create_dir_all(&original).unwrap();
+    for entry in fs::read_dir(&grove)
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap()
+    {
+        if entry.path() != witness {
+            fs::rename(entry.path(), original.join(entry.file_name())).unwrap();
+        }
+    }
+    fs::write(witness.join("READY"), "ready\n").unwrap();
+
+    let output = grove_llm(&repository, &["pick"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("pending Grove finish transaction"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FINISHING-finish-k2"), "{stderr}");
 }
 
 #[test]

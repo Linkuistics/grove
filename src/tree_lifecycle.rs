@@ -145,7 +145,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
         }
         Ok(_) => {}
     }
-    tree_access::refuse_pending(&grove_root)?;
+    tree_access::refuse_pending_non_finish(&grove_root)?;
     crate::tree_format::require_current(&grove_root)?;
     let selection = crate::tree_read::select_unlocked(&grove_root)?
         .context("the requested finish leaf is no longer live")?;

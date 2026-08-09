@@ -591,6 +591,10 @@ fn hex_nonce(nonce: [u8; 16]) -> Result<String> {
     Ok(rendered)
 }
 
+pub(crate) fn fresh_nonce() -> Result<String> {
+    hex_nonce(random_nonce()?)
+}
+
 fn encode_path(path: &Path) -> Result<String> {
     let mut rendered = String::with_capacity(path.as_os_str().as_bytes().len() * 2);
     for byte in path.as_os_str().as_bytes() {

@@ -10,6 +10,7 @@ thread_local! {
 }
 
 const PROMOTING_PREFIX: &str = "PROMOTING-";
+const FINISHING_PREFIX: &str = "FINISHING-";
 pub(crate) const MIGRATION_TRANSACTION: &str = "MIGRATING-session-kinds";
 
 pub struct TreeReadGuard {
@@ -65,6 +66,7 @@ pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
 pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
     require_grove_root(&root)?;
+    refuse_pending_finish(&root)?;
     refuse_pending_migration(&root)?;
     crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
@@ -186,6 +188,11 @@ fn require_grove_root(grove_root: &Path) -> Result<()> {
 }
 
 pub(crate) fn refuse_pending(grove_root: &Path) -> Result<()> {
+    refuse_pending_finish(grove_root)?;
+    refuse_pending_non_finish(grove_root)
+}
+
+pub(crate) fn refuse_pending_non_finish(grove_root: &Path) -> Result<()> {
     refuse_pending_migration(grove_root)?;
     if let Some(path) = find_pending(grove_root)? {
         bail!(
@@ -193,6 +200,25 @@ pub(crate) fn refuse_pending(grove_root: &Path) -> Result<()> {
              grove-llm leaf-promote-chain {}",
             path.display(),
             path.display()
+        );
+    }
+    Ok(())
+}
+
+pub(crate) fn refuse_pending_finish(grove_root: &Path) -> Result<()> {
+    let mut entries = fs::read_dir(grove_root)
+        .with_context(|| format!("reading task-tree root {}", grove_root.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(|entry| entry.file_name());
+    if let Some(witness) = entries.into_iter().find(|entry| {
+        entry
+            .file_name()
+            .to_string_lossy()
+            .starts_with(FINISHING_PREFIX)
+    }) {
+        bail!(
+            "pending Grove finish transaction: {}. Recover it with the same finish-commit handle or rerun bare `grove`",
+            witness.path().display()
         );
     }
     Ok(())

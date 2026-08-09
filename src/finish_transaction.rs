@@ -1,22 +1,61 @@
-use crate::repo;
+use crate::{driver_lease, repo};
 use anyhow::{bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 const WITNESS_PREFIX: &[u8] = b"FINISHING-";
+const MANIFEST_FILE: &str = "MANIFEST.json";
+const ORIGINAL_TREE_DIRECTORY: &str = "original";
+const READY_FILE: &str = "READY";
 
 pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
-    let _preflight = preflight_root(worktree, grove_root)?;
-    repo::validate_finish_commit(worktree)?;
-    fs::remove_dir_all(grove_root)
-        .with_context(|| format!("deleting completed grove {}", grove_root.display()))?;
-    repo::commit_finish(worktree, finish_handle)
+    let preflight = preflight_root(worktree, grove_root)?;
+    let attempt_identity = finish_attempt_identity()?;
+    if repo::vcs_of(worktree) != Some(repo::Vcs::Git) {
+        repo::validate_finish_commit(worktree)?;
+        fs::remove_dir_all(grove_root)
+            .with_context(|| format!("deleting completed grove {}", grove_root.display()))?;
+        return repo::commit_finish(worktree, finish_handle, &attempt_identity);
+    }
+
+    let prepared_commit = repo::prepare_plain_git_finish(worktree)?;
+    let transaction = prepare_transaction(
+        grove_root,
+        finish_handle,
+        attempt_identity,
+        preflight.entry_digests.clone(),
+        &preflight.quarantine_directory,
+        prepared_commit.start_head(),
+        prepared_commit.deletion_fingerprint(),
+    )?;
+    evacuate(&transaction)?;
+    match prepared_commit.commit(finish_handle, &transaction.manifest.attempt_identity) {
+        repo::FinishCommitOutcome::Committed(proof) => {
+            quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)
+        }
+        repo::FinishCommitOutcome::NotCommitted { proof, error } => {
+            match rollback(&transaction, &proof) {
+                Ok(()) => Err(error),
+                Err(rollback_error) => Err(error.context(format!(
+                    "finish rollback failed: {rollback_error:#}; recovery remains pending at {}",
+                    transaction.witness_path.display()
+                ))),
+            }
+        }
+        repo::FinishCommitOutcome::RecoveryPending(error) => Err(error.context(format!(
+            "Recovery pending at {}; preserve divergent work, restore the recorded start or the exact teardown result, then retry",
+            transaction.witness_path.display()
+        ))),
+    }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 struct RootEntryDigest {
     path: Vec<u8>,
     entry_type: EntryType,
@@ -24,7 +63,7 @@ struct RootEntryDigest {
     digest: [u8; 32],
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 enum EntryType {
     Directory,
     File,
@@ -33,8 +72,26 @@ enum EntryType {
 
 struct FinishPreflight {
     _grove_root: File,
-    _entry_digests: Vec<RootEntryDigest>,
-    _quarantine_directory: PathBuf,
+    entry_digests: Vec<RootEntryDigest>,
+    quarantine_directory: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct FinishManifest {
+    version: u32,
+    finish_handle: String,
+    attempt_identity: String,
+    repository_anchor: String,
+    deletion_fingerprint: [u8; 32],
+    entries: Vec<RootEntryDigest>,
+}
+
+struct PreparedTransaction {
+    grove_root: PathBuf,
+    witness_path: PathBuf,
+    original_tree: PathBuf,
+    quarantine_path: PathBuf,
+    manifest: FinishManifest,
 }
 
 fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight> {
@@ -98,9 +155,183 @@ fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight>
     }
     Ok(FinishPreflight {
         _grove_root: grove_directory,
-        _entry_digests: digest_root_entries(grove_root)?,
-        _quarantine_directory: control.control_dir().to_path_buf(),
+        entry_digests: digest_root_entries(grove_root)?,
+        quarantine_directory: control.control_dir().to_path_buf(),
     })
+}
+
+fn finish_attempt_identity() -> Result<String> {
+    let from_session = std::env::var_os("GROVE_SIGNAL_FILE")
+        .filter(|value| !value.is_empty())
+        .and_then(|value| PathBuf::from(value).file_name().map(OsString::from))
+        .and_then(|name| name.into_string().ok())
+        .and_then(|name| name.strip_prefix("signal-").map(str::to_owned));
+    match from_session {
+        Some(identity)
+            if identity.len() == 32 && identity.bytes().all(|byte| byte.is_ascii_hexdigit()) =>
+        {
+            Ok(identity)
+        }
+        Some(_) => {
+            bail!("active Grove signal path does not carry a valid 128-bit finish attempt identity")
+        }
+        None => driver_lease::fresh_nonce(),
+    }
+}
+
+fn prepare_transaction(
+    grove_root: &Path,
+    finish_handle: &str,
+    attempt_identity: String,
+    entries: Vec<RootEntryDigest>,
+    quarantine_directory: &Path,
+    repository_anchor: &str,
+    deletion_fingerprint: [u8; 32],
+) -> Result<PreparedTransaction> {
+    fs::create_dir_all(quarantine_directory).with_context(|| {
+        format!(
+            "creating workspace-control quarantine directory {}",
+            quarantine_directory.display()
+        )
+    })?;
+    let quarantine_path =
+        quarantine_directory.join(format!("FINISHED-{finish_handle}-{attempt_identity}"));
+    if fs::symlink_metadata(&quarantine_path).is_ok() {
+        bail!(
+            "finish cleanup quarantine already exists: {}",
+            quarantine_path.display()
+        );
+    }
+
+    let witness_path = grove_root.join(format!("FINISHING-{finish_handle}"));
+    fs::create_dir(&witness_path).with_context(|| {
+        format!(
+            "creating finish transaction witness {}",
+            witness_path.display()
+        )
+    })?;
+    let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
+    fs::create_dir(&original_tree).with_context(|| {
+        format!(
+            "creating finish transaction recovery tree {}",
+            original_tree.display()
+        )
+    })?;
+    let manifest = FinishManifest {
+        version: 1,
+        finish_handle: finish_handle.to_owned(),
+        attempt_identity,
+        repository_anchor: repository_anchor.to_owned(),
+        deletion_fingerprint,
+        entries,
+    };
+    let manifest_body =
+        serde_json::to_vec_pretty(&manifest).context("serializing finish transaction manifest")?;
+    fs::write(witness_path.join(MANIFEST_FILE), manifest_body).with_context(|| {
+        format!(
+            "writing finish transaction manifest {}",
+            witness_path.join(MANIFEST_FILE).display()
+        )
+    })?;
+    fs::write(witness_path.join(READY_FILE), b"ready\n").with_context(|| {
+        format!(
+            "marking finish transaction ready at {}",
+            witness_path.display()
+        )
+    })?;
+    Ok(PreparedTransaction {
+        grove_root: grove_root.to_path_buf(),
+        witness_path,
+        original_tree,
+        quarantine_path,
+        manifest,
+    })
+}
+
+fn entry_path(root: &Path, path: &[u8]) -> PathBuf {
+    root.join(OsString::from_vec(path.to_vec()))
+}
+
+fn evacuate(transaction: &PreparedTransaction) -> Result<()> {
+    for entry in &transaction.manifest.entries {
+        let source = entry_path(&transaction.grove_root, &entry.path);
+        let destination = entry_path(&transaction.original_tree, &entry.path);
+        fs::rename(&source, &destination).with_context(|| {
+            format!(
+                "evacuating finish transaction entry {} to {}",
+                source.display(),
+                destination.display()
+            )
+        })?;
+    }
+    Ok(())
+}
+
+fn rollback(transaction: &PreparedTransaction, proof: &repo::GitStartProof) -> Result<()> {
+    proof.revalidate()?;
+    for expected in &transaction.manifest.entries {
+        let source = entry_path(&transaction.original_tree, &expected.path);
+        let destination = entry_path(&transaction.grove_root, &expected.path);
+        fs::rename(&source, &destination).with_context(|| {
+            format!(
+                "restoring finish transaction entry {} to {}",
+                source.display(),
+                destination.display()
+            )
+        })?;
+        let actual = digest_entry(&transaction.grove_root, &destination)?;
+        if actual != *expected {
+            bail!(
+                "restored finish transaction entry does not match its manifest: {}",
+                destination.display()
+            );
+        }
+    }
+    proof.revalidate()?;
+    fs::remove_dir_all(&transaction.witness_path).with_context(|| {
+        format!(
+            "removing rolled-back finish transaction witness {}",
+            transaction.witness_path.display()
+        )
+    })
+}
+
+fn quarantine_and_dispose(
+    grove_root: &Path,
+    quarantine_path: &Path,
+    proof: &repo::GitFinishProof,
+) -> Result<()> {
+    proof.revalidate()?;
+    fs::rename(grove_root, quarantine_path).with_context(|| {
+        format!(
+            "atomically quarantining completed task root {} at {}",
+            grove_root.display(),
+            quarantine_path.display()
+        )
+    })?;
+    if let Err(error) = proof.revalidate() {
+        fs::rename(quarantine_path, grove_root).with_context(|| {
+            format!(
+                "restoring finish quarantine {} after repository proof changed",
+                quarantine_path.display()
+            )
+        })?;
+        return Err(error.context("Recovery pending: Git finish proof changed after quarantine"));
+    }
+    dispose_quarantine_with(quarantine_path, |path| fs::remove_dir_all(path))
+}
+
+fn dispose_quarantine_with(
+    quarantine_path: &Path,
+    remove: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<()> {
+    if let Err(error) = remove(quarantine_path) {
+        eprintln!(
+            "warning: completed Grove cleanup remains at {}: {error}",
+            quarantine_path.display()
+        );
+    }
+    Ok(())
 }
 
 fn ensure_same_device(
@@ -214,7 +445,7 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use super::{digest_root_entries, ensure_same_device};
+    use super::{digest_root_entries, dispose_quarantine_with, ensure_same_device};
     use std::fs;
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::path::Path;
@@ -292,5 +523,46 @@ mod tests {
         assert!(message.contains("atomic quarantine"), "{message}");
         assert!(message.contains("/work/.grove"), "{message}");
         assert!(message.contains("/other/.git/grove"), "{message}");
+    }
+
+    #[test]
+    fn cleanup_failure_leaves_a_complete_quarantine_for_later_reaping() {
+        let fixture = TempDir::new().unwrap();
+        let quarantine = fixture.path().join("FINISHED-finish-k2-attempt");
+        fs::create_dir(&quarantine).unwrap();
+        fs::write(quarantine.join("manifest"), "keep\n").unwrap();
+
+        dispose_quarantine_with(&quarantine, |_| {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "simulated cleanup refusal",
+            ))
+        })
+        .unwrap();
+
+        assert!(quarantine.is_dir());
+        assert_eq!(
+            fs::read_to_string(quarantine.join("manifest")).unwrap(),
+            "keep\n"
+        );
+    }
+
+    #[test]
+    fn quarantine_disposal_unlinks_symlinks_without_following_targets() {
+        let fixture = TempDir::new().unwrap();
+        let target = fixture.path().join("target");
+        fs::create_dir(&target).unwrap();
+        fs::write(target.join("preserved"), "keep\n").unwrap();
+        let quarantine = fixture.path().join("FINISHED-finish-k2-attempt");
+        fs::create_dir(&quarantine).unwrap();
+        symlink(&target, quarantine.join("external-link")).unwrap();
+
+        dispose_quarantine_with(&quarantine, |path| fs::remove_dir_all(path)).unwrap();
+
+        assert!(!quarantine.exists());
+        assert_eq!(
+            fs::read_to_string(target.join("preserved")).unwrap(),
+            "keep\n"
+        );
     }
 }

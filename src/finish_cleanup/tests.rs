@@ -7,10 +7,13 @@ use std::io;
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::symlink;
 use std::os::unix::fs::MetadataExt;
+use std::sync::Mutex;
+use std::time::Duration;
 use tempfile::TempDir;
 
 const FINISH_HANDLE: &str = "finish-k2";
 const ATTEMPT: &str = "11111111111111111111111111111111";
+static CLEANUP_TEST_ENVIRONMENT: Mutex<()> = Mutex::new(());
 
 struct Fixture {
     _temporary: TempDir,
@@ -251,9 +254,48 @@ fn a_quarantine_created_between_empty_owner_probes_is_not_orphaned() {
             Ok(())
         })
         .unwrap_err();
+    let diagnostic = format!("{error:#}");
 
     assert!(
-        format!("{error:#}").contains("cleanup owner changed during observation"),
+        diagnostic.contains("cleanup owner changed during observation"),
+        "{error:#}"
+    );
+    assert!(
+        diagnostic.contains("observed owners (false, false), then (true, false)"),
+        "{error:#}"
+    );
+    assert!(!diagnostic.contains("changed from false to false"));
+    assert_eq!(
+        fs::read_to_string(fixture.quarantine.join("replacement")).unwrap(),
+        "keep\n"
+    );
+    assert!(marker.is_file());
+}
+
+#[test]
+fn a_quarantine_created_before_empty_owner_marker_removal_keeps_its_evidence() {
+    let fixture = Fixture::new();
+    let cleanup = prepare_quarantine(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let marker = cleanup.marker_path().to_path_buf();
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::BeforeEmptyOwnerMarkerRemoval {
+                fs::create_dir(&fixture.quarantine)?;
+                fs::write(fixture.quarantine.join("replacement"), "keep\n")?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("cleanup owner appeared before marker removal"),
         "{error:#}"
     );
     assert_eq!(
@@ -411,6 +453,122 @@ fn marker_publication_stays_with_the_validated_control_directory() {
 
     assert_eq!(marker_paths(&validated_control_directory).unwrap().len(), 1);
     assert!(marker_paths(&fixture.control_directory).unwrap().is_empty());
+}
+
+#[test]
+fn a_substituted_freshly_published_marker_is_rejected() {
+    let fixture = Fixture::new();
+    let marker = fixture
+        .control_directory
+        .join(format!("GROVE-FINISH-CLEANUP-{ATTEMPT}.json"));
+
+    let error = prepare_quarantine_with(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+        |step| {
+            if step == CleanupStep::AfterMarkerPublication {
+                let mut body: serde_json::Value =
+                    serde_json::from_slice(&fs::read(&marker)?).unwrap();
+                body["finish_handle"] = serde_json::json!("foreign-k9");
+                body["quarantine_name"] =
+                    serde_json::json!(format!("FINISHED-foreign-k9-{ATTEMPT}").as_bytes());
+                body["claimed_name"] =
+                    serde_json::json!(format!("REAPING-FINISHED-foreign-k9-{ATTEMPT}").as_bytes());
+                fs::remove_file(&marker)?;
+                fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap())?;
+            }
+            Ok(())
+        },
+    )
+    .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("finish cleanup marker collision"),
+        "{error:#}"
+    );
+    assert!(fixture.grove_root.is_dir());
+    assert!(marker.is_file());
+}
+
+#[test]
+fn cleanup_pause_timeout_names_the_unreleased_barrier() {
+    let _environment = CLEANUP_TEST_ENVIRONMENT
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
+    let fixture = TempDir::new().unwrap();
+    let barrier = fixture.path().join("unreleased-cleanup-barrier");
+    fs::write(&barrier, "paused\n").unwrap();
+    let previous_pause = std::env::var_os("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT");
+    let previous_barrier = std::env::var_os("GROVE_TEST_FINISH_CLEANUP_BARRIER");
+    std::env::set_var(
+        "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
+        "before-marker-publication",
+    );
+    std::env::set_var("GROVE_TEST_FINISH_CLEANUP_BARRIER", &barrier);
+
+    let error = super::cleanup_test_checkpoint_with_timeout(
+        CleanupStep::BeforeMarkerPublication,
+        Duration::ZERO,
+    )
+    .unwrap_err();
+
+    match previous_pause {
+        Some(value) => std::env::set_var("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT", value),
+        None => std::env::remove_var("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT"),
+    }
+    match previous_barrier {
+        Some(value) => std::env::set_var("GROVE_TEST_FINISH_CLEANUP_BARRIER", value),
+        None => std::env::remove_var("GROVE_TEST_FINISH_CLEANUP_BARRIER"),
+    }
+
+    assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    assert!(
+        error
+            .to_string()
+            .contains(barrier.to_string_lossy().as_ref()),
+        "{error}"
+    );
+}
+
+#[test]
+fn publication_and_temporary_cleanup_failures_are_both_reported() {
+    let fixture = Fixture::new();
+    let marker = fixture
+        .control_directory
+        .join(format!("GROVE-FINISH-CLEANUP-{ATTEMPT}.json"));
+    let preserved_temporary = fixture.control_directory.join("preserved-temporary");
+    let replacement_temporary = std::cell::RefCell::new(None);
+
+    let error = prepare_quarantine_with(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+        |step| {
+            if let CleanupStep::BeforeTemporaryMarkerPublication(temporary_name) = step {
+                let temporary = fixture.control_directory.join(&temporary_name);
+                fs::rename(&temporary, &preserved_temporary)?;
+                fs::write(&temporary, "replacement temporary\n")?;
+                fs::write(&marker, "force publication collision\n")?;
+                replacement_temporary.replace(Some(temporary));
+            }
+            Ok(())
+        },
+    )
+    .unwrap_err();
+    let diagnostic = format!("{error:#}");
+
+    assert!(diagnostic.contains("publishing Grove cleanup marker"));
+    assert!(
+        diagnostic.contains("removing unpublished temporary Grove cleanup marker"),
+        "{diagnostic}"
+    );
+    assert!(diagnostic.contains("identity changed"), "{diagnostic}");
+    assert!(preserved_temporary.is_file());
+    assert!(replacement_temporary.into_inner().unwrap().is_file());
+    assert!(marker.is_file());
 }
 
 #[test]

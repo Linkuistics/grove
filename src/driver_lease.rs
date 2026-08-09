@@ -15,7 +15,7 @@ const IDENTITY_RETRY_LIMIT: usize = 8;
 const EPOCH_HANDOFF_TIMEOUT: Duration = Duration::from_secs(30);
 const EPOCH_WAIT_INTERVAL: Duration = Duration::from_millis(10);
 const SIGNAL_FILE_PREFIX: &str = "signal-";
-const SIGNAL_DRAW_RETRY_LIMIT: usize = 8;
+pub(crate) const RANDOM_DRAW_RETRY_LIMIT: usize = 8;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct FileIdentity {
@@ -326,7 +326,7 @@ fn allocate_signal_channel_with(
     mut draw_nonce: impl FnMut() -> Result<[u8; 16]>,
     mut path_exists: impl FnMut(&Path) -> Result<bool>,
 ) -> Result<SignalChannel> {
-    for _ in 0..SIGNAL_DRAW_RETRY_LIMIT {
+    for _ in 0..RANDOM_DRAW_RETRY_LIMIT {
         let path = control_dir.join(format!("{SIGNAL_FILE_PREFIX}{}", hex_nonce(draw_nonce()?)?));
         if !path_exists(&path)? {
             return Ok(SignalChannel { path });
@@ -334,7 +334,7 @@ fn allocate_signal_channel_with(
     }
     bail!(
         "could not allocate a fresh signal path after {} occupied random draws in {}",
-        SIGNAL_DRAW_RETRY_LIMIT,
+        RANDOM_DRAW_RETRY_LIMIT,
         control_dir.display()
     )
 }

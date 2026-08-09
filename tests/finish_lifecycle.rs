@@ -935,3 +935,43 @@ fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
     assert!(witness.is_dir());
     assert!(!launch_log.exists());
 }
+
+#[test]
+fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("retryable-finish-cleanup");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let output = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!repository.join(".grove").exists());
+    let control_directory = repository.join(".git/grove");
+    let names = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .collect::<Vec<_>>();
+    assert!(names
+        .iter()
+        .any(|name| name.to_string_lossy().starts_with("GROVE-FINISH-CLEANUP-")));
+    assert!(names.iter().any(|name| name
+        .to_string_lossy()
+        .starts_with("REAPING-FINISHED-finish-k2-")));
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        diagnostic.contains("completed Grove cleanup remains"),
+        "{diagnostic}"
+    );
+}

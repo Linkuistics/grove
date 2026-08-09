@@ -1,4 +1,4 @@
-# finish-cleanup-reaping-k124
+# finish-cleanup-reaping-k124 — brief
 
 **Kind:** impl
 
@@ -32,3 +32,15 @@ auxiliary bytes classify lifecycle state.
 ## Notes
 
 Do not broaden the driver lease or session-epoch interfaces.
+
+## Decomposition
+
+- `quarantine-cleanup-core-k125`: give the post-commit task-root quarantine an
+  independently valid attempt marker and retryable, no-follow,
+  identity-bound disposal.
+- `auxiliary-cleanup-markers-k126`: make Git-index backup and success images
+  attempt-keyed, independently marked, and safely recoverable or reapable.
+- `cleanup-driver-acceptance-k127`: wire lease-owned orphan cleanup into the
+  validated lifecycle and cover ownership ambiguity, persistent failure,
+  reused handles, stale signals, and fresh-root behavior through the driver
+  seam.

@@ -1,4 +1,4 @@
-use crate::{driver_lease, repo};
+use crate::{driver_lease, finish_cleanup, repo};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -32,7 +32,13 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
     match prepared_commit.commit(finish_handle, &transaction.manifest.attempt_identity) {
         repo::FinishCommitOutcome::Committed(proof) => {
             finish_test_checkpoint("after-commit")?;
-            quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)
+            quarantine_and_dispose(
+                grove_root,
+                &transaction.quarantine_path,
+                &transaction.manifest.finish_handle,
+                &transaction.manifest.attempt_identity,
+                &proof,
+            )
         }
         repo::FinishCommitOutcome::NotCommitted { proof, error } => {
             match rollback(&transaction, proof) {
@@ -212,7 +218,13 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
         transaction.manifest.deletion_fingerprint,
     ) {
         repo::FinishRecoveryOutcome::Committed(proof) => {
-            quarantine_and_dispose(grove_root, &transaction.quarantine_path, &proof)?;
+            quarantine_and_dispose(
+                grove_root,
+                &transaction.quarantine_path,
+                &transaction.manifest.finish_handle,
+                &transaction.manifest.attempt_identity,
+                &proof,
+            )?;
             Ok(FinishRecovery::Committed)
         }
         repo::FinishRecoveryOutcome::NotCommitted(proof) => {
@@ -431,18 +443,20 @@ fn rollback(transaction: &PreparedTransaction, proof: repo::FinishStartProof) ->
 fn quarantine_and_dispose(
     grove_root: &Path,
     quarantine_path: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
     proof: &repo::FinishProof,
 ) -> Result<()> {
     proof.revalidate()?;
-    fs::rename(grove_root, quarantine_path).with_context(|| {
-        format!(
-            "atomically quarantining completed task root {} at {}",
-            grove_root.display(),
-            quarantine_path.display()
-        )
-    })?;
+    let cleanup = finish_cleanup::prepare_quarantine(
+        grove_root,
+        quarantine_path,
+        finish_handle,
+        attempt_identity,
+    )?;
+    cleanup.handoff(grove_root)?;
     if let Err(error) = proof.revalidate() {
-        fs::rename(quarantine_path, grove_root).with_context(|| {
+        cleanup.restore(grove_root).with_context(|| {
             format!(
                 "restoring finish quarantine {} after repository proof changed",
                 quarantine_path.display()
@@ -450,16 +464,9 @@ fn quarantine_and_dispose(
         })?;
         return Err(error.context("Recovery pending: Git finish proof changed after quarantine"));
     }
-    dispose_quarantine_with(quarantine_path, |path| fs::remove_dir_all(path))
-}
-
-fn dispose_quarantine_with(
-    quarantine_path: &Path,
-    remove: impl FnOnce(&Path) -> std::io::Result<()>,
-) -> Result<()> {
-    if let Err(error) = remove(quarantine_path) {
+    if let Err(error) = cleanup.dispose() {
         eprintln!(
-            "warning: completed Grove cleanup remains at {}: {error}",
+            "warning: completed Grove cleanup remains at {}: {error:#}",
             quarantine_path.display()
         );
     }
@@ -578,8 +585,8 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        digest_root_entries, dispose_quarantine_with, ensure_same_device, evacuate, preflight_root,
-        prepare_transaction, recover_pending, FinishRecovery,
+        digest_root_entries, ensure_same_device, evacuate, preflight_root, prepare_transaction,
+        recover_pending, FinishRecovery,
     };
     use crate::repo;
     use std::fs;
@@ -757,46 +764,5 @@ mod tests {
         assert!(message.contains("atomic quarantine"), "{message}");
         assert!(message.contains("/work/.grove"), "{message}");
         assert!(message.contains("/other/.git/grove"), "{message}");
-    }
-
-    #[test]
-    fn cleanup_failure_leaves_a_complete_quarantine_for_later_reaping() {
-        let fixture = TempDir::new().unwrap();
-        let quarantine = fixture.path().join("FINISHED-finish-k2-attempt");
-        fs::create_dir(&quarantine).unwrap();
-        fs::write(quarantine.join("manifest"), "keep\n").unwrap();
-
-        dispose_quarantine_with(&quarantine, |_| {
-            Err(std::io::Error::new(
-                std::io::ErrorKind::PermissionDenied,
-                "simulated cleanup refusal",
-            ))
-        })
-        .unwrap();
-
-        assert!(quarantine.is_dir());
-        assert_eq!(
-            fs::read_to_string(quarantine.join("manifest")).unwrap(),
-            "keep\n"
-        );
-    }
-
-    #[test]
-    fn quarantine_disposal_unlinks_symlinks_without_following_targets() {
-        let fixture = TempDir::new().unwrap();
-        let target = fixture.path().join("target");
-        fs::create_dir(&target).unwrap();
-        fs::write(target.join("preserved"), "keep\n").unwrap();
-        let quarantine = fixture.path().join("FINISHED-finish-k2-attempt");
-        fs::create_dir(&quarantine).unwrap();
-        symlink(&target, quarantine.join("external-link")).unwrap();
-
-        dispose_quarantine_with(&quarantine, |path| fs::remove_dir_all(path)).unwrap();
-
-        assert!(!quarantine.exists());
-        assert_eq!(
-            fs::read_to_string(target.join("preserved")).unwrap(),
-            "keep\n"
-        );
     }
 }

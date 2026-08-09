@@ -9,7 +9,15 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::{Duration, Instant};
 
+mod auxiliary;
 mod unix;
+pub(crate) use auxiliary::{
+    auxiliary_artifact_path, ensure_auxiliary_available, prepare_auxiliary, recover_auxiliary,
+    AuxiliaryCleanup, AuxiliaryRole,
+};
+// The next finish-driver leaf wires these validated discovery seams into reaping.
+#[allow(unused_imports)]
+pub(crate) use auxiliary::{auxiliary_marker_paths, recover_auxiliary_marker};
 use unix::{
     create_new_file_at, entry_exists, open_directory, open_directory_at, open_file_at,
     remove_directory_contents, rename_at_noreplace, unlink_at, validate_entry_identity,

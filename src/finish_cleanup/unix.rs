@@ -108,7 +108,7 @@ pub(super) fn remove_directory_contents(
     Ok(())
 }
 
-fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
+pub(super) fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
     // SAFETY: `fcntl` duplicates a valid descriptor and transfers ownership of
     // that duplicate to `fdopendir` below.
     let duplicate = unsafe { libc::fcntl(directory.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };
@@ -282,6 +282,27 @@ pub(super) fn rename_at_noreplace(
             "atomic no-replace rename is unavailable on this platform",
         ))
     }
+}
+
+pub(super) fn rename_at_replace(
+    source_parent: &File,
+    source: &OsStr,
+    destination_parent: &File,
+    destination: &OsStr,
+) -> io::Result<()> {
+    let source = c_string(source)?;
+    let destination = c_string(destination)?;
+    // SAFETY: both directory descriptors and NUL-terminated names are valid.
+    // POSIX rename atomically replaces a non-directory destination.
+    let status = unsafe {
+        libc::renameat(
+            source_parent.as_raw_fd(),
+            source.as_ptr(),
+            destination_parent.as_raw_fd(),
+            destination.as_ptr(),
+        )
+    };
+    status_result(status)
 }
 
 fn status_result(status: libc::c_int) -> io::Result<()> {

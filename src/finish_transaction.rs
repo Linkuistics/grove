@@ -17,7 +17,7 @@ const READY_FILE: &str = "READY";
 pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
     let preflight = preflight_root(worktree, grove_root)?;
     let attempt_identity = finish_attempt_identity()?;
-    let prepared_commit = repo::prepare_finish(worktree)?;
+    let prepared_commit = repo::prepare_finish(worktree, finish_handle, &attempt_identity)?;
     let transaction = prepare_transaction(
         grove_root,
         finish_handle,
@@ -625,7 +625,9 @@ mod tests {
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
 
         let preflight = preflight_root(repository, &grove_root).unwrap();
-        let prepared = repo::prepare_finish(repository).unwrap();
+        let prepared =
+            repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
+                .unwrap();
         let transaction = prepare_transaction(
             &grove_root,
             "finish-k2",

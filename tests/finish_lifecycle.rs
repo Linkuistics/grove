@@ -542,16 +542,53 @@ fn colocated_jj_finish_refuses_before_commit_when_success_index_cannot_be_prepar
         &["log", "-r", "@-", "--no-graph", "-T", "commit_id"],
     );
     let git_directory = repository.join(git(&repository, &["rev-parse", "--git-dir"]));
-    fs::write(git_directory.join("grove-finish-index.lock"), "occupied\n").unwrap();
-    fs::write(
-        git_directory.join("grove-finish-success-index.lock"),
-        "occupied\n",
-    )
-    .unwrap();
+    let real_git =
+        String::from_utf8(Command::new("which").arg("git").output().unwrap().stdout).unwrap();
+    let fake_bin = fixture.path().join("fake-bin");
+    fs::create_dir(&fake_bin).unwrap();
+    write_executable(
+        &fake_bin.join("git"),
+        r#"#!/bin/sh
+case "${GIT_INDEX_FILE-}" in
+  *GROVE-FINISH-AUXILIARY-git-index-success-*)
+    printf '%s\n' 'forced success-index preparation failure' >&2
+    exit 71
+    ;;
+esac
+exec "$GROVE_TEST_REAL_GIT" "$@"
+"#,
+    );
+    let path = format!(
+        "{}:{}",
+        fake_bin.display(),
+        std::env::var_os("PATH")
+            .unwrap_or_default()
+            .to_string_lossy()
+    );
 
-    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+    let output = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("PATH", path)
+        .env("GROVE_TEST_REAL_GIT", real_git.trim())
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
 
     assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("forced success-index preparation failure"),
+        "{stderr}"
+    );
+    assert!(!fs::read_dir(&git_directory).unwrap().any(|entry| {
+        entry
+            .unwrap()
+            .file_name()
+            .as_encoded_bytes()
+            .starts_with(b"GROVE-FINISH-AUXILIARY-")
+    }));
     assert_eq!(
         git(
             &repository,

@@ -7,9 +7,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
-const INDEX_BACKUP_NAME: &str = "grove-finish-index";
-const INDEX_SUCCESS_NAME: &str = "grove-finish-success-index";
-
 pub(crate) struct PreparedGitFinish {
     worktree: PathBuf,
     start_head: String,
@@ -23,7 +20,7 @@ pub(crate) struct PreparedJjFinish {
     start: JjStartAnchor,
     deletion_fingerprint: [u8; 32],
     index_backup: Option<GitIndexBackup>,
-    success_index: Option<PathBuf>,
+    success_index: Option<crate::finish_cleanup::AuxiliaryCleanup>,
 }
 
 pub(crate) enum PreparedFinish {
@@ -354,12 +351,22 @@ impl PreparedGitFinish {
     }
 }
 
-pub(crate) fn prepare_finish(worktree: &Path) -> Result<PreparedFinish> {
+pub(crate) fn prepare_finish(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<PreparedFinish> {
     match vcs_of(worktree) {
-        Some(Vcs::Git) => Ok(PreparedFinish::Git(prepare_plain_git_finish(worktree)?)),
-        Some(Vcs::Jj { workspace_root }) => {
-            Ok(PreparedFinish::Jj(prepare_jj_finish(&workspace_root)?))
-        }
+        Some(Vcs::Git) => Ok(PreparedFinish::Git(prepare_plain_git_finish(
+            worktree,
+            finish_handle,
+            attempt_identity,
+        )?)),
+        Some(Vcs::Jj { workspace_root }) => Ok(PreparedFinish::Jj(prepare_jj_finish(
+            &workspace_root,
+            finish_handle,
+            attempt_identity,
+        )?)),
         None => bail!(
             "cannot commit the finished grove: {} is not a git or jj working tree",
             worktree.display()
@@ -386,6 +393,8 @@ pub(crate) fn recover_finish(
             worktree,
             head,
             *had_git_index,
+            finish_handle,
+            attempt_identity,
             &message,
             deletion_fingerprint,
         ),
@@ -405,6 +414,7 @@ pub(crate) fn recover_finish(
                 parent_commit_ids: parent_commit_ids.clone(),
             },
             finish_handle,
+            attempt_identity,
             *git_index_existed,
             &message,
             deletion_fingerprint,
@@ -430,6 +440,8 @@ fn recover_plain_git_finish(
     worktree: &Path,
     start_head: &str,
     had_git_index: bool,
+    finish_handle: &str,
+    attempt_identity: &str,
     message: &str,
     deletion_fingerprint: [u8; 32],
 ) -> FinishRecoveryOutcome {
@@ -440,8 +452,32 @@ fn recover_plain_git_finish(
         deletion_fingerprint,
     };
     if committed.revalidate().is_ok() {
-        if let Ok(backup) = existing_git_index_backup(worktree, had_git_index) {
-            backup.discard();
+        let git_index = match git_path(worktree, "index") {
+            Ok(git_index) => git_index,
+            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
+        };
+        let cleanup = match crate::finish_cleanup::recover_auxiliary(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+            finish_handle,
+            attempt_identity,
+        ) {
+            Ok(cleanup) => cleanup,
+            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
+        };
+        if !had_git_index && cleanup.is_some() {
+            return FinishRecoveryOutcome::RecoveryPending(anyhow!(
+                "Recovery pending: the recorded absent Git index has unexpected backup evidence"
+            ));
+        }
+        if let Some(cleanup) = cleanup {
+            GitIndexBackup {
+                backup_index: cleanup.artifact_path().to_path_buf(),
+                git_index,
+                had_git_index: true,
+                cleanup: Some(cleanup),
+            }
+            .discard();
         }
         return FinishRecoveryOutcome::Committed(FinishProof::Git(committed));
     }
@@ -456,10 +492,11 @@ fn recover_plain_git_finish(
             "preserve divergent work, restore the recorded start or the exact teardown result, then retry",
         ));
     }
-    let backup = match existing_git_index_backup(worktree, had_git_index) {
-        Ok(backup) => backup,
-        Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
-    };
+    let backup =
+        match existing_git_index_backup(worktree, had_git_index, finish_handle, attempt_identity) {
+            Ok(backup) => backup,
+            Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
+        };
     let start = GitStartProof {
         index_backup: Some(backup),
         ..start
@@ -481,6 +518,7 @@ fn recover_jj_finish(
     worktree: &Path,
     start: JjStartAnchor,
     finish_handle: &str,
+    attempt_identity: &str,
     git_index_existed: Option<bool>,
     message: &str,
     deletion_fingerprint: [u8; 32],
@@ -497,7 +535,12 @@ fn recover_jj_finish(
         deletion_fingerprint,
     };
     if committed.revalidate().is_ok() {
-        if let Err(error) = activate_recovered_jj_index(worktree, git_index_existed) {
+        if let Err(error) = activate_recovered_jj_index(
+            worktree,
+            git_index_existed,
+            finish_handle,
+            attempt_identity,
+        ) {
             return FinishRecoveryOutcome::RecoveryPending(error);
         }
         return FinishRecoveryOutcome::Committed(FinishProof::Jj(committed));
@@ -512,7 +555,12 @@ fn recover_jj_finish(
         start,
         message: message.to_owned(),
         deletion_fingerprint,
-        index_backup: match recover_jj_index_backup(worktree, git_index_existed) {
+        index_backup: match recover_jj_index_backup(
+            worktree,
+            git_index_existed,
+            finish_handle,
+            attempt_identity,
+        ) {
             Ok(backup) => backup,
             Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
         },
@@ -523,7 +571,11 @@ fn recover_jj_finish(
             "preserve divergent work, restore the recorded start or the exact teardown result, then retry",
         ));
     }
-    discard_temporary_index(recovered_success_index(worktree).ok().flatten().as_deref());
+    let success_index = match recovered_success_index(worktree, finish_handle, attempt_identity) {
+        Ok(success_index) => success_index,
+        Err(error) => return FinishRecoveryOutcome::RecoveryPending(error),
+    };
+    discard_temporary_index(success_index.as_ref());
     if let Err(error) = start.restore_index_preserving_backup() {
         return FinishRecoveryOutcome::RecoveryPending(
             error.context("restoring the original colocated Git index during finish recovery"),
@@ -541,59 +593,100 @@ fn recover_jj_finish(
 fn recover_jj_index_backup(
     worktree: &Path,
     git_index_existed: Option<bool>,
+    finish_handle: &str,
+    attempt_identity: &str,
 ) -> Result<Option<GitIndexBackup>> {
     git_index_existed
-        .map(|had_git_index| existing_git_index_backup(worktree, had_git_index))
+        .map(|had_git_index| {
+            existing_git_index_backup(worktree, had_git_index, finish_handle, attempt_identity)
+        })
         .transpose()
 }
 
-fn recovered_success_index(worktree: &Path) -> Result<Option<PathBuf>> {
+fn recovered_success_index(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<Option<crate::finish_cleanup::AuxiliaryCleanup>> {
     if !worktree.join(".git").exists() {
         return Ok(None);
     }
     let git_index = git_path(worktree, "index")?;
-    Ok(Some(git_index.with_file_name(INDEX_SUCCESS_NAME)))
+    crate::finish_cleanup::recover_auxiliary(
+        &git_index,
+        crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+        finish_handle,
+        attempt_identity,
+    )
 }
 
-fn activate_recovered_jj_index(worktree: &Path, git_index_existed: Option<bool>) -> Result<()> {
+fn activate_recovered_jj_index(
+    worktree: &Path,
+    git_index_existed: Option<bool>,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<()> {
     let Some(had_git_index) = git_index_existed else {
         return Ok(());
     };
 
     let git_index = git_path(worktree, "index")?;
-    let backup_index = git_index.with_file_name(INDEX_BACKUP_NAME);
+    let backup_cleanup = crate::finish_cleanup::recover_auxiliary(
+        &git_index,
+        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+        finish_handle,
+        attempt_identity,
+    )?;
     if !had_git_index {
+        if backup_cleanup.is_some()
+            || recovered_success_index(worktree, finish_handle, attempt_identity)?.is_some()
+        {
+            bail!(
+                "Recovery pending: the recorded absent Git index has unexpected auxiliary cleanup evidence"
+            );
+        }
+        let backup_index = crate::finish_cleanup::auxiliary_artifact_path(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+            attempt_identity,
+        )?;
         return GitIndexBackup {
             git_index,
             backup_index,
             had_git_index: false,
+            cleanup: None,
         }
         .activate(None)
         .context("restoring the absent preflight Git index after the Jujutsu finish commit");
     }
-    let success_index = git_index.with_file_name(INDEX_SUCCESS_NAME);
-    match (backup_index.is_file(), success_index.is_file()) {
-        (true, true) => GitIndexBackup {
-            git_index,
-            backup_index,
-            had_git_index: true,
+    let success_cleanup = recovered_success_index(worktree, finish_handle, attempt_identity)?;
+    match (backup_cleanup, success_cleanup) {
+        (Some(backup_cleanup), Some(success_index)) => {
+            let backup = GitIndexBackup {
+                backup_index: backup_cleanup.artifact_path().to_path_buf(),
+                git_index,
+                had_git_index: true,
+                cleanup: Some(backup_cleanup),
+            };
+            backup
+                .activate(Some(success_index))
+                .context("activating the recovered colocated Git success index")
         }
-        .activate(Some(success_index))
-        .context("activating the recovered colocated Git success index"),
-        (true, false) => {
+        (Some(backup_cleanup), None) => {
             validate_active_jj_finish_index(worktree)?;
             GitIndexBackup {
+                backup_index: backup_cleanup.artifact_path().to_path_buf(),
                 git_index,
-                backup_index,
                 had_git_index: true,
+                cleanup: Some(backup_cleanup),
             }
             .discard();
             Ok(())
         }
-        (false, true) => Err(anyhow!(
+        (None, Some(_)) => bail!(
             "Recovery pending: the committed colocated-Jujutsu finish has a prepared success index but no matching backup"
-        )),
-        (false, false) => validate_active_jj_finish_index(worktree),
+        ),
+        (None, None) => validate_active_jj_finish_index(worktree),
     }
 }
 
@@ -606,13 +699,23 @@ fn validate_active_jj_finish_index(worktree: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn prepare_plain_git_finish(worktree: &Path) -> Result<PreparedGitFinish> {
+pub(crate) fn prepare_plain_git_finish(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<PreparedGitFinish> {
     validate_finish_commit(worktree)?;
     let start_head = git_stdout(worktree, &["rev-parse", "HEAD"])
         .context("recording plain-Git finish start HEAD")?;
     let deletion_fingerprint = tracked_grove_fingerprint(worktree, &start_head)?;
+    let git_index = git_path(worktree, "index")?;
+    crate::finish_cleanup::ensure_auxiliary_available(
+        &git_index,
+        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+        attempt_identity,
+    )?;
     let hooks_path = prepare_empty_hooks_directory(worktree)?;
-    let index_backup = preserve_git_index(worktree)?;
+    let index_backup = preserve_git_index(worktree, finish_handle, attempt_identity)?;
     Ok(PreparedGitFinish {
         worktree: worktree.to_path_buf(),
         start_head,
@@ -686,18 +789,41 @@ pub fn validate_finish_commit(worktree: &Path) -> Result<()> {
     }
 }
 
-pub(crate) fn prepare_jj_finish(worktree: &Path) -> Result<PreparedJjFinish> {
+pub(crate) fn prepare_jj_finish(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<PreparedJjFinish> {
+    if worktree.join(".git").exists() {
+        let git_index = git_path(worktree, "index")?;
+        crate::finish_cleanup::ensure_auxiliary_available(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+            attempt_identity,
+        )?;
+        crate::finish_cleanup::ensure_auxiliary_available(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+            attempt_identity,
+        )?;
+    }
     let index_backup = worktree
         .join(".git")
         .exists()
-        .then(|| preserve_git_index(worktree))
+        .then(|| preserve_git_index(worktree, finish_handle, attempt_identity))
         .transpose()?;
-    let prepared = (|| -> Result<(JjStartAnchor, [u8; 32], Option<PathBuf>)> {
+    let prepared = (|| -> Result<(
+        JjStartAnchor,
+        [u8; 32],
+        Option<crate::finish_cleanup::AuxiliaryCleanup>,
+    )> {
         let start = jj_topology(worktree, "@", false, None)
             .context("recording Jujutsu finish start topology")?;
         let deletion_fingerprint = jj_deletion_fingerprint(worktree, &start)?;
         let success_index = match &index_backup {
-            Some(backup) => backup.prepare_without_grove(worktree)?,
+            Some(backup) => {
+                backup.prepare_without_grove(worktree, finish_handle, attempt_identity)?
+            }
             None => None,
         };
         Ok((start, deletion_fingerprint, success_index))
@@ -765,7 +891,7 @@ impl PreparedJjFinish {
                         );
                     }
                 }
-                discard_temporary_index(self.success_index.as_deref());
+                discard_temporary_index(self.success_index.as_ref());
                 return FinishCommitOutcome::Committed(FinishProof::Jj(committed));
             }
             Err(error) => error,
@@ -777,7 +903,7 @@ impl PreparedJjFinish {
                 "Jujutsu reported a successful finish commit, but the exact scoped result could not be proven: {committed_error:#}"
             ),
         };
-        discard_temporary_index(self.success_index.take().as_deref());
+        discard_temporary_index(self.success_index.take().as_ref());
         let mut start = JjStartProof {
             worktree: self.worktree,
             start: self.start,
@@ -811,7 +937,9 @@ impl PreparedJjFinish {
 /// Commit the prepared `.grove/` deletion, preserving unrelated staged or
 /// working-copy changes. The caller owns the tree lock and all finish facts.
 pub fn commit_finish(worktree: &Path, finish_handle: &str, attempt_identity: &str) -> Result<()> {
-    match prepare_finish(worktree)?.commit(finish_handle, attempt_identity) {
+    match prepare_finish(worktree, finish_handle, attempt_identity)?
+        .commit(finish_handle, attempt_identity)
+    {
         FinishCommitOutcome::Committed(_) => Ok(()),
         FinishCommitOutcome::NotCommitted { error, .. }
         | FinishCommitOutcome::RecoveryPending(error) => Err(error),
@@ -822,40 +950,52 @@ struct GitIndexBackup {
     git_index: PathBuf,
     backup_index: PathBuf,
     had_git_index: bool,
+    cleanup: Option<crate::finish_cleanup::AuxiliaryCleanup>,
 }
 
 impl GitIndexBackup {
-    fn prepare_without_grove(&self, worktree: &Path) -> Result<Option<PathBuf>> {
+    fn prepare_without_grove(
+        &self,
+        worktree: &Path,
+        finish_handle: &str,
+        attempt_identity: &str,
+    ) -> Result<Option<crate::finish_cleanup::AuxiliaryCleanup>> {
         if !self.had_git_index {
             return Ok(None);
         }
 
-        let success_index = self.git_index.with_file_name(INDEX_SUCCESS_NAME);
-        fs::copy(&self.backup_index, &success_index).with_context(|| {
-            format!(
-                "preparing the successful colocated Git index {}",
-                success_index.display()
-            )
-        })?;
-        if let Err(error) = remove_grove_entries(worktree, &success_index) {
+        let mut success_index = crate::finish_cleanup::prepare_auxiliary(
+            &self.backup_index,
+            &self.git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+            finish_handle,
+            attempt_identity,
+        )?;
+        if let Err(error) = remove_grove_entries(worktree, success_index.artifact_path()) {
             discard_temporary_index(Some(&success_index));
             return Err(
                 error.context("preparing the colocated Git index before the Jujutsu finish commit")
             );
         }
+        success_index
+            .rebind_artifact_identity()
+            .context("recording the final identity of the successful colocated Git index")?;
         Ok(Some(success_index))
     }
 
     fn restore_preserving_backup(&self) -> Result<()> {
         if self.had_git_index {
-            fs::copy(&self.backup_index, &self.git_index).with_context(|| {
-                format!(
-                    "restoring Git index {} from {}",
-                    self.git_index.display(),
-                    self.backup_index.display()
-                )
-            })?;
-            Ok(())
+            self.cleanup
+                .as_ref()
+                .context("marked Git index backup is unavailable during restoration")?
+                .restore_target()
+                .with_context(|| {
+                    format!(
+                        "restoring Git index {} from {}",
+                        self.git_index.display(),
+                        self.backup_index.display()
+                    )
+                })
         } else {
             match fs::remove_file(&self.git_index) {
                 Ok(()) => Ok(()),
@@ -870,12 +1010,15 @@ impl GitIndexBackup {
         }
     }
 
-    fn activate(self, success_index: Option<PathBuf>) -> Result<()> {
+    fn activate(
+        self,
+        success_index: Option<crate::finish_cleanup::AuxiliaryCleanup>,
+    ) -> Result<()> {
         if let Some(success_index) = success_index {
-            fs::rename(&success_index, &self.git_index).with_context(|| {
+            success_index.activate().with_context(|| {
                 format!(
                     "activating the prepared colocated Git index {}",
-                    success_index.display()
+                    success_index.artifact_path().display()
                 )
             })?;
         } else {
@@ -886,6 +1029,15 @@ impl GitIndexBackup {
     }
 
     fn discard(self) {
+        if let Some(cleanup) = self.cleanup {
+            if let Err(error) = cleanup.dispose() {
+                eprintln!(
+                    "warning: finish auxiliary cleanup remains at {}: {error:#}",
+                    cleanup.artifact_path().display()
+                );
+            }
+            return;
+        }
         if let Err(error) = fs::remove_file(&self.backup_index) {
             if error.kind() != std::io::ErrorKind::NotFound {
                 eprintln!(
@@ -897,52 +1049,91 @@ impl GitIndexBackup {
     }
 }
 
-fn discard_temporary_index(path: Option<&Path>) {
-    let Some(path) = path else {
+fn discard_temporary_index(cleanup: Option<&crate::finish_cleanup::AuxiliaryCleanup>) {
+    let Some(cleanup) = cleanup else {
         return;
     };
-    if let Err(error) = fs::remove_file(path) {
-        if error.kind() != std::io::ErrorKind::NotFound {
-            eprintln!(
-                "warning: remove the temporary Git index {} after the finish commit: {error}",
-                path.display()
-            );
-        }
+    if let Err(error) = cleanup.dispose() {
+        eprintln!(
+            "warning: finish auxiliary cleanup remains at {}: {error:#}",
+            cleanup.artifact_path().display()
+        );
     }
 }
 
-fn preserve_git_index(worktree: &Path) -> Result<GitIndexBackup> {
+fn preserve_git_index(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<GitIndexBackup> {
     let git_index = git_path(worktree, "index")?;
-    let backup_index = git_index.with_file_name(INDEX_BACKUP_NAME);
-    let had_git_index = git_index.exists();
-    if had_git_index {
-        fs::copy(&git_index, &backup_index).with_context(|| {
-            format!(
-                "preserving Git index {} before the finish commit",
-                git_index.display()
+    let had_git_index = match fs::symlink_metadata(&git_index) {
+        Ok(_) => true,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("checking Git index presence at {}", git_index.display()))
+        }
+    };
+    let cleanup = had_git_index
+        .then(|| {
+            crate::finish_cleanup::prepare_auxiliary(
+                &git_index,
+                &git_index,
+                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+                finish_handle,
+                attempt_identity,
             )
-        })?;
-    }
+        })
+        .transpose()?;
+    let backup_index = match &cleanup {
+        Some(cleanup) => cleanup.artifact_path().to_path_buf(),
+        None => crate::finish_cleanup::auxiliary_artifact_path(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+            attempt_identity,
+        )?,
+    };
     Ok(GitIndexBackup {
         git_index,
         backup_index,
         had_git_index,
+        cleanup,
     })
 }
 
-fn existing_git_index_backup(worktree: &Path, had_git_index: bool) -> Result<GitIndexBackup> {
+fn existing_git_index_backup(
+    worktree: &Path,
+    had_git_index: bool,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<GitIndexBackup> {
     let git_index = git_path(worktree, "index")?;
-    let backup_index = git_index.with_file_name(INDEX_BACKUP_NAME);
-    if had_git_index && !backup_index.is_file() {
-        bail!(
-            "Recovery pending: the recorded finish has no recoverable Git index backup at {}",
-            backup_index.display()
-        );
+    let cleanup = crate::finish_cleanup::recover_auxiliary(
+        &git_index,
+        crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+        finish_handle,
+        attempt_identity,
+    )?;
+    if had_git_index && cleanup.is_none() {
+        bail!("Recovery pending: the recorded finish has no recoverable Git index backup");
     }
+    if !had_git_index && cleanup.is_some() {
+        bail!("Recovery pending: the recorded absent Git index has unexpected backup evidence");
+    }
+    let backup_index = match &cleanup {
+        Some(cleanup) => cleanup.artifact_path().to_path_buf(),
+        None => crate::finish_cleanup::auxiliary_artifact_path(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+            attempt_identity,
+        )?,
+    };
     Ok(GitIndexBackup {
         git_index,
         backup_index,
         had_git_index,
+        cleanup,
     })
 }
 
@@ -1408,14 +1599,19 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{
-        finish_commit_message, git_bytes, prepare_jj_finish, prepare_plain_git_finish,
+        finish_commit_message, git_bytes, jj_topology, prepare_jj_finish, prepare_plain_git_finish,
         recover_finish, run_vcs_command, FinishCommitOutcome, FinishRecoveryOutcome,
         FinishStartAnchor,
     };
     use anyhow::anyhow;
     use std::fs;
+    use std::os::unix::fs::MetadataExt;
     use std::process::Command;
     use tempfile::TempDir;
+
+    const FINISH_HANDLE: &str = "finish-k2";
+    const FIRST_ATTEMPT: &str = "11111111111111111111111111111111";
+    const SECOND_ATTEMPT: &str = "22222222222222222222222222222222";
 
     fn native_jj_finish_fixture() -> TempDir {
         let fixture = TempDir::new().unwrap();
@@ -1553,7 +1749,7 @@ mod tests {
         run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
 
-        let prepared = prepare_plain_git_finish(repository).unwrap();
+        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
         fs::remove_dir_all(repository.join(".grove")).unwrap();
         run_vcs_command(repository, "git", &["add", "-A", "--", ".grove"]).unwrap();
@@ -1607,7 +1803,7 @@ mod tests {
         fs::write(repository.join("staged"), "preserve\n").unwrap();
         run_vcs_command(repository, "git", &["add", "staged"]).unwrap();
 
-        let prepared = prepare_plain_git_finish(repository).unwrap();
+        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let start = FinishStartAnchor::PlainGit {
             head: prepared.start_head.clone(),
             had_git_index: prepared.index_backup.had_git_index,
@@ -1676,7 +1872,17 @@ mod tests {
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
         fs::remove_file(repository.join(".git/index")).unwrap();
 
-        let prepared = prepare_plain_git_finish(repository).unwrap();
+        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        assert!(!repository
+            .join(format!(
+                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
+            ))
+            .exists());
+        assert!(!repository
+            .join(format!(
+                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
+            ))
+            .exists());
         let start = FinishStartAnchor::PlainGit {
             head: prepared.start_head.clone(),
             had_git_index: prepared.index_backup.had_git_index,
@@ -1700,10 +1906,261 @@ mod tests {
     }
 
     #[test]
+    fn distinct_finish_attempts_do_not_overwrite_each_others_index_backups() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join("outside"), "first\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+
+        let first = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        let first_backup = first.index_backup.backup_index.clone();
+        let first_bytes = fs::read(&first_backup).unwrap();
+        fs::write(repository.join("outside"), "second\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "outside"]).unwrap();
+
+        let second = prepare_plain_git_finish(repository, FINISH_HANDLE, SECOND_ATTEMPT).unwrap();
+        let second_backup = second.index_backup.backup_index.clone();
+
+        assert_ne!(first_backup, second_backup);
+        assert_eq!(fs::read(first_backup).unwrap(), first_bytes);
+    }
+
+    #[test]
+    fn plain_git_index_backup_has_attempt_bound_cleanup_evidence() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+
+        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        let backup = &prepared.index_backup.backup_index;
+        let marker = backup.with_file_name(format!(
+            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
+        ));
+        let marker: serde_json::Value =
+            serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+        let metadata = fs::symlink_metadata(backup).unwrap();
+
+        assert_eq!(marker["version"], 1);
+        assert_eq!(marker["kind"], "finish-index-auxiliary");
+        assert_eq!(marker["role"], "git-index-backup");
+        assert_eq!(marker["finish_handle"], FINISH_HANDLE);
+        assert_eq!(marker["attempt_identity"], FIRST_ATTEMPT);
+        assert_eq!(marker["device"], metadata.dev());
+        assert_eq!(marker["inode"], metadata.ino());
+    }
+
+    #[test]
+    fn plain_git_auxiliary_collision_is_rejected_before_repository_mutation() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+        let original_index = fs::read(repository.join(".git/index")).unwrap();
+        let collision = repository.join(format!(
+            ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
+        ));
+        fs::write(&collision, "foreign\n").unwrap();
+
+        let error = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
+            .err()
+            .unwrap();
+
+        assert!(format!("{error:#}").contains("collision"));
+        assert_eq!(
+            fs::read(repository.join(".git/index")).unwrap(),
+            original_index
+        );
+        assert_eq!(fs::read_to_string(collision).unwrap(), "foreign\n");
+        assert!(!repository.join(".git/grove").exists());
+    }
+
+    #[test]
+    fn a_broken_git_index_symlink_is_not_misclassified_as_an_absent_index() {
+        use std::os::unix::fs::symlink;
+
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+        fs::rename(
+            repository.join(".git/index"),
+            repository.join(".git/saved-index"),
+        )
+        .unwrap();
+        symlink("missing-index", repository.join(".git/index")).unwrap();
+
+        let error = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
+            .err()
+            .unwrap();
+
+        assert!(format!("{error:#}").contains("without following symlinks"));
+        assert!(repository
+            .join(".git/index")
+            .symlink_metadata()
+            .unwrap()
+            .file_type()
+            .is_symlink());
+        assert!(!repository.join(".git/missing-index").exists());
+    }
+
+    #[test]
+    fn discarding_an_index_backup_never_deletes_a_replacement() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(init.status.success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+
+        let prepared = prepare_plain_git_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        let backup = prepared.index_backup.backup_index.clone();
+        let marker = backup.with_file_name(format!(
+            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
+        ));
+        let original = backup.with_file_name("preserved-original-index-backup");
+        fs::rename(&backup, &original).unwrap();
+        fs::write(&backup, "replacement\n").unwrap();
+
+        prepared.index_backup.discard();
+
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "replacement\n");
+        assert!(marker.is_file());
+        assert!(original.is_file());
+    }
+
+    #[test]
+    fn colocated_jj_success_index_has_independent_attempt_bound_cleanup_evidence() {
+        let fixture = colocated_jj_finish_fixture();
+        let repository = fixture.path();
+
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        let success = prepared.success_index.as_ref().unwrap();
+        let marker = success.artifact_path().with_file_name(format!(
+            "GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
+        ));
+        let marker: serde_json::Value =
+            serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+        let metadata = fs::symlink_metadata(success.artifact_path()).unwrap();
+
+        assert_eq!(marker["version"], 1);
+        assert_eq!(marker["kind"], "finish-index-auxiliary");
+        assert_eq!(marker["role"], "git-index-success");
+        assert_eq!(marker["finish_handle"], FINISH_HANDLE);
+        assert_eq!(marker["attempt_identity"], FIRST_ATTEMPT);
+        assert_eq!(marker["device"], metadata.dev());
+        assert_eq!(marker["inode"], metadata.ino());
+    }
+
+    #[test]
+    fn colocated_jj_preflights_both_auxiliary_roles_before_snapshotting() {
+        let fixture = colocated_jj_finish_fixture();
+        let repository = fixture.path();
+        let index = repository.join(".git/index");
+        let topology_before = jj_topology(repository, "@", false, None).unwrap();
+        let index_before = fs::read(&index).unwrap();
+        let collision = repository.join(format!(
+            ".git/GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
+        ));
+        fs::write(&collision, "foreign marker\n").unwrap();
+
+        let error = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
+            .err()
+            .unwrap();
+
+        assert!(format!("{error:#}").contains("collision"));
+        assert_eq!(fs::read(index).unwrap(), index_before);
+        assert_eq!(
+            jj_topology(repository, "@", false, None).unwrap(),
+            topology_before
+        );
+        assert_eq!(fs::read_to_string(collision).unwrap(), "foreign marker\n");
+        assert!(!repository
+            .join(format!(
+                ".git/GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}"
+            ))
+            .exists());
+    }
+
+    #[test]
     fn exact_jj_finish_result_reclassifies_a_lost_command_as_committed() {
         let fixture = native_jj_finish_fixture();
         let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository).unwrap();
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
         let auto_track_configuration =
             "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";
@@ -1745,7 +2202,7 @@ mod tests {
     fn recorded_native_jj_start_is_recoverable_when_the_exact_result_is_absent() {
         let fixture = native_jj_finish_fixture();
         let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository).unwrap();
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let start = FinishStartAnchor::Jujutsu {
             commit_id: prepared.start.commit_id.clone(),
             change_id: prepared.start.change_id.clone(),
@@ -1777,7 +2234,19 @@ mod tests {
         let fixture = colocated_jj_finish_fixture();
         let repository = fixture.path();
         fs::remove_file(repository.join(".git/index")).unwrap();
-        let prepared = prepare_jj_finish(repository).unwrap();
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        for role in ["git-index-backup", "git-index-success"] {
+            assert!(!repository
+                .join(format!(
+                    ".git/GROVE-FINISH-AUXILIARY-{role}-{FIRST_ATTEMPT}"
+                ))
+                .exists());
+            assert!(!repository
+                .join(format!(
+                    ".git/GROVE-FINISH-AUXILIARY-{role}-{FIRST_ATTEMPT}.json"
+                ))
+                .exists());
+        }
         let start = FinishStartAnchor::Jujutsu {
             commit_id: prepared.start.commit_id.clone(),
             change_id: prepared.start.change_id.clone(),
@@ -1809,7 +2278,7 @@ mod tests {
     fn committed_colocated_jj_recovery_requires_a_grove_free_active_index() {
         let fixture = colocated_jj_finish_fixture();
         let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository).unwrap();
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let start = FinishStartAnchor::Jujutsu {
             commit_id: prepared.start.commit_id.clone(),
             change_id: prepared.start.change_id.clone(),
@@ -1887,7 +2356,7 @@ mod tests {
     fn unexpected_jj_topology_stays_recovery_pending() {
         let fixture = native_jj_finish_fixture();
         let repository = fixture.path();
-        let prepared = prepare_jj_finish(repository).unwrap();
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
         let message = finish_commit_message("finish-k2", "11111111111111111111111111111111");
         let auto_track_configuration =
             "snapshot.auto-track=\"all() ~ root:.grove/FINISHING-finish-k2\"";

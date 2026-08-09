@@ -22,8 +22,9 @@ number of times on an open/lock replacement race. The driver holds both root and
 lock descriptors until the loop has stopped, and revalidates the lock path
 before every lifecycle transition and foreground launch. A second driver
 fails immediately. Kernel release on return, panic, or process death makes
-restart ordinary continuation; leftover bytes carry no ownership or cleanup
-obligation.
+restart ordinary continuation while `.grove/` still exists; after a successful
+finish deletion and epoch handoff, a later bare invocation is a fresh grove.
+Leftover bytes carry no ownership or cleanup obligation.
 
 Each driver writes a fresh 128-bit nonce from the operating system's
 cryptographic randomness source to the lease record. Each foreground launch
@@ -86,6 +87,29 @@ The fixed lease and epoch files are untracked coordination locations whose bytes
 have meaning only while their kernel locks are held; `.grove/` remains the only
 durable workflow state.
 
+Consequently, at a driver lifecycle transition an absent `.grove/` is always a
+fresh-tree fact, never an implicit finish receipt. If a finish session
+successfully commits deletion and the driver dies before observing
+`complete --done`, the next bare invocation initializes a new grove. Neither a
+matching teardown commit nor an abandoned signal file can distinguish recovery
+intent from an intentional new workstream without adding a second user input or
+durable state. A configured child that exits without a signal likewise retains
+the ordinary no-signal disposition; the driver does not infer `done` from
+task-root absence. A same-session `finish-commit` retry can
+recover a lost successful result only by verifying the exact, immediate,
+handle-named and `.grove/`-scoped commit through the Git or jj repository seam;
+the commit's parent must contain the requested live finish leaf and its result
+must delete only `.grove/`. Absence alone never licenses `done`. This is
+idempotence for the current teardown command, not workflow state consulted by a
+later driver. An operation already admitted under the crashed driver's epoch may
+also delay replacement
+invalidation; an orphan that holds the shared guard to the handoff bound makes
+that replacement stop `blocked` without creating a new task tree. Once the guard
+releases, a later invocation can invalidate the epoch and initialize the fresh
+tree. That tree may reuse keys such as `plan-k1`; epoch rotation, rather than
+global key uniqueness, rejects the old cooperating session's `grove-llm`
+operations.
+
 ## Considered options
 
 - **Keep the status quo with no lifetime owner.** Rejected because two bare
@@ -116,6 +140,24 @@ durable workflow state.
   `grove-llm` access, including after handle reuse, while a durable generation
   would add opaque lifecycle state to the artifact tree. Reopen only if handles
   must be comparable across separately created groves.
+- **Persist a finish tombstone in the VCS administration area.** Rejected
+  because lease, epoch, and signal files are process coordination whose bytes
+  cease to carry workflow meaning when their locks are released; making one a
+  cross-driver completion receipt would put durable workflow state outside the
+  task tree. Reopen only if artifact-only lifecycle state is abandoned.
+- **Use VCS history as a rootless-driver finish discriminator.** Rejected
+  because the same teardown history precedes both a recovery attempt and a
+  deliberate new grove, so history proves what happened but not what the current
+  invocation is for. The narrow `finish-commit` retry is different: its active
+  command and requested handle supply the missing intent, and it accepts only
+  the immediate scoped result it could have produced. Reopen driver-side
+  inference if bare `grove` stops being the sole lifecycle input or a rootless
+  invocation no longer means fresh start.
+- **Infer `done` when a finish target exits without a signal and `.grove/` is
+  absent.** Rejected because absence does not carry the finish session's
+  disposition or attest human confirmation; it would make the no-signal path
+  report a result the configured child did not send. Reopen if completion
+  signaling stops being the sole disposition channel.
 - **Use a PID or the existence of a control file as ownership.** Rejected because
   PIDs are reused and files survive crashes. Reopen only on a platform without
   kernel-released advisory locks and with an equivalently race-free liveness

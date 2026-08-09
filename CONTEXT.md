@@ -32,11 +32,12 @@ the loop with `grove-llm complete --done`. After configuration has passed full
 validation, an empty driver pick mechanically appends one working-tree-only
 `finish` leaf at the grove root using the next position and permanent key, then
 runs the ordinary pick/config/launch path again. Only the driver may create this
-kind. A live finish leaf is reused rather than duplicated. A declined finish
-exits without a completion signal, leaving that leaf live for an explicit later
-resume; an interrupted or crashed finish has the same restart behavior. If later
-non-finish work appears, [[Pick]] skips finish until that work is terminal, so
-the sentinel cannot starve it. After confirmation,
+kind. A live finish leaf is reused rather than duplicated. A declined finish, or
+one interrupted before `finish-commit` begins, exits without a completion signal
+and leaves that leaf live for an explicit later resume. Failures once teardown
+begins are outside this post-commit term and task-root absence does not classify
+them as success. If later non-finish work appears, [[Pick]] skips finish until
+that work is terminal, so the sentinel cannot starve it. After confirmation,
 `grove-llm finish-commit <finish-handle>` revalidates under the exclusive
 [[Tree access lock]] that the
 same finish is live and no non-finish work appeared after launch; refusal leaves
@@ -52,6 +53,24 @@ commit is scoped to `.grove/` in Git and jj, leaving every unrelated staged,
 working-tree, or working-copy change outside it. Teardown still requires explicit
 human confirmation; it is the loop's only routine human gate. Branch integration
 and working-tree removal remain outside Grove.
+If the helper result is lost, a retry distrusts `.grove/` task-root absence and
+instead verifies the exact immediate handle-named, `.grove/`-scoped Git or jj
+commit it could have produced: the parent contains that live finish leaf and the
+result deletes only `.grove/`. A match is idempotent helper success for the
+still-confirmed session; no match never licenses `done`. This narrow
+command-outcome proof is not lifecycle state for a later bare driver. A
+no-signal exit remains a no-signal stop after successful deletion: the driver
+reports the child's status and elapsed time rather than inferring confirmation
+from absence. If the driver itself dies before observing
+`done`, a successor first invalidates the old epoch; an orphaned shared guard may
+make that attempt stop `blocked` at the handoff bound. Once handoff succeeds, a
+later bare invocation treats the absent task root as a fresh grove and
+initializes new requirements; no VCS-history heuristic or unlocked control file
+acts as a rootless-driver finish receipt. Recovery intent and new-work intent are
+observationally identical without another input or durable marker, both excluded
+by the single-command and artifact-only contracts. Reused handles belong to the
+new task tree and old cooperating sessions are rejected by [[Session epoch]]
+rotation.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 
 **Grove name**:
@@ -101,6 +120,13 @@ begins with requirements gathering by construction. The first requirements
 session's commit folds the scaffold in.
 Full configuration validation precedes this mutation, so a missing or malformed
 personal config leaves a rootless working tree byte-identical.
+Task-root absence is authoritative even when VCS history contains a completed
+Grove teardown. History proves that an earlier task tree ended but cannot say
+whether the current bare invocation intends recovery or a new grove;
+interpreting it would need a second lifecycle input or a persistent finish
+tombstone. A new scaffold may therefore reuse `plan-k1`; the new [[Session
+epoch]] keeps that identity disjoint from stale cooperating processes belonging
+to the deleted task tree.
 _Avoid_: "the bootstrap leaf is planning" — that was the pre-taxonomy answer, and it survives only by marking `planning` HITL again. The bootstrap session may still *cut* leaves (the requirements/design/planning fusion a small workstream is allowed); the label names the discipline that always applies.
 _Avoid_: asking the first agent to run `grove-llm root-init`; the driver creates
 the leaf it must select before the agent exists.
@@ -125,9 +151,13 @@ bounded retries, and loss by external VCS-administration mutation stops the
 driver visibly. The lease record carries a per-process 128-bit nonce from OS
 cryptographic randomness. The driver holds the root and lease through the whole
 loop. Kernel release on return, panic, or process
-death makes restart ordinary continuation; leftover bytes and PIDs carry no
-ownership. The descriptors are close-on-exec, so an opaque configured command
-cannot leak ownership into a helper. See ADR *one-live-driver-per-working-tree*.
+death makes restart ordinary continuation while the task tree still exists;
+leftover bytes and PIDs carry no ownership. A successfully deleted `.grove/`
+task tree is no longer a grove to continue: after epoch handoff, a later bare
+invocation follows [[root-init]] as a new workstream. The descriptors are
+close-on-exec, so an opaque configured command cannot leak ownership into a
+helper. See ADR
+*one-live-driver-per-working-tree*.
 _Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
 

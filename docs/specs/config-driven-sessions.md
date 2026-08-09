@@ -554,13 +554,27 @@ The driver then picks `plan-k1`, reloads config, and launches the
 `requirements` target with that handle as its mandate. A launch failure leaves a
 real resumable leaf rather than a brief-only tree or hidden bootstrap state.
 
+`.grove/` task-root absence is the complete fresh-tree discriminator. The driver
+does not consult VCS history, an abandoned signal channel, or unlocked
+lease/epoch bytes to infer that a missing task root used to be a completed grove.
+A teardown commit can prove that Grove deleted an earlier tree, but it cannot
+prove whether the present bare invocation means "recover that finish" or "start
+another grove"; distinguishing those intents would require another command,
+prompt, or durable marker. Thus a bare invocation after a successfully committed
+teardown is a legitimate new grove and may allocate `plan-k1` again. The new
+driver nonce and session epoch, not globally unique task keys, reject an old
+cooperating session's `grove-llm` operations against the new task tree.
+
 ### Existing live tree
 
 A current-format tree with a live leaf needs no lifecycle mutation. The driver
 picks the first live leaf in depth-first pre-order, reloads config, expands that
 kind's target, and launches. Completion signaling is unchanged: `relaunch`
 continues with a fresh iteration, `done` stops cleanly, and an absent signal
-stops without changing tree state.
+stops while preserving and reporting the configured child's status and elapsed
+time. There is no finish-only inference on the no-signal path: even if the child
+successfully committed `.grove/` deletion before it exited, the driver does not
+replace the missing disposition with `done`.
 
 ### Finish leaf
 
@@ -603,6 +617,46 @@ broad Git task commit may pick it up; neither changes the contract, because the
 successful deletion commit removes the whole tree and version control retains
 the intermediate history. Generic terminal verbs reject finish so an accidental
 `DONE` cannot make teardown look complete.
+
+#### Crash and retry semantics
+
+This contract begins only after the deletion commit succeeds. Validation,
+deletion, staging, and commit failures are outside this post-commit decision; in
+particular, `.grove/` absence alone does not prove that its deletion was
+committed.
+
+- When `finish-commit` returns success, the confirmed session invokes
+  `complete --done` last.
+- If the calling finish session loses the helper result, a retry does not trust
+  `.grove/` task-root absence. Through the repository seam it requires the
+  immediate VCS result to prove the exact handle-named, `.grove/`-scoped
+  teardown commit: its parent contains the requested live finish leaf and its
+  result deletes only `.grove/`; Git checks `HEAD`, while native and colocated jj
+  check the committed parent of the successor working-copy commit. A match
+  returns idempotent success, after which the already-confirmed session invokes
+  `complete --done`.
+  No match is a refusal and never signals `done`. This is narrow command-outcome
+  verification under the current finish invocation, not a rootless-driver
+  lifecycle discriminator.
+- If the configured session exits without a completion signal after the commit,
+  the live driver follows the ordinary no-signal path: report status and elapsed
+  time, then stop. It does not infer a human decision from task-root absence.
+- If the driver dies before observing `complete --done`, a replacement driver
+  must first invalidate the old epoch. An operation admitted under that epoch
+  may delay handoff; an orphan that holds the shared guard to the 30-second bound
+  makes this replacement stop `blocked` without creating a task tree. After the
+  guard releases, a later bare invocation invalidates the old epoch and signal
+  channel, follows **Fresh tree**, and starts a new grove; it does not recover or
+  replay the previous finish.
+- Once the driver observes `done`, it stops cleanly and no restart is part of the
+  completed lifecycle.
+
+This leaves no dedicated durable finish receipt outside `.grove/`. The existing
+teardown commit is audit history rather than driver workflow state; only a retry
+of the handle-named teardown command may verify its own immediately preceding
+result there. Stable handles are identities only within one task tree. Reuse
+after reinitialization is therefore intentional and safe for cooperating
+processes through epoch rotation.
 
 ## Legacy migration
 
@@ -799,7 +853,10 @@ reimplements the race-sensitive protocol.
 The tree module owns the format witness, leaf grammar, finish eligibility,
 driver-only finish creation, guarded finish commit, current pick, universal
 working-tree lock, and migration transaction. The repository module owns
-worktree/main-repo resolution and path/fileset-scoped commits.
+worktree/main-repo resolution and path/fileset-scoped commits. Its internal
+finish-result seam verifies one requested handle against the immediate Git
+`HEAD` or jj committed parent, hiding the two VCS adapters from tree lifecycle
+callers; it reports only proven scoped teardown or no proof.
 
 Deleting the configuration module would scatter KDL validation, shell-word and
 substitution rules, source diagnostics, and argv construction across every
@@ -838,7 +895,19 @@ Through that seam, cover:
 - finish allocation, reuse, decline followed by later work, finish eligibility,
   duplicate-finish refusal, per-verb reservation, `finish-commit` revalidation
   when work appears after launch, deletion commit naming, Jujutsu/Git
-  intermediate finish snapshots, and clean `--done` stop;
+  intermediate finish snapshots, clean `--done` stop, and successful teardown
+  followed by a configured child exiting without a signal: the driver preserves
+  the real status/elapsed-time diagnostic and a later bare invocation launches a
+  fresh requirements `plan-k1`;
+- lost `finish-commit` results in plain Git, native jj, and colocated jj: an
+  exact immediate handle-named, `.grove/`-only deletion commit makes the retry
+  idempotently successful, while task-root absence without that proof never
+  emits `done`; include a prior completed grove with reused handles so an older
+  teardown commit cannot satisfy the new invocation;
+- a completion signal written after the successful deletion commit followed by
+  driver death before post-reap interpretation: replacement cleanup treats the
+  abandoned channel as coordination rather than a finish receipt, then follows
+  the bounded epoch handoff and fresh-root rules;
 - migration of every accepted layout, aliases, terminal leaves, missing kinds,
   standalone research, vendor pairs, format-marker creation, kind-prefixed
   legacy slugs, unknown marker values, metadata removal, relationships, every
@@ -873,6 +942,9 @@ Through that seam, cover:
   bounded stop rather than parking or relaunching the loop; and `grove-llm
   --version` succeeding against inactive or foreign epochs while task-tree verbs
   still refuse;
+- the same orphaned-guard handoff after a successful finish deletion: the first
+  replacement stops `blocked` without recreating `.grove/`, then an invocation
+  after guard release invalidates the old epoch and launches the fresh tree;
 - 128-bit OS-random driver nonces generated once per process; an independent
   per-launch signal draw; occupied draws retried; no deterministic reuse; the
   accepted cross-restart collision bound recorded rather than asserted

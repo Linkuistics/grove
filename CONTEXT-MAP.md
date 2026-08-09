@@ -44,6 +44,7 @@ lockstep, which is why they live together — see
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
+  [`config-driven-sessions`](docs/specs/config-driven-sessions.md),
   and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).
   The doubt skill participates in the review-ownership and promotion contracts,
   but the mandate, task tree, review routing, and lifecycle are Grove's

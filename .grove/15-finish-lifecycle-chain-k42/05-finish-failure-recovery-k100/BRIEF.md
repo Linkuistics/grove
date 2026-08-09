@@ -45,3 +45,10 @@ staging, commit, rollback, or success cleanup is interrupted or fails.
 
 Do not fold this lifecycle transaction redesign into the index-preservation
 fixes in `finish-lifecycle-integrate-k45`.
+
+The reviewed design closed through `recovery-contract-finalize-k116`. The
+binding spec, transaction and driver-ownership ADRs, glossary, and context map
+now agree on guarded repository handoff, exact jj start/result proof,
+attempt-bound rootless retry, descriptor-bound no-follow task-root access, and
+operator recovery. `finish-transaction-implementation-k110` carries the
+executable implementation and regression-test handoff.

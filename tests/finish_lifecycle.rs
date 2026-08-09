@@ -1,9 +1,13 @@
 use assert_cmd::cargo::CommandCargoExt;
+use std::ffi::OsStr;
 use std::fs;
+use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
-use std::path::Path;
-use std::process::{Command, Output};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 const SESSION_KINDS: &[&str] = &[
@@ -40,6 +44,33 @@ fn run(program: &str, current_dir: &Path, arguments: &[&str]) -> Output {
         String::from_utf8_lossy(&output.stderr)
     );
     output
+}
+
+fn wait_for(path: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !path.exists() {
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {}",
+            path.display()
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn find_entry_named(root: &Path, name: &OsStr) -> Option<PathBuf> {
+    for entry in fs::read_dir(root).ok()? {
+        let entry = entry.ok()?;
+        if entry.file_name() == name {
+            return Some(entry.path());
+        }
+        if entry.file_type().ok()?.is_dir() {
+            if let Some(found) = find_entry_named(&entry.path(), name) {
+                return Some(found);
+            }
+        }
+    }
+    None
 }
 
 fn git(repository: &Path, arguments: &[&str]) -> String {
@@ -934,6 +965,121 @@ fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
     assert!(diagnostic.contains("exact teardown result"), "{diagnostic}");
     assert!(witness.is_dir());
     assert!(!launch_log.exists());
+}
+
+#[test]
+fn cleanup_marker_publication_uses_the_validated_control_directory_object() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("descriptor-bound-marker-publication");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let barrier = fixture.path().join("marker-publication-barrier");
+    let control_directory = repository.join(".git/grove");
+    let validated_control_directory = repository.join(".git/grove-validated");
+
+    let child = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env(
+            "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
+            "before-marker-publication",
+        )
+        .env("GROVE_TEST_FINISH_CLEANUP_BARRIER", &barrier)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .args(["finish-commit", "finish-k2"])
+        .spawn()
+        .unwrap();
+    wait_for(&barrier);
+    fs::rename(&control_directory, &validated_control_directory).unwrap();
+    fs::create_dir(&control_directory).unwrap();
+    fs::remove_file(&barrier).unwrap();
+
+    let output = child.wait_with_output().unwrap();
+
+    assert!(!output.status.success());
+    assert!(repository.join(".grove").is_dir());
+    assert!(fs::read_dir(&validated_control_directory)
+        .unwrap()
+        .any(|entry| entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("GROVE-FINISH-CLEANUP-")));
+    assert!(fs::read_dir(&control_directory).unwrap().all(|entry| !entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with("GROVE-FINISH-CLEANUP-")));
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        diagnostic.contains("without following symlinks"),
+        "{diagnostic}"
+    );
+}
+
+#[test]
+fn process_cleanup_does_not_unlink_a_substituted_non_directory_entry() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("identity-bound-entry-unlink");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::write(repository.join(".grove/race-entry"), "original\n").unwrap();
+    let barrier = fixture.path().join("entry-unlink-barrier");
+    let control_directory = repository.join(".git/grove");
+
+    let child = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env(
+            "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
+            "before-non-directory-unlink",
+        )
+        .env("GROVE_TEST_FINISH_CLEANUP_BARRIER", &barrier)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .args(["finish-commit", "finish-k2"])
+        .spawn()
+        .unwrap();
+    wait_for(&barrier);
+    let entry_name = std::ffi::OsString::from_vec(fs::read(&barrier).unwrap());
+    let claimed = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(Result::unwrap)
+        .find(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("REAPING-FINISHED-finish-k2-")
+        })
+        .expect("claimed cleanup quarantine")
+        .path();
+    let entry = find_entry_named(&claimed, &entry_name).expect("paused cleanup entry");
+    assert!(fs::symlink_metadata(&entry).unwrap().file_type().is_file());
+    let preserved = entry.with_file_name("preserved-process-original");
+    fs::rename(&entry, &preserved).unwrap();
+    fs::write(&entry, "replacement\n").unwrap();
+    fs::remove_file(&barrier).unwrap();
+
+    let output = child.wait_with_output().unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(fs::read_to_string(&entry).unwrap(), "replacement\n");
+    assert!(preserved.is_file());
+    assert!(claimed.is_dir());
+    assert!(fs::read_dir(&control_directory).unwrap().any(|entry| entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .starts_with("GROVE-FINISH-CLEANUP-")));
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(diagnostic.contains("identity changed"), "{diagnostic}");
 }
 
 #[test]

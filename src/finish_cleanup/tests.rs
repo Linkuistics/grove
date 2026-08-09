@@ -1,4 +1,7 @@
-use super::{marker_paths, prepare_quarantine, CleanupOutcome, CleanupStep, QuarantineCleanup};
+use super::{
+    marker_paths, prepare_quarantine, prepare_quarantine_with, CleanupOutcome, CleanupStep,
+    QuarantineCleanup,
+};
 use std::fs;
 use std::io;
 use std::os::fd::AsRawFd;
@@ -228,6 +231,72 @@ fn a_stale_marker_reports_that_nothing_was_disposed() {
 }
 
 #[test]
+fn a_quarantine_created_between_empty_owner_probes_is_not_orphaned() {
+    let fixture = Fixture::new();
+    let cleanup = prepare_quarantine(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let marker = cleanup.marker_path().to_path_buf();
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::BetweenOwnerProbes {
+                fs::create_dir(&fixture.quarantine)?;
+                fs::write(fixture.quarantine.join("replacement"), "keep\n")?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("cleanup owner changed during observation"),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.quarantine.join("replacement")).unwrap(),
+        "keep\n"
+    );
+    assert!(marker.is_file());
+}
+
+#[test]
+fn a_quarantine_created_while_a_claimed_owner_exists_is_not_orphaned() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let claimed = fixture
+        .control_directory
+        .join(format!("REAPING-FINISHED-{FINISH_HANDLE}-{ATTEMPT}"));
+    fs::rename(&fixture.quarantine, &claimed).unwrap();
+    let claimed_inode = fs::symlink_metadata(&claimed).unwrap().ino();
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::BetweenOwnerProbes {
+                fs::create_dir(&fixture.quarantine)?;
+                fs::write(fixture.quarantine.join("replacement"), "keep\n")?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("cleanup owner changed during observation"),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.quarantine.join("replacement")).unwrap(),
+        "keep\n"
+    );
+    assert_eq!(fs::symlink_metadata(&claimed).unwrap().ino(), claimed_inode);
+    assert!(marker.is_file());
+}
+
+#[test]
 fn simultaneous_quarantine_names_are_refused_without_mutation() {
     let fixture = Fixture::new();
     let cleanup = fixture.prepare_and_handoff();
@@ -316,6 +385,32 @@ fn prepare_refuses_an_overlong_claim_name_before_publishing_a_marker() {
     );
     assert!(marker_paths(&fixture.control_directory).unwrap().is_empty());
     assert!(fixture.grove_root.is_dir());
+}
+
+#[test]
+fn marker_publication_stays_with_the_validated_control_directory() {
+    let fixture = Fixture::new();
+    let validated_control_directory = fixture.control_directory.with_extension("validated");
+    let mut replaced = false;
+
+    prepare_quarantine_with(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+        |step| {
+            if step == CleanupStep::BeforeMarkerPublication && !replaced {
+                fs::rename(&fixture.control_directory, &validated_control_directory)?;
+                fs::create_dir(&fixture.control_directory)?;
+                replaced = true;
+            }
+            Ok(())
+        },
+    )
+    .unwrap();
+
+    assert_eq!(marker_paths(&validated_control_directory).unwrap().len(), 1);
+    assert!(marker_paths(&fixture.control_directory).unwrap().is_empty());
 }
 
 #[test]
@@ -430,6 +525,72 @@ fn a_root_replaced_before_final_removal_is_not_deleted() {
 }
 
 #[test]
+fn a_regular_file_substituted_before_unlink_is_not_deleted() {
+    let fixture = Fixture::new();
+    fs::write(fixture.grove_root.join("entry"), "original\n").unwrap();
+    let cleanup = fixture.prepare_and_handoff();
+    let claimed = fixture
+        .control_directory
+        .join(format!("REAPING-FINISHED-{FINISH_HANDLE}-{ATTEMPT}"));
+    let preserved = claimed.join("preserved-original");
+    let replacement = claimed.join("entry");
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::BeforeNonDirectoryUnlink("entry".into()) {
+                fs::rename(&replacement, &preserved)?;
+                fs::write(&replacement, "replacement\n")?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("identity changed"),
+        "{error:#}"
+    );
+    assert_eq!(fs::read_to_string(&replacement).unwrap(), "replacement\n");
+    assert_eq!(fs::read_to_string(&preserved).unwrap(), "original\n");
+    assert!(cleanup.marker_path().is_file());
+}
+
+#[test]
+fn a_symlink_substituted_before_unlink_is_not_deleted() {
+    let fixture = Fixture::new();
+    symlink("original-target", fixture.grove_root.join("entry")).unwrap();
+    let cleanup = fixture.prepare_and_handoff();
+    let claimed = fixture
+        .control_directory
+        .join(format!("REAPING-FINISHED-{FINISH_HANDLE}-{ATTEMPT}"));
+    let preserved = claimed.join("preserved-original");
+    let replacement = claimed.join("entry");
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::BeforeNonDirectoryUnlink("entry".into()) {
+                fs::rename(&replacement, &preserved)?;
+                symlink("replacement-target", &replacement)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("identity changed"),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::read_link(&replacement).unwrap(),
+        std::path::Path::new("replacement-target")
+    );
+    assert_eq!(
+        fs::read_link(&preserved).unwrap(),
+        std::path::Path::new("original-target")
+    );
+    assert!(cleanup.marker_path().is_file());
+}
+
+#[test]
 fn quarantine_cleanup_unlinks_symlinks_without_following_targets() {
     let fixture = Fixture::new();
     let external = fixture.control_directory.join("external");
@@ -457,6 +618,86 @@ fn corrupt_cleanup_markers_leave_the_quarantine_untouched() {
 
     assert!(format!("{error:#}").contains("parsing Grove cleanup marker"));
     assert!(fixture.quarantine.is_dir());
+}
+
+#[test]
+fn marker_quarantine_name_must_be_one_non_empty_path_component() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let mut body: serde_json::Value = serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+    body["finish_handle"] = serde_json::json!("nested/finish-k2");
+    body["quarantine_name"] =
+        serde_json::json!(format!("FINISHED-nested/finish-k2-{ATTEMPT}").as_bytes());
+    body["claimed_name"] =
+        serde_json::json!(format!("REAPING-FINISHED-nested/finish-k2-{ATTEMPT}").as_bytes());
+    fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+
+    let error = QuarantineCleanup::from_marker(&marker).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("quarantine name is not a single non-empty path component"),
+        "{error:#}"
+    );
+    assert!(fixture.quarantine.is_dir());
+    assert!(marker.is_file());
+}
+
+#[test]
+fn marker_claimed_name_must_be_one_non_empty_path_component() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let mut body: serde_json::Value = serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+    body["claimed_name"] = serde_json::json!(b"nested/claim");
+    fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+
+    let error = QuarantineCleanup::from_marker(&marker).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("claimed name is not a single non-empty path component"),
+        "{error:#}"
+    );
+    assert!(fixture.quarantine.is_dir());
+    assert!(marker.is_file());
+}
+
+#[test]
+fn marker_quarantine_name_cannot_be_empty() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let mut body: serde_json::Value = serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+    body["quarantine_name"] = serde_json::json!(b"");
+    fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+
+    let error = QuarantineCleanup::from_marker(&marker).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("quarantine name is not a single non-empty path component"),
+        "{error:#}"
+    );
+    assert!(fixture.quarantine.is_dir());
+    assert!(marker.is_file());
+}
+
+#[test]
+fn marker_claimed_name_cannot_be_empty() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let mut body: serde_json::Value = serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+    body["claimed_name"] = serde_json::json!(b"");
+    fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+
+    let error = QuarantineCleanup::from_marker(&marker).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("claimed name is not a single non-empty path component"),
+        "{error:#}"
+    );
+    assert!(fixture.quarantine.is_dir());
+    assert!(marker.is_file());
 }
 
 #[test]

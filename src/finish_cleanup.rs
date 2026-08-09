@@ -1,17 +1,19 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::ffi::{OsStr, OsString};
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{self, Read, Write};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use tempfile::NamedTempFile;
+use std::thread;
+use std::time::Duration;
 
 mod unix;
 use unix::{
-    entry_exists, open_directory, open_directory_at, open_file_at, remove_directory_contents,
-    rename_at_noreplace, unlink_at, validate_entry_identity, validate_file_name,
+    create_new_file_at, entry_exists, open_directory, open_directory_at, open_file_at,
+    remove_directory_contents, rename_at_noreplace, unlink_at, validate_entry_identity,
+    validate_file_name,
 };
 
 const CLEANUP_MARKER_PREFIX: &[u8] = b"GROVE-FINISH-CLEANUP-";
@@ -62,9 +64,12 @@ pub(crate) struct QuarantineCleanup {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CleanupStep {
+    BeforeMarkerPublication,
     BeforeClaim,
     AfterClaim,
+    BetweenOwnerProbes,
     BeforeEntry(OsString),
+    BeforeNonDirectoryUnlink(OsString),
     BeforeRootRemoval,
 }
 
@@ -79,6 +84,22 @@ pub(crate) fn prepare_quarantine(
     quarantine_path: &Path,
     finish_handle: &str,
     attempt_identity: &str,
+) -> Result<QuarantineCleanup> {
+    prepare_quarantine_with(
+        grove_root,
+        quarantine_path,
+        finish_handle,
+        attempt_identity,
+        cleanup_test_checkpoint,
+    )
+}
+
+fn prepare_quarantine_with(
+    grove_root: &Path,
+    quarantine_path: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+    mut checkpoint: impl FnMut(CleanupStep) -> io::Result<()>,
 ) -> Result<QuarantineCleanup> {
     validate_attempt_identity(attempt_identity)?;
     let quarantine_name = quarantine_path
@@ -144,9 +165,15 @@ pub(crate) fn prepare_quarantine(
         inode: grove_identity.inode,
     };
     let marker_path = quarantine_parent.join(marker_file_name(attempt_identity));
+    let marker_name = marker_path
+        .file_name()
+        .context("Grove cleanup marker has no file name")?;
+    checkpoint(CleanupStep::BeforeMarkerPublication)
+        .context("cleanup checkpoint before marker publication")?;
 
-    if marker_path.exists() {
-        let existing = QuarantineCleanup::from_marker(&marker_path)?;
+    if entry_exists(&quarantine_parent_directory, marker_name)? {
+        let existing =
+            QuarantineCleanup::from_marker_at(&quarantine_parent_directory, &marker_path)?;
         if existing.marker != marker {
             bail!(
                 "finish cleanup marker collision at {}",
@@ -156,24 +183,46 @@ pub(crate) fn prepare_quarantine(
         return Ok(existing);
     }
 
-    let marker_body =
+    let mut marker_body =
         serde_json::to_vec_pretty(&marker).context("serializing Grove cleanup marker")?;
-    let mut temporary = NamedTempFile::new_in(quarantine_parent).with_context(|| {
-        format!(
-            "creating temporary Grove cleanup marker in {}",
-            quarantine_parent.display()
+    marker_body.push(b'\n');
+    let (mut temporary, temporary_name, temporary_identity) =
+        create_temporary_marker(&quarantine_parent_directory).with_context(|| {
+            format!(
+                "creating temporary Grove cleanup marker in {}",
+                quarantine_parent.display()
+            )
+        })?;
+    if let Err(error) = temporary.write_all(&marker_body) {
+        remove_temporary_marker(
+            &quarantine_parent_directory,
+            &temporary_name,
+            temporary_identity,
         )
-    })?;
-    temporary
-        .write_all(&marker_body)
-        .context("writing temporary Grove cleanup marker")?;
-    temporary
-        .write_all(b"\n")
-        .context("terminating temporary Grove cleanup marker")?;
-    match temporary.persist_noclobber(&marker_path) {
-        Ok(_) => QuarantineCleanup::from_marker(&marker_path),
-        Err(error) if error.error.kind() == io::ErrorKind::AlreadyExists => {
-            let existing = QuarantineCleanup::from_marker(&marker_path)?;
+        .context("removing failed temporary Grove cleanup marker")?;
+        return Err(error).context("writing temporary Grove cleanup marker");
+    }
+    match rename_at_noreplace(
+        &quarantine_parent_directory,
+        &temporary_name,
+        &quarantine_parent_directory,
+        marker_name,
+    ) {
+        Ok(()) => QuarantineCleanup::from_marker_at(&quarantine_parent_directory, &marker_path),
+        Err(error) => {
+            remove_temporary_marker(
+                &quarantine_parent_directory,
+                &temporary_name,
+                temporary_identity,
+            )
+            .context("removing unpublished temporary Grove cleanup marker")?;
+            if error.kind() != io::ErrorKind::AlreadyExists {
+                return Err(error).with_context(|| {
+                    format!("publishing Grove cleanup marker {}", marker_path.display())
+                });
+            }
+            let existing =
+                QuarantineCleanup::from_marker_at(&quarantine_parent_directory, &marker_path)?;
             if existing.marker == marker {
                 Ok(existing)
             } else {
@@ -183,9 +232,39 @@ pub(crate) fn prepare_quarantine(
                 )
             }
         }
-        Err(error) => Err(error.error)
-            .with_context(|| format!("publishing Grove cleanup marker {}", marker_path.display())),
     }
+}
+
+fn create_temporary_marker(parent: &File) -> Result<(File, OsString, FileIdentity)> {
+    let mut randomness = File::open("/dev/urandom").context("opening OS randomness source")?;
+    for _ in 0..8 {
+        let mut nonce = [0_u8; 16];
+        randomness
+            .read_exact(&mut nonce)
+            .context("reading temporary cleanup-marker nonce")?;
+        let suffix = nonce
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+        let name = OsString::from(format!(".grove-cleanup-{suffix}.tmp"));
+        validate_file_name(parent, &name)
+            .context("temporary Grove cleanup marker name is not valid for its directory")?;
+        match create_new_file_at(parent, &name) {
+            Ok(file) => {
+                let identity = FileIdentity::from_file(&file)?;
+                return Ok((file, name, identity));
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error).context("creating temporary Grove cleanup marker"),
+        }
+    }
+    bail!("could not allocate a unique temporary Grove cleanup marker after 8 attempts")
+}
+
+fn remove_temporary_marker(parent: &File, name: &OsStr, identity: FileIdentity) -> Result<()> {
+    validate_entry_identity(parent, name, identity)
+        .context("temporary Grove cleanup marker identity changed; replacement left untouched")?;
+    unlink_at(parent, name, 0).context("removing temporary Grove cleanup marker")
 }
 
 #[cfg(test)]
@@ -213,11 +292,28 @@ pub(crate) fn marker_paths(control_directory: &Path) -> Result<Vec<PathBuf>> {
 
 impl QuarantineCleanup {
     pub(crate) fn from_marker(marker_path: &Path) -> Result<Self> {
-        let marker_file = OpenOptions::new()
-            .read(true)
-            .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
-            .open(marker_path)
-            .with_context(|| format!("opening Grove cleanup marker {}", marker_path.display()))?;
+        let parent_path = marker_path
+            .parent()
+            .context("Grove cleanup marker has no parent")?;
+        let parent = open_directory(parent_path).with_context(|| {
+            format!(
+                "opening Grove cleanup marker directory {}",
+                parent_path.display()
+            )
+        })?;
+        Self::from_marker_at(&parent, marker_path)
+    }
+
+    fn from_marker_at(parent: &File, marker_path: &Path) -> Result<Self> {
+        let marker_name = marker_path
+            .file_name()
+            .context("Grove cleanup marker has no file name")?;
+        let marker_file = open_file_at(parent, marker_name).with_context(|| {
+            format!(
+                "opening Grove cleanup marker {} without following symlinks",
+                marker_path.display()
+            )
+        })?;
         let (marker_identity, marker) = read_marker(marker_path, marker_file)?;
         Ok(Self {
             marker_path: marker_path.to_path_buf(),
@@ -366,8 +462,27 @@ impl QuarantineCleanup {
         let quarantine_name = OsString::from_vec(self.marker.quarantine_name.clone());
         let claimed_name = OsString::from_vec(self.marker.claimed_name.clone());
         let quarantine_exists = entry_exists(&parent, &quarantine_name)?;
+        checkpoint(CleanupStep::BetweenOwnerProbes)
+            .context("cleanup checkpoint between owner probes")?;
         let claimed_exists = entry_exists(&parent, &claimed_name)?;
-        let (directory, active_name) = match (quarantine_exists, claimed_exists) {
+        let first_observation = (quarantine_exists, claimed_exists);
+        let stable_observation = (
+            entry_exists(&parent, &quarantine_name)?,
+            entry_exists(&parent, &claimed_name)?,
+        );
+        if first_observation != stable_observation {
+            bail!(
+                "Grove cleanup owner changed during observation beside {}: {:?} changed from {:?} to {:?}, {:?} changed from {:?} to {:?}; neither candidate nor marker was removed",
+                self.marker_path.display(),
+                quarantine_name,
+                first_observation.0,
+                stable_observation.0,
+                claimed_name,
+                first_observation.1,
+                stable_observation.1
+            );
+        }
+        let (directory, active_name) = match stable_observation {
             (true, true) => bail!(
                 "ambiguous Grove cleanup owner: both {:?} and {:?} exist beside {}",
                 quarantine_name,
@@ -548,19 +663,41 @@ fn read_marker(
 /// variable is deliberately test-prefixed and is not user configuration.
 fn cleanup_test_checkpoint(step: CleanupStep) -> io::Result<()> {
     let name = match &step {
+        CleanupStep::BeforeMarkerPublication => "before-marker-publication",
         CleanupStep::BeforeClaim => "before-claim",
         CleanupStep::AfterClaim => "after-claim",
+        CleanupStep::BetweenOwnerProbes => "between-owner-probes",
         CleanupStep::BeforeEntry(_) => "before-entry",
+        CleanupStep::BeforeNonDirectoryUnlink(_) => "before-non-directory-unlink",
         CleanupStep::BeforeRootRemoval => "before-root-removal",
     };
     if std::env::var("GROVE_TEST_FINISH_CLEANUP_FAIL_AT").as_deref() == Ok(name) {
-        Err(io::Error::new(
+        return Err(io::Error::new(
             io::ErrorKind::PermissionDenied,
             format!("injected finish cleanup interruption at {name}"),
-        ))
-    } else {
-        Ok(())
+        ));
     }
+    if std::env::var("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT").as_deref() != Ok(name) {
+        return Ok(());
+    }
+    let barrier = std::env::var_os("GROVE_TEST_FINISH_CLEANUP_BARRIER").ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT needs GROVE_TEST_FINISH_CLEANUP_BARRIER",
+        )
+    })?;
+    let barrier = PathBuf::from(barrier);
+    let detail = match &step {
+        CleanupStep::BeforeEntry(entry) | CleanupStep::BeforeNonDirectoryUnlink(entry) => {
+            entry.as_bytes()
+        }
+        _ => name.as_bytes(),
+    };
+    fs::write(&barrier, detail)?;
+    while barrier.exists() {
+        thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
 }
 
 fn validate_attempt_identity(attempt_identity: &str) -> Result<()> {
@@ -597,6 +734,8 @@ fn validate_marker(marker_path: &Path, marker: &QuarantineMarker) -> Result<()> 
             marker_path.display()
         );
     }
+    validate_marker_component(marker_path, "quarantine", &marker.quarantine_name)?;
+    validate_marker_component(marker_path, "claimed", &marker.claimed_name)?;
     let expected_quarantine = format!(
         "FINISHED-{}-{}",
         marker.finish_handle, marker.attempt_identity
@@ -610,6 +749,23 @@ fn validate_marker(marker_path: &Path, marker: &QuarantineMarker) -> Result<()> 
     if marker.claimed_name != [REAPING_PREFIX, marker.quarantine_name.as_slice()].concat() {
         bail!(
             "Grove cleanup marker claimed name is invalid at {}",
+            marker_path.display()
+        );
+    }
+    Ok(())
+}
+
+fn validate_marker_component(marker_path: &Path, field: &str, name: &[u8]) -> Result<()> {
+    let path = Path::new(OsStr::from_bytes(name));
+    let mut components = path.components();
+    let is_single_normal_component = matches!(
+        (components.next(), components.next()),
+        (Some(std::path::Component::Normal(component)), None)
+            if component.as_bytes() == name && !name.contains(&0)
+    );
+    if !is_single_normal_component {
+        bail!(
+            "Grove cleanup marker {field} name is not a single non-empty path component at {}",
             marker_path.display()
         );
     }

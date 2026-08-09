@@ -54,6 +54,26 @@ pub(super) fn open_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
     }
 }
 
+pub(super) fn create_new_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
+    let name = c_string(name)?;
+    // SAFETY: `name` is NUL-terminated, `parent` is an open directory, and a
+    // successful descriptor is immediately owned by `File`.
+    let descriptor = unsafe {
+        libc::openat(
+            parent.as_raw_fd(),
+            name.as_ptr(),
+            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+            0o600 as libc::c_uint,
+        )
+    };
+    if descriptor < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        // SAFETY: `openat` returned a new owned descriptor.
+        Ok(unsafe { File::from_raw_fd(descriptor) })
+    }
+}
+
 pub(super) fn remove_directory_contents(
     directory: &File,
     checkpoint: &mut impl FnMut(CleanupStep) -> io::Result<()>,
@@ -77,6 +97,10 @@ pub(super) fn remove_directory_contents(
             unlink_at(directory, &name, libc::AT_REMOVEDIR)
                 .with_context(|| format!("removing cleanup directory entry {:?}", name))?;
         } else {
+            let expected_identity = FileIdentity::from_stat(&metadata);
+            checkpoint(CleanupStep::BeforeNonDirectoryUnlink(name.clone()))
+                .with_context(|| format!("cleanup checkpoint before unlinking entry {:?}", name))?;
+            validate_entry_identity(directory, &name, expected_identity)?;
             unlink_at(directory, &name, 0)
                 .with_context(|| format!("unlinking cleanup entry {:?}", name))?;
         }

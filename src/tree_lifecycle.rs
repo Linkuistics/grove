@@ -163,10 +163,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
         );
     }
 
-    crate::repo::validate_finish_commit(worktree)?;
-    fs::remove_dir_all(&grove_root)
-        .with_context(|| format!("deleting completed grove {}", grove_root.display()))?;
-    crate::repo::commit_finish(worktree, finish_handle)
+    crate::finish_transaction::finish(worktree, &grove_root, finish_handle)
 }
 
 /// `root-init [<slug>]`: scaffold a fresh grove under `worktree/.grove` — the root

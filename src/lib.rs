@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod complete;
 pub mod driver_lease;
+pub(crate) mod finish_transaction;
 pub mod harness;
 pub mod harness_stamp;
 pub mod json;

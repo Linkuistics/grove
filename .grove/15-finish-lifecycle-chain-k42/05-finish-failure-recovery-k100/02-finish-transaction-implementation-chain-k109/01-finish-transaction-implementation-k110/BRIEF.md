@@ -1,4 +1,4 @@
-# finish-transaction-implementation-k110
+# finish-transaction-implementation-k110 — brief
 
 **Kind:** impl
 
@@ -86,3 +86,19 @@ repository adapters, driver recovery, methodology, and acceptance tests.
 Use TDD at the transaction interface and injected repository/filesystem failure
 seams. Do not use real user hooks as the commit-failure injector once finish
 commits deliberately disable hooks.
+
+## Decomposition
+
+- `finish-transaction-preflight-k117`: add the deep transaction interface and
+  mutation-free, cross-repository preflight checks while leaving the existing
+  successful finish path intact.
+- `finish-transaction-git-k118`: deliver evacuation, scoped commit,
+  rollback/forward recovery, quarantine, and hook suppression for plain Git.
+- `finish-transaction-jj-k119`: extend the same transaction to native and
+  colocated jj, including exact working-copy topology and Git-index handling.
+- `finish-transaction-driver-recovery-k120`: recover pending witnesses at bare
+  lifecycle startup and reap only validated orphan cleanup artifacts.
+- `finish-transaction-hardening-k121`: close the transition, tamper,
+  no-follow, topology-race, operator-recovery, and cleanup-failure matrix.
+- `finish-transaction-docs-acceptance-k122`: reconcile methodology and durable
+  docs, then land the full Git/native-jj/colocated-jj/driver acceptance suite.

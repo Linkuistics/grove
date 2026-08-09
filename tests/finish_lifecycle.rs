@@ -1,6 +1,7 @@
 use assert_cmd::cargo::CommandCargoExt;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::process::{Command, Output};
 use tempfile::TempDir;
@@ -463,6 +464,58 @@ fn plain_git_unborn_finish_is_refused_before_deleting_the_tree() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("no tracked state in HEAD"));
     assert_eq!(tree_snapshot(&grove), before);
+}
+
+#[test]
+fn finish_preflight_refuses_special_entries_before_deleting_the_tree() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("special-entry");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::write(repository.join("staged.txt"), "staged\n").unwrap();
+    run("git", &repository, &["add", "staged.txt"]);
+    let socket_path = repository.join(".grove/runtime.sock");
+    let _listener = UnixListener::bind(&socket_path).unwrap();
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+    let index_before = git(&repository, &["ls-files", "--stage"]);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("unsupported task-tree entry"), "{stderr}");
+    assert!(stderr.contains("runtime.sock"), "{stderr}");
+    assert!(repository.join(".grove").is_dir());
+    assert!(socket_path.exists());
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+}
+
+#[test]
+fn finish_preflight_refuses_a_reserved_witness_collision_before_deletion() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("reserved-collision");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let collision = repository.join(".grove/FINISHING-finish-k2");
+    fs::create_dir(&collision).unwrap();
+    fs::write(collision.join("foreign"), "keep\n").unwrap();
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("reserved finish transaction path"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("FINISHING-finish-k2"), "{stderr}");
+    assert_eq!(
+        fs::read_to_string(collision.join("foreign")).unwrap(),
+        "keep\n"
+    );
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
 #[test]

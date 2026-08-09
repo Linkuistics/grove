@@ -436,6 +436,13 @@ pub(crate) fn recover_finish(
     }
 }
 
+pub(crate) fn git_index_path(worktree: &Path) -> Result<Option<PathBuf>> {
+    if !worktree.join(".git").exists() {
+        return Ok(None);
+    }
+    git_path(worktree, "index").map(Some)
+}
+
 fn recover_plain_git_finish(
     worktree: &Path,
     start_head: &str,

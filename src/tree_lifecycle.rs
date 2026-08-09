@@ -55,6 +55,23 @@ pub enum CurrentTransition {
 /// exclusive working-tree guard.
 pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
     let _guard = tree_access::write_for_lifecycle(worktree)?;
+    transition_to_current_unlocked(worktree)
+}
+
+/// Reap finish artifacts and perform the driver's ordinary lifecycle
+/// transition under one exclusive working-tree guard. Cleanup remains
+/// best-effort and cannot classify the task root.
+pub(crate) fn transition_driver_to_current(worktree: &Path) -> Result<CurrentTransition> {
+    let _guard = tree_access::write_for_lifecycle(worktree)?;
+    if let Err(error) = crate::finish_cleanup::reap_orphaned(worktree) {
+        eprintln!(
+            "grove: warning: could not complete orphaned finish cleanup; lifecycle classification is unchanged: {error:#}"
+        );
+    }
+    transition_to_current_unlocked(worktree)
+}
+
+fn transition_to_current_unlocked(worktree: &Path) -> Result<CurrentTransition> {
     let grove_root = worktree.join(".grove");
     match fs::symlink_metadata(&grove_root) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {

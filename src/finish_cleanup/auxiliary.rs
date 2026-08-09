@@ -231,7 +231,6 @@ pub(crate) fn recover_auxiliary(
     }
 }
 
-#[allow(dead_code)] // Consumed by the following finish-driver reaping leaf.
 pub(crate) fn auxiliary_marker_paths(directory_path: &Path) -> Result<Vec<PathBuf>> {
     let directory = open_directory(directory_path).with_context(|| {
         format!(
@@ -249,7 +248,6 @@ pub(crate) fn auxiliary_marker_paths(directory_path: &Path) -> Result<Vec<PathBu
     Ok(markers)
 }
 
-#[allow(dead_code)] // Consumed by the following finish-driver reaping leaf.
 pub(crate) fn recover_auxiliary_marker(marker_path: &Path) -> Result<AuxiliaryCleanup> {
     let parent_path = marker_path
         .parent()
@@ -284,6 +282,11 @@ pub(crate) fn recover_auxiliary_marker(marker_path: &Path) -> Result<AuxiliaryCl
 impl AuxiliaryCleanup {
     pub(crate) fn artifact_path(&self) -> &Path {
         &self.artifact_path
+    }
+
+    pub(super) fn is_owned_by(&self, owner: &super::CleanupOwner) -> bool {
+        self.marker.finish_handle == owner.finish_handle
+            && self.marker.attempt_identity == owner.attempt_identity
     }
 
     pub(crate) fn rebind_artifact_identity(&mut self) -> Result<()> {

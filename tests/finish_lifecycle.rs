@@ -1,6 +1,7 @@
 use assert_cmd::cargo::CommandCargoExt;
 use std::ffi::OsStr;
-use std::fs;
+use std::fs::{self, File};
+use std::os::fd::AsRawFd;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
@@ -78,6 +79,33 @@ fn git(repository: &Path, arguments: &[&str]) -> String {
         .unwrap()
         .trim()
         .to_string()
+}
+
+fn git_index_path(repository: &Path) -> PathBuf {
+    let path = PathBuf::from(git(repository, &["rev-parse", "--git-path", "index"]));
+    if path.is_absolute() {
+        path
+    } else {
+        repository.join(path)
+    }
+}
+
+fn auxiliary_markers(repository: &Path) -> Vec<PathBuf> {
+    let mut markers = fs::read_dir(git_index_path(repository).parent().unwrap())
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            let name = path.file_name().unwrap().to_string_lossy();
+            name.starts_with("GROVE-FINISH-AUXILIARY-") && name.ends_with(".json")
+        })
+        .collect::<Vec<_>>();
+    markers.sort();
+    markers
+}
+
+fn auxiliary_artifact(marker: &Path) -> PathBuf {
+    let name = marker.file_name().unwrap().to_string_lossy();
+    marker.with_file_name(name.strip_suffix(".json").unwrap())
 }
 
 fn write_executable(path: &Path, body: &str) {
@@ -1181,5 +1209,779 @@ fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
     assert!(
         !diagnostic.contains(quarantine_path.to_string_lossy().as_ref()),
         "{diagnostic}"
+    );
+}
+
+#[test]
+fn bare_driver_reaps_orphaned_quarantine_after_valid_config_and_starts_fresh_grove() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-reaps-finish-cleanup");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(
+        interrupted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&interrupted.stderr)
+    );
+    assert!(!repository.join(".grove").exists());
+
+    let control_directory = repository.join(".git/grove");
+    let cleanup_evidence_count = || {
+        fs::read_dir(&control_directory)
+            .unwrap()
+            .filter(|entry| {
+                let name = entry.as_ref().unwrap().file_name();
+                let name = name.to_string_lossy();
+                name.starts_with("GROVE-FINISH-CLEANUP-")
+                    || name.starts_with("FINISHED-")
+                    || name.starts_with("REAPING-FINISHED-")
+            })
+            .count()
+    };
+    assert_eq!(cleanup_evidence_count(), 2);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    fs::create_dir_all(home.join(".config/grove")).unwrap();
+    fs::write(
+        home.join(".config/grove/config.kdl"),
+        "requirements \"sh -c true '${prompt}'\"\n",
+    )
+    .unwrap();
+    let invalid = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    assert!(!invalid.status.success());
+    assert_eq!(cleanup_evidence_count(), 2);
+    assert!(!repository.join(".grove").exists());
+
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-requirements.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert_eq!(cleanup_evidence_count(), 0);
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert!(fs::read_to_string(launch_log).unwrap().contains("plan-k1"));
+}
+
+#[test]
+fn bare_driver_waits_for_the_universal_tree_lock_before_reaping() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-locks-finish-cleanup");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(interrupted.status.success());
+    let control_directory = repository.join(".git/grove");
+    let cleanup_marker = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("GROVE-FINISH-CLEANUP-")
+        })
+        .unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+
+    let worktree_directory = File::open(&repository).unwrap();
+    let locked = unsafe { libc::flock(worktree_directory.as_raw_fd(), libc::LOCK_EX) };
+    assert_eq!(locked, 0);
+    let stderr_path = fixture.path().join("driver.stderr");
+    let stderr = File::create(&stderr_path).unwrap();
+    let mut child = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::from(stderr))
+        .spawn()
+        .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let diagnostic = fs::read_to_string(&stderr_path).unwrap_or_default();
+        if diagnostic.contains("waiting for active Grove tree operation") {
+            break;
+        }
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("driver exited before waiting for the tree lock ({status}): {diagnostic}");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "driver did not report tree-lock contention: {diagnostic}"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+    let evidence_survived_contention = cleanup_marker.is_file();
+
+    let unlocked = unsafe { libc::flock(worktree_directory.as_raw_fd(), libc::LOCK_UN) };
+    assert_eq!(unlocked, 0);
+    let output = child.wait_with_output().unwrap();
+    let diagnostic = fs::read_to_string(&stderr_path).unwrap();
+    assert!(output.status.success(), "{diagnostic}");
+    assert!(
+        evidence_survived_contention,
+        "cleanup ran before the universal tree lock was acquired"
+    );
+    assert!(!cleanup_marker.exists());
+}
+
+#[test]
+fn bare_driver_reaps_old_attempt_but_preserves_exact_in_tree_cleanup_owner() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-distinguishes-cleanup-attempts");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let old_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(
+        old_finish.status.success(),
+        "{}",
+        String::from_utf8_lossy(&old_finish.stderr)
+    );
+    let control_directory = repository.join(".git/grove");
+    let cleanup_markers = || {
+        fs::read_dir(&control_directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("GROVE-FINISH-CLEANUP-")
+            })
+            .collect::<Vec<_>>()
+    };
+    let old_marker = cleanup_markers().pop().unwrap();
+    let old_attempt = old_marker
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .trim_start_matches("GROVE-FINISH-CLEANUP-")
+        .trim_end_matches(".json")
+        .to_owned();
+
+    seed_committed_terminal_grove(&repository);
+    let current_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env(
+            "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
+            "after-marker-publication",
+        )
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!current_finish.status.success());
+    assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
+    assert_eq!(cleanup_markers().len(), 2);
+
+    fs::write(repository.join("divergent"), "preserve\n").unwrap();
+    git(&repository, &["add", "divergent"]);
+    git(&repository, &["commit", "-q", "-m", "divergent"]);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(!blocked.status.success());
+    assert!(String::from_utf8_lossy(&blocked.stderr).contains("Recovery pending"));
+    let remaining_markers = cleanup_markers();
+    assert_eq!(remaining_markers.len(), 1);
+    assert_ne!(remaining_markers[0], old_marker);
+    assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
+    assert!(fs::read_dir(&control_directory).unwrap().all(|entry| !entry
+        .unwrap()
+        .file_name()
+        .to_string_lossy()
+        .contains(&old_attempt)));
+}
+
+#[test]
+fn corrupt_in_tree_owner_leaves_every_cleanup_candidate_untouched() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-refuses-corrupt-cleanup-owner");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let old_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(old_finish.status.success());
+    let control_directory = repository.join(".git/grove");
+    let old_marker = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("GROVE-FINISH-CLEANUP-")
+        })
+        .unwrap();
+
+    seed_committed_terminal_grove(&repository);
+    let current_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env(
+            "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
+            "after-marker-publication",
+        )
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!current_finish.status.success());
+    let witness = repository.join(".grove/FINISHING-finish-k2");
+    let manifest = witness.join("MANIFEST.json");
+    let external_manifest = fixture.path().join("external-manifest.json");
+    fs::copy(&manifest, &external_manifest).unwrap();
+    fs::remove_file(&manifest).unwrap();
+    symlink(&external_manifest, &manifest).unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-launch.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(!blocked.status.success());
+    let diagnostic = String::from_utf8_lossy(&blocked.stderr);
+    assert!(diagnostic.contains("cleanup ownership"), "{diagnostic}");
+    assert!(diagnostic.contains("MANIFEST.json"), "{diagnostic}");
+    assert!(old_marker.is_file());
+    assert!(witness.is_dir());
+    assert!(!launch_log.exists());
+}
+
+#[test]
+fn invalid_in_tree_attempt_identity_leaves_every_cleanup_candidate_untouched() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-refuses-invalid-cleanup-owner");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let old_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(old_finish.status.success());
+
+    seed_committed_terminal_grove(&repository);
+    let current_finish = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env(
+            "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
+            "after-marker-publication",
+        )
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!current_finish.status.success());
+
+    let control_directory = repository.join(".git/grove");
+    let cleanup_markers = || {
+        fs::read_dir(&control_directory)
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("GROVE-FINISH-CLEANUP-")
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(cleanup_markers().len(), 2);
+
+    let manifest_path = repository.join(".grove/FINISHING-finish-k2/MANIFEST.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["attempt_identity"] = serde_json::json!("not-a-128-bit-identity");
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(!blocked.status.success());
+    assert_eq!(
+        cleanup_markers().len(),
+        2,
+        "invalid ownership must block all reaping"
+    );
+    let diagnostic = String::from_utf8_lossy(&blocked.stderr);
+    assert!(diagnostic.contains("128-bit hexadecimal"), "{diagnostic}");
+}
+
+#[test]
+fn bare_driver_reaps_orphans_and_ignores_abandoned_signals_in_jj_workspaces() {
+    for (label, colocated) in [("native", false), ("colocated", true)] {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("{label}-jj-driver-reaping"));
+        init_jj(&repository, colocated);
+        seed_jj_terminal_grove(&repository);
+
+        let interrupted = Command::cargo_bin("grove-llm")
+            .unwrap()
+            .current_dir(&repository)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+            .args(["finish-commit", "finish-k2"])
+            .output()
+            .unwrap();
+        assert!(
+            interrupted.status.success(),
+            "{label}: {}",
+            String::from_utf8_lossy(&interrupted.stderr)
+        );
+        assert!(!repository.join(".grove").exists(), "{label}");
+
+        let control_directory = repository.join(".jj/grove");
+        let abandoned_signal = control_directory.join("signal-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        fs::write(&abandoned_signal, "done\n").unwrap();
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        let launch_log = fixture.path().join("launch-log");
+        let script = fixture.path().join("record-requirements.sh");
+        write_executable(
+            &script,
+            &format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+                launch_log.display()
+            ),
+        );
+        let template = format!("sh {} '${{prompt}}'", script.display());
+        write_complete_config(&home, &template);
+
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        assert!(
+            recovered.status.success(),
+            "{label}: {}",
+            String::from_utf8_lossy(&recovered.stderr)
+        );
+        assert!(repository
+            .join(".grove/01-requirements-plan-k1.md")
+            .is_file());
+        assert!(fs::read_to_string(&launch_log).unwrap().contains("plan-k1"));
+        assert!(!abandoned_signal.exists(), "{label}");
+        assert!(fs::read_dir(&control_directory).unwrap().all(|entry| {
+            let name = entry.unwrap().file_name();
+            let name = name.to_string_lossy();
+            !name.starts_with("GROVE-FINISH-CLEANUP-")
+                && !name.starts_with("FINISHED-")
+                && !name.starts_with("REAPING-FINISHED-")
+        }));
+        let diagnostic = String::from_utf8_lossy(&recovered.stderr);
+        assert!(
+            diagnostic.contains("without a completion signal"),
+            "{label}: {diagnostic}"
+        );
+        assert!(
+            !diagnostic.contains("grove finished"),
+            "{label}: {diagnostic}"
+        );
+    }
+}
+
+#[test]
+fn linked_git_driver_reaps_its_auxiliary_without_following_an_ambient_index() {
+    let fixture = TempDir::new().unwrap();
+    let main_repository = fixture.path().join("main");
+    init_git(&main_repository);
+    fs::write(main_repository.join("README"), "fixture\n").unwrap();
+    run("git", &main_repository, &["add", "README"]);
+    run("git", &main_repository, &["commit", "-q", "-m", "base"]);
+    let linked = fixture.path().join("linked");
+    run(
+        "git",
+        &main_repository,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "cleanup-linked",
+            linked.to_str().unwrap(),
+        ],
+    );
+    seed_committed_terminal_grove(&linked);
+
+    let failed = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&linked)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!failed.status.success());
+    assert!(linked.join(".grove/FINISHING-finish-k2").is_dir());
+    let markers = auxiliary_markers(&linked);
+    assert_eq!(markers.len(), 1);
+    let actual_marker = markers[0].clone();
+    let actual_artifact = auxiliary_artifact(&actual_marker);
+    fs::remove_dir_all(linked.join(".grove")).unwrap();
+
+    let foreign_directory = fixture.path().join("foreign-gitdir");
+    fs::create_dir(&foreign_directory).unwrap();
+    let foreign_index = foreign_directory.join("index");
+    fs::copy(git_index_path(&linked), &foreign_index).unwrap();
+    let foreign_artifact = foreign_directory.join(actual_artifact.file_name().unwrap());
+    fs::hard_link(&actual_artifact, &foreign_artifact).unwrap();
+    let foreign_marker = foreign_directory.join(actual_marker.file_name().unwrap());
+    fs::copy(&actual_marker, &foreign_marker).unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&linked)
+        .env("HOME", &home)
+        .env("GIT_INDEX_FILE", &foreign_index)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!actual_marker.exists());
+    assert!(!actual_artifact.exists());
+    assert!(foreign_marker.is_file());
+    assert!(foreign_artifact.is_file());
+}
+
+#[test]
+fn colocated_jj_driver_preserves_owned_auxiliary_then_reaps_it_after_owner_removal() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("colocated-owned-auxiliary");
+    init_jj(&repository, true);
+    seed_jj_terminal_grove(&repository);
+
+    let failed = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!failed.status.success());
+    assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
+    let markers = auxiliary_markers(&repository);
+    assert_eq!(markers.len(), 2);
+    let artifacts = markers
+        .iter()
+        .map(|marker| auxiliary_artifact(marker))
+        .collect::<Vec<_>>();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    fs::write(repository.join("divergent"), "preserve\n").unwrap();
+    run(
+        "jj",
+        &repository,
+        &["commit", "-m", "divergent", "divergent"],
+    );
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    assert!(!blocked.status.success());
+    assert!(
+        markers.iter().all(|marker| marker.is_file()),
+        "the matching in-tree owner was ignored"
+    );
+    assert!(artifacts.iter().all(|artifact| artifact.is_file()));
+
+    fs::remove_dir_all(repository.join(".grove")).unwrap();
+    let reaped = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    assert!(
+        reaped.status.success(),
+        "{}",
+        String::from_utf8_lossy(&reaped.stderr)
+    );
+    assert!(markers.iter().all(|marker| !marker.exists()));
+    assert!(artifacts.iter().all(|artifact| !artifact.exists()));
+}
+
+#[test]
+fn persistent_auxiliary_failure_warns_and_retries_without_blocking_the_driver() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("persistent-auxiliary-failure");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let failed = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_FAIL_AT", "after-evacuation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(!failed.status.success());
+    fs::remove_dir_all(repository.join(".grove")).unwrap();
+    let markers = auxiliary_markers(&repository);
+    assert_eq!(markers.len(), 1);
+    let marker = markers[0].clone();
+    let artifact = auxiliary_artifact(&marker);
+    let preserved = artifact.with_file_name("preserved-original-index-auxiliary");
+    fs::rename(&artifact, &preserved).unwrap();
+    fs::write(&artifact, "replacement\n").unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    for invocation in 1..=2 {
+        let output = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "invocation {invocation}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let diagnostic = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            diagnostic.contains("could not complete orphaned finish cleanup"),
+            "invocation {invocation}: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("identity does not match"),
+            "{diagnostic}"
+        );
+        assert!(marker.is_file());
+        assert_eq!(fs::read_to_string(&artifact).unwrap(), "replacement\n");
+        assert!(preserved.is_file());
+    }
+}
+
+#[test]
+fn persistent_cleanup_failure_warns_and_retries_without_blocking_fresh_lifecycle() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("persistent-driver-cleanup-failure");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_CLEANUP_FAIL_AT", "before-root-removal")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(interrupted.status.success());
+    let control_directory = repository.join(".git/grove");
+    let marker = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("GROVE-FINISH-CLEANUP-")
+        })
+        .unwrap();
+    let claimed = fs::read_dir(&control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("REAPING-FINISHED-")
+        })
+        .unwrap();
+    let preserved = control_directory.join("preserved-original-quarantine");
+    fs::rename(&claimed, &preserved).unwrap();
+    fs::create_dir(&claimed).unwrap();
+    fs::write(claimed.join("replacement"), "keep\n").unwrap();
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("record-session.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> {}\n",
+            launch_log.display()
+        ),
+    );
+    let template = format!("sh {} '${{prompt}}'", script.display());
+    write_complete_config(&home, &template);
+
+    for invocation in 1..=2 {
+        let output = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "invocation {invocation}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let diagnostic = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            diagnostic.contains("could not complete orphaned finish cleanup"),
+            "invocation {invocation}: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("identity does not match"),
+            "{diagnostic}"
+        );
+        assert!(marker.is_file());
+        assert_eq!(
+            fs::read_to_string(claimed.join("replacement")).unwrap(),
+            "keep\n"
+        );
+        assert!(preserved.is_dir());
+    }
+
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert_eq!(
+        fs::read_to_string(launch_log)
+            .unwrap()
+            .matches("Grove mandate:")
+            .count(),
+        2
     );
 }

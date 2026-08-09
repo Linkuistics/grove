@@ -133,7 +133,7 @@ fn run_configured_loop_with_lease(
         let _grove_llm = checked_grove_llm()?;
         let _pre_transition_config = SessionConfig::load(&home)?;
 
-        crate::tree_lifecycle::transition_to_current(worktree)?;
+        crate::tree_lifecycle::transition_driver_to_current(worktree)?;
         let selection = match crate::tree_read::select(&worktree.join(".grove"))? {
             Some(selection) => selection,
             None => crate::tree_lifecycle::materialize_finish(worktree)?,

@@ -2,6 +2,7 @@ use super::{
     auxiliary_marker_paths, prepare_auxiliary, recover_auxiliary, recover_auxiliary_marker,
     AuxiliaryRole,
 };
+use crate::finish_cleanup::reap_orphaned;
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::OsStringExt;
@@ -209,6 +210,37 @@ fn marker_discovery_exposes_only_validated_auxiliaries_for_reaping() {
     recovered.dispose().unwrap();
 
     assert!(auxiliary_marker_paths(temporary.path()).unwrap().is_empty());
+}
+
+#[test]
+fn driver_reaping_discovers_auxiliaries_beside_the_resolved_git_index() {
+    let temporary = TempDir::new().unwrap();
+    let worktree = temporary.path();
+    let initialized = std::process::Command::new("git")
+        .current_dir(worktree)
+        .args(["init", "-q", "."])
+        .status()
+        .unwrap();
+    assert!(initialized.success());
+    fs::create_dir(worktree.join(".git/grove")).unwrap();
+    let source = worktree.join(".git/source-index");
+    let target = worktree.join(".git/index");
+    fs::write(&source, "index bytes\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexBackup,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+
+    reap_orphaned(worktree).unwrap();
+
+    assert!(!artifact.exists());
+    assert!(!marker.exists());
 }
 
 #[test]

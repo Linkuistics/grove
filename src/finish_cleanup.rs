@@ -10,14 +10,13 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 mod auxiliary;
+mod reaper;
 mod unix;
 pub(crate) use auxiliary::{
-    auxiliary_artifact_path, ensure_auxiliary_available, prepare_auxiliary, recover_auxiliary,
-    AuxiliaryCleanup, AuxiliaryRole,
+    auxiliary_artifact_path, auxiliary_marker_paths, ensure_auxiliary_available, prepare_auxiliary,
+    recover_auxiliary, recover_auxiliary_marker, AuxiliaryCleanup, AuxiliaryRole,
 };
-// The next finish-driver leaf wires these validated discovery seams into reaping.
-#[allow(unused_imports)]
-pub(crate) use auxiliary::{auxiliary_marker_paths, recover_auxiliary_marker};
+pub(crate) use reaper::reap_orphaned;
 use unix::{
     create_new_file_at, entry_exists, open_directory, open_directory_at, open_file_at,
     remove_directory_contents, rename_at_noreplace, unlink_at, validate_entry_identity,
@@ -89,6 +88,30 @@ pub(crate) enum CleanupStep {
 pub(crate) enum CleanupOutcome {
     Disposed,
     NothingToDispose,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct CleanupOwner {
+    pub(crate) finish_handle: String,
+    pub(crate) attempt_identity: String,
+}
+
+impl CleanupOwner {
+    pub(crate) fn new(finish_handle: String, attempt_identity: String) -> Result<Self> {
+        validate_attempt_identity(&attempt_identity)?;
+        let canonical_key = finish_handle
+            .strip_prefix("finish-k")
+            .and_then(|digits| digits.parse::<u32>().ok())
+            .filter(|key| *key > 0)
+            .map(|key| format!("finish-k{key}"));
+        if canonical_key.as_deref() != Some(&finish_handle) {
+            bail!("finish cleanup owner has an invalid finish handle {finish_handle:?}");
+        }
+        Ok(Self {
+            finish_handle,
+            attempt_identity,
+        })
+    }
 }
 
 pub(crate) fn prepare_quarantine(
@@ -318,7 +341,6 @@ fn attach_cleanup_failure(
     }
 }
 
-#[cfg(test)]
 pub(crate) fn marker_paths(control_directory: &Path) -> Result<Vec<PathBuf>> {
     let mut markers = fs::read_dir(control_directory)
         .with_context(|| {
@@ -342,7 +364,6 @@ pub(crate) fn marker_paths(control_directory: &Path) -> Result<Vec<PathBuf>> {
 }
 
 impl QuarantineCleanup {
-    #[cfg(test)]
     pub(crate) fn from_marker(marker_path: &Path) -> Result<Self> {
         let parent_path = marker_path
             .parent()
@@ -493,6 +514,11 @@ impl QuarantineCleanup {
 
     pub(crate) fn dispose(&self) -> Result<CleanupOutcome> {
         self.dispose_with(cleanup_test_checkpoint)
+    }
+
+    fn is_owned_by(&self, owner: &CleanupOwner) -> bool {
+        self.marker.finish_handle == owner.finish_handle
+            && self.marker.attempt_identity == owner.attempt_identity
     }
 
     pub(crate) fn dispose_with(
@@ -884,7 +910,6 @@ fn marker_file_name(attempt_identity: &str) -> OsString {
     )
 }
 
-#[cfg(test)]
 fn is_marker_name(name: &OsStr) -> bool {
     let bytes = name.as_bytes();
     let Some(identity) = bytes

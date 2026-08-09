@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::ffi::OsString;
 use std::fs::{self, File, OpenOptions};
+use std::io::Read;
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
@@ -111,91 +112,18 @@ pub(crate) enum FinishRecovery {
     Committed,
 }
 
+pub(crate) fn cleanup_owner(grove_root: &Path) -> Result<Option<finish_cleanup::CleanupOwner>> {
+    let Some((_, manifest)) = pending_manifest(grove_root)? else {
+        return Ok(None);
+    };
+    finish_cleanup::CleanupOwner::new(manifest.finish_handle, manifest.attempt_identity).map(Some)
+}
+
 pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<FinishRecovery> {
-    let mut witnesses = fs::read_dir(grove_root)
-        .with_context(|| {
-            format!(
-                "scanning task root for a pending finish transaction: {}",
-                grove_root.display()
-            )
-        })?
-        .filter_map(|entry| match entry {
-            Ok(entry) if entry.file_name().as_bytes().starts_with(WITNESS_PREFIX) => {
-                Some(Ok(entry.path()))
-            }
-            Ok(_) => None,
-            Err(error) => Some(Err(error)),
-        })
-        .collect::<std::io::Result<Vec<_>>>()?;
-    if witnesses.is_empty() {
+    let Some((witness_path, manifest)) = pending_manifest(grove_root)? else {
         return Ok(FinishRecovery::None);
-    }
-    witnesses.sort();
-    if witnesses.len() != 1 {
-        bail!(
-            "Recovery pending: multiple finish transaction witnesses exist: {}",
-            witnesses
-                .iter()
-                .map(|path| path.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-    }
-
-    let witness_path = witnesses.pop().expect("one finish witness");
-    let ready = fs::read(witness_path.join(READY_FILE)).with_context(|| {
-        format!(
-            "Recovery pending: finish witness is not ready at {}",
-            witness_path.display()
-        )
-    })?;
-    if ready != b"ready\n" {
-        bail!(
-            "Recovery pending: finish witness has an invalid ready marker at {}",
-            witness_path.display()
-        );
-    }
-    let manifest_body = fs::read(witness_path.join(MANIFEST_FILE)).with_context(|| {
-        format!(
-            "Recovery pending: reading finish manifest at {}",
-            witness_path.display()
-        )
-    })?;
-    let manifest: FinishManifest = serde_json::from_slice(&manifest_body).with_context(|| {
-        format!(
-            "Recovery pending: parsing finish manifest at {}",
-            witness_path.display()
-        )
-    })?;
-    if manifest.version != 1 {
-        bail!(
-            "Recovery pending: unsupported finish manifest version {} at {}",
-            manifest.version,
-            witness_path.display()
-        );
-    }
-    let expected_witness = format!("FINISHING-{}", manifest.finish_handle);
-    if witness_path.file_name().and_then(|name| name.to_str()) != Some(&expected_witness) {
-        bail!(
-            "Recovery pending: finish manifest handle {} does not match witness {}",
-            manifest.finish_handle,
-            witness_path.display()
-        );
-    }
+    };
     let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
-    let observed_entries = digest_root_entries(&original_tree).with_context(|| {
-        format!(
-            "Recovery pending: validating evacuated finish tree at {}",
-            original_tree.display()
-        )
-    })?;
-    if observed_entries != manifest.entries {
-        bail!(
-            "Recovery pending: evacuated finish tree does not match its manifest at {}",
-            witness_path.display()
-        );
-    }
-
     let quarantine_directory = repo::workspace_control(worktree)?
         .control_dir()
         .to_path_buf();
@@ -236,6 +164,142 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
             witness_path.display()
         ))),
     }
+}
+
+fn pending_manifest(grove_root: &Path) -> Result<Option<(PathBuf, FinishManifest)>> {
+    let metadata = match fs::symlink_metadata(grove_root) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "inspecting task root for a pending finish transaction: {}",
+                    grove_root.display()
+                )
+            })
+        }
+    };
+    if !metadata.file_type().is_dir() {
+        bail!(
+            "Recovery pending: task root is not a real directory while checking cleanup ownership: {}",
+            grove_root.display()
+        );
+    }
+    let mut witnesses = fs::read_dir(grove_root)
+        .with_context(|| {
+            format!(
+                "scanning task root for a pending finish transaction: {}",
+                grove_root.display()
+            )
+        })?
+        .filter_map(|entry| match entry {
+            Ok(entry) if entry.file_name().as_bytes().starts_with(WITNESS_PREFIX) => {
+                Some(Ok(entry.path()))
+            }
+            Ok(_) => None,
+            Err(error) => Some(Err(error)),
+        })
+        .collect::<std::io::Result<Vec<_>>>()?;
+    if witnesses.is_empty() {
+        return Ok(None);
+    }
+    witnesses.sort();
+    if witnesses.len() != 1 {
+        bail!(
+            "Recovery pending: multiple finish transaction witnesses exist: {}",
+            witnesses
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+
+    let witness_path = witnesses.pop().expect("one finish witness");
+    if !fs::symlink_metadata(&witness_path)?.file_type().is_dir() {
+        bail!(
+            "Recovery pending: finish witness is not a real directory at {}",
+            witness_path.display()
+        );
+    }
+    let ready_path = witness_path.join(READY_FILE);
+    let ready = read_regular_file_no_follow(&ready_path).with_context(|| {
+        format!(
+            "Recovery pending: validating finish cleanup ownership ready marker at {}",
+            ready_path.display()
+        )
+    })?;
+    if ready != b"ready\n" {
+        bail!(
+            "Recovery pending: finish witness has an invalid ready marker at {}",
+            witness_path.display()
+        );
+    }
+    let manifest_path = witness_path.join(MANIFEST_FILE);
+    let manifest_body = read_regular_file_no_follow(&manifest_path).with_context(|| {
+        format!(
+            "Recovery pending: validating finish cleanup ownership manifest at {}",
+            manifest_path.display()
+        )
+    })?;
+    let manifest: FinishManifest = serde_json::from_slice(&manifest_body).with_context(|| {
+        format!(
+            "Recovery pending: parsing finish manifest at {}",
+            witness_path.display()
+        )
+    })?;
+    if manifest.version != 1 {
+        bail!(
+            "Recovery pending: unsupported finish manifest version {} at {}",
+            manifest.version,
+            witness_path.display()
+        );
+    }
+    let expected_witness = format!("FINISHING-{}", manifest.finish_handle);
+    if witness_path.file_name().and_then(|name| name.to_str()) != Some(&expected_witness) {
+        bail!(
+            "Recovery pending: finish manifest handle {} does not match witness {}",
+            manifest.finish_handle,
+            witness_path.display()
+        );
+    }
+    let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
+    let observed_entries = digest_root_entries(&original_tree).with_context(|| {
+        format!(
+            "Recovery pending: validating evacuated finish tree at {}",
+            original_tree.display()
+        )
+    })?;
+    if observed_entries != manifest.entries {
+        bail!(
+            "Recovery pending: evacuated finish tree does not match its manifest at {}",
+            witness_path.display()
+        );
+    }
+    Ok(Some((witness_path, manifest)))
+}
+
+fn read_regular_file_no_follow(path: &Path) -> Result<Vec<u8>> {
+    let mut file = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW | libc::O_CLOEXEC)
+        .open(path)
+        .with_context(|| format!("opening {} without following symlinks", path.display()))?;
+    if !file
+        .metadata()
+        .with_context(|| format!("reading identity for {}", path.display()))?
+        .file_type()
+        .is_file()
+    {
+        bail!(
+            "finish transaction object is not a regular file: {}",
+            path.display()
+        );
+    }
+    let mut body = Vec::new();
+    file.read_to_end(&mut body)
+        .with_context(|| format!("reading {}", path.display()))?;
+    Ok(body)
 }
 
 fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight> {

@@ -1,6 +1,6 @@
 use super::{
-    marker_paths, prepare_quarantine, prepare_quarantine_with, CleanupOutcome, CleanupStep,
-    QuarantineCleanup,
+    marker_paths, prepare_quarantine, prepare_quarantine_with, CleanupOutcome, CleanupOwner,
+    CleanupStep, QuarantineCleanup,
 };
 use std::fs;
 use std::io;
@@ -14,6 +14,17 @@ use tempfile::TempDir;
 const FINISH_HANDLE: &str = "finish-k2";
 const ATTEMPT: &str = "11111111111111111111111111111111";
 static CLEANUP_TEST_ENVIRONMENT: Mutex<()> = Mutex::new(());
+
+#[test]
+fn cleanup_owner_requires_a_canonical_finish_handle() {
+    for invalid in ["", "finish", "build-k2", "finish-k0", "finish-k02"] {
+        let error = CleanupOwner::new(invalid.to_owned(), ATTEMPT.to_owned()).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("finish handle"),
+            "{invalid}: {error:#}"
+        );
+    }
+}
 
 struct Fixture {
     _temporary: TempDir,

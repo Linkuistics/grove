@@ -284,7 +284,12 @@ const FINISH_CLEANUP_TEST_ENV: [&str; 3] = [
 
 /// Repository selectors are process-global overrides: `current_dir` alone does
 /// not stop Git-aware children from following an inherited foreign repository.
-const REPOSITORY_CONTEXT_ENV: [&str; 3] = ["GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"];
+const REPOSITORY_CONTEXT_ENV: [&str; 4] = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_INDEX_FILE",
+];
 
 /// **Any harness spawn that is not the session itself must scrub the loop's
 /// launch-scoped environment** (guard-loop-signal-k37,
@@ -675,9 +680,14 @@ mod tests {
     #[test]
     fn an_internal_child_scrubs_control_and_repository_context() {
         let mut cmd = Command::new("true");
+        cmd.env("GIT_INDEX_FILE", "foreign-index");
         scrub_internal_child_env(&mut cmd);
         for name in LOOP_CONTROL_ENV.into_iter().chain(REPOSITORY_CONTEXT_ENV) {
             assert!(env_is_scrubbed(&cmd, name), "{name} must be removed");
         }
+        assert!(
+            env_is_scrubbed(&cmd, "GIT_INDEX_FILE"),
+            "internal commands must not inherit a foreign Git index"
+        );
     }
 }

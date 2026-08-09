@@ -465,10 +465,7 @@ fn quarantine_and_dispose(
         return Err(error.context("Recovery pending: Git finish proof changed after quarantine"));
     }
     if let Err(error) = cleanup.dispose() {
-        eprintln!(
-            "warning: completed Grove cleanup remains at {}: {error:#}",
-            quarantine_path.display()
-        );
+        eprintln!("warning: {error:#}");
     }
     Ok(())
 }

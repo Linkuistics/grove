@@ -963,15 +963,40 @@ fn interrupted_post_commit_cleanup_leaves_attempt_bound_reaping_evidence() {
         .unwrap()
         .map(|entry| entry.unwrap().file_name())
         .collect::<Vec<_>>();
-    assert!(names
+    let marker_name = names
         .iter()
-        .any(|name| name.to_string_lossy().starts_with("GROVE-FINISH-CLEANUP-")));
-    assert!(names.iter().any(|name| name
+        .find(|name| name.to_string_lossy().starts_with("GROVE-FINISH-CLEANUP-"))
+        .unwrap();
+    let claimed_name = names
+        .iter()
+        .find(|name| {
+            name.to_string_lossy()
+                .starts_with("REAPING-FINISHED-finish-k2-")
+        })
+        .unwrap();
+    let marker_path = control_directory.join(marker_name);
+    let claimed_path = control_directory.join(claimed_name);
+    let quarantine_name = claimed_name
         .to_string_lossy()
-        .starts_with("REAPING-FINISHED-finish-k2-")));
+        .strip_prefix("REAPING-")
+        .unwrap()
+        .to_owned();
+    let quarantine_path = control_directory.join(quarantine_name);
     let diagnostic = String::from_utf8_lossy(&output.stderr);
     assert!(
         diagnostic.contains("completed Grove cleanup remains"),
+        "{diagnostic}"
+    );
+    assert!(
+        diagnostic.contains(marker_path.to_string_lossy().as_ref()),
+        "{diagnostic}"
+    );
+    assert!(
+        diagnostic.contains(claimed_path.to_string_lossy().as_ref()),
+        "{diagnostic}"
+    );
+    assert!(
+        !diagnostic.contains(quarantine_path.to_string_lossy().as_ref()),
         "{diagnostic}"
     );
 }

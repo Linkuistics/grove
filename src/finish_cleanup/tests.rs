@@ -1,6 +1,7 @@
-use super::{marker_paths, prepare_quarantine, CleanupStep, QuarantineCleanup};
+use super::{marker_paths, prepare_quarantine, CleanupOutcome, CleanupStep, QuarantineCleanup};
 use std::fs;
 use std::io;
+use std::os::fd::AsRawFd;
 use std::os::unix::fs::symlink;
 use std::os::unix::fs::MetadataExt;
 use tempfile::TempDir;
@@ -52,7 +53,7 @@ fn a_marked_quarantine_is_removed_with_its_marker() {
     let cleanup = fixture.prepare_and_handoff();
     let marker = cleanup.marker_path().to_path_buf();
 
-    cleanup.dispose().unwrap();
+    assert_eq!(cleanup.dispose().unwrap(), CleanupOutcome::Disposed);
 
     assert!(!fixture.quarantine.exists());
     assert!(!marker.exists());
@@ -166,9 +167,155 @@ fn persistent_cleanup_failure_keeps_retryable_claim_and_evidence() {
             .unwrap_err();
 
         assert!(format!("{error:#}").contains("persistent cleanup refusal"));
+        assert!(
+            format!("{error:#}").contains(&claimed.to_string_lossy().into_owned()),
+            "{error:#}"
+        );
+        assert!(
+            format!("{error:#}").contains(&marker.to_string_lossy().into_owned()),
+            "{error:#}"
+        );
         assert!(claimed.join("blocked").is_file());
         assert!(marker.is_file());
     }
+}
+
+#[test]
+fn failure_immediately_after_claim_names_only_retryable_paths() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let claimed = fixture
+        .control_directory
+        .join(format!("REAPING-FINISHED-{FINISH_HANDLE}-{ATTEMPT}"));
+
+    let error = cleanup
+        .dispose_with(|step| {
+            if step == CleanupStep::AfterClaim {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated failure immediately after claim",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+    let diagnostic = format!("{error:#}");
+
+    assert!(diagnostic.contains("simulated failure immediately after claim"));
+    assert!(diagnostic.contains(claimed.to_string_lossy().as_ref()));
+    assert!(diagnostic.contains(marker.to_string_lossy().as_ref()));
+    assert!(!diagnostic.contains(fixture.quarantine.to_string_lossy().as_ref()));
+    assert!(claimed.is_dir());
+    assert!(marker.is_file());
+}
+
+#[test]
+fn a_stale_marker_reports_that_nothing_was_disposed() {
+    let fixture = Fixture::new();
+    let cleanup = prepare_quarantine(
+        &fixture.grove_root,
+        &fixture.quarantine,
+        FINISH_HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let marker = cleanup.marker_path().to_path_buf();
+
+    assert_eq!(cleanup.dispose().unwrap(), CleanupOutcome::NothingToDispose);
+    assert!(!marker.exists());
+    assert!(fixture.grove_root.is_dir());
+}
+
+#[test]
+fn simultaneous_quarantine_names_are_refused_without_mutation() {
+    let fixture = Fixture::new();
+    let cleanup = fixture.prepare_and_handoff();
+    let marker = cleanup.marker_path().to_path_buf();
+    let claimed = fixture
+        .control_directory
+        .join(format!("REAPING-FINISHED-{FINISH_HANDLE}-{ATTEMPT}"));
+    let interruption = cleanup
+        .dispose_with(|step| match step {
+            CleanupStep::BeforeEntry(_) => Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "leave claimed quarantine intact",
+            )),
+            _ => Ok(()),
+        })
+        .unwrap_err();
+    assert!(format!("{interruption:#}").contains("leave claimed quarantine intact"));
+    fs::create_dir(&fixture.quarantine).unwrap();
+    let quarantine_inode = fs::symlink_metadata(&fixture.quarantine).unwrap().ino();
+    let claimed_inode = fs::symlink_metadata(&claimed).unwrap().ino();
+
+    let error = QuarantineCleanup::from_marker(&marker)
+        .unwrap()
+        .dispose()
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("ambiguous Grove cleanup owner"));
+    assert_eq!(
+        fs::symlink_metadata(&fixture.quarantine).unwrap().ino(),
+        quarantine_inode
+    );
+    assert_eq!(fs::symlink_metadata(&claimed).unwrap().ino(), claimed_inode);
+    assert!(marker.is_file());
+}
+
+#[test]
+fn well_formed_foreign_marker_versions_and_kinds_are_refused() {
+    for (field, replacement, expected) in [
+        (
+            "version",
+            serde_json::json!(2),
+            "unsupported Grove cleanup marker version",
+        ),
+        (
+            "kind",
+            serde_json::json!("foreign"),
+            "unsupported Grove cleanup marker kind",
+        ),
+    ] {
+        let fixture = Fixture::new();
+        let cleanup = fixture.prepare_and_handoff();
+        let marker = cleanup.marker_path().to_path_buf();
+        let mut body: serde_json::Value =
+            serde_json::from_slice(&fs::read(&marker).unwrap()).unwrap();
+        body[field] = replacement;
+        fs::write(&marker, serde_json::to_vec_pretty(&body).unwrap()).unwrap();
+
+        let error = QuarantineCleanup::from_marker(&marker).unwrap_err();
+
+        assert!(format!("{error:#}").contains(expected), "{error:#}");
+        assert!(fixture.quarantine.is_dir());
+        assert!(marker.is_file());
+    }
+}
+
+#[test]
+fn prepare_refuses_an_overlong_claim_name_before_publishing_a_marker() {
+    let fixture = Fixture::new();
+    let control_directory = fs::File::open(&fixture.control_directory).unwrap();
+    // SAFETY: the descriptor is an open directory and `_PC_NAME_MAX` is a
+    // read-only query for that filesystem.
+    let name_max = unsafe { libc::fpathconf(control_directory.as_raw_fd(), libc::_PC_NAME_MAX) };
+    assert!(name_max > 64, "unexpected NAME_MAX {name_max}");
+    let quarantine_overhead = b"FINISHED-".len() + 1 + ATTEMPT.len();
+    let finish_handle = "h".repeat(name_max as usize - quarantine_overhead - 4);
+    let quarantine = fixture
+        .control_directory
+        .join(format!("FINISHED-{finish_handle}-{ATTEMPT}"));
+
+    let error =
+        prepare_quarantine(&fixture.grove_root, &quarantine, &finish_handle, ATTEMPT).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("claimed finish quarantine name"),
+        "{error:#}"
+    );
+    assert!(marker_paths(&fixture.control_directory).unwrap().is_empty());
+    assert!(fixture.grove_root.is_dir());
 }
 
 #[test]

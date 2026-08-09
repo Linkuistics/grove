@@ -98,6 +98,10 @@ fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
         unsafe { libc::close(duplicate) };
         return Err(io::Error::last_os_error());
     }
+    // SAFETY: `stream` is a live directory stream. `dup` shares the original
+    // open-file description and therefore its cursor, so each listing must
+    // explicitly start from the beginning.
+    unsafe { libc::rewinddir(stream) };
 
     let result = (|| {
         let mut names = Vec::new();
@@ -156,6 +160,32 @@ pub(super) fn entry_exists(parent: &File, name: &OsStr) -> io::Result<bool> {
     }
 }
 
+pub(super) fn validate_file_name(parent: &File, name: &OsStr) -> io::Result<()> {
+    set_errno(0);
+    // SAFETY: `parent` is an open directory descriptor and `_PC_NAME_MAX` is a
+    // read-only query for that filesystem.
+    let name_max = unsafe { libc::fpathconf(parent.as_raw_fd(), libc::_PC_NAME_MAX) };
+    if name_max < 0 {
+        let error = current_errno();
+        return if error == 0 {
+            Ok(())
+        } else {
+            Err(io::Error::from_raw_os_error(error))
+        };
+    }
+    let name_length = name.as_bytes().len();
+    if name_length > name_max as usize {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!(
+                "file name is {name_length} bytes but this filesystem permits at most {name_max}"
+            ),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 pub(super) fn validate_entry_identity(
     parent: &File,
     name: &OsStr,
@@ -183,31 +213,37 @@ pub(super) fn rename_at_noreplace(
 ) -> io::Result<()> {
     let source = c_string(source)?;
     let destination = c_string(destination)?;
-    // SAFETY: both directory descriptors and NUL-terminated names are valid,
-    // and the platform flag makes destination replacement impossible.
     #[cfg(any(target_os = "linux", target_os = "android"))]
-    let status = unsafe {
-        libc::renameat2(
-            source_parent.as_raw_fd(),
-            source.as_ptr(),
-            destination_parent.as_raw_fd(),
-            destination.as_ptr(),
-            libc::RENAME_NOREPLACE as _,
-        )
-    };
+    {
+        // SAFETY: both directory descriptors and NUL-terminated names are
+        // valid, and the platform flag makes replacement impossible.
+        let status = unsafe {
+            libc::renameat2(
+                source_parent.as_raw_fd(),
+                source.as_ptr(),
+                destination_parent.as_raw_fd(),
+                destination.as_ptr(),
+                libc::RENAME_NOREPLACE as _,
+            )
+        };
+        status_result(status)
+    }
 
-    // SAFETY: both directory descriptors and NUL-terminated names are valid,
-    // and RENAME_EXCL makes destination replacement impossible.
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-    let status = unsafe {
-        libc::renameatx_np(
-            source_parent.as_raw_fd(),
-            source.as_ptr(),
-            destination_parent.as_raw_fd(),
-            destination.as_ptr(),
-            libc::RENAME_EXCL,
-        )
-    };
+    {
+        // SAFETY: both directory descriptors and NUL-terminated names are
+        // valid, and RENAME_EXCL makes replacement impossible.
+        let status = unsafe {
+            libc::renameatx_np(
+                source_parent.as_raw_fd(),
+                source.as_ptr(),
+                destination_parent.as_raw_fd(),
+                destination.as_ptr(),
+                libc::RENAME_EXCL,
+            )
+        };
+        status_result(status)
+    }
 
     #[cfg(not(any(
         target_os = "linux",
@@ -215,11 +251,16 @@ pub(super) fn rename_at_noreplace(
         target_os = "macos",
         target_os = "ios"
     )))]
-    return Err(io::Error::new(
-        io::ErrorKind::Unsupported,
-        "atomic no-replace rename is unavailable on this platform",
-    ));
+    {
+        let _ = (source_parent, source, destination_parent, destination);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "atomic no-replace rename is unavailable on this platform",
+        ))
+    }
+}
 
+fn status_result(status: libc::c_int) -> io::Result<()> {
     if status < 0 {
         Err(io::Error::last_os_error())
     } else {
@@ -249,15 +290,16 @@ fn errno_pointer() -> *mut libc::c_int {
     unsafe { libc::__errno_location() }
 }
 
-#[cfg(any(
-    target_os = "macos",
-    target_os = "ios",
-    target_os = "freebsd",
-    target_os = "openbsd"
-))]
+#[cfg(any(target_os = "macos", target_os = "ios", target_os = "freebsd"))]
 fn errno_pointer() -> *mut libc::c_int {
     // SAFETY: libc exposes the calling thread's errno pointer.
     unsafe { libc::__error() }
+}
+
+#[cfg(target_os = "openbsd")]
+fn errno_pointer() -> *mut libc::c_int {
+    // SAFETY: libc exposes the calling thread's errno pointer.
+    unsafe { libc::__errno() }
 }
 
 fn set_errno(value: libc::c_int) {
@@ -268,4 +310,45 @@ fn set_errno(value: libc::c_int) {
 fn current_errno() -> libc::c_int {
     // SAFETY: the pointer is the calling thread's valid errno slot.
     unsafe { *errno_pointer() }
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+    use super::rename_at_noreplace;
+    use super::{directory_names, open_directory};
+    #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+    use std::ffi::OsStr;
+    use std::ffi::OsString;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn repeated_directory_listing_starts_from_the_beginning() {
+        let temporary = TempDir::new().unwrap();
+        fs::write(temporary.path().join("first"), "first\n").unwrap();
+        fs::write(temporary.path().join("second"), "second\n").unwrap();
+        let directory = open_directory(temporary.path()).unwrap();
+        let expected = vec![OsString::from("first"), OsString::from("second")];
+
+        assert_eq!(directory_names(&directory).unwrap(), expected);
+        assert_eq!(directory_names(&directory).unwrap(), expected);
+    }
+
+    #[cfg(any(target_os = "freebsd", target_os = "openbsd"))]
+    #[test]
+    fn unsupported_bsd_atomic_rename_returns_an_error() {
+        let temporary = TempDir::new().unwrap();
+        let directory = open_directory(temporary.path()).unwrap();
+
+        let error = rename_at_noreplace(
+            &directory,
+            OsStr::new("source"),
+            &directory,
+            OsStr::new("destination"),
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    }
 }

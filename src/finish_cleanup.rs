@@ -1,8 +1,6 @@
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-#[cfg(test)]
-use std::ffi::OsStr;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -13,7 +11,7 @@ use tempfile::NamedTempFile;
 mod unix;
 use unix::{
     entry_exists, open_directory, open_directory_at, open_file_at, remove_directory_contents,
-    rename_at_noreplace, unlink_at, validate_entry_identity,
+    rename_at_noreplace, unlink_at, validate_entry_identity, validate_file_name,
 };
 
 const CLEANUP_MARKER_PREFIX: &[u8] = b"GROVE-FINISH-CLEANUP-";
@@ -65,8 +63,15 @@ pub(crate) struct QuarantineCleanup {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CleanupStep {
     BeforeClaim,
+    AfterClaim,
     BeforeEntry(OsString),
     BeforeRootRemoval,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CleanupOutcome {
+    Disposed,
+    NothingToDispose,
 }
 
 pub(crate) fn prepare_quarantine(
@@ -95,6 +100,31 @@ pub(crate) fn prepare_quarantine(
             quarantine_parent.display()
         )
     })?;
+    let quarantine_parent_directory = open_directory(quarantine_parent).with_context(|| {
+        format!(
+            "opening finish cleanup marker directory {}",
+            quarantine_parent.display()
+        )
+    })?;
+    validate_file_name(&quarantine_parent_directory, quarantine_name).with_context(|| {
+        format!(
+            "finish quarantine name {:?} cannot be created in {}",
+            quarantine_name,
+            quarantine_parent.display()
+        )
+    })?;
+    let claimed_name = [REAPING_PREFIX, quarantine_name.as_bytes()].concat();
+    validate_file_name(
+        &quarantine_parent_directory,
+        OsStr::from_bytes(&claimed_name),
+    )
+    .with_context(|| {
+        format!(
+            "claimed finish quarantine name {:?} cannot be created in {}",
+            OsStr::from_bytes(&claimed_name),
+            quarantine_parent.display()
+        )
+    })?;
 
     let grove_directory = open_directory(grove_root).with_context(|| {
         format!(
@@ -109,7 +139,7 @@ pub(crate) fn prepare_quarantine(
         finish_handle: finish_handle.to_owned(),
         attempt_identity: attempt_identity.to_owned(),
         quarantine_name: quarantine_name.as_bytes().to_vec(),
-        claimed_name: [REAPING_PREFIX, quarantine_name.as_bytes()].concat(),
+        claimed_name,
         device: grove_identity.device,
         inode: grove_identity.inode,
     };
@@ -313,14 +343,14 @@ impl QuarantineCleanup {
         Ok(())
     }
 
-    pub(crate) fn dispose(&self) -> Result<()> {
+    pub(crate) fn dispose(&self) -> Result<CleanupOutcome> {
         self.dispose_with(cleanup_test_checkpoint)
     }
 
     pub(crate) fn dispose_with(
         &self,
         mut checkpoint: impl FnMut(CleanupStep) -> io::Result<()>,
-    ) -> Result<()> {
+    ) -> Result<CleanupOutcome> {
         let parent_path = self
             .marker_path
             .parent()
@@ -346,7 +376,7 @@ impl QuarantineCleanup {
             ),
             (false, false) => {
                 self.remove_marker(&parent)?;
-                return Ok(());
+                return Ok(CleanupOutcome::NothingToDispose);
             }
             (true, false) => {
                 let original = open_directory_at(&parent, &quarantine_name).with_context(|| {
@@ -373,35 +403,63 @@ impl QuarantineCleanup {
                             quarantine_name, claimed_name
                         )
                     })?;
-                let claimed = open_directory_at(&parent, &claimed_name).with_context(|| {
-                    format!("opening claimed finish quarantine {:?}", claimed_name)
-                })?;
-                let original_identity = FileIdentity::from_file(&original)?;
-                let claimed_identity = FileIdentity::from_file(&claimed)?;
-                if original_identity != claimed_identity {
-                    bail!(
-                        "finish quarantine identity changed while claiming {:?}; replacement left untouched",
-                        claimed_name
-                    );
-                }
+                let claimed_path = parent_path.join(&claimed_name);
+                let claimed = (|| -> Result<File> {
+                    checkpoint(CleanupStep::AfterClaim)
+                        .context("cleanup checkpoint after quarantine claim")?;
+                    let claimed = open_directory_at(&parent, &claimed_name).with_context(|| {
+                        format!("opening claimed finish quarantine {:?}", claimed_name)
+                    })?;
+                    let original_identity = FileIdentity::from_file(&original)?;
+                    let claimed_identity = FileIdentity::from_file(&claimed)?;
+                    if original_identity != claimed_identity {
+                        bail!(
+                            "finish quarantine identity changed while claiming {:?}; replacement left untouched",
+                            claimed_name
+                        );
+                    }
+                    Ok(claimed)
+                })()
+                .with_context(|| self.pending_cleanup_context(&claimed_path))?;
                 (claimed, claimed_name)
             }
             (false, true) => {
-                let claimed = open_directory_at(&parent, &claimed_name).with_context(|| {
-                    format!("opening claimed finish quarantine {:?}", claimed_name)
-                })?;
-                self.validate_quarantine_identity(&claimed)?;
+                let claimed_path = parent_path.join(&claimed_name);
+                let claimed = (|| -> Result<File> {
+                    let claimed = open_directory_at(&parent, &claimed_name).with_context(|| {
+                        format!("opening claimed finish quarantine {:?}", claimed_name)
+                    })?;
+                    self.validate_quarantine_identity(&claimed)?;
+                    Ok(claimed)
+                })()
+                .with_context(|| self.pending_cleanup_context(&claimed_path))?;
                 (claimed, claimed_name)
             }
         };
 
-        remove_directory_contents(&directory, &mut checkpoint)?;
-        checkpoint(CleanupStep::BeforeRootRemoval)
-            .context("cleanup checkpoint before quarantine removal")?;
-        validate_entry_identity(&parent, &active_name, FileIdentity::from_file(&directory)?)?;
-        unlink_at(&parent, &active_name, libc::AT_REMOVEDIR)
-            .with_context(|| format!("removing claimed finish quarantine {:?}", active_name))?;
-        self.remove_marker(&parent)
+        let active_path = parent_path.join(&active_name);
+        let disposal = (|| -> Result<()> {
+            remove_directory_contents(&directory, &mut checkpoint)?;
+            checkpoint(CleanupStep::BeforeRootRemoval)
+                .context("cleanup checkpoint before quarantine removal")?;
+            validate_entry_identity(&parent, &active_name, FileIdentity::from_file(&directory)?)?;
+            unlink_at(&parent, &active_name, libc::AT_REMOVEDIR)
+                .with_context(|| format!("removing claimed finish quarantine {:?}", active_name))?;
+            Ok(())
+        })();
+        if let Err(error) = disposal {
+            return Err(error).with_context(|| self.pending_cleanup_context(&active_path));
+        }
+        self.remove_marker(&parent)?;
+        Ok(CleanupOutcome::Disposed)
+    }
+
+    fn pending_cleanup_context(&self, active_path: &Path) -> String {
+        format!(
+            "completed Grove cleanup remains at {}; retry with marker {}",
+            active_path.display(),
+            self.marker_path.display()
+        )
     }
 
     fn revalidate_marker(&self, parent: &File) -> Result<()> {
@@ -491,6 +549,7 @@ fn read_marker(
 fn cleanup_test_checkpoint(step: CleanupStep) -> io::Result<()> {
     let name = match &step {
         CleanupStep::BeforeClaim => "before-claim",
+        CleanupStep::AfterClaim => "after-claim",
         CleanupStep::BeforeEntry(_) => "before-entry",
         CleanupStep::BeforeRootRemoval => "before-root-removal",
     };

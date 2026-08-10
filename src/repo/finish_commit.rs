@@ -1405,25 +1405,43 @@ fn verify_lost_plain_git_finish(worktree: &Path, message: &str) -> Result<()> {
             "the immediate plain-Git result is not this finish attempt's teardown commit: expected message {message:?}, observed {observed_message:?}"
         );
     }
-    let lineage = git_stdout(worktree, &["rev-list", "--parents", "-n", "1", &head])?;
-    let mut lineage = lineage.split_whitespace().skip(1);
-    let parent = lineage
-        .next()
-        .context("the immediate plain-Git result is a root commit, so it deletes nothing")?;
-    if lineage.next().is_some() {
-        bail!("the immediate plain-Git result is a merge, not a finish teardown commit");
-    }
+    let parent = git_sole_parent(worktree, &head)?;
     if !tracked_grove_bytes(worktree, &head)?.is_empty() {
         bail!("the immediate plain-Git result still tracks `.grove/`");
     }
     let changed = git_bytes(
         worktree,
-        &["diff", "--name-status", "-z", parent, &head, "--", "."],
+        &["diff", "--name-status", "-z", &parent, &head, "--", "."],
     )?;
     if !only_grove_deletions(&changed, b"D") {
         bail!("the immediate plain-Git result changes paths outside the exact `.grove/` deletion");
     }
     Ok(())
+}
+
+/// The one parent of `commit`, refusing both a root commit and a merge.
+///
+/// Every plain-Git finish proof asserts the same shape: the teardown result is
+/// exactly one `.grove/`-deletion step away from the revision it deletes
+/// against. `HEAD^` cannot express that, because it names a merge's *first*
+/// parent as readily as a sole parent — so a merge whose first parent is the
+/// recorded start passes an anchor comparison while its second parent drags
+/// arbitrary unrelated history into the result being proven exact. The
+/// scoped-path diff cannot catch it either: it compares the two trees, and a
+/// merge's tree can equal the start's tree minus `.grove/` no matter what its
+/// other parent contains. Deriving the parent through the full parent list is
+/// what makes "exactly one" observable, so both proof paths do it here rather
+/// than each deciding for itself what may be a teardown commit.
+fn git_sole_parent(worktree: &Path, commit: &str) -> Result<String> {
+    let lineage = git_stdout(worktree, &["rev-list", "--parents", "-n", "1", commit])?;
+    let mut parents = lineage.split_whitespace().skip(1);
+    let parent = parents
+        .next()
+        .context("the plain-Git result is a root commit, so it deletes nothing")?;
+    if parents.next().is_some() {
+        bail!("the plain-Git result is a merge, not a finish teardown commit");
+    }
+    Ok(parent.to_owned())
 }
 
 /// `HEAD`'s commit, or `None` in a repository whose `HEAD` is unborn.
@@ -1521,7 +1539,7 @@ fn validate_exact_git_finish(
     if observed_head == start_head {
         bail!("the plain-Git finish result is absent: HEAD is still {start_head}");
     }
-    let observed_parent = git_stdout(worktree, &["rev-parse", "HEAD^"])?;
+    let observed_parent = git_sole_parent(worktree, "HEAD")?;
     if observed_parent != start_head {
         bail!(
             "the plain-Git finish result is not immediate: recorded start {start_head}, observed parent {observed_parent}"
@@ -1895,10 +1913,11 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{
-        filter_staging_directory, finish_commit_message, git_bytes, jj_topology, prepare_jj_finish,
-        prepare_plain_git_finish, preserve_git_index, recover_finish, remove_grove_entries,
-        run_vcs_command, write_child_stdin_and_wait, FinishCommitOutcome, FinishRecoveryOutcome,
-        FinishStartAnchor, GitStartProof,
+        filter_staging_directory, finish_commit_message, git_bytes, git_stdout, jj_topology,
+        prepare_jj_finish, prepare_plain_git_finish, preserve_git_index, recover_finish,
+        remove_grove_entries, run_vcs_command, tracked_grove_fingerprint,
+        write_child_stdin_and_wait, FinishCommitOutcome, FinishRecoveryOutcome, FinishStartAnchor,
+        GitFinishProof, GitStartProof,
     };
     use anyhow::anyhow;
     use std::fs;
@@ -2203,6 +2222,103 @@ mod tests {
         run_vcs_command(repository, "git", &["commit", "-q", "-m", "divergent"]).unwrap();
         let error = proof.revalidate().unwrap_err();
         assert!(error.to_string().contains("not immediate"), "{error:#}");
+    }
+
+    /// A merge whose *first* parent is the recorded start satisfies every other
+    /// predicate the proof asks: the message matches, `.grove/` is untracked,
+    /// and the two trees differ by exactly the `.grove/` deletion. Its second
+    /// parent — carrying whatever history it likes — is what makes the topology
+    /// ambiguous, and it is observable only through the full parent list.
+    #[test]
+    fn a_merge_over_the_recorded_start_is_not_a_plain_git_finish_result() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        let init = Command::new("git")
+            .current_dir(repository)
+            .args(["init", "-q", "."])
+            .output()
+            .unwrap();
+        assert!(
+            init.status.success(),
+            "{}",
+            String::from_utf8_lossy(&init.stderr)
+        );
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Test"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove-test@example.com"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(repository.join("outside"), "keep\n").unwrap();
+        run_vcs_command(repository, "git", &["add", "-A"]).unwrap();
+        run_vcs_command(repository, "git", &["commit", "-q", "-m", "fixture"]).unwrap();
+        let start_head = git_stdout(repository, &["rev-parse", "HEAD"]).unwrap();
+        let deletion_fingerprint = tracked_grove_fingerprint(repository, &start_head).unwrap();
+
+        // The exact teardown tree: the start's, less `.grove/`.
+        let start_tree = git_stdout(repository, &["rev-parse", "HEAD^{tree}"]).unwrap();
+        fs::remove_dir_all(repository.join(".grove")).unwrap();
+        run_vcs_command(repository, "git", &["add", "-A", "--", ".grove"]).unwrap();
+        let teardown_tree = git_stdout(repository, &["write-tree"]).unwrap();
+        // Any commit at all serves as the unobserved second parent.
+        let unrelated = git_stdout(
+            repository,
+            &[
+                "commit-tree",
+                &start_tree,
+                "-p",
+                &start_head,
+                "-m",
+                "unrelated",
+            ],
+        )
+        .unwrap();
+        let message = finish_commit_message(FINISH_HANDLE, FIRST_ATTEMPT);
+        let merge = git_stdout(
+            repository,
+            &[
+                "commit-tree",
+                &teardown_tree,
+                "-p",
+                &start_head,
+                "-p",
+                &unrelated,
+                "-m",
+                &message,
+            ],
+        )
+        .unwrap();
+        run_vcs_command(repository, "git", &["reset", "-q", "--hard", &merge]).unwrap();
+
+        let proof = GitFinishProof {
+            worktree: repository.to_path_buf(),
+            start_head: start_head.clone(),
+            message,
+            deletion_fingerprint,
+        };
+        let error = proof.revalidate().unwrap_err();
+        assert!(error.to_string().contains("merge"), "{error:#}");
+
+        let outcome = recover_finish(
+            repository,
+            &FinishStartAnchor::PlainGit {
+                head: start_head,
+                had_git_index: true,
+            },
+            FINISH_HANDLE,
+            FIRST_ATTEMPT,
+            deletion_fingerprint,
+        );
+        let FinishRecoveryOutcome::RecoveryPending(error) = outcome else {
+            panic!("an ambiguous merge topology was not held as recovery pending");
+        };
+        assert!(
+            format!("{error:#}").contains("restore the recorded start"),
+            "{error:#}"
+        );
     }
 
     #[test]

@@ -155,7 +155,7 @@ pub(crate) fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
     result
 }
 
-fn metadata_at(parent: &File, name: &OsStr) -> io::Result<libc::stat> {
+pub(crate) fn metadata_at(parent: &File, name: &OsStr) -> io::Result<libc::stat> {
     let name = c_string(name)?;
     let mut metadata = MaybeUninit::<libc::stat>::uninit();
     // SAFETY: all pointers are valid for the call and the output is initialized
@@ -173,6 +173,36 @@ fn metadata_at(parent: &File, name: &OsStr) -> io::Result<libc::stat> {
     } else {
         // SAFETY: successful `fstatat` initialized the value.
         Ok(unsafe { metadata.assume_init() })
+    }
+}
+
+pub(crate) fn read_link_at(parent: &File, name: &OsStr) -> io::Result<OsString> {
+    let name = c_string(name)?;
+    let mut capacity = 256_usize;
+    loop {
+        let mut target = Vec::<u8>::with_capacity(capacity);
+        // SAFETY: the directory descriptor and NUL-terminated name are valid,
+        // and `target` owns `capacity` writable bytes for the call.
+        let length = unsafe {
+            libc::readlinkat(
+                parent.as_raw_fd(),
+                name.as_ptr(),
+                target.as_mut_ptr().cast(),
+                capacity,
+            )
+        };
+        if length < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let length = length as usize;
+        if length < capacity {
+            // SAFETY: `readlinkat` initialized exactly `length` bytes.
+            unsafe { target.set_len(length) };
+            return Ok(OsString::from_vec(target));
+        }
+        capacity = capacity.checked_mul(2).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidData, "symlink target is too large")
+        })?;
     }
 }
 

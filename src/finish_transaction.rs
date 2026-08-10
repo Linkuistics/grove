@@ -1,8 +1,8 @@
 use crate::{driver_lease, finish_cleanup, repo};
 use anyhow::{bail, Context, Result};
 use finish_cleanup::unix::{
-    create_directory_at, create_new_file_at, directory_names, open_directory_at, open_file_at,
-    rename_at_noreplace, unlink_at,
+    create_directory_at, create_new_file_at, directory_names, metadata_at, open_directory_at,
+    open_file_at, read_link_at, rename_at_noreplace, unlink_at,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -74,6 +74,7 @@ fn finish_test_checkpoint(name: &str) -> Result<()> {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 struct RootEntryDigest {
     path: Vec<u8>,
     entry_type: EntryType,
@@ -95,6 +96,7 @@ struct FinishPreflight {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct FinishManifest {
     version: u32,
     finish_handle: String,
@@ -208,6 +210,13 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
 }
 
 fn pending_manifest(grove_root: &Path) -> Result<Option<PendingFinish>> {
+    pending_manifest_with_checkpoint(grove_root, |_| Ok(()))
+}
+
+fn pending_manifest_with_checkpoint(
+    grove_root: &Path,
+    mut checkpoint: impl FnMut(&str) -> Result<()>,
+) -> Result<Option<PendingFinish>> {
     let metadata = match fs::symlink_metadata(grove_root) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -340,6 +349,17 @@ fn pending_manifest(grove_root: &Path) -> Result<Option<PendingFinish>> {
             witness_path.display()
         );
     }
+    finish_cleanup::CleanupOwner::new(
+        manifest.finish_handle.clone(),
+        manifest.attempt_identity.clone(),
+    )
+    .with_context(|| {
+        format!(
+            "Recovery pending: invalid finish manifest identity at {}",
+            witness_path.display()
+        )
+    })?;
+    validate_manifest_entries(&manifest, &witness_path)?;
     let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
     let original_tree_directory =
         open_directory_at(&witness_directory, OsStr::new(ORIGINAL_TREE_DIRECTORY)).with_context(
@@ -356,7 +376,8 @@ fn pending_manifest(grove_root: &Path) -> Result<Option<PendingFinish>> {
         &original_tree_directory,
         "finish recovery tree",
     )?;
-    let observed_entries = digest_root_entries(&original_tree).with_context(|| {
+    checkpoint("after-original-tree-open")?;
+    let observed_entries = digest_root_entries_at(&original_tree_directory).with_context(|| {
         format!(
             "Recovery pending: validating evacuated finish tree at {}",
             original_tree.display()
@@ -407,6 +428,34 @@ fn pending_manifest(grove_root: &Path) -> Result<Option<PendingFinish>> {
     }))
 }
 
+fn validate_manifest_entries(manifest: &FinishManifest, witness_path: &Path) -> Result<()> {
+    let mut previous_path: Option<&[u8]> = None;
+    for entry in &manifest.entries {
+        let path = entry.path.as_slice();
+        if path.is_empty()
+            || path == b"."
+            || path == b".."
+            || path.contains(&b'/')
+            || path.contains(&b'\0')
+        {
+            bail!(
+                "Recovery pending: finish manifest has an invalid root entry path {:?} at {}",
+                OsStr::from_bytes(path),
+                witness_path.display()
+            );
+        }
+        if previous_path.is_some_and(|previous| previous >= path) {
+            bail!(
+                "Recovery pending: finish manifest has a duplicate or unsorted root entry path {:?} at {}",
+                OsStr::from_bytes(path),
+                witness_path.display()
+            );
+        }
+        previous_path = Some(path);
+    }
+    Ok(())
+}
+
 fn read_regular_file_at(parent: &File, name: &OsStr, description: &str) -> Result<(Vec<u8>, File)> {
     let mut file = open_file_at(parent, name)
         .with_context(|| format!("opening {description} {name:?} without following symlinks"))?;
@@ -448,20 +497,21 @@ fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight>
         control.control_dir(),
     )?;
 
-    for entry in fs::read_dir(grove_root)
+    for name in directory_names(&grove_directory)
         .with_context(|| format!("reading finish transaction input {}", grove_root.display()))?
     {
-        let entry = entry?;
-        if entry.file_name().as_bytes().starts_with(WITNESS_PREFIX) {
+        if name.as_bytes().starts_with(WITNESS_PREFIX) {
             bail!(
                 "reserved finish transaction path already exists: {}",
-                entry.path().display()
+                grove_root.join(name).display()
             );
         }
     }
+    let entry_digests = digest_root_entries_at(&grove_directory)?;
+    revalidate_task_root(grove_root, &grove_directory)?;
     Ok(FinishPreflight {
         grove_root_directory: grove_directory,
-        entry_digests: digest_root_entries(grove_root)?,
+        entry_digests,
         quarantine_directory: control.control_dir().to_path_buf(),
     })
 }
@@ -625,6 +675,64 @@ impl EntryIdentity {
             inode: metadata.ino(),
         })
     }
+
+    fn from_stat(metadata: &libc::stat) -> Self {
+        Self {
+            device: metadata.st_dev as u64,
+            inode: metadata.st_ino,
+        }
+    }
+}
+
+fn validate_opened_entry_identity(
+    expected: EntryIdentity,
+    file: &File,
+    description: &str,
+) -> Result<fs::Metadata> {
+    let metadata = file
+        .metadata()
+        .with_context(|| format!("reading {description} identity"))?;
+    let observed = EntryIdentity {
+        device: metadata.dev(),
+        inode: metadata.ino(),
+    };
+    if observed.device != expected.device || observed.inode != expected.inode {
+        bail!(
+            "Recovery pending: {description} identity changed while opening it; expected device/inode {}/{}, observed {}/{}",
+            expected.device,
+            expected.inode,
+            observed.device,
+            observed.inode
+        );
+    }
+    Ok(metadata)
+}
+
+fn revalidate_entry_at(
+    parent: &File,
+    name: &OsStr,
+    expected_identity: EntryIdentity,
+    expected_mode: libc::mode_t,
+    description: &str,
+) -> Result<()> {
+    let observed = metadata_at(parent, name).with_context(|| {
+        format!("revalidating {description} {name:?} without following symlinks")
+    })?;
+    let observed_identity = EntryIdentity::from_stat(&observed);
+    let relevant_mode = libc::S_IFMT | 0o7777;
+    if observed_identity.device != expected_identity.device
+        || observed_identity.inode != expected_identity.inode
+        || observed.st_mode & relevant_mode != expected_mode & relevant_mode
+    {
+        bail!(
+            "Recovery pending: {description} changed at {name:?}; expected device/inode {}/{}, observed {}/{}",
+            expected_identity.device,
+            expected_identity.inode,
+            observed_identity.device,
+            observed_identity.inode
+        );
+    }
+    Ok(())
 }
 
 fn revalidate_open_directory_at(
@@ -1021,7 +1129,8 @@ fn rollback(
             )
         })?;
         let destination = entry_path(&transaction.grove_root, &expected.path);
-        let actual = digest_entry(&transaction.grove_root, &destination)?;
+        let name = OsString::from_vec(expected.path.clone());
+        let actual = digest_entry_at(&directories.grove_root, &name, Path::new(""))?;
         if actual != *expected {
             bail!(
                 "restored finish transaction entry does not match its manifest: {}",
@@ -1136,45 +1245,57 @@ fn ensure_same_device(
     Ok(())
 }
 
+#[cfg(test)]
 fn digest_root_entries(grove_root: &Path) -> Result<Vec<RootEntryDigest>> {
-    let mut entries = sorted_entries(grove_root)?;
-    let mut digests = Vec::with_capacity(entries.len());
-    for entry in entries.drain(..) {
-        digests.push(digest_entry(grove_root, &entry.path())?);
+    let directory = open_task_root(grove_root)?;
+    let digests = digest_root_entries_at(&directory)?;
+    revalidate_task_root(grove_root, &directory)?;
+    Ok(digests)
+}
+
+fn digest_root_entries_at(directory: &File) -> Result<Vec<RootEntryDigest>> {
+    let names = directory_names(directory).context("listing finish transaction root entries")?;
+    let mut digests = Vec::with_capacity(names.len());
+    for name in &names {
+        digests.push(digest_entry_at(directory, name, Path::new(""))?);
+    }
+    let observed = directory_names(directory)
+        .context("relisting finish transaction root entries after digesting")?;
+    if observed != names {
+        bail!("Recovery pending: finish transaction root entry set changed while digesting");
     }
     Ok(digests)
 }
 
-fn digest_entry(grove_root: &Path, path: &Path) -> Result<RootEntryDigest> {
-    let relative = path.strip_prefix(grove_root).with_context(|| {
+fn digest_entry_at(parent: &File, name: &OsStr, relative_parent: &Path) -> Result<RootEntryDigest> {
+    let relative = relative_parent.join(name);
+    let path_bytes = relative.as_os_str().as_bytes().to_vec();
+    let stat = metadata_at(parent, name).with_context(|| {
         format!(
-            "computing finish transaction path relative to {}: {}",
-            grove_root.display(),
-            path.display()
+            "reading finish transaction entry {:?} without following symlinks",
+            relative
         )
     })?;
-    let path_bytes = relative.as_os_str().as_bytes().to_vec();
-    let metadata = fs::symlink_metadata(path)
-        .with_context(|| format!("reading finish transaction entry {}", path.display()))?;
-    let file_type = metadata.file_type();
-    let (entry_type, type_bytes, mode) = if file_type.is_dir() {
+    let expected_identity = EntryIdentity::from_stat(&stat);
+    let kind = stat.st_mode & libc::S_IFMT;
+    let (entry_type, type_bytes, mode) = if kind == libc::S_IFDIR {
         (
             EntryType::Directory,
             b"directory".as_slice(),
-            metadata.mode() & 0o7777,
+            u32::from(stat.st_mode & 0o7777),
         )
-    } else if file_type.is_file() {
+    } else if kind == libc::S_IFREG {
         (
             EntryType::File,
             b"file".as_slice(),
-            metadata.mode() & 0o7777,
+            u32::from(stat.st_mode & 0o7777),
         )
-    } else if file_type.is_symlink() {
+    } else if kind == libc::S_IFLNK {
         (EntryType::Symlink, b"symlink".as_slice(), 0)
     } else {
         bail!(
-            "unsupported task-tree entry in finish transaction: {}",
-            path.display()
+            "unsupported task-tree entry in finish transaction: {:?}",
+            relative
         );
     };
 
@@ -1184,25 +1305,67 @@ fn digest_entry(grove_root: &Path, path: &Path) -> Result<RootEntryDigest> {
     hasher.update(u64::from(mode).to_le_bytes());
     match entry_type {
         EntryType::Directory => {
-            let entries = sorted_entries(path)?;
-            hasher.update((entries.len() as u64).to_le_bytes());
-            for child in entries {
-                let child = digest_entry(grove_root, &child.path())?;
+            let directory = open_directory_at(parent, name).with_context(|| {
+                format!("opening finish transaction directory entry {:?}", relative)
+            })?;
+            let metadata =
+                validate_opened_entry_identity(expected_identity, &directory, "directory entry")?;
+            if !metadata.file_type().is_dir() {
+                bail!(
+                    "finish transaction entry is not a directory: {:?}",
+                    relative
+                );
+            }
+            let names = directory_names(&directory)
+                .with_context(|| format!("listing finish transaction directory {:?}", relative))?;
+            hasher.update((names.len() as u64).to_le_bytes());
+            for child_name in &names {
+                let child = digest_entry_at(&directory, child_name, &relative)?;
                 update_field(&mut hasher, &child.digest);
+            }
+            let observed_names = directory_names(&directory).with_context(|| {
+                format!("relisting finish transaction directory {:?}", relative)
+            })?;
+            if observed_names != names {
+                bail!(
+                    "Recovery pending: finish transaction directory entry set changed while digesting {:?}",
+                    relative
+                );
             }
         }
         EntryType::File => {
-            let body = fs::read(path)
-                .with_context(|| format!("reading finish transaction file {}", path.display()))?;
+            let mut file = open_file_at(parent, name).with_context(|| {
+                format!(
+                    "opening finish transaction file {:?} without following symlinks",
+                    relative
+                )
+            })?;
+            let metadata =
+                validate_opened_entry_identity(expected_identity, &file, "regular file entry")?;
+            if !metadata.file_type().is_file() {
+                bail!(
+                    "finish transaction entry is not a regular file: {:?}",
+                    relative
+                );
+            }
+            let mut body = Vec::new();
+            file.read_to_end(&mut body)
+                .with_context(|| format!("reading finish transaction file {:?}", relative))?;
             update_field(&mut hasher, &body);
         }
         EntryType::Symlink => {
-            let target = fs::read_link(path).with_context(|| {
-                format!("reading finish transaction symlink {}", path.display())
-            })?;
+            let target = read_link_at(parent, name)
+                .with_context(|| format!("reading finish transaction symlink {:?}", relative))?;
             update_field(&mut hasher, target.as_os_str().as_bytes());
         }
     }
+    revalidate_entry_at(
+        parent,
+        name,
+        expected_identity,
+        stat.st_mode,
+        "finish transaction entry",
+    )?;
 
     Ok(RootEntryDigest {
         path: path_bytes,
@@ -1210,18 +1373,6 @@ fn digest_entry(grove_root: &Path, path: &Path) -> Result<RootEntryDigest> {
         mode,
         digest: hasher.finalize().into(),
     })
-}
-
-fn sorted_entries(directory: &Path) -> Result<Vec<fs::DirEntry>> {
-    let mut entries = fs::read_dir(directory)
-        .with_context(|| format!("reading finish transaction input {}", directory.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by(|left, right| {
-        left.file_name()
-            .as_bytes()
-            .cmp(right.file_name().as_bytes())
-    });
-    Ok(entries)
 }
 
 fn update_field(hasher: &mut Sha256, value: &[u8]) {
@@ -1233,15 +1384,19 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 mod tests {
     use super::{
         digest_root_entries, ensure_same_device, evacuate, evacuate_with_checkpoint,
-        preflight_root, prepare_transaction, recover_pending, FinishRecovery, PreparedTransaction,
-        MANIFEST_FILE, READY_FILE,
+        pending_manifest, pending_manifest_with_checkpoint, preflight_root, prepare_transaction,
+        recover_pending, FinishRecovery, PreparedTransaction, MANIFEST_FILE, READY_FILE,
     };
     use crate::repo;
+    use serde_json::Value;
     use std::fs;
     use std::os::unix::fs::{symlink, PermissionsExt};
-    use std::path::Path;
+    use std::os::unix::net::UnixListener;
+    use std::path::{Path, PathBuf};
     use std::process::Command;
     use tempfile::TempDir;
+
+    type ManifestMutationCase = (&'static str, fn(&mut Value), &'static str);
 
     fn run_git(repository: &Path, arguments: &[&str]) -> String {
         let output = Command::new("git")
@@ -1271,6 +1426,7 @@ mod tests {
         fs::write(grove_root.join("FORMAT"), "session-kinds-v1\n").unwrap();
         fs::write(grove_root.join("BRIEF.md"), "# fixture — brief\n").unwrap();
         fs::write(grove_root.join("01-DONE-impl-work-k1.md"), "# work-k1\n").unwrap();
+        symlink("FORMAT", grove_root.join("current-format")).unwrap();
         run_git(repository, &["add", "-A"]);
         run_git(repository, &["commit", "-q", "-m", "fixture"]);
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
@@ -1294,6 +1450,32 @@ mod tests {
         let (fixture, transaction) = prepared_plain_git_transaction();
         evacuate(transaction).unwrap();
         fixture
+    }
+
+    fn finish_witness(repository: &Path) -> PathBuf {
+        repository.join(".grove/FINISHING-finish-k2")
+    }
+
+    fn mutate_manifest(repository: &Path, mutation: impl FnOnce(&mut Value)) {
+        let manifest_path = finish_witness(repository).join(MANIFEST_FILE);
+        let mut manifest: Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        mutation(&mut manifest);
+        fs::write(manifest_path, serde_json::to_vec_pretty(&manifest).unwrap()).unwrap();
+    }
+
+    fn pending_manifest_error(repository: &Path) -> String {
+        let grove_root = repository.join(".grove");
+        let error = pending_manifest(&grove_root)
+            .err()
+            .expect("tampered finish state must be refused before repository classification");
+        format!("{error:#}")
+    }
+
+    fn assert_original_tree_is_retained(repository: &Path) {
+        let original_tree = finish_witness(repository).join("original");
+        assert!(original_tree.join("02-finish-finish-k2.md").is_file());
+        assert!(!repository.join(".grove/02-finish-finish-k2.md").exists());
     }
 
     fn fixture(created_in_reverse: bool) -> TempDir {
@@ -1344,6 +1526,195 @@ mod tests {
         fs::remove_file(right.path().join("link")).unwrap();
         symlink("beta", right.path().join("link")).unwrap();
         assert_ne!(digest_root_entries(right.path()).unwrap(), expected);
+    }
+
+    #[test]
+    fn recovery_rejects_symlinked_ready_and_manifest_objects_before_classification() {
+        for file_name in [READY_FILE, MANIFEST_FILE] {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            let object = finish_witness(repository).join(file_name);
+            let displaced = repository.join(format!("displaced-{file_name}"));
+            fs::rename(&object, &displaced).unwrap();
+            symlink(&displaced, &object).unwrap();
+
+            let message = pending_manifest_error(repository);
+
+            assert!(message.contains(file_name), "{message}");
+            assert!(message.contains("without following symlinks"), "{message}");
+            assert!(displaced.is_file());
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_malformed_or_extended_manifest_documents() {
+        for case in ["malformed", "top-level extension", "entry extension"] {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            let manifest_path = finish_witness(repository).join(MANIFEST_FILE);
+            match case {
+                "malformed" => fs::write(&manifest_path, b"{").unwrap(),
+                "top-level extension" => mutate_manifest(repository, |manifest| {
+                    manifest["foreign"] = Value::from("unexpected");
+                }),
+                "entry extension" => mutate_manifest(repository, |manifest| {
+                    manifest["entries"][0]["foreign"] = Value::from("unexpected");
+                }),
+                _ => unreachable!(),
+            }
+
+            let message = pending_manifest_error(repository);
+
+            assert!(
+                message.contains("parsing finish manifest"),
+                "{case}: {message}"
+            );
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_manifest_version_and_identity_mismatches() {
+        let cases: [ManifestMutationCase; 3] = [
+            (
+                "version",
+                |manifest| manifest["version"] = Value::from(2),
+                "unsupported finish manifest version",
+            ),
+            (
+                "finish handle",
+                |manifest| manifest["finish_handle"] = Value::from("finish-k999"),
+                "does not match witness",
+            ),
+            (
+                "attempt identity",
+                |manifest| manifest["attempt_identity"] = Value::from("not-an-attempt"),
+                "invalid finish manifest identity",
+            ),
+        ];
+        for (case, mutation, expected) in cases {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            mutate_manifest(repository, mutation);
+
+            let message = pending_manifest_error(repository);
+
+            assert!(message.contains(expected), "{case}: {message}");
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_noncanonical_manifest_entry_paths() {
+        let cases: [ManifestMutationCase; 2] = [
+            (
+                "duplicate",
+                |manifest| {
+                    manifest["entries"][1] = manifest["entries"][0].clone();
+                },
+                "duplicate or unsorted root entry path",
+            ),
+            (
+                "traversal",
+                |manifest| manifest["entries"][0]["path"] = serde_json::json!([46, 46]),
+                "invalid root entry path",
+            ),
+        ];
+        for (case, mutation, expected) in cases {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            mutate_manifest(repository, mutation);
+
+            let message = pending_manifest_error(repository);
+
+            assert!(message.contains(expected), "{case}: {message}");
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_content_mode_and_link_target_tampering() {
+        for case in ["content", "mode", "link target"] {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            let original_tree = finish_witness(repository).join("original");
+            match case {
+                "content" => fs::write(original_tree.join("FORMAT"), "tampered\n").unwrap(),
+                "mode" => {
+                    let path = original_tree.join("FORMAT");
+                    let mode = fs::metadata(&path).unwrap().permissions().mode();
+                    fs::set_permissions(path, fs::Permissions::from_mode(mode ^ 0o100)).unwrap();
+                }
+                "link target" => {
+                    let path = original_tree.join("current-format");
+                    fs::remove_file(&path).unwrap();
+                    symlink("BRIEF.md", path).unwrap();
+                }
+                _ => unreachable!(),
+            }
+
+            let message = pending_manifest_error(repository);
+
+            assert!(
+                message.contains("does not match its manifest"),
+                "{case}: {message}"
+            );
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_missing_and_foreign_evacuated_entries() {
+        for case in ["missing", "foreign"] {
+            let fixture = evacuated_plain_git_transaction();
+            let repository = fixture.path();
+            let original_tree = finish_witness(repository).join("original");
+            match case {
+                "missing" => fs::remove_file(original_tree.join("FORMAT")).unwrap(),
+                "foreign" => fs::write(original_tree.join("foreign"), "preserve\n").unwrap(),
+                _ => unreachable!(),
+            }
+
+            let message = pending_manifest_error(repository);
+
+            assert!(
+                message.contains("does not match its manifest"),
+                "{case}: {message}"
+            );
+            assert_original_tree_is_retained(repository);
+        }
+    }
+
+    #[test]
+    fn recovery_digest_never_walks_a_substituted_original_tree_path() {
+        let fixture = evacuated_plain_git_transaction();
+        let repository = fixture.path();
+        let grove_root = repository.join(".grove");
+        let original_tree = finish_witness(repository).join("original");
+        let displaced = repository.join("displaced-original");
+        let external = TempDir::new().unwrap();
+        let socket = external.path().join("foreign-socket");
+        let _listener = UnixListener::bind(&socket).unwrap();
+
+        let error = pending_manifest_with_checkpoint(&grove_root, |checkpoint| {
+            if checkpoint == "after-original-tree-open" {
+                fs::rename(&original_tree, &displaced)?;
+                symlink(external.path(), &original_tree)?;
+            }
+            Ok(())
+        })
+        .err()
+        .expect("a substituted original-tree path must be refused");
+
+        let message = format!("{error:#}");
+        assert!(message.contains("finish recovery tree"), "{message}");
+        assert!(
+            !message.contains("unsupported task-tree entry"),
+            "recovery traversed the substituted original-tree path: {message}"
+        );
+        assert!(socket.exists());
+        assert!(displaced.join("02-finish-finish-k2.md").is_file());
     }
 
     #[test]

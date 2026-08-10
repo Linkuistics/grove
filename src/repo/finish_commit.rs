@@ -6,6 +6,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
+use tempfile::TempDir;
 
 pub(crate) struct PreparedGitFinish {
     worktree: PathBuf,
@@ -1067,12 +1068,16 @@ impl GitIndexBackup {
             attempt_identity,
         )?;
         let success_artifact = success_index.artifact_path().to_path_buf();
-        match remove_grove_entries(worktree, &success_artifact, &mut success_index) {
-            Ok(_) => {}
-            Err(error) => {
-                return Err(error
-                    .context("preparing the colocated Git index before the Jujutsu finish commit"))
-            }
+        if let Err(error) = remove_grove_entries(
+            worktree,
+            &success_artifact,
+            attempt_identity,
+            &mut success_index,
+        ) {
+            discard_temporary_index(Some(&success_index));
+            return Err(
+                error.context("preparing the colocated Git index before the Jujutsu finish commit")
+            );
         }
         Ok(Some(success_index))
     }
@@ -1265,6 +1270,7 @@ fn restore_git_index(git_index: &Path, backup_index: &Path, had_git_index: bool)
 fn remove_grove_entries(
     worktree: &Path,
     git_index: &Path,
+    attempt_identity: &str,
     success_index: &mut crate::finish_cleanup::AuxiliaryCleanup,
 ) -> Result<bool> {
     let grove_paths = vcs_command(worktree, "git")
@@ -1285,10 +1291,7 @@ fn remove_grove_entries(
     let index_parent = git_index
         .parent()
         .context("preserved colocated Git index has no parent")?;
-    let staging = tempfile::Builder::new()
-        .prefix("GROVE-FINISH-FILTER-")
-        .tempdir_in(index_parent)
-        .context("creating a private staging directory for the filtered Git index")?;
+    let staging = filter_staging_directory(index_parent, attempt_identity)?;
     let filtered_index = staging.path().join("index");
     fs::copy(git_index, &filtered_index)
         .context("copying the preserved colocated Git index into private staging")?;
@@ -1312,8 +1315,18 @@ fn remove_grove_entries(
     Ok(true)
 }
 
-fn write_child_stdin_and_wait(child: Child, input: &[u8]) -> Result<Output> {
-    let mut child = child;
+/// Stage the index filter away from every Grove-owned name so Git's own
+/// lock-and-rename cannot mint an inode at one of them. The name carries the
+/// finish attempt, so a directory left by a process death is attributable to
+/// the attempt that made it rather than being an anonymous leftover.
+fn filter_staging_directory(index_parent: &Path, attempt_identity: &str) -> Result<TempDir> {
+    tempfile::Builder::new()
+        .prefix(&format!("GROVE-FINISH-FILTER-{attempt_identity}-"))
+        .tempdir_in(index_parent)
+        .context("creating a private staging directory for the filtered Git index")
+}
+
+fn write_child_stdin_and_wait(mut child: Child, input: &[u8]) -> Result<Output> {
     let write_result = (|| -> Result<()> {
         child
             .stdin
@@ -1737,9 +1750,10 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 #[cfg(test)]
 mod tests {
     use super::{
-        finish_commit_message, git_bytes, jj_topology, prepare_jj_finish, prepare_plain_git_finish,
-        recover_finish, remove_grove_entries, run_vcs_command, write_child_stdin_and_wait,
-        FinishCommitOutcome, FinishRecoveryOutcome, FinishStartAnchor, GitStartProof,
+        filter_staging_directory, finish_commit_message, git_bytes, jj_topology, prepare_jj_finish,
+        prepare_plain_git_finish, preserve_git_index, recover_finish, remove_grove_entries,
+        run_vcs_command, write_child_stdin_and_wait, FinishCommitOutcome, FinishRecoveryOutcome,
+        FinishStartAnchor, GitStartProof,
     };
     use anyhow::anyhow;
     use std::fs;
@@ -1790,7 +1804,7 @@ mod tests {
         fs::write(&foreign_lock, "foreign lock\n").unwrap();
         let foreign_lock_inode = fs::symlink_metadata(&foreign_lock).unwrap().ino();
 
-        assert!(remove_grove_entries(repository, &artifact, &mut prepared).unwrap());
+        assert!(remove_grove_entries(repository, &artifact, FIRST_ATTEMPT, &mut prepared).unwrap());
 
         let listed = super::vcs_command(repository, "git")
             .env("GIT_INDEX_FILE", &artifact)
@@ -1804,6 +1818,59 @@ mod tests {
             fs::symlink_metadata(&foreign_lock).unwrap().ino(),
             foreign_lock_inode
         );
+    }
+
+    #[test]
+    fn the_index_filter_staging_directory_names_its_finish_attempt() {
+        let fixture = TempDir::new().unwrap();
+
+        let staging = filter_staging_directory(fixture.path(), FIRST_ATTEMPT).unwrap();
+
+        let name = staging
+            .path()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            name.starts_with(&format!("GROVE-FINISH-FILTER-{FIRST_ATTEMPT}-")),
+            "{name}"
+        );
+        assert_eq!(staging.path().parent().unwrap(), fixture.path());
+    }
+
+    #[test]
+    fn a_failed_index_filter_leaves_no_marked_success_auxiliary() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        assert!(Command::new("git")
+            .current_dir(repository)
+            .args(["init", "--quiet", "."])
+            .status()
+            .unwrap()
+            .success());
+        let git_index = repository.join(".git/index");
+        fs::write(&git_index, "not a Git index\n").unwrap();
+        let backup = preserve_git_index(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+
+        let error = backup
+            .prepare_without_grove(repository, FINISH_HANDLE, FIRST_ATTEMPT)
+            .unwrap_err();
+
+        assert!(format!("{error:#}").contains("ls-files"), "{error:#}");
+        let success_artifact = crate::finish_cleanup::auxiliary_artifact_path(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+            FIRST_ATTEMPT,
+        )
+        .unwrap();
+        assert!(!success_artifact.exists(), "{}", success_artifact.display());
+        crate::finish_cleanup::ensure_auxiliary_available(
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+            FIRST_ATTEMPT,
+        )
+        .unwrap();
     }
 
     #[test]

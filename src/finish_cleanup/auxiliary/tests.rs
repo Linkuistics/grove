@@ -27,6 +27,12 @@ fn replacement_state_path(marker: &std::path::Path) -> std::path::PathBuf {
     marker.with_file_name(OsString::from_vec(name))
 }
 
+fn replacement_artifact_path(artifact: &std::path::Path) -> std::path::PathBuf {
+    let mut name = artifact.file_name().unwrap().as_encoded_bytes().to_vec();
+    name.extend_from_slice(b".filtered");
+    artifact.with_file_name(OsString::from_vec(name))
+}
+
 fn staged_marker_path(replacement_state: &std::path::Path) -> std::path::PathBuf {
     let body: serde_json::Value =
         serde_json::from_slice(&fs::read(replacement_state).unwrap()).unwrap();
@@ -58,7 +64,7 @@ fn prepared_rebinding() -> (TempDir, PathBuf, AuxiliaryCleanup, PathBuf, PathBuf
     let artifact = prepared.artifact_path().to_path_buf();
     let marker = marker_path(&artifact);
     let replacement_state = replacement_state_path(&marker);
-    let replacement_artifact = temporary.path().join("replacement-index");
+    let replacement_artifact = replacement_artifact_path(&artifact);
     fs::write(&replacement_artifact, "new index\n").unwrap();
     prepared
         .bind_artifact_replacement(&replacement_artifact)
@@ -71,10 +77,7 @@ fn recovery_publishes_only_the_exact_bound_replacement_inode() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
-    let replacement = temporary.path().join("index.lock");
     fs::write(&source, "old index\n").unwrap();
-    fs::write(&replacement, "filtered index\n").unwrap();
-    let expected_inode = fs::symlink_metadata(&replacement).unwrap().ino();
     let mut prepared = prepare_auxiliary(
         &source,
         &target,
@@ -84,6 +87,9 @@ fn recovery_publishes_only_the_exact_bound_replacement_inode() {
     )
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
+    let replacement = replacement_artifact_path(&artifact);
+    fs::write(&replacement, "filtered index\n").unwrap();
+    let expected_inode = fs::symlink_metadata(&replacement).unwrap().ino();
 
     prepared.bind_artifact_replacement(&replacement).unwrap();
     let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
@@ -140,10 +146,8 @@ fn recovery_rejects_an_unbound_regular_replacement_and_preserves_both_artifacts(
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
-    let intended = temporary.path().join("index.lock");
     let preserved_intended = temporary.path().join("preserved-intended-index");
     fs::write(&source, "old index\n").unwrap();
-    fs::write(&intended, "filtered index\n").unwrap();
     let mut prepared = prepare_auxiliary(
         &source,
         &target,
@@ -155,6 +159,8 @@ fn recovery_rejects_an_unbound_regular_replacement_and_preserves_both_artifacts(
     let artifact = prepared.artifact_path().to_path_buf();
     let marker = marker_path(&artifact);
     let replacement_state = replacement_state_path(&marker);
+    let intended = replacement_artifact_path(&artifact);
+    fs::write(&intended, "filtered index\n").unwrap();
     prepared.bind_artifact_replacement(&intended).unwrap();
     fs::rename(&intended, &preserved_intended).unwrap();
     fs::write(&intended, "external index\n").unwrap();
@@ -180,11 +186,9 @@ fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
-    let intended = temporary.path().join("index.lock");
     let preserved_intended = temporary.path().join("preserved-intended-index");
     let victim = temporary.path().join("victim-index");
     fs::write(&source, "old index\n").unwrap();
-    fs::write(&intended, "filtered index\n").unwrap();
     fs::write(&victim, "external index\n").unwrap();
     let mut prepared = prepare_auxiliary(
         &source,
@@ -195,6 +199,8 @@ fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
     )
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
+    let intended = replacement_artifact_path(&artifact);
+    fs::write(&intended, "filtered index\n").unwrap();
     prepared.bind_artifact_replacement(&intended).unwrap();
     fs::rename(&intended, &preserved_intended).unwrap();
     symlink(&victim, &intended).unwrap();
@@ -214,6 +220,225 @@ fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
         .unwrap()
         .file_type()
         .is_symlink());
+}
+
+#[test]
+fn binding_refuses_a_replacement_outside_the_deterministic_name() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let victim = temporary.path().join("victim-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&victim, "precious user bytes\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let victim_inode = fs::symlink_metadata(&victim).unwrap().ino();
+
+    let error = prepared.bind_artifact_replacement(&victim).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("deterministic replacement name"),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::read_to_string(&victim).unwrap(),
+        "precious user bytes\n"
+    );
+    assert_eq!(fs::symlink_metadata(&victim).unwrap().ino(), victim_inode);
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "old index\n");
+    assert!(!replacement_state_path(&marker_path(&artifact)).exists());
+}
+
+#[test]
+fn recovery_refuses_a_replacement_state_that_redirects_the_artifact_exchange() {
+    let (temporary, target, prepared, marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let staged_artifact = staged_artifact_path(&replacement_state);
+    let victim = temporary.path().join("victim-index");
+    fs::write(&victim, "precious user bytes\n").unwrap();
+    let victim_metadata = fs::symlink_metadata(&victim).unwrap();
+    let artifact_inode = fs::symlink_metadata(&artifact).unwrap().ino();
+    let staged_inode = fs::symlink_metadata(&staged_artifact).unwrap().ino();
+
+    let mut body: serde_json::Value =
+        serde_json::from_slice(&fs::read(&replacement_state).unwrap()).unwrap();
+    body["staged_artifact_name"] = serde_json::to_value(b"victim-index".to_vec()).unwrap();
+    body["replacement_artifact"]["device"] = victim_metadata.dev().into();
+    body["replacement_artifact"]["inode"] = victim_metadata.ino().into();
+    fs::write(
+        &replacement_state,
+        serde_json::to_vec_pretty(&body).unwrap(),
+    )
+    .unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert_eq!(
+        fs::read_to_string(&victim).unwrap(),
+        "precious user bytes\n",
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::symlink_metadata(&victim).unwrap().ino(),
+        victim_metadata.ino(),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::symlink_metadata(&artifact).unwrap().ino(),
+        artifact_inode,
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::symlink_metadata(&staged_artifact).unwrap().ino(),
+        staged_inode,
+        "{error:#}"
+    );
+    assert!(
+        format!("{error:#}").contains("does not match its role and attempt"),
+        "{error:#}"
+    );
+    assert!(marker.is_file());
+}
+
+#[test]
+fn recovery_refuses_a_substituted_staged_marker_before_exchanging_artifacts() {
+    let (temporary, target, prepared, marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let staged_marker = staged_marker_path(&replacement_state);
+    let staged_artifact = staged_artifact_path(&replacement_state);
+    let preserved = temporary.path().join("preserved-staged-marker");
+    let artifact_inode = fs::symlink_metadata(&artifact).unwrap().ino();
+    let staged_inode = fs::symlink_metadata(&staged_artifact).unwrap().ino();
+    fs::rename(&staged_marker, &preserved).unwrap();
+    fs::write(&staged_marker, "foreign marker bytes\n").unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert_eq!(
+        fs::symlink_metadata(&artifact).unwrap().ino(),
+        artifact_inode,
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::symlink_metadata(&staged_artifact).unwrap().ino(),
+        staged_inode,
+        "{error:#}"
+    );
+    assert!(
+        format!("{error:#}").contains("parsing finish auxiliary marker"),
+        "{error:#}"
+    );
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn recovery_reclaims_a_replacement_copy_left_without_a_state_document() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    fs::write(&source, "old index\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+    let unbound = replacement_artifact_path(&artifact);
+    fs::write(&unbound, "filtered index\n").unwrap();
+
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+
+    assert!(!unbound.exists());
+    recovered.dispose().unwrap();
+    assert!(!artifact.exists());
+    assert!(!marker.exists());
+    prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+}
+
+#[test]
+fn disposal_reclaims_a_replacement_copy_left_without_a_state_document() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    fs::write(&source, "old index\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let unbound = replacement_artifact_path(&artifact);
+    fs::write(&unbound, "filtered index\n").unwrap();
+
+    prepared.dispose().unwrap();
+
+    assert!(!unbound.exists());
+    assert!(!artifact.exists());
+    assert!(!marker_path(&artifact).exists());
+}
+
+#[test]
+fn recovery_refuses_a_symlinked_unbound_replacement_without_touching_its_victim() {
+    use std::os::unix::fs::symlink;
+
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let victim = temporary.path().join("victim-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&victim, "precious user bytes\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let unbound = replacement_artifact_path(&artifact);
+    symlink(&victim, &unbound).unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("without following symlinks"),
+        "{error:#}"
+    );
+    assert_eq!(
+        fs::read_to_string(&victim).unwrap(),
+        "precious user bytes\n"
+    );
+    assert!(unbound.symlink_metadata().unwrap().file_type().is_symlink());
+    assert!(artifact.is_file());
+    assert!(marker_path(&artifact).is_file());
 }
 
 #[test]

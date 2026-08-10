@@ -6,8 +6,9 @@ use super::super::{
     attach_cleanup_failure, create_temporary_marker, remove_temporary_marker, FileIdentity,
 };
 use super::{
-    ensure_regular_file, marker_file_name, read_marker, validate_component, validate_marker,
-    validate_marker_binding, AuxiliaryMarker, AuxiliaryRole, MarkerDocument,
+    artifact_file_name, ensure_regular_file, marker_file_name, read_marker,
+    replacement_artifact_file_name, validate_component, validate_marker, validate_marker_binding,
+    AuxiliaryMarker, AuxiliaryRole, MarkerDocument,
 };
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -179,7 +180,7 @@ pub(super) fn settle_marker_replacement(
         finish_handle,
         attempt_identity,
     )?;
-    settle_artifact_exchange(parent, marker_path, &state, checkpoint)?;
+    settle_artifact_exchange(parent, marker_path, target_name, &state, checkpoint)?;
     match classify_phase(parent, marker_path, target_name, &state)? {
         ReplacementPhase::BeforeExchange => {
             checkpoint(MarkerReplacementStep::BeforeExchange)
@@ -222,7 +223,7 @@ pub(super) fn settle_marker_replacement(
         ReplacementPhase::AfterExchange { retired } => retired,
         _ => {
             bail!(
-                "finish auxiliary marker replacement did not remain exchanged at {}; replacement left untouched",
+                "finish auxiliary marker replacement did not remain exchanged at {}; no entry was removed",
                 state_path.display()
             )
         }
@@ -266,11 +267,13 @@ enum ArtifactReplacementPhase {
 fn settle_artifact_exchange(
     parent: &File,
     marker_path: &Path,
+    target_name: &OsStr,
     state: &StateDocument,
     checkpoint: &mut impl FnMut(MarkerReplacementStep) -> io::Result<()>,
 ) -> Result<()> {
     match classify_artifact_phase(parent, marker_path, state)? {
         ArtifactReplacementPhase::BeforeExchange => {
+            validate_artifact_exchange_authority(parent, marker_path, target_name, state)?;
             checkpoint(MarkerReplacementStep::BeforeArtifactExchange)
                 .context("marker-replacement checkpoint before artifact exchange")?;
             revalidate_artifact_phase(
@@ -300,6 +303,59 @@ fn settle_artifact_exchange(
         ArtifactReplacementPhase::AfterExchange
         | ArtifactReplacementPhase::RetiredArtifactRemoved => Ok(()),
     }
+}
+
+/// Prove the recorded marker pair is Grove's own before exchanging any bytes.
+///
+/// The artifact exchange is the transaction's first mutation, and the marker
+/// side cannot be classified until it has happened — `validate_bound_artifact`
+/// expects the replacement inode to be at the canonical artifact name already.
+/// Without this gate the exchange would run on the authority of the state
+/// document alone, so a substituted document or marker would be caught only
+/// after two entries had already been swapped.
+fn validate_artifact_exchange_authority(
+    parent: &File,
+    marker_path: &Path,
+    target_name: &OsStr,
+    state: &StateDocument,
+) -> Result<()> {
+    let canonical = read_marker_at(parent, marker_path)?;
+    validate_marker(
+        marker_path,
+        &canonical.marker,
+        target_name,
+        state.state.role,
+        &state.state.finish_handle,
+        &state.state.attempt_identity,
+    )?;
+    let staged_name = OsStr::from_bytes(&state.state.staged_name);
+    let staged_path = marker_path.with_file_name(staged_name);
+    let staged_file = open_file_at(parent, staged_name).with_context(|| {
+        format!(
+            "opening staged finish auxiliary marker {} without following symlinks",
+            staged_path.display()
+        )
+    })?;
+    let staged = read_marker(&staged_path, staged_file)?;
+    validate_marker_binding(
+        &staged_path,
+        &staged.marker,
+        target_name,
+        state.state.role,
+        &state.state.finish_handle,
+        &state.state.attempt_identity,
+    )?;
+    if !matches_snapshot(&canonical, &state.state.previous)
+        || !matches_snapshot(&staged, &state.state.replacement)
+        || marker_artifact_identity(&canonical.marker) != state.state.previous_artifact
+        || marker_artifact_identity(&staged.marker) != state.state.replacement_artifact
+    {
+        bail!(
+            "finish auxiliary marker replacement does not describe the recorded artifact exchange around {}; both artifacts were left untouched",
+            marker_path.display()
+        );
+    }
+    Ok(())
 }
 
 fn remove_retired_artifact(
@@ -363,7 +419,7 @@ fn revalidate_artifact_phase(
         || observed.state != expected_state.state
     {
         bail!(
-            "finish auxiliary marker replacement state identity changed at {}; replacement left untouched",
+            "finish auxiliary marker replacement state identity changed at {}; no entry was removed",
             state_path.display()
         );
     }
@@ -382,7 +438,7 @@ fn revalidate_artifact_phase(
         )
     ) {
         bail!(
-            "finish auxiliary artifact replacement phase changed at {}; replacement left untouched",
+            "finish auxiliary artifact replacement phase changed at {}; no entry was removed",
             state_path.display()
         );
     }
@@ -418,7 +474,7 @@ fn classify_artifact_phase(
             Ok(ArtifactReplacementPhase::RetiredArtifactRemoved)
         }
         _ => bail!(
-            "bound finish auxiliary artifact replacement identity changed around {}; both artifacts were left untouched",
+            "bound finish auxiliary artifact replacement identity changed around {}; no entry was removed",
             marker_path.display()
         ),
     }
@@ -434,7 +490,7 @@ fn read_artifact_identity(
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             if entry_exists(parent, name)? {
                 bail!(
-                    "finish auxiliary artifact appeared during replacement at {}; both artifacts were left untouched",
+                    "finish auxiliary artifact appeared during replacement at {}; no entry was removed",
                     path.display()
                 );
             }
@@ -484,7 +540,7 @@ fn revalidate_phase(
         || observed_state.state != expected_state.state
     {
         bail!(
-            "finish auxiliary marker replacement state identity changed at {}; replacement left untouched",
+            "finish auxiliary marker replacement state identity changed at {}; no entry was removed",
             state_path.display()
         );
     }
@@ -504,7 +560,7 @@ fn revalidate_phase(
     );
     if !matches {
         bail!(
-            "finish auxiliary marker replacement phase changed at {}; replacement left untouched",
+            "finish auxiliary marker replacement phase changed at {}; no entry was removed",
             state_path.display()
         );
     }
@@ -544,7 +600,7 @@ fn classify_phase(
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             if entry_exists(parent, staged_name)? {
                 bail!(
-                    "finish auxiliary staged marker appeared during recovery at {}; replacement left untouched",
+                    "finish auxiliary staged marker appeared during recovery at {}; no entry was removed",
                     staged_path.display()
                 );
             }
@@ -580,7 +636,7 @@ fn classify_phase(
             Ok(ReplacementPhase::RetiredMarkerRemoved)
         }
         _ => bail!(
-            "finish auxiliary marker replacement identity changed around {}; all entries were left untouched",
+            "finish auxiliary marker replacement identity changed around {}; no entry was removed",
             marker_path.display()
         ),
     }
@@ -601,13 +657,10 @@ fn validate_bound_artifact(
     })?;
     ensure_regular_file(&artifact, &artifact_path)?;
     let observed = FileIdentity::from_file(&artifact)?;
-    let expected = FileIdentity {
-        device: marker.device,
-        inode: marker.inode,
-    };
+    let expected = marker_artifact_identity(marker);
     if observed != expected {
         bail!(
-            "bound finish auxiliary artifact identity does not match replacement marker {}: expected device/inode {}/{}, observed {}/{}; replacement left untouched",
+            "bound finish auxiliary artifact identity does not match replacement marker {}: expected device/inode {}/{}, observed {}/{}; no entry was removed",
             marker_path.display(),
             expected.device,
             expected.inode,
@@ -617,6 +670,13 @@ fn validate_bound_artifact(
     }
     validate_entry_identity(parent, artifact_name, expected)
         .context("bound finish auxiliary artifact changed before marker adoption")
+}
+
+fn marker_artifact_identity(marker: &AuxiliaryMarker) -> FileIdentity {
+    FileIdentity {
+        device: marker.device,
+        inode: marker.inode,
+    }
 }
 
 fn matches_snapshot(document: &MarkerDocument, snapshot: &MarkerSnapshot) -> bool {
@@ -702,7 +762,7 @@ fn read_validated_state(
     })?;
     if state.state_identity != identity {
         bail!(
-            "finish auxiliary marker replacement state identity changed at {}; replacement left untouched",
+            "finish auxiliary marker replacement state identity changed at {}; no entry was removed",
             state_path.display()
         );
     }
@@ -754,7 +814,9 @@ fn validate_state(
     if state_path.file_name()
         != Some(replacement_state_file_name(role, attempt_identity).as_os_str())
         || state.canonical_name != canonical_name.as_bytes()
-        || state.artifact_name == state.staged_artifact_name
+        || state.artifact_name != artifact_file_name(role, attempt_identity).as_bytes()
+        || state.staged_artifact_name
+            != replacement_artifact_file_name(role, attempt_identity).as_bytes()
     {
         bail!(
             "finish auxiliary marker replacement path does not match its role and attempt at {}",
@@ -803,7 +865,7 @@ fn remove_marker_document(
         || observed.marker != expected.marker
     {
         bail!(
-            "retired finish auxiliary marker identity changed at {:?}; replacement left untouched",
+            "retired finish auxiliary marker identity changed at {:?}; no entry was removed",
             marker_name
         );
     }
@@ -830,7 +892,7 @@ fn remove_state_document(parent: &File, state_path: &Path, expected: &StateDocum
         || observed.state != expected.state
     {
         bail!(
-            "finish auxiliary marker replacement state identity changed at {}; replacement left untouched",
+            "finish auxiliary marker replacement state identity changed at {}; no entry was removed",
             state_path.display()
         );
     }

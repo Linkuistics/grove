@@ -43,3 +43,17 @@ interruption cannot strand an unmarked or stale-identity same-attempt artifact.
 
 Keep this concern in the auxiliary publication protocol; do not special-case an
 unmarked deterministic filename in finish-witness recovery.
+
+`colocated-rebind-recovery-matrix-k151` closed: every rebind checkpoint, every
+synchronous failure, and substitution at every entry the rebind owns are now
+driven from a real colocated-Jujutsu process, and the reclamation that could
+unlink an unproven entry is gone and proven gone end to end. Two facts survive
+for `reap-attributable-staging-leftovers-k161`. Nothing derives the `.filtered`
+name or sweeps the reserved staging namespace today, so a foreign entry at
+either survives a completing recovery — that is the property the leftover reaper
+must not break. And the auxiliary reaper now attributes a discovered marker by
+reading it *before* recovering it, because recovering an auxiliary settles any
+replacement in flight; an auxiliary a live in-tree witness owns is skipped
+entirely, and a marker that will not parse is deferred rather than reported as
+an orphan while a witness is live. Staging-entry reaping has to fit that shape
+(spec: "Auxiliary Git-index backups or success images").

@@ -13,8 +13,9 @@ mod auxiliary;
 mod reaper;
 pub(crate) mod unix;
 pub(crate) use auxiliary::{
-    auxiliary_artifact_path, auxiliary_marker_paths, ensure_auxiliary_available, prepare_auxiliary,
-    recover_auxiliary, recover_auxiliary_marker, AuxiliaryCleanup, AuxiliaryRole,
+    auxiliary_artifact_path, auxiliary_marker_is_owned_by, auxiliary_marker_paths,
+    ensure_auxiliary_available, prepare_auxiliary, recover_auxiliary, recover_auxiliary_marker,
+    AuxiliaryCleanup, AuxiliaryRole,
 };
 pub(crate) use reaper::reap_orphaned;
 use unix::{

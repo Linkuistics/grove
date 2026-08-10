@@ -831,7 +831,13 @@ quarantine likewise carries no workflow meaning after the atomic task-root
 rename. `finish-commit` owns immediate best-effort no-follow disposal; a later
 driver, after it owns the lease and has invalidated the previous epoch, reaps
 quarantines and auxiliaries carrying Grove's valid cleanup-manifest marker and
-having no matching in-tree witness. Reaping never changes lifecycle
+having no matching in-tree witness. It attributes an auxiliary by reading that
+marker alone, before recovering it: recovery settles any replacement in flight,
+which is a mutation, and an owned auxiliary is settled by its witness's own
+lifecycle recovery instead. While a witness is live, a marker the sweep cannot
+attribute is therefore neither reaped nor reported as an orphan — the refusal
+that names it comes from that recovery, so no diagnostic claims untouched state
+on a path where the sweep had already mutated. Reaping never changes lifecycle
 classification or turns cleanup bytes into a receipt; a persistent filesystem
 error is reported and retried on the next owned invocation.
 
@@ -1207,6 +1213,14 @@ Through that seam, cover:
   it leaves an entry, unclaimed at a drawn name and deliberately not unlinked;
   each synchronous failure preserves the exact index bytes and retries cleanly
   inside the same driver launch's attempt;
+- substitution at every entry a colocated-Jujutsu rebind owns — both
+  auxiliaries' canonical pairs, the replacement state document, and either
+  drawn staging entry — by a foreign regular file and by a symlink into the
+  neighbouring `.git/` files: each restart refuses naming the witness and the
+  auxiliary, leaves the substituted inode and every other entry exactly as
+  found, and reaps nothing the live witness owns; while foreign entries at the
+  derivable `.filtered` name and inside the reserved staging namespace survive a
+  recovery that completes;
 - a completion signal written after the successful deletion commit followed by
   driver death before post-reap interpretation: replacement cleanup treats the
   abandoned channel as coordination rather than a finish receipt, then follows

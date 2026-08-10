@@ -2393,6 +2393,405 @@ printf '%s\n' "$?" > {log}/second-status
     }
 }
 
+/// Every entry a colocated rebind owns while it is interrupted at
+/// `before-marker-exchange`: both auxiliaries' canonical pairs, the success
+/// auxiliary's replacement state document, and the two drawn staging entries
+/// the exchange is about to swap.
+struct RebindEntries {
+    directory: PathBuf,
+    success_artifact: PathBuf,
+    success_marker: PathBuf,
+    success_state: PathBuf,
+    staged_artifact: PathBuf,
+    staged_marker: PathBuf,
+    backup_artifact: PathBuf,
+    backup_marker: PathBuf,
+}
+
+impl RebindEntries {
+    fn discover(directory: &Path) -> Self {
+        let names = auxiliary_entries(directory);
+        let only = |what: &str, predicate: &dyn Fn(&str) -> bool| {
+            let mut matched = names.iter().filter(|name| predicate(name));
+            let found = matched
+                .next()
+                .unwrap_or_else(|| panic!("no {what} among {names:?}"));
+            assert!(
+                matched.next().is_none(),
+                "more than one {what} among {names:?}"
+            );
+            directory.join(found)
+        };
+        // The canonical artifact is the only name in its role that carries no
+        // suffix at all; every other entry adds `.json`, `.replacing` or
+        // `.staging-<nonce>` to it.
+        let plain = |name: &str| !name.contains('.');
+        Self {
+            directory: directory.to_path_buf(),
+            success_artifact: only("success artifact", &|name| {
+                name.contains("-git-index-success-") && plain(name)
+            }),
+            success_marker: only("success marker", &|name| {
+                name.contains("-git-index-success-") && name.ends_with(".json")
+            }),
+            success_state: only("replacement state document", &|name| {
+                name.ends_with(".json.replacing")
+            }),
+            staged_artifact: only("staged artifact", &|name| {
+                name.contains(".staging-") && !name.contains(".json")
+            }),
+            staged_marker: only("staged marker", &|name| name.contains(".json.staging-")),
+            backup_artifact: only("backup artifact", &|name| {
+                name.contains("-git-index-backup-") && plain(name)
+            }),
+            backup_marker: only("backup marker", &|name| {
+                name.contains("-git-index-backup-") && name.ends_with(".json")
+            }),
+        }
+    }
+
+    /// The marker whose auxiliary a refusal about `target` must name.
+    fn owning_marker(&self, target: &Path) -> &Path {
+        if target
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("-git-index-backup-")
+        {
+            &self.backup_marker
+        } else {
+            &self.success_marker
+        }
+    }
+}
+
+/// Drive a colocated finish to the point where both sides of the artifact
+/// exchange are staged and bound, then kill it there. Returns the in-flight
+/// entries and the preparing witness that owns them.
+fn interrupt_before_marker_exchange(repository: &Path) -> (RebindEntries, PathBuf) {
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_REBIND_EXIT_AT", "before-marker-exchange")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+    assert!(
+        !interrupted.status.success(),
+        "the rebind was not interrupted: {}",
+        String::from_utf8_lossy(&interrupted.stderr)
+    );
+    let witness = fs::read_dir(repository.join(".grove"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("PREPARING-FINISH-finish-k2-")
+        })
+        .expect("the interrupted rebind left no repository-preparation owner");
+    let directory = git_index_path(repository).parent().unwrap().to_path_buf();
+    (RebindEntries::discover(&directory), witness)
+}
+
+/// What an entry is, as an inode plus its bytes — enough to prove Grove neither
+/// replaced nor rewrote it. A symlink is compared by its target and never
+/// followed, so a test can tell "left alone" from "resolved and read".
+fn entry_fingerprint(path: &Path) -> (u64, Vec<u8>) {
+    use std::os::unix::fs::MetadataExt;
+
+    let metadata = fs::symlink_metadata(path).unwrap();
+    let bytes = if metadata.file_type().is_symlink() {
+        fs::read_link(path).unwrap().into_os_string().into_vec()
+    } else {
+        fs::read(path).unwrap()
+    };
+    (metadata.ino(), bytes)
+}
+
+/// The user's own files beside the auxiliaries. In a colocated tree the
+/// auxiliary directory *is* `.git/`, so these are what a path that followed a
+/// symlink or removed an entry it had not proven it wrote would reach. `index`
+/// is asserted by its exact bytes instead, because restoring it legitimately
+/// republishes it through a fresh inode.
+const AUXILIARY_NEIGHBOURS: &[&str] = &["HEAD", "config"];
+
+fn neighbour_fingerprints(directory: &Path) -> Vec<(u64, Vec<u8>)> {
+    AUXILIARY_NEIGHBOURS
+        .iter()
+        .map(|name| entry_fingerprint(&directory.join(name)))
+        .collect()
+}
+
+/// Replace `path` with a different inode carrying bytes Grove never wrote —
+/// what a rewrite through a temporary plus a rename leaves behind.
+fn substitute_foreign_file(path: &Path) {
+    let temporary = path.with_file_name("foreign-substitution");
+    fs::write(&temporary, b"foreign substitution\n").unwrap();
+    fs::rename(&temporary, path).unwrap();
+}
+
+fn substitute_symlink(path: &Path, target: &Path) {
+    fs::remove_file(path).unwrap();
+    std::os::unix::fs::symlink(target, path).unwrap();
+}
+
+type RebindTarget = (&'static str, fn(&RebindEntries) -> PathBuf);
+
+/// Every entry the rebind carries, each one substitutable in place.
+const REBIND_TARGETS: &[RebindTarget] = &[
+    ("success-artifact", |entries| {
+        entries.success_artifact.clone()
+    }),
+    ("success-marker", |entries| entries.success_marker.clone()),
+    ("replacement-state", |entries| entries.success_state.clone()),
+    ("staged-artifact", |entries| entries.staged_artifact.clone()),
+    ("staged-marker", |entries| entries.staged_marker.clone()),
+    ("backup-artifact", |entries| entries.backup_artifact.clone()),
+    ("backup-marker", |entries| entries.backup_marker.clone()),
+];
+
+/// Substitution at every entry a colocated rebind owns.
+///
+/// Each case interrupts the finish mid-rebind, puts bytes Grove never wrote at
+/// one of its entries, and restarts. The refusal must name the witness and the
+/// auxiliary, leave the substituted inode exactly where it was, and leave every
+/// other entry alone as well: the unchanged entry set is what makes the
+/// diagnostic's "left untouched" true rather than a claim made after a mutation
+/// landed. Both auxiliaries belong to the live witness, so nothing here is an
+/// orphan for the reaper to recover on its way past.
+#[test]
+fn colocated_jj_recovery_refuses_every_substituted_rebind_entry() {
+    for (label, select) in REBIND_TARGETS {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("jj-substitute-{label}"));
+        seed_colocated_rebind_fixture(&repository);
+        let (entries, witness) = interrupt_before_marker_exchange(&repository);
+        let names_before = auxiliary_entries(&entries.directory);
+        let neighbours_before = neighbour_fingerprints(&entries.directory);
+        let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+        let target = select(&entries);
+        substitute_foreign_file(&target);
+        let substituted = entry_fingerprint(&target);
+
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, "sh -c true '${prompt}'");
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        let diagnostic = String::from_utf8_lossy(&recovered.stderr);
+        assert!(
+            !recovered.status.success(),
+            "{label}: a substituted rebind entry was accepted: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("Recovery pending")
+                && diagnostic.contains(&witness.display().to_string()),
+            "{label}: the refusal does not name the witness: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains(&entries.owning_marker(&target).display().to_string()),
+            "{label}: the refusal does not name the auxiliary: {diagnostic}"
+        );
+        assert!(
+            !diagnostic.contains("could not complete orphaned finish cleanup"),
+            "{label}: the live witness's own auxiliary was reaped as an orphan: {diagnostic}"
+        );
+        assert_eq!(
+            entry_fingerprint(&target),
+            substituted,
+            "{label}: the substituted entry was moved or rewritten"
+        );
+        assert_eq!(
+            auxiliary_entries(&entries.directory),
+            names_before,
+            "{label}: a mutation landed on a path that reports untouched state"
+        );
+        assert_eq!(
+            neighbour_fingerprints(&entries.directory),
+            neighbours_before,
+            "{label}: an external inode beside the auxiliaries changed"
+        );
+        assert_eq!(
+            fs::read(git_index_path(&repository)).unwrap(),
+            index_before,
+            "{label}: the user's Git index changed"
+        );
+        assert!(witness.is_dir(), "{label}: the blocked witness is gone");
+        assert!(
+            repository.join(".grove/02-finish-finish-k2.md").is_file(),
+            "{label}: the finish leaf is no longer selectable"
+        );
+    }
+}
+
+/// The same matrix, substituting a symlink into `.git/config`.
+///
+/// Every one of these entries is opened, digested or unlinked somewhere in the
+/// protocol. If any of that followed the link, the user's Git configuration
+/// would be read as a marker, exchanged into an auxiliary name, or removed —
+/// so the neighbour's inode and bytes surviving is the property, not the
+/// refusal.
+#[test]
+fn colocated_jj_recovery_never_follows_a_symlink_substituted_into_the_rebind() {
+    for (label, select) in REBIND_TARGETS {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("jj-symlink-{label}"));
+        seed_colocated_rebind_fixture(&repository);
+        let (entries, witness) = interrupt_before_marker_exchange(&repository);
+        let names_before = auxiliary_entries(&entries.directory);
+        let neighbours_before = neighbour_fingerprints(&entries.directory);
+
+        let target = select(&entries);
+        substitute_symlink(&target, &entries.directory.join("config"));
+        let substituted = entry_fingerprint(&target);
+
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, "sh -c true '${prompt}'");
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        let diagnostic = String::from_utf8_lossy(&recovered.stderr);
+        assert!(
+            !recovered.status.success(),
+            "{label}: a symlinked rebind entry was accepted: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains("Recovery pending")
+                && diagnostic.contains(&witness.display().to_string()),
+            "{label}: the refusal does not name the witness: {diagnostic}"
+        );
+        assert!(
+            !diagnostic.contains("could not complete orphaned finish cleanup"),
+            "{label}: the live witness's own auxiliary was reaped as an orphan: {diagnostic}"
+        );
+        assert_eq!(
+            entry_fingerprint(&target),
+            substituted,
+            "{label}: the substituted symlink was moved or replaced"
+        );
+        assert_eq!(
+            auxiliary_entries(&entries.directory),
+            names_before,
+            "{label}: a mutation landed on a path that reports untouched state"
+        );
+        assert_eq!(
+            neighbour_fingerprints(&entries.directory),
+            neighbours_before,
+            "{label}: the symlink was followed to an external inode"
+        );
+        assert!(witness.is_dir(), "{label}: the blocked witness is gone");
+    }
+}
+
+/// Foreign entries at the names the rebind could otherwise claim.
+///
+/// `<artifact>.filtered` is the deterministic name the removed reclamation used
+/// to unlink whatever sat there, and `.staging-<32 hex>` is the reserved
+/// namespace every drawn name comes from. Nothing derives either any more, so a
+/// recovery that completes normally must walk straight past all of them —
+/// including a symlink, which nothing may resolve.
+#[test]
+fn colocated_jj_recovery_leaves_foreign_entries_at_grove_owned_replacement_names() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("jj-foreign-replacement-names");
+    let commit_before = seed_colocated_rebind_fixture(&repository);
+    let index_before = fs::read(git_index_path(&repository)).unwrap();
+    let (entries, witness) = interrupt_before_marker_exchange(&repository);
+
+    let unclaimed_nonce = "0123456789abcdef0123456789abcdef";
+    let suffixed = |path: &Path, suffix: &str| {
+        let mut name = path.file_name().unwrap().to_os_string().into_vec();
+        name.extend_from_slice(suffix.as_bytes());
+        path.with_file_name(std::ffi::OsString::from_vec(name))
+    };
+    let foreign = [
+        suffixed(&entries.success_artifact, ".filtered"),
+        suffixed(&entries.backup_artifact, ".filtered"),
+        suffixed(
+            &entries.success_artifact,
+            &format!(".staging-{unclaimed_nonce}"),
+        ),
+        suffixed(
+            &entries.success_marker,
+            &format!(".staging-{unclaimed_nonce}"),
+        ),
+    ];
+    for path in &foreign {
+        fs::write(path, b"foreign entry\n").unwrap();
+    }
+    let foreign_link = suffixed(
+        &entries.backup_marker,
+        &format!(".staging-{unclaimed_nonce}"),
+    );
+    std::os::unix::fs::symlink(entries.directory.join("config"), &foreign_link).unwrap();
+    let placed = foreign
+        .iter()
+        .chain([&foreign_link])
+        .map(|path| entry_fingerprint(path))
+        .collect::<Vec<_>>();
+    let neighbours_before = neighbour_fingerprints(&entries.directory);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!witness.exists());
+    assert_eq!(
+        foreign
+            .iter()
+            .chain([&foreign_link])
+            .map(|path| entry_fingerprint(path))
+            .collect::<Vec<_>>(),
+        placed,
+        "recovery moved, rewrote or resolved an entry it never created"
+    );
+    assert_eq!(
+        neighbour_fingerprints(&entries.directory),
+        neighbours_before
+    );
+    assert_eq!(
+        fs::read(git_index_path(&repository)).unwrap(),
+        index_before,
+        "recovery did not restore the exact Git index"
+    );
+    assert_eq!(
+        git_like_jj_output(
+            &repository,
+            &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+        ),
+        commit_before
+    );
+    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+}
+
 #[test]
 fn persistent_auxiliary_failure_warns_and_retries_without_blocking_the_driver() {
     let fixture = TempDir::new().unwrap();

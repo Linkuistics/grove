@@ -324,6 +324,41 @@ pub(crate) fn auxiliary_marker_paths(directory_path: &Path) -> Result<Vec<PathBu
     Ok(markers)
 }
 
+/// Whether a discovered marker belongs to `owner`, read without settling
+/// anything.
+///
+/// Recovering an auxiliary is not a read: [`AuxiliaryCleanup::from_marker_at`]
+/// settles whatever replacement is still in flight, which exchanges and unlinks
+/// entries. A live in-tree witness owns its own auxiliaries and settles them
+/// through its own recovery path, so the reaper has to decide ownership before
+/// it may touch one — from the marker document alone.
+pub(crate) fn auxiliary_marker_is_owned_by(
+    marker_path: &Path,
+    owner: &super::CleanupOwner,
+) -> Result<bool> {
+    let parent_path = marker_path
+        .parent()
+        .context("finish auxiliary marker has no parent")?;
+    let parent = open_directory(parent_path).with_context(|| {
+        format!(
+            "opening discovered finish auxiliary directory {} without following symlinks",
+            parent_path.display()
+        )
+    })?;
+    let marker_name = marker_path
+        .file_name()
+        .context("finish auxiliary marker has no file name")?;
+    let marker_file = open_file_at(&parent, marker_name).with_context(|| {
+        format!(
+            "opening discovered finish auxiliary marker {} without following symlinks",
+            marker_path.display()
+        )
+    })?;
+    let marker = read_marker(marker_path, marker_file)?.marker;
+    Ok(marker.finish_handle == owner.finish_handle
+        && marker.attempt_identity == owner.attempt_identity)
+}
+
 pub(crate) fn recover_auxiliary_marker(marker_path: &Path) -> Result<AuxiliaryCleanup> {
     let parent_path = marker_path
         .parent()
@@ -358,11 +393,6 @@ pub(crate) fn recover_auxiliary_marker(marker_path: &Path) -> Result<AuxiliaryCl
 impl AuxiliaryCleanup {
     pub(crate) fn artifact_path(&self) -> &Path {
         &self.artifact_path
-    }
-
-    pub(super) fn is_owned_by(&self, owner: &super::CleanupOwner) -> bool {
-        self.marker.finish_handle == owner.finish_handle
-            && self.marker.attempt_identity == owner.attempt_identity
     }
 
     /// Record which inode the artifact name is about to adopt.

@@ -40,6 +40,7 @@ fn unclaimed_replacement_path(artifact: &std::path::Path) -> std::path::PathBuf 
 }
 
 const STAGING_NONCE: &str = "abcdef0123456789abcdef0123456789";
+const OTHER_NONCE: &str = "0123456789abcdef0123456789abcdef";
 
 /// Publish a replacement copy the way `replace_artifact_from` does: under a
 /// name only this role and attempt could have drawn, carried by identity rather
@@ -85,6 +86,16 @@ fn entry_identity(path: &Path) -> FileIdentity {
     FileIdentity {
         device: metadata.dev(),
         inode: metadata.ino(),
+    }
+}
+
+/// What an entry holds without resolving it: a symlink's target, never the
+/// bytes at the other end of it.
+fn read_entry(path: &Path) -> Vec<u8> {
+    if fs::symlink_metadata(path).unwrap().file_type().is_symlink() {
+        fs::read_link(path).unwrap().into_os_string().into_vec()
+    } else {
+        fs::read(path).unwrap()
     }
 }
 
@@ -468,15 +479,19 @@ fn a_failed_replacement_settles_before_disposing_through_a_stale_snapshot() {
     let replacement_state = replacement_state_path(&marker);
 
     let interruption = prepared
-        .replace_artifact_from_with(&filtered, |step| {
-            if step == ReplacementPublicationStep::AfterStatePublication {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    "simulated mid-settle failure",
-                ));
-            }
-            Ok(())
-        })
+        .replace_artifact_from_with(
+            &filtered,
+            || Ok(()),
+            |step| {
+                if step == ReplacementPublicationStep::AfterStatePublication {
+                    return Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "simulated mid-settle failure",
+                    ));
+                }
+                Ok(())
+            },
+        )
         .unwrap_err();
     assert!(
         format!("{interruption:#}").contains("simulated mid-settle failure"),
@@ -588,15 +603,19 @@ fn an_interrupted_replacement_publication_leaves_a_clean_same_attempt_retry() {
     // error — is what leaves one behind.
     let staged = stage_replacement(&artifact, STAGING_NONCE, "abandoned copy\n").2;
     let interruption = prepared
-        .replace_artifact_from_with(&filtered, |step| {
-            if step == ReplacementPublicationStep::BeforeStatePublication {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    "simulated death before the state document",
-                ));
-            }
-            Ok(())
-        })
+        .replace_artifact_from_with(
+            &filtered,
+            || Ok(()),
+            |step| {
+                if step == ReplacementPublicationStep::BeforeStatePublication {
+                    return Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "simulated death before the state document",
+                    ));
+                }
+                Ok(())
+            },
+        )
         .unwrap_err();
 
     assert!(
@@ -651,7 +670,9 @@ fn publication_claims_no_name_derivable_from_the_role_and_attempt() {
     fs::write(&foreign, "precious user bytes\n").unwrap();
     let foreign_inode = entry_identity(&foreign).inode;
 
-    prepared.replace_artifact_from(&filtered).unwrap();
+    prepared
+        .replace_artifact_from(&filtered, || Ok(()))
+        .unwrap();
 
     assert_eq!(
         fs::read_to_string(&artifact).unwrap(),
@@ -669,6 +690,105 @@ fn publication_claims_no_name_derivable_from_the_role_and_attempt() {
         "a settled replacement leaves no staging entry: {:?}",
         staging_entries(temporary.path())
     );
+}
+
+/// The source is released before the first boundary that can end the process.
+///
+/// The colocated caller's source is a whole Git index inside a private
+/// directory whose only owner is this process. Releasing it on the way out
+/// would mean releasing it never, because every boundary from here on is one a
+/// death can stop at — and nothing sweeps the name it leaves.
+#[test]
+fn the_replacement_releases_its_source_before_the_first_publication_boundary() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let private = temporary.path().join("private-staging");
+    fs::create_dir(&private).unwrap();
+    let filtered = private.join("index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let mut order = Vec::new();
+
+    prepared
+        .replace_artifact_from_with(
+            &filtered,
+            || {
+                fs::remove_dir_all(&private).unwrap();
+                Ok(())
+            },
+            |step| {
+                order.push(step);
+                Ok(())
+            },
+        )
+        .unwrap();
+
+    assert_eq!(
+        order,
+        vec![
+            ReplacementPublicationStep::BeforeStatePublication,
+            ReplacementPublicationStep::AfterStatePublication,
+        ],
+        "the source outlived a boundary a death can stop at"
+    );
+    assert!(!private.exists());
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "filtered index\n");
+    assert!(staging_entries(temporary.path()).is_empty());
+}
+
+/// A source that cannot be released is a leak the caller can still report, so
+/// the replacement aborts rather than publishing over it — and it takes its own
+/// staged entry with it, leaving the attempt free to retry.
+#[test]
+fn a_source_that_cannot_be_released_aborts_the_replacement() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let filtered = temporary.path().join("filtered-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let artifact_inode = entry_identity(&artifact).inode;
+
+    let error = prepared
+        .replace_artifact_from(&filtered, || {
+            anyhow::bail!("the private staging directory is still there")
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{error:#}").contains("the private staging directory is still there"),
+        "{error:#}"
+    );
+    assert_eq!(entry_identity(&artifact).inode, artifact_inode);
+    assert!(!replacement_state_path(&marker_path(&artifact)).exists());
+    assert!(
+        staging_entries(temporary.path()).is_empty(),
+        "an aborted replacement kept its staged entry: {:?}",
+        staging_entries(temporary.path())
+    );
+    prepared
+        .replace_artifact_from(&filtered, || Ok(()))
+        .unwrap();
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "filtered index\n");
 }
 
 /// An interruption after the state document is durable is recovered forward:
@@ -693,15 +813,19 @@ fn an_interruption_after_the_state_document_recovers_the_new_identity() {
     let artifact = prepared.artifact_path().to_path_buf();
 
     let interruption = prepared
-        .replace_artifact_from_with(&filtered, |step| {
-            if step == ReplacementPublicationStep::AfterStatePublication {
-                return Err(io::Error::new(
-                    io::ErrorKind::PermissionDenied,
-                    "simulated death after the state document",
-                ));
-            }
-            Ok(())
-        })
+        .replace_artifact_from_with(
+            &filtered,
+            || Ok(()),
+            |step| {
+                if step == ReplacementPublicationStep::AfterStatePublication {
+                    return Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "simulated death after the state document",
+                    ));
+                }
+                Ok(())
+            },
+        )
         .unwrap_err();
 
     assert!(
@@ -1382,6 +1506,102 @@ fn driver_reaping_discovers_auxiliaries_beside_the_resolved_git_index() {
 
     assert!(!artifact.exists());
     assert!(!marker.exists());
+}
+
+/// The reaper sweeps documents, never namespaces.
+///
+/// Both publication windows leave a staged entry that no document names, and
+/// the name alone says which role and attempt drew it. That is attribution, not
+/// proof: Grove's own substitution refusal deliberately leaves a *foreign*
+/// regular file at exactly such a name — `replace_artifact_from`'s post-copy
+/// identity check declines to unlink what it can no longer identify — so a
+/// sweep of the namespace would delete the very bytes that refusal preserved.
+/// The two shapes are indistinguishable from disk, so the reaper reads the
+/// cleanup manifest and walks past everything else. It leaves an index copy
+/// behind; it never removes one it cannot prove it wrote.
+#[test]
+fn reaping_leaves_every_staging_leftover_it_cannot_prove_it_wrote() {
+    use std::os::unix::fs::symlink;
+
+    let temporary = TempDir::new().unwrap();
+    let worktree = temporary.path();
+    let initialized = std::process::Command::new("git")
+        .current_dir(worktree)
+        .args(["init", "-q", "."])
+        .status()
+        .unwrap();
+    assert!(initialized.success());
+    fs::create_dir(worktree.join(".git/grove")).unwrap();
+    let git_directory = worktree.join(".git");
+    let source = git_directory.join("source-index");
+    let target = git_directory.join("index");
+    fs::write(&source, "index bytes\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexBackup,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+
+    // An abandoned staged artifact and staged marker, both named the way the
+    // interrupted publication would have named them.
+    let staged_artifact = stage_replacement(&artifact, STAGING_NONCE, "abandoned index copy\n").2;
+    let staged_marker = stage_replacement(&marker, STAGING_NONCE, "{}\n").2;
+    // The index filter's private staging directory, whose in-process owner a
+    // death never runs.
+    let filter_staging = git_directory.join(format!("GROVE-FINISH-FILTER-{ATTEMPT}-abc123"));
+    fs::create_dir(&filter_staging).unwrap();
+    fs::write(filter_staging.join("index"), "filtered index\n").unwrap();
+    // A neighbour outside every reserved namespace.
+    let unrelated = git_directory.join("index.lock");
+    fs::write(&unrelated, "someone else's lock\n").unwrap();
+    // A namespaced name Grove never creates this way, aimed at a real file.
+    let victim = git_directory.join("config");
+    let namespaced_symlink = stage_replacement(&artifact, OTHER_NONCE, "unused\n").2;
+    fs::remove_file(&namespaced_symlink).unwrap();
+    symlink(&victim, &namespaced_symlink).unwrap();
+
+    let untouched = [
+        &staged_artifact,
+        &staged_marker,
+        &unrelated,
+        &namespaced_symlink,
+        &victim,
+    ];
+    let before = untouched
+        .iter()
+        .map(|path| (entry_identity(path), read_entry(path)))
+        .collect::<Vec<_>>();
+
+    reap_orphaned(worktree).unwrap();
+
+    assert!(
+        !artifact.exists(),
+        "the manifest-carrying auxiliary survived"
+    );
+    assert!(!marker.exists());
+    assert_eq!(
+        untouched
+            .iter()
+            .map(|path| (entry_identity(path), read_entry(path)))
+            .collect::<Vec<_>>(),
+        before,
+        "the reaper moved, rewrote or resolved an entry it never proved it wrote"
+    );
+    assert!(namespaced_symlink
+        .symlink_metadata()
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    assert_eq!(
+        fs::read_to_string(filter_staging.join("index")).unwrap(),
+        "filtered index\n",
+        "the reaper swept the index filter's staging namespace"
+    );
 }
 
 #[test]

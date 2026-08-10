@@ -841,6 +841,24 @@ on a path where the sweep had already mutated. Reaping never changes lifecycle
 classification or turns cleanup bytes into a receipt; a persistent filesystem
 error is reported and retried on the next owned invocation.
 
+The sweep is over cleanup manifests, never over the reserved namespaces. A
+staged entry a death stranded before its state document names it is
+*attributable* — its name says which role and attempt drew it — but attribution
+is not proof of authorship, and the two are not the same claim. Grove's own
+substitution refusal is what makes the difference reachable: when
+`replace_artifact_from`'s post-copy identity check finds an inode it can no
+longer identify, it declines to unlink it and reports, deliberately leaving a
+*foreign* regular file at a shape-valid staged name. That is byte-for-byte the
+same shape as an abandoned staged copy, so a namespace sweep would delete
+exactly the bytes the refusal preserved. Grove therefore leaves both, along with
+the colocated index filter's own private staging directory, and accepts a bounded
+leak — an index-sized copy per death inside one of those windows — rather than a
+removal it cannot prove. What it does instead is narrow the windows: the index
+filter's staging directory is released explicitly once the replacement holds its
+own staged copy and before the first publication boundary, because an owner that
+only runs while the process unwinds is no owner at a boundary whose whole purpose
+is to end the process.
+
 This transaction promises process-interruption consistency, not ordered
 power-loss durability. It issues no `fsync` protocol.
 

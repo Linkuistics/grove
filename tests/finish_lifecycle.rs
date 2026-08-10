@@ -121,6 +121,19 @@ fn auxiliary_entries(directory: &Path) -> Vec<String> {
     names
 }
 
+/// The private directories the colocated index filter stages Git's own
+/// lock-and-rename through. Their only disposal is an in-process owner, so
+/// anything here after a finish process has ended is a leak nothing sweeps.
+fn filter_staging_entries(directory: &Path) -> Vec<String> {
+    let mut names = fs::read_dir(directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with("GROVE-FINISH-FILTER-"))
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
 /// The ten boundaries of the artifact-and-marker replacement, in transition
 /// order: the state document that binds the intended replacement, then the
 /// artifact exchange, the marker exchange, and the two retirements.
@@ -2244,6 +2257,14 @@ fn colocated_jj_restart_recovers_every_marker_rebind_checkpoint() {
         assert!(
             residue.iter().all(|name| name.contains(".staging-")),
             "{checkpoint} left interpretable auxiliary state: {residue:?}"
+        );
+        // The index filter's private staging directory is not in that exception.
+        // It holds a whole copy of the Git index, it is released before any
+        // checkpoint here can fire, and nothing sweeps it afterwards.
+        assert_eq!(
+            filter_staging_entries(&git_directory),
+            Vec::<String>::new(),
+            "{checkpoint} left the index filter's staging directory behind"
         );
         assert_eq!(
             fs::read(git_index_path(&repository)).unwrap(),

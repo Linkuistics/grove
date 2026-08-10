@@ -129,7 +129,13 @@ VCS-administration index images and post-commit quarantine are auxiliary cleanup
 never rootless workflow state. The helper attempts cleanup immediately and a
 later lease-owning driver reaps orphaned entries carrying a valid Grove cleanup
 manifest only when no matching in-tree witness owns them, without using cleanup
-bytes for lifecycle classification. Plain Git disables hooks for this internal
+bytes for lifecycle classification. That sweep is over manifests, never over the
+reserved staging namespaces: a staged entry stranded before its state document is
+*attributable* but not proven Grove's, and the post-copy substitution refusal
+deliberately leaves a foreign entry of the same shape, so both stay. Grove
+narrows those windows instead — the colocated index filter's private staging
+directory is released before the first publication boundary — and accepts the
+bounded leak. Plain Git disables hooks for this internal
 commit
 because an index backup cannot reverse arbitrary hook side effects. See ADR
 *task-tree-transactions-fail-closed*.

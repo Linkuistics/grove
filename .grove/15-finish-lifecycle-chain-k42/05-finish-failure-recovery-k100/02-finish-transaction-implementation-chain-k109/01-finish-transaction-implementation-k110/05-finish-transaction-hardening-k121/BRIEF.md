@@ -29,6 +29,18 @@ and cleanup matrix across all supported repository shapes.
 
 Fix only contract gaps demonstrated by a failing test.
 
+`finish-transaction-integrity-k136` closed. One decision from it binds the two
+remaining slices, because both touch cleanup and either could reopen it by
+accident: **Grove sweeps cleanup manifests, never reserved namespaces.** A staged
+entry stranded before its state document is attributable but not proven Grove's,
+and the post-copy substitution refusal deliberately leaves a foreign entry of the
+same shape, so a namespace sweep would delete the bytes that refusal preserved.
+The accepted answer is a bounded leak plus narrower windows — an owner that only
+runs while the process unwinds is no owner at a boundary that exists to end the
+process, so anything held across one is released explicitly before it. ADR
+`task-tree-transactions-fail-closed` carries the rejected option and its reopen
+condition.
+
 ## Decomposition
 
 - `finish-transaction-integrity-k136`: harden the task-root, witness, manifest,

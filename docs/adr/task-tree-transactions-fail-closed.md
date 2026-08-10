@@ -178,6 +178,21 @@ contract.
   administration directory it already owns, which is where the protected Git
   index lives anyway. Reopen only if a durable ownership witness becomes
   available that such a writer cannot forge.
+- **Reap the reserved staging namespaces for entries no document names.**
+  Rejected because attribution is not authorship. A staged entry stranded before
+  its state document is durable is attributable — its name carries the role and
+  attempt that drew it — but the post-copy identity check deliberately leaves a
+  *foreign* regular file at exactly such a name whenever it detects a
+  substitution it can no longer identify, and the two shapes are identical on
+  disk. Sweeping the namespace would therefore delete the bytes that refusal
+  exists to preserve, and unlike the derivable name above nothing forces the
+  removal: a drawn name is a collision gate for no later attempt. Grove accepts a
+  bounded leak instead and narrows the windows that produce one, releasing the
+  colocated index filter's private staging directory before the first
+  publication boundary rather than on an unwind a process death never reaches.
+  Reopen only if an entry's inode can be recorded before it has a name — a
+  portable `O_TMPFILE`-equivalent — which makes every leftover either proven or
+  absent.
 - **Refuse to dispose an auxiliary whose replacement is still in flight.**
   Rejected for the same wedge: the caller that discards a failed attempt's index
   holds a snapshot of the superseded phase, and refusing strands the

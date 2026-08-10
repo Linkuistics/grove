@@ -60,3 +60,51 @@ write.
 Fix only what a failing test demonstrates. If the honest answer is that these
 entries must stay, say so in the spec and delete this leaf's reaping scope rather
 than weakening the no-unproven-removal contract.
+
+## Outcome — the reaping scope is deleted, and the windows narrowed instead
+
+The Notes' alternative is the one that holds. The disposition this leaf was cut
+to find does not exist, for a reason internal to the subtree rather than to a
+threat model: **Grove's own substitution refusal deliberately produces the state
+a namespace sweep would have to destroy.** When `replace_artifact_from`'s
+post-copy identity check finds an inode it can no longer identify it declines to
+unlink it and reports, leaving a *foreign* regular file at a shape-valid staged
+name. An abandoned staged copy is byte-for-byte the same shape. Nothing on disk
+separates them, so "attributable" and "provably Grove's" are different claims and
+only the first is true of these names.
+
+That also answers the leaf's framing of the precondition argument. Lease
+ownership, an invalidated previous epoch, and no matching in-tree witness prove
+the entry *abandoned* — no live Grove process can still be publishing it. They
+prove nothing about *authorship*, which is the half the removed
+`reclaim_unbound_replacement` also lacked. What changed since that removal is only
+the forcing function: a drawn name is a collision gate for no later attempt, so
+nothing now compels the removal. Doing it anyway would trade a harmless leak for
+the exact capability three leaves were spent eliminating.
+
+So: no sweep, for either namespace — the two `*.staging-<nonce>` entries and the
+index filter's `GROVE-FINISH-FILTER-<attempt>-*` directory settle the same way,
+and Done-when 1 and 2 are answered by the Notes' alternative rather than met.
+Recorded in the spec ("Auxiliary Git-index backups or success images"), on ADR
+`task-tree-transactions-fail-closed` as a rejected option with its reopen
+condition — an entry whose inode can be recorded before it has a name, a portable
+`O_TMPFILE`-equivalent — and in the glossary's Finish transaction term.
+
+What is delivered instead is prevention where prevention is available. The filter
+staging directory leaked at *every* rebind checkpoint, not just one window,
+because its only disposal was a `TempDir` destructor and every boundary there
+exists to end the process — an RAII owner is a liveness guarantee, and this
+transaction can only rely on ordering. `replace_artifact_from` now takes a
+`release_source` callback and runs it once the replacement holds its own staged
+copy and before the first publication boundary; the colocated caller releases the
+directory there. A failure to release fails the attempt closed, naming the
+directory, rather than publishing over a silent leak. Done-when 3 and 4 hold as
+written, and the k159 checkpoint matrix is tightened from permitting that residue
+to refusing it.
+
+Two things a successor should know. The reaper is untouched, so the three
+"left byte-identical" cases are not three branches — the reaper never inspects a
+staging name at all, and `reaping_leaves_every_staging_leftover_it_cannot_prove_it_wrote`
+locks that as one fact rather than pretending to exercise branches that do not
+exist. And a narrow window remains before the release point (the staged copy and
+the `git update-index` child); it is the accepted bounded leak, not an oversight.

@@ -473,8 +473,12 @@ impl AuxiliaryCleanup {
         )
     }
 
-    pub(crate) fn replace_artifact_from(&mut self, source_path: &Path) -> Result<()> {
-        self.replace_artifact_from_with(source_path, |step| {
+    pub(crate) fn replace_artifact_from(
+        &mut self,
+        source_path: &Path,
+        release_source: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        self.replace_artifact_from_with(source_path, release_source, |step| {
             replacement_test_checkpoint(step.name())
         })
     }
@@ -486,9 +490,19 @@ impl AuxiliaryCleanup {
     /// name it. Nothing derivable from the role and attempt is ever claimed, so
     /// an interruption leaves no entry that a later recovery would have to
     /// adopt or remove without proof of what wrote it.
+    ///
+    /// `release_source` runs once the staged copy is complete and validated,
+    /// before the first publication boundary. A caller whose source lives in a
+    /// private directory it disposes in-process — the colocated index filter's
+    /// staging directory — has no other point at which to dispose it: every
+    /// boundary after this one can end the process, and an owner that only runs
+    /// on unwinding leaks whatever it held. Its failure aborts the replacement
+    /// with the staged entry removed, because the entry is worth less than a
+    /// leak the caller can still report.
     fn replace_artifact_from_with(
         &mut self,
         source_path: &Path,
+        release_source: impl FnOnce() -> Result<()>,
         mut checkpoint: impl FnMut(ReplacementPublicationStep) -> io::Result<()>,
     ) -> Result<()> {
         let source_parent_path = source_path
@@ -548,6 +562,15 @@ impl AuxiliaryCleanup {
             ));
         }
         drop(staging);
+
+        if let Err(error) = release_source() {
+            let cleanup = remove_artifact(&parent, &staging_name, staging_identity);
+            return Err(attach_cleanup_failure(
+                error.context("releasing the staged finish auxiliary replacement's source"),
+                cleanup,
+                "removing the staged finish auxiliary replacement of an unreleased source",
+            ));
+        }
 
         let published = checkpoint(ReplacementPublicationStep::BeforeStatePublication)
             .context("replacement-publication checkpoint before the state document")

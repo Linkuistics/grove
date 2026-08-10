@@ -1292,7 +1292,8 @@ fn remove_grove_entries(
         .parent()
         .context("preserved colocated Git index has no parent")?;
     let staging = filter_staging_directory(index_parent, attempt_identity)?;
-    let filtered_index = staging.path().join("index");
+    let staging_path = staging.path().to_path_buf();
+    let filtered_index = staging_path.join("index");
     fs::copy(git_index, &filtered_index)
         .context("copying the preserved colocated Git index into private staging")?;
     let child = vcs_command(worktree, "git")
@@ -1310,7 +1311,14 @@ fn remove_grove_entries(
         output,
     )?;
     success_index
-        .replace_artifact_from(&filtered_index)
+        .replace_artifact_from(&filtered_index, move || {
+            staging.close().with_context(|| {
+                format!(
+                    "removing the private staging directory for the filtered Git index {}; remove it and retry the finish",
+                    staging_path.display()
+                )
+            })
+        })
         .context("publishing the filtered colocated Git index from private staging")?;
     Ok(true)
 }
@@ -1319,6 +1327,13 @@ fn remove_grove_entries(
 /// lock-and-rename cannot mint an inode at one of them. The name carries the
 /// finish attempt, so a directory left by a process death is attributable to
 /// the attempt that made it rather than being an anonymous leftover.
+///
+/// Attributable is all it is: nothing sweeps the name, because nothing can
+/// prove that a directory sitting at it is the one Grove made. The directory is
+/// therefore released explicitly, as soon as the replacement has its own staged
+/// copy and before the first publication boundary — an owner that only runs
+/// while the process unwinds leaks a whole Git index at every boundary that
+/// ends the process instead.
 fn filter_staging_directory(index_parent: &Path, attempt_identity: &str) -> Result<TempDir> {
     tempfile::Builder::new()
         .prefix(&format!("GROVE-FINISH-FILTER-{attempt_identity}-"))

@@ -1,4 +1,4 @@
-# atomic-colocated-index-rebind-k147
+# atomic-colocated-index-rebind-k147 — brief
 
 **Kind:** impl
 
@@ -19,6 +19,14 @@ interruption cannot strand an unmarked or stale-identity same-attempt artifact.
   names the artifact's previous identity.
 - The preparing finish witness can preserve the handle and attempt, but normal
   recovery still needs an atomic or explicitly recoverable auxiliary state.
+- Adversarial review showed that a boolean rebind intent is insufficient: it
+  cannot distinguish Git's replacement artifact from an external file, an
+  unconditional marker rename can overwrite a last-moment substitution, and
+  cleanup cannot start while the index-filtering child may still publish.
+- Deliver the transaction as four ordered, independently testable slices:
+  quiesce the filtering child on every return path; make marker replacement
+  explicitly recoverable; bind the intended replacement before adopting it;
+  then wire and exercise the complete colocated-Jujutsu recovery matrix.
 
 ## Done when
 

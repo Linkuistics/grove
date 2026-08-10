@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 
 pub(crate) struct PreparedGitFinish {
     worktree: PathBuf,
@@ -1279,7 +1279,7 @@ fn remove_grove_entries(worktree: &Path, git_index: &Path) -> Result<()> {
         return Ok(());
     }
 
-    let mut child = vcs_command(worktree, "git")
+    let child = vcs_command(worktree, "git")
         .env("GIT_INDEX_FILE", git_index)
         .args(["update-index", "--force-remove", "-z", "--stdin"])
         .stdin(Stdio::piped())
@@ -1287,20 +1287,34 @@ fn remove_grove_entries(worktree: &Path, git_index: &Path) -> Result<()> {
         .stderr(Stdio::piped())
         .spawn()
         .context("starting Git index cleanup for the completed grove")?;
-    child
-        .stdin
-        .take()
-        .context("opening stdin for Git index cleanup")?
-        .write_all(&grove_paths.stdout)
-        .context("writing completed-grove paths to Git index cleanup")?;
-    let output = child
-        .wait_with_output()
-        .context("waiting for Git index cleanup for the completed grove")?;
+    let output = write_child_stdin_and_wait(child, &grove_paths.stdout)?;
     command_result(
         "git",
         &["update-index", "--force-remove", "-z", "--stdin"],
         output,
     )
+}
+
+fn write_child_stdin_and_wait(mut child: Child, input: &[u8]) -> Result<Output> {
+    let write_result = (|| -> Result<()> {
+        child
+            .stdin
+            .take()
+            .context("opening stdin for Git index cleanup")?
+            .write_all(input)
+            .context("writing completed-grove paths to Git index cleanup")
+    })();
+    let wait_result = child
+        .wait_with_output()
+        .context("waiting for Git index cleanup for the completed grove");
+
+    match (write_result, wait_result) {
+        (Ok(()), output) => output,
+        (Err(write_error), Ok(_)) => Err(write_error),
+        (Err(write_error), Err(wait_error)) => Err(write_error.context(format!(
+            "waiting for the Git index cleanup child also failed: {wait_error:#}"
+        ))),
+    }
 }
 
 fn validate_exact_git_finish(
@@ -1706,18 +1720,44 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 mod tests {
     use super::{
         finish_commit_message, git_bytes, jj_topology, prepare_jj_finish, prepare_plain_git_finish,
-        recover_finish, run_vcs_command, FinishCommitOutcome, FinishRecoveryOutcome,
-        FinishStartAnchor, GitStartProof,
+        recover_finish, run_vcs_command, write_child_stdin_and_wait, FinishCommitOutcome,
+        FinishRecoveryOutcome, FinishStartAnchor, GitStartProof,
     };
     use anyhow::anyhow;
     use std::fs;
     use std::os::unix::fs::MetadataExt;
-    use std::process::Command;
+    use std::process::{Command, Stdio};
     use tempfile::TempDir;
 
     const FINISH_HANDLE: &str = "finish-k2";
     const FIRST_ATTEMPT: &str = "11111111111111111111111111111111";
     const SECOND_ATTEMPT: &str = "22222222222222222222222222222222";
+
+    #[test]
+    fn stdin_failure_waits_for_the_index_filter_child_before_returning() {
+        let fixture = TempDir::new().unwrap();
+        let reaped = fixture.path().join("reaped");
+        let child = Command::new("sh")
+            .args([
+                "-c",
+                "exec 0<&-; sleep 0.2; printf reaped > \"$1\"",
+                "grove-test-child",
+            ])
+            .arg(&reaped)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+
+        let error = write_child_stdin_and_wait(child, &vec![b'x'; 1024 * 1024]).unwrap_err();
+
+        assert!(
+            format!("{error:#}").contains("writing completed-grove paths"),
+            "{error:#}"
+        );
+        assert_eq!(fs::read_to_string(reaped).unwrap(), "reaped");
+    }
 
     fn native_jj_finish_fixture() -> TempDir {
         let fixture = TempDir::new().unwrap();

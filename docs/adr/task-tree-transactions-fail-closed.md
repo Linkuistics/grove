@@ -166,6 +166,18 @@ contract.
   on another filesystem refuses before mutation. Reopen if a portable atomic
   cross-filesystem move becomes available or Grove gains an equally visible
   post-commit cleanup seam that is not workflow state.
+- **Pin an auxiliary's staged replacement to an exactly derivable name.**
+  Rejected because Grove must then claim that one name, so a foreign entry
+  sitting there has to be either unlinked — deleting bytes Grove never wrote, on
+  an ordinary path — or refused, which wedges the launch whose signal nonce is
+  the shared finish-attempt identity. Staging names are therefore drawn from a
+  fresh 128-bit nonce inside the auxiliary's reserved role-and-attempt namespace
+  and carried by recorded inode. This accepts that the namespace *bounds* rather
+  than *proves* ownership: a writer able to rewrite the state document in place
+  can point the exchange at another entry of that shape, but only inside the VCS
+  administration directory it already owns, which is where the protected Git
+  index lives anyway. Reopen only if a durable ownership witness becomes
+  available that such a writer cannot forge.
 - **Run user Git hooks during the internal finish commit.** Rejected because a
   hook may mutate unrelated working-tree files even when it rejects the commit,
   and Grove cannot safely snapshot and restore arbitrary user data. Reopen only

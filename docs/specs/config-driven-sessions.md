@@ -809,7 +809,24 @@ on an uncheckable witness.
 Auxiliary Git-index backups or success images live in the workspace's VCS
 administration directory because they must not enter jj's working-copy commit.
 They are keyed to and valid only while the in-tree finish witness exists. Their
-unlocked bytes never classify a rootless invocation. A post-commit cleanup
+unlocked bytes never classify a rootless invocation.
+
+Changing an auxiliary's artifact identity is itself a small transaction: a state
+document records both inodes, the exchange is atomic, and recovery re-derives its
+phase from the recorded identities. Each side of the exchange is staged under a
+freshly drawn name inside that auxiliary's own reserved role-and-attempt
+namespace, and every staged entry carries that namespace in its name, so an
+interruption before the state document is durable leaves an entry attributable to
+the attempt that created it rather than an anonymous temporary. Nothing on an
+ordinary path removes an entry Grove did not create. The namespace also bounds,
+rather than proves, ownership: a writer able to rewrite the state document in
+place can make it agree with itself, so recovery validates that both staged names
+lie inside the namespace and refuses any other. That writer already owns the
+administration directory outright, so the residual redirection confers nothing.
+While a replacement state document is present the auxiliary is mid-transition, so
+disposing or activating through a pre-replacement snapshot fails closed with the
+state document named; only recovery, which settles the replacement first, retires
+the marker. A post-commit cleanup
 quarantine likewise carries no workflow meaning after the atomic task-root
 rename. `finish-commit` owns immediate best-effort no-follow disposal; a later
 driver, after it owns the lease and has invalidated the previous epoch, reaps
@@ -1176,6 +1193,11 @@ Through that seam, cover:
 - quarantine disposal that unlinks rather than follows symlinks, immediate
   best-effort cleanup, and later lease-owned reaping of orphaned internal
   auxiliaries/quarantines without using them for lifecycle classification;
+- auxiliary artifact-identity replacement: interruption on either side of the
+  state document, a clean same-attempt retry, both staged names refused outside
+  the auxiliary's reserved role-and-attempt namespace, substituted or symlinked
+  staged entries left byte-identical, and a synchronous mid-transition failure
+  whose caller-held snapshot refuses to dispose so recovery can still settle;
 - a completion signal written after the successful deletion commit followed by
   driver death before post-reap interpretation: replacement cleanup treats the
   abandoned channel as coordination rather than a finish receipt, then follows

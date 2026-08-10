@@ -6,9 +6,9 @@ use super::super::{
     attach_cleanup_failure, create_temporary_marker, remove_temporary_marker, FileIdentity,
 };
 use super::{
-    artifact_file_name, ensure_regular_file, is_staging_replacement_name, marker_file_name,
-    read_marker, validate_component, validate_marker, validate_marker_binding, AuxiliaryMarker,
-    AuxiliaryRole, MarkerDocument,
+    artifact_file_name, create_staging_entry, ensure_regular_file, is_staging_marker_name,
+    is_staging_replacement_name, marker_file_name, read_marker, validate_component,
+    validate_marker, validate_marker_binding, AuxiliaryMarker, AuxiliaryRole, MarkerDocument,
 };
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -79,7 +79,14 @@ pub(super) fn publish_marker_replacement(
     staged_artifact_name: &OsStr,
 ) -> Result<()> {
     let marker_body = serialize_json(marker, "finish auxiliary replacement marker")?;
-    let (mut staged_file, staged_name, staged_identity) = create_temporary_marker(parent)?;
+    let canonical_name = marker_path
+        .file_name()
+        .context("finish auxiliary marker has no file name")?;
+    let parent_path = marker_path
+        .parent()
+        .context("finish auxiliary marker has no parent")?;
+    let (mut staged_file, staged_name, staged_identity) =
+        create_staging_entry(parent, parent_path, canonical_name)?;
     if let Err(error) = staged_file.write_all(&marker_body) {
         let cleanup = remove_temporary_marker(parent, &staged_name, staged_identity);
         return Err(attach_cleanup_failure(
@@ -89,9 +96,6 @@ pub(super) fn publish_marker_replacement(
         ));
     }
 
-    let canonical_name = marker_path
-        .file_name()
-        .context("finish auxiliary marker has no file name")?;
     let state_path = replacement_state_path(marker_path)?;
     if let Err(error) = publish_state(parent, &state_path, |state_identity| {
         MarkerReplacementState {
@@ -815,6 +819,11 @@ fn validate_state(
         != Some(replacement_state_file_name(role, attempt_identity).as_os_str())
         || state.canonical_name != canonical_name.as_bytes()
         || state.artifact_name != artifact_file_name(role, attempt_identity).as_bytes()
+        || !is_staging_marker_name(
+            role,
+            attempt_identity,
+            OsStr::from_bytes(&state.staged_name),
+        )
         || !is_staging_replacement_name(
             role,
             attempt_identity,
@@ -926,7 +935,7 @@ pub(super) fn replacement_state_file_name(role: AuxiliaryRole, attempt_identity:
     OsString::from_vec(name)
 }
 
-fn replacement_state_path(marker_path: &Path) -> Result<PathBuf> {
+pub(super) fn replacement_state_path(marker_path: &Path) -> Result<PathBuf> {
     let marker_name = marker_path
         .file_name()
         .context("finish auxiliary marker has no file name")?;

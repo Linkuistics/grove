@@ -371,6 +371,136 @@ fn recovery_refuses_a_replacement_state_that_redirects_the_artifact_exchange() {
     assert!(marker.is_file());
 }
 
+/// Parsing as a Grove marker is not evidence that Grove created the entry. A
+/// state document rewritten in place must not be able to adopt a marker outside
+/// this role and attempt's reserved staging namespace, because settlement
+/// exchanges that entry into the canonical marker name and later unlinks it.
+#[test]
+fn recovery_refuses_a_replacement_state_that_adopts_a_foreign_staged_marker() {
+    let (temporary, target, prepared, marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let staged_marker = staged_marker_path(&replacement_state);
+    let staged_artifact = staged_artifact_path(&replacement_state);
+    let external = temporary.path().join("external-user-marker");
+    fs::copy(&staged_marker, &external).unwrap();
+    let external_identity = entry_identity(&external);
+    let artifact_inode = entry_identity(&artifact).inode;
+    let staged_inode = entry_identity(&staged_artifact).inode;
+
+    let mut body: serde_json::Value =
+        serde_json::from_slice(&fs::read(&replacement_state).unwrap()).unwrap();
+    body["staged_name"] = serde_json::to_value(b"external-user-marker".to_vec()).unwrap();
+    body["replacement"]["identity"]["device"] = external_identity.device.into();
+    body["replacement"]["identity"]["inode"] = external_identity.inode.into();
+    fs::write(
+        &replacement_state,
+        serde_json::to_vec_pretty(&body).unwrap(),
+    )
+    .unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert!(external.is_file(), "{error:#}");
+    assert_eq!(
+        entry_identity(&external).inode,
+        external_identity.inode,
+        "{error:#}"
+    );
+    assert_eq!(entry_identity(&artifact).inode, artifact_inode, "{error:#}");
+    assert_eq!(
+        entry_identity(&staged_artifact).inode,
+        staged_inode,
+        "{error:#}"
+    );
+    assert!(
+        format!("{error:#}").contains("does not match its role and attempt"),
+        "{error:#}"
+    );
+    assert!(marker.is_file());
+    assert!(staged_marker.is_file());
+}
+
+/// A process death before the state document is durable leaves the staged
+/// marker behind, so its name alone has to say which role and attempt owns it.
+#[test]
+fn the_staged_marker_is_named_in_this_attempts_reserved_namespace() {
+    let (_temporary, _target, _prepared, marker, replacement_state) = prepared_rebinding();
+    let staged_marker = staged_marker_path(&replacement_state);
+
+    let staged = staged_marker
+        .file_name()
+        .unwrap()
+        .as_encoded_bytes()
+        .to_vec();
+    let prefix = [marker.file_name().unwrap().as_encoded_bytes(), b".staging-"].concat();
+    let nonce = staged.strip_prefix(prefix.as_slice()).unwrap_or_else(|| {
+        panic!("staged marker {staged_marker:?} is outside this attempt's staging namespace")
+    });
+    assert_eq!(nonce.len(), 32, "{staged_marker:?}");
+    assert!(nonce.iter().all(u8::is_ascii_hexdigit), "{staged_marker:?}");
+}
+
+/// The production caller discards the temporary index through the
+/// `AuxiliaryCleanup` value it already holds. Once the replacement state is
+/// published that snapshot describes a superseded phase, so disposing through
+/// it would remove the canonical pair settlement and recovery still need.
+#[test]
+fn a_failed_replacement_refuses_to_dispose_through_a_stale_snapshot() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let filtered = temporary.path().join("filtered-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+    let replacement_state = replacement_state_path(&marker);
+
+    let interruption = prepared
+        .replace_artifact_from_with(&filtered, |step| {
+            if step == ReplacementPublicationStep::AfterStatePublication {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated mid-settle failure",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+    assert!(
+        format!("{interruption:#}").contains("simulated mid-settle failure"),
+        "{interruption:#}"
+    );
+
+    let disposal = prepared.dispose().unwrap_err();
+
+    assert!(
+        format!("{disposal:#}").contains("replacement is still in progress"),
+        "{disposal:#}"
+    );
+    assert!(marker.is_file(), "{disposal:#}");
+    assert!(artifact.is_file(), "{disposal:#}");
+    assert!(replacement_state.is_file(), "{disposal:#}");
+
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "filtered index\n");
+    recovered.dispose().unwrap();
+    assert!(!artifact.exists());
+    assert!(!marker.exists());
+    assert!(staging_entries(temporary.path()).is_empty());
+}
+
 #[test]
 fn recovery_refuses_a_substituted_staged_marker_before_exchanging_artifacts() {
     let (temporary, target, prepared, marker, replacement_state) = prepared_rebinding();

@@ -2,7 +2,7 @@ mod marker_replacement;
 
 use self::marker_replacement::{
     publish_marker_replacement, recover_marker_replacement, replacement_state_file_name,
-    settle_marker_replacement, MarkerReplacementStep,
+    replacement_state_path, settle_marker_replacement, MarkerReplacementStep,
 };
 use super::unix::{
     create_new_file_at, directory_names, entry_exists, open_directory, open_file_at,
@@ -335,9 +335,13 @@ impl AuxiliaryCleanup {
     /// The replacement must sit at a freshly drawn staging name inside this
     /// auxiliary's own role-and-attempt namespace. The state document this
     /// publishes is the only authority a later recovery has for the two names it
-    /// exchanges, so accepting an arbitrary regular file here would let that
-    /// document redirect the exchange at an unrelated entry in the same
-    /// directory.
+    /// exchanges, and a writer able to rewrite that document in place can always
+    /// make it agree with itself. The namespace is therefore a bound rather than
+    /// a proof: it keeps every entry such a document can name inside Grove's own
+    /// reserved staging names in the VCS administration directory, which that
+    /// writer already owns. Accepting an arbitrary regular file here would break
+    /// the bound and let the document redirect the exchange at an unrelated
+    /// entry in the same directory.
     fn bind_artifact_replacement(
         &mut self,
         staging_name: &OsStr,
@@ -455,11 +459,10 @@ impl AuxiliaryCleanup {
         self.open_validated_artifact(&parent, &artifact_name)?
             .context("marked finish auxiliary artifact is absent before publication")?;
 
-        let (mut staging, staging_name, staging_identity) = create_staging_replacement(
+        let (mut staging, staging_name, staging_identity) = create_staging_entry(
             &parent,
             parent_path,
-            self.marker.role,
-            &self.marker.attempt_identity,
+            artifact_file_name(self.marker.role, &self.marker.attempt_identity).as_os_str(),
         )?;
         if let Err(error) = io::copy(&mut source, &mut staging) {
             let cleanup = remove_artifact(&parent, &staging_name, staging_identity);
@@ -597,6 +600,7 @@ impl AuxiliaryCleanup {
             )
         })?;
         self.revalidate_marker(&parent)?;
+        self.ensure_no_pending_replacement(&parent)?;
         let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
         let target_name = OsString::from_vec(self.marker.target_name.clone());
         if self
@@ -650,6 +654,7 @@ impl AuxiliaryCleanup {
             )
         })?;
         self.revalidate_marker(&parent)?;
+        self.ensure_no_pending_replacement(&parent)?;
         let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
         let artifact = match open_file_at(&parent, &artifact_name) {
             Ok(artifact) => artifact,
@@ -698,6 +703,31 @@ impl AuxiliaryCleanup {
             )
         })?;
         self.remove_marker(&parent)
+    }
+
+    /// Refuse to retire a marker whose replacement is still on disk.
+    ///
+    /// A published replacement state means this value's snapshot describes a
+    /// superseded phase: the canonical marker and artifact are mid-transition,
+    /// and only settlement decides which identities survive. Both still validate
+    /// against the pre-replacement snapshot until the artifact exchange runs, so
+    /// a caller holding that snapshot — the production path discards the
+    /// temporary index through exactly this value — would remove the pair
+    /// settlement and recovery need, turning a synchronous failure into an
+    /// unrecoverable shape. Recovery re-reads this auxiliary from disk and
+    /// settles the replacement first, so it never reaches this guard.
+    fn ensure_no_pending_replacement(&self, parent: &File) -> Result<()> {
+        let state_path = replacement_state_path(&self.marker_path)?;
+        let state_name = state_path
+            .file_name()
+            .context("finish auxiliary replacement state has no file name")?;
+        if entry_exists(parent, state_name)? {
+            bail!(
+                "finish auxiliary replacement is still in progress at {}; recovery must settle it before this marker can be retired",
+                state_path.display()
+            );
+        }
+        Ok(())
     }
 
     fn revalidate_marker(&self, parent: &File) -> Result<()> {
@@ -1002,37 +1032,24 @@ fn artifact_file_name(role: AuxiliaryRole, attempt_identity: &str) -> OsString {
     )
 }
 
-fn staging_replacement_file_name(
-    role: AuxiliaryRole,
-    attempt_identity: &str,
-    nonce: &str,
-) -> OsString {
-    OsString::from_vec(
-        [
-            artifact_file_name(role, attempt_identity).as_bytes(),
-            STAGING_INFIX,
-            nonce.as_bytes(),
-        ]
-        .concat(),
-    )
+fn staging_file_name(base_name: &OsStr, nonce: &str) -> OsString {
+    OsString::from_vec([base_name.as_bytes(), STAGING_INFIX, nonce.as_bytes()].concat())
 }
 
-/// A name only this role and attempt can have drawn.
+/// Whether `name` is a staging entry belonging to `base_name`.
 ///
-/// The role-and-attempt prefix keeps a forged state document inside Grove's own
-/// namespace, and the nonce keeps the name undrawable in advance — together they
-/// are what lets the document be published before the entry is reachable by any
-/// name a reader could derive.
-pub(super) fn is_staging_replacement_name(
-    role: AuxiliaryRole,
-    attempt_identity: &str,
-    name: &OsStr,
-) -> bool {
-    let prefix = [
-        artifact_file_name(role, attempt_identity).as_bytes(),
-        STAGING_INFIX,
-    ]
-    .concat();
+/// This is what bounds a forged state document, not what proves ownership. The
+/// nonce makes the name undrawable in advance, so nothing else can *anticipate*
+/// the entry a live publication is about to claim; but a document rewritten in
+/// place can always describe an entry its author put at some other name of this
+/// shape. What the prefix guarantees is that every such entry lies inside this
+/// role and attempt's own reserved namespace in the VCS administration
+/// directory — a writer who can forge the document already owns that directory
+/// outright, so the redirection confers nothing. No name outside the namespace
+/// is reachable, and no ordinary path ever removes an entry Grove did not
+/// create.
+fn is_staging_file_name(base_name: &OsStr, name: &OsStr) -> bool {
+    let prefix = [base_name.as_bytes(), STAGING_INFIX].concat();
     name.as_bytes()
         .strip_prefix(prefix.as_slice())
         .is_some_and(|nonce| {
@@ -1040,18 +1057,38 @@ pub(super) fn is_staging_replacement_name(
         })
 }
 
-fn create_staging_replacement(
-    parent: &File,
-    parent_path: &Path,
+pub(super) fn is_staging_replacement_name(
     role: AuxiliaryRole,
     attempt_identity: &str,
+    name: &OsStr,
+) -> bool {
+    is_staging_file_name(artifact_file_name(role, attempt_identity).as_os_str(), name)
+}
+
+pub(super) fn is_staging_marker_name(
+    role: AuxiliaryRole,
+    attempt_identity: &str,
+    name: &OsStr,
+) -> bool {
+    is_staging_file_name(marker_file_name(role, attempt_identity).as_os_str(), name)
+}
+
+/// Create an entry under a freshly drawn name belonging to `base_name`.
+///
+/// A staging entry outlives the publication that creates it, so its name — not
+/// a document that may not have been written yet — is what says which role and
+/// attempt owns it after a process death.
+fn create_staging_entry(
+    parent: &File,
+    parent_path: &Path,
+    base_name: &OsStr,
 ) -> Result<(File, OsString, FileIdentity)> {
     for _ in 0..crate::driver_lease::RANDOM_DRAW_RETRY_LIMIT {
-        let nonce = crate::driver_lease::fresh_nonce()
-            .context("drawing finish auxiliary replacement staging nonce")?;
-        let name = staging_replacement_file_name(role, attempt_identity, &nonce);
+        let nonce =
+            crate::driver_lease::fresh_nonce().context("drawing finish auxiliary staging nonce")?;
+        let name = staging_file_name(base_name, &nonce);
         validate_file_name(parent, &name)
-            .context("staged finish auxiliary replacement name is not valid for its directory")?;
+            .context("staged finish auxiliary name is not valid for its directory")?;
         match create_new_file_at(parent, &name) {
             Ok(file) => {
                 let identity = FileIdentity::from_file(&file)?;
@@ -1061,7 +1098,7 @@ fn create_staging_replacement(
             Err(error) => {
                 return Err(error).with_context(|| {
                     format!(
-                        "creating staged finish auxiliary replacement in {}",
+                        "creating staged finish auxiliary entry in {}",
                         parent_path.display()
                     )
                 })
@@ -1069,7 +1106,7 @@ fn create_staging_replacement(
         }
     }
     bail!(
-        "could not allocate a staged finish auxiliary replacement in {} after {} attempts",
+        "could not allocate a staged finish auxiliary entry in {} after {} attempts",
         parent_path.display(),
         crate::driver_lease::RANDOM_DRAW_RETRY_LIMIT
     )

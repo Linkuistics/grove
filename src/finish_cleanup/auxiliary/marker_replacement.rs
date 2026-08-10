@@ -22,10 +22,14 @@ const REPLACEMENT_SUFFIX: &[u8] = b".replacing";
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum MarkerReplacementStep {
+    BeforeArtifactExchange,
+    AfterArtifactExchange,
     BeforeExchange,
     AfterExchange,
     BeforeRetiredMarkerRemoval,
     AfterRetiredMarkerRemoval,
+    BeforeRetiredArtifactRemoval,
+    AfterRetiredArtifactRemoval,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -38,6 +42,10 @@ struct MarkerReplacementState {
     state_identity: FileIdentity,
     canonical_name: Vec<u8>,
     staged_name: Vec<u8>,
+    artifact_name: Vec<u8>,
+    staged_artifact_name: Vec<u8>,
+    previous_artifact: FileIdentity,
+    replacement_artifact: FileIdentity,
     previous: MarkerSnapshot,
     replacement: MarkerSnapshot,
 }
@@ -66,6 +74,8 @@ pub(super) fn publish_marker_replacement(
     marker: &AuxiliaryMarker,
     previous_identity: FileIdentity,
     previous_sha256: &str,
+    previous_artifact: FileIdentity,
+    staged_artifact_name: &OsStr,
 ) -> Result<()> {
     let marker_body = serialize_json(marker, "finish auxiliary replacement marker")?;
     let (mut staged_file, staged_name, staged_identity) = create_temporary_marker(parent)?;
@@ -92,6 +102,13 @@ pub(super) fn publish_marker_replacement(
             state_identity,
             canonical_name: canonical_name.as_bytes().to_vec(),
             staged_name: staged_name.as_bytes().to_vec(),
+            artifact_name: marker.artifact_name.clone(),
+            staged_artifact_name: staged_artifact_name.as_bytes().to_vec(),
+            previous_artifact,
+            replacement_artifact: FileIdentity {
+                device: marker.device,
+                inode: marker.inode,
+            },
             previous: MarkerSnapshot {
                 identity: previous_identity,
                 sha256: previous_sha256.to_owned(),
@@ -162,6 +179,7 @@ pub(super) fn settle_marker_replacement(
         finish_handle,
         attempt_identity,
     )?;
+    settle_artifact_exchange(parent, marker_path, &state, checkpoint)?;
     match classify_phase(parent, marker_path, target_name, &state)? {
         ReplacementPhase::BeforeExchange => {
             checkpoint(MarkerReplacementStep::BeforeExchange)
@@ -187,6 +205,7 @@ pub(super) fn settle_marker_replacement(
         }
         ReplacementPhase::AfterExchange { .. } => {}
         ReplacementPhase::RetiredMarkerRemoved => {
+            remove_retired_artifact(parent, marker_path, &state, checkpoint)?;
             remove_state_document(parent, &state_path, &state)?;
             return Ok(());
         }
@@ -233,7 +252,208 @@ pub(super) fn settle_marker_replacement(
         &state,
         PhaseExpectation::RetiredMarkerRemoved,
     )?;
+    remove_retired_artifact(parent, marker_path, &state, checkpoint)?;
     remove_state_document(parent, &state_path, &state)
+}
+
+#[derive(Clone, Copy)]
+enum ArtifactReplacementPhase {
+    BeforeExchange,
+    AfterExchange,
+    RetiredArtifactRemoved,
+}
+
+fn settle_artifact_exchange(
+    parent: &File,
+    marker_path: &Path,
+    state: &StateDocument,
+    checkpoint: &mut impl FnMut(MarkerReplacementStep) -> io::Result<()>,
+) -> Result<()> {
+    match classify_artifact_phase(parent, marker_path, state)? {
+        ArtifactReplacementPhase::BeforeExchange => {
+            checkpoint(MarkerReplacementStep::BeforeArtifactExchange)
+                .context("marker-replacement checkpoint before artifact exchange")?;
+            revalidate_artifact_phase(
+                parent,
+                marker_path,
+                state,
+                ArtifactReplacementPhase::BeforeExchange,
+            )?;
+            let artifact_name = OsStr::from_bytes(&state.state.artifact_name);
+            let staged_name = OsStr::from_bytes(&state.state.staged_artifact_name);
+            rename_at_exchange(parent, artifact_name, parent, staged_name).with_context(|| {
+                format!(
+                    "atomically exchanging finish auxiliary artifact {:?} with bound replacement {:?}",
+                    artifact_name, staged_name
+                )
+            })?;
+            checkpoint(MarkerReplacementStep::AfterArtifactExchange)
+                .context("marker-replacement checkpoint after artifact exchange")?;
+            revalidate_artifact_phase(
+                parent,
+                marker_path,
+                state,
+                ArtifactReplacementPhase::AfterExchange,
+            )?;
+            Ok(())
+        }
+        ArtifactReplacementPhase::AfterExchange
+        | ArtifactReplacementPhase::RetiredArtifactRemoved => Ok(()),
+    }
+}
+
+fn remove_retired_artifact(
+    parent: &File,
+    marker_path: &Path,
+    state: &StateDocument,
+    checkpoint: &mut impl FnMut(MarkerReplacementStep) -> io::Result<()>,
+) -> Result<()> {
+    match classify_artifact_phase(parent, marker_path, state)? {
+        ArtifactReplacementPhase::AfterExchange => {
+            checkpoint(MarkerReplacementStep::BeforeRetiredArtifactRemoval)
+                .context("marker-replacement checkpoint before retired artifact removal")?;
+            revalidate_artifact_phase(
+                parent,
+                marker_path,
+                state,
+                ArtifactReplacementPhase::AfterExchange,
+            )?;
+            let staged_name = OsStr::from_bytes(&state.state.staged_artifact_name);
+            unlink_at(parent, staged_name, 0).with_context(|| {
+                format!(
+                    "removing retired finish auxiliary artifact {:?}",
+                    staged_name
+                )
+            })?;
+            checkpoint(MarkerReplacementStep::AfterRetiredArtifactRemoval)
+                .context("marker-replacement checkpoint after retired artifact removal")?;
+            revalidate_artifact_phase(
+                parent,
+                marker_path,
+                state,
+                ArtifactReplacementPhase::RetiredArtifactRemoved,
+            )?;
+            Ok(())
+        }
+        ArtifactReplacementPhase::RetiredArtifactRemoved => Ok(()),
+        ArtifactReplacementPhase::BeforeExchange => bail!(
+            "finish auxiliary retired artifact cannot be removed before its replacement is published at {}",
+            marker_path.display()
+        ),
+    }
+}
+
+fn revalidate_artifact_phase(
+    parent: &File,
+    marker_path: &Path,
+    expected_state: &StateDocument,
+    expectation: ArtifactReplacementPhase,
+) -> Result<()> {
+    let state_path = replacement_state_path(marker_path)?;
+    let observed = read_validated_state(
+        parent,
+        &state_path,
+        marker_path,
+        expected_state.state.role,
+        &expected_state.state.finish_handle,
+        &expected_state.state.attempt_identity,
+    )?;
+    if observed.identity != expected_state.identity
+        || observed.sha256 != expected_state.sha256
+        || observed.state != expected_state.state
+    {
+        bail!(
+            "finish auxiliary marker replacement state identity changed at {}; replacement left untouched",
+            state_path.display()
+        );
+    }
+    let observed_phase = classify_artifact_phase(parent, marker_path, expected_state)?;
+    if !matches!(
+        (observed_phase, expectation),
+        (
+            ArtifactReplacementPhase::BeforeExchange,
+            ArtifactReplacementPhase::BeforeExchange
+        ) | (
+            ArtifactReplacementPhase::AfterExchange,
+            ArtifactReplacementPhase::AfterExchange
+        ) | (
+            ArtifactReplacementPhase::RetiredArtifactRemoved,
+            ArtifactReplacementPhase::RetiredArtifactRemoved
+        )
+    ) {
+        bail!(
+            "finish auxiliary artifact replacement phase changed at {}; replacement left untouched",
+            state_path.display()
+        );
+    }
+    Ok(())
+}
+
+fn classify_artifact_phase(
+    parent: &File,
+    marker_path: &Path,
+    state: &StateDocument,
+) -> Result<ArtifactReplacementPhase> {
+    let artifact_name = OsStr::from_bytes(&state.state.artifact_name);
+    let artifact_path = marker_path.with_file_name(artifact_name);
+    let canonical = read_artifact_identity(parent, &artifact_path, artifact_name)?
+        .context("canonical finish auxiliary artifact is absent during replacement")?;
+    let staged_name = OsStr::from_bytes(&state.state.staged_artifact_name);
+    let staged_path = marker_path.with_file_name(staged_name);
+    let staged = read_artifact_identity(parent, &staged_path, staged_name)?;
+    match staged {
+        Some(staged)
+            if canonical == state.state.previous_artifact
+                && staged == state.state.replacement_artifact =>
+        {
+            Ok(ArtifactReplacementPhase::BeforeExchange)
+        }
+        Some(staged)
+            if canonical == state.state.replacement_artifact
+                && staged == state.state.previous_artifact =>
+        {
+            Ok(ArtifactReplacementPhase::AfterExchange)
+        }
+        None if canonical == state.state.replacement_artifact => {
+            Ok(ArtifactReplacementPhase::RetiredArtifactRemoved)
+        }
+        _ => bail!(
+            "bound finish auxiliary artifact replacement identity changed around {}; both artifacts were left untouched",
+            marker_path.display()
+        ),
+    }
+}
+
+fn read_artifact_identity(
+    parent: &File,
+    path: &Path,
+    name: &OsStr,
+) -> Result<Option<FileIdentity>> {
+    let artifact = match open_file_at(parent, name) {
+        Ok(artifact) => artifact,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            if entry_exists(parent, name)? {
+                bail!(
+                    "finish auxiliary artifact appeared during replacement at {}; both artifacts were left untouched",
+                    path.display()
+                );
+            }
+            return Ok(None);
+        }
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "opening finish auxiliary artifact replacement {} without following symlinks",
+                    path.display()
+                )
+            })
+        }
+    };
+    ensure_regular_file(&artifact, path)?;
+    let identity = FileIdentity::from_file(&artifact)?;
+    validate_entry_identity(parent, name, identity)
+        .context("finish auxiliary artifact replacement changed during validation")?;
+    Ok(Some(identity))
 }
 
 #[derive(Clone, Copy)]
@@ -346,19 +566,57 @@ fn classify_phase(
         Some(staged)
             if canonical_is_previous && matches_snapshot(&staged, &state.state.replacement) =>
         {
+            validate_bound_artifact(parent, marker_path, &staged.marker)?;
             Ok(ReplacementPhase::BeforeExchange)
         }
         Some(staged)
             if canonical_is_replacement && matches_snapshot(&staged, &state.state.previous) =>
         {
+            validate_bound_artifact(parent, marker_path, &canonical.marker)?;
             Ok(ReplacementPhase::AfterExchange { retired: staged })
         }
-        None if canonical_is_replacement => Ok(ReplacementPhase::RetiredMarkerRemoved),
+        None if canonical_is_replacement => {
+            validate_bound_artifact(parent, marker_path, &canonical.marker)?;
+            Ok(ReplacementPhase::RetiredMarkerRemoved)
+        }
         _ => bail!(
             "finish auxiliary marker replacement identity changed around {}; all entries were left untouched",
             marker_path.display()
         ),
     }
+}
+
+fn validate_bound_artifact(
+    parent: &File,
+    marker_path: &Path,
+    marker: &AuxiliaryMarker,
+) -> Result<()> {
+    let artifact_name = OsStr::from_bytes(&marker.artifact_name);
+    let artifact_path = marker_path.with_file_name(artifact_name);
+    let artifact = open_file_at(parent, artifact_name).with_context(|| {
+        format!(
+            "opening bound finish auxiliary replacement {} without following symlinks",
+            artifact_path.display()
+        )
+    })?;
+    ensure_regular_file(&artifact, &artifact_path)?;
+    let observed = FileIdentity::from_file(&artifact)?;
+    let expected = FileIdentity {
+        device: marker.device,
+        inode: marker.inode,
+    };
+    if observed != expected {
+        bail!(
+            "bound finish auxiliary artifact identity does not match replacement marker {}: expected device/inode {}/{}, observed {}/{}; replacement left untouched",
+            marker_path.display(),
+            expected.device,
+            expected.inode,
+            observed.device,
+            observed.inode
+        );
+    }
+    validate_entry_identity(parent, artifact_name, expected)
+        .context("bound finish auxiliary artifact changed before marker adoption")
 }
 
 fn matches_snapshot(document: &MarkerDocument, snapshot: &MarkerSnapshot) -> bool {
@@ -488,12 +746,15 @@ fn validate_state(
     }
     validate_component(state_path, "canonical marker", &state.canonical_name)?;
     validate_component(state_path, "staged marker", &state.staged_name)?;
+    validate_component(state_path, "canonical artifact", &state.artifact_name)?;
+    validate_component(state_path, "staged artifact", &state.staged_artifact_name)?;
     let canonical_name = marker_path
         .file_name()
         .context("finish auxiliary marker has no file name")?;
     if state_path.file_name()
         != Some(replacement_state_file_name(role, attempt_identity).as_os_str())
         || state.canonical_name != canonical_name.as_bytes()
+        || state.artifact_name == state.staged_artifact_name
     {
         bail!(
             "finish auxiliary marker replacement path does not match its role and attempt at {}",

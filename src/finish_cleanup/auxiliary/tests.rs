@@ -34,12 +34,20 @@ fn staged_marker_path(replacement_state: &std::path::Path) -> std::path::PathBuf
     replacement_state.with_file_name(OsString::from_vec(staged_name))
 }
 
+fn staged_artifact_path(replacement_state: &std::path::Path) -> std::path::PathBuf {
+    let body: serde_json::Value =
+        serde_json::from_slice(&fs::read(replacement_state).unwrap()).unwrap();
+    let staged_name: Vec<u8> =
+        serde_json::from_value(body["staged_artifact_name"].clone()).unwrap();
+    replacement_state.with_file_name(OsString::from_vec(staged_name))
+}
+
 fn prepared_rebinding() -> (TempDir, PathBuf, AuxiliaryCleanup, PathBuf, PathBuf) {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
     fs::write(&source, "old index\n").unwrap();
-    let prepared = prepare_auxiliary(
+    let mut prepared = prepare_auxiliary(
         &source,
         &target,
         AuxiliaryRole::GitIndexSuccess,
@@ -52,8 +60,160 @@ fn prepared_rebinding() -> (TempDir, PathBuf, AuxiliaryCleanup, PathBuf, PathBuf
     let replacement_state = replacement_state_path(&marker);
     let replacement_artifact = temporary.path().join("replacement-index");
     fs::write(&replacement_artifact, "new index\n").unwrap();
-    fs::rename(replacement_artifact, &artifact).unwrap();
+    prepared
+        .bind_artifact_replacement(&replacement_artifact)
+        .unwrap();
     (temporary, target, prepared, marker, replacement_state)
+}
+
+#[test]
+fn recovery_publishes_only_the_exact_bound_replacement_inode() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let replacement = temporary.path().join("index.lock");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&replacement, "filtered index\n").unwrap();
+    let expected_inode = fs::symlink_metadata(&replacement).unwrap().ino();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+
+    prepared.bind_artifact_replacement(&replacement).unwrap();
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        fs::symlink_metadata(&artifact).unwrap().ino(),
+        expected_inode
+    );
+    assert!(!replacement.exists());
+    recovered.dispose().unwrap();
+    assert!(!artifact.exists());
+}
+
+#[test]
+fn an_interruption_before_artifact_exchange_preserves_both_bound_inodes_for_recovery() {
+    let (_temporary, target, mut prepared, _marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let replacement = staged_artifact_path(&replacement_state);
+    let old_inode = fs::symlink_metadata(&artifact).unwrap().ino();
+    let replacement_inode = fs::symlink_metadata(&replacement).unwrap().ino();
+
+    let interruption = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeArtifactExchange {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated interruption before artifact exchange",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{interruption:#}").contains("simulated interruption"));
+    assert_eq!(fs::symlink_metadata(&artifact).unwrap().ino(), old_inode);
+    assert_eq!(
+        fs::symlink_metadata(&replacement).unwrap().ino(),
+        replacement_inode
+    );
+    recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        fs::symlink_metadata(&artifact).unwrap().ino(),
+        replacement_inode
+    );
+    assert!(!replacement.exists());
+}
+
+#[test]
+fn recovery_rejects_an_unbound_regular_replacement_and_preserves_both_artifacts() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let intended = temporary.path().join("index.lock");
+    let preserved_intended = temporary.path().join("preserved-intended-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&intended, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+    let replacement_state = replacement_state_path(&marker);
+    prepared.bind_artifact_replacement(&intended).unwrap();
+    fs::rename(&intended, &preserved_intended).unwrap();
+    fs::write(&intended, "external index\n").unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert!(format!("{error:#}").contains("artifact replacement identity"));
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "old index\n");
+    assert_eq!(fs::read_to_string(&intended).unwrap(), "external index\n");
+    assert_eq!(
+        fs::read_to_string(&preserved_intended).unwrap(),
+        "filtered index\n"
+    );
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
+    use std::os::unix::fs::symlink;
+
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let intended = temporary.path().join("index.lock");
+    let preserved_intended = temporary.path().join("preserved-intended-index");
+    let victim = temporary.path().join("victim-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&intended, "filtered index\n").unwrap();
+    fs::write(&victim, "external index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    prepared.bind_artifact_replacement(&intended).unwrap();
+    fs::rename(&intended, &preserved_intended).unwrap();
+    symlink(&victim, &intended).unwrap();
+
+    let error =
+        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+
+    assert!(format!("{error:#}").contains("without following symlinks"));
+    assert_eq!(fs::read_to_string(&victim).unwrap(), "external index\n");
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "old index\n");
+    assert_eq!(
+        fs::read_to_string(&preserved_intended).unwrap(),
+        "filtered index\n"
+    );
+    assert!(intended
+        .symlink_metadata()
+        .unwrap()
+        .file_type()
+        .is_symlink());
 }
 
 #[test]

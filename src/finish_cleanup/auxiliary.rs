@@ -91,6 +91,7 @@ pub(crate) fn prepare_auxiliary(
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
     let replacement_state_name = replacement_state_file_name(role, attempt_identity);
+    let replacement_artifact_name = replacement_artifact_file_name(role, attempt_identity);
     let parent = open_directory(parent_path).with_context(|| {
         format!(
             "opening finish auxiliary directory {} without following symlinks",
@@ -100,9 +101,11 @@ pub(crate) fn prepare_auxiliary(
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
     validate_file_name(&parent, &replacement_state_name)?;
+    validate_file_name(&parent, &replacement_artifact_name)?;
     if entry_exists(&parent, &artifact_name)?
         || entry_exists(&parent, &marker_name)?
         || entry_exists(&parent, &replacement_state_name)?
+        || entry_exists(&parent, &replacement_artifact_name)?
     {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
@@ -196,12 +199,15 @@ pub(crate) fn ensure_auxiliary_available(
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
     let replacement_state_name = replacement_state_file_name(role, attempt_identity);
+    let replacement_artifact_name = replacement_artifact_file_name(role, attempt_identity);
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
     validate_file_name(&parent, &replacement_state_name)?;
+    validate_file_name(&parent, &replacement_artifact_name)?;
     if entry_exists(&parent, &artifact_name)?
         || entry_exists(&parent, &marker_name)?
         || entry_exists(&parent, &replacement_state_name)?
+        || entry_exists(&parent, &replacement_artifact_name)?
     {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
@@ -320,6 +326,128 @@ impl AuxiliaryCleanup {
             && self.marker.attempt_identity == owner.attempt_identity
     }
 
+    pub(crate) fn bind_artifact_replacement(&mut self, replacement_path: &Path) -> Result<()> {
+        let parent_path = self
+            .marker_path
+            .parent()
+            .context("finish auxiliary marker has no parent")?;
+        if replacement_path.parent() != Some(parent_path) {
+            bail!("finish auxiliary replacement must share the artifact directory");
+        }
+        if replacement_path == self.artifact_path {
+            bail!("finish auxiliary replacement must be bound before it replaces the artifact");
+        }
+        let parent = open_directory(parent_path).with_context(|| {
+            format!(
+                "opening finish auxiliary replacement-binding directory {}",
+                parent_path.display()
+            )
+        })?;
+        self.revalidate_marker(&parent)?;
+        let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
+        self.open_validated_artifact(&parent, &artifact_name)?
+            .context("marked finish auxiliary artifact is absent while binding its replacement")?;
+
+        let replacement_name = replacement_path
+            .file_name()
+            .context("finish auxiliary replacement has no file name")?;
+        let replacement = open_file_at(&parent, replacement_name).with_context(|| {
+            format!(
+                "opening intended finish auxiliary replacement {} without following symlinks",
+                replacement_path.display()
+            )
+        })?;
+        ensure_regular_file(&replacement, replacement_path)?;
+        let replacement_identity = FileIdentity::from_file(&replacement)?;
+        validate_entry_identity(&parent, replacement_name, replacement_identity)
+            .context("finish auxiliary replacement changed while binding its identity")?;
+
+        let mut replacement_marker = self.marker.clone();
+        replacement_marker.device = replacement_identity.device;
+        replacement_marker.inode = replacement_identity.inode;
+        publish_marker_replacement(
+            &parent,
+            &self.marker_path,
+            &replacement_marker,
+            self.marker_identity,
+            &self.marker_sha256,
+            self.artifact_identity(),
+            replacement_name,
+        )
+    }
+
+    pub(crate) fn replace_artifact_from(&mut self, source_path: &Path) -> Result<()> {
+        let source_parent_path = source_path
+            .parent()
+            .context("filtered finish auxiliary source has no parent")?;
+        let source_parent = open_directory(source_parent_path).with_context(|| {
+            format!(
+                "opening filtered finish auxiliary source directory {} without following symlinks",
+                source_parent_path.display()
+            )
+        })?;
+        let source_name = source_path
+            .file_name()
+            .context("filtered finish auxiliary source has no file name")?;
+        let mut source = open_file_at(&source_parent, source_name).with_context(|| {
+            format!(
+                "opening filtered finish auxiliary source {} without following symlinks",
+                source_path.display()
+            )
+        })?;
+        ensure_regular_file(&source, source_path)?;
+
+        let parent_path = self
+            .marker_path
+            .parent()
+            .context("finish auxiliary marker has no parent")?;
+        let parent = open_directory(parent_path).with_context(|| {
+            format!(
+                "opening finish auxiliary publication directory {} without following symlinks",
+                parent_path.display()
+            )
+        })?;
+        self.revalidate_marker(&parent)?;
+        let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
+        self.open_validated_artifact(&parent, &artifact_name)?
+            .context("marked finish auxiliary artifact is absent before publication")?;
+
+        let replacement_name =
+            replacement_artifact_file_name(self.marker.role, &self.marker.attempt_identity);
+        validate_file_name(&parent, &replacement_name)?;
+        let replacement_path = parent_path.join(&replacement_name);
+        let mut replacement =
+            create_new_file_at(&parent, &replacement_name).with_context(|| {
+                format!(
+                    "creating bound finish auxiliary replacement {}",
+                    replacement_path.display()
+                )
+            })?;
+        if let Err(error) = io::copy(&mut source, &mut replacement) {
+            let identity = FileIdentity::from_file(&replacement)?;
+            let cleanup = remove_artifact(&parent, &replacement_name, identity);
+            return Err(attach_cleanup_failure(
+                anyhow::Error::new(error).context("copying bound finish auxiliary replacement"),
+                cleanup,
+                "removing incomplete bound finish auxiliary replacement",
+            ));
+        }
+        let replacement_identity = FileIdentity::from_file(&replacement)?;
+        validate_entry_identity(&parent, &replacement_name, replacement_identity)
+            .context("bound finish auxiliary replacement changed after copying")?;
+        drop(replacement);
+
+        if let Err(error) = self.bind_artifact_replacement(&replacement_path) {
+            let cleanup = remove_artifact(&parent, &replacement_name, replacement_identity);
+            return Err(attach_cleanup_failure(
+                error,
+                cleanup,
+                "removing unpublished bound finish auxiliary replacement",
+            ));
+        }
+        self.rebind_artifact_identity()
+    }
+
     pub(crate) fn rebind_artifact_identity(&mut self) -> Result<()> {
         self.rebind_artifact_identity_with(|_| Ok(()))
     }
@@ -339,49 +467,22 @@ impl AuxiliaryCleanup {
             )
         })?;
         self.revalidate_marker(&parent)?;
-        let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
-        let artifact = open_file_at(&parent, &artifact_name).with_context(|| {
-            format!(
-                "opening changed finish auxiliary artifact {} without following symlinks",
-                self.artifact_path.display()
-            )
-        })?;
-        ensure_regular_file(&artifact, &self.artifact_path)?;
-        let artifact_identity = FileIdentity::from_file(&artifact)?;
-        validate_entry_identity(&parent, &artifact_name, artifact_identity)
-            .context("finish auxiliary artifact changed while rebinding its marker")?;
-        if artifact_identity.device == self.marker.device
-            && artifact_identity.inode == self.marker.inode
-        {
-            return Ok(());
-        }
-
-        let mut marker = self.marker.clone();
-        marker.device = artifact_identity.device;
-        marker.inode = artifact_identity.inode;
-        publish_marker_replacement(
-            &parent,
-            &self.marker_path,
-            &marker,
-            self.marker_identity,
-            &self.marker_sha256,
-        )?;
         settle_marker_replacement(
             &parent,
             &self.marker_path,
-            OsString::from_vec(marker.target_name.clone()).as_os_str(),
-            marker.role,
-            &marker.finish_handle,
-            &marker.attempt_identity,
+            OsString::from_vec(self.marker.target_name.clone()).as_os_str(),
+            self.marker.role,
+            &self.marker.finish_handle,
+            &self.marker.attempt_identity,
             &mut checkpoint,
         )?;
         *self = Self::from_marker_at(
             &parent,
             &self.marker_path,
-            OsString::from_vec(marker.target_name.clone()).as_os_str(),
-            marker.role,
-            &marker.finish_handle,
-            &marker.attempt_identity,
+            OsString::from_vec(self.marker.target_name.clone()).as_os_str(),
+            self.marker.role,
+            &self.marker.finish_handle,
+            &self.marker.attempt_identity,
         )?;
         Ok(())
     }
@@ -849,6 +950,16 @@ fn artifact_file_name(role: AuxiliaryRole, attempt_identity: &str) -> OsString {
             role.name().as_bytes(),
             b"-",
             attempt_identity.as_bytes(),
+        ]
+        .concat(),
+    )
+}
+
+fn replacement_artifact_file_name(role: AuxiliaryRole, attempt_identity: &str) -> OsString {
+    OsString::from_vec(
+        [
+            artifact_file_name(role, attempt_identity).as_bytes(),
+            b".filtered",
         ]
         .concat(),
     )

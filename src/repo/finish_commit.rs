@@ -1066,15 +1066,14 @@ impl GitIndexBackup {
             finish_handle,
             attempt_identity,
         )?;
-        if let Err(error) = remove_grove_entries(worktree, success_index.artifact_path()) {
-            discard_temporary_index(Some(&success_index));
-            return Err(
-                error.context("preparing the colocated Git index before the Jujutsu finish commit")
-            );
+        let success_artifact = success_index.artifact_path().to_path_buf();
+        match remove_grove_entries(worktree, &success_artifact, &mut success_index) {
+            Ok(_) => {}
+            Err(error) => {
+                return Err(error
+                    .context("preparing the colocated Git index before the Jujutsu finish commit"))
+            }
         }
-        success_index
-            .rebind_artifact_identity()
-            .context("recording the final identity of the successful colocated Git index")?;
         Ok(Some(success_index))
     }
 
@@ -1263,7 +1262,11 @@ fn restore_git_index(git_index: &Path, backup_index: &Path, had_git_index: bool)
     }
 }
 
-fn remove_grove_entries(worktree: &Path, git_index: &Path) -> Result<()> {
+fn remove_grove_entries(
+    worktree: &Path,
+    git_index: &Path,
+    success_index: &mut crate::finish_cleanup::AuxiliaryCleanup,
+) -> Result<bool> {
     let grove_paths = vcs_command(worktree, "git")
         .env("GIT_INDEX_FILE", git_index)
         .args(["ls-files", "-z", "--", ".grove"])
@@ -1276,11 +1279,21 @@ fn remove_grove_entries(worktree: &Path, git_index: &Path) -> Result<()> {
         );
     }
     if grove_paths.stdout.is_empty() {
-        return Ok(());
+        return Ok(false);
     }
 
+    let index_parent = git_index
+        .parent()
+        .context("preserved colocated Git index has no parent")?;
+    let staging = tempfile::Builder::new()
+        .prefix("GROVE-FINISH-FILTER-")
+        .tempdir_in(index_parent)
+        .context("creating a private staging directory for the filtered Git index")?;
+    let filtered_index = staging.path().join("index");
+    fs::copy(git_index, &filtered_index)
+        .context("copying the preserved colocated Git index into private staging")?;
     let child = vcs_command(worktree, "git")
-        .env("GIT_INDEX_FILE", git_index)
+        .env("GIT_INDEX_FILE", &filtered_index)
         .args(["update-index", "--force-remove", "-z", "--stdin"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1292,10 +1305,15 @@ fn remove_grove_entries(worktree: &Path, git_index: &Path) -> Result<()> {
         "git",
         &["update-index", "--force-remove", "-z", "--stdin"],
         output,
-    )
+    )?;
+    success_index
+        .replace_artifact_from(&filtered_index)
+        .context("publishing the filtered colocated Git index from private staging")?;
+    Ok(true)
 }
 
-fn write_child_stdin_and_wait(mut child: Child, input: &[u8]) -> Result<Output> {
+fn write_child_stdin_and_wait(child: Child, input: &[u8]) -> Result<Output> {
+    let mut child = child;
     let write_result = (|| -> Result<()> {
         child
             .stdin
@@ -1720,8 +1738,8 @@ fn vcs_command(worktree: &Path, binary: &str) -> Command {
 mod tests {
     use super::{
         finish_commit_message, git_bytes, jj_topology, prepare_jj_finish, prepare_plain_git_finish,
-        recover_finish, run_vcs_command, write_child_stdin_and_wait, FinishCommitOutcome,
-        FinishRecoveryOutcome, FinishStartAnchor, GitStartProof,
+        recover_finish, remove_grove_entries, run_vcs_command, write_child_stdin_and_wait,
+        FinishCommitOutcome, FinishRecoveryOutcome, FinishStartAnchor, GitStartProof,
     };
     use anyhow::anyhow;
     use std::fs;
@@ -1732,6 +1750,61 @@ mod tests {
     const FINISH_HANDLE: &str = "finish-k2";
     const FIRST_ATTEMPT: &str = "11111111111111111111111111111111";
     const SECOND_ATTEMPT: &str = "22222222222222222222222222222222";
+
+    #[test]
+    fn index_filter_publishes_from_private_staging_without_adopting_a_foreign_lock() {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path();
+        assert!(Command::new("git")
+            .current_dir(repository)
+            .args(["init", "--quiet", "."])
+            .status()
+            .unwrap()
+            .success());
+        run_vcs_command(repository, "git", &["config", "user.name", "Grove Tests"]).unwrap();
+        run_vcs_command(
+            repository,
+            "git",
+            &["config", "user.email", "grove@example.invalid"],
+        )
+        .unwrap();
+        fs::create_dir(repository.join(".grove")).unwrap();
+        fs::write(repository.join(".grove/task.md"), "task\n").unwrap();
+        fs::write(repository.join("kept"), "kept\n").unwrap();
+        run_vcs_command(repository, "git", &["add", ".grove/task.md", "kept"]).unwrap();
+
+        let git_index = repository.join(".git/index");
+        let mut prepared = crate::finish_cleanup::prepare_auxiliary(
+            &git_index,
+            &git_index,
+            crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+            FINISH_HANDLE,
+            FIRST_ATTEMPT,
+        )
+        .unwrap();
+        let artifact = prepared.artifact_path().to_path_buf();
+        let foreign_lock = artifact.with_file_name(format!(
+            "{}.lock",
+            artifact.file_name().unwrap().to_string_lossy()
+        ));
+        fs::write(&foreign_lock, "foreign lock\n").unwrap();
+        let foreign_lock_inode = fs::symlink_metadata(&foreign_lock).unwrap().ino();
+
+        assert!(remove_grove_entries(repository, &artifact, &mut prepared).unwrap());
+
+        let listed = super::vcs_command(repository, "git")
+            .env("GIT_INDEX_FILE", &artifact)
+            .args(["ls-files", "-z"])
+            .output()
+            .unwrap();
+        assert!(listed.status.success());
+        assert_eq!(listed.stdout, b"kept\0");
+        assert_eq!(fs::read_to_string(&foreign_lock).unwrap(), "foreign lock\n");
+        assert_eq!(
+            fs::symlink_metadata(&foreign_lock).unwrap().ino(),
+            foreign_lock_inode
+        );
+    }
 
     #[test]
     fn stdin_failure_waits_for_the_index_filter_child_before_returning() {

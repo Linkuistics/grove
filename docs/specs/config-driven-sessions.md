@@ -637,21 +637,33 @@ tracked deletion fingerprint must be non-empty, the reserved witness prefix
 must be absent from the starting repository state, and the workspace-control
 directory must provide an untracked same-device rename target. The helper opens
 `.grove/` itself as a no-follow directory, compares that descriptor's identity
-with the locked working-tree-root entry, and retains it for descriptor-relative
-transaction operations; a symlink or any non-directory task root is refused
-before mutation. A wholly untracked task tree, including one ignored before it
+with the `.grove` entry in the locked working-tree root, and retains it for
+descriptor-relative transaction operations; a symlink or any non-directory task
+root is refused before mutation. A wholly untracked task tree, including one ignored before it
 was ever recorded, has no deletion a focused finish commit can record, so finish
 refuses with the live tree unchanged and tells the operator to record it before
 retrying. A validation failure leaves the task tree and Git index byte-identical
 and creates no Grove-authored repository revision; jj's ordinary read-side
 operation/snapshot bookkeeping is not promoted to a stronger byte-identity
-claim. The helper then creates this reserved directory inside the task root:
+claim. The helper then creates two reserved directories inside the task root, in
+this order:
 
 ```text
+.grove/PREPARING-FINISH-<finish-handle>-<attempt-identity>/
 .grove/FINISHING-<finish-handle>/
 ```
 
-It writes a manifest naming the handle and the active session epoch's opaque
+The first exists only while the witness is being built. It is created **before**
+the repository adapters prepare anything, so every auxiliary they may write —
+notably a colocated Git-index backup — is already owned on disk by a named handle
+and attempt rather than by an anonymous in-flight process. Both prefixes are
+reserved, and every ordinary reader and mutator refuses either. Recovery
+discards a preparing witness by aborting that repository preparation, and fails
+closed on any content it cannot classify as its own; because publication
+precedes evacuation, a preparing witness never holds an evacuated entry.
+
+Inside it the helper writes a manifest naming the handle and the active session
+epoch's opaque
 128-bit launch nonce as the finish-attempt identity, plus a repository-start
 anchor, the exact tracked deletion fingerprint expected from that anchor, and
 every ordinary root entry's type, recursive digest, and recovery location. The
@@ -668,9 +680,13 @@ identity, and its parent commit identities. The expected deletion
 fingerprint is independent of the generated finish leaf: that leaf is normally
 working-tree-only and need never have existed in the starting VCS revision.
 Preparation rejects a reserved-name collision or second witness before mutation
-and writes a ready marker last; an incomplete witness contains no moved source
-and is discardable. Once ready, the helper evacuates every other `.grove/`
-entry beneath the witness by same-filesystem rename without following symlinks.
+and writes a ready marker last, then publishes the witness by renaming the
+preparing directory to `FINISHING-<finish-handle>/` in one atomic step; an
+incomplete witness contains no moved source and is discardable. Once ready, the
+helper revalidates that the root holds exactly the manifest's entries plus the
+witness, and that each still matches its recorded digest, before it evacuates
+every other `.grove/` entry beneath the witness by same-filesystem rename
+without following symlinks.
 The root now contains only the witness. Every ordinary tree reader and mutator
 refuses this shape, and the witness retains the only copies of the finish leaf,
 brief, format marker, terminal tree, and foreign root entries. Recovery is
@@ -1204,8 +1220,10 @@ Through that seam, cover:
 - reserved-name collision, foreign files, symlink entries without target
   traversal during evacuation and quarantine disposal, canonical recursive
   directory digests, special-file refusal, manifest/content tampering, and
-  multiple-witness refusal before any source move; plus a symlinked or replaced
-  `.grove/` root refused by no-follow descriptor identity before mutation;
+  refusal of duplicate witnesses in either publication state before any source
+  move; plus a symlinked `.grove/` refused as a non-directory before the
+  transaction opens anything, and a replaced root refused by no-follow
+  descriptor identity before mutation;
 - workspace-control quarantine preflight, including same-device success and a
   cross-device refusal that leaves the live tree and repository untouched;
 - plain-Git validation, index-backup, staging, hook suppression,

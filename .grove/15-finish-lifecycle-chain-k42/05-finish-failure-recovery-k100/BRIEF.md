@@ -52,3 +52,23 @@ now agree on guarded repository handoff, exact jj start/result proof,
 attempt-bound rootless retry, descriptor-bound no-follow task-root access, and
 operator recovery. `finish-transaction-implementation-k110` carries the
 executable implementation and regression-test handoff.
+
+`finish-transaction-implementation-k110` closed. The transaction ships as one
+deep module — `finish_transaction`, with `finish_cleanup` owning post-commit
+quarantine and VCS-administration auxiliaries: preflight, a `PREPARING-FINISH-`
+witness published to `FINISHING-` by atomic rename, evacuation, the
+three-disposition repository seam, rollback, quarantine handoff, driver
+recovery, and the attempt-bound rootless retry. `content/SKILL.md`, `grove-llm
+finish-commit` help, `docs/ARCHITECTURE.md`, `docs/USAGE.md`,
+`docs/CONFIGURATION.md`, the ADR, the spec, and `CONTEXT.md` now describe that
+behavior, and nothing tells a reader that an absent `.grove/` proves teardown
+succeeded.
+
+Scope boundary for `finish-transaction-implementation-review-k111`: the legacy
+launch and review surfaces were deliberately left alone. `grove do`, `--harness`
+flags, harness/model policy, producer launch receipts, and the `start.md` /
+`retire.md` prompts still appear across `content/SKILL.md`, `docs/USAGE.md`,
+`docs/CONFIGURATION.md`, and `docs/ARCHITECTURE.md`; they belong to
+`legacy-launch-removal-k46`, `legacy-review-removal-chain-k62`,
+`methodology-and-viewer-chain-k66`, and `durable-docs-reconciliation-chain-k70`.
+Findings against those surfaces are not this review's.

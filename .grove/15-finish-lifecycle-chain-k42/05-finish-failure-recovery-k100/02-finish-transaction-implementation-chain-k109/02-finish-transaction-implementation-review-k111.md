@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** finish-transaction-implementation-k110
+**Producer launch:** {"producer":"finish-transaction-implementation-k110","session":"finish-teardown-docs-acceptance-k164","generation":"k164","harness":"claude","model":"opus"}
 
 ## Goal
 

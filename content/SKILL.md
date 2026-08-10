@@ -431,9 +431,11 @@ you to exit manually. Plain `complete` signals a
 the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
 Ctrl-C, which stops).
 
-**Finish.** A grove is ready to finish when it has no live leaves —
+**Finish.** A grove is ready to finish when it has no ordinary live leaves —
 `grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
-done" on stderr. The **complete finish cycle** is driven in-session by the LLM
+done" on stderr — or the driver has already materialized the reserved `finish`
+leaf this session was launched for, whose stable handle step 2 needs. The
+**complete finish cycle** is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
 confirmation before any teardown** — never run steps 2–3 unprompted, so a
 headless run with no human present simply reports the plan and stops. This is the
@@ -443,7 +445,24 @@ a session asks is a discretionary escalation. On confirmation, run:
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op
    when decisions landed inline as they were made.
-2. **Delete `.grove/` in one focused commit.**
+2. **Tear the tree down with `grove-llm finish-commit <finish-handle>`** — the
+   live `finish` leaf's stable handle, e.g. `finish-k42`. Never delete `.grove/`
+   by hand and commit it yourself. The helper revalidates the live finish and
+   the absence of new work, then runs teardown as **one fail-closed
+   transaction**: the tree is evacuated beneath a `.grove/FINISHING-<handle>/`
+   witness and stays visibly present until the repository proves the exact
+   `.grove/`-scoped commit named by that handle and this launch's finish-attempt
+   identity; only then does the whole root move, in one atomic rename, to a
+   cleanup quarantine. **An absent `.grove/` never proves teardown
+   succeeded** — a death before the commit exposes exactly that shape, which is
+   why the by-hand version is unsafe (ADR *task-tree-transactions-fail-closed*).
+   Every reported failure is retryable: an uncommitted one restores the live
+   finish tree, so just rerun the same command. If the diagnostic says
+   **`Recovery pending`**, stop and hand it to the human — it names the artifact
+   holding the blocked transaction, the recorded and observed topology, and the
+   two operator exits (restore the recorded start to roll back, or make the
+   exact teardown result immediate to finish forward). Grove never rewrites
+   history to clear it, and neither should you.
 3. **End the loop cleanly**: run **`grove-llm complete --done`** as the **very
    last** action, then do nothing else. This signals the self-driving loop to
    *stop* (vs the per-task `complete`, which relaunches), so a clean finish is
@@ -462,10 +481,17 @@ are **not** grove workflow — both belong to plain git/gh or jj, or the user's
 own worktree tooling (user-owned-worktrees). Whoever integrates does so after step
 2, so the integrated history never carries `.grove/`.
 
-**Resume is state-checked, never a marker file** (constraint 1). `grove do` into
-a half-finished grove resumes from the first incomplete step: if `.grove/` is
-already gone (`grove-llm pick` errors with "grove root not found"), promotion
-and deletion are already done — report "already finished" and stop.
+**Resume is state-checked, never a marker file** (constraint 1) — and the state
+that gets checked is the *repository's*, never task-root absence. If you lose
+step 2's result, rerun `grove-llm finish-commit <finish-handle>` with the same
+handle: with `.grove/` already gone it verifies the immediate VCS result rather
+than trusting the absence, and reports idempotent success only for an exact
+handle-and-attempt-named commit whose sole change is deleting `.grove/`.
+Success there means step 2 is done — go to step 3. A refusal means teardown did
+*not* complete, however rootless the tree looks; report it and stop. That proof
+is bound to this launch, so it is available only to the still-confirmed session
+that ran the command — a later `grove do` into a rootless tree is an ordinary
+fresh grove, not a resumed finish.
 
 ## Artifacts
 

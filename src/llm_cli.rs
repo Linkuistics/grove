@@ -248,6 +248,36 @@ pub enum Command {
     /// work under the exclusive tree lock, then delete and commit only
     /// `.grove/`. This helper enforces tree and VCS facts; it does not infer or
     /// automate the finish session's required human confirmation.
+    ///
+    /// Teardown is one fail-closed transaction, not a delete followed by a
+    /// commit. `.grove/` stays present — and unwalkable — until the repository
+    /// proves the exact `.grove/`-scoped commit named by this handle and this
+    /// launch's finish-attempt identity. Every ordinary root entry is first
+    /// evacuated beneath a manifest-backed `.grove/FINISHING-<handle>/`
+    /// witness; only after commit proof does the whole root move, in one atomic
+    /// rename, to a workspace-control quarantine for cleanup-only disposal.
+    /// **Task-root absence therefore never proves teardown succeeded** — a
+    /// death before the commit would expose exactly that shape.
+    ///
+    /// Every reported failure is retryable. An uncommitted failure restores the
+    /// live finish tree and leaves this same leaf selectable. If the repository
+    /// can prove neither the exact commit nor its exact recorded start, the
+    /// transaction stops as `Recovery pending`: the diagnostic names the
+    /// artifact holding it (normally the witness; the quarantine once a failed
+    /// restoration left the tree there), the recorded and observed topology, and
+    /// the two operator exits — preserve any divergent work, then either restore
+    /// the recorded start so recovery can roll back, or make the exact teardown
+    /// result immediate so recovery can finish forward — and then rerun this
+    /// same command (or bare `grove`). Grove never resets, rebases, or rewrites
+    /// history on your behalf.
+    ///
+    /// If you lose this command's result, just run it again with the same
+    /// handle. With `.grove/` already gone it verifies the immediate VCS result
+    /// instead of trusting that absence: an exact handle-and-attempt-named
+    /// commit whose only change is deleting `.grove/` is idempotent success, and
+    /// anything else is a refusal. That proof is bound to the still-active
+    /// session epoch, so a *later* invocation — a new grove reusing the same
+    /// handle included — can never satisfy it.
     FinishCommit {
         /// Stable handle of the launched finish leaf, for example `finish-k42`.
         finish_handle: String,

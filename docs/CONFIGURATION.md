@@ -173,3 +173,9 @@ Grace values are clamped to 0–3600 seconds; invalid or non-finite values use
 the built-in defaults. `GROVE_SIGNAL_FILE` and `GROVE_SESSION_TARGET` are
 internal loop channels, not user configuration, and should not be exported
 manually.
+
+`GROVE_SIGNAL_FILE` also carries the launch's finish-attempt identity, which
+`grove-llm finish-commit` writes into its teardown commit and requires again to
+verify a lost result. A hand-set value that is not a real loop signal path fails
+the finish outright; a stale one from another launch makes a retry unable to
+recognise its own commit. Let the driver set it.

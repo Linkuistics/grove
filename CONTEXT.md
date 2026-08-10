@@ -81,12 +81,21 @@ new task tree and old cooperating sessions are rejected by [[Session epoch]]
 rotation.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
 
-**Finish transaction** (`FINISHING-<finish-handle>/`):
+**Finish transaction** (`FINISHING-<finish-handle>/`, built as
+`PREPARING-FINISH-<finish-handle>-<attempt-identity>/`):
 The fail-closed transaction owned by `grove-llm finish-commit` after explicit
 finish confirmation. Under the exclusive [[Tree access lock]], it validates the
 live finish, opens and identity-revalidates `.grove/` itself as a real no-follow
 directory, writes a manifest-backed reserved witness inside it, and
-evacuates every ordinary root entry beneath that witness. Git or jj then commits
+evacuates every ordinary root entry beneath that witness. The witness is built
+under the `PREPARING-FINISH-` name — created *before* repository preparation, so
+every auxiliary an adapter writes is already owned on disk by a named handle and
+attempt — and published by one atomic rename to the `FINISHING-` name once its
+manifest and ready marker are written. Both prefixes are reserved and refused by
+every ordinary reader and mutator; a preparing witness never holds an evacuated
+entry, because publication precedes evacuation, so recovery discards it by
+aborting that repository preparation and fails closed on anything it cannot
+classify as its own. Git or jj then commits
 only the deletions at the original paths, excluding the witness. The task root
 therefore remains visibly present and unwalkable throughout the uncertain
 pre-commit window rather than temporarily resembling a fresh grove.

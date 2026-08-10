@@ -147,11 +147,42 @@ finish cycle:
 
 1. Promote durable knowledge from briefs into the repository's normal docs,
    decision records, specs, or context files where it still belongs.
-2. Delete `.grove/` in a focused commit.
+2. Tear `.grove/` down through Grove's finish transaction, which records the
+   deletion in one focused commit.
 3. Signal the driver that the grove is done.
 
 This is Grove's one routine human confirmation point because it deletes the
 workstream tree. Branch or bookmark integration and working-tree teardown remain
 your responsibility; Grove never creates, merges, or removes them.
+
+### What teardown guarantees
+
+Step 2 runs as one fail-closed transaction rather than a plain delete and
+commit. `.grove/` remains present — visible, and refused by every ordinary Grove
+command — until the repository has proven the exact commit that records its
+deletion. Its contents are held under a `FINISHING-…` directory inside the tree
+while that happens.
+
+What this means for you:
+
+- The deletion commit touches only `.grove/`. Unrelated staged changes,
+  working-tree edits, and Jujutsu working-copy changes are preserved, and plain
+  Git runs this internal commit with hooks disabled because an arbitrary hook
+  could modify files the transaction promises to leave alone.
+- If teardown fails or the session dies mid-way, you get either your live
+  workstream tree back — rerun and it retries — or a blocked tree that says
+  exactly what is wrong. You never get a half-deleted tree, and an absent
+  `.grove/` is never taken as evidence that teardown succeeded.
+- A blocked teardown reports **`Recovery pending`** and names the directory
+  holding it, what repository state it recorded, and what it observed instead.
+  It offers two ways out: preserve any divergent work and restore the recorded
+  starting state so it can roll back, or make the exact teardown commit the
+  current result so it can finish forward — then rerun. Grove will not reset,
+  rebase, or rewrite history on your behalf, so nothing you did outside Grove is
+  discarded to unblock it.
+- After a successful teardown, the tree's bytes move to a quarantine directory
+  inside your VCS administration directory (`.git/` or `.jj/`) and are deleted
+  from there. That quarantine is disposable cleanup, never workflow state; a
+  later Grove run tidies up any that a crash left behind.
 
 For why these boundaries exist, see [ARCHITECTURE.md](ARCHITECTURE.md).

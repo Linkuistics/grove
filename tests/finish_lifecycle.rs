@@ -379,6 +379,50 @@ fn plain_git_finish_commit_deletes_only_the_grove_and_preserves_other_work() {
     );
 }
 
+/// The generated finish leaf is normally working-tree-only, but nothing stops a
+/// broad task commit from sweeping it into history first — the Git counterpart
+/// of Jujutsu's intermediate working-copy snapshot, which every jj case here
+/// already exercises. The leaf then becomes part of the tracked deletion rather
+/// than an exception to it, so the contract is unchanged: one commit removes the
+/// whole tree, its addition and deletion still cancel from the final history.
+#[test]
+fn plain_git_finish_deletes_a_finish_leaf_a_broad_task_commit_already_tracked() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("tracked-finish-leaf");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    run("git", &repository, &["add", "-A"]);
+    run(
+        "git",
+        &repository,
+        &["commit", "-q", "-m", "broad task commit"],
+    );
+    assert_eq!(
+        git(
+            &repository,
+            &["ls-files", "--", ".grove/02-finish-finish-k2.md"]
+        ),
+        ".grove/02-finish-finish-k2.md"
+    );
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!repository.join(".grove").exists());
+    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    let committed = git(&repository, &["show", "--pretty=", "--name-status", "HEAD"]);
+    assert!(
+        committed.contains("D\t.grove/02-finish-finish-k2.md"),
+        "{committed}"
+    );
+    assert!(committed.contains("D\t.grove/FORMAT"), "{committed}");
+    assert_eq!(git(&repository, &["ls-files", "--", ".grove"]), "");
+}
+
 #[test]
 fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
     let fixture = TempDir::new().unwrap();
@@ -1189,6 +1233,42 @@ fn finish_preflight_refuses_a_reserved_witness_collision_before_deletion() {
     assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
+/// A task root that is a symlink rather than a real directory is refused before
+/// any mutation. The paired *replaced*-root case lives in the transaction's own
+/// unit tests, where the replacement can be timed against a held descriptor;
+/// this one is reachable from the process seam because the shape exists before
+/// the first open. Neither the link nor its target may be followed, moved, or
+/// deleted — `.grove/` addressing a directory elsewhere is exactly the shape a
+/// no-follow transaction must not treat as its own tree.
+#[test]
+fn finish_preflight_refuses_a_symlinked_task_root_before_deleting_the_tree() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("symlinked-root");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let grove_root = repository.join(".grove");
+    let store = repository.join("grove-store");
+    fs::rename(&grove_root, &store).unwrap();
+    std::os::unix::fs::symlink("grove-store", &grove_root).unwrap();
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
+    let index_before = git(&repository, &["ls-files", "--stage"]);
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("grove root is not a directory"), "{stderr}");
+    assert!(stderr.contains(".grove"), "{stderr}");
+    assert!(fs::symlink_metadata(&grove_root)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+    assert!(store.join("02-finish-finish-k2.md").is_file());
+    assert!(store.join("FORMAT").is_file());
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(git(&repository, &["ls-files", "--stage"]), index_before);
+}
+
 #[test]
 fn plain_git_finish_commit_disables_user_hooks() {
     let fixture = TempDir::new().unwrap();
@@ -1289,6 +1369,33 @@ fn tree_readers_refuse_a_ready_finish_transaction() {
     assert!(stderr.contains("FINISHING-finish-k2"), "{stderr}");
 }
 
+/// The *unpublished* half of the same reservation. A preparing witness holds no
+/// evacuated entry, so the tree beside it still looks perfectly walkable — which
+/// is exactly why the refusal has to be by reserved prefix rather than by
+/// whether the tree looks intact. A reader admitted here would be reading a tree
+/// whose repository preparation is already in flight.
+#[test]
+fn tree_readers_refuse_a_preparing_finish_transaction() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("preparing-finish-transaction");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let preparing = repository
+        .join(".grove")
+        .join("PREPARING-FINISH-finish-k2-11111111111111111111111111111111");
+    fs::create_dir(&preparing).unwrap();
+
+    let output = grove_llm(&repository, &["pick"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("pending Grove finish transaction"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("PREPARING-FINISH-finish-k2"), "{stderr}");
+}
+
 #[test]
 fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     let fixture = TempDir::new().unwrap();
@@ -1327,6 +1434,77 @@ fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     assert!(!repository.join(".grove").exists());
     assert!(String::from_utf8_lossy(&output.stderr).contains("grove finished"));
     assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+}
+
+/// Teardown succeeds, then the configured child dies without signalling. The
+/// deleted tree is the *one* piece of evidence that could tempt a driver into
+/// inferring `done` — root absence is what a finished grove looks like — so the
+/// interesting assertion is that nothing about this run is special: it takes the
+/// ordinary no-signal path, reporting the child's real status and elapsed time
+/// and stopping. The next invocation then reads that same absence as an ordinary
+/// fresh grove rather than as a finish to resume.
+#[test]
+fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grove() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("teardown-then-no-signal");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("teardown-then-die.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\ncase \"$1\" in *finish-k*) {llm} finish-commit finish-k2 || exit $?; exit 23;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            log = launch_log.display(),
+        ),
+    );
+    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+
+    let stopped = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        stopped.status.success(),
+        "{}",
+        String::from_utf8_lossy(&stopped.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&stopped.stderr);
+    assert!(stderr.contains("status exit status: 23"), "{stderr}");
+    assert!(stderr.contains("elapsed "), "{stderr}");
+    assert!(!stderr.contains("grove finished"), "{stderr}");
+    assert!(!repository.join(".grove").exists());
+    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+    assert!(
+        !launch_log.exists(),
+        "the driver relaunched after no signal"
+    );
+
+    let restarted = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        restarted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&restarted.stderr)
+    );
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert!(fs::read_to_string(&launch_log).unwrap().contains("plan-k1"));
 }
 
 #[test]

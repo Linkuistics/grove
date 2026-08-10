@@ -2264,6 +2264,53 @@ mod tests {
         assert!(ready.is_dir());
     }
 
+    /// Two witnesses of the *same* kind, which preflight's collision check can
+    /// never produce and only a foreign writer can. Recovery cannot pick an
+    /// owner, so both multiplicities fail closed with every path named and no
+    /// source entry moved — the ordinary live tree is still resident.
+    #[test]
+    fn restart_refuses_multiple_witnesses_of_one_publication_state() {
+        for (label, first, second) in [
+            (
+                "preparing",
+                "PREPARING-FINISH-finish-k2-11111111111111111111111111111111",
+                "PREPARING-FINISH-finish-k3-22222222222222222222222222222222",
+            ),
+            ("ready", "FINISHING-finish-k2", "FINISHING-finish-k3"),
+        ] {
+            let (fixture, prepared) = prepared_plain_git_transaction();
+            let repository = fixture.path();
+            drop(prepared);
+            let grove_root = repository.join(".grove");
+            let preparing = preparing_witness(repository);
+            // The fixture already holds the preparing witness; the ready case
+            // needs it renamed away so only same-kind duplicates remain.
+            if label == "ready" {
+                fs::rename(&preparing, grove_root.join(first)).unwrap();
+            }
+            fs::create_dir(grove_root.join(second)).unwrap();
+
+            let error = match recover_pending(repository, &grove_root) {
+                Ok(_) => panic!("{label}: duplicate witnesses must fail closed"),
+                Err(error) => error,
+            };
+
+            let message = format!("{error:#}");
+            assert!(message.contains("multiple"), "{label}: {message}");
+            for name in [first, second] {
+                assert!(message.contains(name), "{label}: {message}");
+                assert!(
+                    grove_root.join(name).is_dir(),
+                    "{label}: {name} was removed"
+                );
+            }
+            assert!(
+                grove_root.join("02-finish-finish-k2.md").is_file(),
+                "{label}: a source entry was moved"
+            );
+        }
+    }
+
     #[test]
     fn restart_preserves_an_unclassified_preparing_witness() {
         let (fixture, prepared) = prepared_plain_git_transaction();

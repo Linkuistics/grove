@@ -17,9 +17,11 @@ The witness is ordinary artifact state with operation-specific contents:
   producer copy while it prepares and lands the complete review-chain node; and
 - finish teardown uses `FINISHING-<finish-handle>/` to evacuate every ordinary
   root entry beneath a manifest-backed original-tree directory before the
-  deletion commit. The `.grove/` directory itself remains present until the
-  exact handle-and-attempt-named, `.grove/`-scoped commit is proven and the whole root can
-  atomically move to post-commit cleanup quarantine.
+  deletion commit, and `PREPARING-FINISH-<finish-handle>-<attempt-identity>/`
+  for the window in which that witness is being built. The `.grove/` directory
+  itself remains present until the exact handle-and-attempt-named,
+  `.grove/`-scoped commit is proven and the whole root can atomically move to
+  post-commit cleanup quarantine.
 
 Every ordinary reader and mutator refuses while any reserved witness exists.
 Only the matching recovery path is admitted, and it runs before format,
@@ -32,13 +34,21 @@ operation that can recover it.
 A finish transaction makes the commit boundary explicit. Preflight repository
 validation runs before evacuation when it can do so without changing state. It
 opens `.grove/` itself as a no-follow directory and identity-revalidates that
-descriptor against the locked working-tree-root entry; a symlink or non-directory
-task root is refused before any child operation. The transaction then writes and
+descriptor against the `.grove` entry in the locked working-tree root; a symlink
+or non-directory task root is refused before any child operation. The
+`PREPARING-FINISH-` witness
+is created *before* repository preparation so that every auxiliary the adapters
+may write is already owned on disk by a named handle and attempt; recovery
+discards it by aborting that preparation, and fails closed on any content it
+cannot classify as its own. The transaction writes and
 verifies a manifest containing the stable handle, the active session epoch's
 opaque finish-attempt identity, repository-start anchor, a non-empty expected
 tracked deletion fingerprint, and every root entry's type plus canonical
-no-follow recursive digest, marks the witness ready last, and moves ordinary
-root entries descriptor-relatively without following symlinks. The digest is
+no-follow recursive digest, marks it ready last, and publishes the ready witness
+by renaming it to `FINISHING-<finish-handle>/` in one atomic step. Only then does
+it move ordinary root entries descriptor-relatively without following symlinks,
+so no preparing witness ever holds an evacuated entry and an interruption before
+publication is discardable. The digest is
 SHA-256 over unambiguous length-delimited records:
 directories cover raw-name-byte-ordered child records, regular files cover mode
 and bytes, and symlinks cover link-target bytes; other entry types are refused

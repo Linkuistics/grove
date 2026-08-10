@@ -182,6 +182,10 @@ fresh workstream, so the first session is routed as `requirements` and creates
 both the root brief and its first leaf. An existing tree resumes by picking its
 first live leaf. An empty tree enters the finish cycle.
 
+That first inference is only sound because the finish transaction below never
+exposes task-root absence before its deletion commit is proven; absence is
+therefore evidence about a *new* workstream, never about a finished one.
+
 The loop launches one foreground session at a time. The session commits its
 artifact and terminal task-tree mutation before signalling `relaunch` or
 `done`. If it exits without a signal, the driver stops instead of guessing;
@@ -200,9 +204,60 @@ the CLI has two explicit authority boundaries:
   confirmation before the agent marks it `ABANDONED`.
 - Deleting the completed `.grove/` tree is the one routine finish confirmation.
 
-Finishing happens inside the final session: promote durable information,
-delete `.grove/` in one focused commit, then signal `done`. Grove deliberately
-does not merge branches/bookmarks or remove working trees.
+Finishing happens inside the final session: promote durable information, run
+`grove-llm finish-commit <finish-handle>`, then signal `done`. Grove
+deliberately does not merge branches/bookmarks or remove working trees.
+
+### Finish transaction
+
+Teardown is not a delete followed by a commit. It is one fail-closed
+transaction over the same witness seam as promotion, because the interval
+between removing `.grove/` and recording that removal is exactly the shape a
+later invocation would read as a fresh grove.
+
+`finish-commit` revalidates the live finish leaf and the absence of ordinary
+work, then validates the repository without mutating it: a non-empty tracked
+deletion fingerprint, an untracked witness prefix, a same-device
+workspace-control quarantine target, and `.grove/` itself opened as a no-follow
+directory whose device/inode still matches the `.grove` entry in the locked
+working-tree root — so a symlinked or swapped task root is refused rather than
+followed. Every later step reuses that descriptor and rechecks the same
+identity, which is what makes a mid-transaction swap a refusal instead of a
+mutation applied somewhere else. The transaction then evacuates every ordinary
+root entry beneath a manifest-backed `FINISHING-<finish-handle>/` witness, which
+it builds under a `PREPARING-FINISH-` name and publishes with one atomic rename
+so an interrupted build is discardable rather than interpretable. The manifest
+records the stable handle,
+the session epoch's opaque finish-attempt identity, the repository-start anchor,
+the expected tracked deletion fingerprint, and each entry's type and canonical
+no-follow recursive digest. Git and jj commit only those deletions at their
+original paths, excluding the witness; the task root stays visibly present and
+unwalkable throughout.
+
+One deep repository seam hides the Git, native-jj, and colocated-jj mechanics
+and returns one of three dispositions, classified from the recorded anchor and
+the exact immediate result rather than from command exit status:
+
+- **Committed** — the exact handle-and-attempt-named, `.grove/`-scoped commit is
+  proven. Recovery never restores the tree; it finishes index activation, then
+  atomically renames the whole root to a workspace-control quarantine before
+  descriptor-rooted no-follow disposal. The quarantine is cleanup garbage, never
+  a finish receipt.
+- **Not committed** — that commit is absent *and* the recorded starting topology
+  still holds, so the tree is restored and the witness removed, leaving the same
+  finish leaf selectable for retry.
+- **Recovery pending** — neither can be proven. The state stays blocked and
+  operator-recoverable: the diagnostic names the artifact holding the
+  transaction, the recorded and observed topology, and the two restorable exits
+  (restore the recorded start to roll back, or make the exact teardown result
+  immediate to finish forward). Grove never rewrites history to clear it.
+
+The disposition is revalidated immediately before and after the filesystem
+handoff, so no caller acts on a stale one. A retry that has lost the helper's
+result does not trust task-root absence either: with `.grove/` gone it verifies
+the immediate VCS result against the same handle and attempt identity, which
+binds the proof to the still-active session epoch. See [Task-tree transactions
+fail closed](adr/task-tree-transactions-fail-closed.md).
 
 <a id="user-owned-worktrees"></a>
 <a id="symmetric-vcs-rule"></a>
@@ -298,6 +353,8 @@ source; repository-local or hand-edited copies are not supported.
 | `harness`, `harness_stamp` | Harness registry, detection, and persistent local binding. |
 | `repo`, `tree_rename` | Git/Jujutsu detection and mutation seam. |
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_migrate` | Filesystem task-tree model. |
+| `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
+| `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and deterministic agent command surface. |
 | `provision` | Embedded methodology installation. |
 

@@ -26,13 +26,48 @@ fn extract_fresh_writes_the_full_content_tree() {
     // The skill entrypoint, a prompt under a subdir, and a top-level format
     // guide all travel — i.e. the *whole* tree, nested dirs included.
     assert!(dest.path().join("SKILL.md").is_file());
-    assert!(dest.path().join("prompts/start.md").is_file());
     assert!(dest.path().join("prompts/continue.md").is_file());
     assert!(dest.path().join("driving.md").is_file());
     // A deeply-nested file (LICENSES/) confirms recursion to the leaves.
     assert!(dest.path().join("LICENSES").is_dir());
     // The stamp is written so the next launch can detect a warm dir.
     assert!(dest.path().join(STAMP_FILE).is_file());
+}
+
+/// The launcher surface, enumerated rather than listed. `start.md` and
+/// `retire.md` died with the lifecycle verbs that launched them: one bare
+/// command drives every kind of session now, so one launcher covers them all.
+/// The claim committed here is therefore not "those two files are gone" — a
+/// pair of `!exists()` assertions that would pass unchanged the day a third
+/// launcher appears — but **exactly one launcher**, which fails on the next one
+/// anybody adds.
+///
+/// Extracting the real embed settles both halves of the removal at once: what
+/// travels inside the binary is precisely what lands in a skill dir, so a file
+/// that is not embedded cannot be swept, and one that is swept was embedded.
+#[test]
+fn exactly_one_launcher_is_embedded_and_provisioned() {
+    let dest = TempDir::new().unwrap();
+    provision_into(dest.path()).unwrap();
+
+    let mut prompts: Vec<String> = fs::read_dir(dest.path().join("prompts"))
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    prompts.sort();
+    assert_eq!(
+        prompts,
+        ["continue.md"],
+        "the embedded methodology must carry one launcher and no lifecycle-verb prompts"
+    );
+
+    // ...and it is the same bytes the driver puts in front of every mandate, so
+    // the provisioned copy cannot drift from the launched one.
+    assert_eq!(
+        fs::read_to_string(dest.path().join("prompts/continue.md")).unwrap(),
+        grove::provision::continue_prompt().unwrap(),
+        "the launcher the driver embeds in a session prompt is the one it sweeps out"
+    );
 }
 
 #[test]

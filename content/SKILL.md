@@ -30,8 +30,8 @@ flowchart TD
   end
   subgraph loop["The loop — one task per session"]
     direction TB
-    pick["Pick — first live leaf: depth-first walk, skip briefs + DONE"]
-    boot["Bootstrap — read glossary, ancestor BRIEFs, cited ADRs, the task"]
+    pick["Select — the driver picks the first live leaf and mandates its handle"]
+    boot["Bootstrap — resolve the mandate; read glossary, ancestor BRIEFs, cited ADRs, the task"]
     exec{"kind — planning, or one of the other sixteen?"}
     plan["Planning — cut vertical slices; grow the tree"]
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
@@ -57,8 +57,10 @@ These seven rules are non-negotiable; everything below is subordinate to them.
    The directory tree under `.grove/` is the only state; the VCS holds the
    history.
 2. **Read, don't run.** A session bootstraps by *reading markdown* — no script
-   must succeed before work begins. (Materialising or updating grove itself is
-   a separate maintenance action and may use a script — see `VERSION.md`.)
+   must succeed before work begins. Its one command, `grove-llm resolve
+   <handle>`, is a lookup you could do by eye: the handle is in the filename.
+   (Keeping this skill current is the `grove` binary's own job — it
+   re-provisions the methodology it embeds on every lifecycle invocation.)
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown. The format files are guides; nothing validates them.
 4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is
@@ -81,65 +83,81 @@ disk; grove reads no branch and no bookmark anywhere (user-owned-worktrees).
 The grove's name is that working tree's directory basename, and its task tree
 lives at `.grove/` inside it.
 
-Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **argument-less `grove do`** from inside the working tree. `do` is the **sole lifecycle entry verb** — it inspects the state on disk and dispatches: no `.grove/` yet → a bootstrap session; a live tree → the loop continues; no live leaves left → the session proposes the complete finish cycle (do-is-sole-lifecycle-verb). It pre-names the harness session, so the rename ritual is unnecessary in the common case. If the grove's `.grove/` is in an older format — the original `NNN-slug/` directories, or the v1 flat dotted-decimal scheme — the first `grove do` **migrates it to the current directory scheme** — one reviewable, committed change — before driving; the migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
+Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **bare `grove`** from inside the working tree — no subcommand, no flags. That is the whole human surface *and* the sole lifecycle entry: it inspects the state on disk and dispatches. No `.grove/` yet → it scaffolds the tree and launches its first `requirements` leaf; a live tree → the next leaf; no ordinary work left → it appends one `finish` leaf and launches that. If the tree is in an older format — the original `NNN-slug/` directories, the v1 flat dotted-decimal scheme, or the pre-session-kind filenames — the first bare `grove` **migrates it** before driving, as one recoverable transaction and one focused, reviewable commit; migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
-`grove do` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove do` from the same working tree. Because the loop body holds zero engine state and re-derives its position from `grove-llm pick` every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-picked and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
+Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove` from the same working tree. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-selected and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
-If a session was started without the helpers and the session name doesn't already match `<repo-basename>: <name> grove`, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill already knows both names: `<name>` from the working tree's own basename (`git rev-parse --show-toplevel`; `jj workspace root` in a jj-enabled tree), `<repo-basename>` from the **main repo**'s basename (`git rev-parse --git-common-dir`'s parent, or `jj workspace root --name default`'s basename in a jj-enabled tree — the repo a linked worktree or secondary workspace belongs to, not the working tree's own path).
+**One configuration, no other launch policy.** Every session is launched by
+`~/.config/grove/config.kdl`, which gives each session kind exactly one complete
+command template. That template chooses the executable or wrapper and every
+user-controlled argument — harness, model, reasoning effort, approval,
+permission and sandbox policy — and grove neither knows nor infers which harness
+it eventually reaches: it reads the selected leaf's kind from the filename,
+looks that one kind up, expands its own substitutions, and executes the result
+directly (no shell). `${prompt}` carries this launcher plus your mandate;
+`${session_name}`, `${worktree}` and `${repo}` are the only others. **Nothing
+else routes a session** — no environment variable, no command-line flag, no
+repository stamp, no field in a task file, and no default, family or fallback.
+Grove never creates or edits that file, because it cannot choose personal model
+or wrapper policy, and it re-validates the whole file before every tree mutation
+and again before every launch: an edit lands on the next session, and an invalid
+file launches nothing while leaving the selected leaf live and resumable.
+
+The driver computes this grove's session name — `<repo-basename>: <name> grove` — and offers it to the configured command as `${session_name}`; it never renames a session itself. If your template does not pass it and the session name doesn't already match, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill can derive both names: `<name>` from the working tree's own basename (`jj workspace root` in a jj-enabled tree; `git rev-parse --show-toplevel` otherwise), `<repo-basename>` from the **main repo**'s basename (`jj workspace root --name default`'s basename in a jj-enabled tree, or `git rev-parse --git-common-dir`'s parent — the repo a linked worktree or secondary workspace belongs to, not the working tree's own path).
 
 **Starting a new grove.** Provide a working tree by whatever means you
 like — `git init`, `git clone`, `jj git init --colocate`, `jj git clone`, a
 plain checkout, a linked worktree or jj workspace (`jj workspace add`), or
 your own tooling (e.g. [worktrunk](https://github.com/max-sixty/worktrunk)) —
-then run argument-less `grove do` from inside it. A brand-new grove has a
-working tree but no `.grove/` tree yet — and every step below assumes
-`.grove/` already exists. Resolve that chicken-and-egg first: a rootless grove
-has nothing for `grove-llm pick` to walk (it errors `grove root not found`), and
-the tree-growing verbs (`leaf-add` and friends) all need a root too. Run
-**`grove-llm root-init [<slug>]`** (default slug `plan`) once: it creates
-`.grove/`, the root `BRIEF.md` stub, and a first **requirements** leaf
-`01-<slug>-k1.md` — working-tree only, no commit (the first session's commit
-folds it in), refusing to clobber an existing `.grove/`. Creating the first
-leaf, not just the brief, is load-bearing: `pick` skips every brief
-(`BRIEF.md`), so a brief-only `.grove/` reports `no live leaves; this grove is
-done` and would mis-trigger the Complete finish cycle — a newborn grove
-indistinguishable from a finished one (fresh-grove-start-contract). The kind is
-fixed at `requirements` (no `--kind`): the bootstrap session's only input is the
-human's own words, and the loop routes that launch *by construction*, having no
-leaf to peek — so `GROVE_REQUIREMENTS_MODEL` is the one var a brand-new grove
-cannot start without. After `root-init`, `pick` returns that leaf and you enter
-the normal loop below at **Bootstrap**: grill it, record the outcome in the root
-brief, then grow the tree — cutting the leaves yourself if the workstream is
-small, otherwise adding a `planning` leaf for a fresh session. The launcher's
-`start.md` prompt names this as step one.
+then run bare `grove` from inside it. **You never scaffold the tree yourself.**
+A brand-new grove has a working tree but no `.grove/` yet, and every step below
+assumes one exists; the driver resolves that chicken-and-egg before an agent
+exists, because a rootless tree has no leaf to select and the grow verbs
+(`leaf-add` and friends) all need a root too. It creates `.grove/`, the root
+`BRIEF.md` stub, a first **requirements** leaf `01-requirements-<slug>-k1.md`
+(default slug `plan`), and the format witness, then selects that leaf and
+launches it. Creating the first *leaf*, not just the brief, is load-bearing: a
+brief is not a leaf, so a brief-only `.grove/` would look like a grove with no
+live work — a newborn indistinguishable from a finished one, mis-triggering the
+Complete finish cycle (fresh-grove-start-contract). The kind is fixed at
+`requirements`: a bootstrap session's only input is the human's own words. So
+your session starts at **Bootstrap** like every other one — grill the leaf,
+record the outcome in the root brief, then grow the tree, cutting the leaves
+yourself if the workstream is small and otherwise adding a `planning` leaf for a
+fresh session. The scaffold is a working-tree change only; your commit folds it
+in.
 
-**Pick.** Run `grove-llm pick` — it walks the `.grove/` directory tree
-depth-first in **pre-order**, visiting each directory's children in per-level
-position order (the `BRIEF.md` charter first — and skipped — then by numeric
-position), descending node directories in place, and prints the absolute path of
-the next live leaf (a `.md` file with no `DONE` infix). Retired (`DONE`) leaves,
-briefs, and foreign files are skipped. Empty stdout (and a diagnostic on stderr)
-means the grove has no live leaves and is ready to **Finish**. The walk's
-*semantics* (depth-first pre-order; a node directory is fully explored before
-its later siblings; skip every `BRIEF.md` and `DONE` leaf; a brief is not a
-leaf) are what the verb implements; reach for them only when reasoning about the
-walk, not when running it.
+**Pick.** The driver makes **one authoritative pick** per session, in-process,
+before the session exists: the first live leaf in a depth-first **pre-order**
+walk of `.grove/`, visiting each directory's children in per-level position
+order (the `BRIEF.md` charter first — and skipped — then by numeric position)
+and descending node directories in place. Briefs, terminal leaves (`DONE` and
+`ABANDONED` alike) and foreign files are skipped, and a driver-owned `finish`
+leaf is passed over while any ordinary work is live, becoming eligible once it
+is the only live leaf. Nothing else modulates the walk — no priority, no
+grouping, no set of leaves that must finish before another is considered. That
+selection's **stable handle** is what the driver hands you in `${prompt}` as
+your mandate.
 
-Under `grove do` this is the **second** pick: the driver already peeked the tree
-to route this session's harness and model (*model-per-task-kind*), necessarily
-*before* the session existed. That peek is a **forecast**; your `pick` is the
-**fact**, and the fact wins — grove hands a session no leaf identity, so the tree
-stays the only state. Work the leaf `pick` returns even if the launch was routed
-for a different one; the next iteration re-derives and is already correct.
+**Do not pick again.** `grove-llm pick` remains a diagnostic and tree-interface
+verb — it is how you or a human read the tree's next answer directly, the same
+one `find .grove` gives by eye — but it is not this session's dispatcher. A leaf
+inserted while your configured command was starting can move your leaf's *path*
+and would make a second walk disagree with your mandate; the mandate wins, and
+the inserted leaf is simply the next iteration's work.
 
-**Bootstrap.** Read, in order: the glossary (`CONTEXT.md`, or the relevant
-bounded context via `CONTEXT-MAP.md`); the ADRs cited by the briefs; the
-`BRIEF.md` chain root→leaf, enumerated by `grove-llm brief-chain` — the verb
-walks the picked leaf's **ancestor directories**, from the grove root down to
-the leaf's own directory, and prints each level's `BRIEF.md`, one absolute brief
-path per line, root→leaf (a missing brief at any level is skipped silently —
-some nodes do not yet carry one); the task file. That assembled context is the
-session's entire mandate; read nothing else by reflex.
+**Bootstrap.** Start from the mandate. Run `grove-llm resolve <handle>` to turn
+the stable `<slug>-k<key>` handle in your prompt into its current file path, and
+stop if it resolves to nothing or to a terminal (`DONE` / `ABANDONED`) leaf —
+that is a stale or hand-edited launch, not work to redo. Then read, in order:
+the glossary (`CONTEXT.md`, or the relevant bounded context via
+`CONTEXT-MAP.md`); the ADRs cited by the briefs; the `BRIEF.md` chain root→leaf,
+enumerated by `grove-llm brief-chain <resolved-path>` — the verb walks that
+leaf's **ancestor directories**, from the grove root down to the leaf's own
+directory, and prints each level's `BRIEF.md`, one absolute brief path per line,
+root→leaf (a level with no brief is skipped silently — a chain node never
+carries one); and the task file itself. That assembled context is the session's
+entire mandate; read nothing else by reflex.
 
 **Execute.** The task file states its kind, drawn from a closed set of
 **seventeen** — five producers (`requirements`, `design`, `planning`,
@@ -171,9 +189,10 @@ the sole branch here, and the only kind that grows the tree generatively:
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
   as any kind may.
 
-**Review ownership inside a picked leaf.** This applies only after the session
-ran Bootstrap, invoked `grove-llm pick` itself, and adopted its result — checkout
-state and inherited `GROVE_*` values do not count. A picked plain producer may
+**Review ownership inside a picked leaf.** This applies only after the driver
+launched this session with a selected-leaf mandate in `${prompt}` and the
+session adopted that mandate by running Bootstrap — a `.grove/` directory in the
+checkout and inherited Grove control variables do not count. A picked plain producer may
 materialise at most one reviewer across the **whole picked leaf**; each
 independent diverse-lens context counts. A second need — normally re-review
 after a substantive non-mechanical fix — runs `grove-llm leaf-promote-chain
@@ -231,17 +250,20 @@ whole shape is no more work than cutting the first leaf of it:
   `prototype` or `impl` — and the verb derives `review-<producer>` and
   `integrate-review-<producer>`. That derivation is the point: a hand-written
   `--kind review-impl` beside a `design` producer is a perfectly valid
-  invocation, and it silently gives the reviewer the wrong discipline. Reviews
-  route by *policy* (`GROVE_REVIEW_HARNESS`), so the verb takes no `--harness`.
+  invocation, and it silently gives the reviewer the wrong discipline. Each
+  derived step resolves its own `review-` / `integrate-review-` configuration
+  entry, so the verb selects no harness.
 - **The vendor pair** — `research` → `research` → `combine-research`, the two
   surveys differing *only* by vendor. Cut it when the question is load-bearing
   enough to pay for two corpora.
 
-      grove-llm leaf-add-pair <parent> <stem> --harness-a <name> --harness-b <other>
+      grove-llm leaf-add-pair <parent> <stem>
 
-  **Both** producers are declared and the two must differ — that is what makes
-  "two corpora" a fact in the tree rather than a guess about what routing policy
-  will say weeks later. An equal pair is refused.
+  The two producers are **separate session kinds**, so each resolves its own
+  configuration entry and neither task file carries routing metadata. The tree
+  guarantees two independent sessions and the combine discipline; whether they
+  reach two genuinely different vendors is the configuration owner's policy, not
+  something grove can recover from an opaque command template.
 
 **Each shape is a node directory** — `<stem>-chain/` or `<stem>-pair/` — holding
 its three steps at `01`–`03`. Four keys per shape: the node holds the first, and
@@ -314,12 +336,9 @@ hand-edited file can never jam the loop). `leaf-add-chain` is the one exception
 to the default: it **requires** `--kind`, since defaulting would silently pick
 the producer that parameterises all three of its leaves. `leaf-decompose` gives
 the node's first child its parent leaf's kind unless `--kind` overrides, so a
-`research` leaf that proves bigger becomes a `research` node. A leaf may
-additionally name the harness its session runs on with `--harness <name>`
-(written as a `**Harness:**` line); almost none does — it exists for the **vendor
-pair**, two `research` leaves differing only by vendor, which is the one shape a
-per-kind policy cannot express, and `leaf-add-pair` writes both declarations for
-you.
+`research` leaf that proves bigger becomes a `research` node. No grow verb
+selects a harness, a model, or anything else about the launch: the kind is the
+whole routing input, and configuration maps it to one command.
 
 **Commit.** One task = one focused commit. **Name the work item in the commit
 message by its stable handle `<slug>-k<key>`, never by its position or directory
@@ -424,18 +443,25 @@ watching for the signal file while it runs, so it applies grace → SIGTERM →
 kill-grace → SIGKILL to its own child once the file appears (driver-side
 watcher: the driver can always signal its child, unlike an in-agent self-kill,
 which some harness sandboxes — e.g. codex's Seatbelt — silently deny). Run
-outside `grove do` (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just tells
-you to exit manually. Plain `complete` signals a
+outside a `grove` loop (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just
+tells you to exit manually. Plain `complete` signals a
 **relaunch**; the **Finish** cycle below ends instead with **`grove-llm complete
 --done`**, which signals a clean *stop*. The loop tells the three cases apart by
 the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
 Ctrl-C, which stops).
 
-**Finish.** A grove is ready to finish when it has no ordinary live leaves —
-`grove-llm pick` exits 0 with empty stdout and "no live leaves; this grove is
-done" on stderr — or the driver has already materialized the reserved `finish`
-leaf this session was launched for, whose stable handle step 2 needs. The
-**complete finish cycle** is driven in-session by the LLM
+**Finish.** You do not discover that a grove is finished — the driver does, and
+it tells you by launching you. Once no ordinary live leaf is left, bare `grove`
+appends one driver-owned `finish` leaf at the grove root and mandates it under
+the `finish` session kind; that mandate *is* the signal, so a finish session
+never asks `pick` anything. The leaf is a real, **resumable** task: it carries
+its own stable handle (`finish-k<key>`, which step 2 needs), and it is created
+once and reused, never duplicated. Declining teardown — or ending before step 2
+begins — exits without a completion signal and leaves the leaf live and next, so
+the following bare `grove` proposes the cycle again. Ordinary work inserted
+ahead of it (`leaf-insert`) makes the driver pass it over until that work is
+terminal, so the sentinel can neither starve nor preempt real work. The
+**complete finish cycle** itself is driven in-session by the LLM
 (no Rust automation): the session **proposes** it and **waits for explicit human
 confirmation before any teardown** — never run steps 2–3 unprompted, so a
 headless run with no human present simply reports the plan and stops. This is the
@@ -474,7 +500,7 @@ a session asks is a discretionary escalation. On confirmation, run:
    nothing in the working tree. It still resolves the current directory to
    verify the live session epoch, so run it from inside that session's working
    tree (which remains valid after `.grove/` is deleted).
-   Outside `grove do` (no loop to stop) it is a safe no-op: just exit.
+   Outside a `grove` loop (no loop to stop) it is a safe no-op: just exit.
 
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to plain git/gh or jj, or the user's
@@ -490,7 +516,7 @@ handle-and-attempt-named commit whose sole change is deleting `.grove/`.
 Success there means step 2 is done — go to step 3. A refusal means teardown did
 *not* complete, however rootless the tree looks; report it and stop. That proof
 is bound to this launch, so it is available only to the still-confirmed session
-that ran the command — a later `grove do` into a rootless tree is an ordinary
+that ran the command — a later bare `grove` into a rootless tree is an ordinary
 fresh grove, not a resumed finish.
 
 **Ending after step 2 but before step 3 is an ordinary no-signal stop.** The
@@ -558,7 +584,7 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 - `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.
 - `grilling.md` — the grilling procedure for `requirements` tasks (bundled).
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
-- `prompts/` — the launcher prompts read by the `grove` CLI at exec time (`start.md`, `continue.md`, `retire.md`). There is no `finish.md`: finishing is an in-session step of the loop, not a launched verb.
+- `prompts/continue.md` — the single launcher the `grove` binary embeds in every session's `${prompt}`, ahead of that session's mandate. There is no `start.md`, `retire.md` or `finish.md`: one bare command drives every kind of session, so one launcher covers them all.
 
 **Prerequisite — the `linkuistics` plugin.** Two bodies of guidance grove used
 to carry now live in a **separately installed** plugin, and grove **requires**

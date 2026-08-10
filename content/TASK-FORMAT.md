@@ -107,7 +107,7 @@ decides what the prototype *taught* and normally discards it;
 do alone — the kind most likely to stop and ask.
 
 **In-session doubt is budgeted across the whole picked leaf**, once the current
-session has run Bootstrap and adopted its own `grove-llm pick` result:
+session has run Bootstrap and adopted the driver's selected-leaf mandate:
 
 | picked session | in-session reviewer allowance | next substantial review |
 |---|---|---|
@@ -307,7 +307,8 @@ generatively. *Reactive* decomposition (a leaf proving bigger than its brief) is
 kind-agnostic and available to every kind.
 
 **A fresh grove's bootstrap leaf is the standing example of that fusion**, and
-it is `requirements` (`root-init` mints it, with no `--kind` to change it). Its
+it is `requirements` (the driver mints it before any agent exists, with no
+`--kind` to change it). Its
 only input is the human's own words — nothing else is on disk yet — which is the
 HITL rule, so it is labelled for the discipline that *always* applies. A small
 workstream's bootstrap session may go on to cut the leaves itself; a larger one

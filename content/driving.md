@@ -40,14 +40,14 @@ the lesson belongs here only when it still helps a future session.
 
 ## When not to start a grove
 
-Before reaching for `root-init`, check that the journey actually needs a map.
+Before starting a grove, check that the journey actually needs a map.
 If a first bootstrap session surfaces no real fog — the path to done is
 already clear and the whole thing fits in one sitting — do the work directly
 instead: a grove would only wrap it in a tree, a brief chain, and a relaunch
-cycle it doesn't need. Reach for `root-init` once genuine session-to-session
+cycle it doesn't need. Start one once genuine session-to-session
 fog shows up — work whose shape you can't see past the next session or two.
-`root-init` will always mint a first leaf on request; that mechanical fact is
-not itself the signal to run it.
+Bare `grove` will always scaffold a tree and mint a first leaf in a rootless
+working tree; that mechanical fact is not itself the signal to run it.
 
 ## When to commission prior-art research
 
@@ -407,9 +407,10 @@ the true one beside it only reads as true in its company.
 
 ## Doubting inside a picked Grove leaf
 
-The composition rule starts from a procedural fact: this session ran
-Bootstrap, invoked `grove-llm pick` itself, and adopted the returned leaf.
-Merely finding `.grove/` or inheriting `GROVE_*` values does not activate it.
+The composition rule starts from a procedural fact: the Grove driver launched
+this session with a selected-leaf mandate in `${prompt}`, and this session
+adopted that mandate by running Bootstrap. Merely finding `.grove/` or
+inheriting Grove control variables does not activate it.
 Outside that predicate, follow doubt-driven development's standalone bounded
 cycle unchanged.
 

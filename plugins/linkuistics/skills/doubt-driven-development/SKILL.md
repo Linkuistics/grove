@@ -65,10 +65,11 @@ Step 3 (DOUBT) **spawns a fresh-context subagent**, so this skill runs from the
 
 ## Composition with Grove
 
-Grove owns review escalation only when this exact session ran Grove's
-**Bootstrap**, invoked `grove-llm pick` itself, and adopted the returned leaf.
-A `.grove/` directory or inherited `GROVE_*` value is not enough. Outside that
-predicate, use the standalone process below unchanged.
+Grove owns review escalation only when the Grove driver launched this exact
+session with a selected-leaf mandate in its prompt and the session adopted that
+mandate by running Grove's **Bootstrap**. A `.grove/` directory or an inherited
+Grove control variable is not enough. Outside that predicate, use the standalone
+process below unchanged.
 
 Inside it, the rules here replace per-artifact verification, re-looping,
 diverse-lens fan-out, and optional cross-model follow-ups as needed to enforce

@@ -676,6 +676,15 @@ refuses this shape, and the witness retains the only copies of the finish leaf,
 brief, format marker, terminal tree, and foreign root entries. Recovery is
 selected before format parsing, liveness, migration, or root initialization.
 
+Evacuation and rollback each move one entry at a time, so an interruption leaves
+an arbitrary prefix moved. Recovery therefore locates every manifest entry rather
+than matching the root against the two extreme shapes: each entry must sit in
+exactly one of the task root and the recovery tree, resident entries must still
+match their recorded digest, and anything else — an entry in both places, an
+entry in neither, an unrecorded recovery-tree entry, or a foreign root entry —
+is fail-closed and named. A moved prefix is an ordinary recoverable state, not a
+malformed tree, and the union of the two places is always the recorded tree.
+
 The tree transaction calls one deep repository seam that hides the Git, native
 jj, and colocated-jj adapters. Its result has three factual dispositions:
 
@@ -770,11 +779,15 @@ The VCS adapters implement the same disposition as follows:
   remains exactly the user's pre-finish blob even when its working-copy content
   differs.
 
-On **Not committed**, the tree transaction restores every manifest entry to its
-original path, verifies the complete current-format live finish tree, and only
-then removes the witness. A reported failure therefore leaves the same finish
-leaf selectable for retry. If tree rollback fails, it returns an actionable
-diagnostic naming the exact witness and keeps the tree blocked.
+On **Not committed**, the tree transaction restores every entry the recovery tree
+holds to its original path, verifies the complete current-format live finish
+tree, and only then removes the witness. Restoration is therefore the same
+operation over whatever remains, so retrying an interrupted rollback finishes it.
+A reported failure leaves the same finish leaf selectable for retry. If tree
+rollback fails — an occupied destination, a restored entry that does not match
+its digest, or a repository change observed before or after restoration — it
+returns an actionable diagnostic naming the exact witness and keeps the tree
+blocked with the unrestored copies beneath it.
 
 On **Committed**, the transaction first verifies repository and colocated-index
 cleanup, then atomically renames the whole `.grove/` root — witness, manifest,

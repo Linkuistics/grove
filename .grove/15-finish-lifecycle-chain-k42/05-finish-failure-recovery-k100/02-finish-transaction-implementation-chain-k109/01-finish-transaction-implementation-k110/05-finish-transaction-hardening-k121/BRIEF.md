@@ -41,6 +41,18 @@ process, so anything held across one is released explicitly before it. ADR
 `task-tree-transactions-fail-closed` carries the rejected option and its reopen
 condition.
 
+`finish-transaction-transition-recovery-k137` closed. Two of its results bind the
+remaining slice. **A witness records where each manifest entry is, not which of
+two shapes the root has**: classification returns a per-entry location split, so
+an interrupted evacuation or rollback prefix is an ordinary recoverable state and
+the single rollback restores only what the recovery tree still holds. A committed
+repository with *any* entry still resident refuses; the forward handoff must keep
+that gate rather than reasoning about the root listing itself. **One wrapper owns
+the pending exit**: `recovery_pending_guidance` names the witness and both
+operator procedures on every post-classification failure, including the
+quarantine handoff, so handoff diagnostics should name recorded and observed
+topology and not add a competing wrapper.
+
 ## Decomposition
 
 - `finish-transaction-integrity-k136`: harden the task-root, witness, manifest,

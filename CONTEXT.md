@@ -106,6 +106,13 @@ requires that the current working-copy commit itself still be the recorded
 change at those parents. Colocated jj preserves the user's Git index before any
 preflight snapshot can export into it.
 
+Evacuation and rollback move one entry at a time, so an interruption leaves an
+arbitrary prefix moved. Recovery locates every manifest entry — each must sit in
+exactly one of the task root and the recovery tree — instead of matching the two
+extreme shapes, so a moved prefix is an ordinary recoverable state whose retry
+restores whatever remains. An entry in both places or in neither, an unrecorded
+recovery-tree entry, and a foreign root entry all stay fail-closed and named.
+
 Every ordinary tree reader and mutator refuses the witness. Recovery runs before
 format, liveness, or missing-root classification and asks the repository seam
 whether the exact immediate handle-and-attempt-named, `.grove/`-scoped commit exists. With

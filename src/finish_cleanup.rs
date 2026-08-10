@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 mod auxiliary;
 mod reaper;
-mod unix;
+pub(crate) mod unix;
 pub(crate) use auxiliary::{
     auxiliary_artifact_path, auxiliary_marker_paths, ensure_auxiliary_available, prepare_auxiliary,
     recover_auxiliary, recover_auxiliary_marker, AuxiliaryCleanup, AuxiliaryRole,

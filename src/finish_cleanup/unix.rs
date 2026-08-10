@@ -16,7 +16,7 @@ pub(super) fn open_directory(path: &Path) -> io::Result<File> {
         .open(path)
 }
 
-pub(super) fn open_directory_at(parent: &File, name: &OsStr) -> io::Result<File> {
+pub(crate) fn open_directory_at(parent: &File, name: &OsStr) -> io::Result<File> {
     let name = c_string(name)?;
     // SAFETY: `name` is NUL-terminated, `parent` is an open directory, and a
     // successful descriptor is immediately owned by `File`.
@@ -35,7 +35,7 @@ pub(super) fn open_directory_at(parent: &File, name: &OsStr) -> io::Result<File>
     }
 }
 
-pub(super) fn open_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
+pub(crate) fn open_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
     let name = c_string(name)?;
     // SAFETY: `name` is NUL-terminated, `parent` is an open directory, and a
     // successful descriptor is immediately owned by `File`.
@@ -54,7 +54,7 @@ pub(super) fn open_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
     }
 }
 
-pub(super) fn create_new_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
+pub(crate) fn create_new_file_at(parent: &File, name: &OsStr) -> io::Result<File> {
     let name = c_string(name)?;
     // SAFETY: `name` is NUL-terminated, `parent` is an open directory, and a
     // successful descriptor is immediately owned by `File`.
@@ -108,7 +108,7 @@ pub(super) fn remove_directory_contents(
     Ok(())
 }
 
-pub(super) fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
+pub(crate) fn directory_names(directory: &File) -> io::Result<Vec<OsString>> {
     // SAFETY: `fcntl` duplicates a valid descriptor and transfers ownership of
     // that duplicate to `fdopendir` below.
     let duplicate = unsafe { libc::fcntl(directory.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };
@@ -229,7 +229,7 @@ pub(super) fn validate_entry_identity(
     Ok(())
 }
 
-pub(super) fn rename_at_noreplace(
+pub(crate) fn rename_at_noreplace(
     source_parent: &File,
     source: &OsStr,
     destination_parent: &File,
@@ -313,10 +313,21 @@ fn status_result(status: libc::c_int) -> io::Result<()> {
     }
 }
 
-pub(super) fn unlink_at(parent: &File, name: &OsStr, flags: i32) -> io::Result<()> {
+pub(crate) fn unlink_at(parent: &File, name: &OsStr, flags: i32) -> io::Result<()> {
     let name = c_string(name)?;
     // SAFETY: the directory descriptor and NUL-terminated name are valid.
     let status = unsafe { libc::unlinkat(parent.as_raw_fd(), name.as_ptr(), flags) };
+    if status < 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn create_directory_at(parent: &File, name: &OsStr) -> io::Result<()> {
+    let name = c_string(name)?;
+    // SAFETY: the directory descriptor and NUL-terminated name are valid.
+    let status = unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o700) };
     if status < 0 {
         Err(io::Error::last_os_error())
     } else {

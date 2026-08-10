@@ -1,136 +1,68 @@
-// Integration test for the self-driving loop (src/loop_driver.rs).
+// Integration tests for the self-driving loop (src/loop_driver.rs).
 //
-// Drives the *real* loop against a **fake `claude`** (a shell script wired in
-// via the `GROVE_HARNESS_BIN` seam) so the mechanism is proven end-to-end with
-// no real TUI: no PID handle is exported to the child (the driver kills its
-// own child instead — driver-side watcher), the driver ends a session that
-// signalled and then hung, relaunch is gated on the completion signal, and the
-// start→continue prompt switch happens once `.grove/` exists.
+// Every test here drives the **real bare `grove` process** against an isolated
+// `$HOME` carrying a complete `config.kdl` and a fake configured command. That
+// is the only way in: there is no harness to detect, no binary override to
+// point somewhere else, and no in-process entry point that skips the driver's
+// signal handlers. What the process seam buys is exactly what these tests are
+// about — the driver's own stderr, its session-epoch bookkeeping, its response
+// to being signalled, and its ownership of one foreground child.
+//
+// The watcher's grace → SIGTERM → kill-grace → SIGKILL escalation is *not*
+// tested here. Its two durations are built-in constants passed into
+// `wait_with_watcher_result`, so the escalation is driven on test timescales
+// through that module-local parameter, in `src/loop_driver.rs`'s own unit tests.
+// Reaching it from out here would need a process-configuration knob, which is
+// the thing this leaf removed.
 
 mod support;
 
-use grove::harness;
-use grove::loop_driver::{self, LoopOutcome};
-use grove::provision::STAMP_FILE;
-use std::fs::{self, File};
-use std::os::fd::AsRawFd;
+use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
 use std::sync::{mpsc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use support::EnvGuard;
 use tempfile::TempDir;
 
-// The loop launch reads several process-global env vars (the harness-bin
-// override + the fake's bookkeeping handles); serialize so cargo's parallel
-// runner doesn't cross test wires. A prior test's panic mid-mutation poisons
-// this lock; `support::lock_env` tolerates that (`EnvGuard`'s `Drop` already
-// restored the env before the panic unwound past it — see branch-review-k14
-// B1/T7).
+// A few tests below still mutate process-global state (cwd-independent, but
+// they read the ambient environment to build a scrubbed child env); serialize
+// them so cargo's parallel runner cannot cross wires.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-// This build's own `grove-llm`, pinned (via the `GROVE_LLM_BIN` seam) in every
-// test that reaches the loop: the driver's per-session version-skew guard
-// (driver-version-skew-k11) compares its compiled-in version against the
-// `grove-llm` the agent would invoke, and without the pin that is whatever the
-// *machine's* PATH happens to carry — a mismatched installed release would
-// stop the loop before the session under test ever launched.
+/// This build's own agent CLI. The driver resolves `grove-llm` as the sibling of
+/// its own executable, which `CARGO_BIN_EXE_grove` satisfies — so nothing here
+/// has to point it anywhere. Fixtures that need to *call* the CLI themselves
+/// bake this path into their script.
 const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
-const LEGACY_DRIVER_PROCESS: &str = "GROVE_TEST_LEGACY_DRIVER_PROCESS";
 
-// Model selection is **required** (model-per-task-kind, *A kind with no model
-// is a configuration error*): a picked leaf whose kind resolves no model var
-// fails the launch instead of inheriting the harness's own default. So every
-// fixture here has to configure the kinds its loop actually launches — for most
-// of them that is `requirements` alone, since the start path is requirements by
-// construction. That is **scaffolding, not intent**: these tests are about
-// kills, graces, prompts and signals, and the value below is deliberately
-// meaningless so a reader does not go looking for significance in it. The tests
-// that *are* about model selection name their own models.
-const SCAFFOLD_MODEL: &str = "scaffold-model";
+const SESSION_KINDS: &[&str] = &[
+    "requirements",
+    "review-requirements",
+    "integrate-review-requirements",
+    "design",
+    "review-design",
+    "integrate-review-design",
+    "planning",
+    "review-planning",
+    "integrate-review-planning",
+    "prototype",
+    "review-prototype",
+    "integrate-review-prototype",
+    "impl",
+    "review-impl",
+    "integrate-review-impl",
+    "research-a",
+    "research-b",
+    "combine-research",
+    "finish",
+];
 
-/// The legacy loop driven as a **real process**, for the handful of tests below
-/// that observe something no in-process `run_loop` call can: the driver's own
-/// stderr, its provisioning, or its response to a signal.
-///
-/// It was `launch::do_grove` until that removed human verb's implementation was
-/// deleted with the rest of the legacy command surface. What it composed —
-/// provisioning, the driver lease, the pre-flight, the adoption migration and
-/// [`loop_driver::run`] — is all still production and still owned by the routing
-/// and review contractions that come next, so the composition is reproduced here
-/// rather than the tests being dropped ahead of the leaves that own them. The one
-/// step with no successor is the harness stamp: harness selection is plain
-/// detection now, which every fixture below satisfies with a `.claude/` marker.
-#[test]
-fn legacy_grove_do_process() -> anyhow::Result<()> {
-    if std::env::var_os(LEGACY_DRIVER_PROCESS).is_none() {
-        return Ok(());
-    }
-    let cwd = std::env::current_dir()?;
-    let discovered = grove::repo::workspace_control(&cwd)?
-        .worktree_root()
-        .to_path_buf();
-    let repo_path = grove::repo::main_repo_of(&discovered)?;
-    let harness = grove::harness::select(&repo_path, &[], harness::SelectMode::Single)?[0];
-
-    grove::provision::provision_all(harness)?;
-
-    let driver_lease = grove::driver_lease::DriverLease::acquire(&cwd)?;
-    driver_lease.revalidate()?;
-    let worktree = driver_lease.worktree_root().to_path_buf();
-    let name = worktree
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "grove".to_string());
-
-    loop_driver::preflight_check(harness)?;
-    grove::tree_migrate::migrate_on_adoption(&worktree, &name)?;
-
-    loop_driver::run(harness, &repo_path, &worktree, &name, driver_lease)
-}
-
-fn legacy_grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
-    let mut command = std::process::Command::new(std::env::current_exe().unwrap());
-    command
-        .args(["--exact", "legacy_grove_do_process", "--nocapture"])
-        .current_dir(repo_path)
-        .env(LEGACY_DRIVER_PROCESS, "1");
-    command
-}
-
-fn write_exec(path: &std::path::Path, body: &str) {
-    fs::write(path, body).unwrap();
-    let mut perms = fs::metadata(path).unwrap().permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(path, perms).unwrap();
-}
-
-/// [`write_exec`] for a fake a **codex** launch can reach — by whichever bin
-/// seam binds it, so the stamped-harness wrapper in
-/// [`unscoped_harness_bin_does_not_leak_across_a_reroute`] counts as one too.
-///
-/// Every codex launch is preceded by grove's sandbox pre-flight, which runs the
-/// same binary as `codex exec`; without [`support::fake_codex`]'s reply the fake
-/// treats that probe as a second launch and the fixture's counter, argv log and
-/// completion signal all double. A fake that forgets this fails loudly (a row
-/// count one too high), never quietly.
-fn write_fake_codex(path: &std::path::Path, body: &str) {
-    write_exec(path, &support::fake_codex(body));
-}
-
-/// Create `dir` as a real git repo — the shape `grove-llm kind` needs to
-/// resolve a grove root at all.
-///
-/// Also scaffolding, and for the same reason: the kind peek used to be skipped
-/// entirely when no routing env was set, so a fixture whose loop reached the
-/// *continue* path never ran `grove-llm kind` and never needed to be a repo.
-/// The peek is unconditional now, and outside a repo it fails — which is a
-/// degraded peek, which refuses to launch.
-fn init_worktree(dir: &std::path::Path) {
+fn init_worktree(dir: &Path) {
     fs::create_dir_all(dir).unwrap();
     assert!(
-        std::process::Command::new("git")
+        Command::new("git")
             .args(["init", "-q"])
             .current_dir(dir)
             .status()
@@ -140,51 +72,114 @@ fn init_worktree(dir: &std::path::Path) {
     );
 }
 
-fn write_tree_format(grove: &std::path::Path) {
-    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+fn git(dir: &Path, args: &[&str]) {
+    assert!(
+        Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .unwrap()
+            .success(),
+        "git {args:?} failed"
+    );
 }
 
+fn write_exec(path: &Path, body: &str) {
+    fs::write(path, body).unwrap();
+    let mut perms = fs::metadata(path).unwrap().permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(path, perms).unwrap();
+}
+
+fn shell_quote(path: &Path) -> String {
+    let value = path.to_str().unwrap();
+    assert!(!value.contains('\''), "test fixture path contains a quote");
+    format!("'{value}'")
+}
+
+/// A complete personal config: one command template for every session kind, so
+/// configuration validation passes whichever leaf the tree happens to select.
+fn write_complete_config(home: &Path, command: &Path) {
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let template = format!("{} '${{prompt}}'", shell_quote(command));
+    let document = SESSION_KINDS
+        .iter()
+        .map(|kind| format!("{kind} {template:?}\n"))
+        .collect::<String>();
+    fs::write(config_dir.join("config.kdl"), document).unwrap();
+}
+
+/// Plant a minimal current-format tree with one live leaf.
+fn plant_tree(worktree: &Path, leaf: &str) {
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# g — brief\n").unwrap();
+    fs::write(grove.join(leaf), "# planted\n").unwrap();
+}
+
+/// The bare driver, with the whole legacy launch-policy environment scrubbed
+/// out of the child. A `Command` inherits this process's ambient environment,
+/// and this repo dogfoods Grove, so scrubbing is what makes the fixture the
+/// only input.
+fn grove_driver(worktree: &Path, home: &Path) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
+    command.current_dir(worktree);
+    for name in support::grove_env_names() {
+        command.env_remove(name);
+    }
+    command.env("HOME", home);
+    command
+}
+
+fn run_driver(worktree: &Path, home: &Path) -> Output {
+    grove_driver(worktree, home).output().unwrap()
+}
+
+fn wait_for(path: &Path, what: &str) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !path.exists() {
+        assert!(Instant::now() < deadline, "timed out waiting for {what}");
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
+// The session epoch is what admits an agent's `grove-llm` calls, so its window
+// has to be exactly the child's lifetime: active before the spawn (or the very
+// first call the session makes is refused) and inactive after the reap (or a
+// dead session's signal path stays admissible). Observed from *inside* the
+// session, which is the only vantage point that can tell "active before spawn"
+// from "active shortly after".
 #[test]
 fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    let worktree = repo_path.join("worktree");
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    let observed_epoch = repo_path.join("observed-epoch");
-    let observed_signal = repo_path.join("observed-signal");
-    let fake = repo_path.join("fake-claude.sh");
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    let observed_epoch = fixture.path().join("observed-epoch");
+    let observed_signal = fixture.path().join("observed-signal");
+    let configured = fixture.path().join("configured-command.sh");
     write_exec(
-        &fake,
-        r#"#!/bin/sh
-cp "$PWD/.git/grove/session.epoch" "$GROVE_TEST_OBSERVED_EPOCH"
-printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_OBSERVED_SIGNAL"
-exit 0
-"#,
+        &configured,
+        &format!(
+            "#!/bin/sh\ncp \"$PWD/.git/grove/session.epoch\" {epoch}\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {signal}\nexit 0\n",
+            epoch = shell_quote(&observed_epoch),
+            signal = shell_quote(&observed_signal),
+        ),
     );
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_OBSERVED_EPOCH", &observed_epoch)
-        .set("GROVE_TEST_OBSERVED_SIGNAL", &observed_signal)
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
+    write_complete_config(&home, &configured);
 
-    let outcome = loop_driver::run_loop(
-        harness::by_name("claude").unwrap(),
-        repo_path,
-        &worktree,
-        "worktree",
-    )
-    .unwrap();
+    let output = run_driver(&worktree, &home);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
-    assert_eq!(outcome, LoopOutcome::Stopped);
     let during_launch = fs::read_to_string(&observed_epoch).unwrap();
     let signal_path = fs::read_to_string(&observed_signal).unwrap();
     assert!(
@@ -200,59 +195,362 @@ exit 0
         .join("");
     assert!(
         during_launch.contains(&format!("signal-path-hex={signal_hex}\n")),
-        "{during_launch:?}"
+        "the live epoch must name this launch's own channel: {during_launch:?}"
     );
     let after_reap = fs::read_to_string(worktree.join(".git/grove/session.epoch")).unwrap();
     assert!(after_reap.starts_with("state=inactive\n"), "{after_reap:?}");
     assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
 }
 
+// A `done` signal — the finish cycle's last teardown action — must end the loop
+// exactly once, cleanly, and must not be confused with either a relaunch or the
+// no-signal stop. The abandoned-channel housekeeping a replacement driver does
+// on acquiring the lease rides along here, because its failure modes have to
+// stay advisory: a channel it cannot clean is reported and stepped over, never
+// a reason not to launch.
+#[test]
+fn a_done_signal_finishes_the_loop_once_and_housekeeping_stays_advisory() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    let control_dir = worktree.join(".git/grove");
+    fs::create_dir_all(&control_dir).unwrap();
+    let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
+    let blocked_signal = control_dir.join("signal-11111111111111111111111111111111");
+    let unrelated_control = control_dir.join("signal-not-a-grove-channel");
+    fs::write(&abandoned_signal, "old completion\n").unwrap();
+    fs::create_dir(&blocked_signal).unwrap();
+    fs::write(&unrelated_control, "keep me\n").unwrap();
+
+    let log = fixture.path().join("log");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\nprintf 'ran\\n' >> {log}\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nexit 0\n",
+            log = shell_quote(&log),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    let output = run_driver(&worktree, &home);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "abandoned-channel housekeeping must not prevent launch: {stderr}"
+    );
+    assert!(
+        stderr.contains("could not clean every signal channel abandoned by a previous driver"),
+        "an abandoned-channel cleanup failure must remain visible: {stderr}"
+    );
+    assert!(
+        stderr.contains("grove finished — loop complete"),
+        "a `done` signal must end the loop with a clean finish: {stderr}"
+    );
+
+    let log = fs::read_to_string(&log).unwrap();
+    assert_eq!(
+        log.lines().filter(|line| !line.is_empty()).count(),
+        1,
+        "the loop must run exactly once then finish — no relaunch (log: {log:?})"
+    );
+    assert!(
+        !abandoned_signal.exists(),
+        "a replacement driver must clean abandoned signal channels after acquiring the lease"
+    );
+    assert!(
+        blocked_signal.is_dir(),
+        "an unremovable abandoned channel must remain inert while the loop continues"
+    );
+    assert_eq!(
+        fs::read_to_string(unrelated_control).unwrap(),
+        "keep me\n",
+        "cleanup must ignore names outside Grove's exact channel grammar"
+    );
+}
+
+// Outcome precedence: the signal the session actually wrote decides the loop,
+// and a later failure to tidy that channel away cannot retroactively change it.
+// The session's own disposition is the authoritative fact; channel removal is
+// housekeeping, and housekeeping reports rather than overrules.
+#[test]
+fn a_signal_removal_failure_does_not_override_a_done_disposition() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+    let control_dir = worktree.join(".git/grove");
+
+    let signal_log = fixture.path().join("signal-log");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nprintf '%s\\n' \"$GROVE_SIGNAL_FILE\" > {log}\nchmod 0500 \"$(dirname \"$GROVE_SIGNAL_FILE\")\"\nexit 0\n",
+            log = shell_quote(&signal_log),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    let output = run_driver(&worktree, &home);
+
+    // Restore before asserting, so a failing assertion cannot leave the fixture
+    // undeletable.
+    let mut permissions = fs::metadata(&control_dir).unwrap().permissions();
+    permissions.set_mode(0o700);
+    fs::set_permissions(&control_dir, permissions).unwrap();
+    let signal_path = PathBuf::from(fs::read_to_string(signal_log).unwrap().trim());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(
+        output.status.success(),
+        "channel housekeeping must not make a clean finish fail: {stderr}"
+    );
+    assert!(
+        stderr.contains("could not remove the interpreted foreground-session signal channel"),
+        "the removal failure must remain visible: {stderr}"
+    );
+    assert!(
+        stderr.contains("grove finished — loop complete"),
+        "the interpreted done disposition must remain authoritative: {stderr}"
+    );
+    assert!(
+        signal_path.exists(),
+        "the fixture must force the removal failure whose outcome precedence this test exercises"
+    );
+}
+
+// Signal-file identity (signal-file-identity-k6): two loops with the *same
+// grove name* in *different worktrees* must not interfere, even running truly
+// concurrently. The pre-fix path was derived from the name alone
+// (`$TMPDIR/grove-loop-<name>.signal`), so two worktrees sharing a basename —
+// generic names like "bugs"/"plan"/"docs" are the norm — collided on one file.
+//
+// The "attacker" signals `done` immediately then hangs; the "victim" never
+// signals and outlives the attacker's whole kill sequence before exiting on its
+// own. Pre-fix, the attacker's `done` would land in the file the victim's
+// watcher was also polling, killing the victim early and reporting a phantom
+// clean finish from content it never wrote.
+#[test]
+fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_interfere() {
+    let fixture = TempDir::new().unwrap();
+
+    let mut setup = |role: &str, body: &str| {
+        let home = fixture.path().join(format!("{role}-home"));
+        // Same *basename* in both trees — that is the whole point.
+        let worktree = fixture.path().join(role).join("samegrove");
+        init_worktree(&worktree);
+        plant_tree(&worktree, "01-impl-subject-k1.md");
+        let configured = fixture.path().join(format!("{role}-command.sh"));
+        write_exec(&configured, body);
+        write_complete_config(&home, &configured);
+        (home, worktree)
+    };
+
+    let (attacker_home, attacker_tree) = setup(
+        "attacker",
+        "#!/bin/sh\nprintf 'done\\n' > \"$GROVE_SIGNAL_FILE\"\nexec sleep 30\n",
+    );
+    let (victim_home, victim_tree) = setup("victim", "#!/bin/sh\nsleep 1.5\nexit 0\n");
+
+    let started = Instant::now();
+    let mut attacker = grove_driver(&attacker_tree, &attacker_home)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut victim = grove_driver(&victim_tree, &victim_home)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+
+    let attacker_out = attacker.wait_with_output().unwrap();
+    let victim_out = victim.wait_with_output().unwrap();
+    let elapsed = started.elapsed();
+
+    let attacker_stderr = String::from_utf8_lossy(&attacker_out.stderr);
+    let victim_stderr = String::from_utf8_lossy(&victim_out.stderr);
+    assert!(
+        attacker_stderr.contains("grove finished — loop complete"),
+        "sanity check: the attacker's own `done` signal still ends its own loop: {attacker_stderr}"
+    );
+    assert!(
+        victim_stderr.contains("without a completion signal"),
+        "the victim's session ended without ever signalling anything of its own — a \
+         foreign `done` from the other worktree's loop must not be mistaken for its \
+         own completion signal: {victim_stderr}"
+    );
+    assert!(
+        elapsed >= Duration::from_millis(1200),
+        "the victim must run its full ~1.5s session, not be cut short by the \
+         attacker's kill sequence (elapsed: {elapsed:?})"
+    );
+}
+
+// The real binary installs the SIGTERM/SIGHUP handler that forwards termination
+// to a live child and reaps it through the ordinary watcher escalation. A
+// driver that merely died would orphan an interactive session onto the TTY.
+#[test]
+fn a_sigtermed_driver_stops_and_reaps_its_child() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    // Never signals, never exits on its own — a session sitting mid-task when
+    // the driver is killed from outside. `exec` so the pid the driver signals
+    // is the sleeping process itself.
+    let launched = fixture.path().join("launched");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\n: > {launched}\nexec sleep 60\n",
+            launched = shell_quote(&launched),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    let mut child = grove_driver(&worktree, &home)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+
+    // Wait for the child marker so SIGTERM lands mid-session rather than racing
+    // the driver's own startup.
+    wait_for(&launched, "the configured session to launch");
+
+    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if child.try_wait().unwrap().is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "a SIGTERM'd driver must stop, not hang"
+        );
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+// A leaf whose filename kind this binary does not know is a tree the driver
+// cannot index into the configuration, so it refuses before launching anything
+// rather than guessing a kind. The refusal names the offending file, because
+// the fix is an edit to that filename.
+#[test]
+fn an_unrecognised_filename_kind_refuses_to_launch() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    git(&worktree, &["config", "user.email", "t@example.com"]);
+    git(&worktree, &["config", "user.name", "t"]);
+    plant_tree(&worktree, "01-reserch-a-k1.md");
+    git(&worktree, &["add", "-A"]);
+    git(
+        &worktree,
+        &["commit", "-qm", "tree with an unrecognised kind"],
+    );
+
+    let log = fixture.path().join("log");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\nprintf 'ran\\n' >> {log}\nexit 0\n",
+            log = shell_quote(&log)
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    let output = run_driver(&worktree, &home);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(!output.status.success(), "unexpected success: {stderr}");
+    assert!(
+        stderr.contains("01-reserch-a-k1.md"),
+        "the refusal must name the offending filename: {stderr}"
+    );
+    assert!(
+        !log.exists(),
+        "nothing may be launched for a leaf whose kind cannot be resolved"
+    );
+}
+
+// An orphaned agent command that was admitted under the live epoch, then blocked
+// on the tree lock, holds shared epoch admission after its foreground parent is
+// gone. The driver must not park the loop waiting for it: its post-reap
+// invalidation is bounded, and it stops with a visible diagnostic while leaving
+// the completion signal deliberately unconsumed — a relaunch on a tree some
+// orphan is still mutating is the outcome the bound exists to prevent.
+//
+// Slow by construction (~40s): the fixed invalidation timeout is the subject.
 #[test]
 fn an_orphaned_epoch_guard_stops_before_consuming_the_relaunch_signal() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-    let worktree = repo_path.join("worktree");
+    let _lock = support::lock_env(&ENV_LOCK);
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
     init_worktree(&worktree);
-    fs::create_dir_all(worktree.join(".claude")).unwrap();
+    plant_tree(&worktree, "01-impl-subject-k1.md");
 
-    let launch_ready = repo_path.join("launch-ready");
-    let tree_locked = repo_path.join("tree-locked");
-    let orphan_started = repo_path.join("orphan-started");
-    let epoch_held = repo_path.join("epoch-held");
-    let orphan_done = repo_path.join("orphan-done");
-    let term_received = repo_path.join("term-received");
-    let harness_pid = repo_path.join("harness-pid");
-    let observed_signal = repo_path.join("observed-signal");
-    let launch_count = repo_path.join("launch-count");
-    let fake = repo_path.join("fake-claude.sh");
+    let launch_ready = fixture.path().join("launch-ready");
+    let tree_locked = fixture.path().join("tree-locked");
+    let orphan_started = fixture.path().join("orphan-started");
+    let epoch_held = fixture.path().join("epoch-held");
+    let orphan_done = fixture.path().join("orphan-done");
+    let orphan_stderr = fixture.path().join("orphan-stderr");
+    let term_received = fixture.path().join("term-received");
+    let session_pid = fixture.path().join("session-pid");
+    let observed_signal = fixture.path().join("observed-signal");
+    let launch_count = fixture.path().join("launch-count");
+
+    let configured = fixture.path().join("configured-command.sh");
     write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_LAUNCH_COUNT" 2>/dev/null || echo 0)
+        &configured,
+        &format!(
+            r#"#!/bin/sh
+n=$(cat {count} 2>/dev/null || echo 0)
 n=$((n + 1))
-printf '%s\n' "$n" > "$GROVE_TEST_LAUNCH_COUNT"
-printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_OBSERVED_SIGNAL"
-printf '%s\n' "$$" > "$GROVE_TEST_HARNESS_PID"
-: > "$GROVE_TEST_LAUNCH_READY"
-while [ ! -e "$GROVE_TEST_TREE_LOCKED" ]; do sleep 0.01; done
+printf '%s\n' "$n" > {count}
+printf '%s\n' "$GROVE_SIGNAL_FILE" > {observed}
+printf '%s\n' "$$" > {pid}
+: > {ready}
+while [ ! -e {locked} ]; do sleep 0.01; done
 (
-  "$GROVE_LLM_BIN" pick >/dev/null 2>"$GROVE_TEST_ORPHAN_STDERR"
-  : > "$GROVE_TEST_ORPHAN_DONE"
-) >/dev/null 2>"$GROVE_TEST_ORPHAN_STDERR" &
-: > "$GROVE_TEST_ORPHAN_STARTED"
-while [ ! -e "$GROVE_TEST_EPOCH_HELD" ]; do sleep 0.01; done
+  {llm} pick >/dev/null 2>{orphan_err}
+  : > {orphan_done}
+) >/dev/null 2>{orphan_err} &
+: > {orphan_started}
+while [ ! -e {held} ]; do sleep 0.01; done
 : > "$GROVE_SIGNAL_FILE"
-trap ': > "$GROVE_TEST_TERM_RECEIVED"' TERM
+trap ': > {term}' TERM
 while :; do sleep 0.1; done
 "#,
+            count = shell_quote(&launch_count),
+            observed = shell_quote(&observed_signal),
+            pid = shell_quote(&session_pid),
+            ready = shell_quote(&launch_ready),
+            locked = shell_quote(&tree_locked),
+            llm = shell_quote(Path::new(OWN_GROVE_LLM)),
+            orphan_err = shell_quote(&orphan_stderr),
+            orphan_done = shell_quote(&orphan_done),
+            orphan_started = shell_quote(&orphan_started),
+            held = shell_quote(&epoch_held),
+            term = shell_quote(&term_received),
+        ),
     );
+    write_complete_config(&home, &configured);
 
     let (release_tx, release_rx) = mpsc::channel();
     let lock_worktree = worktree.clone();
@@ -261,13 +559,17 @@ while :; do sleep 0.1; done
     let lock_orphan_started = orphan_started.clone();
     let lock_epoch_held = epoch_held.clone();
     let lock_thread = thread::spawn(move || {
-        let deadline = Instant::now() + Duration::from_secs(10);
+        use std::os::fd::AsRawFd;
+        let deadline = Instant::now() + Duration::from_secs(20);
         while !lock_launch_ready.exists() {
-            assert!(Instant::now() < deadline, "fake harness did not start");
+            assert!(
+                Instant::now() < deadline,
+                "configured session did not start"
+            );
             thread::sleep(Duration::from_millis(10));
         }
 
-        let tree_guard = File::open(&lock_worktree).unwrap();
+        let tree_guard = fs::File::open(&lock_worktree).unwrap();
         assert_eq!(
             unsafe { libc::flock(tree_guard.as_raw_fd(), libc::LOCK_EX) },
             0,
@@ -288,7 +590,7 @@ while :; do sleep 0.1; done
                 Instant::now() < deadline,
                 "orphaned tree command never acquired shared epoch admission"
             );
-            let probe = File::open(&epoch_path).unwrap();
+            let probe = fs::File::open(&epoch_path).unwrap();
             let result = unsafe { libc::flock(probe.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
             if result != 0 {
                 let error = std::io::Error::last_os_error();
@@ -313,35 +615,14 @@ while :; do sleep 0.1; done
         drop(tree_guard);
     });
 
-    let orphan_stderr = repo_path.join("orphan-stderr");
-    let mut command = legacy_grove_do_command(&worktree);
-    for name in support::grove_env_names() {
-        command.env_remove(name);
-    }
     let started = Instant::now();
-    let mut child = command
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        .env("GROVE_TEST_LAUNCH_READY", &launch_ready)
-        .env("GROVE_TEST_TREE_LOCKED", &tree_locked)
-        .env("GROVE_TEST_ORPHAN_STARTED", &orphan_started)
-        .env("GROVE_TEST_EPOCH_HELD", &epoch_held)
-        .env("GROVE_TEST_ORPHAN_DONE", &orphan_done)
-        .env("GROVE_TEST_ORPHAN_STDERR", &orphan_stderr)
-        .env("GROVE_TEST_TERM_RECEIVED", &term_received)
-        .env("GROVE_TEST_HARNESS_PID", &harness_pid)
-        .env("GROVE_TEST_OBSERVED_SIGNAL", &observed_signal)
-        .env("GROVE_TEST_LAUNCH_COUNT", &launch_count)
-        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .env("GROVE_KILL_GRACE", "0.2")
-        .env("GROVE_KILL_GRACE_KILL", "0.3")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
+    let mut child = grove_driver(&worktree, &home)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .unwrap();
 
-    let setup_deadline = Instant::now() + Duration::from_secs(15);
+    let setup_deadline = Instant::now() + Duration::from_secs(25);
     while !epoch_held.exists() && Instant::now() < setup_deadline {
         if child.try_wait().unwrap().is_some() {
             break;
@@ -362,7 +643,10 @@ while :; do sleep 0.1; done
     }
 
     let contention_observed = Instant::now();
-    let stop_deadline = contention_observed + Duration::from_secs(35);
+    // The built-in grace (2s) plus kill-grace (5s) precede the fixed 30s
+    // invalidation timeout, so the process-level bound is the timeout plus that
+    // escalation plus slack — not the timeout alone.
+    let stop_deadline = contention_observed + Duration::from_secs(60);
     let stopped_within_bound = loop {
         if child.try_wait().unwrap().is_some() {
             break true;
@@ -384,7 +668,7 @@ while :; do sleep 0.1; done
 
     let _ = release_tx.send(());
     lock_thread.join().unwrap();
-    let orphan_deadline = Instant::now() + Duration::from_secs(5);
+    let orphan_deadline = Instant::now() + Duration::from_secs(10);
     while !orphan_done.exists() {
         assert!(
             Instant::now() < orphan_deadline,
@@ -397,7 +681,7 @@ while :; do sleep 0.1; done
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         stopped_within_bound,
-        "driver exceeded the 35s watchdog after contention began: {stderr}"
+        "driver exceeded its watchdog after contention began: {stderr}"
     );
     assert!(
         !output.status.success(),
@@ -427,7 +711,7 @@ while :; do sleep 0.1; done
         "the fixed timeout fired too early: {total_elapsed:?}"
     );
     assert!(
-        contention_elapsed < Duration::from_secs(35),
+        contention_elapsed < Duration::from_secs(60),
         "the fixed 30s timeout exceeded its process-level bound: {contention_elapsed:?}"
     );
     assert!(
@@ -438,12 +722,12 @@ while :; do sleep 0.1; done
         orphan_outlived_killed_parent,
         "the admitted background command must still be blocked after its foreground parent died"
     );
-    let harness_pid: i32 = fs::read_to_string(harness_pid)
+    let session_pid: i32 = fs::read_to_string(session_pid)
         .unwrap()
         .trim()
         .parse()
         .unwrap();
-    assert_eq!(unsafe { libc::kill(harness_pid, 0) }, -1);
+    assert_eq!(unsafe { libc::kill(session_pid, 0) }, -1);
     assert_eq!(
         std::io::Error::last_os_error().raw_os_error(),
         Some(libc::ESRCH),
@@ -451,4270 +735,4 @@ while :; do sleep 0.1; done
     );
     assert!(signal_was_left_unconsumed);
     assert_eq!(fs::read_to_string(&launch_count).unwrap().trim(), "1");
-}
-
-#[test]
-fn loop_relaunches_on_signal_and_stops_without_one() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    // Prompts the loop's load_prompt must read — from the GLOBAL skill dir the
-    // binary provisions (`$GROVE_SKILL_DIR`), NOT any repo-local mirror
-    // (self-extension-core-and-methodology). Plant a stale mirror in the old
-    // `install_path` location to prove the loop ignores it: a regression to the
-    // old read would log "STALE …".
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let stale = repo_path.join(".claude/skills/grove/prompts");
-    fs::create_dir_all(&stale).unwrap();
-    fs::write(stale.join("start.md"), "STALE START").unwrap();
-    fs::write(stale.join("continue.md"), "STALE CONTINUE").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    init_worktree(&worktree);
-
-    let counter = repo_path.join("counter");
-    let log = repo_path.join("log");
-    let signal_log = repo_path.join("signal-log");
-
-    // Fake claude: log <iter>\t<harness-pid-handle>\t<claude-pid-handle>\t<prompt>;
-    // create `.grove/` after the first iteration so the loop switches
-    // start→continue; fire the completion signal for the first two
-    // iterations, then stop. Logs whether `GROVE_HARNESS_PID`/`GROVE_CLAUDE_PID`
-    // are set at all (driver-side-kill-k2): the driver no longer exports
-    // either — the agent never needs its own PID, since the driver kills its
-    // own child directly.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-for a in "$@"; do prompt="$a"; done
-printf '%s\t%s\t%s\t%s\n' "$n" "${GROVE_HARNESS_PID:-unset}" "${GROVE_CLAUDE_PID:-unset}" "$prompt" >> "$GROVE_TEST_LOG"
-printf '%s\n' "$GROVE_SIGNAL_FILE" >> "$GROVE_TEST_SIGNAL_LOG"
-mkdir -p "$PWD/.grove"
-printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-if [ "$n" -lt 3 ]; then
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_TEST_SIGNAL_LOG", &signal_log)
-        // Scaffolding: only the first (start ⇒ requirements) iteration needs a
-        // model at all — the two continue iterations peek an *empty* `.grove/`,
-        // which is the no-live-leaf exemption.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "a non-signalled exit stops the loop (resume with `grove do`), not a clean finish"
-    );
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<Vec<&str>> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.split('\t').collect())
-        .collect();
-
-    assert_eq!(
-        rows.len(),
-        3,
-        "loop should run 3 times then stop (log: {log:?})"
-    );
-
-    // Neither PID handle is exported any more: the driver kills its own
-    // child directly, so the agent never needs its own PID (driver-side-kill-k2).
-    for row in &rows {
-        assert_eq!(
-            row[1], "unset",
-            "GROVE_HARNESS_PID must no longer be exported to the harness (row: {row:?})"
-        );
-        assert_eq!(
-            row[2], "unset",
-            "GROVE_CLAUDE_PID must no longer be exported to the harness (row: {row:?})"
-        );
-    }
-
-    // start→continue switch: first iteration has no `.grove/` (start), the rest
-    // do (continue).
-    assert_eq!(
-        rows[0][3], "START PROMPT",
-        "first iteration bootstraps via start"
-    );
-    assert_eq!(rows[1][3], "CONTINUE PROMPT", "second iteration continues");
-    assert_eq!(rows[2][3], "CONTINUE PROMPT", "third iteration continues");
-
-    let signal_paths: Vec<PathBuf> = fs::read_to_string(signal_log)
-        .unwrap()
-        .lines()
-        .map(PathBuf::from)
-        .collect();
-    assert_eq!(signal_paths.len(), 3);
-    assert_ne!(signal_paths[0], signal_paths[1]);
-    assert_ne!(signal_paths[1], signal_paths[2]);
-    assert_ne!(signal_paths[0], signal_paths[2]);
-    assert!(
-        signal_paths.iter().all(|path| !path.exists()),
-        "the driver must remove each accepted channel after interpreting its session"
-    );
-}
-
-#[test]
-fn loop_finishes_clean_on_a_done_signal() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    init_worktree(&worktree);
-    fs::create_dir_all(worktree.join(".claude")).unwrap();
-    let control_dir = worktree.join(".git/grove");
-    fs::create_dir_all(&control_dir).unwrap();
-    let abandoned_signal = control_dir.join("signal-00000000000000000000000000000000");
-    let blocked_signal = control_dir.join("signal-11111111111111111111111111111111");
-    let unrelated_control = control_dir.join("signal-not-a-grove-channel");
-    fs::write(&abandoned_signal, "old completion\n").unwrap();
-    fs::create_dir(&blocked_signal).unwrap();
-    fs::write(&unrelated_control, "keep me\n").unwrap();
-
-    let counter = repo_path.join("counter");
-    let log = repo_path.join("log");
-
-    // Fake claude: fire the *done* signal (the finish cycle's last teardown
-    // action) on the first iteration. The loop must run exactly once and stop
-    // with a clean finish — not relaunch, and not the no-signal stop.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s\n' "$n" >> "$GROVE_TEST_LOG"
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exit 0
-"#,
-    );
-
-    let mut command = legacy_grove_do_command(&worktree);
-    for name in support::grove_env_names() {
-        command.env_remove(name);
-    }
-    let output = command
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        .env("GROVE_TEST_COUNTER", &counter)
-        .env("GROVE_TEST_LOG", &log)
-        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    assert!(
-        output.status.success(),
-        "abandoned-channel housekeeping must not prevent launch: {stderr}"
-    );
-    assert!(
-        stderr.contains("could not clean every signal channel abandoned by a previous driver"),
-        "an abandoned-channel cleanup failure must remain visible: {stderr}"
-    );
-    assert!(
-        stderr.contains("grove finished — loop complete"),
-        "a `done` signal must end the loop with a clean finish: {stderr}"
-    );
-
-    let log = fs::read_to_string(&log).unwrap();
-    let count = log.lines().filter(|l| !l.is_empty()).count();
-    assert_eq!(
-        count, 1,
-        "the loop must run exactly once then finish — no relaunch (log: {log:?})"
-    );
-    assert!(
-        !abandoned_signal.exists(),
-        "a replacement driver must clean abandoned signal channels after acquiring the lease"
-    );
-    assert!(
-        blocked_signal.is_dir(),
-        "an unremovable abandoned channel must remain inert while the loop continues"
-    );
-    assert_eq!(
-        fs::read_to_string(unrelated_control).unwrap(),
-        "keep me\n",
-        "cleanup must ignore names outside Grove's exact channel grammar"
-    );
-}
-
-#[test]
-fn a_signal_removal_failure_does_not_override_a_done_disposition() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    init_worktree(&worktree);
-    fs::create_dir_all(worktree.join(".claude")).unwrap();
-    let control_dir = worktree.join(".git/grove");
-    let signal_log = repo_path.join("signal-log");
-
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-printf '%s\n' "$GROVE_SIGNAL_FILE" > "$GROVE_TEST_SIGNAL_LOG"
-chmod 0500 "$(dirname "$GROVE_SIGNAL_FILE")"
-exit 0
-"#,
-    );
-
-    let mut command = legacy_grove_do_command(&worktree);
-    for name in support::grove_env_names() {
-        command.env_remove(name);
-    }
-    let output = command
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        .env("GROVE_TEST_SIGNAL_LOG", &signal_log)
-        .env("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .output()
-        .unwrap();
-
-    let mut permissions = fs::metadata(&control_dir).unwrap().permissions();
-    permissions.set_mode(0o700);
-    fs::set_permissions(&control_dir, permissions).unwrap();
-    let signal_path = PathBuf::from(fs::read_to_string(signal_log).unwrap().trim());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    assert!(
-        output.status.success(),
-        "channel housekeeping must not make a clean finish fail: {stderr}"
-    );
-    assert!(
-        stderr.contains("could not remove the interpreted foreground-session signal channel"),
-        "the removal failure must remain visible: {stderr}"
-    );
-    assert!(
-        stderr.contains("grove finished — loop complete"),
-        "the interpreted done disposition must remain authoritative: {stderr}"
-    );
-    assert!(
-        signal_path.exists(),
-        "the fixture must force the removal failure whose outcome precedence this test exercises"
-    );
-}
-
-// Signal-file identity (signal-file-identity-k6): two `grove do` loops with
-// the *same grove name* but *different worktrees* must not interfere, even
-// running truly concurrently. The pre-fix deterministic path was derived from
-// `name` alone (`$TMPDIR/grove-loop-<name>.signal`), so two worktrees that
-// happened to share a basename (generic names like "bugs"/"plan"/"docs" are
-// the norm) collided on one file.
-//
-// Runs two `run_loop`s on real OS threads at the same time, both named
-// "samegrove": an "attacker" loop whose fake harness signals `done`
-// immediately then hangs (the driver must still kill *its own* child — a
-// sanity check this test also covers), and a "victim" loop whose fake
-// harness never touches its own signal file and just outlives the
-// attacker's entire kill sequence before exiting cleanly on its own.
-// Pre-fix, the attacker's `done` write would land in the file the victim's
-// watcher was *also* polling (same name ⇒ same path), killing the victim
-// early and reporting a phantom clean finish from content it never wrote.
-//
-// Both loops share one fake-harness script (env vars like GROVE_HARNESS_BIN
-// are process-global, so two literal scripts can't be threaded through two
-// concurrent in-process loops) that branches on a marker file in its own
-// `$PWD` — safe because `current_dir` is set per spawned `Command`, unlike
-// env vars, so it genuinely differs between the two loops' children.
-#[test]
-fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_interfere() {
-    let _g = support::lock_env(&ENV_LOCK);
-
-    let repo_a = TempDir::new().unwrap();
-    let worktree_a = repo_a.path().join("wt");
-    init_worktree(&worktree_a);
-    fs::write(worktree_a.join("ROLE_ATTACKER"), "").unwrap();
-
-    let repo_b = TempDir::new().unwrap();
-    let worktree_b = repo_b.path().join("wt");
-    init_worktree(&worktree_b);
-
-    let skill_dir = repo_a.path().join("skill");
-    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
-    fs::write(skill_dir.join("prompts/start.md"), "START PROMPT").unwrap();
-
-    let fake = repo_a.path().join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-if [ -f "$PWD/ROLE_ATTACKER" ]; then
-  printf 'done\n' > "$GROVE_SIGNAL_FILE"
-  exec sleep 30
-else
-  sleep 1.5
-  exit 0
-fi
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.2")
-        // Scaffolding: both loops run one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let repo_a_path = repo_a.path().to_path_buf();
-    let repo_b_path = repo_b.path().to_path_buf();
-    let started = Instant::now();
-    let attacker = std::thread::spawn(move || {
-        loop_driver::run_loop(harness, &repo_a_path, &worktree_a, "samegrove")
-    });
-    let victim = std::thread::spawn(move || {
-        loop_driver::run_loop(harness, &repo_b_path, &worktree_b, "samegrove")
-    });
-
-    let attacker_result = attacker.join().unwrap().unwrap();
-    let victim_result = victim.join().unwrap().unwrap();
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        attacker_result,
-        LoopOutcome::Finished,
-        "sanity check: the attacker's own `done` signal still ends its own loop"
-    );
-    assert_eq!(
-        victim_result,
-        LoopOutcome::Stopped,
-        "the victim's session ended without ever signalling anything of its \
-         own — a foreign `done` from the other worktree's loop must not be \
-         mistaken for its own completion signal"
-    );
-    assert!(
-        elapsed >= Duration::from_millis(1200),
-        "the victim must run its full ~1.5s session, not be cut short by the \
-         attacker's early SIGTERM (elapsed: {elapsed:?})"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "sanity bound: neither loop should hang (elapsed: {elapsed:?})"
-    );
-}
-
-// Driver-side kill (driver-side-kill-k2): the loop driver, not the agent,
-// ends the harness session once the completion signal fires. These three
-// tests stand in for a `claude` session whose turn is still wrapping up when
-// `complete` writes the signal file — a fake that signals then keeps running
-// (a 30s `sleep`) rather than exiting on its own, so the *only* way `run_loop`
-// returns quickly is if the watcher actually killed it. Small
-// `GROVE_KILL_GRACE`/`GROVE_KILL_GRACE_KILL` values keep the tests fast
-// without a new test seam (BRIEF.md Notes).
-
-#[test]
-fn driver_kills_a_hung_session_that_signalled_done() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/killgrove");
-    init_worktree(&worktree);
-
-    // `exec sleep 30`, not a plain `sleep 30`: exec replaces the shell's own
-    // process image (same pid), so the pid the driver signals *is* the
-    // sleeping process — a plain `sleep 30` would run as the shell's child,
-    // leaving it orphaned (and still asleep for the full 30s) once the driver
-    // kills the shell around it.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exec sleep 30
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3")
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let started = Instant::now();
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove");
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Finished,
-        "a `done` signal must still end the loop cleanly even though the \
-         session hung instead of exiting on its own"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "the driver must kill the hung session promptly, not wait out its \
-         30s sleep (elapsed: {elapsed:?})"
-    );
-}
-
-#[test]
-fn driver_kills_a_hung_session_that_signalled_relaunch() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    // A repo, because iteration 2 takes the continue path and its kind peek is
-    // no longer skippable (see `init_worktree`).
-    let worktree = repo_path.join(".grove-worktrees/killgrove2");
-    init_worktree(&worktree);
-
-    let counter = repo_path.join("counter");
-
-    // Iteration 1 signals a relaunch then hangs (must be killed by the
-    // driver); iteration 2 materialises `.grove/` and exits immediately with
-    // no signal of its own, so the loop stops there rather than looping on
-    // the same hang forever. `exec sleep 30` (not a plain `sleep 30`) so the
-    // hang takes over the shell's own pid rather than orphaning a grandchild
-    // once the driver kills it (see the sibling test above).
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-mkdir -p "$PWD/.grove"
-printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-if [ "$n" -eq 1 ]; then
-  : > "$GROVE_SIGNAL_FILE"
-  exec sleep 30
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3")
-        // Scaffolding: iteration 1 is the start path ⇒ requirements; iteration 2
-        // peeks an empty `.grove/` and needs nothing.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let started = Instant::now();
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove2");
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "the first (hung) session's relaunch signal must still be honoured \
-         once the driver kills it; the second session then stops the loop \
-         with no signal of its own"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "the driver must kill the hung first session promptly, not wait out \
-         its 30s sleep (elapsed: {elapsed:?})"
-    );
-    assert_eq!(
-        fs::read_to_string(&counter).unwrap().trim(),
-        "2",
-        "both iterations must have run — the kill did not just abort the loop"
-    );
-}
-
-// watcher-test-hardening-k7, mutant 1: dropping the `signal_file.exists()`
-// guard makes the watcher SIGTERM *every* session `grace` after launch,
-// signalled or not — every fixture above either exits immediately or
-// signals-then-hangs, so none proves the driver leaves an un-signalled
-// session alone. (`concurrent_loops_with_the_same_grove_name_...` above
-// happens to also fail under this mutant, as a side effect of proving
-// signal-file identity, but only by ~180ms out of its 1.2s margin — too
-// tight to trust as this property's real coverage.) `exec sleep 1.5`, not a
-// plain one, for the same reason as the sibling kill tests: same pid, no
-// orphaned grandchild.
-#[test]
-fn driver_leaves_an_unsignalled_session_alone() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/killgrove4");
-    init_worktree(&worktree);
-
-    // Never touches `$GROVE_SIGNAL_FILE`; just runs ~1.5s then exits on its
-    // own. Small graces so a wrongly-early kill (guard dropped ⇒ SIGTERM at
-    // ~grace, SIGKILL at ~grace+kill_grace) lands in well under a second —
-    // unambiguously short of the full 1.5s.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-exec sleep 1.5
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.2")
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let started = Instant::now();
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove4");
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "a session that never signals must stop the loop, not relaunch"
-    );
-    assert!(
-        elapsed >= Duration::from_millis(1400),
-        "the watcher must leave an un-signalled session alone — a dropped \
-         `signal_file.exists()` guard would SIGTERM it ~0.2-0.7s after \
-         launch, far short of its own ~1.5s natural completion \
-         (elapsed: {elapsed:?})"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "sanity bound: the session should not hang (elapsed: {elapsed:?})"
-    );
-}
-
-#[test]
-fn driver_escalates_to_sigkill_when_the_session_ignores_sigterm() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/killgrove3");
-    init_worktree(&worktree);
-
-    let term_marker = repo_path.join("term-received");
-
-    // watcher-test-hardening-k7, mutant 2: traps SIGTERM and *records*
-    // receipt rather than only ignoring it — a bare `trap '' TERM` fixture
-    // passes whether or not TERM is ever actually sent (the escalation to
-    // SIGKILL happens either way), so it cannot distinguish real
-    // TERM-then-KILL from a driver that sends KILL from the start
-    // (BRIEF.md Notes: "Keep TERM-before-KILL"). This fixture still never
-    // exits on its own — forcing the SIGKILL escalation the test name
-    // promises — but the marker file only appears if a real, catchable
-    // SIGTERM landed first. No `exec sleep 30` here: a caught disposition
-    // does not survive `exec` (POSIX preserves only SIG_IGN across it), so
-    // the trap must run in the script's own shell process — which is why
-    // this sleeps in short increments rather than one blocking `sleep 30`:
-    // a signal delivered to a shell blocked on one long foreground child is
-    // not guaranteed to be handled until that child exits, but a signal
-    // between/within short sleeps is.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        &format!(
-            r#"#!/bin/sh
-trap 'printf term > "{marker}"' TERM
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-i=0
-while [ "$i" -lt 300 ]; do
-  sleep 0.1
-  i=$((i + 1))
-done
-"#,
-            marker = term_marker.display()
-        ),
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_KILL_GRACE", "0.2")
-        .set("GROVE_KILL_GRACE_KILL", "0.3")
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let started = Instant::now();
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove3");
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Finished,
-        "SIGKILL must end a session that ignores SIGTERM"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "the driver must escalate to SIGKILL rather than waiting out the \
-         30s loop (elapsed: {elapsed:?})"
-    );
-    assert!(
-        term_marker.exists(),
-        "the session must have received a real, catchable SIGTERM before \
-         the SIGKILL landed — a driver that sent SIGKILL from the start \
-         (skipping TERM) would kill it just as fast, with the trap never \
-         firing (watcher-test-hardening-k7)"
-    );
-}
-
-// watcher-test-hardening-k7, mutant 3: dropping the grace guard fires the
-// kill the instant the signal file appears — every timing assertion in this
-// file so far is an upper bound (`elapsed < 10s`); none pins a *lower*
-// bound, so a regression to grace≈0 is invisible. The grace exists so
-// `complete`'s Bash-tool call can return and the agent's own turn can end
-// before its session dies (BRIEF.md); this proves the watcher actually
-// waits for it. `GROVE_KILL_GRACE=3.0` — well above `POLL_INTERVAL` (500ms)
-// — so a dropped-guard instant kill (bounded to ~2 poll intervals,
-// independent of the configured grace) and a correctly-honoured 3s grace
-// land unambiguously on opposite sides of the threshold below.
-#[test]
-fn driver_waits_the_grace_before_sending_sigterm() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/killgrove5");
-    init_worktree(&worktree);
-
-    // Signals `done` immediately then hangs, same as the sibling kill tests
-    // — `exec sleep 30` so the pid the driver signals is the sleeping
-    // process itself.
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'done\n' > "$GROVE_SIGNAL_FILE"
-exec sleep 30
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_KILL_GRACE", "3.0")
-        .set("GROVE_KILL_GRACE_KILL", "0.3")
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let started = Instant::now();
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "killgrove5");
-    let elapsed = started.elapsed();
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Finished,
-        "a `done` signal must still end the loop cleanly"
-    );
-    assert!(
-        elapsed >= Duration::from_millis(2500),
-        "the watcher must honour the configured grace before its first \
-         SIGTERM — a dropped grace guard would kill within ~2 poll \
-         intervals of the signal file appearing, independent of the \
-         configured grace (elapsed: {elapsed:?})"
-    );
-    assert!(
-        elapsed < Duration::from_secs(10),
-        "sanity bound: the driver must not hang (elapsed: {elapsed:?})"
-    );
-}
-
-// Model selection (model-per-task-kind): the driver launches each session on a
-// model chosen by the picked leaf's **kind**. The start path is `requirements`
-// by construction (fresh-grove-start-contract); the continue path peeks the next
-// live leaf's kind via the real `grove-llm kind` binary (wired in via the
-// `GROVE_LLM_BIN` seam, run against a real git worktree so `kind` resolves the
-// grove root). Asserts the exact `--model` per iteration, across three of the
-// nineteen kinds — requirements (start), then two continue kinds, one of them a
-// *hyphenated* one (`impl`, then `review-impl`) — proving the scheme is a real
-// per-kind lookup and that the label → env-suffix mapping survives a hyphen.
-#[test]
-fn loop_selects_model_by_kind() {
-    let _g = support::lock_env(&ENV_LOCK);
-    // A real git repo *is* the worktree, so the real `grove-llm kind` (which
-    // finds the grove root via `git rev-parse --show-toplevel`) resolves `.grove/`.
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // Fake claude: log the full argv per iteration. On the first (start) run,
-    // materialise a `.grove/` with one live leaf kinded **work**, so the second
-    // run takes the continue path and `grove-llm kind` resolves it to `work`;
-    // that run then rewrites the same leaf's kind to **review** in place, so the
-    // third run's peek resolves to `review`. Fire the completion signal on the
-    // first two runs only, so the loop stops after three.
-    let fake = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
-fi
-if [ "$n" -eq 2 ]; then
-  mv "$PWD/.grove/01-impl-a-k1.md" "$PWD/.grove/01-review-impl-a-k1.md"
-fi
-if [ "$n" -lt 3 ]; then
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    // clear_grove_env is load-bearing here, not just hygiene: this repo
-    // dogfoods per-kind model + harness routing envs (BRIEF.md Notes), and
-    // this very test suite may be running *inside* a rerouted review session
-    // — ambient `GROVE_REVIEW_IMPL_HARNESS`/`GROVE_PI_REVIEW_IMPL_MODEL` would silently
-    // reroute iteration 3 (branch-review-k14 B1).
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REQUIREMENTS_MODEL", "opus")
-        .set("GROVE_IMPL_MODEL", "sonnet")
-        .set("GROVE_REVIEW_IMPL_MODEL", "haiku");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "modelgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(
-        rows.len(),
-        3,
-        "loop should run three times then stop (log: {log:?})"
-    );
-
-    // Iteration 1 — start path ⇒ requirements ⇒ GROVE_REQUIREMENTS_MODEL.
-    assert!(
-        rows[0].contains("--model opus"),
-        "start (requirements) session must launch on the requirements model (argv: {:?})",
-        rows[0]
-    );
-    assert!(
-        !rows[0].contains("sonnet") && !rows[0].contains("haiku"),
-        "start session must use only the requirements model (argv: {:?})",
-        rows[0]
-    );
-    // Iteration 2 — continue path ⇒ impl leaf ⇒ GROVE_IMPL_MODEL.
-    assert!(
-        rows[1].contains("--model sonnet"),
-        "continue (impl) session must launch on the impl model (argv: {:?})",
-        rows[1]
-    );
-    // Iteration 3 — continue path ⇒ review-impl leaf ⇒ GROVE_REVIEW_IMPL_MODEL.
-    // The discriminating case: a hyphenated label has to reach the underscored
-    // env suffix, which a label used verbatim as a var name would not.
-    assert!(
-        rows[2].contains("--model haiku"),
-        "continue (review-impl) session must launch on the review-impl model \
-         (argv: {:?})",
-        rows[2]
-    );
-}
-
-// Current-format task filenames are strict. An unknown session-kind token is a
-// malformed tree, so the driver surfaces the reader's diagnostic and launches
-// nothing.
-#[test]
-fn unrecognised_filename_kind_refuses_to_launch() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let git = |args: &[&str]| {
-        assert!(
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(repo_path)
-                .status()
-                .unwrap()
-                .success(),
-            "git {args:?} failed"
-        );
-    };
-    git(&["init", "-q", "-b", "main"]);
-    git(&["config", "user.email", "t@example.com"]);
-    git(&["config", "user.name", "t"]);
-
-    // `.claude/` so the harness is detected; a committed `.grove/` whose live
-    // leaf carries a kind this binary does not know, so the continue path's peek
-    // hits the degrade branch.
-    fs::create_dir_all(repo_path.join(".claude")).unwrap();
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(repo_path.join(".grove/01-reserch-a-k1.md"), "# a-k1\n").unwrap();
-    git(&["add", "-A"]);
-    git(&["commit", "-qm", "tree with an unrecognised kind"]);
-
-    // This test drives the real `grove do` binary, so provisioning is live
-    // (unlike the in-process `run_loop` tests above, which never reach
-    // `provision_all`). Stamp the dir so the foreign-dir guard
-    // (`provision_target`) treats it as grove's own — a mismatched hash still
-    // re-extracts the real embedded prompts, which is fine: this test only
-    // asserts on stderr and the logged argv, never on prompt content.
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    // A subprocess inherits this test process's *whole* ambient environment
-    // unless each var is explicitly overridden or removed — `.env(...)` alone
-    // does not isolate it. Scrub the full routing/model surface before layering
-    // the scenario's own vars, or this repo's own dogfooded `~/.zshenv` (or a
-    // session running these tests under itself) can steer the subprocess.
-    let mut cmd = legacy_grove_do_command(repo_path);
-    for name in support::grove_env_names() {
-        cmd.env_remove(name);
-    }
-    let out = cmd
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        .env("GROVE_TEST_LOG", &log)
-        .env("GROVE_IMPL_MODEL", "sonnet")
-        .output()
-        .unwrap();
-
-    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-    assert!(!out.status.success(), "malformed current tree launched");
-    assert!(
-        stderr.contains("malformed Grove leaf") && stderr.contains("reserch"),
-        "the refusal must name the malformed filename and token (stderr: {stderr:?})"
-    );
-
-    let argv = fs::read_to_string(&log).unwrap_or_default();
-    assert!(
-        argv.is_empty(),
-        "an unrecognised current filename kind must not launch (argv: {argv:?})"
-    );
-}
-
-/// Scaffolding for the tests below that observe the driver's **own stderr**.
-/// The launch diagnostic goes to the operator's terminal, not through any value
-/// an in-process `run_loop` test can inspect, so these drive the real `grove do`
-/// binary as a subprocess — the same route
-/// [`unrecognised_filename_kind_refuses_to_launch`] takes.
-///
-/// Plants a git repo with `.claude/` (so the harness detects as claude), a
-/// provisioned skill dir, and a fake harness that exits without signalling — the
-/// loop then stops after exactly one launch, which is all a diagnostic assertion
-/// needs. Returns the command with the whole routing surface **scrubbed**: a
-/// subprocess inherits this process's ambient environment, so this repo's own
-/// dogfooded config would otherwise steer it.
-fn one_launch_grove_do(repo_path: &std::path::Path) -> std::process::Command {
-    let git = |args: &[&str]| {
-        assert!(
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(repo_path)
-                .status()
-                .unwrap()
-                .success(),
-            "git {args:?} failed"
-        );
-    };
-    git(&["init", "-q", "-b", "main"]);
-    git(&["config", "user.email", "t@example.com"]);
-    git(&["config", "user.name", "t"]);
-    fs::create_dir_all(repo_path.join(".claude")).unwrap();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(&fake, "#!/bin/sh\nexit 0\n");
-
-    grove_do_command(repo_path)
-}
-
-fn grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
-    let skill_dir = repo_path.join("global-skill");
-    let fake = repo_path.join("fake-claude.sh");
-    let mut cmd = legacy_grove_do_command(repo_path);
-    for name in support::grove_env_names() {
-        cmd.env_remove(name);
-    }
-    cmd.env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir);
-    cmd
-}
-
-/// The driver's one launch line, or a panic naming what it saw instead.
-fn launch_line(stderr: &str) -> String {
-    stderr
-        .lines()
-        .find(|l| l.starts_with("grove: launching"))
-        .unwrap_or_else(|| panic!("no `grove: launching` line on stderr: {stderr:?}"))
-        .to_string()
-}
-
-// The launch line must name **what** the session was routed to work on, not
-// only where it was routed *to* (routed-leaf-diagnostic-k41). The routing peek
-// is a forecast the session is free to disagree with (model-per-task-kind), and
-// a session running a leaf routed for a different kind is otherwise
-// indistinguishable from one that is not — the harness and model on the line are
-// true about the launch and silent about the work.
-//
-// Asserted as **exact line equality**, which carries the naming rule for free:
-// the leaf here sits at position 02 under a `.grove/` path, and neither appears.
-// task-tree-scheme §5 — a durable reference is the `<slug>-k<key>` handle,
-// because scrollback outlives the position a `leaf-insert` will move.
-#[test]
-fn launch_line_names_the_routed_leaf_by_its_stable_handle() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let mut cmd = one_launch_grove_do(repo_path);
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-DONE-design-spec-k1.md"),
-        "# spec-k1\n",
-    )
-    .unwrap();
-    fs::write(
-        repo_path.join(".grove/02-design-picked-k7.md"),
-        "# picked-k7\n",
-    )
-    .unwrap();
-
-    let out = cmd.env("GROVE_DESIGN_MODEL", "opus").output().unwrap();
-    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-
-    assert_eq!(
-        launch_line(&stderr),
-        "grove: launching claude (model: opus) — picked-k7 (design)",
-        "the launch diagnostic must name the routed leaf by its stable handle \
-         and its kind (stderr: {stderr:?})"
-    );
-}
-
-#[test]
-fn producer_launch_body_metadata_does_not_affect_a_review_launch() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let mut cmd = one_launch_grove_do(repo_path);
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-DONE-impl-build-k1.md"),
-        "# build-k1\n",
-    )
-    .unwrap();
-    fs::write(
-        repo_path.join(".grove/02-review-impl-build-review-k2.md"),
-        "# build-review-k2\n\n**Reviews:** build-k1\n\
-         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-    )
-    .unwrap();
-
-    let prompt_log = repo_path.join("prompt");
-    write_exec(
-        &repo_path.join("fake-claude.sh"),
-        r#"#!/bin/sh
-for arg in "$@"; do prompt="$arg"; done
-printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
-exit 0
-"#,
-    );
-    let output = cmd
-        .env("GROVE_REVIEW_MODEL", "opus")
-        .env("GROVE_TEST_PROMPT", &prompt_log)
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let prompt = fs::read_to_string(&prompt_log)
-        .unwrap_or_else(|error| panic!("prompt was not written ({error}); stderr: {stderr}"));
-    assert!(output.status.success(), "review launch was gated: {stderr}");
-    assert!(
-        !stderr.contains("review target diversity warning"),
-        "stderr: {stderr}"
-    );
-    assert!(
-        !prompt.contains("review target diversity warning"),
-        "prompt: {prompt}"
-    );
-    assert_eq!(
-        launch_line(&stderr),
-        "grove: launching claude (model: opus) — build-review-k2 (review-impl)",
-        "body metadata must not change the resolved launch: {stderr}"
-    );
-
-    let restarted = grove_do_command(repo_path)
-        .env("GROVE_REVIEW_MODEL", "sonnet")
-        .env("GROVE_TEST_PROMPT", &prompt_log)
-        .output()
-        .unwrap();
-    let restarted_stderr = String::from_utf8_lossy(&restarted.stderr).into_owned();
-    let restarted_prompt = fs::read_to_string(&prompt_log).unwrap();
-    assert!(
-        restarted.status.success(),
-        "restarted review launch was gated: {restarted_stderr}"
-    );
-    assert!(
-        !restarted_stderr.contains("review target diversity warning"),
-        "stderr: {restarted_stderr}"
-    );
-    assert!(
-        !restarted_prompt.contains("review target diversity warning"),
-        "prompt: {restarted_prompt}"
-    );
-    assert_eq!(
-        launch_line(&restarted_stderr),
-        "grove: launching claude (model: sonnet) — build-review-k2 (review-impl)",
-        "the fresh driver must ignore the historical receipt: \
-         {restarted_stderr}"
-    );
-}
-
-#[test]
-fn a_fully_diverse_review_launch_is_silent_and_keeps_the_prompt_unprefixed() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let mut cmd = one_launch_grove_do(repo_path);
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-DONE-impl-build-k1.md"),
-        "# build-k1\n",
-    )
-    .unwrap();
-    fs::write(
-        repo_path.join(".grove/02-review-impl-build-review-k2.md"),
-        "# build-review-k2\n\n**Reviews:** build-k1\n\
-         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-    )
-    .unwrap();
-
-    let prompt_log = repo_path.join("prompt");
-    let fake_codex = repo_path.join("fake-codex.sh");
-    write_fake_codex(
-        &fake_codex,
-        r#"#!/bin/sh
-for arg in "$@"; do prompt="$arg"; done
-printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
-exit 0
-"#,
-    );
-    let output = cmd
-        .env("GROVE_REVIEW_HARNESS", "codex")
-        .env("GROVE_CODEX_REVIEW_MODEL", "sol-high")
-        .env("GROVE_HARNESS_BIN_CODEX", &fake_codex)
-        .env("GROVE_TEST_PROMPT", &prompt_log)
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    let prompt = fs::read_to_string(&prompt_log).unwrap();
-
-    assert!(output.status.success(), "diverse review failed: {stderr}");
-    assert!(
-        !stderr.contains("review target diversity warning"),
-        "stderr: {stderr}"
-    );
-    assert!(
-        !prompt.contains("review target diversity warning"),
-        "prompt: {prompt}"
-    );
-    assert_eq!(
-        launch_line(&stderr),
-        "grove: launching codex (model: sol-high) — build-review-k2 (review-impl)"
-    );
-}
-
-#[test]
-fn decomposed_producer_launch_metadata_is_ignored() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let mut cmd = one_launch_grove_do(repo_path);
-    fs::create_dir_all(repo_path.join(".grove/01-bundle-k1")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(
-        repo_path.join(".grove/01-bundle-k1/BRIEF.md"),
-        "# bundle-k1 — brief\n",
-    )
-    .unwrap();
-    fs::write(
-        repo_path.join(".grove/01-bundle-k1/01-DONE-impl-implement-k4.md"),
-        "# implement-k4\n",
-    )
-    .unwrap();
-    fs::write(
-        repo_path.join(".grove/02-review-impl-bundle-review-k8.md"),
-        "# bundle-review-k8\n\n**Reviews:** bundle-k1\n\
-         **Producer launch:** {\"producer\":\"bundle-k1\",\"session\":\"implement-k4\",\"generation\":\"k4\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-    )
-    .unwrap();
-
-    let prompt_log = repo_path.join("prompt");
-    write_exec(
-        &repo_path.join("fake-claude.sh"),
-        r#"#!/bin/sh
-for arg in "$@"; do prompt="$arg"; done
-printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
-exit 0
-"#,
-    );
-    let output = cmd
-        .env("GROVE_REVIEW_MODEL", "opus")
-        .env("GROVE_TEST_PROMPT", &prompt_log)
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-    assert!(output.status.success(), "review launch was gated: {stderr}");
-    assert!(
-        !stderr.contains("review target diversity warning"),
-        "stderr: {stderr}"
-    );
-    assert!(
-        !fs::read_to_string(&prompt_log)
-            .unwrap()
-            .contains("producer=bundle-k1, session=implement-k4"),
-        "body launch metadata must not enter the prompt"
-    );
-}
-
-#[test]
-fn the_loop_uses_review_evidence_from_its_guarded_peek_without_rereading_the_task() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let worktree = repo.path();
-    init_worktree(worktree);
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    write_tree_format(&worktree.join(".grove"));
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    let review_path = worktree.join(".grove/01-review-impl-retained-review-k2.md");
-    fs::write(&review_path, "# retained-review-k2\n").unwrap();
-
-    let fake_llm = worktree.join("fake-grove-llm.sh");
-    write_exec(
-        &fake_llm,
-        r#"#!/bin/sh
-if [ "$1" = "--version" ]; then
-  printf 'grove-llm %s\n' "$GROVE_TEST_VERSION"
-else
-  printf '%s\n' "$GROVE_TEST_PEEK"
-fi
-"#,
-    );
-    let prompt_log = worktree.join("prompt");
-    let fake_harness = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake_harness,
-        r#"#!/bin/sh
-for arg in "$@"; do prompt="$arg"; done
-printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
-exit 0
-"#,
-    );
-    let peek = serde_json::json!({
-        "path": review_path,
-        "handle": "retained-review-k2",
-        "kind": "review-impl",
-        "harness": null,
-        "review": {
-            "status": "checkable",
-            "producer": "bundle-k1",
-            "session": "implement-k4",
-            "generation": "k4",
-            "producer-target": {"harness": "claude", "model": "opus"}
-        }
-    })
-    .to_string();
-    let skill_dir = worktree.join("global-skill");
-    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
-    fs::write(skill_dir.join("prompts/continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let harness = harness::by_name("claude").unwrap();
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", &fake_llm)
-        .set("GROVE_HARNESS_BIN", &fake_harness)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_MODEL", "opus")
-        .set("GROVE_TEST_PROMPT", &prompt_log)
-        .set("GROVE_TEST_VERSION", env!("CARGO_PKG_VERSION"))
-        .set("GROVE_TEST_PEEK", &peek);
-
-    let outcome = loop_driver::run_loop(harness, worktree, worktree, "retained").unwrap();
-    let prompt = fs::read_to_string(&prompt_log).unwrap();
-
-    assert_eq!(outcome, LoopOutcome::Stopped);
-    assert!(prompt.contains("producer=bundle-k1, session=implement-k4"));
-    assert!(
-        !prompt.contains("uncheckable"),
-        "the task on disk intentionally lacks the relationship; rereading it would discard the guarded evidence: {prompt}"
-    );
-}
-
-#[test]
-fn a_review_peek_without_the_review_field_is_rejected_as_version_skew() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let worktree = repo.path();
-    init_worktree(worktree);
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    write_tree_format(&worktree.join(".grove"));
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    let review_path = worktree.join(".grove/01-review-impl-review-k2.md");
-    fs::write(&review_path, "# review-k2\n").unwrap();
-
-    let fake_llm = worktree.join("fake-grove-llm.sh");
-    write_exec(
-        &fake_llm,
-        r#"#!/bin/sh
-if [ "$1" = "--version" ]; then
-  printf 'grove-llm %s\n' "$GROVE_TEST_VERSION"
-else
-  printf '%s\n' "$GROVE_TEST_PEEK"
-fi
-"#,
-    );
-    let launch_log = worktree.join("launch-log");
-    let fake_harness = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake_harness,
-        "#!/bin/sh\nprintf 'launched\\n' > \"$GROVE_TEST_LOG\"\n",
-    );
-    let peek = serde_json::json!({
-        "path": review_path,
-        "handle": "review-k2",
-        "kind": "review-impl",
-        "harness": null
-    })
-    .to_string();
-    let skill_dir = worktree.join("global-skill");
-    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
-    fs::write(skill_dir.join("prompts/continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let harness = harness::by_name("claude").unwrap();
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", &fake_llm)
-        .set("GROVE_HARNESS_BIN", &fake_harness)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_MODEL", "opus")
-        .set("GROVE_TEST_LOG", &launch_log)
-        .set("GROVE_TEST_VERSION", env!("CARGO_PKG_VERSION"))
-        .set("GROVE_TEST_PEEK", &peek);
-
-    let error = loop_driver::run_loop(harness, worktree, worktree, "skewed-review")
-        .expect_err("a review wire predating retained evidence must not launch")
-        .to_string();
-
-    assert!(error.contains("could not be resolved"), "{error}");
-    assert!(!launch_log.exists(), "the skewed wire launched a session");
-}
-
-#[test]
-fn uncheckable_review_body_metadata_is_ignored() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-    let _setup_only = one_launch_grove_do(repo_path);
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-
-    let prompt_log = repo_path.join("prompt");
-    write_exec(
-        &repo_path.join("fake-claude.sh"),
-        r#"#!/bin/sh
-for arg in "$@"; do prompt="$arg"; done
-printf '%s' "$prompt" > "$GROVE_TEST_PROMPT"
-exit 0
-"#,
-    );
-    let cases = [
-        (
-            "missing relationship",
-            "**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-            "producer=unknown, uncheckable(reason=review-relationship-missing)",
-        ),
-        (
-            "malformed relationship",
-            "**Reviews:** not/a/handle\n**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-            "producer=unknown, uncheckable(reason=review-relationship-malformed)",
-        ),
-        (
-            "missing receipt",
-            "**Reviews:** build-k1\n",
-            "producer=build-k1, uncheckable(reason=producer-receipt-missing)",
-        ),
-        (
-            "receipt missing required model",
-            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\"}\n",
-            "producer=build-k1, uncheckable(reason=producer-receipt-malformed)",
-        ),
-        (
-            "receipt producer mismatch",
-            "**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"claimant-k9\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-            "producer=build-k1, uncheckable(reason=receipt-producer-mismatch)",
-        ),
-    ];
-
-    for (case, metadata, _expected) in cases {
-        fs::write(
-            repo_path.join(".grove/01-review-impl-build-review-k2.md"),
-            format!("# build-review-k2\n\n{metadata}"),
-        )
-        .unwrap();
-        let output = grove_do_command(repo_path)
-            .env("GROVE_REVIEW_MODEL", "sonnet")
-            .env("GROVE_TEST_PROMPT", &prompt_log)
-            .output()
-            .unwrap();
-        let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
-        let prompt = fs::read_to_string(&prompt_log).unwrap();
-        assert!(output.status.success(), "{case}: launch gated: {stderr}");
-        assert!(
-            !stderr.contains("review target diversity warning"),
-            "{case}: {stderr}"
-        );
-        assert!(
-            !prompt.contains("review target diversity warning"),
-            "{case}: body metadata leaked into prompt: {prompt}"
-        );
-    }
-}
-
-// The other half: when there is no leaf to name, the line degrades to its
-// pre-feature form rather than inventing one. Driven over the **bootstrap**
-// launch, which is the honest case — `.grove/` does not exist yet, so the walk
-// has nothing to walk and the kind is `requirements` by construction
-// (fresh-grove-start-contract), resolved without reading any file at all.
-#[test]
-fn a_launch_with_no_leaf_to_name_degrades_to_the_bare_line() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let mut cmd = one_launch_grove_do(repo_path);
-    let out = cmd
-        .env("GROVE_REQUIREMENTS_MODEL", "opus")
-        .output()
-        .unwrap();
-    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-
-    assert_eq!(
-        launch_line(&stderr),
-        "grove: launching claude (model: opus)",
-        "with no `.grove/` there is no leaf to name; the line must degrade \
-         rather than report a leaf it could not resolve (stderr: {stderr:?})"
-    );
-}
-
-// The load-bearing rule, **inverted** (required-model-vars-k18): a picked leaf
-// whose kind resolves no model var makes the launch fail, where it previously
-// launched with no `--model` and let the session inherit the user's own
-// default. The old rule never clobbered an existing default, which is true and
-// beside the point — falling through is still grove deciding which model runs a
-// `review-impl` leaf, just invisibly, and it leaves *partial* configuration
-// indistinguishable from complete configuration (model-per-task-kind).
-//
-// Two halves, both necessary. Nothing may launch — a session running on a model
-// chosen by omission is the state the requirement exists to make
-// unrepresentable. And the refusal must carry its own fix: the kind, plus every
-// var that would satisfy it. Driven over a **`review-impl`** leaf because it is
-// a kind *with a family*, so all four lattice keys exist for it and the error's
-// completeness is observable; a standalone kind would prove only half of it.
-#[test]
-fn a_kind_with_no_model_var_fails_loudly_instead_of_launching() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    write_tree_format(&worktree.join(".grove"));
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
-
-    let err = loop_driver::run_loop(harness, worktree, worktree, "nomodelgrove")
-        .expect_err("a kind resolving no model var must fail the launch")
-        .to_string();
-
-    assert!(
-        err.contains("review-impl"),
-        "the error must name the kind that resolved nothing — it is what the \
-         operator has to go configure (err: {err})"
-    );
-    for key in [
-        "GROVE_CLAUDE_REVIEW_IMPL_MODEL",
-        "GROVE_CLAUDE_REVIEW_MODEL",
-        "GROVE_REVIEW_IMPL_MODEL",
-        "GROVE_REVIEW_MODEL",
-    ] {
-        assert!(
-            err.contains(key),
-            "the error must list every var that would satisfy the requirement — \
-             exact-kind and family, harness-scoped and unscoped — or it sends \
-             the operator hunting; missing {key} (err: {err})"
-        );
-    }
-    assert!(
-        !log.exists(),
-        "no session may launch: running on a model grove chose by omission is \
-         exactly what the requirement makes unrepresentable"
-    );
-}
-
-// branch-review-k14 T6, carried across the inversion: an *empty-string* model
-// var must still behave exactly like an unset one — a blank
-// `GROVE_REQUIREMENTS_MODEL=` (e.g. from a shell template that never filled in a
-// value) must never reach the harness as a literal empty `--model`. What changed
-// is only the consequence: "treated as unset" now means the loud refusal above
-// rather than a bare launch.
-//
-// The start path, so this covers the standalone-kind shape the sibling test
-// cannot: `requirements` has no family, so its error lists two keys, not four.
-// It also pins the fresh-grove config contract from the other side — this is
-// the var a brand-new grove cannot start without.
-#[test]
-fn an_empty_string_model_var_fails_loudly_like_an_unset_one() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join(".grove-worktrees/loopgrove");
-    init_worktree(&worktree);
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REQUIREMENTS_MODEL", "");
-
-    let err = loop_driver::run_loop(harness, repo_path, &worktree, "loopgrove")
-        .expect_err("an empty-string model var must fail exactly as an unset one does")
-        .to_string();
-
-    assert!(
-        err.contains("requirements")
-            && err.contains("GROVE_REQUIREMENTS_MODEL")
-            && err.contains("GROVE_CLAUDE_REQUIREMENTS_MODEL"),
-        "the error must name the kind and both keys that would satisfy a \
-         standalone (family-less) kind (err: {err})"
-    );
-    assert!(
-        !log.exists(),
-        "an empty-string model var must never be passed through as a literal \
-         empty --model — and now must not launch at all"
-    );
-}
-
-// The codex harness declaration (issue #1). Two independent defects, both
-// observable only in the launched argv, which is what this drives:
-//
-//   * `name_args: &["--name"]` — codex has no such flag (checked against
-//     codex-cli 0.144.1: zero `--name` matches in `--help`). Session names exist
-//     in codex but are assigned *after* start, via `/rename`. A launch would die
-//     in codex's argument parser before any session began.
-//   * `model_args: &[]` — codex opted out of model-per-task-kind, but it does
-//     accept `-m, --model <MODEL>`, so the opt-out cost it the feature for no
-//     reason. It now participates via `--profile`, since profiles are the
-//     only way to bind reasoning effort to the launch.
-//
-// Latent until now only because `select` runs in `SelectMode::Single` and no
-// grove drives codex; it fires the first time anyone runs `grove do` in a repo
-// with a `.codex/` directory.
-#[test]
-fn codex_launches_with_no_name_flag_and_a_model_flag() {
-    let _g = support::lock_env(&ENV_LOCK);
-    // A real git repo *is* the worktree, so the real `grove-llm kind` resolves the
-    // leaf the second (continue) iteration peeks at.
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // Fake codex: log the full argv. The first (start) run materialises a `.grove/`
-    // holding one live **work** leaf, so the second run takes the continue path and
-    // `grove-llm kind` resolves it to `work`. Signal only on the first, so the loop
-    // stops after two.
-    let fake = worktree.join("fake-codex.sh");
-    write_fake_codex(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding for run 1 (start ⇒ requirements); run 2 is the impl leaf
-        // this test is actually about.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("GROVE_IMPL_MODEL", "sol-high");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "codexgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(
-        rows.len(),
-        2,
-        "loop should run twice then stop (log: {log:?})"
-    );
-
-    // No launch-time session-name flag: codex would abort on an unknown `--name`.
-    for row in &rows {
-        assert!(
-            !row.contains("--name"),
-            "codex has no launch-time session-name flag (argv: {row:?})"
-        );
-    }
-    // ...and the profile *is* selected: codex model-per-task-kind values name
-    // profiles (`--profile`), which bind model + reasoning effort.
-    assert!(
-        rows[1].contains("--profile sol-high"),
-        "codex must honour model-per-task-kind via --profile (argv: {:?})",
-        rows[1]
-    );
-}
-
-// ── The codex sandbox pre-flight (codex-grant-refused-k35) ────────────────
-//
-// A codex `grove do` used to die at startup with a one-line "Ignoring
-// --add-dir" message and a mute non-signal exit, because codex refuses the
-// VCS-store grants *fatally* under a `read-only` sandbox — the effective mode
-// for any project the user has not trusted, and trust does not inherit from
-// parent directories, so a fresh working tree is untrusted by construction.
-
-/// A fake codex whose sandbox pre-flight answers `mode`, and which appends
-/// `$*` to `$GROVE_TEST_LOG` on any **launch**. Nothing else: these two cases
-/// are about whether a launch happens at all, so the fake deliberately cannot
-/// materialise a tree or signal.
-fn fake_codex_reporting_sandbox(path: &std::path::Path, mode: &str) {
-    write_exec(
-        path,
-        &format!(
-            r#"#!/bin/sh
-if [ "$1" = exec ]; then
-  printf 'probe\t%s\n' "${{GROVE_SIGNAL_FILE:-unset}}" >> "$GROVE_TEST_LOG"
-  printf 'sandbox: {mode}\n' >&2
-  exit 0
-fi
-printf 'launch\t%s\n' "${{GROVE_SIGNAL_FILE:-unset}}" >> "$GROVE_TEST_LOG"
-exit 0
-"#
-        ),
-    );
-}
-
-/// A grove holding exactly one live `impl` leaf, so the loop takes the
-/// *continue* path on its first iteration — the fakes below never signal, and a
-/// refused launch never materialises anything.
-fn plant_one_impl_leaf(worktree: &std::path::Path) {
-    let grove = worktree.join(".grove");
-    fs::create_dir_all(&grove).unwrap();
-    write_tree_format(&grove);
-    fs::write(grove.join("BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(grove.join("01-impl-a-k1.md"), "# a-k1\n").unwrap();
-}
-
-#[test]
-fn the_foreground_session_receives_the_retained_routing_target() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-    plant_one_impl_leaf(worktree);
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let log = worktree.join("session-target.log");
-    let fake = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "${GROVE_SESSION_TARGET:-unset}" > "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CLAUDE_IMPL_MODEL", "sonnet");
-
-    let outcome = loop_driver::run_loop(
-        harness::by_name("claude").unwrap(),
-        worktree,
-        worktree,
-        "targetgrove",
-    )
-    .unwrap();
-
-    assert_eq!(outcome, LoopOutcome::Stopped);
-    let target = fs::read_to_string(log).unwrap();
-    let identity = grove::json::escape(&worktree.canonicalize().unwrap().display().to_string());
-    assert!(
-        target.contains(&format!("\"worktree\":\"{identity}\""))
-            && target.contains("\"handle\":\"a-k1\"")
-            && target.contains("\"harness\":\"claude\"")
-            && target.contains("\"model\":\"sonnet\""),
-        "the session target must come from the same structured routing peek: {target:?}"
-    );
-}
-
-// The refusal, at the seam the field report came from: `read-only` must stop the
-// launch **before** the spawn, with a message naming what to change. Refusing
-// rather than elevating to `workspace-write` is the decision (codex-gitdir-grant)
-// — the sandbox posture is the user's, and codex's trust prompt exists so a human
-// answers it once — and refusing rather than degrading to a launch that comes up
-// and then cannot commit is the other half: grove's Commit and Retire steps are
-// mandatory, so a silently read-only session is worse than none.
-#[test]
-fn a_read_only_codex_sandbox_refuses_before_launching() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-    plant_one_impl_leaf(worktree);
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    fake_codex_reporting_sandbox(&fake, "read-only");
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN_CODEX", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CODEX_IMPL_MODEL", "sol-high");
-
-    let err = loop_driver::run_loop(
-        harness::by_name("codex").unwrap(),
-        worktree,
-        worktree,
-        "readonlygrove",
-    )
-    .expect_err("a read-only codex sandbox must refuse the launch")
-    .to_string();
-
-    // Both remedies, because which one applies is the user's call and neither is
-    // guessable from codex's own one-liner — it names the two modes it would
-    // accept and says nothing about trust, which is what actually set the mode.
-    assert!(
-        err.contains("read-only") && err.contains(&worktree.display().to_string()),
-        "the refusal must name the mode and the tree it applies to (err: {err})"
-    );
-    assert!(
-        err.contains("trust") && err.contains("workspace-write"),
-        "…and both ways out: trust the project, or give it a writable sandbox \
-         (err: {err})"
-    );
-
-    let log = fs::read_to_string(&log).unwrap_or_default();
-    assert!(
-        !log.contains("launch"),
-        "nothing may be spawned as a session: the whole point of a pre-flight is \
-         that the failure happens before the launch it predicts (log: {log:?})"
-    );
-}
-
-/// A fake codex that **enforces `codex exec`'s git gate** the way the real one
-/// does: it refuses the probe outright unless `--skip-git-repo-check` is
-/// present — one line to stderr, exit 1, *no header* — and otherwise answers
-/// `read-only`. Launches are logged as before.
-fn fake_codex_gating_exec_on_a_git_repo(path: &std::path::Path) {
-    write_exec(
-        path,
-        r#"#!/bin/sh
-if [ "$1" = exec ]; then
-  case " $* " in
-    *" --skip-git-repo-check "*) printf 'sandbox: read-only\n' >&2; exit 0 ;;
-  esac
-  printf 'Not inside a trusted directory and --skip-git-repo-check was not specified.\n' >&2
-  exit 1
-fi
-printf 'launch\t%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-}
-
-// The pre-flight's own blind spot, closed. `codex exec` refuses to start when
-// the cwd is **neither trusted nor inside a git repo** — one line to stderr,
-// exit 1, before any header — while the TUI grove actually launches has no such
-// gate (the asymmetry ADR *codex-gitdir-grant* already records, applied there to
-// the launch and not to the probe that came later).
-//
-// So the hole was exactly anti-correlated with the guard's purpose: `untrusted`
-// is what makes the sandbox `read-only`, and `untrusted && not-a-git-repo` is
-// what makes the probe mute. In a jj-native working tree the verdict degraded to
-// `Unknown`, the loop launched anyway, and codex died on `--add-dir` with the
-// cryptic one-liner this pre-flight exists to replace.
-//
-// Pinned both ways, because the wrong fix passes half of it: making `Unknown`
-// fatal would satisfy the refusal below while breaking the rule that a probe
-// which *cannot* answer never stops a loop (constraint 5). The mechanism is the
-// flag, so the flag is asserted.
-#[test]
-fn the_probe_clears_codex_exec_s_git_gate_so_a_jj_native_tree_is_still_pre_flighted() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-    plant_one_impl_leaf(worktree);
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    fake_codex_gating_exec_on_a_git_repo(&fake);
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN_CODEX", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CODEX_IMPL_MODEL", "sol-high");
-
-    let err = loop_driver::run_loop(
-        harness::by_name("codex").unwrap(),
-        worktree,
-        worktree,
-        "gatedgrove",
-    )
-    .expect_err("the gate must not cost the pre-flight its verdict")
-    .to_string();
-
-    assert!(
-        err.contains("read-only") && err.contains("trust"),
-        "the refusal is the same one a git tree already got — the gate changes \
-         what the probe can *ask*, never what grove does with the answer \
-         (err: {err})"
-    );
-    let log = fs::read_to_string(&log).unwrap_or_default();
-    assert!(
-        !log.contains("launch"),
-        "a mute probe used to degrade to `Unknown` and launch, which is how the \
-         field report happened at all (log: {log:?})"
-    );
-}
-
-// The other half of the same spawn: authority to end a session must not ride
-// along with the probe (guard-loop-signal-k37). `GROVE_SIGNAL_FILE` is the
-// driver's kill channel and an environment is inherited rather than addressed,
-// so a probe that merely declines to *set* it still hands its child whatever the
-// driver carried — which is exactly how this repo's own `cargo test` came to
-// kill the live session it was typed into.
-//
-// Asserts both halves at once, because scrubbing everywhere would be just as
-// wrong as scrubbing nowhere: the probe sees no signal file, and the session
-// spawned right after it sees the driver's own.
-#[test]
-fn the_sandbox_probe_hands_the_harness_no_authority_over_the_session() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-    plant_one_impl_leaf(worktree);
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    fake_codex_reporting_sandbox(&fake, "workspace-write [workdir, /tmp]");
-
-    // The ambient value a session-descendant inherits, standing in for the outer
-    // loop's own. Set *after* `clear_grove_env`, which scrubs it — the guards
-    // that keep this suite from killing a real terminal would otherwise make
-    // this test pass vacuously.
-    let outer_signal = worktree.join("outer.signal");
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN_CODEX", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CODEX_IMPL_MODEL", "sol-high")
-        .set("GROVE_SIGNAL_FILE", &outer_signal);
-
-    let result = loop_driver::run_loop(
-        harness::by_name("codex").unwrap(),
-        worktree,
-        worktree,
-        "scrubgrove",
-    );
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<(&str, &str)> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| {
-            l.split_once('\t')
-                .expect("the fake logs role\\tsignal-file")
-        })
-        .collect();
-    assert_eq!(rows.len(), 2, "one probe then one launch (log: {log:?})");
-
-    assert_eq!(
-        rows[0],
-        ("probe", "unset"),
-        "the pre-flight must hand its child no signal file at all — not the \
-         driver's, and not the ambient one it inherited (log: {log:?})"
-    );
-    assert_eq!(rows[1].0, "launch");
-    assert_ne!(
-        rows[1].1, "unset",
-        "…while the session itself still gets one, or nothing could ever signal \
-         (log: {log:?})"
-    );
-    assert_ne!(
-        rows[1].1,
-        outer_signal.display().to_string(),
-        "…and it is the driver's own, never the inherited one (log: {log:?})"
-    );
-}
-
-// The pi harness declaration (pi-session-naming-k13). pi 0.80.10 *does* have a
-// launch-time session-name flag (`--name, -n <name>` — "Set session display
-// name"), but the registry recorded it as having none, so every pi grove
-// session ran unnamed while claude's were pre-named: unidentifiable in pi's
-// session picker, and the skill's "suggest /rename once per session" fallback
-// fired forever. Drives the real loop over a fake pi and asserts the launched
-// argv carries `-n <session-name>` — options before the positional prompt,
-// matching pi's `pi [options] [@files...] [messages...]` usage.
-#[test]
-fn pi_launches_with_its_session_name_flag() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // Fake pi: log the full argv. The first (start) run materialises a `.grove/`
-    // holding one live **work** leaf, so the second run takes the continue path;
-    // signal only on the first, so the loop stops after two.
-    let fake = worktree.join("fake-pi.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("pi").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding for run 1 (start ⇒ requirements).
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("GROVE_IMPL_MODEL", "moonshot/k3");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "pigrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(
-        rows.len(),
-        2,
-        "loop should run twice then stop (log: {log:?})"
-    );
-
-    // Every launch is pre-named: `-n <repo-basename>: <name> grove`.
-    let session_name = format!(
-        "{}: pigrove grove",
-        worktree.file_name().unwrap().to_string_lossy()
-    );
-    let name_flag = format!("-n {session_name}");
-    for row in &rows {
-        assert!(
-            row.contains(&name_flag),
-            "pi must be pre-named at launch via -n (argv: {row:?})"
-        );
-    }
-
-    // pi's usage is `pi [options] [@files...] [messages...]`: options strictly
-    // before the positional prompt, name flag then model flag (the
-    // launch_session order).
-    let row = rows[1];
-    let name_at = row.find(&name_flag).unwrap();
-    let model_at = row
-        .find("--model moonshot/k3")
-        .expect("pi honours model-per-task-kind via --model");
-    let prompt_at = row
-        .find("CONTINUE PROMPT")
-        .expect("continue prompt must be the positional argument");
-    assert!(
-        name_at < model_at && model_at < prompt_at,
-        "options must precede the positional prompt: -n, then --model, then \
-         the prompt (argv: {row:?})"
-    );
-}
-
-// Per-harness model envs: GROVE_<HARNESS>_<KIND>_MODEL beats GROVE_<KIND>_MODEL.
-// One shared kind env can't serve two harnesses at once (a codex profile name is
-// garbage to pi and vice versa), so each harness gets a scoped override.
-#[test]
-fn per_harness_model_env_beats_the_base_var() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // Fake harness: run 1 (start/requirements) materialises an impl leaf + signal;
-    // run 2 (continue/impl) stops.
-    let fake = worktree.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    // clear_grove_env first (this repo dogfoods per-kind model envs — BRIEF.md
-    // Notes — so a session driving this very test suite may already have
-    // GROVE_REQUIREMENTS_MODEL etc. set), then layer the scenario's own vars:
-    // a scoped override for the launching harness + a base var it must beat,
-    // and an override for a *different* harness that must be ignored.
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_CLAUDE_IMPL_MODEL", "kimi-k3")
-        .set("GROVE_IMPL_MODEL", "sonnet")
-        .set("GROVE_REQUIREMENTS_MODEL", "requirements-base")
-        .set("GROVE_PI_REQUIREMENTS_MODEL", "must-not-leak");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "envgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = log.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
-
-    // Start/requirements: the base requirements var applies and the *pi*-scoped
-    // one does not. This is a structural guarantee, not a live-risk assertion —
-    // `model_keys` only ever interpolates *this* harness's own name into the
-    // env-vars it reads (src/loop_driver.rs), so a pi-scoped var has no code
-    // path that could consult it; kept as documentation of that intent,
-    // alongside the genuinely discriminating precedence check below. It could
-    // no longer be written as "no --model at all": that state is now a hard
-    // error, not a quiet launch (required-model-vars-k18).
-    assert!(
-        rows[0].contains("--model requirements-base") && !rows[0].contains("must-not-leak"),
-        "another harness's scoped var must not select a model (argv: {:?})",
-        rows[0]
-    );
-    // Continue/work: the claude-scoped var beats the base var — the
-    // discriminating assertion (precedence, not cross-harness isolation).
-    assert!(
-        rows[1].contains("--model kimi-k3") && !rows[1].contains("sonnet"),
-        "GROVE_CLAUDE_IMPL_MODEL must beat GROVE_IMPL_MODEL (argv: {:?})",
-        rows[1]
-    );
-}
-
-// Per-kind harness routing: GROVE_REVIEW_IMPL_HARNESS=pi must launch review leaves
-// on pi even in a codex-stamped grove — the trial's "K3 reviews everywhere"
-// invariant. Proven with two distinct fake binaries wired through the
-// per-harness bin seam, so the argv log shows *which* harness ran each leaf.
-//
-// branch-review-k14 T4/B7: uses **real per-harness skill dirs under a scratch
-// `$HOME`**, not a shared `GROVE_SKILL_DIR` override — that override "collapses
-// the sweep to that single dir" (`provision::provision_all`'s doc) regardless of
-// harness, which makes a shared-dir fixture structurally blind to B7
-// (`load_prompt` reading the *stamped* harness's prompt copy, not the
-// post-reroute launch harness's): both harnesses would read the identical file
-// either way. With distinct codex/pi prompt copies, this test also proves B7
-// directly — the rerouted review session must read *pi's* continue prompt, not
-// codex's.
-#[test]
-fn review_leaf_reroutes_to_the_review_harness() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    // Real per-harness skill dirs under a scratch $HOME (branch-review-k14 T4) —
-    // see the function doc above for why a shared GROVE_SKILL_DIR can't prove
-    // B7.
-    let home = worktree.join("scratch-home");
-    let codex_prompts = home.join(".codex/skills/grove/prompts");
-    let pi_prompts = home.join(".pi/agent/skills/grove/prompts");
-    fs::create_dir_all(&codex_prompts).unwrap();
-    fs::create_dir_all(&pi_prompts).unwrap();
-    fs::write(codex_prompts.join("start.md"), "CODEX START PROMPT").unwrap();
-    fs::write(codex_prompts.join("continue.md"), "CODEX CONTINUE PROMPT").unwrap();
-    fs::write(pi_prompts.join("continue.md"), "PI CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // Fake codex: tags rows "codex"; run 1 (start/requirements) materialises a
-    // *review* leaf + signal, so run 2 is a review continue. Logs the prompt
-    // it received (the last positional arg) so the test can tell which
-    // harness's copy `load_prompt` actually read.
-    let fake_codex = worktree.join("fake-codex.sh");
-    write_fake_codex(
-        &fake_codex,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-for a in "$@"; do prompt="$a"; done
-printf 'codex\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$prompt" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-    // Fake pi: tags rows "pi"; never signals, so the loop stops after it.
-    let fake_pi = worktree.join("fake-pi.sh");
-    write_exec(
-        &fake_pi,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-for a in "$@"; do prompt="$a"; done
-printf 'pi\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$prompt" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("HOME", &home)
-        .set("GROVE_HARNESS_BIN_CODEX", &fake_codex)
-        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
-        .set("GROVE_CODEX_REQUIREMENTS_MODEL", "sol-xhigh")
-        .set("GROVE_PI_REVIEW_IMPL_MODEL", "kimi-code/k3");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "reroutegrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<Vec<&str>> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.splitn(3, '\t').collect())
-        .collect();
-    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
-
-    // Bootstrap (requirements) leaf: the stamped harness (codex) with its
-    // scoped profile, reading codex's own start prompt.
-    assert_eq!(
-        rows[0][0], "codex",
-        "the bootstrap leaf stays on the stamped harness"
-    );
-    assert!(
-        rows[0][1].contains("--profile sol-xhigh"),
-        "codex requirements launches on its scoped profile (argv: {:?})",
-        rows[0][1]
-    );
-    assert_eq!(
-        rows[0][2], "CODEX START PROMPT",
-        "the bootstrap session must read codex's own start prompt"
-    );
-
-    // Review leaf: rerouted to pi, with pi's scoped model — the launch flag
-    // template must be the *post-override* harness's (--model, not --profile)
-    // — and pi's own continue prompt, not codex's (branch-review-k14 B7).
-    assert_eq!(
-        rows[1][0], "pi",
-        "review must reroute to GROVE_REVIEW_IMPL_HARNESS"
-    );
-    assert!(
-        rows[1][1].contains("--model kimi-code/k3"),
-        "the rerouted review leaf resolves models against pi (argv: {:?})",
-        rows[1][1]
-    );
-    assert!(
-        rows[1][2].ends_with("PI CONTINUE PROMPT"),
-        "the rerouted review session must read pi's own continue prompt, not \
-         codex's (branch-review-k14 B7: load_prompt must read the launching \
-         harness's copy); prompt: {:?}",
-        rows[1][2]
-    );
-}
-
-// branch-review-k14 B2: the harness-agnostic base var must not survive a reroute
-// — a codex profile name (or any value meant for the *stamped* harness) is
-// garbage on the harness a per-kind override reroutes to. Only the
-// harness-scoped var may supply a model once a reroute has happened.
-//
-// What that means changed with required-model-vars-k18: the rerouted leaf used
-// to launch with no `--model` at all, and now fails loudly, because "resolves
-// nothing" is a configuration error wherever it happens. The test discriminates
-// exactly as sharply either way — a base var that *did* leak would launch pi on
-// `sol-high` instead of erroring — and the refusal is the louder of the two.
-#[test]
-fn base_model_var_does_not_survive_a_reroute() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    let fake_codex = worktree.join("fake-codex.sh");
-    write_fake_codex(
-        &fake_codex,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf 'codex\t%s\n' "$*" >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-    let fake_pi = worktree.join("fake-pi.sh");
-    write_exec(
-        &fake_pi,
-        r#"#!/bin/sh
-printf 'pi\t%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN_CODEX", &fake_codex)
-        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
-        // Scaffolding: run 1 is the start path ⇒ requirements, which is not
-        // rerouted, so the unscoped var reaches the stamped codex.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        // The base var — a codex profile name, meaningless to pi — with no
-        // GROVE_PI_REVIEW_IMPL_MODEL set to beat it.
-        .set("GROVE_REVIEW_IMPL_MODEL", "sol-high");
-
-    let err = loop_driver::run_loop(harness, worktree, worktree, "basemodelgrove")
-        .expect_err("a reroute that resolves no harness-scoped model must fail")
-        .to_string();
-
-    assert!(
-        err.contains("GROVE_PI_REVIEW_IMPL_MODEL"),
-        "the refusal must point at the *pi*-scoped keys, the only ones that can \
-         satisfy a rerouted launch (err: {err})"
-    );
-    assert!(
-        err.contains("rerouted"),
-        "…and must say why the base var the operator can plainly see set was \
-         declined rather than used (err: {err})"
-    );
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<Vec<&str>> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.splitn(2, '\t').collect())
-        .collect();
-    assert_eq!(
-        rows.len(),
-        1,
-        "only the stamped bootstrap session may have run — the rerouted review \
-         leaf must never launch (log: {log:?})"
-    );
-    assert!(
-        !log.contains("sol-high"),
-        "the base GROVE_REVIEW_IMPL_MODEL (a codex profile name) must not reach \
-         pi across a reroute (log: {log:?})"
-    );
-}
-
-// ── The family axis (family-fallback-k14) ────────────────────────────────
-//
-// One variable states a policy covering all five kinds of a family:
-// `GROVE_REVIEW_HARNESS` / `GROVE_REVIEW_MODEL` govern every `review-*` leaf,
-// and the exact-kind var beats them. Driven through the whole-`grove do` seam
-// the architecture names (docs/ARCHITECTURE.md#task-kind-taxonomy): the real
-// driver, a fake binary per vendor, assertions on the recorded argv.
-
-/// Drive the real loop over exactly one leaf of `kind`, with `vars` layered on
-/// a scrubbed environment. Run 1 takes the start path (requirements by
-/// construction — fresh-grove-start-contract), materialises the leaf and
-/// signals; run 2 takes the continue path over that leaf and stops without
-/// signalling. Returns the loop's own outcome plus one `(harness, argv)` row
-/// per launch, so a case can assert *which* harness ran the leaf, *what* model
-/// flag it carried, **and** — since required-model-vars-k18 — whether it was
-/// allowed to launch at all.
-///
-/// All three harnesses are wired to their own fake binary through the
-/// per-harness `GROVE_HARNESS_BIN_<NAME>` seam, so a reroute is *observed* in
-/// the row's first field rather than inferred from the flags. The caller holds
-/// `ENV_LOCK`; the guard this sets up lives only for the call, which is why
-/// each case reads its rows before configuring the next one.
-///
-/// `GROVE_REQUIREMENTS_MODEL` is set here as scaffolding, before `vars`, so
-/// every case gets past run 1 without restating it: requirements is never the
-/// kind under test in this section, and a case that wants a different one can
-/// still override it.
-fn drive_one_leaf(
-    stamped: &str,
-    kind: &str,
-    vars: &[(&str, &str)],
-) -> (Result<LoopOutcome, String>, Vec<(String, String)>) {
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_TEST_KIND", kind)
-        // Some compatibility cases still put a historical `**Harness:**` line
-        // in the body. Current trees route only from policy; the body line is
-        // deliberately inert.
-        .remove("GROVE_TEST_LEAF_HARNESS");
-
-    for name in ["claude", "codex", "pi"] {
-        let fake = worktree.join(format!("fake-{name}.sh"));
-        // All three carry the probe reply, not just codex's: these cases reroute
-        // between harnesses, so which fake a codex launch reaches is the very
-        // thing under test. The branch is inert on a fake that is never probed.
-        write_fake_codex(
-            &fake,
-            &format!(
-                r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf '{name}\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-${{GROVE_TEST_KIND}}-a-k1.md"
-  if [ -n "$GROVE_TEST_LEAF_HARNESS" ]; then
-    printf '\n**Harness:** %s\n' "$GROVE_TEST_LEAF_HARNESS" >> "$PWD/.grove/01-${{GROVE_TEST_KIND}}-a-k1.md"
-  fi
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#
-            ),
-        );
-        env.set(&format!("GROVE_HARNESS_BIN_{}", name.to_uppercase()), &fake);
-    }
-
-    env.set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-    for (key, value) in vars {
-        env.set(key, value);
-    }
-
-    let result = loop_driver::run_loop(
-        harness::by_name(stamped).unwrap(),
-        worktree,
-        worktree,
-        "familygrove",
-    )
-    .map_err(|e| e.to_string());
-
-    let log = fs::read_to_string(&log).unwrap_or_default();
-    let rows: Vec<(String, String)> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| {
-            let (h, argv) = l.split_once('\t').expect("the fake logs harness\\targv");
-            (h.to_string(), argv.to_string())
-        })
-        .collect();
-    (result, rows)
-}
-
-/// [`drive_one_leaf`] for the cases that must launch: asserts the loop ran both
-/// sessions and stopped normally, and hands back the two rows.
-fn loop_over_one_leaf(stamped: &str, kind: &str, vars: &[(&str, &str)]) -> Vec<(String, String)> {
-    let (result, rows) = drive_one_leaf(stamped, kind, vars);
-    let outcome = result.unwrap_or_else(|e| panic!("the loop must not fail here: {e}"));
-    assert_eq!(outcome, LoopOutcome::Stopped);
-    assert_eq!(rows.len(), 2, "loop should run twice (rows: {rows:?})");
-    rows
-}
-
-/// [`drive_one_leaf`] for the cases that must **not** launch: asserts the loop
-/// refused, and hands back the refusal text alongside whatever did run before
-/// it — so a case can prove both that the error is diagnostic and that no
-/// session slipped through.
-fn refusal_over_one_leaf(
-    stamped: &str,
-    kind: &str,
-    vars: &[(&str, &str)],
-) -> (String, Vec<(String, String)>) {
-    let (result, rows) = drive_one_leaf(stamped, kind, vars);
-    let err = result.expect_err("this configuration must refuse to launch");
-    (err, rows)
-}
-
-// The claim the family axis exists to make good on: *one* line covers all five
-// kinds of a family. Without it the same policy would be written five times and
-// hand-kept in sync, and the nineteen-kind set would not pay for itself
-// (model-per-task-kind). All five, because "covers the family" is exactly the
-// property a per-kind implementation would satisfy for four of them.
-#[test]
-fn one_family_model_var_covers_every_kind_in_the_family() {
-    let _g = support::lock_env(&ENV_LOCK);
-    for kind in [
-        "review-requirements",
-        "review-design",
-        "review-planning",
-        "review-prototype",
-        "review-impl",
-    ] {
-        let rows = loop_over_one_leaf("claude", kind, &[("GROVE_REVIEW_MODEL", "sonnet")]);
-        assert!(
-            rows[1].1.contains("--model sonnet"),
-            "GROVE_REVIEW_MODEL must cover {kind} (argv: {:?})",
-            rows[1].1
-        );
-    }
-}
-
-// "Specific beats general" on the kind axis, at both scopes and on both vars.
-// The family var is the fallback, never the winner, whenever the exact kind is
-// configured alongside it — which has to hold *within* each scope, not only
-// between the unscoped pair, or the lattice's key 2 would swallow key 1.
-#[test]
-fn an_exact_kind_var_beats_its_family_var_on_both_axes() {
-    let _g = support::lock_env(&ENV_LOCK);
-
-    // Keys 1 vs 2 — both harness-scoped.
-    let rows = loop_over_one_leaf(
-        "claude",
-        "review-impl",
-        &[
-            ("GROVE_CLAUDE_REVIEW_IMPL_MODEL", "opus"),
-            ("GROVE_CLAUDE_REVIEW_MODEL", "sonnet"),
-        ],
-    );
-    assert!(
-        rows[1].1.contains("--model opus") && !rows[1].1.contains("sonnet"),
-        "GROVE_CLAUDE_REVIEW_IMPL_MODEL must beat GROVE_CLAUDE_REVIEW_MODEL \
-         (argv: {:?})",
-        rows[1].1
-    );
-
-    // Keys 3 vs 4 — both unscoped.
-    let rows = loop_over_one_leaf(
-        "claude",
-        "review-impl",
-        &[
-            ("GROVE_REVIEW_IMPL_MODEL", "opus"),
-            ("GROVE_REVIEW_MODEL", "sonnet"),
-        ],
-    );
-    assert!(
-        rows[1].1.contains("--model opus") && !rows[1].1.contains("sonnet"),
-        "GROVE_REVIEW_IMPL_MODEL must beat GROVE_REVIEW_MODEL (argv: {:?})",
-        rows[1].1
-    );
-
-    // The harness axis. The pi-scoped model is scaffolding: a rerouted launch
-    // consults only harness-scoped keys, and one that resolves none now
-    // refuses before it can be observed on either harness.
-    let rows = loop_over_one_leaf(
-        "claude",
-        "review-impl",
-        &[
-            ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
-            ("GROVE_REVIEW_HARNESS", "codex"),
-            ("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL),
-            ("GROVE_CODEX_REVIEW_MODEL", SCAFFOLD_MODEL),
-        ],
-    );
-    assert_eq!(
-        rows[1].0, "pi",
-        "GROVE_REVIEW_IMPL_HARNESS must beat GROVE_REVIEW_HARNESS"
-    );
-}
-
-// The user's actual configuration (this node's brief, *Notes*): the whole
-// policy layer is two lines — a family harness var and the matching
-// harness-scoped family model var — and everything else falls through to the
-// stamp. Also the only end-to-end exercise of lattice key 2
-// (`GROVE_<HARNESS>_<FAMILY>_MODEL`), which is the one key that has to survive
-// a reroute.
-#[test]
-fn the_two_line_review_policy_routes_a_review_leaf_by_family_alone() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "review-design",
-        &[
-            ("GROVE_REVIEW_HARNESS", "codex"),
-            ("GROVE_CODEX_REVIEW_MODEL", "sol-high"),
-        ],
-    );
-    assert_eq!(
-        rows[0].0, "claude",
-        "requirements has no family and stays on the stamped harness"
-    );
-    assert_eq!(rows[1].0, "codex", "the review leaf routes by its family");
-    assert!(
-        rows[1].1.contains("--profile sol-high"),
-        "a harness-scoped family model var must survive the reroute, under the \
-         *launching* harness's flag template (argv: {:?})",
-        rows[1].1
-    );
-}
-
-// The two family labels overlap as strings — `integrate-review-impl` contains
-// `review` — so longest match wins. The second half of this test is the one
-// that fails under naive substring matching: with *only* the review family
-// configured, an integration leaf must resolve nothing at all, on either axis.
-#[test]
-fn integrate_review_resolves_to_its_own_family_never_to_review() {
-    let _g = support::lock_env(&ENV_LOCK);
-
-    let rows = loop_over_one_leaf(
-        "claude",
-        "integrate-review-impl",
-        &[
-            ("GROVE_REVIEW_MODEL", "reviewer-model"),
-            ("GROVE_INTEGRATE_REVIEW_MODEL", "integrator-model"),
-        ],
-    );
-    assert!(
-        rows[1].1.contains("--model integrator-model") && !rows[1].1.contains("reviewer-model"),
-        "an integration step must take its own family's model (argv: {:?})",
-        rows[1].1
-    );
-
-    // The harness half. `GROVE_INTEGRATE_REVIEW_MODEL` is scaffolding — the
-    // leaf has to resolve *some* model to launch at all now — chosen so the
-    // model assertion still discriminates: if the review family captured this
-    // leaf on either axis, it would run on pi and/or `reviewer-model`.
-    let rows = loop_over_one_leaf(
-        "claude",
-        "integrate-review-impl",
-        &[
-            ("GROVE_REVIEW_MODEL", "reviewer-model"),
-            ("GROVE_REVIEW_HARNESS", "pi"),
-            ("GROVE_INTEGRATE_REVIEW_MODEL", "integrator-model"),
-        ],
-    );
-    assert_eq!(
-        rows[1].0, "claude",
-        "the review family must not capture an integration leaf — it belongs to \
-         integrate-review, which is unconfigured on the harness axis here, so \
-         the leaf stays on the stamped harness"
-    );
-    assert!(
-        !rows[1].1.contains("reviewer-model"),
-        "…and takes nothing from the review family's model var either \
-         (argv: {:?})",
-        rows[1].1
-    );
-}
-
-// Harness-major, and the case that distinguishes it from kind-major: a
-// harness-scoped *family* var (lattice key 2) beats an unscoped *exact-kind*
-// var (key 3). Kind-major ordering would invert this and hand the launch a
-// value written with some other harness in mind — the precise failure the
-// harness axis exists to prevent (model-per-task-kind).
-#[test]
-fn a_harness_scoped_family_var_beats_an_unscoped_exact_kind_var() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "review-impl",
-        &[
-            ("GROVE_CLAUDE_REVIEW_MODEL", "scoped-family"),
-            ("GROVE_REVIEW_IMPL_MODEL", "unscoped-kind"),
-        ],
-    );
-    assert!(
-        rows[1].1.contains("--model scoped-family") && !rows[1].1.contains("unscoped-kind"),
-        "the harness axis outranks the kind axis (argv: {:?})",
-        rows[1].1
-    );
-}
-
-// The reroute rule and the family fallback run along different axes, and the
-// family fallback must compose with the reroute rule rather than open a hole
-// in it: falling back `review-impl` → `review` is fine, but the *unscoped*
-// family var is still a value written for some other harness (here a codex
-// profile name, garbage to pi) and must not follow the kind across a reroute.
-//
-// With no `GROVE_PI_*` key to supply one instead, that leaves the rerouted leaf
-// resolving nothing — which is a refusal now rather than a bare launch
-// (required-model-vars-k18). The property under test is unchanged and the
-// discrimination is the same: a family var that *did* cross would launch pi on
-// a codex profile name instead of erroring.
-#[test]
-fn an_unscoped_family_model_var_does_not_survive_a_reroute() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let (err, rows) = refusal_over_one_leaf(
-        "codex",
-        "review-impl",
-        &[
-            ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
-            ("GROVE_REVIEW_MODEL", "sol-high"),
-        ],
-    );
-    assert!(
-        err.contains("GROVE_PI_REVIEW_IMPL_MODEL") && err.contains("GROVE_PI_REVIEW_MODEL"),
-        "the refusal must name the two pi-scoped keys — the whole lattice a \
-         rerouted launch has left (err: {err})"
-    );
-    assert_eq!(
-        rows.len(),
-        1,
-        "only the stamped bootstrap session ran; the rerouted review leaf never \
-         launched (rows: {rows:?})"
-    );
-    assert!(
-        !rows.iter().any(|(_, argv)| argv.contains("sol-high")),
-        "the unscoped family var must not cross the reroute (rows: {rows:?})"
-    );
-}
-
-// A family var is the var a user is most likely to set exactly once and never
-// look at again, so a typo in one must fail at the very next launch — the same
-// contract `an_off_kind_harness_override_typo_is_caught_immediately` pins for
-// kind vars. The start path resolves straight to Planning, which has no family
-// and never consults this var at all.
-#[test]
-fn a_family_harness_override_typo_is_caught_immediately() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_INTEGRATE_REVIEW_HARNESS", "lemur");
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "famtypogrove");
-
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("GROVE_INTEGRATE_REVIEW_HARNESS") && err.contains("lemur"),
-        "a typo in a family override must fail at the very next launch (err: {err})"
-    );
-}
-
-// Pre-flight resolves every harness a launch might need. A family var names a
-// harness exactly as a kind var does, so it must be pre-flighted the same way
-// — otherwise `GROVE_REVIEW_HARNESS=codex` with no codex installed sails
-// through and only dies once the first review leaf is finally picked, which is
-// the whole failure harness-spawn-preflight-k8 exists to close.
-#[test]
-fn preflight_check_catches_a_missing_family_override_binary() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-
-    let fake_claude = tmp.path().join("fake-claude.sh");
-    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
-    let missing_pi = tmp.path().join("no-such-pi");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_claude)
-        .set("GROVE_HARNESS_BIN_PI", &missing_pi)
-        .set("GROVE_REVIEW_HARNESS", "pi");
-
-    let err = loop_driver::preflight_check(stamped).unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("GROVE_REVIEW_HARNESS"),
-        "diagnostic must name the override var (got: {msg:?})"
-    );
-    assert!(
-        msg.contains(&missing_pi.display().to_string()),
-        "diagnostic must name the missing binary (got: {msg:?})"
-    );
-    assert!(
-        msg.contains("review-*"),
-        "diagnostic must say the var covers a whole family, not one kind — a
-         reader who set one line should not be sent hunting for a per-kind var \
-         they never wrote (got: {msg:?})"
-    );
-}
-
-// Current tree bodies carry task prose and relationships, not launch routing.
-// A historical `**Harness:**` line is inert: the stamp wins when policy is
-// absent, and kind policy wins when it is present.
-#[test]
-fn a_body_harness_declaration_is_ignored() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "impl",
-        &[
-            ("GROVE_TEST_LEAF_HARNESS", "codex"),
-            ("GROVE_IMPL_MODEL", "opus"),
-        ],
-    );
-    assert_eq!(rows[1].0, "claude");
-    assert!(rows[1].1.contains("--model opus"), "rows: {rows:?}");
-}
-
-#[test]
-fn kind_policy_wins_over_a_body_harness_declaration() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let rows = loop_over_one_leaf(
-        "claude",
-        "impl",
-        &[
-            ("GROVE_TEST_LEAF_HARNESS", "codex"),
-            ("GROVE_IMPL_HARNESS", "pi"),
-            ("GROVE_PI_IMPL_MODEL", SCAFFOLD_MODEL),
-        ],
-    );
-    assert_eq!(rows[1].0, "pi");
-}
-
-// An unknown harness name in a family var fails loudly at pre-flight too, not
-// only once a leaf of that family is picked.
-#[test]
-fn preflight_check_rejects_an_unknown_family_harness_name() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-    let fake_claude = tmp.path().join("fake-claude.sh");
-    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_claude)
-        .set("GROVE_REVIEW_HARNESS", "lemur");
-
-    let err = loop_driver::preflight_check(stamped).unwrap_err();
-    assert!(
-        err.to_string().contains("unknown harness"),
-        "an unknown family override name must fail loudly (got: {err})"
-    );
-}
-
-// branch-review-k14 B5: the legacy unscoped `GROVE_HARNESS_BIN` must not leak
-// into a per-kind-rerouted launch — once one loop can launch two harnesses, a
-// single global bin override is incoherent (it would exec the *stamped*
-// harness's wrapper under the *rerouted* harness's flag template). Proven by
-// putting a distinctly-named `pi` executable on PATH (the `exec_bin`
-// fallback) and asserting the reroute reaches *that*, not the unscoped
-// wrapper meant for the stamped harness.
-#[test]
-fn unscoped_harness_bin_does_not_leak_across_a_reroute() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let counter = worktree.join("counter");
-    let log = worktree.join("log");
-
-    // The unscoped legacy wrapper: correct for the *stamped* harness (codex,
-    // no GROVE_HARNESS_BIN_CODEX set), wrong for anything rerouted to. It stands
-    // in for codex, so it answers codex's sandbox pre-flight.
-    let wrapper = worktree.join("wrapper.sh");
-    write_fake_codex(
-        &wrapper,
-        r#"#!/bin/sh
-n=$(cat "$GROVE_TEST_COUNTER" 2>/dev/null || echo 0)
-n=$((n + 1))
-echo "$n" > "$GROVE_TEST_COUNTER"
-printf 'wrapper\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-if [ "$n" -eq 1 ]; then
-  mkdir -p "$PWD/.grove"
-  printf 'session-kinds-v1\n' > "$PWD/.grove/FORMAT"
-  printf '# g — brief\n' > "$PWD/.grove/BRIEF.md"
-  printf '# a-k1\n' > "$PWD/.grove/01-review-impl-a-k1.md"
-  : > "$GROVE_SIGNAL_FILE"
-fi
-exit 0
-"#,
-    );
-
-    // The real fallback for pi: a dedicated executable literally named `pi`
-    // (harness::exec_bin), reached only via PATH — proving `harness_bin` fell
-    // through to `exec_bin`, not the unscoped wrapper.
-    let bindir = worktree.join("bin");
-    fs::create_dir_all(&bindir).unwrap();
-    write_exec(
-        &bindir.join("pi"),
-        r#"#!/bin/sh
-printf 'realpi\t' >> "$GROVE_TEST_LOG"
-printf '%s' "$*" | tr '\n' ' ' >> "$GROVE_TEST_LOG"
-printf '\n' >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-    let path = format!(
-        "{}:{}",
-        bindir.display(),
-        std::env::var("PATH").unwrap_or_default()
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("PATH", &path)
-        .set("GROVE_HARNESS_BIN", &wrapper)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_COUNTER", &counter)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi")
-        // Scaffolding: run 1 is requirements on the stamped codex, run 2 is the
-        // review leaf rerouted to pi — each needs a model to launch at all,
-        // and this test is about *which binary* runs, not which model.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "binleakgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let log = fs::read_to_string(&log).unwrap();
-    let rows: Vec<Vec<&str>> = log
-        .lines()
-        .filter(|l| !l.is_empty())
-        .map(|l| l.splitn(2, '\t').collect())
-        .collect();
-    assert_eq!(rows.len(), 2, "loop should run twice (log: {log:?})");
-
-    assert_eq!(
-        rows[0][0], "wrapper",
-        "the stamped harness (codex, no scoped bin) still uses the legacy \
-         unscoped GROVE_HARNESS_BIN (argv: {:?})",
-        rows[0]
-    );
-    assert_eq!(
-        rows[1][0], "realpi",
-        "the rerouted review leaf must not run the stamped harness's \
-         unscoped wrapper — it must fall through to pi's own exec_bin \
-         (argv: {:?})",
-        rows[1]
-    );
-}
-
-// branch-review-k14 B5: an empty-string `GROVE_HARNESS_BIN` must behave like
-// unset — parallel to the model-var and kind-harness-override empty-string
-// guards (env_model, harness_override) — not like a literal empty-string binary
-// path, which would fail every launch (`harness_bin` was the only env seam in
-// the file treating `""` as set).
-#[test]
-fn empty_string_harness_bin_is_treated_as_unset() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    // A fake `claude` (harness::exec_bin) on PATH, so an empty
-    // GROVE_HARNESS_BIN falling through to exec_bin is observable without
-    // depending on the real `claude` CLI being installed on this machine.
-    let bindir = repo_path.join("bin");
-    fs::create_dir_all(&bindir).unwrap();
-    let log = repo_path.join("log");
-    write_exec(
-        &bindir.join("claude"),
-        &format!(
-            r#"#!/bin/sh
-printf 'ran\n' >> "{log}"
-exit 0
-"#,
-            log = log.display()
-        ),
-    );
-    let path = format!(
-        "{}:{}",
-        bindir.display(),
-        std::env::var("PATH").unwrap_or_default()
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("PATH", &path)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_HARNESS_BIN", "")
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptybingrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "an empty GROVE_HARNESS_BIN must fall through to exec_bin, not be \
-         attempted as a literal empty-string binary path"
-    );
-    assert_eq!(
-        fs::read_to_string(&log).unwrap(),
-        "ran\n",
-        "the fallback exec_bin (`claude`) must actually have run"
-    );
-}
-
-/// A grove whose continue-path kind peek is guaranteed to degrade: a real tree
-/// with a live leaf, driven with `GROVE_LLM_BIN` pointing at a binary that does
-/// not exist, so the spawn itself fails (the `Err(e)` arm) rather than any
-/// parse or exit-code path. `vars` layers the scenario's own configuration.
-fn degraded_peek_error(vars: &[(&str, &str)]) -> String {
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_worktree(worktree);
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    write_tree_format(&worktree.join(".grove"));
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", worktree.join("no-such-grove-llm"));
-    for (key, value) in vars {
-        env.set(key, value);
-    }
-
-    loop_driver::run_loop(
-        harness::by_name("codex").unwrap(),
-        worktree,
-        worktree,
-        "degradedgrove",
-    )
-    .expect_err("a degraded kind peek must refuse to launch")
-    .to_string()
-}
-
-// branch-review-k14 B6: a degraded kind peek (grove-llm
-// missing/failing/unparseable) must not silently cancel an active per-kind
-// harness override by launching on the stamped harness — that is exactly the
-// "K3 reviews everywhere" invariant a silent fallback here would defeat.
-// `harness_override`'s own doc already makes this argument for an unknown
-// *value*; this proves it also holds for a degraded *peek*.
-#[test]
-fn degraded_kind_peek_refuses_to_silently_cancel_a_harness_override() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let err = degraded_peek_error(&[
-        ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
-        ("GROVE_PI_REVIEW_IMPL_MODEL", SCAFFOLD_MODEL),
-        ("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL),
-    ]);
-    assert!(
-        err.contains("could not be resolved") && err.contains("stamped harness"),
-        "a degraded kind peek with an active harness override must fail \
-         loudly rather than silently launching on the stamped harness \
-         (err: {err})"
-    );
-}
-
-// The half of the degrade rule that required-model-vars-k18 inverted: a
-// degraded peek used to bail *only* when a harness override was configured, and
-// otherwise launched on the stamped harness with no model — on the argument
-// that "model selection is a nicety, a misroute is not". That asymmetry died
-// with the requirement: a model is not a nicety any more, so an undeterminable
-// kind can no longer be routed by guessing on *either* axis
-// (model-per-task-kind).
-//
-// The discriminating fixture is a config with **nothing routed at all** — no
-// harness override, no model var — which is precisely the case the old rule
-// let through, and which under the old *gate* would not even have reached the
-// peek.
-#[test]
-fn degraded_kind_peek_bails_even_with_nothing_configured() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let err = degraded_peek_error(&[]);
-    assert!(
-        err.contains("could not be resolved"),
-        "a degraded peek must refuse whether or not anything is configured — \
-         every routing axis reads the leaf the peek could not read (err: {err})"
-    );
-    assert!(
-        err.contains("model-per-task-kind"),
-        "…and must say which rule it is enforcing, since with nothing set the \
-         operator has no configuration to look at for a clue (err: {err})"
-    );
-}
-
-// Notes: `any_harness_override_env` already sweeps all five suffixes to
-// decide whether routing applies at all; validating every
-// `GROVE_<KIND>_HARNESS` value at that same point (not just the picked
-// leaf's kind) means a typo in an *off-kind* var is caught immediately, not
-// only once that kind's leaf is finally picked.
-#[test]
-fn an_off_kind_harness_override_typo_is_caught_immediately() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let harness = harness::by_name("claude").unwrap();
-
-    // The start path resolves straight to Planning, never touching
-    // GROVE_REVIEW_IMPL_HARNESS — yet the typo there must still fail loudly right
-    // away, not once a review leaf happens to be picked.
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "lemur");
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "offkindgrove");
-
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("GROVE_REVIEW_IMPL_HARNESS") && err.contains("lemur"),
-        "a typo in an off-kind override must fail at the very next launch, \
-         not only once a review leaf is picked (err: {err})"
-    );
-}
-
-// An unknown override value must fail loudly at launch — a typo'd harness
-// name that silently fell back to the stamped harness would run reviews on
-// the wrong (and possibly self-reviewing) model for a whole trial. The start
-// path takes a shortcut straight to `Kind::Requirements` (fresh-grove-start-
-// contract) without ever calling `resolve_kind`, so this alone cannot prove
-// the *continue* path's peek honours the same contract — see the sibling
-// test below for that (branch-review-k14 T3).
-#[test]
-fn unknown_review_harness_fails_loudly() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let harness = harness::by_name("claude").unwrap();
-
-    // Start path ⇒ kind is Requirements by construction; route it to a typo.
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REQUIREMENTS_HARNESS", "lemur");
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "typogrove");
-
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("GROVE_REQUIREMENTS_HARNESS") && err.contains("lemur"),
-        "the error must name the variable and the bad value (err: {err})"
-    );
-    assert!(
-        err.contains("claude") && err.contains("codex") && err.contains("pi"),
-        "the error must list the known harnesses (err: {err})"
-    );
-}
-
-// branch-review-k14 T3: the continue path's kind peek must honour the same
-// unknown-override-fails-loudly contract as the start path above — that path
-// short-circuits to `Kind::Requirements` and never calls `resolve_kind`
-// (src/loop_driver.rs:279-281), so it cannot exercise `GROVE_REVIEW_IMPL_HARNESS`
-// at all. This drives a real `.grove/` with a **review** leaf through the
-// continue path (real `grove-llm kind`) so `resolve_kind` genuinely runs.
-#[test]
-fn unknown_review_harness_fails_loudly_on_the_continue_path() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-    fs::create_dir_all(worktree.join(".grove")).unwrap();
-    write_tree_format(&worktree.join(".grove"));
-    fs::write(worktree.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(worktree.join(".grove/01-review-impl-a-k1.md"), "# a-k1\n").unwrap();
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "lemur");
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "typogrove2");
-
-    let err = result.unwrap_err().to_string();
-    assert!(
-        err.contains("GROVE_REVIEW_IMPL_HARNESS") && err.contains("lemur"),
-        "the error must name the variable and the bad value (err: {err})"
-    );
-    assert!(
-        err.contains("claude") && err.contains("codex") && err.contains("pi"),
-        "the error must list the known harnesses (err: {err})"
-    );
-}
-
-// branch-review-k14 T6: an empty-string `GROVE_<KIND>_HARNESS` must be treated as
-// unset (like the empty-string model var), not as a route to an empty-named
-// harness — `harness_override` already guards this (`!name.is_empty()`); this
-// proves it end-to-end rather than trusting the guard is reached.
-#[test]
-fn empty_string_kind_harness_override_is_treated_as_unset() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'claude\t%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        .set("GROVE_REQUIREMENTS_HARNESS", "")
-        // Scaffolding: the leaf still has to resolve a model to launch.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "emptyharnessgrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "an empty override must not error, and must not hang looking for an \
-         empty-named harness"
-    );
-
-    let log = fs::read_to_string(&log).unwrap();
-    assert!(
-        log.starts_with("claude\t"),
-        "empty GROVE_REQUIREMENTS_HARNESS must stay on the stamped harness (log: {log:?})"
-    );
-}
-
-// harness-spawn-preflight-k8: `do_grove`'s pre-flight used to validate only
-// the stamped harness's binary, so `GROVE_REVIEW_IMPL_HARNESS=pi` against a
-// codex-stamped grove with no `pi` installed sailed through pre-flight, ran
-// for however long, and only died the moment a review leaf was finally
-// picked. `preflight_check` must catch that up front — resolved through the
-// same `GROVE_HARNESS_BIN_<NAME>` seam `harness_bin` uses for the real
-// launch, here pointed at a path that plain does not exist (the leaf's own
-// Notes ask for exactly this).
-#[test]
-fn preflight_check_catches_a_missing_per_kind_override_binary() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-
-    let fake_claude = tmp.path().join("fake-claude.sh");
-    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
-    let missing_pi = tmp.path().join("no-such-pi");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_claude)
-        .set("GROVE_HARNESS_BIN_PI", &missing_pi)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
-
-    let err = loop_driver::preflight_check(stamped).unwrap_err();
-    let msg = err.to_string();
-    assert!(
-        msg.contains("GROVE_REVIEW_IMPL_HARNESS"),
-        "diagnostic must name the override var (got: {msg:?})"
-    );
-    assert!(
-        msg.contains(&missing_pi.display().to_string()),
-        "diagnostic must name the missing binary (got: {msg:?})"
-    );
-}
-
-// The stamped harness is still checked exactly as before — a missing
-// per-kind override is an addition to pre-flight, not a replacement of its
-// original job.
-#[test]
-fn preflight_check_still_catches_a_missing_stamped_binary() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-    let missing_claude = tmp.path().join("no-such-claude");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &missing_claude);
-
-    let err = loop_driver::preflight_check(stamped).unwrap_err();
-    assert!(
-        err.to_string()
-            .contains(&missing_claude.display().to_string()),
-        "diagnostic must name the missing stamped binary (got: {err})"
-    );
-}
-
-// A configured override that resolves fine must not block pre-flight — only
-// a genuinely missing binary should.
-#[test]
-fn preflight_check_passes_when_every_configured_harness_resolves() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-
-    let fake_claude = tmp.path().join("fake-claude.sh");
-    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
-    let fake_pi = tmp.path().join("fake-pi.sh");
-    write_exec(&fake_pi, "#!/bin/sh\nexit 0\n");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_claude)
-        .set("GROVE_HARNESS_BIN_PI", &fake_pi)
-        .set("GROVE_REVIEW_IMPL_HARNESS", "pi");
-
-    loop_driver::preflight_check(stamped).unwrap();
-}
-
-// An unknown harness name in a per-kind override must fail loudly at
-// pre-flight too, not just once `resolve_launch` hits it mid-loop — same
-// typo-safety contract, just moved earlier.
-#[test]
-fn preflight_check_rejects_an_unknown_harness_override_name() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-    let fake_claude = tmp.path().join("fake-claude.sh");
-    write_exec(&fake_claude, "#!/bin/sh\nexit 0\n");
-
-    let stamped = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_claude)
-        .set("GROVE_PLANNING_HARNESS", "lemur");
-
-    let err = loop_driver::preflight_check(stamped).unwrap_err();
-    assert!(
-        err.to_string().contains("unknown harness"),
-        "an unknown per-kind override name must fail loudly (got: {err})"
-    );
-}
-
-// The version-skew guard (driver-version-skew-k11). A long-running driver
-// keeps executing the text segment it started with — `brew upgrade` replaces
-// (or deletes) the binary on disk without touching it — while the agent's
-// `grove-llm` is resolved through PATH afresh at every invocation. That skew
-// silently splits the signal protocol's two halves: observed twice as a
-// pre-watcher driver paired with a watcher-era `grove-llm`, every session
-// hanging at its completion signal and nothing ever relaunching. The driver
-// must notice the disagreement and stop *before* launching a session on the
-// skewed pair.
-#[test]
-fn a_version_skewed_grove_llm_stops_the_loop_before_any_session() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'ran\n' >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-    // A `grove-llm` whose version can never match this build's own.
-    let skewed = repo_path.join("skewed-grove-llm.sh");
-    write_exec(&skewed, "#!/bin/sh\necho 'grove-llm 99.0.0'\n");
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", &skewed)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "skewgrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "a confirmed version skew stops the loop — resumable, not an error \
-         (restart ≡ continuation)"
-    );
-    assert!(
-        !log.exists(),
-        "no session may launch on a skewed driver/grove-llm pair — the hang \
-         this guards against happens *inside* such a session"
-    );
-}
-
-// Constraint 5 (grove guides, it does not gate): only a successfully read,
-// definitely different version may stop the loop. A `grove-llm` whose version
-// cannot be read at all — missing binary, failing `--version`, unparseable
-// output — must warn and carry on, never jam the unattended loop.
-#[test]
-fn an_unreadable_grove_llm_version_never_jams_the_loop() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let worktree = repo_path.join("wt");
-    init_worktree(&worktree);
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'ran\n' >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-    // `--version` fails outright: the check has nothing to compare.
-    let broken = repo_path.join("broken-grove-llm.sh");
-    write_exec(&broken, "#!/bin/sh\nexit 1\n");
-
-    let harness = harness::by_name("claude").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", &broken)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: the start path resolves to requirements without consulting
-        // `grove-llm` at all, so the session still launches — which is the
-        // point of the test — and still needs a model to do so.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, repo_path, &worktree, "unreadablegrove");
-
-    assert_eq!(
-        result.unwrap(),
-        LoopOutcome::Stopped,
-        "an unreadable version must leave the loop's own behaviour untouched \
-         (one un-signalled session, then the normal stop)"
-    );
-    assert_eq!(
-        fs::read_to_string(&log).unwrap(),
-        "ran\n",
-        "the session must still launch — an unreadable version degrades the \
-         check, it never gates the loop"
-    );
-}
-
-// The stop must say so *plainly* (the leaf's Done-when): both versions and
-// the restart instruction, on the operator's own stderr. Drives the real
-// `grove do` binary — the only way to observe what the operator actually
-// sees — with the skew injected through the same `GROVE_LLM_BIN` seam.
-#[test]
-fn a_version_skew_stop_names_both_versions_and_how_to_restart() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    assert!(
-        std::process::Command::new("git")
-            .args(["init", "-q"])
-            .current_dir(repo_path)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-    // `.claude/` so the harness is detected; no `.grove/` — the guard fires
-    // before any session, start path or continue path alike.
-    fs::create_dir_all(repo_path.join(".claude")).unwrap();
-
-    // Stamped skill dir, as in the sibling `grove do` subprocess test above:
-    // provisioning re-extracts the embedded prompts, which is fine — this
-    // test only asserts on stderr and on the harness never running.
-    let skill_dir = repo_path.join("global-skill");
-    fs::create_dir_all(&skill_dir).unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    let log = repo_path.join("log");
-    let fake = repo_path.join("fake-claude.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf 'ran\n' >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-    let skewed = repo_path.join("skewed-grove-llm.sh");
-    write_exec(&skewed, "#!/bin/sh\necho 'grove-llm 99.0.0'\n");
-
-    let mut cmd = legacy_grove_do_command(repo_path);
-    for name in support::grove_env_names() {
-        cmd.env_remove(name);
-    }
-    let out = cmd
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", &skewed)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        .env("GROVE_TEST_LOG", &log)
-        .output()
-        .unwrap();
-
-    let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-    let own_version = env!("CARGO_PKG_VERSION");
-    assert!(
-        stderr.contains(own_version) && stderr.contains("99.0.0"),
-        "the operator must see BOTH versions — the driver's own ({own_version}) \
-         and the skewed grove-llm's (99.0.0) — or the stop is undiagnosable \
-         (stderr: {stderr:?})"
-    );
-    assert!(
-        stderr.contains("grove do"),
-        "the stop must carry its own recovery: re-run `grove do` \
-         (stderr: {stderr:?})"
-    );
-    assert!(
-        !log.exists(),
-        "the harness must never have launched (stderr: {stderr:?})"
-    );
-}
-
-// codex-gitdir-grant: codex's `workspace-write` sandbox carves the repository
-// gitdir out read-only, so `git commit` — and with it grove's mandatory
-// Commit and Retire steps — fails inside a codex session. Every codex launch
-// must grant the gitdir back via `--add-dir <git-common-dir>`. In a plain
-// checkout `git rev-parse --git-common-dir` prints the *relative* `.git`, so
-// this shape also proves the value is absolutized against the worktree
-// rather than passed through raw.
-#[test]
-fn codex_launch_grants_the_gitdir_via_add_dir_in_a_plain_repo() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, worktree, worktree, "gitdirgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let argv = fs::read_to_string(&log).unwrap();
-    let granted = support::add_dir_value(&argv)
-        .unwrap_or_else(|| panic!("a codex launch must carry --add-dir <gitdir> (argv: {argv:?})"));
-    let granted = std::path::Path::new(granted);
-    assert!(
-        granted.is_absolute(),
-        "the granted gitdir must be absolutized, never the raw relative \
-         `.git` git prints in a plain checkout (argv: {argv:?})"
-    );
-    assert_eq!(
-        granted.canonicalize().unwrap(),
-        worktree.join(".git").canonicalize().unwrap(),
-        "a plain checkout's grant is its own `.git` dir (argv: {argv:?})"
-    );
-}
-
-// The other repo shape (codex-gitdir-grant): a linked worktree's own gitdir
-// (`<main>/.git/worktrees/<name>`) lives outside the workspace entirely, and
-// is a subpath of the common dir — one grant of the absolutized
-// `--git-common-dir` covers it. The derived path must be the MAIN repo's
-// `.git`, not anything under the linked worktree itself.
-#[test]
-fn codex_launch_from_a_linked_worktree_grants_the_main_repos_gitdir() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-    let main = tmp.path().join("main");
-    fs::create_dir_all(&main).unwrap();
-    let git = |dir: &std::path::Path, args: &[&str]| {
-        assert!(
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(dir)
-                .status()
-                .unwrap()
-                .success(),
-            "git {args:?} failed"
-        );
-    };
-    git(&main, &["init", "-q", "-b", "main"]);
-    git(&main, &["config", "user.email", "t@example.com"]);
-    git(&main, &["config", "user.name", "t"]);
-    git(&main, &["commit", "-q", "--allow-empty", "-m", "init"]);
-    git(&main, &["worktree", "add", "-q", "../wt", "-b", "feature"]);
-    let worktree = tmp.path().join("wt");
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let harness = harness::by_name("codex").unwrap();
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(harness, &worktree, &worktree, "linkedgrove");
-
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let argv = fs::read_to_string(&log).unwrap();
-    let granted = support::add_dir_value(&argv)
-        .unwrap_or_else(|| panic!("a codex launch must carry --add-dir <gitdir> (argv: {argv:?})"));
-    assert_eq!(
-        std::path::Path::new(granted).canonicalize().unwrap(),
-        main.join(".git").canonicalize().unwrap(),
-        "a linked worktree's grant is the MAIN repo's common gitdir — the \
-         worktree's own gitdir is a subpath of it (argv: {argv:?})"
-    );
-}
-
-/// A jj-enabled fixture: native (`.jj/` only) or colocated (`.git` beside it).
-/// jj runs with a test-local identity so no global config is required.
-fn init_jj_worktree(path: &std::path::Path, colocate: bool) {
-    fs::create_dir_all(path).unwrap();
-    run_jj(
-        path,
-        if colocate {
-            &["git", "init", "--colocate", "--quiet", "."]
-        } else {
-            &[
-                "--config",
-                "git.colocate=false",
-                "git",
-                "init",
-                "--quiet",
-                ".",
-            ]
-        },
-    );
-}
-
-fn run_jj(dir: &std::path::Path, args: &[&str]) {
-    let mut full = vec![
-        "--config",
-        "user.name=Test",
-        "--config",
-        "user.email=t@example.com",
-    ];
-    full.extend_from_slice(args);
-    let out = std::process::Command::new("jj")
-        .current_dir(dir)
-        .args(&full)
-        .output()
-        .unwrap_or_else(|e| panic!("running jj {args:?}: {e} (is jj installed?)"));
-    assert!(
-        out.status.success(),
-        "jj {args:?} failed: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-}
-
-/// Run one codex loop iteration in `worktree` and return the `--add-dir` values
-/// its launch carried, canonicalized (TempDirs live behind the /var →
-/// /private/var symlink).
-///
-/// The fake answers the sandbox pre-flight through [`support::fake_codex`], so
-/// exactly one line reaches the log and the values below are a single launch's
-/// rather than a probe's and a launch's summed. Callers hold `ENV_LOCK`.
-fn codex_launch_granted_dirs(worktree: &std::path::Path) -> Vec<PathBuf> {
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-codex.sh");
-    write_fake_codex(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: one start-path (requirements) session.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    let result = loop_driver::run_loop(
-        harness::by_name("codex").unwrap(),
-        worktree,
-        worktree,
-        "jjgrantgrove",
-    );
-    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-
-    let argv = fs::read_to_string(&log).unwrap();
-    assert_eq!(
-        argv.lines().filter(|l| !l.is_empty()).count(),
-        1,
-        "the sandbox pre-flight must not reach the argv log — it is a probe, \
-         not a launch (log: {argv:?})"
-    );
-    support::add_dir_values(&argv)
-        .into_iter()
-        .map(|p| std::path::Path::new(p).canonicalize().unwrap())
-        .collect()
-}
-
-// The jj half of codex-gitdir-grant (codex 0.145.0 carves out only
-// `.git`/`.agents`/`.codex`, never `.jj`). A jj-native tree has no `.git` for
-// `git rev-parse` to find, so the grant derivation must go through jj instead of
-// erroring the launch outright. The granted store is the main workspace's `.jj`:
-// redundant here — it sits under the sandbox cwd — but load-bearing from a
-// secondary workspace, and grants are additive so the uniform rule costs nothing.
-#[test]
-fn codex_launch_in_a_jj_native_tree_grants_the_jj_store() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_jj_worktree(worktree, false);
-
-    assert_eq!(
-        codex_launch_granted_dirs(worktree),
-        vec![worktree.join(".jj").canonicalize().unwrap()],
-        "a jj-native launch grants the `.jj` store and nothing else"
-    );
-}
-
-// Colocated: jj's git backend writes commit objects and exported refs into
-// `.git`, which the sandbox does carve out of the cwd root — so both stores are
-// granted, `.jj` first.
-#[test]
-fn codex_launch_in_a_colocated_tree_grants_the_jj_and_git_stores() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    init_jj_worktree(worktree, true);
-
-    assert_eq!(
-        codex_launch_granted_dirs(worktree),
-        vec![
-            worktree.join(".jj").canonicalize().unwrap(),
-            worktree.join(".git").canonicalize().unwrap(),
-        ],
-        "a colocated launch grants both stores"
-    );
-}
-
-// A secondary workspace's own `.jj/` holds only the working copy; every op lands
-// in the *main* workspace's `.jj/repo`, outside the sandbox cwd entirely. The
-// grant must therefore name the main workspace's `.jj`, not the local one — the
-// jj counterpart of the linked-worktree case above.
-#[test]
-fn codex_launch_in_a_secondary_jj_workspace_grants_the_main_workspace_store() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let tmp = TempDir::new().unwrap();
-    let main = tmp.path().join("main");
-    init_jj_worktree(&main, false);
-    let workspace = tmp.path().join("ws2");
-    run_jj(
-        &main,
-        &["workspace", "add", "--quiet", workspace.to_str().unwrap()],
-    );
-
-    assert_eq!(
-        codex_launch_granted_dirs(&workspace),
-        vec![main.join(".jj").canonicalize().unwrap()],
-        "a secondary-workspace launch grants the main workspace's `.jj`"
-    );
-}
-
-// The grant is codex-only: claude and pi launches must stay byte-identical
-// to before. Run both against a real git repo — a gitdir genuinely exists
-// that a harness-blind implementation would wrongly grant.
-#[test]
-fn claude_and_pi_launches_carry_no_add_dir() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let worktree_dir = TempDir::new().unwrap();
-    let worktree = worktree_dir.path();
-    assert!(
-        std::process::Command::new("git")
-            .arg("init")
-            .arg("-q")
-            .current_dir(worktree)
-            .status()
-            .unwrap()
-            .success(),
-        "git init failed"
-    );
-
-    let skill_dir = worktree.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-
-    let log = worktree.join("log");
-    let fake = worktree.join("fake-harness.sh");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
-exit 0
-"#,
-    );
-
-    let mut env = EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_TEST_LOG", &log)
-        // Scaffolding: one start-path (requirements) session per harness. The
-        // unscoped var covers both, since neither launch is rerouted.
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
-
-    for name in ["claude", "pi"] {
-        let harness = harness::by_name(name).unwrap();
-        let result = loop_driver::run_loop(harness, worktree, worktree, "noaddgrove");
-        assert_eq!(result.unwrap(), LoopOutcome::Stopped);
-    }
-
-    let argv = fs::read_to_string(&log).unwrap();
-    let rows: Vec<&str> = argv.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(rows.len(), 2, "one launch per harness (log: {argv:?})");
-    for row in &rows {
-        assert!(
-            !row.contains("--add-dir"),
-            "the gitdir grant is codex-only — claude/pi launches must be \
-             byte-identical to before (argv: {row:?})"
-        );
-    }
-}
-
-// The real binary installs the SIGTERM/SIGHUP handler that forwards termination
-// to a live harness child; `run_loop`, which most tests call directly, stays
-// free of those process-global signal changes.
-#[test]
-fn a_sigtermed_driver_stops_and_reaps_its_child() {
-    let _g = support::lock_env(&ENV_LOCK);
-    let repo = TempDir::new().unwrap();
-    let repo_path = repo.path();
-
-    let git = |args: &[&str]| {
-        assert!(
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(repo_path)
-                .status()
-                .unwrap()
-                .success(),
-            "git {args:?} failed"
-        );
-    };
-    git(&["init", "-q", "-b", "main"]);
-    git(&["config", "user.email", "t@example.com"]);
-    git(&["config", "user.name", "t"]);
-
-    // `.claude/` so the harness is detected; a `.grove/` so the loop takes the
-    // continue path without needing to bootstrap.
-    fs::create_dir_all(repo_path.join(".claude")).unwrap();
-    fs::create_dir_all(repo_path.join(".grove")).unwrap();
-    write_tree_format(&repo_path.join(".grove"));
-    fs::write(repo_path.join(".grove/BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(repo_path.join(".grove/01-impl-a-k1.md"), "# a-k1\n").unwrap();
-    git(&["add", "-A"]);
-    git(&["commit", "-qm", "tree"]);
-
-    // Live provisioning, as in the sibling subprocess test: stamp the dir so the
-    // foreign-dir guard treats it as grove's own.
-    let skill_dir = repo_path.join("global-skill");
-    let prompts = skill_dir.join("prompts");
-    fs::create_dir_all(&prompts).unwrap();
-    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
-    fs::write(prompts.join("continue.md"), "CONTINUE PROMPT").unwrap();
-    fs::write(skill_dir.join(STAMP_FILE), "stale-hash").unwrap();
-
-    // Never signals, never exits on its own — stands in for a session sitting
-    // mid-task when the driver is killed from outside. `exec` so the pid the
-    // driver signals is the sleeping process itself.
-    let fake = repo_path.join("fake-claude.sh");
-    let launched = repo_path.join("launched");
-    write_exec(
-        &fake,
-        r#"#!/bin/sh
-: > "$GROVE_TEST_LAUNCHED"
-exec sleep 60
-"#,
-    );
-
-    let mut cmd = legacy_grove_do_command(repo_path);
-    for name in support::grove_env_names() {
-        cmd.env_remove(name);
-    }
-    let mut child = cmd
-        .env("GROVE_HARNESS_BIN", &fake)
-        .env("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .env("GROVE_SKILL_DIR", &skill_dir)
-        // Scaffolding: the committed tree's live leaf is `impl`, and the
-        // continue path now requires it to resolve a model.
-        .env("GROVE_IMPL_MODEL", SCAFFOLD_MODEL)
-        .env("GROVE_KILL_GRACE", "0.2")
-        .env("GROVE_KILL_GRACE_KILL", "0.3")
-        .env("GROVE_TEST_LAUNCHED", &launched)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-        .unwrap();
-
-    // Wait for the child marker so SIGTERM lands mid-session rather than racing
-    // the driver's own startup.
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while !launched.exists() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    assert!(
-        launched.exists(),
-        "the harness child must launch before SIGTERM"
-    );
-
-    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
-
-    let exited = Instant::now() + Duration::from_secs(20);
-    loop {
-        if child.try_wait().unwrap().is_some() {
-            break;
-        }
-        assert!(
-            Instant::now() < exited,
-            "a SIGTERM'd driver must stop, not hang"
-        );
-        std::thread::sleep(Duration::from_millis(50));
-    }
 }

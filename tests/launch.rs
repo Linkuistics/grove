@@ -1,257 +1,300 @@
-//! What survives of the legacy launcher's test surface: the **routing readiness
-//! report** (`loop_driver::readiness`).
+//! The removed launch-policy surface, asserted as removed.
 //!
-//! The `grove do` / `grove migrate` / `grove retire` verbs, `--harness`,
-//! `--no-launch` and the harness stamp are gone — implementation and tests
-//! alike. `readiness` outlived its only caller (`--no-launch`) because it is
-//! routing machinery rather than command surface, so it is covered here until
-//! the routing contraction removes it.
-
-mod support;
+//! Harness detection, the harness stamp, the `GROVE_<KIND|FAMILY>_HARNESS` /
+//! `GROVE_*_MODEL` routing lattice, the executable / skill-dir / kill-grace /
+//! `GROVE_LLM_BIN` overrides, the codex sandbox probe and its `--add-dir`
+//! grants, hidden session-name and model arguments, and the `do` / `migrate` /
+//! `retire` / `--harness` / `--no-launch` command surface are all gone.
+//!
+//! Removal is a claim about behaviour, not about the absence of a symbol, so
+//! these tests drive the **real bare `grove` process** with the whole legacy
+//! surface set to values that would be catastrophic if they were still read,
+//! and check that the launch is byte-identical to one run without them. The
+//! control in the other direction — that this fixture can detect a changed
+//! launch at all — is asserted alongside, by changing the one input that *is*
+//! still supposed to steer it: the configuration.
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use std::process::Command;
-use std::sync::Mutex;
+use std::path::Path;
+use std::process::{Command, Output};
+
 use tempfile::TempDir;
 
-// These tests all mutate process-global cwd; serialize so cargo's parallel
-// test runner doesn't have one test's cwd swept out from under another's
-// repo::resolve(None) call.
-static CWD_LOCK: Mutex<()> = Mutex::new(());
+const SESSION_KINDS: &[&str] = &[
+    "requirements",
+    "review-requirements",
+    "integrate-review-requirements",
+    "design",
+    "review-design",
+    "integrate-review-design",
+    "planning",
+    "review-planning",
+    "integrate-review-planning",
+    "prototype",
+    "review-prototype",
+    "integrate-review-prototype",
+    "impl",
+    "review-impl",
+    "integrate-review-impl",
+    "research-a",
+    "research-b",
+    "combine-research",
+    "finish",
+];
 
-// This build's own `grove-llm`, pinned through the `GROVE_LLM_BIN` seam: the
-// readiness report's kind peek spawns it, and unpinned that is whatever the
-// machine's PATH happens to carry.
-const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
-
-// Scaffolding, not intent (mirroring tests/loop_driver.rs): model selection is
-// required, so a readiness report that resolves a kind has to find a model var
-// for it. These tests are about what the report *names*; the value is
-// deliberately meaningless.
-const SCAFFOLD_MODEL: &str = "scaffold-model";
-
-fn write_exec(path: &std::path::Path, body: &str) {
-    fs::write(path, body).unwrap();
-    let mut perms = fs::metadata(path).unwrap().permissions();
-    perms.set_mode(0o755);
-    fs::set_permissions(path, perms).unwrap();
-}
-
-/// The env a readiness report needs to reach its own subject matter: a harness
-/// binary that exists, this build's `grove-llm` for the kind peek, and a model
-/// var for each kind these fixtures actually resolve.
+/// Every launch-policy variable Grove used to read, with a value chosen so that
+/// *reading* it would be visible: a harness that is not the configured command,
+/// a model that would appear in argv, binaries that cannot run, a skill dir that
+/// does not exist, and graces that would change the watcher's timing.
 ///
-/// `clear_grove_env` first, and load-bearingly: this repo dogfoods the routing
-/// vars, and this suite may itself be running inside a rerouted session, so an
-/// ambient `GROVE_IMPL_HARNESS` would reroute a report that never asked for one.
-fn dry_run_env(repo: &std::path::Path) -> support::EnvGuard {
-    let fake = repo.join("fake-harness.sh");
-    write_exec(&fake, "#!/bin/sh\nexit 0\n");
-    let mut env = support::EnvGuard::new();
-    env.clear_grove_env()
-        .remove("GROVE_HARNESS_BIN_CLAUDE")
-        .remove("GROVE_HARNESS_BIN_CODEX")
-        .remove("GROVE_HARNESS_BIN_PI")
-        .set("GROVE_HARNESS_BIN", &fake)
-        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
-        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL)
-        .set("GROVE_IMPL_MODEL", SCAFFOLD_MODEL);
-    env
-}
+/// The `review-impl` spellings are included deliberately — the family axis was
+/// the one an operator set once and never looked at again, so it is the one
+/// whose silent survival would go unnoticed longest.
+const REMOVED_ROUTING_ENV: &[(&str, &str)] = &[
+    ("GROVE_IMPL_HARNESS", "codex"),
+    ("GROVE_REVIEW_HARNESS", "pi"),
+    ("GROVE_REVIEW_IMPL_HARNESS", "pi"),
+    ("GROVE_INTEGRATE_REVIEW_HARNESS", "codex"),
+    ("GROVE_IMPL_MODEL", "routed-model"),
+    ("GROVE_REVIEW_MODEL", "routed-model"),
+    ("GROVE_CLAUDE_IMPL_MODEL", "routed-model"),
+    ("GROVE_CODEX_REVIEW_IMPL_MODEL", "routed-profile"),
+    ("GROVE_REQUIREMENTS_MODEL", "routed-model"),
+    ("GROVE_HARNESS_BIN", "/definitely/not/a/harness"),
+    ("GROVE_HARNESS_BIN_CLAUDE", "/definitely/not/a/harness"),
+    ("GROVE_HARNESS_BIN_CODEX", "/definitely/not/a/harness"),
+    ("GROVE_LLM_BIN", "/definitely/not/an/agent/cli"),
+    ("GROVE_SKILL_DIR", "/definitely/not/a/skill/dir"),
+    ("GROVE_KILL_GRACE", "900"),
+    ("GROVE_KILL_GRACE_KILL", "900"),
+];
 
-fn init_repo() -> TempDir {
-    let tmp = TempDir::new().unwrap();
-    // Point the global skill dir at a throwaway dir inside the repo so the
-    // suite never touches the real ~/.claude/skills/grove. Safe under
-    // CWD_LOCK (all callers serialize).
-    std::env::set_var("GROVE_SKILL_DIR", tmp.path().join("global-skill"));
-    Command::new("git")
-        .args(["init", "-b", "main"])
-        .arg(tmp.path())
+fn init_git_worktree(path: &Path) {
+    fs::create_dir_all(path).unwrap();
+    assert!(Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(path)
         .status()
-        .unwrap();
-    fs::write(tmp.path().join("README.md"), "x").unwrap();
-    Command::new("git")
-        .args(["-C", tmp.path().to_str().unwrap(), "add", "."])
-        .status()
-        .unwrap();
-    Command::new("git")
-        .args([
-            "-C",
-            tmp.path().to_str().unwrap(),
-            "commit",
-            "-m",
-            "init",
-            "--no-verify",
-        ])
-        .status()
-        .unwrap();
-
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    tmp
-}
-
-/// Plant a minimal current task tree with one leaf of `kind`, live or retired.
-/// Committed so readiness observes the same stable witnessed tree as a launch.
-fn plant_leaf(worktree: &std::path::Path, kind: &str, retired: bool) {
-    let grove_dir = worktree.join(".grove");
-    fs::create_dir_all(&grove_dir).unwrap();
-    fs::write(grove_dir.join("BRIEF.md"), "# g — brief\n").unwrap();
-    fs::write(grove_dir.join("FORMAT"), "session-kinds-v1\n").unwrap();
-    let name = if retired {
-        format!("01-DONE-{kind}-a-k1.md")
-    } else {
-        format!("01-{kind}-a-k1.md")
-    };
-    fs::write(grove_dir.join(name), "# a-k1\n").unwrap();
-    Command::new("git")
-        .args(["-C", worktree.to_str().unwrap(), "add", "-A"])
-        .status()
-        .unwrap();
-    Command::new("git")
-        .args([
-            "-C",
-            worktree.to_str().unwrap(),
-            "commit",
-            "-q",
-            "-m",
-            "plant tree",
-            "--no-verify",
-        ])
-        .status()
-        .unwrap();
-}
-
-#[test]
-fn the_readiness_report_names_the_next_leaf_its_kind_and_the_resolved_model() {
-    // The report is what makes readiness an inspection value rather than a bare
-    // "ready": a caller checking a routing change wants to see *which* leaf
-    // resolved to *which* model.
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-    let mut env = dry_run_env(repo.path());
-    env.set("GROVE_IMPL_MODEL", "sonnet");
-    plant_leaf(repo.path(), "impl", false);
-
-    let claude = grove::harness::by_name("claude").unwrap();
-    let line = grove::loop_driver::readiness(claude, repo.path())
         .unwrap()
-        .to_string();
-
-    assert!(
-        line.contains("01-impl-a-k1.md") && line.contains("impl") && line.contains("sonnet"),
-        "readiness must name the leaf, its kind and the model (got: {line:?})"
-    );
-
-    // A brand-new grove has no leaf to name — and says so, rather than
-    // rendering the same "no leaf" as a finished one.
-    let fresh = init_repo();
-    std::env::set_current_dir(fresh.path()).unwrap();
-    let line = grove::loop_driver::readiness(claude, fresh.path())
-        .unwrap()
-        .to_string();
-    assert!(
-        line.contains("bootstraps") && line.contains("requirements"),
-        "a grove with no `.grove/` yet reports the bootstrap session (got: {line:?})"
-    );
+        .success());
 }
 
-#[test]
-fn readiness_retains_one_structured_peek_even_if_the_tree_changes_after_it() {
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-    plant_leaf(repo.path(), "impl", false);
-    let routed_path = repo
-        .path()
-        .join(".grove/01-impl-a-k1.md")
-        .canonicalize()
-        .unwrap();
-    let calls = repo.path().join("peek-calls");
-    let fake_llm = repo.path().join("fake-grove-llm.sh");
-    write_exec(
-        &fake_llm,
-        r#"#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-printf 'peek\n' >> "$GROVE_TEST_PEEK_CALLS"
-printf '{"path":"%s","handle":"a-k1","kind":"impl","harness":null,"review":null}\n' "$GROVE_TEST_ROUTE_PATH"
-mv "$PWD/.grove/01-impl-a-k1.md" "$PWD/.grove/02-impl-a-k1.md"
-printf '# earlier-k9\n' > "$PWD/.grove/01-design-earlier-k9.md"
-"#,
-    );
-    let mut env = dry_run_env(repo.path());
-    env.set("GROVE_LLM_BIN", &fake_llm)
-        .set("GROVE_TEST_PEEK_CALLS", &calls)
-        .set("GROVE_TEST_ROUTE_PATH", &routed_path)
-        .set("GROVE_IMPL_MODEL", "sonnet");
-
-    let line =
-        grove::loop_driver::readiness(grove::harness::by_name("claude").unwrap(), repo.path())
-            .unwrap()
-            .to_string();
-
-    assert!(
-        line.contains("01-impl-a-k1.md") && !line.contains("01-design-earlier-k9.md"),
-        "readiness must render the retained forecast, not pick again: {line:?}"
-    );
-    assert_eq!(fs::read_to_string(calls).unwrap(), "peek\n");
+fn write_executable(path: &Path, body: &str) {
+    fs::write(path, body).unwrap();
+    let mut permissions = fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions).unwrap();
 }
 
-#[test]
-fn malformed_or_handle_free_structured_peeks_refuse_readiness() {
-    let _g = CWD_LOCK.lock().unwrap();
-    let repo = init_repo();
-    std::env::set_current_dir(repo.path()).unwrap();
-    plant_leaf(repo.path(), "impl", false);
-    let path = repo
-        .path()
-        .join(".grove/01-impl-a-k1.md")
-        .canonicalize()
-        .unwrap();
-    let fake_llm = repo.path().join("fake-grove-llm.sh");
-    write_exec(
-        &fake_llm,
-        r#"#!/usr/bin/env bash
-set -euo pipefail
-IFS=$'\n\t'
-printf '%s\n' "$GROVE_TEST_PEEK_PAYLOAD"
-"#,
-    );
-    let mut env = dry_run_env(repo.path());
-    env.set("GROVE_LLM_BIN", &fake_llm);
+fn shell_quote(path: &Path) -> String {
+    let value = path.to_str().unwrap();
+    assert!(!value.contains('\''), "test fixture path contains a quote");
+    format!("'{value}'")
+}
 
-    let handle_free = format!(
-        "{{\"path\":\"{}\",\"kind\":\"impl\",\"harness\":null}}",
-        grove::json::escape(&path.display().to_string())
-    );
-    for payload in ["not-json", handle_free.as_str()] {
-        env.set("GROVE_TEST_PEEK_PAYLOAD", payload);
-        let error =
-            grove::loop_driver::readiness(grove::harness::by_name("claude").unwrap(), repo.path())
-                .err()
-                .expect("an uncheckable routing peek must refuse before launch")
-                .to_string();
-        assert!(
-            error.contains("launch could not be resolved"),
-            "the refusal must use the routing no-guess contract: {error}"
+fn write_complete_config(home: &Path, template: &str) {
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let document = SESSION_KINDS
+        .iter()
+        .map(|kind| format!("{kind} {template:?}\n"))
+        .collect::<String>();
+    fs::write(config_dir.join("config.kdl"), document).unwrap();
+}
+
+/// One fixture: a git worktree holding a single live `impl` leaf, an isolated
+/// home carrying a complete config, and a fake command that records `$0` plus
+/// its whole argv and then signals completion so the loop ends.
+struct Fixture {
+    root: TempDir,
+    home: std::path::PathBuf,
+    worktree: std::path::PathBuf,
+    argv_log: std::path::PathBuf,
+}
+
+impl Fixture {
+    fn new(command_name: &str) -> Self {
+        let root = TempDir::new().unwrap();
+        let home = root.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        let worktree = root.path().join("worktree");
+        init_git_worktree(&worktree);
+        let grove = worktree.join(".grove");
+        fs::create_dir_all(&grove).unwrap();
+        fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+        fs::write(grove.join("BRIEF.md"), "# removed-surface — brief\n").unwrap();
+        fs::write(grove.join("01-impl-subject-k1.md"), "# subject-k1\n").unwrap();
+
+        let argv_log = root.path().join("argv-log");
+        let configured = root.path().join(command_name);
+        // The mandate prompt is multi-line, so newlines are folded to spaces:
+        // one launch must be one comparable line.
+        write_executable(
+            &configured,
+            &format!(
+                "#!/bin/sh\n{{ printf '%s|%s' \"$0\" \"$*\" | tr '\\n' ' '; printf '\\n'; }} >> {}\nexit 0\n",
+                shell_quote(&argv_log)
+            ),
         );
+        write_complete_config(
+            &home,
+            &format!(
+                "{} --configured-flag '${{prompt}}'",
+                shell_quote(&configured)
+            ),
+        );
+
+        Self {
+            root,
+            home,
+            worktree,
+            argv_log,
+        }
+    }
+
+    fn run(&self, extra_env: &[(&str, &str)]) -> Output {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_grove"));
+        command.current_dir(&self.worktree).env("HOME", &self.home);
+        // A subprocess inherits this process's *whole* ambient environment, and
+        // this repo dogfoods Grove — so scrub the legacy surface first and let
+        // each case put back exactly what it means to test.
+        for (name, _) in REMOVED_ROUTING_ENV {
+            command.env_remove(name);
+        }
+        for (name, value) in extra_env {
+            command.env(name, value);
+        }
+        command.output().unwrap()
+    }
+
+    /// The `$0|argv` lines the fake recorded, one per launch. Runs share one
+    /// fixture — the same temp paths, the same leaf, the same handle — so two
+    /// lines from the same log compare directly, with nothing to normalise.
+    fn launch_lines(&self) -> Vec<String> {
+        fs::read_to_string(&self.argv_log)
+            .unwrap_or_default()
+            .lines()
+            .map(str::to_string)
+            .collect()
     }
 }
 
-// The removed human verbs stay removed. `retire` is the last one a user is
-// likely to reach for by muscle memory, and unlike `do`/`migrate` it never had a
-// `--help` sweep of its own.
+// The whole legacy launch-policy surface, set at once, must change nothing.
+// Every value here is one a *live* reader would act on visibly — reroute to a
+// harness the config never names, append a `--model`/`--profile` argument, exec
+// a binary that does not exist — so a single surviving reader fails this
+// loudly rather than subtly.
 #[test]
-fn retire_is_not_exposed_by_the_bare_human_cli() {
-    let out = Command::new(env!("CARGO_BIN_EXE_grove"))
-        .args(["retire", "--help"])
-        .output()
-        .unwrap();
+fn a_configured_launch_ignores_every_removed_routing_variable() {
+    let fixture = Fixture::new("configured-command.sh");
+
+    let control = fixture.run(&[]);
     assert!(
-        !out.status.success(),
-        "the config-driven cutover must reject the retired human verb: {out:?}"
+        control.status.success(),
+        "control run failed: {}",
+        String::from_utf8_lossy(&control.stderr)
     );
+
+    let routed = fixture.run(REMOVED_ROUTING_ENV);
+    assert!(
+        routed.status.success(),
+        "a launch under the legacy routing surface must be unaffected, not merely \
+         different: {}",
+        String::from_utf8_lossy(&routed.stderr)
+    );
+
+    let lines = fixture.launch_lines();
+    assert_eq!(
+        lines.len(),
+        2,
+        "both runs must reach the configured command"
+    );
+    assert!(
+        lines[0].contains("--configured-flag"),
+        "the control run must reach the configured command: {:?}",
+        lines[0]
+    );
+    assert_eq!(
+        lines[0], lines[1],
+        "the configured argv must be identical with and without the legacy \
+         routing environment"
+    );
+
+    // Belt and braces on the equality: the tokens a *live* reader would have
+    // introduced, named individually, so a failure says which axis survived
+    // rather than only that something differs.
+    for token in [
+        "--model",
+        "--profile",
+        "--add-dir",
+        "routed-model",
+        "routed-profile",
+    ] {
+        assert!(
+            !lines[1].contains(token),
+            "{token:?} reached the configured argv: {:?}",
+            lines[1]
+        );
+    }
+    let stderr = String::from_utf8_lossy(&routed.stderr);
+    assert!(
+        !stderr.contains("sandbox"),
+        "no sandbox pre-flight survives: {stderr}"
+    );
+}
+
+// The positive control for the test above: the same fixture *does* observe a
+// changed launch, so "identical argv" is a finding rather than an artefact of
+// nothing being watched. The one input still allowed to steer a launch is the
+// configuration, and changing it changes the recorded argv.
+#[test]
+fn the_same_fixture_still_observes_a_configuration_driven_change() {
+    let fixture = Fixture::new("configured-command.sh");
+    assert!(fixture.run(&[]).status.success());
+
+    write_complete_config(
+        &fixture.home,
+        &format!(
+            "{} --a-different-flag '${{prompt}}'",
+            shell_quote(&fixture.root.path().join("configured-command.sh"))
+        ),
+    );
+    assert!(fixture.run(&[]).status.success());
+
+    let lines = fixture.launch_lines();
+    assert_eq!(lines.len(), 2);
+    assert!(
+        lines[1].contains("--a-different-flag"),
+        "the configuration must still steer the launch: {:?}",
+        lines[1]
+    );
+    assert_ne!(
+        lines[0], lines[1],
+        "the fixture must be able to observe a changed launch"
+    );
+}
+
+// The removed human verbs and flags stay removed. `retire` is the one a user is
+// likeliest to reach for by muscle memory, and `--harness` / `--no-launch` are
+// the two flags whose survival would mean launch policy had a command-line home
+// again.
+#[test]
+fn the_bare_human_cli_accepts_no_launch_verbs_or_flags() {
+    for arguments in [
+        vec!["retire", "--help"],
+        vec!["do"],
+        vec!["migrate"],
+        vec!["--harness", "claude"],
+        vec!["--no-launch"],
+    ] {
+        let out = Command::new(env!("CARGO_BIN_EXE_grove"))
+            .args(&arguments)
+            .output()
+            .unwrap();
+        assert!(
+            !out.status.success(),
+            "the bare command must reject {arguments:?}: {out:?}"
+        );
+    }
 }

@@ -143,35 +143,32 @@ fn provision_refuses_a_foreign_directory() {
     );
 }
 
+// Provisioning has no primary any more: configured commands are opaque, so the
+// driver cannot know which harness a session eventually reaches and does not
+// guess. It refreshes every *installed* known root instead — presence of the
+// home marker is the whole rule, and an absent root is skipped rather than
+// created.
 #[test]
-fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
+fn provision_installed_sweeps_every_installed_harness_root() {
     let _g = support::lock_env(&ENV_LOCK);
     let home = TempDir::new().unwrap();
-    // Installed roots: claude and pi. codex is absent. pi is also the primary.
     fs::create_dir_all(home.path().join(".claude")).unwrap();
     fs::create_dir_all(home.path().join(".pi")).unwrap();
 
-    // branch-review-k14 T7: restoring `HOME` while unconditionally *removing*
-    // `GROVE_SKILL_DIR` (never restoring whatever it held before) left the
-    // ambient env asymmetrically clobbered; `EnvGuard` restores both the same
-    // way.
     let mut env = EnvGuard::new();
-    env.set("HOME", home.path()).remove("GROVE_SKILL_DIR");
+    env.set("HOME", home.path());
 
-    let pi = grove::harness::by_name("pi").unwrap();
-    let result = grove::provision::provision_all(pi);
-
-    result.unwrap();
+    grove::provision::provision_installed().unwrap();
 
     assert!(
         home.path().join(".claude/skills/grove/SKILL.md").is_file(),
-        "installed claude root is provisioned"
+        "an installed claude root is provisioned"
     );
     assert!(
         home.path()
             .join(".pi/agent/skills/grove/SKILL.md")
             .is_file(),
-        "the primary (pi) is provisioned — note agent/ nesting"
+        "an installed pi root is provisioned — note the agent/ nesting"
     );
     assert!(
         !home.path().join(".codex").exists(),
@@ -179,56 +176,14 @@ fn provision_all_sweeps_installed_harness_roots_and_honours_the_primary() {
     );
 }
 
+// There is no destination override to route around this. The foreign-directory
+// guard is what stands between a user's own `skills/grove` and an extraction
+// over the top of it, so provisioning refuses rather than proceeding — and the
+// refusal reaches the driver, which never owns the working tree.
 #[test]
-fn provision_all_does_not_let_a_foreign_secondary_harness_block_the_primary() {
-    // branch-review-k14 B9: a foreign dir under an *unrelated* harness must
-    // never abort the primary's own provisioning, or the whole `grove do`
-    // launch.
+fn provision_installed_refuses_a_foreign_skill_directory() {
     let _g = support::lock_env(&ENV_LOCK);
     let home = TempDir::new().unwrap();
-
-    // codex is installed but its skill dir is foreign content, not ours.
-    fs::create_dir_all(home.path().join(".codex/skills/grove")).unwrap();
-    fs::write(
-        home.path().join(".codex/skills/grove/precious.txt"),
-        "user data, not ours",
-    )
-    .unwrap();
-
-    let mut env = EnvGuard::new();
-    env.set("HOME", home.path()).remove("GROVE_SKILL_DIR");
-
-    let pi = grove::harness::by_name("pi").unwrap();
-    let result = grove::provision::provision_all(pi);
-
-    result.unwrap();
-
-    assert!(
-        home.path()
-            .join(".pi/agent/skills/grove/SKILL.md")
-            .is_file(),
-        "the primary (pi) must still be provisioned despite codex's foreign dir"
-    );
-    assert!(
-        home.path()
-            .join(".codex/skills/grove/precious.txt")
-            .is_file(),
-        "the foreign secondary dir must be left untouched, not overwritten"
-    );
-    assert!(
-        !home.path().join(".codex/skills/grove/SKILL.md").exists(),
-        "the foreign secondary dir must not have been provisioned into"
-    );
-}
-
-#[test]
-fn provision_all_still_bails_when_the_primarys_own_dir_is_foreign() {
-    // The contract still requires bailing on a foreign dir for the harness
-    // actually about to launch — branch-review-k14 B9 narrows the blast radius,
-    // it does not remove the guard.
-    let _g = support::lock_env(&ENV_LOCK);
-    let home = TempDir::new().unwrap();
-
     fs::create_dir_all(home.path().join(".pi/agent/skills/grove")).unwrap();
     fs::write(
         home.path().join(".pi/agent/skills/grove/precious.txt"),
@@ -237,13 +192,20 @@ fn provision_all_still_bails_when_the_primarys_own_dir_is_foreign() {
     .unwrap();
 
     let mut env = EnvGuard::new();
-    env.set("HOME", home.path()).remove("GROVE_SKILL_DIR");
+    env.set("HOME", home.path());
 
-    let pi = grove::harness::by_name("pi").unwrap();
-    let err = grove::provision::provision_all(pi).unwrap_err().to_string();
+    let err = grove::provision::provision_installed()
+        .unwrap_err()
+        .to_string();
 
     assert!(
         err.contains("not a grove-provisioned"),
-        "the primary's own foreign dir must still bail (err: {err})"
+        "a foreign dir must bail (err: {err})"
+    );
+    assert!(
+        home.path()
+            .join(".pi/agent/skills/grove/precious.txt")
+            .is_file(),
+        "the foreign content must be untouched"
     );
 }

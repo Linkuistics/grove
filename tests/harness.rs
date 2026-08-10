@@ -1,6 +1,14 @@
-use grove::harness::{by_name, detect_in_repo, select, SelectMode, HARNESSES};
-use std::fs;
-use tempfile::TempDir;
+//! The known-harness registry, which is now a **provisioning target directory
+//! registry and nothing else**.
+//!
+//! Every launch-policy row this file used to assert — `exec_bin`, `name_args`,
+//! `model_args` — is gone with harness inference: the configured command
+//! template is the whole of launch policy, so there is no binary to resolve and
+//! no flag to template. What is left is a delivery question the opaque
+//! configured command cannot answer, and the two properties below are what keep
+//! the two concerns apart.
+
+use grove::harness::{by_name, Harness, HARNESSES};
 
 #[test]
 fn registry_contains_claude_codex_and_pi() {
@@ -10,151 +18,54 @@ fn registry_contains_claude_codex_and_pi() {
     assert!(by_name("nonsense").is_none());
 }
 
+// The rows carry a *destination*, not a *command*. pi is the row that proves
+// `skills_dir` has to be its own field rather than a transform of
+// `project_dir`: it nests skills under `agent/`, so any derivation would send
+// pi's methodology to a directory pi does not read.
 #[test]
-fn harness_rows_carry_the_launch_and_skills_contract() {
+fn every_row_names_an_install_marker_and_a_skills_destination() {
     let claude = by_name("claude").unwrap();
+    assert_eq!(claude.project_dir, ".claude");
     assert_eq!(claude.skills_dir, ".claude/skills");
-    assert_eq!(claude.model_args, &["--model"]);
 
-    // codex: profiles bind model + reasoning effort, so the model-per-task-kind
-    // value names a *profile*.
     let codex = by_name("codex").unwrap();
+    assert_eq!(codex.project_dir, ".codex");
     assert_eq!(codex.skills_dir, ".codex/skills");
-    assert_eq!(codex.model_args, &["--profile"]);
-    assert!(codex.name_args.is_empty());
 
-    // pi (verified against pi 0.80.10): --model, `-n` for the session display
-    // name, skills under ~/.pi/agent/skills (structurally unlike the other
-    // two — hence a field).
     let pi = by_name("pi").unwrap();
     assert_eq!(pi.project_dir, ".pi");
-    assert_eq!(pi.exec_bin, "pi");
-    assert_eq!(pi.skills_dir, ".pi/agent/skills");
-    assert_eq!(pi.model_args, &["--model"]);
-    assert_eq!(pi.name_args, &["-n"]);
+    assert_eq!(
+        pi.skills_dir, ".pi/agent/skills",
+        "pi nests skills under agent/, which is why skills_dir is a field"
+    );
 }
 
-// branch-review-k14 T1: this used to assert a copy-pasted literal ("claude,
-// codex, pi") against another literal, so hardcoding `known_names()`'s own body
-// — exactly the derivation-vs-hardcode distinction its name claims to check —
-// left it green (mutation-verified). That specific mutation turns out to be
-// unfalsifiable by *any* runtime assertion: `HARNESSES` is a fixed `const`
-// with no test-time seam to vary its contents, so a hardcode and a real
-// derivation are byte-identical in their output today, whichever one
-// `known_names()` actually does. What *is* real, and now covered: `HARNESSES`
-// gaining or losing a row (as this branch's own `pi` row did) without a
-// hand-maintained `known_names()` being updated to match. Deriving the
-// expectation from `HARNESSES` here, rather than copying its current value,
-// makes that drift a compile-and-run failure instead of a silent mismatch.
+// The structural half of the same claim, and the one that survives a row being
+// added. A `Harness` has exactly three fields, all of them paths-or-names with
+// no runtime behaviour attached — so a future row cannot smuggle launch policy
+// back in without changing the type, which is a visible, reviewable edit.
 #[test]
-fn known_names_lists_every_registry_row() {
-    let expected = HARNESSES
-        .iter()
-        .map(|h| h.name)
-        .collect::<Vec<_>>()
-        .join(", ");
-    assert_eq!(grove::harness::known_names(), expected);
-}
-
-#[test]
-fn detect_finds_claude_when_only_claude_present() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-
-    let detected = detect_in_repo(tmp.path());
-    assert_eq!(detected.len(), 1);
-    assert_eq!(detected[0].name, "claude");
-}
-
-#[test]
-fn detect_finds_both_when_both_present() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    fs::create_dir_all(tmp.path().join(".codex")).unwrap();
-
-    let detected = detect_in_repo(tmp.path());
-    assert_eq!(detected.len(), 2);
-}
-
-#[test]
-fn detect_finds_pi_when_dot_pi_present() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".pi")).unwrap();
-
-    let detected = detect_in_repo(tmp.path());
-    assert_eq!(detected.len(), 1);
-    assert_eq!(detected[0].name, "pi");
-}
-
-#[test]
-fn detect_finds_none_in_empty_repo() {
-    let tmp = TempDir::new().unwrap();
-    assert!(detect_in_repo(tmp.path()).is_empty());
-}
-
-#[test]
-fn select_explicit_overrides_detection() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-
-    let selected = select(tmp.path(), &["codex".to_string()], SelectMode::Multi).unwrap();
-    assert_eq!(selected.len(), 1);
-    assert_eq!(selected[0].name, "codex");
-}
-
-#[test]
-fn select_errors_on_unknown_harness() {
-    let tmp = TempDir::new().unwrap();
-    let err = select(tmp.path(), &["lemur".to_string()], SelectMode::Multi).unwrap_err();
-    assert!(err.to_string().contains("unknown harness"));
-}
-
-#[test]
-fn select_errors_when_no_harness_detectable() {
-    let tmp = TempDir::new().unwrap();
-    let err = select(tmp.path(), &[], SelectMode::Multi).unwrap_err();
-    assert!(err.to_string().contains("no harness session detected"));
-}
-
-#[test]
-fn select_multi_returns_both_when_both_present() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    fs::create_dir_all(tmp.path().join(".codex")).unwrap();
-
-    let selected = select(tmp.path(), &[], SelectMode::Multi).unwrap();
-    assert_eq!(selected.len(), 2);
-}
-
-#[test]
-fn select_single_errors_when_both_present_without_explicit() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    fs::create_dir_all(tmp.path().join(".codex")).unwrap();
-
-    let err = select(tmp.path(), &[], SelectMode::Single).unwrap_err();
-    assert!(err.to_string().contains("multiple harnesses detected"));
-    assert!(err.to_string().contains("--harness"));
-}
-
-#[test]
-fn select_single_succeeds_when_one_present() {
-    let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-
-    let selected = select(tmp.path(), &[], SelectMode::Single).unwrap();
-    assert_eq!(selected.len(), 1);
-    assert_eq!(selected[0].name, "claude");
-}
-
-#[test]
-fn select_deduplicates_repeated_explicit_names() {
-    let tmp = TempDir::new().unwrap();
-    let selected = select(
-        tmp.path(),
-        &["claude".to_string(), "claude".to_string()],
-        SelectMode::Multi,
-    )
-    .unwrap();
-    assert_eq!(selected.len(), 1);
+fn a_registry_row_is_a_destination_record_with_no_launch_policy() {
+    assert!(!HARNESSES.is_empty());
+    for harness in HARNESSES {
+        let Harness {
+            name,
+            project_dir,
+            skills_dir,
+        } = *harness;
+        assert!(!name.is_empty());
+        assert!(
+            project_dir.starts_with('.') && !project_dir.contains('/'),
+            "{name}: the install marker is one home-relative dotdir, got {project_dir:?}"
+        );
+        assert!(
+            skills_dir.starts_with(project_dir),
+            "{name}: the skills destination must live under the install marker, got {skills_dir:?}"
+        );
+        assert_eq!(
+            by_name(name),
+            Some(harness),
+            "{name}: every row must be reachable by its own name"
+        );
+    }
 }

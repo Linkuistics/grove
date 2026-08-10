@@ -248,9 +248,7 @@ fn git_show_toplevel(cwd: &Path) -> Result<PathBuf> {
 /// `.git` in a plain repo, the main repo's `.git` from a linked worktree
 /// (whose own gitdir is a subpath of it). Git may print the path *relative*
 /// (`.git`, from a plain checkout's toplevel), so it is absolutized against
-/// `cwd` before use. Also the dir a codex launch in a git tree grants back
-/// via `--add-dir` (codex-gitdir-grant; jj trees derive their grants from the
-/// main workspace root instead).
+/// `cwd` before use.
 pub fn git_common_dir(cwd: &Path) -> Result<PathBuf> {
     let worktree = workspace_control(cwd)?.worktree_root().to_path_buf();
     let mut command = Command::new("git");

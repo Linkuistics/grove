@@ -36,16 +36,22 @@ pub fn continue_prompt() -> Result<&'static str> {
     std::str::from_utf8(file.contents()).context("embedded prompts/continue.md is not UTF-8")
 }
 
-/// Provision Grove into every installed harness root without selecting a
-/// primary harness. Configured commands are opaque, so the bare driver cannot
-/// infer which harness they eventually reach.
+/// Provision Grove into every installed harness root. Configured commands are
+/// opaque, so the driver cannot infer which harness a session eventually
+/// reaches — and does not try to: every known root that exists is refreshed, so
+/// whichever one the configured command lands in already carries the current
+/// methodology.
+///
+/// There is no dev override for the destination. The registry is the only
+/// answer to "where", which is what keeps provisioning independent of launch
+/// policy rather than a second, quieter way to configure one.
 pub fn provision_installed() -> Result<()> {
     let home = home_dir()?;
     for harness in HARNESSES {
         if !home.join(harness.project_dir).is_dir() {
-            continue;
+            continue; // an absent root is skipped, never created
         }
-        let destination = home.join(harness.skills_dir).join("grove");
+        let destination = skill_dir_for(harness)?;
         if provision_target(&destination)? {
             eprintln!(
                 "grove: provisioned the {} skill at {}",
@@ -57,66 +63,8 @@ pub fn provision_installed() -> Result<()> {
     Ok(())
 }
 
-/// Provision the embedded methodology for every harness on this machine:
-/// `primary` (the harness about to launch) unconditionally, plus every other
-/// harness whose home root (`~/.claude`, `~/.codex`, `~/.pi`) exists. Logging
-/// only when a target actually (re)writes. With `$GROVE_SKILL_DIR` set (the
-/// test/dev seam) the sweep collapses to that single dir.
-///
-/// The primary provisions first and its failure still bails — the contract's
-/// "refuse a foreign dir" applies in full to the harness actually about to
-/// launch. Every other harness is best-effort: a foreign dir under an
-/// unrelated harness is reported on stderr and skipped, never propagated, so one
-/// harness's directory state can never block another's launch
-/// (branch-review-k14 B9).
-pub fn provision_all(primary: &'static Harness) -> Result<()> {
-    if std::env::var_os("GROVE_SKILL_DIR").is_some() {
-        let dest = skill_dir_for(primary)?; // the override wins inside
-        if provision_target(&dest)? {
-            eprintln!("grove: provisioned the skill at {}", dest.display());
-        }
-        return Ok(());
-    }
-    let home = home_dir()?;
-
-    let primary_dest = home.join(primary.skills_dir).join("grove");
-    if provision_target(&primary_dest)? {
-        eprintln!(
-            "grove: provisioned the {} skill at {}",
-            primary.name,
-            primary_dest.display()
-        );
-    }
-
-    for h in HARNESSES {
-        if h.name == primary.name || !home.join(h.project_dir).is_dir() {
-            continue; // the primary is already handled; an absent root is skipped, never created
-        }
-        let dest = home.join(h.skills_dir).join("grove");
-        match provision_target(&dest) {
-            Ok(true) => eprintln!(
-                "grove: provisioned the {} skill at {}",
-                h.name,
-                dest.display()
-            ),
-            Ok(false) => {}
-            Err(e) => eprintln!(
-                "grove: skipping the {} skill at {} — {:#}",
-                h.name,
-                dest.display(),
-                e
-            ),
-        }
-    }
-    Ok(())
-}
-
-/// A harness's global skill dir: `$GROVE_SKILL_DIR` override (test/dev seam),
-/// else `$HOME/<harness.skills_dir>/grove`.
+/// A harness's global skill dir: `$HOME/<harness.skills_dir>/grove`.
 pub fn skill_dir_for(harness: &Harness) -> Result<PathBuf> {
-    if let Some(dir) = std::env::var_os("GROVE_SKILL_DIR") {
-        return Ok(PathBuf::from(dir));
-    }
     Ok(home_dir()?.join(harness.skills_dir).join("grove"))
 }
 
@@ -274,7 +222,6 @@ mod tests {
     fn skill_dirs_follow_each_harness_layout() {
         let _lock = ENV_LOCK_FOR_HOME.lock().unwrap_or_else(|e| e.into_inner());
         let _home_guard = HomeGuard(std::env::var_os("HOME"));
-        std::env::remove_var("GROVE_SKILL_DIR");
         std::env::set_var("HOME", "/home/x");
         assert_eq!(
             skill_dir_for(crate::harness::by_name("claude").unwrap()).unwrap(),

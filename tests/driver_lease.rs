@@ -1,7 +1,6 @@
 mod support;
 
 use grove::driver_lease::DriverLease;
-use grove::{harness, loop_driver};
 use std::fs;
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -152,6 +151,14 @@ impl Drop for DriverProcess {
             let _ = stop_driver(child);
         }
     }
+}
+
+fn path_with_front(directory: &Path) -> std::ffi::OsString {
+    let mut paths = vec![directory.to_path_buf()];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    std::env::join_paths(paths).unwrap()
 }
 
 fn lease_path(root: &Path) -> PathBuf {
@@ -792,8 +799,18 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
     );
 }
 
+// The driver revalidates its lease immediately before spawning the foreground
+// session, so a lease replaced under it between owning the tree and launching
+// refuses rather than launching into a working tree it no longer owns.
+//
+// The hook is the agent-CLI version probe — the one subprocess the configured
+// loop runs before the launch. Reaching it needs `grove` copied away from its
+// own `grove-llm` sibling: the driver prefers that sibling over `PATH`
+// precisely so a stray binary cannot re-point the agent's CLI, which is also
+// what makes the shadowing here a deliberate isolation step rather than an
+// override the product exposes.
 #[test]
-fn lease_path_loss_after_tree_selection_refuses_the_foreground_launch() {
+fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     let _lock = support::lock_env(&ENV_LOCK);
     let tmp = TempDir::new().unwrap();
     let root = tmp.path().join("worktree");
@@ -804,50 +821,58 @@ fn lease_path_loss_after_tree_selection_refuses_the_foreground_launch() {
     fs::write(root.join(".grove/01-impl-test-k1.md"), "# test-k1\n").unwrap();
 
     let launch_log = tmp.path().join("launch-log");
-    let fake_harness = tmp.path().join("fake-claude.sh");
+    let configured = tmp.path().join("configured-command.sh");
     write_executable(
-        &fake_harness,
-        &format!("#!/bin/sh\nprintf launched > '{}'\n", launch_log.display()),
-    );
-    let wrapper = tmp.path().join("grove-llm-wrapper.sh");
-    let held_path = lease_path(&root);
-    write_executable(
-        &wrapper,
+        &configured,
         &format!(
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then\n  printf 'grove-llm {}\\n'\n  exit 0\nfi\nif [ \"$1\" = kind ]; then\n  mv '{}' '{}.old'\n  : > '{}'\nfi\nexec '{}' \"$@\"\n",
-            env!("CARGO_PKG_VERSION"),
-            held_path.display(),
-            held_path.display(),
-            held_path.display(),
-            env!("CARGO_BIN_EXE_grove-llm")
+            "#!/bin/sh\nprintf launched > {}\n",
+            shell_quote(&launch_log)
         ),
     );
-    let skill_dir = tmp.path().join("skill");
-    fs::create_dir_all(skill_dir.join("prompts")).unwrap();
-    fs::write(skill_dir.join("prompts/continue.md"), "CONTINUE").unwrap();
-    let mut env = support::EnvGuard::new();
-    env.clear_grove_env()
-        .set("GROVE_HARNESS_BIN", &fake_harness)
-        .set("GROVE_LLM_BIN", &wrapper)
-        .set("GROVE_SKILL_DIR", &skill_dir)
-        .set("GROVE_IMPL_MODEL", "test-model");
 
-    let error = loop_driver::run_loop(
-        harness::by_name("claude").unwrap(),
-        &root,
-        &root,
-        "lease-loss",
-    )
-    .unwrap_err();
+    let held_path = lease_path(&root);
+    let shadow_bin = tmp.path().join("shadow-bin");
+    fs::create_dir_all(&shadow_bin).unwrap();
+    write_executable(
+        &shadow_bin.join("grove-llm"),
+        &format!(
+            "#!/bin/sh\nif [ \"$1\" = --version ]; then\n  mv {held} {held}.old\n  : > {held}\n  printf 'grove-llm {version}\\n'\n  exit 0\nfi\nexec {real} \"$@\"\n",
+            held = shell_quote(&held_path),
+            version = env!("CARGO_PKG_VERSION"),
+            real = shell_quote(Path::new(env!("CARGO_BIN_EXE_grove-llm"))),
+        ),
+    );
 
-    let error_chain = format!("{error:#}");
+    let isolated_bin = tmp.path().join("isolated-bin");
+    fs::create_dir_all(&isolated_bin).unwrap();
+    let copied_grove = isolated_bin.join("grove");
+    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
+
+    // `grove_driver` writes the complete config into `home`; the command it
+    // returns is discarded, because this run has to be the *copied* binary.
+    let home = tmp.path().join("home");
+    let _ = grove_driver(&root, &configured, &home);
+
+    let mut driver = Command::new(&copied_grove);
+    driver.current_dir(&root);
+    for name in support::grove_env_names() {
+        driver.env_remove(name);
+    }
+    let output = driver
+        .env("HOME", &home)
+        .env("PATH", path_with_front(&shadow_bin))
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "unexpected success: {stderr}");
     assert!(
-        error_chain.contains("driver lease path was replaced"),
-        "unexpected error: {error_chain}"
+        stderr.contains("driver lease path was replaced"),
+        "unexpected error: {stderr}"
     );
     assert!(
         !launch_log.exists(),
-        "foreground harness launched after lease loss"
+        "the foreground session launched after the lease was lost"
     );
 }
 

@@ -220,10 +220,11 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
     }
 }
 
-/// The one guarded routing peek the loop driver retains for the lifetime of a
-/// launch. Path and stable handle are facts about the exact leaf whose filename
-/// kind was read, so readiness and diagnostics never reconstruct identity with
-/// another pick. Compatibility fields remain nullable for the installed driver.
+/// The structured leaf peek `grove-llm kind --json` prints. Path and stable
+/// handle are facts about the exact leaf whose filename kind was read, so a
+/// consumer never reconstructs identity with another pick. The launch no longer
+/// reads it — the driver selects in-process — and its compatibility fields stay
+/// nullable for the installed driver until the review contraction removes them.
 #[derive(Clone, Debug)]
 pub struct LaunchPeek {
     pub path: PathBuf,

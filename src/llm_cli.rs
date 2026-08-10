@@ -821,20 +821,6 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
     Ok(())
 }
 
-// The write-side harness-name gate, mirroring `Kind::parse`: an unrecognised
-// name is refused at authoring time, when a human is present to fix it.
-fn parse_harness(name: Option<&str>) -> Result<Option<&'static crate::harness::Harness>> {
-    let Some(name) = name else {
-        return Ok(None);
-    };
-    crate::harness::by_name(name).map(Some).ok_or_else(|| {
-        anyhow::anyhow!(
-            "--harness must be one of {}, got {name:?}",
-            crate::harness::known_names()
-        )
-    })
-}
-
 // Resolve `(worktree, grove_root)` from the cwd. The task-tree verbs run from
 // the worktree root (not from inside `.grove/`), so the grove root is always
 // `<worktree>/.grove`, matched across every verb so a leaf is never created or

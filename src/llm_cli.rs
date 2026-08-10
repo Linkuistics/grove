@@ -77,27 +77,13 @@ pub enum Command {
     /// empty grove it prints the standard "no live leaves" diagnostic on stderr
     /// (mirroring `brief-chain`) and exits 0. A task-shaped current filename
     /// with a missing or unknown kind is malformed and errors visibly; foreign
-    /// files remain ignored. The default output is a single lowercase
-    /// token + newline (`--with-harness` is retained as a compatibility flag);
-    /// `--json` selects the structured launch-peek shape. The self-driving loop
-    /// calls this to resolve each session's launch harness and model from the
-    /// picked leaf.
+    /// files remain ignored. The output is a single lowercase token + newline.
+    /// It is a diagnostic and tree-interface verb: the loop driver selects its
+    /// own leaf in-process, so nothing here routes a launch.
     Kind {
         /// Optional leaf path. Absolute, or relative to the grove root
         /// (`.grove/`). If absent, uses `pick`'s next live leaf.
         leaf_path: Option<PathBuf>,
-        /// Compatibility flag used by the installed loop driver's structured
-        /// peek. Current task bodies carry no launch harness, so the plain form
-        /// remains one kind line and JSON always reports `harness: null`.
-        #[arg(long = "with-harness")]
-        with_harness: bool,
-        /// Emit the picked leaf as one JSON object containing `path`, stable
-        /// `handle`, `kind`, and compatibility fields `harness` / `review`,
-        /// both null for current trees. An empty grove is the JSON literal
-        /// `null`. The loop driver combines this with `--with-harness` and
-        /// retains the result for the whole launch without reopening the tree.
-        #[arg(long)]
-        json: bool,
     },
     /// Resolve a reference to its current file path, searching live, retired
     /// (`DONE`), **and** abandoned (`ABANDONED`) entries alike
@@ -461,11 +447,7 @@ pub fn run() -> Result<()> {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),
-        Command::Kind {
-            leaf_path,
-            with_harness,
-            json,
-        } => cmd_kind(leaf_path.as_deref(), with_harness, json),
+        Command::Kind { leaf_path } => cmd_kind(leaf_path.as_deref()),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
         Command::LeafAddChain(args) => cmd_leaf_add_chain(&args),
@@ -553,65 +535,18 @@ fn brief_chain_for(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option
     tree_read::brief_chain_unlocked(guard.root(), &leaf).map(Some)
 }
 
-fn cmd_kind(leaf_path: Option<&Path>, with_harness: bool, json: bool) -> Result<()> {
+fn cmd_kind(leaf_path: Option<&Path>) -> Result<()> {
     let (worktree, grove_root) = grove_paths()?;
     // Normalize a cwd-relative path to what `tree_read::kind` accepts (absolute
     // or grove-root-relative), matching `cmd_brief_chain`'s handling; a `None`
     // stays `None` so the verb defaults to `pick`'s next live leaf.
     let leaf = leaf_path.map(normalize_leaf_path);
-    // Three output shapes from one verb, and the plain one is the compatibility
-    // contract: the kind alone, a single lowercase token. `--with-harness`
-    // adds a second line only when the leaf declares a harness; `--json`
-    // emits the complete routed-leaf fact used by the loop driver.
-    let facts = if with_harness || json {
-        tree_read::launch_peek(&grove_root, leaf.as_deref())?
-    } else {
-        tree_read::kind(&grove_root, leaf.as_deref())?.map(|kind| tree_read::LaunchPeek {
-            path: PathBuf::new(),
-            handle: String::new(),
-            kind,
-            harness: None,
-            review: None,
-        })
-    };
-    match facts {
-        Some(facts) if json => {
-            #[derive(serde::Serialize)]
-            struct StructuredPeek<'a> {
-                path: String,
-                handle: &'a str,
-                kind: &'static str,
-                harness: Option<&'static str>,
-                review: &'a Option<crate::task_relationship::ReviewEvidence>,
-            }
-            let output = StructuredPeek {
-                path: facts.path.display().to_string(),
-                handle: &facts.handle,
-                kind: facts.kind.label(),
-                harness: facts.harness.map(|harness| harness.name),
-                review: &facts.review,
-            };
-            println!(
-                "{}",
-                serde_json::to_string(&output)
-                    .context("serialising the structured routing peek")?
-            );
-        }
-        Some(facts) => {
-            println!("{}", facts.kind.label());
-            if let Some(harness) = facts.harness {
-                println!("{}", harness.name);
-            }
-        }
-        None => {
-            if json {
-                println!("null");
-            }
-            eprintln!(
-                "grove {}: no live leaves; this grove is done",
-                label(&worktree)
-            );
-        }
+    match tree_read::kind(&grove_root, leaf.as_deref())? {
+        Some(kind) => println!("{}", kind.label()),
+        None => eprintln!(
+            "grove {}: no live leaves; this grove is done",
+            label(&worktree)
+        ),
     }
     Ok(())
 }

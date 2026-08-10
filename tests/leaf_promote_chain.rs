@@ -233,6 +233,55 @@ fn promotion_inside_a_decomposition_preserves_its_position_and_siblings() {
     assert!(parent.join("03-impl-last-k4.md").exists());
 }
 
+/// The launch-window insert: a leaf lands ahead of the mandated producer while
+/// the configured command is starting, so `pick` no longer names the producer
+/// the running session was told to work on.
+///
+/// Promotion must still take it. The authority is the prompt mandate, which a
+/// tree command cannot observe — so a second pick would prove nothing about what
+/// this session was asked to do and would reject the one case the split exists
+/// to allow (`docs/specs/config-driven-sessions.md`, "Authoritative selection
+/// and mandate"). Written as a *positive* claim on the sole surviving evidence
+/// path, since "never recomputes pick" is otherwise unobservable from outside.
+#[test]
+fn promotion_takes_a_producer_that_pick_no_longer_names() {
+    let (tmp, producer) = grove("impl");
+
+    let (_, insert_stderr, inserted) = run(
+        tmp.path(),
+        &["leaf-insert", producer.to_str().unwrap(), "earlier"],
+    );
+    assert!(inserted, "fixture insert failed: {insert_stderr}");
+
+    let root = tmp.path().join(".grove");
+    let moved = root.join("02-impl-sync-k1.md");
+    assert!(moved.exists(), "the insert must shift the producer down");
+    let (picked, _, _) = run(tmp.path(), &["pick"]);
+    assert!(
+        picked.trim().ends_with("01-impl-earlier-k2.md"),
+        "the fixture only bites if pick now names the inserted leaf: {picked:?}"
+    );
+
+    // The mandate names the producer by its stable handle, which the insert did
+    // not change — so promotion is asked for the same work item at a new path.
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-promote-chain", "sync-k1"]);
+
+    assert!(
+        ok,
+        "promotion refused a non-picked mandated producer: {stderr}"
+    );
+    let paths: Vec<PathBuf> = stdout.lines().map(PathBuf::from).collect();
+    assert!(paths[0].ends_with("02-sync-chain-k3"), "{paths:?}");
+    assert!(
+        paths[1].ends_with("02-sync-chain-k3/01-impl-sync-k1.md"),
+        "{paths:?}"
+    );
+    assert!(
+        root.join("01-impl-earlier-k2.md").exists(),
+        "the inserted leaf is untouched"
+    );
+}
+
 #[test]
 fn promotion_is_idempotent_by_stale_path_and_json_reports_unchanged_handles() {
     let (tmp, producer) = grove("impl");

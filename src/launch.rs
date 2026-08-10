@@ -31,8 +31,8 @@ fn worktree_name(worktree: &Path) -> String {
 }
 
 /// The loop driver's **launch-scoped environment** (self-driving-loop) — the
-/// variables that carry authority or identify the routed producer, and the
-/// exact set [`scrub_loop_control_env`] removes.
+/// variables a descendant could act on, and the exact set
+/// [`scrub_loop_control_env`] removes.
 ///
 /// `GROVE_SIGNAL_FILE` is the driver's kill channel: it watches that path while
 /// its harness child runs and applies grace → SIGTERM → kill-grace → SIGKILL the
@@ -41,16 +41,11 @@ fn worktree_name(worktree: &Path) -> String {
 /// authority is ambient unless each spawn scopes it deliberately.
 /// `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` are the retired pre-watcher handles
 /// (driver-side-kill), kept here because a stale, unrelated PID leaking into a
-/// nested grove is the same class of mistake one notch quieter.
-/// `GROVE_SESSION_TARGET` is advisory rather than authoritative, but stale
-/// metadata could misattribute a later producer retirement, so it follows the
-/// same scrub-by-default rule.
-const LOOP_CONTROL_ENV: [&str; 4] = [
-    "GROVE_SIGNAL_FILE",
-    "GROVE_HARNESS_PID",
-    "GROVE_CLAUDE_PID",
-    crate::task_relationship::SESSION_TARGET_ENV,
-];
+/// nested grove is the same class of mistake one notch quieter — the value is
+/// something a reader could still *act on*. That is the bar for membership, and
+/// it is why the removed session-target metadata is no longer listed: nothing
+/// reads it, so leaking it grants nothing.
+const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "GROVE_CLAUDE_PID"];
 
 /// Shipped deterministic failure seams must never leak from a developer shell
 /// into a configured session. They are internal test controls, not launch

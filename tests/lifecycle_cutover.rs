@@ -189,7 +189,6 @@ shift
     printf 'arg=<%s>\n' "$argument"
   done
   printf 'signal=<%s>\n' "$GROVE_SIGNAL_FILE"
-  printf 'target=<%s>\n' "${GROVE_SESSION_TARGET-unset}"
   printf 'legacy_harness_pid=<%s>\n' "${GROVE_HARNESS_PID-unset}"
   printf 'legacy_claude_pid=<%s>\n' "${GROVE_CLAUDE_PID-unset}"
   printf 'unrelated=<%s>\n' "${UNRELATED_AMBIENT-unset}"
@@ -216,7 +215,6 @@ exit 0
         .env("GROVE_SIGNAL_FILE", fixture.path().join("stale-signal"))
         .env("GROVE_HARNESS_PID", "stale-harness-pid")
         .env("GROVE_CLAUDE_PID", "stale-claude-pid")
-        .env("GROVE_SESSION_TARGET", "stale-target-must-not-leak")
         .env("UNRELATED_AMBIENT", "preserved")
         .output()
         .unwrap();
@@ -252,7 +250,6 @@ exit 0
         Path::new(signal).parent().unwrap(),
         canonical_worktree.join(".git/grove")
     );
-    assert!(log.contains("target=<unset>\n"), "{log:?}");
     assert!(log.contains("legacy_harness_pid=<unset>\n"), "{log:?}");
     assert!(log.contains("legacy_claude_pid=<unset>\n"), "{log:?}");
     assert!(log.contains("unrelated=<preserved>\n"), "{log:?}");

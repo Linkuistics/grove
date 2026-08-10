@@ -1,14 +1,18 @@
 // Current session-kind trees keep launch routing out of task bodies. Retiring
 // or pruning a producer must preserve relationship prose byte-for-byte and
 // must not materialise the legacy `**Producer launch:**` receipt.
+//
+// There is no ambient session target left to feed these commands: the receipt
+// writer read its harness and model from one advisory launch variable, and the
+// variable and the writer are both gone. So the claim is unconditional —
+// retirement writes no receipt because it has no way to, not because this
+// fixture withheld one.
 
 use assert_cmd::Command;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
-
-const SESSION_TARGET_ENV: &str = "GROVE_SESSION_TARGET";
 
 fn init_repo() -> TempDir {
     let tmp = TempDir::new().unwrap();
@@ -67,16 +71,13 @@ fn build_review_chain(repo: &Path, review_body: &str) -> (PathBuf, PathBuf) {
     (producer, review)
 }
 
-fn llm(repo: &Path, args: &[&str], session_target: Option<&str>) -> (String, String, bool) {
-    let mut command = Command::cargo_bin("grove-llm").unwrap();
-    command
+fn llm(repo: &Path, args: &[&str]) -> (String, String, bool) {
+    let output = Command::cargo_bin("grove-llm")
+        .unwrap()
         .current_dir(repo)
         .args(args)
-        .env_remove(SESSION_TARGET_ENV);
-    if let Some(target) = session_target {
-        command.env(SESSION_TARGET_ENV, target);
-    }
-    let output = command.output().unwrap();
+        .output()
+        .unwrap();
     (
         String::from_utf8_lossy(&output.stdout).into_owned(),
         String::from_utf8_lossy(&output.stderr).into_owned(),
@@ -91,21 +92,17 @@ fn retiring_a_reviewed_producer_writes_no_launch_receipt() {
     let review_body =
         "# build-review-k2\n\n**Reviews:** build-k1\n\n## Goal\n\nReview the implementation.\n";
     let (producer, review) = build_review_chain(repo, review_body);
-    let session_target = format!(
-        "{{\"worktree\":\"{}\",\"handle\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}}",
-        grove::json::escape(&repo.canonicalize().unwrap().display().to_string())
-    );
 
-    let (_, stderr, ok) = llm(
-        repo,
-        &["leaf-retire", producer.to_str().unwrap()],
-        Some(&session_target),
-    );
+    let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()]);
 
     assert!(ok, "retirement failed: {stderr}");
     assert_eq!(fs::read_to_string(&review).unwrap(), review_body);
     assert!(!review_body.contains("**Producer launch:**"));
     assert!(producer.with_file_name("01-DONE-impl-build-k1.md").exists());
+    assert!(
+        !stderr.contains("receipt"),
+        "retirement must not report on a receipt it never attempts: {stderr}"
+    );
 }
 
 #[test]
@@ -115,7 +112,7 @@ fn retiring_preserves_preexisting_legacy_body_metadata_byte_for_byte() {
     let review_body = "# build-review-k2\n\n**Reviews:** build-k1\n**Producer launch:** {\"producer\":\"old-k9\",\"harness\":\"pi\",\"model\":\"old\"}\n";
     let (producer, review) = build_review_chain(repo, review_body);
 
-    let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()], None);
+    let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()]);
 
     assert!(ok, "retirement failed: {stderr}");
     assert_eq!(fs::read_to_string(review).unwrap(), review_body);
@@ -128,7 +125,7 @@ fn pruning_a_reviewed_producer_writes_no_launch_receipt() {
     let review_body = "# build-review-k2\n\n**Reviews:** build-k1\n";
     let (producer, review) = build_review_chain(repo, review_body);
 
-    let (_, stderr, ok) = llm(repo, &["leaf-prune", producer.to_str().unwrap()], None);
+    let (_, stderr, ok) = llm(repo, &["leaf-prune", producer.to_str().unwrap()]);
 
     assert!(ok, "prune failed: {stderr}");
     assert_eq!(fs::read_to_string(&review).unwrap(), review_body);

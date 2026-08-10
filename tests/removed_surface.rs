@@ -73,10 +73,6 @@ enum Role {
     /// Launch policy the design removed. May be named where something scrubs or
     /// refutes it; may not be read.
     RemovedLaunchPolicy,
-    /// Review-era launch metadata still live in production, contracted by the
-    /// legacy review removal. Listed so it is classified rather than
-    /// unexamined; it is not licence for new occurrences.
-    PendingReviewContraction,
     /// A source identifier that merely starts with the same prefix — not an
     /// environment name at all. Enumerating lexically is what makes the sweep
     /// exhaustive, and the price of that is naming the collisions.
@@ -94,7 +90,6 @@ const ROLES: &[(&str, Role)] = &[
     ),
     ("GROVE_TAP_DIR", Role::ReleaseTooling),
     ("GROVE_RELEASE_COMMON_SOURCED", Role::ReleaseTooling),
-    ("GROVE_SESSION_TARGET", Role::PendingReviewContraction),
     // Retired pre-watcher handles: the driver used to publish its child's PID
     // instead of watching a path. Named only by the scrub list, because a
     // stale unrelated PID leaking into a nested grove is the same class of
@@ -419,6 +414,9 @@ fn the_human_command_surface_has_nothing_left_to_select() {
 /// at length).
 #[test]
 fn the_agent_command_surface_exposes_no_lifecycle_verb_or_harness_selector() {
+    // Positionals are recorded as `<name>` and flags as `--name`: a verb's
+    // operand is not a selector, and conflating the two would make "this verb
+    // selects nothing" unstatable for any verb that takes an argument at all.
     fn walk(
         command: &clap::Command,
         path: &str,
@@ -426,7 +424,12 @@ fn the_agent_command_surface_exposes_no_lifecycle_verb_or_harness_selector() {
         arguments: &mut Vec<String>,
     ) {
         for argument in command.get_arguments() {
-            arguments.push(format!("{path} :: --{}", argument.get_id()));
+            let id = argument.get_id();
+            arguments.push(if argument.is_positional() {
+                format!("{path} :: <{id}>")
+            } else {
+                format!("{path} :: --{id}")
+            });
         }
         for sub in command.get_subcommands() {
             verbs.push(sub.get_name().to_string());
@@ -456,6 +459,22 @@ fn the_agent_command_surface_exposes_no_lifecycle_verb_or_harness_selector() {
     assert!(
         selectors.is_empty(),
         "no argument may select launch policy: {selectors:?}"
+    );
+
+    // `kind` is the one verb a driver used to *route* from, via
+    // `--with-harness --json`. Stated as a closure property on that verb rather
+    // than as two rejected flag names: it has nothing left to select, which also
+    // fails on the next peek anyone reintroduces. Its leaf-path operand is a
+    // positional and so is not in scope; `--help` is clap's own.
+    let kind_flags: Vec<&String> = arguments
+        .iter()
+        .filter(|argument| argument.starts_with("grove-llm kind :: --"))
+        .filter(|argument| !argument.ends_with("--help"))
+        .collect();
+    assert!(
+        kind_flags.is_empty(),
+        "`kind` reads one filename and prints one token; a launch reads its \
+         route from configuration, not from a peek: {kind_flags:?}"
     );
 }
 

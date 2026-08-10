@@ -17,9 +17,13 @@
 # scrub, and to tests that do not use the shared helpers at all. `tests/support/mod.rs`
 # (`LOOP_CONTROL_ENV`) carries the in-process and subprocess half; the two are
 # deliberately independent, because a test binary executed directly rather than
-# through cargo gets only the latter. The same guards clear
-# `GROVE_SESSION_TARGET`: it is advisory, not kill authority, but leaking a real
-# session's routed producer into a retirement test could write a false receipt.
+# through cargo gets only the latter.
+#
+# The signal path is the only variable that needs this treatment. The retired
+# advisory session-target variable sat here too, while retirement could still
+# materialise a producer launch receipt out of it; with that variable and the
+# receipt writer both removed, a leaked value grants nothing and a second guard
+# entry would be decoration.
 #
 # Scope note: this also applies to `cargo run -- …` in this repo, so a
 # cargo-launched `grove-llm complete` behaves like a manual command instead of
@@ -27,4 +31,3 @@
 # an installed or `./target/debug/` binary directly, never through cargo.
 [env]
 GROVE_SIGNAL_FILE = { value = "", force = true }
-GROVE_SESSION_TARGET = { value = "", force = true }

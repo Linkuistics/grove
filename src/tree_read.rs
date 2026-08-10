@@ -25,10 +25,9 @@
 // resolves identically (a literal slug ending in `-k<digits>` is matched as a slug
 // first), and the §5 handle round-trips to a path.
 
-use crate::harness::Harness;
 use crate::leaf::Kind;
 use crate::tree_access;
-use crate::tree_id::{parse, parse_current, sort_key, Entry, Outcome};
+use crate::tree_id::{parse_current, sort_key, Entry, Outcome};
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -205,8 +204,10 @@ pub(crate) fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Resul
     Ok(chain)
 }
 
-/// `kind [<leaf>]`: the task's kind — one of the closed nineteen — the loop
-/// driver keys model selection on. With `leaf_path = Some`, read that leaf's
+/// `kind [<leaf>]`: the task's kind — one of the closed nineteen. This is the
+/// agent CLI's diagnostic read; the loop driver keys its one configuration
+/// lookup on the kind [`select`] already gave it, and never comes back through
+/// here. With `leaf_path = Some`, read that leaf's
 /// current-format filename; with `None`, default to [`pick`]'s next live leaf and
 /// return `Ok(None)` on an empty grove — the same "no live leaves" signal `pick`
 /// gives (the CLI renders it as the standard stderr diagnostic, mirroring
@@ -218,54 +219,6 @@ pub fn kind(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<Kind>>
         Some(leaf) => current_leaf_entry(&leaf).map(|entry| entry.kind()),
         None => Ok(None),
     }
-}
-
-/// The structured leaf peek `grove-llm kind --json` prints. Path and stable
-/// handle are facts about the exact leaf whose filename kind was read, so a
-/// consumer never reconstructs identity with another pick. The launch no longer
-/// reads it — the driver selects in-process — and its compatibility fields stay
-/// nullable for the installed driver until the review contraction removes them.
-#[derive(Clone, Debug)]
-pub struct LaunchPeek {
-    pub path: PathBuf,
-    pub handle: String,
-    pub kind: Kind,
-    pub harness: Option<&'static Harness>,
-    pub review: Option<crate::task_relationship::ReviewEvidence>,
-}
-
-/// The complete routed-leaf fact the loop driver needs before it can launch a
-/// session: canonical path, stable handle, and filename kind. `harness` and
-/// `review` remain null compatibility fields. `Ok(None)` is the empty-grove
-/// signal, exactly as [`kind`] gives it.
-pub fn launch_peek(grove_root: &Path, leaf_path: Option<&Path>) -> Result<Option<LaunchPeek>> {
-    let guard = tree_access::read(grove_root)?;
-    let Some(leaf) = target_leaf_unlocked(guard.root(), leaf_path)? else {
-        return Ok(None);
-    };
-    let path = leaf
-        .canonicalize()
-        .with_context(|| format!("resolving routed leaf {}", leaf.display()))?;
-    let entry = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .and_then(parse)
-        .with_context(|| format!("routed path is not a Grove leaf: {}", path.display()))?;
-    let handle = entry
-        .handle()
-        .with_context(|| format!("routed path is not a keyed Grove task: {}", path.display()))?;
-    let kind = entry
-        .kind()
-        .with_context(|| format!("routed path is not a Grove leaf: {}", path.display()))?;
-    let harness = None;
-    let review = None;
-    Ok(Some(LaunchPeek {
-        path,
-        handle,
-        kind,
-        harness,
-        review,
-    }))
 }
 
 /// The leaf a leaf-reading verb operates on: the given path (absolute, or
@@ -543,30 +496,6 @@ fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
     Ok(entries.into_iter().map(|(_, e, p)| (e, p)).collect())
 }
 
-/// Return every live leaf below a node using the same lenient entry
-/// classification as [`pick`], [`resolve`], and generation reads. Callers use
-/// this one seam for node-liveness decisions so foreign kind mismatches cannot
-/// make lifecycle and routing observe different trees.
-pub(crate) fn live_leaf_paths_unlocked(node: &Path) -> Result<Vec<PathBuf>> {
-    let mut live = Vec::new();
-    collect_live_leaf_paths(node, &mut live)?;
-    Ok(live)
-}
-
-fn collect_live_leaf_paths(node: &Path, live: &mut Vec<PathBuf>) -> Result<()> {
-    for (entry, path) in read_level(node)? {
-        match entry {
-            Entry::Leaf {
-                outcome: Outcome::Live,
-                ..
-            } => live.push(path),
-            Entry::Node { .. } => collect_live_leaf_paths(&path, live)?,
-            _ => {}
-        }
-    }
-    Ok(())
-}
-
 /// Recursively collect every parsed entry in the tree — leaves (live and `DONE`),
 /// node directories, and briefs — each with its absolute path, in pre-order.
 /// The shared scan behind [`resolve`]'s tree-wide key/slug search.
@@ -579,30 +508,6 @@ fn collect_all(dir: &Path, out: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
         }
     }
     Ok(())
-}
-
-/// Stable generation for a reviewed producer entity: the greatest permanent
-/// key in the producer itself and, for a decomposition node, its whole subtree.
-/// Position and outcome infixes deliberately do not participate.
-pub(crate) fn producer_generation_unlocked(producer: &Path) -> Result<u32> {
-    let producer_entry = producer
-        .file_name()
-        .and_then(|name| name.to_str())
-        .and_then(parse)
-        .with_context(|| format!("invalid reviewed producer {}", producer.display()))?;
-    let mut generation = producer_entry
-        .key()
-        .with_context(|| format!("reviewed producer has no key: {}", producer.display()))?;
-    if matches!(producer_entry, Entry::Node { .. }) {
-        let mut descendants = Vec::new();
-        collect_all(producer, &mut descendants)?;
-        for (entry, _) in descendants {
-            if let Some(key) = entry.key() {
-                generation = generation.max(key);
-            }
-        }
-    }
-    Ok(generation)
 }
 
 #[cfg(test)]

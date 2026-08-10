@@ -372,11 +372,6 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
         &chain.join("02-review-impl-build-review-k2.md"),
         "# build-review-k2\n\n**Reviews:** build-k1\n",
     );
-    let identity = grove::json::escape(&repo.canonicalize().unwrap().display().to_string());
-    let target = format!(
-        "{{\"worktree\":\"{identity}\",\"handle\":\"build-k1\",\"harness\":\"pi\",\"model\":null}}"
-    );
-
     let output = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(repo)
@@ -384,7 +379,6 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
             "leaf-retire",
             ".grove/01-build-chain-k4/01-impl-build-k1.md",
         ])
-        .env("GROVE_SESSION_TARGET", target)
         .output()
         .unwrap();
 

@@ -61,12 +61,11 @@ pub const KIND_LABELS: [&str; 19] = [
 /// the variable therefore kills the session `cargo test` was typed into
 /// (guard-loop-signal-k37).
 ///
-/// `.cargo/config.toml` force-overrides the same signal variable and clears the
-/// advisory session target for everything cargo runs. The two guards are
-/// independent on purpose: that one covers tests which never touch these
-/// helpers, this one covers a test binary executed directly rather than through
-/// cargo. Neither subsumes the other.
-const LOOP_CONTROL_ENV: [&str; 2] = ["GROVE_SIGNAL_FILE", "GROVE_SESSION_TARGET"];
+/// `.cargo/config.toml` force-overrides the same signal variable for everything
+/// cargo runs. The two guards are independent on purpose: that one covers tests
+/// which never touch these helpers, this one covers a test binary executed
+/// directly rather than through cargo. Neither subsumes the other.
+const LOOP_CONTROL_ENV: [&str; 1] = ["GROVE_SIGNAL_FILE"];
 
 /// The launch-policy environment Grove no longer reads. It is scrubbed rather
 /// than ignored because these fixtures assert on what a launch *does*, and this

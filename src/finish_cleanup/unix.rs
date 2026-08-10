@@ -314,6 +314,61 @@ pub(crate) fn rename_at_noreplace(
     }
 }
 
+pub(super) fn rename_at_exchange(
+    first_parent: &File,
+    first: &OsStr,
+    second_parent: &File,
+    second: &OsStr,
+) -> io::Result<()> {
+    let first = c_string(first)?;
+    let second = c_string(second)?;
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        // SAFETY: both directory descriptors and NUL-terminated names are
+        // valid, and RENAME_EXCHANGE atomically preserves both entries.
+        let status = unsafe {
+            libc::renameat2(
+                first_parent.as_raw_fd(),
+                first.as_ptr(),
+                second_parent.as_raw_fd(),
+                second.as_ptr(),
+                libc::RENAME_EXCHANGE as _,
+            )
+        };
+        status_result(status)
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        // SAFETY: both directory descriptors and NUL-terminated names are
+        // valid, and RENAME_SWAP atomically preserves both entries.
+        let status = unsafe {
+            libc::renameatx_np(
+                first_parent.as_raw_fd(),
+                first.as_ptr(),
+                second_parent.as_raw_fd(),
+                second.as_ptr(),
+                libc::RENAME_SWAP,
+            )
+        };
+        status_result(status)
+    }
+
+    #[cfg(not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "ios"
+    )))]
+    {
+        let _ = (first_parent, first, second_parent, second);
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "atomic exchange rename is unavailable on this platform",
+        ))
+    }
+}
+
 pub(super) fn rename_at_replace(
     source_parent: &File,
     source: &OsStr,

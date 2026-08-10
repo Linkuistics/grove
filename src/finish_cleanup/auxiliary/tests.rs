@@ -1,11 +1,14 @@
 use super::{
     auxiliary_marker_paths, prepare_auxiliary, recover_auxiliary, recover_auxiliary_marker,
-    AuxiliaryRole,
+    AuxiliaryCleanup, AuxiliaryRole, MarkerReplacementStep,
 };
 use crate::finish_cleanup::reap_orphaned;
 use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::MetadataExt;
+use std::path::PathBuf;
 use tempfile::TempDir;
 
 const HANDLE: &str = "finish-k2";
@@ -16,6 +19,407 @@ fn marker_path(artifact: &std::path::Path) -> std::path::PathBuf {
     let mut name = artifact.file_name().unwrap().as_encoded_bytes().to_vec();
     name.extend_from_slice(b".json");
     artifact.with_file_name(OsString::from_vec(name))
+}
+
+fn replacement_state_path(marker: &std::path::Path) -> std::path::PathBuf {
+    let mut name = marker.file_name().unwrap().as_encoded_bytes().to_vec();
+    name.extend_from_slice(b".replacing");
+    marker.with_file_name(OsString::from_vec(name))
+}
+
+fn staged_marker_path(replacement_state: &std::path::Path) -> std::path::PathBuf {
+    let body: serde_json::Value =
+        serde_json::from_slice(&fs::read(replacement_state).unwrap()).unwrap();
+    let staged_name: Vec<u8> = serde_json::from_value(body["staged_name"].clone()).unwrap();
+    replacement_state.with_file_name(OsString::from_vec(staged_name))
+}
+
+fn prepared_rebinding() -> (TempDir, PathBuf, AuxiliaryCleanup, PathBuf, PathBuf) {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    fs::write(&source, "old index\n").unwrap();
+    let prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let marker = marker_path(&artifact);
+    let replacement_state = replacement_state_path(&marker);
+    let replacement_artifact = temporary.path().join("replacement-index");
+    fs::write(&replacement_artifact, "new index\n").unwrap();
+    fs::rename(replacement_artifact, &artifact).unwrap();
+    (temporary, target, prepared, marker, replacement_state)
+}
+
+#[test]
+fn an_interrupted_marker_replacement_recovers_before_exchange() {
+    let (_temporary, target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+
+    let interruption = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated interruption before marker exchange",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{interruption:#}").contains("simulated interruption"));
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert!(staged_marker.is_file());
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    assert!(!replacement_state.exists());
+    assert!(!staged_marker.exists());
+    recovered.dispose().unwrap();
+    assert!(!marker.exists());
+    assert!(!artifact.exists());
+}
+
+#[test]
+fn an_interrupted_marker_replacement_recovers_after_exchange() {
+    let (_temporary, target, mut prepared, marker, replacement_state) = prepared_rebinding();
+
+    let interruption = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterExchange {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated interruption after marker exchange",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{interruption:#}").contains("simulated interruption"));
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert!(staged_marker.is_file());
+    recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    assert!(marker.is_file());
+    assert!(!replacement_state.exists());
+    assert!(!staged_marker.exists());
+}
+
+#[test]
+fn an_interrupted_marker_replacement_recovers_after_retired_marker_removal() {
+    let (_temporary, target, mut prepared, marker, replacement_state) = prepared_rebinding();
+
+    let interruption = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterRetiredMarkerRemoval {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated interruption after retired marker removal",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{interruption:#}").contains("simulated interruption"));
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert!(!staged_marker.exists());
+    recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    assert!(marker.is_file());
+    assert!(!replacement_state.exists());
+}
+
+#[test]
+fn marker_replacement_completes_without_leaving_transition_state() {
+    let (_temporary, target, mut prepared, marker, replacement_state) = prepared_rebinding();
+
+    prepared.rebind_artifact_identity().unwrap();
+
+    assert!(marker.is_file());
+    assert!(!replacement_state.exists());
+    recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+}
+
+#[test]
+fn every_published_marker_replacement_state_names_its_handle_and_attempt() {
+    let (_temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+
+    prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                let staged_marker = staged_marker_path(&replacement_state);
+                for path in [&marker, &staged_marker, &replacement_state] {
+                    let body: serde_json::Value = serde_json::from_slice(&fs::read(path)?).unwrap();
+                    assert_eq!(body["finish_handle"], HANDLE);
+                    assert_eq!(body["attempt_identity"], ATTEMPT);
+                }
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "leave both parseable states",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+}
+
+#[test]
+fn a_canonical_marker_substituted_before_exchange_is_preserved() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-marker");
+    let foreign = b"foreign marker bytes\n";
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                fs::rename(&marker, &preserved)?;
+                fs::write(&marker, foreign)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("parsing finish auxiliary marker"));
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert_ne!(fs::read(&staged_marker).unwrap(), foreign);
+    assert_eq!(fs::read(&marker).unwrap(), foreign);
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_replacement_marker_substituted_before_exchange_is_preserved() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-replacement-marker");
+    let foreign = b"foreign replacement marker bytes\n";
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                let staged_marker = staged_marker_path(&replacement_state);
+                fs::rename(&staged_marker, &preserved)?;
+                fs::write(&staged_marker, foreign)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("parsing finish auxiliary marker"));
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert_eq!(fs::read(&staged_marker).unwrap(), foreign);
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_byte_identical_replacement_marker_substitution_is_not_adopted() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-published-marker");
+    let mut external_inode = None;
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                let staged_marker = staged_marker_path(&replacement_state);
+                let body = fs::read(&staged_marker)?;
+                fs::rename(&staged_marker, &preserved)?;
+                fs::write(&staged_marker, body)?;
+                external_inode = Some(fs::symlink_metadata(&staged_marker)?.ino());
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("identity changed"));
+    let staged_marker = staged_marker_path(&replacement_state);
+    assert_eq!(
+        fs::symlink_metadata(&staged_marker).unwrap().ino(),
+        external_inode.unwrap()
+    );
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_byte_identical_replacement_state_substituted_before_exchange_is_not_adopted() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-replacement-state");
+    let mut external_inode = None;
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeExchange {
+                let body = fs::read(&replacement_state)?;
+                fs::rename(&replacement_state, &preserved)?;
+                fs::write(&replacement_state, body)?;
+                external_inode = Some(fs::symlink_metadata(&replacement_state)?.ino());
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("state identity changed"));
+    assert_eq!(
+        fs::symlink_metadata(&replacement_state).unwrap().ino(),
+        external_inode.unwrap()
+    );
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(staged_marker_path(&replacement_state).is_file());
+}
+
+#[test]
+fn a_canonical_marker_substituted_after_exchange_is_preserved() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-new-marker");
+    let foreign = b"foreign canonical marker bytes\n";
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterExchange {
+                fs::rename(&marker, &preserved)?;
+                fs::write(&marker, foreign)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("parsing finish auxiliary marker"));
+    assert_eq!(fs::read(&marker).unwrap(), foreign);
+    assert!(preserved.is_file());
+    assert!(staged_marker_path(&replacement_state).is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_byte_identical_canonical_marker_substitution_is_not_adopted() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-canonical-marker");
+    let mut external_inode = None;
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterExchange {
+                let body = fs::read(&marker)?;
+                fs::rename(&marker, &preserved)?;
+                fs::write(&marker, body)?;
+                external_inode = Some(fs::symlink_metadata(&marker)?.ino());
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("identity changed"));
+    assert_eq!(
+        fs::symlink_metadata(&marker).unwrap().ino(),
+        external_inode.unwrap()
+    );
+    assert!(preserved.is_file());
+    assert!(staged_marker_path(&replacement_state).is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_byte_identical_replacement_state_substituted_after_exchange_is_not_adopted() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-exchanged-state");
+    let mut external_inode = None;
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterExchange {
+                let body = fs::read(&replacement_state)?;
+                fs::rename(&replacement_state, &preserved)?;
+                fs::write(&replacement_state, body)?;
+                external_inode = Some(fs::symlink_metadata(&replacement_state)?.ino());
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("state identity changed"));
+    assert_eq!(
+        fs::symlink_metadata(&replacement_state).unwrap().ino(),
+        external_inode.unwrap()
+    );
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(staged_marker_path(&replacement_state).is_file());
+}
+
+#[test]
+fn a_retired_marker_substituted_after_exchange_is_preserved() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-old-marker");
+    let foreign = b"foreign retired marker bytes\n";
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::AfterExchange {
+                let staged_marker = staged_marker_path(&replacement_state);
+                fs::rename(&staged_marker, &preserved)?;
+                fs::write(&staged_marker, foreign)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("parsing finish auxiliary marker"));
+    assert_eq!(
+        fs::read(staged_marker_path(&replacement_state)).unwrap(),
+        foreign
+    );
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
+}
+
+#[test]
+fn a_retired_marker_substituted_before_removal_is_preserved() {
+    let (temporary, _target, mut prepared, marker, replacement_state) = prepared_rebinding();
+    let preserved = temporary.path().join("preserved-retired-marker");
+    let foreign = b"foreign retired marker bytes\n";
+
+    let error = prepared
+        .rebind_artifact_identity_with(|step| {
+            if step == MarkerReplacementStep::BeforeRetiredMarkerRemoval {
+                let staged_marker = staged_marker_path(&replacement_state);
+                fs::rename(&staged_marker, &preserved)?;
+                fs::write(&staged_marker, foreign)?;
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(format!("{error:#}").contains("parsing finish auxiliary marker"));
+    assert_eq!(
+        fs::read(staged_marker_path(&replacement_state)).unwrap(),
+        foreign
+    );
+    assert!(preserved.is_file());
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
 }
 
 #[test]

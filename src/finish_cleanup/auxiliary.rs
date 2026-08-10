@@ -1,3 +1,9 @@
+mod marker_replacement;
+
+use self::marker_replacement::{
+    publish_marker_replacement, recover_marker_replacement, replacement_state_file_name,
+    settle_marker_replacement, MarkerReplacementStep,
+};
 use super::unix::{
     create_new_file_at, directory_names, entry_exists, open_directory, open_file_at,
     rename_at_noreplace, rename_at_replace, unlink_at, validate_entry_identity, validate_file_name,
@@ -8,6 +14,7 @@ use super::{
 };
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{self, Read, Write};
@@ -46,11 +53,18 @@ struct AuxiliaryMarker {
     inode: u64,
 }
 
+struct MarkerDocument {
+    identity: FileIdentity,
+    sha256: String,
+    marker: AuxiliaryMarker,
+}
+
 #[derive(Debug)]
 pub(crate) struct AuxiliaryCleanup {
     artifact_path: PathBuf,
     marker_path: PathBuf,
     marker_identity: FileIdentity,
+    marker_sha256: String,
     marker: AuxiliaryMarker,
 }
 
@@ -76,6 +90,7 @@ pub(crate) fn prepare_auxiliary(
         .context("finish auxiliary target has no file name")?;
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
+    let replacement_state_name = replacement_state_file_name(role, attempt_identity);
     let parent = open_directory(parent_path).with_context(|| {
         format!(
             "opening finish auxiliary directory {} without following symlinks",
@@ -84,7 +99,11 @@ pub(crate) fn prepare_auxiliary(
     })?;
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
-    if entry_exists(&parent, &artifact_name)? || entry_exists(&parent, &marker_name)? {
+    validate_file_name(&parent, &replacement_state_name)?;
+    if entry_exists(&parent, &artifact_name)?
+        || entry_exists(&parent, &marker_name)?
+        || entry_exists(&parent, &replacement_state_name)?
+    {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
             role.name(),
@@ -176,9 +195,14 @@ pub(crate) fn ensure_auxiliary_available(
     })?;
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
+    let replacement_state_name = replacement_state_file_name(role, attempt_identity);
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
-    if entry_exists(&parent, &artifact_name)? || entry_exists(&parent, &marker_name)? {
+    validate_file_name(&parent, &replacement_state_name)?;
+    if entry_exists(&parent, &artifact_name)?
+        || entry_exists(&parent, &marker_name)?
+        || entry_exists(&parent, &replacement_state_name)?
+    {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
             role.name(),
@@ -207,19 +231,26 @@ pub(crate) fn recover_auxiliary(
     })?;
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
+    let replacement_state_name = replacement_state_file_name(role, attempt_identity);
     let target_name = target_path
         .file_name()
         .context("finish auxiliary target has no file name")?;
     let artifact_exists = entry_exists(&parent, &artifact_name)?;
     let marker_exists = entry_exists(&parent, &marker_name)?;
-    match (artifact_exists, marker_exists) {
-        (false, false) => Ok(None),
-        (true, false) => bail!(
+    let replacement_state_exists = entry_exists(&parent, &replacement_state_name)?;
+    match (artifact_exists, marker_exists, replacement_state_exists) {
+        (false, false, false) => Ok(None),
+        (_, false, true) => bail!(
+            "Recovery pending: finish auxiliary replacement state {:?} has no canonical marker in {}",
+            replacement_state_name,
+            parent_path.display()
+        ),
+        (true, false, false) => bail!(
             "Recovery pending: unmarked finish auxiliary artifact {:?} is present in {}",
             artifact_name,
             parent_path.display()
         ),
-        (_, true) => AuxiliaryCleanup::from_marker_at(
+        (_, true, _) => AuxiliaryCleanup::from_marker_at(
             &parent,
             &parent_path.join(marker_name),
             target_name,
@@ -267,7 +298,7 @@ pub(crate) fn recover_auxiliary_marker(marker_path: &Path) -> Result<AuxiliaryCl
             marker_path.display()
         )
     })?;
-    let (_, marker) = read_marker(marker_path, marker_file)?;
+    let marker = read_marker(marker_path, marker_file)?.marker;
     let target_name = OsString::from_vec(marker.target_name.clone());
     AuxiliaryCleanup::from_marker_at(
         &parent,
@@ -290,6 +321,13 @@ impl AuxiliaryCleanup {
     }
 
     pub(crate) fn rebind_artifact_identity(&mut self) -> Result<()> {
+        self.rebind_artifact_identity_with(|_| Ok(()))
+    }
+
+    fn rebind_artifact_identity_with(
+        &mut self,
+        mut checkpoint: impl FnMut(MarkerReplacementStep) -> io::Result<()>,
+    ) -> Result<()> {
         let parent_path = self
             .marker_path
             .parent()
@@ -321,8 +359,22 @@ impl AuxiliaryCleanup {
         let mut marker = self.marker.clone();
         marker.device = artifact_identity.device;
         marker.inode = artifact_identity.inode;
-        self.remove_marker(&parent)?;
-        publish_marker(&parent, &self.marker_path, &marker)?;
+        publish_marker_replacement(
+            &parent,
+            &self.marker_path,
+            &marker,
+            self.marker_identity,
+            &self.marker_sha256,
+        )?;
+        settle_marker_replacement(
+            &parent,
+            &self.marker_path,
+            OsString::from_vec(marker.target_name.clone()).as_os_str(),
+            marker.role,
+            &marker.finish_handle,
+            &marker.attempt_identity,
+            &mut checkpoint,
+        )?;
         *self = Self::from_marker_at(
             &parent,
             &self.marker_path,
@@ -511,8 +563,11 @@ impl AuxiliaryCleanup {
                 self.marker_path.display()
             )
         })?;
-        let (identity, marker) = read_marker(&self.marker_path, marker_file)?;
-        if identity != self.marker_identity || marker != self.marker {
+        let observed = read_marker(&self.marker_path, marker_file)?;
+        if observed.identity != self.marker_identity
+            || observed.sha256 != self.marker_sha256
+            || observed.marker != self.marker
+        {
             bail!(
                 "finish auxiliary cleanup marker changed at {}; replacement left untouched",
                 self.marker_path.display()
@@ -543,6 +598,14 @@ impl AuxiliaryCleanup {
         finish_handle: &str,
         attempt_identity: &str,
     ) -> Result<Self> {
+        recover_marker_replacement(
+            parent,
+            marker_path,
+            target_name,
+            role,
+            finish_handle,
+            attempt_identity,
+        )?;
         let marker_name = marker_path
             .file_name()
             .context("finish auxiliary marker has no file name")?;
@@ -552,7 +615,10 @@ impl AuxiliaryCleanup {
                 marker_path.display()
             )
         })?;
-        let (marker_identity, marker) = read_marker(marker_path, marker_file)?;
+        let document = read_marker(marker_path, marker_file)?;
+        let marker_identity = document.identity;
+        let marker_sha256 = document.sha256;
+        let marker = document.marker;
         validate_marker(
             marker_path,
             &marker,
@@ -573,6 +639,7 @@ impl AuxiliaryCleanup {
             artifact_path,
             marker_path: marker_path.to_path_buf(),
             marker_identity,
+            marker_sha256,
             marker,
         };
         cleanup.open_validated_artifact(parent, &artifact_name)?;
@@ -662,22 +729,52 @@ fn publish_marker(parent: &File, marker_path: &Path, marker: &AuxiliaryMarker) -
     }
 }
 
-fn read_marker(
-    marker_path: &Path,
-    mut marker_file: File,
-) -> Result<(FileIdentity, AuxiliaryMarker)> {
+fn read_marker(marker_path: &Path, mut marker_file: File) -> Result<MarkerDocument> {
     ensure_regular_file(&marker_file, marker_path)?;
-    let marker_identity = FileIdentity::from_file(&marker_file)?;
+    let identity = FileIdentity::from_file(&marker_file)?;
     let mut body = Vec::new();
     marker_file
         .read_to_end(&mut body)
         .with_context(|| format!("reading finish auxiliary marker {}", marker_path.display()))?;
     let marker = serde_json::from_slice(&body)
         .with_context(|| format!("parsing finish auxiliary marker {}", marker_path.display()))?;
-    Ok((marker_identity, marker))
+    Ok(MarkerDocument {
+        identity,
+        sha256: sha256(&body),
+        marker,
+    })
+}
+
+fn sha256(body: &[u8]) -> String {
+    format!("{:x}", Sha256::digest(body))
 }
 
 fn validate_marker(
+    marker_path: &Path,
+    marker: &AuxiliaryMarker,
+    target_name: &OsStr,
+    role: AuxiliaryRole,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<()> {
+    validate_marker_binding(
+        marker_path,
+        marker,
+        target_name,
+        role,
+        finish_handle,
+        attempt_identity,
+    )?;
+    if marker_path.file_name() != Some(marker_file_name(role, attempt_identity).as_os_str()) {
+        bail!(
+            "finish auxiliary marker path does not match its role and attempt at {}",
+            marker_path.display()
+        );
+    }
+    Ok(())
+}
+
+fn validate_marker_binding(
     marker_path: &Path,
     marker: &AuxiliaryMarker,
     target_name: &OsStr,
@@ -703,8 +800,7 @@ fn validate_marker(
     validate_attempt_identity(&marker.attempt_identity)?;
     validate_component(marker_path, "artifact", &marker.artifact_name)?;
     validate_component(marker_path, "target", &marker.target_name)?;
-    if marker_path.file_name() != Some(marker_file_name(role, attempt_identity).as_os_str())
-        || marker.artifact_name != artifact_file_name(role, attempt_identity).as_bytes()
+    if marker.artifact_name != artifact_file_name(role, attempt_identity).as_bytes()
         || marker.target_name != target_name.as_bytes()
     {
         bail!(

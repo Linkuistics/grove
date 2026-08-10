@@ -40,7 +40,7 @@ struct QuarantineMarker {
     inode: u64,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct FileIdentity {
     device: u64,
     inode: u64,

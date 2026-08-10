@@ -1275,10 +1275,11 @@ Through that seam, cover:
   found, and reaps nothing the live witness owns; while foreign entries at the
   derivable `.filtered` name and inside the reserved staging namespace survive a
   recovery that completes;
-- a completion signal written after the successful deletion commit followed by
-  driver death before post-reap interpretation: replacement cleanup treats the
-  abandoned channel as coordination rather than a finish receipt, then follows
-  the bounded epoch handoff and fresh-root rules;
+- a completion signal written after the successful deletion commit that no
+  driver ever interprets, the child ordering its parent's death and reaping
+  ahead of the write so the abandonment is deterministic rather than raced:
+  replacement cleanup treats the abandoned channel as coordination rather than a
+  finish receipt, then follows the bounded epoch handoff and fresh-root rules;
 - migration of every accepted layout, aliases, terminal leaves, missing kinds,
   standalone research, vendor pairs, format-marker creation, kind-prefixed
   legacy slugs, unknown marker values, metadata removal, relationships, every

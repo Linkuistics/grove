@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** post-teardown-restart-contract-k102
+**Producer launch:** {"producer":"post-teardown-restart-contract-k102","session":"post-teardown-restart-contract-k102","generation":"k102","harness":"claude","model":"opus"}
 
 ## Goal
 

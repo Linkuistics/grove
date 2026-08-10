@@ -493,6 +493,22 @@ is bound to this launch, so it is available only to the still-confirmed session
 that ran the command — a later `grove do` into a rootless tree is an ordinary
 fresh grove, not a resumed finish.
 
+**Ending after step 2 but before step 3 is an ordinary no-signal stop.** The
+driver reports the child's real status and elapsed time and stops the loop; it
+never reads a deleted `.grove/` as the `--done` you did not send. Nothing is
+lost — the teardown commit is already in history — and nothing is pending: there
+is no half-finished grove to resume, only a working tree without one. Likewise
+if the *driver* dies after the commit, the `done` it never got to read is
+coordination debris, not a receipt: the next invocation invalidates the dead
+launch's session epoch, clears that channel, and — finding no task root — starts
+a **new** grove at `plan-k1` (a handle a new tree may reuse; the epoch, not the
+key, is what keeps the old session's `grove-llm` calls off it). If an orphaned
+command from the dead session still holds a session-epoch guard, that invocation
+waits up to 30 seconds and then stops on a timed-out-epoch-handoff error rather
+than proceeding — creating no `.grove/`, so a stall there is the guard, not a
+hung grove. The invocation after it, once the guard releases, starts the new
+grove.
+
 ## Artifacts
 
 Only the task tree is grove-specific and ephemeral. Everything else is a

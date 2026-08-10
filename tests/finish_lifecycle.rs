@@ -5,6 +5,7 @@ use std::os::fd::AsRawFd;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::thread;
@@ -1505,6 +1506,244 @@ fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grov
         .join(".grove/01-requirements-plan-k1.md")
         .is_file());
     assert!(fs::read_to_string(&launch_log).unwrap().contains("plan-k1"));
+}
+
+/// The one post-commit shape that could pass for a durable finish receipt: the
+/// child committed teardown and left `done` in the signal channel, and no driver
+/// ever interpreted it. The child makes that deterministic rather than raced —
+/// it kills its parent and waits for the pid to be reaped *before* writing — so
+/// the abandoned `done` provably outlives the only process entitled to read it.
+/// What the replacement must do is not read it at all: exclusive epoch handoff
+/// and channel cleanup happen at lease acquisition, above every lifecycle
+/// mutation, so the absent task root is classified as the fresh grove it is.
+#[test]
+fn a_done_signal_abandoned_by_a_killed_driver_reinitializes_instead_of_finishing() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("done-signal-driver-death");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+
+    let launch_log = fixture.path().join("launch-log");
+    let signal_log = fixture.path().join("signal-path");
+    let signalled = fixture.path().join("signalled");
+    let script = fixture.path().join("teardown-then-kill-the-driver.sh");
+    write_executable(
+        &script,
+        &format!(
+            r#"#!/bin/sh
+case "$1" in
+*finish-k*)
+  {llm} finish-commit finish-k2 || exit $?
+  printf '%s\n' "$GROVE_SIGNAL_FILE" > {signal_log}
+  driver=$PPID
+  kill -9 "$driver"
+  while kill -0 "$driver" 2>/dev/null; do sleep 0.01; done
+  printf 'done\n' > "$GROVE_SIGNAL_FILE"
+  : > {signalled}
+  exit 0
+  ;;
+esac
+printf '%s\n' "$1" > {launch_log}
+"#,
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            signal_log = signal_log.display(),
+            signalled = signalled.display(),
+            launch_log = launch_log.display(),
+        ),
+    );
+    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+
+    // Spawn rather than `output()`. The child polls until its parent's pid stops
+    // answering `kill -0`, and a SIGKILLed process keeps answering while it is
+    // an unreaped zombie. `output()` reaps only after draining both pipes to
+    // EOF, which this still-waiting child holds open — so the test itself must
+    // be the reaper, or the two deadlock.
+    let mut driver = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap();
+    let killed = driver.wait().unwrap();
+    wait_for(&signalled);
+
+    assert_eq!(
+        killed.signal(),
+        Some(libc::SIGKILL),
+        "the driver was not killed mid-launch"
+    );
+    assert!(!repository.join(".grove").exists());
+    assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
+
+    let abandoned_signal = PathBuf::from(fs::read_to_string(&signal_log).unwrap().trim());
+    assert_eq!(fs::read_to_string(&abandoned_signal).unwrap(), "done\n");
+    let epoch_path = repository.join(".git/grove/session.epoch");
+    let abandoned_epoch = fs::read_to_string(&epoch_path).unwrap();
+    assert!(
+        abandoned_epoch.starts_with("state=active\n"),
+        "the killed driver did not leave its launch epoch active: {abandoned_epoch:?}"
+    );
+    assert!(
+        abandoned_epoch.contains("signal-path-hex="),
+        "{abandoned_epoch:?}"
+    );
+
+    let restarted = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        restarted.status.success(),
+        "{}",
+        String::from_utf8_lossy(&restarted.stderr)
+    );
+    let diagnostic = String::from_utf8_lossy(&restarted.stderr);
+    assert!(!diagnostic.contains("grove finished"), "{diagnostic}");
+    assert!(
+        repository
+            .join(".grove/01-requirements-plan-k1.md")
+            .is_file(),
+        "{diagnostic}"
+    );
+    assert!(fs::read_to_string(&launch_log).unwrap().contains("plan-k1"));
+    assert!(
+        !abandoned_signal.exists(),
+        "the abandoned completion channel survived crash handoff"
+    );
+    assert!(
+        control_entries_starting_with(repository.join(".git/grove").as_path(), "signal-")
+            .is_empty()
+    );
+    let handed_over = fs::read_to_string(&epoch_path).unwrap();
+    assert!(
+        handed_over.starts_with("state=inactive\n"),
+        "{handed_over:?}"
+    );
+    assert!(!handed_over.contains("signal-path-hex="), "{handed_over:?}");
+}
+
+/// The post-finish half of the orphaned-guard contract. A real driver commits
+/// teardown and exits, leaving the rootless tree and its stable epoch file. A
+/// shared guard is then held on that file, standing in for a tree command the
+/// dead driver's session admitted and that outlived it; what is under test is
+/// the *replacement's* response, which the holder's identity cannot change.
+/// Because lease acquisition sits above every lifecycle mutation, the blocked
+/// replacement's stop is proven by the task tree it never creates — recreating
+/// `.grove/` here would be worse than stopping, since the next driver would
+/// find a grove nobody started.
+#[test]
+fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tree() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("post-finish-orphan-guard");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("teardown-then-exit.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\ncase \"$1\" in *finish-k*) {llm} finish-commit finish-k2; exit $?;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            log = launch_log.display(),
+        ),
+    );
+    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+
+    let torn_down = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    assert!(
+        torn_down.status.success(),
+        "{}",
+        String::from_utf8_lossy(&torn_down.stderr)
+    );
+    assert!(!repository.join(".grove").exists());
+
+    let epoch_path = repository.join(".git/grove/session.epoch");
+    let orphan_guard = File::open(&epoch_path).unwrap();
+    assert_eq!(
+        unsafe { libc::flock(orphan_guard.as_raw_fd(), libc::LOCK_SH) },
+        0,
+        "holding the orphan's shared epoch guard failed"
+    );
+
+    let started = Instant::now();
+    let blocked = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+    let blocked_elapsed = started.elapsed();
+
+    assert!(
+        !blocked.status.success(),
+        "a held epoch guard let the replacement proceed"
+    );
+    let diagnostic = String::from_utf8_lossy(&blocked.stderr);
+    assert!(
+        diagnostic.contains("waiting for exclusive session epoch lock for driver acquisition"),
+        "{diagnostic}"
+    );
+    assert!(
+        diagnostic.contains(
+            "timed out after 30s waiting for exclusive session epoch lock for driver acquisition"
+        ),
+        "{diagnostic}"
+    );
+    assert!(
+        !repository.join(".grove").exists(),
+        "a blocked replacement created a task tree: {diagnostic}"
+    );
+    assert!(!launch_log.exists(), "a blocked replacement launched");
+    assert!(
+        blocked_elapsed >= Duration::from_secs(30),
+        "the fixed bound fired early: {blocked_elapsed:?}"
+    );
+
+    drop(orphan_guard);
+
+    let fresh = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        fresh.status.success(),
+        "{}",
+        String::from_utf8_lossy(&fresh.stderr)
+    );
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert!(fs::read_to_string(&launch_log).unwrap().contains("plan-k1"));
+    let handed_over = fs::read_to_string(&epoch_path).unwrap();
+    assert!(
+        handed_over.starts_with("state=inactive\n"),
+        "{handed_over:?}"
+    );
 }
 
 #[test]

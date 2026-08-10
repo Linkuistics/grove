@@ -385,6 +385,68 @@ pub(crate) fn prepare_finish(
     }
 }
 
+pub(crate) fn abort_preparing_finish(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<()> {
+    match vcs_of(worktree) {
+        Some(Vcs::Git) => {
+            let git_index = git_path(worktree, "index")?;
+            if let Some(cleanup) = crate::finish_cleanup::recover_auxiliary(
+                &git_index,
+                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+                finish_handle,
+                attempt_identity,
+            )? {
+                cleanup.dispose()?;
+            }
+            Ok(())
+        }
+        Some(Vcs::Jj { workspace_root }) => {
+            if !workspace_root.join(".git").exists() {
+                return Ok(());
+            }
+            let git_index = git_path(&workspace_root, "index")?;
+            let backup = crate::finish_cleanup::recover_auxiliary(
+                &git_index,
+                crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
+                finish_handle,
+                attempt_identity,
+            )?;
+            let success = crate::finish_cleanup::recover_auxiliary(
+                &git_index,
+                crate::finish_cleanup::AuxiliaryRole::GitIndexSuccess,
+                finish_handle,
+                attempt_identity,
+            )?;
+            match (backup, success) {
+                (None, None) => Ok(()),
+                (Some(backup), success) => {
+                    backup.restore_target().context(
+                        "restoring the original colocated Git index while aborting finish preparation",
+                    )?;
+                    if let Some(success) = success {
+                        success
+                            .dispose()
+                            .context("discarding the prepared colocated Git success index")?;
+                    }
+                    backup
+                        .dispose()
+                        .context("discarding the restored colocated Git index backup")
+                }
+                (None, Some(_)) => bail!(
+                    "Recovery pending: colocated Jujutsu finish preparation has a success index without its same-attempt backup; preserve the auxiliary evidence and retry after restoring the exact backup"
+                ),
+            }
+        }
+        None => bail!(
+            "Recovery pending: cannot abort finish preparation because {} is no longer a git or jj working tree",
+            worktree.display()
+        ),
+    }
+}
+
 pub(crate) fn recover_finish(
     worktree: &Path,
     start: &FinishStartAnchor,

@@ -15,6 +15,7 @@ use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 const WITNESS_PREFIX: &[u8] = b"FINISHING-";
+const PREPARING_WITNESS_PREFIX: &[u8] = b"PREPARING-FINISH-";
 const MANIFEST_FILE: &str = "MANIFEST.json";
 const ORIGINAL_TREE_DIRECTORY: &str = "original";
 const READY_FILE: &str = "READY";
@@ -22,12 +23,32 @@ const READY_FILE: &str = "READY";
 pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) -> Result<()> {
     let preflight = preflight_root(worktree, grove_root)?;
     let attempt_identity = finish_attempt_identity()?;
-    let prepared_commit = repo::prepare_finish(worktree, finish_handle, &attempt_identity)?;
+    let preparing = begin_preparing_witness(
+        grove_root,
+        &preflight.grove_root_directory,
+        finish_handle,
+        &attempt_identity,
+    )?;
+    if let Err(error) = finish_test_checkpoint("after-preparing-witness") {
+        return Err(remove_preparing_after_error(preparing, error));
+    }
+    let prepared_commit = match repo::prepare_finish(worktree, finish_handle, &attempt_identity) {
+        Ok(prepared_commit) => prepared_commit,
+        Err(error) => return Err(remove_preparing_after_error(preparing, error)),
+    };
+    if let Err(error) = finish_test_checkpoint("after-repository-preparation") {
+        return Err(abort_prepared_finish_with_preparing(
+            prepared_commit,
+            preparing,
+            error,
+        ));
+    }
     let transaction = prepare_transaction(
         grove_root,
         preflight,
         finish_handle,
         attempt_identity,
+        preparing,
         prepared_commit,
     )?;
     let EvacuatedTransaction {
@@ -67,6 +88,9 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
 /// Deterministic process-interruption seam for black-box recovery tests. The
 /// variable is deliberately test-prefixed and is not user configuration.
 fn finish_test_checkpoint(name: &str) -> Result<()> {
+    if std::env::var("GROVE_TEST_FINISH_EXIT_AT").as_deref() == Ok(name) {
+        std::process::exit(86);
+    }
     if std::env::var("GROVE_TEST_FINISH_FAIL_AT").as_deref() == Ok(name) {
         bail!("injected finish interruption at {name}");
     }
@@ -116,7 +140,7 @@ struct FinishTransaction {
 
 struct PreparedTransaction {
     transaction: FinishTransaction,
-    grove_root_directory: File,
+    preparing: PreparingFinish,
     prepared_commit: repo::PreparedFinish,
 }
 
@@ -139,6 +163,25 @@ struct PendingFinish {
     witness_path: PathBuf,
     manifest: FinishManifest,
     directories: TransactionDirectories,
+    layout: ReadyWitnessLayout,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ReadyWitnessLayout {
+    NotEvacuated,
+    Evacuated,
+}
+
+struct PreparingFinish {
+    finish_handle: String,
+    attempt_identity: String,
+    grove_root_directory: File,
+    witness_directory: File,
+    original_tree_directory: Option<File>,
+    manifest_file: Option<File>,
+    ready_file: Option<File>,
+    witness_name: OsString,
+    witness_path: PathBuf,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -149,6 +192,13 @@ pub(crate) enum FinishRecovery {
 }
 
 pub(crate) fn cleanup_owner(grove_root: &Path) -> Result<Option<finish_cleanup::CleanupOwner>> {
+    if let Some(preparing) = pending_preparing(grove_root)? {
+        return finish_cleanup::CleanupOwner::new(
+            preparing.finish_handle,
+            preparing.attempt_identity,
+        )
+        .map(Some);
+    }
     let Some(pending) = pending_manifest(grove_root)? else {
         return Ok(None);
     };
@@ -160,12 +210,28 @@ pub(crate) fn cleanup_owner(grove_root: &Path) -> Result<Option<finish_cleanup::
 }
 
 pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<FinishRecovery> {
+    if let Some(preparing) = pending_preparing(grove_root)? {
+        repo::abort_preparing_finish(
+            worktree,
+            &preparing.finish_handle,
+            &preparing.attempt_identity,
+        )
+        .with_context(|| {
+            format!(
+                "Recovery pending: aborting repository preparation owned by {}",
+                preparing.witness_path.display()
+            )
+        })?;
+        remove_preparing_witness(preparing)?;
+        return Ok(FinishRecovery::RolledBack);
+    }
     let Some(pending) = pending_manifest(grove_root)? else {
         return Ok(FinishRecovery::None);
     };
     let witness_path = pending.witness_path;
     let manifest = pending.manifest;
     let directories = pending.directories;
+    let layout = pending.layout;
     let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
     let quarantine_directory = repo::workspace_control(worktree)?
         .control_dir()
@@ -189,6 +255,12 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
         transaction.manifest.deletion_fingerprint,
     ) {
         repo::FinishRecoveryOutcome::Committed(proof) => {
+            if layout == ReadyWitnessLayout::NotEvacuated {
+                bail!(
+                    "Recovery pending: repository has the exact finish commit, but the ready witness is not-yet-evacuated at {}; preserve the live task tree and witness for manual reconciliation",
+                    witness_path.display()
+                );
+            }
             quarantine_and_dispose(
                 grove_root,
                 &transaction.quarantine_path,
@@ -199,13 +271,330 @@ pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<Fini
             Ok(FinishRecovery::Committed)
         }
         repo::FinishRecoveryOutcome::NotCommitted(proof) => {
-            rollback(&transaction, &directories, proof)?;
+            match layout {
+                ReadyWitnessLayout::NotEvacuated => {
+                    rollback_not_evacuated(&transaction, &directories, proof)?;
+                }
+                ReadyWitnessLayout::Evacuated => rollback(&transaction, &directories, proof)?,
+            }
             Ok(FinishRecovery::RolledBack)
         }
         repo::FinishRecoveryOutcome::RecoveryPending(error) => Err(error.context(format!(
             "Recovery pending at {}; preserve divergent work, restore the recorded start or the exact teardown result, then retry",
             witness_path.display()
         ))),
+    }
+}
+
+fn pending_preparing(grove_root: &Path) -> Result<Option<PreparingFinish>> {
+    let metadata = match fs::symlink_metadata(grove_root) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "inspecting task root for a preparing finish transaction: {}",
+                    grove_root.display()
+                )
+            })
+        }
+    };
+    if !metadata.file_type().is_dir() {
+        bail!(
+            "Recovery pending: task root is not a real directory while checking finish preparation: {}",
+            grove_root.display()
+        );
+    }
+    let grove_root_directory = open_task_root(grove_root).with_context(|| {
+        format!(
+            "Recovery pending: opening task root without following symlinks at {}",
+            grove_root.display()
+        )
+    })?;
+    revalidate_task_root(grove_root, &grove_root_directory)?;
+    let root_entries = directory_names(&grove_root_directory).with_context(|| {
+        format!(
+            "scanning task root for a preparing finish transaction: {}",
+            grove_root.display()
+        )
+    })?;
+    let mut witnesses = root_entries
+        .iter()
+        .filter(|name| name.as_bytes().starts_with(PREPARING_WITNESS_PREFIX))
+        .cloned()
+        .collect::<Vec<_>>();
+    if witnesses.is_empty() {
+        return Ok(None);
+    }
+    let ready_witnesses = root_entries
+        .iter()
+        .filter(|name| name.as_bytes().starts_with(WITNESS_PREFIX))
+        .collect::<Vec<_>>();
+    if !ready_witnesses.is_empty() {
+        bail!(
+            "Recovery pending: coexisting preparing and ready finish witnesses prevent exact ownership classification; preparing {witnesses:?}, ready {ready_witnesses:?}"
+        );
+    }
+    if witnesses.len() != 1 {
+        bail!(
+            "Recovery pending: multiple preparing finish witnesses exist: {}",
+            witnesses
+                .iter()
+                .map(|name| grove_root.join(name).display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    let witness_name = witnesses.pop().expect("one preparing finish witness");
+    let (finish_handle, attempt_identity) = parse_preparing_witness_name(&witness_name)?;
+    let witness_path = grove_root.join(&witness_name);
+    let witness_directory =
+        open_directory_at(&grove_root_directory, &witness_name).with_context(|| {
+            format!(
+                "Recovery pending: opening preparing finish witness without following symlinks at {}",
+                witness_path.display()
+            )
+        })?;
+    revalidate_open_directory_at(
+        &grove_root_directory,
+        &witness_name,
+        &witness_directory,
+        "preparing finish witness",
+    )?;
+    let witness_entries = directory_names(&witness_directory)
+        .context("listing the preparing finish witness through its retained descriptor")?;
+    let original_name = OsString::from(ORIGINAL_TREE_DIRECTORY);
+    let manifest_name = OsString::from(MANIFEST_FILE);
+    let ready_name = OsString::from(READY_FILE);
+    let valid_entries = witness_entries.is_empty()
+        || witness_entries == [original_name.clone()]
+        || witness_entries == [manifest_name.clone(), original_name.clone()]
+        || witness_entries
+            == [
+                manifest_name.clone(),
+                ready_name.clone(),
+                original_name.clone(),
+            ];
+    if !valid_entries {
+        bail!(
+            "Recovery pending: preparing finish witness contains unclassified entries at {}",
+            witness_path.display()
+        );
+    }
+    let original_tree_directory = witness_entries
+        .contains(&original_name)
+        .then(|| {
+            open_directory_at(&witness_directory, OsStr::new(ORIGINAL_TREE_DIRECTORY))
+                .context("opening preparing finish recovery tree without following symlinks")
+        })
+        .transpose()?;
+    if let Some(original_tree_directory) = &original_tree_directory {
+        revalidate_open_directory_at(
+            &witness_directory,
+            OsStr::new(ORIGINAL_TREE_DIRECTORY),
+            original_tree_directory,
+            "preparing finish recovery tree",
+        )?;
+        if !directory_names(original_tree_directory)
+            .context("checking the preparing finish recovery tree")?
+            .is_empty()
+        {
+            bail!(
+                "Recovery pending: preparing finish recovery tree is not empty at {}",
+                witness_path.join(ORIGINAL_TREE_DIRECTORY).display()
+            );
+        }
+    }
+    let manifest_file = witness_entries
+        .contains(&manifest_name)
+        .then(|| {
+            read_regular_file_at(
+                &witness_directory,
+                OsStr::new(MANIFEST_FILE),
+                "preparing finish manifest",
+            )
+            .map(|(_, file)| file)
+        })
+        .transpose()?;
+    let ready_file = witness_entries
+        .contains(&ready_name)
+        .then(|| {
+            read_regular_file_at(
+                &witness_directory,
+                OsStr::new(READY_FILE),
+                "preparing finish ready marker",
+            )
+            .map(|(_, file)| file)
+        })
+        .transpose()?;
+    revalidate_task_root(grove_root, &grove_root_directory)?;
+    revalidate_open_directory_at(
+        &grove_root_directory,
+        &witness_name,
+        &witness_directory,
+        "preparing finish witness",
+    )?;
+    Ok(Some(PreparingFinish {
+        finish_handle,
+        attempt_identity,
+        grove_root_directory,
+        witness_directory,
+        original_tree_directory,
+        manifest_file,
+        ready_file,
+        witness_name,
+        witness_path,
+    }))
+}
+
+fn parse_preparing_witness_name(name: &OsStr) -> Result<(String, String)> {
+    let bytes = name.as_bytes();
+    let body = bytes
+        .strip_prefix(PREPARING_WITNESS_PREFIX)
+        .context("preparing finish witness has an invalid reserved prefix")?;
+    let split = body
+        .len()
+        .checked_sub(33)
+        .filter(|split| body[*split] == b'-')
+        .context("preparing finish witness does not name a handle and 128-bit attempt identity")?;
+    let finish_handle = std::str::from_utf8(&body[..split])
+        .context("preparing finish witness handle is not UTF-8")?
+        .to_owned();
+    let attempt_identity = std::str::from_utf8(&body[split + 1..])
+        .context("preparing finish witness attempt identity is not UTF-8")?
+        .to_owned();
+    finish_cleanup::CleanupOwner::new(finish_handle.clone(), attempt_identity.clone())
+        .context("preparing finish witness has an invalid cleanup owner")?;
+    Ok((finish_handle, attempt_identity))
+}
+
+fn preparing_witness_name(finish_handle: &str, attempt_identity: &str) -> OsString {
+    OsString::from(format!(
+        "PREPARING-FINISH-{finish_handle}-{attempt_identity}"
+    ))
+}
+
+fn begin_preparing_witness(
+    grove_root: &Path,
+    grove_root_directory: &File,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<PreparingFinish> {
+    finish_cleanup::CleanupOwner::new(finish_handle.to_owned(), attempt_identity.to_owned())
+        .context("finish preparation has an invalid cleanup owner")?;
+    let witness_name = preparing_witness_name(finish_handle, attempt_identity);
+    create_directory_at(grove_root_directory, &witness_name).with_context(|| {
+        format!(
+            "creating preparing finish witness {}",
+            grove_root.join(&witness_name).display()
+        )
+    })?;
+    pending_preparing(grove_root)?.context("preparing finish witness was not published")
+}
+
+fn remove_preparing_witness(preparing: PreparingFinish) -> Result<()> {
+    let mut expected_entries = Vec::new();
+    if preparing.original_tree_directory.is_some() {
+        expected_entries.push(OsString::from(ORIGINAL_TREE_DIRECTORY));
+    }
+    if preparing.manifest_file.is_some() {
+        expected_entries.push(OsString::from(MANIFEST_FILE));
+    }
+    if preparing.ready_file.is_some() {
+        expected_entries.push(OsString::from(READY_FILE));
+    }
+    expected_entries.sort_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+    let observed_entries = directory_names(&preparing.witness_directory)
+        .context("checking the preparing finish witness before removal")?;
+    if observed_entries != expected_entries {
+        bail!(
+            "Recovery pending: preparing finish witness changed at {}; expected {expected_entries:?}, observed {observed_entries:?}",
+            preparing.witness_path.display()
+        );
+    }
+    if let Some(original_tree_directory) = &preparing.original_tree_directory {
+        revalidate_open_directory_at(
+            &preparing.witness_directory,
+            OsStr::new(ORIGINAL_TREE_DIRECTORY),
+            original_tree_directory,
+            "preparing finish recovery tree",
+        )?;
+        if !directory_names(original_tree_directory)
+            .context("checking the preparing finish recovery tree before removal")?
+            .is_empty()
+        {
+            bail!(
+                "Recovery pending: preparing finish recovery tree is not empty at {}",
+                preparing
+                    .witness_path
+                    .join(ORIGINAL_TREE_DIRECTORY)
+                    .display()
+            );
+        }
+    }
+    if let Some(manifest_file) = &preparing.manifest_file {
+        revalidate_open_file_at(
+            &preparing.witness_directory,
+            OsStr::new(MANIFEST_FILE),
+            manifest_file,
+            "preparing finish manifest",
+        )?;
+    }
+    if let Some(ready_file) = &preparing.ready_file {
+        revalidate_open_file_at(
+            &preparing.witness_directory,
+            OsStr::new(READY_FILE),
+            ready_file,
+            "preparing finish ready marker",
+        )?;
+    }
+    revalidate_open_directory_at(
+        &preparing.grove_root_directory,
+        &preparing.witness_name,
+        &preparing.witness_directory,
+        "preparing finish witness",
+    )?;
+    if preparing.ready_file.is_some() {
+        unlink_at(&preparing.witness_directory, OsStr::new(READY_FILE), 0)?;
+    }
+    if preparing.manifest_file.is_some() {
+        unlink_at(&preparing.witness_directory, OsStr::new(MANIFEST_FILE), 0)?;
+    }
+    if preparing.original_tree_directory.is_some() {
+        unlink_at(
+            &preparing.witness_directory,
+            OsStr::new(ORIGINAL_TREE_DIRECTORY),
+            libc::AT_REMOVEDIR,
+        )?;
+    }
+    if !directory_names(&preparing.witness_directory)
+        .context("checking the emptied preparing finish witness")?
+        .is_empty()
+    {
+        bail!(
+            "Recovery pending: preparing finish witness is not empty after cleanup at {}",
+            preparing.witness_path.display()
+        );
+    }
+    unlink_at(
+        &preparing.grove_root_directory,
+        &preparing.witness_name,
+        libc::AT_REMOVEDIR,
+    )
+    .with_context(|| {
+        format!(
+            "removing preparing finish witness {}",
+            preparing.witness_path.display()
+        )
+    })
+}
+
+fn remove_preparing_after_error(preparing: PreparingFinish, error: anyhow::Error) -> anyhow::Error {
+    match remove_preparing_witness(preparing) {
+        Ok(()) => error,
+        Err(cleanup_error) => error.context(format!(
+            "Recovery pending: removing the preparing finish witness failed: {cleanup_error:#}; preserve it for exact ownership recovery"
+        )),
     }
 }
 
@@ -267,11 +656,6 @@ fn pending_manifest_with_checkpoint(
         );
     }
     let witness_name = witnesses.pop().expect("one finish witness");
-    if root_entries != [witness_name.clone()] {
-        bail!(
-            "Recovery pending: finish task root contains foreign task-root entries beside the ready witness; observed {root_entries:?}; no repository classification was attempted"
-        );
-    }
     let witness_path = grove_root.join(&witness_name);
     let witness_directory =
         open_directory_at(&grove_root_directory, &witness_name).with_context(|| {
@@ -377,18 +761,47 @@ fn pending_manifest_with_checkpoint(
         "finish recovery tree",
     )?;
     checkpoint("after-original-tree-open")?;
-    let observed_entries = digest_root_entries_at(&original_tree_directory).with_context(|| {
-        format!(
-            "Recovery pending: validating evacuated finish tree at {}",
-            original_tree.display()
-        )
-    })?;
-    if observed_entries != manifest.entries {
+    let observed_original_entries =
+        digest_root_entries_at(&original_tree_directory).with_context(|| {
+            format!(
+                "Recovery pending: validating finish recovery tree at {}",
+                original_tree.display()
+            )
+        })?;
+    let mut expected_unmoved_root = manifest
+        .entries
+        .iter()
+        .map(|entry| OsString::from_vec(entry.path.clone()))
+        .collect::<Vec<_>>();
+    expected_unmoved_root.push(witness_name.clone());
+    expected_unmoved_root.sort_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+    let layout = if root_entries == expected_unmoved_root {
+        if !observed_original_entries.is_empty() {
+            bail!(
+                "Recovery pending: ready finish transaction has both live task-root entries and evacuated recovery-tree entries at {}; preserve the partial evacuation for exact recovery",
+                witness_path.display()
+            );
+        }
+        validate_unmoved_root_entries(
+            &grove_root_directory,
+            &manifest,
+            &witness_name,
+            &witness_path,
+        )?;
+        ReadyWitnessLayout::NotEvacuated
+    } else if root_entries == [witness_name.clone()] {
+        if observed_original_entries != manifest.entries {
+            bail!(
+                "Recovery pending: evacuated finish tree does not match its manifest at {}",
+                witness_path.display()
+            );
+        }
+        ReadyWitnessLayout::Evacuated
+    } else {
         bail!(
-            "Recovery pending: evacuated finish tree does not match its manifest at {}",
-            witness_path.display()
+            "Recovery pending: finish task root contains foreign task-root entries beside the ready witness; observed {root_entries:?}; no repository classification was attempted"
         );
-    }
+    };
     revalidate_task_root(grove_root, &grove_root_directory)?;
     revalidate_open_directory_at(
         &grove_root_directory,
@@ -417,6 +830,7 @@ fn pending_manifest_with_checkpoint(
     Ok(Some(PendingFinish {
         witness_path,
         manifest,
+        layout,
         directories: TransactionDirectories {
             grove_root: grove_root_directory,
             witness: witness_directory,
@@ -426,6 +840,48 @@ fn pending_manifest_with_checkpoint(
             witness_name,
         },
     }))
+}
+
+fn validate_unmoved_root_entries(
+    grove_root_directory: &File,
+    manifest: &FinishManifest,
+    witness_name: &OsStr,
+    witness_path: &Path,
+) -> Result<()> {
+    let mut expected_root_entries = manifest
+        .entries
+        .iter()
+        .map(|entry| OsString::from_vec(entry.path.clone()))
+        .collect::<Vec<_>>();
+    expected_root_entries.push(witness_name.to_os_string());
+    expected_root_entries.sort_by(|left, right| left.as_bytes().cmp(right.as_bytes()));
+    let observed_root_entries = directory_names(grove_root_directory)
+        .context("validating the not-yet-evacuated finish task root")?;
+    if observed_root_entries != expected_root_entries {
+        bail!(
+            "Recovery pending: not-yet-evacuated task root changed beside the ready witness at {}; expected {expected_root_entries:?}, observed {observed_root_entries:?}",
+            witness_path.display()
+        );
+    }
+    for expected in &manifest.entries {
+        let name = OsString::from_vec(expected.path.clone());
+        let observed =
+            digest_entry_at(grove_root_directory, &name, Path::new("")).with_context(|| {
+                format!(
+                    "Recovery pending: validating not-yet-evacuated task-root entry {:?} beside {}",
+                    name,
+                    witness_path.display()
+                )
+            })?;
+        if observed != *expected {
+            bail!(
+                "Recovery pending: not-yet-evacuated task-root entry {:?} does not match the ready finish manifest at {}",
+                name,
+                witness_path.display()
+            );
+        }
+    }
+    Ok(())
 }
 
 fn validate_manifest_entries(manifest: &FinishManifest, witness_path: &Path) -> Result<()> {
@@ -500,7 +956,9 @@ fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight>
     for name in directory_names(&grove_directory)
         .with_context(|| format!("reading finish transaction input {}", grove_root.display()))?
     {
-        if name.as_bytes().starts_with(WITNESS_PREFIX) {
+        if name.as_bytes().starts_with(WITNESS_PREFIX)
+            || name.as_bytes().starts_with(PREPARING_WITNESS_PREFIX)
+        {
             bail!(
                 "reserved finish transaction path already exists: {}",
                 grove_root.join(name).display()
@@ -596,10 +1054,15 @@ fn prepare_transaction(
     preflight: FinishPreflight,
     finish_handle: &str,
     attempt_identity: String,
+    preparing: PreparingFinish,
     prepared_commit: repo::PreparedFinish,
 ) -> Result<PreparedTransaction> {
     if let Err(error) = revalidate_task_root(grove_root, &preflight.grove_root_directory) {
-        return Err(abort_prepared_finish(prepared_commit, error));
+        return Err(abort_prepared_finish_with_preparing(
+            prepared_commit,
+            preparing,
+            error,
+        ));
     }
     let repository_anchor = prepared_commit.start_anchor();
     let deletion_fingerprint = prepared_commit.deletion_fingerprint();
@@ -640,10 +1103,27 @@ fn prepare_transaction(
     match transaction {
         Ok(transaction) => Ok(PreparedTransaction {
             transaction,
-            grove_root_directory: preflight.grove_root_directory,
+            preparing,
             prepared_commit,
         }),
-        Err(error) => Err(abort_prepared_finish(prepared_commit, error)),
+        Err(error) => Err(abort_prepared_finish_with_preparing(
+            prepared_commit,
+            preparing,
+            error,
+        )),
+    }
+}
+
+fn abort_prepared_finish_with_preparing(
+    prepared_commit: repo::PreparedFinish,
+    preparing: PreparingFinish,
+    error: anyhow::Error,
+) -> anyhow::Error {
+    match prepared_commit.abort() {
+        Ok(()) => remove_preparing_after_error(preparing, error),
+        Err(abort_error) => error.context(format!(
+            "Recovery pending: cancelling repository preparation failed: {abort_error:#}; preserve the preparing finish witness and its named attempt-bound auxiliary evidence, then rerun bare Grove"
+        )),
     }
 }
 
@@ -828,34 +1308,34 @@ fn write_new_file_at(parent: &File, name: &OsStr, body: &[u8], description: &str
 
 fn materialize_witness_with_checkpoint(
     transaction: &FinishTransaction,
-    grove_root_directory: File,
+    preparing: PreparingFinish,
     mut checkpoint: impl FnMut(&str) -> Result<()>,
 ) -> Result<TransactionDirectories> {
     let manifest_body = serde_json::to_vec_pretty(&transaction.manifest)
         .context("serializing finish transaction manifest")?;
-    let witness_name = transaction
+    let final_witness_name = transaction
         .witness_path
         .file_name()
         .context("finish transaction witness has no file name")?
         .to_os_string();
-    create_directory_at(&grove_root_directory, &witness_name).with_context(|| {
-        format!(
-            "creating finish transaction witness {}",
-            transaction.witness_path.display()
-        )
-    })?;
-    let witness_directory = open_directory_at(&grove_root_directory, &witness_name)
-        .with_context(|| format!("opening finish witness {witness_name:?}"))?;
+    let PreparingFinish {
+        grove_root_directory,
+        witness_directory,
+        witness_name: preparing_witness_name,
+        witness_path: preparing_witness_path,
+        ..
+    } = preparing;
     let mut original_tree_directory = None;
     let mut manifest_file = None;
     let mut ready_file = None;
+    let mut published = false;
     let result = (|| {
         checkpoint("after-witness-directory")?;
         revalidate_open_directory_at(
             &grove_root_directory,
-            &witness_name,
+            &preparing_witness_name,
             &witness_directory,
-            "finish witness",
+            "preparing finish witness",
         )?;
         create_directory_at(&witness_directory, OsStr::new(ORIGINAL_TREE_DIRECTORY)).with_context(
             || {
@@ -890,7 +1370,27 @@ fn materialize_witness_with_checkpoint(
             b"ready\n",
             "finish transaction ready marker",
         )?);
-        checkpoint("after-ready")
+        checkpoint("after-ready")?;
+        revalidate_open_directory_at(
+            &grove_root_directory,
+            &preparing_witness_name,
+            &witness_directory,
+            "preparing finish witness",
+        )?;
+        rename_at_noreplace(
+            &grove_root_directory,
+            &preparing_witness_name,
+            &grove_root_directory,
+            &final_witness_name,
+        )
+        .with_context(|| {
+            format!(
+                "publishing ready finish witness {}",
+                transaction.witness_path.display()
+            )
+        })?;
+        published = true;
+        checkpoint("after-ready-witness")
     })();
     match result {
         Ok(()) => Ok(TransactionDirectories {
@@ -899,22 +1399,33 @@ fn materialize_witness_with_checkpoint(
             original_tree: original_tree_directory.expect("recovery tree was opened"),
             manifest: manifest_file.expect("manifest was created"),
             ready: ready_file.expect("ready marker was created"),
-            witness_name,
+            witness_name: final_witness_name,
         }),
         Err(error) => match remove_incomplete_witness(
             transaction,
             &grove_root_directory,
             &witness_directory,
-            &witness_name,
+            if published {
+                &final_witness_name
+            } else {
+                &preparing_witness_name
+            },
             original_tree_directory.as_ref(),
             manifest_file.as_ref(),
             ready_file.as_ref(),
         ) {
             Ok(()) => Err(error),
-            Err(cleanup_error) => Err(error.context(format!(
-                "Recovery pending: removing the incomplete finish witness {} failed: {cleanup_error:#}; preserve it for exact ownership recovery",
-                transaction.witness_path.display()
-            ))),
+            Err(cleanup_error) => {
+                let cleanup_path = if published {
+                    &transaction.witness_path
+                } else {
+                    &preparing_witness_path
+                };
+                Err(error.context(format!(
+                    "Recovery pending: removing the incomplete finish witness {} failed: {cleanup_error:#}; preserve it for exact ownership recovery",
+                    cleanup_path.display()
+                )))
+            }
         },
     }
 }
@@ -1027,7 +1538,7 @@ fn entry_path(root: &Path, path: &[u8]) -> PathBuf {
 }
 
 fn evacuate(prepared: PreparedTransaction) -> Result<EvacuatedTransaction> {
-    evacuate_with_checkpoint(prepared, |_| Ok(()))
+    evacuate_with_checkpoint(prepared, finish_test_checkpoint)
 }
 
 fn validate_ready_root_entries(
@@ -1049,6 +1560,29 @@ fn validate_ready_root_entries(
             "Recovery pending: finish task root contains foreign task-root entries or is missing prepared entries; expected {expected:?}, observed {observed:?}; no source entry was moved"
         );
     }
+    for prepared in &transaction.manifest.entries {
+        let name = OsString::from_vec(prepared.path.clone());
+        let observed = digest_entry_at(&directories.grove_root, &name, Path::new(""))
+            .with_context(|| {
+                format!(
+                    "validating prepared finish source entry {}",
+                    entry_path(&transaction.grove_root, &prepared.path).display()
+                )
+            })?;
+        if observed != *prepared {
+            bail!(
+                "Recovery pending: prepared finish source entry does not match its manifest at {}; no source entry was moved",
+                entry_path(&transaction.grove_root, &prepared.path).display()
+            );
+        }
+    }
+    let observed_after_digest = directory_names(&directories.grove_root)
+        .context("rechecking the finish task root after source digest validation")?;
+    if observed_after_digest != expected {
+        bail!(
+            "Recovery pending: finish task root changed during source digest validation; expected {expected:?}, observed {observed_after_digest:?}; no source entry was moved"
+        );
+    }
     Ok(())
 }
 
@@ -1058,17 +1592,23 @@ fn evacuate_with_checkpoint(
 ) -> Result<EvacuatedTransaction> {
     let PreparedTransaction {
         transaction,
-        grove_root_directory,
+        preparing,
         prepared_commit,
     } = prepared;
-    if let Err(error) = revalidate_task_root(&transaction.grove_root, &grove_root_directory) {
-        return Err(abort_prepared_finish(prepared_commit, error));
+    if let Err(error) =
+        revalidate_task_root(&transaction.grove_root, &preparing.grove_root_directory)
+    {
+        return Err(abort_prepared_finish_with_preparing(
+            prepared_commit,
+            preparing,
+            error,
+        ));
     }
-    let directories =
-        match materialize_witness_with_checkpoint(&transaction, grove_root_directory, checkpoint) {
-            Ok(directories) => directories,
-            Err(error) => return Err(abort_prepared_finish(prepared_commit, error)),
-        };
+    let directories = match materialize_witness_with_checkpoint(&transaction, preparing, checkpoint)
+    {
+        Ok(directories) => directories,
+        Err(error) => return Err(abort_prepared_finish(prepared_commit, error)),
+    };
     revalidate_transaction_directories(&transaction, &directories)?;
     validate_ready_root_entries(&transaction, &directories)?;
     for entry in &transaction.manifest.entries {
@@ -1160,6 +1700,73 @@ fn rollback(
             transaction.original_tree.display()
         );
     }
+    remove_ready_witness(transaction, directories)
+}
+
+fn rollback_not_evacuated(
+    transaction: &FinishTransaction,
+    directories: &TransactionDirectories,
+    proof: repo::FinishStartProof,
+) -> Result<()> {
+    rollback_not_evacuated_with_checkpoint(transaction, directories, proof, |_| Ok(()))
+}
+
+fn rollback_not_evacuated_with_checkpoint(
+    transaction: &FinishTransaction,
+    directories: &TransactionDirectories,
+    proof: repo::FinishStartProof,
+    mut checkpoint: impl FnMut(&str) -> Result<()>,
+) -> Result<()> {
+    proof.revalidate_before_rollback()?;
+    revalidate_task_root(&transaction.grove_root, &directories.grove_root)?;
+    revalidate_open_directory_at(
+        &directories.grove_root,
+        &directories.witness_name,
+        &directories.witness,
+        "finish witness",
+    )?;
+    revalidate_open_directory_at(
+        &directories.witness,
+        OsStr::new(ORIGINAL_TREE_DIRECTORY),
+        &directories.original_tree,
+        "finish recovery tree",
+    )?;
+    if !directory_names(&directories.original_tree)
+        .context("checking the not-yet-evacuated finish recovery tree")?
+        .is_empty()
+    {
+        bail!(
+            "Recovery pending: not-yet-evacuated finish recovery tree is not empty at {}",
+            transaction.original_tree.display()
+        );
+    }
+    validate_unmoved_root_entries(
+        &directories.grove_root,
+        &transaction.manifest,
+        &directories.witness_name,
+        &transaction.witness_path,
+    )?;
+    revalidate_open_file_at(
+        &directories.witness,
+        OsStr::new(MANIFEST_FILE),
+        &directories.manifest,
+        "finish transaction manifest",
+    )?;
+    revalidate_open_file_at(
+        &directories.witness,
+        OsStr::new(READY_FILE),
+        &directories.ready,
+        "finish transaction ready marker",
+    )?;
+    checkpoint("before-final-repository-proof")?;
+    proof.revalidate_after_rollback()?;
+    remove_ready_witness(transaction, directories)
+}
+
+fn remove_ready_witness(
+    transaction: &FinishTransaction,
+    directories: &TransactionDirectories,
+) -> Result<()> {
     unlink_at(&directories.witness, OsStr::new(READY_FILE), 0)
         .context("removing the rolled-back finish ready marker")?;
     unlink_at(&directories.witness, OsStr::new(MANIFEST_FILE), 0)
@@ -1383,13 +1990,16 @@ fn update_field(hasher: &mut Sha256, value: &[u8]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        digest_root_entries, ensure_same_device, evacuate, evacuate_with_checkpoint,
-        pending_manifest, pending_manifest_with_checkpoint, preflight_root, prepare_transaction,
-        recover_pending, FinishRecovery, PreparedTransaction, MANIFEST_FILE, READY_FILE,
+        begin_preparing_witness, digest_root_entries, ensure_same_device, evacuate,
+        evacuate_with_checkpoint, materialize_witness_with_checkpoint, pending_manifest,
+        pending_manifest_with_checkpoint, preflight_root, prepare_transaction, recover_pending,
+        rollback_not_evacuated_with_checkpoint, FinishRecovery, PreparedTransaction, MANIFEST_FILE,
+        READY_FILE,
     };
     use crate::repo;
     use serde_json::Value;
     use std::fs;
+    use std::os::unix::ffi::OsStringExt;
     use std::os::unix::fs::{symlink, PermissionsExt};
     use std::os::unix::net::UnixListener;
     use std::path::{Path, PathBuf};
@@ -1432,6 +2042,13 @@ mod tests {
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
 
         let preflight = preflight_root(repository, &grove_root).unwrap();
+        let preparing = begin_preparing_witness(
+            &grove_root,
+            &preflight.grove_root_directory,
+            "finish-k2",
+            "11111111111111111111111111111111",
+        )
+        .unwrap();
         let prepared =
             repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
                 .unwrap();
@@ -1440,6 +2057,7 @@ mod tests {
             preflight,
             "finish-k2",
             "11111111111111111111111111111111".to_owned(),
+            preparing,
             prepared,
         )
         .unwrap();
@@ -1450,6 +2068,185 @@ mod tests {
         let (fixture, transaction) = prepared_plain_git_transaction();
         evacuate(transaction).unwrap();
         fixture
+    }
+
+    fn preparing_witness(repository: &Path) -> PathBuf {
+        repository.join(".grove/PREPARING-FINISH-finish-k2-11111111111111111111111111111111")
+    }
+
+    #[test]
+    fn restart_removes_an_empty_preparing_witness_before_repository_preparation() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        let PreparedTransaction {
+            prepared_commit, ..
+        } = prepared;
+        prepared_commit.abort().unwrap();
+        let preparing = preparing_witness(repository);
+
+        let recovery = recover_pending(repository, &repository.join(".grove")).unwrap();
+
+        assert_eq!(recovery, FinishRecovery::RolledBack);
+        assert!(!preparing.exists());
+        assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+    }
+
+    #[test]
+    fn restart_aborts_plain_git_preparation_before_removing_its_witness() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        drop(prepared);
+        let preparing = preparing_witness(repository);
+
+        let recovery = recover_pending(repository, &repository.join(".grove")).unwrap();
+
+        assert_eq!(recovery, FinishRecovery::RolledBack);
+        assert!(!preparing.exists());
+        repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
+            .unwrap()
+            .abort()
+            .unwrap();
+    }
+
+    #[test]
+    fn restart_refuses_coexisting_preparing_and_ready_witnesses() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        drop(prepared);
+        let preparing = preparing_witness(repository);
+        let ready = repository.join(".grove/FINISHING-finish-k2");
+        fs::create_dir(&ready).unwrap();
+
+        let error = recover_pending(repository, &repository.join(".grove"))
+            .expect_err("coexisting finish publication states must fail closed");
+
+        assert!(format!("{error:#}").contains("coexisting"), "{error:#}");
+        assert!(preparing.is_dir());
+        assert!(ready.is_dir());
+    }
+
+    #[test]
+    fn restart_preserves_an_unclassified_preparing_witness() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        drop(prepared);
+        let preparing = preparing_witness(repository);
+        fs::write(preparing.join("foreign"), "preserve\n").unwrap();
+
+        let error = recover_pending(repository, &repository.join(".grove"))
+            .expect_err("an unclassified preparing witness must fail closed");
+
+        assert!(
+            format!("{error:#}").contains("unclassified entries"),
+            "{error:#}"
+        );
+        assert_eq!(
+            fs::read_to_string(preparing.join("foreign")).unwrap(),
+            "preserve\n"
+        );
+    }
+
+    #[test]
+    fn restart_does_not_follow_a_substituted_preparing_witness() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        drop(prepared);
+        let preparing = preparing_witness(repository);
+        let displaced = repository.join("displaced-preparing-witness");
+        let external = TempDir::new().unwrap();
+        fs::write(external.path().join("preserve"), "external\n").unwrap();
+        fs::rename(&preparing, &displaced).unwrap();
+        symlink(external.path(), &preparing).unwrap();
+
+        let error = recover_pending(repository, &repository.join(".grove"))
+            .expect_err("a substituted preparing witness must fail closed");
+
+        assert!(
+            format!("{error:#}").contains("opening preparing finish witness"),
+            "{error:#}"
+        );
+        assert_eq!(
+            fs::read_to_string(external.path().join("preserve")).unwrap(),
+            "external\n"
+        );
+        assert!(displaced.is_dir());
+    }
+
+    #[test]
+    fn committed_repository_with_a_not_evacuated_witness_fails_closed() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        let PreparedTransaction {
+            transaction,
+            preparing,
+            prepared_commit,
+        } = prepared;
+        materialize_witness_with_checkpoint(&transaction, preparing, |_| Ok(())).unwrap();
+        let saved_root = repository.join("saved-not-evacuated-root");
+        fs::create_dir(&saved_root).unwrap();
+        for entry in &transaction.manifest.entries {
+            let name = std::ffi::OsString::from_vec(entry.path.clone());
+            fs::rename(transaction.grove_root.join(&name), saved_root.join(&name)).unwrap();
+        }
+        let outcome = prepared_commit.commit("finish-k2", &transaction.manifest.attempt_identity);
+        assert!(matches!(outcome, repo::FinishCommitOutcome::Committed(_)));
+        for entry in &transaction.manifest.entries {
+            let name = std::ffi::OsString::from_vec(entry.path.clone());
+            fs::rename(saved_root.join(&name), transaction.grove_root.join(&name)).unwrap();
+        }
+
+        let error = recover_pending(repository, &repository.join(".grove"))
+            .expect_err("a committed result cannot own a live, not-evacuated tree");
+
+        assert!(
+            format!("{error:#}").contains("not-yet-evacuated"),
+            "{error:#}"
+        );
+        assert!(repository.join(".grove/FORMAT").is_file());
+        assert!(repository.join(".grove/FINISHING-finish-k2").is_dir());
+    }
+
+    #[test]
+    fn not_evacuated_rollback_retains_its_witness_when_the_final_repository_proof_changes() {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let repository = fixture.path();
+        let PreparedTransaction {
+            transaction,
+            preparing,
+            prepared_commit,
+        } = prepared;
+        let directories =
+            materialize_witness_with_checkpoint(&transaction, preparing, |_| Ok(())).unwrap();
+        drop(prepared_commit);
+        let proof = match repo::recover_finish(
+            repository,
+            &transaction.manifest.repository_anchor,
+            &transaction.manifest.finish_handle,
+            &transaction.manifest.attempt_identity,
+            transaction.manifest.deletion_fingerprint,
+        ) {
+            repo::FinishRecoveryOutcome::NotCommitted(proof) => proof,
+            _ => panic!("the ready, not-evacuated fixture must classify as not committed"),
+        };
+
+        let error = rollback_not_evacuated_with_checkpoint(
+            &transaction,
+            &directories,
+            proof,
+            |checkpoint| {
+                if checkpoint == "before-final-repository-proof" {
+                    fs::write(repository.join("divergent"), "preserve\n")?;
+                    run_git(repository, &["add", "divergent"]);
+                    run_git(repository, &["commit", "-q", "-m", "divergent"]);
+                }
+                Ok(())
+            },
+        )
+        .expect_err("changed repository topology must block witness removal");
+
+        assert!(format!("{error:#}").contains("recorded start"), "{error:#}");
+        assert!(transaction.witness_path.is_dir());
+        assert!(transaction.grove_root.join("FORMAT").is_file());
     }
 
     fn finish_witness(repository: &Path) -> PathBuf {
@@ -1736,6 +2533,13 @@ mod tests {
         fs::write(grove_root.join("02-finish-finish-k2.md"), "# finish-k2\n").unwrap();
 
         let preflight = preflight_root(repository, &grove_root).unwrap();
+        let preparing = begin_preparing_witness(
+            &grove_root,
+            &preflight.grove_root_directory,
+            "finish-k2",
+            "11111111111111111111111111111111",
+        )
+        .unwrap();
         let prepared =
             repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
                 .unwrap();
@@ -1751,6 +2555,7 @@ mod tests {
             preflight,
             "finish-k2",
             "11111111111111111111111111111111".to_owned(),
+            preparing,
             prepared,
         );
 
@@ -1845,7 +2650,7 @@ mod tests {
         let (fixture, transaction) = prepared_plain_git_transaction();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
-        let witness = grove_root.join("FINISHING-finish-k2");
+        let witness = preparing_witness(repository);
         let displaced_witness = repository.join("displaced-finish-witness");
         let external = TempDir::new().unwrap();
         fs::write(external.path().join("preserve"), "external\n").unwrap();
@@ -1886,7 +2691,7 @@ mod tests {
             let (fixture, transaction) = prepared_plain_git_transaction();
             let repository = fixture.path();
             let grove_root = repository.join(".grove");
-            let witness = grove_root.join("FINISHING-finish-k2");
+            let witness = preparing_witness(repository);
             let transaction_file = witness.join(file_name);
             let displaced_file = repository.join(format!("displaced-{file_name}"));
             let external = TempDir::new().unwrap();
@@ -1919,7 +2724,7 @@ mod tests {
         let (fixture, transaction) = prepared_plain_git_transaction();
         let repository = fixture.path();
         let grove_root = repository.join(".grove");
-        let original_tree = grove_root.join("FINISHING-finish-k2").join("original");
+        let original_tree = preparing_witness(repository).join("original");
         let displaced_original_tree = repository.join("displaced-original-tree");
         let external = TempDir::new().unwrap();
         fs::write(external.path().join("preserve"), "external\n").unwrap();
@@ -1981,10 +2786,64 @@ mod tests {
     }
 
     #[test]
+    fn changed_source_content_mode_or_link_target_stops_evacuation_before_the_first_move() {
+        for case in ["content", "mode", "link target"] {
+            let (fixture, transaction) = prepared_plain_git_transaction();
+            let grove_root = fixture.path().join(".grove");
+
+            let result = evacuate_with_checkpoint(transaction, |checkpoint| {
+                if checkpoint == "after-ready" {
+                    match case {
+                        "content" => fs::write(grove_root.join("FORMAT"), "changed\n")?,
+                        "mode" => {
+                            let path = grove_root.join("FORMAT");
+                            let mode = fs::metadata(&path)?.permissions().mode();
+                            fs::set_permissions(path, fs::Permissions::from_mode(mode ^ 0o100))?;
+                        }
+                        "link target" => {
+                            let path = grove_root.join("current-format");
+                            fs::remove_file(&path)?;
+                            symlink("BRIEF.md", path)?;
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                Ok(())
+            });
+
+            let Err(error) = result else {
+                panic!("changed source bytes must block evacuation");
+            };
+            assert!(
+                format!("{error:#}").contains("does not match its manifest"),
+                "{case}: {error:#}"
+            );
+            let witness = grove_root.join("FINISHING-finish-k2");
+            assert!(witness.is_dir(), "{case}");
+            assert!(
+                fs::read_dir(witness.join("original"))
+                    .unwrap()
+                    .next()
+                    .is_none(),
+                "{case} moved a source entry"
+            );
+            for expected in ["FORMAT", "BRIEF.md", "01-DONE-impl-work-k1.md"] {
+                assert!(
+                    grove_root.join(expected).exists(),
+                    "{case} moved {expected}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn an_occupied_recovery_destination_is_not_replaced() {
         let (fixture, transaction) = prepared_plain_git_transaction();
         let grove_root = fixture.path().join(".grove");
-        let destination = grove_root
+        let destination = preparing_witness(fixture.path())
+            .join("original")
+            .join("01-DONE-impl-work-k1.md");
+        let published_destination = grove_root
             .join("FINISHING-finish-k2/original")
             .join("01-DONE-impl-work-k1.md");
 
@@ -2002,7 +2861,10 @@ mod tests {
             format!("{error:#}").contains("evacuating finish transaction entry"),
             "{error:#}"
         );
-        assert_eq!(fs::read_to_string(&destination).unwrap(), "collision\n");
+        assert_eq!(
+            fs::read_to_string(&published_destination).unwrap(),
+            "collision\n"
+        );
         assert_eq!(
             fs::read_to_string(grove_root.join("01-DONE-impl-work-k1.md")).unwrap(),
             "# work-k1\n"
@@ -2022,7 +2884,7 @@ mod tests {
             .expect("a foreign witness collision must be refused");
 
         assert!(
-            format!("{error:#}").contains("creating finish transaction witness"),
+            format!("{error:#}").contains("publishing ready finish witness"),
             "{error:#}"
         );
         assert_eq!(
@@ -2043,6 +2905,7 @@ mod tests {
             "after-recovery-tree",
             "after-manifest",
             "after-ready",
+            "after-ready-witness",
         ] {
             let (fixture, transaction) = prepared_plain_git_transaction();
             let repository = fixture.path();
@@ -2061,6 +2924,10 @@ mod tests {
             assert!(
                 !witness.exists(),
                 "{failure_point} left an incomplete witness"
+            );
+            assert!(
+                !preparing_witness(repository).exists(),
+                "{failure_point} left a preparing witness"
             );
             repo::prepare_finish(repository, "finish-k2", "11111111111111111111111111111111")
                 .unwrap()

@@ -921,6 +921,293 @@ fn bare_driver_validates_config_before_recovering_an_interrupted_finish() {
 }
 
 #[test]
+fn plain_git_restart_recovers_a_process_exit_after_preparing_witness_publication() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-recovers-preparing-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_EXIT_AT", "after-preparing-witness")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(!interrupted.status.success());
+    let preparing = fs::read_dir(repository.join(".grove"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("PREPARING-FINISH-finish-k2-")
+        })
+        .expect("process exit must leave the atomically published preparing witness");
+    assert!(preparing.is_dir());
+    assert!(auxiliary_markers(&repository).is_empty());
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!preparing.exists());
+    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+}
+
+#[test]
+fn plain_git_restart_recovers_a_process_exit_after_repository_preparation() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-recovers-prepared-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_EXIT_AT", "after-repository-preparation")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(!interrupted.status.success());
+    let preparing = fs::read_dir(repository.join(".grove"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .find(|path| {
+            path.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("PREPARING-FINISH-finish-k2-")
+        })
+        .expect("process exit must leave the repository preparation owner");
+    assert!(preparing.is_dir());
+    assert_eq!(auxiliary_markers(&repository).len(), 1);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!preparing.exists());
+    assert!(auxiliary_markers(&repository).is_empty());
+    assert_eq!(fs::read(git_index_path(&repository)).unwrap(), index_before);
+    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+}
+
+#[test]
+fn plain_git_restart_recovers_each_preparing_witness_materialization_state() {
+    for checkpoint in ["after-recovery-tree", "after-manifest", "after-ready"] {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("driver-recovers-{checkpoint}"));
+        init_git(&repository);
+        seed_committed_terminal_grove(&repository);
+        let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+        let interrupted = Command::cargo_bin("grove-llm")
+            .unwrap()
+            .current_dir(&repository)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .env("GROVE_TEST_FINISH_EXIT_AT", checkpoint)
+            .args(["finish-commit", "finish-k2"])
+            .output()
+            .unwrap();
+
+        assert!(!interrupted.status.success(), "{checkpoint}");
+        let preparing = fs::read_dir(repository.join(".grove"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("PREPARING-FINISH-finish-k2-")
+            })
+            .unwrap_or_else(|| panic!("{checkpoint} did not retain preparing state"));
+        assert_eq!(auxiliary_markers(&repository).len(), 1, "{checkpoint}");
+
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, "sh -c true '${prompt}'");
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        assert!(
+            recovered.status.success(),
+            "{checkpoint}: {}",
+            String::from_utf8_lossy(&recovered.stderr)
+        );
+        assert!(!preparing.exists(), "{checkpoint}");
+        assert!(auxiliary_markers(&repository).is_empty(), "{checkpoint}");
+        assert_eq!(
+            fs::read(git_index_path(&repository)).unwrap(),
+            index_before,
+            "{checkpoint}"
+        );
+        assert!(
+            repository.join(".grove/02-finish-finish-k2.md").is_file(),
+            "{checkpoint}"
+        );
+    }
+}
+
+#[test]
+fn plain_git_restart_recovers_a_ready_witness_before_evacuation() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("driver-recovers-ready-finish");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_EXIT_AT", "after-ready-witness")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(!interrupted.status.success());
+    let witness = repository.join(".grove/FINISHING-finish-k2");
+    assert!(witness.is_dir());
+    assert!(repository.join(".grove/FORMAT").is_file());
+    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+    assert_eq!(auxiliary_markers(&repository).len(), 1);
+
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, "sh -c true '${prompt}'");
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(!witness.exists());
+    assert!(auxiliary_markers(&repository).is_empty());
+    assert_eq!(fs::read(git_index_path(&repository)).unwrap(), index_before);
+    assert!(repository.join(".grove/02-finish-finish-k2.md").is_file());
+}
+
+#[test]
+fn colocated_jj_restart_recovers_each_pre_evacuation_publication_state() {
+    for (checkpoint, expected_auxiliaries) in [
+        ("after-preparing-witness", 0),
+        ("after-repository-preparation", 2),
+        ("after-recovery-tree", 2),
+        ("after-manifest", 2),
+        ("after-ready", 2),
+        ("after-ready-witness", 2),
+    ] {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("jj-recovers-{checkpoint}"));
+        init_jj(&repository, true);
+        seed_jj_terminal_grove(&repository);
+        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+        let commit_before = git_like_jj_output(
+            &repository,
+            &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+        );
+        fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
+        run("git", &repository, &["add", "staged.txt"]);
+        fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+        let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+        let interrupted = Command::cargo_bin("grove-llm")
+            .unwrap()
+            .current_dir(&repository)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .env("GROVE_TEST_FINISH_EXIT_AT", checkpoint)
+            .args(["finish-commit", "finish-k2"])
+            .output()
+            .unwrap();
+
+        assert!(!interrupted.status.success(), "{checkpoint}");
+        assert_eq!(
+            auxiliary_markers(&repository).len(),
+            expected_auxiliaries,
+            "{checkpoint}"
+        );
+
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, "sh -c true '${prompt}'");
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        assert!(
+            recovered.status.success(),
+            "{checkpoint}: {}",
+            String::from_utf8_lossy(&recovered.stderr)
+        );
+        assert!(auxiliary_markers(&repository).is_empty(), "{checkpoint}");
+        assert_eq!(
+            fs::read(git_index_path(&repository)).unwrap(),
+            index_before,
+            "{checkpoint}"
+        );
+        assert_eq!(
+            git_like_jj_output(
+                &repository,
+                &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+            ),
+            commit_before,
+            "{checkpoint}"
+        );
+        assert!(
+            repository.join(".grove/02-finish-finish-k2.md").is_file(),
+            "{checkpoint}"
+        );
+    }
+}
+
+#[test]
 fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("driver-recovers-committed-finish");

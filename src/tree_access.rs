@@ -11,6 +11,7 @@ thread_local! {
 
 const PROMOTING_PREFIX: &str = "PROMOTING-";
 const FINISHING_PREFIX: &str = "FINISHING-";
+const PREPARING_FINISH_PREFIX: &str = "PREPARING-FINISH-";
 pub(crate) const MIGRATION_TRANSACTION: &str = "MIGRATING-session-kinds";
 
 pub struct TreeReadGuard {
@@ -211,10 +212,9 @@ pub(crate) fn refuse_pending_finish(grove_root: &Path) -> Result<()> {
         .collect::<std::io::Result<Vec<_>>>()?;
     entries.sort_by_key(|entry| entry.file_name());
     if let Some(witness) = entries.into_iter().find(|entry| {
-        entry
-            .file_name()
-            .to_string_lossy()
-            .starts_with(FINISHING_PREFIX)
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        name.starts_with(FINISHING_PREFIX) || name.starts_with(PREPARING_FINISH_PREFIX)
     }) {
         bail!(
             "pending Grove finish transaction: {}. Recover it with the same finish-commit handle or rerun bare `grove`",
@@ -337,6 +337,24 @@ mod tests {
         assert!(error
             .to_string()
             .contains("pending Grove session-kind migration"));
+    }
+
+    #[test]
+    fn reader_refuses_a_preparing_finish_before_format_validation() {
+        let worktree = tempfile::tempdir().unwrap();
+        let grove_root = worktree.path().join(".grove");
+        let witness =
+            grove_root.join("PREPARING-FINISH-finish-k2-11111111111111111111111111111111");
+        fs::create_dir_all(&witness).unwrap();
+
+        let error = match read(&grove_root) {
+            Ok(_) => panic!("reader admitted a preparing finish witness"),
+            Err(error) => error,
+        };
+
+        let diagnostic = error.to_string();
+        assert!(diagnostic.contains("pending Grove finish transaction"));
+        assert!(diagnostic.contains(&witness.display().to_string()));
     }
 
     #[test]

@@ -15,11 +15,11 @@ use std::process::Command;
 mod finish_commit;
 mod migration_commit;
 
-pub use finish_commit::{commit_finish, validate_finish_commit};
 pub(crate) use finish_commit::{
-    git_index_path, prepare_finish, recover_finish, FinishCommitOutcome, FinishProof,
-    FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof, PreparedFinish,
+    abort_preparing_finish, git_index_path, prepare_finish, recover_finish, FinishCommitOutcome,
+    FinishProof, FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof, PreparedFinish,
 };
+pub use finish_commit::{commit_finish, validate_finish_commit};
 pub use migration_commit::commit_session_kind_migration;
 
 /// The VCS that owns a working tree.

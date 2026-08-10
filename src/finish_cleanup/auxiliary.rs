@@ -33,6 +33,41 @@ pub(super) enum ReplacementPublicationStep {
     AfterStatePublication,
 }
 
+impl ReplacementPublicationStep {
+    fn name(self) -> &'static str {
+        match self {
+            Self::BeforeStatePublication => "before-state-publication",
+            Self::AfterStatePublication => "after-state-publication",
+        }
+    }
+}
+
+/// Deterministic process-interruption seam for black-box replacement tests.
+///
+/// Every boundary of the artifact-and-marker replacement takes a step
+/// checkpoint, but the production entry points passed one that does nothing, so
+/// the whole transition matrix was reachable only from in-crate unit tests.
+/// These variables are deliberately test-prefixed, are not user configuration,
+/// and are scrubbed from launched sessions alongside the other shipped failure
+/// seams (`crate::launch::scrub_loop_control_env`).
+///
+/// Recovery deliberately does **not** consult this seam. Settlement is what a
+/// restart or a failed attempt's cleanup runs, so a checkpoint that also fired
+/// there would make an injected failure unrecoverable by construction rather
+/// than by contract — the opposite of what the matrix is meant to prove.
+fn replacement_test_checkpoint(name: &str) -> io::Result<()> {
+    if std::env::var("GROVE_TEST_FINISH_REBIND_EXIT_AT").as_deref() == Ok(name) {
+        std::process::exit(87);
+    }
+    if std::env::var("GROVE_TEST_FINISH_REBIND_FAIL_AT").as_deref() == Ok(name) {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            format!("injected finish rebind interruption at {name}"),
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum AuxiliaryRole {
@@ -409,7 +444,9 @@ impl AuxiliaryCleanup {
     }
 
     pub(crate) fn replace_artifact_from(&mut self, source_path: &Path) -> Result<()> {
-        self.replace_artifact_from_with(source_path, |_| Ok(()))
+        self.replace_artifact_from_with(source_path, |step| {
+            replacement_test_checkpoint(step.name())
+        })
     }
 
     /// Copy `source_path` in as this auxiliary's new artifact identity.
@@ -499,7 +536,7 @@ impl AuxiliaryCleanup {
     }
 
     pub(crate) fn rebind_artifact_identity(&mut self) -> Result<()> {
-        self.rebind_artifact_identity_with(|_| Ok(()))
+        self.rebind_artifact_identity_with(|step| replacement_test_checkpoint(step.name()))
     }
 
     fn rebind_artifact_identity_with(
@@ -642,6 +679,21 @@ impl AuxiliaryCleanup {
         self.remove_marker(&parent)
     }
 
+    /// Retire this auxiliary, settling any replacement still in flight first.
+    ///
+    /// Disposing *through a stale snapshot* mid-replacement would unlink the
+    /// canonical pair that settlement and recovery still need — see
+    /// [`Self::ensure_no_pending_replacement`]. Refusing outright is the wrong
+    /// answer to that, though: a finish attempt identity is drawn per driver
+    /// launch rather than per run, so an auxiliary stranded by one synchronous
+    /// failure collides with the very next same-attempt retry and wedges the
+    /// whole launch instead of failing once.
+    ///
+    /// Settling first — from disk, through the same path a restart runs — costs
+    /// nothing here: disposal destroys both candidate identities either way, so
+    /// which one the exchange would have adopted is immaterial. Substitution
+    /// still fails closed, because settlement validates every identity it
+    /// touches before touching it.
     pub(crate) fn dispose(&self) -> Result<()> {
         let parent_path = self
             .marker_path
@@ -653,19 +705,39 @@ impl AuxiliaryCleanup {
                 parent_path.display()
             )
         })?;
-        self.revalidate_marker(&parent)?;
-        self.ensure_no_pending_replacement(&parent)?;
+        if self.replacement_is_published(&parent)? {
+            // Deliberately not revalidated against this snapshot first: past
+            // the marker exchange the canonical marker is legitimately a
+            // different document, and `from_marker_at` validates what is
+            // actually on disk before settling it.
+            return Self::from_marker_at(
+                &parent,
+                &self.marker_path,
+                OsString::from_vec(self.marker.target_name.clone()).as_os_str(),
+                self.marker.role,
+                &self.marker.finish_handle,
+                &self.marker.attempt_identity,
+            )
+            .context("settling the in-flight finish auxiliary replacement before disposal")?
+            .dispose_settled(&parent);
+        }
+        self.dispose_settled(&parent)
+    }
+
+    fn dispose_settled(&self, parent: &File) -> Result<()> {
+        self.revalidate_marker(parent)?;
+        self.ensure_no_pending_replacement(parent)?;
         let artifact_name = OsString::from_vec(self.marker.artifact_name.clone());
-        let artifact = match open_file_at(&parent, &artifact_name) {
+        let artifact = match open_file_at(parent, &artifact_name) {
             Ok(artifact) => artifact,
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                if entry_exists(&parent, &artifact_name)? {
+                if entry_exists(parent, &artifact_name)? {
                     bail!(
                         "finish auxiliary artifact appeared during cleanup at {}; marker left untouched",
                         self.artifact_path.display()
                     );
                 }
-                self.remove_marker(&parent)?;
+                self.remove_marker(parent)?;
                 return Ok(());
             }
             Err(error) => {
@@ -693,38 +765,44 @@ impl AuxiliaryCleanup {
                 observed.inode
             );
         }
-        validate_entry_identity(&parent, &artifact_name, expected).context(
+        validate_entry_identity(parent, &artifact_name, expected).context(
             "finish auxiliary artifact changed before disposal; replacement left untouched",
         )?;
-        unlink_at(&parent, &artifact_name, 0).with_context(|| {
+        unlink_at(parent, &artifact_name, 0).with_context(|| {
             format!(
                 "removing marked finish auxiliary artifact {}",
                 self.artifact_path.display()
             )
         })?;
-        self.remove_marker(&parent)
+        self.remove_marker(parent)
     }
 
-    /// Refuse to retire a marker whose replacement is still on disk.
+    fn replacement_is_published(&self, parent: &File) -> Result<bool> {
+        let state_path = replacement_state_path(&self.marker_path)?;
+        let state_name = state_path
+            .file_name()
+            .context("finish auxiliary replacement state has no file name")?;
+        Ok(entry_exists(parent, state_name)?)
+    }
+
+    /// Refuse to act on a marker whose replacement is still on disk.
     ///
     /// A published replacement state means this value's snapshot describes a
     /// superseded phase: the canonical marker and artifact are mid-transition,
     /// and only settlement decides which identities survive. Both still validate
     /// against the pre-replacement snapshot until the artifact exchange runs, so
-    /// a caller holding that snapshot — the production path discards the
-    /// temporary index through exactly this value — would remove the pair
-    /// settlement and recovery need, turning a synchronous failure into an
-    /// unrecoverable shape. Recovery re-reads this auxiliary from disk and
-    /// settles the replacement first, so it never reaches this guard.
+    /// acting on that snapshot would consume the pair settlement and recovery
+    /// need.
+    ///
+    /// Activation must therefore refuse outright — it would otherwise install
+    /// the superseded index bytes as the user's own. Disposal instead settles
+    /// from disk first ([`Self::dispose`]) and reaches this guard only as a
+    /// post-settlement invariant.
     fn ensure_no_pending_replacement(&self, parent: &File) -> Result<()> {
-        let state_path = replacement_state_path(&self.marker_path)?;
-        let state_name = state_path
-            .file_name()
-            .context("finish auxiliary replacement state has no file name")?;
-        if entry_exists(parent, state_name)? {
+        if self.replacement_is_published(parent)? {
             bail!(
                 "finish auxiliary replacement is still in progress at {}; recovery must settle it before this marker can be retired",
-                state_path.display()
+                replacement_state_path(&self.marker_path)?.display()
             );
         }
         Ok(())

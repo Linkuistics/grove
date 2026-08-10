@@ -108,6 +108,57 @@ fn auxiliary_artifact(marker: &Path) -> PathBuf {
     marker.with_file_name(name.strip_suffix(".json").unwrap())
 }
 
+/// Every entry the auxiliary protocol can leave beside the Git index: canonical
+/// artifacts, their markers, replacement state documents, and the drawn-name
+/// staging entries an exchange passes through.
+fn auxiliary_entries(directory: &Path) -> Vec<String> {
+    let mut names = fs::read_dir(directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.starts_with("GROVE-FINISH-AUXILIARY-"))
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
+/// The ten boundaries of the artifact-and-marker replacement, in transition
+/// order: the state document that binds the intended replacement, then the
+/// artifact exchange, the marker exchange, and the two retirements.
+const REBIND_CHECKPOINTS: &[&str] = &[
+    "before-state-publication",
+    "after-state-publication",
+    "before-artifact-exchange",
+    "after-artifact-exchange",
+    "before-marker-exchange",
+    "after-marker-exchange",
+    "before-retired-marker-removal",
+    "after-retired-marker-removal",
+    "before-retired-artifact-removal",
+    "after-retired-artifact-removal",
+];
+
+/// A colocated-Jujutsu grove whose `.grove/` is tracked in the Git index and
+/// whose working copy carries unrelated staged and unstaged work — the shape
+/// the success-index rebind exists to preserve. Returns the working-copy commit
+/// the finish must leave alone.
+///
+/// The seeded working copy is snapshotted *before* the caller reads the Git
+/// index: any colocated jj command exports its snapshot to that index, so a
+/// first snapshot taken later would otherwise read as a finish-side change.
+fn seed_colocated_rebind_fixture(repository: &Path) -> String {
+    init_jj(repository, true);
+    seed_jj_terminal_grove(repository);
+    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+    let commit = git_like_jj_output(
+        repository,
+        &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+    );
+    fs::write(repository.join("staged.txt"), "staged version\n").unwrap();
+    run("git", repository, &["add", "staged.txt"]);
+    fs::write(repository.join("staged.txt"), "working-copy version\n").unwrap();
+    commit
+}
+
 fn write_executable(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut permissions = fs::metadata(path).unwrap().permissions();
@@ -2117,6 +2168,229 @@ fn colocated_jj_driver_preserves_owned_auxiliary_then_reaps_it_after_owner_remov
     );
     assert!(markers.iter().all(|marker| !marker.exists()));
     assert!(artifacts.iter().all(|artifact| !artifact.exists()));
+}
+
+/// Process death at every marker-rebind boundary.
+///
+/// The rebind runs while the colocated success index is being prepared, so the
+/// preparing witness — not the committed-finish path — owns the recovery. Each
+/// death must leave the user's own Git index byte-identical, the working-copy
+/// commit untouched, the finish leaf still selectable, and no auxiliary state
+/// for a later reader to interpret.
+#[test]
+fn colocated_jj_restart_recovers_every_marker_rebind_checkpoint() {
+    for checkpoint in REBIND_CHECKPOINTS {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("jj-rebind-{checkpoint}"));
+        let commit_before = seed_colocated_rebind_fixture(&repository);
+        let git_directory = git_index_path(&repository).parent().unwrap().to_path_buf();
+        let index_before = fs::read(git_index_path(&repository)).unwrap();
+
+        let interrupted = Command::cargo_bin("grove-llm")
+            .unwrap()
+            .current_dir(&repository)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .env("GROVE_TEST_FINISH_REBIND_EXIT_AT", checkpoint)
+            .args(["finish-commit", "finish-k2"])
+            .output()
+            .unwrap();
+
+        assert!(
+            !interrupted.status.success(),
+            "{checkpoint} was not reachable from the finish process: {}",
+            String::from_utf8_lossy(&interrupted.stderr)
+        );
+        let preparing = fs::read_dir(repository.join(".grove"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| {
+                path.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with("PREPARING-FINISH-finish-k2-")
+            })
+            .unwrap_or_else(|| panic!("{checkpoint} left no repository-preparation owner"));
+
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, "sh -c true '${prompt}'");
+        let recovered = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        assert!(
+            recovered.status.success(),
+            "{checkpoint}: {}",
+            String::from_utf8_lossy(&recovered.stderr)
+        );
+        assert!(!preparing.exists(), "{checkpoint}");
+        // Nothing a later reader interprets may survive: no marker, no
+        // replacement state document, no canonical artifact. The single
+        // exception is a death in the window between the staging copy and the
+        // state document that would name it — that entry sits at a drawn name
+        // nothing durable claims, and recovery may not unlink bytes it cannot
+        // prove it wrote, so it is deliberately left where it is.
+        let residue = auxiliary_entries(&git_directory);
+        let abandoned_staging = usize::from(*checkpoint == "before-state-publication");
+        assert_eq!(
+            residue.len(),
+            abandoned_staging,
+            "{checkpoint} left auxiliary state behind: {residue:?}"
+        );
+        assert!(
+            residue.iter().all(|name| name.contains(".staging-")),
+            "{checkpoint} left interpretable auxiliary state: {residue:?}"
+        );
+        assert_eq!(
+            fs::read(git_index_path(&repository)).unwrap(),
+            index_before,
+            "{checkpoint} did not restore the exact Git index"
+        );
+        assert_eq!(
+            git_like_jj_output(
+                &repository,
+                &["log", "-r", "@", "--no-graph", "-T", "commit_id"],
+            ),
+            commit_before,
+            "{checkpoint}"
+        );
+        assert!(
+            repository.join(".grove/02-finish-finish-k2.md").is_file(),
+            "{checkpoint}"
+        );
+    }
+}
+
+/// A synchronous failure at every marker-rebind boundary, inside one driver
+/// launch.
+///
+/// The finish attempt identity is the launch's signal nonce, so both
+/// `finish-commit` runs below share an attempt: a failure that leaves any
+/// attempt-scoped auxiliary behind would collide on the retry and wedge the
+/// whole launch rather than merely failing once.
+#[test]
+fn colocated_jj_synchronous_rebind_failure_retries_within_the_same_attempt() {
+    for checkpoint in REBIND_CHECKPOINTS {
+        let fixture = TempDir::new().unwrap();
+        let repository = fixture.path().join(format!("jj-rebind-retry-{checkpoint}"));
+        seed_colocated_rebind_fixture(&repository);
+        let git_index = git_index_path(&repository);
+
+        let git_directory = git_index.parent().unwrap().to_path_buf();
+        let index_before = fs::read(&git_index).unwrap();
+        let staged_before = git(
+            &repository,
+            &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+        );
+
+        let session_log = fixture.path().join("session");
+        fs::create_dir(&session_log).unwrap();
+        let script = fixture.path().join("finish-session.sh");
+        write_executable(
+            &script,
+            &format!(
+                r#"#!/bin/sh
+printf '%s\n' "${{GROVE_TEST_FINISH_REBIND_FAIL_AT-scrubbed}}" > {log}/inherited-seam
+GROVE_TEST_FINISH_REBIND_FAIL_AT={checkpoint} {llm} finish-commit finish-k2 \
+  > {log}/first-out 2>&1
+printf '%s\n' "$?" > {log}/first-status
+cp {index} {log}/index-after-failure
+ls -1 {git_dir} > {log}/entries-after-failure
+{llm} finish-commit finish-k2 > {log}/second-out 2>&1
+printf '%s\n' "$?" > {log}/second-status
+"#,
+                llm = env!("CARGO_BIN_EXE_grove-llm"),
+                log = session_log.display(),
+                index = git_index.display(),
+                git_dir = git_directory.display(),
+            ),
+        );
+        let home = fixture.path().join("home");
+        fs::create_dir_all(home.join(".codex")).unwrap();
+        write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+
+        let driven = Command::cargo_bin("grove")
+            .unwrap()
+            .current_dir(&repository)
+            .env("HOME", &home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            // A developer shell that happens to carry the seam must not reach a
+            // configured session: it is an internal test control, not launch
+            // configuration. The session sets its own value below, so the
+            // failure it injects is deliberate rather than inherited.
+            .env("GROVE_TEST_FINISH_REBIND_FAIL_AT", "before-marker-exchange")
+            .output()
+            .unwrap();
+
+        assert!(
+            driven.status.success(),
+            "{checkpoint}: {}",
+            String::from_utf8_lossy(&driven.stderr)
+        );
+        let read_log = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
+        assert_eq!(
+            read_log("inherited-seam").trim(),
+            "scrubbed",
+            "{checkpoint}: the launched session inherited the failure seam"
+        );
+        let first = read_log("first-out");
+        assert_ne!(
+            read_log("first-status").trim(),
+            "0",
+            "{checkpoint} was not reachable from the launched session: {first}"
+        );
+        assert!(
+            first.contains(&format!(
+                "injected finish rebind interruption at {checkpoint}"
+            )),
+            "{checkpoint}: {first}"
+        );
+        assert_eq!(
+            fs::read(session_log.join("index-after-failure")).unwrap(),
+            index_before,
+            "{checkpoint} did not leave the exact Git index bytes"
+        );
+        assert_eq!(
+            read_log("second-status").trim(),
+            "0",
+            "{checkpoint} wedged the same-attempt retry: {}",
+            read_log("second-out")
+        );
+        let leftovers = read_log("entries-after-failure")
+            .lines()
+            .filter(|name| name.starts_with("GROVE-FINISH-AUXILIARY-"))
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            leftovers,
+            Vec::<String>::new(),
+            "{checkpoint} left attempt-scoped auxiliary state for the retry to collide with"
+        );
+
+        assert!(!repository.join(".grove").exists(), "{checkpoint}");
+        assert_eq!(
+            auxiliary_entries(&git_directory),
+            Vec::<String>::new(),
+            "{checkpoint}"
+        );
+        assert_eq!(
+            git(
+                &repository,
+                &["ls-files", "--stage", "--", ".", ":(exclude).grove"],
+            ),
+            staged_before,
+            "{checkpoint} disturbed unrelated staged work"
+        );
+        assert_eq!(
+            git(&repository, &["ls-files", "--stage", "--", ".grove"]),
+            "",
+            "{checkpoint} left the finished grove staged"
+        );
+    }
 }
 
 #[test]

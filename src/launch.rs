@@ -276,10 +276,12 @@ const LOOP_CONTROL_ENV: [&str; 4] = [
 /// Shipped deterministic failure seams must never leak from a developer shell
 /// into a configured session. They are internal test controls, not launch
 /// configuration.
-const FINISH_CLEANUP_TEST_ENV: [&str; 3] = [
+const FINISH_CLEANUP_TEST_ENV: [&str; 5] = [
     "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
     "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
     "GROVE_TEST_FINISH_CLEANUP_BARRIER",
+    "GROVE_TEST_FINISH_REBIND_EXIT_AT",
+    "GROVE_TEST_FINISH_REBIND_FAIL_AT",
 ];
 
 /// Repository selectors are process-global overrides: `current_dir` alone does
@@ -651,6 +653,8 @@ mod tests {
             "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
             "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
             "GROVE_TEST_FINISH_CLEANUP_BARRIER",
+            "GROVE_TEST_FINISH_REBIND_EXIT_AT",
+            "GROVE_TEST_FINISH_REBIND_FAIL_AT",
         ];
         for name in finish_cleanup_test_env {
             cmd.env(name, "must-not-leak");

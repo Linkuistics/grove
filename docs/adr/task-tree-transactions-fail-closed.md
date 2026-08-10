@@ -178,6 +178,16 @@ contract.
   administration directory it already owns, which is where the protected Git
   index lives anyway. Reopen only if a durable ownership witness becomes
   available that such a writer cannot forge.
+- **Refuse to dispose an auxiliary whose replacement is still in flight.**
+  Rejected for the same wedge: the caller that discards a failed attempt's index
+  holds a snapshot of the superseded phase, and refusing strands the
+  attempt-scoped names for the next run of the same launch to collide with.
+  Disposal therefore settles the replacement from disk first, through the path
+  recovery runs, and only then removes what settlement left. Consuming the
+  canonical pair through the stale snapshot stays forbidden, and activation —
+  which would otherwise install superseded index bytes as the user's own — still
+  refuses outright. Reopen only if a finish attempt gains an identity that
+  changes per run.
 - **Run user Git hooks during the internal finish commit.** Rejected because a
   hook may mutate unrelated working-tree files even when it rejects the commit,
   and Grove cannot safely snapshot and restore arbitrary user data. Reopen only

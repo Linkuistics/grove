@@ -34,6 +34,12 @@ write.
 - The same acceptance already covers `finish-transaction-git-k118`'s
   `GROVE-FINISH-FILTER-<attempt>-*` staging directory; settle both here or say
   why they differ.
+- `colocated-rebind-checkpoint-matrix-k159` turned both leftovers from conjecture
+  into observed process behavior. A death at `before-state-publication` leaves
+  the staged artifact, and a death at *any* rebind checkpoint also leaves the
+  filter directory — its only disposal is a `TempDir` destructor that
+  `process::exit` never runs. Its assertions currently permit exactly that
+  residue, so tightening them is part of this leaf's acceptance.
 
 ## Done when
 

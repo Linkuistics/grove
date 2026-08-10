@@ -1197,7 +1197,16 @@ Through that seam, cover:
   state document, a clean same-attempt retry, both staged names refused outside
   the auxiliary's reserved role-and-attempt namespace, substituted or symlinked
   staged entries left byte-identical, and a synchronous mid-transition failure
-  whose caller-held snapshot refuses to dispose so recovery can still settle;
+  whose caller-held snapshot settles from disk before disposing — freeing every
+  attempt-scoped name — while a substituted replacement still fails closed;
+- every marker-rebind boundary reached from a real colocated-Jujutsu finish
+  process through a test-prefixed seam that is scrubbed from launched sessions:
+  each process death restarts to the exact original Git index, the unchanged
+  working-copy commit, a live finish leaf, and no interpretable auxiliary state
+  — only a death between the staging copy and the state document that would name
+  it leaves an entry, unclaimed at a drawn name and deliberately not unlinked;
+  each synchronous failure preserves the exact index bytes and retries cleanly
+  inside the same driver launch's attempt;
 - a completion signal written after the successful deletion commit followed by
   driver death before post-reap interpretation: replacement cleanup treats the
   abandoned channel as coordination rather than a finish receipt, then follows

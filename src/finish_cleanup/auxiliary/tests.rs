@@ -443,10 +443,12 @@ fn the_staged_marker_is_named_in_this_attempts_reserved_namespace() {
 
 /// The production caller discards the temporary index through the
 /// `AuxiliaryCleanup` value it already holds. Once the replacement state is
-/// published that snapshot describes a superseded phase, so disposing through
-/// it would remove the canonical pair settlement and recovery still need.
+/// published that snapshot describes a superseded phase, so disposal settles
+/// from disk first rather than consuming the canonical pair through the stale
+/// value — and rather than refusing, which would strand the attempt-scoped
+/// names for the next same-attempt retry to collide with.
 #[test]
-fn a_failed_replacement_refuses_to_dispose_through_a_stale_snapshot() {
+fn a_failed_replacement_settles_before_disposing_through_a_stale_snapshot() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
@@ -481,24 +483,48 @@ fn a_failed_replacement_refuses_to_dispose_through_a_stale_snapshot() {
         "{interruption:#}"
     );
 
+    prepared.dispose().unwrap();
+
+    assert!(!marker.exists());
+    assert!(!artifact.exists());
+    assert!(!replacement_state.exists());
+    assert!(staging_entries(temporary.path()).is_empty());
+    // Every attempt-scoped name is free again, so the same attempt may retry.
+    prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+}
+
+/// Settling before disposal is not a licence to move bytes on trust: a
+/// substituted staged entry still fails closed, and both artifacts survive.
+#[test]
+fn disposal_refuses_a_substituted_replacement_rather_than_settling_it() {
+    let (temporary, _target, prepared, marker, replacement_state) = prepared_rebinding();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let staged_artifact = staged_artifact_path(&replacement_state);
+    let preserved = temporary.path().join("preserved-staged-artifact");
+    let artifact_inode = entry_identity(&artifact).inode;
+    fs::rename(&staged_artifact, &preserved).unwrap();
+    fs::write(&staged_artifact, "external index\n").unwrap();
+
     let disposal = prepared.dispose().unwrap_err();
 
     assert!(
-        format!("{disposal:#}").contains("replacement is still in progress"),
+        format!("{disposal:#}").contains("artifact replacement identity"),
         "{disposal:#}"
     );
-    assert!(marker.is_file(), "{disposal:#}");
-    assert!(artifact.is_file(), "{disposal:#}");
-    assert!(replacement_state.is_file(), "{disposal:#}");
-
-    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
-        .unwrap()
-        .unwrap();
-    assert_eq!(fs::read_to_string(&artifact).unwrap(), "filtered index\n");
-    recovered.dispose().unwrap();
-    assert!(!artifact.exists());
-    assert!(!marker.exists());
-    assert!(staging_entries(temporary.path()).is_empty());
+    assert_eq!(entry_identity(&artifact).inode, artifact_inode);
+    assert_eq!(
+        fs::read_to_string(&staged_artifact).unwrap(),
+        "external index\n"
+    );
+    assert!(marker.is_file());
+    assert!(replacement_state.is_file());
 }
 
 #[test]

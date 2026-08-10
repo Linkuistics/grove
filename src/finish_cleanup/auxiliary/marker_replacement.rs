@@ -33,6 +33,21 @@ pub(super) enum MarkerReplacementStep {
     AfterRetiredArtifactRemoval,
 }
 
+impl MarkerReplacementStep {
+    pub(super) fn name(&self) -> &'static str {
+        match self {
+            Self::BeforeArtifactExchange => "before-artifact-exchange",
+            Self::AfterArtifactExchange => "after-artifact-exchange",
+            Self::BeforeExchange => "before-marker-exchange",
+            Self::AfterExchange => "after-marker-exchange",
+            Self::BeforeRetiredMarkerRemoval => "before-retired-marker-removal",
+            Self::AfterRetiredMarkerRemoval => "after-retired-marker-removal",
+            Self::BeforeRetiredArtifactRemoval => "before-retired-artifact-removal",
+            Self::AfterRetiredArtifactRemoval => "after-retired-artifact-removal",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct MarkerReplacementState {
     version: u32,

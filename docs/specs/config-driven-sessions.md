@@ -723,17 +723,22 @@ ID. If the post-restore check changes, the root remains blocked by the witness
 and the observed state becomes **Recovery pending**. On **Committed**, it
 revalidates the attempt-bound exact result, renames the whole root to quarantine,
 and revalidates again before disposal; a changed result atomically renames the
-quarantine back to `.grove/` and remains blocked. Direct repository or
-filesystem mutation after the final successful gate is outside cooperating
-Grove guarantees, but any change observed at either gate is never acted on
-through a stale disposition.
+quarantine back to `.grove/` and remains blocked, reporting both the changed
+result and the quarantine when that return itself cannot complete. Direct
+repository or filesystem mutation after the final successful gate is outside
+cooperating Grove guarantees, but any change observed at either gate is never
+acted on through a stale disposition.
 
 `Recovery pending` is fail-closed, not automatic history repair. Its diagnostic
-names the witness, recorded exact anchor, observed topology, and the two
+names the artifact that holds the blocked transaction, the recorded exact
+anchor, the observed topology, and the two
 admissible ways to make retry decidable: preserve divergent work elsewhere and
 restore the exact recorded start so the next recovery can roll the tree back,
 or make the exact handle-and-attempt-named teardown result the immediate result
-so recovery can finish forward. The operator then reruns bare `grove` or the
+so recovery can finish forward. That artifact is normally the in-tree witness;
+after a handoff whose restoration could not return the tree it is the
+quarantine, because naming an absent task-root path would send the operator to
+bytes that are not there. The operator then reruns bare `grove` or the
 still-confirmed session's same `finish-commit`; Grove never resets, rebases, or edits the witness on the
 operator's behalf. Direct VCS commits that track the witness or change topology
 while the transaction is blocked enter this same procedure. This is the

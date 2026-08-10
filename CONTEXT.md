@@ -120,7 +120,8 @@ no proof, it first proves the recorded Git/jj starting topology still holds,
 then restores any Git/colocated-jj index backup before restoring the exact live
 finish tree; a failure of any proof or restoration leaves the witness in place
 as **Recovery pending**. That diagnostic names the recorded and observed
-topology and asks the operator to preserve divergent work, restore either the
+topology, the artifact that holds the blocked transaction, and asks the operator
+to preserve divergent work, restore either the
 exact start or the exact teardown result, and retry; Grove never rewrites the
 history automatically. With commit proof, it never resurrects the tree:
 it finishes repository cleanup and atomically renames the entire task root,
@@ -131,7 +132,8 @@ is refused before mutation.
 Repository classification is revalidated immediately before and after rollback
 or quarantine handoff. The witness is removed only after the restored repository
 reproduces its exact start; a changed forward result atomically returns the
-quarantine to `.grove/` and remains blocked.
+quarantine to `.grove/` and remains blocked, and a return that cannot complete
+names both that change and the quarantine still holding the tree.
 VCS-administration index images and post-commit quarantine are auxiliary cleanup,
 never rootless workflow state. The helper attempts cleanup immediately and a
 later lease-owning driver reaps orphaned entries carrying a valid Grove cleanup

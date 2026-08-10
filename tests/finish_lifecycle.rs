@@ -1,5 +1,5 @@
 use assert_cmd::cargo::CommandCargoExt;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs::{self, File};
 use std::os::fd::AsRawFd;
 use std::os::unix::ffi::OsStringExt;
@@ -1327,6 +1327,172 @@ fn bare_driver_recovers_a_committed_witness_into_the_fresh_root_contract() {
         .file_name()
         .to_string_lossy()
         .starts_with("FINISHED-")));
+}
+
+fn control_entries_starting_with(control_directory: &Path, prefix: &str) -> Vec<PathBuf> {
+    let mut matches = fs::read_dir(control_directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with(prefix))
+        })
+        .collect::<Vec<_>>();
+    matches.sort();
+    matches
+}
+
+fn configure_fresh_requirements_launch(fixture: &Path, home: &Path) -> PathBuf {
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.join("launch-log");
+    let script = fixture.join("record-requirements.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > {}\n",
+            launch_log.display()
+        ),
+    );
+    write_complete_config(home, &format!("sh {} '${{prompt}}'", script.display()));
+    launch_log
+}
+
+/// The atomic rename is the transaction's only transition to task-root absence,
+/// so a death on its near side must leave the whole evacuated tree in the task
+/// root under its blocking witness — never a half-moved shape a reader could
+/// walk.
+#[test]
+fn a_death_before_the_quarantine_rename_keeps_the_complete_in_tree_witness() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("death-before-quarantine-rename");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_EXIT_AT", "before-quarantine-handoff")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(!interrupted.status.success());
+    let grove_root = repository.join(".grove");
+    let witness = grove_root.join("FINISHING-finish-k2");
+    let control_directory = repository.join(".git/grove");
+    assert_eq!(
+        fs::read_dir(&grove_root)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<Vec<_>>(),
+        vec![OsString::from("FINISHING-finish-k2")],
+        "the task root must hold nothing but its blocking witness"
+    );
+    for entry in [
+        "FORMAT",
+        "BRIEF.md",
+        "01-DONE-impl-finished-k1.md",
+        "02-finish-finish-k2.md",
+    ] {
+        assert!(
+            witness.join("original").join(entry).is_file(),
+            "the witness lost {entry}"
+        );
+    }
+    assert_eq!(
+        control_entries_starting_with(&control_directory, "GROVE-FINISH-CLEANUP-").len(),
+        1,
+        "the published cleanup marker is the handoff's only control-side state"
+    );
+    assert!(control_entries_starting_with(&control_directory, "FINISHED-").is_empty());
+
+    let home = fixture.path().join("home");
+    let launch_log = configure_fresh_requirements_launch(fixture.path(), &home);
+    let recovered = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        recovered.status.success(),
+        "{}",
+        String::from_utf8_lossy(&recovered.stderr)
+    );
+    assert!(grove_root.join("01-requirements-plan-k1.md").is_file());
+    assert!(!witness.exists());
+    assert!(control_entries_starting_with(&control_directory, "GROVE-FINISH-CLEANUP-").is_empty());
+    assert!(fs::read_to_string(launch_log).unwrap().contains("plan-k1"));
+}
+
+/// The far side of the same rename: an absent task root, a complete quarantine
+/// holding the witness, and cleanup evidence a later driver can reap.
+#[test]
+fn a_death_after_the_quarantine_rename_leaves_the_complete_quarantine() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("death-after-quarantine-rename");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+
+    let interrupted = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .current_dir(&repository)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .env("GROVE_TEST_FINISH_EXIT_AT", "after-quarantine-handoff")
+        .args(["finish-commit", "finish-k2"])
+        .output()
+        .unwrap();
+
+    assert!(!interrupted.status.success());
+    assert!(!repository.join(".grove").exists());
+    let control_directory = repository.join(".git/grove");
+    let quarantines = control_entries_starting_with(&control_directory, "FINISHED-finish-k2-");
+    let [quarantine] = quarantines.as_slice() else {
+        panic!("the rename must leave exactly one complete quarantine, found {quarantines:?}");
+    };
+    for entry in [
+        "FORMAT",
+        "BRIEF.md",
+        "01-DONE-impl-finished-k1.md",
+        "02-finish-finish-k2.md",
+    ] {
+        assert!(
+            quarantine
+                .join("FINISHING-finish-k2/original")
+                .join(entry)
+                .is_file(),
+            "the quarantine lost {entry}"
+        );
+    }
+    assert_eq!(
+        control_entries_starting_with(&control_directory, "GROVE-FINISH-CLEANUP-").len(),
+        1
+    );
+
+    let home = fixture.path().join("home");
+    let launch_log = configure_fresh_requirements_launch(fixture.path(), &home);
+    let reaped = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        reaped.status.success(),
+        "{}",
+        String::from_utf8_lossy(&reaped.stderr)
+    );
+    assert!(repository
+        .join(".grove/01-requirements-plan-k1.md")
+        .is_file());
+    assert!(control_entries_starting_with(&control_directory, "FINISHED-finish-k2-").is_empty());
+    assert!(control_entries_starting_with(&control_directory, "GROVE-FINISH-CLEANUP-").is_empty());
+    assert!(fs::read_to_string(launch_log).unwrap().contains("plan-k1"));
 }
 
 #[test]

@@ -71,7 +71,9 @@ uncommitted result.
 The repository outcome remains guarded through its filesystem handoff. Recovery
 revalidates immediately before and after rollback or quarantine rename. A
 post-restore change leaves the witness blocking the restored tree; a post-rename
-change atomically returns the quarantine to `.grove/`. Only a second successful
+change atomically returns the quarantine to `.grove/`, and reports both that
+change and the quarantine still holding the tree if the return cannot complete.
+Only a second successful
 gate removes the witness or begins disposal. This prevents cooperating Grove
 code from acting on a stale disposition; direct mutations after the final gate
 remain outside the cooperative guarantee. A reported failure exposes a live
@@ -79,7 +81,9 @@ selectable finish leaf only after every proof and restoration succeeds.
 
 A different revision, tracked witness, restoration failure, or tree rollback
 failure keeps the witness unwalkable as **Recovery pending**. The diagnostic
-names the recorded and observed topology and the two operator-restorable exits:
+names the artifact that holds the blocked transaction — the in-tree witness, or
+the quarantine once a failed restoration left the tree there — the recorded and
+observed topology, and the two operator-restorable exits:
 preserve divergent work and restore Git's exact `HEAD` or jj's exact recorded
 preflight commit for rollback, or make the exact attempt-bound teardown result
 immediate for forward recovery, then retry the same operation. Grove never

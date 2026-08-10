@@ -60,27 +60,22 @@ pub(crate) fn finish(worktree: &Path, grove_root: &Path, finish_handle: &str) ->
     revalidate_transaction_directories(&transaction, &directories)?;
     match prepared_commit.commit(finish_handle, &transaction.manifest.attempt_identity) {
         repo::FinishCommitOutcome::Committed(proof) => {
-            finish_test_checkpoint("after-commit")?;
-            quarantine_and_dispose(
-                grove_root,
-                &transaction.quarantine_path,
-                &transaction.manifest.finish_handle,
-                &transaction.manifest.attempt_identity,
-                &proof,
-            )
+            finish_test_checkpoint("after-commit")
+                .map_err(|error| pending_exit(&transaction.witness_path, error))?;
+            quarantine_and_dispose(&transaction, &proof)
         }
         repo::FinishCommitOutcome::NotCommitted { proof, error } => {
             let locations = EntryLocations::all_evacuated(transaction.manifest.entries.len());
             match rollback(&transaction, &directories, &locations, proof) {
                 Ok(()) => Err(error),
-                Err(rollback_error) => Err(error.context(format!(
-                    "finish rollback failed: {rollback_error:#}; {}",
-                    recovery_pending_guidance(&transaction.witness_path)
-                ))),
+                Err(rollback_error) => Err(pending_exit(
+                    &transaction.witness_path,
+                    error.context(format!("finish rollback failed: {rollback_error:#}")),
+                )),
             }
         }
         repo::FinishCommitOutcome::RecoveryPending(error) => {
-            Err(error.context(recovery_pending_guidance(&transaction.witness_path)))
+            Err(pending_exit(&transaction.witness_path, error))
         }
     }
 }
@@ -275,15 +270,19 @@ fn recover_pending_with_checkpoint(
     let Some(pending) = pending_manifest_with_checkpoint(grove_root, &mut checkpoint)? else {
         return Ok(FinishRecovery::None);
     };
-    let witness_path = pending.witness_path.clone();
     resolve_pending(worktree, grove_root, pending, &mut checkpoint)
-        .map_err(|error| error.context(recovery_pending_guidance(&witness_path)))
 }
 
 /// The operator-facing exit from any fail-closed finish state: it names the
-/// blocking witness and both provable topologies a retry can be made from.
-/// Every diagnostic the repository seam raises already names the recorded and
-/// observed topology, so one wrapper completes the contract for all of them.
+/// artifact that holds the blocked transaction and both provable topologies a
+/// retry can be made from. Every diagnostic the repository seam raises already
+/// names the recorded and observed topology, so one wrapper completes the
+/// contract for all of them — applied exactly once, by whichever exit knows
+/// which artifact currently holds the transaction.
+fn pending_exit(location: &Path, error: anyhow::Error) -> anyhow::Error {
+    error.context(recovery_pending_guidance(location))
+}
+
 fn recovery_pending_guidance(witness_path: &Path) -> String {
     format!(
         "Recovery pending at {}; preserve divergent work, then either restore the recorded start so recovery can roll the tree back or make the exact teardown result immediate so recovery can finish forward, then retry",
@@ -304,7 +303,8 @@ fn resolve_pending(
         locations,
     } = pending;
     let original_tree = witness_path.join(ORIGINAL_TREE_DIRECTORY);
-    let quarantine_directory = repo::workspace_control(worktree)?
+    let quarantine_directory = repo::workspace_control(worktree)
+        .map_err(|error| pending_exit(&witness_path, error))?
         .control_dir()
         .to_path_buf();
     let quarantine_path = quarantine_directory.join(format!(
@@ -327,27 +327,27 @@ fn resolve_pending(
     ) {
         repo::FinishRecoveryOutcome::Committed(proof) => {
             if !locations.is_fully_evacuated() {
-                bail!(
-                    "repository has the exact finish commit, but the ready witness is not fully evacuated at {}: {} of {} entries are still at the task root; preserve the live task tree and witness for manual reconciliation",
-                    witness_path.display(),
-                    locations.resident_count(),
-                    locations.len()
-                );
+                return Err(pending_exit(
+                    &witness_path,
+                    anyhow::anyhow!(
+                        "repository has the exact finish commit, but the ready witness is not fully evacuated at {}: {} of {} entries are still at the task root; preserve the live task tree and witness for manual reconciliation",
+                        witness_path.display(),
+                        locations.resident_count(),
+                        locations.len()
+                    ),
+                ));
             }
-            quarantine_and_dispose(
-                grove_root,
-                &transaction.quarantine_path,
-                &transaction.manifest.finish_handle,
-                &transaction.manifest.attempt_identity,
-                &proof,
-            )?;
+            quarantine_and_dispose_with_checkpoint(&transaction, &proof, checkpoint)?;
             Ok(FinishRecovery::Committed)
         }
         repo::FinishRecoveryOutcome::NotCommitted(proof) => {
-            rollback_with_checkpoint(&transaction, &directories, &locations, proof, checkpoint)?;
+            rollback_with_checkpoint(&transaction, &directories, &locations, proof, checkpoint)
+                .map_err(|error| pending_exit(&witness_path, error))?;
             Ok(FinishRecovery::RolledBack)
         }
-        repo::FinishRecoveryOutcome::RecoveryPending(error) => Err(error),
+        repo::FinishRecoveryOutcome::RecoveryPending(error) => {
+            Err(pending_exit(&witness_path, error))
+        }
     }
 }
 
@@ -1902,28 +1902,55 @@ fn remove_ready_witness(
 }
 
 fn quarantine_and_dispose(
-    grove_root: &Path,
-    quarantine_path: &Path,
-    finish_handle: &str,
-    attempt_identity: &str,
+    transaction: &FinishTransaction,
     proof: &repo::FinishProof,
 ) -> Result<()> {
-    proof.revalidate()?;
+    quarantine_and_dispose_with_checkpoint(transaction, proof, &mut finish_test_checkpoint)
+}
+
+/// Keeps the proven deletion guarded across the one namespace transition to
+/// task-root absence. The rename is the only step that changes which artifact
+/// holds the transaction, so each exit names the artifact that actually holds
+/// it: the in-tree witness before the rename and after a successful
+/// restoration, the quarantine when restoration could not put it back.
+fn quarantine_and_dispose_with_checkpoint(
+    transaction: &FinishTransaction,
+    proof: &repo::FinishProof,
+    checkpoint: &mut impl FnMut(&str) -> Result<()>,
+) -> Result<()> {
+    let grove_root = transaction.grove_root.as_path();
+    let quarantine_path = transaction.quarantine_path.as_path();
+    let in_tree = |error: anyhow::Error| pending_exit(&transaction.witness_path, error);
+
+    checkpoint("before-quarantine-proof").map_err(in_tree)?;
+    proof.revalidate().map_err(in_tree)?;
     let cleanup = finish_cleanup::prepare_quarantine(
         grove_root,
         quarantine_path,
-        finish_handle,
-        attempt_identity,
-    )?;
-    cleanup.handoff(grove_root)?;
-    if let Err(error) = proof.revalidate() {
-        cleanup.restore(grove_root).with_context(|| {
-            format!(
-                "restoring finish quarantine {} after repository proof changed",
-                quarantine_path.display()
-            )
-        })?;
-        return Err(error.context("Recovery pending: Git finish proof changed after quarantine"));
+        &transaction.manifest.finish_handle,
+        &transaction.manifest.attempt_identity,
+    )
+    .map_err(in_tree)?;
+    checkpoint("before-quarantine-handoff").map_err(in_tree)?;
+    cleanup.handoff(grove_root).map_err(in_tree)?;
+
+    let forward = checkpoint("after-quarantine-handoff").and_then(|()| proof.revalidate());
+    if let Err(error) = forward {
+        return Err(match cleanup.restore(grove_root) {
+            Ok(()) => in_tree(error.context(format!(
+                "the finish result changed after quarantine handoff, so {} was restored to {}",
+                quarantine_path.display(),
+                grove_root.display()
+            ))),
+            Err(restore_error) => pending_exit(
+                quarantine_path,
+                error.context(format!(
+                    "the finish result changed after quarantine handoff and {} could not be restored to {}: {restore_error:#}",
+                    quarantine_path.display(),
+                    grove_root.display()
+                )),
+            ),
+        });
     }
     if let Err(error) = cleanup.dispose() {
         eprintln!("warning: {error:#}");
@@ -2088,9 +2115,9 @@ mod tests {
         begin_preparing_witness, digest_root_entries, ensure_same_device, evacuate,
         evacuate_with_checkpoint, evacuation_checkpoint, materialize_witness_with_checkpoint,
         pending_manifest, pending_manifest_with_checkpoint, preflight_root, prepare_transaction,
-        recover_pending, recover_pending_with_checkpoint, restoration_checkpoint,
-        rollback_with_checkpoint, EntryLocations, FinishRecovery, PreparedTransaction,
-        MANIFEST_FILE, READY_FILE,
+        quarantine_and_dispose_with_checkpoint, recover_pending, recover_pending_with_checkpoint,
+        restoration_checkpoint, rollback_with_checkpoint, EntryLocations, EvacuatedTransaction,
+        FinishRecovery, FinishTransaction, PreparedTransaction, MANIFEST_FILE, READY_FILE,
     };
     use crate::repo;
     use serde_json::Value;
@@ -3352,6 +3379,168 @@ mod tests {
                 "missing {required:?}: {message}"
             );
         }
+    }
+
+    /// Drives the plain-Git fixture all the way to a proven scoped deletion so a
+    /// test can exercise the handoff that follows it.
+    fn committed_plain_git_transaction() -> (TempDir, FinishTransaction, repo::FinishProof) {
+        let (fixture, prepared) = prepared_plain_git_transaction();
+        let EvacuatedTransaction {
+            transaction,
+            directories,
+            prepared_commit,
+        } = evacuate(prepared).unwrap();
+        drop(directories);
+        let attempt_identity = transaction.manifest.attempt_identity.clone();
+        match prepared_commit.commit("finish-k2", &attempt_identity) {
+            repo::FinishCommitOutcome::Committed(proof) => (fixture, transaction, proof),
+            _ => panic!("the evacuated plain-Git fixture must prove its scoped deletion"),
+        }
+    }
+
+    fn commit_divergent_work(repository: &Path) {
+        fs::write(repository.join("divergent"), "preserve\n").unwrap();
+        run_git(repository, &["add", "divergent"]);
+        run_git(repository, &["commit", "-q", "-m", "divergent"]);
+    }
+
+    #[test]
+    fn a_changed_result_before_handoff_keeps_the_complete_in_tree_witness() {
+        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let repository = fixture.path().to_path_buf();
+
+        let error =
+            quarantine_and_dispose_with_checkpoint(&transaction, &proof, &mut |checkpoint| {
+                if checkpoint == "before-quarantine-proof" {
+                    commit_divergent_work(&repository);
+                }
+                Ok(())
+            })
+            .expect_err("a changed finish result must block the quarantine handoff");
+
+        let message = format!("{error:#}");
+        assert!(message.contains("observed parent"), "{message}");
+        assert_pending_diagnostic(&message, &transaction.witness_path);
+        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert!(!transaction.quarantine_path.exists());
+    }
+
+    #[test]
+    fn an_occupied_quarantine_destination_keeps_the_complete_in_tree_witness() {
+        let (_fixture, transaction, proof) = committed_plain_git_transaction();
+        let quarantine_path = transaction.quarantine_path.clone();
+
+        let error =
+            quarantine_and_dispose_with_checkpoint(&transaction, &proof, &mut |checkpoint| {
+                if checkpoint == "before-quarantine-handoff" {
+                    fs::create_dir_all(&quarantine_path)?;
+                    fs::write(quarantine_path.join("foreign"), "preserve\n")?;
+                }
+                Ok(())
+            })
+            .expect_err("an occupied quarantine destination must block the handoff");
+
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("handing off marked task root"),
+            "{message}"
+        );
+        assert_pending_diagnostic(&message, &transaction.witness_path);
+        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert_eq!(
+            fs::read_to_string(quarantine_path.join("foreign")).unwrap(),
+            "preserve\n"
+        );
+    }
+
+    #[test]
+    fn a_changed_result_after_handoff_restores_the_quarantine_atomically() {
+        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let repository = fixture.path().to_path_buf();
+
+        let error =
+            quarantine_and_dispose_with_checkpoint(&transaction, &proof, &mut |checkpoint| {
+                if checkpoint == "after-quarantine-handoff" {
+                    commit_divergent_work(&repository);
+                }
+                Ok(())
+            })
+            .expect_err("a changed finish result after handoff must block disposal");
+
+        let message = format!("{error:#}");
+        assert!(message.contains("observed parent"), "{message}");
+        assert!(message.contains("restored"), "{message}");
+        assert_pending_diagnostic(&message, &transaction.witness_path);
+        assert!(!transaction.quarantine_path.exists());
+        assert!(transaction.witness_path.join("original/FORMAT").is_file());
+        assert!(
+            !transaction.grove_root.join("FORMAT").exists(),
+            "the restored root must stay blocked by its witness"
+        );
+    }
+
+    #[test]
+    fn a_blocked_restoration_names_the_changed_result_and_its_quarantine() {
+        let (fixture, transaction, proof) = committed_plain_git_transaction();
+        let repository = fixture.path().to_path_buf();
+        let grove_root = transaction.grove_root.clone();
+
+        let error =
+            quarantine_and_dispose_with_checkpoint(&transaction, &proof, &mut |checkpoint| {
+                if checkpoint == "after-quarantine-handoff" {
+                    commit_divergent_work(&repository);
+                    fs::create_dir(&grove_root)?;
+                    fs::write(grove_root.join("foreign"), "preserve\n")?;
+                }
+                Ok(())
+            })
+            .expect_err("a blocked restoration must report both failures");
+
+        let message = format!("{error:#}");
+        assert!(message.contains("observed parent"), "{message}");
+        assert_pending_diagnostic(&message, &transaction.quarantine_path);
+        assert!(transaction
+            .quarantine_path
+            .join("FINISHING-finish-k2/original/FORMAT")
+            .is_file());
+        assert_eq!(
+            fs::read_to_string(grove_root.join("foreign")).unwrap(),
+            "preserve\n"
+        );
+    }
+
+    #[test]
+    fn a_broad_commit_that_tracks_the_witness_stays_recovery_pending() {
+        let fixture = evacuated_plain_git_transaction();
+        let repository = fixture.path();
+        let grove_root = repository.join(".grove");
+        let witness = grove_root.join("FINISHING-finish-k2");
+        run_git(repository, &["add", "-A"]);
+        run_git(repository, &["commit", "-q", "-m", "broad"]);
+        assert!(
+            !run_git(
+                repository,
+                &[
+                    "ls-tree",
+                    "-r",
+                    "--name-only",
+                    "HEAD",
+                    "--",
+                    ".grove/FINISHING-finish-k2",
+                ],
+            )
+            .is_empty(),
+            "the fixture must commit the witness it refuses to classify"
+        );
+
+        let error = recover_pending(repository, &grove_root)
+            .expect_err("a committed witness is not a finish result");
+
+        let message = format!("{error:#}");
+        assert!(message.contains("observed HEAD"), "{message}");
+        assert_pending_diagnostic(&message, &witness);
+        assert!(witness.join("original/FORMAT").is_file());
+        assert!(!grove_root.join("FORMAT").exists());
     }
 
     #[test]

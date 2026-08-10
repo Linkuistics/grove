@@ -87,6 +87,29 @@ Use TDD at the transaction interface and injected repository/filesystem failure
 seams. Do not use real user hooks as the commit-failure injector once finish
 commits deliberately disable hooks.
 
+`finish-transaction-hardening-k121` closed: the prepared, evacuated, rollback
+and quarantine boundaries, tamper and identity refusals, topology races,
+operator-restorable recovery, disposal safety, and cleanup failure are all
+covered, and the transaction interface stays the only non-seam entry. Three of
+its results bind the docs and acceptance slice, because each is a claim an
+acceptance assertion could contradict by accident.
+
+**The pending diagnostic names the artifact that holds the blocked
+transaction**, not a fixed path: the in-tree witness normally, the post-commit
+quarantine once a failed restoration left the tree there. One wrapper still owns
+that exit, applied by whichever exit knows where the bytes are. Do not pin
+`.grove/FINISHING-*` unconditionally.
+
+**Grove sweeps cleanup manifests, never reserved namespaces**, and accepts a
+bounded leak: a death inside a staging window can strand an index-sized copy
+whose shape is indistinguishable from a foreign entry Grove's own substitution
+refusal deliberately preserved. An acceptance test must not assert that a
+reserved namespace is empty after an interruption.
+
+**A witness records where each manifest entry is**, so an interrupted evacuation
+or rollback prefix is an ordinary recoverable state rather than a malformed
+tree; a committed repository with any entry still resident refuses.
+
 ## Decomposition
 
 - `finish-transaction-preflight-k117`: add the deep transaction interface and

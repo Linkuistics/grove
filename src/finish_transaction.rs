@@ -243,6 +243,22 @@ pub(crate) fn cleanup_owner(grove_root: &Path) -> Result<Option<finish_cleanup::
     .map(Some)
 }
 
+/// Verify a *lost* `finish-commit` result for the launch that is asking.
+///
+/// The caller reaches this only with the task root already absent, which proves
+/// nothing on its own — a pre-commit death exposes the same shape. The
+/// repository seam therefore has to prove the exact teardown commit, and the
+/// finish-attempt identity binds that proof to this launch: a completed grove
+/// whose handle is later reused is committed under a different launch nonce, so
+/// it can never satisfy a new epoch's confirmed session.
+///
+/// This is narrow command-outcome verification under the current invocation. It
+/// is not lifecycle state, and no later bare driver reads it.
+pub(crate) fn verify_lost_result(worktree: &Path, finish_handle: &str) -> Result<()> {
+    let attempt_identity = finish_attempt_identity()?;
+    repo::verify_lost_finish_result(worktree, finish_handle, &attempt_identity)
+}
+
 pub(crate) fn recover_pending(worktree: &Path, grove_root: &Path) -> Result<FinishRecovery> {
     recover_pending_with_checkpoint(worktree, grove_root, |_| Ok(()))
 }

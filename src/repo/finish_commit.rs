@@ -1363,6 +1363,154 @@ fn write_child_stdin_and_wait(mut child: Child, input: &[u8]) -> Result<Output> 
     }
 }
 
+/// Prove, without a manifest, that the repository's *immediate* result is the
+/// exact `.grove/`-scoped teardown commit this launch's finish attempt would
+/// have made.
+///
+/// Reached only when the task root is already absent, where successful cleanup
+/// may have disposed the witness that anchors [`recover_finish`]. The proof is
+/// therefore self-contained: it derives the parent from the result itself
+/// rather than from a recorded start anchor, and never requires the
+/// working-tree-only finish leaf to have existed in that parent. The attempt
+/// identity in the message is what keeps it narrow — a reused handle from an
+/// older grove was committed under a different launch nonce and can never
+/// satisfy the current one.
+pub(crate) fn verify_lost_finish_result(
+    worktree: &Path,
+    finish_handle: &str,
+    attempt_identity: &str,
+) -> Result<()> {
+    let message = finish_commit_message(finish_handle, attempt_identity);
+    match vcs_of(worktree) {
+        Some(Vcs::Git) => verify_lost_plain_git_finish(worktree, &message),
+        Some(Vcs::Jj { workspace_root }) => verify_lost_jj_finish(&workspace_root, &message),
+        None => bail!("{} is not a git or jj working tree", worktree.display()),
+    }
+}
+
+fn verify_lost_plain_git_finish(worktree: &Path, message: &str) -> Result<()> {
+    let Some(head) = git_head_commit(worktree)? else {
+        bail!(
+            "{} has no commits, so it holds no teardown result to verify",
+            worktree.display()
+        );
+    };
+    // The teardown commit's identity is its message, so that comparison comes
+    // first: every other check here describes the shape a *matching* commit must
+    // also have, and reporting one of those for an unrelated `HEAD` answers a
+    // question the caller did not ask.
+    let observed_message = git_stdout(worktree, &["log", "-1", "--format=%s", &head])?;
+    if observed_message != message {
+        bail!(
+            "the immediate plain-Git result is not this finish attempt's teardown commit: expected message {message:?}, observed {observed_message:?}"
+        );
+    }
+    let lineage = git_stdout(worktree, &["rev-list", "--parents", "-n", "1", &head])?;
+    let mut lineage = lineage.split_whitespace().skip(1);
+    let parent = lineage
+        .next()
+        .context("the immediate plain-Git result is a root commit, so it deletes nothing")?;
+    if lineage.next().is_some() {
+        bail!("the immediate plain-Git result is a merge, not a finish teardown commit");
+    }
+    if !tracked_grove_bytes(worktree, &head)?.is_empty() {
+        bail!("the immediate plain-Git result still tracks `.grove/`");
+    }
+    let changed = git_bytes(
+        worktree,
+        &["diff", "--name-status", "-z", parent, &head, "--", "."],
+    )?;
+    if !only_grove_deletions(&changed, b"D") {
+        bail!("the immediate plain-Git result changes paths outside the exact `.grove/` deletion");
+    }
+    Ok(())
+}
+
+/// `HEAD`'s commit, or `None` in a repository whose `HEAD` is unborn.
+///
+/// `git_bytes` turns every nonzero exit into an error, which would surface
+/// `rev-parse`'s usage text as Grove's answer for the ordinary "this repository
+/// has no commits" case. The distinction is worth one bespoke invocation.
+fn git_head_commit(worktree: &Path) -> Result<Option<String>> {
+    let output = vcs_command(worktree, "git")
+        .args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])
+        .output()
+        .with_context(|| format!("reading Git HEAD in {}", worktree.display()))?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8(output.stdout)?.trim().to_owned()))
+}
+
+fn verify_lost_jj_finish(worktree: &Path, message: &str) -> Result<()> {
+    let successor = jj_topology(worktree, "@", true, None)?;
+    let [candidate] = successor.parent_commit_ids.as_slice() else {
+        bail!("the immediate Jujutsu result is not the exact parent of the current working-copy successor");
+    };
+    let observed_message = jj_stdout(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "log",
+            "-r",
+            candidate,
+            "--no-graph",
+            "-T",
+            "description",
+        ],
+    )?;
+    if observed_message != message {
+        bail!(
+            "the immediate Jujutsu result is not this finish attempt's teardown commit: expected message {message:?}, observed {observed_message:?}"
+        );
+    }
+    if !jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "file",
+            "list",
+            "-r",
+            candidate,
+            "root:.grove",
+        ],
+    )?
+    .is_empty()
+    {
+        bail!("the immediate Jujutsu result still tracks `.grove/`");
+    }
+    let changed = jj_bytes(
+        worktree,
+        &[
+            "--ignore-working-copy",
+            "diff",
+            "-r",
+            candidate,
+            "-T",
+            "status ++ \"\\0\" ++ path ++ \"\\0\"",
+        ],
+    )?;
+    if !only_grove_deletions(&changed, b"removed") {
+        bail!("the immediate Jujutsu result changes paths outside the exact `.grove/` deletion");
+    }
+    Ok(())
+}
+
+/// A teardown delta is a non-empty set of `.grove/` deletions and nothing else.
+/// The NUL-delimited `<status>\0<path>\0` shape is shared; only the deletion
+/// marker differs between Git's `--name-status` and jj's `status` template.
+fn only_grove_deletions(changed: &[u8], deleted: &[u8]) -> bool {
+    let fields = changed
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .collect::<Vec<_>>();
+    !fields.is_empty()
+        && fields.len() % 2 == 0
+        && fields
+            .chunks_exact(2)
+            .all(|entry| entry[0] == deleted && entry[1].starts_with(b".grove/"))
+}
+
 fn validate_exact_git_finish(
     worktree: &Path,
     start_head: &str,
@@ -1396,16 +1544,7 @@ fn validate_exact_git_finish(
         worktree,
         &["diff", "--name-status", "-z", start_head, "HEAD", "--", "."],
     )?;
-    let fields = changed
-        .split(|byte| *byte == 0)
-        .filter(|field| !field.is_empty())
-        .collect::<Vec<_>>();
-    if fields.is_empty()
-        || fields.len() % 2 != 0
-        || fields
-            .chunks_exact(2)
-            .any(|entry| entry[0] != b"D" || !entry[1].starts_with(b".grove/"))
-    {
+    if !only_grove_deletions(&changed, b"D") {
         bail!("the plain-Git finish result changes paths outside the exact `.grove/` deletion");
     }
     Ok(())
@@ -1492,16 +1631,7 @@ fn validate_jj_finish_candidate(
             "status ++ \"\\0\" ++ path ++ \"\\0\"",
         ],
     )?;
-    let fields = changed
-        .split(|byte| *byte == 0)
-        .filter(|field| !field.is_empty())
-        .collect::<Vec<_>>();
-    if fields.is_empty()
-        || fields.len() % 2 != 0
-        || fields
-            .chunks_exact(2)
-            .any(|entry| entry[0] != b"removed" || !entry[1].starts_with(b".grove/"))
-    {
+    if !only_grove_deletions(&changed, b"removed") {
         bail!("the Jujutsu finish result changes paths outside the exact `.grove/` deletion");
     }
     Ok(())

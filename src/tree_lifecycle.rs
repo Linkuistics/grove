@@ -156,8 +156,19 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
     let _guard = tree_access::write_for_lifecycle(worktree)?;
     let grove_root = worktree.join(".grove");
     match fs::symlink_metadata(&grove_root) {
+        // Task-root absence never classifies an attempted finish as success: a
+        // death before the deletion commit exposes exactly this shape. The only
+        // thing that can license the retry is the repository's own immediate
+        // result, proven against *this* launch's finish attempt.
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            bail!("this grove is already finished: {}", grove_root.display())
+            return crate::finish_transaction::verify_lost_result(worktree, finish_handle)
+                .with_context(|| {
+                    format!(
+                        "no Grove task tree at {}, and no verifiable {finish_handle} teardown \
+                         result for this finish attempt",
+                        grove_root.display()
+                    )
+                });
         }
         Err(error) => {
             return Err(error)

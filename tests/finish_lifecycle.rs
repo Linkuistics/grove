@@ -458,8 +458,14 @@ fn finish_commit_refuses_an_unknown_tree_format_before_deleting_the_tree() {
     assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
+/// Task-root absence proves nothing: with no teardown result to verify, a
+/// rootless retry is a refusal, and a refusal never licenses `complete --done`.
+///
+/// A repository with no commits at all is the degenerate case, and it must read
+/// as Grove's own statement about what it needed rather than as a leaked
+/// `git rev-list` usage error.
 #[test]
-fn retrying_finish_commit_after_teardown_reports_already_finished() {
+fn rootless_finish_retry_refuses_when_no_teardown_result_exists() {
     let fixture = TempDir::new().unwrap();
     let repository = fixture.path().join("already-finished");
     init_git(&repository);
@@ -467,11 +473,420 @@ fn retrying_finish_commit_after_teardown_reports_already_finished() {
     let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
     assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("this grove is already finished"),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
+        stderr.contains("no Grove task tree") && stderr.contains("finish-k2"),
+        "{stderr}"
     );
+    assert!(
+        stderr.contains("has no commits"),
+        "the unborn repository leaked a raw VCS diagnostic: {stderr}"
+    );
+    assert!(
+        !stderr.contains("ambiguous argument"),
+        "the unborn repository leaked a raw VCS diagnostic: {stderr}"
+    );
+}
+
+/// A near-miss is a different answer from "nothing to verify", so it names both
+/// halves of the comparison it failed. The teardown commit's identity is its
+/// message, so that check comes before any structural one — otherwise a
+/// repository whose HEAD happens to be a root commit is told about its
+/// ancestry when what it needs to know is that this is not the right commit.
+#[test]
+fn rootless_finish_retry_names_the_message_it_required_and_the_one_it_observed() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("near-miss");
+    init_git(&repository);
+    fs::write(repository.join("unrelated.txt"), "unrelated\n").unwrap();
+    run("git", &repository, &["add", "-A"]);
+    run(
+        "git",
+        &repository,
+        &["commit", "-q", "-m", "unrelated work"],
+    );
+
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("expected message") && stderr.contains("remove completed grove task tree"),
+        "{stderr}"
+    );
+    assert!(stderr.contains(r#"observed "unrelated work""#), "{stderr}");
+}
+
+/// What a session that lost its `finish-commit` result does: run it again.
+///
+/// Both runs share the launch's signal nonce, so they share one finish attempt
+/// identity — which is the whole basis of the retry proof. Returns each run's
+/// exit status and output plus the driver's own result.
+struct LostResultRun {
+    first_status: String,
+    first_output: String,
+    second_status: String,
+    second_output: String,
+    driver: Output,
+}
+
+fn run_lost_finish_result_session(fixture: &Path, repository: &Path) -> LostResultRun {
+    let session_log = fixture.join("session");
+    fs::create_dir_all(&session_log).unwrap();
+    let script = fixture.join("lost-finish-session.sh");
+    write_executable(
+        &script,
+        &format!(
+            r#"#!/bin/sh
+{llm} finish-commit finish-k2 > {log}/first-out 2>&1
+printf '%s\n' "$?" > {log}/first-status
+{llm} finish-commit finish-k2 > {log}/second-out 2>&1
+printf '%s\n' "$?" > {log}/second-status
+{llm} complete --done
+"#,
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            log = session_log.display(),
+        ),
+    );
+    let home = fixture.join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+
+    let driver = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    let read = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
+    LostResultRun {
+        first_status: read("first-status").trim().to_owned(),
+        first_output: read("first-out"),
+        second_status: read("second-status").trim().to_owned(),
+        second_output: read("second-out"),
+        driver,
+    }
+}
+
+fn assert_lost_result_retry_was_idempotent(run: &LostResultRun) {
+    assert_eq!(
+        run.first_status, "0",
+        "the first finish-commit failed: {}",
+        run.first_output
+    );
+    assert_eq!(
+        run.second_status, "0",
+        "the retry did not verify its own lost result: {}",
+        run.second_output
+    );
+    assert!(
+        run.driver.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.driver.stderr)
+    );
+}
+
+#[test]
+fn lost_plain_git_finish_result_makes_the_same_launch_retry_idempotent() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("lost-plain-git");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+
+    let run = run_lost_finish_result_session(fixture.path(), &repository);
+
+    assert_lost_result_retry_was_idempotent(&run);
+    assert!(!repository.join(".grove").exists());
+    assert_eq!(
+        git(&repository, &["rev-list", "--count", "HEAD"]),
+        "2",
+        "the retry made a second teardown commit instead of verifying the first"
+    );
+    assert!(
+        git(&repository, &["log", "-1", "--pretty=%s"]).starts_with("finish-k2 (finish attempt")
+    );
+}
+
+fn assert_lost_jj_finish_result_retry_is_idempotent(colocated: bool) {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join(if colocated {
+        "lost-colocated-jj"
+    } else {
+        "lost-native-jj"
+    });
+    init_jj(&repository, colocated);
+    seed_jj_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+
+    let run = run_lost_finish_result_session(fixture.path(), &repository);
+
+    assert_lost_result_retry_was_idempotent(&run);
+    assert!(!repository.join(".grove").exists());
+    let teardown = git_like_jj_output(
+        &repository,
+        &["log", "-r", "@-", "--no-graph", "-T", "description"],
+    );
+    assert!(
+        teardown.starts_with("finish-k2 (finish attempt"),
+        "{teardown}"
+    );
+    let grandparent = git_like_jj_output(
+        &repository,
+        &["log", "-r", "@--", "--no-graph", "-T", "description"],
+    );
+    assert!(
+        !grandparent.contains("finish-k2"),
+        "the retry made a second teardown commit: {grandparent}"
+    );
+}
+
+#[test]
+fn lost_native_jj_finish_result_makes_the_same_launch_retry_idempotent() {
+    assert_lost_jj_finish_result_retry_is_idempotent(false);
+}
+
+#[test]
+fn lost_colocated_jj_finish_result_makes_the_same_launch_retry_idempotent() {
+    assert_lost_jj_finish_result_retry_is_idempotent(true);
+}
+
+fn drive_finish_session(
+    fixture: &Path,
+    repository: &Path,
+    home: &Path,
+    script_body: &str,
+) -> Output {
+    let script = fixture.join("finish-session.sh");
+    write_executable(&script, script_body);
+    write_complete_config(home, &format!("sh {} '${{prompt}}'", script.display()));
+    Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(repository)
+        .env("HOME", home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap()
+}
+
+/// A completed grove's teardown commit belongs to the launch that made it.
+///
+/// Stable handles are identities only within one task tree, so a later grove in
+/// the same working tree may reuse `finish-k2` — but its epoch draws a fresh
+/// attempt identity, and the older commit was made under a different one. An
+/// external root removal puts the new session in exactly the rootless shape the
+/// retry proof answers, and it must still refuse.
+#[test]
+fn rootless_finish_retry_refuses_a_teardown_result_from_another_finish_attempt() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("reused-handle");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let llm = env!("CARGO_BIN_EXE_grove-llm");
+
+    let first = drive_finish_session(
+        fixture.path(),
+        &repository,
+        &home,
+        &format!("#!/bin/sh\n{llm} finish-commit finish-k2 || exit $?\n{llm} complete --done\n"),
+    );
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let teardown = git(&repository, &["rev-parse", "HEAD"]);
+
+    let session_log = fixture.path().join("session");
+    fs::create_dir(&session_log).unwrap();
+    let second = drive_finish_session(
+        fixture.path(),
+        &repository,
+        &home,
+        &format!(
+            r#"#!/bin/sh
+rm -rf {repo}/.grove
+{llm} finish-commit finish-k2 > {log}/out 2>&1
+printf '%s\n' "$?" > {log}/status
+{llm} complete --done
+"#,
+            repo = repository.display(),
+            log = session_log.display(),
+        ),
+    );
+    assert!(
+        second.status.success(),
+        "{}",
+        String::from_utf8_lossy(&second.stderr)
+    );
+
+    let out = fs::read_to_string(session_log.join("out")).unwrap();
+    assert_ne!(
+        fs::read_to_string(session_log.join("status"))
+            .unwrap()
+            .trim(),
+        "0",
+        "an older grove's teardown satisfied a new epoch's confirmed session: {out}"
+    );
+    assert!(out.contains("finish attempt"), "{out}");
+    assert_eq!(
+        git(&repository, &["rev-parse", "HEAD"]),
+        teardown,
+        "the refused retry changed repository history"
+    );
+}
+
+/// The proof is over the *immediate* result. Anything committed after teardown
+/// moves it out of that position, and the retry then has nothing to verify —
+/// rather than reaching back through history for a commit that once matched.
+#[test]
+fn rootless_finish_retry_refuses_a_teardown_result_that_is_no_longer_immediate() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("not-immediate");
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let session_log = fixture.path().join("session");
+    fs::create_dir(&session_log).unwrap();
+
+    let driver = drive_finish_session(
+        fixture.path(),
+        &repository,
+        &home,
+        &format!(
+            r#"#!/bin/sh
+{llm} finish-commit finish-k2 > {log}/first-out 2>&1
+printf '%s\n' "$?" > {log}/first-status
+git -C {repo} commit -q --allow-empty -m 'later work'
+{llm} finish-commit finish-k2 > {log}/second-out 2>&1
+printf '%s\n' "$?" > {log}/second-status
+{llm} complete --done
+"#,
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            repo = repository.display(),
+            log = session_log.display(),
+        ),
+    );
+    assert!(
+        driver.status.success(),
+        "{}",
+        String::from_utf8_lossy(&driver.stderr)
+    );
+
+    let read = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
+    assert_eq!(read("first-status").trim(), "0", "{}", read("first-out"));
+    let second = read("second-out");
+    assert_ne!(
+        read("second-status").trim(),
+        "0",
+        "a superseded teardown result licensed the retry: {second}"
+    );
+    assert!(second.contains("later work"), "{second}");
+    assert_eq!(
+        git(&repository, &["log", "-1", "--pretty=%s"]),
+        "later work",
+        "the refused retry changed repository history"
+    );
+}
+
+/// Amend the teardown commit inside the launch that made it, so the forged
+/// result keeps the exact message — handle *and* this launch's attempt identity
+/// — and differs only in the shape the proof also requires. The message alone is
+/// not the proof.
+fn run_amended_teardown_retry(
+    fixture: &Path,
+    repository: &Path,
+    amendment: &str,
+) -> (String, String) {
+    init_git(repository);
+    seed_committed_terminal_grove(repository);
+    fs::remove_file(repository.join(".grove/02-finish-finish-k2.md")).unwrap();
+    let home = fixture.join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let session_log = fixture.join("session");
+    fs::create_dir(&session_log).unwrap();
+
+    let driver = drive_finish_session(
+        fixture,
+        repository,
+        &home,
+        &format!(
+            r#"#!/bin/sh
+{llm} finish-commit finish-k2 > {log}/first-out 2>&1
+printf '%s\n' "$?" > {log}/first-status
+cd {repo} || exit 1
+{amendment}
+git commit -q --amend --no-edit
+{llm} finish-commit finish-k2 > {log}/second-out 2>&1
+printf '%s\n' "$?" > {log}/second-status
+{llm} complete --done
+"#,
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            repo = repository.display(),
+            log = session_log.display(),
+        ),
+    );
+    assert!(
+        driver.status.success(),
+        "{}",
+        String::from_utf8_lossy(&driver.stderr)
+    );
+    let read = |name: &str| fs::read_to_string(session_log.join(name)).unwrap();
+    assert_eq!(read("first-status").trim(), "0", "{}", read("first-out"));
+    assert!(
+        git(repository, &["log", "-1", "--pretty=%s"]).starts_with("finish-k2 (finish attempt"),
+        "the amendment did not preserve the exact teardown message"
+    );
+    (read("second-status").trim().to_owned(), read("second-out"))
+}
+
+#[test]
+fn rootless_finish_retry_refuses_a_matching_message_that_changes_paths_outside_the_grove() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("outside-the-grove");
+
+    let (status, output) = run_amended_teardown_retry(
+        fixture.path(),
+        &repository,
+        "printf 'outside\\n' > outside.txt\ngit add outside.txt",
+    );
+
+    assert_ne!(
+        status, "0",
+        "a teardown result that also changed unrelated paths licensed the retry: {output}"
+    );
+    assert!(
+        output.contains("outside the exact `.grove/` deletion"),
+        "{output}"
+    );
+}
+
+#[test]
+fn rootless_finish_retry_refuses_a_matching_message_that_still_tracks_the_grove() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("still-tracked");
+
+    // Resurrect one task-tree path, so every *changed* path is still a `.grove/`
+    // deletion and only the surviving tracked entry separates this from success.
+    let (status, output) = run_amended_teardown_retry(
+        fixture.path(),
+        &repository,
+        "mkdir -p .grove\nprintf 'session-kinds-v1\\n' > .grove/FORMAT\n\
+         git add .grove/FORMAT\ngit commit -q --amend --no-edit\nrm -rf .grove",
+    );
+
+    assert_ne!(
+        status, "0",
+        "a teardown result that still tracks `.grove/` licensed the retry: {output}"
+    );
+    assert!(output.contains("still tracks `.grove/`"), "{output}");
 }
 
 fn assert_jj_finish_commit_preserves_other_work(colocated: bool) {

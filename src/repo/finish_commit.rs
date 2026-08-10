@@ -266,6 +266,13 @@ impl PreparedFinish {
             Self::Jj(prepared) => prepared.commit(finish_handle, attempt_identity),
         }
     }
+
+    pub(crate) fn abort(self) -> Result<()> {
+        match self {
+            Self::Git(prepared) => prepared.abort(),
+            Self::Jj(prepared) => prepared.abort(),
+        }
+    }
 }
 
 impl PreparedGitFinish {
@@ -300,6 +307,10 @@ impl PreparedGitFinish {
             )
         })();
         self.classify_command_result(&message, result)
+    }
+
+    fn abort(self) -> Result<()> {
+        self.index_backup.try_discard()
     }
 
     fn classify_command_result(
@@ -853,6 +864,21 @@ pub(crate) fn prepare_jj_finish(
 }
 
 impl PreparedJjFinish {
+    fn abort(mut self) -> Result<()> {
+        if let Some(backup) = self.index_backup.as_ref() {
+            backup.restore_preserving_backup()?;
+        }
+        if let Some(success_index) = self.success_index.take() {
+            success_index
+                .dispose()
+                .context("discarding the prepared colocated Git success index")?;
+        }
+        if let Some(backup) = self.index_backup.take() {
+            backup.try_discard()?;
+        }
+        Ok(())
+    }
+
     fn commit(self, finish_handle: &str, attempt_identity: &str) -> FinishCommitOutcome {
         let message = finish_commit_message(finish_handle, attempt_identity);
         let fileset = format!("root:.grove ~ root:.grove/FINISHING-{finish_handle}");
@@ -1035,23 +1061,34 @@ impl GitIndexBackup {
         Ok(())
     }
 
-    fn discard(self) {
+    fn try_discard(self) -> Result<()> {
         if let Some(cleanup) = self.cleanup {
-            if let Err(error) = cleanup.dispose() {
-                eprintln!(
-                    "warning: finish auxiliary cleanup remains at {}: {error:#}",
+            return cleanup.dispose().with_context(|| {
+                format!(
+                    "discarding the marked Git index backup {}",
                     cleanup.artifact_path().display()
-                );
-            }
-            return;
+                )
+            });
         }
-        if let Err(error) = fs::remove_file(&self.backup_index) {
-            if error.kind() != std::io::ErrorKind::NotFound {
-                eprintln!(
-                    "warning: remove the temporary Git index {} after the finish commit: {error}",
+        match fs::remove_file(&self.backup_index) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error).with_context(|| {
+                format!(
+                    "removing the temporary Git index {} after the finish commit",
                     self.backup_index.display()
-                );
-            }
+                )
+            }),
+        }
+    }
+
+    fn discard(self) {
+        let backup_index = self.backup_index.clone();
+        if let Err(error) = self.try_discard() {
+            eprintln!(
+                "warning: finish auxiliary cleanup remains at {}: {error:#}",
+                backup_index.display()
+            );
         }
     }
 }
@@ -1608,7 +1645,7 @@ mod tests {
     use super::{
         finish_commit_message, git_bytes, jj_topology, prepare_jj_finish, prepare_plain_git_finish,
         recover_finish, run_vcs_command, FinishCommitOutcome, FinishRecoveryOutcome,
-        FinishStartAnchor,
+        FinishStartAnchor, GitStartProof,
     };
     use anyhow::anyhow;
     use std::fs;
@@ -2103,11 +2140,62 @@ mod tests {
         fs::rename(&backup, &original).unwrap();
         fs::write(&backup, "replacement\n").unwrap();
 
-        prepared.index_backup.discard();
+        GitStartProof {
+            worktree: prepared.worktree,
+            start_head: prepared.start_head,
+            index_backup: Some(prepared.index_backup),
+        }
+        .revalidate_after_rollback()
+        .unwrap();
 
         assert_eq!(fs::read_to_string(&backup).unwrap(), "replacement\n");
         assert!(marker.is_file());
         assert!(original.is_file());
+    }
+
+    #[test]
+    fn aborting_a_colocated_jj_preparation_restores_the_index_and_discards_both_auxiliaries() {
+        let fixture = colocated_jj_finish_fixture();
+        let repository = fixture.path();
+        let index = repository.join(".git/index");
+        let index_before = fs::read(&index).unwrap();
+
+        let prepared = prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT).unwrap();
+        let backup = prepared.index_backup.as_ref().unwrap().backup_index.clone();
+        let success = prepared
+            .success_index
+            .as_ref()
+            .unwrap()
+            .artifact_path()
+            .to_path_buf();
+        let backup_marker = backup.with_file_name(format!(
+            "GROVE-FINISH-AUXILIARY-git-index-backup-{FIRST_ATTEMPT}.json"
+        ));
+        let success_marker = success.with_file_name(format!(
+            "GROVE-FINISH-AUXILIARY-git-index-success-{FIRST_ATTEMPT}.json"
+        ));
+        for path in [&backup, &backup_marker, &success, &success_marker] {
+            assert!(
+                path.is_file(),
+                "missing prepared auxiliary {}",
+                path.display()
+            );
+        }
+
+        prepared.abort().unwrap();
+
+        assert_eq!(fs::read(&index).unwrap(), index_before);
+        for path in [&backup, &backup_marker, &success, &success_marker] {
+            assert!(
+                !path.exists(),
+                "aborted preparation left auxiliary {}",
+                path.display()
+            );
+        }
+        prepare_jj_finish(repository, FINISH_HANDLE, FIRST_ATTEMPT)
+            .unwrap()
+            .abort()
+            .unwrap();
     }
 
     #[test]

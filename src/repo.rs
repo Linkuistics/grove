@@ -18,7 +18,7 @@ mod migration_commit;
 pub use finish_commit::{commit_finish, validate_finish_commit};
 pub(crate) use finish_commit::{
     git_index_path, prepare_finish, recover_finish, FinishCommitOutcome, FinishProof,
-    FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof,
+    FinishRecoveryOutcome, FinishStartAnchor, FinishStartProof, PreparedFinish,
 };
 pub use migration_commit::commit_session_kind_migration;
 

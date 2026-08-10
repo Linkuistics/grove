@@ -97,11 +97,16 @@ one budget across the **whole picked leaf**:
 After promotion, finish only to a coherent reviewable boundary, commit the
 artifact and promotion under the unchanged producer handle, retire the
 relocated producer, and hand back with `grove-llm complete`. Do not spawn another
-doubt reviewer. Grove now owns the review target and warns rather than blocks
-when the scheduled reviewer does not differ from the producer on both harness
-and exact model selector. The receipt may name a decomposed producer's distinct
-factual source session and generation; consume Grove's scoped warning rather
-than reconstructing that history or starting another review cycle.
+doubt reviewer. Retirement is the filename `DONE` transition alone: it records
+nothing about the session that just ran and leaves the review task untouched,
+because the review reads the committed artifact.
+
+Grove owns the escalated route from there. It launches the scheduled `review-*`
+from that kind's own configuration entry, and whether that reaches a different
+harness or model from the producer's is the configuration owner's policy — Grove
+compares no targets and raises no notice, so there is none to wait for or
+consume. Do not reconstruct that history, and do not start another review cycle
+to compensate for its absence.
 
 ## The process — CLAIM → EXTRACT → DOUBT → RECONCILE → STOP
 

@@ -157,7 +157,7 @@ session has run Bootstrap and adopted the driver's selected-leaf mandate:
 | `integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node |
 | `research-a` / `research-b` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
 
-Outside that Bootstrap-and-pick predicate, doubt-driven development keeps its
+Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
 standalone bounded cycles. The allowance is leaf-wide, not per artifact or
 decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
 
@@ -266,16 +266,19 @@ relation the pair does not have.
 **The kind is the only part of a name grove parses.** Everything else about a
 filename — the stem, the step suffix, the position, the ordering — remains
 **convention, not grammar**: grove does not read a
-suffix, require a `review-X` after every `X`, or reject a partial chain. It does
-parse the explicit `Reviews` / `Integrates` relationships and the review's
-best-effort `Producer launch` receipt for promotion, retirement, and the
-advisory target-diversity warning; it never reconstructs those facts from a
-filename or position. A new receipt names the reviewed producer, the factual
-source session that closed it, and the producer generation (greatest permanent
-key in its subtree). A direct leaf supplies all three facts itself; a reviewed
-decomposition node can name a different closing session. Pruning supplies no
-handoff receipt. `leaf-add` still means one leaf, and skipping a chain is a
-normal choice.
+suffix, require a `review-X` after every `X`, or reject a partial chain. The two
+explicit `Reviews` / `Integrates` declarations are the one exception, and even
+they are read as a **lookup, never a parse**: grove arrives holding a handle and
+asks *which sibling declares it*, matching the rest of the line exactly, so a
+half-edited `**Reviews:** sync-design-k12 (stale)` declares nothing. It never
+asks the opposite question — *what does this task declare?* — and never
+reconstructs a relationship from a filename or a position.
+
+**Nothing else in a body is metadata**, and no verb writes one there. Retirement
+and pruning change a filename and stop; a node close writes nothing at all. So a
+`review-*` session has exactly one thing to read — its producer's committed
+artifact — and never a note the producer left behind about how its own session
+ran. `leaf-add` still means one leaf, and skipping a chain is a normal choice.
 
 ## Suggested shape
 
@@ -306,7 +309,8 @@ is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
 **The body carries no launch metadata at all** — no kind, no harness, no model,
-no receipt. A generated leaf is the header plus those four empty sections, and the
+and no record of how any past session ran. A generated leaf is the header plus
+those four empty sections, and the
 only `**…:**` lines any leaf ever carries are the two composition relationships a
 chain writes for you (`**Reviews:**`, `**Integrates:**`), which describe how
 artifacts compose rather than how a session is launched. Everything about the

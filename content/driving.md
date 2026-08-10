@@ -471,7 +471,7 @@ producer is a perfectly valid invocation, and what it buys is a reviewer reading
 for correctness, security and tests where it should be asking whether the ADRs
 are a minimum coherent set — a discipline mismatch nothing downstream detects.
 
-Six habits make the chain worth its three sessions:
+These habits make the chain worth its three sessions:
 
 - **Cut planned chains together.** `leaf-add-chain` derives the two later kinds,
   keeps all three steps contiguous inside one brief-less node, and writes stable
@@ -486,7 +486,10 @@ Six habits make the chain worth its three sessions:
   handle, derives both steps and relationships, and prints node, relocated
   producer, review, and integration paths. A `PROMOTING-*` witness makes an
   interruption fail closed; retry the stable handle, stale path, or exact
-  witness path rather than cutting leaves by hand.
+  witness path rather than cutting leaves by hand. Retiring the relocated
+  producer afterwards is the filename `DONE` transition alone — it writes nothing
+  into the review, which reads your committed artifact rather than anything about
+  the session that produced it.
 - **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
   `<stem>-integrate`, under a `<stem>-chain/` node. The chain verb does this for
   you, and it is what makes `find .grove` — and any file manager — show the chain
@@ -515,16 +518,17 @@ Six habits make the chain worth its three sessions:
   and each step of a chain is a different kind, so per-kind configuration
   expresses the whole shape on its own. No verb takes a harness flag and no leaf
   declares one; if the review should run somewhere else, edit that kind's
-  template — the change lands on the next session.
-- **Treat diversity as a warning, not a gate.** Producer retirement applies
-  `DONE` first, then writes the live linked review's `Producer launch` receipt
-  best-effort. A direct producer names itself as source session; a reviewed
-  decomposition node names the factual closing leaf and an independently
-  computed producer generation, so reorder stays current and reopen becomes
-  stale. Review launch consumes evidence retained by the guarded routing peek,
-  warns unless both harness and exact model selector differ (or comparison is
-  uncheckable), scopes the notice to the factual pick, and still launches. Grove
-  owns that route; do not add a competing doubt reviewer.
+  template — the change lands on the next session. Once review is escalated to
+  the tree, grove owns that route: do not add a competing doubt reviewer beside
+  it.
+- **Diversity is yours to arrange, and grove will not check it.** Whether the
+  `review-*` template reaches a different harness or model from the producer's
+  is a property of two entries in your config file. Grove cannot recover a target
+  from an opaque command string, so it compares nothing, records nothing about
+  how the producer ran, and raises no notice either way — the same limit that
+  applies to the vendor pair. If the axis matters, read the two entries before
+  cutting the chain; a chain whose steps quietly share a target buys a fresh
+  context and little else.
 
 grove does not require a review after every producer or parse step suffixes and
 positions as grammar; skipping a chain remains normal. It does parse the stable
@@ -653,9 +657,9 @@ live. The doubt always resolves to one of three existing mechanisms:
   filename (ADR *pruning*).
 
 Scope the prune to the decision. Pruning only a reviewed producer deliberately
-writes no handoff receipt and leaves its sibling review next, uncheckable. When
-the producer, review, and integration path are all rejected, prune the enclosing
-review-chain node instead so every live step closes together.
+leaves its sibling review next and uncheckable — nothing was produced for it to
+read. When the producer, review, and integration path are all rejected, prune the
+enclosing review-chain node instead so every live step closes together.
 
 Misfiling any of the three corrupts the tree in a different way: reordering a
 decided-against leaf keeps a dead end reading as "still coming"; pruning a

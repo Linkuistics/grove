@@ -150,6 +150,97 @@ fn llm_help_exposes_the_promotion_recovery_contract() {
     );
 }
 
+/// Receipts and the diversity warning were a real contract once: retirement
+/// rewrote its producer's linked review with a `**Producer launch:**` line, and
+/// review launch compared that record against the scheduled target. Both are
+/// gone from `src/` — `**Producer launch:**` survives only in `tree_migrate`, as
+/// a line to *delete* from a legacy body. Prose is therefore the only place the
+/// contract can still exist, and prose that describes it sends a session looking
+/// for a marker no verb emits and waiting on a warning no launch raises.
+///
+/// **The negatives are terms, not sentences.** A sentence-shaped `assert_absent`
+/// passes the moment someone rewords it while keeping the idea, which is the
+/// failure mode that matters here — the ideas are what rot, not the phrasing.
+/// These five have no current referent left to be reworded into, so banning the
+/// token bans the concept. The bare word `receipt` is deliberately *not* on the
+/// list: the finish cycle uses it in an unrelated sense (a durable completion
+/// marker) and `content/SKILL.md` says so legitimately.
+///
+/// Each surface also carries the positive rule that replaced its negative, so
+/// deleting a paragraph wholesale fails rather than passing vacuously.
+#[test]
+fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
+    ] {
+        for rejected in [
+            "Producer launch",
+            "producer generation",
+            "handoff receipt",
+            "diversity warning",
+            "routing peek",
+        ] {
+            assert_absent(surface, text, rejected);
+        }
+    }
+
+    for (surface, text, replacement) in [
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "grove records no producer target, compares none, and warns about none",
+        ),
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "Retiring it is the filename `DONE` transition and nothing else",
+        ),
+        (
+            "content/driving.md",
+            DRIVING,
+            "it compares nothing, records nothing about how the producer ran, and raises no notice either way",
+        ),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "never a note the producer left behind about how its own session ran",
+        ),
+        (
+            "doubt-driven-development/SKILL.md",
+            DOUBT_SKILL,
+            "Grove compares no targets and raises no notice, so there is none to wait for or consume",
+        ),
+    ] {
+        assert_contains(surface, text, replacement);
+    }
+}
+
+/// Done-when: Grove and doubt state the *same* ownership predicate. Both halves
+/// matter and they fail differently — a surface that dropped `mandate` would
+/// describe an allowance with no trigger, and one that dropped `Bootstrap` would
+/// let a session claim ownership from checkout state, which is exactly what ADR
+/// *grove-owns-escalated-review* rejects.
+///
+/// `Bootstrap-and-pick` is banned because it names the *superseded* predicate:
+/// the session no longer picks, so a surface still spelling it that way tells a
+/// session to prove ownership by re-walking the tree.
+#[test]
+fn grove_and_doubt_state_one_mandate_based_ownership_predicate() {
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
+    ] {
+        assert_contains(surface, text, "mandate");
+        assert_contains(surface, text, "Bootstrap");
+        assert_absent(surface, text, "Bootstrap-and-pick");
+    }
+}
+
 #[test]
 fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
     for (surface, text, expected) in [

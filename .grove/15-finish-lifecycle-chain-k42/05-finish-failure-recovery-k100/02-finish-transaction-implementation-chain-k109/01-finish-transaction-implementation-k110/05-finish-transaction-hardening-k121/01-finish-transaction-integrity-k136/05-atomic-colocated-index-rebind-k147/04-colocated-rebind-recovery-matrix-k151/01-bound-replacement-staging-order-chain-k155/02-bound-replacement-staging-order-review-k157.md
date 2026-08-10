@@ -21,9 +21,15 @@ findings for its integration step.
   directly: enumerate every interruption point in the new sequence and ask what
   is on disk with no live document describing it, and what a later recovery,
   disposal, activation, or same-attempt retry then does with it.
-- Also attack the new staging namespace as an authority: a forged or substituted
-  state document names both the staging entry and the deterministic replacement
-  name, so ask what the strongest reachable redirection is now.
+- Also attack the new staging namespace as an authority. The exact-name pin the
+  previous review won for `staged_artifact_name` became a **shape** pin, so ask
+  what the strongest reachable redirection is now, and whether the producer's
+  argument for that weakening — that a forged document can only name entries its
+  author created — actually holds on every path that reads it.
+- Two adjacent questions the producer saw and deliberately left alone, both fair
+  game: `staged_name`, the staged *marker*, still has no namespace pin at all and
+  is gated only by parsing as a Grove marker; and `dispose` on a struct built
+  before a mid-settle failure may act on a stale marker snapshot.
 
 ## Done when
 

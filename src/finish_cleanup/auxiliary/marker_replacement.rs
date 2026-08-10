@@ -6,9 +6,9 @@ use super::super::{
     attach_cleanup_failure, create_temporary_marker, remove_temporary_marker, FileIdentity,
 };
 use super::{
-    artifact_file_name, ensure_regular_file, marker_file_name, read_marker,
-    replacement_artifact_file_name, validate_component, validate_marker, validate_marker_binding,
-    AuxiliaryMarker, AuxiliaryRole, MarkerDocument,
+    artifact_file_name, ensure_regular_file, is_staging_replacement_name, marker_file_name,
+    read_marker, validate_component, validate_marker, validate_marker_binding, AuxiliaryMarker,
+    AuxiliaryRole, MarkerDocument,
 };
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -815,8 +815,11 @@ fn validate_state(
         != Some(replacement_state_file_name(role, attempt_identity).as_os_str())
         || state.canonical_name != canonical_name.as_bytes()
         || state.artifact_name != artifact_file_name(role, attempt_identity).as_bytes()
-        || state.staged_artifact_name
-            != replacement_artifact_file_name(role, attempt_identity).as_bytes()
+        || !is_staging_replacement_name(
+            role,
+            attempt_identity,
+            OsStr::from_bytes(&state.staged_artifact_name),
+        )
     {
         bail!(
             "finish auxiliary marker replacement path does not match its role and attempt at {}",

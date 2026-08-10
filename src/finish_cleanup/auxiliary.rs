@@ -23,6 +23,15 @@ use std::path::{Path, PathBuf};
 
 const AUXILIARY_PREFIX: &[u8] = b"GROVE-FINISH-AUXILIARY-";
 const MARKER_SUFFIX: &[u8] = b".json";
+const STAGING_INFIX: &[u8] = b".staging-";
+const STAGING_NONCE_LENGTH: usize = 32;
+
+/// Where `replace_artifact_from` is in publishing a new artifact identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ReplacementPublicationStep {
+    BeforeStatePublication,
+    AfterStatePublication,
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -91,7 +100,6 @@ pub(crate) fn prepare_auxiliary(
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
     let replacement_state_name = replacement_state_file_name(role, attempt_identity);
-    let replacement_artifact_name = replacement_artifact_file_name(role, attempt_identity);
     let parent = open_directory(parent_path).with_context(|| {
         format!(
             "opening finish auxiliary directory {} without following symlinks",
@@ -101,11 +109,9 @@ pub(crate) fn prepare_auxiliary(
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
     validate_file_name(&parent, &replacement_state_name)?;
-    validate_file_name(&parent, &replacement_artifact_name)?;
     if entry_exists(&parent, &artifact_name)?
         || entry_exists(&parent, &marker_name)?
         || entry_exists(&parent, &replacement_state_name)?
-        || entry_exists(&parent, &replacement_artifact_name)?
     {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
@@ -199,15 +205,12 @@ pub(crate) fn ensure_auxiliary_available(
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
     let replacement_state_name = replacement_state_file_name(role, attempt_identity);
-    let replacement_artifact_name = replacement_artifact_file_name(role, attempt_identity);
     validate_file_name(&parent, &artifact_name)?;
     validate_file_name(&parent, &marker_name)?;
     validate_file_name(&parent, &replacement_state_name)?;
-    validate_file_name(&parent, &replacement_artifact_name)?;
     if entry_exists(&parent, &artifact_name)?
         || entry_exists(&parent, &marker_name)?
         || entry_exists(&parent, &replacement_state_name)?
-        || entry_exists(&parent, &replacement_artifact_name)?
     {
         bail!(
             "finish auxiliary cleanup collision for role {} and attempt {} in {}",
@@ -238,7 +241,6 @@ pub(crate) fn recover_auxiliary(
     let artifact_name = artifact_file_name(role, attempt_identity);
     let marker_name = marker_file_name(role, attempt_identity);
     let replacement_state_name = replacement_state_file_name(role, attempt_identity);
-    let replacement_artifact_name = replacement_artifact_file_name(role, attempt_identity);
     let target_name = target_path
         .file_name()
         .context("finish auxiliary target has no file name")?;
@@ -264,13 +266,6 @@ pub(crate) fn recover_auxiliary(
         bail!(
             "Recovery pending: unmarked finish auxiliary artifact {:?} is present in {}",
             artifact_name,
-            parent_path.display()
-        );
-    }
-    if entry_exists(&parent, &replacement_artifact_name)? {
-        bail!(
-            "Recovery pending: unmarked finish auxiliary replacement {:?} is present in {}",
-            replacement_artifact_name,
             parent_path.display()
         );
     }
@@ -337,28 +332,29 @@ impl AuxiliaryCleanup {
 
     /// Record which inode the artifact name is about to adopt.
     ///
-    /// The replacement must sit at the deterministic replacement name: the
-    /// state document this publishes is the only authority a later recovery has
-    /// for the two names it exchanges, so accepting an arbitrary regular file
-    /// here would let that document redirect the exchange at an unrelated
-    /// entry in the same directory.
-    fn bind_artifact_replacement(&mut self, replacement_path: &Path) -> Result<()> {
+    /// The replacement must sit at a freshly drawn staging name inside this
+    /// auxiliary's own role-and-attempt namespace. The state document this
+    /// publishes is the only authority a later recovery has for the two names it
+    /// exchanges, so accepting an arbitrary regular file here would let that
+    /// document redirect the exchange at an unrelated entry in the same
+    /// directory.
+    fn bind_artifact_replacement(
+        &mut self,
+        staging_name: &OsStr,
+        staging_identity: FileIdentity,
+    ) -> Result<()> {
         let parent_path = self
             .marker_path
             .parent()
             .context("finish auxiliary marker has no parent")?;
-        if replacement_path.parent() != Some(parent_path) {
-            bail!("finish auxiliary replacement must share the artifact directory");
-        }
-        let expected_name =
-            replacement_artifact_file_name(self.marker.role, &self.marker.attempt_identity);
-        if replacement_path.file_name() != Some(expected_name.as_os_str()) {
+        if !is_staging_replacement_name(
+            self.marker.role,
+            &self.marker.attempt_identity,
+            staging_name,
+        ) {
             bail!(
-                "finish auxiliary replacement must be published at the deterministic replacement name {:?}, not {:?}",
-                expected_name,
-                replacement_path
-                    .file_name()
-                    .unwrap_or(replacement_path.as_os_str())
+                "finish auxiliary replacement must be published from this attempt's staging namespace, not {:?}",
+                staging_name
             );
         }
         let parent = open_directory(parent_path).with_context(|| {
@@ -372,23 +368,31 @@ impl AuxiliaryCleanup {
         self.open_validated_artifact(&parent, &artifact_name)?
             .context("marked finish auxiliary artifact is absent while binding its replacement")?;
 
-        let replacement_name = replacement_path
-            .file_name()
-            .context("finish auxiliary replacement has no file name")?;
-        let replacement = open_file_at(&parent, replacement_name).with_context(|| {
+        let staging_path = parent_path.join(staging_name);
+        let staging = open_file_at(&parent, staging_name).with_context(|| {
             format!(
-                "opening intended finish auxiliary replacement {} without following symlinks",
-                replacement_path.display()
+                "opening staged finish auxiliary replacement {} without following symlinks",
+                staging_path.display()
             )
         })?;
-        ensure_regular_file(&replacement, replacement_path)?;
-        let replacement_identity = FileIdentity::from_file(&replacement)?;
-        validate_entry_identity(&parent, replacement_name, replacement_identity)
+        ensure_regular_file(&staging, &staging_path)?;
+        let observed = FileIdentity::from_file(&staging)?;
+        if observed != staging_identity {
+            bail!(
+                "staged finish auxiliary replacement identity changed at {}: expected device/inode {}/{}, observed {}/{}; no entry was moved",
+                staging_path.display(),
+                staging_identity.device,
+                staging_identity.inode,
+                observed.device,
+                observed.inode
+            );
+        }
+        validate_entry_identity(&parent, staging_name, staging_identity)
             .context("finish auxiliary replacement changed while binding its identity")?;
 
         let mut replacement_marker = self.marker.clone();
-        replacement_marker.device = replacement_identity.device;
-        replacement_marker.inode = replacement_identity.inode;
+        replacement_marker.device = staging_identity.device;
+        replacement_marker.inode = staging_identity.inode;
         publish_marker_replacement(
             &parent,
             &self.marker_path,
@@ -396,11 +400,26 @@ impl AuxiliaryCleanup {
             self.marker_identity,
             &self.marker_sha256,
             self.artifact_identity(),
-            replacement_name,
+            staging_name,
         )
     }
 
     pub(crate) fn replace_artifact_from(&mut self, source_path: &Path) -> Result<()> {
+        self.replace_artifact_from_with(source_path, |_| Ok(()))
+    }
+
+    /// Copy `source_path` in as this auxiliary's new artifact identity.
+    ///
+    /// The staging entry is created under a freshly drawn name and its identity
+    /// is recorded in the published state document before anything else can
+    /// name it. Nothing derivable from the role and attempt is ever claimed, so
+    /// an interruption leaves no entry that a later recovery would have to
+    /// adopt or remove without proof of what wrote it.
+    fn replace_artifact_from_with(
+        &mut self,
+        source_path: &Path,
+        mut checkpoint: impl FnMut(ReplacementPublicationStep) -> io::Result<()>,
+    ) -> Result<()> {
         let source_parent_path = source_path
             .parent()
             .context("filtered finish auxiliary source has no parent")?;
@@ -436,39 +455,43 @@ impl AuxiliaryCleanup {
         self.open_validated_artifact(&parent, &artifact_name)?
             .context("marked finish auxiliary artifact is absent before publication")?;
 
-        let replacement_name =
-            replacement_artifact_file_name(self.marker.role, &self.marker.attempt_identity);
-        validate_file_name(&parent, &replacement_name)?;
-        let replacement_path = parent_path.join(&replacement_name);
-        let mut replacement =
-            create_new_file_at(&parent, &replacement_name).with_context(|| {
-                format!(
-                    "creating bound finish auxiliary replacement {}",
-                    replacement_path.display()
-                )
-            })?;
-        if let Err(error) = io::copy(&mut source, &mut replacement) {
-            let identity = FileIdentity::from_file(&replacement)?;
-            let cleanup = remove_artifact(&parent, &replacement_name, identity);
+        let (mut staging, staging_name, staging_identity) = create_staging_replacement(
+            &parent,
+            parent_path,
+            self.marker.role,
+            &self.marker.attempt_identity,
+        )?;
+        if let Err(error) = io::copy(&mut source, &mut staging) {
+            let cleanup = remove_artifact(&parent, &staging_name, staging_identity);
             return Err(attach_cleanup_failure(
-                anyhow::Error::new(error).context("copying bound finish auxiliary replacement"),
+                anyhow::Error::new(error).context("copying staged finish auxiliary replacement"),
                 cleanup,
-                "removing incomplete bound finish auxiliary replacement",
+                "removing incomplete staged finish auxiliary replacement",
             ));
         }
-        let replacement_identity = FileIdentity::from_file(&replacement)?;
-        validate_entry_identity(&parent, &replacement_name, replacement_identity)
-            .context("bound finish auxiliary replacement changed after copying")?;
-        drop(replacement);
+        if let Err(error) = validate_entry_identity(&parent, &staging_name, staging_identity) {
+            let cleanup = remove_artifact(&parent, &staging_name, staging_identity);
+            return Err(attach_cleanup_failure(
+                error.context("staged finish auxiliary replacement changed after copying"),
+                cleanup,
+                "removing substituted staged finish auxiliary replacement",
+            ));
+        }
+        drop(staging);
 
-        if let Err(error) = self.bind_artifact_replacement(&replacement_path) {
-            let cleanup = remove_artifact(&parent, &replacement_name, replacement_identity);
+        let published = checkpoint(ReplacementPublicationStep::BeforeStatePublication)
+            .context("replacement-publication checkpoint before the state document")
+            .and_then(|()| self.bind_artifact_replacement(&staging_name, staging_identity));
+        if let Err(error) = published {
+            let cleanup = remove_artifact(&parent, &staging_name, staging_identity);
             return Err(attach_cleanup_failure(
                 error,
                 cleanup,
-                "removing unpublished bound finish auxiliary replacement",
+                "removing unpublished staged finish auxiliary replacement",
             ));
         }
+        checkpoint(ReplacementPublicationStep::AfterStatePublication)
+            .context("replacement-publication checkpoint after the state document")?;
         self.rebind_artifact_identity()
     }
 
@@ -612,7 +635,6 @@ impl AuxiliaryCleanup {
         }
         validate_entry_identity(&parent, &target_name, expected)
             .context("activated finish auxiliary target changed; marker left untouched")?;
-        self.reclaim_unbound_replacement(&parent, parent_path)?;
         self.remove_marker(&parent)
     }
 
@@ -638,7 +660,6 @@ impl AuxiliaryCleanup {
                         self.artifact_path.display()
                     );
                 }
-                self.reclaim_unbound_replacement(&parent, parent_path)?;
                 self.remove_marker(&parent)?;
                 return Ok(());
             }
@@ -670,7 +691,6 @@ impl AuxiliaryCleanup {
         validate_entry_identity(&parent, &artifact_name, expected).context(
             "finish auxiliary artifact changed before disposal; replacement left untouched",
         )?;
-        self.reclaim_unbound_replacement(&parent, parent_path)?;
         unlink_at(&parent, &artifact_name, 0).with_context(|| {
             format!(
                 "removing marked finish auxiliary artifact {}",
@@ -771,12 +791,6 @@ impl AuxiliaryCleanup {
             marker,
         };
         cleanup.open_validated_artifact(parent, &artifact_name)?;
-        cleanup.reclaim_unbound_replacement(
-            parent,
-            marker_path
-                .parent()
-                .context("finish auxiliary marker has no parent")?,
-        )?;
         Ok(cleanup)
     }
 
@@ -828,15 +842,6 @@ impl AuxiliaryCleanup {
             device: self.marker.device,
             inode: self.marker.inode,
         }
-    }
-
-    fn reclaim_unbound_replacement(&self, parent: &File, parent_path: &Path) -> Result<()> {
-        reclaim_unbound_replacement(
-            parent,
-            parent_path,
-            self.marker.role,
-            &self.marker.attempt_identity,
-        )
     }
 }
 
@@ -979,50 +984,6 @@ fn ensure_regular_file(file: &File, path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Remove a replacement copy that an interrupted publication left unowned.
-///
-/// `replace_artifact_from` creates the deterministic replacement name before
-/// `bind_artifact_replacement` publishes the state document that records its
-/// identity, so a process death inside that window leaves a full copy of the
-/// target that nothing describes: recovery sees an ordinary healthy auxiliary,
-/// no marker names it for the reaper, and the next same-attempt preparation
-/// refuses on its collision gate. Reclaiming it here is sound because both
-/// `prepare_auxiliary` and `ensure_auxiliary_available` prove the name absent
-/// before the attempt begins and the name carries the attempt identity — within
-/// one attempt only Grove can have created it. A published state document still
-/// owns those bytes, so settling the replacement remains the only thing allowed
-/// to move them, and anything other than a regular file at that name fails
-/// closed rather than being unlinked.
-fn reclaim_unbound_replacement(
-    parent: &File,
-    parent_path: &Path,
-    role: AuxiliaryRole,
-    attempt_identity: &str,
-) -> Result<()> {
-    if entry_exists(parent, &replacement_state_file_name(role, attempt_identity))? {
-        return Ok(());
-    }
-    let replacement_name = replacement_artifact_file_name(role, attempt_identity);
-    if !entry_exists(parent, &replacement_name)? {
-        return Ok(());
-    }
-    let replacement_path = parent_path.join(&replacement_name);
-    let replacement = open_file_at(parent, &replacement_name).with_context(|| {
-        format!(
-            "opening unbound finish auxiliary replacement {} without following symlinks",
-            replacement_path.display()
-        )
-    })?;
-    ensure_regular_file(&replacement, &replacement_path)?;
-    let identity = FileIdentity::from_file(&replacement)?;
-    remove_artifact(parent, &replacement_name, identity).with_context(|| {
-        format!(
-            "removing unbound finish auxiliary replacement {}",
-            replacement_path.display()
-        )
-    })
-}
-
 fn remove_artifact(parent: &File, name: &OsStr, identity: FileIdentity) -> Result<()> {
     validate_entry_identity(parent, name, identity)
         .context("finish auxiliary artifact identity changed; replacement left untouched")?;
@@ -1041,13 +1002,76 @@ fn artifact_file_name(role: AuxiliaryRole, attempt_identity: &str) -> OsString {
     )
 }
 
-fn replacement_artifact_file_name(role: AuxiliaryRole, attempt_identity: &str) -> OsString {
+fn staging_replacement_file_name(
+    role: AuxiliaryRole,
+    attempt_identity: &str,
+    nonce: &str,
+) -> OsString {
     OsString::from_vec(
         [
             artifact_file_name(role, attempt_identity).as_bytes(),
-            b".filtered",
+            STAGING_INFIX,
+            nonce.as_bytes(),
         ]
         .concat(),
+    )
+}
+
+/// A name only this role and attempt can have drawn.
+///
+/// The role-and-attempt prefix keeps a forged state document inside Grove's own
+/// namespace, and the nonce keeps the name undrawable in advance — together they
+/// are what lets the document be published before the entry is reachable by any
+/// name a reader could derive.
+pub(super) fn is_staging_replacement_name(
+    role: AuxiliaryRole,
+    attempt_identity: &str,
+    name: &OsStr,
+) -> bool {
+    let prefix = [
+        artifact_file_name(role, attempt_identity).as_bytes(),
+        STAGING_INFIX,
+    ]
+    .concat();
+    name.as_bytes()
+        .strip_prefix(prefix.as_slice())
+        .is_some_and(|nonce| {
+            nonce.len() == STAGING_NONCE_LENGTH && nonce.iter().all(u8::is_ascii_hexdigit)
+        })
+}
+
+fn create_staging_replacement(
+    parent: &File,
+    parent_path: &Path,
+    role: AuxiliaryRole,
+    attempt_identity: &str,
+) -> Result<(File, OsString, FileIdentity)> {
+    for _ in 0..crate::driver_lease::RANDOM_DRAW_RETRY_LIMIT {
+        let nonce = crate::driver_lease::fresh_nonce()
+            .context("drawing finish auxiliary replacement staging nonce")?;
+        let name = staging_replacement_file_name(role, attempt_identity, &nonce);
+        validate_file_name(parent, &name)
+            .context("staged finish auxiliary replacement name is not valid for its directory")?;
+        match create_new_file_at(parent, &name) {
+            Ok(file) => {
+                let identity = FileIdentity::from_file(&file)?;
+                return Ok((file, name, identity));
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!(
+                        "creating staged finish auxiliary replacement in {}",
+                        parent_path.display()
+                    )
+                })
+            }
+        }
+    }
+    bail!(
+        "could not allocate a staged finish auxiliary replacement in {} after {} attempts",
+        parent_path.display(),
+        crate::driver_lease::RANDOM_DRAW_RETRY_LIMIT
     )
 }
 

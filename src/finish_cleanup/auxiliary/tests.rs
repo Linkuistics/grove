@@ -1,14 +1,14 @@
 use super::{
     auxiliary_marker_paths, prepare_auxiliary, recover_auxiliary, recover_auxiliary_marker,
-    AuxiliaryCleanup, AuxiliaryRole, MarkerReplacementStep,
+    AuxiliaryCleanup, AuxiliaryRole, MarkerReplacementStep, ReplacementPublicationStep,
 };
-use crate::finish_cleanup::reap_orphaned;
-use std::ffi::OsString;
+use crate::finish_cleanup::{reap_orphaned, FileIdentity};
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::io;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
 const HANDLE: &str = "finish-k2";
@@ -31,6 +31,61 @@ fn replacement_artifact_path(artifact: &std::path::Path) -> std::path::PathBuf {
     let mut name = artifact.file_name().unwrap().as_encoded_bytes().to_vec();
     name.extend_from_slice(b".filtered");
     artifact.with_file_name(OsString::from_vec(name))
+}
+
+/// A deterministic name derived from the artifact that no live document
+/// describes. Grove must never move or unlink whatever sits here.
+fn unclaimed_replacement_path(artifact: &std::path::Path) -> std::path::PathBuf {
+    replacement_artifact_path(artifact)
+}
+
+const STAGING_NONCE: &str = "abcdef0123456789abcdef0123456789";
+
+/// Publish a replacement copy the way `replace_artifact_from` does: under a
+/// name only this role and attempt could have drawn, carried by identity rather
+/// than derived by a reader.
+fn stage_replacement(
+    artifact: &Path,
+    nonce: &str,
+    contents: &str,
+) -> (OsString, FileIdentity, PathBuf) {
+    let name = OsString::from_vec(
+        [
+            artifact.file_name().unwrap().as_encoded_bytes(),
+            b".staging-",
+            nonce.as_bytes(),
+        ]
+        .concat(),
+    );
+    let path = artifact.with_file_name(&name);
+    fs::write(&path, contents).unwrap();
+    let metadata = fs::symlink_metadata(&path).unwrap();
+    (
+        name,
+        FileIdentity {
+            device: metadata.dev(),
+            inode: metadata.ino(),
+        },
+        path,
+    )
+}
+
+fn staging_entries(directory: &Path) -> Vec<OsString> {
+    let mut names = fs::read_dir(directory)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name())
+        .filter(|name| String::from_utf8_lossy(name.as_encoded_bytes()).contains(".staging-"))
+        .collect::<Vec<_>>();
+    names.sort();
+    names
+}
+
+fn entry_identity(path: &Path) -> FileIdentity {
+    let metadata = fs::symlink_metadata(path).unwrap();
+    FileIdentity {
+        device: metadata.dev(),
+        inode: metadata.ino(),
+    }
 }
 
 fn staged_marker_path(replacement_state: &std::path::Path) -> std::path::PathBuf {
@@ -64,10 +119,10 @@ fn prepared_rebinding() -> (TempDir, PathBuf, AuxiliaryCleanup, PathBuf, PathBuf
     let artifact = prepared.artifact_path().to_path_buf();
     let marker = marker_path(&artifact);
     let replacement_state = replacement_state_path(&marker);
-    let replacement_artifact = replacement_artifact_path(&artifact);
-    fs::write(&replacement_artifact, "new index\n").unwrap();
+    let (staging_name, staging_identity, _) =
+        stage_replacement(&artifact, STAGING_NONCE, "new index\n");
     prepared
-        .bind_artifact_replacement(&replacement_artifact)
+        .bind_artifact_replacement(&staging_name, staging_identity)
         .unwrap();
     (temporary, target, prepared, marker, replacement_state)
 }
@@ -87,11 +142,13 @@ fn recovery_publishes_only_the_exact_bound_replacement_inode() {
     )
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
-    let replacement = replacement_artifact_path(&artifact);
-    fs::write(&replacement, "filtered index\n").unwrap();
-    let expected_inode = fs::symlink_metadata(&replacement).unwrap().ino();
+    let (staging_name, staging_identity, replacement) =
+        stage_replacement(&artifact, STAGING_NONCE, "filtered index\n");
+    let expected_inode = staging_identity.inode;
 
-    prepared.bind_artifact_replacement(&replacement).unwrap();
+    prepared
+        .bind_artifact_replacement(&staging_name, staging_identity)
+        .unwrap();
     let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
         .unwrap()
         .unwrap();
@@ -159,9 +216,11 @@ fn recovery_rejects_an_unbound_regular_replacement_and_preserves_both_artifacts(
     let artifact = prepared.artifact_path().to_path_buf();
     let marker = marker_path(&artifact);
     let replacement_state = replacement_state_path(&marker);
-    let intended = replacement_artifact_path(&artifact);
-    fs::write(&intended, "filtered index\n").unwrap();
-    prepared.bind_artifact_replacement(&intended).unwrap();
+    let (staging_name, staging_identity, intended) =
+        stage_replacement(&artifact, STAGING_NONCE, "filtered index\n");
+    prepared
+        .bind_artifact_replacement(&staging_name, staging_identity)
+        .unwrap();
     fs::rename(&intended, &preserved_intended).unwrap();
     fs::write(&intended, "external index\n").unwrap();
 
@@ -199,9 +258,11 @@ fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
     )
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
-    let intended = replacement_artifact_path(&artifact);
-    fs::write(&intended, "filtered index\n").unwrap();
-    prepared.bind_artifact_replacement(&intended).unwrap();
+    let (staging_name, staging_identity, intended) =
+        stage_replacement(&artifact, STAGING_NONCE, "filtered index\n");
+    prepared
+        .bind_artifact_replacement(&staging_name, staging_identity)
+        .unwrap();
     fs::rename(&intended, &preserved_intended).unwrap();
     symlink(&victim, &intended).unwrap();
 
@@ -223,7 +284,7 @@ fn recovery_rejects_a_symlink_in_place_of_the_bound_replacement() {
 }
 
 #[test]
-fn binding_refuses_a_replacement_outside_the_deterministic_name() {
+fn binding_refuses_a_replacement_outside_this_attempts_staging_namespace() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
@@ -241,10 +302,12 @@ fn binding_refuses_a_replacement_outside_the_deterministic_name() {
     let artifact = prepared.artifact_path().to_path_buf();
     let victim_inode = fs::symlink_metadata(&victim).unwrap().ino();
 
-    let error = prepared.bind_artifact_replacement(&victim).unwrap_err();
+    let error = prepared
+        .bind_artifact_replacement(OsStr::new("victim-index"), entry_identity(&victim))
+        .unwrap_err();
 
     assert!(
-        format!("{error:#}").contains("deterministic replacement name"),
+        format!("{error:#}").contains("staging namespace"),
         "{error:#}"
     );
     assert_eq!(
@@ -341,13 +404,19 @@ fn recovery_refuses_a_substituted_staged_marker_before_exchanging_artifacts() {
     assert!(replacement_state.is_file());
 }
 
+/// A process death between the staging copy and the state document that owns it
+/// is the one interruption that leaves a replacement nothing describes. Because
+/// the staging name is drawn rather than derived, that leftover blocks nothing:
+/// the same attempt recovers, disposes and prepares again.
 #[test]
-fn recovery_reclaims_a_replacement_copy_left_without_a_state_document() {
+fn an_interrupted_replacement_publication_leaves_a_clean_same_attempt_retry() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
+    let filtered = temporary.path().join("filtered-index");
     fs::write(&source, "old index\n").unwrap();
-    let prepared = prepare_auxiliary(
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
         &source,
         &target,
         AuxiliaryRole::GitIndexSuccess,
@@ -357,17 +426,40 @@ fn recovery_reclaims_a_replacement_copy_left_without_a_state_document() {
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
     let marker = marker_path(&artifact);
-    let unbound = replacement_artifact_path(&artifact);
-    fs::write(&unbound, "filtered index\n").unwrap();
+    let artifact_inode = entry_identity(&artifact).inode;
+
+    // A returned error still unwinds its own staging entry, so death — not an
+    // error — is what leaves one behind.
+    let staged = stage_replacement(&artifact, STAGING_NONCE, "abandoned copy\n").2;
+    let interruption = prepared
+        .replace_artifact_from_with(&filtered, |step| {
+            if step == ReplacementPublicationStep::BeforeStatePublication {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated death before the state document",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{interruption:#}").contains("simulated death"),
+        "{interruption:#}"
+    );
+    assert!(!replacement_state_path(&marker).exists());
+    assert_eq!(entry_identity(&artifact).inode, artifact_inode);
 
     let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
         .unwrap()
         .unwrap();
-
-    assert!(!unbound.exists());
     recovered.dispose().unwrap();
     assert!(!artifact.exists());
     assert!(!marker.exists());
+    assert!(
+        staged.is_file(),
+        "an entry no live document describes must be left alone"
+    );
     prepare_auxiliary(
         &source,
         &target,
@@ -378,8 +470,107 @@ fn recovery_reclaims_a_replacement_copy_left_without_a_state_document() {
     .unwrap();
 }
 
+/// The replacement is published under a drawn name, never one a reader can
+/// derive from the role and attempt, so an unrelated entry sitting at the name
+/// the earlier protocol claimed neither blocks the publication nor loses its
+/// bytes — and the completed exchange leaves no staging entry behind.
 #[test]
-fn disposal_reclaims_a_replacement_copy_left_without_a_state_document() {
+fn publication_claims_no_name_derivable_from_the_role_and_attempt() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let filtered = temporary.path().join("filtered-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+    let foreign = unclaimed_replacement_path(&artifact);
+    fs::write(&foreign, "precious user bytes\n").unwrap();
+    let foreign_inode = entry_identity(&foreign).inode;
+
+    prepared.replace_artifact_from(&filtered).unwrap();
+
+    assert_eq!(
+        fs::read_to_string(&artifact).unwrap(),
+        "filtered index\n",
+        "the artifact name must have adopted the replacement"
+    );
+    assert_eq!(
+        fs::read_to_string(&foreign).unwrap(),
+        "precious user bytes\n"
+    );
+    assert_eq!(entry_identity(&foreign).inode, foreign_inode);
+    assert!(!replacement_state_path(&marker_path(&artifact)).exists());
+    assert!(
+        staging_entries(temporary.path()).is_empty(),
+        "a settled replacement leaves no staging entry: {:?}",
+        staging_entries(temporary.path())
+    );
+}
+
+/// An interruption after the state document is durable is recovered forward:
+/// the document names both inodes, so recovery completes the exchange it
+/// describes rather than guessing from a name.
+#[test]
+fn an_interruption_after_the_state_document_recovers_the_new_identity() {
+    let temporary = TempDir::new().unwrap();
+    let source = temporary.path().join("source-index");
+    let target = temporary.path().join("index");
+    let filtered = temporary.path().join("filtered-index");
+    fs::write(&source, "old index\n").unwrap();
+    fs::write(&filtered, "filtered index\n").unwrap();
+    let mut prepared = prepare_auxiliary(
+        &source,
+        &target,
+        AuxiliaryRole::GitIndexSuccess,
+        HANDLE,
+        ATTEMPT,
+    )
+    .unwrap();
+    let artifact = prepared.artifact_path().to_path_buf();
+
+    let interruption = prepared
+        .replace_artifact_from_with(&filtered, |step| {
+            if step == ReplacementPublicationStep::AfterStatePublication {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "simulated death after the state document",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+
+    assert!(
+        format!("{interruption:#}").contains("simulated death"),
+        "{interruption:#}"
+    );
+    assert!(replacement_state_path(&marker_path(&artifact)).is_file());
+
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(fs::read_to_string(&artifact).unwrap(), "filtered index\n");
+    assert!(!replacement_state_path(&marker_path(&artifact)).exists());
+    assert!(staging_entries(temporary.path()).is_empty());
+    recovered.dispose().unwrap();
+    assert!(!artifact.exists());
+}
+
+/// Disposal must remove only the two entries it validated. `.filtered` is the
+/// name an earlier protocol claimed before publishing the document that owned
+/// it, so an entry there was never proven to be Grove's — a substitution landing
+/// in `replace_artifact_from`'s post-copy identity check leaves a foreign one.
+#[test]
+fn disposal_never_removes_a_replacement_entry_the_auxiliary_did_not_create() {
     let temporary = TempDir::new().unwrap();
     let source = temporary.path().join("source-index");
     let target = temporary.path().join("index");
@@ -393,18 +584,25 @@ fn disposal_reclaims_a_replacement_copy_left_without_a_state_document() {
     )
     .unwrap();
     let artifact = prepared.artifact_path().to_path_buf();
-    let unbound = replacement_artifact_path(&artifact);
-    fs::write(&unbound, "filtered index\n").unwrap();
+    let foreign = unclaimed_replacement_path(&artifact);
+    fs::write(&foreign, "precious user bytes\n").unwrap();
+    let foreign_inode = fs::symlink_metadata(&foreign).unwrap().ino();
 
     prepared.dispose().unwrap();
 
-    assert!(!unbound.exists());
-    assert!(!artifact.exists());
-    assert!(!marker_path(&artifact).exists());
+    assert!(
+        foreign.exists(),
+        "disposal unlinked an entry the auxiliary never created"
+    );
+    assert_eq!(
+        fs::read_to_string(&foreign).unwrap(),
+        "precious user bytes\n"
+    );
+    assert_eq!(fs::symlink_metadata(&foreign).unwrap().ino(), foreign_inode);
 }
 
 #[test]
-fn recovery_refuses_a_symlinked_unbound_replacement_without_touching_its_victim() {
+fn recovery_never_follows_a_symlink_at_a_derivable_replacement_name() {
     use std::os::unix::fs::symlink;
 
     let temporary = TempDir::new().unwrap();
@@ -425,20 +623,18 @@ fn recovery_refuses_a_symlinked_unbound_replacement_without_touching_its_victim(
     let unbound = replacement_artifact_path(&artifact);
     symlink(&victim, &unbound).unwrap();
 
-    let error =
-        recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT).unwrap_err();
+    let recovered = recover_auxiliary(&target, AuxiliaryRole::GitIndexSuccess, HANDLE, ATTEMPT)
+        .unwrap()
+        .unwrap();
+    recovered.dispose().unwrap();
 
-    assert!(
-        format!("{error:#}").contains("without following symlinks"),
-        "{error:#}"
-    );
     assert_eq!(
         fs::read_to_string(&victim).unwrap(),
         "precious user bytes\n"
     );
     assert!(unbound.symlink_metadata().unwrap().file_type().is_symlink());
-    assert!(artifact.is_file());
-    assert!(marker_path(&artifact).is_file());
+    assert!(!artifact.exists());
+    assert!(!marker_path(&artifact).exists());
 }
 
 #[test]

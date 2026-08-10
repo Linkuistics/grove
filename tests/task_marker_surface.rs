@@ -35,9 +35,10 @@
 //!
 //! **Cross-tree, because generation is not the only thing between the verb and
 //! the bytes.** `leaf-promote-chain` moves the producer through the VCS, and a
-//! Git worktree and a jj-native workspace take different paths to do it. A claim
-//! about the bodies a promotion leaves behind is a claim about both trees or
-//! about neither.
+//! Git worktree holding a *tracked* producer takes a different path to do it
+//! than a jj-native workspace — the trackedness is load-bearing, and `fixture`
+//! says why. A claim about the bodies a promotion leaves behind is a claim about
+//! both trees or about neither.
 //!
 //! **Both controls, because a sweep that cannot fail is worth nothing.** The
 //! enumeration is shown finding the markers that *are* there, at the exact steps
@@ -162,7 +163,7 @@ enum Tree {
     Jj,
 }
 
-fn vcs(binary: &str, dir: &Path, arguments: &[&str]) {
+fn vcs(binary: &str, dir: &Path, arguments: &[&str]) -> String {
     let output = Process::new(binary)
         .current_dir(dir)
         .args(arguments)
@@ -173,14 +174,27 @@ fn vcs(binary: &str, dir: &Path, arguments: &[&str]) {
         "{binary} {arguments:?} failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+    String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
 /// A working tree of the given VCS holding a current-format `.grove/` with one
 /// live plain producer, ready to promote.
+///
+/// **The Git producer is tracked, and that is the whole difference between the
+/// two fixtures.** `leaf-promote-chain` picks its move by trackedness, not by
+/// VCS: an *untracked* entry moves with `fs::rename` (`src/tree_rename.rs`) —
+/// exactly the operation a jj tree performs — and its index preparation is
+/// skipped for want of an index entry. A Git fixture that only writes the files
+/// therefore runs the jj half's path a second time under another name, and the
+/// cross-tree claim above rests on nothing. Staging the producer is what puts
+/// `git mv` plus the staged-path rewrite under the sweep; the assertion below
+/// keeps it that way.
 fn fixture(tree: Tree) -> TempDir {
     let tmp = TempDir::new().unwrap();
     match tree {
-        Tree::Git => vcs("git", tmp.path(), &["init", "-q", "."]),
+        Tree::Git => {
+            vcs("git", tmp.path(), &["init", "-q", "."]);
+        }
         Tree::Jj => {
             vcs(
                 "jj",
@@ -209,6 +223,21 @@ fn fixture(tree: Tree) -> TempDir {
     fs::write(root.join("BRIEF.md"), "# root — brief\n").unwrap();
     fs::write(root.join("FORMAT"), "session-kinds-v1\n").unwrap();
     fs::write(root.join("01-design-sync-k1.md"), "# sync-k1\n").unwrap();
+    if let Tree::Git = tree {
+        vcs("git", tmp.path(), &["add", "--", ".grove"]);
+        assert_eq!(
+            vcs(
+                "git",
+                tmp.path(),
+                &["ls-files", "--", ".grove/01-design-sync-k1.md"],
+            )
+            .trim(),
+            ".grove/01-design-sync-k1.md",
+            "the Git fixture's producer must be tracked, or promotion takes the \
+             untracked plain-rename path and this half stops differing from the \
+             jj half"
+        );
+    }
     tmp
 }
 
@@ -295,9 +324,11 @@ fn a_git_tree_receives_only_declared_body_markers() {
     assert_only_declared_markers_are_written(Tree::Git);
 }
 
-/// The cross-tree half. `leaf-promote-chain` moves the producer through the VCS
-/// before it writes the chain's other two steps, and a jj-native workspace takes
-/// a different path to do it than a Git worktree.
+/// The cross-tree half. `leaf-promote-chain` writes the chain's other two steps
+/// into its transaction, *then* moves the producer through the VCS — and a
+/// jj-native workspace takes a different path to do that than the tracked Git
+/// worktree above: a plain rename against a tree with no index, rather than
+/// `git mv` followed by rewriting the staged path to its final spelling.
 #[test]
 fn a_jj_tree_receives_only_declared_body_markers() {
     assert_only_declared_markers_are_written(Tree::Jj);

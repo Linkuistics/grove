@@ -459,6 +459,25 @@ pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, S
     }
 }
 
+/// Read one directory's entries **unparsed**, in the per-level comparator's
+/// order (the charter brief first, then by numeric position, foreign last).
+///
+/// The raw sibling of [`read_level`], and the crate's one directory-order
+/// primitive. [`read_level`] is what a *walk* wants — it drops foreign names and
+/// reconciles each parse against the real filesystem kind, so a caller can trust
+/// the `Entry`. This is what a caller wants when the parse is not the question:
+/// `tree_promotion` allocating over every name in a subtree, and
+/// `task_relationship` reading bodies beside a producer. Both need the same
+/// deterministic order, and neither may drop an entry for failing to parse —
+/// which is exactly what [`read_level`] would do.
+pub(crate) fn sorted_entries(directory: &Path) -> Result<Vec<fs::DirEntry>> {
+    let mut entries: Vec<_> = fs::read_dir(directory)
+        .with_context(|| format!("reading {}", directory.display()))?
+        .collect::<std::io::Result<Vec<_>>>()?;
+    entries.sort_by_key(|entry| sort_key(&entry.file_name().to_string_lossy()));
+    Ok(entries)
+}
+
 /// Read one directory's grove entries, parsed and sorted by the per-level
 /// comparator (the charter brief first, then by numeric position, foreign last).
 /// Returns `(Entry, path)` for every child whose name parses **and** whose real

@@ -26,6 +26,7 @@
 // backwards, rewriting v1 `# <dotted>-[<key>]-<slug>` headers down to the handle.
 
 use crate::leaf::Kind;
+use crate::task_relationship::Relationship;
 use crate::tree_access;
 use crate::tree_id::{next_key, next_keys, parse, parse_current, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
@@ -86,10 +87,14 @@ struct Step {
     relationship: Option<StepRelationship>,
 }
 
+/// A step's stable relationship to an *earlier step of the same shape*, named by
+/// index because the shape's handles are not known until its keys are allocated.
+/// The relationship's format — the declaration line and the goal it comes with —
+/// belongs to `task_relationship`, not here.
 #[derive(Clone, Copy)]
-enum StepRelationship {
-    Reviews(usize),
-    Integrates(usize),
+struct StepRelationship {
+    relationship: Relationship,
+    target: usize,
 }
 
 /// Append a whole **shape** — a **chain node** directory holding its steps as
@@ -186,20 +191,16 @@ fn add_run(
         };
         let path = node_dir.join(entry.name());
         let (metadata, goal) = match step.relationship {
-            Some(StepRelationship::Reviews(target)) => (
-                vec![format!("**Reviews:** {}", step_handles[target])],
-                Some(format!(
-                    "Adversarially review `{}` and record concrete findings for its integration step.",
-                    step_handles[target]
-                )),
-            ),
-            Some(StepRelationship::Integrates(target)) => (
-                vec![format!("**Integrates:** {}", step_handles[target])],
-                Some(format!(
-                    "Apply the verified findings from `{}` while preserving the reviewed artifact's contract.",
-                    step_handles[target]
-                )),
-            ),
+            Some(StepRelationship {
+                relationship,
+                target,
+            }) => {
+                let target = &step_handles[target];
+                (
+                    vec![relationship.declare(target)],
+                    Some(relationship.step_goal(target)),
+                )
+            }
             None => (Vec::new(), None),
         };
         if let Err(e) = write_task_template(&path, &step.slug, *key, &metadata, goal.as_deref()) {
@@ -277,12 +278,18 @@ pub(crate) fn leaf_add_chain_unlocked(
             Step {
                 slug: format!("{stem}-review"),
                 kind: review,
-                relationship: Some(StepRelationship::Reviews(0)),
+                relationship: Some(StepRelationship {
+                    relationship: Relationship::Reviews,
+                    target: 0,
+                }),
             },
             Step {
                 slug: format!("{stem}-integrate"),
                 kind: integrate,
-                relationship: Some(StepRelationship::Integrates(1)),
+                relationship: Some(StepRelationship {
+                    relationship: Relationship::Integrates,
+                    target: 1,
+                }),
             },
         ],
     )
@@ -1271,22 +1278,13 @@ mod tests {
                 "03-combine-research-sync-survey-combine-k4.md",
             ]
         );
-        for path in &paths[1..] {
-            assert!(!body(path).contains("**Kind:**"));
-            assert!(!body(path).contains("**Harness:**"));
-        }
-    }
-
-    #[test]
-    fn pair_keeps_launch_routing_out_of_task_bodies() {
-        let (_t, g) = grove();
-        touch(&g, "BRIEF.md", "root — brief");
-        let paths = leaf_add_pair(&g, &g, "sync-survey").unwrap();
-        for path in &paths[1..] {
-            let task = body(path);
-            assert!(!task.contains("**Harness:**"), "got {task:?}");
-            assert!(!task.contains("**Producer launch:**"), "got {task:?}");
-        }
+        // What the pair's bodies do *not* carry is asserted by enumeration in
+        // `tests/task_marker_surface.rs`, over every shape every grow and
+        // promotion verb writes: the markers there are collected from the bodies
+        // and each must be a declared composition relationship. The three
+        // `!contains` checks that used to sit here named the retired markers
+        // instead, which passes forever once they are gone — and passes
+        // unchanged the day a fourth one is introduced.
     }
 
     #[test]

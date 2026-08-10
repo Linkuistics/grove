@@ -27,7 +27,14 @@ pub(crate) mod loop_driver;
 pub mod provision;
 pub mod repo;
 pub mod session_config;
-pub mod task_relationship;
+// `task_relationship` is the composition format — the `**Reviews:**` /
+// `**Integrates:**` markers, the lines the grow and promotion verbs write, and
+// the lookup that finds them. It is crate-private for the same reason as the
+// modules above, and it is the module that proves the reason: as a `pub` module
+// it kept a whole receipt-era reader with **no caller anywhere**, and
+// `dead_code` said nothing, because a `pub` item in a `pub` module is reachable
+// by definition. Its external interface is the chain a `grove-llm` verb writes.
+pub(crate) mod task_relationship;
 pub mod tree_access;
 pub mod tree_format;
 pub mod tree_grow;

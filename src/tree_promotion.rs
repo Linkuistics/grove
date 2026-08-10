@@ -1,8 +1,9 @@
 use crate::leaf::Kind;
+use crate::task_relationship::{declaring, sole_declarer, Relationship};
 use crate::tree_access;
 use crate::tree_grow::write_task_template;
-use crate::tree_id::{next_keys, parse, parse_current, sort_key, Entry, Outcome};
-use crate::tree_read::{self, Resolution};
+use crate::tree_id::{next_keys, parse, parse_current, Entry, Outcome};
+use crate::tree_read::{self, sorted_entries, Resolution};
 use crate::tree_rename::{
     capture_git_index_entry, prepare_promotion_index, rename_entry, restore_promotion_index,
     GitIndexEntry,
@@ -75,7 +76,7 @@ fn promote_new(grove_root: &Path, producer_reference: &str) -> Result<PromotionR
         .parent()
         .context("producer has no parent directory")?;
 
-    let existing_reviews = declarations(parent, "Reviews", &producer_handle)?;
+    let existing_reviews = declaring(parent, Relationship::Reviews, &producer_handle)?;
     if !existing_reviews.is_empty() {
         bail!(
             "producer {producer_handle} already has scheduled review work: {}; run that \
@@ -417,10 +418,8 @@ fn write_generated_steps(
         &review_path,
         review_slug,
         review_key,
-        &[format!("**Reviews:** {producer_handle}")],
-        Some(&format!(
-            "Adversarially review `{producer_handle}` and record concrete findings for its integration step."
-        )),
+        &[Relationship::Reviews.declare(producer_handle)],
+        Some(&Relationship::Reviews.step_goal(producer_handle)),
     )?;
 
     let integration_path = transaction.join(
@@ -437,10 +436,8 @@ fn write_generated_steps(
         &integration_path,
         integration_slug,
         integration_key,
-        &[format!("**Integrates:** {review_handle}")],
-        Some(&format!(
-            "Apply the verified findings from `{review_handle}` while preserving the reviewed artifact's contract."
-        )),
+        &[Relationship::Integrates.declare(review_handle)],
+        Some(&Relationship::Integrates.step_goal(review_handle)),
     )?;
     Ok(())
 }
@@ -527,18 +524,15 @@ fn completed_shape(grove_root: &Path, producer_key: u32) -> Result<Option<Promot
     if node_key <= producer_key {
         return Ok(None);
     }
-    let reviews = declarations(parent, "Reviews", &producer_handle)?;
-    if reviews.len() != 1 {
+    let Some(review_path) = sole_declarer(parent, Relationship::Reviews, &producer_handle)? else {
         return Ok(None);
-    }
-    let review_path = reviews[0].clone();
+    };
     let (review_slug, review_key) = item_identity(&review_path)?;
     let review_handle = handle(&review_slug, review_key);
-    let integrations = declarations(parent, "Integrates", &review_handle)?;
-    if integrations.len() != 1 {
+    let Some(integration_path) = sole_declarer(parent, Relationship::Integrates, &review_handle)?
+    else {
         return Ok(None);
-    }
-    let integration_path = integrations[0].clone();
+    };
     let (integration_slug, integration_key) = item_identity(&integration_path)?;
 
     Ok(Some(PromotionResult {
@@ -635,37 +629,6 @@ fn promotion_review_steps_or_refuse(kind: Kind) -> Result<(Kind, Kind)> {
     }
 }
 
-fn declarations(directory: &Path, field: &str, value: &str) -> Result<Vec<PathBuf>> {
-    let marker = format!("**{field}:**");
-    let mut matches = Vec::new();
-    for entry in sorted_entries(directory)? {
-        let path = entry.path();
-        let file_type = entry.file_type()?;
-        // Decomposing a task moves its stable metadata into the new node's
-        // brief. Return the node path so callers keep the same handle/path
-        // abstraction whether the relationship carrier is a leaf or a node.
-        let body_path = if file_type.is_file() {
-            path.clone()
-        } else if file_type.is_dir() {
-            path.join("BRIEF.md")
-        } else {
-            continue;
-        };
-        let body = match fs::read_to_string(&body_path) {
-            Ok(body) => body,
-            Err(_) => continue,
-        };
-        if body.lines().any(|line| {
-            line.trim_start()
-                .strip_prefix(&marker)
-                .is_some_and(|rest| rest.trim() == value)
-        }) {
-            matches.push(path);
-        }
-    }
-    Ok(matches)
-}
-
 fn item_identity(path: &Path) -> Result<(String, u32)> {
     match parse(&file_name(path)?) {
         Some(Entry::Leaf { slug, key, .. }) | Some(Entry::Node { slug, key, .. }) => {
@@ -720,14 +683,6 @@ fn collect_tree_names_into(directory: &Path, names: &mut Vec<String>) -> Result<
         }
     }
     Ok(())
-}
-
-fn sorted_entries(directory: &Path) -> Result<Vec<fs::DirEntry>> {
-    let mut entries: Vec<_> = fs::read_dir(directory)
-        .with_context(|| format!("reading {}", directory.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by_key(|entry| sort_key(&entry.file_name().to_string_lossy()));
-    Ok(entries)
 }
 
 fn live_leaf_identity(name: &str) -> Result<(u32, String, u32)> {

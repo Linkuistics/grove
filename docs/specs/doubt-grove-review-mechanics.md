@@ -233,10 +233,16 @@ transaction recovery, Git index preparation, VCS-specific movement, and
 rollback. All task-tree operations share one pending-promotion guard rather than
 reproducing reserved-prefix scans.
 
-Task relationship parsing owns only the durable `Reviews` and `Integrates`
-markers and cardinality-checked sibling lookup. It has no launch-target,
-receipt, or diversity-comparison interface. The loop driver routes a scheduled
-review solely by its filename kind and complete personal configuration.
+The task relationship module owns the durable `Reviews` and `Integrates` markers
+whole: the declaration line and step goal every generated chain carries, and the
+cardinality-checked sibling lookup that finds them. Both chain constructors and
+the one reader share it, so a hand-cut, a constructed, and a promoted chain are
+the same document by construction rather than by three literals agreeing. The
+lookup is by relationship rather than by field name, and matches an exact
+declared handle; there is no whole-body parse, because no caller asks what a task
+declares. It has no launch-target, receipt, or diversity-comparison interface.
+The loop driver routes a scheduled review solely by its filename kind and
+complete personal configuration.
 
 ## Test seams
 
@@ -257,10 +263,15 @@ review solely by its filename kind and complete personal configuration.
   source or leave one recoverable witness; interruptions make every reader and
   mutator fail closed. Cover tracked and untracked Git, native jj, colocated jj,
   stage-0 metadata preservation, and pre-mutation refusal of unmerged entries.
-- Prove generated chains contain no task-body kind, harness, or producer-target
-  markers; retirement changes only the producer filename; review selection
-  comes from the filename kind; and no routing warning or target environment is
-  emitted.
+- Enumerate every body marker each grow and promotion verb writes, in a Git
+  worktree and a jj workspace, and classify each as a declared composition
+  relationship on the step that carries it; an unclassified marker fails with its
+  file and line. Control both directions: the walk finds both relationships at
+  the exact steps of both chain shapes, and the classifier rejects one marker
+  injected into an otherwise clean generated body. Assert constructed and
+  promoted chains render the same relationship identically. Retirement changes
+  only the producer filename; review selection comes from the filename kind; and
+  no routing warning or target environment is emitted.
 - Assert the prompt-mandate ownership rule across a normal Grove launch, a
   checkout-only session, nested Grove, missing/terminal mandate resolution,
   producers already in chains, all review/integration kinds, and the research

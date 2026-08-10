@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** legacy-review-removal-k47
+**Producer launch:** {"producer":"legacy-review-removal-k47","session":"relationship-contraction-k85","generation":"k85","harness":"claude","model":"opus"}
 
 ## Goal
 

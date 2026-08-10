@@ -287,29 +287,6 @@ fn a_malformed_or_annotated_body_harness_line_is_ignored() {
 }
 
 #[test]
-fn a_producer_launch_receipt_does_not_reach_the_kind_verb() {
-    // The receipt is a legacy relationship Grove still parses and preserves, but
-    // it was only ever *read* by the routing peek. With that gone, a review leaf
-    // carrying one answers exactly as any other leaf does.
-    let tmp = init_repo();
-    let chain = tmp.path().join(".grove/01-build-chain-k4");
-    touch_leaf(&chain, "01-DONE-impl-build-k1.md", "impl");
-    let review = chain.join("02-review-impl-build-review-k2.md");
-    fs::write(
-        &review,
-        "# build-review-k2\n\n**Reviews:** build-k1\n\
-         **Producer launch:** {\"producer\":\"build-k1\",\"harness\":\"claude\",\"model\":\"opus\"}\n",
-    )
-    .unwrap();
-
-    let (stdout, stderr, ok) = run(tmp.path(), &["kind", review.to_str().unwrap()]);
-
-    assert!(ok, "a receipt is not an error: {stderr}");
-    assert_eq!(stdout, "review-impl\n");
-    assert!(stderr.is_empty(), "and is not reported: {stderr:?}");
-}
-
-#[test]
 fn the_removed_routing_flags_are_rejected() {
     // Stated on the process rather than on clap's model, because the claim that
     // matters to a caller is that the *invocation* fails — a driver still

@@ -391,14 +391,19 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
         repo,
         ".grove/01-build-chain-k4/01-DONE-impl-build-k1.md"
     ));
-    assert!(!read(
-        repo,
-        ".grove/01-build-chain-k4/02-review-impl-build-review-k2.md"
-    )
-    .contains("**Producer launch:**"));
+    // Byte-equality rather than a `!contains` on a retired marker: the claim is
+    // that retiring a producer writes nothing into the review that names it, and
+    // that holds for whatever a future sibling write might say.
+    assert_eq!(
+        read(
+            repo,
+            ".grove/01-build-chain-k4/02-review-impl-build-review-k2.md"
+        ),
+        "# build-review-k2\n\n**Reviews:** build-k1\n"
+    );
     assert!(
         !exists(repo, ".git"),
-        "receipt materialisation must not fall back to git in a jj-native tree"
+        "a jj-native retirement must stage through jj, not fall back to git"
     );
 }
 

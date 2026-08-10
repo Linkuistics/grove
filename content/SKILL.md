@@ -15,12 +15,12 @@ flowchart TD
   subgraph tree["A grove — a directory tree under .grove/; a node is a directory"]
     direction TB
     root["BRIEF.md — root brief (heads .grove/)"]
-    n1["01-design-k1/ — decomposition node"]
+    n1["01-sync-k1/ — decomposition node (a node carries no kind)"]
     nb1["BRIEF.md — node brief"]
-    l1["01-DONE-spec-k2.md — retired leaf, in place"]
-    l2["02-impl-k3.md — live leaf"]
-    n2["02-build-chain-k4/ — chain node, no brief"]
-    c1["01-build-k5.md — live leaf"]
+    l1["01-DONE-design-spec-k2.md — retired leaf, in place"]
+    l2["02-impl-store-k3.md — live leaf"]
+    n2["02-cutover-chain-k4/ — chain node, no brief"]
+    c1["01-impl-cutover-k5.md — live leaf"]
     root --- n1
     root --- n2
     n2 --- c1
@@ -32,7 +32,7 @@ flowchart TD
     direction TB
     pick["Select — the driver picks the first live leaf and mandates its handle"]
     boot["Bootstrap — resolve the mandate; read glossary, ancestor BRIEFs, cited ADRs, the task"]
-    exec{"kind — planning, or one of the other sixteen?"}
+    exec{"kind — planning, or one of the other eighteen?"}
     plan["Planning — cut vertical slices; grow the tree"]
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
     commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
@@ -159,12 +159,13 @@ root→leaf (a level with no brief is skipped silently — a chain node never
 carries one); and the task file itself. That assembled context is the session's
 entire mandate; read nothing else by reflex.
 
-**Execute.** The task file states its kind, drawn from a closed set of
-**seventeen** — five producers (`requirements`, `design`, `planning`,
-`prototype`, `impl`), each with its own `review-` and `integrate-review-` step,
-plus `research` and `combine-research` (`TASK-FORMAT.md` for every kind's
-discipline and its HITL/AFK mark). `work` is the previous spelling of `impl` and
-still reads as it. **`planning` is the only kind with methodological force** —
+**Execute.** The **filename** states the leaf's session kind — nothing in its
+body does — drawn from a closed set of **nineteen**: five producers
+(`requirements`, `design`, `planning`, `prototype`, `impl`), each with its own
+`review-` and `integrate-review-` step, plus `research-a`, `research-b`,
+`combine-research`, and the driver-reserved `finish` (`TASK-FORMAT.md` for every
+kind's discipline and its HITL/AFK mark).
+**`planning` is the only kind with methodological force** —
 the sole branch here, and the only kind that grows the tree generatively:
 - Every other kind **produces an artifact** and differs in discipline, not in
   what the loop does with it. `requirements` opens with a **grilling session**
@@ -253,9 +254,9 @@ whole shape is no more work than cutting the first leaf of it:
   invocation, and it silently gives the reviewer the wrong discipline. Each
   derived step resolves its own `review-` / `integrate-review-` configuration
   entry, so the verb selects no harness.
-- **The vendor pair** — `research` → `research` → `combine-research`, the two
-  surveys differing *only* by vendor. Cut it when the question is load-bearing
-  enough to pay for two corpora.
+- **The vendor pair** — `research-a` → `research-b` → `combine-research`, the two
+  surveys differing *only* by which configured target runs them. Cut it when the
+  question is load-bearing enough to pay for two corpora.
 
       grove-llm leaf-add-pair <parent> <stem>
 
@@ -284,9 +285,12 @@ the stem and the node takes `-chain` / `-pair` so bare slugs stay unique and
 surviving commit handles still name their artifact. A terminal suffix also keeps
 stem-mates together; `review-<stem>` would group unrelated reviews.
 
-Filename convention is not grammar: Grove validates no ordering and never
-infers relationships from suffixes or positions. Explicit `Reviews` / `Integrates`
-lines serve promotion and handoff. Nor is a chain a scheduling **unit**: `pick`
+**The filename is parsed for exactly one thing: the kind.** Grove separates one
+member of the closed set out of every task-shaped leaf name and reads nothing
+else from it — no ordering, and no relationship inferred from a step suffix or a
+position. The suffix convention is a habit that makes a chain legible to you and
+to `find .grove`; it is not grammar. Explicit `Reviews` / `Integrates` lines are
+what serve promotion and handoff. Nor is a chain a scheduling **unit**: `pick`
 walks out after its children, though sibling insertion cannot split them.
 
 When a **currently picked plain producer** needs fresh review, run `grove-llm
@@ -303,13 +307,15 @@ The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 headed by a `BRIEF.md` charter — always one for a node a leaf *decomposed* into,
 never one for a chain node; the filesystem carries the hierarchy, and `.grove/` is
 itself the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
-<first-child-slug>`: the verb moves the leaf file `NN-<slug>-k<key>.md`
+<first-child-slug>`: the verb moves the leaf file
+`NN-<session-kind>-<slug>-k<key>.md`
 (`git mv`; a plain rename in a jj-enabled tree, where jj snapshots the working
 copy) into a new directory `NN-<slug>-k<key>/` as its `BRIEF.md` (**keeping its permanent
 key `-k<key>`** — the leaf that was `k<key>` becomes the *node* `k<key>`, same
-position and slug), retitles the brief's position-free `# <slug>-k<key>` header
+position and slug, and **dropping the kind**, which a node has no use for),
+retitles the brief's position-free `# <slug>-k<key>` header
 with ` — brief`, and atomically grows the node's first child
-`01-<first-child-slug>-k<new>.md` (a node is never childless). Reshape the brief
+`01-<session-kind>-<first-child-slug>-k<new>.md` (a node is never childless). Reshape the brief
 body afterwards if needed (that part is judgement; the verb only does the
 mechanical move). Grow the node further by running `grove-llm leaf-add <parent>
 <slug>` (parent `.` for the grove root, or a node by its key or path) to append
@@ -329,14 +335,19 @@ resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
 `<slug>-k<key>` handle back into the current file path. All three grow verbs are
 working-tree changes only; the enclosing task's commit folds them in.
 
-Every grow verb takes `--kind <kind>` — one of the seventeen, defaulting to
-`impl` — and gates on it: an unrecognised value errors and lists the set, because
-a human is present at authoring time (reading a kind degrades instead, so a
-hand-edited file can never jam the loop). `leaf-add-chain` is the one exception
+Every grow verb takes `--kind <kind>` — one of the nineteen, defaulting to
+`impl`, except driver-reserved `finish`, which every grow verb refuses — and
+gates on it: an unrecognised value errors and lists the set, because a human is
+present at authoring time. **Reading is strict too**: every task-shaped leaf
+filename, live or terminal, must carry a known kind, and a missing or unknown one
+stops tree operations naming the path and the valid set rather than degrading to
+`impl` — the kind is a configuration key, and a kind grove cannot spell is a
+session it cannot launch. `leaf-add-chain` is the one exception
 to the default: it **requires** `--kind`, since defaulting would silently pick
 the producer that parameterises all three of its leaves. `leaf-decompose` gives
-the node's first child its parent leaf's kind unless `--kind` overrides, so a
-`research` leaf that proves bigger becomes a `research` node. No grow verb
+the node's **first child** its parent leaf's kind unless `--kind` overrides — the
+node directory it creates carries none — so a `research-a` leaf that proves
+bigger keeps producing `research-a` work. No grow verb
 selects a harness, a model, or anything else about the launch: the kind is the
 whole routing input, and configuration maps it to one command.
 
@@ -353,8 +364,10 @@ neither ever deletes it, and both are skipped by `pick`.
 
 The common case: after committing the task, retire the just-finished leaf by
 running `grove-llm leaf-retire <leaf-path>` — the verb marks it done **in
-place** by adding a `DONE` infix (`NN-<slug>-k<key>.md` →
-`NN-DONE-<slug>-k<key>.md`); there is no `done/` directory, and the leaf keeps
+place** by adding a `DONE` infix (`NN-<session-kind>-<slug>-k<key>.md` →
+`NN-DONE-<session-kind>-<slug>-k<key>.md`, the infix sitting right after the
+position so the kind stays where every reader looks for it); there is no `done/`
+directory, and the leaf keeps
 its position and key in its directory. The infix is filename-only — the file's
 contents (including its `# <slug>-k<key>` header) are untouched. Mechanical
 bookkeeping, no need to ask.
@@ -372,8 +385,8 @@ marked.
 
 The other case: a session finds the leaf's path decided against, not done. This
 is **pruning**, and it is **HITL — an agent never prunes on its own**: an AFK
-session (every kind but `requirements` and `prototype`) that discovers this says
-so and stops; the
+session (every kind but `requirements`, `prototype` and `finish`) that discovers
+this says so and stops; the
 loop stalling on an abandonment decision is the system working, not a fault.
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
@@ -578,7 +591,7 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 ## Reference files
 
 - `BRIEF-FORMAT.md` — the `BRIEF.md` shape.
-- `TASK-FORMAT.md` — the task-file shape and the closed task-kind taxonomy.
+- `TASK-FORMAT.md` — the leaf filename grammar, the closed nineteen-kind session taxonomy, and the task-file shape.
 - `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
 - `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
 - `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.

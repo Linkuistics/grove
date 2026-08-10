@@ -90,7 +90,7 @@ one budget across the **whole picked leaf**:
 - An `integrate-review-*` leaf may spend one narrow reviewer. Substantial
   redesign becomes a new producer review chain inside the owning chain node; an
   integration leaf is not promotable.
-- `research` and `combine-research` invoke none. The pair supplies independent
+- `research-a`, `research-b` and `combine-research` invoke none. The pair supplies independent
   corpora and the combiner supplies the adversarial move; put a load-bearing
   derived decision in its own reviewed producer chain.
 

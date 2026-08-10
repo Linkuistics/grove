@@ -4,8 +4,8 @@ The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
 file is about *how* to drive it well — the moves a human collaborator makes
 that turn the loop into productive design work. It is a field guide, not a
 specification; treat it as a starting set of habits, not a checklist. Most of
-it concerns the *design* kinds — `research`, `requirements`, `design`,
-`planning` — but the later sections are habits for `impl` sessions too:
+it concerns the *design* kinds — `research-a` / `research-b`, `requirements`,
+`design`, `planning` — but the later sections are habits for `impl` sessions too:
 grounding framework decisions in the source, doubting a decision before it
 stands, and externalizing surfaced work into new leaves rather than absorbing
 it.
@@ -54,9 +54,10 @@ working tree; that mechanical fact is not itself the signal to run it.
 A `requirements` leaf is the right unit for a grilling session when the
 design tree fits in one session. When the leaf's design depends on lessons
 that prior tools have learned the hard way — and those lessons are not
-obvious from the current codebase — *insert a `research` leaf ahead of
-it*. The research leaf's job is to surface the failure modes the
-grilling would otherwise have to learn from scratch.
+obvious from the current codebase — *insert a research leaf ahead of
+it*. One survey on its own is a `research-a` leaf; the paired second survey is
+what the vendor pair below adds. The research leaf's job is to surface the failure
+modes the grilling would otherwise have to learn from scratch.
 
 **Signs you want a research leaf:**
 
@@ -125,27 +126,29 @@ re-doing the same fruitless search.
 
 One survey is one vendor's corpus and one vendor's blind spots. When the
 question is load-bearing enough to justify the cost, run the **vendor pair**:
-two `research` leaves on the same question, differing *only* by which harness
-runs them, then a `combine-research` leaf. This is why a leaf may name its own
-harness — the two leaves are the same kind, so no `GROVE_RESEARCH_HARNESS`
-policy can send one elsewhere:
+a `research-a` leaf and a `research-b` leaf on the same question, then a
+`combine-research` leaf. The two producers are **two distinct session kinds**
+sharing one discipline, so each resolves its own configuration entry and neither
+task file carries any routing metadata:
 
 ```
-grove-llm leaf-add-pair . sync-protocols --harness-a claude --harness-b codex
+grove-llm leaf-add-pair . sync-protocols
 ```
 
 That is the whole pair — a `sync-protocols-pair/` node holding
-`sync-protocols-a`, `sync-protocols-b` and `sync-protocols-combine`, off one
-stem, with both producers' `**Harness:**` lines written.
+`sync-protocols-a` (`research-a`), `sync-protocols-b` (`research-b`) and
+`sync-protocols-combine` (`combine-research`), off one stem. The verb takes no
+kinds and no vendors: all three are fixed by the shape.
 
-**Name both vendors, even the one you would have got anyway.** The verb requires
-it and refuses two names that are the same. Declaring only the second would leave
-the first resolving through kind → family → stamp at *launch* time, which makes
-"two corpora" a forecast about routing policy rather than a fact in the tree —
-and one that quietly stops being true if the policy changes between cutting the
-leaves and running them. A pair that looks like one and is not is worse than no
-pair at all. The `combine` step is left undeclared; add a `**Harness:**` line by
-hand if you want it run somewhere particular.
+**Two kinds, not one kind run twice.** That split is what makes "two corpora" a
+fact in the tree rather than a forecast about routing policy — the alternative was
+two same-kind leaves whose difference lived in their bodies and could quietly stop
+being true when policy changed between cutting them and running them. A pair that
+looks like one and is not is worse than no pair at all. What the tree still cannot
+guarantee is that the two configured templates *reach* two different vendors: that
+is the configuration owner's policy, and grove will neither recover it from an
+opaque command string nor warn about it. If you care, check the two entries before
+paying for the pair.
 
 **The stem gets suffixes** — `-a`, `-b`, `-combine` — so all three sort together
 and the pair is visible in `find .grove` without opening a file
@@ -440,8 +443,8 @@ The other kinds are deliberate exceptions. A producer already in a chain runs
 no in-session reviewer because its `review-*` is scheduled. A `review-*` leaf is
 already the adversarial read and produces findings, not fixes. An
 `integrate-review-*` leaf may use one narrow reviewer; substantial redesign is a
-new producer review chain inside the owning chain node. The two `research`
-producers and `combine-research` use their two-corpus and adversarial-combine
+new producer review chain inside the owning chain node. `research-a`,
+`research-b` and `combine-research` use their two-corpus and adversarial-combine
 disciplines instead. A load-bearing decision derived from research gets its own
 reviewed producer chain.
 
@@ -507,11 +510,12 @@ Six habits make the chain worth its three sessions:
   want of context (note it, move on). If integration discovers substantial
   redesign, add a new producer review chain **inside the owning chain node** so
   it runs before work outside; an integration leaf itself is not promotable.
-- **Route the review, don't hand-place it.** "Reviews go to codex" is policy —
-  one `GROVE_REVIEW_HARNESS` line covering all five `review-*` kinds — not a
-  per-leaf declaration. `leaf-add-chain` refuses `--harness` for exactly this
-  reason. Reach for a `**Harness:**` line only where a policy genuinely cannot
-  express the shape, which is the vendor pair and nothing else.
+- **Route the review through configuration, not the tree.** "Reviews go to codex"
+  is a property of the five `review-*` entries in `~/.config/grove/config.kdl`,
+  and each step of a chain is a different kind, so per-kind configuration
+  expresses the whole shape on its own. No verb takes a harness flag and no leaf
+  declares one; if the review should run somewhere else, edit that kind's
+  template — the change lands on the next session.
 - **Treat diversity as a warning, not a gate.** Producer retirement applies
   `DONE` first, then writes the live linked review's `Producer launch` receipt
   best-effort. A direct producer names itself as source session; a reviewed

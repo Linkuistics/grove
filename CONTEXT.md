@@ -358,10 +358,14 @@ Both are **a [[Node directory]] of their own** — `NN-<stem>-chain-k<key>/` and
 shared stem with a terminal step suffix**: `<stem>` / `<stem>-review` /
 `<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. The directory
 is what makes the group **structural** rather than merely contiguous, so *any*
-tree viewer — `yazi`, Finder, `ls -R`, `find .grove`, the [[Tree viewer plugin]] —
-shows it as one collapsible object without being taught anything. That is the
-whole reason it beat the flat shape it replaced; grove controls one of those
-viewers and the argument for the flat shape rested on that one.
+tree viewer — `yazi`, Finder, `ls -R`, `find .grove` — shows it as one collapsible
+object without being taught anything. That is the whole reason it beat the flat
+shape it replaced, and it survives grove shipping **no** viewer of its own: the
+grouping is a property of the filesystem, so no renderer has to be provisioned,
+configured, or kept in step for it to read.
+_Avoid_: justifying any part of the tree scheme by what a grove-controlled
+renderer would show. Grove ships no viewer; a claim that depends on one is a claim
+about a component that does not exist.
 The stem-and-suffix names **survive inside the node**, on a *different*
 justification than the one that created them. They no longer exist to make a
 chain legible from a flat listing — the directory does that now. They exist to

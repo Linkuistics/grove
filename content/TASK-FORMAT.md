@@ -3,36 +3,68 @@
 # TASK-FORMAT — the leaf task file
 
 A **leaf** in a grove is a single `.md` task file, named
-`NN-[DONE-|ABANDONED-]<slug>-k<key>.md`: a 2-digit per-level **position** `NN`
-(its place among its directory's children), a human **slug**, and a permanent
+`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`: a 2-digit per-level
+**position** `NN` (its place among its directory's children), one member of the
+closed **session-kind** set below, a human **slug**, and a permanent
 **key** `-k<key>` (stable identity, the terminal token, assigned once, never
-reused) — e.g. `01-plan-k1.md`, `03-extract-k7.md`. A leaf ends one of two
-ways, marked in place right after the position: retired work carries a `DONE`
-infix (`03-DONE-extract-k7.md`); a path decided against carries an `ABANDONED`
-infix (`03-ABANDONED-extract-k7.md`, `leaf-prune`, ADR *pruning*) — pruning is
+reused) — e.g. `01-requirements-plan-k1.md`, `03-impl-extract-k7.md`. A leaf ends
+one of two ways, marked in place right after the position: retired work carries a
+`DONE` infix (`03-DONE-impl-extract-k7.md`); a path decided against carries an
+`ABANDONED` infix (`03-ABANDONED-impl-extract-k7.md`, `leaf-prune`,
+ADR *pruning*) — pruning is
 **HITL**, never an agent's own call. One task is one session (constraint: one
 task per session). The file is freeform markdown — a guide follows, not a
 schema.
 
-## The seventeen kinds
+**The kind lives in the filename and nowhere else.** It is routing metadata, not
+identity: the stable [work-item handle](#suggested-shape) stays `<slug>-k<key>`,
+so `grove-llm resolve`, a commit message and an in-file header are all unaffected
+by it. Putting it in the name is what lets `pick`, the driver's routing lookup and
+your own eye read a session's discipline out of `find .grove` without opening a
+file. A **node directory** carries no kind at all (`NN-<slug>-k<key>/`), even when
+its slug happens to begin with a kind word.
 
-Every task file states its **kind**, drawn from a closed set (ADR
-`task-kind-taxonomy`). Adding an eighteenth is a deliberate change to grove's
-code and docs, not a free-text label a leaf may coin. The set is
+Reading is strict in both directions. Every task-shaped leaf name — live, `DONE`
+or `ABANDONED` — must carry a known kind; a missing or unknown one is malformed
+and stops tree operations, naming the path and the valid set, rather than
+degrading to `impl`. No kind label plus `-` prefixes another, so a name always
+separates unambiguously and round-trips without touching the slug. Foreign
+non-task files in the tree stay ignored.
+
+## The nineteen kinds
+
+Every leaf's filename names its **kind**, drawn from a closed set (ADR
+`task-kind-taxonomy`). Adding a twentieth is a deliberate change to grove's
+code, its configuration schema and its docs, not a free-text label a leaf may
+coin — each kind is the key one command template is configured under, so a kind
+grove cannot spell is a session it cannot launch. The set is
 **parameterised, not flat**: five producers, each with its own `review-` and
-`integrate-review-` step, plus a research pair.
+`integrate-review-` step, plus a research pair and one driver-owned step.
 
-| producer | review | integrate |
+| kind | review | integrate |
 |---|---|---|
 | `requirements` | `review-requirements` | `integrate-review-requirements` |
 | `design` | `review-design` | `integrate-review-design` |
 | `planning` | `review-planning` | `integrate-review-planning` |
 | `prototype` | `review-prototype` | `integrate-review-prototype` |
 | `impl` | `review-impl` | `integrate-review-impl` |
-| `research` | — | `combine-research` |
+| `research-a` + `research-b` | — | `combine-research` |
+| `finish` — driver-reserved | — | — |
+
+Five producer rows of three, the research row's three, and one driver-owned step.
+The research row holds **two** kinds rather than one kind run
+twice: `research-a` and `research-b` share a discipline but are separate
+configuration keys, which is what makes "two independent corpora" a fact in the
+tree instead of a forecast about routing policy. `finish` is the driver's own
+complete-finish-cycle sentinel: the grow verbs refuse to create one, retire,
+prune, decompose and promotion refuse it as an operand, and `leaf-insert` may
+target it only to put ordinary work *before* teardown.
 
 Each kind is marked **HITL** (resolves through live exchange with a human who
-speaks for themselves) or **AFK** (driven by the agent alone). The mark
+speaks for themselves) or **AFK** (driven by the agent alone). Three are HITL —
+`requirements`, `prototype` and `finish` — because each needs input the session
+cannot supply for itself: the human's own words, their reaction, or their teardown
+decision. The mark
 **predicts, it does not permit**: *any* kind may stop and ask a human, and doing
 so is always legitimate. A HITL leaf reached by an unattended relaunch of the
 self-driving loop simply waits for a human, which is correct behaviour, not a
@@ -69,14 +101,22 @@ fault.
 
 **Research** — a **vendor pair**, not a chain: two independent surveys, unioned.
 
-- **research** (AFK) — a citation-disciplined literature/prior-art survey
-  producing `docs/research/<slug>.md`. Breadth-seeking: a citation per
+- **research-a** and **research-b** (both AFK) — a citation-disciplined
+  literature/prior-art survey producing `docs/research/<slug>.md`.
+  Breadth-seeking: a citation per
   failure-mode claim, primary sources, and an explicit note where a search found
-  silence (the absence is itself a finding). No grilling, no tree growth.
+  silence (the absence is itself a finding). No grilling, no tree growth. The two
+  kinds are identical in discipline and distinct in configuration; a single survey
+  that needs no pair is `research-a`.
 - **combine-research** (AFK) — union two surveys' coverage and flag every
-  disagreement. This kind, not `research`, carries the **adversarial** move: two
-  vendors on overlapping corpora can agree on something false, so **agreement
+  disagreement. This kind, not either producer, carries the **adversarial** move:
+  two vendors on overlapping corpora can agree on something false, so **agreement
   without independent primary sourcing is a red flag, not a confirmation**.
+
+**finish** (HITL, driver-reserved) — the whole-grove teardown session the driver
+appends once no ordinary work is live. It proposes the complete finish cycle and
+waits for explicit human confirmation before any teardown; declining leaves the
+leaf live for a later resume. No session creates one, and none is ever retired.
 
 **review-\*** (all AFK) — an inspection-only, fresh-context adversarial read of
 *one* artifact. Inspect the producer's committed changes, source, requirements
@@ -115,7 +155,7 @@ session has run Bootstrap and adopted the driver's selected-leaf mandate:
 | producer already in a review chain | none; `review-*` is already scheduled | finish to the scheduled review boundary |
 | `review-*` | none; this session is the adversarial read | record findings for integration |
 | `integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node |
-| `research` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
+| `research-a` / `research-b` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
 
 Outside that Bootstrap-and-pick predicate, doubt-driven development keeps its
 standalone bounded cycles. The allowance is leaf-wide, not per artifact or
@@ -124,13 +164,16 @@ decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
 
-`leaf-decompose` gives a node's first child the kind of the leaf it just
-decomposed, unless `--kind` overrides it — a research leaf that proves bigger
-becomes a research node by default.
+`leaf-decompose` gives a node's **first child** the kind of the leaf it just
+decomposed, unless `--kind` overrides it — a `research-a` leaf that proves bigger
+keeps producing `research-a` work in its first child. The node directory the verb
+creates carries no kind, so nothing is inherited at that level.
 
-**`work` is the previous spelling of `impl`.** A task file still saying
-`**Kind:** work` reads as `impl`, silently — it is not a typo. Writing it is
-refused: `--kind work` errors and names the replacement.
+**`work` is not a kind.** It was the previous spelling of `impl`, and only the
+one-time legacy migration still reads it: `work`, `review-work` and
+`integrate-review-work` are rewritten to their `impl` spellings as the tree is
+converted. Afterwards no reader accepts it — `--kind work` errors and names the
+replacement, and a hand-written `work` in a current filename is malformed.
 
 ## Composing the kinds — the two chains
 
@@ -139,46 +182,48 @@ reach for them **by default**, and argue itself *out* of one rather than into
 it:
 
 - **The review chain** — `X` → `review-X` → `integrate-review-X`. Sequential and
-  adversarial; each step is a *different* kind, so one `GROVE_REVIEW_HARNESS`
-  line routes every review a grove ever cuts. Cut it when the artifact is
+  adversarial; each step is a *different* kind, so each resolves its own
+  configured command and per-kind configuration alone expresses the shape. Cut it
+  when the artifact is
   load-bearing (a spec, a decomposition you will build on for months, a
   subsystem); a one-file change wants a mid-session subagent instead
   (`driving.md`).
-- **The vendor pair** — `research` → `research` → `combine-research`. Two
-  independent surveys unioned. The producers are the *same* kind differing only
-  by vendor, which is the entire reason `**Harness:**` exists.
+- **The vendor pair** — `research-a` → `research-b` → `combine-research`. Two
+  independent surveys unioned. The producers are **two distinct kinds** sharing
+  one discipline, which is how the tree states "two configured targets" without
+  any per-leaf routing metadata.
 
 **Each shape is one call**, and each is a **node directory** whose children the
 verb names off a shared stem for you:
 
 ```
 grove-llm leaf-add-chain [12] sync-design --kind design
-01-sync-design-chain-k12/            # chain node — no BRIEF.md
-  01-sync-design-k13.md              # design
-  02-sync-design-review-k14.md       # review-design
-  03-sync-design-integrate-k15.md    # integrate-review-design
+01-sync-design-chain-k12/                        # chain node — no BRIEF.md
+  01-design-sync-design-k13.md
+  02-review-design-sync-design-review-k14.md
+  03-integrate-review-design-sync-design-integrate-k15.md
 
-grove-llm leaf-add-pair [12] sync-survey --harness-a claude --harness-b codex
-02-sync-survey-pair-k16/             # chain node — no BRIEF.md
-  01-sync-survey-a-k17.md            # research,  **Harness:** claude
-  02-sync-survey-b-k18.md            # research,  **Harness:** codex
-  03-sync-survey-combine-k19.md      # combine-research
+grove-llm leaf-add-pair [12] sync-survey
+02-sync-survey-pair-k16/                         # chain node — no BRIEF.md
+  01-research-a-sync-survey-a-k17.md
+  02-research-b-sync-survey-b-k18.md
+  03-combine-research-sync-survey-combine-k19.md
 ```
 
-You name the chain's **producer** kind and the verb derives the other two; you
-name the pair's **two vendors** and it declares both. Neither derivation is
-something to do by hand — a `--kind review-impl` beside a `design` producer is a
-valid invocation nothing downstream catches, and a pair with only its second
-producer declared is not a pair, just a forecast that the first will route
-somewhere else. Four keys per shape, not three — the node holds the first, and
+You name the chain's **producer** kind and the verb derives the other two; the
+pair's three kinds are fixed, so it takes no kind at all. The chain's derivation
+is not something to do by hand — a `--kind review-impl` beside a `design`
+producer is a valid invocation nothing downstream catches. Four keys per shape,
+not three — the node holds the first, and
 stdout is four absolute paths with the node's leading. The whole shape lands or
 none of it does, and a generated shape is byte-identical to the same directory
 and leaves cut by hand with `mkdir` plus `leaf-add` **and the same stable
 relationships**: the review carries `**Reviews:** <producer-handle>` and the
 integration carries `**Integrates:** <review-handle>`.
 
-The naming matters because the *kind* lives inside the file while the **process**
-shows up in `find .grove`:
+Those names are long, and that is the trade the scheme makes: the **kind** and the
+**process** both show up in `find .grove`, so a session's discipline and a chain's
+shape are readable without opening anything.
 
 Two things that shape looks like it could be and is not:
 
@@ -218,7 +263,9 @@ The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step
 relation the pair does not have.
 
-The names and ordering remain **convention, not grammar**. grove does not read a
+**The kind is the only part of a name grove parses.** Everything else about a
+filename — the stem, the step suffix, the position, the ordering — remains
+**convention, not grammar**: grove does not read a
 suffix, require a `review-X` after every `X`, or reject a partial chain. It does
 parse the explicit `Reviews` / `Integrates` relationships and the review's
 best-effort `Producer launch` receipt for promotion, retirement, and the
@@ -234,8 +281,6 @@ normal choice.
 
 ```markdown
 # <slug>-k<key>
-
-**Kind:** impl          (one of the seventeen above)
 
 ## Goal
 What this one session must deliver.
@@ -253,37 +298,38 @@ Anything else the executing session should know.
 ```
 
 The first-line header is the **position-free handle** `# <slug>-k<key>` — the
-mutable position `NN` lives only in the filename, never in the body. That is what
+mutable position `NN` and the routing kind both live only in the filename, never
+in the body. That is what
 lets a reorder or insert be a pure file move with zero content rewrites, and it is
 the same stable handle you cite in commit messages (task-tree-scheme §5). When this leaf
 is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
-## Naming a harness — optional, and rare
+**The body carries no launch metadata at all** — no kind, no harness, no model,
+no receipt. A generated leaf is the header plus those four empty sections, and the
+only `**…:**` lines any leaf ever carries are the two composition relationships a
+chain writes for you (`**Reviews:**`, `**Integrates:**`), which describe how
+artifacts compose rather than how a session is launched. Everything about the
+launch comes from the filename's kind and the one configuration entry it keys.
 
-A leaf MAY declare the harness its session launches on, with a `**Harness:**`
-line beside `**Kind:**`:
+## A leaf never names a harness
 
-    **Kind:** research
-    **Harness:** codex
+There is no way for a leaf to choose the harness, model or wrapper its session
+runs on, and no reason to want one: the **kind in its filename is the whole
+routing input**, and `~/.config/grove/config.kdl` maps that one key to one
+complete command template. No grow verb offers a harness flag, no task body
+carries a declaration, and no environment variable or repository stamp
+supplements the file.
 
-Almost no leaf carries one. It exists for the **vendor pair** — two `research`
-leaves that differ only by which vendor runs them, plus the `combine-research`
-step after them — which is the one shape a kind→harness policy cannot express,
-because a policy maps each kind to *one* harness. Everything else is a policy
-(`GROVE_<KIND>_HARNESS`) or falls through to the harness the grove is stamped
-to. For the pair itself, `leaf-add-pair` writes **both** producers' declarations
-— that is the shape it exists for. Otherwise write one with
-`leaf-add --harness <name>` / `leaf-insert --harness <name>`, or by hand;
-`leaf-decompose` carries a declaration onto the node's first child, as it does
-the kind.
-
-The line **beats every policy var and the stamp** — leaf beats kind beats family
-beats stamp — so it is read strictly: a name grove does not recognise, or an
-empty `**Harness:**`, **refuses to launch** rather than degrading. That is the
-opposite of how `**Kind:**` is read, deliberately: a wrong discipline label costs
-a warning, while a wrong harness would run the leaf on a vendor the tree
-explicitly said not to.
+The shape that used to need a per-leaf declaration was the **vendor pair**, whose
+two producers were once the *same* kind and could only be told apart by naming
+their vendors in their bodies. Splitting them into two kinds — `research-a` and
+`research-b` — moved that distinction into the taxonomy, where the configuration
+can address it. That is the whole reason the pair costs two kinds instead of one:
+the tree states *two independently configured sessions* as a fact, and whether
+their two templates actually reach two different vendors is the configuration
+owner's policy, which grove can neither infer from an opaque command string nor
+warn about.
 
 ## The three design kinds — extra guidance
 

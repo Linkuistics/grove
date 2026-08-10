@@ -14,8 +14,3 @@
 
 # superpowers brainstorming visual companion (local-only)
 .superpowers/
-
-# Per-grove explicit harness binding (harness_stamp.rs). Written by any
-# `grove do --harness <name>` or multi-harness repo; local to the machine, not
-# something to commit.
-/.grove-stamps/

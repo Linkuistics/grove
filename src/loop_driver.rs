@@ -1235,9 +1235,13 @@ enum Next {
     Finish,
 }
 
-/// Resolve — without launching, stamping, or otherwise touching anything — what
-/// `grove do` would do next. See [`Readiness`]; the caller is `launch::do_grove`'s
-/// `--no-launch` branch, which prints it and returns.
+/// Resolve — without launching or otherwise touching anything — what the legacy
+/// routed launch would do next. See [`Readiness`].
+///
+/// **It has no production caller.** Its only one was the `--no-launch` dry run,
+/// removed with the rest of the legacy command surface; it survives as routing
+/// internals for the contraction that removes the routing lattice itself, and is
+/// covered meanwhile by `tests/launch.rs`.
 pub fn readiness(stamped: &'static Harness, worktree: &Path) -> Result<Readiness> {
     let verb = launch_verb(worktree);
     let launch = resolve_launch(stamped, worktree, verb)?;

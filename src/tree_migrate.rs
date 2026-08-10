@@ -1,8 +1,8 @@
 // The **migration** (task-tree-scheme): the one-time, in-place conversion of a task
 // tree to the v2 **directory** scheme — `NN-<slug>-k<key>/` node dirs holding a
 // `BRIEF.md` + numbered children, leaves `NN-[DONE-]<slug>-k<key>.md`. It runs on
-// adoption, from `grove do` (`launch.rs`) and the `grove migrate` verb (`cli.rs`),
-// and it accepts **two** superseded source formats:
+// adoption, from the bare driver's lifecycle transition, and it accepts **two**
+// superseded source formats:
 //
 //   * **v1-flat** (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`) — the primary case;
 //   * the **older `NNN-slug/` + `done/`** directory tree — for any grove that never
@@ -27,14 +27,13 @@
 // node's brief takes its key before its children), starting at `1` — deterministic
 // and re-runnable, so the fixtures below pin exact output.
 //
-// The old human/adoption entry points remain compatibility callers until the
-// lifecycle cutover. They share the universal lifecycle guard with the current
-// transition below, but retain their bounded v2-only behavior. `plan_current`
+// The human `grove migrate` verb and its adoption twin are gone; `migrate` /
+// `migrate_on_adoption` survive as the bounded v2-only layout adapter, sharing
+// the universal lifecycle guard with the current transition below. `plan_current`
 // is the authoritative combined layout + filename-kind plan consumed by
 // `tree_lifecycle::transition_to_current`; the later driver cutover calls that
 // transition exactly once rather than sequencing both migration APIs itself.
 
-use crate::cli::MigrateArgs;
 use crate::leaf::{split_prefix, Kind};
 use crate::leaf_id::{self, LeafId};
 use crate::repo;
@@ -229,44 +228,6 @@ fn git(dir: &Path, args: &[&str]) -> Result<()> {
             args.join(" "),
             String::from_utf8_lossy(&out.stderr).trim()
         );
-    }
-    Ok(())
-}
-
-/// The `grove migrate [path]` CLI handler (dispatched from `cli.rs`). `path` is the
-/// worktree whose `.grove/` to migrate (default: the current worktree). Prints a
-/// move summary.
-pub fn run(args: &MigrateArgs) -> Result<()> {
-    let worktree = match &args.path {
-        Some(p) => p.clone(),
-        None => repo::toplevel(&std::env::current_dir().context("getting cwd")?)?,
-    };
-    let grove_root = worktree.join(".grove");
-    match migrate(&worktree)? {
-        Outcome::Migrated(renames) => {
-            println!(
-                "migrated {} file{} to v2 directory scheme:",
-                renames.len(),
-                if renames.len() == 1 { "" } else { "s" }
-            );
-            for r in &renames {
-                println!("  {} -> {}", r.from_rel.display(), r.to_rel.display());
-            }
-            println!("review the working-tree changes, then commit.");
-        }
-        Outcome::AlreadyV2 => {
-            eprintln!("grove migrate: already v2 (directory scheme); nothing to do");
-        }
-        Outcome::NothingToMigrate => {
-            if grove_root.is_dir() {
-                eprintln!(
-                    "grove migrate: no migratable tree in {}",
-                    grove_root.display()
-                );
-            } else {
-                eprintln!("grove migrate: no .grove/ at {}", grove_root.display());
-            }
-        }
     }
     Ok(())
 }

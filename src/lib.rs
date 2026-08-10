@@ -4,7 +4,6 @@ pub mod driver_lease;
 pub(crate) mod finish_cleanup;
 pub(crate) mod finish_transaction;
 pub mod harness;
-pub mod harness_stamp;
 pub mod json;
 pub mod launch;
 // `leaf` holds `Kind`, which is live everywhere, plus the old `NNN-slug`

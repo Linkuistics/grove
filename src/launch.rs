@@ -1,6 +1,4 @@
-use crate::cli::{RetireArgs, StartArgs};
 use crate::harness::Harness;
-use crate::harness_stamp;
 use crate::repo;
 use anyhow::{Context, Result};
 use std::fs;
@@ -23,155 +21,6 @@ pub fn bare_grove() -> Result<()> {
     crate::loop_driver::run_configured(&repository, &worktree, &name, driver_lease)
 }
 
-/// Retained implementation of the removed `grove do` interface.
-///
-/// This compatibility seam remains reachable only by internal tests until the
-/// dedicated legacy-removal work item deletes the old launcher.
-pub fn do_grove(args: &StartArgs) -> Result<()> {
-    let cwd = std::env::current_dir().context("getting cwd")?;
-    let discovered_worktree = repo::workspace_control(&cwd)?.worktree_root().to_path_buf();
-    let name = worktree_name(&discovered_worktree);
-
-    let repo_path = repo::main_repo_of(&discovered_worktree)?;
-    let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
-
-    // Provision the global skill from the embedded methodology for every
-    // installed harness (and the launching one unconditionally), so the skill
-    // any session reads can never drift from this binary.
-    crate::provision::provision_all(harness)?;
-
-    // Provisioning is independent delivery and deliberately remains available
-    // even when another driver owns this working tree. Foreground ownership
-    // begins here, before any task-tree observation, migration, config check,
-    // or launch. The read-only no-launch path deliberately takes no lease and
-    // therefore must return before the adoption migration below.
-    // Resolve it from cwd's on-disk marker rather than Git discovery so ambient
-    // GIT_DIR/GIT_WORK_TREE/TMPDIR values cannot split one workspace's lease.
-    let driver_lease = if args.no_launch {
-        None
-    } else {
-        Some(crate::driver_lease::DriverLease::acquire(&cwd)?)
-    };
-    let worktree = match driver_lease.as_ref() {
-        Some(lease) => {
-            lease
-                .revalidate()
-                .context("revalidating driver lease before lifecycle transition")?;
-            lease.worktree_root().to_path_buf()
-        }
-        None => discovered_worktree,
-    };
-    let name = worktree_name(&worktree);
-
-    // Both config checks run *above* the no-launch return, not below it
-    // (no-launch-config-check-k20). The pre-flight check covers not just the
-    // stamped harness but every per-kind `GROVE_<KIND>_HARNESS` override
-    // configured (harness-spawn-preflight-k8): a rerouted-but-uninstalled
-    // harness must fail here, before the loop starts, not mid-run on the first
-    // leaf routed to it.
-    crate::loop_driver::preflight_check(harness)?;
-
-    if args.no_launch {
-        // `--no-launch` is documented as *reporting readiness*, so it has to
-        // resolve everything a launch would fail on rather than merely decline
-        // to launch: once a kind with no model var became a hard error
-        // (model-per-task-kind), a dry run that skipped the checks printed
-        // `ready` and exited 0 on exactly the half-configured environments the
-        // requirement exists to expose — the same partial-configuration
-        // invisibility, back through the dry-run door.
-        //
-        // The guard still sits above `maybe_stamp` (branch-review-k14 B3):
-        // reporting is free to read anything, but a documented dry run must
-        // never permanently rebind the grove. Both checks it now runs are
-        // side-effect free — pre-flight is a PATH lookup, and the kind peek
-        // only spawns `grove-llm kind`, which reads the tree and writes
-        // nothing.
-        let readiness = crate::loop_driver::readiness(harness, &worktree)?;
-        eprintln!(
-            "grove: ready in {} — {readiness} (no-launch)",
-            worktree.display()
-        );
-        return Ok(());
-    }
-
-    // Adoption-migrate (task-tree-scheme): before driving, flip an old-format
-    // `.grove/` (v1-flat or `NNN-slug`) to the v2 directory scheme in one
-    // reviewable commit, so every task the loop launches sees only v2. This is
-    // below the no-launch return because readiness inspection is side-effect
-    // free, and above every foreground tree operation while the lifetime lease
-    // is held. A no-op on a v2/empty/absent tree (restart ≡ continuation).
-    if let crate::tree_migrate::Outcome::Migrated(renames) =
-        crate::tree_migrate::migrate_on_adoption(&worktree, &name)?
-    {
-        eprintln!(
-            "grove: migrated {} task-tree file{} to the v2 directory scheme (committed for review)",
-            renames.len(),
-            if renames.len() == 1 { "" } else { "s" }
-        );
-    }
-
-    // The stamp is written only here, after provisioning, the no-launch return
-    // and the pre-flight check have all already succeeded: a provisioning
-    // failure — or a harness whose binary isn't installed — must never leave a
-    // stamp with no recovery path (branch-review-k14 B4).
-    harness_stamp::maybe_stamp(&repo_path, &name, harness, args.harness.is_some())?;
-
-    let driver_lease = driver_lease.context("driver lease missing before foreground launch")?;
-    crate::loop_driver::run(harness, &repo_path, &worktree, &name, driver_lease)
-}
-
-pub fn retire(args: &RetireArgs) -> Result<()> {
-    let worktree = repo::toplevel(&std::env::current_dir().context("getting cwd")?)?;
-    let name = worktree_name(&worktree);
-
-    let repo_path = repo::resolve(None)?;
-    let harness = harness_stamp::resolve_for_launch(&repo_path, &name, args.harness.as_deref())?;
-
-    // The prompt is loaded and the invocation assembled *above* the no-launch
-    // return, for the reason `do`'s two config checks are
-    // (no-launch-config-check-k20, and *model-per-task-kind*: "`--no-launch`
-    // resolves the launch it declines to perform"). The rule generalises to this
-    // verb even though what there is to resolve does not: `retire` peeks no leaf
-    // and loads no model, so its whole resolution is the harness, the prompt and
-    // the grants — and a dry run that stopped at the harness reported readiness
-    // for a launch it had checked almost none of.
-    //
-    // The prompt is the sharp case and it is unique to this verb: `grove retire`
-    // **never provisions** (only `do_grove` calls `provision_all`), so
-    // `load_prompt` reads a global skill dir some *earlier* `grove do` had to
-    // have written for this harness. That is the one launch dependency a user
-    // cannot see and the one the old dry run sat directly on top of.
-    let prompt = load_prompt(harness, "retire")?;
-    let prompt = substitute(&prompt, &[("NODE_PATH", &args.path)]);
-
-    if args.no_launch {
-        // Built and dropped: assembling the invocation runs the codex sandbox
-        // pre-flight and derives the VCS-store grants, which is the resolution
-        // being reported on; a `Command` that is never spawned does nothing else.
-        let _cmd = retire_command(harness, &repo_path, &worktree, &name, &prompt)?;
-        // The exec is the one thing a dry run cannot inherit from the launch, so
-        // it stands in the strongest available predicate on it. `harness.exec_bin`
-        // and not `loop_driver::harness_bin`: that seam is the *loop*'s, and
-        // `exec_harness` deliberately has none — checking the overridable name
-        // here would report on a binary this verb never runs.
-        if !crate::harness::exec_bin_on_path(harness.exec_bin) {
-            anyhow::bail!(
-                "{} is not on PATH, so this grove's retire session could not be \
-                 launched on \"{}\" (nothing was launched)",
-                harness.exec_bin,
-                harness.name
-            );
-        }
-        eprintln!(
-            "grove: ready in {} — would exec {} for retire (no-launch)",
-            worktree.display(),
-            harness.exec_bin
-        );
-        return Ok(());
-    }
-    exec_harness(harness, &repo_path, &worktree, &name, &prompt)
-}
-
 /// The grove name is the worktree directory's basename (user-owned-worktrees).
 fn worktree_name(worktree: &Path) -> String {
     worktree
@@ -182,24 +31,16 @@ fn worktree_name(worktree: &Path) -> String {
 
 /// Read a launcher prompt from the **global** skill dir the binary provisions
 /// for `harness` (`~/.claude/skills/grove/prompts/`, or the equivalent
-/// per-harness dir), not any repo-local mirror. `grove do` provisions every
-/// installed harness's dir at the top of [`do_grove`], so the loop always
-/// launches off the *current* embedded prompts — the repoint that retired the
-/// old `harness.install_path`-rooted read, which silently served stale mirrors.
+/// per-harness dir), not any repo-local mirror. [`bare_grove`] provisions every
+/// installed harness's dir before it owns anything, so the loop always launches
+/// off the *current* embedded prompts — the repoint that retired the old
+/// `harness.install_path`-rooted read, which silently served stale mirrors.
 pub(crate) fn load_prompt(harness: &Harness, verb: &str) -> Result<String> {
     let prompt_path = crate::provision::skill_dir_for(harness)?
         .join("prompts")
         .join(format!("{}.md", verb));
     fs::read_to_string(&prompt_path)
         .with_context(|| format!("reading prompt {}", prompt_path.display()))
-}
-
-fn substitute(template: &str, vars: &[(&str, &str)]) -> String {
-    let mut out = template.to_string();
-    for (k, v) in vars {
-        out = out.replace(&format!("{{{{{}}}}}", k), v);
-    }
-    out
 }
 
 /// codex-gitdir-grant: codex's `workspace-write` sandbox blocks the VCS
@@ -564,66 +405,6 @@ fn probe_codex_sandbox(
     let _ = child.kill();
     let _ = child.wait();
     verdict
-}
-
-fn exec_harness(
-    harness: &Harness,
-    repo_path: &Path,
-    worktree: &Path,
-    grove_name: &str,
-    prompt: &str,
-) -> Result<()> {
-    let mut cmd = retire_command(harness, repo_path, worktree, grove_name, prompt)?;
-    let status = cmd
-        .status()
-        .with_context(|| format!("execing {}", harness.exec_bin))?;
-    if !status.success() {
-        anyhow::bail!("{} exited non-zero", harness.exec_bin);
-    }
-    Ok(())
-}
-
-/// Assemble the `grove retire` invocation — everything the launch resolves
-/// **except the exec itself**, which is the only step [`retire`]'s `--no-launch`
-/// dry run skips.
-///
-/// Extracted for that dry run rather than inlined, so the report and the launch
-/// it predicts cannot come to disagree: `--no-launch` runs this identical code
-/// path rather than a parallel re-derivation of it (*model-per-task-kind*, the
-/// same reason `readiness` reads `launch_verb` from the driver).
-fn retire_command(
-    harness: &Harness,
-    repo_path: &Path,
-    worktree: &Path,
-    grove_name: &str,
-    prompt: &str,
-) -> Result<Command> {
-    let repo_name = repo_path
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "repo".to_string());
-    let session_name = format!("{}: {} grove", repo_name, grove_name);
-
-    // Both launch sites, exactly like the grant it guards: a `grove retire`
-    // session commits too, so it dies on the same refusal and wants the same
-    // diagnostic. `model: None` because this path does no model routing — there
-    // is no profile layer here that could move the answer.
-    check_codex_sandbox_accepts_grants(harness.exec_bin, harness, worktree, None)?;
-
-    let mut cmd = Command::new(harness.exec_bin);
-    cmd.current_dir(worktree);
-    if !harness.name_args.is_empty() {
-        cmd.args(harness.name_args).arg(&session_name);
-    }
-    append_codex_vcs_store_grant(&mut cmd, harness, worktree)?;
-    cmd.arg(prompt);
-    // A `grove retire` session is a one-off with no driver watching it, so it is
-    // not "the session itself" in `scrub_loop_control_env`'s sense: run from
-    // inside a live `grove do`, it would otherwise inherit that loop's kill
-    // channel and its `grove-llm complete` would end someone else's task.
-    scrub_internal_child_env(&mut cmd);
-
-    Ok(cmd)
 }
 
 #[cfg(test)]

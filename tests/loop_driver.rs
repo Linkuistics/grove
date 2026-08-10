@@ -50,15 +50,44 @@ const LEGACY_DRIVER_PROCESS: &str = "GROVE_TEST_LEGACY_DRIVER_PROCESS";
 // that *are* about model selection name their own models.
 const SCAFFOLD_MODEL: &str = "scaffold-model";
 
+/// The legacy loop driven as a **real process**, for the handful of tests below
+/// that observe something no in-process `run_loop` call can: the driver's own
+/// stderr, its provisioning, or its response to a signal.
+///
+/// It was `launch::do_grove` until that removed human verb's implementation was
+/// deleted with the rest of the legacy command surface. What it composed —
+/// provisioning, the driver lease, the pre-flight, the adoption migration and
+/// [`loop_driver::run`] — is all still production and still owned by the routing
+/// and review contractions that come next, so the composition is reproduced here
+/// rather than the tests being dropped ahead of the leaves that own them. The one
+/// step with no successor is the harness stamp: harness selection is plain
+/// detection now, which every fixture below satisfies with a `.claude/` marker.
 #[test]
 fn legacy_grove_do_process() -> anyhow::Result<()> {
     if std::env::var_os(LEGACY_DRIVER_PROCESS).is_none() {
         return Ok(());
     }
-    grove::launch::do_grove(&grove::cli::StartArgs {
-        harness: None,
-        no_launch: false,
-    })
+    let cwd = std::env::current_dir()?;
+    let discovered = grove::repo::workspace_control(&cwd)?
+        .worktree_root()
+        .to_path_buf();
+    let repo_path = grove::repo::main_repo_of(&discovered)?;
+    let harness = grove::harness::select(&repo_path, &[], harness::SelectMode::Single)?[0];
+
+    grove::provision::provision_all(harness)?;
+
+    let driver_lease = grove::driver_lease::DriverLease::acquire(&cwd)?;
+    driver_lease.revalidate()?;
+    let worktree = driver_lease.worktree_root().to_path_buf();
+    let name = worktree
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "grove".to_string());
+
+    loop_driver::preflight_check(harness)?;
+    grove::tree_migrate::migrate_on_adoption(&worktree, &name)?;
+
+    loop_driver::run(harness, &repo_path, &worktree, &name, driver_lease)
 }
 
 fn legacy_grove_do_command(repo_path: &std::path::Path) -> std::process::Command {
@@ -4367,6 +4396,163 @@ exit 0
         main.join(".git").canonicalize().unwrap(),
         "a linked worktree's grant is the MAIN repo's common gitdir — the \
          worktree's own gitdir is a subpath of it (argv: {argv:?})"
+    );
+}
+
+/// A jj-enabled fixture: native (`.jj/` only) or colocated (`.git` beside it).
+/// jj runs with a test-local identity so no global config is required.
+fn init_jj_worktree(path: &std::path::Path, colocate: bool) {
+    fs::create_dir_all(path).unwrap();
+    run_jj(
+        path,
+        if colocate {
+            &["git", "init", "--colocate", "--quiet", "."]
+        } else {
+            &[
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ]
+        },
+    );
+}
+
+fn run_jj(dir: &std::path::Path, args: &[&str]) {
+    let mut full = vec![
+        "--config",
+        "user.name=Test",
+        "--config",
+        "user.email=t@example.com",
+    ];
+    full.extend_from_slice(args);
+    let out = std::process::Command::new("jj")
+        .current_dir(dir)
+        .args(&full)
+        .output()
+        .unwrap_or_else(|e| panic!("running jj {args:?}: {e} (is jj installed?)"));
+    assert!(
+        out.status.success(),
+        "jj {args:?} failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+/// Run one codex loop iteration in `worktree` and return the `--add-dir` values
+/// its launch carried, canonicalized (TempDirs live behind the /var →
+/// /private/var symlink).
+///
+/// The fake answers the sandbox pre-flight through [`support::fake_codex`], so
+/// exactly one line reaches the log and the values below are a single launch's
+/// rather than a probe's and a launch's summed. Callers hold `ENV_LOCK`.
+fn codex_launch_granted_dirs(worktree: &std::path::Path) -> Vec<PathBuf> {
+    let skill_dir = worktree.join("global-skill");
+    let prompts = skill_dir.join("prompts");
+    fs::create_dir_all(&prompts).unwrap();
+    fs::write(prompts.join("start.md"), "START PROMPT").unwrap();
+
+    let log = worktree.join("log");
+    let fake = worktree.join("fake-codex.sh");
+    write_fake_codex(
+        &fake,
+        r#"#!/bin/sh
+printf '%s\n' "$*" >> "$GROVE_TEST_LOG"
+exit 0
+"#,
+    );
+
+    let mut env = EnvGuard::new();
+    env.clear_grove_env()
+        .set("GROVE_HARNESS_BIN", &fake)
+        .set("GROVE_LLM_BIN", OWN_GROVE_LLM)
+        .set("GROVE_SKILL_DIR", &skill_dir)
+        .set("GROVE_TEST_LOG", &log)
+        // Scaffolding: one start-path (requirements) session.
+        .set("GROVE_REQUIREMENTS_MODEL", SCAFFOLD_MODEL);
+
+    let result = loop_driver::run_loop(
+        harness::by_name("codex").unwrap(),
+        worktree,
+        worktree,
+        "jjgrantgrove",
+    );
+    assert_eq!(result.unwrap(), LoopOutcome::Stopped);
+
+    let argv = fs::read_to_string(&log).unwrap();
+    assert_eq!(
+        argv.lines().filter(|l| !l.is_empty()).count(),
+        1,
+        "the sandbox pre-flight must not reach the argv log — it is a probe, \
+         not a launch (log: {argv:?})"
+    );
+    support::add_dir_values(&argv)
+        .into_iter()
+        .map(|p| std::path::Path::new(p).canonicalize().unwrap())
+        .collect()
+}
+
+// The jj half of codex-gitdir-grant (codex 0.145.0 carves out only
+// `.git`/`.agents`/`.codex`, never `.jj`). A jj-native tree has no `.git` for
+// `git rev-parse` to find, so the grant derivation must go through jj instead of
+// erroring the launch outright. The granted store is the main workspace's `.jj`:
+// redundant here — it sits under the sandbox cwd — but load-bearing from a
+// secondary workspace, and grants are additive so the uniform rule costs nothing.
+#[test]
+fn codex_launch_in_a_jj_native_tree_grants_the_jj_store() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_jj_worktree(worktree, false);
+
+    assert_eq!(
+        codex_launch_granted_dirs(worktree),
+        vec![worktree.join(".jj").canonicalize().unwrap()],
+        "a jj-native launch grants the `.jj` store and nothing else"
+    );
+}
+
+// Colocated: jj's git backend writes commit objects and exported refs into
+// `.git`, which the sandbox does carve out of the cwd root — so both stores are
+// granted, `.jj` first.
+#[test]
+fn codex_launch_in_a_colocated_tree_grants_the_jj_and_git_stores() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let worktree_dir = TempDir::new().unwrap();
+    let worktree = worktree_dir.path();
+    init_jj_worktree(worktree, true);
+
+    assert_eq!(
+        codex_launch_granted_dirs(worktree),
+        vec![
+            worktree.join(".jj").canonicalize().unwrap(),
+            worktree.join(".git").canonicalize().unwrap(),
+        ],
+        "a colocated launch grants both stores"
+    );
+}
+
+// A secondary workspace's own `.jj/` holds only the working copy; every op lands
+// in the *main* workspace's `.jj/repo`, outside the sandbox cwd entirely. The
+// grant must therefore name the main workspace's `.jj`, not the local one — the
+// jj counterpart of the linked-worktree case above.
+#[test]
+fn codex_launch_in_a_secondary_jj_workspace_grants_the_main_workspace_store() {
+    let _g = support::lock_env(&ENV_LOCK);
+    let tmp = TempDir::new().unwrap();
+    let main = tmp.path().join("main");
+    init_jj_worktree(&main, false);
+    let workspace = tmp.path().join("ws2");
+    run_jj(
+        &main,
+        &["workspace", "add", "--quiet", workspace.to_str().unwrap()],
+    );
+
+    assert_eq!(
+        codex_launch_granted_dirs(&workspace),
+        vec![main.join(".jj").canonicalize().unwrap()],
+        "a secondary-workspace launch grants the main workspace's `.jj`"
     );
 }
 

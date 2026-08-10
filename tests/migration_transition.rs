@@ -1,3 +1,5 @@
+mod support;
+
 use grove::tree_lifecycle::{transition_to_current, CurrentTransition};
 use grove::tree_read;
 use std::fs;
@@ -190,6 +192,94 @@ fn assert_unknown_format_refusal(kind: RepositoryKind) {
         "session-kinds-v99\n"
     );
     assert!(!repository.join(".grove/MIGRATING-session-kinds").exists());
+}
+
+/// A repository selected by the *caller's* context must not capture the
+/// migration commit. `current_dir` alone does not achieve that: Git reads
+/// `GIT_DIR` / `GIT_WORK_TREE` / `GIT_COMMON_DIR` and a repository-local
+/// `core.worktree` in preference to where the process happens to be standing.
+/// The guard is `repo::anchor_git_worktree_environment`, applied to every
+/// internal Git child; it drops the ambient selectors *and* pins
+/// `GIT_WORK_TREE`, which is the half that overrides `core.worktree`.
+///
+/// The hazard is live rather than hypothetical: a personal launch environment
+/// is exactly what `grove` inherits, and both failure modes are silent — the
+/// intended tree still looks migrated on disk either way.
+///
+/// So the assertions are split by failure mode, and each was checked against a
+/// deliberately unanchored build rather than assumed. Redirecting the
+/// *repository* moves the commit somewhere else entirely, which "`HEAD`
+/// advanced here, not there" catches. Redirecting only the *work tree* leaves
+/// `intended`'s `HEAD` advancing perfectly normally while the commit records a
+/// tree staged from `foreign` — visible only in the commit's content, which is
+/// why that assertion is here and is not redundant with the first.
+///
+/// `scrub_internal_child_env` runs first and covers selectors the anchor does
+/// not name (`GIT_INDEX_FILE`); on this path the anchor subsumes it, so it is
+/// defence in depth and `launch.rs`'s own unit tests are what pin it.
+#[test]
+fn migration_commits_in_the_leased_worktree_despite_a_foreign_git_context() {
+    let temporary = TempDir::new().unwrap();
+    let intended = temporary.path().join("intended");
+    let foreign = temporary.path().join("foreign");
+    fs::create_dir(&intended).unwrap();
+    fs::create_dir(&foreign).unwrap();
+    initialize(&intended, RepositoryKind::Git);
+    initialize(&foreign, RepositoryKind::Git);
+    seed_legacy_tree(&intended);
+    run("git", &intended, &["add", "-A"]);
+    run(
+        "git",
+        &intended,
+        &["commit", "-q", "-m", "seed legacy grove"],
+    );
+    let intended_head_before = run("git", &intended, &["rev-parse", "HEAD"]);
+    fs::write(foreign.join("unrelated"), "unrelated\n").unwrap();
+    run("git", &foreign, &["add", "-A"]);
+    run("git", &foreign, &["commit", "-q", "-m", "foreign seed"]);
+    let foreign_head_before = run("git", &foreign, &["rev-parse", "HEAD"]);
+
+    // Both kinds of redirection at once: the repository-local setting and the
+    // three ambient selectors.
+    run(
+        "git",
+        &intended,
+        &["config", "core.worktree", foreign.to_str().unwrap()],
+    );
+    let mut environment = support::EnvGuard::new();
+    environment
+        .set("GIT_DIR", foreign.join(".git"))
+        .set("GIT_WORK_TREE", &foreign)
+        .set("GIT_COMMON_DIR", foreign.join(".git"));
+
+    let transition = transition_to_current(&intended);
+
+    drop(environment);
+    assert_eq!(transition.unwrap(), CurrentTransition::Migrated);
+    assert!(intended.join(".grove/01-impl-task-k1.md").exists());
+    // The scrub half: an unscrubbed `GIT_DIR` puts the commit in `foreign`.
+    assert_ne!(
+        run("git", &intended, &["rev-parse", "HEAD"]),
+        intended_head_before,
+        "the migration must be committed in the leased worktree"
+    );
+    assert_eq!(
+        run("git", &foreign, &["rev-parse", "HEAD"]),
+        foreign_head_before,
+        "the repository selected by the environment must be untouched"
+    );
+    // The anchor half: an unanchored child honours `core.worktree` and stages
+    // from `foreign`, where `.grove/` does not exist — so `HEAD` still advances
+    // in the right repository while recording the wrong (empty) tree.
+    let recorded = run(
+        "git",
+        &intended,
+        &["show", "--name-only", "--format=", "HEAD"],
+    );
+    assert!(
+        recorded.contains(".grove/01-impl-task-k1.md"),
+        "the migration commit must record the migrated tree, got: {recorded:?}"
+    );
 }
 
 #[test]

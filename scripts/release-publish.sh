@@ -29,20 +29,28 @@
 #   grove-llm root-init                       # a live tree for `pick` to walk
 #   printf '#!/bin/sh\nprintf "GROVE_SIGNAL_FILE=%s\\n" "$GROVE_SIGNAL_FILE"\n' > fake
 #   chmod +x fake
-#   env -u GROVE_SIGNAL_FILE \
-#       GROVE_HARNESS_BIN_CLAUDE="$PWD/fake" GROVE_CLAUDE_MODEL=opus \
-#       grove do --harness claude
+#   mkdir -p "$scratch/home/.config/grove"
+#   for kind in requirements design planning prototype impl \
+#               review-requirements review-design review-planning \
+#               review-prototype review-impl \
+#               integrate-review-requirements integrate-review-design \
+#               integrate-review-planning integrate-review-prototype \
+#               integrate-review-impl \
+#               research-a research-b combine-research finish; do
+#     printf '%s "%s/fake \x27${prompt}\x27"\n' "$kind" "$scratch"
+#   done > "$scratch/home/.config/grove/config.kdl"
+#   env -u GROVE_SIGNAL_FILE HOME="$scratch/home" grove
 #
-# `--harness claude` plus an explicit model are needed because a scratch tree
-# has no stamp and no detectable harness. The fake exits 0 without signalling,
+# The isolated `HOME` is what makes this a *test* rather than a run of your own
+# launch policy: a complete personal config is mandatory, all nineteen kinds,
+# and the fake stands in for every one of them. It exits 0 without signalling,
 # so the nested loop stops itself after one iteration.
 #
-# What that shows: the driver's launch line (routing diagnostics), a fresh
-# completion-signal path reaching the harness child, and — because `grove do`
-# re-provisions the skill from the binary — the methodology surfaces. A fourth
-# comes free from the scratch tree being untrusted by codex:
-# `grove do --harness codex --no-launch` there exercises the sandbox preflight
-# refusal end to end.
+# What that shows: the configured argv reaching the real foreground child, a
+# fresh completion-signal path granted to it, and — because every bare
+# lifecycle invocation re-provisions the skill from the binary — the methodology
+# surfaces. Point `HOME` at a directory with no `config.kdl` for the other half:
+# the aggregate configuration diagnostic, with no tree mutation.
 #
 # Run this in the same session as the `brew upgrade` — see release.toml on why
 # that is safe and why deferring it to a follow-up session is unnecessary.

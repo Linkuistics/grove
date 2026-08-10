@@ -63,6 +63,14 @@ tree lock; a finish leaf is eligible only when no non-finish work remains; and a
 mandated producer may promote without a second pick. The embedded launcher plus
 mandate relies on the provisioned Grove skill, standalone legacy `research` maps
 to `research-a`, and pair target diversity is configuration-owner policy.
+This is a meta-grove, and that constraint outlives the node it was written
+under (`legacy-launch-removal-k46`, now closed): the **installed** v16.5.0
+driver and its running loop own this workstream through finish, so its `grove
+do` control path must not be replaced by a branch build of the bare command
+before the grove finishes. Exercise branch binaries only in isolated homes or
+worktrees with ambient loop authority scrubbed; `acceptance-verification-k50`
+owns the pre-install matrix.
+
 No-signal exits retain status and elapsed time, scoped Git deletion uses
 only/path mode, and internal tool/grace injection is not user configuration.
 `docs/specs/config-driven-sessions.md` is the stable input to implementation

@@ -21,6 +21,11 @@
 // `root-init` and `leaf-add` get no colocated twin deliberately: they only write
 // new files and consult no VCS beyond resolving the worktree, so a colocated
 // case would assert nothing its jj-native case does not.
+//
+// The two lifecycle-transition cases are the exception to "drive the binaries":
+// they call the library, because the transition is not a verb anyone types — the
+// driver runs it before it selects anything. The claim is the same one, made
+// about the one mutation with no command-line spelling.
 
 use assert_cmd::Command;
 use std::fs;
@@ -436,13 +441,10 @@ fn leaf_prune_marks_a_whole_subtree_abandoned_in_a_jj_native_tree() {
     );
 }
 
-#[test]
-fn migrate_converts_an_old_tree_in_a_jj_native_tree() {
-    // The retained compatibility engine moves the whole tree at once and —
-    // unlike the adoption hook — makes no commit, so this is the rename set
-    // alone, in a tree with no git. The human verb was removed at cutover.
-    let tmp = jj_native();
-    let repo = tmp.path();
+/// Lay down the older `NNN-slug/` + `done/` layout — the shape furthest from
+/// current, so the conversion exercises node-directory creation, the `done/`
+/// mirror, and fresh key assignment in one fixture.
+fn build_old_nnn_grove(repo: &Path) {
     let g = repo.join(".grove");
     touch(&g.join("BRIEF.md"), "# proj — brief\n");
     touch(&g.join("done/010-first.md"), "# 010-first\n\nbody one\n");
@@ -451,19 +453,41 @@ fn migrate_converts_an_old_tree_in_a_jj_native_tree() {
         &g.join("020-second/010-child.md"),
         "# 010-child\n\nchild body\n",
     );
+}
 
-    let outcome = grove::tree_migrate::migrate(repo).unwrap();
-    assert!(matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)));
+/// The current-format shape `build_old_nnn_grove` must lower to: v2 directories
+/// *and* session-kind filenames, in one transition. The legacy bodies carry no
+/// `**Kind:**` marker, so every leaf takes the read-side default `impl`.
+fn expected_migrated_tree() -> Vec<String> {
+    [
+        "01-DONE-impl-first-k1.md",
+        "02-second-k2/01-impl-child-k3.md",
+        "02-second-k2/BRIEF.md",
+        "BRIEF.md",
+        "FORMAT",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
+}
+
+#[test]
+fn the_lifecycle_transition_migrates_an_old_tree_in_a_jj_native_tree() {
+    // The pre-v2 layout conversion, in a tree with no git anywhere — so a git
+    // fallback in the rename seam or the commit seam fails outright rather than
+    // quietly working. This is the same claim the other cases in this file make
+    // for the agent verbs, made for the one mutation the *driver* performs
+    // before it selects anything.
+    let tmp = jj_native();
+    let repo = tmp.path();
+    build_old_nnn_grove(repo);
 
     assert_eq!(
-        tree(repo),
-        vec![
-            "01-DONE-first-k1.md",
-            "02-second-k2/01-child-k3.md",
-            "02-second-k2/BRIEF.md",
-            "BRIEF.md",
-        ],
+        grove::tree_lifecycle::transition_to_current(repo).unwrap(),
+        grove::tree_lifecycle::CurrentTransition::Migrated
     );
+
+    assert_eq!(tree(repo), expected_migrated_tree());
 }
 
 #[test]
@@ -577,32 +601,23 @@ fn leaf_prune_in_a_colocated_tree_leaves_the_git_index_alone() {
 }
 
 #[test]
-fn migrate_in_a_colocated_tree_leaves_the_git_index_alone() {
-    let tmp = colocated(|repo| {
-        let g = repo.join(".grove");
-        touch(&g.join("BRIEF.md"), "# proj — brief\n");
-        touch(&g.join("done/010-first.md"), "# 010-first\n\nbody one\n");
-        touch(&g.join("020-second/BRIEF.md"), "# 020-second — brief\n");
-        touch(
-            &g.join("020-second/010-child.md"),
-            "# 010-child\n\nchild body\n",
-        );
-    });
+fn the_lifecycle_transition_in_a_colocated_tree_leaves_the_git_index_alone() {
+    // jj-first where git is genuinely available: the conversion must move
+    // entries with a plain rename, since a `git mv` would stage into an index
+    // jj ignores. The transition commits as well as renames, and the *commit*
+    // half of the same claim — that a colocated jj commit leaves git's index
+    // where the user left it — is `tests/migration_commit.rs`'s subject; here
+    // the index is the fixture's own, staged before the transition runs.
+    let tmp = colocated(build_old_nnn_grove);
     let repo = tmp.path();
     let before = git_index(repo);
 
-    let outcome = grove::tree_migrate::migrate(repo).unwrap();
-    assert!(matches!(outcome, grove::tree_migrate::Outcome::Migrated(_)));
-
     assert_eq!(
-        tree(repo),
-        vec![
-            "01-DONE-first-k1.md",
-            "02-second-k2/01-child-k3.md",
-            "02-second-k2/BRIEF.md",
-            "BRIEF.md",
-        ],
+        grove::tree_lifecycle::transition_to_current(repo).unwrap(),
+        grove::tree_lifecycle::CurrentTransition::Migrated
     );
+
+    assert_eq!(tree(repo), expected_migrated_tree());
     assert_eq!(
         git_index(repo),
         before,

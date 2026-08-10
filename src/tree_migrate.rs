@@ -14,58 +14,36 @@
 // every old header (`# <dotted>-[<key>]-<slug>` or `# NNN-slug`) down to that handle
 // while preserving any ` — brief` tail.
 //
-// **Structure:** a pure `plan` (reads the directory shape, mutates nothing —
-// unit-testable without a git repo) and an impure `execute` (renames + header
-// rewrites, **no commit** — a reviewable git change). Both source readers lower to
-// one intermediate — `Logical` (a `LeafId`-shaped id + the source path + the old
-// header token) — and a single `render` maps that to directory destinations. So the
-// only format-specific code is the two readers; the placement rules live in exactly
-// one place.
+// **Structure: planning only.** Everything here is pure — it reads the directory
+// shape and source bytes and mutates nothing, which is what makes the whole
+// order/position/key mapping unit-testable without a repository. Both source
+// readers lower to one intermediate — `Logical` (a `LeafId`-shaped id + the
+// source path + the old header token) — and a single `render` maps that to
+// directory destinations. So the only format-specific code is the two readers;
+// the placement rules live in exactly one place.
 //
 // **Keys.** v1-flat already carries permanent keys → preserved verbatim. The
 // `NNN-slug` format has none → keys are assigned fresh in **DFS pre-order** (a
 // node's brief takes its key before its children), starting at `1` — deterministic
 // and re-runnable, so the fixtures below pin exact output.
 //
-// The human `grove migrate` verb and its adoption twin are gone; `migrate` /
-// `migrate_on_adoption` survive as the bounded v2-only layout adapter, sharing
-// the universal lifecycle guard with the current transition below. `plan_current`
-// is the authoritative combined layout + filename-kind plan consumed by
-// `tree_lifecycle::transition_to_current`; the later driver cutover calls that
-// transition exactly once rather than sequencing both migration APIs itself.
+// `plan_current` is the single authoritative entry point: it lowers a legacy tree
+// of either shape *directly* into the current filename-kind grammar, and
+// `tree_migration_transaction` is the only mutation owner for that plan — it
+// applies the files, removes emptied source directories, and commits through the
+// repository seam under one recoverable witness. The separate in-place engine
+// this module used to carry (`migrate` / `migrate_on_adoption` and their
+// executor) died with the human `grove migrate` verb and the adoption hook of
+// `grove do`: the driver calls `tree_lifecycle::transition_to_current` exactly
+// once instead of sequencing two migration APIs.
 
 use crate::leaf::{split_prefix, Kind};
 use crate::leaf_id::{self, LeafId};
-use crate::repo;
 use crate::tree_id::{self, Entry};
-use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
-
-/// What a migration attempt did. Both no-op outcomes are clean (not errors), so
-/// adoption can call `migrate` unconditionally on every `grove do`.
-#[derive(Debug)]
-pub enum Outcome {
-    /// The tree was v1-flat or old-`NNN` and was converted; carries the move log.
-    Migrated(Vec<Rename>),
-    /// The tree is already v2-directories — nothing to do.
-    AlreadyV2,
-    /// No recognizable migratable tree (`.grove/` absent, or present but holding
-    /// only the root brief / foreign files).
-    NothingToMigrate,
-}
-
-/// One file moved by the migration: the old path and the new path, both relative
-/// to the grove root (e.g. `5.1-[6]-id-model.DONE.md` →
-/// `05-dotted-decimal-numbering-k5/01-DONE-id-model-k6.md`).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Rename {
-    pub from_rel: PathBuf,
-    pub to_rel: PathBuf,
-}
 
 /// The detected on-disk format of a `.grove/` tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -123,113 +101,6 @@ struct Logical {
     id: LeafId,
     from_abs: PathBuf,
     old_token: String,
-}
-
-/// Compatibility migration to v2-directories in place (no commit). The whole
-/// operation shares the lifecycle guard with current-format transitions.
-/// Idempotent: a clean no-op on an already-v2 tree and on a missing/foreign
-/// `.grove/`.
-pub fn migrate(worktree: &Path) -> Result<Outcome> {
-    let _guard = crate::tree_access::write_for_lifecycle(worktree)?;
-    migrate_unlocked(worktree)
-}
-
-fn migrate_unlocked(worktree: &Path) -> Result<Outcome> {
-    let grove_root = worktree.join(".grove");
-    #[cfg(test)]
-    crate::tree_access::assert_guard_held(&grove_root);
-
-    if !grove_root.is_dir() {
-        return Ok(Outcome::NothingToMigrate);
-    }
-    crate::tree_access::refuse_pending_migration(&grove_root)?;
-    let plan = plan(&grove_root)?;
-    match plan.format {
-        Format::V2 => Ok(Outcome::AlreadyV2),
-        Format::Empty => Ok(Outcome::NothingToMigrate),
-        Format::V1Flat | Format::OldNnn => {
-            let renames = execute(&grove_root, &plan.moves)?;
-            cleanup_empty_dirs(&grove_root)?;
-            Ok(Outcome::Migrated(renames))
-        }
-    }
-}
-
-/// Adoption-migrate (task-tree-scheme): the step `grove do` runs **before
-/// driving** so the loop only ever sees a v2 tree. It detects the format
-/// via [`migrate`]; if the tree was migratable it converts it **and commits** the
-/// conversion as one clear, reviewable commit, then driving proceeds v2.
-/// A v2 / empty / absent `.grove/` is a clean no-op — no commit, no churn.
-///
-/// Idempotent and safe under `restart ≡ continuation` (self-driving-loop): the conversion
-/// is re-runnable, and the commit makes the old→v2 boundary crisp, so a re-run
-/// after a completed migrate sees a v2 tree ([`Outcome::AlreadyV2`]) and does
-/// nothing.
-pub fn migrate_on_adoption(worktree: &Path, name: &str) -> Result<Outcome> {
-    let _guard = crate::tree_access::write_for_lifecycle(worktree)?;
-    let outcome = migrate_unlocked(worktree)?;
-    if let Outcome::Migrated(_) = &outcome {
-        commit_migration(worktree, name)?;
-    }
-    Ok(outcome)
-}
-
-/// Commit the adoption migration as one isolated, self-describing commit,
-/// scoped to `.grove/` so an unrelated dirty file elsewhere is never swept in.
-///
-/// In a **jj-enabled** tree (jj-first, colocated included) that is one
-/// fileset-scoped `jj commit` — jj's snapshot picks up the renames and header
-/// rewrites, no staging step exists, and in a colocated repo jj's auto-export
-/// keeps the git view in step (where a git-made commit would be one jj must
-/// import). In a git tree, staging via a plain `git add` is required because
-/// the post-rename header rewrites left each renamed file
-/// modified-after-staging (and an untracked v1 leaf, renamed without touching
-/// the index, needs adding regardless).
-fn commit_migration(worktree: &Path, name: &str) -> Result<()> {
-    let msg = format!("grove({name}): migrate task tree to v2 directory scheme");
-    if matches!(repo::vcs_of(worktree), Some(repo::Vcs::Jj { .. })) {
-        jj(worktree, &["commit", "-m", &msg, ".grove"])?;
-    } else {
-        git(worktree, &["add", "-A", "--", ".grove"])?;
-        git(worktree, &["commit", "-q", "-m", &msg])?;
-    }
-    Ok(())
-}
-
-/// Run `jj <args>` in `dir`, bailing with stderr on a non-zero exit.
-fn jj(dir: &Path, args: &[&str]) -> Result<()> {
-    let mut command = Command::new("jj");
-    command.current_dir(dir).args(args);
-    repo::anchor_git_worktree_environment(&mut command, dir);
-    let out = command
-        .output()
-        .with_context(|| format!("running jj {}", args.join(" ")))?;
-    if !out.status.success() {
-        bail!(
-            "jj {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(())
-}
-
-/// Run `git -C <dir> <args>`, bailing with stderr on a non-zero exit.
-fn git(dir: &Path, args: &[&str]) -> Result<()> {
-    let mut command = Command::new("git");
-    command.arg("-C").arg(dir).args(args);
-    repo::anchor_git_worktree_environment(&mut command, dir);
-    let out = command
-        .output()
-        .with_context(|| format!("running git {}", args.join(" ")))?;
-    if !out.status.success() {
-        bail!(
-            "git {} failed: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
-    }
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1138,89 +1009,6 @@ fn rewrite_header_line(first_line: &str, old_token: &str, new_handle: &str) -> O
     Some(format!("# {new_handle}{tail}"))
 }
 
-/// Rewrite the first line of a moved file via [`rewrite_header_line`], preserving
-/// the rest of the body byte-for-byte. A non-matching first line is left alone.
-fn rewrite_header_file(path: &Path, old_token: &str, new_handle: &str) -> Result<()> {
-    let body = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let (first, rest) = match body.split_once('\n') {
-        Some((f, r)) => (f, Some(r)),
-        None => (body.as_str(), None),
-    };
-    let Some(new_first) = rewrite_header_line(first, old_token, new_handle) else {
-        return Ok(());
-    };
-    let mut out = String::with_capacity(body.len() + 16);
-    out.push_str(&new_first);
-    if let Some(r) = rest {
-        out.push('\n');
-        out.push_str(r);
-    }
-    fs::write(path, out.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
-    Ok(())
-}
-
-// ---------------------------------------------------------------------------
-// execution (impure: renames + header rewrites)
-
-/// Apply each planned move: ensure the destination directory exists (v2 node dirs
-/// are created on the fly), rename the file to its new v2 path, then rewrite its
-/// first-line header. Aborts (leaving the partial change for the human to reset) if
-/// a destination file already exists. No commit.
-fn execute(grove_root: &Path, moves: &[PlannedMove]) -> Result<Vec<Rename>> {
-    let mut renames = Vec::with_capacity(moves.len());
-    for m in moves {
-        let dst_abs = grove_root.join(&m.to_rel);
-        if dst_abs.exists() {
-            bail!(
-                "destination already exists: {} (migration aborted)",
-                dst_abs.display()
-            );
-        }
-        if let Some(parent) = dst_abs.parent() {
-            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
-        }
-        rename_entry(grove_root, &m.from_rel, &m.to_rel)?;
-        rewrite_header_file(&dst_abs, &m.old_token, &m.new_handle)?;
-        renames.push(Rename {
-            from_rel: m.from_rel.clone(),
-            to_rel: m.to_rel.clone(),
-        });
-    }
-    Ok(renames)
-}
-
-/// Remove directories left empty by the migration (the old `NNN-slug/` node dirs
-/// and the whole `done/` mirror), bottom-up. Only *empty* directories are removed,
-/// so a directory still holding a foreign file — or a freshly-created v2 node dir
-/// (which always holds its `BRIEF.md` + children) — survives. A v1-flat source has
-/// no source directories, so this is a no-op there.
-fn cleanup_empty_dirs(grove_root: &Path) -> Result<()> {
-    for entry in
-        fs::read_dir(grove_root).with_context(|| format!("reading {}", grove_root.display()))?
-    {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            remove_if_empty(&entry.path())?;
-        }
-    }
-    Ok(())
-}
-
-/// Depth-first: clean a directory's subdirectories, then remove the directory
-/// itself if it is now empty.
-fn remove_if_empty(dir: &Path) -> Result<()> {
-    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
-            remove_if_empty(&entry.path())?;
-        }
-    }
-    if fs::read_dir(dir)?.next().is_none() {
-        fs::remove_dir(dir).with_context(|| format!("removing empty dir {}", dir.display()))?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1354,20 +1142,10 @@ mod tests {
         assert_eq!(detect(&g).unwrap(), Format::V2);
     }
 
-    #[test]
-    fn compatibility_migration_refuses_a_pending_session_kind_transaction() {
-        let (worktree, grove_root) = grove();
-        write(&grove_root, "010-plan.md", "# 010-plan\n");
-        fs::create_dir(grove_root.join(crate::tree_access::MIGRATION_TRANSACTION)).unwrap();
-
-        let error = migrate(worktree.path()).unwrap_err();
-
-        let diagnostic = format!("{error:#}");
-        assert!(diagnostic.contains("pending Grove session-kind migration"));
-        assert!(diagnostic.contains(crate::tree_access::MIGRATION_TRANSACTION));
-        assert!(grove_root.join("010-plan.md").is_file());
-        assert!(!grove_root.join("01-plan-k1.md").exists());
-    }
+    // The pending-transaction refusal that used to be asserted here went with
+    // the engine that reached it. The property itself is unchanged and is
+    // pinned where it lives — `tree_access`'s own tests own the diagnostic, and
+    // `tree_migration_transaction` owns the refusal on the live path.
 
     #[test]
     fn current_plan_maps_a_legacy_v2_kind_and_removes_only_obsolete_metadata() {
@@ -2302,325 +2080,6 @@ mod tests {
                 "migrate-v1-to-v2-k27"
             ),
             None
-        );
-    }
-
-    // ---- execute (renames + header rewrite + cleanup) -----------------------
-
-    /// A `.grove/` inside a real git repo, with `files` written and committed.
-    fn git_grove(files: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let repo = tmp.path().to_path_buf();
-        run_git(&repo, &["init", "-q"]);
-        run_git(&repo, &["config", "user.email", "t@example.com"]);
-        run_git(&repo, &["config", "user.name", "Test"]);
-        let root = repo.join(".grove");
-        for (rel, body) in files {
-            let p = root.join(rel);
-            fs::create_dir_all(p.parent().unwrap()).unwrap();
-            fs::write(&p, body).unwrap();
-        }
-        run_git(&repo, &["add", "-A"]);
-        run_git(&repo, &["commit", "-q", "-m", "seed"]);
-        (tmp, root)
-    }
-
-    fn run_git(repo: &Path, args: &[&str]) {
-        let out = Command::new("git")
-            .arg("-C")
-            .arg(repo)
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(
-            out.status.success(),
-            "git {args:?} failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-    }
-
-    fn read(p: &Path) -> String {
-        fs::read_to_string(p).unwrap()
-    }
-
-    #[test]
-    fn execute_v1flat_moves_files_into_dirs_and_rewrites_headers() {
-        let (_t, g) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.DONE.md", "# 1-[1]-plan\n\nbody\n"),
-            (
-                "5-[5]-node.BRIEF.md",
-                "# 5-[5]-node — brief\n\nbrief body\n",
-            ),
-            ("5.1-[6]-child.md", "# 5.1-[6]-child\n\nchild body\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        let outcome = migrate(worktree).unwrap();
-        assert!(matches!(outcome, Outcome::Migrated(_)));
-
-        // Root brief untouched; leaf retired-in-dir; node became a directory.
-        assert_eq!(read(&g.join("BRIEF.md")), "# my-grove — brief\n");
-        assert_eq!(
-            read(&g.join("01-DONE-plan-k1.md")),
-            "# plan-k1\n\nbody\n",
-            "header rewritten to the position-free handle; body preserved"
-        );
-        assert!(g.join("05-node-k5").is_dir());
-        assert_eq!(
-            read(&g.join("05-node-k5/BRIEF.md")),
-            "# node-k5 — brief\n\nbrief body\n"
-        );
-        assert_eq!(
-            read(&g.join("05-node-k5/01-child-k6.md")),
-            "# child-k6\n\nchild body\n"
-        );
-        // The old flat files are gone.
-        assert!(!g.join("1-[1]-plan.DONE.md").exists());
-        assert!(!g.join("5-[5]-node.BRIEF.md").exists());
-        assert!(!g.join("5.1-[6]-child.md").exists());
-    }
-
-    #[test]
-    fn execute_re_migrate_is_a_clean_no_op() {
-        let (_t, g) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        assert!(matches!(migrate(worktree).unwrap(), Outcome::Migrated(_)));
-        // Second run sees a v2 tree → AlreadyV2, no churn.
-        assert!(matches!(migrate(worktree).unwrap(), Outcome::AlreadyV2));
-    }
-
-    #[test]
-    fn execute_old_nnn_cleans_up_empty_source_dirs() {
-        let (_t, g) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("done/010-old.md", "# 010-old\n"),
-            ("020-node/BRIEF.md", "# 020-node — brief\n"),
-            ("020-node/010-child.md", "# 010-child\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        assert!(matches!(migrate(worktree).unwrap(), Outcome::Migrated(_)));
-        // The `done/` mirror and the old node dir are removed once emptied.
-        assert!(!g.join("done").exists(), "done/ swept");
-        assert!(!g.join("020-node").exists(), "old node dir swept");
-        // The v2 shape is in place.
-        assert_eq!(read(&g.join("01-DONE-old-k1.md")), "# old-k1\n");
-        assert!(g.join("02-node-k2").is_dir());
-        assert_eq!(read(&g.join("02-node-k2/BRIEF.md")), "# node-k2 — brief\n");
-        assert_eq!(read(&g.join("02-node-k2/01-child-k3.md")), "# child-k3\n");
-    }
-
-    #[test]
-    fn migrate_on_adoption_commits_the_conversion() {
-        let (_t, g) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::Migrated(_)
-        ));
-        // The conversion is committed (clean working tree) with a clear message.
-        let status = Command::new("git")
-            .arg("-C")
-            .arg(worktree)
-            .args(["status", "--porcelain"])
-            .output()
-            .unwrap();
-        assert!(
-            status.stdout.is_empty(),
-            "working tree must be clean after adoption commit: {}",
-            String::from_utf8_lossy(&status.stdout)
-        );
-        let log = Command::new("git")
-            .arg("-C")
-            .arg(worktree)
-            .args(["log", "-1", "--format=%s"])
-            .output()
-            .unwrap();
-        assert_eq!(
-            String::from_utf8_lossy(&log.stdout).trim(),
-            "grove(my-grove): migrate task tree to v2 directory scheme"
-        );
-        // A second adoption is a clean no-op (no new commit).
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::AlreadyV2
-        ));
-    }
-
-    #[test]
-    fn migrate_missing_grove_is_nothing_to_migrate() {
-        let tmp = tempfile::TempDir::new().unwrap();
-        assert!(matches!(
-            migrate(tmp.path()).unwrap(),
-            Outcome::NothingToMigrate
-        ));
-    }
-
-    #[test]
-    fn compatibility_migration_entry_points_share_the_lifecycle_guard() {
-        let (_temporary, grove_root) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("01-plan-k1.md", "# plan-k1\n"),
-        ]);
-        let worktree = grove_root.parent().unwrap();
-
-        crate::tree_access::reset_acquisition_count();
-        assert!(matches!(migrate(worktree).unwrap(), Outcome::AlreadyV2));
-        assert_eq!(crate::tree_access::acquisition_count(), 1);
-
-        crate::tree_access::reset_acquisition_count();
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::AlreadyV2
-        ));
-        assert_eq!(crate::tree_access::acquisition_count(), 1);
-    }
-
-    // ---- jj-enabled trees (jj-first) ----------------------------------------
-
-    /// Run `bin` in `dir`, asserting success and returning stdout.
-    fn run_out(bin: &str, dir: &Path, args: &[&str]) -> String {
-        let out = Command::new(bin)
-            .current_dir(dir)
-            .args(args)
-            .output()
-            .unwrap_or_else(|e| panic!("running {bin} {args:?}: {e} (is {bin} installed?)"));
-        assert!(
-            out.status.success(),
-            "{bin} {args:?} failed: {}",
-            String::from_utf8_lossy(&out.stderr)
-        );
-        String::from_utf8_lossy(&out.stdout).into_owned()
-    }
-
-    fn run_jj(dir: &Path, args: &[&str]) -> String {
-        let mut full = vec![
-            "--config",
-            "user.name=Test",
-            "--config",
-            "user.email=t@example.com",
-        ];
-        full.extend_from_slice(args);
-        run_out("jj", dir, &full)
-    }
-
-    /// A `.grove/` inside a jj-native repo (no `.git/`), seeded and committed.
-    /// `git.colocate=false` is forced — the ambient jj config may default
-    /// colocation on, which would sneak a `.git/` into this fixture.
-    fn jj_grove(files: &[(&str, &str)]) -> (tempfile::TempDir, PathBuf) {
-        let tmp = tempfile::TempDir::new().unwrap();
-        let repo = tmp.path().to_path_buf();
-        run_jj(
-            &repo,
-            &[
-                "--config",
-                "git.colocate=false",
-                "git",
-                "init",
-                "--quiet",
-                ".",
-            ],
-        );
-        let root = repo.join(".grove");
-        for (rel, body) in files {
-            let p = root.join(rel);
-            fs::create_dir_all(p.parent().unwrap()).unwrap();
-            fs::write(&p, body).unwrap();
-        }
-        run_jj(&repo, &["commit", "-m", "seed"]);
-        (tmp, root)
-    }
-
-    #[test]
-    fn migrate_on_adoption_commits_via_jj_in_a_jj_native_tree() {
-        let (_t, g) = jj_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::Migrated(_)
-        ));
-        // The conversion is a finalized jj commit (@'s parent) with the same
-        // message the git path writes, and the v2 shape is on disk.
-        let desc = run_jj(
-            worktree,
-            &["log", "--no-graph", "-r", "@-", "-T", "description"],
-        );
-        assert_eq!(
-            desc.trim(),
-            "grove(my-grove): migrate task tree to v2 directory scheme"
-        );
-        assert!(g.join("01-plan-k1.md").is_file());
-        // A second adoption is a clean no-op.
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::AlreadyV2
-        ));
-    }
-
-    #[test]
-    fn migrate_on_adoption_jj_commit_is_scoped_to_grove() {
-        // An unrelated dirty file must stay in the working copy, not be swept
-        // into the migration commit — the fileset scoping the git path gets
-        // from `git add -- .grove`.
-        let (_t, g) = jj_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        fs::write(worktree.join("stray.txt"), "stray\n").unwrap();
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::Migrated(_)
-        ));
-        let committed = run_jj(worktree, &["diff", "-r", "@-", "--summary"]);
-        assert!(
-            !committed.contains("stray.txt"),
-            "stray file swept into the migration commit: {committed:?}"
-        );
-        let working = run_jj(worktree, &["diff", "-r", "@", "--summary"]);
-        assert!(
-            working.contains("stray.txt"),
-            "stray file must remain in the working copy: {working:?}"
-        );
-    }
-
-    #[test]
-    fn migrate_on_adoption_in_colocated_tree_commits_via_jj() {
-        // jj-first: `.jj/` beside `.git/` picks the jj path. The commit must be
-        // jj-authored — carrying jj's change-id header, so it is a first-class
-        // change (`jj op undo`-able), not a git-made commit jj must import —
-        // and jj's auto-export keeps the git view clean and in step.
-        let (_t, g) = git_grove(&[
-            ("BRIEF.md", "# my-grove — brief\n"),
-            ("1-[1]-plan.md", "# 1-[1]-plan\n"),
-        ]);
-        let worktree = g.parent().unwrap();
-        run_jj(worktree, &["git", "init", "--colocate", "--quiet", "."]);
-        assert!(matches!(
-            migrate_on_adoption(worktree, "my-grove").unwrap(),
-            Outcome::Migrated(_)
-        ));
-        assert_eq!(
-            run_out("git", worktree, &["log", "-1", "--format=%s"]).trim(),
-            "grove(my-grove): migrate task tree to v2 directory scheme"
-        );
-        assert_eq!(
-            run_out("git", worktree, &["status", "--porcelain"]),
-            "",
-            "jj's export must leave the git view clean"
-        );
-        let commit_obj = run_out("git", worktree, &["cat-file", "commit", "HEAD"]);
-        assert!(
-            commit_obj.contains("change-id "),
-            "migration commit must be jj-authored (change-id header): {commit_obj:?}"
         );
     }
 }

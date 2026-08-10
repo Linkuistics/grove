@@ -62,7 +62,7 @@
 # Installing the new build mid-session is safe, and the proofs belong in the
 # same session as the install. The driver's version-skew guard is the first
 # thing in the loop *body* (`src/loop_driver.rs`), so it fires between
-# iterations: a `brew upgrade` under a live `grove do` lets the session that
+# iterations: a `brew upgrade` under a live `grove` loop lets the session that
 # ran it finish normally and stops the loop before the next one. A shipping
 # task therefore does not have to defer its installed-binary checks to a
 # follow-up — see `scripts/release-publish.sh` for the rig.

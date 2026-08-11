@@ -44,6 +44,7 @@ lockstep, which is why they live together — see
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
+  [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
   [`config-driven-sessions`](docs/specs/config-driven-sessions.md),
   and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).

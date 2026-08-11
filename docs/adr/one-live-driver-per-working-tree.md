@@ -11,6 +11,10 @@ never Git's common directory. It invokes no repository discovery and ignores
 in the exact workspace's VCS administration area, never in the tracked working
 copy or an environment-selected temporary directory. Symlink and relative-path
 aliases reach one lease; separate worktrees and workspaces remain independent.
+Acquisition also creates that control directory and proves it usable — writable,
+and on the working tree's own filesystem, per [supported workspace
+layouts](supported-workspace-layouts.md) — so an unsupported layout stops the
+invocation before it can create or drive a task tree.
 Standard `--help` and `--version` return without provisioning, repository
 discovery, or a lease.
 

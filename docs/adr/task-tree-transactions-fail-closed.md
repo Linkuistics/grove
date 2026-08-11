@@ -108,7 +108,13 @@ quarantine in the workspace's VCS-administration control directory before
 attempting descriptor-rooted recursive disposal that unlinks symlinks without
 following them. Preflight requires that directory to be untracked and on the
 worktree's filesystem; a cross-device workspace refuses before tree mutation
-rather than using a trackable sibling or non-atomic copy. Rename failure keeps
+rather than using a trackable sibling or non-atomic copy. That requirement is a
+supported-layout precondition rather than a teardown-time discovery: [supported
+workspace layouts](supported-workspace-layouts.md) surfaces it at driver-lease
+acquisition. This preflight nevertheless repeats the comparison against its exact
+rename operands, because the earlier one measures proxies for a `.grove/` that
+need not yet exist, the layout can change while the lease is held, and
+`finish-commit` is separately invocable. Rename failure keeps
 the in-tree witness; interruption after rename leaves a complete quarantine and
 an absent task root, never a partial or empty `.grove/`. That quarantine and any
 VCS-administration index image are cleanup artifacts, not workflow inputs or

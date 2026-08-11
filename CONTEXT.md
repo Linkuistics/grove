@@ -125,8 +125,30 @@ VCS-administration area, held with the open working-tree root through the whole
 loop. Kernel release on return, panic, or process death makes restart ordinary
 continuation while the task tree still exists; leftover bytes and PIDs carry no
 ownership. See ADR *one-live-driver-per-working-tree*.
+Acquisition is also where the [[Workspace layout preflight]] runs, making it the
+one chokepoint every tree-creating and tree-driving path passes through.
 _Avoid_: the [[Tree access lock]] — that shorter guard serializes one tree observation or mutation and must be released before foreground launch. A driver lease serializes the loop lifetime and lives on a separate control file in the VCS administration area.
 _Avoid_: waiting for a contended driver lease — a second driver would issue duplicate mandates, so it is refused immediately rather than queued as an ordinary tree operation.
+
+**Workspace layout preflight**:
+The device comparison bare `grove` makes during [[Driver lease]] acquisition,
+between the created workspace-control directory and the pinned working-tree root,
+proving the layout can supply the atomic same-filesystem rename target the
+[[Finish transaction]]'s quarantine handoff needs. Failure is a resumable
+no-mutation stop, so an unfinishable workspace is named before it holds a task
+tree rather than at the finish gate. `<workspace>/.jj/grove/` and a `.git/`
+directory keep resolution inside the working tree; a `.git` **file** — a linked
+worktree or submodule — is the only family whose devices can differ. See ADR
+*supported-workspace-layouts*.
+_Avoid_: reading it as a licence the [[Finish transaction]] may consult. It
+compares proxies for operands that need not yet exist, the layout can change
+while the lease is held, and `finish-commit` is separately invocable, so finish
+revalidates independently.
+_Avoid_: a durable capability marker recording that a workspace once passed —
+layout is mutable and the marker is not.
+_Avoid_: inferring support from the marker's kind alone. A symlinked `.git` or
+`.jj`, or a control directory that is its own mount point, leaves the working
+tree without changing that kind, so Grove measures every layout.
 
 **Session epoch**:
 The ephemeral launch-generation binding between one live [[Driver lease]], one

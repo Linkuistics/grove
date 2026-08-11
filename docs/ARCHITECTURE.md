@@ -146,6 +146,19 @@ administration area rather than the tracked working copy or an ambient temporary
 directory. Symlink and relative-path aliases contend on one lease; separate
 worktrees and workspaces stay independent.
 
+Acquisition creates that control directory and proves the **workspace layout**
+can supply what teardown will need: an atomic same-filesystem rename target for
+the whole `.grove/` root. `<workspace>/.jj/grove/` and a `.git/` directory keep
+resolution inside the working tree, so every jj shape and a plain checkout pass;
+a `.git` *file* — a linked worktree or submodule — sends resolution to the main
+repository or superproject and is the only family whose devices can differ. Grove
+measures rather than classifies, because a symlinked marker escapes the working
+tree without changing its kind. A refusal is a resumable no-mutation stop, which
+is the point: an unfinishable workspace is named before it holds a task tree
+rather than at the finish gate. The finish transaction still repeats the
+comparison against its exact rename operands — see [supported workspace
+layouts](adr/supported-workspace-layouts.md).
+
 Every acquisition opens, locks, and then compares the locked descriptor's
 device/inode against the path's current identity, retrying a bounded number of
 times on an open/lock replacement race. The driver holds the root and lease

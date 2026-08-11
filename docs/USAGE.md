@@ -51,6 +51,27 @@ same tree are not.
 Ownership is held by a kernel lock, so normal exit, a panic, and process death
 all release it. Restarting after a crash is ordinary continuation.
 
+### Supported workspace layouts
+
+Grove keeps its controls in your workspace's VCS administration directory
+(`.jj/grove/`, or the per-worktree Git directory's `grove/`), and teardown ends by
+moving `.grove/` there in a single atomic rename. That rename cannot cross a
+filesystem boundary, so **your working tree and its administration directory must
+be on the same filesystem**.
+
+Almost every layout satisfies this for free, because the administration directory
+sits inside the working tree: plain checkouts, and native, secondary, and
+colocated jj workspaces alike. The exception is a **linked Git worktree or a
+submodule**, whose `.git` is a file pointing at the main repository — put one on
+an external volume, a network mount, or a container bind-mount that does not
+include the main repository, and the two are on different filesystems.
+
+Grove checks this when it starts, not when you finish. An unsupported layout
+exits before creating or touching anything, names both directories and their
+filesystems, and tells you what to move; fix the layout and rerun. The check
+happens on every run, so relocating a worktree mid-workstream is caught the next
+time you start rather than months later at teardown.
+
 ## The task tree
 
 A small workstream might look like this:

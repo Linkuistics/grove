@@ -391,7 +391,9 @@ between open and lock; the module closes it and retries up to eight times before
 returning a control-file-replaced error. The open root descriptor pins the
 worktree identity. Symlink and relative-path aliases contend on one lease, while
 different worktrees or workspaces remain independent even when they share a
-repository or basename.
+repository or basename. That recorded root device is also the **Workspace layout
+preflight**'s operand, so acquisition both creates the control directory and
+proves it usable before anything else runs.
 
 Contention is not a tree operation to queue. A second driver exits nonzero
 immediately, names the canonical working tree, says the existing driver must
@@ -541,6 +543,64 @@ carry one.
 Single-path renames rely on filesystem atomicity, and no operation gains a
 power-loss guarantee merely by sharing this lock.
 
+### Workspace layout preflight
+
+Teardown ends in one atomic same-filesystem rename of the whole `.grove/` root
+into the workspace-control directory, with no copy or working-tree-sibling
+fallback. A workspace that cannot supply that rename target is unfinishable for
+its whole life, so the capability is validated as a **layout precondition**
+rather than discovered at the finish gate, following the [supported workspace
+layouts](../adr/supported-workspace-layouts.md) decision.
+
+Immediately after creating the control directory and pinning the working-tree
+root, and before configuration validation or any `.grove/` observation, the
+driver compares the filesystem device of that created control directory with the
+recorded root device. Equal devices pass. The two properties the quarantine needs
+are established differently: **untracked** follows structurally from the resolver
+placing controls only inside `.jj/` or the canonical per-worktree Git directory,
+never a working-tree sibling, and is not measured; **same device** is contingent
+on the operator's layout and is what this comparison proves.
+
+Layout support follows from whether resolution stays inside the working tree.
+`<workspace>/.jj/grove/` and a `.git/` **directory** keep it there, in every
+native, secondary, and colocated jj shape and in a plain checkout; a `.git`
+**file** — a linked worktree or a submodule — sends it to the main repository or
+superproject, and is the only family whose devices can differ. Grove nevertheless
+measures every layout rather than trusting that classification, because a
+symlinked `.git` or `.jj` marker, or a control directory that is its own mount
+point, leaves the working tree without changing the marker's kind.
+
+A failure is a resumable no-mutation stop with the same standing as a
+`grove-llm` version skew: no `.grove/` is created, an existing tree stays
+byte-identical, no Grove-authored revision exists, and rerunning bare `grove`
+after repairing the layout continues normally. Its diagnostic is distinct from
+the unwritable-control-directory failure and names the working-tree root and its
+device, the resolved control directory and its device, the marker that produced
+the resolution — including a `.git` file's gitdir target, since that is what left
+the working tree — and the two remedies: place the linked worktree on the main
+repository's filesystem, or use a workspace whose administration directory is
+in-root.
+
+Acquisition is the sufficient gate as well as the earliest one, because root
+initialization, migration, selection, finish allocation, and a later driver's
+transaction recovery all run behind the lease. No second lifecycle command,
+durable capability marker, or user-facing flag is introduced, and ambient
+`grove-llm` tree verbs gain no layout check — they allocate no quarantine, and
+`finish-commit`, which does, preflights independently.
+
+That independence is required, not redundant. This check compares **proxies**:
+the rename moves `.grove/` into the control directory's `grove/` child, and at
+acquisition neither operand need exist, so a `.grove/` that is itself a mount
+point passes here and is correctly refused at finish. Layout is also **mutable**
+while the lease is held — `git worktree repair`, a rewritten gitfile, a relocated
+main repository, or a changed bind mount all alter the answer, and the lease pins
+the root's identity rather than the destination's device. And `finish-commit` is
+**separately invocable**, including by an operator retrying a blocked
+transaction, so it can attest nothing about which driver validated what.
+Consuming this startup fact at the teardown gate would be exactly the stale
+disposition the transaction's revalidate-at-every-gate rule rejects. The
+preflight is therefore an early warning that weakens no finish-time check.
+
 ### Fresh tree
 
 When `.grove/` is absent, after full config validation and while holding the
@@ -638,7 +698,11 @@ After the ordinary live-finish and no-other-work checks, repository and
 quarantine validation that requires no tree mutation runs first. The expected
 tracked deletion fingerprint must be non-empty, the reserved witness prefix
 must be absent from the starting repository state, and the workspace-control
-directory must provide an untracked same-device rename target. The helper opens
+directory must provide an untracked same-device rename target. This repeats no
+earlier result: the **Workspace layout preflight** compares the working-tree root
+against the control directory before `.grove/` need exist, while this comparison
+is against the exact rename operands, and the layout may have changed since.
+The helper opens
 `.grove/` itself as a no-follow directory, compares that descriptor's identity
 with the `.grove` entry in the locked working-tree root, and retains it for
 descriptor-relative transaction operations; a symlink or any non-directory task
@@ -1229,6 +1293,22 @@ Through that seam, cover:
   descriptor identity before mutation;
 - workspace-control quarantine preflight, including same-device success and a
   cross-device refusal that leaves the live tree and repository untouched;
+- the workspace layout preflight at lease acquisition: a cross-device linked Git
+  worktree refused before configuration validation and before tree access, in
+  both a rootless tree — where no `.grove/` is created — and one with an existing
+  tree left byte-identical, with no Grove-authored revision and a diagnostic
+  naming both paths, both devices, and the gitfile target; a symlinked `.git` or
+  `.jj` marker onto another filesystem refused on the same path; same-device
+  linked Git worktrees, plain checkouts, and native and colocated jj default and
+  secondary workspaces all admitted and driving normally; the refusal
+  distinguishable from the unwritable-control-directory refusal and resumable
+  once the layout is repaired; and ambient `grove-llm` tree verbs unaffected;
+- the two preflights independent rather than one deferring to the other: a
+  workspace that passes at acquisition and becomes cross-device before teardown
+  is refused by `finish-commit` with the live tree unchanged and no Grove-authored
+  revision; a `.grove/` that is its own mount point passes acquisition and is
+  refused at finish; and an operator-invoked `finish-commit` retry performs its
+  own comparison with no durable capability marker anywhere on disk;
 - plain-Git validation, index-backup, staging, hook suppression,
   injected/signing commit, index-restore, unexpected-`HEAD`, and lost-result
   failures, including a wholly untracked tree (ignored before first record) and

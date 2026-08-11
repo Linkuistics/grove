@@ -147,8 +147,9 @@ fn provision_replaces_a_symlinked_grove_entry_with_a_real_dir() {
     // recursing, exactly like `remove_file` — verified against this repo's
     // own std (rustc 1.97.1, `sys/fs/unix.rs::remove_dir_all_modern` and the
     // `sys/fs/common.rs` fallback both special-case it). So `rust-version`
-    // (1.74) needs no bump for this: the guarantee predates it. Kept as
-    // documentation of the invariant, not as a mutation-resistant check.
+    // needs no bump for this, whatever it currently says: the guarantee
+    // predates any floor Grove could claim. Kept as documentation of the
+    // invariant, not as a mutation-resistant check.
     assert!(
         real.join("SKILL.md").is_file(),
         "replacing the symlink must never delete through it"

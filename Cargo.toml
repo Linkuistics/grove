@@ -5,7 +5,24 @@ edition = "2021"
 description = "Hierarchical, self-extending workstream tool for AI agents"
 license = "Apache-2.0"
 repository = "https://github.com/Linkuistics/grove"
-rust-version = "1.74"
+# Minimum supported Rust version — the floor the locked graph actually builds on.
+# Edition-2024 dependencies (`clap` 4.6, `clap_lex` 1.1, `assert_cmd` 2.2) set
+# it: cargo below 1.85 cannot parse their manifests, so a build dies during
+# dependency resolution before compiling any Grove code. Nothing else tests this
+# claim — there is no CI, and an ordinary build never checks its own
+# `rust-version` — so it is established by running the toolchains, and
+# `msrv-claim-k74` found the previous `1.74` had silently drifted into being
+# unbuildable:
+#
+#   rustup run 1.85 cargo check --locked --all-targets   # passes
+#   rustup run 1.84 cargo check --locked --all-targets   # fails: edition 2024
+#
+# Re-run that pair after any `cargo update` that moves an edition-2024 pin.
+# Nothing holds a lower promise: `release.toml` sets `publish = false` (not a
+# crates.io crate) and the Homebrew formula installs prebuilt archives, so no
+# consumer compiles Grove. Pinning `clap` back to edition 2021 to preserve 1.74
+# would have bought nothing and needed re-litigating at every update.
+rust-version = "1.85"
 
 # Sibling git worktrees live alongside the crate root but aren't part
 # of the crate: `.grove-worktrees/` holds active grove worktrees.

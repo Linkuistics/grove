@@ -120,6 +120,15 @@ existing task trees are migrated automatically on first run.
   single surviving launcher.
 - `grove --help` and `grove --version` are metadata-only: they provision nothing,
   discover no repository, and acquire no lease.
+- **The declared MSRV is now true.** `rust-version` moves from `1.74` to `1.85`,
+  the floor the locked dependency graph actually builds on: edition-2024 crates
+  (`clap` 4.6, `clap_lex` 1.1, `assert_cmd` 2.2) make any cargo below 1.85 fail
+  during dependency resolution, so the previous claim was unbuildable rather than
+  merely untested. Established by running the toolchains — 1.85 passes `cargo
+  check --locked --all-targets` and 1.84 fails — with that command pair recorded
+  beside the claim in `Cargo.toml`. Installation is unaffected: the crate is not
+  published to crates.io and Homebrew ships prebuilt archives, so no consumer
+  compiles Grove.
 
 ### Removed
 

@@ -1,5 +1,6 @@
 use crate::repo;
 use anyhow::{bail, Context, Result};
+use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -830,10 +831,35 @@ pub(crate) fn admit_ambient_session(
     path: &Path,
     operation: &str,
 ) -> Result<Option<SessionEpochGuard>> {
-    let Some(signal_path) = std::env::var_os("GROVE_SIGNAL_FILE")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-    else {
+    admit_session(path, operation, ambient_signal_path())
+}
+
+/// The loop-control context this process was launched into, if any.
+///
+/// Reading the environment is the *whole* of this function, and the only place
+/// in the admission path that touches it — [`admit_session`] takes the resolved
+/// path as an argument instead. That split is what lets admission be tested
+/// without a unit test writing a process-global that production code in a
+/// parallel sibling test is reading at the same moment.
+fn ambient_signal_path() -> Option<PathBuf> {
+    signal_path_from(std::env::var_os("GROVE_SIGNAL_FILE"))
+}
+
+/// Classify a loop-control value as ambient context or none. Empty is *none*
+/// rather than a degenerate path: `.cargo/config.toml` force-clears the variable
+/// to the empty string rather than unsetting it (`tests/env_hygiene.rs` owns
+/// that claim), so empty is the value every cargo-launched `grove-llm` sees.
+fn signal_path_from(value: Option<OsString>) -> Option<PathBuf> {
+    value.filter(|value| !value.is_empty()).map(PathBuf::from)
+}
+
+/// Admission proper, with the ambient context already resolved.
+fn admit_session(
+    path: &Path,
+    operation: &str,
+    signal_path: Option<PathBuf>,
+) -> Result<Option<SessionEpochGuard>> {
+    let Some(signal_path) = signal_path else {
         return Ok(None);
     };
     let current_control = repo::workspace_control(path)?;
@@ -910,39 +936,22 @@ mod tests {
     use super::*;
     use std::cell::{Cell, RefCell};
     use std::collections::VecDeque;
-    use std::ffi::OsString;
     use std::process::Command;
-    use std::sync::{mpsc, Mutex, MutexGuard};
+    use std::sync::mpsc;
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
 
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
     const FORK_SENSITIVE_TEST: &str = "GROVE_DRIVER_LEASE_FORK_SENSITIVE_TEST";
 
-    struct SignalEnvironment {
-        previous: Option<OsString>,
-    }
-
-    impl SignalEnvironment {
-        fn set(path: Option<&Path>) -> (MutexGuard<'static, ()>, Self) {
-            let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
-            let previous = std::env::var_os("GROVE_SIGNAL_FILE");
-            match path {
-                Some(path) => std::env::set_var("GROVE_SIGNAL_FILE", path),
-                None => std::env::remove_var("GROVE_SIGNAL_FILE"),
-            }
-            (lock, Self { previous })
-        }
-    }
-
-    impl Drop for SignalEnvironment {
-        fn drop(&mut self) {
-            match self.previous.take() {
-                Some(previous) => std::env::set_var("GROVE_SIGNAL_FILE", previous),
-                None => std::env::remove_var("GROVE_SIGNAL_FILE"),
-            }
-        }
+    /// The ambient context an admission test would once have installed by
+    /// writing `GROVE_SIGNAL_FILE`. Nothing here mutates the environment: these
+    /// tests exercise [`admit_session`], whose ambient path is an argument, and
+    /// the reading half above is covered separately — purely by
+    /// [`signal_path_from`], and end to end by `tests/driver_lease.rs`, which
+    /// sets the real variable on a real `grove-llm` subprocess.
+    fn ambient(path: &Path) -> Option<PathBuf> {
+        Some(path.to_path_buf())
     }
 
     fn fork_sensitive_driver_lease_test_body_runs_here() -> bool {
@@ -1416,12 +1425,28 @@ mod tests {
 
     #[test]
     fn manual_agent_operations_need_no_driver_epoch() {
-        let (_lock, _environment) = SignalEnvironment::set(None);
-
-        let admission =
-            admit_ambient_session(Path::new("/not-a-working-tree"), "manual pick").unwrap();
+        let admission = admit_session(Path::new("/not-a-working-tree"), "manual pick", None)
+            .expect("no ambient context is a manual command, not a failure");
 
         assert!(admission.is_none());
+    }
+
+    /// The reading half, pinned without touching the environment. The empty case
+    /// is not a curiosity: `.cargo/config.toml` force-clears `GROVE_SIGNAL_FILE`
+    /// to the empty string, so treating empty as a *path* would make every
+    /// cargo-launched `grove-llm` stale-fail before reaching its test seam.
+    #[test]
+    fn only_a_nonempty_loop_control_value_is_ambient_context() {
+        assert_eq!(signal_path_from(None), None, "unset is no ambient context");
+        assert_eq!(
+            signal_path_from(Some(OsString::new())),
+            None,
+            "the cargo-cleared empty value is no ambient context either"
+        );
+        assert_eq!(
+            signal_path_from(Some(OsString::from("/w/.git/grove/signal-0"))),
+            Some(PathBuf::from("/w/.git/grove/signal-0"))
+        );
     }
 
     #[test]
@@ -1435,9 +1460,8 @@ mod tests {
         let lease = DriverLease::acquire(&root).unwrap();
         let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
 
-        let admission = admit_ambient_session(&root, "test pick")
+        let admission = admit_session(&root, "test pick", ambient(&signal_path))
             .unwrap()
             .expect("ambient loop context must return a held admission guard");
 
@@ -1477,7 +1501,7 @@ mod tests {
             .unwrap();
         replacement.join().unwrap();
 
-        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
         assert!(
             format!("{error:#}").contains("session epoch is inactive"),
             "a new call from the old session was not refused: {error:#}"
@@ -1538,9 +1562,8 @@ mod tests {
         let lease = DriverLease::acquire(&owner_root).unwrap();
         let signal_path = owner_root.join(".git/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
 
-        let error = admit_ambient_session(&foreign_root, "test pick").unwrap_err();
+        let error = admit_session(&foreign_root, "test pick", ambient(&signal_path)).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("wrong working tree"), "{message}");
@@ -1561,9 +1584,8 @@ mod tests {
         fs::create_dir_all(root.join(".git")).unwrap();
         let _lease = DriverLease::acquire(&root).unwrap();
         let stale_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
-        let (_lock, _environment) = SignalEnvironment::set(Some(&stale_signal));
 
-        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&stale_signal)).unwrap_err();
 
         let message = format!("{error:#}");
         assert!(message.contains("session epoch is inactive"), "{message}");
@@ -1579,16 +1601,15 @@ mod tests {
         let old_signal = root.join(".git/grove/signal-11111111111111111111111111111111");
         let new_signal = root.join(".git/grove/signal-22222222222222222222222222222222");
         lease.activate_session_epoch(&old_signal).unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&old_signal));
 
         drop(
-            admit_ambient_session(&root, "test pick")
+            admit_session(&root, "test pick", ambient(&old_signal))
                 .unwrap()
                 .expect("the old signal must be admitted while its epoch is live"),
         );
         lease.activate_session_epoch(&new_signal).unwrap();
 
-        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&old_signal)).unwrap_err();
         assert!(
             format!("{error:#}").contains("loop-control path does not match the active epoch"),
             "unexpected error: {error:#}"
@@ -1605,10 +1626,9 @@ mod tests {
         let lease = DriverLease::acquire(&root).unwrap();
         let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
 
         drop(
-            admit_ambient_session(&root, "test pick")
+            admit_session(&root, "test pick", ambient(&signal_path))
                 .unwrap()
                 .expect("the exact signal path must survive epoch serialization"),
         );
@@ -1669,10 +1689,9 @@ mod tests {
         let lease = DriverLease::acquire(&root).unwrap();
         let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
         drop(lease);
 
-        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
         assert!(
             format!("{error:#}").contains("driver lease is unlocked"),
             "unexpected error: {error:#}"
@@ -1688,9 +1707,8 @@ mod tests {
         let signal_path = root.join(".git/grove/signal-11111111111111111111111111111111");
         lease.activate_session_epoch(&signal_path).unwrap();
         fs::write(root.join(".git/grove/session.epoch"), "state=active\n").unwrap();
-        let (_lock, _environment) = SignalEnvironment::set(Some(&signal_path));
 
-        let error = admit_ambient_session(&root, "test pick").unwrap_err();
+        let error = admit_session(&root, "test pick", ambient(&signal_path)).unwrap_err();
         assert!(
             format!("{error:#}").contains("stale Grove session"),
             "unexpected error: {error:#}"

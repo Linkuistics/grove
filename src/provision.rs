@@ -51,7 +51,7 @@ pub fn provision_installed() -> Result<()> {
         if !home.join(harness.project_dir).is_dir() {
             continue; // an absent root is skipped, never created
         }
-        let destination = skill_dir_for(harness)?;
+        let destination = skill_dir_in(&home, harness);
         if provision_target(&destination)? {
             eprintln!(
                 "grove: provisioned the {} skill at {}",
@@ -63,9 +63,13 @@ pub fn provision_installed() -> Result<()> {
     Ok(())
 }
 
-/// A harness's global skill dir: `$HOME/<harness.skills_dir>/grove`.
-pub fn skill_dir_for(harness: &Harness) -> Result<PathBuf> {
-    Ok(home_dir()?.join(harness.skills_dir).join("grove"))
+/// A harness's global skill dir under `home`: `<home>/<harness.skills_dir>/grove`.
+///
+/// The home is an argument rather than another `$HOME` read, so the layout rule
+/// is a pure function a test can pin without writing a process-global that
+/// [`home_dir`] — and `loop_driver`'s own config lookup — read in parallel.
+fn skill_dir_in(home: &Path, harness: &Harness) -> PathBuf {
+    home.join(harness.skills_dir).join("grove")
 }
 
 fn home_dir() -> Result<PathBuf> {
@@ -203,21 +207,6 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
-    static ENV_LOCK_FOR_HOME: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    /// Restores `HOME` on drop, so a failing `assert_eq!` between the
-    /// override and the restore (which unwinds, it does not abort) cannot
-    /// leave `HOME` clobbered for whichever test runs next in this binary.
-    struct HomeGuard(Option<std::ffi::OsString>);
-    impl Drop for HomeGuard {
-        fn drop(&mut self) {
-            match &self.0 {
-                Some(h) => std::env::set_var("HOME", h),
-                None => std::env::remove_var("HOME"),
-            }
-        }
-    }
-
     /// The row named `name`, looked up the way a test has to now that
     /// `harness::by_name` is gone: production *iterates* `HARNESSES`, so the
     /// registry is a slice and never had a selecting caller of its own
@@ -229,17 +218,20 @@ mod tests {
             .unwrap_or_else(|| panic!("no {name} row in the provisioning registry"))
     }
 
+    /// The layout rule alone. That the home comes from `$HOME` is the one thing
+    /// this cannot show, and `tests/provision.rs` shows it instead: it points
+    /// `HOME` at a temp dir under `lock_env` and asserts `provision_installed`
+    /// wrote both of these paths beneath it. That binary is a separate process
+    /// with its own env-lock discipline, which is why the same override there is
+    /// not the hazard it was here.
     #[test]
     fn skill_dirs_follow_each_harness_layout() {
-        let _lock = ENV_LOCK_FOR_HOME.lock().unwrap_or_else(|e| e.into_inner());
-        let _home_guard = HomeGuard(std::env::var_os("HOME"));
-        std::env::set_var("HOME", "/home/x");
         assert_eq!(
-            skill_dir_for(row("claude")).unwrap(),
+            skill_dir_in(Path::new("/home/x"), row("claude")),
             Path::new("/home/x/.claude/skills/grove")
         );
         assert_eq!(
-            skill_dir_for(row("pi")).unwrap(),
+            skill_dir_in(Path::new("/home/x"), row("pi")),
             Path::new("/home/x/.pi/agent/skills/grove")
         );
     }

@@ -418,7 +418,10 @@ staged destination; recovery infers progress from each entry's location and
 never reallocates keys. The witness alone makes every other reader and mutator
 refuse. The format witness lands last, inside the same focused commit, whose
 message identifies the grove and the migration rather than a work-item handle —
-migration precedes any task session.
+migration precedes any task session. In plain Git that commit runs with the same
+empty hooks path as the finish commit: rollback restores `.grove/` from an index
+image, which cannot undo what a rejecting `pre-commit` reformatter did to
+unrelated files.
 
 <a id="pruning"></a>
 <a id="confirmation-boundary"></a>
@@ -493,8 +496,9 @@ handoff, so no caller acts on a stale one. A retry that has lost the helper's
 result does not trust task-root absence either: with `.grove/` gone it verifies
 the immediate VCS result against the same handle and attempt identity, which
 binds the proof to the still-active session epoch. Plain Git runs this internal
-commit with an empty hooks path, because an arbitrary hook could mutate the
-unrelated working-tree bytes the transaction promises to preserve. See
+commit — and the migration commit below — with an empty hooks path, because an
+arbitrary hook could mutate the unrelated working-tree bytes those transactions
+promise to preserve. See
 [Task-tree transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
 <a id="user-owned-worktrees"></a>

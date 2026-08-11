@@ -25,6 +25,12 @@ fn jj_fileset() -> String {
 
 /// Record the automatic session-kind migration without absorbing changes
 /// outside `.grove/` or the live fail-closed migration witness.
+///
+/// Plain Git runs the commit with an empty hooks path, exactly as the finish
+/// commit does: a user hook can mutate unrelated working-tree bytes even while
+/// rejecting the commit, and the index image this rolls back from restores none
+/// of them. Signing and repository failures stay visible and still recover
+/// through the transaction. jj runs no Git hooks, so its path needs no guard.
 pub fn commit_session_kind_migration(worktree: &Path, grove_name: &str) -> Result<()> {
     let message = format!("grove({grove_name}): migrate task tree to session-kind filenames");
     match vcs_of(worktree) {
@@ -61,6 +67,13 @@ fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
     if git_migration_already_committed(worktree, message)? {
         return Ok(());
     }
+    // Resolved before the first mutation: an unusable workspace-control layout
+    // must stop this commit while the index and working tree are still the
+    // user's own.
+    let hooks_configuration = format!(
+        "core.hooksPath={}",
+        crate::repo::empty_hooks_path(worktree)?.display()
+    );
     let had_git_index = git_index.exists();
     if had_git_index {
         fs::copy(&git_index, &backup_index).with_context(|| {
@@ -78,7 +91,15 @@ fn commit_git_migration(worktree: &Path, message: &str) -> Result<()> {
             worktree,
             "git",
             &[
-                "commit", "--only", "-m", message, "--", &paths[0], &paths[1],
+                "-c",
+                &hooks_configuration,
+                "commit",
+                "--only",
+                "-m",
+                message,
+                "--",
+                &paths[0],
+                &paths[1],
             ],
         )
     })();

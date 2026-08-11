@@ -795,7 +795,7 @@ pub(crate) fn prepare_plain_git_finish(
         crate::finish_cleanup::AuxiliaryRole::GitIndexBackup,
         attempt_identity,
     )?;
-    let hooks_path = prepare_empty_hooks_directory(worktree)?;
+    let hooks_path = super::empty_hooks_path(worktree)?;
     let index_backup = preserve_git_index(worktree, finish_handle, attempt_identity)?;
     Ok(PreparedGitFinish {
         worktree: worktree.to_path_buf(),
@@ -804,42 +804,6 @@ pub(crate) fn prepare_plain_git_finish(
         index_backup,
         hooks_path,
     })
-}
-
-fn prepare_empty_hooks_directory(worktree: &Path) -> Result<PathBuf> {
-    let control = super::workspace_control(worktree)?;
-    fs::create_dir_all(control.control_dir()).with_context(|| {
-        format!(
-            "creating workspace-control directory for finish hooks {}",
-            control.control_dir().display()
-        )
-    })?;
-    let hooks_path = control.control_dir().join("finish-hooks-empty");
-    match fs::create_dir(&hooks_path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let metadata = fs::symlink_metadata(&hooks_path)
-                .with_context(|| format!("checking finish hooks path {}", hooks_path.display()))?;
-            if !metadata.file_type().is_dir() {
-                bail!(
-                    "finish hooks path is not a directory: {}",
-                    hooks_path.display()
-                );
-            }
-            if fs::read_dir(&hooks_path)
-                .with_context(|| format!("reading finish hooks path {}", hooks_path.display()))?
-                .next()
-                .is_some()
-            {
-                bail!("finish hooks path is not empty: {}", hooks_path.display());
-            }
-        }
-        Err(error) => {
-            return Err(error)
-                .with_context(|| format!("creating finish hooks path {}", hooks_path.display()))
-        }
-    }
-    Ok(hooks_path)
 }
 
 fn finish_commit_message(finish_handle: &str, attempt_identity: &str) -> String {

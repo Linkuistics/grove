@@ -130,6 +130,16 @@ fn run_grove(home: &Path, worktree: &Path) -> Output {
         .unwrap()
 }
 
+/// The real `git`, resolved before a stand-in of the same name goes on PATH.
+fn resolve_real_git() -> std::path::PathBuf {
+    let output = Command::new("sh")
+        .args(["-c", "command -v git"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git is not on PATH");
+    std::path::PathBuf::from(String::from_utf8(output.stdout).unwrap().trim())
+}
+
 fn path_with_front(directory: &Path) -> OsString {
     let mut paths = vec![directory.to_path_buf()];
     paths.extend(std::env::split_paths(
@@ -1405,17 +1415,29 @@ fn config_is_reloaded_after_a_completed_legacy_transition_before_launch() {
     let invalid = fixture.path().join("invalid-after-transition.kdl");
     fs::write(&invalid, "impl \"runner ${prompt}\"\n").unwrap();
     let active = home.join(".config/grove/config.kdl");
-    let hook = worktree.join(".git/hooks/post-commit");
+    // Grove's migration commit runs with user hooks disabled, so the corruption
+    // is injected from a `git` stand-in on PATH. It has to land between the
+    // transition's commit and the launch, and Grove drives no other process in
+    // that window.
+    let fake_bin = fixture.path().join("fake-bin");
+    fs::create_dir_all(&fake_bin).unwrap();
+    let real_git = resolve_real_git();
     write_executable(
-        &hook,
+        &fake_bin.join("git"),
         &format!(
-            "#!/bin/sh\ncp {} {}\n",
-            shell_quote(&invalid),
-            shell_quote(&active)
+            "#!/bin/sh\nfor argument in \"$@\"; do\n    if [ \"$argument\" = commit ]; then\n        {git} \"$@\" || exit $?\n        cp {invalid} {active}\n        exit 0\n    fi\ndone\nexec {git} \"$@\"\n",
+            git = shell_quote(&real_git),
+            invalid = shell_quote(&invalid),
+            active = shell_quote(&active),
         ),
     );
 
-    let output = run_grove(&home, &worktree);
+    let output = Command::new(env!("CARGO_BIN_EXE_grove"))
+        .current_dir(&worktree)
+        .env("HOME", &home)
+        .env("PATH", path_with_front(&fake_bin))
+        .output()
+        .unwrap();
 
     assert!(!output.status.success());
     assert!(grove.join("01-impl-task-k1.md").is_file());

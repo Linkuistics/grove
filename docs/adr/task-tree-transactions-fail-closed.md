@@ -124,11 +124,14 @@ manifest and only after confirming that no matching in-tree witness owns them.
 A proven commit plus task-root absence remains successful even when best-effort
 cleanup must be retried.
 
-Plain Git finish commits run with an empty internal hooks path. User hooks are
-arbitrary programs and can mutate unrelated working-tree bytes that no index
-backup can restore, so allowing them would contradict the scoped-preservation
-contract. Signing and repository failures remain visible and recover through the
-transaction.
+Every internal plain-Git commit Grove makes — migration and finish alike — runs
+with an empty internal hooks path. Both are unattended, path-scoped, and roll
+back from an index image; user hooks are arbitrary programs and can mutate
+unrelated working-tree bytes that no index image restores, so allowing them
+would contradict the scoped-preservation contract either commit makes. The rule
+therefore belongs to the shared repository seam rather than to one transaction.
+Signing and repository failures remain visible and recover through the
+transaction. Jujutsu runs no Git hooks, so its adapters need no equivalent.
 
 This binds because no portable filesystem primitive atomically replaces a file
 with a differently named directory, and no filesystem transaction can atomically
@@ -223,11 +226,14 @@ contract.
   which would otherwise install superseded index bytes as the user's own — still
   refuses outright. Reopen only if a finish attempt gains an identity that
   changes per run.
-- **Run user Git hooks during the internal finish commit.** Rejected because a
+- **Run user Git hooks during Grove's internal commits.** Rejected because a
   hook may mutate unrelated working-tree files even when it rejects the commit,
-  and Grove cannot safely snapshot and restore arbitrary user data. Reopen only
-  if hooks become side-effect-free or unrelated working-tree preservation is
-  removed from the finish contract.
+  and Grove cannot safely snapshot and restore arbitrary user data. Suppressing
+  them for finish alone was also rejected: migration is unattended, path-scoped
+  and index-rollback-backed in exactly the same way, so a common `pre-commit`
+  reformatter would rewrite unrelated files that migration's rollback restores
+  `.grove/` without. Reopen only if hooks become side-effect-free or unrelated
+  working-tree preservation is removed from these commits' contract.
 - **Use reserved-prefix detection without serializing tree access.** Rejected
   because validation and key allocation can race before either command creates
   its witness, while a reader can pass its witness scan before entries move.

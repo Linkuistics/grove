@@ -39,6 +39,12 @@ continuation the same thing.
 Full configuration validation precedes every one of those tree mutations, so a
 missing or malformed `config.kdl` leaves your working tree byte-identical.
 
+Grove makes two commits of its own — the migration commit above and the teardown
+commit at the end. Both touch only `.grove/`, and in plain Git both run with your
+Git hooks disabled: an arbitrary hook can modify unrelated files even while
+rejecting the commit, and neither commit's rollback could put those files back.
+Signing and other repository failures still surface normally.
+
 ### One driver per working tree
 
 A working tree can have only one live Grove driver. A second `grove` in the same

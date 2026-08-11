@@ -1,5 +1,6 @@
 use grove::repo::commit_session_kind_migration;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::{Command, Output};
 use tempfile::TempDir;
@@ -115,6 +116,47 @@ fn init_jj(repository: &Path, colocated: bool) {
     );
 }
 
+/// Restore Git's default hook lookup and install a hook that mutates unrelated
+/// tracked files before rejecting the commit — the shape F7 named, and the one
+/// no index image can undo. `init_git` points `core.hooksPath` at `/dev/null`,
+/// which would make any migration commit pass this regression for free.
+fn install_mutating_user_hook(repository: &Path, name: &str) -> std::path::PathBuf {
+    run("git", repository, &["config", "--unset", "core.hooksPath"]);
+    let hook = repository.join(".git/hooks").join(name);
+    fs::create_dir_all(hook.parent().unwrap()).unwrap();
+    fs::write(
+        &hook,
+        "#!/bin/sh\nprintf 'ran\\n' >hook-ran\nprintf 'hook rewrote\\n' >working.txt\nprintf 'hook rewrote\\n' >staged.txt\nprintf 'blocked migration commit\\n' >&2\nexit 1\n",
+    )
+    .unwrap();
+    fs::set_permissions(&hook, fs::Permissions::from_mode(0o755)).unwrap();
+    repository.join("hook-ran")
+}
+
+/// Stage the shape the preservation and hook regressions all measure: a
+/// committed grove plus one staged and one working-tree change the migration
+/// commit promises to leave exactly as they are.
+fn seed_migration_with_unrelated_work(repository: &Path) {
+    write(&repository.join(".grove/legacy.md"), "legacy\n");
+    write(&repository.join("staged.txt"), "before staged\n");
+    write(&repository.join("working.txt"), "before working\n");
+    commit_git_fixture(repository);
+
+    fs::remove_file(repository.join(".grove/legacy.md")).unwrap();
+    write(
+        &repository.join(".grove/01-impl-migrated-k1.md"),
+        "# migrated-k1\n",
+    );
+    write(&repository.join(".grove/FORMAT"), "session-kinds-v1\n");
+    write(
+        &repository.join(format!("{TRANSACTION}/manifest")),
+        "recovery witness\n",
+    );
+    write(&repository.join("staged.txt"), "after staged\n");
+    run("git", repository, &["add", "staged.txt"]);
+    write(&repository.join("working.txt"), "after working\n");
+}
+
 fn commit_git_fixture(repository: &Path) {
     run("git", repository, &["add", "-A"]);
     run("git", repository, &["commit", "-q", "-m", "fixture"]);
@@ -138,24 +180,7 @@ fn plain_git_migration_commit_preserves_unrelated_index_and_worktree_changes() {
     let temporary = TempDir::new().unwrap();
     let repository = temporary.path();
     init_git(repository);
-    write(&repository.join(".grove/legacy.md"), "legacy\n");
-    write(&repository.join("staged.txt"), "before staged\n");
-    write(&repository.join("working.txt"), "before working\n");
-    commit_git_fixture(repository);
-
-    fs::remove_file(repository.join(".grove/legacy.md")).unwrap();
-    write(
-        &repository.join(".grove/01-impl-migrated-k1.md"),
-        "# migrated-k1\n",
-    );
-    write(&repository.join(".grove/FORMAT"), "session-kinds-v1\n");
-    write(
-        &repository.join(format!("{TRANSACTION}/manifest")),
-        "recovery witness\n",
-    );
-    write(&repository.join("staged.txt"), "after staged\n");
-    run("git", repository, &["add", "staged.txt"]);
-    write(&repository.join("working.txt"), "after working\n");
+    seed_migration_with_unrelated_work(repository);
 
     commit_session_kind_migration(repository, "test-grove").unwrap();
 
@@ -261,10 +286,96 @@ fn plain_git_commit_failure_restores_the_prior_index_for_recovery() {
     let error = commit_session_kind_migration(repository, "test-grove").unwrap_err();
 
     let diagnostic = format!("{error:#}");
-    assert!(diagnostic.contains("git commit --only"), "{diagnostic}");
+    assert!(diagnostic.contains("commit --only"), "{diagnostic}");
     assert_eq!(
         git_output(repository, &["ls-files", "--stage"]),
         index_before
+    );
+    assert!(repository.join(TRANSACTION).is_dir());
+}
+
+#[test]
+fn plain_git_migration_commit_does_not_run_user_hooks() {
+    let temporary = TempDir::new().unwrap();
+    let repository = temporary.path();
+    init_git(repository);
+    seed_migration_with_unrelated_work(repository);
+    let hook_marker = install_mutating_user_hook(repository, "pre-commit");
+    let unrelated_index_before = git_output(
+        repository,
+        &["ls-files", "--stage", "--", "staged.txt", "working.txt"],
+    );
+
+    commit_session_kind_migration(repository, "test-grove").unwrap();
+
+    assert!(!hook_marker.exists(), "the user hook ran during migration");
+    assert_eq!(
+        git_output(
+            repository,
+            &["ls-files", "--stage", "--", "staged.txt", "working.txt"],
+        ),
+        unrelated_index_before
+    );
+    assert_eq!(
+        fs::read_to_string(repository.join("working.txt")).unwrap(),
+        "after working\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repository.join("staged.txt")).unwrap(),
+        "after staged\n"
+    );
+    assert_eq!(
+        git_output(repository, &["show", ":staged.txt"]),
+        "after staged\n"
+    );
+    let mut committed_paths: Vec<_> = git_output(
+        repository,
+        &["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"],
+    )
+    .lines()
+    .map(str::to_owned)
+    .collect();
+    committed_paths.sort();
+    assert_eq!(
+        committed_paths,
+        vec![
+            ".grove/01-impl-migrated-k1.md",
+            ".grove/FORMAT",
+            ".grove/legacy.md",
+        ]
+    );
+}
+
+#[test]
+fn failed_plain_git_migration_commit_does_not_run_user_hooks() {
+    let temporary = TempDir::new().unwrap();
+    let repository = temporary.path();
+    init_git(repository);
+    seed_migration_with_unrelated_work(repository);
+    let hook_marker = install_mutating_user_hook(repository, "pre-commit");
+    let head_before = git_output(repository, &["rev-parse", "HEAD"]);
+    let index_before = git_output(repository, &["ls-files", "--stage"]);
+    run("git", repository, &["config", "commit.gpgSign", "true"]);
+    run("git", repository, &["config", "gpg.program", "false"]);
+
+    commit_session_kind_migration(repository, "test-grove").unwrap_err();
+
+    assert!(
+        !hook_marker.exists(),
+        "the user hook ran during a failed migration"
+    );
+    assert_eq!(git_output(repository, &["rev-parse", "HEAD"]), head_before);
+    assert_eq!(
+        git_output(repository, &["ls-files", "--stage"]),
+        index_before
+    );
+    assert_eq!(
+        fs::read_to_string(repository.join("working.txt")).unwrap(),
+        "after working\n"
+    );
+    assert_eq!(
+        fs::read_to_string(repository.join("staged.txt")).unwrap(),
+        "after staged\n"
     );
     assert!(repository.join(TRANSACTION).is_dir());
 }

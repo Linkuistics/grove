@@ -116,6 +116,71 @@ pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
     bail!("not in a git or jj working tree (path: {})", path.display())
 }
 
+/// The empty hooks directory every internal Grove Git commit runs with.
+///
+/// Migration and finish both promise that their path-scoped commit preserves
+/// unrelated staged and working-tree bytes, and both roll back from an index
+/// image. A user hook is an arbitrary program that can mutate those unrelated
+/// bytes even while rejecting the commit, and no index image restores them — so
+/// the guard belongs to the seam both commits share rather than to either
+/// transaction. The directory is untracked workspace-control scratch, created on
+/// demand and never swept: it carries no cleanup manifest, so the finish reaper
+/// leaves it alone.
+///
+/// Being empty is the whole contract, so a non-directory or non-empty path is
+/// refused rather than emptied — Grove did not put anything there.
+pub(crate) fn empty_hooks_path(worktree: &Path) -> Result<PathBuf> {
+    let control = workspace_control(worktree)?;
+    fs::create_dir_all(control.control_dir()).with_context(|| {
+        format!(
+            "creating workspace-control directory for internal commit hooks {}",
+            control.control_dir().display()
+        )
+    })?;
+    let hooks_path = control.control_dir().join("internal-hooks-empty");
+    match fs::create_dir(&hooks_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            let metadata = fs::symlink_metadata(&hooks_path).with_context(|| {
+                format!(
+                    "checking internal commit hooks path {}",
+                    hooks_path.display()
+                )
+            })?;
+            if !metadata.file_type().is_dir() {
+                bail!(
+                    "internal commit hooks path is not a directory: {}",
+                    hooks_path.display()
+                );
+            }
+            if fs::read_dir(&hooks_path)
+                .with_context(|| {
+                    format!(
+                        "reading internal commit hooks path {}",
+                        hooks_path.display()
+                    )
+                })?
+                .next()
+                .is_some()
+            {
+                bail!(
+                    "internal commit hooks path is not empty: {}",
+                    hooks_path.display()
+                );
+            }
+        }
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!(
+                    "creating internal commit hooks path {}",
+                    hooks_path.display()
+                )
+            })
+        }
+    }
+    Ok(hooks_path)
+}
+
 fn gitfile_target(gitfile: &Path) -> Result<PathBuf> {
     let contents = fs::read_to_string(gitfile)
         .with_context(|| format!("reading Git worktree marker {}", gitfile.display()))?;

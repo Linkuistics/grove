@@ -833,8 +833,8 @@ The VCS adapters implement the same disposition as follows:
 - **Plain Git** first preserves the complete existing index. After evacuation,
   `git add -A` and `git commit --only` select `.grove/` while excluding the exact
   `FINISHING-<finish-handle>/` witness. Its message names the stable handle and
-  opaque finish-attempt identity. The internal commit uses an empty
-  workspace-control hooks path, disabling all user Git hooks: arbitrary hook
+  opaque finish-attempt identity. The internal commit uses the same empty
+  workspace-control hooks path migration uses, disabling all user Git hooks: arbitrary hook
   side effects cannot be rolled back from an index image and therefore cannot
   coexist with the promise to preserve unrelated working-tree bytes. Signing
   and repository failures remain visible. A staging or commit failure restores
@@ -1114,7 +1114,7 @@ Migration and finish commits preserve unrelated user work.
   entries have been evacuated beneath it. Git records deletions at their
   original paths while the witness remains untracked and recoverable. The
   complete prior index is restored on an uncommitted failure and discarded only
-  after exact commit proof. The finish commit disables Git hooks through an
+  after exact commit proof. Both commits disable Git hooks through one shared
   empty internal hooks path, so preservation of unrelated working-tree bytes
   does not depend on arbitrary user hook behavior. Pre-existing staged entries
   outside `.grove/` remain staged and absent from either commit. A valid Grove
@@ -1412,6 +1412,10 @@ Through that seam, cover:
 - exact Git pathspec behavior for tracked deletion and unborn migration commits,
   staged-change preservation, malformed unborn-finish refusal, and jj working-
   copy preservation for migration and finish commits;
+- non-invocation of a mutating, rejecting user Git hook by both internal plain-
+  Git commits, on success and on injected failure, with unrelated staged and
+  working-tree bytes unchanged either way, and with signing failure still
+  reaching the transaction;
 - direct foreground ownership, no hidden argv/env injection, signal/no-signal
   outcomes with exit status and elapsed time, nonzero configured-command
   diagnostics, and child termination on driver shutdown.

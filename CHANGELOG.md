@@ -80,7 +80,12 @@ existing task trees are migrated automatically on first run.
   layout, the v1 flat dotted-decimal layout, and v2 trees whose leaves lack
   filename kinds, in one fail-closed transaction and one `.grove/`-scoped commit.
   An unknown kind or a structurally ambiguous research pair stops before mutation
-  and names the exact paths rather than guessing a target.
+  and names the exact paths rather than guessing a target. In plain Git that
+  commit runs with user Git hooks disabled, as the teardown commit does: both are
+  unattended and path-scoped, and a hook can mutate unrelated working-tree files
+  even while rejecting the commit, which no index rollback restores. Signing and
+  repository failures stay visible. See ADR
+  *task-tree-transactions-fail-closed*.
 - **One live driver per working tree**, held by a kernel lock on a control file
   in the workspace's own VCS administration directory. A second `grove` in the
   same tree is refused immediately instead of queueing, while different Git

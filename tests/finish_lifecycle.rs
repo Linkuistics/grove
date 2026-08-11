@@ -60,6 +60,29 @@ fn wait_for(path: &Path) {
     }
 }
 
+/// Block until a paused process's barrier carries its payload, and answer with
+/// it.
+///
+/// The seam publishes the payload in one step, so an existing barrier already
+/// carries every byte. Waiting on the payload rather than on existence keeps
+/// that guarantee checked from this side too: a barrier that ever appeared
+/// empty here would be a publisher that had gone back to writing through the
+/// live path, and the paused step's name is what the caller came for.
+fn wait_for_barrier(path: &Path) -> Vec<u8> {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match fs::read(path) {
+            Ok(payload) if !payload.is_empty() => return payload,
+            Ok(_) | Err(_) => assert!(
+                Instant::now() < deadline,
+                "timed out waiting for the payload of {}",
+                path.display()
+            ),
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
 fn find_entry_named(root: &Path, name: &OsStr) -> Option<PathBuf> {
     for entry in fs::read_dir(root).ok()? {
         let entry = entry.ok()?;
@@ -2381,6 +2404,31 @@ fn bare_driver_blocks_on_divergent_finish_recovery_without_launching() {
     assert!(!launch_log.exists());
 }
 
+/// The readiness flake, reproduced from the consuming side without touching
+/// any timing the shipped code controls: stage the exact partial state a
+/// create-then-write publication leaves — the barrier present and empty — and
+/// prove the waiter every barrier test here goes through never hands that back
+/// as a paused step's payload. A waiter that answers on existence alone
+/// returns the empty payload immediately, whatever the two threads do.
+#[test]
+fn a_barrier_waiter_blocks_until_the_payload_is_complete() {
+    let fixture = TempDir::new().unwrap();
+    let barrier = fixture.path().join("staged-empty-barrier");
+    fs::write(&barrier, b"").unwrap();
+    let observed = barrier.clone();
+
+    let waiter = thread::spawn(move || wait_for_barrier(&observed));
+    // Widens the window in which the waiter may mis-read the staged empty
+    // barrier. A waiter that blocks on an empty payload cannot fail this
+    // however short the window is; one that does not, fails it however long.
+    thread::sleep(Duration::from_millis(50));
+    let staged = fixture.path().join("staged-payload");
+    fs::write(&staged, "race-entry").unwrap();
+    fs::rename(&staged, &barrier).unwrap();
+
+    assert_eq!(waiter.join().unwrap(), b"race-entry".to_vec());
+}
+
 #[test]
 fn cleanup_marker_publication_uses_the_validated_control_directory_object() {
     let fixture = TempDir::new().unwrap();
@@ -2405,7 +2453,7 @@ fn cleanup_marker_publication_uses_the_validated_control_directory_object() {
         .args(["finish-commit", "finish-k2"])
         .spawn()
         .unwrap();
-    wait_for(&barrier);
+    wait_for_barrier(&barrier);
     fs::rename(&control_directory, &validated_control_directory).unwrap();
     fs::create_dir(&control_directory).unwrap();
     fs::remove_file(&barrier).unwrap();
@@ -2457,8 +2505,7 @@ fn process_cleanup_does_not_unlink_a_substituted_non_directory_entry() {
         .args(["finish-commit", "finish-k2"])
         .spawn()
         .unwrap();
-    wait_for(&barrier);
-    let entry_name = std::ffi::OsString::from_vec(fs::read(&barrier).unwrap());
+    let entry_name = std::ffi::OsString::from_vec(wait_for_barrier(&barrier));
     let claimed = fs::read_dir(&control_directory)
         .unwrap()
         .map(Result::unwrap)

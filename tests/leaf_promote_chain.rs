@@ -138,14 +138,26 @@ fn run_with_env(worktree: &Path, args: &[&str], env: &[(&str, &str)]) -> (String
     )
 }
 
-fn wait_for(path: &Path) {
+/// Block until a paused promotion's barrier carries the checkpoint name it
+/// stopped on.
+///
+/// The seam publishes that name in one step, so an existing barrier already
+/// carries every byte. Waiting on the payload rather than on existence keeps
+/// that guarantee checked from this side too: a barrier that ever appeared
+/// empty here would be a publisher that had gone back to writing through the
+/// live path, and a waiter released by the bare creation would race the
+/// subprocess it means to have parked.
+fn wait_for_barrier(path: &Path) -> Vec<u8> {
     let deadline = Instant::now() + Duration::from_secs(5);
-    while !path.exists() {
-        assert!(
-            Instant::now() < deadline,
-            "timed out waiting for {}",
-            path.display()
-        );
+    loop {
+        match fs::read(path) {
+            Ok(payload) if !payload.is_empty() => return payload,
+            Ok(_) | Err(_) => assert!(
+                Instant::now() < deadline,
+                "timed out waiting for the payload of {}",
+                path.display()
+            ),
+        }
         thread::sleep(Duration::from_millis(10));
     }
 }
@@ -595,7 +607,7 @@ fn a_serialized_second_promoter_waits_then_returns_the_completed_shape() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    wait_for(&barrier);
+    wait_for_barrier(&barrier);
 
     let second = std::process::Command::new(env!("CARGO_BIN_EXE_grove-llm"))
         .current_dir(tmp.path())
@@ -654,7 +666,7 @@ fn every_existing_mutator_waits_for_promotion_before_touching_the_tree() {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        wait_for(&barrier);
+        wait_for_barrier(&barrier);
 
         let tail = tail.to_string_lossy().into_owned();
         let args = match mutator {
@@ -743,7 +755,7 @@ fn killing_after_the_producer_move_leaves_a_blocking_recoverable_witness() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    wait_for(&barrier);
+    wait_for_barrier(&barrier);
     child.kill().unwrap();
     child.wait().unwrap();
 
@@ -803,7 +815,7 @@ fn tracked_git_recovers_after_the_index_was_prepared_but_before_landing() {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    wait_for(&barrier);
+    wait_for_barrier(&barrier);
     child.kill().unwrap();
     child.wait().unwrap();
     let pending = fs::read_dir(tmp.path().join(".grove"))
@@ -1010,7 +1022,7 @@ fn native_and_colocated_jj_recover_after_process_interruption() {
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        wait_for(&barrier);
+        wait_for_barrier(&barrier);
         child.kill().unwrap();
         child.wait().unwrap();
 

@@ -56,3 +56,19 @@ that waits on the barrier cannot read a created-but-empty file.
 
 Do not widen this into the finish transaction: the barrier is a test seam, and
 the cleanup behaviour it pauses was not implicated.
+
+**Outcome.** The hypothesis held. `fs::write` is create-then-write, and the
+waiter's readiness test was `Path::exists`; publication now stages a sibling and
+`rename(2)`s it onto the barrier name, through one `src/test_barrier.rs` shared
+by the cleanup and promotion seams. Both regressions were checked against the
+pre-fix code: the seam test read the entry name off the hard-linked witness, and
+the waiter test observed `left: []` — the flake's own empty payload.
+
+The rename made the publish four syscalls instead of one, and that widened a
+*second*, pre-existing hazard into a ~50%-per-run failure: two cleanup unit
+tests set `GROVE_TEST_FINISH_CLEANUP_*` process-globally while every sibling
+cleanup test read them, so a victim published to the setter's barrier and
+blocked the 30s pause timeout. Fixed here by splitting `pause_at_cleanup_barrier`
+out of `cleanup_test_checkpoint`, which removed both tests' env dependence.
+`unit-test-env-isolation-k171` carries the two instances of that class left in
+`src/` (`GROVE_SIGNAL_FILE`, `HOME`).

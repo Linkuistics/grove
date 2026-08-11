@@ -765,14 +765,12 @@ fn read_marker(
 
 /// Deterministic process-interruption seam for black-box cleanup tests. The
 /// variable is deliberately test-prefixed and is not user configuration.
+///
+/// The paused step's name reaches the waiting test through
+/// [`crate::test_barrier::publish_test_barrier`], so the barrier's existence
+/// and its payload become visible together; a waiter that polls for the
+/// barrier can never read a created-but-empty one.
 fn cleanup_test_checkpoint(step: CleanupStep) -> io::Result<()> {
-    cleanup_test_checkpoint_with_timeout(step, CLEANUP_TEST_PAUSE_TIMEOUT)
-}
-
-fn cleanup_test_checkpoint_with_timeout(
-    step: CleanupStep,
-    pause_timeout: Duration,
-) -> io::Result<()> {
     let name = match &step {
         CleanupStep::BeforeMarkerPublication => "before-marker-publication",
         CleanupStep::BeforeTemporaryMarkerPublication(_) => "before-temporary-marker-publication",
@@ -807,8 +805,20 @@ fn cleanup_test_checkpoint_with_timeout(
         | CleanupStep::BeforeNonDirectoryUnlink(entry) => entry.as_bytes(),
         _ => name.as_bytes(),
     };
-    fs::write(&barrier, detail)?;
-    wait_for_cleanup_barrier_release(&barrier, pause_timeout)
+    pause_at_cleanup_barrier(&barrier, detail, CLEANUP_TEST_PAUSE_TIMEOUT)
+}
+
+/// Park at `barrier` until a waiting test releases it, having handed that test
+/// `detail` — the entry or step name it stopped on.
+///
+/// Split from the checkpoint above so the pause itself is reachable without
+/// the environment: `cleanup_test_checkpoint` decides *whether* to pause from
+/// process-global variables, which in-crate tests cannot set without every
+/// sibling cleanup test running in parallel reading them too. What those tests
+/// need to pin is this half.
+fn pause_at_cleanup_barrier(barrier: &Path, detail: &[u8], timeout: Duration) -> io::Result<()> {
+    crate::test_barrier::publish_test_barrier(barrier, detail)?;
+    wait_for_cleanup_barrier_release(barrier, timeout)
 }
 
 fn wait_for_cleanup_barrier_release(barrier: &Path, timeout: Duration) -> io::Result<()> {

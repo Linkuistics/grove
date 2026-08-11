@@ -35,6 +35,10 @@ pub mod session_config;
 // `dead_code` said nothing, because a `pub` item in a `pub` module is reachable
 // by definition. Its external interface is the chain a `grove-llm` verb writes.
 pub(crate) mod task_relationship;
+// `test_barrier` is the publication rule the process-interruption seams share.
+// It is compiled always — the seams are, too — but nothing outside them may
+// reach it, so it is crate-private like the seams' own checkpoint functions.
+pub(crate) mod test_barrier;
 pub mod tree_access;
 pub mod tree_format;
 pub mod tree_grow;

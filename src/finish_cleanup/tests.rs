@@ -7,13 +7,11 @@ use std::io;
 use std::os::fd::AsRawFd;
 use std::os::unix::fs::symlink;
 use std::os::unix::fs::MetadataExt;
-use std::sync::Mutex;
 use std::time::Duration;
 use tempfile::TempDir;
 
 const FINISH_HANDLE: &str = "finish-k2";
 const ATTEMPT: &str = "11111111111111111111111111111111";
-static CLEANUP_TEST_ENVIRONMENT: Mutex<()> = Mutex::new(());
 
 #[test]
 fn cleanup_owner_requires_a_canonical_finish_handle() {
@@ -505,34 +503,13 @@ fn a_substituted_freshly_published_marker_is_rejected() {
 
 #[test]
 fn cleanup_pause_timeout_names_the_unreleased_barrier() {
-    let _environment = CLEANUP_TEST_ENVIRONMENT
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
     let fixture = TempDir::new().unwrap();
     let barrier = fixture.path().join("unreleased-cleanup-barrier");
     fs::write(&barrier, "paused\n").unwrap();
-    let previous_pause = std::env::var_os("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT");
-    let previous_barrier = std::env::var_os("GROVE_TEST_FINISH_CLEANUP_BARRIER");
-    std::env::set_var(
-        "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
-        "before-marker-publication",
-    );
-    std::env::set_var("GROVE_TEST_FINISH_CLEANUP_BARRIER", &barrier);
 
-    let error = super::cleanup_test_checkpoint_with_timeout(
-        CleanupStep::BeforeMarkerPublication,
-        Duration::ZERO,
-    )
-    .unwrap_err();
-
-    match previous_pause {
-        Some(value) => std::env::set_var("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT", value),
-        None => std::env::remove_var("GROVE_TEST_FINISH_CLEANUP_PAUSE_AT"),
-    }
-    match previous_barrier {
-        Some(value) => std::env::set_var("GROVE_TEST_FINISH_CLEANUP_BARRIER", value),
-        None => std::env::remove_var("GROVE_TEST_FINISH_CLEANUP_BARRIER"),
-    }
+    let error =
+        super::pause_at_cleanup_barrier(&barrier, b"before-marker-publication", Duration::ZERO)
+            .unwrap_err();
 
     assert_eq!(error.kind(), io::ErrorKind::TimedOut);
     assert!(
@@ -540,6 +517,40 @@ fn cleanup_pause_timeout_names_the_unreleased_barrier() {
             .to_string()
             .contains(barrier.to_string_lossy().as_ref()),
         "{error}"
+    );
+}
+
+/// A paused cleanup hands the waiting test an entry name, and every waiter
+/// treats the barrier's existence as the signal that the name is there to be
+/// read. Publishing it by truncating and writing through the barrier's own
+/// path put an empty payload on that path for as long as the two steps were
+/// apart, and under parallel-suite load a waiter landed in that window and
+/// searched the quarantine for the empty name.
+///
+/// The pre-existing barrier here is what makes that window *observable
+/// without timing*: the hard link keeps the old inode reachable, so a
+/// publication that writes through the live path is caught by the witness
+/// carrying the new bytes. An atomic publication leaves the witness on the
+/// inode it always had.
+#[test]
+fn cleanup_barrier_publication_replaces_the_path_rather_than_writing_through_it() {
+    let fixture = TempDir::new().unwrap();
+    let barrier = fixture.path().join("published-cleanup-barrier");
+    let witness = fixture.path().join("cleanup-barrier-witness");
+    fs::write(&barrier, "stale\n").unwrap();
+    fs::hard_link(&barrier, &witness).unwrap();
+
+    // The barrier is already there, so the release wait times out at once —
+    // the publication is what this pins, not the pause.
+    let error =
+        super::pause_at_cleanup_barrier(&barrier, b"race-entry", Duration::ZERO).unwrap_err();
+
+    assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    assert_eq!(fs::read_to_string(&barrier).unwrap(), "race-entry");
+    assert_eq!(fs::read_to_string(&witness).unwrap(), "stale\n");
+    assert_ne!(
+        fs::metadata(&barrier).unwrap().ino(),
+        fs::metadata(&witness).unwrap().ino()
     );
 }
 

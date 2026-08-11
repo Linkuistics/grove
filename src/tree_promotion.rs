@@ -765,6 +765,10 @@ fn display_paths(paths: &[PathBuf]) -> String {
 /// Deterministic subprocess barriers/failures for the process-interruption
 /// contract. Inert unless a test sets the exact checkpoint plus a barrier or
 /// failure variable; ordinary Grove sessions never enter the loop.
+///
+/// The checkpoint name reaches the waiting test through
+/// [`crate::test_barrier::publish_test_barrier`], so the barrier's existence
+/// and its payload become visible together.
 fn promotion_test_checkpoint(name: &str) -> Result<()> {
     if std::env::var("GROVE_TEST_PROMOTION_FAIL_AT").as_deref() == Ok(name) {
         bail!("injected promotion failure at {name}");
@@ -775,7 +779,7 @@ fn promotion_test_checkpoint(name: &str) -> Result<()> {
     let barrier = std::env::var_os("GROVE_TEST_PROMOTION_BARRIER")
         .context("GROVE_TEST_PROMOTION_PAUSE_AT needs GROVE_TEST_PROMOTION_BARRIER")?;
     let barrier = PathBuf::from(barrier);
-    fs::write(&barrier, name)
+    crate::test_barrier::publish_test_barrier(&barrier, name.as_bytes())
         .with_context(|| format!("writing promotion test barrier {}", barrier.display()))?;
     while barrier.exists() {
         thread::sleep(Duration::from_millis(10));

@@ -32,6 +32,15 @@ It then keeps going: when a session signals that its task is complete, Grove
 relaunches with fresh context for the next leaf. Any other ending — you exit the
 session, press Ctrl-C, or the process dies — stops the loop.
 
+Because `grove` takes no arguments, **the working directory is the only thing
+that selects a workstream**. There is no tree to name and no confirmation step:
+Grove adopts, migrates, and commits against whichever working tree encloses the
+directory you ran it from. That is what makes the command short, and it is worth
+knowing before you run it in a repository that holds several linked worktrees or
+Jujutsu workspaces — running it in the wrong one migrates that tree, not the one
+you meant. `jj op restore` and `git reset` recover the migration commit if it
+happens.
+
 To resume, run `grove` again. Grove has no progress database; it re-derives its
 position from the task tree every iteration, which is what makes restart and
 continuation the same thing.

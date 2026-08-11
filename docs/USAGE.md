@@ -5,52 +5,51 @@ The workstream lives in a `.grove/` task tree inside a Git or Jujutsu working
 tree that you create and own.
 
 Before starting, install Grove as described in the [README](../README.md) and
-set the required harness and model configuration in
-[CONFIGURATION.md](CONFIGURATION.md).
+write the complete personal configuration described in
+[CONFIGURATION.md](CONFIGURATION.md). Grove will not start without it.
 
-## Start or resume
+## Start, resume, and finish
 
 Run Grove from anywhere inside the working tree:
 
 ```sh
-grove do
+grove
 ```
 
-`grove do` is the only lifecycle entry command. It inspects the filesystem and
-does the appropriate next thing:
+That is the whole human command surface. There are no subcommands and no
+lifecycle flags — `grove --help` and `grove --version` are the only other
+arguments, and both stop before Grove touches a repository. Bare `grove`
+inspects the filesystem and does the appropriate next thing:
 
-- With no `.grove/`, it opens a requirements session. That session creates the
-  root brief and the first `requirements` leaf.
-- With live leaves, it launches the first one in tree order.
-- With no live leaves, it opens the finish cycle.
-
-If the session or terminal is interrupted, run `grove do` again. Grove resumes
-from committed files and the task tree; it has no separate progress database.
-
-Use `--harness` when selecting or changing the grove's primary harness:
-
-```sh
-grove do --harness codex
-```
-
-Use `--no-launch` to check the next leaf, harness, model, prompt, Codex trust,
-and VCS access without starting an agent or writing a harness stamp:
-
-```sh
-grove do --no-launch
-```
-
-## Human-facing commands
-
-| Command | Purpose |
+| What it finds | What it does |
 |---|---|
-| `grove do [--harness NAME] [--no-launch]` | Start, continue, or finish the workstream. |
-| `grove migrate [PATH]` | Migrate an older `.grove/` layout in place. `grove do` also does this automatically when adopting an old tree. |
-| `grove retire NODE [--harness NAME] [--no-launch]` | Open a one-off session that promotes a completed node's brief. The harness choice applies only to that session. |
+| No `.grove/` | Creates the root brief and a first `requirements` leaf, then launches it. |
+| An older `.grove/` layout | Migrates it in one focused commit, then continues. |
+| Live leaves | Launches the first one in tree order. |
+| No live leaves | Materializes a `finish` leaf and launches the teardown session. |
 
-`grove --help` and each command's `--help` output are the authoritative flag
-reference. `grove-llm` is a separate internal command surface for the agent; it
-is not intended as a human workflow.
+It then keeps going: when a session signals that its task is complete, Grove
+relaunches with fresh context for the next leaf. Any other ending — you exit the
+session, press Ctrl-C, or the process dies — stops the loop.
+
+To resume, run `grove` again. Grove has no progress database; it re-derives its
+position from the task tree every iteration, which is what makes restart and
+continuation the same thing.
+
+Full configuration validation precedes every one of those tree mutations, so a
+missing or malformed `config.kdl` leaves your working tree byte-identical.
+
+### One driver per working tree
+
+A working tree can have only one live Grove driver. A second `grove` in the same
+tree exits immediately, names the canonical working tree, and leaves the existing
+driver as owner — it does not queue, because two drivers would issue two
+mandates for the same task. Different Git worktrees and jj workspaces are
+independent even when they share a repository; path aliases and symlinks to the
+same tree are not.
+
+Ownership is held by a kernel lock, so normal exit, a panic, and process death
+all release it. Restarting after a crash is ordinary continuation.
 
 ## The task tree
 
@@ -59,123 +58,153 @@ A small workstream might look like this:
 ```text
 .grove/
 ├── BRIEF.md
-├── 01-DONE-requirements-k1.md
+├── FORMAT
+├── 01-DONE-requirements-plan-k1.md
 ├── 02-auth-chain-k2/
-│   ├── 01-DONE-auth-design-k3.md
-│   ├── 02-auth-design-review-k4.md
-│   └── 03-auth-design-integrate-k5.md
-└── 03-ship-k6.md
+│   ├── 01-DONE-design-auth-k3.md
+│   ├── 02-review-design-auth-review-k4.md
+│   └── 03-integrate-review-design-auth-integrate-k5.md
+└── 03-impl-ship-k6.md
 ```
 
-A leaf is one agent-sized task. A directory is a node containing smaller
-tasks; it may have a `BRIEF.md` charter. The filename carries four pieces of
-state:
+A leaf is one agent-sized task. A directory is a node holding smaller tasks; it
+may carry a `BRIEF.md` charter. The filename carries everything Grove needs:
+
+```text
+NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
+```
 
 - `NN` is the mutable position among siblings.
-- `slug` is the human-readable name.
-- `kN` is the permanent, grove-wide identity.
-- `DONE` and `ABANDONED` are terminal outcomes kept in place until the grove
-  finishes.
+- `DONE` and `ABANDONED` are the two terminal outcomes, kept in place until the
+  grove finishes.
+- `<session-kind>` is one of the nineteen kinds, and is what selects the command
+  template from your configuration.
+- `<slug>` is the human-readable name.
+- `k<key>` is the permanent identity. `<slug>-k<key>` is the **stable handle**,
+  the way a work item is named in commit messages; it survives renumbering and
+  slug edits.
 
-Grove picks the first live leaf in depth-first, numeric order. It does not run
-a hidden scheduler or infer dependencies from prose. Review chains and research
-pairs are conventions represented by nested directories; see
+`.grove/FORMAT` records the filename grammar in use. Grove writes and reads it;
+it is not a status or phase file.
+
+Grove picks the first live leaf in depth-first pre-order. There is no hidden
+scheduler and no dependency inference from prose: ordering in a grove is
+contiguity, at every level. The one exception is the driver-owned `finish` leaf,
+which is skipped while any other work is live. You can compute the next session
+by eye with `find .grove` — the first name with no outcome infix.
+
+Review chains and research pairs are nested directories, so any file browser
+shows them as one collapsible object. See
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
-## What happens in a task session
+## What happens in a session
 
-The embedded Grove methodology guides the agent through the same loop:
+Grove launches the configured command for the selected leaf's kind and hands it
+that leaf's stable handle as an explicit mandate. The session:
 
-1. Pick one live leaf and read its ancestor briefs.
-2. Apply the discipline named by the leaf's task kind.
-3. Do and verify the work.
-4. Commit the result through the repository's native VCS interface.
-5. Mark the leaf `DONE`, retire any completed parent nodes, then signal Grove.
+1. Resolves the mandated handle and reads the glossary, ancestor briefs, cited
+   decision records, and the task file.
+2. Applies the discipline named by the leaf's session kind.
+3. Does and verifies the work.
+4. Marks the leaf `DONE`, closes any completed parent nodes, and commits all of
+   that as one focused commit naming the stable handle.
+5. Signals Grove, which relaunches for the next leaf.
 
-A task that proves too large can be decomposed in place. Work that should no
-longer be done can be marked `ABANDONED`, but pruning requires explicit human
-confirmation. Grove guides that decision; it does not make it autonomously.
+The session does not pick its own leaf. If a new leaf is inserted ahead of the
+running session's mandate, it becomes the next iteration's work rather than
+preempting the session already launched.
 
-The runtime methodology is [`content/SKILL.md`](../content/SKILL.md). The CLI
-embeds that directory and provisions it to the selected harness's personal
-skill directory on `grove do`.
+A task that proves too large is decomposed in place into a node with its own
+brief. Work that should no longer be done can be marked `ABANDONED`, but pruning
+requires explicit human confirmation — Grove guides that decision and never makes
+it autonomously.
 
-## Review composition and handoff
+The runtime methodology is [`content/SKILL.md`](../content/SKILL.md), which the
+binary provisions to each installed harness's personal skill directory on every
+bare `grove` invocation.
 
-After a session has run Grove's Bootstrap and adopted its own picked leaf, a
-plain producer may use at most **one in-session** fresh-context reviewer across
-that whole leaf. A producer already in a review chain, a `review-*` session, and
-the three research-pair sessions use none. An `integrate-review-*` session may
-use one narrow reviewer; substantial redesign becomes a new reviewed producer
-inside the owning chain node. Outside a picked Grove session, the standalone
-doubt-driven-development procedure is unchanged.
+`grove-llm` is the agent-facing tree interface the session drives during those
+steps. It is available for diagnostics — `grove-llm pick`, `grove-llm resolve`,
+`grove-llm brief-chain` — but it is not a human workflow, and running a session
+outside bare `grove` gives it no mandate.
 
-If a plain producer needs a second review, the agent runs:
+## Review composition and escalation
+
+A session that Grove launched, and that adopted its mandate, may use at most
+**one in-session** fresh-context reviewer across that whole leaf. A producer
+already inside a review chain, a `review-*` session, and the three research-pair
+sessions use none. An `integrate-review-*` session may use one narrow reviewer;
+substantial redesign becomes a new reviewed producer inside the owning chain
+node. Outside a Grove-launched session, the standalone doubt-driven-development
+procedure is unchanged.
+
+When a plain producer needs a second review, the agent escalates it into the
+tree:
 
 ```sh
 grove-llm leaf-promote-chain <picked-producer>
 ```
 
 This atomically moves the producer into a brief-less review-chain node while
-preserving its stable handle, then creates the related review and integration
-leaves. The producer finishes only to a coherent **reviewable boundary**,
-commits the artifact and promotion together, retires its relocated path, and
-hands control back to Grove. An interrupted promotion leaves a visible
-`PROMOTING-*` witness that Grove refuses to walk until the same command recovers
-it.
+preserving its stable handle, then creates the matching review and integration
+leaves. The producer finishes only to a coherent **reviewable boundary**, commits
+the artifact and the promotion together, retires its relocated path, and hands
+control back to Grove. An interrupted promotion leaves a visible `PROMOTING-*`
+witness that Grove refuses to walk until the same command recovers it.
 
-Grove records the finishing producer's effective harness and model best-effort
-in the linked review task. A direct leaf is both producer and factual source
-session. If retiring a descendant closes a reviewed decomposition node, the
-receipt instead names that node as producer, the closing leaf as source session,
-and the producer generation (the greatest permanent key in its subtree). Reorder
-keeps the generation; a supported reopen changes it, so an old receipt cannot
-silently look current.
+Grove then launches the review kind's configured command. Whether that command
+differs in harness or model from the producer's is **your** configuration policy:
+Grove executes opaque command strings, so it cannot compare two targets, and it
+records no launch receipts and emits no diversity warnings. The tree guarantees a
+fresh session; choosing a materially different command is up to the configuration
+owner.
 
-When the review launches, Grove warns unless both its harness and exact model
-selector differ from the producer's. The warning is advisory, is scoped to the
-review handle returned by the session's factual pick, and names a distinct
-validated source session. The review still launches when comparison is
-unavailable. Pruning only the producer records no handoff and leaves that review
-next and uncheckable; to abandon the entire reviewed path, prune the enclosing
-review-chain node.
+Pruning only the producer leaves its review live and next, deliberately
+uncheckable. To abandon the whole reviewed path, prune the enclosing review-chain
+node instead.
 
 ## Finish
 
-After the last live leaf is retired, the running session proposes one complete
-finish cycle:
+When the last live leaf is retired, Grove materializes a `finish` leaf and
+launches a session that proposes one complete finish cycle:
 
-1. Promote durable knowledge from briefs into the repository's normal docs,
+1. Promote durable knowledge from the briefs into the repository's normal docs,
    decision records, specs, or context files where it still belongs.
 2. Tear `.grove/` down through Grove's finish transaction, which records the
    deletion in one focused commit.
-3. Signal the driver that the grove is done.
+3. Signal that the grove is done, stopping the loop cleanly.
 
-This is Grove's one routine human confirmation point because it deletes the
-workstream tree. Branch or bookmark integration and working-tree teardown remain
-your responsibility; Grove never creates, merges, or removes them.
+This is Grove's one routine human confirmation point, because it deletes the
+workstream tree. Declining, or exiting before teardown begins, writes no signal
+and leaves the finish leaf live for a later `grove`. If new work appears after
+the finish session launched, teardown refuses and names that work, leaving the
+tree untouched for the next iteration.
+
+Branch or bookmark integration and working-tree teardown remain yours; Grove
+never creates, merges, or removes them. Whoever integrates should do so after
+step 2, so the integrated history never carries `.grove/`.
 
 ### What teardown guarantees
 
-Step 2 runs as one fail-closed transaction rather than a plain delete and
-commit. `.grove/` remains present — visible, and refused by every ordinary Grove
-command — until the repository has proven the exact commit that records its
-deletion. Its contents are held under a `FINISHING-…` directory inside the tree
-while that happens.
+Step 2 runs as one fail-closed transaction rather than a plain delete and commit.
+`.grove/` stays present — visible, and refused by every ordinary Grove command —
+until the repository has proven the exact commit that records its deletion. Its
+contents are held under a `FINISHING-…` directory inside the tree while that
+happens.
 
 What this means for you:
 
 - The deletion commit touches only `.grove/`. Unrelated staged changes,
   working-tree edits, and Jujutsu working-copy changes are preserved, and plain
-  Git runs this internal commit with hooks disabled because an arbitrary hook
+  Git runs this internal commit with hooks disabled, because an arbitrary hook
   could modify files the transaction promises to leave alone.
 - If teardown fails or the session dies mid-way, you get either your live
   workstream tree back — rerun and it retries — or a blocked tree that says
   exactly what is wrong. You never get a half-deleted tree, and an absent
   `.grove/` is never taken as evidence that teardown succeeded.
 - A blocked teardown reports **`Recovery pending`** and names the directory
-  holding it, what repository state it recorded, and what it observed instead.
-  It offers two ways out: preserve any divergent work and restore the recorded
+  holding it, what repository state it recorded, and what it observed instead. It
+  offers two ways out: preserve any divergent work and restore the recorded
   starting state so it can roll back, or make the exact teardown commit the
   current result so it can finish forward — then rerun. Grove will not reset,
   rebase, or rewrite history on your behalf, so nothing you did outside Grove is
@@ -183,6 +212,9 @@ What this means for you:
 - After a successful teardown, the tree's bytes move to a quarantine directory
   inside your VCS administration directory (`.git/` or `.jj/`) and are deleted
   from there. That quarantine is disposable cleanup, never workflow state; a
-  later Grove run tidies up any that a crash left behind.
+  later Grove run tidies up any a crash left behind.
+- Once `.grove/` is gone, that workstream is over. A later `grove` in the same
+  tree starts a **new** grove rather than recovering the finished one — Grove
+  reads no VCS history to tell "recover" from "start again".
 
 For why these boundaries exist, see [ARCHITECTURE.md](ARCHITECTURE.md).

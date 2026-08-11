@@ -23,9 +23,13 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-There is no per-project installation step. The first `grove do` provisions the
-embedded Grove methodology to the selected agent harness's personal skill
-directory. `grove --version` reports the installed binary version.
+There is no per-project installation step. Every bare `grove` invocation
+provisions the embedded Grove methodology to each installed agent harness's
+personal skill directory. `grove --version` reports the installed binary version.
+
+Grove needs one personal configuration file, `~/.config/grove/config.kdl`, giving
+each of its nineteen session kinds a complete command template. Grove will not
+start without it — see [Configuration](docs/CONFIGURATION.md).
 
 Grove's methodology uses two Linkuistics skills: `decision-records` for ADR
 discipline and `codebase-design` for testable module seams. Install the
@@ -54,9 +58,10 @@ installation behavior.
 
 ## Documentation
 
-- [Usage](docs/USAGE.md) — commands and the start-to-finish workflow.
-- [Configuration](docs/CONFIGURATION.md) — harnesses, `.grove-stamps/`, task
-  routing, models, and diagnostic overrides.
+- [Usage](docs/USAGE.md) — the bare `grove` lifecycle and the start-to-finish
+  workflow.
+- [Configuration](docs/CONFIGURATION.md) — the personal KDL file, its nineteen
+  session kinds, command-template grammar, and diagnostics.
 - [Architecture](docs/ARCHITECTURE.md) — runtime flow, task-tree model, module
   seams, VCS behavior, and current design constraints.
 - [Releasing](docs/RELEASING.md) — cutting a version, publishing release

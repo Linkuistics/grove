@@ -1,6 +1,24 @@
 use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 
 const DRIVING: &str = include_str!("../content/driving.md");
+
+/// The user-facing documentation surface: the files a reader reaches without
+/// opening `src/`, and the only ones this check walks.
+///
+/// Enumerated rather than globbed, because the claim is about a *surface* a
+/// person navigates, not about every Markdown file in the tree. Architecture,
+/// decision records, specs, and the provisioned methodology are separately
+/// owned; a repo-wide sweep belongs to whoever owns all of them at once.
+/// Each entry must exist and must actually contain a relative link, so the
+/// check cannot pass by finding nothing to do.
+const USER_DOCS: [&str; 5] = [
+    "README.md",
+    "CHANGELOG.md",
+    "docs/USAGE.md",
+    "docs/CONFIGURATION.md",
+    "docs/RELEASING.md",
+];
 
 struct MarkdownHeading {
     anchor: String,
@@ -107,6 +125,182 @@ fn markdown_headings(markdown: &str) -> Vec<MarkdownHeading> {
     }
 
     headings
+}
+
+/// Every explicit `<a id="…"></a>` anchor in a document.
+///
+/// `docs/ARCHITECTURE.md` keeps the former decision-record slugs as explicit
+/// anchors precisely so a retitled section does not break the citations that
+/// name them, so resolving only generated heading anchors would reject exactly
+/// the links that were designed to be stable.
+fn explicit_anchors(markdown: &str) -> HashSet<String> {
+    let mut anchors = HashSet::new();
+    for fragment in markdown.split("<a id=").skip(1) {
+        let Some(rest) = fragment.strip_prefix('"') else {
+            continue;
+        };
+        if let Some((anchor, _)) = rest.split_once('"') {
+            anchors.insert(anchor.to_owned());
+        }
+    }
+    anchors
+}
+
+/// Relative link targets and their line numbers, skipping fenced blocks so a
+/// worked example cannot be mistaken for a real reference. Absolute URLs and
+/// bare fragments are out of scope: the first is not this repository's to
+/// verify, and the second resolves within the rendering page.
+fn relative_link_targets(markdown: &str) -> Vec<(String, usize)> {
+    let mut open_fence = None;
+    let mut targets = Vec::new();
+
+    for (line_index, line) in markdown.lines().enumerate() {
+        if open_fence.is_some_and(|fence| closes_fence(line, fence)) {
+            open_fence = None;
+            continue;
+        }
+        if open_fence.is_some() {
+            continue;
+        }
+        if let Some(fence) = fence_start(line) {
+            open_fence = Some(fence);
+            continue;
+        }
+
+        for candidate in line.split("](").skip(1) {
+            let Some((target, _)) = candidate.split_once(')') else {
+                continue;
+            };
+            // A Markdown link may carry a title after the destination.
+            let target = target.split_whitespace().next().unwrap_or_default();
+            if target.is_empty()
+                || target.starts_with('#')
+                || target.contains("://")
+                || target.starts_with("mailto:")
+            {
+                continue;
+            }
+            targets.push((target.to_owned(), line_index + 1));
+        }
+    }
+
+    targets
+}
+
+/// Resolve one relative link against the repository, returning the reason it
+/// does not resolve. Kept total and pure so the check can be shown failing.
+fn unresolved_reason(repository_root: &Path, source: &str, target: &str) -> Option<String> {
+    let (path_part, fragment) = match target.split_once('#') {
+        Some((path_part, fragment)) => (path_part, Some(fragment)),
+        None => (target, None),
+    };
+
+    let source_directory = Path::new(source).parent().unwrap_or(Path::new(""));
+    let resolved: PathBuf = if path_part.is_empty() {
+        repository_root.join(source)
+    } else {
+        repository_root.join(source_directory).join(path_part)
+    };
+
+    if !resolved.exists() {
+        return Some(format!("{} does not exist", resolved.display()));
+    }
+
+    let fragment = fragment?;
+    if fragment.is_empty() {
+        return None;
+    }
+    if resolved
+        .extension()
+        .is_none_or(|extension| extension != "md")
+    {
+        return Some(format!(
+            "fragment `#{fragment}` names a non-Markdown target {}",
+            resolved.display()
+        ));
+    }
+
+    let markdown = std::fs::read_to_string(&resolved).ok()?;
+    let resolves = markdown_headings(&markdown)
+        .iter()
+        .any(|heading| heading.anchor == fragment)
+        || explicit_anchors(&markdown).contains(fragment);
+    (!resolves).then(|| {
+        format!(
+            "fragment `#{fragment}` matches no heading or explicit anchor in {}",
+            resolved.display()
+        )
+    })
+}
+
+fn repository_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+#[test]
+fn user_documentation_references_resolve() {
+    let root = repository_root();
+
+    for document in USER_DOCS {
+        let path = root.join(document);
+        let markdown = std::fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("{document} must be readable: {error}"));
+        let targets = relative_link_targets(&markdown);
+        assert!(
+            !targets.is_empty(),
+            "{document} must carry at least one relative reference for this check to mean anything"
+        );
+
+        for (target, line_number) in targets {
+            if let Some(reason) = unresolved_reason(&root, document, &target) {
+                panic!(
+                    "{document}:{line_number}: reference `{target}` does not resolve — {reason}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn user_documentation_reference_check_rejects_dangling_targets() {
+    let root = repository_root();
+
+    assert!(
+        unresolved_reason(&root, "docs/USAGE.md", "CONFIGURATION.md").is_none(),
+        "a real sibling document must resolve"
+    );
+    assert!(
+        unresolved_reason(&root, "docs/USAGE.md", "ARCHITECTURE.md#task-kind-taxonomy").is_none(),
+        "an explicit `<a id=…>` anchor must resolve"
+    );
+    assert!(
+        unresolved_reason(&root, "docs/USAGE.md", "ARCHITECTURE.md#runtime-flow").is_none(),
+        "a generated heading anchor must resolve"
+    );
+    assert!(
+        unresolved_reason(&root, "docs/USAGE.md", "NO-SUCH-DOCUMENT.md").is_some(),
+        "a missing file must be reported"
+    );
+    assert!(
+        unresolved_reason(&root, "docs/USAGE.md", "ARCHITECTURE.md#no-such-anchor").is_some(),
+        "a missing fragment must be reported"
+    );
+}
+
+#[test]
+fn relative_link_scan_ignores_fenced_examples_and_absolute_urls() {
+    let markdown = concat!(
+        "See [real](docs/USAGE.md).\n",
+        "```text\n",
+        "[fenced](docs/NEVER.md)\n",
+        "```\n",
+        "And [remote](https://example.invalid/x) and [local](#section).\n",
+    );
+
+    assert_eq!(
+        relative_link_targets(markdown),
+        [("docs/USAGE.md".to_owned(), 1)]
+    );
 }
 
 fn guide_navigation_lines(markdown: &str) -> impl Iterator<Item = &str> {

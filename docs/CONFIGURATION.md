@@ -1,181 +1,237 @@
 # Grove Configuration
 
-Grove selects a primary agent harness for the workstream, then may route each
-task kind to another harness and model. Configuration is read at launch time,
-so changing an environment variable affects the next session without changing
-the task tree.
+One personal file, `~/.config/grove/config.kdl`, is the entirety of Grove's user
+configuration. It gives each of the nineteen session kinds one complete command
+template. Grove parses a template into arguments, expands its own substitutions,
+and executes the result directly as its foreground child.
 
-## Harnesses
+Grove neither knows nor infers which agent harness a template runs. Executable,
+model, reasoning effort, approval, permission, and sandbox policy all live in the
+template, where you can read the whole launch in one line.
 
-| Harness | Repository marker | Executable | Model argument | Provisioned skill directory |
-|---|---|---|---|---|
-| Claude Code | `.claude/` | `claude` | `--model VALUE` | `~/.claude/skills/grove/` |
-| Codex | `.codex/` | `codex` | `--profile VALUE` | `~/.codex/skills/grove/` |
-| Pi | `.pi/` | `pi` | `--model VALUE` | `~/.pi/agent/skills/grove/` |
+There is no other configuration source. Task files, command-line flags,
+repository-local stamps, and environment variables neither override nor
+supplement this file, and Grove never creates or edits it — it cannot choose your
+model or approval policy for you.
 
-The executable must be on `PATH`. Pi normally needs an explicit
-`grove do --harness pi` because Pi does not create a repository-local `.pi/`
-marker itself.
+## The file
 
-For Codex, each new working tree must be trusted. Run `codex` once in that tree
-and accept its trust prompt, or configure `trust_level = "trusted"` for the path
-in `$CODEX_HOME/config.toml`. Grove checks this before launch because an
-untrusted, read-only Codex sandbox cannot use the VCS-store access that Grove
-adds for commits.
+The document is a flat set of nineteen top-level KDL nodes. A node's name is the
+session kind; its sole positional argument is a string holding the complete
+command template. Nodes take no properties and no child blocks. Comments and
+ordering are free.
 
-## Primary harness and `.grove-stamps/`
+All nineteen kinds must appear exactly once. A complete example, keeping design
+work on one command, sending every review to a second, and running the research
+pair across two:
 
-The primary harness is resolved in this order:
+```kdl
+requirements "grove-claude --session ${session_name} ${prompt}"
+review-requirements "grove-codex-review ${worktree} ${prompt}"
+integrate-review-requirements "grove-claude --session ${session_name} ${prompt}"
 
-1. `--harness claude|codex|pi`
-2. `.grove-stamps/<grove-name>` in the repository root
-3. the only detected repository marker
-4. otherwise, an error asking for `--harness`
+design "grove-claude --session ${session_name} ${prompt}"
+review-design "grove-codex-review ${worktree} ${prompt}"
+integrate-review-design "grove-claude --session ${session_name} ${prompt}"
 
-The grove name is the working-tree directory's basename. `grove do` writes a
-stamp when `--harness` is explicit or when a repository has multiple harness
-markers. A single unambiguous auto-detected harness needs no stamp.
-`grove retire --harness` is intentionally one-session-only and never rewrites
-the binding.
+planning "grove-claude --session ${session_name} ${prompt}"
+review-planning "grove-codex-review ${worktree} ${prompt}"
+integrate-review-planning "grove-claude --session ${session_name} ${prompt}"
 
-`.grove-stamps/` is therefore live local configuration, not history or a build
-artifact. It is ignored by Git because the binding is machine-local. A stale
-stamp can be deleted safely when its working tree no longer exists; the next
-`grove do` will require an explicit or unambiguous harness again.
+prototype "grove-claude --session ${session_name} ${prompt}"
+review-prototype "grove-codex-review ${worktree} ${prompt}"
+integrate-review-prototype "grove-claude --session ${session_name} ${prompt}"
 
-## Task kinds and families
+impl "grove-claude --session ${session_name} ${prompt}"
+review-impl "grove-codex-review ${worktree} ${prompt}"
+integrate-review-impl "grove-claude --session ${session_name} ${prompt}"
 
-Every live leaf declares one of seventeen kinds:
+research-a "grove-claude --session ${session_name} ${prompt}"
+research-b "grove-codex-research ${worktree} ${prompt}"
+combine-research "grove-claude --session ${session_name} ${prompt}"
+
+finish "claude --model opus ${prompt}"
+```
+
+The wrapper names above are illustrative; nothing named `grove-*` is shipped. A
+template may equally invoke a harness directly:
+
+```kdl
+impl "claude --model sonnet --permission-mode acceptEdits ${prompt}"
+```
+
+### The nineteen kinds
 
 ```text
 requirements  design  planning  prototype  impl
 review-requirements  review-design  review-planning  review-prototype  review-impl
 integrate-review-requirements  integrate-review-design
 integrate-review-planning  integrate-review-prototype  integrate-review-impl
-research  combine-research
+research-a  research-b  combine-research
+finish
 ```
 
-The five `review-*` kinds form the `review` family; the five
-`integrate-review-*` kinds form the `integrate-review` family. Environment
-suffixes uppercase labels and replace `-` with `_`, so `review-impl` becomes
-`REVIEW_IMPL` and `integrate-review` becomes `INTEGRATE_REVIEW`.
+`research-a` and `research-b` share one discipline but are separate
+configuration keys, so a research vendor pair reaches two different commands
+without any per-leaf metadata. `finish` is the driver-reserved teardown session.
 
-The disciplines and composition rules behind these names are in
+There are no defaults, families, profiles, or inheritance. Each kind's target is
+complete when read on its own — nothing is assembled from a precedence chain.
+The disciplines behind these names are in
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
-## Route a task to a harness
+## Command templates
 
-Most specific wins:
+Grove applies POSIX shell-word splitting to the template string, which gives you
+familiar quoting and escaping. **It does not run a shell.** Variables, command
+substitutions, redirections, pipelines, globs, aliases, and `~` expansion are not
+interpreted. Put any of those in an executable wrapper and configure the wrapper.
 
-| Source | Scope |
-|---|---|
-| `**Harness:** NAME` in the leaf | This leaf only. An unknown or empty name is an error. |
-| `GROVE_<KIND>_HARNESS` | One kind, such as `GROVE_REVIEW_IMPL_HARNESS=codex`. |
-| `GROVE_<FAMILY>_HARNESS` | A family, such as `GROVE_REVIEW_HARNESS=codex`. |
-| unset | The grove's primary stamped or detected harness. |
+The first parsed word is a literal, non-empty executable or script name resolved
+on `PATH`. It must contain no substitution. Interactive shell aliases and shell
+functions are not reachable. A wrapper must `exec` the harness it fronts, so
+Grove keeps direct ownership of the real foreground child.
 
-Per-leaf routing exists mainly for a research vendor pair: both leaves have
-kind `research`, but each must run on a different harness. Ordinary routing
-belongs in environment policy rather than task files.
+### Substitutions
 
-## Select a model
+Each substitution occupies one complete parsed word and expands to exactly one
+argument, so spaces and shell metacharacters in a path, session name, or prompt
+can never change argument boundaries.
 
-Model lookup is harness-major, in this order:
+| Substitution | Expands to | Required |
+|---|---|---|
+| `${prompt}` | The embedded launcher plus the selected leaf's stable handle as the session's mandate. | Exactly once, in any position after word zero. |
+| `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
+| `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
+| `${repo}` | Absolute root of the main repository — the default jj workspace root, or the parent of Git's common directory. | At most once. |
 
-| Precedence | Variable | Example |
-|---:|---|---|
-| 1 | `GROVE_<HARNESS>_<KIND>_MODEL` | `GROVE_CODEX_REVIEW_IMPL_MODEL` |
-| 2 | `GROVE_<HARNESS>_<FAMILY>_MODEL` | `GROVE_CODEX_REVIEW_MODEL` |
-| 3 | `GROVE_<KIND>_MODEL` | `GROVE_IMPL_MODEL` |
-| 4 | `GROVE_<FAMILY>_MODEL` | `GROVE_INTEGRATE_REVIEW_MODEL` |
+`${prompt}` need not be last. These are errors: an unknown `${...}` name, a
+substitution embedded in a larger word (`--prompt=${prompt}`), a substitution in
+word zero, a missing or repeated `${prompt}`, and a repeated optional
+substitution.
 
-`<HARNESS>` is `CLAUDE`, `CODEX`, or `PI`. A task rerouted away from the
-primary harness consults only the harness-scoped forms (1 and 2); an unscoped
-model may have been written for the primary harness and can be invalid on the
-other one.
+"Word zero" means the first shell-split word, literally. In
+`env MODE=review runner ${prompt}` it is `env`; the assignment and `runner` are
+ordinary later arguments, and Grove never inspects them.
 
-A model is required for every launched leaf. Grove does not silently accept a
-harness default. The only exemptions are a finish-cycle launch with no live
-leaf and a future harness whose registry entry has no model flag. A brand-new
-grove is routed as `requirements` by construction, so it needs
-`GROVE_REQUIREMENTS_MODEL` or the harness-scoped equivalent before the first
-`grove do`.
+### The `#` rule
 
-Claude and Pi values are model names accepted by their `--model` flags. Codex
-values are profile names accepted by `--profile`; define a profile in
-`$CODEX_HOME/<name>.config.toml` so it can bind both model and reasoning effort.
-An in-session model switch overrides the launch value for that session only.
+An unquoted `#` at the start of a shell word begins a comment, which would
+silently truncate the command. Grove rejects that form instead of launching the
+truncated argv. Quote or escape it to pass it literally; a `#` inside an existing
+word, such as `tag#1`, is already literal.
 
-## Review target diversity
+```kdl
+// accepted — the `#` is quoted, so it reaches the command as a literal
+impl "runner --tag '#build' ${prompt}"
 
-Grove owns the target of every scheduled `review-*` leaf through the same
-harness and model policy above. A finishing producer records its actual launch
-harness and exact model selector best-effort in the related review task. The
-structured `kind --with-harness --json` peek validates that receipt under the
-tree guard and nests the historical route beneath `producer-target`; the driver
-retains it without a second metadata read. A direct receipt's source session is
-the producer. A decomposed receipt may name the factual closing leaf separately,
-plus a producer generation that changes on supported reopen. Review launch
-resolves current policy again and warns unless both its harness and model
-selector differ from the producer's. A harness-managed default compares equal
-only to another default on the same harness.
-
-This check is **advisory**. A matching axis, missing receipt, malformed stable
-relationship, or unavailable historical target produces one warning in stderr
-and the launched prompt but never changes or blocks the resolved command. A
-one-harness installation therefore warns on every review by design. The notice
-names a distinct validated source session and says it applies only when the
-session's factual pick is the addressed review; a preempted session discards it.
-
-`GROVE_SESSION_TARGET` carries the retained structured routing peek from the
-loop driver to its foreground session so retirement can write that receipt. It
-is reserved internal context, not user configuration: do not set or export it.
-Auxiliary and nested harness spawns scrub it before launching.
-
-## Example
-
-This configuration keeps Claude as the primary harness, sends all reviews to a
-Codex profile, and returns integration to Claude:
-
-```sh
-export GROVE_REVIEW_HARNESS=codex
-export GROVE_CODEX_REVIEW_MODEL=sol-xhigh
-
-export GROVE_REQUIREMENTS_MODEL=opus
-export GROVE_DESIGN_MODEL=opus
-export GROVE_PLANNING_MODEL=opus
-export GROVE_PROTOTYPE_MODEL=sonnet
-export GROVE_IMPL_MODEL=sonnet
-export GROVE_RESEARCH_MODEL=opus
-export GROVE_COMBINE_RESEARCH_MODEL=opus
-export GROVE_INTEGRATE_REVIEW_MODEL=opus
-
-grove do --harness claude
+// rejected — everything from `#` onward would be dropped
+impl "runner --tag # build ${prompt}"
 ```
 
-If the same shell drives groves with different primary harnesses, prefer the
-harness-scoped model variables everywhere.
+### What Grove adds
 
-## Maintainer and diagnostic overrides
+Nothing to argv. Grove appends no model flag, no session-name argument, no
+sandbox or repository grant, and no harness-specific fragment.
 
-These are test, wrapper, or operational seams rather than normal routing:
+To the environment it makes one change immediately before spawning: it clears any
+inherited Grove loop-control variables and grants this launch's fresh
+`GROVE_SIGNAL_FILE`. That path is the loop's internal completion channel, not a
+setting — do not set or export it yourself.
 
-| Variable | Meaning |
-|---|---|
-| `GROVE_HARNESS_BIN` | Override the primary harness executable. Ignored for rerouted tasks. |
-| `GROVE_HARNESS_BIN_<HARNESS>` | Override one harness executable, including rerouted tasks. |
-| `GROVE_LLM_BIN` | Override the internal `grove-llm` executable. |
-| `GROVE_SKILL_DIR` | Provision and read the embedded Grove skill at one explicit path. |
-| `GROVE_KILL_GRACE` | Seconds between a completion signal and `SIGTERM`. |
-| `GROVE_KILL_GRACE_KILL` | Seconds between `SIGTERM` and `SIGKILL`. |
+Everything else in your environment is preserved for the configured command,
+including `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, and a repository-local
+`core.worktree`. Grove runs the command with the working tree as its current
+directory but makes no promise to rewrite its repository context; express any
+such policy with literal `env` arguments or in a wrapper. Grove's own internal
+lifecycle VCS commands are separate and do scrub repository selectors, so your
+personal launch context cannot redirect a migration or teardown commit.
 
-Grace values are clamped to 0–3600 seconds; invalid or non-finite values use
-the built-in defaults. `GROVE_SIGNAL_FILE` and `GROVE_SESSION_TARGET` are
-internal loop channels, not user configuration, and should not be exported
-manually.
+## Provisioned methodology is a prerequisite
 
-`GROVE_SIGNAL_FILE` also carries the launch's finish-attempt identity, which
-`grove-llm finish-commit` writes into its teardown commit and requires again to
-verify a lost result. A hand-set value that is not a real loop signal path fails
-the finish outright; a stale one from another launch makes a retry unable to
-recognise its own commit. Let the driver set it.
+Every bare `grove` invocation sweeps the embedded methodology into each installed
+harness's personal skill directory, before it takes ownership of a working tree:
+
+| Harness | Provisioned when this exists | Destination |
+|---|---|---|
+| Claude Code | `~/.claude` | `~/.claude/skills/grove/` |
+| Codex | `~/.codex` | `~/.codex/skills/grove/` |
+| Pi | `~/.pi` | `~/.pi/agent/skills/grove/` |
+
+This registry is a delivery list, not a launch policy: a row is a place to write
+files, never a program to run, and it contributes nothing to any command. An
+absent home root is skipped, never created. Writes are idempotent against a
+content stamp, and a foreign directory carrying no Grove stamp is refused rather
+than overwritten.
+
+The `${prompt}` launcher is deliberately small and tells the session to use that
+provisioned skill. Because Grove treats your command as opaque, it cannot verify
+that a given wrapper actually exposes the skill; that is a property of the target
+you configure.
+
+## Validation and diagnostics
+
+Loading is all-or-nothing. A successful load proves the file exists, is readable,
+parses as KDL, declares every required kind exactly once with no unknown node,
+property, child block, or extra argument, and that every template splits cleanly
+and obeys the executable and substitution rules above.
+
+A missing file names the exact path and the complete required kind set. A KDL
+syntax error names the path with its line and column.
+
+Past syntax, diagnostics are **aggregate, not first-error**: one report lists
+every missing kind, every unknown kind, every duplicate with all of its source
+locations, every malformed node, and every invalid template with its kind and
+location.
+
+```text
+invalid Grove configuration at ~/.config/grove/config.kdl:
+  - missing session kinds: research-b, finish
+  - ~/.config/grove/config.kdl:14:1: duplicate session kind `impl`; declarations at ~/.config/grove/config.kdl:14:1, ~/.config/grove/config.kdl:31:1
+  - ~/.config/grove/config.kdl:22:1: session kind `review-impl`: command template must contain `${prompt}` exactly once
+```
+
+(Grove prints the absolute path; `~` stands in for your home directory here.)
+
+No diagnostic silently fills a target or falls back to another kind.
+
+Validation does not try to identify the configured program or understand its
+arguments. If the literal executable cannot be resolved or spawned, that is a
+launch error naming the selected kind and the executable; a wrapper's own
+failures stay opaque by design.
+
+When a session ends without a completion signal, Grove reports the child's exit
+status and elapsed time. A nonzero status additionally names the session kind,
+word zero, and the config path as the likely configured-command failure:
+
+```text
+grove: session ended without a completion signal — status exit status: 127, elapsed 0.031s; loop stopped.
+       configured session kind `impl` failed via "grove-claude" from /Users/you/.config/grove/config.kdl.
+```
+
+### When configuration is read
+
+Grove reads and fully validates the whole file before **every** task-tree
+mutation — root initialization, legacy migration, and finish-leaf
+materialization — and again immediately before every launch. Nothing is cached
+between loop iterations, so editing the file affects the next session.
+
+A failed pre-mutation read leaves a rootless, legacy, or pending-migration tree
+byte-identical. If the file becomes invalid after a mutation but before the launch
+read, that mutation stays as resumable tree state and no session launches. Either
+way an existing selected leaf remains live and resumable.
+
+Adding a session kind is an intentional breaking schema change: a release
+announces the new entry, and complete configs fail validation until their owner
+adds it.
+
+## Adjacent settings Grove does not own
+
+- **Codex trust.** An untrusted Codex sandbox is read-only and cannot commit. Run
+  `codex` once in a new working tree and accept its trust prompt, or set
+  `trust_level = "trusted"` for the path in `$CODEX_HOME/config.toml`. Grove no
+  longer checks this, because it does not know a template runs Codex.
+- **Model and reasoning effort.** These are arguments in your template, or
+  settings inside a profile your template selects.
+- **Branches, worktrees, and integration.** Yours entirely; see
+  [USAGE.md](USAGE.md).

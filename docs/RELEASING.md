@@ -35,8 +35,14 @@ The doctor checks the pinned Rust toolchain, all release targets, Zig,
 
 ## 1. Prepare the release
 
-Record the shipped behavior under `## Unreleased` in `CHANGELOG.md`, then run
-the normal checks. For the complete repository suite:
+Record the shipped behavior under `## Unreleased` in
+[`CHANGELOG.md`](../CHANGELOG.md). If the release adds, removes, or renames a
+session kind, say so explicitly there. The
+[configuration schema](CONFIGURATION.md#the-nineteen-kinds) has no partial
+compatibility mode: every complete `~/.config/grove/config.kdl` fails validation
+until its owner edits it, so the release note is the only warning users get.
+
+Then run the normal checks. For the complete repository suite:
 
 ```sh
 cargo fmt --check

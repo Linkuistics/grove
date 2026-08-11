@@ -51,8 +51,93 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+**Breaking.** Launch policy moves entirely into a new personal configuration
+file, and the human command surface collapses to bare `grove`. Existing
+installations must write `~/.config/grove/config.kdl` before Grove will start;
+existing task trees are migrated automatically on first run.
+
+### Added
+
+- **`~/.config/grove/config.kdl` is the entirety of user launch policy.** It
+  assigns each of the nineteen session kinds one complete command-template
+  string, which chooses the executable, harness, model, reasoning effort, and
+  approval/sandbox policy. Grove shell-splits the template for quoting but runs
+  no shell: it expands `${prompt}`, `${session_name}`, `${worktree}`, and
+  `${repo}` as whole words and executes the argv directly, adding no
+  harness-specific arguments of its own. All nineteen kinds must be present
+  exactly once; there are no defaults, families, or inheritance, so a target is
+  complete when read on its own. Diagnostics are aggregate rather than
+  first-error, naming every missing, duplicate, unknown, and malformed entry with
+  its source location. See [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) and
+  ADR *complete-session-configuration*.
+- **Session kinds live in leaf filenames**, as
+  `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`, with the current
+  grammar recorded by a positive `.grove/FORMAT` witness. The closed set grows to
+  nineteen: the previous seventeen, minus plain `research`, plus `research-a`,
+  `research-b`, and the driver-reserved `finish`. A research vendor pair now
+  reaches two independently configured commands without per-leaf metadata.
+- **Automatic legacy migration.** Bare `grove` converts the original `NNN-slug/`
+  layout, the v1 flat dotted-decimal layout, and v2 trees whose leaves lack
+  filename kinds, in one fail-closed transaction and one `.grove/`-scoped commit.
+  An unknown kind or a structurally ambiguous research pair stops before mutation
+  and names the exact paths rather than guessing a target.
+- **One live driver per working tree**, held by a kernel lock on a control file
+  in the workspace's own VCS administration directory. A second `grove` in the
+  same tree is refused immediately instead of queueing, while different Git
+  worktrees and jj workspaces stay independent. A per-launch session epoch binds
+  each agent's `grove-llm` operations to the driver that launched it, so a stale
+  session cannot act on the next one. See ADR
+  *one-live-driver-per-working-tree*.
+- **Fail-closed teardown.** The finish cycle now runs as a transaction that keeps
+  `.grove/` present and unwalkable until the repository has proven the exact
+  `.grove/`-scoped deletion commit. Interruption yields either the live tree back
+  or a named `Recovery pending` diagnostic — never a half-deleted tree, and never
+  an absent `.grove/` mistaken for success. Unrelated staged, working-tree, and
+  Jujutsu working-copy changes stay out of the commit. See ADR
+  *task-tree-transactions-fail-closed*.
+
+### Changed
+
+- **Bare `grove` is the only human lifecycle command.** It provisions the
+  embedded methodology, takes the working tree's driver lease, validates
+  configuration, brings the tree to a runnable shape, performs one authoritative
+  pick, and launches that kind's configured command — then relaunches on a
+  completion signal and stops on anything else. A fresh tree initializes a real
+  `requirements` leaf and an exhausted tree materializes a resumable `finish`
+  leaf, so every session owns a real selected leaf.
+- **The driver picks once, and the session obeys a mandate.** The selected leaf's
+  stable handle is embedded in `${prompt}`; the launched session resolves that
+  handle and never picks again. A leaf inserted during the launch window becomes
+  the next iteration's work instead of preempting the running session.
+- Configuration is fully validated before *every* task-tree mutation and again
+  immediately before every launch, and is never cached across iterations. A
+  failed pre-mutation read leaves the tree byte-identical.
+- Each iteration resolves `grove-llm` beside the running `grove` executable and
+  rejects version skew as a resumable no-mutation stop.
+- Global skill provisioning now sweeps the embedded methodology to *every*
+  installed harness's personal skill directory, independently of launch policy,
+  before the driver owns a working tree. `content/prompts/continue.md` is the
+  single surviving launcher.
+- `grove --help` and `grove --version` are metadata-only: they provision nothing,
+  discover no repository, and acquire no lease.
+
 ### Removed
 
+- **All legacy launch routing.** Harness detection, `.grove-stamps/`, the
+  `--harness` and `--no-launch` flags, every `GROVE_<KIND|FAMILY>_HARNESS` and
+  `GROVE_*_MODEL` variable, leaf `**Harness:**` metadata, grow-verb harness
+  flags, task-body `**Kind:**` markers and their read-side `impl` degradation,
+  and Grove's hidden model, session-name, and Codex-sandbox argument injection.
+- **The `do`, `migrate`, and `retire` subcommands.** Migration is automatic and
+  node-brief promotion is ordinary session work.
+- **Review target receipts and diversity warnings**, along with the structured
+  `kind --with-harness --json` routing peek and `GROVE_SESSION_TARGET`. Whether a
+  review's command differs from its producer's is now visible configuration
+  policy that Grove cannot and does not infer from opaque command strings.
+- **User-settable `GROVE_*` configuration**, including `GROVE_HARNESS_BIN*`,
+  `GROVE_LLM_BIN`, `GROVE_SKILL_DIR`, and the kill-grace overrides. Test suites
+  inject tools, clocks, and grace durations through internal module seams.
+  `GROVE_SIGNAL_FILE` remains an internal loop-control channel, not a setting.
 - Remove Grove's Herdr-specific status reporting, hook injection, agent hint,
   configuration splice, and bundled task-tree viewer. Grove's completion-signal
   lifecycle remains unchanged.

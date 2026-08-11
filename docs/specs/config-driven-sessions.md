@@ -1330,7 +1330,14 @@ Through that seam, cover:
   is refused by `finish-commit` with the live tree unchanged and no Grove-authored
   revision; a `.grove/` that is its own mount point passes acquisition and is
   refused at finish; and an operator-invoked `finish-commit` retry performs its
-  own comparison with no durable capability marker anywhere on disk;
+  own comparison with no durable capability marker anywhere on disk. Both bullets
+  reach a second filesystem through one test-prefixed seam that is scrubbed from
+  launched sessions and is the identity when unset: it names a directory whose
+  measurements report a distinct filesystem, so the seam is the *only* staged
+  operand — marker resolution, control-directory creation, ordering, diagnostic,
+  and each preflight's no-mutation guarantee are all exercised through the real
+  bare and `grove-llm` processes. It is a path rather than a device number so a
+  case must name the exact directory resolution landed on;
 - plain-Git validation, index-backup, staging, hook suppression,
   injected/signing commit, index-restore, unexpected-`HEAD`, and lost-result
   failures, including a wholly untracked tree (ignored before first record) and

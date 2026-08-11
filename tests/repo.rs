@@ -1,4 +1,4 @@
-use grove::repo::{main_repo_of, toplevel, vcs_of, workspace_control, Vcs};
+use grove::repo::{main_repo_of, toplevel, vcs_of, workspace_control, ControlMarker, Vcs};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -122,6 +122,15 @@ fn workspace_control_in_plain_git_uses_that_checkout_s_git_directory() {
         control.control_dir(),
         canon(&tmp.path().join(".git")).join("grove")
     );
+    // The marker is part of the resolution result, not a re-derivation: the
+    // layout preflight names it in a refusal, and walking the ancestors a second
+    // time could report a different one than the one that actually resolved.
+    assert_eq!(
+        control.marker(),
+        &ControlMarker::GitDirectory {
+            path: canon(tmp.path()).join(".git")
+        }
+    );
 }
 
 #[test]
@@ -165,6 +174,16 @@ fn workspace_control_in_a_linked_git_worktree_uses_its_own_gitdir() {
         control.control_dir(),
         canon(&main.join(".git")).join("grove")
     );
+    // The gitfile indirection is what takes resolution out of the working tree,
+    // so it travels with the marker rather than being recoverable only by
+    // re-reading the file.
+    assert_eq!(
+        control.marker(),
+        &ControlMarker::GitFile {
+            path: canon(&worktree).join(".git"),
+            gitdir: canon(&worktree.join(gitdir)),
+        }
+    );
 }
 
 #[test]
@@ -177,6 +196,12 @@ fn workspace_control_in_colocated_jj_uses_the_workspace_jj_directory() {
 
     assert_eq!(control.worktree_root(), canon(tmp.path()));
     assert_eq!(control.control_dir(), canon(tmp.path()).join(".jj/grove"));
+    assert_eq!(
+        control.marker(),
+        &ControlMarker::JjDirectory {
+            path: canon(tmp.path()).join(".jj")
+        }
+    );
 }
 
 #[test]

@@ -39,6 +39,7 @@ pub enum Vcs {
 pub struct WorkspaceControl {
     worktree_root: PathBuf,
     control_dir: PathBuf,
+    marker: ControlMarker,
 }
 
 impl WorkspaceControl {
@@ -48,6 +49,48 @@ impl WorkspaceControl {
 
     pub fn control_dir(&self) -> &Path {
         &self.control_dir
+    }
+
+    pub fn marker(&self) -> &ControlMarker {
+        &self.marker
+    }
+}
+
+/// The on-disk VCS marker that produced a [`WorkspaceControl`], carried
+/// alongside the paths it resolved to.
+///
+/// The workspace layout preflight reports this, and re-deriving it at diagnostic
+/// time would walk the ancestors a second time and could name a different marker
+/// than the one that actually resolved. The gitfile variant carries its target
+/// because that indirection *is* the step which leaves the working tree — it is
+/// what the operator has to look at, not a detail of the marker.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ControlMarker {
+    /// A `.jj/` directory: native, secondary, or colocated.
+    JjDirectory { path: PathBuf },
+    /// A `.git/` directory: a plain checkout.
+    GitDirectory { path: PathBuf },
+    /// A `.git` **file**: a linked worktree or a submodule, plus the canonical
+    /// gitdir it named.
+    GitFile { path: PathBuf, gitdir: PathBuf },
+}
+
+impl std::fmt::Display for ControlMarker {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::JjDirectory { path } => {
+                write!(formatter, "the `.jj` directory {}", path.display())
+            }
+            Self::GitDirectory { path } => {
+                write!(formatter, "the `.git` directory {}", path.display())
+            }
+            Self::GitFile { path, gitdir } => write!(
+                formatter,
+                "the `.git` file {}, naming gitdir {}",
+                path.display(),
+                gitdir.display()
+            ),
+        }
     }
 }
 
@@ -83,6 +126,9 @@ pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
             })?;
             return Ok(WorkspaceControl {
                 control_dir: worktree_root.join(".jj/grove"),
+                marker: ControlMarker::JjDirectory {
+                    path: worktree_root.join(".jj"),
+                },
                 worktree_root,
             });
         }
@@ -96,8 +142,11 @@ pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
                 .canonicalize()
                 .with_context(|| format!("canonicalizing {}", git_marker.display()))?;
             return Ok(WorkspaceControl {
-                worktree_root,
                 control_dir: git_dir.join("grove"),
+                marker: ControlMarker::GitDirectory {
+                    path: worktree_root.join(".git"),
+                },
+                worktree_root,
             });
         }
         if git_marker.is_file() {
@@ -106,13 +155,65 @@ pub fn workspace_control(path: &Path) -> Result<WorkspaceControl> {
             })?;
             let git_dir = gitfile_target(&git_marker)?;
             return Ok(WorkspaceControl {
-                worktree_root,
                 control_dir: git_dir.join("grove"),
+                marker: ControlMarker::GitFile {
+                    path: worktree_root.join(".git"),
+                    gitdir: git_dir,
+                },
+                worktree_root,
             });
         }
     }
 
     bail!("not in a git or jj working tree (path: {})", path.display())
+}
+
+/// The filesystem Grove acts on for `path`, and the single point where a test may
+/// substitute a second one.
+///
+/// Grove makes two device comparisons — the workspace layout preflight at
+/// driver-lease acquisition, and the finish transaction's own quarantine
+/// preflight — and each reads a real `st_dev` and passes it through here. A second
+/// filesystem is the one operand this suite cannot stage portably: mounting one
+/// needs privileges on Linux and a disk image on macOS. `GROVE_TEST_FOREIGN_FILESYSTEM`
+/// names a directory, and every measurement at or under it reports a distinct
+/// filesystem, so the acceptance matrix drives both real refusals — resolution,
+/// ordering, diagnostic, and each one's no-mutation guarantee — through the real
+/// processes instead of a unit call.
+///
+/// The seam is a **path** rather than a device number on purpose: a test has to
+/// name the exact directory resolution landed on, so a run cannot pass while the
+/// resolver walked somewhere else entirely. It is an internal test control, not
+/// launch configuration, so [`crate::launch`] scrubs it from every spawn, and
+/// with the variable unset — every production invocation — this is the identity,
+/// down to performing no extra syscall.
+///
+/// Deliberately one helper rather than a substitution per call site. The two
+/// preflights must stay independent — neither may consult the other's verdict —
+/// and the only thing they may share is *how a filesystem is measured*. Sharing
+/// that is also what lets one seam express both halves of the independence: a
+/// prefix naming the control directory makes the layout cross-device, while one
+/// naming `.grove/` leaves acquisition passing and refuses only at finish.
+pub(crate) fn measured_device(path: &Path, device: u64) -> u64 {
+    let Some(prefix) = foreign_filesystem_root() else {
+        return device;
+    };
+    let resolved = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if resolved.starts_with(&prefix) {
+        // Any value distinct from the real one; `^ 1` cannot collide with it.
+        device ^ 1
+    } else {
+        device
+    }
+}
+
+fn foreign_filesystem_root() -> Option<PathBuf> {
+    let value = std::env::var_os("GROVE_TEST_FOREIGN_FILESYSTEM")?;
+    if value.is_empty() {
+        return None;
+    }
+    let path = PathBuf::from(value);
+    Some(path.canonicalize().unwrap_or(path))
 }
 
 /// The empty hooks directory every internal Grove Git commit runs with.

@@ -144,6 +144,14 @@ impl DriverLease {
                 .context("reading pinned working-tree identity")?,
         );
 
+        ensure_supported_workspace_layout(
+            &worktree_root,
+            worktree_identity.device,
+            &control_dir,
+            control_directory_device(&control_dir)?,
+            control.marker(),
+        )?;
+
         let lease_path = control.control_dir().join(LEASE_FILE_NAME);
         let (lease_file, lease_identity) = acquire_lease_file(&lease_path, &worktree_root)?;
         let nonce = hex_nonce(random_nonce()?)?;
@@ -289,6 +297,69 @@ impl DriverLease {
             &self.nonce,
         )
     }
+}
+
+/// The **workspace layout preflight**: prove the workspace can supply what
+/// teardown will eventually need, before anything creates or drives a task tree.
+///
+/// Finish ends in one atomic same-filesystem rename of the whole `.grove/` root
+/// into the workspace-control directory, and *task-tree-transactions-fail-closed*
+/// deliberately provides no copy or working-tree-sibling fallback. A control
+/// directory Grove cannot rename into is therefore a property of the **layout**,
+/// not a teardown-time misfortune: it makes the workspace unfinishable for its
+/// whole life. Acquisition is the one chokepoint every tree-creating and
+/// tree-driving path passes through, and it is the moment where both operands are
+/// already in hand — the control directory has just been created and the root
+/// descriptor is pinned — so the refusal lands before configuration validation and
+/// before any `.grove/` observation, as a resumable no-mutation stop.
+///
+/// Only *same device* is measured. *Untracked* is structural: the resolver places
+/// controls exclusively inside the workspace's own `.jj/` or the canonical
+/// per-worktree Git directory, never a working-tree sibling.
+///
+/// This is an early warning and never a licence. It compares **proxies** — the
+/// rename moves `.grove/` into this directory's `grove/` child, and at lease time
+/// neither operand need exist — the layout stays mutable while the lease is held,
+/// and `finish-commit` is separately invocable. The finish transaction repeats the
+/// comparison against its own exact operands, and must (*supported-workspace-layouts*).
+fn ensure_supported_workspace_layout(
+    worktree_root: &Path,
+    worktree_device: u64,
+    control_dir: &Path,
+    control_device: u64,
+    marker: &repo::ControlMarker,
+) -> Result<()> {
+    if worktree_device == control_device {
+        return Ok(());
+    }
+    bail!(
+        "unsupported workspace layout: Grove's teardown moves the whole task tree into the \
+         workspace-control directory in one atomic rename, which cannot cross a filesystem \
+         boundary, so this workspace could never finish\n  \
+         working tree root:           {} (filesystem {worktree_device})\n  \
+         workspace-control directory: {} (filesystem {control_device})\n  \
+         resolved from:               {marker}\n\n\
+         Either place this working tree on the same filesystem as the repository its \
+         administration directory lives in, or drive Grove from a workspace whose \
+         administration directory is inside the working tree. Nothing was created or \
+         changed; repair the layout and rerun.",
+        worktree_root.display(),
+        control_dir.display(),
+    )
+}
+
+/// One `stat` of the control directory acquisition just created, measured
+/// through the seam both preflights share ([`repo::measured_device`]).
+fn control_directory_device(control_dir: &Path) -> Result<u64> {
+    let device = fs::metadata(control_dir)
+        .with_context(|| {
+            format!(
+                "reading the filesystem of Grove control directory {}",
+                control_dir.display()
+            )
+        })?
+        .dev();
+    Ok(repo::measured_device(control_dir, device))
 }
 
 fn write_epoch_contents(
@@ -914,6 +985,80 @@ mod tests {
         fs::rename(path, path.with_extension(format!("attempt-{attempt}")))?;
         fs::write(path, format!("replacement {attempt}"))?;
         Ok(())
+    }
+
+    // The layout comparison itself, with both devices supplied, so the whole
+    // diagnostic can be asserted without staging a second filesystem. What it
+    // has to name is fixed by *supported-workspace-layouts*: the operator has to
+    // be able to act on the refusal without running anything else, and for the
+    // one at-risk family that means the gitfile indirection, not just the two
+    // endpoints it produced.
+    #[test]
+    fn an_unsupported_layout_names_both_ends_the_marker_and_the_remedies() {
+        let marker = repo::ControlMarker::GitFile {
+            path: PathBuf::from("/volume/linked/.git"),
+            gitdir: PathBuf::from("/main/.git/worktrees/linked"),
+        };
+
+        ensure_supported_workspace_layout(
+            Path::new("/volume/linked"),
+            7,
+            Path::new("/main/.git/worktrees/linked/grove"),
+            7,
+            &marker,
+        )
+        .expect("one filesystem is a supported layout");
+
+        let error = ensure_supported_workspace_layout(
+            Path::new("/volume/linked"),
+            7,
+            Path::new("/main/.git/worktrees/linked/grove"),
+            11,
+            &marker,
+        )
+        .unwrap_err();
+
+        let message = error.to_string();
+        for expected in [
+            "unsupported workspace layout",
+            "/volume/linked",
+            "filesystem 7",
+            "/main/.git/worktrees/linked/grove",
+            "filesystem 11",
+            "the `.git` file /volume/linked/.git, naming gitdir /main/.git/worktrees/linked",
+            "same filesystem as the repository",
+            "administration directory is inside the working tree",
+            "Nothing was created or changed",
+        ] {
+            assert!(
+                message.contains(expected),
+                "{expected:?} missing: {message}"
+            );
+        }
+        assert!(
+            !message.contains("creating Grove control directory"),
+            "an unsupported layout must not read as an unwritable control directory: {message}"
+        );
+    }
+
+    // A plain checkout and every jj shape resolve in-root, so the marker they
+    // report is the one the operator sees beside their files rather than a
+    // canonical target elsewhere.
+    #[test]
+    fn an_in_root_marker_is_reported_as_itself() {
+        let tmp = TempDir::new().unwrap();
+        let root = tmp.path().join("worktree");
+        fs::create_dir_all(root.join(".git")).unwrap();
+
+        let control = repo::workspace_control(&root).unwrap();
+
+        assert_eq!(
+            control.marker().to_string(),
+            format!(
+                "the `.git` directory {}",
+                control.worktree_root().join(".git").display()
+            )
+        );
     }
 
     #[test]

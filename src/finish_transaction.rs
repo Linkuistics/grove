@@ -1086,8 +1086,8 @@ fn preflight_root(worktree: &Path, grove_root: &Path) -> Result<FinishPreflight>
         )
     })?;
     ensure_same_device(
-        descriptor_metadata.dev(),
-        control_metadata.dev(),
+        repo::measured_device(grove_root, descriptor_metadata.dev()),
+        repo::measured_device(control_parent, control_metadata.dev()),
         grove_root,
         control.control_dir(),
     )?;

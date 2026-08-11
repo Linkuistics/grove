@@ -50,12 +50,19 @@ const LOOP_CONTROL_ENV: [&str; 3] = ["GROVE_SIGNAL_FILE", "GROVE_HARNESS_PID", "
 /// Shipped deterministic failure seams must never leak from a developer shell
 /// into a configured session. They are internal test controls, not launch
 /// configuration.
-const FINISH_CLEANUP_TEST_ENV: [&str; 5] = [
+///
+/// Membership is the same test as [`LOOP_CONTROL_ENV`]'s: a value a descendant
+/// could still *act on*. The finish-cleanup and marker-rebind seams qualify
+/// because the process reading them is a child Grove spawns; the foreign-filesystem
+/// seam qualifies because a session's own `grove-llm finish-commit` — and a nested
+/// `grove` — would read it and refuse a layout the operator's disk supports.
+const INTERNAL_TEST_SEAM_ENV: [&str; 6] = [
     "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
     "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
     "GROVE_TEST_FINISH_CLEANUP_BARRIER",
     "GROVE_TEST_FINISH_REBIND_EXIT_AT",
     "GROVE_TEST_FINISH_REBIND_FAIL_AT",
+    "GROVE_TEST_FOREIGN_FILESYSTEM",
 ];
 
 /// Repository selectors are process-global overrides: `current_dir` alone does
@@ -90,7 +97,7 @@ const REPOSITORY_CONTEXT_ENV: [&str; 4] = [
 /// interesting part, and a second site open-coding it is how the first one came
 /// to be missed.
 pub(crate) fn scrub_loop_control_env(cmd: &mut Command) {
-    for name in LOOP_CONTROL_ENV.into_iter().chain(FINISH_CLEANUP_TEST_ENV) {
+    for name in LOOP_CONTROL_ENV.into_iter().chain(INTERNAL_TEST_SEAM_ENV) {
         cmd.env_remove(name);
     }
 }
@@ -128,14 +135,15 @@ mod tests {
         for name in REPOSITORY_CONTEXT_ENV {
             cmd.env(name, "preserved");
         }
-        let finish_cleanup_test_env = [
+        let internal_test_seam_env = [
             "GROVE_TEST_FINISH_CLEANUP_FAIL_AT",
             "GROVE_TEST_FINISH_CLEANUP_PAUSE_AT",
             "GROVE_TEST_FINISH_CLEANUP_BARRIER",
             "GROVE_TEST_FINISH_REBIND_EXIT_AT",
             "GROVE_TEST_FINISH_REBIND_FAIL_AT",
+            "GROVE_TEST_FOREIGN_FILESYSTEM",
         ];
-        for name in finish_cleanup_test_env {
+        for name in internal_test_seam_env {
             cmd.env(name, "must-not-leak");
         }
         scrub_loop_control_env(&mut cmd);
@@ -146,7 +154,7 @@ mod tests {
                 is inherited, not addressed"
             );
         }
-        for name in finish_cleanup_test_env {
+        for name in internal_test_seam_env {
             assert!(
                 env_is_scrubbed(&cmd, name),
                 "{name} must not affect a configured session"

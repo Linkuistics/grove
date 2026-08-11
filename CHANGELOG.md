@@ -93,6 +93,20 @@ existing task trees are migrated automatically on first run.
   each agent's `grove-llm` operations to the driver that launched it, so a stale
   session cannot act on the next one. See ADR
   *one-live-driver-per-working-tree*.
+- **An unfinishable workspace is refused at start-up, not at teardown.** Grove's
+  teardown ends in one atomic same-filesystem rename of `.grove/` into the
+  workspace's VCS administration directory, with no copy fallback, so a working
+  tree on a different filesystem from that directory could never finish. Lease
+  acquisition now compares the two, before configuration validation and before
+  any `.grove/` is observed or created: the refusal names both paths, both
+  filesystems, the marker that produced the resolution — including a `.git`
+  file's gitdir target — and the two remedies, and it mutates nothing, so
+  repairing the layout and rerunning simply continues. Only a linked Git worktree
+  or a submodule can fail this, but every layout is measured rather than
+  classified, because a symlinked `.git` or `.jj` leaves the working tree without
+  changing the marker's kind. The teardown gate still performs its own
+  comparison against its own exact operands. See ADR
+  *supported-workspace-layouts*.
 - **Fail-closed teardown.** The finish cycle now runs as a transaction that keeps
   `.grove/` present and unwalkable until the repository has proven the exact
   `.grove/`-scoped deletion commit. Interruption yields either the live tree back

@@ -96,13 +96,16 @@ one budget across the **whole picked leaf**:
   corpora and the combiner supplies the adversarial move; put a load-bearing
   derived decision in its own reviewed producer chain.
 
-After cutting that leaf, finish only to a coherent reviewable boundary, commit
-the artifact and the new leaf together under the producer's own handle, retire
-the producer, and hand back with `grove-llm complete`. Do not spawn another
-doubt reviewer. Nothing about the producer's leaf moves, so its handle and bytes
-are preserved by construction; retirement is the filename `DONE` transition
-alone, recording nothing about the session that just ran and leaving the review
-task untouched, because the review reads the committed artifact.
+After cutting that leaf, finish only to a coherent reviewable boundary, **retire
+the producer, then** commit the artifact, the new leaf and that retirement
+together under the producer's own handle, and hand back with `grove-llm
+complete`. The order matters: the `DONE` rename is part of this task, so a
+commit taken before it either leaves the rename uncommitted or seals it into the
+next task's change. Do not spawn another doubt reviewer. Nothing about the
+producer's leaf moves, so its handle and bytes are preserved by construction;
+retirement is the filename `DONE` transition alone, recording nothing about the
+session that just ran and leaving the review task untouched, because the review
+reads the committed artifact.
 
 Grove owns the escalated route from there. It launches the scheduled `review-*`
 from that kind's own configuration entry, and whether that reaches a different

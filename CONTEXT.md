@@ -466,9 +466,11 @@ for readers, exclusive for mutators. The root rather than `.grove/`, because it
 exists before the task tree is created and through its deletion, so root
 initialization, migration, finish allocation and deletion, and the agent tree
 verbs all share one invariant. It serializes live processes but adds no crash
-atomicity; the one operation that promises process-interruption recovery — the
-[[Finish transaction]] — uses its own in-tree witness. See ADR
-*task-tree-transactions-fail-closed*.
+atomicity; the only operations that promise process-interruption recovery — the
+[[Finish transaction]] and the one-time session-kind migration — each use their
+own in-tree witness. A grow verb has neither and promises neither: it unwinds on
+a *reported* error, and a process killed mid-run can leave a partial shape. See
+ADR *task-tree-transactions-fail-closed*.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
 and existing tree readers deliberately tolerate their absence.
 _Avoid_: locking `.grove/` itself — it cannot serialize either its own creation

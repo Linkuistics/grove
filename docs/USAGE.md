@@ -193,10 +193,13 @@ triage session is what the lazy shape removes. But the bigger payoff is that the
 producer could not cover, or carry the findings verbatim, which is strictly more
 than a constructor rendering a goal sentence from a handle could ever supply.
 
-The producer finishes only to a coherent **reviewable boundary**, commits the
-artifact and the new review leaf together under its own handle, retires itself,
-and hands control back to Grove. Nothing about the producer's leaf moves, so its
-stable handle and bytes are preserved by construction.
+The producer finishes only to a coherent **reviewable boundary**, **retires
+itself, then** commits the artifact, the new review leaf and that retirement
+together under its own handle, and hands control back to Grove. Retirement comes
+before the commit because the `DONE` rename belongs to this task: commit first
+and the rename is either left uncommitted or swept into the next task's change.
+Nothing about the producer's leaf moves, so its stable handle and bytes are
+preserved by construction.
 
 Write the relationship into the new leaf's body by hand — `**Reviews:**
 <producer-handle>`, or `**Integrates:** <review-handle>`. Grove neither writes

@@ -169,6 +169,104 @@ fn there_is_no_chain_constructor_left_to_call() {
     }
 }
 
+/// The release's central compatibility promise, pinned by the one shape that
+/// can regress it silently: **a chain node left by the old constructor**.
+///
+/// Nothing was migrated, and nothing needed to be — a chain node was only ever
+/// an ordinary node *directory* whose slug ended in `-chain`, and every reader
+/// handles node directories generically. But that argument is only as good as
+/// the readers, and after the deletion no source or test fixture contained a
+/// `-chain-k` name at all: the whole current-shape suite would keep passing if
+/// a future change made node parsing, `pick`'s descent, handle resolution or
+/// `brief-chain` assume a charter that this node, uniquely, does not have.
+///
+/// So the fixture is deliberately the *awkward* legacy case — a brief-less node
+/// holding a live producer and its two steps, in current filename format,
+/// exactly as `leaf-add-chain` would have written it — and all three read paths
+/// are exercised against it untouched.
+#[test]
+fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
+    let t = grove();
+    let node = t.path().join(".grove/01-sync-chain-k1");
+    fs::create_dir_all(&node).unwrap();
+    // No `BRIEF.md` — the property under test. The three steps carry the stem
+    // suffixes and derived kinds the deleted constructor emitted.
+    for (name, header) in [
+        ("01-design-sync-k2.md", "sync-k2"),
+        ("02-review-design-sync-review-k3.md", "sync-review-k3"),
+        (
+            "03-integrate-review-design-sync-integrate-k4.md",
+            "sync-integrate-k4",
+        ),
+    ] {
+        fs::write(node.join(name), format!("# {header}\n")).unwrap();
+    }
+
+    // `pick` descends the node in pre-order and reaches its first live leaf,
+    // rather than skipping a directory it cannot charter.
+    let (stdout, stderr, ok) = run(t.path(), &["pick"]);
+    assert!(ok, "pick failed on a legacy chain node: {stderr}");
+    assert!(
+        stdout
+            .trim()
+            .ends_with("01-sync-chain-k1/01-design-sync-k2.md"),
+        "pick must descend the unmigrated node, got {stdout:?}"
+    );
+
+    // The children resolve by their permanent handles, which the node never
+    // renumbered and no migration rewrote.
+    for (handle, expected) in [
+        ("sync-k2", "01-sync-chain-k1/01-design-sync-k2.md"),
+        (
+            "sync-review-k3",
+            "01-sync-chain-k1/02-review-design-sync-review-k3.md",
+        ),
+    ] {
+        let (stdout, stderr, ok) = run(t.path(), &["resolve", handle]);
+        assert!(ok, "resolve {handle} failed: {stderr}");
+        assert!(
+            stdout.trim().ends_with(expected),
+            "resolve {handle} gave {stdout:?}"
+        );
+    }
+
+    // `brief-chain` skips the level with no charter silently and yields the root
+    // brief alone — which is exactly what the close of such a node reports:
+    // there is no `Done when` to check and nothing to promote.
+    let (stdout, stderr, ok) = run(
+        t.path(),
+        &[
+            "brief-chain",
+            ".grove/01-sync-chain-k1/01-design-sync-k2.md",
+        ],
+    );
+    assert!(ok, "brief-chain failed: {stderr}");
+    let briefs: Vec<&str> = stdout.lines().filter(|l| !l.is_empty()).collect();
+    assert_eq!(
+        briefs.len(),
+        1,
+        "expected the root brief alone, got {briefs:?}"
+    );
+    assert!(briefs[0].ends_with(".grove/BRIEF.md"), "got {briefs:?}");
+
+    // And none of it moved anything: no migration ran.
+    let mut names: Vec<String> = fs::read_dir(&node)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        vec![
+            "01-design-sync-k2.md",
+            "02-review-design-sync-review-k3.md",
+            "03-integrate-review-design-sync-integrate-k4.md",
+        ],
+        "the legacy node must be untouched — still brief-less, still `-chain`"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // The research pair: still one call
 

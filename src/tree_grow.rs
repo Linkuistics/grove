@@ -30,6 +30,7 @@ use crate::tree_id::{next_key, next_keys, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Append a child leaf under the node directory `parent_dir` at the next gapless
@@ -70,9 +71,7 @@ pub(crate) fn leaf_add_unlocked(
         outcome: Outcome::Live,
     };
     let path = parent_abs.join(entry.name());
-    if path.exists() {
-        bail!("destination already exists: {}", path.display());
-    }
+    refuse_occupied_destination(&path, "")?;
     write_task_template(&path, slug, key)?;
     Ok(path)
 }
@@ -163,30 +162,54 @@ fn add_run(grove_root: &Path, parent_dir: &Path, steps: &[Step]) -> Result<Vec<P
     // flat siblings have to be swept, and the sweep must cover *all* of them —
     // checking only the first would let a squatter at the third turn a refusal
     // into a rollback.
+    //
+    // **The sweep is the diagnostic, not the guarantee.** It buys the good
+    // refusal — "nothing was created", naming the obstruction, before any leaf
+    // lands — and nothing more, because a writer that ignored the tree lock can
+    // still occupy a destination in the gap between this loop and the write
+    // below. What closes that gap is the atomic claim each write now takes
+    // ([`claim_destination`]); this loop just makes the realistic collision
+    // read as a refusal rather than a rollback.
     for path in &planned {
-        if path.exists() {
-            bail!(
-                "destination already exists: {} (nothing was created)",
-                path.display()
-            );
-        }
+        refuse_occupied_destination(path, " (nothing was created)")?;
     }
 
     let mut created: Vec<PathBuf> = Vec::with_capacity(planned.len());
     for ((step, key), path) in steps.iter().zip(keys.iter()).zip(planned.iter()) {
-        if let Err(error) = write_task_template(path, &step.slug, *key) {
+        let file = match claim_destination(path) {
+            Ok(file) => file,
+            Err(error) => return Err(roll_back(error, &created)),
+        };
+        // **Ownership is recorded the instant the claim succeeds, before a
+        // single byte is written.** Creating and filling are two syscalls, and
+        // the second can fail (`ENOSPC`, `EIO`) with the file already on disk —
+        // an empty, well-formed leaf at a valid name, which is exactly the
+        // wrong-but-well-formed residue this verb exists to prevent. Pushing
+        // after the fill would leave that one path outside `created` and so
+        // outside the rollback, undoing every leaf *except* the one the failure
+        // just made.
+        created.push(path.clone());
+        if let Err(error) = fill_task_file(file, path, &step.slug, *key) {
             return Err(roll_back(error, &created));
         }
-        created.push(path.clone());
     }
     Ok(created)
 }
 
 /// Undo a partially-written run and return the error the caller should see.
-/// Every path in `created` was proven absent moments earlier, so removing
-/// exactly those is both complete and safe by construction — it can never eat a
-/// pre-existing entry. A removal that itself fails is *named*: a residue the
-/// operator must know about is worse hidden than reported.
+///
+/// Every path in `created` was **atomically created by this run**
+/// ([`claim_destination`]), which is what makes removing exactly those both
+/// complete and safe by construction: not "proven absent a moment ago" — a
+/// claim that would have gone stale in the gap — but an entry that did not
+/// exist until this run's own `O_EXCL` create made it. So a rollback can never
+/// eat a pre-existing entry, and never follows a link to something outside
+/// `.grove/`. A removal that itself fails is *named*: a residue the operator
+/// must know about is worse hidden than reported.
+///
+/// **Reported errors only.** This runs when control returns through the error
+/// path; process death mid-run bypasses it and leaves a partial shape, which is
+/// the promise `docs/ARCHITECTURE.md` makes and the stronger one it does not.
 fn roll_back(cause: anyhow::Error, created: &[PathBuf]) -> anyhow::Error {
     let mut stranded = Vec::new();
     for path in created.iter().rev() {
@@ -336,13 +359,10 @@ pub(crate) fn leaf_insert_unlocked(
         outcome: Outcome::Live,
     };
     let path = parent_abs.join(entry.name());
-    if path.exists() {
-        bail!(
-            "destination already exists after renumber: {} (renumber log: {:?})",
-            path.display(),
-            renumbers
-        );
-    }
+    refuse_occupied_destination(
+        &path,
+        &format!(" after renumber (renumber log: {renumbers:?})"),
+    )?;
     write_task_template(&path, slug, new_key)?;
     Ok((path, renumbers))
 }
@@ -595,9 +615,60 @@ fn stem(name: &str) -> &str {
     name.strip_suffix(".md").unwrap_or(name)
 }
 
-/// Write a freshly-created leaf's template. The first-line header is the
-/// **position-free handle** `# <slug>-k<key>` — the mutable per-level
-/// position lives only in the filename, so a later renumber never rewrites this.
+/// Refuse a destination that is occupied by *anything*, and refuse a
+/// destination whose occupancy cannot be determined.
+///
+/// **`Path::exists()` answers the wrong question twice.** It follows symlinks,
+/// so a dangling one reports `false` — the destination reads as free while a
+/// later `fs::write` follows the link and creates or truncates its target,
+/// which may be anywhere on disk and outside `.grove/` entirely; a rollback
+/// would then remove the link and leave that target behind. And it collapses
+/// every other error (`EACCES`, `ELOOP`, a broken mount) into `false` too,
+/// turning "I could not tell" into "go ahead".
+///
+/// `symlink_metadata` is the no-follow primitive: it stats the link itself, so
+/// **only `NotFound` means free** and every other error is a refusal. `detail`
+/// is appended to the message so each caller can say what the refusal means for
+/// the tree it was midway through building.
+///
+/// This is a diagnostic, not the guarantee — see [`claim_destination`].
+fn refuse_occupied_destination(path: &Path, detail: &str) -> Result<()> {
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error)
+            .with_context(|| format!("checking whether {} is free{detail}", path.display())),
+        Ok(_) => bail!("destination already exists: {}{detail}", path.display()),
+    }
+}
+
+/// Take a destination **atomically**, or fail: `O_CREAT | O_EXCL` in one
+/// syscall ([`std::fs::OpenOptions::create_new`]).
+///
+/// This is what actually makes a grow verb collision-safe, and the up-front
+/// sweep above is not. A sweep is a check at one instant and the write happens
+/// at another; anything that occupies the destination in between — a writer
+/// that ignored the tree lock, a symlink planted at the planned name — is
+/// invisible to the sweep and fully visible to the write. `create_new` closes
+/// that gap by construction: it fails with `AlreadyExists` on a regular file,
+/// on a directory, and on a symlink **dangling or not** (`O_EXCL` refuses to
+/// follow one), so it can neither truncate an entry Grove does not own nor
+/// write through a link to a target outside `.grove/`.
+///
+/// The open file handle is the proof of ownership, and it is returned rather
+/// than consumed here so the caller can record that ownership *before* any
+/// bytes are written ([`add_run`]).
+fn claim_destination(path: &Path) -> Result<fs::File> {
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .with_context(|| format!("creating {}", path.display()))
+}
+
+/// Write a claimed leaf's template into the handle [`claim_destination`]
+/// returned. The first-line header is the **position-free handle**
+/// `# <slug>-k<key>` — the mutable per-level position lives only in the
+/// filename, so a later renumber never rewrites this.
 ///
 /// **One template, no parameters beyond the handle.** Session kind and harness
 /// are launch-time configuration, and a step's relationship to its neighbours is
@@ -607,10 +678,49 @@ fn stem(name: &str) -> &str {
 /// session that cuts it knows the specific finding or uncovered case the step
 /// exists for, which no constructor rendering a goal sentence from a handle
 /// could.
+fn fill_task_file(mut file: fs::File, path: &Path, slug: &str, key: u32) -> Result<()> {
+    fail_after_claim(path)?;
+    file.write_all(task_template_body(slug, key).as_bytes())
+        .with_context(|| format!("writing {}", path.display()))
+}
+
+/// Claim a destination and fill it — the whole of creating one leaf, for the
+/// callers that create exactly one and so have nothing to unwind.
 pub(crate) fn write_task_template(path: &Path, slug: &str, key: u32) -> Result<()> {
-    let body = task_template_body(slug, key);
-    fs::write(path, body.as_bytes()).with_context(|| format!("writing {}", path.display()))?;
+    let file = claim_destination(path)?;
+    fill_task_file(file, path, slug, key)
+}
+
+/// The deterministic seam for the **created-but-not-filled** window.
+///
+/// Splitting creation from writing makes that window explicit, and what lives
+/// in it is a real failure mode — `write_all` returning `ENOSPC` or `EIO` with
+/// the file already on disk. Neither is portably reproducible, and an
+/// unreachable arm is an unverified one, so the fill fails on demand instead:
+/// a test arms one filename, and the run reaches its rollback with that leaf
+/// created and empty. Compiled out of the shipped binary entirely.
+#[cfg(test)]
+fn fail_after_claim(path: &Path) -> Result<()> {
+    let armed = FAIL_AFTER_CLAIM.with(|slot| slot.borrow().clone());
+    if let Some(name) = armed {
+        if path.file_name().and_then(|n| n.to_str()) == Some(name.as_str()) {
+            bail!("injected failure after creating {}", path.display());
+        }
+    }
     Ok(())
+}
+
+#[cfg(not(test))]
+fn fail_after_claim(_path: &Path) -> Result<()> {
+    Ok(())
+}
+
+#[cfg(test)]
+thread_local! {
+    /// The filename [`fail_after_claim`] must fail on, if any. Thread-local so
+    /// arming it in one test cannot reach a test running beside it.
+    static FAIL_AFTER_CLAIM: std::cell::RefCell<Option<String>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 pub(crate) fn task_template_body(slug: &str, key: u32) -> String {
@@ -1005,9 +1115,12 @@ mod tests {
 
     #[test]
     fn add_errors_when_parent_dir_name_is_not_a_node() {
-        // Node-ness is the *name* plus being a directory. A charter is what tells
-        // the two node species apart, not node from non-node, so the guard reads
-        // the name — a bare `notes/` is still refused.
+        // Node-ness is the *name* plus being a directory, and nothing else — a
+        // `BRIEF.md` is not part of the test. There is one node species now
+        // (flat-lazy-review took the chain node with it), and a charterless one
+        // is a hand-authored lapse the reader tolerates rather than a second
+        // kind of node; either way the guard reads the name, so a bare `notes/`
+        // is still refused.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         let bare = g.join("notes");
@@ -1145,22 +1258,18 @@ mod tests {
     }
 
     #[test]
-    fn a_write_that_fails_mid_run_removes_every_leaf_it_created() {
-        // The residual the up-front sweep cannot see: a destination that does
-        // not exist and still cannot be written. The cheapest deterministic one
-        // is also a hazard **specific to composite verbs** — the derived names
-        // are longer than the stem the caller validated, and unequally so, so a
-        // third name can cross `NAME_MAX` (255) while the first two clear it.
-        // `Path::exists` reports false for an over-long path, so the sweep waves
-        // it through and the failure lands mid-write, which is the arm under
-        // test.
+    fn an_unwritable_third_destination_refuses_the_whole_run_up_front() {
+        // A hazard **specific to composite verbs**: the derived names are longer
+        // than the stem the caller validated, and unequally so, so a third name
+        // can cross `NAME_MAX` (255) while the first two clear it.
         //
-        // What is asserted is that **no leaf survives**. Under the node shape
-        // one `remove_dir_all` did this; flat siblings have to be unwound
-        // individually, and a leftover `NN-research-a-…` beside a
-        // `NN+1-research-b-…` with no combine step is precisely the
-        // wrong-but-well-formed residue — it reads exactly like a deliberately
-        // cut partial pair.
+        // This used to be the mid-write arm, because `Path::exists` reports
+        // false for an over-long path and the sweep waved it through. It is now
+        // an *up-front refusal*: `symlink_metadata` returns `ENAMETOOLONG`
+        // rather than `NotFound`, and only `NotFound` means free — so "I could
+        // not tell" stops the run before the first leaf instead of after the
+        // second. The strictly better outcome of the same hazard; the mid-write
+        // rollback arm is pinned deterministically by the armed seam above.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         // `NN-research-a-<stem>-a-k<key>.md` is stem+22 at a single-digit key;
@@ -1172,13 +1281,13 @@ mod tests {
         let err = leaf_add_pair(&g, &g, &stem).unwrap_err().to_string();
 
         assert!(
-            err.contains("rolled back"),
-            "the error says the run was undone: {err}"
+            err.contains("nothing was created"),
+            "the refusal says what the tree now holds: {err}"
         );
         assert_eq!(
             list(&g),
             vec!["BRIEF.md"],
-            "the two leaves that did land must not survive the failure"
+            "not even the two leaves whose names would have fit"
         );
     }
 
@@ -1202,6 +1311,131 @@ mod tests {
             list(&g),
             vec!["01-impl-old-k4294967294.md", "BRIEF.md"],
             "not even the first leaf"
+        );
+    }
+
+    #[test]
+    fn a_fill_that_fails_after_its_claim_unwinds_the_leaf_it_had_just_created() {
+        // The window the split between claim and fill makes explicit, and the
+        // one `fs::write` hid: the file lands, the bytes do not. `write_all`
+        // returning `ENOSPC`/`EIO` after a successful create is the real form of
+        // this, and it is not portably reproducible — hence the armed seam.
+        //
+        // What is asserted is that the **failing** path is rolled back too, not
+        // just the leaves before it. Recording ownership after the fill instead
+        // of after the claim would leave exactly one empty, well-formed
+        // `NN-combine-research-…` behind: the residue that reads as a
+        // deliberately cut partial pair.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        FAIL_AFTER_CLAIM.with(|slot| {
+            *slot.borrow_mut() = Some("03-combine-research-survey-combine-k3.md".to_string())
+        });
+
+        let err = leaf_add_pair(&g, &g, "survey").unwrap_err().to_string();
+
+        FAIL_AFTER_CLAIM.with(|slot| *slot.borrow_mut() = None);
+        assert!(
+            err.contains("rolled back"),
+            "the error says the run was undone: {err}"
+        );
+        assert_eq!(
+            list(&g),
+            vec!["BRIEF.md"],
+            "the created-but-unwritten leaf must not survive either"
+        );
+    }
+
+    #[test]
+    fn a_dangling_symlink_occupies_a_destination_rather_than_reading_as_absent() {
+        // `Path::exists()` follows symlinks and so reports a dangling one as
+        // *absent* — the destination reads free, and a following `fs::write`
+        // creates the link's target, which may be anywhere on disk and is here
+        // deliberately outside `.grove/`. A rollback would then remove the link
+        // and leave that target standing.
+        //
+        // Asserted against the guard directly rather than through `leaf-add`,
+        // because a symlink already sitting at a *task-shaped* name never
+        // reaches it: `read_level` refuses that whole level as a malformed tree
+        // first. The guard's caller is the plant that arrives *after* the level
+        // was read, which no test can stage — so what is pinned here is the
+        // guard's own answer, and `claim_destination` below pins the write's.
+        let (t, g) = grove();
+        let outside = t.path().join("outside.txt");
+        let dangling = g.join("01-impl-a-k1.md");
+        std::os::unix::fs::symlink(&outside, &dangling).unwrap();
+
+        let err = refuse_occupied_destination(&dangling, "")
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("already exists"),
+            "a dangling link is an occupied destination: {err}"
+        );
+        assert!(!outside.exists(), "the guard must not resolve the link");
+    }
+
+    #[test]
+    fn a_claim_can_neither_clobber_nor_follow_whatever_occupies_its_destination() {
+        // The guarantee the up-front sweep cannot give. A sweep is a check at
+        // one instant and the write happens at another, so a writer that ignored
+        // the tree lock can occupy a planned destination in between; what makes
+        // that harmless is that the write itself refuses. Pinned against every
+        // species that can sit at the name — including the two `fs::write` would
+        // have silently accepted.
+        let (t, g) = grove();
+        let outside = t.path().join("outside.txt");
+
+        let regular = g.join("occupied.md");
+        fs::write(&regular, "pre-existing bytes").unwrap();
+        let directory = g.join("a-directory");
+        fs::create_dir(&directory).unwrap();
+        let dangling = g.join("dangling.md");
+        std::os::unix::fs::symlink(&outside, &dangling).unwrap();
+        let live = g.join("live.md");
+        std::os::unix::fs::symlink(&regular, &live).unwrap();
+
+        for occupied in [&regular, &directory, &dangling, &live] {
+            assert!(
+                claim_destination(occupied).is_err(),
+                "claiming {} must fail",
+                occupied.display()
+            );
+        }
+        assert_eq!(
+            fs::read_to_string(&regular).unwrap(),
+            "pre-existing bytes",
+            "an entry Grove does not own must not be truncated"
+        );
+        assert!(
+            !outside.exists(),
+            "no claim may write through a link to {}",
+            outside.display()
+        );
+    }
+
+    #[test]
+    fn an_undeterminable_destination_is_a_refusal_rather_than_a_green_light() {
+        // The other half of `Path::exists()`'s wrong answer: it collapses every
+        // I/O error into `false`, so "I could not tell" reads as "go ahead". An
+        // unreadable parent is the portable form — `symlink_metadata` fails with
+        // `EACCES` rather than `NotFound`, and only `NotFound` means free.
+        let (_t, g) = grove();
+        let sealed = g.join("sealed");
+        fs::create_dir(&sealed).unwrap();
+        let mut mode = fs::metadata(&sealed).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o000);
+        fs::set_permissions(&sealed, mode.clone()).unwrap();
+
+        let refused = refuse_occupied_destination(&sealed.join("01-impl-a-k1.md"), "");
+
+        std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o755);
+        fs::set_permissions(&sealed, mode).unwrap();
+        let err = refused.unwrap_err().to_string();
+        assert!(
+            err.contains("is free"),
+            "the refusal says what it was: {err}"
         );
     }
 

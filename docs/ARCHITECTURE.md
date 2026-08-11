@@ -211,9 +211,18 @@ The task tree is the state:
   BRIEF.md
   NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
   NN-<slug>-k<key>/
-    BRIEF.md                 # optional for composition-only nodes
+    BRIEF.md                 # a node's charter
     NN-...                   # children use the same grammar
 ```
+
+There is **one node species**. A node means work proved bigger than one session,
+so it carries a charter; no constructor emits a charterless node, and both
+composition shapes are flat siblings. The reader nevertheless tolerates a
+missing `BRIEF.md` — a hand-authored lapse, or a node left by the deleted chain
+constructor — by skipping that level of the brief chain silently. Tolerance is
+not a second species: a node close still checks its `Done when` and promotes
+what survives, and a charter that is merely absent is a gap to fill rather than
+a signal to skip that rollup.
 
 `NN` is a gapless, per-directory position and may change when inserting work.
 `k<key>` is a permanent, globally unique identity and survives moves,
@@ -375,12 +384,25 @@ witness exists and names its recovery. The contract in both cases is
 process-interruption consistency, not power-loss durability. See [Task-tree
 transactions fail closed](adr/task-tree-transactions-fail-closed.md).
 
-Composite grow verbs need neither. `leaf-add-pair` is all-or-nothing within one
+Composite grow verbs need neither, and the promise they make is correspondingly
+narrower. `leaf-add-pair` is all-or-nothing **on a reported error** within one
 exclusive lock: it validates every slug, resolves the parent, allocates all
-positions and keys from one snapshot, and sweeps every destination before the
-first write, so the only failure that can reach a partial state is a mid-write
-error, which unwinds the leaves it created. Nothing survives an interruption that
-a reader could mistake for a deliberately hand-cut partial shape.
+positions and keys from one snapshot, and refuses up front on any destination it
+cannot prove free, so the only failure that reaches a partial state is a
+mid-write error, which unwinds every leaf it created — including the one whose
+creation succeeded and whose write did not. Each destination is taken by an
+atomic non-clobbering create, so a racing writer that ignored the lock cannot be
+truncated or written through, and every path unwound is one Grove provably owns.
+
+That guarantee covers the error return path and nothing else. **Process death
+mid-run is not recovered**: rollback runs only when control returns through the
+`Err` branch, so a `SIGKILL` after the first pair leaf lands leaves a partial
+shape a reader cannot distinguish from a deliberately hand-cut one, and a killed
+`leaf-add` can leave a created-but-empty leaf. Finish teardown and the
+session-kind migration remain the only operations that promise
+process-interruption recovery, which is why they alone carry a witness. The
+residue is a hand-editable file in a directory tree, and recovering it is
+deleting it.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>

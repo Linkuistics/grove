@@ -144,11 +144,16 @@ seam. Descriptors are close-on-exec, and the driver releases its read guard afte
 copying a selected value and before foreground launch so the mandated session can
 mutate the tree.
 
-The lock supplies live-process serialization only. Escalation needs nothing more:
-`leaf-add` is a single file write under the exclusive lock, and an interruption
-either wrote the leaf or did not. The only operations that promise
-process-interruption recovery are finish teardown and the one-time session-kind
-migration, each with its own in-tree witness.
+The lock supplies live-process serialization only, and escalation needs nothing
+more. `leaf-add` takes its destination with an atomic non-clobbering create, so
+it can neither truncate nor write through whatever a writer that ignored the
+lock may have planted there; on a reported error it leaves nothing behind.
+Process death is a different question and is deliberately **not** covered: a
+killed `leaf-add` can leave a created-but-empty leaf, and a killed
+`leaf-add-pair` a partial shape. Finish teardown and the one-time session-kind
+migration remain the only operations that promise process-interruption recovery,
+each with its own in-tree witness; the residue here is a file to delete, not a
+transaction to recover.
 
 ## Producer handoff
 
@@ -156,10 +161,16 @@ After cutting the review leaf, the producer session:
 
 1. applies only the bounded change needed to restore a coherent reviewable
    artifact and runs executable checks without another doubt reviewer;
-2. commits the artifact and the new review leaf together under the producer's
-   handle;
-3. retires the producer; and
+2. retires the producer;
+3. commits the artifact, the new review leaf, and that retirement together under
+   the producer's handle; and
 4. runs `grove-llm complete` last.
+
+**Retirement precedes the commit**, which is the task boundary Grove's own
+methodology states. The `DONE` rename is part of the task, so a commit taken
+before it either leaves the rename uncommitted (Git) or seals it into the *next*
+task's working-copy commit (jj), where separating it again costs an operation-log
+rewind.
 
 Retirement applies only the filename `DONE` transition. It does not write a
 target receipt or alter the review leaf, which reads the committed artifact
@@ -211,8 +222,25 @@ handled by the automatic session-kind migration in
 
 `PROMOTING-*` is no longer reserved. A directory left by an interrupted
 promotion under an older binary is now an ordinary foreign entry: unpositioned
-and unkeyed, so every reader skips it, and the producer copy it holds must be
-moved back by hand before that work is visible to `pick`.
+and unkeyed, so every reader skips it — correctly, but also silently, and what
+it holds depends on **which phase the old transaction died in**. It created the
+witness and generated the chain's steps *before* moving the producer, and could
+stage a tracked index entry for the final child before landing anything, so a
+stranded witness is one of three shapes:
+
+- the producer is still outside it, and the witness holds only generated steps —
+  nothing to move back, and the work is already visible to `pick`;
+- the producer is inside it, and must be moved back to its original position and
+  name before that work is visible again;
+- the producer is inside it *and* Git's index already names a child that never
+  landed, so restoring the file is not enough — the index entry has to be
+  dropped too (`git rm --cached`), or the next commit records a path with no
+  working-tree file.
+
+**Recover before upgrading.** The old binary still has the recovery path that
+knows which shape it left; running it is the supported route. After upgrading,
+recovery is a hand repair, and it starts by looking inside the witness to
+determine which of the three states it is.
 
 ## Out of scope
 

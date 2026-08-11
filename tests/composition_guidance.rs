@@ -10,6 +10,7 @@ const DOUBT_SKILL: &str =
 const ARCHITECTURE: &str = include_str!("../docs/ARCHITECTURE.md");
 const USAGE: &str = include_str!("../docs/USAGE.md");
 const SPEC: &str = include_str!("../docs/specs/doubt-grove-review-mechanics.md");
+const CHANGELOG: &str = include_str!("../CHANGELOG.md");
 
 fn assert_contains(surface: &str, text: &str, expected: &str) {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -205,6 +206,126 @@ fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
     }
 
     assert_contains("doubt-driven-development/SKILL.md", DOUBT_SKILL, "3 cycles");
+}
+
+/// Normalized text between two anchors, so an ordering check sees only the
+/// passage that makes the claim and not an unrelated earlier mention.
+fn passage(surface: &str, text: &str, start: &str, end: &str) -> String {
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let from = text
+        .find(start)
+        .unwrap_or_else(|| panic!("{surface} no longer contains the passage opening {start:?}"));
+    let len = text[from..]
+        .find(end)
+        .unwrap_or_else(|| panic!("{surface} no longer contains the passage close {end:?}"));
+    text[from..from + len].to_string()
+}
+
+/// The handoff is a *sequence*, so it is pinned as one: **retirement precedes
+/// the commit**, on every surface that states the handoff.
+///
+/// Order is what rots here, not phrasing — the four surfaces word it four ways
+/// and three of them had it backwards — so this asserts positions rather than
+/// quoting a sentence any of them could legitimately reword. The cost of the
+/// inversion is asymmetric and silent: under jj, committing first seals the
+/// artifact and pushes the producer's `DONE` rename into the *next* task's
+/// working-copy commit, and unpicking that afterwards means an operation-log
+/// rewind. Under Git it merely leaves the rename uncommitted or forces a second
+/// commit.
+#[test]
+fn every_handoff_passage_retires_before_it_commits() {
+    for (surface, text, start, end) in [
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "When a picked producer needs fresh review",
+            "The tree is a real",
+        ),
+        (
+            "docs/USAGE.md",
+            USAGE,
+            "The producer finishes only to a coherent",
+            "Grove then launches",
+        ),
+        (
+            "doubt-driven-development/SKILL.md",
+            DOUBT_SKILL,
+            "After cutting that leaf",
+            "Grove owns the escalated route",
+        ),
+        (
+            "review mechanics spec",
+            SPEC,
+            "## Producer handoff",
+            "## Test seams",
+        ),
+    ] {
+        let passage = passage(surface, text, start, end);
+        let retire = passage
+            .find("retir")
+            .unwrap_or_else(|| panic!("{surface}: the handoff passage never retires"));
+        let commit = passage
+            .find("commit")
+            .unwrap_or_else(|| panic!("{surface}: the handoff passage never commits"));
+        assert!(
+            retire < commit,
+            "{surface}: the handoff must retire before it commits, so the `DONE` \
+             rename lands inside the task's own commit — got {passage:?}"
+        );
+    }
+}
+
+/// A grow verb unwinds on a *reported error*; it does not survive process death,
+/// and no current-state document may say otherwise.
+///
+/// The overreach is specific and was live: "Nothing survives an interruption"
+/// claimed a guarantee `add_run` cannot make — its rollback runs only when
+/// control returns through the `Err` branch — and contradicted the architecture's
+/// own immediately preceding statement that finish teardown and the session-kind
+/// migration are the only operations promising interruption recovery. A reader
+/// who believes the strong claim stops looking for the partial shape a `SIGKILL`
+/// really can leave.
+#[test]
+fn the_grow_verbs_promise_error_rollback_and_not_interruption_recovery() {
+    for (surface, text) in [
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("review mechanics spec", SPEC),
+    ] {
+        assert_absent(surface, text, "Nothing survives an interruption");
+        assert_absent(surface, text, "either wrote the leaf or did not");
+        assert_contains(surface, text, "process-interruption recovery");
+    }
+
+    assert_contains(
+        "docs/ARCHITECTURE.md",
+        ARCHITECTURE,
+        "all-or-nothing **on a reported error**",
+    );
+    assert_contains(
+        "docs/ARCHITECTURE.md",
+        ARCHITECTURE,
+        "**Process death mid-run is not recovered**",
+    );
+    assert_contains(
+        "review mechanics spec",
+        SPEC,
+        "Process death is a different question and is deliberately **not** covered",
+    );
+}
+
+/// Upgrade guidance for a stranded `PROMOTING-*` must be **phase-correct**. The
+/// old transaction wrote its witness and generated the chain's steps before
+/// moving the producer, and could stage a Git index entry for a child that never
+/// landed — so "move the producer copy back by hand" is simply false for the
+/// first state and incomplete for the last. Both surfaces must name the three
+/// shapes and prefer recovery under the old binary.
+#[test]
+fn stranded_promotion_recovery_guidance_distinguishes_the_phases() {
+    for (surface, text) in [("CHANGELOG.md", CHANGELOG), ("review mechanics spec", SPEC)] {
+        assert_contains(surface, text, "old binary");
+        assert_contains(surface, text, "git rm --cached");
+        assert_contains(surface, text, "generated steps");
+    }
 }
 
 #[test]

@@ -70,7 +70,12 @@ change. There is no migration, and none is needed.
   The `FINISHING-*` finish transaction and the session-kind migration witness are
   untouched. `PROMOTING-*` is no longer reserved: a directory left by an
   interrupted promotion under an older binary is now an ordinary foreign entry
-  every reader skips, and the producer copy inside it must be moved back by hand.
+  every reader skips. **Recover it with the old binary before upgrading** — it
+  has the recovery path that knows which phase it died in. Afterwards the repair
+  is by hand and depends on that phase: the witness may hold only generated steps
+  with the producer still in place (nothing to move), or the producer itself
+  (move it back to its original position and name), or the producer plus a Git
+  index entry for a child that never landed (`git rm --cached` that path too).
 - **The chain node**, and with it the second node species. Both composition
   shapes are flat siblings named off a shared stem, so **every node carries a
   `BRIEF.md`** again and the Retire cascade's `BRIEF.md`-presence discriminator
@@ -111,6 +116,33 @@ change. There is no migration, and none is needed.
 
 ### Fixed
 
+- **A grow verb now takes each destination atomically instead of checking it
+  first.** `Path::exists()` was the wrong question twice: it follows symlinks,
+  so a dangling one at a planned destination read as *absent* and the write
+  followed it, creating or truncating a target that could be anywhere on disk —
+  and a rollback would then remove the link, leaving that target standing. It
+  also reported `false` for every other error, turning "I could not tell" into
+  "go ahead". The up-front sweep now uses `symlink_metadata`, where only
+  `NotFound` means free, and every write claims its destination with an atomic
+  non-clobbering create, which closes the gap between the sweep and the write
+  that no check can. The sweep survives as the diagnostic that makes a realistic
+  collision a refusal naming what stands in the way rather than a rollback.
+- **`leaf-add-pair` unwinds the leaf whose creation succeeded and whose write
+  did not.** Creating and filling are two syscalls, and a failure between them
+  left an empty but well-formed leaf outside the rollback — the residue that
+  reads exactly like a deliberately hand-cut partial pair. Ownership is now
+  recorded the instant the create succeeds, before any byte is written.
+- **The grow verbs' interruption promise is stated accurately.** They are
+  all-or-nothing on a *reported error*; rollback runs only when control returns
+  through the error path, so process death mid-run can still leave a partial
+  shape. `docs/ARCHITECTURE.md`, `CONTEXT.md` and
+  `docs/specs/doubt-grove-review-mechanics.md` said otherwise, and contradicted
+  their own statement that finish teardown and the session-kind migration are
+  the only operations promising interruption recovery.
+- **Every handoff document retires before it commits.** The review-mechanics
+  spec, the doubt skill and `docs/USAGE.md` had the sequence inverted against
+  `content/SKILL.md`'s task boundary; under jj that seals the artifact and pushes
+  the producer's `DONE` rename into the *next* task's change.
 - **The `cargo clippy --all-targets` baseline is back to zero**, and a
   `[lints.clippy] all = "deny"` table in `Cargo.toml` now holds it there. Eight
   warnings had accumulated unnoticed, which is the expected outcome when nothing

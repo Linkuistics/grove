@@ -267,6 +267,84 @@ mod inline_tests {
         Kind::Impl,
     ];
 
+    /// Is this kind a **producer** — one a session may cut a `review-` and an
+    /// `integrate-review-` step for?
+    ///
+    /// Deliberately an **exhaustive `match`** rather than a lookup in
+    /// [`PRODUCERS`], and that is the whole point of the function. Deleting
+    /// `Kind::review_steps` took the crate's last exhaustive match over the
+    /// enum, leaving `PRODUCERS` and [`Kind::ALL`] as two hand-maintained
+    /// rosters that can only disagree at *runtime* — a twentieth kind added as
+    /// a producer without its two steps compiles, and every test below still
+    /// passes, because they check the five that are listed rather than the set
+    /// that exists. This match restores the compile-time force: a new variant
+    /// fails to build until someone classifies it, at the one place where
+    /// "producer or not" is the question being answered.
+    ///
+    /// Test-only on purpose. Production has no caller — the derivation became
+    /// guidance a session applies, not a constructor input — and dead API is
+    /// what `src/lib.rs`'s header says this crate deletes on sight.
+    fn is_producer(kind: Kind) -> bool {
+        match kind {
+            Kind::Requirements | Kind::Design | Kind::Planning | Kind::Prototype | Kind::Impl => {
+                true
+            }
+            // A pair's steps are cut together by `leaf-add-pair`, and a chain on
+            // a chain's output (`review-review-impl`) is exactly what the closed
+            // set exists to make unspellable.
+            Kind::ResearchA
+            | Kind::ResearchB
+            | Kind::CombineResearch
+            | Kind::Finish
+            | Kind::ReviewRequirements
+            | Kind::ReviewDesign
+            | Kind::ReviewPlanning
+            | Kind::ReviewPrototype
+            | Kind::ReviewImpl
+            | Kind::IntegrateReviewRequirements
+            | Kind::IntegrateReviewDesign
+            | Kind::IntegrateReviewPlanning
+            | Kind::IntegrateReviewPrototype
+            | Kind::IntegrateReviewImpl => false,
+        }
+    }
+
+    #[test]
+    fn every_kind_is_classified_and_the_producer_roster_agrees_with_that_classification() {
+        // The check the hand-written rosters cannot make for themselves: the
+        // exhaustive classifier is the authority, and both `PRODUCERS` and the
+        // labels that actually carry `review-` steps are held to it. A twentieth
+        // kind now fails to *compile* until it is classified, and then fails
+        // *here* if it was classified a producer without gaining its two steps.
+        let classified: Vec<Kind> = Kind::ALL.into_iter().filter(|k| is_producer(*k)).collect();
+        assert_eq!(
+            classified,
+            PRODUCERS.to_vec(),
+            "PRODUCERS must list exactly the kinds the exhaustive match calls producers"
+        );
+
+        for kind in Kind::ALL {
+            let has_steps = Kind::ALL
+                .iter()
+                .any(|other| other.label() == format!("review-{}", kind.label()))
+                && Kind::ALL
+                    .iter()
+                    .any(|other| other.label() == format!("integrate-review-{}", kind.label()));
+            assert_eq!(
+                is_producer(kind),
+                has_steps,
+                "{:?} is classified {} but {} its two chain steps",
+                kind,
+                if is_producer(kind) {
+                    "a producer"
+                } else {
+                    "not a producer"
+                },
+                if has_steps { "has" } else { "lacks" }
+            );
+        }
+    }
+
     #[test]
     fn every_producer_s_chain_steps_are_its_own_labels_prefixed() {
         // The invariant that makes the hand-written convention work at all: a

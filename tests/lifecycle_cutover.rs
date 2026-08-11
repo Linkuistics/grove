@@ -473,6 +473,49 @@ fn invalid_config_leaves_legacy_current_empty_and_pending_trees_byte_identical()
     }
 }
 
+// The bare path acquires the workspace lease *before* it reads configuration or
+// touches the tree, so a control directory it cannot create has to be reported
+// as itself rather than surfacing as whatever the next step would have
+// complained about. Stated black-box and adversarially: the config is missing
+// **and** the tree is legacy, so both later steps have a loud failure ready —
+// the run must still name the control directory, and migrate nothing.
+#[test]
+fn an_unwritable_control_directory_fails_before_configuration_or_tree_access() {
+    let fixture = TempDir::new().unwrap();
+    // No `~/.config/grove/config.kdl` at all: reaching configuration would name
+    // every one of the nineteen kinds instead.
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join("worktree");
+    init_git_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# unwritable — brief\n").unwrap();
+    fs::write(grove.join("01-task-k1.md"), "# task-k1\n\n**Kind:** impl\n").unwrap();
+    let before = tree_snapshot(&grove);
+
+    let git_directory = worktree.join(".git");
+    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o500)).unwrap();
+    let output = run_grove(&home, &worktree);
+    fs::set_permissions(&git_directory, fs::Permissions::from_mode(0o700)).unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "unexpected success: {stderr}");
+    assert!(
+        stderr.contains("creating Grove control directory"),
+        "the failure must name the control directory it could not create: {stderr}"
+    );
+    assert!(
+        !stderr.contains("config.kdl") && !stderr.contains("missing session kinds"),
+        "configuration must not have been reached: {stderr}"
+    );
+    assert_eq!(
+        tree_snapshot(&grove),
+        before,
+        "a lease that was never acquired must leave the legacy tree unmigrated"
+    );
+}
+
 #[test]
 fn fresh_grove_creates_and_launches_the_requirements_leaf() {
     let fixture = TempDir::new().unwrap();

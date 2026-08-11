@@ -438,11 +438,51 @@ fn distinct_worktrees_hold_independent_leases() {
     drop(holder);
 }
 
-#[test]
-fn linked_git_worktrees_and_secondary_jj_workspaces_hold_independent_leases() {
-    let tmp = TempDir::new().unwrap();
+/// One default/secondary worktree pair per shape Grove supports. Each pair is a
+/// distinct control-directory derivation — `.git/grove` for Git (and a linked
+/// worktree's own gitdir, not the main one), `.jj/grove` for both jj shapes —
+/// and the **colocated** pair is the one that carries `.git` *and* `.jj` at the
+/// same root, so a git-first resolution would file two workspaces of one repo
+/// under one control directory and refuse a perfectly legitimate second driver.
+fn worktree_shape_pairs(tmp: &Path) -> Vec<(&'static str, PathBuf, PathBuf)> {
+    fn init_jj(path: &Path, colocate: bool) {
+        fs::create_dir_all(path).unwrap();
+        run_command(
+            "jj",
+            path,
+            &[
+                "--config",
+                "user.name=Test",
+                "--config",
+                "user.email=t@example.com",
+                "--config",
+                &format!("git.colocate={colocate}"),
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ],
+        );
+    }
 
-    let git_main = tmp.path().join("git-main");
+    fn add_jj_workspace(default: &Path, secondary: &Path) {
+        run_command(
+            "jj",
+            default,
+            &[
+                "--config",
+                "user.name=Test",
+                "--config",
+                "user.email=t@example.com",
+                "workspace",
+                "add",
+                "--quiet",
+                secondary.to_str().unwrap(),
+            ],
+        );
+    }
+
+    let git_main = tmp.join("git-main");
     init_git_worktree(&git_main);
     run_command(
         "git",
@@ -459,54 +499,97 @@ fn linked_git_worktrees_and_secondary_jj_workspaces_hold_independent_leases() {
             "seed",
         ],
     );
-    let git_linked = tmp.path().join("git-linked");
+    let git_linked = tmp.join("git-linked");
     run_command(
         "git",
         &git_main,
         &["worktree", "add", "-q", git_linked.to_str().unwrap()],
     );
-    let git_main_lease = DriverLease::acquire(&git_main).unwrap();
-    let git_linked_lease = DriverLease::acquire(&git_linked).unwrap();
-    git_main_lease.revalidate().unwrap();
-    git_linked_lease.revalidate().unwrap();
 
-    let jj_main = tmp.path().join("jj-main");
-    fs::create_dir_all(&jj_main).unwrap();
-    run_command(
-        "jj",
-        &jj_main,
-        &[
-            "--config",
-            "user.name=Test",
-            "--config",
-            "user.email=t@example.com",
-            "--config",
-            "git.colocate=false",
-            "git",
-            "init",
-            "--quiet",
-            ".",
-        ],
+    let jj_native = tmp.join("jj-native");
+    init_jj(&jj_native, false);
+    let jj_native_secondary = tmp.join("jj-native-secondary");
+    add_jj_workspace(&jj_native, &jj_native_secondary);
+
+    let jj_colocated = tmp.join("jj-colocated");
+    init_jj(&jj_colocated, true);
+    assert!(
+        jj_colocated.join(".git").exists() && jj_colocated.join(".jj").is_dir(),
+        "the colocated fixture must carry both markers or it tests nothing"
     );
-    let jj_secondary = tmp.path().join("jj-secondary");
-    run_command(
-        "jj",
-        &jj_main,
-        &[
-            "--config",
-            "user.name=Test",
-            "--config",
-            "user.email=t@example.com",
-            "workspace",
-            "add",
-            "--quiet",
-            jj_secondary.to_str().unwrap(),
-        ],
-    );
-    let jj_main_lease = DriverLease::acquire(&jj_main).unwrap();
-    let jj_secondary_lease = DriverLease::acquire(&jj_secondary).unwrap();
-    jj_main_lease.revalidate().unwrap();
-    jj_secondary_lease.revalidate().unwrap();
+    let jj_colocated_secondary = tmp.join("jj-colocated-secondary");
+    add_jj_workspace(&jj_colocated, &jj_colocated_secondary);
+
+    vec![
+        ("linked Git worktree", git_main, git_linked),
+        ("native jj workspace", jj_native, jj_native_secondary),
+        (
+            "colocated jj workspace",
+            jj_colocated,
+            jj_colocated_secondary,
+        ),
+    ]
+}
+
+#[test]
+fn every_worktree_shape_holds_independent_default_and_secondary_leases() {
+    let tmp = TempDir::new().unwrap();
+
+    for (shape, default, secondary) in worktree_shape_pairs(tmp.path()) {
+        let default_lease = DriverLease::acquire(&default)
+            .unwrap_or_else(|error| panic!("{shape} default: {error:#}"));
+        let secondary_lease = DriverLease::acquire(&secondary)
+            .unwrap_or_else(|error| panic!("{shape} secondary: {error:#}"));
+        default_lease.revalidate().unwrap();
+        secondary_lease.revalidate().unwrap();
+    }
+}
+
+// The lease is keyed to a canonical worktree identity, not to the path the
+// operator typed, and every shape derives that identity through its own branch.
+// A symlinked route into any of them is therefore the same tree, and a second
+// driver reaching it that way must be refused as immediately — and as
+// informatively, naming the real root — as one that spelled the path out.
+#[test]
+fn an_alias_into_any_worktree_shape_is_refused_by_the_live_owner() {
+    let tmp = TempDir::new().unwrap();
+
+    for (shape, default, secondary) in worktree_shape_pairs(tmp.path()) {
+        for (role, root) in [("default", &default), ("secondary", &secondary)] {
+            let alias = tmp.path().join(format!(
+                "alias-{}-{role}",
+                root.file_name().unwrap().to_str().unwrap()
+            ));
+            std::os::unix::fs::symlink(root, &alias).unwrap();
+            let ready = tmp.path().join(format!(
+                "ready-{}-{role}",
+                root.file_name().unwrap().to_str().unwrap()
+            ));
+            let holder = Holder::spawn(root, &ready);
+
+            let started = Instant::now();
+            let error = DriverLease::acquire(&alias)
+                .expect_err(&format!("{shape} {role}: an alias was admitted twice"));
+
+            assert!(
+                started.elapsed() < Duration::from_secs(1),
+                "{shape} {role}: a contended driver lease must be refused, not queued"
+            );
+            assert!(
+                error
+                    .to_string()
+                    .contains("existing Grove driver must stop"),
+                "{shape} {role}: unexpected error: {error:#}"
+            );
+            assert!(
+                error
+                    .to_string()
+                    .contains(root.canonicalize().unwrap().to_str().unwrap()),
+                "{shape} {role}: the refusal must name the real root, not the alias: {error:#}"
+            );
+            drop(holder);
+        }
+    }
 }
 
 #[test]

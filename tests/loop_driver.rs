@@ -202,6 +202,113 @@ fn the_driver_activates_immediately_before_spawn_and_invalidates_after_reap() {
     assert!(!after_reap.contains("signal-path-hex="), "{after_reap:?}");
 }
 
+// Every `grove-llm` mutator takes the **exclusive** tree-access lock on the
+// working-tree root, and the driver takes that same lock to select. If the
+// driver held its guard across the launch window, the first `leaf-add` any
+// session ran would block until the session holding it exited — the loop would
+// deadlock on its own first task, and every grove would stall at Retire.
+//
+// A read cannot detect that: `pick` takes a *shared* lock, so a driver still
+// holding one would admit it. Only a session-side **mutation** proves release,
+// which is why this drives the two real grow/retire verbs rather than writing
+// the files directly the way the mandate fixtures do.
+//
+// Two iterations, because release is only half the claim: the mutations must
+// also be what the *next* pick sees. The session retires its own leaf and adds
+// the successor, and the loop must then select that successor by name.
+#[test]
+fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let worktree = fixture.path().join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    let mandates = fixture.path().join("mandates");
+    let verbs = fixture.path().join("verb-output");
+    let first_run = fixture.path().join("first-run");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\n\
+             printf '%s\\n' \"$1\" >> {mandates}\n\
+             if [ -e {first_run} ]; then exit 0; fi\n\
+             : > {first_run}\n\
+             {grove_llm} leaf-add . follow-up --kind design >> {verbs} 2>&1 || exit 91\n\
+             {grove_llm} leaf-retire .grove/01-impl-subject-k1.md >> {verbs} 2>&1 || exit 92\n\
+             printf 'relaunch\\n' > \"$GROVE_SIGNAL_FILE\"\n\
+             exit 0\n",
+            mandates = shell_quote(&mandates),
+            verbs = shell_quote(&verbs),
+            first_run = shell_quote(&first_run),
+            grove_llm = shell_quote(Path::new(OWN_GROVE_LLM)),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    // Bounded rather than `run_driver`, because the failure this test exists to
+    // catch is a *hang*: a blocking wait would turn it into a stuck suite
+    // instead of a named assertion.
+    let mut child = grove_driver(&worktree, &home)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!(
+                "the driver never returned: a session-side `grove-llm` mutation blocked on a \
+                 tree-access guard the driver still held across its launch window"
+            );
+        }
+        thread::sleep(Duration::from_millis(50));
+    };
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(status.success(), "{stderr}");
+    let verb_output = fs::read_to_string(&verbs).unwrap_or_default();
+    assert!(
+        worktree.join(".grove/01-DONE-impl-subject-k1.md").is_file(),
+        "the session's own `leaf-retire` must have completed: {verb_output}"
+    );
+    assert!(
+        worktree.join(".grove/02-design-follow-up-k2.md").is_file(),
+        "the session's own `leaf-add` must have completed: {verb_output}"
+    );
+    // The lock blocks rather than failing fast, so "it completed" alone would
+    // also hold for a guard released late. `acquire_worktree` announces every
+    // wait, and a launch-window session must never see one.
+    assert!(
+        !verb_output.contains("waiting for active Grove tree operation"),
+        "the driver must release its tree-access guard *before* launching, not \
+         while the session waits on it: {verb_output}"
+    );
+
+    // The mandate is a multi-line prompt, so the handles are read out of it
+    // rather than counted by line.
+    let mandates = fs::read_to_string(&mandates).unwrap();
+    let handles: Vec<&str> = mandates
+        .match_indices("resolve and execute `")
+        .map(|(at, marker)| {
+            let rest = &mandates[at + marker.len()..];
+            &rest[..rest.find('`').expect("unterminated mandate handle")]
+        })
+        .collect();
+    assert_eq!(
+        handles,
+        ["subject-k1", "follow-up-k2"],
+        "the next pick must see the tree the previous session mutated: {mandates:?}"
+    );
+}
+
 // A `done` signal — the finish cycle's last teardown action — must end the loop
 // exactly once, cleanly, and must not be confused with either a relaunch or the
 // no-signal stop. The abandoned-channel housekeeping a replacement driver does
@@ -340,7 +447,7 @@ fn a_signal_removal_failure_does_not_override_a_done_disposition() {
 fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_interfere() {
     let fixture = TempDir::new().unwrap();
 
-    let mut setup = |role: &str, body: &str| {
+    let setup = |role: &str, body: &str| {
         let home = fixture.path().join(format!("{role}-home"));
         // Same *basename* in both trees — that is the whole point.
         let worktree = fixture.path().join(role).join("samegrove");
@@ -359,12 +466,12 @@ fn concurrent_loops_with_the_same_grove_name_in_different_worktrees_do_not_inter
     let (victim_home, victim_tree) = setup("victim", "#!/bin/sh\nsleep 1.5\nexit 0\n");
 
     let started = Instant::now();
-    let mut attacker = grove_driver(&attacker_tree, &attacker_home)
+    let attacker = grove_driver(&attacker_tree, &attacker_home)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    let mut victim = grove_driver(&victim_tree, &victim_home)
+    let victim = grove_driver(&victim_tree, &victim_home)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()

@@ -172,9 +172,12 @@ still owns its temporary loop-control channel, child lifecycle, current
 directory, and the generated prompt. Those are orchestration, not user launch
 policy.
 
-Immediately before spawn, Grove removes any inherited `GROVE_SIGNAL_FILE`,
-retired `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID`, and stale
-`GROVE_SESSION_TARGET`, then grants only the fresh signal path for this launch.
+Immediately before spawn, Grove removes any inherited `GROVE_SIGNAL_FILE`, the
+retired `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` handles, and the shipped
+internal failure-injection seams, then grants only the fresh signal path for
+this launch. Membership in that scrub list is "a descendant could act on this
+value", which is why removed session-target metadata is absent from it: nothing
+reads it, so leaking it grants nothing.
 It does not remove or override `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, or
 a repository-local `core.worktree` for the opaque configured command. The
 configured owner expresses any such Git policy with literal `env` arguments or

@@ -610,6 +610,17 @@ mod tests {
     use std::panic::{catch_unwind, AssertUnwindSafe};
     use std::process::Command;
 
+    /// One legacy-tree migration case: a constructor that builds the tree and
+    /// hands back its temporary worktree plus grove root, paired with the
+    /// assertion that the tree has reached current format. The pair is what
+    /// lets a test run the same body over every legacy shape, so the shapes
+    /// stay covered uniformly rather than each test picking one by hand.
+    ///
+    /// The `TempDir` is returned alongside the root because it owns the
+    /// directory's lifetime — dropping it deletes the tree out from under the
+    /// test.
+    type MigrationFixture = (fn() -> (tempfile::TempDir, PathBuf), fn(&Path));
+
     fn initialize_git(worktree: &Path) {
         for arguments in [
             &["init", "-q"][..],
@@ -1103,7 +1114,7 @@ mod tests {
 
     #[test]
     fn every_transaction_transition_boundary_recovers_after_interruption() {
-        let fixtures: [(fn() -> (tempfile::TempDir, PathBuf), fn(&Path)); 2] = [
+        let fixtures: [MigrationFixture; 2] = [
             (old_nnn_tree, assert_old_nnn_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];
@@ -1172,7 +1183,7 @@ mod tests {
             )
         }
 
-        let fixtures: [(fn() -> (tempfile::TempDir, PathBuf), fn(&Path)); 2] = [
+        let fixtures: [MigrationFixture; 2] = [
             (old_nnn_tree, assert_old_nnn_tree_is_current),
             (legacy_v2_node_tree, assert_legacy_v2_node_tree_is_current),
         ];

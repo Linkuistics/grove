@@ -43,6 +43,33 @@ path = "src/bin/grove-llm.rs"
 name = "grove"
 path = "src/lib.rs"
 
+# Hold the clippy baseline at zero. `clippy-baseline-k4` cleared eight warnings
+# that had accumulated unnoticed, and a baseline with nothing defending it just
+# climbs back — an ordinary `cargo build` or `cargo test` never mentions a clippy
+# lint, so the count is invisible between deliberate audits. This repo has no CI
+# (see the `rust-version` note above), so the manifest is the only place a gate
+# can live; there is no workflow step to put one in.
+#
+# Denying the group costs ordinary builds nothing: rustc does not evaluate
+# `clippy::` tool lints, so `cargo build` and `cargo test` are unaffected and
+# this bites only under `cargo clippy` — exactly when it should. Run
+# `cargo clippy --all-targets` before committing, where a new warning is now an
+# error rather than a line of scrollback.
+#
+# `priority = -1` keeps the group from outranking a future single-lint override
+# placed beside it.
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+
+[lints.rust]
+# Suppressions here prefer `#[expect(...)]` over `#[allow(...)]` wherever the
+# justification could stop holding — see the finish-transaction enums in
+# `src/repo/finish_commit.rs`, whose size ratio is a fact about today's types.
+# An expectation only expires loudly if going stale is itself an error; left at
+# the default `warn` it would be swallowed by the same inattention this table
+# exists to prevent. Permanent suppressions (portability, say) stay `#[allow]`.
+unfulfilled_lint_expectations = "deny"
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }

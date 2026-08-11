@@ -195,13 +195,13 @@ pub(crate) fn prepare_auxiliary(
         inode: artifact_identity.inode,
     };
     let marker_path = parent_path.join(&marker_name);
-    publish_marker(&parent, &marker_path, &marker).or_else(|error| {
+    publish_marker(&parent, &marker_path, &marker).map_err(|error| {
         let cleanup = remove_artifact(&parent, &artifact_name, artifact_identity);
-        Err(attach_cleanup_failure(
+        attach_cleanup_failure(
             error,
             cleanup,
             "removing unmarked finish auxiliary artifact",
-        ))
+        )
     })?;
     AuxiliaryCleanup::from_marker_at(
         &parent,

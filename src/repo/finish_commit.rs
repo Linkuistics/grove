@@ -24,11 +24,33 @@ pub(crate) struct PreparedJjFinish {
     success_index: Option<crate::finish_cleanup::AuxiliaryCleanup>,
 }
 
+// The three enums below are the finish transaction's prepared state and its two
+// outcomes. `large_enum_variant` is asking for the big variants to be boxed, and
+// that trade does not pay here: each of these is constructed at most once per
+// grove teardown, is consumed immediately by a single `match` in
+// `finish_transaction.rs`, and is never collected — nothing stores them in a
+// `Vec`, a map, or a long-lived struct, so the wasted stack bytes exist for one
+// move and are never multiplied. Boxing would buy nothing measurable while
+// adding an allocation and a layer of indirection to the fail-closed teardown
+// path, which is the subsystem where an incidental change is least welcome.
+//
+// `expect` rather than `allow` deliberately: unlike a permanent portability
+// suppression, a size ratio *can* stop holding as these types evolve. If a
+// future change shrinks the gap the expectation goes unfulfilled and says so,
+// forcing this reasoning to be revisited rather than quietly outliving it.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "constructed once per teardown, consumed by one match, never collected"
+)]
 pub(crate) enum PreparedFinish {
     Git(PreparedGitFinish),
     Jj(PreparedJjFinish),
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "constructed once per teardown, consumed by one match, never collected"
+)]
 pub(crate) enum FinishCommitOutcome {
     Committed(FinishProof),
     NotCommitted {
@@ -38,6 +60,10 @@ pub(crate) enum FinishCommitOutcome {
     RecoveryPending(anyhow::Error),
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "constructed once per teardown, consumed by one match, never collected"
+)]
 pub(crate) enum FinishRecoveryOutcome {
     Committed(FinishProof),
     NotCommitted(FinishStartProof),

@@ -56,6 +56,20 @@ impl FileIdentity {
         })
     }
 
+    // `libc::stat` field widths are target-dependent, so neither cast can be
+    // dropped portably. On Apple `dev_t` is `i32` and `ino_t` is `u64`: the
+    // `st_dev` cast is required to compile and the `st_ino` one is redundant —
+    // which is exactly the pair clippy sees here. On 64-bit linux-gnu both are
+    // `u64` and clippy flags both. On targets where `ino_t` is narrower (uclibc
+    // mips32 has `u32`) the `st_ino` cast becomes the required one instead.
+    // Clippy only ever analyses one target, so "unnecessary" is true locally
+    // and wrong as a portable edit — removing either cast breaks a supported
+    // build.
+    //
+    // `allow` rather than `expect`: this variance is permanent, so the reason
+    // cannot go stale, and on a target where both casts are load-bearing the
+    // lint would not fire at all — an `expect` would then fail the build itself.
+    #[allow(clippy::unnecessary_cast)]
     fn from_stat(metadata: &libc::stat) -> Self {
         Self {
             device: metadata.st_dev as u64,

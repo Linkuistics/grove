@@ -513,7 +513,13 @@ fn acquire_epoch_file_with(
         let mut options = OpenOptions::new();
         options.read(true);
         if mode == LockMode::Exclusive {
-            options.write(true).create(true).mode(0o600);
+            // Same contract as the lease open in `acquire_lease_file_with_hook`:
+            // never truncate at open, because this runs before the lock is held;
+            // `write_epoch_contents` truncates under the lock instead.
+            // `suspicious_open_options` does not fire here only because clippy
+            // cannot follow a builder split across statements — stated
+            // explicitly so a future refactor into a chained call stays clean.
+            options.write(true).create(true).truncate(false).mode(0o600);
         }
         let file = options
             .open(path)
@@ -579,10 +585,24 @@ fn acquire_lease_file_with_hook(
     mut after_lock: impl FnMut(usize, &Path) -> Result<()>,
 ) -> Result<(File, FileIdentity)> {
     for attempt in 1..=IDENTITY_RETRY_LIMIT {
+        // `truncate(false)` is load-bearing, not decoration. This open happens
+        // *before* `lock_exclusively_nonblocking` below, so it runs while the
+        // incumbent lease holder may still own the file. Truncating here would
+        // destroy a live holder's record before we know whether we can even take
+        // the lock — and on the path where the lock attempt then fails, we would
+        // have wrecked the record of a lease we do not hold. The reader at
+        // `probe_lease_holder` parses that record, so an emptied file also reads
+        // as a corrupt lease rather than an absent one.
+        //
+        // Truncation is deliberately deferred to `write_record`, which does its
+        // own `set_len(0)` + rewind *after* the lock is held. Stating the
+        // behaviour explicitly is what clears `suspicious_open_options`; the
+        // semantics are unchanged, since `create` alone never truncated.
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
+            .truncate(false)
             .mode(0o600)
             .open(path)
             .with_context(|| format!("opening driver lease file {}", path.display()))?;

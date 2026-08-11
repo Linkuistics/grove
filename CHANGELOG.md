@@ -109,6 +109,42 @@ change. There is no migration, and none is needed.
   are reworked in place, and `docs/specs/doubt-grove-review-mechanics.md` with
   them.
 
+### Fixed
+
+- **The `cargo clippy --all-targets` baseline is back to zero**, and a
+  `[lints.clippy] all = "deny"` table in `Cargo.toml` now holds it there. Eight
+  warnings had accumulated unnoticed, which is the expected outcome when nothing
+  reports them: an ordinary `cargo build` or `cargo test` never evaluates a
+  clippy lint, and this repo has no CI, so the manifest is the only place a gate
+  can live. Denying the group costs ordinary builds nothing — rustc does not
+  evaluate `clippy::` tool lints — so it bites only under `cargo clippy`. Two of
+  the eight were answered with a reasoned suppression rather than a change,
+  because the lint was wrong on the merits:
+  - The `libc::stat` widening casts in `src/finish_cleanup.rs` are `#[allow]`ed:
+    field widths are target-dependent (`dev_t` is `i32` on Apple and `u64` on
+    linux-gnu; `ino_t` narrows to `u32` on some targets), so *every* spelling is
+    redundant on one supported target and required on another. Clippy analyses
+    one target and its "unnecessary" verdict does not travel.
+  - The three finish-transaction enums in `src/repo/finish_commit.rs` are
+    `#[expect]`ed rather than boxed: each is built at most once per teardown,
+    consumed by a single `match`, and never collected, so boxing would add an
+    allocation and indirection to the fail-closed path for no measurable gain.
+    `expect` over `allow` deliberately — a size ratio can stop holding as the
+    types evolve, and the suppression should expire loudly when it does.
+    `[lints.rust] unfulfilled_lint_expectations = "deny"` is what makes that
+    expiry an error instead of another unread warning.
+
+- **The driver lease and session epoch files state `truncate(false)` explicitly.**
+  Behaviour is unchanged — `create` alone never truncated — but the intent is now
+  on the page, and it is load-bearing: both opens happen *before* the lock is
+  acquired, so truncating there would destroy an incumbent holder's record
+  before knowing whether the lock could even be taken, and on the failing path
+  would corrupt a lease still owned by someone else. Truncation belongs to
+  `write_record` / `write_epoch_contents`, which do it under the lock. Only the
+  lease open tripped `suspicious_open_options`; the epoch open escapes the lint
+  solely because clippy cannot follow a builder split across statements, and is
+  stated explicitly so a future refactor into a chained call stays clean.
+
 ## v17.0.0
 
 **Breaking.** Launch policy moves entirely into a new personal configuration

@@ -138,14 +138,6 @@ fn run_driver(worktree: &Path, home: &Path) -> Output {
     grove_driver(worktree, home).output().unwrap()
 }
 
-fn wait_for(path: &Path, what: &str) {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while !path.exists() {
-        assert!(Instant::now() < deadline, "timed out waiting for {what}");
-        thread::sleep(Duration::from_millis(25));
-    }
-}
-
 // The session epoch is what admits an agent's `grove-llm` calls, so its window
 // has to be exactly the child's lifetime: active before the spawn (or the very
 // first call the session makes is refused) and inactive after the reap (or a
@@ -525,15 +517,22 @@ fn a_sigtermed_driver_stops_and_reaps_its_child() {
     );
     write_complete_config(&home, &configured);
 
+    // Both streams to a file rather than `Stdio::null()`: a driver that stops
+    // before its session ever starts is the failure the wait below has to
+    // report, and nulling threw away the only account of why.
+    let diagnostics = fixture.path().join("driver-output");
+    let log = fs::File::create(&diagnostics).unwrap();
     let mut child = grove_driver(&worktree, &home)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::from(log.try_clone().unwrap()))
+        .stderr(Stdio::from(log))
         .spawn()
         .unwrap();
 
     // Wait for the child marker so SIGTERM lands mid-session rather than racing
-    // the driver's own startup.
-    wait_for(&launched, "the configured session to launch");
+    // the driver's own startup. Conditioned on the driver's own liveness, not a
+    // fixed budget: start-up cost is not fixed, and a driver that has ended can
+    // never write the marker (loop-driver-readiness-deadline-k170).
+    support::wait_for_ready(&launched, &mut child, Some(&diagnostics));
 
     unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
 

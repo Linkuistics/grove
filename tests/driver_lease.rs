@@ -157,7 +157,7 @@ impl DriverProcess {
     fn wait_for_ready(&mut self, path: &Path) {
         let diagnostics = self.diagnostics.clone();
         let driver = self.child.as_mut().expect("a spawned driver");
-        readiness(path, driver, Some(&diagnostics)).unwrap_or_else(|failure| panic!("{failure}"));
+        support::wait_for_ready(path, driver, Some(&diagnostics));
     }
 }
 
@@ -195,92 +195,11 @@ fn record_nonce(record: &str) -> &str {
 /// The fixed readiness deadline this binary used to impose on every wait, kept
 /// only so the regressions below can hold a healthy producer back for longer
 /// than it — a test that stays inside the old budget would have passed against
-/// the bug it pins.
+/// the bug it pins. `tests/loop_driver.rs` carried the same mistake at twenty
+/// seconds, which these do *not* outlast: a twenty-one-second regression buys
+/// nothing the six-second one has not already shown about the seam, and that
+/// deadline was never observed expiring (loop-driver-readiness-deadline-k170).
 const REMOVED_READINESS_DEADLINE: Duration = Duration::from_secs(5);
-
-/// The upper bound on a readiness wait. It exists so a *wedged* producer fails
-/// the suite instead of parking it, and it is deliberately two orders of
-/// magnitude above the cost of a healthy driver start-up: no test outcome
-/// should ever turn on its exact value.
-const READINESS_HANG_BACKSTOP: Duration = Duration::from_secs(120);
-
-const READINESS_POLL: Duration = Duration::from_millis(10);
-
-/// Wait for `path` to appear, using the producing process's **liveness** as the
-/// condition rather than a fixed budget for how slow readiness may be.
-///
-/// Every readiness file in this binary is produced by a process the test itself
-/// spawned — either by that process or by a session it launched and reaps on its
-/// own way out — so "will this file ever appear?" has an observable answer:
-/// while the producer runs it may still be coming, and once the producer is gone
-/// it never will. The five-second deadline this replaces guessed at that answer
-/// from outside. Driver start-up is not a fixed cost — it provisions the
-/// embedded skill into a cold `HOME`, spawns `grove-llm --version`, and runs the
-/// tree transition — and eight concurrent copies of this binary stretch a
-/// perfectly healthy start-up from 0.7s to 4.7s, so the guess expired on
-/// drivers that were working normally (driver-lease-readiness-flake-k145).
-///
-/// The other half is the failure the deadline could not report: a producer that
-/// died before writing looked exactly like one that was merely slow, and both
-/// surfaced as `timed out waiting for <path>` after five silent seconds.
-///
-/// **The producer is sampled before the file, and that order is the whole
-/// correctness argument.** A producer observed alive may still write between
-/// the two reads, and the file read catches it; a producer observed dead is
-/// judged against a file read taken strictly *after* its death, so an absent
-/// file at that point can never arrive. Reading the file first would need a
-/// second read to close the same gap.
-///
-/// Returns the failure rather than panicking so the regressions can assert on
-/// it without a process-global panic hook.
-fn readiness(path: &Path, producer: &mut Child, diagnostics: Option<&Path>) -> Result<(), String> {
-    let started = Instant::now();
-    loop {
-        let ended = producer
-            .try_wait()
-            .expect("polling the process behind the readiness file");
-        if path.exists() {
-            return Ok(());
-        }
-        if let Some(status) = ended {
-            return Err(readiness_failure(
-                format!(
-                    "nothing wrote {}: the process behind it ended ({status}) after {:.3}s",
-                    path.display(),
-                    started.elapsed().as_secs_f64()
-                ),
-                diagnostics,
-            ));
-        }
-        if started.elapsed() >= READINESS_HANG_BACKSTOP {
-            return Err(readiness_failure(
-                format!(
-                    "nothing wrote {}: the process behind it is still running after {}s, which is \
-                     a wedged producer rather than a slow one",
-                    path.display(),
-                    READINESS_HANG_BACKSTOP.as_secs()
-                ),
-                diagnostics,
-            ));
-        }
-        thread::sleep(READINESS_POLL);
-    }
-}
-
-fn readiness_failure(reason: String, diagnostics: Option<&Path>) -> String {
-    match diagnostics.map(|path| fs::read_to_string(path).unwrap_or_default()) {
-        Some(output) if !output.trim().is_empty() => {
-            format!("{reason}. It said:\n{}", output.trim_end())
-        }
-        Some(_) => format!("{reason}, and said nothing."),
-        None => format!("{reason}."),
-    }
-}
-
-/// [`readiness`] for a producer whose output this test did not capture.
-fn wait_for_ready(path: &Path, producer: &mut Child) {
-    readiness(path, producer, None).unwrap_or_else(|failure| panic!("{failure}"));
-}
 
 fn spawn_producer(script: &str, diagnostics: Option<&Path>) -> Child {
     let mut command = Command::new("sh");
@@ -299,12 +218,19 @@ fn spawn_producer(script: &str, diagnostics: Option<&Path>) -> Child {
     command.spawn().unwrap()
 }
 
-// The three regressions below pin the readiness seam itself, because every
-// process test in this binary now depends on it and none of them can express
-// what it must get right. The first two are the directions the removed fixed
-// deadline got wrong: it failed healthy producers that were merely slow, and it
-// reported dead ones only after waiting out a budget they were never going to
-// meet (driver-lease-readiness-flake-k145).
+// The three regressions below pin `support::readiness` itself, because every
+// process test that depends on it — in this binary and in `tests/loop_driver.rs`
+// — is asserting about something else and none of them can express what the
+// seam must get right. They live here rather than beside the seam because
+// `tests/support/mod.rs` is compiled into every consumer binary, so a `#[test]`
+// there would run a copy per binary; this is the binary whose fixtures can hold
+// a producer back past the removed deadline, so it is the one home they get
+// (loop-driver-readiness-deadline-k170).
+//
+// The first two are the directions the removed fixed deadline got wrong: it
+// failed healthy producers that were merely slow, and it reported dead ones only
+// after waiting out a budget they were never going to meet
+// (driver-lease-readiness-flake-k145).
 
 #[test]
 fn a_producer_slower_than_the_removed_deadline_is_still_waited_for() {
@@ -320,7 +246,7 @@ fn a_producer_slower_than_the_removed_deadline_is_still_waited_for() {
     );
 
     let started = Instant::now();
-    readiness(&ready, &mut producer, None).expect("a live producer must be waited for");
+    support::readiness(&ready, &mut producer, None).expect("a live producer must be waited for");
 
     assert!(
         started.elapsed() > REMOVED_READINESS_DEADLINE,
@@ -340,7 +266,7 @@ fn a_producer_that_ends_without_writing_is_reported_when_it_is_observed() {
     );
 
     let started = Instant::now();
-    let failure = readiness(&never_written, &mut producer, Some(&diagnostics))
+    let failure = support::readiness(&never_written, &mut producer, Some(&diagnostics))
         .expect_err("a producer that has ended can never write its readiness file");
 
     assert!(
@@ -375,7 +301,7 @@ fn a_file_written_by_a_producer_that_has_already_ended_is_ready() {
     let mut producer = spawn_producer(&format!(": > {}", shell_quote(&ready)), None);
     assert!(producer.wait().unwrap().success());
 
-    readiness(&ready, &mut producer, None)
+    support::readiness(&ready, &mut producer, None)
         .expect("a readiness file outlives the process that wrote it");
 }
 
@@ -394,7 +320,7 @@ impl Holder {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        wait_for_ready(ready, &mut child);
+        support::wait_for_ready(ready, &mut child, None);
         Self { child }
     }
 
@@ -439,7 +365,7 @@ fn lease_holder_process() {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        wait_for_ready(&exec_ready, &mut descendant);
+        support::wait_for_ready(&exec_ready, &mut descendant, None);
         drop(lease);
         let released = PathBuf::from(std::env::var_os(EXEC_RELEASED).unwrap());
         fs::write(released, b"released").unwrap();
@@ -826,7 +752,7 @@ fn owner_panic_releases_the_lease_during_unwind() {
     // The holder writes its readiness file and dies microseconds later, so this
     // wait routinely observes the exit first — the case
     // `a_file_written_by_a_producer_that_has_already_ended_is_ready` pins.
-    wait_for_ready(&ready, &mut child);
+    support::wait_for_ready(&ready, &mut child, None);
 
     assert!(!child.wait().unwrap().success());
     DriverLease::acquire(&root).unwrap().revalidate().unwrap();
@@ -965,9 +891,9 @@ fn an_execed_descendant_does_not_inherit_driver_ownership() {
         .stderr(Stdio::null())
         .spawn()
         .unwrap();
-    wait_for_ready(&ready, &mut child);
-    wait_for_ready(&exec_ready, &mut child);
-    wait_for_ready(&released, &mut child);
+    support::wait_for_ready(&ready, &mut child, None);
+    support::wait_for_ready(&exec_ready, &mut child, None);
+    support::wait_for_ready(&released, &mut child, None);
 
     DriverLease::acquire(&root).unwrap().revalidate().unwrap();
 

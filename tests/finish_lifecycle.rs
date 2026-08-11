@@ -48,6 +48,11 @@ fn run(program: &str, current_dir: &Path, arguments: &[&str]) -> Output {
     output
 }
 
+/// Deliberately **not** `support::readiness`, which is the one home of every
+/// readiness wait that has a producer to condition on. Its sole caller waits on
+/// a file written by an *orphaned grandchild* after this test reaped the driver
+/// between them, so there is no live handle to sample and a budget is all that
+/// is left (loop-driver-readiness-deadline-k170).
 fn wait_for(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
     while !path.exists() {

@@ -9,7 +9,12 @@
 #![allow(dead_code)]
 
 use std::ffi::OsStr;
+use std::fs;
+use std::path::Path;
+use std::process::Child;
 use std::sync::{Mutex, MutexGuard};
+use std::thread;
+use std::time::{Duration, Instant};
 
 /// Lock a process-env-mutating test's shared `Mutex`, tolerating poison. A
 /// prior test panicking mid-mutation must not cascade-fail every later test
@@ -19,6 +24,105 @@ use std::sync::{Mutex, MutexGuard};
 /// assertions should fail.
 pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
     lock.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// The upper bound on a readiness wait. It exists so a *wedged* producer fails
+/// the suite instead of parking it, and it is deliberately two orders of
+/// magnitude above the cost of a healthy driver start-up: no test outcome
+/// should ever turn on its exact value.
+const READINESS_HANG_BACKSTOP: Duration = Duration::from_secs(120);
+
+const READINESS_POLL: Duration = Duration::from_millis(10);
+
+/// Wait for `path` to appear, using the producing process's **liveness** as the
+/// condition rather than a fixed budget for how slow readiness may be.
+///
+/// Every readiness file waited on this way is produced by a process the test
+/// itself spawned — either by that process or by a session it launched and reaps
+/// on its own way out — so "will this file ever appear?" has an observable
+/// answer: while the producer runs it may still be coming, and once the producer
+/// is gone it never will. The fixed deadlines this replaces guessed at that
+/// answer from outside. Driver start-up is not a fixed cost — it provisions the
+/// embedded skill into a cold `HOME`, spawns `grove-llm --version`, and runs the
+/// tree transition — and eight concurrent copies of a process-driving binary
+/// stretch a perfectly healthy start-up from 0.7s to 4.7s, so the guess expired
+/// on drivers that were working normally (driver-lease-readiness-flake-k145).
+///
+/// The other half is the failure the deadline could not report: a producer that
+/// died before writing looked exactly like one that was merely slow, and both
+/// surfaced as `timed out waiting for <path>` after a few silent seconds. Pass
+/// `diagnostics` — the file the producer's captured streams were redirected
+/// to — and an ended producer is reported with what it said.
+///
+/// **The producer is sampled before the file, and that order is the whole
+/// correctness argument.** A producer observed alive may still write between
+/// the two reads, and the file read catches it; a producer observed dead is
+/// judged against a file read taken strictly *after* its death, so an absent
+/// file at that point can never arrive. Reading the file first would need a
+/// second read to close the same gap.
+///
+/// This is the one home of the readiness seam: every test binary that drives a
+/// process reaches it here rather than re-declaring a wait of its own
+/// (loop-driver-readiness-deadline-k170). Its regressions live in
+/// `tests/driver_lease.rs`, whose fixtures can hold a producer back past the
+/// removed deadline — the seam cannot own `#[test]`s itself, because this module
+/// is compiled into every consumer binary and they would each run a copy.
+///
+/// Returns the failure rather than panicking so those regressions can assert on
+/// it without a process-global panic hook; [`wait_for_ready`] is the ordinary
+/// caller's panicking form.
+pub fn readiness(
+    path: &Path,
+    producer: &mut Child,
+    diagnostics: Option<&Path>,
+) -> Result<(), String> {
+    let started = Instant::now();
+    loop {
+        let ended = producer
+            .try_wait()
+            .expect("polling the process behind the readiness file");
+        if path.exists() {
+            return Ok(());
+        }
+        if let Some(status) = ended {
+            return Err(readiness_failure(
+                format!(
+                    "nothing wrote {}: the process behind it ended ({status}) after {:.3}s",
+                    path.display(),
+                    started.elapsed().as_secs_f64()
+                ),
+                diagnostics,
+            ));
+        }
+        if started.elapsed() >= READINESS_HANG_BACKSTOP {
+            return Err(readiness_failure(
+                format!(
+                    "nothing wrote {}: the process behind it is still running after {}s, which is \
+                     a wedged producer rather than a slow one",
+                    path.display(),
+                    READINESS_HANG_BACKSTOP.as_secs()
+                ),
+                diagnostics,
+            ));
+        }
+        thread::sleep(READINESS_POLL);
+    }
+}
+
+fn readiness_failure(reason: String, diagnostics: Option<&Path>) -> String {
+    match diagnostics.map(|path| fs::read_to_string(path).unwrap_or_default()) {
+        Some(output) if !output.trim().is_empty() => {
+            format!("{reason}. It said:\n{}", output.trim_end())
+        }
+        Some(_) => format!("{reason}, and said nothing."),
+        None => format!("{reason}."),
+    }
+}
+
+/// [`readiness`] for the ordinary caller, whose only answer to a failed wait is
+/// to fail the test with what the seam already reported.
+pub fn wait_for_ready(path: &Path, producer: &mut Child, diagnostics: Option<&Path>) {
+    readiness(path, producer, diagnostics).unwrap_or_else(|failure| panic!("{failure}"));
 }
 
 /// Every task-kind label, in taxonomy order (task-kind-taxonomy;

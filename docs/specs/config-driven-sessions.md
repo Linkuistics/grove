@@ -2,18 +2,18 @@
 
 ## Problem
 
-Grove currently reconstructs one session command from several independent
-sources: a repository marker and local stamp select a primary harness; task
-bodies and environment variables can reroute a leaf; more variables select a
-model; and harness-specific code appends naming and sandbox arguments.
-The driver therefore knows too much about the programs it launches while a
-reader cannot see the complete launch policy in one place.
+Before this design, Grove reconstructed one session command from several
+independent sources: a repository marker and local stamp selected a primary
+harness; task bodies and environment variables could reroute a leaf; more
+variables selected a model; and harness-specific code appended naming and
+sandbox arguments. The driver therefore knew too much about the programs it
+launched while a reader could not see the complete launch policy in one place.
 
-Lifecycle has the same split ownership. Human-facing subcommands, a routing
-peek, and the launched agent each perform part of initialization, migration,
-selection, retirement, or finishing. That makes restart behavior harder to
-state and permits the leaf used to route a session to differ from the leaf the
-session later adopts.
+Lifecycle had the same split ownership. Human-facing subcommands, a routing
+peek, and the launched agent each performed part of initialization, migration,
+selection, retirement, or finishing. That made restart behavior harder to
+state and permitted the leaf used to route a session to differ from the leaf
+the session later adopted.
 
 ## Solution
 

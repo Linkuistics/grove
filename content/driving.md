@@ -638,7 +638,7 @@ sharpens it enough to graduate.
 
 A leaf whose place in the tree is in doubt — surfacing new, or already sitting
 there under a doubted premise — tempts a status word: `blocked`, `deferred`,
-`superseded`. Resist it; that is exactly the taxonomy ADR *pruning* rejects,
+`superseded`. Resist it; that is exactly the taxonomy pruning rejects,
 and reaching for a fourth state is how a tree starts lying about what is still
 live. The doubt always resolves to one of three existing mechanisms:
 
@@ -654,7 +654,7 @@ live. The doubt always resolves to one of three existing mechanisms:
 - **Decided against** → a **prune** (`grove-llm leaf-prune`, HITL, `SKILL.md`
   "Retire"). The path was considered on its merits and rejected; the leaf
   stays in the tree `ABANDONED`, and the *why* goes to the ADR set, not the
-  filename (ADR *pruning*).
+  filename (pruning).
 
 Scope the prune to the decision. Pruning only a reviewed producer deliberately
 leaves its sibling review next and uncheckable — nothing was produced for it to

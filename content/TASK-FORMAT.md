@@ -11,7 +11,7 @@ reused) — e.g. `01-requirements-plan-k1.md`, `03-impl-extract-k7.md`. A leaf e
 one of two ways, marked in place right after the position: retired work carries a
 `DONE` infix (`03-DONE-impl-extract-k7.md`); a path decided against carries an
 `ABANDONED` infix (`03-ABANDONED-impl-extract-k7.md`, `leaf-prune`,
-ADR *pruning*) — pruning is
+pruning) — pruning is
 **HITL**, never an agent's own call. One task is one session (constraint: one
 task per session). The file is freeform markdown — a guide follows, not a
 schema.
@@ -33,8 +33,8 @@ non-task files in the tree stay ignored.
 
 ## The nineteen kinds
 
-Every leaf's filename names its **kind**, drawn from a closed set (ADR
-`task-kind-taxonomy`). Adding a twentieth is a deliberate change to grove's
+Every leaf's filename names its **kind**, drawn from a closed set
+(task-kind-taxonomy). Adding a twentieth is a deliberate change to grove's
 code, its configuration schema and its docs, not a free-text label a leaf may
 coin — each kind is the key one command template is configured under, so a kind
 grove cannot spell is a session it cannot launch. The set is
@@ -367,4 +367,4 @@ only input is the human's own words — nothing else is on disk yet — which is
 HITL rule, so it is labelled for the discipline that *always* applies. A small
 workstream's bootstrap session may go on to cut the leaves itself; a larger one
 adds a `planning` leaf and lets a fresh session do the decomposition
-(ADR *fresh-grove-start-contract*).
+(fresh-grove-start-contract).

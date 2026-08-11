@@ -38,7 +38,7 @@ use std::path::{Path, PathBuf};
 /// numeric position): a live leaf returns immediately; a node directory is
 /// descended in place (pre-order, so a node at an earlier position is fully
 /// explored before a later sibling leaf); a `DONE` leaf, an `ABANDONED` leaf
-/// (ADR *pruning*), the brief, and foreign names are skipped. `Ok(None)` means no
+/// (pruning), the brief, and foreign names are skipped. `Ok(None)` means no
 /// live leaf anywhere — the loop's finish signal (the CLI renders it as empty
 /// stdout + a "no live leaves" stderr diagnostic). Foreign names such as a
 /// stray `README.md` are skipped; task-shaped names with missing or unknown
@@ -263,7 +263,7 @@ fn current_leaf_entry(path: &Path) -> Result<Entry> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Resolution {
     /// Exactly one entry matched. `outcome` is the matched leaf's own
-    /// live/`DONE`/`ABANDONED` state (ADR *pruning*) — so an abandoned match
+    /// live/`DONE`/`ABANDONED` state (pruning) — so an abandoned match
     /// is distinguishable from both a live and a `DONE` one, not folded into a
     /// single `retired` bit. A matched node reports `Outcome::Live`: a node
     /// carries no terminal state of its own, its done-ness is the absence of a
@@ -429,9 +429,9 @@ pub fn render_resolution(reference: &str, resolution: &Resolution) -> (String, S
                     "note: referenced task is retired (DONE): {}\n",
                     path.display()
                 ),
-                // The abandoned counterpart of the DONE note above (ADR
-                // *pruning*): `resolve` must not let a pruned dead end look
-                // live, the same failure mode the ADR exists to prevent.
+                // The abandoned counterpart of the DONE note above (pruning):
+                // `resolve` must not let a pruned dead end look live, the same
+                // failure mode that record exists to prevent.
                 Outcome::Abandoned => format!(
                     "note: referenced task is abandoned (ABANDONED): {}\n",
                     path.display()
@@ -620,7 +620,7 @@ mod tests {
 
     #[test]
     fn pick_skips_abandoned_leaves() {
-        // Symmetric with DONE (ADR *pruning*): an abandoned leaf is a terminal
+        // Symmetric with DONE (pruning): an abandoned leaf is a terminal
         // state, skipped exactly like a retired one.
         let (_t, g) = grove();
         touch(&g, "01-ABANDONED-impl-a-k1.md");
@@ -670,7 +670,7 @@ mod tests {
     fn pick_falls_through_a_pruned_node_to_a_later_live_leaf() {
         // A node whose only leaf was pruned yields no live leaf either — the
         // grove's two terminal leaf states (DONE, ABANDONED) behave identically
-        // for the walk (ADR *pruning*).
+        // for the walk (pruning).
         let (_t, g) = grove();
         let node = mknode(&g, "01-dead-node-k1");
         touch(&node, "BRIEF.md");
@@ -1114,11 +1114,11 @@ mod tests {
 
     #[test]
     fn resolve_finds_a_pruned_leaf_by_key() {
-        // ADR *pruning*: an abandoned leaf's key must stay resolvable — durable
+        // pruning: an abandoned leaf's key must stay resolvable — durable
         // cross-references to it (commit messages, ADRs, briefs) are precisely
         // what the ADR protects. And `resolve` must not let the match *look*
         // live: `outcome` must come back `Abandoned`, not just the right path —
-        // this is the exact failure mode ADR *pruning* exists to prevent ("a
+        // this is the exact failure mode pruning exists to prevent ("a
         // tree that hides its dead ends lies"), here in `resolve` rather than
         // the tree itself.
         let (_t, g) = grove();

@@ -24,7 +24,7 @@
 // decimal; the sole sort input *within one directory*; rewritten on renumber), the
 // permanent **key** (stable identity, assigned once, never rewritten, always the
 // terminal `-k<key>` token), and the human **slug**. A leaf's **outcome** — live,
-// `DONE`, or `ABANDONED` (ADR *pruning*) — is an infix right after the position,
+// `DONE`, or `ABANDONED` (pruning) — is an infix right after the position,
 // the two marks mutually exclusive by construction (`Outcome`). A node is never
 // marked either way — its done-ness is the absence of a live leaf in its subtree.
 //
@@ -44,7 +44,7 @@
 use crate::leaf::Kind;
 use anyhow::{bail, Result};
 
-/// A leaf's outcome (ADR *pruning*): live, retired (`DONE`), or abandoned
+/// A leaf's outcome (pruning): live, retired (`DONE`), or abandoned
 /// (`ABANDONED`) — mutually exclusive by construction (an enum, not two
 /// independent bools, so the impossible fourth state is unrepresentable). A node
 /// directory never carries an outcome at all; its done-ness is the absence of a
@@ -56,7 +56,7 @@ pub enum Outcome {
     /// Work completed — the `DONE` infix.
     Done,
     /// Work rejected, closed, not going to happen — the `ABANDONED` infix
-    /// (ADR *pruning*). The *why* lives in the ADR set, not the filename.
+    /// (pruning). The *why* lives in the ADR set, not the filename.
     Abandoned,
 }
 
@@ -136,7 +136,7 @@ impl Entry {
         )
     }
 
-    /// `true` only for an abandoned (`ABANDONED`) leaf (ADR *pruning*).
+    /// `true` only for an abandoned (`ABANDONED`) leaf (pruning).
     pub fn is_abandoned(&self) -> bool {
         matches!(
             self,
@@ -386,7 +386,7 @@ where
 /// on `u32::MAX` and a half-open `Range<u32>` cannot name that end.
 ///
 /// **Allocation is fallible, and that is what keeps it total.** Keys are `u32`
-/// and never reused (ADR *pruning*), so the space is finite and `max + 1` can
+/// and never reused (pruning), so the space is finite and `max + 1` can
 /// leave it. Unchecked, that is a debug panic and — worse — a release wrap: a
 /// composite verb would hand its last step a wrapped `k0`, breaking the
 /// four-consecutive-fresh-keys contract *and* lowering the visible max so the
@@ -405,7 +405,7 @@ where
     let exhausted = || {
         anyhow::anyhow!(
             "the permanent key space is exhausted: the tree's highest key is {} and {count} \
-             fresh consecutive key(s) are needed. Keys are never reused (ADR *pruning*), so \
+             fresh consecutive key(s) are needed. Keys are never reused (pruning), so \
              there is nothing to reclaim — the tree has to be rebuilt with lower keys.",
             max.map_or_else(|| "none".to_string(), |m| m.to_string())
         )
@@ -719,7 +719,7 @@ mod tests {
 
     #[test]
     fn next_key_counts_abandoned_leaves() {
-        // The whole point of ADR *pruning*: a pruned leaf's key stays visible in
+        // The whole point of pruning: a pruned leaf's key stays visible in
         // the tree, so a future `leaf-add` never re-issues it. `next_key` already
         // maxes over every parsed name regardless of outcome — asserted here so a
         // future refactor cannot quietly regress the property the ADR rests on.

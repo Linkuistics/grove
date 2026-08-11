@@ -404,7 +404,7 @@ producer, review, and integration scope together.
 closed — the durable *why* (what was rejected, why, and what would reopen it)
 goes to the **ADR set**, the positive fact the abandonment establishes, if it
 clears the when-to-write bar; otherwise the mark and the commit message suffice
-(ADR *pruning*).
+(pruning).
 
 Then walk the parent chain: if a node now has no live leaf left in its subtree —
 however its leaves finished — it is **implicitly done** — a brief is context,
@@ -413,8 +413,8 @@ child. **The close asks the human nothing, for either node species.** A node is
 never marked, and nothing else on disk moves with it either — no infix, no
 sibling, no review. A question there would have gated an *inference*, and
 `leaf-add` reopens a close made in error anyway. That
-is the first of the two tests deciding where grove *does* ask; ADR
-*confirmation-boundary* carries both, and the second is why pruning and the
+is the first of the two tests deciding where grove *does* ask;
+confirmation-boundary carries both, and the second is why pruning and the
 finish cycle still do.
 
 Instead the session **verifies and reports**. On a **brief-carrying** node:
@@ -512,7 +512,7 @@ terminal, so the sentinel can neither starve nor preempt real work. The
 (no Rust automation): the session **proposes** it and **waits for explicit human
 confirmation before any teardown** — never run steps 2–3 unprompted, so a
 headless run with no human present simply reports the plan and stops. This is the
-loop's **only routine human gate** (ADR *confirmation-boundary*) — everything else
+loop's **only routine human gate** (confirmation-boundary) — everything else
 a session asks is a discretionary escalation. On confirmation, run:
 
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,

@@ -1,6 +1,6 @@
 // Fixture-driven tests for the **jj path** through every tree-mutation verb.
 //
-// grove is jj-first (`src/repo.rs`, ADR *symmetric-vcs-rule*): a `.jj/`
+// grove is jj-first (`src/repo.rs`, symmetric-vcs-rule): a `.jj/`
 // directory heading the working tree picks jj plumbing even when a `.git` sits
 // beside it. Two seams carry that decision — `repo::vcs_of`, which working tree
 // a verb resolves (covered by `tests/repo.rs`), and `tree_rename::rename_entry`,

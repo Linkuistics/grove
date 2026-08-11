@@ -96,6 +96,13 @@ const ROLES: &[(&str, Role)] = &[
     // mistake one notch quieter.
     ("GROVE_HARNESS_PID", Role::RemovedLaunchPolicy),
     ("GROVE_CLAUDE_PID", Role::RemovedLaunchPolicy),
+    // Exported session-target metadata, deleted with target comparison. It
+    // reached this tree only when `tests/legacy_claim_sweep.rs` began sweeping
+    // the documentation surfaces for it — that sweep has to spell the name to
+    // assert the docs merely refute it. Production names it nowhere, which is
+    // what [`no_removed_launch_policy_is_named_outside_the_scrub_module`] holds
+    // it to.
+    ("GROVE_SESSION_TARGET", Role::RemovedLaunchPolicy),
     ("GROVE_LLM_BIN", Role::RemovedLaunchPolicy),
     ("GROVE_SKILL_DIR", Role::RemovedLaunchPolicy),
     ("GROVE_KILL_GRACE", Role::RemovedLaunchPolicy),

@@ -21,7 +21,7 @@ pub fn lock_env(lock: &'static Mutex<()>) -> MutexGuard<'static, ()> {
     lock.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// Every task-kind label, in taxonomy order (ADR `task-kind-taxonomy`;
+/// Every task-kind label, in taxonomy order (task-kind-taxonomy;
 /// membership in `docs/ARCHITECTURE.md#task-kind-taxonomy`) — the same strings a live
 /// task filename carries, and what the env-var suffixes below are
 /// formed from. Spelled out here rather than reached for from the crate so

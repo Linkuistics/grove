@@ -4,7 +4,7 @@
 // (`src/tree_grow.rs`). Keeps task-tree-scheme's *semantics* (a fresh grove
 // starts with one live leaf so it is never mistaken for finished; decompose
 // enforces a first child; retire is leaves-only and done-ness is marked in
-// place; prune marks abandonment in place, ADR *pruning*) and changes the
+// place; prune marks abandonment in place, pruning) and changes the
 // *mechanics* to the filesystem's shape:
 //
 //   * `root-init` writes the root `BRIEF.md` (the one unkeyed singleton) and a
@@ -18,7 +18,7 @@
 //     `NN-DONE-<kind>-<slug>-k<key>.md`), keeping the retired leaf in its directory at its
 //     position — no `done/` directory;
 //   * `leaf-prune` adds an `ABANDONED` infix in place, symmetric with retire, but
-//     — per ADR *pruning* — accepts a **node** too: marking every *live* leaf
+//     — per pruning — accepts a **node** too: marking every *live* leaf
 //     in the subtree (bulk, since one decision can kill many leaves at once),
 //     leaving `DONE` leaves alone.
 //   * the finish lifecycle materializes one resumable finish leaf for an otherwise
@@ -579,16 +579,16 @@ fn leaf_retire_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<PathBuf> 
 
 /// The outcome of a [`leaf_prune`] call: every leaf newly marked `ABANDONED`
 /// (its new path), and every already-`DONE` leaf found in scope and left
-/// untouched (ADR *pruning*: that work really was done). A single-leaf call
+/// untouched (pruning: that work really was done). A single-leaf call
 /// marks exactly one entry and finds nothing to leave alone; a node call is
-/// bulk — the arity asymmetry with `leaf-retire` is deliberate (ADR *pruning*).
+/// bulk — the arity asymmetry with `leaf-retire` is deliberate (pruning).
 #[derive(Debug)]
 pub struct PruneResult {
     pub marked: Vec<PathBuf>,
     pub left_done: Vec<PathBuf>,
 }
 
-/// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (ADR *pruning*).
+/// `leaf-prune <path>`: mark abandoned work `ABANDONED` in place (pruning).
 /// `path` is a live leaf file **or** a node directory (absolute, or relative to
 /// the grove root):
 ///   * given a **leaf**, marks it directly — refuses a brief, an already-`DONE`
@@ -600,7 +600,7 @@ pub struct PruneResult {
 /// The `ABANDONED` infix is filename-only — every marked leaf's `# <handle>`
 /// header stays byte-identical. Working-tree only — no commit.
 ///
-/// **HITL (ADR *pruning*):** this verb does not itself gate on human
+/// **HITL (pruning):** this verb does not itself gate on human
 /// confirmation — constraint 5 is "grove guides, it does not gate" — so the
 /// caller (the LLM driving the session) must already have explicit human
 /// confirmation before calling this at all.
@@ -1681,7 +1681,7 @@ mod tests {
     #[test]
     fn retire_refuses_an_abandoned_leaf() {
         // A missing flag must degrade to something harmless, never to the
-        // opposite outcome (ADR *pruning*): retiring an abandoned leaf would
+        // opposite outcome (pruning): retiring an abandoned leaf would
         // silently assert the rejected work was finished.
         let (_t, g) = git_grove();
         touch(&g, "02-ABANDONED-impl-add-k4.md", "add-k4");
@@ -1769,7 +1769,7 @@ mod tests {
         assert!(!leaf.exists(), "the live name is gone");
     }
 
-    // ---- leaf-prune (ADR *pruning*) ------------------------------------------
+    // ---- leaf-prune (pruning) ------------------------------------------
 
     #[test]
     fn prune_leaf_adds_abandoned_infix_keeping_position_and_key() {
@@ -1881,7 +1881,7 @@ mod tests {
         );
     }
 
-    // ---- leaf-prune on a node: bulk arity (ADR *pruning*) -------------------
+    // ---- leaf-prune on a node: bulk arity (pruning) -------------------
 
     #[test]
     fn prune_node_marks_every_live_leaf_in_the_subtree() {
@@ -1969,7 +1969,7 @@ mod tests {
 
     #[test]
     fn prune_node_is_atomic_bails_clean_on_a_taken_destination() {
-        // ADR *pruning*: a rename failure partway through the subtree walk must not
+        // pruning: a rename failure partway through the subtree walk must not
         // leave earlier leaves already marked while the operator sees only the
         // trailing error. The two-phase validate-before-mutate walk is what prevents
         // it; a leaf whose `ABANDONED` name is already taken (a botched earlier

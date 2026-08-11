@@ -974,7 +974,7 @@ mod tests {
     #[test]
     fn add_counts_abandoned_children_so_a_pruned_slot_is_never_reused() {
         // Symmetric with DONE: an `ABANDONED` child still occupies its position
-        // and its key (ADR *pruning*'s key-reuse defect) — the next child is 02
+        // and its key (pruning's key-reuse defect) — the next child is 02
         // and its key is 4, not a reused 3.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
@@ -1095,7 +1095,7 @@ mod tests {
     //
     //   * **the derivation** — the caller names one producer kind and the other
     //     two are derived, which is the wrong-but-well-formed error class the
-    //     `--kind` write-gate cannot catch (ADR *cli-binary-split*, leg 2);
+    //     `--kind` write-gate cannot catch (cli-binary-split, leg 2);
     //   * **the node carries no `BRIEF.md`** — the discriminator the Retire
     //     cascade reads, so a stray charter silently promotes a chain into the
     //     species whose close carries work (task-tree-scheme,

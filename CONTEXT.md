@@ -167,7 +167,7 @@ _Avoid_: "the grove name equals the branch name" — grove reads no branch anywh
 _Avoid_: describing resolution as git-with-jj-fallback — it is the other way round, in `repo.rs` and in every tree-mutation verb (a jj tree renames with `fs::rename`; `git mv` is the fallback).
 
 **Meta-grove**:
-A grove whose subject *is* the grove machinery — this repo. The distinguishing property is not the topic but the **process ancestry**: its build and test commands run as descendants of the very session driving them, so they inherit that session's control environment and can act on it. Ordinary groves have the same variables in scope and no reason to write them, which is why hazards of this class are invisible everywhere else and routine here (guard-loop-signal-k37). Read it as a *test-environment* category, not a privilege level: a meta-grove gets no extra authority, it merely has descendants that can spend the authority the session already holds.
+A grove whose subject *is* the grove machinery — this repo. The distinguishing property is not the topic but the **process ancestry**: its build and test commands run as descendants of the very session driving them, so they inherit that session's control environment and can act on it. Ordinary groves have the same variables in scope and no reason to write them, which is why hazards of this class are invisible everywhere else and routine here — `tests/env_hygiene.rs` exists for exactly this. Read it as a *test-environment* category, not a privilege level: a meta-grove gets no extra authority, it merely has descendants that can spend the authority the session already holds.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
 
 **Loop control channel** (`GROVE_SIGNAL_FILE`):
@@ -408,8 +408,8 @@ Sequencing gets no mechanism — see the _Avoid_ on units below. Construction ge
 one call per shape (`leaf-add-chain` / `leaf-add-pair`), because deriving
 `review-<producer>` and `integrate-review-<producer>` from a producer kind is a
 derivation grove owns rather than a judgement, and the escalation call stays with
-the caller (*Constructing a chain is one call*; the bar a verb must clear is ADR
-*cli-binary-split*).
+the caller (*Constructing a chain is one call*; the bar a verb must clear is the
+architecture's [command surfaces](docs/ARCHITECTURE.md#cli-binary-split)).
 The review chain is also the grove-scale counterpart to an **in-session doubt
 cycle**: doubt is the cheap move for one narrow, unexpected decision that still
 fits the current leaf, while a load-bearing artifact, repeated review cycle, or
@@ -450,7 +450,7 @@ that node-ness now means two things — which the `BRIEF.md` discriminator keeps
 legible rather than overloaded ([[Node directory]]).
 _Avoid_: treating either as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
-none (ADR *task-kind-taxonomy*).
+none (task-kind-taxonomy).
 _Avoid_: treating a chain as a **unit** in [[Pick]]'s sense — something the walk
 will not leave. Containment is not immunity: `pick` is unchanged, descends a chain
 node in pre-order exactly as it descends any node, and walks straight out of it
@@ -522,7 +522,8 @@ brief `Done when` against what the subtree delivered, `leaf-add` the missing wor
 if the check fails and the gap can be named, escalate if it cannot, promote what
 survives upward, and name the closed node by its [[Work-item handle]] in the
 commit message. The human reviews the close in the diff instead of being
-interrupted before it. See ADR *confirmation-boundary*.
+interrupted before it. See the architecture's
+[human authority and completion](docs/ARCHITECTURE.md#confirmation-boundary).
 _Avoid_: "all retirements need confirmation" — it over-reads the design in both
 directions. Marking a *leaf* done was never confirmed (mechanical bookkeeping);
 only the node close changed.
@@ -838,8 +839,8 @@ a path was closed; the durable *why* goes to the **ADR set** — the positive fa
 abandonment establishes ("we rejected cross-family review" *is* "grove is
 single-provider"), with the rejection as a *Considered options* entry stating what was
 rejected, why, and **what would reopen it**. Too small to clear the ADR when-to-write
-bar? Then nothing durable is written; the mark and the commit message suffice. See ADR
-*pruning*.
+bar? Then nothing durable is written; the mark and the commit message suffice. See the
+architecture's [human authority and completion](docs/ARCHITECTURE.md#pruning).
 _Avoid_: reading "pruned" in git's sense (`git remote prune` = *delete*) — a pruned
 leaf **stays in the tree**; that is the entire point, since the keys in the names are
 the counter ([[Permanent key]]).

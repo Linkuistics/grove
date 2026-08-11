@@ -22,8 +22,8 @@ use anyhow::{bail, Result};
 /// write, with an error naming the replacement — see [`Kind::parse`].
 const WORK_ALIAS: &str = "work";
 
-/// A leaf's session kind — a closed, **parameterised** set of nineteen (ADR
-/// `task-kind-taxonomy`): five producers, each with its own `review-` and
+/// A leaf's session kind — a closed, **parameterised** set of nineteen
+/// (task-kind-taxonomy): five producers, each with its own `review-` and
 /// `integrate-review-` step, two research producers, their combine step, and the
 /// driver-owned finish step. Adding a twentieth is a deliberate code change, never
 /// a free-text label a leaf may coin. Only `Planning` carries methodological
@@ -99,7 +99,7 @@ impl Kind {
     /// in one).
     ///
     /// This is the derivation `leaf-add-chain` exists to perform, and the reason
-    /// it clears ADR *cli-binary-split*'s second leg: `<producer>` ⇒
+    /// it clears cli-binary-split's second leg: `<producer>` ⇒
     /// `review-<producer>` ⇒ `integrate-review-<producer>` is exactly what
     /// *parameterised, not flat* bought, and a session transcribing it from a
     /// nineteen-row table by hand can produce a **wrong-but-well-formed**

@@ -33,11 +33,12 @@ lockstep, which is why they live together — see
   context provision the other's content is a question about precedence and
   double-provisioning, not a local change.
 
-- **A durable record has one owner.** If future work creates `docs/adr/` or
-  `docs/specs/`, its slug is unique repo-wide and its maintaining context is
-  recorded here. Ownership names who keeps the record current, not every
-  component it binds: the jj-first VCS rule, for example, is shared by the Grove
-  binary and the plugin installer. `content/ADR-FORMAT.md` defines when a flat
+- **A durable record has one owner.** Every record under `docs/adr/` and
+  `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
+  here; a record added later joins this list. Ownership names who keeps the
+  record current, not every component it binds: the jj-first VCS rule, for
+  example, is shared by the Grove binary and the plugin installer.
+  `content/ADR-FORMAT.md` defines when a flat
   root set is appropriate. A term is defined in the glossary of its owning
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),

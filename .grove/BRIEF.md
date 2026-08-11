@@ -71,6 +71,14 @@ before the grove finishes. Exercise branch binaries only in isolated homes or
 worktrees with ambient loop authority scrubbed; `acceptance-verification-k50`
 owns the pre-install matrix.
 
+Promoted from `acceptance-verification-k50` on its close, because it outlives
+that node: **do not publish a release from this grove.** Cutting a tag, running
+`scripts/release-publish.sh`, integrating the branch, and tearing down the
+working tree are all outside this workstream — the last two by methodology
+(`CONTEXT.md`, *Complete finish cycle*), publishing by this grove's own scope.
+Verification may run `scripts/release-doctor.sh`, which installs and changes
+nothing.
+
 No-signal exits retain status and elapsed time, scoped Git deletion uses
 only/path mode, and internal tool/grace injection is not user configuration.
 `docs/specs/config-driven-sessions.md` is the stable input to implementation

@@ -12,8 +12,9 @@
 //! the thing they deny.
 //!
 //! So the candidates come from the tree and the **classification** is what is
-//! committed. Every occurrence of every token in [`LEGACY_TOKENS`] across the
-//! documentation trees must fall inside a [`REFUTATIONS`] quotation — a
+//! committed. Every occurrence of every token in [`LEGACY_TOKENS`], and every
+//! `GROVE_*` environment name the prose spells out, must fall inside a
+//! [`REFUTATIONS`] quotation — a
 //! committed judgement that *this sentence names the token in order to record
 //! its removal*. The unit is the **occurrence**, not the file: a surface that
 //! already denies a token stays answerable for a second, affirmative sentence
@@ -23,6 +24,19 @@
 //! The check runs in both directions: every quotation must still occur and must
 //! still name a legacy token, so an entry whose subject is gone fails too and
 //! the table cannot quietly become a fossil.
+//!
+//! **Two candidate sources, because the removed surface has two shapes.** A
+//! closed vocabulary — `grove do`, `**Kind:**`, `start.md` — is listable, and
+//! [`LEGACY_TOKENS`] lists it. The routing environment is not: `GROVE_<KIND>_MODEL`
+//! alone expands over nineteen kinds, and `GROVE_<KIND|FAMILY>_HARNESS` over every
+//! harness anyone configures. A list can only name the variables someone already
+//! thought of, and the one that comes back is the one nobody listed — so those
+//! candidates are **enumerated from the prose** by prefix, and everything not in
+//! [`LIVE_ENVIRONMENT`] is removed launch policy needing a refutation. This is the
+//! same shape-over-list argument `tests/removed_surface.rs` makes for `src/`,
+//! `tests/` and `scripts/`, and `tests/session_kind_guidance.rs` for `content/`;
+//! before it was made here, `docs/CONFIGURATION.md` could say
+//! "set `GROVE_IMPL_MODEL=sonnet`" and every sweep in the repository stayed green.
 //!
 //! Controls, because a sweep that cannot fail is worth nothing. The **positive
 //! control** drives the same classifier over synthetic documents and shows an
@@ -127,6 +141,28 @@ const LEGACY_TOKENS: &[(&str, &str)] = &[
         "the removed grove-wide harness selection",
     ),
     ("seventeen", "the superseded session-kind count"),
+];
+
+/// The `GROVE_*` names a documentation surface may state as current, each with
+/// the role that makes it legitimate. Everything else carrying that prefix is
+/// launch policy the redesign removed, and may be named only inside a
+/// [`REFUTATIONS`] quotation.
+///
+/// Both survivors are here because *stating* them is right, not merely
+/// tolerated — which is what the Done-when behind this sweep asks for: the
+/// legitimate loop-control reference stays explicit rather than being waved
+/// through by a silent exception.
+const LIVE_ENVIRONMENT: &[(&str, &str)] = &[
+    (
+        "GROVE_SIGNAL_FILE",
+        "the loop's internal completion channel — a capability the driver grants \
+         its own foreground child, never a user setting",
+    ),
+    (
+        "GROVE_TAP_DIR",
+        "release scripting's own variable, steering a shell script a human runs \
+         rather than a session",
+    ),
 ];
 
 /// Where a legacy token may still be named, quoted in the surface's own words.
@@ -359,6 +395,43 @@ fn occurrences_in(flat: &str, line_of_byte: &[usize], needle: &str) -> Vec<Occur
     found
 }
 
+/// Every spelled-out `GROVE_*` name in an already-flattened haystack, as
+/// (name, start offset, original line).
+///
+/// Two lexical rules, matching the enumeration `tests/removed_surface.rs` runs
+/// over the source trees, so the same name classifies the same way on both
+/// sides of the repository. A match must start at a **non-identifier
+/// boundary**, or a longer name would also enumerate as its own suffix. And the
+/// bare prefix with nothing spellable after it is dropped: `GROVE_*`,
+/// `GROVE_<KIND|FAMILY>_HARNESS` and `GROVE_*_MODEL` are how prose writes a
+/// *family*, and a schematic name is an argument about a class rather than a
+/// variable a reader could export. Dropping them is what leaves the concrete
+/// reintroduction — the line someone would copy and paste — as the thing this
+/// sweep is looking at.
+fn environment_names_in(flat: &str, line_of_byte: &[usize]) -> Vec<(String, usize, usize)> {
+    const PREFIX: &str = "GROVE_";
+    let bytes = flat.as_bytes();
+    let mut found = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = flat[from..].find(PREFIX) {
+        let start = from + offset;
+        let preceded_by_identifier = start > 0 && is_word_byte(bytes[start - 1]);
+        let mut end = start + PREFIX.len();
+        while end < bytes.len()
+            && (bytes[end].is_ascii_uppercase()
+                || bytes[end].is_ascii_digit()
+                || bytes[end] == b'_')
+        {
+            end += 1;
+        }
+        if !preceded_by_identifier && end > start + PREFIX.len() {
+            found.push((flat[start..end].to_owned(), start, line_of_byte[start]));
+        }
+        from = end.max(start + PREFIX.len());
+    }
+    found
+}
+
 /// Whole-needle occurrences of `needle` in `text`, as 1-based line numbers.
 fn occurrence_lines(text: &str, needle: &str) -> Vec<usize> {
     let (flat, line_of_byte) = flattened(text);
@@ -388,19 +461,39 @@ fn unclassified_occurrences(path: &str, text: &str) -> Vec<String> {
         })
         .collect();
 
+    let is_refuted = |start: usize, end: usize| {
+        refuted
+            .iter()
+            .any(|(from, to)| *from <= start && end <= *to)
+    };
+
     let mut findings = Vec::new();
     for (token, subject) in LEGACY_TOKENS {
         for found in occurrences_in(&flat, &line_of_byte, token) {
             let end = found.start + token.len();
-            if refuted
-                .iter()
-                .any(|(from, to)| *from <= found.start && end <= *to)
-            {
+            if is_refuted(found.start, end) {
                 continue;
             }
             findings.push(format!("{path}:{}: `{token}` — {subject}", found.line));
         }
     }
+
+    // The enumerated half. Same containment rule, so one removal sentence
+    // answers for the variables inside it exactly as it does for the listed
+    // tokens, and one failure message reports both.
+    for (name, start, line) in environment_names_in(&flat, &line_of_byte) {
+        if LIVE_ENVIRONMENT.iter().any(|(live, _)| *live == name) {
+            continue;
+        }
+        if is_refuted(start, start + name.len()) {
+            continue;
+        }
+        findings.push(format!(
+            "{path}:{line}: `{name}` — an environment variable no launch reads; \
+             configuration is the only launch policy"
+        ));
+    }
+
     findings
 }
 
@@ -452,17 +545,25 @@ fn markdown_of(tree: &DocumentationTree) -> Vec<String> {
 // ---------------------------------------------------------------------------
 // The sweep
 
-#[test]
-fn no_documentation_surface_states_a_removed_launch_policy_as_current() {
+/// Every document the sweep is responsible for, as (repo-relative path, text).
+fn swept_documents() -> Vec<(String, String)> {
     let root = repository_root();
-    let mut findings = Vec::new();
-
-    for tree in DOCUMENTATION_TREES {
-        for path in markdown_of(tree) {
+    DOCUMENTATION_TREES
+        .iter()
+        .flat_map(markdown_of)
+        .map(|path| {
             let text = fs::read_to_string(root.join(&path))
                 .unwrap_or_else(|error| panic!("{path} must be readable: {error}"));
-            findings.extend(unclassified_occurrences(&path, &text));
-        }
+            (path, text)
+        })
+        .collect()
+}
+
+#[test]
+fn no_documentation_surface_states_a_removed_launch_policy_as_current() {
+    let mut findings = Vec::new();
+    for (path, text) in swept_documents() {
+        findings.extend(unclassified_occurrences(&path, &text));
     }
 
     assert!(
@@ -544,6 +645,35 @@ fn every_legacy_token_is_still_worth_sweeping_for() {
     );
 }
 
+/// The reverse direction for the enumerated half, matching
+/// [`the_refutation_table_carries_no_stale_entry`]. An allow-list entry whose
+/// last occurrence was deleted exempts nothing, and a permission granted to a
+/// name no surface uses is how a sweep quietly reacquires the blind spot it was
+/// written to close.
+#[test]
+fn the_live_environment_table_carries_no_stale_entry() {
+    let documents = swept_documents();
+    let stale: Vec<&str> = LIVE_ENVIRONMENT
+        .iter()
+        .map(|(name, _)| *name)
+        .filter(|name| {
+            !documents.iter().any(|(_, text)| {
+                let (flat, line_of_byte) = flattened(text);
+                environment_names_in(&flat, &line_of_byte)
+                    .iter()
+                    .any(|(found, _, _)| found == name)
+            })
+        })
+        .collect();
+
+    assert!(
+        stale.is_empty(),
+        "these LIVE_ENVIRONMENT entries permit a name no swept surface uses — \
+         the exemption outlived its subject and now only widens the sweep's \
+         blind spot: {stale:?}"
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Controls
 
@@ -611,6 +741,95 @@ fn a_denial_does_not_exempt_the_rest_of_its_own_file() {
         alongside[0].starts_with("docs/USAGE.md:4: `diversity warnings`"),
         "the report must name the affirmative sentence, not the denial: {}",
         alongside[0]
+    );
+}
+
+#[test]
+fn the_sweep_rejects_a_routing_variable_no_list_could_have_named() {
+    // The exact mutation that passed every sweep in this repository before the
+    // enumerated half existed: three affirmative routing claims in the user's
+    // configuration guide. None is in LEGACY_TOKENS, and none could sensibly
+    // be — they are three members of two open families.
+    let reintroduced = unclassified_occurrences(
+        "docs/CONFIGURATION.md",
+        "Set `GROVE_IMPL_MODEL=sonnet` and `GROVE_REVIEW_HARNESS=codex` to route\n\
+         implementation and review sessions, and `GROVE_HARNESS_BIN_CODEX` to point\n\
+         at the binary.\n",
+    );
+    assert_eq!(
+        reintroduced.len(),
+        3,
+        "every spelled-out routing variable must be reported: {reintroduced:?}"
+    );
+    assert!(
+        reintroduced[0].starts_with("docs/CONFIGURATION.md:1: `GROVE_IMPL_MODEL`"),
+        "the report must name the file, line and variable: {}",
+        reintroduced[0]
+    );
+
+    // The permission is a permission, not a prefix: the loop-control channel is
+    // stated as current all over the documentation and must stay silent, while a
+    // *different* name extending it does not inherit that. The neighbour ends
+    // `_HARNESS` on purpose — this file is itself swept by
+    // `tests/removed_surface.rs`, which enumerates the same prefix under
+    // `tests/` and reports any name matching none of its shape rules. A control
+    // invented for its illustrative value alone — one ending `_PATH`, say —
+    // fails that sweep from inside the assertion *and* from inside a comment
+    // explaining it, since a lexical sweep cannot tell the two apart and should
+    // not try. The fix is not an exemption here; an exemption is the blind spot
+    // this file just closed. It is a control both sweeps already classify.
+    assert!(
+        unclassified_occurrences(
+            "docs/CONFIGURATION.md",
+            "it clears any inherited Grove loop-control variables and grants this \
+             launch's fresh `GROVE_SIGNAL_FILE`.\n",
+        )
+        .is_empty(),
+        "the live control channel must not be reported"
+    );
+    assert_eq!(
+        unclassified_occurrences(
+            "docs/CONFIGURATION.md",
+            "export `GROVE_SIGNAL_FILE_HARNESS`\n"
+        )
+        .len(),
+        1,
+        "a neighbouring name must not inherit the channel's permission"
+    );
+
+    // And a removal sentence answers for the variables inside it, exactly as it
+    // does for the listed tokens — the containment rule is shared, not copied.
+    assert!(
+        unclassified_occurrences(
+            "docs/specs/config-driven-sessions.md",
+            "Test suites inject tool paths, clocks, and kill-grace durations through\n\
+             internal module seams rather than supported `GROVE_LLM_BIN` or\n\
+             `GROVE_KILL_GRACE*` process configuration.\n",
+        )
+        .is_empty(),
+        "a quoted removal record must answer for the variables it names"
+    );
+}
+
+#[test]
+fn a_schematic_family_name_is_prose_rather_than_a_candidate() {
+    // `GROVE_*` and `GROVE_<KIND>_MODEL` are how a surface argues about a
+    // *class* — including in the sentences that record the class's removal.
+    // Enumerating them would report the denial as the offence, so the prefix
+    // scan stops where the name stops being spellable.
+    let (flat, lines) = flattened(
+        "no user-settable `GROVE_*` environment configuration, and all\n\
+         `GROVE_<KIND|FAMILY>_HARNESS` and `GROVE_*_MODEL` routing variables\n\
+         are removed; `GROVE_IMPL_MODEL` is gone with them.\n",
+    );
+    let names: Vec<String> = environment_names_in(&flat, &lines)
+        .into_iter()
+        .map(|(name, _, _)| name)
+        .collect();
+    assert_eq!(
+        names,
+        ["GROVE_IMPL_MODEL"],
+        "only the spelled-out variable is a candidate"
     );
 }
 

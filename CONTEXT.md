@@ -224,8 +224,12 @@ The per-session context-loading step of the grove loop: read the glossary, the a
 
 **Task commit boundary** / **sealing**:
 Where one session's focused commit closes. That commit covers the session's whole
-task — the artifact, whatever the grow verbs wrote, and the [[DONE infix]]
-rename — and names it by the [[Work-item handle]]. In plain Git the commit *is*
+task — the artifact, whatever the grow verbs wrote, the [[DONE infix]]
+rename, and whatever the parent-chain close promoted or added — and names it by
+the [[Work-item handle]], each closed node's alongside the leaf's. Everything in
+that list is written by **Retire**, so **Retire precedes Commit** as a loop step
+order, not merely as advice: a commit taken first cannot contain the rename or
+name a node not yet closed. In plain Git the commit *is*
 the boundary, so the next session inherits a clean tree. In a jj-enabled tree the
 working copy is itself a commit, so `jj describe -m` records the task without
 closing it; **sealing** with `jj new`, once the rename has landed, is what leaves
@@ -236,6 +240,10 @@ _Avoid_: reading `jj describe` as the boundary — it records the task but leave
 `@` open, so the next session's first edit is snapshotted into this task's change,
 and a file both tasks touched cannot be separated afterwards by
 `jj split <fileset>`.
+_Avoid_: the **Commit → Retire** order any prose or diagram may still show. In jj
+it is the exact cross-task contamination sealing exists to stop — `jj new` opens
+the next change, so the rename and every close-time edit land in the *next*
+task's commit; in Git it leaves them uncommitted or forces a second commit.
 
 **Driver lease**:
 The exclusive, process-scoped ownership of one working tree by one bare `grove`

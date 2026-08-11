@@ -11,9 +11,54 @@ fn commit_step() -> String {
         .split_once("\n**Commit.**")
         .expect("content/SKILL.md must have a Commit step");
     let (step, _) = from_commit
-        .split_once("\n**Retire.**")
-        .expect("content/SKILL.md's Commit step must be followed by the Retire step");
+        .split_once("\n**Signal.**")
+        .expect("content/SKILL.md's Commit step must be followed by the Signal step");
     normalized(step)
+}
+
+/// Byte offsets of the loop's procedural step headings, in the order the page
+/// prints them.
+fn step_offset(heading: &str) -> usize {
+    GROVE_SKILL
+        .find(heading)
+        .unwrap_or_else(|| panic!("content/SKILL.md must have a {heading:?} step"))
+}
+
+#[test]
+fn retire_precedes_commit_so_the_commit_can_contain_what_retire_writes() {
+    // The Commit step scopes one commit to the `DONE` rename and everything the
+    // parent-chain close writes, and requires a closed node's handle in the
+    // message. All three are facts Retire establishes, so a reader following the
+    // page top-to-bottom must reach Retire first — otherwise a jj `jj new` seal
+    // pushes every one of them into the next task's change.
+    assert!(
+        step_offset("\n**Retire.**") < step_offset("\n**Commit.**"),
+        "content/SKILL.md must place the Retire step before the Commit step"
+    );
+    assert!(
+        step_offset("\n**Commit.**") < step_offset("\n**Signal.**"),
+        "content/SKILL.md must place the Commit step before the Signal step"
+    );
+}
+
+#[test]
+fn the_flowchart_commits_after_the_parent_chain_cascade() {
+    let skill = normalized(GROVE_SKILL);
+
+    for edge in [
+        "done --> retire",
+        "retire -->|no| commit",
+        "commit --> signal",
+    ] {
+        assert!(
+            skill.contains(edge),
+            "the loop flowchart must route work → retire → commit → signal: {edge:?}"
+        );
+    }
+    assert!(
+        !skill.contains("commit --> retire"),
+        "the loop flowchart must not restore the commit-before-retire edge"
+    );
 }
 
 #[test]

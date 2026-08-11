@@ -263,9 +263,13 @@ The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
 because they are peers: a bare stem beside a `-second` implies a producer/step
 relation the pair does not have.
 
-**The kind is the only part of a name grove parses.** Everything else about a
-filename — the stem, the step suffix, the position, the ordering — remains
-**convention, not grammar**: grove does not read a
+**The grammar is the five fields above and nothing more.** Position, outcome
+infix, kind, slug and key are all parsed and all structural — the position orders
+the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
+configuration lookup, and slug-plus-key is the handle `resolve` finds and the
+counter the next `-k<key>` is allocated from. What is **convention, not grammar**
+is everything a name might *imply about another leaf*: the stem, the step suffix
+and the relative ordering. Grove does not read a
 suffix, require a `review-X` after every `X`, or reject a partial chain. The two
 explicit `Reviews` / `Integrates` declarations are the one exception, and even
 they are read as a **lookup, never a parse**: grove arrives holding a handle and

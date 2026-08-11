@@ -35,16 +35,17 @@ flowchart TD
     exec{"kind — planning, or one of the other eighteen?"}
     plan["Planning — cut vertical slices; grow the tree"]
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
-    commit["Commit — one focused commit covering the task and its DONE rename, sealed (name it by <slug>-k<key>)"]
+    done["Retire — mark the just-finished leaf DONE in place"]
     retire{"parent chain — node now has no live leaf?"}
     ret["Brief-carrying node: verify Done when; promote brief up; report close. Brief-less node: no-op"]
+    commit["Commit — one focused commit covering the task, its DONE rename and every close, sealed (name it by <slug>-k<key>)"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
-    exec -->|planning| plan --> commit
-    exec -->|any other kind| work --> commit
-    commit --> retire
+    exec -->|planning| plan --> done
+    exec -->|any other kind| work --> done
+    done --> retire
     retire -->|yes| ret --> retire
-    retire -->|no| signal --> pick
+    retire -->|no| commit --> signal --> pick
   end
 ```
 
@@ -85,7 +86,7 @@ lives at `.grove/` inside it.
 
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **bare `grove`** from inside the working tree — no subcommand, no flags. That is the whole human surface *and* the sole lifecycle entry: it inspects the state on disk and dispatches. No `.grove/` yet → it scaffolds the tree and launches its first `requirements` leaf; a live tree → the next leaf; no ordinary work left → it appends one `finish` leaf and launches that. If the tree is in an older format — the original `NNN-slug/` directories, the v1 flat dotted-decimal scheme, or the pre-session-kind filenames — the first bare `grove` **migrates it** before driving, as one recoverable transaction and one focused, reviewable commit; migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
-Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove` from the same working tree. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction; a crashed mid-task leaf (commit-before-retire, then signal) is simply re-selected and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
+Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove` from the same working tree. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction; a task that crashes before its retire-and-commit boundary leaves its leaf live and is simply re-selected and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
 **One configuration, no other launch policy.** Every session is launched by
 `~/.config/grove/config.kdl`, which gives each session kind exactly one complete
@@ -287,20 +288,26 @@ the stem and the node takes `-chain` / `-pair` so bare slugs stay unique and
 surviving commit handles still name their artifact. A terminal suffix also keeps
 stem-mates together; `review-<stem>` would group unrelated reviews.
 
-**The filename is parsed for exactly one thing: the kind.** Grove separates one
-member of the closed set out of every task-shaped leaf name and reads nothing
-else from it — no ordering, and no relationship inferred from a step suffix or a
-position. The suffix convention is a habit that makes a chain legible to you and
-to `find .grove`; it is not grammar. Explicit `Reviews` / `Integrates` lines are
-what serve promotion and handoff. Nor is a chain a scheduling **unit**: `pick`
-walks out after its children, though sibling insertion cannot split them.
+**The grammar is five fields; no relationship is one of them.** Grove parses
+every task-shaped leaf name into exactly `NN`, an optional `DONE` / `ABANDONED`
+infix, one member of the closed kind set, the slug, and `-k<key>` — and all five
+are load-bearing: position orders the walk, the infix filters terminal leaves,
+the kind routes the launch, and slug-plus-key is the stable handle `resolve`
+finds and the counter `leaf-add` reads. What grove infers from *none* of them is
+a **relationship between leaves**: a `-review` suffix does not make a leaf review
+its neighbour, an `X` requires no `review-X` after it, and a partial chain is
+never rejected. The suffix convention is a habit that makes a chain legible to
+you and to `find .grove`; it is not grammar. Explicit `Reviews` / `Integrates`
+lines are what serve promotion and handoff. Nor is a chain a scheduling **unit**:
+`pick` walks out after its children, though sibling insertion cannot split them.
 
 When a **currently picked plain producer** needs fresh review, run `grove-llm
 leaf-promote-chain <picked-producer>`. It atomically preserves the producer's
 bytes and handle inside a derived brief-less chain, leaving a recoverable
-`PROMOTING-*` witness on interruption. Finish to a reviewable boundary, commit
-artifact plus promotion under that handle, retire the returned producer path,
-then complete. Retiring it is the filename `DONE` transition and nothing else —
+`PROMOTING-*` witness on interruption. Finish to a reviewable boundary, retire
+the returned producer path, commit artifact plus promotion plus that retirement
+under the same handle, then complete — the Retire-then-Commit order below, which
+the promotion does not change. Retiring it is the filename `DONE` transition and nothing else —
 it leaves the linked review byte-identical, because the review needs no record of
 how its producer ran. The next loop iteration picks that review and resolves its
 command from the `review-*` entry in configuration.
@@ -338,50 +345,34 @@ resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
 `<slug>-k<key>` handle back into the current file path. All three grow verbs are
 working-tree changes only; the enclosing task's commit folds them in.
 
-Every grow verb takes `--kind <kind>` — one of the nineteen, defaulting to
-`impl`, except driver-reserved `finish`, which every grow verb refuses — and
-gates on it: an unrecognised value errors and lists the set, because a human is
-present at authoring time. **Reading is strict too**: every task-shaped leaf
+**`--kind <kind>` appears on the grow verbs whose kind is a free choice**, and
+every one that accepts it gates on it: an unrecognised value errors and lists the
+nineteen, and driver-reserved `finish` is refused, because a human is present at
+authoring time. `leaf-add` and `leaf-insert` take it with the `impl` default.
+`leaf-add-chain` **requires** it, since a default would silently pick the
+producer that parameterises all three of its leaves; you name one of the five
+producers and it derives the other two. `leaf-decompose` takes it as an
+*override* of the kind it otherwise inherits from the leaf being decomposed — the
+node directory it creates carries none — so a `research-a` leaf that proves
+bigger keeps producing `research-a` work in its first child. **`leaf-add-pair`
+takes no `--kind` at all**: its three kinds (`research-a`, `research-b`,
+`combine-research`) are fixed by the shape, so there is nothing to choose.
+**Reading is strict too**: every task-shaped leaf
 filename, live or terminal, must carry a known kind, and a missing or unknown one
 stops tree operations naming the path and the valid set rather than degrading to
 `impl` — the kind is a configuration key, and a kind grove cannot spell is a
-session it cannot launch. `leaf-add-chain` is the one exception
-to the default: it **requires** `--kind`, since defaulting would silently pick
-the producer that parameterises all three of its leaves. `leaf-decompose` gives
-the node's **first child** its parent leaf's kind unless `--kind` overrides — the
-node directory it creates carries none — so a `research-a` leaf that proves
-bigger keeps producing `research-a` work. No grow verb
+session it cannot launch. No grow verb
 selects a harness, a model, or anything else about the launch: the kind is the
 whole routing input, and configuration maps it to one command.
-
-**Commit.** One task = one focused commit — and *one task* means the whole
-session's work: the artifact, whatever the grow verbs wrote, and the `DONE`
-rename that retires the leaf. **Name the work item in the commit message by its
-stable handle `<slug>-k<key>`, never by its position or directory path** —
-positions and paths move under renumber and reorder, but the `<slug>-k<key>`
-handle is permanent, so the historical record stays meaningful after
-restructures (task-tree-scheme §5).
-
-That commit is also the boundary the *next* session starts from, and git and jj
-reach it differently — the same asymmetry the tree verbs already carry (`git mv`
-there, a plain rename under jj). In **git** the working tree is not history, so
-one `git commit`, taken once the rename has landed, both records the task and
-leaves the next session a clean tree. In **jj** the working copy *is* a commit:
-this session's edits are already in `@`, so `jj describe -m` records the task but
-leaves that change open, and the next session's first edit is snapshotted into
-*this* task's commit. **Seal it** — `jj new` after describing, once the rename
-has landed (`jj commit -m` is exactly those two) — so the next session opens on
-its own empty change. An unsealed change is expensive to unpick afterwards:
-`jj split <fileset>` cannot separate a file both tasks touched, leaving the
-operation log as the only way back. The lane itself belongs to
-`linkuistics:using-jujutsu`; grove states only where its boundary falls.
 
 **Retire.** A leaf ends one of two ways — **done** (the work was completed) or
 **abandoned** (the path was decided against); grove's own metaphor: a done leaf
 is *harvested*, an abandoned one is *pruned*. Both mark the leaf **in place**,
 neither ever deletes it, and both are skipped by `pick`.
 
-The common case: with the task's work done, retire the just-finished leaf by
+The common case: with the task's work done — and *before* you commit it, so the
+rename and everything the cascade below writes land inside that one focused
+commit — retire the just-finished leaf by
 running `grove-llm leaf-retire <leaf-path>` — the verb marks it done **in
 place** by adding a `DONE` infix (`NN-<session-kind>-<slug>-k<key>.md` →
 `NN-DONE-<session-kind>-<slug>-k<key>.md`, the infix sitting right after the
@@ -460,8 +451,37 @@ abandoned alike. The cascade walk and the brief-promotion-upward stay prose
 deliberately: both are judgement steps (does the `Done when` hold? what survives
 upward?) with no stable input/output shape that would justify a verb.
 
-**Signal.** Once the task is committed and retired (and any parent-chain cascade
-is settled), run **`grove-llm complete`** as your **last action — then do
+**Commit.** One task = one focused commit — and *one task* means the whole
+session's work: the artifact, whatever the grow verbs wrote, and the `DONE`
+rename that retires the leaf, together with anything the cascade above promoted
+or added. **This is why Retire comes first**: everything the commit must contain
+has to be on disk before the boundary closes, and the message cannot name a node
+you have not yet closed. **Name the work item in the commit message by its
+stable handle `<slug>-k<key>`, never by its position or directory path** —
+positions and paths move under renumber and reorder, but the `<slug>-k<key>`
+handle is permanent, so the historical record stays meaningful after
+restructures (task-tree-scheme §5). Name each node the cascade closed the same
+way, alongside the leaf's own.
+
+That commit is also the boundary the *next* session starts from, and git and jj
+reach it differently — the same asymmetry the tree verbs already carry (`git mv`
+there, a plain rename under jj). In **git** the working tree is not history, so
+one `git commit`, taken once the rename has landed, both records the task and
+leaves the next session a clean tree. In **jj** the working copy *is* a commit:
+this session's edits are already in `@`, so `jj describe -m` records the task but
+leaves that change open, and the next session's first edit is snapshotted into
+*this* task's commit. **Seal it** — `jj new` after describing, once the rename
+has landed (`jj commit -m` is exactly those two) — so the next session opens on
+its own empty change. Sealing is the last thing the boundary does, for the same
+reason Retire precedes it: a `jj new` taken early puts every later edit —
+the rename, a promoted ADR, a `leaf-add` — into the *next* task's change. An
+unsealed change is expensive to unpick afterwards:
+`jj split <fileset>` cannot separate a file both tasks touched, leaving the
+operation log as the only way back. The lane itself belongs to
+`linkuistics:using-jujutsu`; grove states only where its boundary falls.
+
+**Signal.** Once the task is retired and committed (and any parent-chain cascade
+is settled and included), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts
 the next task with fresh context: the verb only writes the relaunch flag to a
 signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the session is the **loop

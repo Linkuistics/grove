@@ -27,6 +27,12 @@ that waits on the barrier cannot read a created-but-empty file.
   *deadline* on a fake harness in the `driver_lease` binary; this is a
   partially-observable *payload* in the cleanup barrier. Same family, different
   mechanism — check whether one fix covers both before assuming it does not.
+- **Answered on that leaf's close: one fix does not cover both.** k145 replaced
+  its deadline with a wait conditioned on the producing child's liveness, which
+  decides only *whether the file will ever appear*; it still returns on the
+  first `exists`, so an existing-but-empty barrier reads exactly as before. The
+  two are independent — publish the payload atomically here regardless of what
+  the waiter does.
 - **Second sighting**, while verifying
   `adoption-migration-session-kind-transition-k98` (a test-only diff touching
   neither cleanup nor the barrier). One `cargo test --locked` aborted at

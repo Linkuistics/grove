@@ -119,12 +119,19 @@ pub enum Command {
     /// nothing creates nothing and simply retires.
     ///
     /// **The integrate step is the one that cares where it lands.** This verb
-    /// appends at the parent's *end*, which is right for it only when the review
-    /// has no live sibling after it. A review's findings are anchored to
-    /// file-and-line positions that an intervening leaf can move silently, so
-    /// when the review does have one, cut the integration with `leaf-insert
-    /// <that first live sibling> …` instead. A `review-*` step re-derives its
-    /// citations and needs no such care.
+    /// appends at the parent's *end*, which is right for it only when nothing
+    /// later in that directory would run first. A review's findings are anchored
+    /// to file-and-line positions an intervening leaf can move silently, so scan
+    /// the review's own parent for the first sibling **entry** after it whose
+    /// subtree still holds live work — a live leaf, or a node directory with one
+    /// anywhere beneath it, since `pick` descends a node in place. If there is
+    /// one, cut the integration with `leaf-insert <that entry> …` instead,
+    /// targeting the entry itself and never a leaf inside it. Later terminal
+    /// leaves, nodes whose subtree is wholly terminal, and the `finish` sentinel
+    /// do not count; nor does anything outside the directory, because the walk
+    /// finishes it — including this appended leaf — before any later sibling of
+    /// an ancestor. A `review-*` step re-derives its citations from the
+    /// producer's commit and needs none of this care.
     LeafAdd(LeafAddArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call —
     /// `<stem>-a`, `<stem>-b`, `<stem>-combine` as three **flat siblings** at
@@ -162,13 +169,22 @@ pub enum Command {
     /// stderr. Working-tree change only — no commit.
     ///
     /// Use it for new work that must sequence ahead of live leaves — and, as the
-    /// **default**, for a **review chain's integrate step** whenever the review
-    /// already has a live sibling after it (target the first of them). A
-    /// review's findings are anchored to a commit and to file-and-line
-    /// positions; an intervening leaf that edits a cited file moves them without
-    /// erroring, and the integrating session then re-derives the reviewer's
-    /// intent from a tree the reviewer never saw. Plain `leaf-add` is correct
-    /// there only when the review has no live sibling left after it.
+    /// **default**, for a **review chain's integrate step**. A review's findings
+    /// are anchored to a commit and to file-and-line positions; an intervening
+    /// leaf that edits a cited file moves them without erroring, and the
+    /// integrating session then re-derives the reviewer's intent from a tree the
+    /// reviewer never saw.
+    ///
+    /// The target there is **the first sibling entry after the review whose
+    /// subtree still holds live work**, read in the review's own parent
+    /// directory. An *entry*, not a leaf: `pick` descends a node directory in
+    /// place, so a later sibling node with a live leaf anywhere beneath it
+    /// blocks too — and that node is the target, never the live leaf inside it,
+    /// which would insert one level down. Terminal leaves, nodes whose subtree
+    /// is wholly terminal, and the driver's `finish` sentinel never block. Plain
+    /// `leaf-add` is correct there only when no sibling entry blocks: the walk
+    /// finishes the review's own directory, appended leaf included, before any
+    /// later sibling of an ancestor.
     LeafInsert(LeafInsertArgs),
     /// Convert a live leaf file `NN-<kind>-<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`

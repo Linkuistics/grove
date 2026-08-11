@@ -250,18 +250,24 @@ parent's next free position, so one cut after unrelated work lands after it, and
 a sibling `leaf-insert` can split a chain that was contiguous. Grove enforces
 none of it.
 _Avoid_: reading that as "adjacency never matters" — it is per hop, and the two
-differ. A `review-*` leaf **re-derives** (it reads the producer's commit, which
-history holds immutably, and computes its own `path:line` citations against the
-tree as it then stands), so a gap before it costs nothing. An
-`integrate-review-*` leaf **consumes** citations the review already froze into
-prose, against a working tree that has since moved, and the drift is *silent*.
-So an integration is cut **immediately after its review by default**, with
-`leaf-insert` at the review's first live sibling whenever it has one (`leaf-add`
-appends at the directory's *end*, so it is right only when the review has no live
-sibling left after it); the exception is a
-check, not a judgement — depart only when the intervening work provably touches
-no file the findings cite. It is a rule for the session cutting the leaf, never
-something the tree guarantees.
+differ. A `review-*` step re-derives: its body names the producer's stable
+handle, task commits name their work item by that handle, so it locates the
+producer's commit and reads that diff against the current source, and nothing it
+consumes had been written down for intervening work to stale. An
+`integrate-review-*` step consumes citations the review already froze into prose,
+against a working tree that has since moved, and the drift is **silent**. So an
+integration is cut where [[Pick]] reaches it next — `leaf-insert` at **the first
+sibling entry after the review whose subtree still holds live work**, an *entry*
+because the walk descends a node in place, so a later sibling node with a live
+descendant blocks and the **node** is the target rather than the leaf inside it.
+Terminal leaves, wholly terminal nodes and the `finish` sentinel do not block,
+and when nothing blocks `leaf-add` is right, because pre-order finishes the
+review's own directory before any later sibling of an ancestor. It is a rule for
+the session cutting the leaf, never something the tree guarantees.
+_Avoid_: an exception for intervening work that "provably touches no file the
+findings cite". Nothing can supply that proof at the moment the leaf is cut: the
+intervening leaf has not run, and grove makes no leaf's eventual file set part of
+its contract, so a goal or a pointer list is a guess wearing a check's clothes.
 _Avoid_: giving either research leaf a `**Harness:**` declaration. Their
 `research-a` and `research-b` session kinds are the configuration keys.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
@@ -434,16 +440,18 @@ lifecycle exception — a driver-owned `finish` sentinel is skipped while any
 non-finish leaf is live — and among non-finish leaves nothing modulates the
 walk: no priority, no grouping, no set of leaves that must finish before another
 is considered. Ordering in a grove is
-**contiguity**, at every level, and it is the only ordering grove offers: a
-[[Review chain]]'s steps run in sequence because they are siblings at adjacent
-[[Position]]s, exactly as a decomposition's children are. That contiguity is a
-*convention*, not a guarantee — a step cut after unrelated work lands after it,
-and a sibling `leaf-insert` can split a chain. The flat shape accepts that cost
-rather than defending against it, but not uniformly: an `integrate-review-*`
-step consumes `path:line` citations its review already froze, so it is cut
-adjacent to that review by default (with `leaf-insert`), while a `review-*` step
-re-derives everything it needs and is placed wherever `leaf-add` lands it. Its
-value is that a
+**position order**, at every level, and it is the only ordering grove offers:
+what runs next is the next live leaf the walk reaches, exactly as for a
+decomposition's children. Nothing holds a [[Review chain]]'s steps together —
+a step cut after unrelated work lands after that work, and a sibling
+`leaf-insert` can split a chain that was adjacent, so its steps are **not**
+contiguous by construction and need not run consecutively. The flat shape accepts
+that cost rather than defending against it, but not uniformly: an
+`integrate-review-*` step consumes `path:line` citations its review already
+froze, so it is cut where this walk reaches it next — `leaf-insert` at the first
+sibling entry after the review whose subtree still holds live work — while a
+`review-*` step re-derives everything it needs and is placed wherever `leaf-add`
+lands it. Its value is that a
 human computes it **by eye** — `find .grove` shows the tree and the next session
 is the first non-finish name with no outcome infix — which is what makes "the
 tree is the only state" worth something rather than merely true.
@@ -452,9 +460,10 @@ _Avoid_: expecting `pick` to **schedule** — to finish a group before consideri
 **Position** (`NN`):
 The **mutable** 2-digit zero-padded per-level locator of an entry among its directory's siblings — the sort input within one directory (lexical == numeric == DFS), rewritten on insert/reorder. It is a locator, **not** an identity.
 _Avoid_: using a position (or a directory path) as a durable cross-reference — it moves under renumber. Reference by the [[Permanent key]] or [[Work-item handle]] instead.
-_Avoid_: reading adjacency as a structural claim. A [[Review chain]]'s steps are
-adjacent because each was appended when the previous session finished, not
-because anything holds them together; nothing refuses an insert between them.
+_Avoid_: reading adjacency as a structural claim, or as a fact about how chains
+are built. A [[Review chain]]'s steps are adjacent only when the session cutting
+the next one made them so; an append lands at the parent's *end*, behind whatever
+live work already sat there, and nothing refuses an insert between them either.
 _Avoid_: the converse — concluding that because nothing holds them together,
 where a step lands is free. It is free for a `review-*` step and not for an
 `integrate-review-*` one, whose findings are anchored to positions in files an

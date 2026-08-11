@@ -341,11 +341,16 @@ and corpus and destroy the independence the pair is run for.
 Grove does not validate a cross-leaf grammar, so nothing groups the steps, orders
 them, or requires that a chain be complete or contiguous. Where a step *should*
 land is therefore methodology, not mechanism, and it differs by hop: a `review-*`
-step re-derives its citations from the producer's commit and goes wherever
-`leaf-add` puts it, while an `integrate-review-*` step consumes citations its
-review already froze into prose, against a working tree that has since moved and
-can shift them silently, so it is cut adjacent to that review with `leaf-insert`.
-Nothing in `src/` enforces or checks that. `research-a` and
+step re-derives its citations from the producer's commit — located by the stable
+handle its body names — and goes wherever `leaf-add` puts it, while an
+`integrate-review-*` step consumes citations its review already froze into prose,
+against a working tree that has since moved and can shift them silently. So the
+integration is cut where `select` would reach it next: `leaf-insert` at the first
+sibling entry after the review whose subtree still holds live work — an *entry*,
+because `collect_live_leaf_entries` descends a node directory in place, and
+directory-local, because that same pre-order finishes the review's own directory
+before any later sibling of an ancestor. Nothing in `src/` enforces or checks
+that. `research-a` and
 `research-b` share one discipline but are separate configuration keys, which is
 how a vendor pair reaches two different commands without any per-leaf metadata;
 whether those two commands are materially independent is configuration-owner

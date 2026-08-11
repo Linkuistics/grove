@@ -169,6 +169,295 @@ fn there_is_no_chain_constructor_left_to_call() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Where the integrate step lands — pinned by asking `pick`, not by name
+//
+// The methodology says an integration is cut where `pick` reaches it next, and
+// names the condition: `leaf-insert` at the first sibling entry after the review
+// whose subtree still holds live work. No verb enforces it, so what these tests
+// hold is the *rule*, in the only terms that make it a scheduling claim — what
+// the walk selects. A filename-adjacency assertion cannot distinguish a rule that
+// works from one that merely looks tidy, which is how the superseded
+// "first live leaf after it" wording survived: it is indistinguishable from the
+// correct rule until a later sibling is a **node**.
+//
+// Each shape therefore asserts both selections: what runs next after the cut, and
+// what the *other* verb would have handed the session instead.
+
+/// The grove-root-relative path `pick` selects, or `None` for a finished grove.
+fn picked(worktree: &Path) -> Option<String> {
+    let (stdout, stderr, ok) = run(worktree, &["pick"]);
+    assert!(ok, "pick failed: {stderr}");
+    let line = stdout.trim();
+    if line.is_empty() {
+        return None;
+    }
+    // Canonicalised, because a temp dir reaches the binary through `/var` and
+    // comes back through `/private/var` on macOS.
+    let root = worktree.join(".grove").canonicalize().unwrap();
+    Some(
+        Path::new(line)
+            .canonicalize()
+            .unwrap_or_else(|e| panic!("pick returned unresolvable {line:?}: {e}"))
+            .strip_prefix(&root)
+            .unwrap_or_else(|_| panic!("pick returned {line:?}, not a path under {root:?}"))
+            .to_string_lossy()
+            .into_owned(),
+    )
+}
+
+fn retire(worktree: &Path, rel: &str) {
+    let (_, stderr, ok) = run(worktree, &["leaf-retire", &format!(".grove/{rel}")]);
+    assert!(ok, "leaf-retire {rel} failed: {stderr}");
+}
+
+fn add(worktree: &Path, parent: &str, slug: &str, kind: &str) {
+    let (_, stderr, ok) = run(worktree, &["leaf-add", parent, slug, "--kind", kind]);
+    assert!(ok, "leaf-add {slug} failed: {stderr}");
+}
+
+fn insert(worktree: &Path, target: &str, slug: &str, kind: &str) {
+    let (_, stderr, ok) = run(
+        worktree,
+        &[
+            "leaf-insert",
+            &format!(".grove/{target}"),
+            slug,
+            "--kind",
+            kind,
+        ],
+    );
+    assert!(ok, "leaf-insert at {target} failed: {stderr}");
+}
+
+fn decompose(worktree: &Path, leaf: &str, child: &str) {
+    let (_, stderr, ok) = run(
+        worktree,
+        &["leaf-decompose", &format!(".grove/{leaf}"), child],
+    );
+    assert!(ok, "leaf-decompose {leaf} failed: {stderr}");
+}
+
+/// A retired producer and review with one ordinary live leaf behind them — the
+/// easy shape, and the only one the superseded wording also got right.
+fn chain_with_a_live_sibling() -> TempDir {
+    let t = grove();
+    add(t.path(), ".", "sync", "design");
+    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "unrelated", "impl");
+    retire(t.path(), "01-design-sync-k1.md");
+    retire(t.path(), "02-review-design-sync-review-k2.md");
+    t
+}
+
+#[test]
+fn insert_before_a_later_live_leaf_makes_the_integration_run_next() {
+    let t = chain_with_a_live_sibling();
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("03-impl-unrelated-k3.md"),
+        "the unrelated leaf is what stands between the review and its integration"
+    );
+
+    insert(
+        t.path(),
+        "03-impl-unrelated-k3.md",
+        "sync-integrate",
+        "integrate-review-design",
+    );
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("03-integrate-review-design-sync-integrate-k4.md"),
+        "the integration takes the blocking sibling's slot and runs next"
+    );
+
+    // The contrast, on an identical tree: `leaf-add` appends at the parent's
+    // *end*, so the unrelated leaf runs first and edits whatever it likes in the
+    // files the findings cite before the integration ever opens them.
+    let wrong = chain_with_a_live_sibling();
+    add(
+        wrong.path(),
+        ".",
+        "sync-integrate",
+        "integrate-review-design",
+    );
+    assert_eq!(
+        picked(wrong.path()).as_deref(),
+        Some("03-impl-unrelated-k3.md"),
+        "appending puts the integration behind the leaf it needed to precede"
+    );
+}
+
+#[test]
+fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
+    // The shape the superseded wording gets wrong. `pick` descends a node
+    // directory in place, so a live leaf *inside* a later sibling node runs
+    // before anything appended after that node — the node blocks exactly as a
+    // live leaf would, and the node is the entry to insert before.
+    let t = grove();
+    add(t.path(), ".", "sync", "design");
+    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "follow-up", "impl");
+    decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
+    retire(t.path(), "01-design-sync-k1.md");
+    retire(t.path(), "02-review-design-sync-review-k2.md");
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("03-follow-up-k3/01-impl-detail-k4.md"),
+        "a live descendant of a later sibling node is what runs next"
+    );
+
+    insert(
+        t.path(),
+        "03-follow-up-k3",
+        "sync-integrate",
+        "integrate-review-design",
+    );
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("03-integrate-review-design-sync-integrate-k5.md"),
+        "inserting before the node directory puts the integration ahead of its whole subtree"
+    );
+    assert!(
+        t.path().join(".grove/04-follow-up-k3").is_dir(),
+        "the node shifted down one position with its subtree intact"
+    );
+}
+
+#[test]
+fn targeting_the_blocking_nodes_descendant_inserts_at_the_wrong_level() {
+    // Why the rule says *entry* and names the node as the target. Aiming at the
+    // live leaf that `pick` would have selected is the natural mistake, and it is
+    // silent: the integration still runs next, so nothing about the selection
+    // reveals that the leaf landed a level down, inside a node whose brief
+    // charters other work and whose close will now roll it up.
+    let t = grove();
+    add(t.path(), ".", "sync", "design");
+    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "follow-up", "impl");
+    decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
+    retire(t.path(), "01-design-sync-k1.md");
+    retire(t.path(), "02-review-design-sync-review-k2.md");
+
+    insert(
+        t.path(),
+        "03-follow-up-k3/01-impl-detail-k4.md",
+        "sync-integrate",
+        "integrate-review-design",
+    );
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("03-follow-up-k3/01-integrate-review-design-sync-integrate-k5.md"),
+        "it runs next either way — the defect is the level, not the order"
+    );
+    assert!(
+        !t.path()
+            .join(".grove/03-integrate-review-design-sync-integrate-k5.md")
+            .exists(),
+        "the integration never reached the review's own directory"
+    );
+}
+
+#[test]
+fn terminal_entries_between_the_steps_do_not_block_an_append() {
+    // Terminal entries are exempt because `pick` never stops at one: a `DONE`
+    // leaf, and a node whose whole subtree is terminal. A rule that counted them
+    // would force an insert that buys nothing and renumbers live siblings for it.
+    let t = grove();
+    add(t.path(), ".", "sync", "design");
+    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "old", "impl");
+    add(t.path(), ".", "stale", "impl");
+    decompose(t.path(), "04-impl-stale-k4.md", "gone");
+    for rel in [
+        "01-design-sync-k1.md",
+        "02-review-design-sync-review-k2.md",
+        "03-impl-old-k3.md",
+        "04-stale-k4/01-impl-gone-k5.md",
+    ] {
+        retire(t.path(), rel);
+    }
+    assert_eq!(
+        picked(t.path()),
+        None,
+        "nothing after the review is live, so nothing blocks"
+    );
+
+    add(t.path(), ".", "sync-integrate", "integrate-review-design");
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("05-integrate-review-design-sync-integrate-k6.md"),
+        "an append at the parent's end still runs next"
+    );
+}
+
+#[test]
+fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
+    // Why the condition is directory-local. The review sits inside a node, and a
+    // later sibling *of that node* holds live work — but pre-order finishes the
+    // review's own directory, including the leaf just appended to its end, before
+    // it visits any later sibling of an ancestor. So there is nothing to defend
+    // against and `leaf-add` is correct.
+    let t = grove();
+    add(t.path(), ".", "inner", "design");
+    decompose(t.path(), "01-design-inner-k1.md", "sync");
+    add(t.path(), "inner-k1", "sync-review", "review-design");
+    add(t.path(), ".", "outer", "impl");
+    decompose(t.path(), "02-impl-outer-k4.md", "later");
+    retire(t.path(), "01-inner-k1/01-design-sync-k2.md");
+    retire(t.path(), "01-inner-k1/02-review-design-sync-review-k3.md");
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("02-outer-k4/01-impl-later-k5.md"),
+        "the only live work is in the outer sibling node"
+    );
+
+    add(
+        t.path(),
+        "inner-k1",
+        "sync-integrate",
+        "integrate-review-design",
+    );
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("01-inner-k1/03-integrate-review-design-sync-integrate-k6.md"),
+        "the appended integration still precedes the whole later sibling node"
+    );
+}
+
+#[test]
+fn the_finish_sentinel_does_not_block_an_append() {
+    // The `finish` leaf is skipped while any ordinary leaf is live, so it is not
+    // eligible work and cannot block — which is why the rule says *live work*
+    // rather than *a live leaf*. It is written by hand because `leaf-add` refuses
+    // the driver-reserved kind, which is exactly the situation being modelled:
+    // the driver appended it, and ordinary work was inserted ahead of it since.
+    let t = grove();
+    add(t.path(), ".", "sync", "design");
+    add(t.path(), ".", "sync-review", "review-design");
+    fs::write(
+        t.path().join(".grove/03-finish-finish-k3.md"),
+        "# finish-k3\n",
+    )
+    .unwrap();
+    retire(t.path(), "01-design-sync-k1.md");
+    retire(t.path(), "02-review-design-sync-review-k2.md");
+
+    add(t.path(), ".", "sync-integrate", "integrate-review-design");
+
+    assert_eq!(
+        picked(t.path()).as_deref(),
+        Some("04-integrate-review-design-sync-integrate-k4.md"),
+        "the integration appended behind the sentinel still runs before it"
+    );
+}
+
 /// The release's central compatibility promise, pinned by the one shape that
 /// can regress it silently: **a chain node left by the old constructor**.
 ///

@@ -184,21 +184,33 @@ one.** There is no chain verb and no chain node — each step is an ordinary
 grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
 
 # the review's last act, if it found something worth acting on — but
-# `leaf-insert <the review's first live sibling>` instead, if it has one
+# `leaf-insert <first blocking sibling entry>` instead, if there is one
 grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
 ```
 
-**The integration is placed next to its review on purpose.** It *consumes* what
-the review wrote down — findings anchored to files and line numbers — and it
-resolves them against the working tree as it *then* stands, so anything that
-edits a cited file in between moves those lines silently and leaves the
-integrating session guessing what the reviewer meant. A review, by contrast,
-*re-derives* everything from the producer's commit and can land anywhere, which
-is why only one of the two hops needs care. `leaf-add` appends at the *end* of
-the directory, so use `leaf-insert` for the integration whenever the review
-already has a live sibling after it — targeting the first of them — and depart
-from adjacency only when the intervening work provably touches no file the
-findings cite.
+**The integration is placed next to its review on purpose.** An
+`integrate-review-*` step consumes what the review wrote down — findings anchored
+to files and line numbers — and resolves them against the working tree as it
+*then* stands, so anything that edits a cited file in between moves those lines
+and the drift is **silent**, leaving the integrating session guessing what the
+reviewer meant. A `review-*` step re-derives by contrast: its body names the
+producer's stable handle, task commits name their work item by that handle, so it
+finds the producer's commit and reads that diff against the current source. It
+can land anywhere, which is why only one of the two hops needs care.
+
+`leaf-add` appends at the *end* of the directory, so use `leaf-insert` for the
+integration whenever there is a blocking sibling, and target **the first sibling
+entry after the review whose subtree still holds live work**. *Entry*, not leaf:
+`pick` descends a node directory in place, so a later sibling node with a live
+leaf anywhere beneath it blocks too, and the **node directory** is the target,
+never the live leaf inside it (that inserts at the wrong level). A later `DONE`
+or `ABANDONED` leaf, **a node whose subtree is wholly terminal**, and the
+driver's `finish` sentinel are all stepped over, so none of them blocks — and
+when nothing blocks, `leaf-add` is exactly right, because the walk finishes the
+review's own directory, including the leaf just appended to it, before any later
+sibling of an ancestor. There is no exception: at the moment the leaf is cut, the
+blocking work has not run and no leaf's eventual file set is part of its
+contract, so nothing could establish one.
 
 A review that finds nothing creates nothing and simply retires — that empty
 triage session is what the lazy shape removes. But the bigger payoff is that the

@@ -141,26 +141,60 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
     }
 }
 
-/// Where a chain's steps *land* is the one thing no verb can carry: `leaf-add`
-/// appends at the end, `pick` is a walk, and grove reads no relationship between
-/// leaves. So the placement rule lives only in prose — and the blanket version
-/// of it ("use `leaf-insert` when the order genuinely matters") supplied a
-/// judgement call with no test for making it. The first session ever to face
-/// that call reached for plain `leaf-add` and split its own chain.
-///
-/// The replacement is **per hop**, and both halves have to survive, because each
-/// fails differently. Drop the `integrate` half and the silent-drift defect
-/// returns; drop the `review` half and adjacency reads as a blanket rule, which
-/// would force an insert for a hop that provably needs none and make the whole
-/// thing feel like ceremony. So each surface is pinned for the contrasting verb
-/// pair (`re-derive` / `consume`) as well as for the rule.
-///
-/// Three things are pinned per surface beyond that pair: the **verb**
-/// (`leaf-insert`), the **silence** of the drift — a loud failure would be
-/// self-correcting and the rule would not be needed — and the **exception's
-/// check**, which is what makes this a rule rather than a second shrug.
+/// The live `## Unreleased` section alone. A released `## v<N>.<m>.<p>` heading
+/// is a frozen record of what was true at that tag, so a *current-state*
+/// assertion swept over the whole changelog is wrong in both directions: a
+/// positive one passes on prose describing a superseded design, and a ban on the
+/// superseded formulation would ban the history that legitimately records it.
+/// Scoping to `## Unreleased` keeps the section still being written honest
+/// without touching either.
+fn unreleased(changelog: &str) -> &str {
+    let from = changelog
+        .find("\n## Unreleased")
+        .expect("CHANGELOG.md has no `## Unreleased` section")
+        + 1;
+    let rest = &changelog[from..];
+    // `rest` opens on the heading itself, so the next `\n## ` is the release that
+    // closes the section — or the end of the file, before the first cut.
+    let end = rest.find("\n## ").unwrap_or(rest.len());
+    &rest[..end]
+}
+
+/// The scope helper is load-bearing for `assert_absent`, where a slice that came
+/// back empty — or that never advanced past the heading — would make every ban
+/// pass vacuously while proving nothing. So it is pinned at both ends.
 #[test]
-fn guidance_cuts_the_integrate_step_adjacent_to_the_review_it_integrates() {
+fn the_changelog_scope_is_the_live_section_and_nothing_else() {
+    let live = unreleased(CHANGELOG);
+    assert!(
+        live.starts_with("## Unreleased\n"),
+        "the slice must open on the live heading: {:?}",
+        &live[..live.len().min(40)]
+    );
+    assert!(
+        !live.contains("\n## "),
+        "the slice ran past the live section into a released one"
+    );
+    assert!(
+        live.len() > 1_000 && live.len() < CHANGELOG.len(),
+        "expected a non-empty proper subset, got {} of {} bytes",
+        live.len(),
+        CHANGELOG.len()
+    );
+}
+
+/// Which hop *re-derives* and which one *consumes* is the whole basis of the
+/// placement rule, so it is pinned as a **binding** rather than as two
+/// independent words. A surface can carry `re-derive`, `consume`, `leaf-insert`
+/// and the rule's every other token while stating them the wrong way round —
+/// that document teaches a session to insert the review and append the
+/// integration, which is the exact defect the rule exists to prevent, and the
+/// old whole-document substring pair passed it happily.
+///
+/// So each half is one distinctive token sequence naming its own hop, and the
+/// inverted pair is banned outright.
+#[test]
+fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
         ("content/driving.md", DRIVING),
@@ -168,19 +202,21 @@ fn guidance_cuts_the_integrate_step_adjacent_to_the_review_it_integrates() {
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
-        ("CHANGELOG.md", CHANGELOG),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
-        assert_contains(surface, text, "leaf-insert");
-        assert_contains(surface, text, "silent");
-        assert_contains(surface, text, "touches no file the findings cite");
+        assert_contains(surface, text, "`review-*` step re-derives");
+        assert_contains(surface, text, "`integrate-review-*` step consumes");
+        assert_absent(surface, text, "`review-*` step consumes");
+        assert_absent(surface, text, "`integrate-review-*` step re-derives");
     }
 
-    // The superseded sentence, banned as the sentence it was: it has a current
-    // replacement on every surface that *instructs a session*, and its return
-    // restores exactly the unaided judgement call that failed. `CHANGELOG.md` is
-    // deliberately out of this loop — its released sections are a frozen record
-    // of what was true then, and banning a phrase there would ban the history
-    // along with the instruction.
+    // The review's handoff is the **stable handle**, and saying so is what makes
+    // re-derivation a claim a session can act on rather than an assertion it has
+    // to take on faith: the handle is in the review's own body, task commits name
+    // their work item by it, so the producer's commit is findable. Without that
+    // route the surface has only "the review reads the producer's commit" and no
+    // account of how it finds one.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
         ("content/driving.md", DRIVING),
@@ -188,26 +224,99 @@ fn guidance_cuts_the_integrate_step_adjacent_to_the_review_it_integrates() {
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
+    ] {
+        assert_contains(surface, text, "stable handle");
+        assert_contains(surface, text, "producer's commit");
+    }
+}
+
+/// Where a chain's steps *land* is the one thing no verb can carry: `leaf-add`
+/// appends at the end, `pick` is a walk, and grove reads no relationship between
+/// leaves. So the placement rule lives only in prose — and both looser versions
+/// of it failed. The blanket one ("use `leaf-insert` when the order genuinely
+/// matters") supplied a judgement call with no test for making it. Its
+/// replacement named *the first live leaf after the review*, which is wrong for a
+/// later sibling **node**: `pick` descends a node in place, so a live descendant
+/// of a later sibling node runs before anything appended after it, and the
+/// insert target is that node rather than the leaf inside it.
+///
+/// The current condition is quantified over sibling **entries** and is
+/// directory-local, so it is pinned as the whole noun phrase — a surface that
+/// keeps the verb and loosens the condition fails on the phrase rather than
+/// passing on the word `leaf-insert` alone. Two consequences are pinned beside
+/// it, because each is separately load-bearing: terminal entries do not block
+/// (a rule that made them block would force pointless inserts), and the target
+/// is the node and never its descendant (targeting the descendant inserts at the
+/// wrong level, silently).
+#[test]
+fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
+    const CONDITION: &str =
+        "the first sibling entry after the review whose subtree still holds live work";
+
+    // The surfaces that instruct a session on the placement, in full.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("docs/USAGE.md", USAGE),
+        ("review mechanics spec", SPEC),
+    ] {
+        assert_contains(surface, text, "leaf-insert");
+        assert_contains(surface, text, CONDITION);
+        assert_contains(surface, text, "never the live leaf inside it");
+        assert_contains(surface, text, "a node whose subtree is wholly terminal");
+        // A loud failure would be self-correcting and the rule would not be
+        // needed; the silence is the reason it exists.
+        assert_contains(surface, text, "the drift is **silent**");
+    }
+
+    // …and the surfaces that only *record* it still carry the verb and the exact
+    // condition, so a reader reconciling the glossary or the architecture against
+    // the methodology finds one rule rather than two.
+    for (surface, text) in [
+        ("CONTEXT.md", CONTEXT),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
+    ] {
+        assert_contains(surface, text, "leaf-insert");
+        assert_contains(surface, text, CONDITION);
+    }
+
+    // Both superseded formulations, banned as the sentences they were: each has a
+    // current replacement on every surface that *instructs a session*, and the
+    // return of either restores a rule that mis-selects. The changelog is in the
+    // loop only for its live section, for the reason `unreleased` gives.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("CONTEXT.md", CONTEXT),
+        ("docs/USAGE.md", USAGE),
+        ("review mechanics spec", SPEC),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_absent(surface, text, "when the order genuinely matters");
         assert_absent(surface, text, "when the order matters");
+        assert_absent(surface, text, "the review's first live sibling");
     }
 
-    // Both hops, on every surface that states either — including
-    // `docs/ARCHITECTURE.md`, which has to say the rule is methodology so a
-    // reader does not go looking in `src/` for the enforcement.
+    // The withdrawn exception, banned only where a surface *instructs*. It licensed
+    // departing from adjacency when the intervening work "provably touches no file
+    // the findings cite" — a check no session can run, since the intervening leaf
+    // has not run and grove makes no leaf's file set part of its contract, so it
+    // decayed into the judgement call it replaced. `CONTEXT.md` and the spec keep
+    // the phrase deliberately: a glossary `_Avoid_` line and a spec's rejection
+    // record exist precisely to name a withdrawn rule and say it is withdrawn.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
-        ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
-        ("review mechanics spec", SPEC),
-        ("CHANGELOG.md", CHANGELOG),
-        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
-        assert_contains(surface, text, "re-derive");
-        assert_contains(surface, text, "consume");
+        assert_absent(surface, text, "touches no file the findings cite");
     }
 
     // …and the narrowing keeps the framing it narrows: grove still validates
@@ -217,7 +326,7 @@ fn guidance_cuts_the_integrate_step_adjacent_to_the_review_it_integrates() {
         ("content/SKILL.md", GROVE_SKILL),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("review mechanics spec", SPEC),
-        ("CHANGELOG.md", CHANGELOG),
+        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
     ] {
         assert_contains(surface, text, "cross-leaf grammar");
@@ -449,16 +558,21 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
         "flat",
         "if it found something worth acting on",
         // This verb appends at the parent's end, which is the *wrong* placement
-        // for the integrate step whenever the review still has a live sibling
-        // after it — so the help that teaches the chain has to hand the session
-        // off to the other verb rather than leaving `leaf-add` looking universal.
+        // for the integrate step whenever some later sibling entry would run
+        // first — so the help that teaches the chain has to hand the session off
+        // to the other verb rather than leaving `leaf-add` looking universal, and
+        // has to say when, in terms a session can evaluate against the tree in
+        // front of it.
         "leaf-insert",
+        "whose subtree still holds live work",
+        "wholly terminal",
     ] {
         assert_contains("grove-llm leaf-add --help", &help, expected);
     }
 
     // And the receiving verb teaches why it is the default there, since a
-    // session may well arrive at it first.
+    // session may well arrive at it first — with the same condition, including
+    // the node case that decides *which entry* is the target.
     let insert = Command::cargo_bin("grove-llm")
         .unwrap()
         .args(["leaf-insert", "--help"])
@@ -469,6 +583,9 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
         "integrate step",
         "anchored",
         "Plain `leaf-add` is correct there only",
+        "the first sibling entry after the review whose subtree still holds live work",
+        "never the live leaf inside it",
+        "wholly terminal",
     ] {
         assert_contains("grove-llm leaf-insert --help", &insert, expected);
     }

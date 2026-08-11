@@ -1103,10 +1103,11 @@ mod tests {
         // its producer — grove validates no cross-leaf grammar and contiguity
         // was always a convention; nothing here enforces one.
         //
-        // For *this* hop the gap is also harmless, which is why `leaf-add` is
-        // the right verb: the review re-derives everything from the producer's
-        // commit and computes its own citations against the tree it finds. The
-        // integrate hop is the one that cares — see the test below.
+        // For *this* hop the gap costs nothing that was already written down,
+        // which is why `leaf-add` is the right verb: the review locates the
+        // producer's commit by the stable handle its body names and computes its
+        // own citations against the tree it finds. The integrate hop is the one
+        // that cares — see the test below.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         leaf_add(&g, &g, "sync", Kind::Design).unwrap();
@@ -1119,16 +1120,20 @@ mod tests {
 
     #[test]
     fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
-        // The shape the methodology asks a review session to produce when the
-        // review still has a live sibling after it. Nothing in `tree_*` knows
-        // that an `integrate-review-*` leaf belongs next to its review — the
-        // rule is guidance, and this pins what obeying it looks like, because
-        // the alternative (`leaf-add`, which would put the integration at 04)
-        // is equally well-formed and equally accepted here.
+        // The renumber the methodology's easy case produces: one blocking leaf
+        // directly after the review. Nothing in `tree_*` knows that an
+        // `integrate-review-*` leaf belongs next to its review — the rule is
+        // guidance, and this pins the *mechanics* of obeying it, because the
+        // alternative (`leaf-add`, which would put the integration at 04) is
+        // equally well-formed and equally accepted here.
         //
         // Why it matters is not visible to any verb: the integration resolves
         // `path:line` citations its review already froze, so an unrelated leaf
-        // running first can move them without erroring.
+        // running first can move them without erroring. And whether the rule
+        // *selects* correctly is a claim about the walk rather than about names,
+        // so it is pinned where both are reachable — `tests/composition_verbs.rs`
+        // asks `pick` what runs next for a blocking leaf, a blocking sibling
+        // node, terminal entries and a later outer node.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         leaf_add(&g, &g, "sync", Kind::Design).unwrap();

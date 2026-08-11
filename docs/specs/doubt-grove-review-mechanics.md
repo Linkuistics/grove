@@ -81,11 +81,12 @@ and, if that review finds something worth acting on, its own last act produces:
 07-integrate-review-design-sync-design-integrate-k22.md
 ```
 
-Here the review has no live sibling after it, so the next free position *is* the
-slot beside it and `leaf-add` puts the integration where it belongs. When that is
-not so — some live leaf already sits at 07 or beyond — the integration is cut
-with `leaf-insert` at the first such sibling instead, for the reason in *What the
-flat shape gives up, deliberately* below.
+Here nothing later in the directory still holds live work, so the next free
+position *is* the slot beside the review and `leaf-add` puts the integration
+where it belongs. When that is not so — a live leaf, or a node directory with a
+live leaf beneath it, already sits at 07 or beyond — the integration is cut with
+`leaf-insert` at the first such **sibling entry** instead, for the reason in
+*What the flat shape gives up, deliberately* below.
 
 **The creating session writes the new leaf's body**, and that is the reason to
 create it late rather than up front. A review leaf can name the exact claim the
@@ -129,35 +130,60 @@ here is enforced.
 It is a property of what the next step consumes, not of how far apart the leaves
 sit:
 
-- A **`review-*`** step *re-derives*. It reads the producer's commit — an
-  immutable object history holds whatever lands afterwards — and computes its own
-  `path:line` citations against the tree as it then stands. Intervening work
-  changes what the review reads and invalidates nothing, because nothing had been
-  written down. Plain `leaf-add` is correct wherever it lands it.
-- An **`integrate-review-*`** step *consumes*. Its input is the set of citations
-  the review already froze into prose, resolved against a working tree that has
-  since moved. An intervening edit to a cited file shifts those lines and the
-  drift is **silent** — nothing errors, the finding points somewhere slightly
-  wrong, and the integrating session must re-derive the reviewer's intent from a
-  codebase the reviewer never saw.
+- A `review-*` step re-derives, and its handoff is the **stable handle**: the
+  review body names the producer under `**Reviews:**`, task commits name their
+  work item by that handle (*task-tree-scheme* §5), so the review locates the
+  producer's commit from the handle and reads that diff against the current
+  source. Nothing it consumes had been written down for intervening work to
+  stale, so plain `leaf-add` is correct wherever it lands. The claim is *fresh
+  re-derivation*, not a cost-free gap: intervening work that rewrote the reviewed
+  artifact, its requirements or its recorded evidence leaves the reviewer
+  reconciling a historical diff against a moved tree — visible work, done
+  deliberately, which is precisely what the other hop does not get.
+- An `integrate-review-*` step consumes. Its input is the set of citations the
+  review already froze into prose, resolved against a working tree that has since
+  moved. An intervening edit to a cited file shifts those lines and the drift is
+  **silent** — nothing errors, the finding points somewhere slightly wrong, and
+  the integrating session must re-derive the reviewer's intent from a codebase the
+  reviewer never saw.
 
-So an integration is cut **immediately after the review it integrates, by
-default**, which makes `leaf-insert` the verb whenever the review already has a
-live sibling after it. `leaf-add` appends at the *end* of the parent, so it is
-correct only when the review has none; terminal siblings in between are
-irrelevant, because `pick` skips them and never stops between the two steps:
+So an integration is cut **where `pick` reaches it next**, and the condition is
+mechanical and **directory-local**: `leaf-insert` at **the first sibling entry
+after the review whose subtree still holds live work**.
 
 ```text
-grove-llm leaf-insert <the review's first live sibling> <stem>-integrate --kind integrate-review-<producer>
+grove-llm leaf-insert <first blocking sibling entry> <stem>-integrate --kind integrate-review-<producer>
 ```
 
-The exception is a check, not a judgement: depart from adjacency only when the
-intervening work **provably touches no file the findings cite**, established by
-listing the paths the findings name and checking the intervening leaf against
-them. Where that check cannot be performed — the intervening leaf's file set is
-not yet knowable — the exception does not apply. This is guidance for the session
-cutting the leaf and nothing more; making it a *mechanism* would be a separate
-decision, with its own ADR.
+Three properties of the walk (`collect_live_leaf_entries` in `src/tree_read.rs`)
+fix that wording, and a looser one is wrong on each:
+
+- It quantifies over **entries**, not leaves. The walk reads a level in position
+  order and recurses into a node *in place*, so a later sibling node with a live
+  leaf anywhere beneath it runs before anything appended after that node. The
+  **node directory** is therefore the insert target, never the live leaf inside
+  it: targeting the descendant inserts one level down, inside a node whose brief
+  does not charter the integration.
+- Terminal entries are exempt — a later `DONE` or `ABANDONED` leaf, **a node
+  whose subtree is wholly terminal**, and the driver's `finish` sentinel, which
+  is skipped while any ordinary leaf is live.
+- It is **directory-local**. Pre-order finishes the review's own directory,
+  including a leaf just appended to its end, before it visits any later sibling
+  of an *ancestor*, so live work in an outer sibling node cannot intervene and
+  needs no defending against. When nothing in the directory blocks, `leaf-add` is
+  exactly right.
+
+**There is no exception, and that is a decision rather than an omission.** The
+earlier form of this rule allowed departing from adjacency when the intervening
+work **provably touches no file the findings cite**. Rejected as unperformable:
+at the moment a review cuts its integration the intervening leaf has not run, and
+Grove makes no leaf's eventual file set part of its contract, so a goal or
+pointer list cannot establish what it will touch. Retaining a check no session
+can perform buys a licence that reads as a judgement call — the exact failure the
+narrowing replaced. Departure remains possible, because none of this is enforced;
+it simply has no sanctioned test. This is guidance for the session cutting the
+leaf and nothing more; making it a *mechanism* would be a separate decision, with
+its own ADR.
 
 Neither composition shape gets a node directory. A node means *this work proved
 bigger than one session* and carries the `BRIEF.md` those extra sessions need;
@@ -226,13 +252,24 @@ configuration.
   an untouched producer. Cover a review step cut after unrelated work, which
   lands after that work rather than beside its producer.
 - Sweep every guidance surface for the **per-hop** placement rule, since no verb
-  can carry it: the `review → integrate` hop names `leaf-insert`, states the
-  commit-and-line anchoring that makes adjacency the default, and gives the
-  exception its check; the `producer → review` hop is stated as the contrasting
-  case that needs no rule. Pin the verb *to the hop*, so a surface that merely
-  offers `leaf-insert` as a general remedy for ordering — the superseded
-  formulation, which supplied a judgement call and no test for making it — fails
-  rather than passing on the word alone.
+  can carry it: the `review → integrate` hop names `leaf-insert` and the exact
+  blocking-sibling condition, the `producer → review` hop claims fresh
+  re-derivation via the stable handle. Bind each property **to its hop in one
+  assertion** — `` `review-*` step re-derives ``, `` `integrate-review-*` step
+  consumes `` — rather than checking the two verbs independently against the
+  whole document, which an inverted surface passes. Ban the inverted pair
+  outright, and scope `CHANGELOG.md` to its live `## Unreleased` section so a
+  frozen release stays historical while the superseded formulation cannot return
+  to the section still being written.
+- Pin the placement rule **behaviourally**, by asking `pick` what runs next
+  rather than asserting filename adjacency: a later direct live leaf (insert
+  before it); a later sibling **node** with a live descendant (insert before the
+  *node*, and inserting at the descendant instead lands the leaf inside that
+  node); terminal leaves and wholly terminal nodes between the two steps (append
+  still runs next); and a review inside a node with live work in a later *outer*
+  sibling node (append inside the review's own directory still runs next). Each
+  shape's contrast case — what the other verb would have selected — is what makes
+  the assertion about scheduling rather than about names.
 - Assert the freshly created leaf's body is the bare template — the stable handle
   and empty sections — carrying no rendered goal, no relationship line, and no
   launch metadata, so the creating session has nothing to edit around.

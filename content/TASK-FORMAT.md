@@ -201,8 +201,8 @@ a pair is cut **eagerly, whole, in one call**.
 
 Its steps are ordinary **flat siblings**. There is no chain node and no chain
 verb: each is an ordinary `leaf-add` — or, for the integration, a `leaf-insert`
-when the review already has a live sibling after it — and it is the **last act**
-of the session before it.
+when some later sibling entry would otherwise run first — and it is the **last
+act** of the session before it.
 
 ```
 grove-llm leaf-add [12] sync-design --kind design
@@ -241,9 +241,9 @@ Three things follow from cutting them late:
   way.
 - **You choose the verb too, and the two hops choose differently.** A review is
   cut with `leaf-add` wherever it lands; an integration is cut **adjacent to the
-  review it integrates**, which means `leaf-insert` — targeting the review's
-  first live sibling — whenever the review has one. *What the shapes are not*,
-  below, carries the reason and the test for departing from it.
+  review it integrates**, which means `leaf-insert` at **the first sibling entry
+  after the review whose subtree still holds live work** whenever there is one.
+  *What the shapes are not*, below, carries the reason and the exact condition.
 
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
@@ -307,19 +307,25 @@ it could be and is not:
   and a later `leaf-insert` can split a chain that was contiguous. Grove refuses
   none of it — it validates no cross-leaf grammar, and contiguity was never an
   enforced unit. **But that does not make every gap equally free**, and the
-  difference is mechanical: a `review-*` leaf **re-derives** its inputs, reading
-  the producer's commit — which history holds immutably — and computing its own
-  `path:line` citations against the tree as it then stands, so intervening work
-  breaks nothing. An `integrate-review-*` leaf **consumes** citations the review
-  already froze into prose, against a working tree that has since moved, and the
-  drift is silent — nothing errors, the finding just points somewhere slightly
-  wrong. So an integration is cut **immediately after its review by default**,
-  with `leaf-insert` at the review's first live sibling whenever it has one;
-  plain `leaf-add` appends at the *end* of the directory, so it is correct only
-  when the review has no live sibling after it (terminal ones do not count —
-  `pick` never stops at one). Depart from adjacency only when the
-  intervening work **provably touches no file the findings cite** — a check you
-  perform against a named path list, not a judgement call.
+  difference is mechanical. A `review-*` step re-derives its inputs: its body
+  names the producer's stable handle, task commits name the work item by that
+  handle, so it locates the producer's commit and reads that diff against the
+  current source — nothing was written down for intervening work to stale. An
+  `integrate-review-*` step consumes citations the review already froze into
+  prose, against a working tree that has since moved, and the drift is
+  **silent** — nothing errors, the finding just points somewhere slightly wrong.
+- **So an integration is cut where `pick` reaches it next**, by a condition that
+  is mechanical and **directory-local**: `leaf-insert` at **the first sibling
+  entry after the review whose subtree still holds live work**. Entry, not
+  leaf — `pick` descends a node in place, so a later sibling *node* with a live
+  descendant blocks, and the **node directory** is the target, never the live
+  leaf inside it (that inserts at the wrong level). A later terminal leaf, **a
+  node whose subtree is wholly terminal**, and the driver's `finish` sentinel do
+  not block. When nothing blocks, plain `leaf-add` is exactly right: pre-order
+  finishes the review's own directory, including a leaf just appended to its end,
+  before it visits any later sibling of an ancestor. There is no exception to
+  check — the intervening leaf has not run yet and grove makes no leaf's eventual
+  file set part of its contract, so nothing could supply the proof.
 
 **The grammar is the five fields above and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders

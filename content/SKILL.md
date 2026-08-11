@@ -337,36 +337,58 @@ it — it validates no cross-leaf grammar, `pick` is a walk and not a scheduler,
 and contiguity was never an enforced unit. What decides whether a gap costs
 anything is **what the next step consumes**:
 
-- **`producer → review` re-derives, so a gap is free.** The review reads the
-  producer's *commit* — which history holds immutably, whatever lands
-  afterwards — and computes its own citations against the tree as it then
-  stands. Intervening work changes what the review reads; it invalidates
-  nothing, because nothing had been written down yet. Plain `leaf-add` is right
-  here even when the review lands after unrelated live work.
-- **`review → integrate` consumes, so a gap corrupts.** A review's findings are
-  anchored to a commit and to `path:line` coordinates, and the integrating
-  session opens the working tree as it *then* stands. Any intervening edit to a
-  cited file moves those lines, and the drift is **silent**: nothing errors, the
-  finding simply points somewhere slightly wrong, and the integrating session has
-  to re-derive what the reviewer meant from a codebase the reviewer never saw.
+- **A `review-*` step re-derives, so `leaf-add` is right wherever it lands.** Its
+  handoff is the producer's **stable handle**: the review's own body names it
+  under `**Reviews:**`, every task commit message names the work item by that
+  handle, so the reviewer finds the producer's commit from the handle and reads
+  that diff against the current source. Nothing had been written down for
+  intervening work to stale. That is narrower than *free* — work that rewrote the
+  reviewed artifact, its requirements, or its recorded evidence leaves the
+  reviewer reconciling a historical diff with a tree that has moved — but the
+  reconciliation is visible, and the reviewer performs it deliberately.
+- **An `integrate-review-*` step consumes, so a gap corrupts.** A review's
+  findings are anchored to a commit and to `path:line` coordinates, and the
+  integrating session opens the working tree as it *then* stands. Any intervening
+  edit to a cited file moves those lines, and the drift is **silent**: nothing
+  errors, the finding simply points somewhere slightly wrong, and the integrating
+  session has to re-derive what the reviewer meant from a codebase the reviewer
+  never saw.
 
-So an integration runs **immediately after the review it integrates, by
-default**, and **`leaf-insert` is the verb** whenever any live leaf already
-follows the review among its siblings — target the first of them. `leaf-add`
-appends at the *end* of the directory, so it is right only when the review has no
-live sibling after it; terminal leaves in between do not count, because `pick`
-never stops at one:
+So an integration is cut **where `pick` reaches it next**, and the condition for
+that is mechanical and **directory-local**. Read the review's *own parent*
+directory at the entries after the review's position, and find **the first
+sibling entry after the review whose subtree still holds live work** — leaf file
+or node directory, whichever comes first. That entry is what blocks, and it is
+the insert target:
 
 ```text
-grove-llm leaf-insert <first live leaf after the review> <stem>-integrate --kind integrate-review-<producer>
+grove-llm leaf-insert <first blocking sibling entry> <stem>-integrate --kind integrate-review-<producer>
 ```
 
-**The exception has a test, not a feeling:** depart from adjacency only when the
-intervening work **provably touches no file the findings cite**. List the paths
-the findings name and check the intervening leaf against them; if that check
-cannot be performed — because what the intervening leaf will touch is not yet
-knowable — you do not have the exception. Adjacency is a rule for the session
-cutting the leaf, never a property the tree guarantees.
+Three things that condition gets right where "the first live leaf after it" does
+not:
+
+- **Terminal entries never block.** A later `DONE` or `ABANDONED` leaf, and **a
+  node whose subtree is wholly terminal**, are stepped straight over; so is the
+  driver's `finish` sentinel, which is skipped while any ordinary work is live.
+- **A later sibling *node* blocks as one entry, and the node is the target.**
+  `pick` descends a node in place, so a live leaf anywhere beneath a later
+  sibling node runs before anything appended after that node. Insert at the
+  **sibling directory**, never the live leaf inside it — targeting the descendant
+  inserts at the wrong level, dropping the integration inside a node whose brief
+  does not charter it.
+- **Nothing outside the directory can intervene.** Pre-order finishes the
+  review's own directory — including an integration just appended to its end —
+  before it visits any later sibling of an *ancestor*. So live work in an outer
+  sibling node is irrelevant, and when no sibling entry blocks, plain `leaf-add`
+  is exactly right.
+
+**There is no exception to check.** Adjacency is unconditional guidance, not
+because departing is forbidden — grove enforces none of this — but because the
+check an exception would need cannot be performed: at the moment a review cuts
+its integration the intervening leaf has not run, and grove makes no leaf's
+eventual file set part of its contract, so a goal or pointer list is not proof of
+what it will touch. A session that departs anyway owns the drift.
 
 **When a picked producer needs fresh review**, the answer is the same
 `leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf

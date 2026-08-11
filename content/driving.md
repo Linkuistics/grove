@@ -491,24 +491,37 @@ These habits make the chain worth its extra sessions:
   asking whether the ADRs are a minimum coherent set — a discipline mismatch
   nothing downstream detects.
 - **Cut the integration adjacent to its review — that means `leaf-insert`.** The
-  two hops are not alike. A review **re-derives**: it reads the producer's
-  commit, which history holds immutably, and computes its own `path:line`
-  citations against the tree as it then stands, so `leaf-add` is right for it
-  wherever it lands. An integration **consumes** citations the review already
-  froze into prose — `src/tree_grow.rs:166`, `CHANGELOG.md:67` — against a
-  working tree that has since moved. Any intervening edit to a cited file shifts
-  those lines *silently*: nothing errors, the finding just points somewhere
+  two hops are not alike. A `review-*` step re-derives: its body names the
+  producer's stable handle, and because every task commit names its work item by
+  that handle, the reviewer finds the producer's commit from it and reads that
+  diff against the current source. Nothing was written down for intervening work
+  to stale, so `leaf-add` is right for it wherever it lands. (Not that a gap is
+  *free*: work that rewrote the artifact, its requirements or its evidence leaves
+  the reviewer reconciling that historical diff with a tree that has moved. It is
+  visible work, done deliberately, which is the whole difference.) An
+  `integrate-review-*` step consumes citations the review already froze into
+  prose — `src/tree_grow.rs:166`, `CHANGELOG.md:67` — against a working tree that
+  has since moved. Any intervening edit to a cited file shifts those lines and
+  the drift is **silent**: nothing errors, the finding just points somewhere
   slightly wrong, and you re-derive the reviewer's intent from a codebase the
-  reviewer never saw. So when the review already has a live sibling after it,
-  cut the integration with `grove-llm leaf-insert <that first live sibling>
-  <stem>-integrate --kind integrate-review-<producer>`; plain `leaf-add` appends
-  at the *end* of the directory, so it is correct only when the review has no
-  live sibling after it. Terminal siblings in between are harmless — `pick` never
-  stops at one. Depart from adjacency only when the intervening work **provably
-  touches no file the findings cite** — list the paths the findings name and
-  check the intervening leaf against them. If you cannot run that check, you do
-  not have the exception, and the cost of being wrong is not that the integration
-  fails but that it quietly integrates the wrong thing.
+  reviewer never saw.
+- **The condition is directory-local, and it is over *entries*, not leaves.** Cut
+  the integration with `grove-llm leaf-insert <target> <stem>-integrate --kind
+  integrate-review-<producer>`, where the target is **the first sibling entry
+  after the review whose subtree still holds live work**. `pick` descends a node
+  directory in place, so a later sibling *node* with one live leaf anywhere
+  beneath it blocks exactly as a live leaf does — and the **node** is the target,
+  never the live leaf inside it, which would insert at the wrong level and drop
+  the integration inside a node whose brief does not charter it. A later terminal
+  leaf, **a node whose subtree is wholly terminal**, and the driver's `finish`
+  sentinel are all stepped over and none of them blocks. When nothing blocks,
+  plain `leaf-add` is correct: pre-order finishes the review's own directory —
+  including the leaf you just appended to its end — before any later sibling of
+  an ancestor, so live work in an outer node cannot get in front of you. There is
+  no exception to check: the blocking leaf has not run, and grove makes no leaf's
+  eventual file set part of its contract, so "it probably won't touch those
+  files" is a guess, not a proof. The cost of being wrong is not that the
+  integration fails but that it quietly integrates the wrong thing.
 - **Name the leaves off the producer's stem** — `<stem>`, `<stem>-review`,
   `<stem>-integrate`. That is what makes `find .grove` — and any file manager —
   show the chain as a chain without opening a file. The suffix goes on the end

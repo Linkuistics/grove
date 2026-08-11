@@ -411,7 +411,11 @@ however its leaves finished — it is **implicitly done** — a brief is context
 not a task, so it is never marked done; its done-ness *is* the absence of a live
 child. **The close asks the human nothing, for either node species.** A node is
 never marked, and nothing else on disk moves with it either — no infix, no
-sibling, no review. A question there would have gated an *inference*, and
+sibling, no review. Grove enforces the "no infix" half rather than trusting you
+to remember it: a positioned, keyed *directory* name is task-shaped, so one
+hand-marked `DONE` makes it a malformed tree the verbs refuse by name — not a
+foreign entry they skip along with every live leaf beneath it. A question there
+would have gated an *inference*, and
 `leaf-add` reopens a close made in error anyway. That
 is the first of the two tests deciding where grove *does* ask;
 confirmation-boundary carries both, and the second is why pruning and the

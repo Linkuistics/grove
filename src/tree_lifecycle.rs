@@ -36,7 +36,7 @@
 use crate::leaf::Kind;
 use crate::tree_access;
 use crate::tree_grow::{collect_all_names, leaf_add_unlocked, next_child_position};
-use crate::tree_id::{next_key, parse, parse_current, sort_key, validate_slug, Entry, Outcome};
+use crate::tree_id::{next_key, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -747,30 +747,17 @@ fn prune_subtree(dir: &Path, result: &mut PruneResult) -> Result<()> {
 /// in `dir`'s subtree that `leaf-prune` will act on, in the per-level comparator
 /// order, without mutating the filesystem.
 fn plan_subtree(dir: &Path, plan: &mut Vec<PlannedLeaf>) -> Result<()> {
-    let mut entries: Vec<(String, Entry, PathBuf)> = Vec::new();
-    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let Some(parsed) = parse_current(&name)
-            .with_context(|| format!("reading current Grove entry {}", entry.path().display()))?
-        else {
-            continue;
-        };
-        let is_dir = match entry.file_type() {
-            Ok(t) => t.is_dir(),
-            Err(_) => continue,
-        };
-        let kind_ok = match parsed {
-            Entry::Node { .. } => is_dir,
-            Entry::Brief | Entry::Leaf { .. } => !is_dir,
-        };
-        if kind_ok {
-            entries.push((name, parsed, entry.path()));
-        }
-    }
-    entries.sort_by_key(|a| sort_key(&a.0));
-
-    for (name, entry, path) in entries {
+    // The one strict level reader (`tree_read::read_level`), so a subtree `pick`
+    // refuses is never a subtree `leaf-prune` silently walks past. The *on-disk*
+    // name is what a mark renames, so it comes from the path rather than from
+    // `Entry::name()` — position padding is lenient on the way in, and a hand-typed
+    // `5-impl-a-k1.md` would re-render as `05-…` and rename a file that is not there.
+    for (entry, path) in crate::tree_read::read_level(dir)? {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(str::to_string)
+            .with_context(|| format!("tree entry {} has no filename", path.display()))?;
         match entry {
             Entry::Leaf {
                 outcome: Outcome::Live,

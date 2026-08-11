@@ -27,7 +27,7 @@
 
 use crate::leaf::Kind;
 use crate::task_relationship::Relationship;
-use crate::tree_id::{next_key, next_keys, parse, parse_current, validate_slug, Entry, Outcome};
+use crate::tree_id::{next_key, next_keys, parse, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
 use std::fs;
@@ -571,34 +571,16 @@ pub(crate) fn next_child_position(dir: &Path) -> Result<u32> {
 }
 
 /// Read one directory's grove children — `(Entry, path)` for each name that parses
-/// *and* whose real filesystem kind matches (a node is a directory; a leaf/brief is
-/// a file), sorted by the per-level comparator. The charter brief is included
-/// (callers filter it via `position()` returning `None`). Mirrors `tree_read`'s
-/// reconciliation so grow and read agree on what is a sibling.
+/// *and* whose real on-disk species matches, sorted by the per-level comparator.
+/// The charter brief is included (callers filter it via `position()` returning
+/// `None`).
+///
+/// **`tree_read::read_level` itself**, not a mirror of it: grow and read agreeing
+/// on what a sibling is matters most where they *disagreed* — a task-shaped entry
+/// the reader now refuses would otherwise stay invisible to `collect_all_names`,
+/// and `next_key` would re-issue a permanent key that is still live inside it.
 fn read_children(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
-    let mut entries: Vec<(String, Entry, PathBuf)> = Vec::new();
-    for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
-        let entry = entry?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let Some(parsed) = parse_current(&name)
-            .with_context(|| format!("reading current Grove entry {}", entry.path().display()))?
-        else {
-            continue;
-        };
-        let is_dir = match entry.file_type() {
-            Ok(t) => t.is_dir(),
-            Err(_) => continue,
-        };
-        let kind_ok = match parsed {
-            Entry::Node { .. } => is_dir,
-            Entry::Brief | Entry::Leaf { .. } => !is_dir,
-        };
-        if kind_ok {
-            entries.push((name, parsed, entry.path()));
-        }
-    }
-    entries.sort_by_key(|a| crate::tree_id::sort_key(&a.0));
-    Ok(entries.into_iter().map(|(_, e, p)| (e, p)).collect())
+    crate::tree_read::read_level(dir)
 }
 
 /// Recursively collect every grove entry's name in the tree (leaves live and
@@ -1319,12 +1301,16 @@ mod tests {
 
     // ---- one call, one mutation (chain-construction-review-k39 F1) ----------
 
-    /// Occupy a run's **node** destination with an entry the numbering does not
-    /// see: a *file* carrying a node's name. `read_children` reconciles each
-    /// parsed name against its real filesystem kind, so this is skipped when the
-    /// position and keys are allocated — and `Path::exists` still finds it when
-    /// the destination is checked. Exactly the gap between the parsed tree and
-    /// the filesystem that the check exists to cover.
+    /// Occupy a run's **node** destination with a *file* carrying a node's name.
+    ///
+    /// This used to be the way to reach the pre-write `node_dir.exists()` check:
+    /// the reader skipped the mismatch as foreign, so numbering allocated straight
+    /// over it, and only `Path::exists` saw it. The task-shaped strictness rule
+    /// closed that gap at the source — a squatter is now either a *valid* node the
+    /// numbering allocates past, or a malformed entry the reader refuses, and this
+    /// one is the latter. The check survives as a guard against a non-Grove writer
+    /// racing the exclusive tree lock; it is no longer something the parsed tree
+    /// can contradict, which is a strictly better place to be.
     fn squat_node_destination(g: &Path) -> PathBuf {
         let p = g.join("01-sync-chain-k1");
         fs::write(&p, "not a node\n").unwrap();
@@ -1333,10 +1319,11 @@ mod tests {
 
     #[test]
     fn a_run_whose_node_destination_is_taken_creates_nothing_at_all() {
-        // The reason the destination is checked before the first write: the node
-        // is the run's single point of refusal, so a collision costs an error and
-        // nothing else. (Under the flat shape this had to sweep three names to get
-        // the same property; containment collapsed it to one.)
+        // What still holds, and is what the test was always for: the node is the
+        // run's single point of refusal, so a collision costs an error and nothing
+        // else. (Under the flat shape this had to sweep three names to get the same
+        // property; containment collapsed it to one.) Only the *reason* moved
+        // earlier — from the destination check to the read that precedes it.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         squat_node_destination(&g);
@@ -1346,8 +1333,8 @@ mod tests {
             .to_string();
 
         assert!(
-            err.contains("nothing was created"),
-            "the error says what the tree now holds: {err}"
+            err.contains("01-sync-chain-k1"),
+            "the error names the entry standing in the way: {err}"
         );
         let mut files = list(&g);
         files.sort();

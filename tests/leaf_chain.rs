@@ -153,9 +153,11 @@ fn a_failed_run_prints_no_path_at_all() {
     // and here the run is rolled back, so those paths do not exist by the time
     // the caller reads them.
     //
-    // The obstruction is a *file* wearing the node's name: the tree reconciles
-    // parsed names against real filesystem kinds, so it is invisible to position
-    // and key allocation and still blocks the directory.
+    // The obstruction is a *file* wearing the node's name. It used to be
+    // invisible to position and key allocation and block only the directory
+    // creation; task-shaped strictness now refuses it in the read that precedes
+    // allocation. Either way the run fails after validating and before writing,
+    // which is the arm stdout silence has to survive.
     let t = grove();
     fs::write(
         t.path().join(".grove").join("01-sync-chain-k1"),
@@ -174,8 +176,8 @@ fn a_failed_run_prints_no_path_at_all() {
         "not one path on stdout for a shape that was not created"
     );
     assert!(
-        stderr.contains("nothing was created"),
-        "the diagnostic says what the tree holds: {stderr}"
+        stderr.contains("01-sync-chain-k1"),
+        "the diagnostic names the entry standing in the way: {stderr}"
     );
     assert_eq!(
         tree(t.path()),

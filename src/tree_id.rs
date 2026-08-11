@@ -28,6 +28,21 @@
 // the two marks mutually exclusive by construction (`Outcome`). A node is never
 // marked either way — its done-ness is the absence of a live leaf in its subtree.
 //
+// **Task-shaped names are Grove's, whichever species they name.** A name that is
+// *positioned and keyed* (`NN-…-k<key>`, with or without an outcome infix) is the
+// shape only the grow verbs write, and its `.md` suffix — present or absent —
+// declares which species it is. Grove refuses the tree unless such a name parses
+// completely as the species it declares *and* the on-disk entry is that species (a
+// leaf is a regular file, a node is a directory). The name-level half is
+// [`parse_current`]; the species half belongs to whichever verb holds the real
+// `file_type` (`tree_read::read_level`, the one such reader). Anything not
+// task-shaped — `README.md`, `notes/`, the reserved `PROMOTING-` / `FINISHING-` /
+// `PREPARING-FINISH-` / `MIGRATING-` witnesses, none of which is positioned — stays
+// foreign and ignored, and the witnesses keep their own earlier, better-worded
+// guards in `tree_access`. The rule is one rule because its justification is one:
+// a task-shaped name that Grove skips is **lost work**, and a whole subtree is lost
+// when the skipped name is a directory.
+//
 // The `-k<key>` delimiter (amending task-tree-scheme's original `[<key>]`):
 // brackets are shell-glob metacharacters; `-k<key>` is glob-safe, and it stays
 // unambiguous because the key is mandatory and always rendered last — parse takes
@@ -65,9 +80,12 @@ pub enum Outcome {
 /// children.
 ///
 /// Leaf-vs-node is inferred from the `.md` suffix (a leaf is a file ending in
-/// `.md`; a node is a bare directory name). A verb that already has the real
-/// `file_type` should treat a kind mismatch (e.g. a *directory* named `x.md`) as
-/// foreign — that reconciliation is the verb's job, not this pure model's.
+/// `.md`; a node is a bare directory name) — the name *declares* a species, which
+/// this pure model cannot check against the disk. Reconciling the two stays the
+/// verb's job, but its outcome is not discretionary: a species mismatch at a
+/// task-shaped name (a *directory* named `01-impl-a-k1.md`, a *file* named
+/// `01-a-k1`) is a **malformed tree**, not a foreign entry (see the module
+/// header).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
     /// `BRIEF.md` — the containing node's charter. Position-less and unkeyed; it
@@ -225,18 +243,18 @@ pub fn parse(name: &str) -> Option<Entry> {
 }
 
 /// Parse a name for a current-format tree. Foreign names remain ignorable, but
-/// every positioned, keyed Markdown filename is task-shaped and therefore must
-/// carry one of the nineteen known filename kinds. This distinction is what
-/// keeps `README.md` harmless without silently dropping a misspelled task.
+/// every **task-shaped** name — positioned and keyed, leaf *or* node — must parse
+/// completely as the species its `.md` suffix declares. This distinction is what
+/// keeps `README.md` harmless without silently dropping a misspelled task, or the
+/// entire subtree under a misspelled node.
 pub fn parse_current(name: &str) -> Result<Option<Entry>> {
     if let Some(entry) = parse(name) {
         return Ok(Some(entry));
     }
-    let task_shaped = name
-        .strip_suffix(".md")
-        .and_then(|stem| parse_parts(stem, true))
-        .is_some();
-    if task_shaped {
+    if !is_task_shaped(name) {
+        return Ok(None);
+    }
+    if name.ends_with(".md") {
         bail!(
             "malformed Grove leaf {name:?}: expected \
              NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md with session kind \
@@ -244,7 +262,30 @@ pub fn parse_current(name: &str) -> Result<Option<Entry>> {
             Kind::label_list()
         );
     }
-    Ok(None)
+    // A task-shaped name without `.md` declares a node, and the *only* way it can
+    // reach here is the outcome infix: `is_task_shaped` and the node branch of
+    // `parse` differ in nothing else. So the diagnostic can name the real mistake
+    // rather than restate the grammar.
+    bail!(
+        "malformed Grove node directory {name:?}: expected NN-<slug>-k<key>. A node is \
+         never marked DONE or ABANDONED — its done-ness is the absence of a live leaf \
+         in its subtree — so an outcome infix on a directory hides every leaf under it. \
+         Drop the infix to restore the subtree, or rename the directory out of the \
+         task-shaped grammar if it is not Grove's."
+    );
+}
+
+/// Is this name **task-shaped** — positioned and keyed, the shape only Grove's grow
+/// verbs write? The one predicate behind the strictness rule, applied to both
+/// species: the `.md` suffix decides which species the name *declares*, and the
+/// outcome infix is admitted here (though not by a node) precisely so a directory
+/// wearing one is reported rather than skipped.
+fn is_task_shaped(name: &str) -> bool {
+    let stem = match name.strip_suffix(".md") {
+        Some(stem) => stem,
+        None => name.strip_suffix('/').unwrap_or(name),
+    };
+    parse_parts(stem, true).is_some()
 }
 
 /// Parse the inner `NN-[DONE-|ABANDONED-]<slug>-k<key>` of a stem (a leaf's part

@@ -396,6 +396,13 @@ _Avoid_: discriminating the two species by the `-chain` / `-pair` token in the
 node's slug. That token exists to keep the node's slug distinct from its first
 child's for `resolve`, and it is ordinary slug text a human may not use; the
 `BRIEF.md` test is the one that holds.
+_Avoid_: reading a **task-shaped** directory name Grove cannot parse — most
+often one hand-marked `DONE` — as an ignorable foreign entry. Every positioned,
+keyed name is Grove's at the species its `.md` suffix declares, and a directory
+skipped takes its whole live subtree with it while [[Pick]] reports the grove
+done; such a name is a malformed tree that stops reads and mutations. Names
+outside that grammar stay foreign at either species, and the reserved
+transaction witnesses are unpositioned, so none is reached by the rule.
 
 **Leaf**:
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].

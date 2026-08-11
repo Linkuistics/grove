@@ -226,10 +226,25 @@ infixes, so picking and rendering need not parse file contents.
 outcome infix. The set maintains a non-prefix invariant — no kind label followed
 by `-` prefixes another — so a shorter kind plus a slug can never render the same
 bytes as a longer kind plus a different slug. Node directory names stay
-kind-free, and kind is routing metadata rather than identity. Every positioned,
-keyed Markdown filename is task-shaped and must carry a known kind; a missing or
-unknown one is a malformed tree that stops reads and mutations. Other foreign
-files remain ignored.
+kind-free, and kind is routing metadata rather than identity.
+
+Every positioned, keyed name is task-shaped, and its `.md` suffix declares which
+species it is — present a leaf, absent a node directory. Such a name must parse
+completely as that species and name an entry that *is* that species on disk. A
+leaf with a missing or unknown kind, a node directory wearing a `DONE` or
+`ABANDONED` infix, a directory at a leaf's name, and a file or symlink at a
+node's name are all malformed trees that stop reads and mutations. Entries
+outside the grammar remain foreign and ignored at either species; `BRIEF.md`,
+carrying neither position nor key, stays outside the rule because a charterless
+node is legal everywhere. The rule reaches directory names because the loss is
+larger there: a skipped leaf costs one task, a skipped node costs its whole live
+subtree while picking reports the grove finished.
+
+`tree_read`'s level reader owns the species half for every tree verb, so
+selection, resolution, growth, key allocation, and pruning share one answer about
+what a sibling is — without which a subtree the reader refuses could stay
+invisible to key allocation, lowering the visible maximum key so the next
+`leaf-add` re-issues a live one.
 
 `FORMAT` makes "already current" independent of slug text, so a legacy
 `01-design-notes-k3.md` cannot masquerade as a kind-bearing current leaf merely

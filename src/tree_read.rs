@@ -476,11 +476,25 @@ pub(crate) fn sorted_entries(directory: &Path) -> Result<Vec<fs::DirEntry>> {
 /// Read one directory's grove entries, parsed and sorted by the per-level
 /// comparator (the charter brief first, then by numeric position, foreign last).
 /// Returns `(Entry, path)` for every child whose name parses **and** whose real
-/// filesystem kind agrees with the parse — `tree_id::parse` infers leaf-vs-node
-/// from the `.md` suffix alone, so a *directory* named `…-k1.md` (parses as a
-/// leaf) or a *file* shaped like a node name is reconciled here as foreign and
-/// dropped. This is the shared one-level read behind every walk in this module.
-fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
+/// on-disk species agrees with the parse.
+///
+/// This is where the **species half** of the task-shaped strictness rule lands
+/// (`tree_id`'s module header states it whole): `tree_id::parse` infers
+/// leaf-vs-node from the `.md` suffix alone, so a *directory* named `…-k1.md` or a
+/// *file* shaped like a node name is a task-shaped name whose entry is not the
+/// species it declares — a **malformed tree**, refused here, not a foreign entry
+/// skipped. Skipping is what made a whole live subtree vanish under a hand-typed
+/// `01-DONE-node-k1/`, and the leaf-side rule exists to prevent exactly that.
+/// `BRIEF.md` is outside the rule — it carries no position and no key, a node with
+/// no charter is legal everywhere, and so nothing is lost by ignoring an oddity at
+/// that name.
+///
+/// **The one such reader in the crate.** `tree_grow` and `tree_lifecycle` call it
+/// rather than keeping their own copies, so grow, retire, prune, key allocation
+/// and `pick` cannot disagree about what a sibling is — and, in particular, a
+/// subtree `pick` refuses can never be a subtree `next_key` silently skips,
+/// re-issuing a live permanent key.
+pub(crate) fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
     let mut entries: Vec<(String, Entry, PathBuf)> = Vec::new();
     for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
         let entry = entry?;
@@ -490,19 +504,34 @@ fn read_level(dir: &Path) -> Result<Vec<(Entry, PathBuf)>> {
         else {
             continue;
         };
-        let is_dir = match entry.file_type() {
-            Ok(t) => t.is_dir(),
-            // A symlink or an entry we cannot stat is treated as foreign.
-            Err(_) => continue,
-        };
-        // A node is a directory; a brief and a leaf are files. A kind mismatch
-        // (e.g. a directory named like a leaf) is foreign — never a task.
-        let kind_ok = match parsed {
-            Entry::Node { .. } => is_dir,
-            Entry::Brief | Entry::Leaf { .. } => !is_dir,
-        };
-        if !kind_ok {
-            continue;
+        // `file_type` does not follow symlinks, so a symlink is neither a regular
+        // file nor a directory and fails every species test below — deliberately:
+        // followed, it would hand `pick` a path resolving outside the tree.
+        let file_type = entry.file_type().ok();
+        if matches!(parsed, Entry::Brief) {
+            if !file_type.is_some_and(|t| !t.is_dir()) {
+                continue;
+            }
+        } else {
+            let (declared, ok) = if parsed.is_node() {
+                ("node directory", file_type.is_some_and(|t| t.is_dir()))
+            } else {
+                ("leaf", file_type.is_some_and(|t| t.is_file()))
+            };
+            if !ok {
+                bail!(
+                    "malformed Grove tree entry {}: the name is task-shaped and declares a \
+                     {declared}, so the entry must be {}. Restore it to the species its name \
+                     declares, or rename it out of the NN-<slug>-k<key> grammar if it is not \
+                     Grove's.",
+                    entry.path().display(),
+                    if parsed.is_node() {
+                        "a directory"
+                    } else {
+                        "a regular file"
+                    }
+                );
+            }
         }
         entries.push((name, parsed, entry.path()));
     }
@@ -748,26 +777,54 @@ mod tests {
         assert_eq!(pick(&g).unwrap(), None);
     }
 
+    /// Both species mismatches at a **task-shaped** name are malformed, not
+    /// foreign — and a later live leaf must not paper over them. The old answer
+    /// (skip both, return `02-impl-real-k2.md`) is what let a hand-typed
+    /// `01-DONE-node-k1/` swallow a whole live subtree: `pick` reported the grove
+    /// finished while real work sat inside. Skipping is safe only for names the
+    /// grow verbs would never write, and both of these are names they *do* write —
+    /// at the other species.
     #[test]
-    fn pick_ignores_a_directory_shaped_like_a_leaf() {
-        // A directory whose name parses as a leaf (`.md` suffix) is reconciled as
-        // foreign — a leaf is a file. So it is neither returned nor descended.
-        let (_t, g) = grove();
-        mknode(&g, "01-impl-trap-k1.md");
-        touch(&g, "02-impl-real-k2.md");
-        let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-impl-real-k2.md");
+    fn pick_refuses_a_species_mismatch_at_a_task_shaped_name() {
+        for (make, name, expected) in [
+            (
+                &mknode as &dyn Fn(&Path, &str) -> PathBuf,
+                "01-impl-trap-k1.md",
+                "declares a leaf",
+            ),
+            (
+                &|d: &Path, n: &str| touch(d, n),
+                "01-trap-k1",
+                "declares a node directory",
+            ),
+        ] {
+            let (_t, g) = grove();
+            make(&g, name);
+            touch(&g, "02-impl-real-k2.md");
+
+            let error = pick(&g).unwrap_err().to_string();
+
+            assert!(error.contains(name), "{name}: {error}");
+            assert!(error.contains(expected), "{name}: {error}");
+        }
     }
 
+    /// The species rule reaches symlinks for free, and closing that is the point
+    /// rather than a side effect: `DirEntry::file_type` does not follow links, so a
+    /// symlink is neither a regular file nor a directory. Under the old `!is_dir`
+    /// test a symlink at a leaf name *passed* as a leaf, and `pick` would hand the
+    /// driver a mandate whose path resolves outside `.grove/` entirely.
     #[test]
-    fn pick_ignores_a_file_shaped_like_a_node() {
-        // A *file* whose name parses as a node directory (no `.md`) is foreign —
-        // a node is a directory — so pick never tries to descend it.
-        let (_t, g) = grove();
-        touch(&g, "01-trap-k1");
-        touch(&g, "02-impl-real-k2.md");
-        let got = pick(&g).unwrap().unwrap();
-        assert_eq!(name_of(&got), "02-impl-real-k2.md");
+    fn pick_refuses_a_symlink_at_a_task_shaped_name() {
+        let (t, g) = grove();
+        let outside = t.path().join("outside.md");
+        fs::write(&outside, b"# outside\n").unwrap();
+        std::os::unix::fs::symlink(&outside, g.join("01-impl-linked-k1.md")).unwrap();
+
+        let error = pick(&g).unwrap_err().to_string();
+
+        assert!(error.contains("01-impl-linked-k1.md"), "{error}");
+        assert!(error.contains("must be a regular file"), "{error}");
     }
 
     #[test]

@@ -266,11 +266,33 @@ different slug, so longest matching alone could not preserve identity. The
 position remains mutable and the `<slug>-k<key>` handle remains stable; kind is
 routing metadata, not identity. Node directory names remain kind-free.
 
-Every positioned, keyed Markdown filename is task-shaped and must contain a
-known kind, whether it is live, `DONE`, or `ABANDONED`. An absent or unknown kind
-is a malformed tree and stops reads and mutations with the path and canonical
-kind set. Other foreign files remain ignored. There is no read-side degradation
-to `impl` after migration.
+Every positioned, keyed name is task-shaped, whichever species it names, and the
+`.md` suffix is what declares that species: present, a leaf; absent, a node
+directory. A task-shaped name must parse completely as the species it declares
+**and** name an entry that is that species on disk — a leaf a regular file, a
+node a directory. A leaf with an absent or unknown kind, a node directory
+carrying a `DONE` or `ABANDONED` infix, a directory at a leaf's name, a file or
+symlink at a node's name: each is a malformed tree that stops reads and mutations
+with the path and what the name declared. Entries outside the task-shaped
+grammar remain foreign and ignored at either species, and `BRIEF.md` — neither
+positioned nor keyed — stays outside the rule, since a node with no charter is
+legal everywhere. There is no read-side degradation to `impl` after migration.
+
+The rule covers directory names for the reason it covers Markdown names, applied
+to the larger loss: a task-shaped name Grove skips is real work made invisible,
+and a skipped *directory* takes its whole live subtree with it while selection
+reports the grove finished. Grove writes no such name — `leaf-retire` and
+`leaf-prune` refuse a node operand — so each is reachable only by hand, which is
+precisely where a rule a human must know ("a node is never marked done") gets
+broken. Reserved transaction witnesses are unaffected: none of `PROMOTING-`,
+`FINISHING-`, `PREPARING-FINISH-`, or `MIGRATING-session-kinds` is positioned, so
+none is task-shaped, and each keeps its own earlier and better-worded refusal.
+
+One reader owns the species half for the whole tree interface, so selection,
+resolution, growth, key allocation, and subtree pruning cannot disagree about
+what a sibling is. That agreement is load-bearing rather than tidy: a subtree
+invisible to key allocation lowers the visible maximum permanent key, and the
+next `leaf-add` re-issues a key that is still live inside it.
 
 Task bodies no longer carry `**Kind:**`, `**Harness:**`, or
 `**Producer launch:**`. Stable `**Reviews:**` and `**Integrates:**`
@@ -1421,10 +1443,13 @@ Through that seam, cover:
   diagnostics, and child termination on driver shutdown.
 
 The `grove-llm` tree interface is the second seam. Exercise current filename
-parsing, the kind-label non-prefix invariant, malformed task-shaped names,
-stable resolution, pair generation without harness flags, per-verb finish
-refusal, finish-skipping pick order, mandate-authorized promotion after a
-launch-window insert, and migration refusal while a witness exists.
+parsing, the kind-label non-prefix invariant, malformed task-shaped names at
+both species — including a live leaf hidden under a task-shaped-but-invalid node
+directory, refused by `pick` and `resolve` alike — the survival of non-task-shaped
+entries at either species, stable resolution, pair generation without harness
+flags, per-verb finish refusal, finish-skipping pick order, mandate-authorized
+promotion after a launch-window insert, and migration refusal while a witness
+exists.
 
 Internal unit tests may cover pure KDL/template and migration-plan functions and
 the process-ownership backend's event trace. Acceptance remains stated in

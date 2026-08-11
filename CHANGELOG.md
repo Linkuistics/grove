@@ -661,6 +661,33 @@ existing task trees are migrated automatically on first run.
 
 ### Fixed
 
+- **A hand-marked node directory no longer hides its whole live subtree.**
+  `.grove/01-DONE-node-k1/` holding a live leaf made `pick` print *no live leaves;
+  this grove is done*, and the driver's next move was to allocate a finish leaf
+  and propose teardown. Only the human gate stood between a silent tree and
+  deletion. The task-shaped strictness rule that already covered Markdown names
+  now covers **every** positioned, keyed name at either species: the `.md` suffix
+  declares whether a name is a leaf or a node directory, and such a name must
+  parse completely as that species *and* name an entry that is that species on
+  disk. A node directory wearing an outcome infix, a directory at a leaf's name, a
+  file or symlink at a node's name — each is now a malformed tree that stops reads
+  and mutations, naming the path and what the name declared. Grove writes none of
+  them (`leaf-retire` and `leaf-prune` refuse a node operand), so each is reachable
+  only by hand, which is exactly where "a node is never marked done" — a rule a
+  human has to know rather than one the grammar makes unstateable — gets broken.
+  Entries outside the grammar stay foreign at either species, `BRIEF.md` stays
+  outside the rule, and the unpositioned `PROMOTING-` / `FINISHING-` /
+  `PREPARING-FINISH-` / `MIGRATING-` witnesses keep their own earlier refusals.
+
+  One reader now owns the species check for the whole tree interface, where three
+  copies had each decided independently to skip a mismatch. That silently reached
+  further than selection: the copy feeding key allocation made a dropped subtree's
+  keys invisible, lowering the visible maximum permanent key so the next
+  `leaf-add` would re-issue a key still live inside it. Symlinks are covered by
+  the same test rather than a new one — a symlink is neither a regular file nor a
+  directory, where the old check would have handed the driver a mandate resolving
+  outside `.grove/` entirely.
+
 - **A codex grove no longer dies at startup in an untrusted working tree.** A
   `grove do` on codex printed one line — `Error adding directories: Ignoring
   --add-dir (…) because the effective permissions do not allow additional

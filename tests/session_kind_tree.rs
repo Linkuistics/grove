@@ -301,6 +301,103 @@ fn malformed_terminal_task_names_fail_as_strictly_as_live_names() {
     }
 }
 
+/// Strictness is a rule about **task-shaped names**, not about Markdown, and the
+/// directory half is the one with teeth: a leaf skipped costs one task, a node
+/// directory skipped costs its whole subtree. Grove never writes any of these —
+/// `leaf-retire` and `leaf-prune` refuse a node operand outright — so each is
+/// reachable only by hand, which is exactly the mistake the design predicts,
+/// because "a node is never marked done" is a rule a human has to *know* rather
+/// than one the filename grammar makes unstateable.
+///
+/// Each fixture hides a **live** leaf behind the malformed entry. The old answer
+/// was silence: `pick` printed "no live leaves; this grove is done" and the driver's
+/// next move was to allocate a finish leaf and propose teardown.
+#[test]
+fn a_task_shaped_entry_of_the_wrong_species_is_malformed_not_foreign() {
+    // (entry name, whether it is a directory, the phrase naming what went wrong)
+    for (name, directory, expected) in [
+        // An outcome infix on a node name: parses as neither species.
+        ("01-DONE-node-k1", true, "never marked DONE or ABANDONED"),
+        // A leaf's name on a directory: parses as a leaf, is not one.
+        ("01-impl-decoy-k1.md", true, "declares a leaf"),
+        // A node's name on a regular file: parses as a node, is not one.
+        ("01-decoy-k1", false, "declares a node directory"),
+    ] {
+        let repository = init_repo();
+        let grove = current_grove(repository.path());
+        let entry = grove.join(name);
+        if directory {
+            fs::create_dir_all(&entry).unwrap();
+            fs::write(entry.join("01-impl-hidden-k2.md"), "# hidden-k2\n").unwrap();
+        } else {
+            fs::write(&entry, "# not a node\n").unwrap();
+        }
+
+        for verb in [vec!["pick"], vec!["resolve", "hidden-k2"]] {
+            let output = grove_llm(repository.path(), &verb);
+            let diagnostic = stderr(&output);
+
+            assert!(
+                !output.status.success(),
+                "{name}: `{}` accepted a malformed tree: {}",
+                verb.join(" "),
+                stdout(&output)
+            );
+            assert!(
+                stdout(&output).is_empty(),
+                "{name}: `{}` printed a path for a tree it refused: {}",
+                verb.join(" "),
+                stdout(&output)
+            );
+            assert!(
+                diagnostic.contains(name),
+                "{name}: `{}` did not name the entry: {diagnostic}",
+                verb.join(" ")
+            );
+            assert!(
+                diagnostic.contains(expected),
+                "{name}: `{}` did not say what is wrong: {diagnostic}",
+                verb.join(" ")
+            );
+        }
+    }
+}
+
+/// The other half of the same rule, and the reason it can be stated as one: a name
+/// that is *not* task-shaped stays foreign and ignored, whatever its species. The
+/// strictness rule buys nothing if it also refuses a `notes/` directory someone
+/// keeps beside their tasks.
+#[test]
+fn entries_outside_the_task_shaped_grammar_stay_foreign_at_either_species() {
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    fs::create_dir_all(grove.join("notes")).unwrap();
+    fs::create_dir_all(grove.join("done")).unwrap();
+    fs::write(grove.join("README.md"), "not a task\n").unwrap();
+    // Positioned but unkeyed, and keyed but unpositioned: neither is task-shaped.
+    fs::write(grove.join("01-notes.md"), "not a task\n").unwrap();
+    fs::create_dir_all(grove.join("scratch-k9")).unwrap();
+    let node = grove.join("01-real-k1");
+    fs::create_dir_all(&node).unwrap();
+    fs::write(node.join("01-impl-work-k2.md"), "# work-k2\n").unwrap();
+
+    let output = grove_llm(repository.path(), &["pick"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("01-real-k1/01-impl-work-k2.md"),
+        "{}",
+        stdout(&output)
+    );
+
+    let output = grove_llm(repository.path(), &["resolve", "work-k2"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("01-real-k1/01-impl-work-k2.md"),
+        "{}",
+        stdout(&output)
+    );
+}
+
 #[test]
 fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
     let repository = init_repo();

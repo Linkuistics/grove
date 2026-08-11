@@ -90,6 +90,15 @@ fn init_jj_worktree(path: &Path, colocate: bool) {
     );
 }
 
+fn configure_git_identity(worktree: &Path) {
+    run_command(
+        "git",
+        worktree,
+        &["config", "user.email", "test@example.com"],
+    );
+    run_command("git", worktree, &["config", "user.name", "Test User"]);
+}
+
 fn write_executable(path: &Path, body: &str) {
     fs::write(path, body).unwrap();
     let mut permissions = fs::metadata(path).unwrap().permissions();
@@ -963,17 +972,7 @@ fn legacy_tree_is_migrated_committed_and_launched_by_filename_kind() {
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("legacy-worktree");
     init_git_worktree(&worktree);
-    for (key, value) in [
-        ("user.email", "test@example.com"),
-        ("user.name", "Test User"),
-    ] {
-        assert!(Command::new("git")
-            .args(["config", key, value])
-            .current_dir(&worktree)
-            .status()
-            .unwrap()
-            .success());
-    }
+    configure_git_identity(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(grove.join("BRIEF.md"), "# legacy-worktree — brief\n").unwrap();
@@ -1030,6 +1029,350 @@ exit 0
     );
 }
 
+/// Everything one adopted pre-v2 tree must show after a single bare `grove`
+/// invocation. The two grammars below differ only in how they are seeded, so the
+/// assertions they share live here rather than being written twice.
+struct AdoptedTree {
+    /// Relative paths under `.grove/`, sorted — directories included, so a node
+    /// that failed to materialize is visible rather than implied by its child.
+    entries: Vec<String>,
+    /// Task-file bodies by relative path, for the body-marker sweep.
+    bodies: Vec<(String, String)>,
+    /// The `.grove/FORMAT` witness's contents, absent if it was never written.
+    format: Option<String>,
+    /// Every commit subject added by the run, oldest first.
+    new_subjects: Vec<String>,
+    /// The full mandate prompt the configured command received.
+    mandate: String,
+    /// The session kind whose *configured template* was selected and executed,
+    /// reported by the command itself rather than inferred from the driver's
+    /// announcement — the two are separate readers of the selected leaf.
+    executed_kind: String,
+    /// The driver's own announcement, which names the routed session kind.
+    stderr: String,
+}
+
+/// Drive the real bare `grove` process over an already-seeded legacy `worktree`
+/// and collect what the adoption produced.
+///
+/// The configured command writes its mandate and exits without signalling, so
+/// the loop stops after exactly one launch — one adoption, one routed session,
+/// nothing racing a second iteration.
+///
+/// Unlike [`write_complete_config`], every kind gets a *distinguishable*
+/// template: each carries its own kind as a literal argument, which the command
+/// reports back. That is what makes the configuration lookup observable at all.
+/// With one template shared across all nineteen kinds, a driver that looked up
+/// the wrong kind would execute a byte-identical command and no assertion here
+/// could tell — the mutation that established this is why the fixture is shaped
+/// this way.
+fn adopt_with_bare_grove(fixture: &Path, home: &Path, worktree: &Path) -> AdoptedTree {
+    let grove = worktree.join(".grove");
+    let seeded_subjects = git_subjects(worktree);
+
+    let mandate_log = fixture.join("adopted-mandate.log");
+    let configured = fixture.join("adopted-command.sh");
+    write_executable(
+        &configured,
+        r#"#!/bin/sh
+printf '%s\n%s' "$2" "$3" > "$1"
+exit 0
+"#,
+    );
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let document = SESSION_KINDS
+        .iter()
+        .map(|kind| {
+            let template = format!(
+                "{} {} '{kind}' '${{prompt}}'",
+                shell_quote(&configured),
+                shell_quote(&mandate_log)
+            );
+            format!("{kind} {template:?}\n")
+        })
+        .collect::<String>();
+    fs::write(config_dir.join("config.kdl"), document).unwrap();
+
+    let output = run_grove(home, worktree);
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assert!(output.status.success(), "{stderr}");
+
+    let mut entries = Vec::new();
+    let mut bodies = Vec::new();
+    let mut format = None;
+    for (relative, contents) in tree_snapshot(&grove) {
+        if let Some(contents) = contents {
+            if relative.ends_with(".md") {
+                bodies.push((
+                    relative.clone(),
+                    String::from_utf8(contents).expect("a task file is UTF-8"),
+                ));
+            } else if relative == "FORMAT" {
+                format = Some(String::from_utf8(contents).expect("FORMAT is UTF-8"));
+            }
+        }
+        entries.push(relative);
+    }
+    entries.sort();
+
+    // `git log` is newest-first; the run's own commits are that prefix, reversed
+    // back into the order they were made. Named rather than left to an unsigned
+    // underflow, so a run that *lost* history says so.
+    let subjects = git_subjects(worktree);
+    let added = subjects
+        .len()
+        .checked_sub(seeded_subjects.len())
+        .unwrap_or_else(|| panic!("adoption removed commits: {seeded_subjects:?} -> {subjects:?}"));
+    let mut new_subjects = subjects[..added].to_vec();
+    new_subjects.reverse();
+
+    let logged = fs::read_to_string(&mandate_log).unwrap_or_default();
+    let (executed_kind, mandate) = logged.split_once('\n').unwrap_or(("", ""));
+
+    AdoptedTree {
+        entries,
+        bodies,
+        format,
+        new_subjects,
+        mandate: mandate.to_string(),
+        executed_kind: executed_kind.to_string(),
+        stderr,
+    }
+}
+
+/// Commit subjects in `worktree`, newest first (`git log`'s own order).
+fn git_subjects(worktree: &Path) -> Vec<String> {
+    let output = Command::new("git")
+        .args(["log", "--format=%s"])
+        .current_dir(worktree)
+        .output()
+        .unwrap();
+    // `git log` exits non-zero on a worktree with no commits yet. That is an
+    // empty history rather than a failure, so it must not be read as one — the
+    // baseline is taken before the run, when a fixture may legitimately have
+    // seeded nothing.
+    if !output.status.success() {
+        return Vec::new();
+    }
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(str::to_string)
+        .collect()
+}
+
+impl AdoptedTree {
+    /// The single migration commit this adoption is allowed to add. Naming the
+    /// whole added-subject list rather than only `HEAD` is what makes this a
+    /// *boundary* assertion: a transition that split its work across two commits,
+    /// or swept the launched session's output into a second one, fails here.
+    fn assert_one_migration_commit(&self, grove_name: &str) {
+        assert_eq!(
+            self.new_subjects,
+            vec![format!(
+                "grove({grove_name}): migrate task tree to session-kind filenames"
+            )],
+            "adoption must add exactly one migration commit"
+        );
+    }
+
+    /// The current session-kind format, proven positively (the `FORMAT` witness)
+    /// and negatively (no body routing markers, no transaction witness left
+    /// behind by a fail-closed transition that completed).
+    fn assert_reached_current_format(&self) {
+        assert_eq!(
+            self.format.as_deref(),
+            Some("session-kinds-v1\n"),
+            "the current-format witness must be written: {:?}",
+            self.entries
+        );
+        assert!(
+            !self
+                .entries
+                .iter()
+                .any(|entry| entry.starts_with("MIGRATING-session-kinds")),
+            "a completed transition must leave no migration witness: {:?}",
+            self.entries
+        );
+        for (relative, body) in &self.bodies {
+            for marker in ["**Kind:**", "**Harness:**", "**Producer launch:**"] {
+                assert!(
+                    !body.contains(marker),
+                    "{relative} still carries the obsolete {marker} line"
+                );
+            }
+        }
+    }
+
+    /// The first routed launch after adoption: the driver read the session kind
+    /// strictly, from the *migrated* filename, and mandated the migrated handle.
+    ///
+    /// This is the assertion the tree shape alone cannot make. Renaming the files
+    /// correctly and then refusing to route is exactly the failure this leaf was
+    /// cut for, and it leaves a perfectly current-looking tree on disk.
+    fn assert_routed_launch(&self, kind: &str, handle: &str) {
+        assert_eq!(
+            self.executed_kind, kind,
+            "the first session after adoption must execute {kind}'s configured template"
+        );
+        assert!(
+            self.stderr
+                .contains(&format!("grove: launching {kind} with")),
+            "the first session after adoption must route as {kind}: {}",
+            self.stderr
+        );
+        assert!(
+            self.mandate
+                .contains(&format!("resolve and execute `{handle}`")),
+            "the mandate must name the migrated handle {handle}: {:?}",
+            self.mandate
+        );
+    }
+}
+
+/// The **v1-flat** grammar (`<dotted>-[<key>]-<slug>[.BRIEF|.DONE].md`) carried
+/// all the way to a routed session by one bare `grove`.
+///
+/// Two things about this fixture are load-bearing rather than decorative. It
+/// carries a **node brief** (`2-[2]-spec.BRIEF.md`), so the run has to build a
+/// directory and place a child inside it — a flat one-leaf tree exercises the
+/// rename and nothing else. And its permanent keys are **already assigned**, so
+/// `draft-k3` in the mandate is the seeded key surviving adoption, not a counter
+/// that happened to land on the same number.
+///
+/// The routed kind is `design`, deliberately not the `impl` a lost kind would
+/// fall back to.
+#[test]
+fn a_v1_flat_tree_is_adopted_migrated_and_routed_by_its_migrated_filename() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join("v1-flat-worktree");
+    init_git_worktree(&worktree);
+    configure_git_identity(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# v1-flat-worktree — brief\n").unwrap();
+    fs::write(
+        grove.join("1-[1]-groundwork.DONE.md"),
+        "# 1-[1]-groundwork\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("2-[2]-spec.BRIEF.md"),
+        "# 2-[2]-spec — brief\n\n## Goal\nSpec it.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("2.1-[3]-draft.md"),
+        "# 2.1-[3]-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("3-[4]-ship.md"),
+        "# 3-[4]-ship\n\n**Kind:** impl\n\n## Goal\nShip.\n",
+    )
+    .unwrap();
+    run_command("git", &worktree, &["add", "-A"]);
+    run_command("git", &worktree, &["commit", "-q", "-m", "seed v1-flat"]);
+
+    let adopted = adopt_with_bare_grove(fixture.path(), &home, &worktree);
+
+    assert_eq!(
+        adopted.entries,
+        [
+            "01-DONE-impl-groundwork-k1.md",
+            "02-spec-k2",
+            "02-spec-k2/01-design-draft-k3.md",
+            "02-spec-k2/BRIEF.md",
+            "03-impl-ship-k4.md",
+            "BRIEF.md",
+            "FORMAT",
+        ]
+    );
+    adopted.assert_reached_current_format();
+    adopted.assert_one_migration_commit("v1-flat-worktree");
+    adopted.assert_routed_launch("design", "draft-k3");
+}
+
+/// The older **`NNN-slug/`** grammar carried all the way to a routed session by
+/// one bare `grove`.
+///
+/// Its distinguishing structure is the parallel **`done/` mirror**: a retired
+/// leaf lives at `done/<chain>/NNN-slug.md`, physically outside the node it
+/// logically belongs to. So `scoping` and `draft` are siblings under one node
+/// while sitting in two different directory trees, and adoption has to merge
+/// those walks by `NNN-slug` *before* it can assign per-level positions — which
+/// is why they land at `01` and `02` of the same node here. A flat fixture
+/// cannot exercise that merge at all.
+///
+/// This grammar carries no keys, so every key is assigned fresh in DFS
+/// pre-order; the exact listing below is what pins that assignment. It also
+/// pins the one legacy kind that is not carried across verbatim: standalone
+/// `research` resolves to `research-a`, the vendor pair's first configured
+/// survey kind.
+#[test]
+fn an_nnn_slug_tree_with_a_done_mirror_is_adopted_migrated_and_routed() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join("nnn-slug-worktree");
+    init_git_worktree(&worktree);
+    configure_git_identity(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(grove.join("020-spec")).unwrap();
+    fs::create_dir_all(grove.join("done/020-spec")).unwrap();
+    fs::write(grove.join("BRIEF.md"), "# nnn-slug-worktree — brief\n").unwrap();
+    fs::write(
+        grove.join("done/010-groundwork.md"),
+        "# 010-groundwork\n\n**Kind:** impl\n\n## Goal\nAlready done.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("020-spec/BRIEF.md"),
+        "# 020-spec — brief\n\n## Goal\nSpec it.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("done/020-spec/005-scoping.md"),
+        "# 005-scoping\n\n**Kind:** research\n\n## Goal\nSurvey.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("020-spec/010-draft.md"),
+        "# 010-draft\n\n**Kind:** design\n\n## Goal\nDraft.\n",
+    )
+    .unwrap();
+    fs::write(
+        grove.join("030-ship.md"),
+        "# 030-ship\n\n**Kind:** impl\n\n## Goal\nShip.\n",
+    )
+    .unwrap();
+    run_command("git", &worktree, &["add", "-A"]);
+    run_command("git", &worktree, &["commit", "-q", "-m", "seed NNN-slug"]);
+
+    let adopted = adopt_with_bare_grove(fixture.path(), &home, &worktree);
+
+    assert_eq!(
+        adopted.entries,
+        [
+            "01-DONE-impl-groundwork-k1.md",
+            "02-spec-k2",
+            "02-spec-k2/01-DONE-research-a-scoping-k3.md",
+            "02-spec-k2/02-design-draft-k4.md",
+            "02-spec-k2/BRIEF.md",
+            "03-impl-ship-k5.md",
+            "BRIEF.md",
+            "FORMAT",
+        ],
+        "the `done/` mirror must be folded in and its directory removed"
+    );
+    adopted.assert_reached_current_format();
+    adopted.assert_one_migration_commit("nnn-slug-worktree");
+    adopted.assert_routed_launch("design", "draft-k4");
+}
+
 #[test]
 fn config_is_reloaded_after_a_completed_legacy_transition_before_launch() {
     let fixture = TempDir::new().unwrap();
@@ -1037,17 +1380,7 @@ fn config_is_reloaded_after_a_completed_legacy_transition_before_launch() {
     fs::create_dir_all(home.join(".codex")).unwrap();
     let worktree = fixture.path().join("reload-after-transition");
     init_git_worktree(&worktree);
-    for (key, value) in [
-        ("user.email", "test@example.com"),
-        ("user.name", "Test User"),
-    ] {
-        assert!(Command::new("git")
-            .args(["config", key, value])
-            .current_dir(&worktree)
-            .status()
-            .unwrap()
-            .success());
-    }
+    configure_git_identity(&worktree);
     let grove = worktree.join(".grove");
     fs::create_dir_all(&grove).unwrap();
     fs::write(

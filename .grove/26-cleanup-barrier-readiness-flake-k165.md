@@ -27,6 +27,16 @@ that waits on the barrier cannot read a created-but-empty file.
   *deadline* on a fake harness in the `driver_lease` binary; this is a
   partially-observable *payload* in the cleanup barrier. Same family, different
   mechanism — check whether one fix covers both before assuming it does not.
+- **Second sighting**, while verifying
+  `adoption-migration-session-kind-transition-k98` (a test-only diff touching
+  neither cleanup nor the barrier). One `cargo test --locked` aborted at
+  `passed: 661`; since cargo stops at the failing *binary* and the preceding
+  ones total 603, the failure was `finish_lifecycle`'s 59-test binary at 58
+  passed + 1 failed. The failing test's name was not captured, so treat this as
+  corroboration of the binary and the parallel-load trigger, not of the specific
+  assertion. Seven consecutive full runs after it were clean, which sets the
+  observed rate low enough that a fix needs the deterministic reproducer the
+  `Done when` already asks for — a plain re-run proves nothing here.
 
 ## Done when
 

@@ -69,7 +69,14 @@ driver and its running loop own this workstream through finish, so its `grove
 do` control path must not be replaced by a branch build of the bare command
 before the grove finishes. Exercise branch binaries only in isolated homes or
 worktrees with ambient loop authority scrubbed; `acceptance-verification-k50`
-owns the pre-install matrix.
+owns the pre-install matrix. The **working directory is itself a selector**, and
+the sharpest edge here: bare `grove` takes no arguments, so it adopts, migrates
+and commits whatever tree it finds at `$PWD` — running a branch build from the
+repository root migrates *this* grove out from under the installed driver, with
+no prompt. Drive branch binaries only through `cargo test` fixtures, which set
+`current_dir` on every child, or from a subshell already inside the fixture; a
+scrubbed environment does not help, because none of the scrubbed variables
+select the tree. (`jj op restore` recovers it if this happens.)
 
 Promoted from `acceptance-verification-k50` on its close, because it outlives
 that node: **do not publish a release from this grove.** Cutting a tag, running

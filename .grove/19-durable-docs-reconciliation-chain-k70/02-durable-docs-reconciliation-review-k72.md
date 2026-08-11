@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** durable-docs-reconciliation-k49
+**Producer launch:** {"producer":"durable-docs-reconciliation-k49","session":"glossary-definition-compression-k167","generation":"k167","harness":"claude","model":"opus"}
 
 ## Goal
 

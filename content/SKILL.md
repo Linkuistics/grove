@@ -35,7 +35,7 @@ flowchart TD
     exec{"kind — planning, or one of the other eighteen?"}
     plan["Planning — cut vertical slices; grow the tree"]
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
-    commit["Commit — one task = one focused commit (name it by <slug>-k<key>)"]
+    commit["Commit — one focused commit covering the task and its DONE rename, sealed (name it by <slug>-k<key>)"]
     retire{"parent chain — node now has no live leaf?"}
     ret["Brief-carrying node: verify Done when; promote brief up; report close. Brief-less node: no-op"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
@@ -354,18 +354,34 @@ bigger keeps producing `research-a` work. No grow verb
 selects a harness, a model, or anything else about the launch: the kind is the
 whole routing input, and configuration maps it to one command.
 
-**Commit.** One task = one focused commit. **Name the work item in the commit
-message by its stable handle `<slug>-k<key>`, never by its position or directory
-path** — positions and paths move under renumber and reorder, but the
-`<slug>-k<key>` handle is permanent, so the historical record stays meaningful
-after restructures (task-tree-scheme §5).
+**Commit.** One task = one focused commit — and *one task* means the whole
+session's work: the artifact, whatever the grow verbs wrote, and the `DONE`
+rename that retires the leaf. **Name the work item in the commit message by its
+stable handle `<slug>-k<key>`, never by its position or directory path** —
+positions and paths move under renumber and reorder, but the `<slug>-k<key>`
+handle is permanent, so the historical record stays meaningful after
+restructures (task-tree-scheme §5).
+
+That commit is also the boundary the *next* session starts from, and git and jj
+reach it differently — the same asymmetry the tree verbs already carry (`git mv`
+there, a plain rename under jj). In **git** the working tree is not history, so
+one `git commit`, taken once the rename has landed, both records the task and
+leaves the next session a clean tree. In **jj** the working copy *is* a commit:
+this session's edits are already in `@`, so `jj describe -m` records the task but
+leaves that change open, and the next session's first edit is snapshotted into
+*this* task's commit. **Seal it** — `jj new` after describing, once the rename
+has landed (`jj commit -m` is exactly those two) — so the next session opens on
+its own empty change. An unsealed change is expensive to unpick afterwards:
+`jj split <fileset>` cannot separate a file both tasks touched, leaving the
+operation log as the only way back. The lane itself belongs to
+`linkuistics:using-jujutsu`; grove states only where its boundary falls.
 
 **Retire.** A leaf ends one of two ways — **done** (the work was completed) or
 **abandoned** (the path was decided against); grove's own metaphor: a done leaf
 is *harvested*, an abandoned one is *pruned*. Both mark the leaf **in place**,
 neither ever deletes it, and both are skipped by `pick`.
 
-The common case: after committing the task, retire the just-finished leaf by
+The common case: with the task's work done, retire the just-finished leaf by
 running `grove-llm leaf-retire <leaf-path>` — the verb marks it done **in
 place** by adding a `DONE` infix (`NN-<session-kind>-<slug>-k<key>.md` →
 `NN-DONE-<session-kind>-<slug>-k<key>.md`, the infix sitting right after the
@@ -597,16 +613,18 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/continue.md` — the single launcher the `grove` binary embeds in every session's `${prompt}`, ahead of that session's mandate. There is no `start.md`, `retire.md` or `finish.md`: one bare command drives every kind of session, so one launcher covers them all.
 
-**Prerequisite — the `linkuistics` plugin.** Two bodies of guidance grove used
-to carry now live in a **separately installed** plugin, and grove **requires**
-it: ADR philosophy in `linkuistics:decision-records`, and what a test seam is
-and how to judge one in `linkuistics:codebase-design`. The plugin is developed
-in grove's own repo (`plugins/linkuistics/`), but the `grove` binary provisions
-only grove's methodology — never the plugin — so it is installed on its own,
-through the Claude Code marketplace or the repo's `plugins/install.sh`.
-Self-containment is not a constraint for either body of guidance —
+**Prerequisite — the `linkuistics` plugin.** Three bodies of guidance grove
+leans on live in a **separately installed** plugin, and grove **requires** it:
+ADR philosophy in `linkuistics:decision-records`, what a test seam is and how to
+judge one in `linkuistics:codebase-design`, and the working-copy-as-commit lane
+in `linkuistics:using-jujutsu`, which the Commit step cites rather than
+restates. The plugin is developed in grove's own repo (`plugins/linkuistics/`),
+but the `grove` binary provisions only grove's methodology — never the plugin —
+so it is installed on its own, through the Claude Code marketplace or the repo's
+`plugins/install.sh`. Self-containment is not a constraint for any of the three:
 `ADR-FORMAT.md` and `SPEC-FORMAT.md` keep only grove's placement and recording
-conventions. A session raising or reworking an ADR, or sketching a spec's test
-seams, should consult the matching skill. The dependency is
+conventions, and the Commit step keeps only where its boundary falls. A session
+raising or reworking an ADR, sketching a spec's test seams, or driving a
+jj-enabled tree should consult the matching skill. The dependency is
 documentation-level, not install-enforced; everything else grove needs stays
 self-contained (constraint 6).

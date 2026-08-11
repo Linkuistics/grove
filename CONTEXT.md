@@ -222,6 +222,21 @@ the leaf it must select before the agent exists.
 **Bootstrap**:
 The per-session context-loading step of the grove loop: read the glossary, the ancestor `BRIEF.md` chain, the cited ADRs, and the task file. Read-only — no script must succeed before work begins. Not to be confused with [[root-init]] (the one-time scaffolding of a *new* grove's tree); bootstrap reads an existing tree, fresh-grove start creates one.
 
+**Task commit boundary** / **sealing**:
+Where one session's focused commit closes. That commit covers the session's whole
+task — the artifact, whatever the grow verbs wrote, and the [[DONE infix]]
+rename — and names it by the [[Work-item handle]]. In plain Git the commit *is*
+the boundary, so the next session inherits a clean tree. In a jj-enabled tree the
+working copy is itself a commit, so `jj describe -m` records the task without
+closing it; **sealing** with `jj new`, once the rename has landed, is what leaves
+the next session its own empty change. The same git/jj asymmetry the tree-mutation
+verbs carry ([[Grove name]]). The lane belongs to `linkuistics:using-jujutsu`;
+`content/SKILL.md`'s Commit step states only where the boundary falls.
+_Avoid_: reading `jj describe` as the boundary — it records the task but leaves
+`@` open, so the next session's first edit is snapshotted into this task's change,
+and a file both tasks touched cannot be separated afterwards by
+`jj split <fileset>`.
+
 **Driver lease**:
 The exclusive, process-scoped ownership of one working tree by one bare `grove`
 driver. After independent methodology provisioning, the invocation reports

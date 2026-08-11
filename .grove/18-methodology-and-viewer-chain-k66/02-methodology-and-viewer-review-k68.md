@@ -2,6 +2,7 @@
 
 **Kind:** review-impl
 **Reviews:** methodology-and-viewer-k48
+**Producer launch:** {"producer":"methodology-and-viewer-k48","session":"jj-task-commit-sealing-k162","generation":"k162","harness":"claude","model":"opus"}
 
 ## Goal
 

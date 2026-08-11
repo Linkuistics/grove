@@ -158,7 +158,12 @@ it autonomously.
 
 The runtime methodology is [`content/SKILL.md`](../content/SKILL.md), which the
 binary provisions to each installed harness's personal skill directory on every
-bare `grove` invocation.
+bare `grove` invocation. It provisions the copy **embedded in the running
+binary** — a session always reads the methodology its own `grove` was built
+with, and the skill and the `grove-llm` verbs it instructs are therefore always
+the same build. Editing `content/` in a checkout changes nothing any session
+reads until that checkout is built and installed; see
+[Embedded methodology](ARCHITECTURE.md#self-extension-core-and-methodology).
 
 `grove-llm` is the agent-facing tree interface the session drives during those
 steps. It is available for diagnostics — `grove-llm pick`, `grove-llm resolve`,

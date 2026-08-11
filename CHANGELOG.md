@@ -131,6 +131,22 @@ change. There is no migration, and none is needed.
   *task-tree-transactions-fail-closed* (loses `PROMOTING-`, keeps `FINISHING-`)
   are reworked in place, and `docs/specs/doubt-grove-review-mechanics.md` with
   them.
+- **Provisioning is documented as a build boundary, not a commit boundary.** The
+  methodology is embedded with `include_dir!`, so a session reads the
+  `content/` its own binary was *built* with; the idempotence stamp hashes that
+  embed rather than any working tree, and a warm no-op against a checkout whose
+  `content/` has moved ahead is correct. The docs previously said only that the
+  binary "provisions the embedded methodology on every bare `grove`" — true, and
+  read by a meta-grove as a promise that the next session in the loop consumes
+  just-committed content. It does not, and should not: verbs leave `grove-llm`
+  in the same commit that stops instructing them, so a skill *older* than its
+  binary names only verbs that exist while a *newer* one would name verbs that
+  do not. `content/SKILL.md`, `docs/USAGE.md`,
+  `docs/ARCHITECTURE.md` §Embedded methodology and `CONTEXT.md` (a new
+  **Embedded methodology** entry) now state the boundary and this reason. The
+  half that *is* checkable is enforced: `tests/provision.rs` asserts the embedded
+  methodology instructs no `grove-llm` verb the embedded CLI lacks, so a shipped
+  binary cannot hand a session a call that cannot succeed.
 
 ### Fixed
 

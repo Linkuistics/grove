@@ -608,6 +608,64 @@ The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical
 source; repository-local or hand-edited copies are not supported.
 
+### The boundary is a build, not a commit
+
+`include_dir!` reads `content/` at **compile time**, so what a session receives
+is the methodology the running binary was *built* with. The content hash that
+makes provisioning idempotent hashes that **embed**, not any working tree — a
+warm no-op is therefore correct even when a checkout's `content/` has moved far
+ahead of the binary. Nothing in the loop changes this: `provision` runs once per
+bare `grove` (`launch::bare_grove`, before lease acquisition), and running it per
+iteration instead would extract identical bytes, because a driver never re-execs
+and so carries one embed for its whole life.
+
+The consequence is sharpest in a [meta-grove](../CONTEXT.md): a session here can
+commit `content/SKILL.md` and the next session in the same loop still reads the
+old one. **That is the design, not a defect**, because *any* skew between the
+skill and the CLI it instructs is unsafe, in both directions:
+
+| Skew | What breaks |
+|---|---|
+| Skill **newer** than binary | It instructs verbs added since that build; the binary lacks them. |
+| Skill **older** than binary | It instructs verbs removed since that build; the binary lacks them too. |
+
+The second row is the one that surprises, and this repository already holds its
+ingredients: the `v17.0.0` skill instructs the composition constructors deleted
+after that tag (see the changelog's `### Removed`), so pairing that skill with
+any post-`v17.0.0` binary hands a session a call that cannot succeed. Neither
+direction is the safe one, so there is no version of "refresh the skill more
+eagerly" that helps: **the only safe skew is none.**
+
+Zero skew is what the design actually delivers, by two properties together —
+one embed per build, and Grove as the *only* writer of these directories, always
+writing its own. Neither row above is reachable while both hold; a skill and its
+binary are the same artifact, seen twice. That is why there is no mechanism, and
+should be none, for a session to consume freshly committed methodology ahead of
+its binary — and why the exposure worth worrying about is not staleness but
+anything that breaks the second property (see the caveat below).
+
+What is enforceable at this boundary is that the embed is **internally
+consistent**: every `grove-llm` verb the embedded methodology instructs is a verb
+the embedded CLI exposes (`tests/provision.rs`). No test can inspect a future
+build, so "the installed skill is current" is not a statable claim; "a binary
+that ships cannot hand a session a verb it lacks" is, and it is the claim that
+actually protects a session.
+
+A stale *installed* binary is therefore an ordinary upgrade concern, diagnosed
+with `grove --version` against the repository's `Cargo.toml`, and resolved by
+rebuilding and installing — not by anything Grove does at runtime.
+
+**One caveat, currently undecided.** "A session reads the embed its own binary
+carries" holds for a single `grove`; the skill directories are *global and
+shared*, and provisioning runs once per invocation rather than once per
+iteration, so another build writing the same directory mid-loop is unobserved.
+The two ways in are a second grove in another working tree and — more likely
+here — `cargo run --bin grove` from a checkout, which provisions that checkout's
+`content/` over the installed copy and produces exactly the unsafe pairing this
+section forbids. What Grove should do about it is open work
+(`shared-skill-dir-clobber-k13`); until it is decided, do not reach for
+`cargo run` as a way to get a fresher skill.
+
 ## Main module seams
 
 | Module | Responsibility |

@@ -42,12 +42,19 @@ front, and it is why the creating session is the right author.
 
 One leaf: `flat-lazy-review-k2`, covering code *and* methodology together.
 
-They are coupled and must not be split. Shipping a binary without
-`leaf-promote-chain` while `content/SKILL.md` still instructs its use is a
-broken intermediate — and this is a **meta-grove**, so the very next session
-would have that broken skill provisioned to it before the follow-up leaf could
-fix it. The work is deletion-heavy (~1150 lines of Rust out), which is what
-makes one session tractable.
+They are coupled and must not be split. A binary without `leaf-promote-chain`
+whose embedded `content/SKILL.md` still instructs it is a broken *build*: the
+methodology is compiled in, so the pair ships as one artifact and a split leaf
+would cut a release that hands sessions a verb it lacks. `tests/provision.rs`
+now enforces exactly that. The work is deletion-heavy (~1150 lines of Rust out),
+which is what makes one session tractable.
+
+**Corrected by `provisioned-skill-refresh-k9`:** this paragraph originally
+argued the coupling from "the very next session would have that broken skill
+provisioned to it." That premise is false — `include_dir!` fixes the embed at
+build time, so *no* session in this loop reads this grove's committed
+`content/`; every one of them runs the installed v17.0.0 build. The conclusion
+survives, at the release boundary rather than the session boundary.
 
 `flat-lazy-review-k2` is the first user of the rule it implements: its own last
 act is to decide whether a `review-impl` leaf is required, and to write that

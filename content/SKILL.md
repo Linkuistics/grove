@@ -59,8 +59,12 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 2. **Read, don't run.** A session bootstraps by *reading markdown* — no script
    must succeed before work begins. Its one command, `grove-llm resolve
    <handle>`, is a lookup you could do by eye: the handle is in the filename.
-   (Keeping this skill current is the `grove` binary's own job — it
-   re-provisions the methodology it embeds on every lifecycle invocation.)
+   (Keeping this skill in step with the `grove-llm` it instructs is the `grove`
+   binary's own job — it *embeds* this methodology at build time and
+   re-provisions it on every lifecycle invocation, so the skill you are reading
+   and the verbs on your `PATH` are always the same build. The boundary is that
+   build, not a commit: in a grove *of grove*, editing `content/` changes
+   nothing any session reads until the binary is rebuilt and installed.)
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown. The format files are guides; nothing validates them.
 4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is

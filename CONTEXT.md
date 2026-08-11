@@ -19,6 +19,29 @@ second copy of the methodology, which makes the provisioned skill a target
 prerequisite Grove cannot itself verify.
 _Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
 with their lifecycle verbs, and `continue.md` is the only survivor.
+_Avoid_: reading "current" as "as committed". What is swept is the
+[[Embedded methodology]] — the copy compiled into the *running* binary — so a
+sweep is current with respect to that build and to nothing else.
+
+**Embedded methodology** / **the build boundary**:
+`content/` compiled into the binary by `include_dir!`, and therefore fixed at
+**build** time. A session reads the methodology its own `grove` was built with,
+and the [[Global skill provisioning]] stamp hashes that embed rather than any
+working tree — so a warm no-op is correct even against a checkout whose
+`content/` has moved ahead. The coupling is deliberate: **any** skew between the
+skill and the CLI it instructs is unsafe — a newer skill names verbs added since
+the binary, an older one names verbs removed since the skill — so the only safe
+skew is none, and one embed is what guarantees it. `tests/provision.rs` pins the
+half that is checkable — the embed instructs no verb the embedded CLI lacks. See
+`docs/ARCHITECTURE.md#self-extension-core-and-methodology`.
+_Avoid_: "the next session picks up the committed `content/`" — it picks up the
+built one; the two coincide only after a rebuild and install.
+_Avoid_: proposing per-iteration provisioning as the fix — a driver never
+re-execs, so every iteration would extract identical bytes.
+_Avoid_: `cargo run --bin grove` as a way to get a fresher skill — the skill
+dirs are global, so it provisions a checkout's `content/` beside an *installed*
+`grove-llm` and manufactures the skew. What Grove should do about a shared dir
+written by two builds is open (`shared-skill-dir-clobber-k13`).
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
@@ -71,8 +94,15 @@ commands run as descendants of the very session driving them, so they inherit
 that session's control environment and can act on it. Read it as a
 *test-environment* category, not a privilege level: a meta-grove gets no extra
 authority, it merely has descendants that can spend the authority the session
-already holds (`tests/env_hygiene.rs` exists for exactly this).
+already holds (`tests/env_hygiene.rs` exists for exactly this). Its second
+distinguishing property is that it edits the very artifacts driving it, across
+the [[Embedded methodology]] build boundary: a meta-grove session runs against
+the *installed* `grove` and reads the *installed* skill, so the `content/`,
+`grove-llm` verbs and driver behaviour it commits reach no session in the same
+loop.
 _Avoid_: "nested grove" — that is `grove` launched from inside another grove's session (two drivers, two trees). A meta-grove is one grove whose *code under test* happens to be grove.
+_Avoid_: treating a meta-grove as self-hosting in the strong sense — it develops
+the next build's methodology while being driven by the last one's.
 
 **Loop control channel** (`GROVE_SIGNAL_FILE`):
 The collision-resistant per-launch path the loop driver watches while its

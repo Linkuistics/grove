@@ -125,48 +125,9 @@ impl Entry {
         }
     }
 
-    /// `true` only for a retired (`DONE`) leaf.
-    pub fn is_done(&self) -> bool {
-        matches!(
-            self,
-            Entry::Leaf {
-                outcome: Outcome::Done,
-                ..
-            }
-        )
-    }
-
-    /// `true` only for an abandoned (`ABANDONED`) leaf (pruning).
-    pub fn is_abandoned(&self) -> bool {
-        matches!(
-            self,
-            Entry::Leaf {
-                outcome: Outcome::Abandoned,
-                ..
-            }
-        )
-    }
-
-    /// `true` for the `BRIEF.md` charter.
-    pub fn is_brief(&self) -> bool {
-        matches!(self, Entry::Brief)
-    }
-
     /// `true` for a child node directory.
     pub fn is_node(&self) -> bool {
         matches!(self, Entry::Node { .. })
-    }
-
-    /// A *live leaf* is the only thing `pick` returns: a leaf that is neither
-    /// retired nor abandoned.
-    pub fn is_live_leaf(&self) -> bool {
-        matches!(
-            self,
-            Entry::Leaf {
-                outcome: Outcome::Live,
-                ..
-            }
-        )
     }
 
     /// Render this entry back to its on-disk name. Inverse of [`parse`] for any
@@ -864,43 +825,47 @@ mod tests {
         assert_eq!(Entry::Brief.handle(), None);
     }
 
-    // ---- kind predicates ----------------------------------------------------
+    // ---- shape classification ----------------------------------------------
+    //
+    // Asserted by matching the variant and the `Outcome` directly, which is how
+    // every production reader classifies an entry. `Entry` once carried
+    // `is_done` / `is_abandoned` / `is_brief` / `is_live_leaf` accessors saying
+    // the same thing one bool at a time; nothing outside their own tests ever
+    // called them (`dead-non-launch-exports-k166`), and asserting through them
+    // proved only that the accessors agreed with each other. Note what the enum
+    // makes untestable because it is unrepresentable: an outcome is one field,
+    // not two independent bools, so no entry can carry both marks at once.
 
     #[test]
-    fn is_live_leaf_true_only_for_live_leaves() {
-        assert!(parse("01-impl-a-k1.md").unwrap().is_live_leaf());
-        assert!(!parse("01-DONE-impl-a-k1.md").unwrap().is_live_leaf());
-        assert!(!parse("01-ABANDONED-impl-a-k1.md").unwrap().is_live_leaf());
-        assert!(!parse("01-a-k1").unwrap().is_live_leaf()); // node dir
-        assert!(!parse("BRIEF.md").unwrap().is_live_leaf());
-    }
-
-    #[test]
-    fn kind_predicates_classify_each_shape() {
-        assert!(parse("BRIEF.md").unwrap().is_brief());
+    fn parse_classifies_each_on_disk_shape() {
+        assert!(matches!(
+            parse("01-impl-a-k1.md").unwrap(),
+            Entry::Leaf {
+                outcome: Outcome::Live,
+                ..
+            }
+        ));
+        assert!(matches!(
+            parse("01-DONE-impl-a-k1.md").unwrap(),
+            Entry::Leaf {
+                outcome: Outcome::Done,
+                ..
+            }
+        ));
+        assert!(matches!(
+            parse("01-ABANDONED-impl-a-k1.md").unwrap(),
+            Entry::Leaf {
+                outcome: Outcome::Abandoned,
+                ..
+            }
+        ));
+        assert!(matches!(parse("01-a-k1").unwrap(), Entry::Node { .. }));
+        assert!(matches!(parse("BRIEF.md").unwrap(), Entry::Brief));
+        // `is_node` is the one accessor that survived the sweep, because the
+        // two tree walks branch on it to decide whether to descend.
         assert!(parse("01-a-k1").unwrap().is_node());
-        assert!(parse("01-DONE-impl-a-k1.md").unwrap().is_done());
-        assert!(!parse("01-impl-a-k1.md").unwrap().is_done());
-    }
-
-    #[test]
-    fn is_abandoned_true_only_for_abandoned_leaves() {
-        assert!(parse("01-ABANDONED-impl-a-k1.md").unwrap().is_abandoned());
-        assert!(!parse("01-DONE-impl-a-k1.md").unwrap().is_abandoned());
-        assert!(!parse("01-impl-a-k1.md").unwrap().is_abandoned());
-        assert!(!parse("01-a-k1").unwrap().is_abandoned()); // node dir
-        assert!(!parse("BRIEF.md").unwrap().is_abandoned());
-    }
-
-    #[test]
-    fn done_and_abandoned_are_mutually_exclusive() {
-        // The outcome is a single enum, not two independent bools — the
-        // impossible fourth state (both marks at once) is unrepresentable, so
-        // this is really just confirming the accessors agree with each other.
-        let done = parse("01-DONE-impl-a-k1.md").unwrap();
-        assert!(done.is_done() && !done.is_abandoned());
-        let abandoned = parse("01-ABANDONED-impl-a-k1.md").unwrap();
-        assert!(abandoned.is_abandoned() && !abandoned.is_done());
+        assert!(!parse("01-impl-a-k1.md").unwrap().is_node());
+        assert!(!parse("BRIEF.md").unwrap().is_node());
     }
 
     #[test]

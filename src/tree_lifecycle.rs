@@ -53,6 +53,16 @@ pub enum CurrentTransition {
 /// Classify or complete the one lifecycle transition needed before current-tree
 /// selection. The whole observation and any resulting mutation share one
 /// exclusive working-tree guard.
+///
+/// **Public as a seam, not as a spare door.** No production caller reaches it —
+/// the driver takes [`transition_driver_to_current`] — so a reachability sweep
+/// reports it dead every time, and it survives that report deliberately
+/// (`dead-non-launch-exports-k166`). The driver twin is `pub(crate)` *and* reaps
+/// orphaned finish artifacts first, so an integration test cannot substitute it
+/// for the classification without also asserting through a best-effort cleanup
+/// it is not testing. That is the discriminator against the locked wrappers
+/// `tree_grow` lost: those had a production composition a test could perform
+/// itself, and this does not.
 pub fn transition_to_current(worktree: &Path) -> Result<CurrentTransition> {
     let _guard = tree_access::write_for_lifecycle(worktree)?;
     transition_to_current_unlocked(worktree)
@@ -242,7 +252,7 @@ fn root_init_unlocked(worktree: &Path, slug: &str) -> Result<Vec<PathBuf>> {
     let brief_path = grove_root.join("BRIEF.md");
     write_root_brief(&brief_path, &grove_name(worktree))?;
 
-    // Delegate the first leaf to `leaf_add` (root parent) so the scaffolded leaf is
+    // Delegate the first leaf to `leaf_add_unlocked` (root parent) so the scaffolded leaf is
     // byte-identical to one the LLM would later add by hand — no template drift. A
     // A fresh `.grove/` has only `BRIEF.md`, so the first root child is the
     // requirements leaf at position 01 with key 1.
@@ -513,7 +523,7 @@ fn leaf_decompose_unlocked(
     let brief_path = node_dir.join("BRIEF.md");
     append_brief_suffix_in_file(&brief_path, &slug, key)?;
 
-    // Grow the first child at `01` (enforce-first-child) — delegated to `leaf_add`
+    // Grow the first child at `01` (enforce-first-child) — delegated to `leaf_add_unlocked`
     // so it is byte-identical to a hand-added child and gets the next fresh key. The
     // node now exists (the BRIEF.md we just created), so the parent guard passes.
     let child_path = leaf_add_unlocked(&grove_abs, &node_dir, first_child_slug, kind)?;
@@ -933,7 +943,7 @@ fn root_brief_body(name: &str) -> String {
 
 /// Retitle a freshly-decomposed node brief's first-line handle header by appending
 /// ` — brief`, rewriting the file in place. Recognises exactly the canonical
-/// position-free handle `# <slug>-k<key>` (the form `leaf_add` writes), and is
+/// position-free handle `# <slug>-k<key>` (the form `leaf_add_unlocked` writes), and is
 /// idempotent against an already-suffixed title; any other (hand-edited) first line
 /// is left alone (conservative — never clobbers a custom title).
 fn append_brief_suffix_in_file(path: &Path, slug: &str, key: u32) -> Result<()> {
@@ -1008,6 +1018,21 @@ mod tests {
     /// state in which a rename goes through `git mv` and carries the index along.
     fn stage_all(root: &Path) {
         run_git(root.parent().unwrap(), &["add", "-A"]);
+    }
+
+    /// Grow a real root-level leaf the way `llm_cli` does — take the exclusive
+    /// tree guard, then call the lock-neutral verb under it — and release the
+    /// guard before returning, so the lifecycle verb under test takes its own.
+    ///
+    /// This is the composition production performs, and the only one it can:
+    /// the `<parent>` reference has to be resolved *inside* the same guard that
+    /// then mutates. `tree_grow` used to export a `leaf_add` that took the lock
+    /// around an already-resolved parent — a narrower critical section wearing
+    /// the operation's name, with these three tests as its only callers
+    /// (`dead-non-launch-exports-k166`).
+    fn grow_leaf(root: &Path, slug: &str) -> PathBuf {
+        let guard = tree_access::write(root).unwrap();
+        crate::tree_grow::leaf_add_unlocked(guard.root(), root, slug, Kind::Impl).unwrap()
     }
 
     /// Write a leaf/brief stub with a position-free `# <handle>` header.
@@ -1731,8 +1756,8 @@ mod tests {
     fn retire_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "ship", Kind::Impl).unwrap();
-        // No stage_all: `leaf_add` leaves it untracked, by design.
+        let leaf = grow_leaf(&g, "ship");
+        // No stage_all: the grow verb leaves it untracked, by design.
         let done = leaf_retire(&g, &leaf).unwrap();
         assert_eq!(name_of(&done), "01-DONE-impl-ship-k1.md");
         assert!(
@@ -1746,7 +1771,7 @@ mod tests {
     fn decompose_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "big", Kind::Impl).unwrap();
+        let leaf = grow_leaf(&g, "big");
         // "The current item proving bigger" — the canonical mid-session decompose.
         let (brief, child) = leaf_decompose(&g, &leaf, "first", None).unwrap();
         assert_eq!(name_of(&brief), "BRIEF.md");
@@ -1762,7 +1787,7 @@ mod tests {
     fn prune_an_untracked_leaf_added_this_session() {
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let leaf = crate::tree_grow::leaf_add(&g, &g, "dead", Kind::Impl).unwrap();
+        let leaf = grow_leaf(&g, "dead");
         let result = leaf_prune(&g, &leaf).unwrap();
         assert_eq!(result.marked.len(), 1);
         assert_eq!(name_of(&result.marked[0]), "01-ABANDONED-impl-dead-k1.md");

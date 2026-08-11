@@ -27,7 +27,6 @@
 
 use crate::leaf::Kind;
 use crate::task_relationship::Relationship;
-use crate::tree_access;
 use crate::tree_id::{next_key, next_keys, parse, parse_current, validate_slug, Entry, Outcome};
 use crate::tree_rename::rename_entry;
 use anyhow::{bail, Context, Result};
@@ -44,12 +43,6 @@ use std::path::{Path, PathBuf};
 /// The kind is part of the filename; the body contains only the stable header,
 /// task sections, and any composition relationship supplied by a composite
 /// verb.
-pub fn leaf_add(grove_root: &Path, parent_dir: &Path, slug: &str, kind: Kind) -> Result<PathBuf> {
-    refuse_finish_kind(kind, "leaf-add")?;
-    let guard = tree_access::write(grove_root)?;
-    leaf_add_unlocked(guard.root(), parent_dir, slug, kind)
-}
-
 pub(crate) fn leaf_add_unlocked(
     grove_root: &Path,
     parent_dir: &Path,
@@ -80,7 +73,8 @@ pub(crate) fn leaf_add_unlocked(
 
 /// One leaf of a composite shape: the slug the verb derived for it, its kind,
 /// and its optional per-leaf harness declaration. Private — the shape, not the
-/// step, is what a caller names ([`leaf_add_chain`], [`leaf_add_pair`]).
+/// step, is what a caller names ([`leaf_add_chain_unlocked`],
+/// [`leaf_add_pair_unlocked`]).
 struct Step {
     slug: String,
     kind: Kind,
@@ -99,8 +93,8 @@ struct StepRelationship {
 
 /// Append a whole **shape** — a **chain node** directory holding its steps as
 /// children — under `parent_dir` as *one mutation*. The shared engine behind
-/// [`leaf_add_chain`] and [`leaf_add_pair`]; the difference between them is
-/// entirely `node_slug` and which `Step`s they derive.
+/// [`leaf_add_chain_unlocked`] and [`leaf_add_pair_unlocked`]; the difference
+/// between them is entirely `node_slug` and which `Step`s they derive.
 ///
 /// **The node carries no `BRIEF.md`, and that is the point rather than an
 /// omission** (task-tree-scheme, *the charter distinguishes the two species*). A
@@ -110,9 +104,9 @@ struct StepRelationship {
 /// the Retire cascade reads** — a file test, never a parse of the `-chain` /
 /// `-pair` token, which is ordinary slug text nothing keys on.
 ///
-/// **This is not `leaf_add` in a loop, and the difference is the whole point of
-/// a composite verb.** `leaf_add` validates, allocates and writes in one breath,
-/// so four calls give four chances to stop half-way — and a live prefix of a
+/// **This is not `leaf_add_unlocked` in a loop, and the difference is the whole
+/// point of a composite verb.** `leaf_add_unlocked` validates, allocates and
+/// writes in one breath, so four calls give four chances to stop half-way — and a live prefix of a
 /// chain looks exactly like a deliberately hand-cut partial one, which is the
 /// wrong-but-well-formed residue the verb exists to prevent. So:
 ///
@@ -127,7 +121,7 @@ struct StepRelationship {
 /// * **anything that still fails mid-write rolls the run back**, so the
 ///   observable outcome is the whole shape or none of it.
 ///
-/// Working-tree only — no commit, exactly like [`leaf_add`].
+/// Working-tree only — no commit, exactly like [`leaf_add_unlocked`].
 fn add_run(
     grove_root: &Path,
     parent_dir: &Path,
@@ -244,16 +238,6 @@ fn roll_back(cause: anyhow::Error, node_dir: &Path) -> anyhow::Error {
 /// stay unique tree-wide *and* name its artifact once the tree that explained it
 /// is gone (task-tree-scheme §5). Without the token the node's slug would collide
 /// with its own first child's.
-pub fn leaf_add_chain(
-    grove_root: &Path,
-    parent_dir: &Path,
-    stem: &str,
-    producer: Kind,
-) -> Result<Vec<PathBuf>> {
-    let guard = tree_access::write(grove_root)?;
-    leaf_add_chain_unlocked(guard.root(), parent_dir, stem, producer)
-}
-
 pub(crate) fn leaf_add_chain_unlocked(
     grove_root: &Path,
     parent_dir: &Path,
@@ -305,11 +289,6 @@ pub(crate) fn leaf_add_chain_unlocked(
 /// The steps have fixed filename kinds `research-a`, `research-b`, and
 /// `combine-research`. Their commands and any desired independence are launch
 /// configuration, never metadata in these task bodies.
-pub fn leaf_add_pair(grove_root: &Path, parent_dir: &Path, stem: &str) -> Result<Vec<PathBuf>> {
-    let guard = tree_access::write(grove_root)?;
-    leaf_add_pair_unlocked(guard.root(), parent_dir, stem)
-}
-
 pub(crate) fn leaf_add_pair_unlocked(
     grove_root: &Path,
     parent_dir: &Path,
@@ -340,16 +319,16 @@ pub(crate) fn leaf_add_pair_unlocked(
     )
 }
 
-/// One entry of a `leaf_insert` renumber: an existing sibling whose per-level
+/// One entry of a `leaf-insert` renumber: an existing sibling whose per-level
 /// position shifted up by one. The key and slug (and, for a node, its whole
 /// subtree) are invariant — only the `NN` in this one entry's own name changes —
 /// so a `Renumber` records just the position move and the names.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Renumber {
-    pub old_position: u32,
-    pub new_position: u32,
-    pub old_name: String,
-    pub new_name: String,
+pub(crate) struct Renumber {
+    pub(crate) old_position: u32,
+    pub(crate) new_position: u32,
+    pub(crate) old_name: String,
+    pub(crate) new_name: String,
 }
 
 /// Insert a new leaf at the slot currently held by `target`, shifting `target`
@@ -358,23 +337,14 @@ pub struct Renumber {
 /// grove root). Each shift is a single rename whose source and destination differ
 /// only in the leading `NN`; a node directory carries its whole subtree along.
 /// Renames run **highest-position-first** so each destination is already vacated.
-/// The new leaf gets a fresh key. (Inserting past the last sibling is `leaf_add`'s
-/// job — `target` must exist.) Working-tree only — no commit; siblings grown this
-/// session are untracked and rename fine ([`crate::tree_rename`]).
+/// The new leaf gets a fresh key. (Inserting past the last sibling is
+/// `leaf_add_unlocked`'s job — `target` must exist.) Working-tree only — no
+/// commit; siblings grown this session are untracked and rename fine
+/// ([`crate::tree_rename`]).
 ///
 /// Returns the new leaf's path and the renumber log (ascending by new position);
-/// pass the log to [`surface_cross_refs`] to lint stray position-prefixed refs.
-pub fn leaf_insert(
-    grove_root: &Path,
-    target: &Path,
-    slug: &str,
-    kind: Kind,
-) -> Result<(PathBuf, Vec<Renumber>)> {
-    refuse_finish_kind(kind, "leaf-insert")?;
-    let guard = tree_access::write(grove_root)?;
-    leaf_insert_unlocked(guard.root(), target, slug, kind)
-}
-
+/// pass the log to [`surface_cross_refs_unlocked`] to lint stray
+/// position-prefixed refs.
 pub(crate) fn leaf_insert_unlocked(
     grove_root: &Path,
     target: &Path,
@@ -448,21 +418,13 @@ pub(crate) fn leaf_insert_unlocked(
 }
 
 /// Surface stray **position-prefixed** cross-references left stale by a
-/// `leaf_insert` renumber, as a lint on stderr — never an auto-rewrite (task-tree-scheme
-/// §5: durable references should use the stable `<slug>-k<key>` handle, which a
+/// `leaf-insert` renumber, as a lint on stderr — never an auto-rewrite
+/// (task-tree-scheme §5: durable references should use the stable `<slug>-k<key>` handle, which a
 /// renumber never changes, so the operator reviews each occurrence). Scans every
 /// `.md` body in the tree (recursively) for the **old on-disk name** of each
 /// renamed entry (`05-mid-k14`), emitting one `path:line: <old-name> (context)`
 /// per hit. A stable `<slug>-k<key>` reference is *not* surfaced (it did not move);
 /// only the position-prefixed form is stale. Empty renumber log ⇒ nothing to do.
-pub fn surface_cross_refs(
-    grove_root: &Path,
-    renumbers: &[Renumber],
-    out: &mut impl std::io::Write,
-) -> Result<()> {
-    let guard = tree_access::read(grove_root)?;
-    surface_cross_refs_unlocked(guard.root(), renumbers, out)
-}
 
 pub(crate) fn surface_cross_refs_unlocked(
     grove_root: &Path,
@@ -765,11 +727,67 @@ fn refuse_finish_kind(kind: Kind, verb: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tree_access;
     use std::fs;
     use std::process::Command;
     use tempfile::TempDir;
 
-    /// A fresh `.grove/` directory (no git — `leaf_add` only writes a file).
+    // ---- guard-taking helpers ------------------------------------------------
+    //
+    // Each verb below composes the exclusive tree guard with its lock-neutral
+    // twin, which is what a test needs to call one verb standalone. These were
+    // `pub fn` on the module until `dead-non-launch-exports-k166`, and that was
+    // the defect: **production calls none of them and cannot**, because
+    // `llm_cli` has to resolve the `<parent>`/`<target>` reference *inside* the
+    // same guard that then mutates, while these take an already-resolved path.
+    // As module API they read as a second, blessed way to grow the tree that
+    // locks a narrower window than the operation actually needs — and being
+    // `pub` in a `pub` module, `dead_code` could never say they had no callers.
+    // As test helpers they are what they always were: scaffolding for driving
+    // one verb in isolation.
+
+    fn leaf_add(grove_root: &Path, parent_dir: &Path, slug: &str, kind: Kind) -> Result<PathBuf> {
+        refuse_finish_kind(kind, "leaf-add")?;
+        let guard = tree_access::write(grove_root)?;
+        leaf_add_unlocked(guard.root(), parent_dir, slug, kind)
+    }
+
+    fn leaf_add_chain(
+        grove_root: &Path,
+        parent_dir: &Path,
+        stem: &str,
+        producer: Kind,
+    ) -> Result<Vec<PathBuf>> {
+        let guard = tree_access::write(grove_root)?;
+        leaf_add_chain_unlocked(guard.root(), parent_dir, stem, producer)
+    }
+
+    fn leaf_add_pair(grove_root: &Path, parent_dir: &Path, stem: &str) -> Result<Vec<PathBuf>> {
+        let guard = tree_access::write(grove_root)?;
+        leaf_add_pair_unlocked(guard.root(), parent_dir, stem)
+    }
+
+    fn leaf_insert(
+        grove_root: &Path,
+        target: &Path,
+        slug: &str,
+        kind: Kind,
+    ) -> Result<(PathBuf, Vec<Renumber>)> {
+        refuse_finish_kind(kind, "leaf-insert")?;
+        let guard = tree_access::write(grove_root)?;
+        leaf_insert_unlocked(guard.root(), target, slug, kind)
+    }
+
+    fn surface_cross_refs(
+        grove_root: &Path,
+        renumbers: &[Renumber],
+        out: &mut impl std::io::Write,
+    ) -> Result<()> {
+        let guard = tree_access::read(grove_root)?;
+        surface_cross_refs_unlocked(guard.root(), renumbers, out)
+    }
+
+    /// A fresh `.grove/` directory (no git — the grow verbs only write files).
     fn grove() -> (TempDir, PathBuf) {
         let tmp = TempDir::new().unwrap();
         let root = tmp.path().join(".grove");
@@ -1714,22 +1732,22 @@ mod tests {
 
     // ---- insert over untracked entries (issue #3) ----------------------------
     //
-    // The grow verbs are working-tree-only by design — `leaf_add` writes an
+    // The grow verbs are working-tree-only by design — `leaf_add_unlocked` writes an
     // *untracked* file and the enclosing task's commit folds it in. So the
     // ordinary rhythm of a planning session (grow several leaves, then realise
-    // one must sequence earlier) hands `leaf_insert` siblings that are not in
+    // one must sequence earlier) hands `leaf_insert_unlocked` siblings that are not in
     // git's index. Renaming those is `fs::rename`'s job, not `git mv`'s.
 
     #[test]
     fn insert_ahead_of_an_untracked_sibling_added_this_session() {
-        // Issue #3 verbatim: `leaf_add` then `leaf_insert` ahead of what it made,
+        // Issue #3 verbatim: `leaf_add_unlocked` then `leaf_insert_unlocked` ahead of it,
         // with no `git add` in between — the ordinary planning-session sequence.
         let (_t, g) = git_grove();
         touch(&g, "BRIEF.md", "root — brief");
         let release = leaf_add(&g, &g, "release", Kind::Impl).unwrap();
         assert_eq!(name_of(&release), "01-impl-release-k1.md");
 
-        // No stage_all: the leaf is untracked, exactly as `leaf_add` left it.
+        // No stage_all: the leaf is untracked, exactly as the grow verb left it.
         let (path, renums) = leaf_insert(&g, &release, "review", Kind::Impl).unwrap();
 
         assert_eq!(name_of(&path), "01-impl-review-k2.md");

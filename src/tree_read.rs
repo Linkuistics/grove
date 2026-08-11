@@ -135,11 +135,6 @@ fn collect_live_leaf_entries(dir: &Path, live: &mut Vec<(Entry, PathBuf)>) -> Re
 /// silently (some nodes are mid-decomposition); a leaf has no brief of its own,
 /// so its own directory's brief is the deepest one collected. `leaf_path` is
 /// absolute or relative to `grove_root`, and must resolve to a path under it.
-pub fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
-    let guard = tree_access::read(grove_root)?;
-    brief_chain_unlocked(guard.root(), leaf_path)
-}
-
 pub(crate) fn brief_chain_unlocked(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
     #[cfg(test)]
     tree_access::assert_guard_held(grove_root);
@@ -533,6 +528,19 @@ fn collect_all(dir: &Path, out: &mut Vec<(Entry, PathBuf)>) -> Result<()> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// The shared read guard composed with the lock-neutral verb — what a test
+    /// needs to drive `brief-chain` standalone. This was a `pub fn brief_chain`
+    /// on the module until `dead-non-launch-exports-k166`, and no production
+    /// caller ever reached it: `llm_cli` holds one read guard across `pick` and
+    /// the ancestor walk, because selecting a leaf and reading its brief chain
+    /// under two separate guards would be reading a tree that could move in
+    /// between. Only the tests, driving the second half alone, wanted the
+    /// wrapper — so it belongs to them.
+    fn brief_chain(grove_root: &Path, leaf_path: &Path) -> Result<Vec<PathBuf>> {
+        let guard = tree_access::read(grove_root)?;
+        brief_chain_unlocked(guard.root(), leaf_path)
+    }
 
     /// Stand up a fresh `.grove/` directory and return `(tempdir, grove_root)`.
     fn grove() -> (TempDir, PathBuf) {

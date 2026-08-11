@@ -10,6 +10,12 @@
 
 /// One provisioning target: a harness Grove knows how to deliver its
 /// methodology to.
+///
+/// The registry is a slice rather than a lookup table because provisioning
+/// *iterates* it — every installed harness is swept, none is selected. A
+/// `by_name` lookup lived here until `dead-non-launch-exports-k166`; it was the
+/// last shape of the removed name→launch-target inference, and after that
+/// removal nothing but its own tests called it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Harness {
     pub name: &'static str,
@@ -40,7 +46,3 @@ pub const HARNESSES: &[Harness] = &[
         skills_dir: ".pi/agent/skills",
     },
 ];
-
-pub fn by_name(name: &str) -> Option<&'static Harness> {
-    HARNESSES.iter().find(|h| h.name == name)
-}

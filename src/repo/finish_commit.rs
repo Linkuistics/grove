@@ -812,7 +812,7 @@ fn finish_commit_message(finish_handle: &str, attempt_identity: &str) -> String 
 
 /// Refuse a plain-Git teardown that cannot produce a path-scoped deletion
 /// commit. A hand-built unborn finish tree has no tracked `.grove/` to delete.
-pub fn validate_finish_commit(worktree: &Path) -> Result<()> {
+fn validate_finish_commit(worktree: &Path) -> Result<()> {
     match vcs_of(worktree) {
         Some(Vcs::Git) => {
             let output = vcs_command(worktree, "git")
@@ -991,18 +991,6 @@ impl PreparedJjFinish {
             proof: FinishStartProof::Jj(start),
             error: command_error,
         }
-    }
-}
-
-/// Commit the prepared `.grove/` deletion, preserving unrelated staged or
-/// working-copy changes. The caller owns the tree lock and all finish facts.
-pub fn commit_finish(worktree: &Path, finish_handle: &str, attempt_identity: &str) -> Result<()> {
-    match prepare_finish(worktree, finish_handle, attempt_identity)?
-        .commit(finish_handle, attempt_identity)
-    {
-        FinishCommitOutcome::Committed(_) => Ok(()),
-        FinishCommitOutcome::NotCommitted { error, .. }
-        | FinishCommitOutcome::RecoveryPending(error) => Err(error),
     }
 }
 

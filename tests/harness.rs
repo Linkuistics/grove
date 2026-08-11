@@ -8,14 +8,23 @@
 //! configured command cannot answer, and the two properties below are what keep
 //! the two concerns apart.
 
-use grove::harness::{by_name, Harness, HARNESSES};
+use grove::harness::{Harness, HARNESSES};
+
+/// The lookup the tests do for themselves. `harness::by_name` used to export
+/// this one line, and nothing but these tests ever called it: provisioning
+/// *iterates* `HARNESSES` rather than selecting a row, so a name lookup was
+/// residue of the removed name→launch-target inference. Asserting against the
+/// slice is asserting against what production actually reads.
+fn row(name: &str) -> Option<&'static Harness> {
+    HARNESSES.iter().find(|harness| harness.name == name)
+}
 
 #[test]
 fn registry_contains_claude_codex_and_pi() {
-    assert!(by_name("claude").is_some());
-    assert!(by_name("codex").is_some());
-    assert!(by_name("pi").is_some());
-    assert!(by_name("nonsense").is_none());
+    assert!(row("claude").is_some());
+    assert!(row("codex").is_some());
+    assert!(row("pi").is_some());
+    assert!(row("nonsense").is_none());
 }
 
 // The rows carry a *destination*, not a *command*. pi is the row that proves
@@ -24,15 +33,15 @@ fn registry_contains_claude_codex_and_pi() {
 // pi's methodology to a directory pi does not read.
 #[test]
 fn every_row_names_an_install_marker_and_a_skills_destination() {
-    let claude = by_name("claude").unwrap();
+    let claude = row("claude").unwrap();
     assert_eq!(claude.project_dir, ".claude");
     assert_eq!(claude.skills_dir, ".claude/skills");
 
-    let codex = by_name("codex").unwrap();
+    let codex = row("codex").unwrap();
     assert_eq!(codex.project_dir, ".codex");
     assert_eq!(codex.skills_dir, ".codex/skills");
 
-    let pi = by_name("pi").unwrap();
+    let pi = row("pi").unwrap();
     assert_eq!(pi.project_dir, ".pi");
     assert_eq!(
         pi.skills_dir, ".pi/agent/skills",
@@ -63,9 +72,9 @@ fn a_registry_row_is_a_destination_record_with_no_launch_policy() {
             "{name}: the skills destination must live under the install marker, got {skills_dir:?}"
         );
         assert_eq!(
-            by_name(name),
+            row(name),
             Some(harness),
-            "{name}: every row must be reachable by its own name"
+            "{name}: every row must be findable by its own name"
         );
     }
 }

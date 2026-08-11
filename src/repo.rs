@@ -20,7 +20,6 @@ pub(crate) use finish_commit::{
     verify_lost_finish_result, FinishCommitOutcome, FinishProof, FinishRecoveryOutcome,
     FinishStartAnchor, FinishStartProof, PreparedFinish,
 };
-pub use finish_commit::{commit_finish, validate_finish_commit};
 pub use migration_commit::commit_session_kind_migration;
 
 /// The VCS that owns a working tree.
@@ -203,19 +202,6 @@ fn gitfile_target(gitfile: &Path) -> Result<PathBuf> {
     target
         .canonicalize()
         .with_context(|| format!("canonicalizing Git worktree gitdir {}", target.display()))
-}
-
-/// Resolve the repo path: if `arg` is Some, use it; otherwise use cwd's main
-/// repo (see [`main_repo_of`]).
-pub fn resolve(arg: Option<&Path>) -> Result<PathBuf> {
-    if let Some(p) = arg {
-        if !p.join(".jj").is_dir() && !p.join(".git").exists() && git_common_dir(p).is_err() {
-            bail!("not a git or jj repo: {}", p.display());
-        }
-        return Ok(p.to_path_buf());
-    }
-    let cwd = std::env::current_dir().context("getting cwd")?;
-    main_repo_of(&cwd)
 }
 
 /// Resolve the working-tree top directory of `cwd`. This *is* the grove

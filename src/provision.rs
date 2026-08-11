@@ -218,17 +218,28 @@ mod tests {
         }
     }
 
+    /// The row named `name`, looked up the way a test has to now that
+    /// `harness::by_name` is gone: production *iterates* `HARNESSES`, so the
+    /// registry is a slice and never had a selecting caller of its own
+    /// (`dead-non-launch-exports-k166`).
+    fn row(name: &str) -> &'static crate::harness::Harness {
+        crate::harness::HARNESSES
+            .iter()
+            .find(|harness| harness.name == name)
+            .unwrap_or_else(|| panic!("no {name} row in the provisioning registry"))
+    }
+
     #[test]
     fn skill_dirs_follow_each_harness_layout() {
         let _lock = ENV_LOCK_FOR_HOME.lock().unwrap_or_else(|e| e.into_inner());
         let _home_guard = HomeGuard(std::env::var_os("HOME"));
         std::env::set_var("HOME", "/home/x");
         assert_eq!(
-            skill_dir_for(crate::harness::by_name("claude").unwrap()).unwrap(),
+            skill_dir_for(row("claude")).unwrap(),
             Path::new("/home/x/.claude/skills/grove")
         );
         assert_eq!(
-            skill_dir_for(crate::harness::by_name("pi").unwrap()).unwrap(),
+            skill_dir_for(row("pi")).unwrap(),
             Path::new("/home/x/.pi/agent/skills/grove")
         );
     }

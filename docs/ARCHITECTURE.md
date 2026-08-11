@@ -573,6 +573,20 @@ replaces the removed routing registry: opaque command targets have exactly one
 production adapter — direct process execution — so another port would be
 hypothetical indirection.
 
+Module visibility is load-bearing rather than incidental: a `pub` item in a
+`pub` module is reachable by definition, so `dead_code` never reports one, and a
+module stays `pub` only while something outside the crate genuinely calls into
+it. A public item whose only callers are tests therefore stops being module
+API — deleted where a test can assert on what production reads, demoted into
+that module's `mod tests` where the test still needs the convenience. Two
+surfaces are exempt and argued where they live: a **seam**, where production
+reaches the same behaviour through a door a test cannot open
+(`tree_lifecycle::transition_to_current`), and a **frozen grammar kept whole**
+(`leaf_id`, the v1-flat parser, deliberately not trimmed to what the one-time
+migration happens to call). The list is reproduced by copying `src/` to a
+scratch crate, making every module private except `cli` and `llm_cli`, and
+reading the compiler's reachability warnings.
+
 ## Verification
 
 The principal checks are:

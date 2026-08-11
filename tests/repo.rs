@@ -1,4 +1,4 @@
-use grove::repo::{main_repo_of, resolve, toplevel, vcs_of, workspace_control, Vcs};
+use grove::repo::{main_repo_of, toplevel, vcs_of, workspace_control, Vcs};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -297,32 +297,9 @@ fn main_repo_of_secondary_jj_workspace_is_the_default_workspace_root() {
     assert_eq!(canon(&main_repo_of(&ws).unwrap()), canon(&main));
 }
 
-// ---- resolve --------------------------------------------------------------
-
-#[test]
-fn resolve_uses_explicit_arg_when_provided() {
-    let tmp = TempDir::new().unwrap();
-    init_git_repo(tmp.path());
-
-    let resolved = resolve(Some(tmp.path())).unwrap();
-    assert_eq!(canon(&resolved), canon(tmp.path()));
-}
-
-#[test]
-fn resolve_accepts_a_jj_native_repo_arg() {
-    let tmp = TempDir::new().unwrap();
-    init_jj_repo(tmp.path());
-
-    let resolved = resolve(Some(tmp.path())).unwrap();
-    assert_eq!(canon(&resolved), canon(tmp.path()));
-}
-
-#[test]
-fn resolve_errors_when_arg_is_not_a_repo() {
-    let tmp = TempDir::new().unwrap();
-    let err = resolve(Some(tmp.path())).unwrap_err();
-    assert!(
-        err.to_string().contains("not a git or jj repo"),
-        "unexpected error: {err}"
-    );
-}
+// `repo::resolve` used to sit here: `resolve(Some(path))` validated a
+// caller-supplied repository path and `resolve(None)` delegated to
+// `main_repo_of(cwd)`. Bare `grove` takes no arguments, so the explicit-path
+// form lost its last caller with the `--repo` flag and only these tests kept it
+// compiling. The delegating form's behaviour is `main_repo_of`'s, covered
+// directly above; nothing else was lost with it.

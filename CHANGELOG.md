@@ -101,11 +101,22 @@ change. There is no migration, and none is needed.
   on purpose**, because a `research-b` cut by `research-a`'s own session would
   inherit that session's framing and corpus and destroy the independence the pair
   is run for.
-- **A chain is no longer contiguous by construction**, and that cost is accepted
-  rather than defended against: steps land at the parent's next free position, so
-  one cut after unrelated work lands after it, and a sibling `leaf-insert` can
-  split a chain. Grove validates no cross-leaf grammar and `pick` is a walk, not
-  a scheduler; use `leaf-insert` when the order matters.
+- **A chain is no longer contiguous by construction**, and grove enforces
+  nothing: steps land at the parent's next free position, so one cut after
+  unrelated work lands after it, and a sibling `leaf-insert` can split a chain.
+  Grove validates no cross-leaf grammar and `pick` is a walk, not a scheduler.
+  **The cost of a gap is not the same at both hops**, though, and the methodology
+  now says so instead of leaving the call to unaided judgement. A `review-*` step
+  *re-derives* — it reads the producer's commit and computes its own `path:line`
+  citations against the tree as it then stands — so `leaf-add` is right for it
+  wherever it lands. An `integrate-review-*` step *consumes* citations its review
+  already froze into prose, against a working tree that has since moved, and the
+  drift is silent. So an integration is cut **adjacent to its review by
+  default**, with **`leaf-insert`** at the review's first live sibling whenever
+  it has one — `leaf-add` appends at the parent's *end* — and the exception is a
+  check rather than a feeling: depart only when the intervening work provably
+  touches no file the findings cite. Nothing enforces this; it is a rule for the
+  session cutting the leaf.
 - **A freshly created leaf's body is the bare template** — the stable handle and
   empty sections — with no rendered goal and no relationship line, so the
   creating session has nothing to edit around.

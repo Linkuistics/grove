@@ -200,8 +200,9 @@ a pair is cut **eagerly, whole, in one call**.
 ### The review chain — each session cuts the next step
 
 Its steps are ordinary **flat siblings**. There is no chain node and no chain
-verb: each is an ordinary `leaf-add`, and it is the **last act** of the session
-before it.
+verb: each is an ordinary `leaf-add` — or, for the integration, a `leaf-insert`
+when the review already has a live sibling after it — and it is the **last act**
+of the session before it.
 
 ```
 grove-llm leaf-add [12] sync-design --kind design
@@ -238,6 +239,11 @@ Three things follow from cutting them late:
   catches it. The five producers are `requirements`, `design`, `planning`,
   `prototype` and `impl`; every one of them has both steps, spelled exactly that
   way.
+- **You choose the verb too, and the two hops choose differently.** A review is
+  cut with `leaf-add` wherever it lands; an integration is cut **adjacent to the
+  review it integrates**, which means `leaf-insert` — targeting the review's
+  first live sibling — whenever the review has one. *What the shapes are not*,
+  below, carries the reason and the test for departing from it.
 
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
@@ -297,11 +303,23 @@ it could be and is not:
 - **A chain is not a unit, and is not contiguous by construction.** `pick`
   returns the first live leaf in the whole tree and nothing groups leaves for it
   (*task-tree-scheme*). Steps are appended at the parent's next free position, so
-  a review decided on after some unrelated leaf already exists lands *after* that
-  leaf, and a later `leaf-insert` can split a chain that was contiguous. Neither
-  is a fault to defend against — grove validates no cross-leaf grammar, and
-  contiguity was always a convention. Use `leaf-insert` when the order genuinely
-  matters.
+  a step cut after some unrelated leaf already exists lands *after* that leaf,
+  and a later `leaf-insert` can split a chain that was contiguous. Grove refuses
+  none of it — it validates no cross-leaf grammar, and contiguity was never an
+  enforced unit. **But that does not make every gap equally free**, and the
+  difference is mechanical: a `review-*` leaf **re-derives** its inputs, reading
+  the producer's commit — which history holds immutably — and computing its own
+  `path:line` citations against the tree as it then stands, so intervening work
+  breaks nothing. An `integrate-review-*` leaf **consumes** citations the review
+  already froze into prose, against a working tree that has since moved, and the
+  drift is silent — nothing errors, the finding just points somewhere slightly
+  wrong. So an integration is cut **immediately after its review by default**,
+  with `leaf-insert` at the review's first live sibling whenever it has one;
+  plain `leaf-add` appends at the *end* of the directory, so it is correct only
+  when the review has no live sibling after it (terminal ones do not count —
+  `pick` never stops at one). Depart from adjacency only when the
+  intervening work **provably touches no file the findings cite** — a check you
+  perform against a named path list, not a judgement call.
 
 **The grammar is the five fields above and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders

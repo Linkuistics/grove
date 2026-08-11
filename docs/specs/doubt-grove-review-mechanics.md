@@ -81,6 +81,12 @@ and, if that review finds something worth acting on, its own last act produces:
 07-integrate-review-design-sync-design-integrate-k22.md
 ```
 
+Here the review has no live sibling after it, so the next free position *is* the
+slot beside it and `leaf-add` puts the integration where it belongs. When that is
+not so — some live leaf already sits at 07 or beyond — the integration is cut
+with `leaf-insert` at the first such sibling instead, for the reason in *What the
+flat shape gives up, deliberately* below.
+
 **The creating session writes the new leaf's body**, and that is the reason to
 create it late rather than up front. A review leaf can name the exact claim the
 producer could not establish; an integrate leaf can carry the findings verbatim.
@@ -112,12 +118,46 @@ review leaf.
 
 ### What the flat shape gives up, deliberately
 
-A chain's steps are appended at the parent's next free position, so a review
-decided on after unrelated work already exists lands after that work, and a
-sibling `leaf-insert` can split a chain that was contiguous. Grove validates no
+A chain's steps are appended at the parent's next free position, so a step cut
+after unrelated work already exists lands after that work, and a sibling
+`leaf-insert` can split a chain that was contiguous. Grove validates no
 cross-leaf grammar and `pick` is a walk rather than a scheduler, so contiguity
-was always a convention rather than an enforced unit. `leaf-insert` is the answer
-when the order genuinely matters.
+was always a convention rather than an enforced unit, and it stays one: nothing
+here is enforced.
+
+**The two hops are not equally exposed, and the difference decides the verb.**
+It is a property of what the next step consumes, not of how far apart the leaves
+sit:
+
+- A **`review-*`** step *re-derives*. It reads the producer's commit — an
+  immutable object history holds whatever lands afterwards — and computes its own
+  `path:line` citations against the tree as it then stands. Intervening work
+  changes what the review reads and invalidates nothing, because nothing had been
+  written down. Plain `leaf-add` is correct wherever it lands it.
+- An **`integrate-review-*`** step *consumes*. Its input is the set of citations
+  the review already froze into prose, resolved against a working tree that has
+  since moved. An intervening edit to a cited file shifts those lines and the
+  drift is **silent** — nothing errors, the finding points somewhere slightly
+  wrong, and the integrating session must re-derive the reviewer's intent from a
+  codebase the reviewer never saw.
+
+So an integration is cut **immediately after the review it integrates, by
+default**, which makes `leaf-insert` the verb whenever the review already has a
+live sibling after it. `leaf-add` appends at the *end* of the parent, so it is
+correct only when the review has none; terminal siblings in between are
+irrelevant, because `pick` skips them and never stops between the two steps:
+
+```text
+grove-llm leaf-insert <the review's first live sibling> <stem>-integrate --kind integrate-review-<producer>
+```
+
+The exception is a check, not a judgement: depart from adjacency only when the
+intervening work **provably touches no file the findings cite**, established by
+listing the paths the findings name and checking the intervening leaf against
+them. Where that check cannot be performed — the intervening leaf's file set is
+not yet knowable — the exception does not apply. This is guidance for the session
+cutting the leaf and nothing more; making it a *mechanism* would be a separate
+decision, with its own ADR.
 
 Neither composition shape gets a node directory. A node means *this work proved
 bigger than one session* and carries the `BRIEF.md` those extra sessions need;
@@ -185,6 +225,14 @@ configuration.
   as contiguous flat siblings with consecutive fresh keys, no node directory, and
   an untouched producer. Cover a review step cut after unrelated work, which
   lands after that work rather than beside its producer.
+- Sweep every guidance surface for the **per-hop** placement rule, since no verb
+  can carry it: the `review → integrate` hop names `leaf-insert`, states the
+  commit-and-line anchoring that makes adjacency the default, and gives the
+  exception its check; the `producer → review` hop is stated as the contrasting
+  case that needs no rule. Pin the verb *to the hop*, so a surface that merely
+  offers `leaf-insert` as a general remedy for ordering — the superseded
+  formulation, which supplied a judgement call and no test for making it — fails
+  rather than passing on the word alone.
 - Assert the freshly created leaf's body is the bare template — the stable handle
   and empty sections — carrying no rendered goal, no relationship line, and no
   launch metadata, so the creating session has nothing to edit around.

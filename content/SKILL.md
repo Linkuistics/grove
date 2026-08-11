@@ -329,13 +329,44 @@ its neighbour, an `X` requires no `review-X` after it, and a partial chain is
 never rejected. The suffix convention is a habit that makes a chain legible to
 you and to `find .grove`; it is not grammar.
 
-**A chain is not contiguous by construction, and that is accepted.** Its steps
-are appended at the parent's next free position, so a review decided on after
-some unrelated leaf already exists lands *after* that leaf, and a later
-`leaf-insert` can split a chain that was contiguous. Neither is a fault to defend
-against: grove validates no cross-leaf grammar, `pick` is a walk and not a
-scheduler, and contiguity was always a convention rather than an enforced unit.
-Use `leaf-insert` when the order genuinely matters.
+**A chain is not contiguous by construction, and only one of its two hops needs
+protecting.** Steps are appended at the parent's next free position, so a step
+cut after some unrelated leaf already exists lands *after* that leaf, and a later
+`leaf-insert` can split a chain that was contiguous. Grove refuses none of
+it — it validates no cross-leaf grammar, `pick` is a walk and not a scheduler,
+and contiguity was never an enforced unit. What decides whether a gap costs
+anything is **what the next step consumes**:
+
+- **`producer → review` re-derives, so a gap is free.** The review reads the
+  producer's *commit* — which history holds immutably, whatever lands
+  afterwards — and computes its own citations against the tree as it then
+  stands. Intervening work changes what the review reads; it invalidates
+  nothing, because nothing had been written down yet. Plain `leaf-add` is right
+  here even when the review lands after unrelated live work.
+- **`review → integrate` consumes, so a gap corrupts.** A review's findings are
+  anchored to a commit and to `path:line` coordinates, and the integrating
+  session opens the working tree as it *then* stands. Any intervening edit to a
+  cited file moves those lines, and the drift is **silent**: nothing errors, the
+  finding simply points somewhere slightly wrong, and the integrating session has
+  to re-derive what the reviewer meant from a codebase the reviewer never saw.
+
+So an integration runs **immediately after the review it integrates, by
+default**, and **`leaf-insert` is the verb** whenever any live leaf already
+follows the review among its siblings — target the first of them. `leaf-add`
+appends at the *end* of the directory, so it is right only when the review has no
+live sibling after it; terminal leaves in between do not count, because `pick`
+never stops at one:
+
+```text
+grove-llm leaf-insert <first live leaf after the review> <stem>-integrate --kind integrate-review-<producer>
+```
+
+**The exception has a test, not a feeling:** depart from adjacency only when the
+intervening work **provably touches no file the findings cite**. List the paths
+the findings name and check the intervening leaf against them; if that check
+cannot be performed — because what the intervening leaf will touch is not yet
+knowable — you do not have the exception. Adjacency is a rule for the session
+cutting the leaf, never a property the tree guarantees.
 
 **When a picked producer needs fresh review**, the answer is the same
 `leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf

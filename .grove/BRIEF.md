@@ -144,3 +144,13 @@ a sibling-level `leaf-insert` could not split a chain. Flat steps can be split b
 an insert. Record it where it belongs (`CONTEXT.md`'s **Pick** / **Position**
 entries) rather than defending against it — grove validates no cross-leaf
 grammar, and contiguity was always a convention rather than an enforced unit.
+
+**Narrowed by `chain-contiguity-k6`**, which this grove's own tree provoked: the
+mechanism stays exactly as decided — nothing is enforced, and no chain node
+returns — but the *guidance* no longer accepts the cost uniformly. The two hops
+differ in what the next step consumes. A `review-*` step **re-derives** from the
+producer's commit, so a gap before it is free and `leaf-add` is right wherever it
+lands. An `integrate-review-*` step **consumes** `path:line` citations its review
+already froze, against a working tree that has since moved, and the drift is
+silent — so it is cut adjacent to its review by default, with `leaf-insert`, and
+departing needs the intervening work to provably touch no file the findings cite.

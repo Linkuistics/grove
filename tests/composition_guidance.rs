@@ -141,6 +141,89 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
     }
 }
 
+/// Where a chain's steps *land* is the one thing no verb can carry: `leaf-add`
+/// appends at the end, `pick` is a walk, and grove reads no relationship between
+/// leaves. So the placement rule lives only in prose — and the blanket version
+/// of it ("use `leaf-insert` when the order genuinely matters") supplied a
+/// judgement call with no test for making it. The first session ever to face
+/// that call reached for plain `leaf-add` and split its own chain.
+///
+/// The replacement is **per hop**, and both halves have to survive, because each
+/// fails differently. Drop the `integrate` half and the silent-drift defect
+/// returns; drop the `review` half and adjacency reads as a blanket rule, which
+/// would force an insert for a hop that provably needs none and make the whole
+/// thing feel like ceremony. So each surface is pinned for the contrasting verb
+/// pair (`re-derive` / `consume`) as well as for the rule.
+///
+/// Three things are pinned per surface beyond that pair: the **verb**
+/// (`leaf-insert`), the **silence** of the drift — a loud failure would be
+/// self-correcting and the rule would not be needed — and the **exception's
+/// check**, which is what makes this a rule rather than a second shrug.
+#[test]
+fn guidance_cuts_the_integrate_step_adjacent_to_the_review_it_integrates() {
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("CONTEXT.md", CONTEXT),
+        ("docs/USAGE.md", USAGE),
+        ("review mechanics spec", SPEC),
+        ("CHANGELOG.md", CHANGELOG),
+    ] {
+        assert_contains(surface, text, "leaf-insert");
+        assert_contains(surface, text, "silent");
+        assert_contains(surface, text, "touches no file the findings cite");
+    }
+
+    // The superseded sentence, banned as the sentence it was: it has a current
+    // replacement on every surface that *instructs a session*, and its return
+    // restores exactly the unaided judgement call that failed. `CHANGELOG.md` is
+    // deliberately out of this loop — its released sections are a frozen record
+    // of what was true then, and banning a phrase there would ban the history
+    // along with the instruction.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("CONTEXT.md", CONTEXT),
+        ("docs/USAGE.md", USAGE),
+        ("review mechanics spec", SPEC),
+    ] {
+        assert_absent(surface, text, "when the order genuinely matters");
+        assert_absent(surface, text, "when the order matters");
+    }
+
+    // Both hops, on every surface that states either — including
+    // `docs/ARCHITECTURE.md`, which has to say the rule is methodology so a
+    // reader does not go looking in `src/` for the enforcement.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("CONTEXT.md", CONTEXT),
+        ("docs/USAGE.md", USAGE),
+        ("review mechanics spec", SPEC),
+        ("CHANGELOG.md", CHANGELOG),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+    ] {
+        assert_contains(surface, text, "re-derive");
+        assert_contains(surface, text, "consume");
+    }
+
+    // …and the narrowing keeps the framing it narrows: grove still validates
+    // nothing between leaves, so a surface that turned adjacency into a claim
+    // about the tree rather than about the session cutting the leaf is wrong.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("review mechanics spec", SPEC),
+        ("CHANGELOG.md", CHANGELOG),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+    ] {
+        assert_contains(surface, text, "cross-leaf grammar");
+    }
+}
+
 /// A review that finds nothing must create nothing — the empty session this
 /// workstream exists to remove — and the surfaces have to say so, because the
 /// rule lives nowhere else: no verb enforces it and no filename records it.
@@ -365,8 +448,29 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
         "--kind review-<producer>",
         "flat",
         "if it found something worth acting on",
+        // This verb appends at the parent's end, which is the *wrong* placement
+        // for the integrate step whenever the review still has a live sibling
+        // after it — so the help that teaches the chain has to hand the session
+        // off to the other verb rather than leaving `leaf-add` looking universal.
+        "leaf-insert",
     ] {
         assert_contains("grove-llm leaf-add --help", &help, expected);
+    }
+
+    // And the receiving verb teaches why it is the default there, since a
+    // session may well arrive at it first.
+    let insert = Command::cargo_bin("grove-llm")
+        .unwrap()
+        .args(["leaf-insert", "--help"])
+        .output()
+        .unwrap();
+    let insert = String::from_utf8_lossy(&insert.stdout);
+    for expected in [
+        "integrate step",
+        "anchored",
+        "Plain `leaf-add` is correct there only",
+    ] {
+        assert_contains("grove-llm leaf-insert --help", &insert, expected);
     }
 }
 

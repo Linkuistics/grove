@@ -1101,8 +1101,12 @@ mod tests {
         // (flat-lazy-review, *Known consequence, accepted*). A review decided on
         // once a later leaf already exists lands **after** that leaf, not beside
         // its producer — grove validates no cross-leaf grammar and contiguity
-        // was always a convention. `leaf-insert` is the answer when the order
-        // matters; nothing here enforces one.
+        // was always a convention; nothing here enforces one.
+        //
+        // For *this* hop the gap is also harmless, which is why `leaf-add` is
+        // the right verb: the review re-derives everything from the producer's
+        // commit and computes its own citations against the tree it finds. The
+        // integrate hop is the one that cares — see the test below.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         leaf_add(&g, &g, "sync", Kind::Design).unwrap();
@@ -1111,6 +1115,51 @@ mod tests {
         let review = leaf_add(&g, &g, "sync-review", Kind::ReviewDesign).unwrap();
 
         assert_eq!(name_of(&review), "03-review-design-sync-review-k3.md");
+    }
+
+    #[test]
+    fn an_integration_cut_with_insert_lands_beside_the_review_it_integrates() {
+        // The shape the methodology asks a review session to produce when the
+        // review still has a live sibling after it. Nothing in `tree_*` knows
+        // that an `integrate-review-*` leaf belongs next to its review — the
+        // rule is guidance, and this pins what obeying it looks like, because
+        // the alternative (`leaf-add`, which would put the integration at 04)
+        // is equally well-formed and equally accepted here.
+        //
+        // Why it matters is not visible to any verb: the integration resolves
+        // `path:line` citations its review already froze, so an unrelated leaf
+        // running first can move them without erroring.
+        let (_t, g) = grove();
+        touch(&g, "BRIEF.md", "root — brief");
+        leaf_add(&g, &g, "sync", Kind::Design).unwrap();
+        leaf_add(&g, &g, "sync-review", Kind::ReviewDesign).unwrap();
+        let unrelated = leaf_add(&g, &g, "unrelated", Kind::Impl).unwrap();
+
+        let (integrate, renumbered) = leaf_insert(
+            &g,
+            &unrelated,
+            "sync-integrate",
+            Kind::IntegrateReviewDesign,
+        )
+        .unwrap();
+
+        assert_eq!(
+            name_of(&integrate),
+            "03-integrate-review-design-sync-integrate-k4.md",
+            "the integration takes the slot after its review"
+        );
+        assert_eq!(
+            list(&g),
+            vec![
+                "01-design-sync-k1.md",
+                "02-review-design-sync-review-k2.md",
+                "03-integrate-review-design-sync-integrate-k4.md",
+                "04-impl-unrelated-k3.md",
+                "BRIEF.md",
+            ],
+            "and the unrelated leaf shifts down, keeping its own key"
+        );
+        assert_eq!(renumbered.len(), 1, "only the displaced sibling moved");
     }
 
     #[test]

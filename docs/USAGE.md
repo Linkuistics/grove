@@ -183,9 +183,22 @@ one.** There is no chain verb and no chain node — each step is an ordinary
 # the producer's last act, if its artifact needs an adversarial read
 grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
 
-# the review's last act, if it found something worth acting on
+# the review's last act, if it found something worth acting on — but
+# `leaf-insert <the review's first live sibling>` instead, if it has one
 grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
 ```
+
+**The integration is placed next to its review on purpose.** It *consumes* what
+the review wrote down — findings anchored to files and line numbers — and it
+resolves them against the working tree as it *then* stands, so anything that
+edits a cited file in between moves those lines silently and leaves the
+integrating session guessing what the reviewer meant. A review, by contrast,
+*re-derives* everything from the producer's commit and can land anywhere, which
+is why only one of the two hops needs care. `leaf-add` appends at the *end* of
+the directory, so use `leaf-insert` for the integration whenever the review
+already has a live sibling after it — targeting the first of them — and depart
+from adjacency only when the intervening work provably touches no file the
+findings cite.
 
 A review that finds nothing creates nothing and simply retires — that empty
 triage session is what the lazy shape removes. But the bigger payoff is that the

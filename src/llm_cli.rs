@@ -117,6 +117,14 @@ pub enum Command {
     /// exact uncovered case, finding, or datum into it, which is strictly more
     /// than a constructor writing up front could know. A review that finds
     /// nothing creates nothing and simply retires.
+    ///
+    /// **The integrate step is the one that cares where it lands.** This verb
+    /// appends at the parent's *end*, which is right for it only when the review
+    /// has no live sibling after it. A review's findings are anchored to
+    /// file-and-line positions that an intervening leaf can move silently, so
+    /// when the review does have one, cut the integration with `leaf-insert
+    /// <that first live sibling> …` instead. A `review-*` step re-derives its
+    /// citations and needs no such care.
     LeafAdd(LeafAddArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call —
     /// `<stem>-a`, `<stem>-b`, `<stem>-combine` as three **flat siblings** at
@@ -152,6 +160,15 @@ pub enum Command {
     /// gets a fresh key. Prints the new leaf's absolute path on stdout; the
     /// renumber summary and stray position-prefixed cross-references go to
     /// stderr. Working-tree change only — no commit.
+    ///
+    /// Use it for new work that must sequence ahead of live leaves — and, as the
+    /// **default**, for a **review chain's integrate step** whenever the review
+    /// already has a live sibling after it (target the first of them). A
+    /// review's findings are anchored to a commit and to file-and-line
+    /// positions; an intervening leaf that edits a cited file moves them without
+    /// erroring, and the integrating session then re-derives the reviewer's
+    /// intent from a tree the reviewer never saw. Plain `leaf-add` is correct
+    /// there only when the review has no live sibling left after it.
     LeafInsert(LeafInsertArgs),
     /// Convert a live leaf file `NN-<kind>-<slug>-k<key>.md` into a node **directory**
     /// `NN-<slug>-k<key>/` (**key preserved** — the leaf that was `k<key>`

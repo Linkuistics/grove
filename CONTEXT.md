@@ -247,8 +247,21 @@ so are the `**Reviews:**` / `**Integrates:**` lines: they are written by hand by
 the session authoring the body, and **no code reads them**.
 _Avoid_: expecting a chain's steps to stay contiguous. They are appended at the
 parent's next free position, so one cut after unrelated work lands after it, and
-a sibling `leaf-insert` can split a chain that was contiguous. `leaf-insert` is
-the answer when order matters; grove enforces none.
+a sibling `leaf-insert` can split a chain that was contiguous. Grove enforces
+none of it.
+_Avoid_: reading that as "adjacency never matters" — it is per hop, and the two
+differ. A `review-*` leaf **re-derives** (it reads the producer's commit, which
+history holds immutably, and computes its own `path:line` citations against the
+tree as it then stands), so a gap before it costs nothing. An
+`integrate-review-*` leaf **consumes** citations the review already froze into
+prose, against a working tree that has since moved, and the drift is *silent*.
+So an integration is cut **immediately after its review by default**, with
+`leaf-insert` at the review's first live sibling whenever it has one (`leaf-add`
+appends at the directory's *end*, so it is right only when the review has no live
+sibling left after it); the exception is a
+check, not a judgement — depart only when the intervening work provably touches
+no file the findings cite. It is a rule for the session cutting the leaf, never
+something the tree guarantees.
 _Avoid_: giving either research leaf a `**Harness:**` declaration. Their
 `research-a` and `research-b` session kinds are the configuration keys.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
@@ -425,8 +438,12 @@ is considered. Ordering in a grove is
 [[Review chain]]'s steps run in sequence because they are siblings at adjacent
 [[Position]]s, exactly as a decomposition's children are. That contiguity is a
 *convention*, not a guarantee — a step cut after unrelated work lands after it,
-and a sibling `leaf-insert` can split a chain — which is the cost the flat shape
-accepts rather than defends against. Its value is that a
+and a sibling `leaf-insert` can split a chain. The flat shape accepts that cost
+rather than defending against it, but not uniformly: an `integrate-review-*`
+step consumes `path:line` citations its review already froze, so it is cut
+adjacent to that review by default (with `leaf-insert`), while a `review-*` step
+re-derives everything it needs and is placed wherever `leaf-add` lands it. Its
+value is that a
 human computes it **by eye** — `find .grove` shows the tree and the next session
 is the first non-finish name with no outcome infix — which is what makes "the
 tree is the only state" worth something rather than merely true.
@@ -438,6 +455,10 @@ _Avoid_: using a position (or a directory path) as a durable cross-reference —
 _Avoid_: reading adjacency as a structural claim. A [[Review chain]]'s steps are
 adjacent because each was appended when the previous session finished, not
 because anything holds them together; nothing refuses an insert between them.
+_Avoid_: the converse — concluding that because nothing holds them together,
+where a step lands is free. It is free for a `review-*` step and not for an
+`integrate-review-*` one, whose findings are anchored to positions in files an
+intervening leaf can move without erroring. See [[Review chain]].
 
 **Permanent key** / **stable id** (`-k<key>`):
 The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.

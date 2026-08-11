@@ -490,6 +490,25 @@ These habits make the chain worth its extra sessions:
   a reviewer reading for correctness, security and tests where it should be
   asking whether the ADRs are a minimum coherent set — a discipline mismatch
   nothing downstream detects.
+- **Cut the integration adjacent to its review — that means `leaf-insert`.** The
+  two hops are not alike. A review **re-derives**: it reads the producer's
+  commit, which history holds immutably, and computes its own `path:line`
+  citations against the tree as it then stands, so `leaf-add` is right for it
+  wherever it lands. An integration **consumes** citations the review already
+  froze into prose — `src/tree_grow.rs:166`, `CHANGELOG.md:67` — against a
+  working tree that has since moved. Any intervening edit to a cited file shifts
+  those lines *silently*: nothing errors, the finding just points somewhere
+  slightly wrong, and you re-derive the reviewer's intent from a codebase the
+  reviewer never saw. So when the review already has a live sibling after it,
+  cut the integration with `grove-llm leaf-insert <that first live sibling>
+  <stem>-integrate --kind integrate-review-<producer>`; plain `leaf-add` appends
+  at the *end* of the directory, so it is correct only when the review has no
+  live sibling after it. Terminal siblings in between are harmless — `pick` never
+  stops at one. Depart from adjacency only when the intervening work **provably
+  touches no file the findings cite** — list the paths the findings name and
+  check the intervening leaf against them. If you cannot run that check, you do
+  not have the exception, and the cost of being wrong is not that the integration
+  fails but that it quietly integrates the wrong thing.
 - **Name the leaves off the producer's stem** — `<stem>`, `<stem>-review`,
   `<stem>-integrate`. That is what makes `find .grove` — and any file manager —
   show the chain as a chain without opening a file. The suffix goes on the end
@@ -538,7 +557,9 @@ step suffixes nor the two declaration lines as grammar; deciding against review
 remains normal. A chain is not a scheduling unit and not contiguous by
 construction: steps land at the parent's next free position, so one cut after
 unrelated work lands after it, and a later `leaf-insert` can split a chain that
-was contiguous. Use `leaf-insert` when the order genuinely matters.
+was contiguous. Nothing refuses either — which is exactly why the adjacency of
+the `review → integrate` hop is *your* obligation at the moment you cut the leaf,
+and why the verb you reach for there is `leaf-insert`.
 
 ## Externalizing surfaced work
 

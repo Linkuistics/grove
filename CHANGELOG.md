@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v17.0.0
+
 **Breaking.** Launch policy moves entirely into a new personal configuration
 file, and the human command surface collapses to bare `grove`. Existing
 installations must write `~/.config/grove/config.kdl` before Grove will start;

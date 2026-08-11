@@ -434,70 +434,74 @@ cannot establish:
    and actionable, visible trade-off, or noise.
 
 If the pass finds a substantive actionable issue, a non-mechanical fix normally
-creates a second review need. Do not spawn it: promote the producer into Grove's
-review chain and finish only to a coherent reviewable boundary. Trivial findings,
-noise, visible accepted trade-offs, and fixes conclusively covered by an
-executable test seam stay inside the leaf.
+creates a second review need. Do not spawn it: `leaf-add` a `review-<producer>`
+leaf, write the specific doubt into its body, and finish only to a coherent
+reviewable boundary. Trivial findings, noise, visible accepted trade-offs, and
+fixes conclusively covered by an executable test seam stay inside the leaf.
 
-The other kinds are deliberate exceptions. A producer already in a chain runs
-no in-session reviewer because its `review-*` is scheduled. A `review-*` leaf is
-already the adversarial read and produces findings, not fixes. An
-`integrate-review-*` leaf may use one narrow reviewer; substantial redesign is a
-new producer review chain inside the owning chain node. `research-a`,
-`research-b` and `combine-research` use their two-corpus and adversarial-combine
-disciplines instead. A load-bearing decision derived from research gets its own
-reviewed producer chain.
+The other kinds are deliberate exceptions. A producer that already has a review
+leaf beside it runs no in-session reviewer, because its `review-*` is scheduled.
+A `review-*` leaf is already the adversarial read and produces findings, not
+fixes. An `integrate-review-*` leaf may use one narrow reviewer; substantial
+redesign is a new producer review chain beside the leaf being integrated.
+`research-a`, `research-b` and `combine-research` use their two-corpus and
+adversarial-combine disciplines instead. A load-bearing decision derived from
+research gets its own reviewed producer chain.
 
 ## The review chain — when doubt earns its own leaves
 
 The review chain is `X` → `review-X` → `integrate-review-X`: a producer, a fresh
 context asked to disprove it, and a leaf licensed to act on verified findings.
-Cut one proactively for a load-bearing artifact such as a landed spec, a
-decomposition others will build on, or a subsystem. Promote reactively when a
-picked plain producer reaches the second-review boundary above. This is an
-orchestration boundary, not a proxy for artifact size or vendor preference.
+Decide for one when the artifact is load-bearing — a landed spec, a decomposition
+others will build on, a subsystem — or reactively, when a picked plain producer
+reaches the second-review boundary above. This is an orchestration boundary, not
+a proxy for artifact size or vendor preference.
 
-Cutting one under node `[12]`, for a design that has not been written yet:
+**Its steps are flat siblings, and each session cuts the next.** There is no
+chain verb and no chain node: cutting a step is an ordinary `leaf-add`, and it is
+the *last act* of the session before it.
 
 ```
-grove-llm leaf-add-chain [12] sync-design --kind design
+  …the design session finishes, and judges review required:
+grove-llm leaf-add [12] sync-design-review --kind review-design
+
+  …the review session finishes, and has findings worth acting on:
+grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
 ```
 
-One call, one `sync-design-chain/` node holding three leaves — `sync-design`,
-`sync-design-review`, `sync-design-integrate`. You name the producer kind and
-nothing else: the verb derives `review-design` and `integrate-review-design`,
-which is the part worth not doing by hand. `--kind review-impl` beside a `design`
-producer is a perfectly valid invocation, and what it buys is a reviewer reading
-for correctness, security and tests where it should be asking whether the ADRs
-are a minimum coherent set — a discipline mismatch nothing downstream detects.
+The saved empty session is the obvious win, but it is not the main one. **The
+creating session writes the new leaf's body**, so it can put the *specific*
+thing into it — the exact case the producer could not cover, the findings
+verbatim, the file to start from. That is strictly more than a constructor
+rendering a goal sentence from a handle could produce, and it is why the session
+that knows *why* the step is needed is the right author.
 
-These habits make the chain worth its three sessions:
+These habits make the chain worth its extra sessions:
 
-- **Cut planned chains together.** `leaf-add-chain` derives the two later kinds,
-  keeps all three steps contiguous inside one brief-less node, and writes stable
-  `Reviews` / `Integrates` relationships. A late step for an existing chain uses
-  `leaf-add <chain-node> <stem>-late-step`, keeping it ahead of work outside.
-- **Promote a picked plain producer atomically.** Once its one-review allowance
-  is spent and more review is needed, run:
-
-      grove-llm leaf-promote-chain <picked-producer>
-
-  It moves the producer byte-for-byte into a new brief-less node, preserves its
-  handle, derives both steps and relationships, and prints node, relocated
-  producer, review, and integration paths. A `PROMOTING-*` witness makes an
-  interruption fail closed; retry the stable handle, stale path, or exact
-  witness path rather than cutting leaves by hand. Retiring the relocated
-  producer afterwards is the filename `DONE` transition alone — it writes nothing
-  into the review, which reads your committed artifact rather than anything about
-  the session that produced it.
-- **Name the chain off the producer's stem** — `<stem>`, `<stem>-review`,
-  `<stem>-integrate`, under a `<stem>-chain/` node. The chain verb does this for
-  you, and it is what makes `find .grove` — and any file manager — show the chain
-  as a chain without opening a file. The suffix goes on the end for a reason: a
-  prefix (`review-sync-design`) groups every review together and scatters the
-  chains (`TASK-FORMAT.md`). Don't write a `BRIEF.md` into the node: its absence
-  is what tells the Retire cascade this is a chain rather than a decomposition, so
-  its close has nothing to do — no `Done when` to check, no brief to promote.
+- **Decide at the end of the session, not the start.** A producer knows whether
+  its artifact needs an adversarial read only once it exists, and a review knows
+  whether integration has anything to do only once it has looked. Cutting no
+  review leaf is a normal outcome; so is a review that finds nothing, retires,
+  and cuts nothing.
+- **Name the step kind off the producer that actually ran** —
+  `review-<producer>`, then `integrate-review-<producer>`. Nothing derives this
+  for you any more, so it is the one place to be careful: `--kind review-impl`
+  beside a `design` producer is a perfectly valid invocation, and what it buys is
+  a reviewer reading for correctness, security and tests where it should be
+  asking whether the ADRs are a minimum coherent set — a discipline mismatch
+  nothing downstream detects.
+- **Name the leaves off the producer's stem** — `<stem>`, `<stem>-review`,
+  `<stem>-integrate`. That is what makes `find .grove` — and any file manager —
+  show the chain as a chain without opening a file. The suffix goes on the end
+  for a reason: a prefix (`review-sync-design`) groups every review together and
+  scatters the chains (`TASK-FORMAT.md`).
+- **Write the relationship line yourself.** A review's body carries
+  `**Reviews:** <producer-handle>`; an integration's carries `**Integrates:**
+  <review-handle>`. Nothing writes them and nothing parses them — they are a
+  convention for the human and for the session that picks the step up.
+- **Retiring the producer writes nothing into the review.** It is the filename
+  `DONE` transition alone; the review reads your committed artifact rather than
+  anything about the session that produced it.
 - **The reviewer produces findings, not fixes.** A reviewer that starts editing
   has collapsed the chain back into one session and lost the independence that
   was the point. `review-prototype` is the sharpest case: it is *not* a code
@@ -511,8 +515,7 @@ These habits make the chain worth its three sessions:
   four things: a contract you stated unclearly (fix the contract), a real issue
   (fix the artifact), a real trade-off (accept it *visibly*), or noise raised for
   want of context (note it, move on). If integration discovers substantial
-  redesign, add a new producer review chain **inside the owning chain node** so
-  it runs before work outside; an integration leaf itself is not promotable.
+  redesign, add a new producer review chain beside the leaf it is integrating.
 - **Route the review through configuration, not the tree.** "Reviews go to codex"
   is a property of the five `review-*` entries in `~/.config/grove/config.kdl`,
   and each step of a chain is a different kind, so per-kind configuration
@@ -527,14 +530,15 @@ These habits make the chain worth its three sessions:
   from an opaque command string, so it compares nothing, records nothing about
   how the producer ran, and raises no notice either way — the same limit that
   applies to the vendor pair. If the axis matters, read the two entries before
-  cutting the chain; a chain whose steps quietly share a target buys a fresh
-  context and little else.
+  cutting the review leaf; a chain whose steps quietly share a target buys a
+  fresh context and little else.
 
-grove does not require a review after every producer or parse step suffixes and
-positions as grammar; skipping a chain remains normal. It does parse the stable
-relationships needed for promotion and producer handoff. A chain is still not a
-scheduling unit: `pick` walks through it and then into the next sibling, but a
-sibling-level insert cannot split its contained children.
+grove does not require a review after every producer, and it parses neither the
+step suffixes nor the two declaration lines as grammar; deciding against review
+remains normal. A chain is not a scheduling unit and not contiguous by
+construction: steps land at the parent's next free position, so one cut after
+unrelated work lands after it, and a later `leaf-insert` can split a chain that
+was contiguous. Use `leaf-insert` when the order genuinely matters.
 
 ## Externalizing surfaced work
 
@@ -657,9 +661,11 @@ live. The doubt always resolves to one of three existing mechanisms:
   filename (pruning).
 
 Scope the prune to the decision. Pruning only a reviewed producer deliberately
-leaves its sibling review next and uncheckable — nothing was produced for it to
-read. When the producer, review, and integration path are all rejected, prune the
-enclosing review-chain node instead so every live step closes together.
+leaves any review leaf beside it next and uncheckable — nothing was produced for
+it to read. When the whole reviewed path is rejected, prune each of its live
+steps; a chain is flat siblings, so there is no enclosing directory to close them
+in one call, and there is rarely more than one live step to find (a review leaf
+exists only because a producer decided review was required).
 
 Misfiling any of the three corrupts the tree in a different way: reordering a
 decided-against leaf keeps a dead end reading as "still coming"; pruning a

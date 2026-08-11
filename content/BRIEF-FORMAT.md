@@ -2,7 +2,7 @@
 
 # BRIEF-FORMAT — the node briefing
 
-Every node in a grove is a **directory**, and a *decomposition* node carries a
+Every node in a grove is a **directory**, and it carries a
 brief as the `BRIEF.md` inside it — the root node `.grove/` as `.grove/BRIEF.md`,
 every other one as the `BRIEF.md` in its directory `NN-<slug>-k<key>/` (the
 directory the leaf became when it was decomposed, keeping its permanent key). It
@@ -11,18 +11,23 @@ log (`docs/adr/`). It exists so that a session executing a leaf can read *three*
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
 
-**Not every node has one.** A **chain node** — the directory `leaf-add-chain` /
-`leaf-add-pair` writes to hold a review chain or a vendor pair — is brief-less by
-rule: it means *these steps compose one artifact*, a shape declared whole at
-construction with no context anyone is in a position to write, and a stub emitted
-because a step demanded it is what constraint 4 forbids. So the presence of
-`BRIEF.md` is the **discriminator between the two node species**, which is why
-`brief-chain` skipping a level with no brief is load-bearing rather than merely
-tolerant, and why the Retire cascade's close has **work to do on a brief-carrying
-node and nothing to do on a chain node** — a `Done when` to check and a brief to
-promote, against neither (`TASK-FORMAT.md`; ADRs *task-tree-scheme* and
-*confirmation-boundary*). Nothing is enforced:
-writing a `BRIEF.md` into a chain node simply makes it brief-carrying.
+**There is one node species, and it always has one.** A node is a leaf that
+proved bigger than one session, so the charter is exactly the context those extra
+sessions need, and every node grove writes gets one: `leaf-decompose` moves the
+decomposed leaf's own body in as the brief, and `root-init` scaffolds the root's.
+Nothing composes leaves into a node any more — a review chain's steps are flat
+siblings each session cuts as its last act, and a vendor pair's are three flat
+siblings — so there is no longer a species that means *these steps compose one
+artifact* and has no context anyone could write (flat-lazy-review;
+`TASK-FORMAT.md`). The Retire cascade's close therefore has the same work at
+every node it meets: a `Done when` to check against the subtree and a brief to
+promote upward.
+
+**Nothing is enforced**, and `brief-chain` still skips a level with no brief. A
+brief is a lazy artifact (constraint 4) and briefs are freeform markdown that
+nothing validates (constraint 3), so a reader must not fail on a node whose
+charter has not been written yet — but a node without one is a lapse to fix, not
+a second kind of node.
 
 A brief is written by whichever session creates its node — a `planning` task
 cutting the tree, or a leaf of any kind that proved bigger than its brief and

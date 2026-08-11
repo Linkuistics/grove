@@ -721,7 +721,7 @@ fn hyphenated_verbs() -> Vec<String> {
 }
 
 /// One byte that can continue a verb name. A match must be bounded by
-/// non-continuing bytes on both sides, which is what stops `leaf-add-chain` from
+/// non-continuing bytes on both sides, which is what stops `leaf-add-pair` from
 /// also reading as `leaf-add` — and so what keeps a `leaf-add-pair` line from
 /// borrowing `leaf-add`'s `--kind`.
 fn continues_verb(byte: u8) -> bool {
@@ -837,7 +837,7 @@ fn the_flag_sweep_rejects_an_invented_selector_and_skips_an_anchor() {
         long_flags_in("[chain](#the-review-chain--when-doubt-earns-its-own-leaves)").is_empty()
     );
     assert_eq!(
-        long_flags_in("`grove-llm leaf-add-chain [12] stem --kind design`"),
+        long_flags_in("`grove-llm leaf-insert [12] stem --kind design`"),
         ["kind"]
     );
 }
@@ -848,8 +848,9 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
     // does not also register as its own prefix.
     let verbs = hyphenated_verbs();
     assert_eq!(
-        verbs_named_in("`grove-llm leaf-add-chain [12] stem --kind design`", &verbs),
-        ["leaf-add-chain"]
+        verbs_named_in("`grove-llm leaf-add-pair <parent> <stem>`", &verbs),
+        ["leaf-add-pair"],
+        "the longer verb must not also register as its own prefix"
     );
     assert_eq!(
         verbs_named_in("`grove-llm leaf-add <parent> <slug> --kind impl`", &verbs),

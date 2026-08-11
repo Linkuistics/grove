@@ -12,9 +12,7 @@ inside `.grove/` until its result is safe to expose.
 The witness is ordinary artifact state with operation-specific contents:
 
 - session-kind migration uses `MIGRATING-session-kinds/` to retain the original
-  and staged trees until its focused migration commit is proven;
-- producer promotion uses `PROMOTING-<final-node-name>/` to retain the only
-  producer copy while it prepares and lands the complete review-chain node; and
+  and staged trees until its focused migration commit is proven; and
 - finish teardown uses `FINISHING-<finish-handle>/` to evacuate every ordinary
   root entry beneath a manifest-backed original-tree directory before the
   deletion commit, and `PREPARING-FINISH-<finish-handle>-<attempt-identity>/`
@@ -26,9 +24,10 @@ The witness is ordinary artifact state with operation-specific contents:
 Every ordinary reader and mutator refuses while any reserved witness exists.
 Only the matching recovery path is admitted, and it runs before format,
 selection, liveness, kind, or normal root-absence classification. This ordering
-is load-bearing: a moved producer is not missing work, an evacuated finish tree
-is not a malformed or fresh grove, and files hidden beneath a witness still own
-their permanent keys. Generic diagnostics name the exact witness and the
+is load-bearing: an evacuated finish tree
+is not a malformed or fresh grove, a legacy tree mid-migration is not a
+current-format tree with a bad `FORMAT`, and files hidden beneath a witness still
+own their permanent keys. Generic diagnostics name the exact witness and the
 operation that can recover it.
 
 A finish transaction makes the commit boundary explicit. Preflight repository

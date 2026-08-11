@@ -1,5 +1,5 @@
-//! Retiring or pruning a producer that a review chain names: what may change,
-//! and what may not.
+//! Retiring or pruning a producer that a review names: what may change, and
+//! what may not.
 //!
 //! This file used to assert that neither verb materialised a
 //! `**Producer launch:**` receipt into the review that consumes the producer.
@@ -58,21 +58,21 @@ fn write(path: &Path, body: &str) {
 const REVIEW_BODY: &str =
     "# build-review-k2\n\n**Reviews:** build-k1\n\n## Goal\n\nReview the implementation.\n";
 
-/// A committed review chain: producer, the review that names it, and the
-/// integration that names the review.
+/// A committed review chain — flat siblings off one stem (flat-lazy-review):
+/// producer, the review that names it, and the integration that names the
+/// review, each cut by the session before it.
 fn build_review_chain(repo: &Path) -> PathBuf {
     let grove = repo.join(".grove");
-    let chain = grove.join("01-build-chain-k4");
-    let producer = chain.join("01-impl-build-k1.md");
+    let producer = grove.join("01-impl-build-k1.md");
     write(&grove.join("FORMAT"), "session-kinds-v1\n");
     write(&grove.join("BRIEF.md"), "# build — brief\n");
     write(&producer, "# build-k1\n\n## Goal\n\nBuild it.\n");
     write(
-        &chain.join("02-review-impl-build-review-k2.md"),
+        &grove.join("02-review-impl-build-review-k2.md"),
         REVIEW_BODY,
     );
     write(
-        &chain.join("03-integrate-review-impl-build-integrate-k3.md"),
+        &grove.join("03-integrate-review-impl-build-integrate-k3.md"),
         "# build-integrate-k3\n\n**Integrates:** build-review-k2\n",
     );
     assert!(ProcessCommand::new("git")
@@ -174,8 +174,8 @@ fn retiring_a_reviewed_producer_changes_only_its_own_filename() {
     assert_only_rename(
         &before,
         &snapshot(repo),
-        ".grove/01-build-chain-k4/01-impl-build-k1.md",
-        ".grove/01-build-chain-k4/01-DONE-impl-build-k1.md",
+        ".grove/01-impl-build-k1.md",
+        ".grove/01-DONE-impl-build-k1.md",
     );
     // Named separately so a failure says which half broke: the rename is the
     // control that proves the comparison above can see anything at all.
@@ -199,8 +199,8 @@ fn pruning_a_reviewed_producer_changes_only_its_own_filename() {
     assert_only_rename(
         &before,
         &snapshot(repo),
-        ".grove/01-build-chain-k4/01-impl-build-k1.md",
-        ".grove/01-build-chain-k4/01-ABANDONED-impl-build-k1.md",
+        ".grove/01-impl-build-k1.md",
+        ".grove/01-ABANDONED-impl-build-k1.md",
     );
     // Pruning a producer deliberately leaves its review live and next
     // (`src/llm_cli.rs`); this is the fixture that would notice it being
@@ -238,8 +238,8 @@ fn the_snapshot_comparison_rejects_a_sibling_write() {
         assert_only_rename(
             &before,
             &after,
-            ".grove/01-build-chain-k4/01-impl-build-k1.md",
-            ".grove/01-build-chain-k4/01-DONE-impl-build-k1.md",
+            ".grove/01-impl-build-k1.md",
+            ".grove/01-DONE-impl-build-k1.md",
         )
     })
     .is_err();

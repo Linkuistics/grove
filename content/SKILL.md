@@ -19,14 +19,12 @@ flowchart TD
     nb1["BRIEF.md — node brief"]
     l1["01-DONE-design-spec-k2.md — retired leaf, in place"]
     l2["02-impl-store-k3.md — live leaf"]
-    n2["02-cutover-chain-k4/ — chain node, no brief"]
-    c1["01-impl-cutover-k5.md — live leaf"]
+    l3["03-review-impl-store-review-k4.md — live leaf, cut by k3's session"]
     root --- n1
-    root --- n2
-    n2 --- c1
     n1 --- nb1
     n1 --- l1
     n1 --- l2
+    n1 --- l3
   end
   subgraph loop["The loop — one task per session"]
     direction TB
@@ -35,14 +33,15 @@ flowchart TD
     exec{"kind — planning, or one of the other eighteen?"}
     plan["Planning — cut vertical slices; grow the tree"]
     work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
+    next["Cut the next step? — a producer adds review-* if required; a review adds integrate-review-* if it has findings"]
     done["Retire — mark the just-finished leaf DONE in place"]
     retire{"parent chain — node now has no live leaf?"}
-    ret["Brief-carrying node: verify Done when; promote brief up; report close. Brief-less node: no-op"]
+    ret["Close the node: verify Done when; promote brief up; report close"]
     commit["Commit — one focused commit covering the task, its DONE rename and every close, sealed (name it by <slug>-k<key>)"]
     signal["Signal — grove-llm complete; loop relaunches with fresh context"]
     pick --> boot --> exec
     exec -->|planning| plan --> done
-    exec -->|any other kind| work --> done
+    exec -->|any other kind| work --> next --> done
     done --> retire
     retire -->|yes| ret --> retire
     retire -->|no| commit --> signal --> pick
@@ -156,8 +155,8 @@ the glossary (`CONTEXT.md`, or the relevant bounded context via
 enumerated by `grove-llm brief-chain <resolved-path>` — the verb walks that
 leaf's **ancestor directories**, from the grove root down to the leaf's own
 directory, and prints each level's `BRIEF.md`, one absolute brief path per line,
-root→leaf (a level with no brief is skipped silently — a chain node never
-carries one); and the task file itself. That assembled context is the session's
+root→leaf (a level with no brief is skipped silently, so a node whose charter
+has not been written yet still bootstraps); and the task file itself. That assembled context is the session's
 entire mandate; read nothing else by reflex.
 
 **Execute.** The **filename** states the leaf's session kind — nothing in its
@@ -197,11 +196,14 @@ session adopted that mandate by running Bootstrap — a `.grove/` directory in t
 checkout and inherited Grove control variables do not count. A picked plain producer may
 materialise at most one reviewer across the **whole picked leaf**; each
 independent diverse-lens context counts. A second need — normally re-review
-after a substantive non-mechanical fix — runs `grove-llm leaf-promote-chain
-<picked-producer>`; trivia, noise, visible trade-offs, and test-conclusive fixes
-do not force it. A chained producer, `review-*`, and every research-pair leaf
+after a substantive non-mechanical fix — is the signal that review has become
+tree-sized work: cut a `review-<producer>` leaf with `leaf-add`, writing the
+specific doubt into its body; trivia, noise, visible trade-offs, and
+test-conclusive fixes do not force it. A producer that already has a review leaf
+beside it, `review-*`, and every research-pair leaf
 spawn none; `integrate-review-*` may spend one narrow reviewer, then externalises
-substantial redesign inside the owning chain node. Outside this predicate doubt
+substantial redesign as a new producer review chain beside the leaf it is
+integrating. Outside this predicate doubt
 keeps its standalone cycles. Once review is escalated to the tree grove owns the
 route: it launches the `review-*` kind's own configured command, and whether that
 target differs from the producer's is the configuration owner's policy — grove
@@ -237,56 +239,84 @@ Continue inline **only** while the work still serves this leaf's stated goal
 not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
 just-in-time, at the genuine seam, never speculatively.
 
-**Compose, don't just append.** When more than one leaf serves *one* artifact,
-two shapes are the habitual answer — reach for them by default, and argue
-yourself *out* of one rather than into it. **Each is one call**, so cutting the
-whole shape is no more work than cutting the first leaf of it:
+**Cut the next step, when it is needed.** When more than one leaf serves *one*
+artifact, two shapes are the habitual answer — reach for them by default, and
+argue yourself *out* of one rather than into it. They are built in **opposite**
+ways, and the asymmetry is the design:
+
 - **The review chain** — `X` → `review-X` → `integrate-review-X`: a fresh
-  context asked to *disprove*, then a leaf licensed to act on what it found.
-  Cut it proactively when the artifact is load-bearing — a spec, a
-  decomposition you will build on for months, a subsystem. One narrow,
-  unexpected doubt in a picked plain producer may use its single in-session
-  reviewer instead (`driving.md`).
+  context asked to *disprove*, then a leaf licensed to act on what it found. Its
+  steps are **ordinary flat siblings**, and **each session creates the next, only
+  when it is required**:
 
-      grove-llm leaf-add-chain <parent> <stem> --kind <producer>
+      grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
+      grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
 
-  You name the **producer** kind — `requirements`, `design`, `planning`,
-  `prototype` or `impl` — and the verb derives `review-<producer>` and
-  `integrate-review-<producer>`. That derivation is the point: a hand-written
-  `--kind review-impl` beside a `design` producer is a perfectly valid
-  invocation, and it silently gives the reviewer the wrong discipline. Each
-  derived step resolves its own `review-` / `integrate-review-` configuration
-  entry, so the verb selects no harness.
+  The **last act of a producer session** is to decide whether review is required
+  and, if so, cut the `review-<producer>` leaf itself. The **last act of a review
+  session** is to cut the `integrate-review-<producer>` leaf — **only if it has
+  findings worth acting on**. A review that finds nothing creates nothing and
+  simply retires; that empty session is the one this shape exists to remove.
+  Decide for review when the artifact is load-bearing — a spec, a decomposition
+  you will build on for months, a subsystem. One narrow, unexpected doubt in a
+  picked plain producer may use its single in-session reviewer instead
+  (`driving.md`).
+
+  **You write the new leaf's body, and that is the payoff.** Because the leaf is
+  cut by the session that knows why it is needed, it can carry **specific
+  instructions, findings and data** — a review leaf naming the exact case its
+  producer could not cover, an integrate leaf carrying the findings verbatim.
+  That is strictly more than the generic template a constructor could write up
+  front, and it is why the creating session is the right author. The template
+  you get is bare on purpose: a handle and empty sections, nothing to edit
+  around.
+
+  You name the step kind yourself, so **name it off the producer**:
+  `review-<producer>` and `integrate-review-<producer>`, for the producer that
+  actually ran. `--kind review-impl` beside a `design` producer is a perfectly
+  valid invocation that silently gives the reviewer the wrong discipline, and
+  nothing will catch it. Each step resolves its own `review-` /
+  `integrate-review-` configuration entry, so the kind is the whole routing
+  decision.
+
 - **The vendor pair** — `research-a` → `research-b` → `combine-research`, the two
   surveys differing *only* by which configured target runs them. Cut it when the
-  question is load-bearing enough to pay for two corpora.
+  question is load-bearing enough to pay for two corpora. **This one is still
+  one eager call**, and the whole shape lands or none does:
 
       grove-llm leaf-add-pair <parent> <stem>
 
-  The two producers are **separate session kinds**, so each resolves its own
-  configuration entry and neither task file carries routing metadata. The tree
-  guarantees two independent sessions and the combine discipline; whether they
-  reach two genuinely different vendors is the configuration owner's policy, not
-  something grove can recover from an opaque command template.
+  **Laziness would be wrong here, which is why the pair kept its verb.** If
+  `research-a` cut `research-b` at the end of its own session, `b` would inherit
+  `a`'s framing and corpus — destroying the independence the pair is run for.
+  Eagerness is the point for a pair; it is not for a chain. The two producers are
+  **separate session kinds**, so each resolves its own configuration entry and
+  neither task file carries routing metadata. The tree guarantees two independent
+  sessions and the combine discipline; whether they reach two genuinely different
+  vendors is the configuration owner's policy, not something grove can recover
+  from an opaque command template.
 
-**Each shape is a node directory** — `<stem>-chain/` or `<stem>-pair/` — holding
-its three steps at `01`–`03`. Four keys per shape: the node holds the first, and
-stdout prints its path before the three leaves. **The whole shape lands or none
-does**; failure rolls back and prints nothing. It is byte-identical to the same
-manual shape only with its stable relationships: the review declares
-`**Reviews:** <producer-handle>` and integration declares `**Integrates:**
-<review-handle>`.
-
-**The node carries no `BRIEF.md`, by rule.** A charter means work proved bigger;
-a composed shape has no new context to charter. Absence is also Retire's
-**discriminator** — a file test, never a parse of ordinary `-chain` / `-pair`
-slug text. Add a brief yourself and the node simply becomes brief-carrying.
+**Neither shape gets a node directory.** A node means *this work proved bigger
+than one session*, and its `BRIEF.md` is the context those extra sessions need; a
+composed shape has no such context, and the hierarchy a node bought was not worth
+the navigation cost. So a shape's steps sit as flat siblings among their
+neighbours, and **every node in the tree carries a brief** again — there is only
+one node species, and Retire's close has the same work to do at every one of
+them.
 
 **The stem gets a step suffix, not a prefix** — `<stem>` / `<stem>-review` /
-`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. Children keep
-the stem and the node takes `-chain` / `-pair` so bare slugs stay unique and
-surviving commit handles still name their artifact. A terminal suffix also keeps
-stem-mates together; `review-<stem>` would group unrelated reviews.
+`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. Every step
+keeps the stem so bare slugs stay unique and surviving commit handles still name
+their artifact once `.grove/` is gone. A terminal suffix also keeps stem-mates
+together in a directory listing; `review-<stem>` would sort every review beside
+every other review and scatter the chains the naming exists to reveal.
+
+**Declare the relationship in the body, by hand.** A review's body carries
+`**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
+<review-handle>` (`TASK-FORMAT.md`). Nothing writes those lines for you and
+nothing parses them: they are a **convention for the human and the next session**,
+which is constraint 3 — task files are freeform markdown and nothing validates
+them.
 
 **The grammar is five fields; no relationship is one of them.** Grove parses
 every task-shaped leaf name into exactly `NN`, an optional `DONE` / `ABANDONED`
@@ -297,25 +327,29 @@ finds and the counter `leaf-add` reads. What grove infers from *none* of them is
 a **relationship between leaves**: a `-review` suffix does not make a leaf review
 its neighbour, an `X` requires no `review-X` after it, and a partial chain is
 never rejected. The suffix convention is a habit that makes a chain legible to
-you and to `find .grove`; it is not grammar. Explicit `Reviews` / `Integrates`
-lines are what serve promotion and handoff. Nor is a chain a scheduling **unit**:
-`pick` walks out after its children, though sibling insertion cannot split them.
+you and to `find .grove`; it is not grammar.
 
-When a **currently picked plain producer** needs fresh review, run `grove-llm
-leaf-promote-chain <picked-producer>`. It atomically preserves the producer's
-bytes and handle inside a derived brief-less chain, leaving a recoverable
-`PROMOTING-*` witness on interruption. Finish to a reviewable boundary, retire
-the returned producer path, commit artifact plus promotion plus that retirement
-under the same handle, then complete — the Retire-then-Commit order below, which
-the promotion does not change. Retiring it is the filename `DONE` transition and nothing else —
-it leaves the linked review byte-identical, because the review needs no record of
-how its producer ran. The next loop iteration picks that review and resolves its
-command from the `review-*` entry in configuration.
+**A chain is not contiguous by construction, and that is accepted.** Its steps
+are appended at the parent's next free position, so a review decided on after
+some unrelated leaf already exists lands *after* that leaf, and a later
+`leaf-insert` can split a chain that was contiguous. Neither is a fault to defend
+against: grove validates no cross-leaf grammar, `pick` is a walk and not a
+scheduler, and contiguity was always a convention rather than an enforced unit.
+Use `leaf-insert` when the order genuinely matters.
+
+**When a picked producer needs fresh review**, the answer is the same
+`leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf
+with the specific doubt written into its body, retire the producer, and commit
+the artifact plus that leaf plus the retirement under the producer's handle —
+the Retire-then-Commit order below. Retiring it is the filename `DONE` transition
+and nothing else, and it leaves the review byte-identical, because the review
+needs no record of how its producer ran. The next loop iteration picks that
+review and resolves its command from the `review-*` entry in configuration.
 
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
-`NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), optionally
-headed by a `BRIEF.md` charter — always one for a node a leaf *decomposed* into,
-never one for a chain node; the filesystem carries the hierarchy, and `.grove/` is
+`NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), headed by a
+`BRIEF.md` charter — a node is always a leaf that *decomposed*, so it always has
+one; the filesystem carries the hierarchy, and `.grove/` is
 itself the root node. Convert the leaf by running `grove-llm leaf-decompose <leaf-path>
 <first-child-slug>`: the verb moves the leaf file
 `NN-<session-kind>-<slug>-k<key>.md`
@@ -342,16 +376,17 @@ stderr for the operator to review (it does not auto-rewrite — references may b
 intentional historical pointers). Prefer the **permanent key** for any durable
 cross-reference: a key never moves under renumber or a slug edit, and `grove-llm
 resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
-`<slug>-k<key>` handle back into the current file path. All three grow verbs are
-working-tree changes only; the enclosing task's commit folds them in.
+`<slug>-k<key>` handle back into the current file path. Every grow verb is a
+working-tree change only; the enclosing task's commit folds them in.
 
 **`--kind <kind>` appears on the grow verbs whose kind is a free choice**, and
 every one that accepts it gates on it: an unrecognised value errors and lists the
 nineteen, and driver-reserved `finish` is refused, because a human is present at
-authoring time. `leaf-add` and `leaf-insert` take it with the `impl` default.
-`leaf-add-chain` **requires** it, since a default would silently pick the
-producer that parameterises all three of its leaves; you name one of the five
-producers and it derives the other two. `leaf-decompose` takes it as an
+authoring time. `grove-llm leaf-add <parent> <slug> --kind <kind>` and
+`grove-llm leaf-insert <target> <slug> --kind <kind>` take it with the `impl`
+default — and since a review chain is now cut one `leaf-add` at a time, `--kind`
+is where you name `review-<producer>` and `integrate-review-<producer>`
+yourself, off the producer that actually ran. `leaf-decompose` takes it as an
 *override* of the kind it otherwise inherits from the leaf being decomposed — the
 node directory it creates carries none — so a `research-a` leaf that proves
 bigger keeps producing `research-a` work in its first child. **`leaf-add-pair`
@@ -395,11 +430,13 @@ loop stalling on an abandonment decision is the system working, not a fault.
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
 ones alone, and refuses the grove root) to mark it `ABANDONED` in place.
-Pruning a reviewed producer leaves its sibling review live, next, and
-deliberately uncheckable — nothing was produced for it to read. If the human is
-abandoning the
-whole reviewed path, prune the enclosing review-chain node instead; that marks
-producer, review, and integration scope together.
+Pruning a reviewed producer leaves any review leaf beside it live, next, and
+deliberately uncheckable — nothing was produced for it to read. A chain is flat
+siblings, not a node, so there is no enclosing directory to prune in one call: if
+the human is abandoning the whole reviewed path, prune each of its live steps.
+Usually there is only one — a review leaf exists only when a producer already
+decided review was required, and an integrate leaf only when that review found
+something.
 `.grove/` dies at the finish cycle, so the mark records only *that* the path
 closed — the durable *why* (what was rejected, why, and what would reopen it)
 goes to the **ADR set**, the positive fact the abandonment establishes, if it
@@ -409,7 +446,7 @@ clears the when-to-write bar; otherwise the mark and the commit message suffice
 Then walk the parent chain: if a node now has no live leaf left in its subtree —
 however its leaves finished — it is **implicitly done** — a brief is context,
 not a task, so it is never marked done; its done-ness *is* the absence of a live
-child. **The close asks the human nothing, for either node species.** A node is
+child. **The close asks the human nothing.** A node is
 never marked, and nothing else on disk moves with it either — no infix, no
 sibling, no review. Grove enforces the "no infix" half rather than trusting you
 to remember it: a positioned, keyed *directory* name is task-shaped, so one
@@ -421,7 +458,9 @@ is the first of the two tests deciding where grove *does* ask;
 confirmation-boundary carries both, and the second is why pruning and the
 finish cycle still do.
 
-Instead the session **verifies and reports**. On a **brief-carrying** node:
+Instead the session **verifies and reports**. Every node carries a `BRIEF.md`
+— it is a leaf that proved bigger, and the charter is what those extra sessions
+needed — so every close has the same four steps:
 
 1. **Check** the node's brief `Done when` against what its subtree delivered.
 2. **`leaf-add`** the missing work if the check fails and you can name the gap —
@@ -436,10 +475,9 @@ Instead the session **verifies and reports**. On a **brief-carrying** node:
    after the fact, in the diff. The brief and its now-terminal leaves stay
    exactly where they are (nothing moves).
 
-A **brief-less** node — a chain node, written whole by `leaf-add-chain` /
-`leaf-add-pair` — closes with **nothing to do**: no `Done when` to check and no
-brief to promote, so every step above is vacuous. The discriminator is the
-presence of `BRIEF.md`, a file test — never the node's slug.
+If you meet a node whose charter was never written, do steps 2–4 and skip step
+1: there is no `Done when` to check and nothing to promote. That is a lapse in
+the tree, not a second species — grove writes no brief-less node.
 
 Retirement is also the moment to **reconcile the ADR set**
 with what the finished work established: edit it in place to keep it a minimum

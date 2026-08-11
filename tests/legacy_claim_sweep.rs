@@ -301,7 +301,7 @@ const REFUTATIONS: &[(&str, &str)] = &[
     ),
     (
         "docs/specs/doubt-grove-review-mechanics.md",
-        "They carry no `**Kind:**`, `**Harness:**`, or producer target metadata",
+        "A leaf carries no `**Kind:**`, `**Harness:**`, or producer target metadata",
     ),
 ];
 

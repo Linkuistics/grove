@@ -1,10 +1,9 @@
 //! Publication rule for the crate's process-interruption barriers.
 //!
-//! The interruption seams (`finish_cleanup`'s `GROVE_TEST_FINISH_CLEANUP_*` and
-//! `tree_promotion`'s `GROVE_TEST_PROMOTION_*`) park a subprocess at a named
-//! step and hand the waiting test a payload naming what it stopped on. Those
-//! variables are deliberately test-prefixed and are not user configuration; the
-//! seams are inert unless a test sets them.
+//! The interruption seams (`finish_cleanup`'s `GROVE_TEST_FINISH_CLEANUP_*`)
+//! park a subprocess at a named step and hand the waiting test a payload naming
+//! what it stopped on. Those variables are deliberately test-prefixed and are
+//! not user configuration; the seams are inert unless a test sets them.
 //!
 //! Publishing that payload with `fs::write` is two observable steps —
 //! `open(O_CREAT|O_TRUNC)` then `write` — and every waiter treats the barrier's

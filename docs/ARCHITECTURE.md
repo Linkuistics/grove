@@ -95,9 +95,8 @@ for how to launch it, so there is nothing left for an argument to select;
 
 `grove-llm` is for deterministic operations invoked by the embedded methodology:
 `root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
-`leaf-insert`, `leaf-decompose`, `leaf-add-chain`, `leaf-add-pair`, and
-`leaf-promote-chain`; `leaf-retire` and `leaf-prune`; `finish-commit`; and
-`complete`. This split keeps a discoverable human API without forcing the agent
+`leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
+`leaf-prune`; `finish-commit`; and `complete`. This split keeps a discoverable human API without forcing the agent
 to reproduce filesystem mutations from prose.
 
 `src/main.rs` and `src/bin/grove-llm.rs` are thin entry points. `src/cli.rs`
@@ -313,38 +312,52 @@ artifact, accept a visible trade-off, or reject noise. `requirements` and
 `prototype` are human-in-the-loop because human words or reactions are their
 essential input; any other kind may still stop and ask.
 
-Two documented composition shapes are created as brief-less node directories:
+Two documented composition shapes exist, both as **flat siblings** named off a
+shared stem — neither gets a node directory:
 
 - Review chain: `X → review-X → integrate-review-X`
 - Research pair: `research-a → research-b → combine-research`
 
-The directory provides containment and ordering. Grove does not validate a
-cross-leaf grammar. `research-a` and `research-b` share one discipline but are
-separate configuration keys, which is how a vendor pair reaches two different
-commands without any per-leaf metadata; whether those two commands are
-materially independent is configuration-owner policy, because Grove cannot
-compare opaque strings.
+They are constructed in opposite ways, and the asymmetry is the design. A review
+chain is **lazy**: each step is an ordinary `leaf-add` performed as the last act
+of the session before it, so a producer cuts `review-<producer>` only when review
+is required and a review cuts `integrate-review-<producer>` only when it has
+findings worth acting on. That removes the empty triage session, and it lets the
+creating session — the one that knows why the step is needed — write the new
+leaf's body with the specific case, finding, or datum a constructor could not
+have known. A research pair stays **eager**, one all-or-nothing call, because a
+`research-b` cut by `research-a`'s session would inherit that session's framing
+and corpus and destroy the independence the pair is run for.
+
+Grove does not validate a cross-leaf grammar, so nothing groups the steps, orders
+them, or requires that a chain be complete or contiguous. `research-a` and
+`research-b` share one discipline but are separate configuration keys, which is
+how a vendor pair reaches two different commands without any per-leaf metadata;
+whether those two commands are materially independent is configuration-owner
+policy, because Grove cannot compare opaque strings.
 
 Once a session has run Bootstrap and adopted its prompt mandate, a plain
 producer may spend one in-session fresh-context reviewer across the whole leaf.
-A second review need promotes that producer into a review chain. Producers
-already in a chain, `review-*`, and research-pair leaves spend none; an
+A second review need is the signal to `leaf-add` a `review-<producer>` leaf, with
+the specific doubt written into its body. Producers that already have a review
+leaf beside them, `review-*`, and research-pair leaves spend none; an
 `integrate-review-*` leaf may spend one narrow reviewer and externalises
-substantial redesign as a new producer review chain inside the owning node.
+substantial redesign as a new producer review chain beside the leaf it is
+integrating.
 Sessions outside that procedural predicate retain standalone doubt behavior. See
 [Grove owns escalated review](adr/grove-owns-escalated-review.md) and
 [doubt-grove-review-mechanics](specs/doubt-grove-review-mechanics.md).
 
-Generated chains carry stable task relationships independently of their names:
-the review declares `**Reviews:** <producer-handle>` and integration declares
-`**Integrates:** <review-handle>`. One module owns both markers — the declaration
-line every constructor writes and the cardinality-checked sibling lookup that
-finds them — so a hand-cut, a constructed, and a promoted chain are the same
-document by construction. Names and positions remain presentation and walk
-order, never relationship grammar, and the driver routes a scheduled review
-solely by its filename kind.
+A chain's steps declare their relationships in their bodies: the review carries
+`**Reviews:** <producer-handle>` and the integration carries `**Integrates:**
+<review-handle>`. Those lines are **written by hand by the session authoring the
+body and parsed by nothing** — a documented convention (`content/TASK-FORMAT.md`)
+for the human and for the session that picks the step up, which is constraint 3:
+task files are freeform markdown and nothing validates them. Names and positions
+likewise remain presentation and walk order, never relationship grammar, and the
+driver routes a scheduled review solely by its filename kind.
 
-### Tree access lock and promotion transaction
+### Tree access lock
 
 Every steady-state task-tree reader holds a shared **Tree access lock** on an
 open descriptor for the *working-tree root*; every mutator holds it exclusively
@@ -354,21 +367,20 @@ initialization and survives finish deletion, so a single seam covers creation,
 ordinary mutation, and teardown. A contended caller prints one waiting
 diagnostic and then waits.
 
-`leaf-promote-chain` uses that seam to move the currently mandated plain
-producer into a new brief-less review-chain node without changing its stable
-handle or bytes. It derives the two remaining kinds and relationships, allocates
-fresh keys, and emits paths only after the whole shape lands. It accepts the
-named live producer after its structural gates and never recomputes pick — a
-second pick would reject the legitimate launch-window insertion case while
-proving nothing about what the session was mandated to do.
-
-The operation builds beneath a reserved `PROMOTING-<final-node-name>/` witness
-and lands the directory with one same-parent rename. Every other task-tree
-command refuses while a witness exists and names `leaf-promote-chain` recovery.
-Jujutsu uses filesystem renames; tracked plain Git prepares the producer's final
-index path while the witness still blocks readers. The contract is
+The lock serializes live processes and adds no crash atomicity. Two operations
+need more than that and carry their own in-tree witness: the finish teardown
+(`FINISHING-*`, below) and the one-time session-kind migration
+(`MIGRATING-session-kinds`). Every other task-tree command refuses while either
+witness exists and names its recovery. The contract in both cases is
 process-interruption consistency, not power-loss durability. See [Task-tree
 transactions fail closed](adr/task-tree-transactions-fail-closed.md).
+
+Composite grow verbs need neither. `leaf-add-pair` is all-or-nothing within one
+exclusive lock: it validates every slug, resolves the parent, allocates all
+positions and keys from one snapshot, and sweeps every destination before the
+first write, so the only failure that can reach a partial state is a mid-write
+error, which unwinds the leaves it created. Nothing survives an interruption that
+a reader could mistake for a deliberately hand-cut partial shape.
 
 <a id="self-driving-loop"></a>
 <a id="do-is-sole-lifecycle-verb"></a>
@@ -464,7 +476,7 @@ does not merge branches/bookmarks or remove working trees.
 ### Finish transaction
 
 Teardown is not a delete followed by a commit. It is one fail-closed
-transaction over the same witness seam as promotion, because the interval
+transaction over a reserved in-tree witness, because the interval
 between removing `.grove/` and recording that removal is exactly the shape a
 later invocation would read as a fresh grove.
 
@@ -574,7 +586,6 @@ source; repository-local or hand-edited copies are not supported.
 | `harness` | The provisioning-target registry — delivery destinations only. |
 | `repo`, `tree_rename` | Git/Jujutsu detection, scoped commits, and the mutation seam. |
 | `tree_id`, `tree_read`, `tree_grow`, `tree_lifecycle`, `tree_access`, `tree_format` | Filesystem task-tree model, lock, and format witness. |
-| `tree_promotion`, `task_relationship` | Producer promotion and the durable `Reviews`/`Integrates` markers. |
 | `tree_migrate`, `tree_migration_transaction`, `leaf_id` | Legacy planning, its fail-closed mutation owner, and the v1-flat name parser. |
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |

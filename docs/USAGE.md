@@ -96,15 +96,14 @@ A small workstream might look like this:
 ├── BRIEF.md
 ├── FORMAT
 ├── 01-DONE-requirements-plan-k1.md
-├── 02-auth-chain-k2/
-│   ├── 01-DONE-design-auth-k3.md
-│   ├── 02-review-design-auth-review-k4.md
-│   └── 03-integrate-review-design-auth-integrate-k5.md
-└── 03-impl-ship-k6.md
+├── 02-DONE-design-auth-k2.md
+├── 03-review-design-auth-review-k3.md
+└── 04-impl-ship-k4.md
 ```
 
-A leaf is one agent-sized task. A directory is a node holding smaller tasks; it
-may carry a `BRIEF.md` charter. The filename carries everything Grove needs:
+A leaf is one agent-sized task. A directory is a node holding smaller tasks,
+headed by its `BRIEF.md` charter — a leaf that proved bigger than one session.
+The filename carries everything Grove needs:
 
 ```text
 NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
@@ -129,8 +128,10 @@ contiguity, at every level. The one exception is the driver-owned `finish` leaf,
 which is skipped while any other work is live. You can compute the next session
 by eye with `find .grove` — the first name with no outcome infix.
 
-Review chains and research pairs are nested directories, so any file browser
-shows them as one collapsible object. See
+Review chains and research pairs are flat siblings named off a shared stem —
+`auth`, `auth-review`, `auth-integrate` above — so a listing shows the shape
+without any nesting. Nothing groups them: the stem is a reading convention, not
+grammar. See
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
 ## What happens in a session
@@ -167,26 +168,40 @@ outside bare `grove` gives it no mandate.
 ## Review composition and escalation
 
 A session that Grove launched, and that adopted its mandate, may use at most
-**one in-session** fresh-context reviewer across that whole leaf. A producer
-already inside a review chain, a `review-*` session, and the three research-pair
-sessions use none. An `integrate-review-*` session may use one narrow reviewer;
-substantial redesign becomes a new reviewed producer inside the owning chain
-node. Outside a Grove-launched session, the standalone doubt-driven-development
-procedure is unchanged.
+**one in-session** fresh-context reviewer across that whole leaf. A producer that
+already has a review leaf beside it, a `review-*` session, and the three
+research-pair sessions use none. An `integrate-review-*` session may use one
+narrow reviewer; substantial redesign becomes a new reviewed producer beside the
+leaf being integrated. Outside a Grove-launched session, the standalone
+doubt-driven-development procedure is unchanged.
 
-When a plain producer needs a second review, the agent escalates it into the
-tree:
+**A review chain is built one step at a time, by the session that needs the next
+one.** There is no chain verb and no chain node — each step is an ordinary
+`leaf-add`, performed as the *last act* of the session before it:
 
 ```sh
-grove-llm leaf-promote-chain <picked-producer>
+# the producer's last act, if its artifact needs an adversarial read
+grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
+
+# the review's last act, if it found something worth acting on
+grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
 ```
 
-This atomically moves the producer into a brief-less review-chain node while
-preserving its stable handle, then creates the matching review and integration
-leaves. The producer finishes only to a coherent **reviewable boundary**, commits
-the artifact and the promotion together, retires its relocated path, and hands
-control back to Grove. An interrupted promotion leaves a visible `PROMOTING-*`
-witness that Grove refuses to walk until the same command recovers it.
+A review that finds nothing creates nothing and simply retires — that empty
+triage session is what the lazy shape removes. But the bigger payoff is that the
+**creating session writes the new leaf's body**: it can name the exact case the
+producer could not cover, or carry the findings verbatim, which is strictly more
+than a constructor rendering a goal sentence from a handle could ever supply.
+
+The producer finishes only to a coherent **reviewable boundary**, commits the
+artifact and the new review leaf together under its own handle, retires itself,
+and hands control back to Grove. Nothing about the producer's leaf moves, so its
+stable handle and bytes are preserved by construction.
+
+Write the relationship into the new leaf's body by hand — `**Reviews:**
+<producer-handle>`, or `**Integrates:** <review-handle>`. Grove neither writes
+nor reads those lines; they are a convention for you and for the session that
+picks the step up.
 
 Grove then launches the review kind's configured command. Whether that command
 differs in harness or model from the producer's is **your** configuration policy:
@@ -196,8 +211,14 @@ fresh session; choosing a materially different command is up to the configuratio
 owner.
 
 Pruning only the producer leaves its review live and next, deliberately
-uncheckable. To abandon the whole reviewed path, prune the enclosing review-chain
-node instead.
+uncheckable. To abandon the whole reviewed path, prune each of its live steps —
+usually just the one, since a review leaf exists only because a producer decided
+review was required.
+
+Research is the exception that stays eager: `grove-llm leaf-add-pair <parent>
+<stem>` cuts all three steps in one all-or-nothing call. If `research-a` cut
+`research-b` at the end of its own session, `b` would inherit `a`'s framing and
+corpus — destroying the independence the pair is run for.
 
 ## Finish
 

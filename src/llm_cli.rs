@@ -22,7 +22,6 @@ use crate::repo;
 use crate::tree_access;
 use crate::tree_grow;
 use crate::tree_lifecycle;
-use crate::tree_promotion;
 use crate::tree_read::{self, Resolution};
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -106,75 +105,42 @@ pub enum Command {
     /// with a fresh permanent key. `<parent>` is `.` for the grove root, or a
     /// node by its key (`[n]` / `n` / `<slug>-k<key>`) or its path. Prints the
     /// new leaf's absolute path on stdout. Working-tree change only — no commit.
+    ///
+    /// This is also how a **review chain** is built — one step at a time, each
+    /// created only when it is required. A producer's last act is
+    /// `leaf-add <parent> <stem>-review --kind review-<producer>` if review is
+    /// warranted; the review's last act is
+    /// `leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>`
+    /// if it found something worth acting on. The steps are ordinary **flat
+    /// siblings** — there is no chain node — and the creating session writes the
+    /// new leaf's body, which is the point of creating it late: it can put the
+    /// exact uncovered case, finding, or datum into it, which is strictly more
+    /// than a constructor writing up front could know. A review that finds
+    /// nothing creates nothing and simply retires.
     LeafAdd(LeafAddArgs),
-    /// Append a whole **review chain** under `<parent>` in one call — a
-    /// `<stem>-chain` **node directory** holding `<stem>`, `<stem>-review`,
-    /// `<stem>-integrate` — deriving the two step kinds from the one producer
-    /// kind you name.
+    /// Append a whole **research vendor pair** under `<parent>` in one call —
+    /// `<stem>-a`, `<stem>-b`, `<stem>-combine` as three **flat siblings** at
+    /// consecutive positions, with fixed filename kinds and no routing metadata
+    /// in task bodies.
     ///
-    /// A node and its three children, with four consecutive fresh keys:
+    /// Three siblings, with three consecutive fresh keys:
     ///
-    ///   NN    `<stem>-chain/`       the chain node — no `BRIEF.md`
-    ///     01  `<producer>-<stem>-k…`
-    ///     02  `review-<producer>-<stem>-review-k…`
-    ///     03  `integrate-review-<producer>-<stem>-integrate-k…`
+    ///   NN    `research-a-<stem>-a-k…`
+    ///   NN+1  `research-b-<stem>-b-k…`
+    ///   NN+2  `combine-research-<stem>-combine-k…`
     ///
-    /// The directory is what makes the group structural in any tree viewer, and
-    /// it is **brief-less by rule** — that absence is how the Retire cascade
-    /// tells a chain from a decomposition, so a chain node's close has nothing to
-    /// do: no `Done when` to check, no brief to promote. Neither species' close
-    /// asks a human anything (*confirmation-boundary*).
+    /// **A pair is created eagerly where a review chain is created lazily, and
+    /// the asymmetry is deliberate.** If `research-a` cut `research-b` at the
+    /// end of its own session, `b` would inherit `a`'s framing and corpus,
+    /// destroying the independence the pair is run for. Research also has no
+    /// `review-` sibling, so its shape is a pair rather than a chain and gets
+    /// its own verb. The two producer kinds are distinct routing targets by
+    /// construction. Cut one when a question is load-bearing enough to pay for
+    /// two independent corpora and blind spots.
     ///
-    /// You name the producer kind; the verb **derives** the other two. That
-    /// derivation is what it is for: `--kind review-impl` beside a `design`
-    /// producer is a valid invocation the `--kind` gate cannot catch, and it
-    /// misroutes the whole chain's discipline. Reach for a chain when the
-    /// artifact is load-bearing — a spec, a decomposition you will build on for
-    /// months, a subsystem; a one-file change wants a mid-session subagent
-    /// instead (`driving.md`).
-    ///
-    /// The whole shape is created or none of it is. Prints **four** absolute
-    /// paths on stdout, the node directory first then its three leaves in
-    /// position order — and prints nothing at all if the shape could not be
-    /// created. Working-tree change only — no commit. Cutting no chain stays a
-    /// normal choice; a step decided on *after* its producer already ran is
-    /// `leaf-add <chain-node> <stem>-review` when the producer sits in a chain
-    /// node, and `leaf-insert` when it was cut as a plain leaf.
-    LeafAddChain(LeafAddChainArgs),
-    /// Atomically promote the currently picked plain producer into a brief-less
-    /// review-chain node while preserving the producer's stable handle and task
-    /// bytes. The command derives the review and integration kinds, writes
-    /// stable `Reviews` / `Integrates` relationships, and uses a visible
-    /// `PROMOTING-*` witness so interruption is fail-closed and recoverable.
-    ///
-    /// `<picked-producer>` accepts the absolute path printed by `pick`, a stable
-    /// key/handle, the same now-stale path on an idempotent retry, or the exact
-    /// transaction path named by a fail-closed diagnostic. Prints node,
-    /// relocated producer, review, and integration paths after success only.
-    /// Finish to a reviewable boundary, commit under the unchanged producer
-    /// handle, then retire the relocated producer.
-    LeafPromoteChain(LeafPromoteChainArgs),
-    /// Append a whole **research vendor pair** under `<parent>` in one call — a
-    /// `<stem>-pair` **node directory** holding `<stem>-a`, `<stem>-b`,
-    /// `<stem>-combine` — with fixed filename kinds and no routing metadata in
-    /// task bodies.
-    ///
-    /// A node and its three children, with four consecutive fresh keys:
-    ///
-    ///   NN    `<stem>-pair/`     the chain node — no `BRIEF.md`
-    ///     01  `research-a-<stem>-a`
-    ///     02  `research-b-<stem>-b`
-    ///     03  `combine-research-<stem>-combine`
-    ///
-    /// Research has no `review-` sibling, so its shape is a pair rather than a
-    /// chain and gets its own verb. The two producer kinds are distinct routing
-    /// targets by construction. Cut one when a question is load-bearing enough
-    /// to pay for two independent corpora and blind spots.
-    ///
-    /// The whole shape is created or none of it is. Prints **four** absolute
-    /// paths on stdout, the node directory first then its three leaves in
-    /// position order — and prints nothing at all if the shape could not be
-    /// created. Working-tree change only — no commit.
+    /// The whole shape is created or none of it is. Prints **three** absolute
+    /// paths on stdout in position order — and prints nothing at all if the
+    /// shape could not be created. Working-tree change only — no commit.
     LeafAddPair(LeafAddPairArgs),
     /// Insert a new leaf at the slot held by `<target>`, shifting `<target>` and
     /// every later sibling up one position. `<target>` is an existing leaf or
@@ -297,8 +263,6 @@ impl Command {
             Self::Kind { .. } => "grove-llm kind",
             Self::Resolve { .. } => "grove-llm resolve",
             Self::LeafAdd(_) => "grove-llm leaf-add",
-            Self::LeafAddChain(_) => "grove-llm leaf-add-chain",
-            Self::LeafPromoteChain(_) => "grove-llm leaf-promote-chain",
             Self::LeafAddPair(_) => "grove-llm leaf-add-pair",
             Self::LeafInsert(_) => "grove-llm leaf-insert",
             Self::LeafDecompose(_) => "grove-llm leaf-decompose",
@@ -358,50 +322,15 @@ pub struct LeafAddArgs {
     pub kind: String,
 }
 
-/// `--kind` help for `leaf-add-chain`, whose `--kind` names the chain's *head*
-/// and is **required**: `leaf-add`'s `impl` default would silently pick a
-/// producer, which is precisely the wrong-but-well-formed kind this verb exists
-/// to stop a session choosing by accident.
-const CHAIN_KIND_HELP: &str = "Kind of the leaf that heads the chain — one of the five \
-producers: requirements, design, planning, prototype, impl. The other two steps are \
-derived from it (review-<producer>, integrate-review-<producer>); you never name them. \
-research-a, research-b, combine-research, and finish are refused; research uses \
-leaf-add-pair";
-
-#[derive(Parser)]
-pub struct LeafAddChainArgs {
-    /// Parent node — `.` for the grove root, or a node by its key
-    /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
-    pub parent: String,
-    /// Shared stem for the node and all three leaves (lowercase ASCII letters,
-    /// digits, dashes). The node is `<stem>-chain` and the steps are `<stem>`,
-    /// `<stem>-review`, `<stem>-integrate` — suffixed, not prefixed, so a
-    /// chain's handles sort together under its stem.
-    pub stem: String,
-    #[arg(long = "kind", help = CHAIN_KIND_HELP)]
-    pub kind: String,
-}
-
-#[derive(Parser)]
-pub struct LeafPromoteChainArgs {
-    /// The currently picked plain producer: absolute picked path, stable key or
-    /// handle, stale pre-promotion path, or exact `PROMOTING-*` recovery path.
-    pub picked_producer: String,
-    /// Emit one JSON object containing paths, stable handles, and whether this
-    /// call changed the tree. Failures print no stdout.
-    #[arg(long)]
-    pub json: bool,
-}
-
 #[derive(Parser)]
 pub struct LeafAddPairArgs {
     /// Parent node — `.` for the grove root, or a node by its key
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
     pub parent: String,
-    /// Shared stem for the node and all three leaves (lowercase ASCII letters,
-    /// digits, dashes). The node is `<stem>-pair` and the steps are `<stem>-a`,
-    /// `<stem>-b`, `<stem>-combine` — the two producers are `a` and `b` because
-    /// they are peers, not a leader and a follow-up.
+    /// Shared stem for all three leaves (lowercase ASCII letters, digits,
+    /// dashes). The steps are `<stem>-a`, `<stem>-b`, `<stem>-combine` — the two
+    /// producers are `a` and `b` because they are peers, not a leader and a
+    /// follow-up.
     pub stem: String,
 }
 
@@ -450,8 +379,6 @@ pub fn run() -> Result<()> {
         Command::Kind { leaf_path } => cmd_kind(leaf_path.as_deref()),
         Command::Resolve { reference } => cmd_resolve(&reference),
         Command::LeafAdd(args) => cmd_leaf_add(&args),
-        Command::LeafAddChain(args) => cmd_leaf_add_chain(&args),
-        Command::LeafPromoteChain(args) => cmd_leaf_promote_chain(&args),
         Command::LeafAddPair(args) => cmd_leaf_add_pair(&args),
         Command::LeafInsert(args) => cmd_leaf_insert(&args),
         Command::LeafDecompose(args) => cmd_leaf_decompose(&args),
@@ -576,7 +503,7 @@ fn leaf_add_for(grove_root: &Path, parent: &str, slug: &str, kind: Kind) -> Resu
     tree_grow::leaf_add_unlocked(guard.root(), &parent_dir, slug, kind)
 }
 
-/// Resolve the `<parent>` argument shared by the three appending verbs: `.` is
+/// Resolve the `<parent>` argument shared by the two appending verbs: `.` is
 /// the grove root (the root node); anything else is a node by key or path.
 /// `tree_grow` validates that the result is a real node directory.
 fn resolve_parent_unlocked(grove_root: &Path, parent: &str) -> Result<PathBuf> {
@@ -587,7 +514,7 @@ fn resolve_parent_unlocked(grove_root: &Path, parent: &str) -> Result<PathBuf> {
     }
 }
 
-/// Print a composite verb's paths — **after** the mutation succeeded, never as
+/// Print `leaf-add-pair`'s paths — **after** the mutation succeeded, never as
 /// each leaf lands. A run that fails is rolled back, so stdout describing a
 /// shape the command reported as failed would be describing files that are no
 /// longer there.
@@ -595,51 +522,6 @@ fn print_paths(paths: &[PathBuf]) {
     for p in paths {
         println!("{}", p.display());
     }
-}
-
-fn cmd_leaf_add_chain(args: &LeafAddChainArgs) -> Result<()> {
-    let producer = Kind::parse(&args.kind)?;
-    let (_, grove_root) = grove_paths()?;
-    let paths = leaf_add_chain_for(&grove_root, &args.parent, &args.stem, producer)?;
-    print_paths(&paths);
-    Ok(())
-}
-
-fn leaf_add_chain_for(
-    grove_root: &Path,
-    parent: &str,
-    stem: &str,
-    producer: Kind,
-) -> Result<Vec<PathBuf>> {
-    let guard = tree_access::write(grove_root)?;
-    let parent_dir = resolve_parent_unlocked(guard.root(), parent)?;
-    tree_grow::leaf_add_chain_unlocked(guard.root(), &parent_dir, stem, producer)
-}
-
-fn cmd_leaf_promote_chain(args: &LeafPromoteChainArgs) -> Result<()> {
-    let (_, grove_root) = grove_paths()?;
-    let result = tree_promotion::promote(&grove_root, &args.picked_producer)
-        .map_err(|error| anyhow::anyhow!("promotion-failed: {error:#}"))?;
-    if args.json {
-        fn item(name: &str, item: &tree_promotion::PromotedItem) -> String {
-            format!(
-                "\"{name}\":{{\"path\":\"{}\",\"handle\":\"{}\"}}",
-                crate::json::escape(&item.path.display().to_string()),
-                crate::json::escape(&item.handle)
-            )
-        }
-        println!(
-            "{{\"changed\":{},{},{},{},{}}}",
-            result.changed,
-            item("node", &result.node),
-            item("producer", &result.producer),
-            item("review", &result.review),
-            item("integration", &result.integration),
-        );
-    } else {
-        print_paths(&result.paths().map(Path::to_path_buf));
-    }
-    Ok(())
 }
 
 fn cmd_leaf_add_pair(args: &LeafAddPairArgs) -> Result<()> {
@@ -877,9 +759,6 @@ mod tests {
     fn reference_taking_commands_acquire_the_tree_lock_once() {
         assert_one_acquisition(|grove_root| {
             leaf_add_for(grove_root, "1", "later", Kind::Impl).unwrap();
-        });
-        assert_one_acquisition(|grove_root| {
-            leaf_add_chain_for(grove_root, "1", "sync", Kind::Impl).unwrap();
         });
         assert_one_acquisition(|grove_root| {
             leaf_add_pair_for(grove_root, "1", "survey").unwrap();

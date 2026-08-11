@@ -189,7 +189,7 @@ pub fn finish_commit(worktree: &Path, finish_handle: &str) -> Result<()> {
         }
         Ok(_) => {}
     }
-    tree_access::refuse_pending_non_finish(&grove_root)?;
+    tree_access::refuse_pending_migration(&grove_root)?;
     crate::tree_format::require_current(&grove_root)?;
     let selection = crate::tree_read::select_unlocked(&grove_root)?
         .context("the requested finish leaf is no longer live")?;
@@ -316,7 +316,7 @@ pub(crate) fn recover_partial_root_init_unlocked(grove_root: &Path) -> Result<bo
     let leaf_path = grove_root.join(&leaf_name);
     let format_temporary_path = grove_root.join(".FORMAT.tmp");
     let expected_brief = root_brief_body(&grove_name(worktree));
-    let expected_leaf = crate::tree_grow::task_template_body(scaffold_slug, 1, &[], None);
+    let expected_leaf = crate::tree_grow::task_template_body(scaffold_slug, 1);
 
     let expected = [
         (brief_path.as_path(), expected_brief.as_bytes()),

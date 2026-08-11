@@ -6,19 +6,19 @@
 // a name encodes only its *per-level* position, not a global path:
 //
 //     leaf       NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md
-//     node dir   NN-<slug>-k<key>             (a directory holding children, and
-//                                              *optionally* a BRIEF.md charter)
+//     node dir   NN-<slug>-k<key>             (a directory holding children,
+//                                              headed by a BRIEF.md charter)
 //     brief      BRIEF.md                     (the containing node's charter)
 //
-// **A charter is optional, and its presence is what distinguishes the two node
-// species** (task-tree-scheme). A *decomposition* node (`leaf-decompose`;
-// `root-init` for the root) always carries one — it means *this proved bigger
-// than one session*, and the charter is the context those sessions need. A
-// *chain* node (`leaf-add-chain` / `leaf-add-pair`) never does — it means *these
-// steps compose one artifact*, declared whole at construction, with no charter
-// anyone is in a position to write. Readers that care discriminate by the
-// **file's presence**, never by a name pattern: `-chain` / `-pair` is ordinary
-// slug text a human may use for anything.
+// **There is one node species, and it carries a charter** (flat-lazy-review). A
+// node means *this work proved bigger than one session*, and the charter is the
+// context those extra sessions need; the only writers are `leaf-decompose`,
+// which moves the decomposed leaf's own body in as that charter, and `root-init`
+// for the root. The brief-less *chain node* went with the eager chain
+// constructors — a review's steps are now flat siblings created one at a time —
+// so no reader discriminates node species any more, and none should start:
+// `parse` deliberately says nothing about a charter, since a brief is content
+// and this model reads names.
 //
 // Three orthogonal parts: the per-level **position** `NN` (a 2-digit zero-padded
 // decimal; the sole sort input *within one directory*; rewritten on renumber), the
@@ -36,7 +36,7 @@
 // leaf is a regular file, a node is a directory). The name-level half is
 // [`parse_current`]; the species half belongs to whichever verb holds the real
 // `file_type` (`tree_read::read_level`, the one such reader). Anything not
-// task-shaped — `README.md`, `notes/`, the reserved `PROMOTING-` / `FINISHING-` /
+// task-shaped — `README.md`, `notes/`, the reserved `FINISHING-` /
 // `PREPARING-FINISH-` / `MIGRATING-` witnesses, none of which is positioned — stays
 // foreign and ignored, and the witnesses keep their own earlier, better-worded
 // guards in `tree_access`. The rule is one rule because its justification is one:
@@ -89,9 +89,9 @@ pub enum Outcome {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Entry {
     /// `BRIEF.md` — the containing node's charter. Position-less and unkeyed; it
-    /// heads its directory. **At most one per node directory, and a node may
-    /// carry none**: a decomposition node always does, a chain node never does,
-    /// and that presence is the discriminator (see the module header).
+    /// heads its directory, at most one per node. Every node grove writes has
+    /// one (see the module header); this model still tolerates its absence,
+    /// because a name parser is in no position to require a file.
     Brief,
     /// `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` — a leaf child.
     Leaf {

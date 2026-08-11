@@ -414,13 +414,20 @@ fn the_human_command_surface_has_nothing_left_to_select() {
     );
 }
 
-/// The agent CLI keeps its verbs, so the claim here is narrower: no lifecycle
+/// The agent CLI keeps its verbs, so the claim here is narrower: no removed
 /// verb came back, and nothing in the whole subtree selects a harness. Walking
 /// clap's model rather than scraping `--help` asks the question where it is a
 /// fact rather than a rendering (the reasoning `tests/help_surfaces.rs` sets out
 /// at length).
+///
+/// The removed verbs fall into two classes, and the table below records which,
+/// because the *reason* is what a reader needs: a **lifecycle** verb was
+/// absorbed into bare `grove` and exists elsewhere; a **composition constructor**
+/// was deleted outright, and what replaced it is `leaf-add` called by the session
+/// that needs the next step (flat-lazy-review). Reintroducing either is a
+/// regression, but only one of them has somewhere else to look.
 #[test]
-fn the_agent_command_surface_exposes_no_lifecycle_verb_or_harness_selector() {
+fn the_agent_command_surface_exposes_no_removed_verb_or_harness_selector() {
     // Positionals are recorded as `<name>` and flags as `--name`: a verb's
     // operand is not a selector, and conflating the two would make "this verb
     // selects nothing" unstatable for any verb that takes an argument at all.
@@ -452,11 +459,35 @@ fn the_agent_command_surface_exposes_no_lifecycle_verb_or_harness_selector() {
         &mut arguments,
     );
 
-    for removed in ["do", "migrate", "retire"] {
+    const REMOVED_VERBS: &[(&str, &str)] = &[
+        (
+            "do",
+            "lifecycle: bare `grove`'s business, removed from both binaries",
+        ),
+        (
+            "migrate",
+            "lifecycle: bare `grove`'s business, removed from both binaries",
+        ),
+        (
+            "retire",
+            "lifecycle: bare `grove`'s business, removed from both binaries",
+        ),
+        (
+            "leaf-add-chain",
+            "composition constructor: a chain's steps are cut one at a time with \
+             `leaf-add`, by the session that needs the next one",
+        ),
+        (
+            "leaf-promote-chain",
+            "composition constructor: retrofitting a chain node around a picked \
+             producer is now one `leaf-add`, so the verb and its `PROMOTING-*` \
+             transaction went together",
+        ),
+    ];
+    for (removed, why) in REMOVED_VERBS {
         assert!(
             !verbs.iter().any(|verb| verb == removed),
-            "the lifecycle verb {removed:?} is bare `grove`'s business and was \
-             removed from both binaries; grove-llm exposes: {verbs:?}"
+            "`{removed}` is a removed verb ({why}); grove-llm exposes: {verbs:?}"
         );
     }
     let selectors: Vec<&String> = arguments

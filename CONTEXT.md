@@ -195,13 +195,20 @@ is `X` → `review-X` → `integrate-review-X`: sequential, **adversarial** (the
 reviewer's job is to find fault), and each step a *different kind*, so per-kind
 routing alone expresses it. The **vendor pair** is `research-a` → `research-b` →
 `combine-research`: **breadth-and-confirmation**, two separately configured
-survey sessions unioned by a binary combine step. Both are **a [[Node
-directory]] of their own** — `NN-<stem>-chain-k<key>/` and
-`NN-<stem>-pair-k<key>/` — holding their steps as children named off the shared
-stem with a terminal step suffix (`<stem>` / `<stem>-review` /
-`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`), which is
-what makes the group **structural** rather than merely contiguous and keeps
-every child's [[Work-item handle]] unique after `.grove/` dies.
+survey sessions unioned by a binary combine step. Both are **flat siblings** in
+their parent, named off a shared stem with a terminal step suffix (`<stem>` /
+`<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
+`<stem>-combine`), which keeps every step's [[Work-item handle]] unique and
+still naming its artifact after `.grove/` dies.
+**They are constructed in opposite ways, and the asymmetry is the design.** A
+chain is **lazy**: each step is cut with `leaf-add` as the *last act* of the
+session before it — a producer adds `review-<producer>` only if review is
+required, a review adds `integrate-review-<producer>` only if it has findings
+worth acting on, and a review that finds nothing creates nothing. The creating
+session writes the new leaf's body, so it carries the specific case, finding or
+datum a constructor could not have known. A pair is **eager**, one call, all or
+nothing: lazy creation would let `research-b` inherit `research-a`'s framing and
+corpus, destroying the independence the pair is run for.
 The review chain is also the grove-scale counterpart to an **in-session doubt
 cycle**: doubt is the cheap move for one narrow, unexpected decision that still
 fits the current leaf, while a load-bearing artifact, repeated review cycle, or
@@ -217,35 +224,31 @@ _Avoid_: justifying any part of the tree scheme by what a grove-controlled
 renderer would show. Grove ships no viewer; a claim that depends on one is a claim
 about a component that does not exist.
 _Avoid_: using many in-session doubt reviewers as a substitute for cutting a
-review chain; once review itself is substantial work, externalise it to the tree.
+review leaf; once review itself is substantial work, externalise it to the tree.
 _Avoid_: letting the doubt skill launch a competing cross-model review after the
 work has been escalated to Grove; that bypasses the review kind's routing policy.
 _Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
 every other review and scatters the chains the naming exists to reveal.
-_Avoid_: "a chain gets no node directory of its own" — reversed. The three
-arguments that decided it have all lapsed: the chain constructors emit shapes
-proactively, so node creation is no longer `leaf-decompose`'s reactive monopoly;
-a chain node is **brief-less by rule**, so it buys no `BRIEF.md` any step had to
-earn; and no node close asks a confirmation at all ([[Confirmation boundary]]).
-What survives is that node-ness now means two things, which the `BRIEF.md`
-discriminator keeps legible rather than overloaded ([[Node directory]]).
-_Avoid_: treating either as enforced — grove validates no ordering between
+_Avoid_: "a chain gets a [[Node directory]] of its own" — reversed, and the three
+arguments that once decided it have all lapsed again. What killed it is that the
+hierarchy was not worth its navigation cost, and that a node species meaning
+*these steps compose one artifact* forced every reader to carry a second sense of
+node-ness. Deleting it collapses the species back to one, so **every node carries
+a `BRIEF.md`** and no discriminator survives.
+_Avoid_: an eager chain constructor (`leaf-add-chain`) or a retrofit verb
+(`leaf-promote-chain`). Both are gone: the first would emit only a producer,
+which is `leaf-add`, and the second existed solely to wrap a chain node around a
+picked producer without changing its handle — which is why it needed a
+fail-closed transaction. Escalating review is now one `leaf-add`.
+_Avoid_: treating either shape as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
-none (task-kind-taxonomy). The convention is a habit nothing parses; the explicit
-`Reviews` / `Integrates` declarations are what promotion and handoff read.
-_Avoid_: treating a chain as a **unit** in [[Pick]]'s sense — something the walk
-will not leave. `pick` is unchanged, descends a chain node in pre-order exactly as
-it descends any node, and walks straight out into the next sibling once its steps
-are done. What the directory *does* give is the narrower property the flat shape
-lacked — **a sibling-level `leaf-insert` can no longer split a chain**.
-_Avoid_: hand-cutting review and integration leaves around a picked plain
-producer. `grove-llm leaf-promote-chain <producer>` moves that producer into a
-brief-less review-chain node without changing its handle and derives both steps.
-If a legacy or hand-cut producer already sits under a brief-less node, it is
-already composition-managed and promotion refuses rather than nesting chains.
-_Avoid_: naming a construction verb `chain-add` — "chain" is overloaded (see
-*Flagged ambiguities*), and the `leaf-add-` prefix is what anchors the sense and
-puts the verb beside the `leaf-add` a session already calls.
+none (task-kind-taxonomy). The suffix convention is a habit nothing parses, and
+so are the `**Reviews:**` / `**Integrates:**` lines: they are written by hand by
+the session authoring the body, and **no code reads them**.
+_Avoid_: expecting a chain's steps to stay contiguous. They are appended at the
+parent's next free position, so one cut after unrelated work lands after it, and
+a sibling `leaf-insert` can split a chain that was contiguous. `leaf-insert` is
+the answer when order matters; grove enforces none.
 _Avoid_: giving either research leaf a `**Harness:**` declaration. Their
 `research-a` and `research-b` session kinds are the configuration keys.
 _Avoid_: running the *researchers* adversarially — that discards the breadth the
@@ -328,9 +331,7 @@ filename, obtains its complete session target from [[Grove configuration]], and
 embeds the selected stable handle in `${prompt}` as the launched session's
 mandate. The session first validates its [[Session epoch]], then resolves that
 handle to its current path, rejects an unavailable or non-live result,
-Bootstraps the resolved leaf, and does not pick again.
-`leaf-promote-chain` likewise trusts the named live producer after its
-structural gates and never recomputes pick. A session started outside bare
+Bootstraps the resolved leaf, and does not pick again. A session started outside bare
 `grove` has no mandate and is not a Grove loop session; Grove executes the
 configured command directly and is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
@@ -341,7 +342,7 @@ configuration source.
 Whether a scheduled review uses a different harness or model from its producer
 is explicit policy in [[Grove configuration]]. Grove does not interpret command
 templates to recover target identity, persist producer launch receipts, export
-session-target metadata, compare targets, or warn; the review chain supplies a
+session-target metadata, compare targets, or warn; a `review-*` leaf supplies a
 fresh session, and choosing a materially different command is the configuration
 owner's responsibility.
 
@@ -379,23 +380,25 @@ _Avoid_: inferring current format by parsing a filename prefix — a legacy slug
 such as `design-notes` makes that test silently change both kind and handle.
 
 **Node directory** / **node**:
-A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), optionally headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
-**Two species, discriminated by whether the directory carries a `BRIEF.md`.** A
-**decomposition node** (written by `leaf-decompose`; `root-init` for the root)
-always carries one: it means *this work proved bigger than one session*, and the
-charter is the context those extra sessions need. A **chain node** (written by
-`leaf-add-chain` / `leaf-add-pair`, or retrofitted by `leaf-promote-chain`)
-never does: it means *these steps compose one artifact*, with no charter anyone
-is in a position to write. The discriminator is a **file's presence, never a
-name pattern**, and what it decides is whether a closing node has work to do — a
-`Done when` rollup to check and a brief to promote, or a silent no-op.
+A grove tree node is a **directory** named `NN-<slug>-k<key>/` holding its numbered children (leaf files and child node directories), headed by a `BRIEF.md` charter; `.grove/` is itself the root node (its charter is `.grove/BRIEF.md`). The filesystem carries the hierarchy, so a name encodes only its *per-level* position — not a global path (task-tree-scheme).
+**One species, and it always carries a charter.** A node is a leaf that proved
+*bigger than one session*, so the charter is exactly the context those extra
+sessions need, and the only writers are `leaf-decompose` (which moves the
+decomposed leaf's own body in as the brief) and `root-init` for the root. Nothing
+composes leaves into a node: a [[Review chain]]'s steps and a vendor pair's are
+flat siblings. Every node close therefore has the same work — a `Done when`
+rollup to check and a brief to promote.
 _Avoid_: calling a node a "file" — a node is always a directory.
-_Avoid_: "every node has a charter", or reading a bare directory as malformed —
-both were true only before chain nodes existed.
-_Avoid_: discriminating the two species by the `-chain` / `-pair` token in the
-node's slug. That token exists to keep the node's slug distinct from its first
-child's for `resolve`, and it is ordinary slug text a human may not use; the
-`BRIEF.md` test is the one that holds.
+_Avoid_: a second, **brief-less** species meaning *these steps compose one
+artifact*, and any `BRIEF.md`-presence **discriminator** that reads one. Both
+went with the eager chain constructors; a reader that still tests for a charter
+is deciding a question with one answer, and a `Done when` check that skips a node
+for want of a brief silently drops a real rollup. A node with no charter is a
+lapse to fix, not a species — though a *reader* still tolerates it, because a
+brief is a lazy artifact (constraint 4) and nothing validates one (constraint 3).
+_Avoid_: discriminating anything by a `-chain` / `-pair` token in a slug. No verb
+writes one any more, and it was ordinary slug text a human may use for anything
+even when they did.
 _Avoid_: reading a **task-shaped** directory name Grove cannot parse — most
 often one hand-marked `DONE` — as an ignorable foreign entry. Every positioned,
 keyed name is Grove's at the species its `.md` suffix declares, and a directory
@@ -408,18 +411,22 @@ transaction witnesses are unpositioned, so none is reached by the rule.
 A single unit of work — a file `NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` inside a node directory, executed in one session. The only thing `pick` returns is a *live* leaf — one carrying **no outcome infix** at all. A leaf has exactly two terminal states: `DONE` (the work was done) and `ABANDONED` (the path was closed); see [[DONE infix]] and [[Pruning]].
 
 **Pick** (`grove-llm pick`):
-The loop's dispatcher: absent a pending [[Promotion transaction]], the **first
+The loop's dispatcher: the **first
 eligible live [[Leaf]] in depth-first pre-order** over `.grove/`, read from
-filenames and never from task-file contents. A transaction is not a scheduling
-input: it is a fail-closed malformed-tree condition every reader and mutator
-refuses until the interrupted operation is recovered. Eligibility has one
+filenames and never from task-file contents. A pending transaction witness
+([[Finish transaction]], session-kind migration) is not a scheduling input: it is
+a fail-closed malformed-tree condition every reader and mutator refuses until the
+interrupted operation is recovered. Eligibility has one
 lifecycle exception — a driver-owned `finish` sentinel is skipped while any
 non-finish leaf is live — and among non-finish leaves nothing modulates the
 walk: no priority, no grouping, no set of leaves that must finish before another
 is considered. Ordering in a grove is
 **contiguity**, at every level, and it is the only ordering grove offers: a
-[[Review chain]]'s steps run in sequence because they are one node's children at
-adjacent [[Position]]s, exactly as a decomposition's are. Its value is that a
+[[Review chain]]'s steps run in sequence because they are siblings at adjacent
+[[Position]]s, exactly as a decomposition's children are. That contiguity is a
+*convention*, not a guarantee — a step cut after unrelated work lands after it,
+and a sibling `leaf-insert` can split a chain — which is the cost the flat shape
+accepts rather than defends against. Its value is that a
 human computes it **by eye** — `find .grove` shows the tree and the next session
 is the first non-finish name with no outcome infix — which is what makes "the
 tree is the only state" worth something rather than merely true.
@@ -428,6 +435,9 @@ _Avoid_: expecting `pick` to **schedule** — to finish a group before consideri
 **Position** (`NN`):
 The **mutable** 2-digit zero-padded per-level locator of an entry among its directory's siblings — the sort input within one directory (lexical == numeric == DFS), rewritten on insert/reorder. It is a locator, **not** an identity.
 _Avoid_: using a position (or a directory path) as a durable cross-reference — it moves under renumber. Reference by the [[Permanent key]] or [[Work-item handle]] instead.
+_Avoid_: reading adjacency as a structural claim. A [[Review chain]]'s steps are
+adjacent because each was appended when the previous session finished, not
+because anything holds them together; nothing refuses an insert between them.
 
 **Permanent key** / **stable id** (`-k<key>`):
 The never-rewritten identity token of a leaf or node, always the **terminal** token before the extension/slash, assigned once as `max key in tree + 1` (the keys in the names *are* the counter — no counter file; **every finished leaf stays in the tree, `DONE` or `ABANDONED` alike**, so the max is always visible). `grove-llm resolve [n]` / `n` finds an entity's current path by key across any renumber, move, or slug edit.
@@ -449,20 +459,6 @@ nowhere; write the pair, `branch-review-k14 B5`. An unscoped index is **worse** 
 bare position: a position merely fails to resolve, while a number can resolve
 *incorrectly* against an unrelated live series of the same shape (task-tree-scheme §5).
 
-**Promotion transaction** (`PROMOTING-<final-node-name>/`):
-The reserved, fail-closed sibling directory used while
-`grove-llm leaf-promote-chain` turns the named live plain producer into a
-brief-less [[Review chain]] without changing the producer's handle or bytes.
-Every reader and mutator recursively refuses while the prefix exists, so an
-interruption can expose neither review-before-producer ordering nor a key run
-another grow verb can reuse; recovery runs before ordinary pick and liveness
-gates, and retrying reuses and finishes or reverses that exact transaction. This
-is process-interruption consistency, not a power-loss durability claim. See ADR
-*task-tree-transactions-fail-closed*.
-_Avoid_: deleting the directory as if it were an unknown foreign file — after
-the producer move it may contain the only copy of that task. Recover through
-the exact `leaf-promote-chain <PROMOTING-path>` command a refusing reader prints.
-
 **Tree access lock**:
 The process-scoped advisory lock every task-tree reader and mutator takes on an
 open descriptor for the **working-tree root** before inspecting names — shared
@@ -470,8 +466,9 @@ for readers, exclusive for mutators. The root rather than `.grove/`, because it
 exists before the task tree is created and through its deletion, so root
 initialization, migration, finish allocation and deletion, and the agent tree
 verbs all share one invariant. It serializes live processes but adds no crash
-atomicity; operations that promise process-interruption recovery use their own
-in-tree witnesses. See ADR *task-tree-transactions-fail-closed*.
+atomicity; the one operation that promises process-interruption recovery — the
+[[Finish transaction]] — uses its own in-tree witness. See ADR
+*task-tree-transactions-fail-closed*.
 _Avoid_: locking `.grove/BRIEF.md` — root briefs are lazy, optional artifacts,
 and existing tree readers deliberately tolerate their absence.
 _Avoid_: locking `.grove/` itself — it cannot serialize either its own creation
@@ -533,6 +530,7 @@ When usage is ambiguous, qualify: "grove CLI", "grove methodology", "this grove"
    sequence over one artifact. A relation between *sibling* leaves.
 
 Neither is derivable from the other and both are load-bearing, so qualify every
-use ("brief chain", "review chain") and never let a bare "chain" head a verb
-name — the reason a construction verb is `leaf-add-chain` rather than
-`chain-add`, which would sit beside `brief-chain` meaning something else entirely.
+use ("brief chain", "review chain"). Only sense 1 heads a verb name
+(`brief-chain`), and sense 2 no longer names any verb at all: a review chain is
+built with plain `leaf-add` calls, so there is nothing left for a bare "chain" to
+head ambiguously.

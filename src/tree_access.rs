@@ -1,4 +1,3 @@
-use crate::tree_id::{parse, Entry};
 use anyhow::{bail, Context, Result};
 use std::fs::{self, File};
 use std::os::fd::AsRawFd;
@@ -9,7 +8,6 @@ thread_local! {
     static ACQUISITION_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-const PROMOTING_PREFIX: &str = "PROMOTING-";
 const FINISHING_PREFIX: &str = "FINISHING-";
 const PREPARING_FINISH_PREFIX: &str = "PREPARING-FINISH-";
 pub(crate) const MIGRATION_TRANSACTION: &str = "MIGRATING-session-kinds";
@@ -55,20 +53,6 @@ pub fn write(grove_root: &Path) -> Result<TreeWriteGuard> {
     let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
     require_grove_root(&root)?;
     refuse_pending(&root)?;
-    crate::tree_format::require_current(&root)?;
-    Ok(TreeWriteGuard {
-        _worktree_directory: worktree_directory,
-        root,
-    })
-}
-
-/// Promotion takes the same exclusive lock but must inspect and recover the
-/// witness every other operation refuses.
-pub(crate) fn write_for_promotion(grove_root: &Path) -> Result<TreeWriteGuard> {
-    let (root, worktree_directory) = acquire(grove_root, libc::LOCK_EX)?;
-    require_grove_root(&root)?;
-    refuse_pending_finish(&root)?;
-    refuse_pending_migration(&root)?;
     crate::tree_format::require_current(&root)?;
     Ok(TreeWriteGuard {
         _worktree_directory: worktree_directory,
@@ -190,20 +174,7 @@ fn require_grove_root(grove_root: &Path) -> Result<()> {
 
 pub(crate) fn refuse_pending(grove_root: &Path) -> Result<()> {
     refuse_pending_finish(grove_root)?;
-    refuse_pending_non_finish(grove_root)
-}
-
-pub(crate) fn refuse_pending_non_finish(grove_root: &Path) -> Result<()> {
-    refuse_pending_migration(grove_root)?;
-    if let Some(path) = find_pending(grove_root)? {
-        bail!(
-            "pending Grove promotion transaction: {}. Recover it with: \
-             grove-llm leaf-promote-chain {}",
-            path.display(),
-            path.display()
-        );
-    }
-    Ok(())
+    refuse_pending_migration(grove_root)
 }
 
 pub(crate) fn refuse_pending_finish(grove_root: &Path) -> Result<()> {
@@ -235,42 +206,6 @@ pub(crate) fn refuse_pending_migration(grove_root: &Path) -> Result<()> {
         Err(error) => Err(error)
             .with_context(|| format!("checking migration witness {}", migration.display())),
     }
-}
-
-pub(crate) fn find_pending(grove_root: &Path) -> Result<Option<PathBuf>> {
-    find_pending_in(grove_root)
-}
-
-fn find_pending_in(directory: &Path) -> Result<Option<PathBuf>> {
-    let mut entries: Vec<_> = fs::read_dir(directory)
-        .with_context(|| format!("reading task-tree directory {}", directory.display()))?
-        .collect::<std::io::Result<Vec<_>>>()?;
-    entries.sort_by_key(|entry| entry.file_name());
-
-    for entry in entries {
-        let file_type = entry.file_type()?;
-        if !file_type.is_dir() {
-            continue;
-        }
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else {
-            continue;
-        };
-        let path = entry.path();
-        if name.starts_with(PROMOTING_PREFIX) {
-            return Ok(Some(path));
-        }
-        if matches!(parse(name), Some(Entry::Node { .. })) {
-            if let Some(found) = find_pending_in(&path)? {
-                return Ok(Some(found));
-            }
-        }
-    }
-    Ok(None)
-}
-
-pub(crate) fn promoting_prefix() -> &'static str {
-    PROMOTING_PREFIX
 }
 
 #[cfg(test)]
@@ -324,13 +259,13 @@ mod tests {
     }
 
     #[test]
-    fn promotion_writer_refuses_a_pending_session_kind_migration() {
+    fn writer_refuses_a_pending_session_kind_migration() {
         let worktree = tempfile::tempdir().unwrap();
         let grove_root = worktree.path().join(".grove");
         fs::create_dir_all(grove_root.join(MIGRATION_TRANSACTION)).unwrap();
 
-        let error = match write_for_promotion(&grove_root) {
-            Ok(_) => panic!("promotion admitted a pending migration"),
+        let error = match write(&grove_root) {
+            Ok(_) => panic!("the mutator admitted a pending migration"),
             Err(error) => error,
         };
 

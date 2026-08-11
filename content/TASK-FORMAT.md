@@ -57,7 +57,7 @@ twice: `research-a` and `research-b` share a discipline but are separate
 configuration keys, which is what makes "two independent corpora" a fact in the
 tree instead of a forecast about routing policy. `finish` is the driver's own
 complete-finish-cycle sentinel: the grow verbs refuse to create one, retire,
-prune, decompose and promotion refuse it as an operand, and `leaf-insert` may
+prune and decompose refuse it as an operand, and `leaf-insert` may
 target it only to put ordinary work *before* teardown.
 
 Each kind is marked **HITL** (resolves through live exchange with a human who
@@ -87,9 +87,9 @@ fault.
   independently leave the product working stay in one increment even when their
   code edits are separable. Then cut the current increment into vertical slices
   and **grow the tree**: turn an oversized leaf into a node — a **directory**
-  `NN-<slug>-k<key>/` holding ordered child leaves, headed here by a `BRIEF.md`
-  (a *decomposition* node; the chain node below is the brief-less species). The
-  deliverable is *more tree*. The only kind with methodological force — the sole
+  `NN-<slug>-k<key>/` holding ordered child leaves, headed by a `BRIEF.md`
+  charter. A node is always a leaf that proved bigger, so it always carries one.
+  The deliverable is *more tree*. The only kind with methodological force — the sole
   branch in the loop's Execute step.
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
   to, not to ship. The point is the reaction it provokes, not the code's
@@ -99,7 +99,8 @@ fault.
   source, doubt a hard-to-reverse decision before it stands, and externalize
   surfaced work into new leaves rather than absorbing it.)
 
-**Research** — a **vendor pair**, not a chain: two independent surveys, unioned.
+**Research** — a **vendor pair**, not a review chain: two independent surveys,
+unioned.
 
 - **research-a** and **research-b** (both AFK) — a citation-disciplined
   literature/prior-art survey producing `docs/research/<slug>.md`.
@@ -151,10 +152,10 @@ session has run Bootstrap and adopted the driver's selected-leaf mandate:
 
 | picked session | in-session reviewer allowance | next substantial review |
 |---|---|---|
-| plain producer | at most one; every independently materialised reviewer counts | `leaf-promote-chain` the picked producer |
-| producer already in a review chain | none; `review-*` is already scheduled | finish to the scheduled review boundary |
+| plain producer | at most one; every independently materialised reviewer counts | `leaf-add` a `review-<producer>` leaf, with the doubt written into its body |
+| producer whose review leaf already exists | none; `review-*` is already scheduled | finish to the scheduled review boundary |
 | `review-*` | none; this session is the adversarial read | record findings for integration |
-| `integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node |
+| `integrate-review-*` | at most one narrow reviewer | add a new producer review chain beside the leaf being integrated |
 | `research-a` / `research-b` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
 
 Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
@@ -175,7 +176,7 @@ one-time legacy migration still reads it: `work`, `review-work` and
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-## Composing the kinds — the two chains
+## Composing the kinds — the two shapes
 
 The kinds compose into two habitual shapes. A session cutting leaves should
 reach for them **by default**, and argue itself *out* of one rather than into
@@ -183,106 +184,142 @@ it:
 
 - **The review chain** — `X` → `review-X` → `integrate-review-X`. Sequential and
   adversarial; each step is a *different* kind, so each resolves its own
-  configured command and per-kind configuration alone expresses the shape. Cut it
-  when the artifact is
-  load-bearing (a spec, a decomposition you will build on for months, a
-  subsystem); a one-file change wants a mid-session subagent instead
-  (`driving.md`).
+  configured command and per-kind configuration alone expresses the shape. Decide
+  for it when the artifact is load-bearing (a spec, a decomposition you will
+  build on for months, a subsystem); a one-file change wants a mid-session
+  subagent instead (`driving.md`).
 - **The vendor pair** — `research-a` → `research-b` → `combine-research`. Two
   independent surveys unioned. The producers are **two distinct kinds** sharing
   one discipline, which is how the tree states "two configured targets" without
   any per-leaf routing metadata.
 
-**Each shape is one call**, and each is a **node directory** whose children the
-verb names off a shared stem for you:
+**They are built in opposite ways**, and the asymmetry is the design. A chain's
+steps are cut **lazily, one at a time, by the session that needs the next one**;
+a pair is cut **eagerly, whole, in one call**.
+
+### The review chain — each session cuts the next step
+
+Its steps are ordinary **flat siblings**. There is no chain node and no chain
+verb: each is an ordinary `leaf-add`, and it is the **last act** of the session
+before it.
 
 ```
-grove-llm leaf-add-chain [12] sync-design --kind design
-01-sync-design-chain-k12/                        # chain node — no BRIEF.md
-  01-design-sync-design-k13.md
-  02-review-design-sync-design-review-k14.md
-  03-integrate-review-design-sync-design-integrate-k15.md
+grove-llm leaf-add [12] sync-design --kind design
+05-design-sync-design-k13.md          # cut by the planning session
 
+  …the design session runs, and decides review is required:
+grove-llm leaf-add [12] sync-design-review --kind review-design
+06-review-design-sync-design-review-k14.md
+
+  …the review session runs, and has findings worth acting on:
+grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
+07-integrate-review-design-sync-design-integrate-k15.md
+```
+
+Three things follow from cutting them late:
+
+- **Each step is created only if it is required.** The producer cuts a review
+  leaf only if review is warranted, and the review cuts an integrate leaf **only
+  if it has findings worth acting on**. A review that finds nothing creates
+  nothing and simply retires, so the empty triage session is gone; a producer
+  that judges review unnecessary cuts no review leaf, and that too is a normal
+  outcome rather than a skipped step.
+- **The creating session writes the new leaf's body**, and that is the real
+  payoff. A review leaf can name the exact case its producer could not cover; an
+  integrate leaf can carry the findings verbatim. That is strictly more than a
+  constructor rendering a goal sentence from a handle could ever produce, which
+  is why the session that knows *why* the step is needed is the right author. The
+  template is deliberately bare — a handle and empty sections — so there is
+  nothing to edit around.
+- **You name the step kind yourself**, so name it off the producer that actually
+  ran: `review-<producer>`, then `integrate-review-<producer>`. `--kind
+  review-impl` beside a `design` producer is a perfectly valid invocation that
+  silently gives the reviewer the wrong discipline, and nothing downstream
+  catches it. The five producers are `requirements`, `design`, `planning`,
+  `prototype` and `impl`; every one of them has both steps, spelled exactly that
+  way.
+
+**Declare the relationship in the body, by hand.** A review's body carries
+`**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
+<review-handle>`, on their own line, naming the stable handle:
+
+```markdown
+# sync-design-review-k14
+
+**Reviews:** sync-design-k13
+```
+
+Nothing writes those lines and **nothing parses them**. They are a convention for
+the human reading `find .grove` and for the session that picks the step up —
+constraint 3, task files are freeform markdown and nothing validates them. Write
+them because the next session benefits, not because a verb requires it.
+
+### The vendor pair — one eager call
+
+```
 grove-llm leaf-add-pair [12] sync-survey
-02-sync-survey-pair-k16/                         # chain node — no BRIEF.md
-  01-research-a-sync-survey-a-k17.md
-  02-research-b-sync-survey-b-k18.md
-  03-combine-research-sync-survey-combine-k19.md
+08-research-a-sync-survey-a-k16.md
+09-research-b-sync-survey-b-k17.md
+10-combine-research-sync-survey-combine-k18.md
 ```
 
-You name the chain's **producer** kind and the verb derives the other two; the
-pair's three kinds are fixed, so it takes no kind at all. The chain's derivation
-is not something to do by hand — a `--kind review-impl` beside a `design`
-producer is a valid invocation nothing downstream catches. Four keys per shape,
-not three — the node holds the first, and
-stdout is four absolute paths with the node's leading. The whole shape lands or
-none of it does, and a generated shape is byte-identical to the same directory
-and leaves cut by hand with `mkdir` plus `leaf-add` **and the same stable
-relationships**: the review carries `**Reviews:** <producer-handle>` and the
-integration carries `**Integrates:** <review-handle>`.
+Three consecutive flat siblings, three consecutive keys, three absolute paths on
+stdout. **The whole shape lands or none of it does**, and a generated pair is
+byte-identical to the same three leaves cut by hand with `leaf-add`.
+
+**Laziness would be wrong here, which is why the pair kept its verb.** If
+`research-a` cut `research-b` at the end of its own session, `b` would inherit
+`a`'s framing and corpus — destroying the independence the pair is run for. The
+pair's three kinds are fixed by the shape, so it takes no `--kind` at all. Its
+peers are `-a` and `-b` rather than one bare stem and one suffixed, because they
+are peers: a bare stem beside a `-second` implies a producer/step relation the
+pair does not have.
+
+### What the shapes are not
 
 Those names are long, and that is the trade the scheme makes: the **kind** and the
 **process** both show up in `find .grove`, so a session's discipline and a chain's
-shape are readable without opening anything.
-
-Two things that shape looks like it could be and is not:
+shape are readable without opening anything. Three things that shape looks like
+it could be and is not:
 
 - **The suffix goes on the end**, not the front. A suffix keeps a chain's handles
   together under their stem; a prefix (`review-sync-design`) sorts every review
   beside every *other* review and scatters the chains it was meant to reveal. And
-  the children keep the **stem** rather than shortening to `01-design` /
-  `02-review` now that the node supplies the context: `resolve` matches a bare
-  slug exactly and reports more than one match as ambiguous, and `.grove/` dies at
-  the finish cycle leaving commit messages as the only record — where `review-k14`
-  names a role and no artifact. The node's `-chain` / `-pair` token is the same
-  rule one level up; without it the node's slug collides with its first child's.
-- **The node carries no `BRIEF.md`, and nothing reads its name.** A charter means
-  *this work proved bigger than one session*, which a chain is not; a stub written
-  because a step demanded it is what constraint 4 forbids, and the verb knows only
-  a stem anyway. Its absence is what lets the Retire cascade give a closing chain
-  node **nothing to do** — no `Done when` to check against the subtree and no
-  brief to promote — where a decomposition node's close has both
-  (*confirmation-boundary*; the close asks nothing of either species). That
-  discriminator is a **file test**: the
-  `-chain` / `-pair` token is ordinary slug text, and anything that parsed it would
-  reintroduce exactly the convention-reading this section forbids.
-- **A chain is not a unit, either.** Containment is not immunity: `pick` descends
-  a chain node in pre-order like any other and walks straight out into the next
-  sibling once its steps are done — it returns the first live leaf in the whole
-  tree and nothing groups leaves for it (*task-tree-scheme*). What the directory
-  *does* buy is that a sibling-level `leaf-insert` can no longer split the steps,
-  and that a step decided on *after* its producer ran is
-  `leaf-add <chain-node> <stem>-late-step`, appending **inside** the node —
-  immediately after its stem-mates, ahead of everything outside. A **currently
-  picked plain producer** that now needs review uses `grove-llm
-  leaf-promote-chain <picked-producer>`: the operation atomically creates the
-  brief-less node, preserves the producer's handle and bytes, derives the review
-  and integration leaves, and writes their stable relationships.
-
-The pair peers are `-a` and `-b` rather than one bare stem and one suffixed,
-because they are peers: a bare stem beside a `-second` implies a producer/step
-relation the pair does not have.
+  every step keeps the **stem** rather than shortening to `review` /
+  `integrate`: `resolve` matches a bare slug exactly and reports more than one
+  match as ambiguous, and `.grove/` dies at the finish cycle leaving commit
+  messages as the only record — where `review-k14` names a role and no artifact.
+- **Neither shape gets a node directory.** A charter means *this work proved
+  bigger than one session*, which a composed shape is not, and the hierarchy the
+  node bought was not worth the navigation cost. So there is **one node species**
+  again — a node is a leaf that decomposed, and it carries a `BRIEF.md` — and
+  Retire's close has the same work to do at every node it meets.
+- **A chain is not a unit, and is not contiguous by construction.** `pick`
+  returns the first live leaf in the whole tree and nothing groups leaves for it
+  (*task-tree-scheme*). Steps are appended at the parent's next free position, so
+  a review decided on after some unrelated leaf already exists lands *after* that
+  leaf, and a later `leaf-insert` can split a chain that was contiguous. Neither
+  is a fault to defend against — grove validates no cross-leaf grammar, and
+  contiguity was always a convention. Use `leaf-insert` when the order genuinely
+  matters.
 
 **The grammar is the five fields above and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders
 the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
 configuration lookup, and slug-plus-key is the handle `resolve` finds and the
 counter the next `-k<key>` is allocated from. What is **convention, not grammar**
-is everything a name might *imply about another leaf*: the stem, the step suffix
-and the relative ordering. Grove does not read a
-suffix, require a `review-X` after every `X`, or reject a partial chain. The two
-explicit `Reviews` / `Integrates` declarations are the one exception, and even
-they are read as a **lookup, never a parse**: grove arrives holding a handle and
-asks *which sibling declares it*, matching the rest of the line exactly, so a
-half-edited `**Reviews:** sync-design-k12 (stale)` declares nothing. It never
-asks the opposite question — *what does this task declare?* — and never
-reconstructs a relationship from a filename or a position.
+is everything a name might *imply about another leaf*: the stem, the step suffix,
+the relative ordering, and the two declaration lines. Grove does not read a
+suffix, require a `review-X` after every `X`, reject a partial chain, or parse a
+`**Reviews:**` line. It never reconstructs a relationship from a filename, a
+position, or a body.
 
-**Nothing else in a body is metadata**, and no verb writes one there. Retirement
+**Nothing in a body is metadata**, and no verb writes anything there. Retirement
 and pruning change a filename and stop; a node close writes nothing at all. So a
 `review-*` session has exactly one thing to read — its producer's committed
 artifact — and never a note the producer left behind about how its own session
-ran. `leaf-add` still means one leaf, and skipping a chain is a normal choice.
+ran. `leaf-add` still means one leaf, and deciding against review is a normal
+choice.
 
 ## Suggested shape
 
@@ -314,11 +351,11 @@ is decomposed into a node, the handle gains a ` — brief` suffix
 
 **The body carries no launch metadata at all** — no kind, no harness, no model,
 and no record of how any past session ran. A generated leaf is the header plus
-those four empty sections, and the
-only `**…:**` lines any leaf ever carries are the two composition relationships a
-chain writes for you (`**Reviews:**`, `**Integrates:**`), which describe how
-artifacts compose rather than how a session is launched. Everything about the
-launch comes from the filename's kind and the one configuration entry it keys.
+those four empty sections, and the only `**…:**` lines any leaf ever carries are
+the two composition relationships the *creating session* writes by hand
+(`**Reviews:**`, `**Integrates:**`), which describe how artifacts compose rather
+than how a session is launched. Everything about the launch comes from the
+filename's kind and the one configuration entry it keys.
 
 ## A leaf never names a harness
 

@@ -79,27 +79,30 @@ one budget across the **whole picked leaf**:
   may materialise at most one fresh-context reviewer. Every independently
   spawned reviewer counts. A cross-model reviewer may be that one only after the
   normal explicit authorisation; it is never an additional cycle.
-- A second review need runs `grove-llm leaf-promote-chain <picked-producer>`.
+- A second review need runs
+  `grove-llm leaf-add <parent> <stem>-review --kind review-<producer>`, with the
+  specific doubt written into the new leaf's body — that body is the reason to
+  cut the leaf now rather than have had a constructor cut it up front.
   This normally follows a substantive actionable finding whose non-mechanical
   fix needs re-review. Trivial findings, noise, visible accepted trade-offs, and
-  fixes conclusively covered by an executable test seam do not force promotion.
-- A producer already inside a review chain invokes none: its scheduled
-  `review-*` leaf supplies the fresh context. A `review-*` leaf invokes none
+  fixes conclusively covered by an executable test seam do not force escalation.
+- A producer that already has a `review-*` leaf beside it invokes none: that
+  scheduled leaf supplies the fresh context. A `review-*` leaf invokes none
   because it is already the adversarial read and must produce findings, not
   fixes.
 - An `integrate-review-*` leaf may spend one narrow reviewer. Substantial
-  redesign becomes a new producer review chain inside the owning chain node; an
-  integration leaf is not promotable.
+  redesign becomes a new producer review chain beside the leaf being integrated.
 - `research-a`, `research-b` and `combine-research` invoke none. The pair supplies independent
   corpora and the combiner supplies the adversarial move; put a load-bearing
   derived decision in its own reviewed producer chain.
 
-After promotion, finish only to a coherent reviewable boundary, commit the
-artifact and promotion under the unchanged producer handle, retire the
-relocated producer, and hand back with `grove-llm complete`. Do not spawn another
-doubt reviewer. Retirement is the filename `DONE` transition alone: it records
-nothing about the session that just ran and leaves the review task untouched,
-because the review reads the committed artifact.
+After cutting that leaf, finish only to a coherent reviewable boundary, commit
+the artifact and the new leaf together under the producer's own handle, retire
+the producer, and hand back with `grove-llm complete`. Do not spawn another
+doubt reviewer. Nothing about the producer's leaf moves, so its handle and bytes
+are preserved by construction; retirement is the filename `DONE` transition
+alone, recording nothing about the session that just ran and leaving the review
+task untouched, because the review reads the committed artifact.
 
 Grove owns the escalated route from there. It launches the scheduled `review-*`
 from that kind's own configuration entry, and whether that reaches a different

@@ -51,6 +51,64 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+**Breaking.** Review composition is now **flat and lazy**. Existing task trees
+keep working untouched — a chain node was only ever an ordinary node directory
+whose slug ended in `-chain`, and nothing keyed on that token — but the two
+verbs that built one are gone, so a session or script that called either must
+change. There is no migration, and none is needed.
+
+### Removed
+
+- **`grove-llm leaf-add-chain` and `grove-llm leaf-promote-chain`.** A chain's
+  steps are now cut one at a time with plain `leaf-add`, by the session that
+  needs the next one, so the first verb would emit only a producer and the
+  second — which existed solely to retrofit a chain node around a picked
+  producer without changing its handle — collapses to one append.
+- **The `PROMOTING-*` fail-closed transaction**, with its witness, recovery
+  path, and every reserved-prefix refusal that named it. Escalating review no
+  longer moves a producer, so nothing needs preserving across an interruption.
+  The `FINISHING-*` finish transaction and the session-kind migration witness are
+  untouched. `PROMOTING-*` is no longer reserved: a directory left by an
+  interrupted promotion under an older binary is now an ordinary foreign entry
+  every reader skips, and the producer copy inside it must be moved back by hand.
+- **The chain node**, and with it the second node species. Both composition
+  shapes are flat siblings named off a shared stem, so **every node carries a
+  `BRIEF.md`** again and the Retire cascade's `BRIEF.md`-presence discriminator
+  is gone — a node close now has the same work to do everywhere.
+- **Generated `**Reviews:**` / `**Integrates:**` lines.** The markers survive as
+  a documented convention in `content/TASK-FORMAT.md`, written by hand by the
+  session authoring the body. Nothing writes them and nothing parses them, which
+  is constraint 3 (task files are freeform markdown; nothing validates them).
+
+### Changed
+
+- **A producer's last act is to decide whether review is required** and, if so,
+  `leaf-add` the `review-<producer>` leaf itself; a review's last act is to
+  `leaf-add` the `integrate-review-<producer>` leaf **only if it has findings
+  worth acting on**. A review that finds nothing creates nothing and simply
+  retires, which removes the empty triage session. The larger payoff is that the
+  creating session writes the new leaf's body, so it can carry the exact
+  uncovered case or the findings verbatim — strictly more than a constructor
+  rendering a goal sentence from a handle could supply.
+- **`grove-llm leaf-add-pair` emits three flat siblings** at consecutive
+  positions instead of a `<stem>-pair/` node, and prints three paths rather than
+  four. It stays a single all-or-nothing call: **the research pair remains eager
+  on purpose**, because a `research-b` cut by `research-a`'s own session would
+  inherit that session's framing and corpus and destroy the independence the pair
+  is run for.
+- **A chain is no longer contiguous by construction**, and that cost is accepted
+  rather than defended against: steps land at the parent's next free position, so
+  one cut after unrelated work lands after it, and a sibling `leaf-insert` can
+  split a chain. Grove validates no cross-leaf grammar and `pick` is a walk, not
+  a scheduler; use `leaf-insert` when the order matters.
+- **A freshly created leaf's body is the bare template** — the stable handle and
+  empty sections — with no rendered goal and no relationship line, so the
+  creating session has nothing to edit around.
+- ADRs *grove-owns-escalated-review* (escalation resolves to `leaf-add`) and
+  *task-tree-transactions-fail-closed* (loses `PROMOTING-`, keeps `FINISHING-`)
+  are reworked in place, and `docs/specs/doubt-grove-review-mechanics.md` with
+  them.
+
 ## v17.0.0
 
 **Breaking.** Launch policy moves entirely into a new personal configuration

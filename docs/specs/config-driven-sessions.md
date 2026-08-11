@@ -284,7 +284,7 @@ and a skipped *directory* takes its whole live subtree with it while selection
 reports the grove finished. Grove writes no such name — `leaf-retire` and
 `leaf-prune` refuse a node operand — so each is reachable only by hand, which is
 precisely where a rule a human must know ("a node is never marked done") gets
-broken. Reserved transaction witnesses are unaffected: none of `PROMOTING-`,
+broken. Reserved transaction witnesses are unaffected: neither of
 `FINISHING-`, `PREPARING-FINISH-`, or `MIGRATING-session-kinds` is positioned, so
 none is task-shaped, and each keeps its own earlier and better-worded refusal.
 
@@ -301,10 +301,10 @@ launch policy. Grow verbs write the chosen kind in the filename. The research
 pair produces `research-a`, `research-b`, and `combine-research`; it needs no
 per-leaf harness metadata.
 
-`finish` is driver-reserved. `leaf-add`, `leaf-insert`, `leaf-decompose`, and
-`leaf-add-chain` reject `--kind finish`; `leaf-add-pair` has fixed research
-kinds. Given an existing finish leaf, `leaf-retire`, `leaf-prune`,
-`leaf-decompose`, and `leaf-promote-chain` reject it as an operand. A normal
+`finish` is driver-reserved. `leaf-add`, `leaf-insert`, and `leaf-decompose`
+reject `--kind finish`; `leaf-add-pair` has fixed research
+kinds. Given an existing finish leaf, `leaf-retire`, `leaf-prune`, and
+`leaf-decompose` reject it as an operand. A normal
 `leaf-insert <finish> <slug> --kind <non-finish>` is permitted and sequences the
 new work before teardown; ordinary `leaf-add` may also append later work because
 finish selection cannot starve it.
@@ -344,12 +344,13 @@ new fact from the tree. The prompt-visible mandate, not checkout state or an
 inherited environment value, is also the review-ownership predicate specified
 by [Grove owns escalated review](../adr/grove-owns-escalated-review.md).
 
-That authority split also governs `leaf-promote-chain`. The command accepts the
-named live producer after its normal producer-kind, relationship, parent-shape,
-and transaction checks, but it does not recompute pick or require the producer
-to be the current walk result. The prompt mandate is an agent-side authorization
-the tree command cannot observe; a second pick would reject the legitimate
-launch-window insertion case above while proving nothing about what the session
+That authority split also governs the grow verbs a session calls on its own
+mandate — notably the `leaf-add` that escalates review. Each accepts its named
+operand after ordinary structural checks, but none recomputes pick or requires
+the operand to be the current walk result. The prompt mandate is an agent-side
+authorization the tree command cannot observe; a second pick would reject the
+legitimate launch-window insertion case above while proving nothing about what
+the session
 was mandated to do. Completed-shape and pending-transaction recovery remain
 idempotent by stable producer identity. This is workflow discipline, not a
 security capability: the command trusts the explicit producer argument. The
@@ -560,7 +561,7 @@ cannot inherit a lock that outlives the driver-side operation.
 
 The lock supplies live-process serialization, not crash atomicity. Each multi-
 path operation that promises process-interruption recovery still needs its own
-in-tree witness and recovery protocol; migration, promotion, and finish each
+in-tree witness and recovery protocol; migration and finish each
 carry one.
 Single-path renames rely on filesystem atomicity, and no operation gains a
 power-loss guarantee merely by sharing this lock.
@@ -1060,9 +1061,11 @@ live, `DONE`, and `ABANDONED` leaves identically. For each legacy task body:
   `research-a` is legal; the kind names one configured research discipline, not
   structural membership in a pair.
 
-An unambiguous vendor pair is one brief-less node whose first three task
-children, in position order, are `research`, `research`, and
-`combine-research`. Terminal outcomes do not alter this classification. Extra
+An unambiguous **legacy** vendor pair is one brief-less node whose first three
+task children, in position order, are `research`, `research`, and
+`combine-research` — the shape the retired eager constructors wrote, which
+migration must still classify because such trees exist. Terminal outcomes do not
+alter this classification. Extra
 foreign files are ignored; an extra task-shaped child or nested task node makes
 the pair structurally ambiguous. An empty or repeated kind marker, an unknown
 kind, or an ambiguous pair stops migration and names the exact paths rather
@@ -1454,9 +1457,9 @@ parsing, the kind-label non-prefix invariant, malformed task-shaped names at
 both species — including a live leaf hidden under a task-shaped-but-invalid node
 directory, refused by `pick` and `resolve` alike — the survival of non-task-shaped
 entries at either species, stable resolution, pair generation without harness
-flags, per-verb finish refusal, finish-skipping pick order, mandate-authorized
-promotion after a launch-window insert, and migration refusal while a witness
-exists.
+flags, per-verb finish refusal, finish-skipping pick order, a mandate-authorized
+grow verb accepting its operand after a launch-window insert, and migration
+refusal while a witness exists.
 
 Internal unit tests may cover pure KDL/template and migration-plan functions and
 the process-ownership backend's event trace. Acceptance remains stated in

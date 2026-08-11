@@ -4,6 +4,7 @@ const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
 const CONTEXT: &str = include_str!("../CONTEXT.md");
 const DRIVING: &str = include_str!("../content/driving.md");
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
+const BRIEF_FORMAT: &str = include_str!("../content/BRIEF-FORMAT.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
 const ARCHITECTURE: &str = include_str!("../docs/ARCHITECTURE.md");
@@ -36,24 +37,28 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
         ("content/TASK-FORMAT.md", TASK_FORMAT),
     ] {
         assert_contains(surface, text, "whole picked leaf");
-        assert_contains(surface, text, "leaf-promote-chain");
+        // Escalation is one ordinary append now, so the surfaces must name the
+        // verb *and* the kind to spell — a session that reads only "cut a review
+        // leaf" has to guess `--kind`, which is the one wrong-but-well-formed
+        // mistake nothing downstream catches.
+        assert_contains(surface, text, "review-<producer>");
     }
 
     for (surface, text, integration_rule) in [
         (
             "content/SKILL.md",
             GROVE_SKILL,
-            "substantial redesign inside the owning chain node",
+            "substantial redesign as a new producer review chain beside the leaf it is integrating",
         ),
         (
             "content/driving.md",
             DRIVING,
-            "new producer review chain inside the owning chain node",
+            "new producer review chain beside the leaf being integrated",
         ),
         (
             "content/TASK-FORMAT.md",
             TASK_FORMAT,
-            "`integrate-review-*` | at most one narrow reviewer | add a new producer review chain inside the owning chain node",
+            "`integrate-review-*` | at most one narrow reviewer | add a new producer review chain beside the leaf being integrated",
         ),
     ] {
         assert_contains(surface, text, integration_rule);
@@ -75,6 +80,93 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
         TASK_FORMAT,
         "there is deliberately no retrofit verb",
     );
+}
+
+/// The two eager constructors are gone, so no provisioned surface may still
+/// instruct one. This is the meta-grove hazard stated as a test: whatever
+/// `content/` says at this commit is what drives the *next* session, and a
+/// surface naming a verb the binary refuses sends that session to a dead end it
+/// cannot diagnose from prose.
+///
+/// The verb names are banned as **tokens**, because there is nothing left for
+/// them to be reworded into — banning the token bans the concept. Each surface
+/// also carries the positive rule that replaced them, so deleting a paragraph
+/// wholesale fails rather than passing vacuously.
+#[test]
+fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
+    // Scoped to the surfaces that *drive a session* — the provisioned
+    // methodology, the human guide, and the doubt skill. `CONTEXT.md` and the
+    // review-mechanics spec are deliberately out: a glossary `_Avoid_` line and
+    // a spec's removed-surface test seam exist precisely to name a deleted verb
+    // and say it is gone, and banning the token there would ban the record along
+    // with the instruction.
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/driving.md", DRIVING),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("content/BRIEF-FORMAT.md", BRIEF_FORMAT),
+        ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("docs/USAGE.md", USAGE),
+    ] {
+        for rejected in ["leaf-add-chain", "leaf-promote-chain"] {
+            assert_absent(surface, text, rejected);
+        }
+    }
+
+    for (surface, text, replacement) in [
+        (
+            "content/SKILL.md",
+            GROVE_SKILL,
+            "grove-llm leaf-add <parent> <stem>-review --kind review-<producer>",
+        ),
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "each session cuts the next step",
+        ),
+        (
+            "content/BRIEF-FORMAT.md",
+            BRIEF_FORMAT,
+            "There is one node species, and it always has one",
+        ),
+        (
+            "CONTEXT.md",
+            CONTEXT,
+            "an eager chain constructor (`leaf-add-chain`) or a retrofit verb",
+        ),
+    ] {
+        assert_contains(surface, text, replacement);
+    }
+}
+
+/// A review that finds nothing must create nothing — the empty session this
+/// workstream exists to remove — and the surfaces have to say so, because the
+/// rule lives nowhere else: no verb enforces it and no filename records it.
+#[test]
+fn guidance_states_that_each_step_is_created_only_when_required() {
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+    ] {
+        assert_contains(surface, text, "only if it has findings worth acting on");
+        assert_contains(
+            surface,
+            text,
+            "A review that finds nothing creates nothing and simply retires",
+        );
+    }
+
+    // …and the counterpart: the pair is eager, and the reason is stated rather
+    // than left as an inconsistency for a later session to "fix".
+    for (surface, text) in [
+        ("content/SKILL.md", GROVE_SKILL),
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+    ] {
+        assert_contains(surface, text, "inherit");
+        assert_contains(surface, text, "independence the pair is run for");
+    }
 }
 
 #[test]
@@ -105,8 +197,8 @@ fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
         "## Composition with Grove",
         "Bootstrap",
         "whole picked leaf",
-        "leaf-promote-chain",
-        "Substantial redesign becomes a new producer review chain inside the owning chain node",
+        "--kind review-<producer>",
+        "Substantial redesign becomes a new producer review chain beside the leaf being integrated",
         "Outside that predicate",
     ] {
         assert_contains("doubt-driven-development/SKILL.md", DOUBT_SKILL, expected);
@@ -119,7 +211,7 @@ fn doubt_guidance_yields_to_grove_without_changing_standalone_doubt() {
 fn project_guides_name_the_implemented_composition_seams() {
     for expected in [
         "Tree access lock",
-        "PROMOTING-",
+        "FINISHING-",
         "**Reviews:**",
         "**Integrates:**",
     ] {
@@ -128,26 +220,33 @@ fn project_guides_name_the_implemented_composition_seams() {
 
     for expected in [
         "one in-session",
-        "leaf-promote-chain",
+        "grove-llm leaf-add <parent> <stem>-review --kind review-<producer>",
         "reviewable boundary",
     ] {
         assert_contains("docs/USAGE.md", USAGE, expected);
     }
 }
 
+/// `--help` is the surface a session re-orients on after dropping context, so
+/// the verb that now builds a review chain has to teach the lazy contract there
+/// and not only in the methodology. A session that reaches `leaf-add --help`
+/// holding "I should cut a review step" must find which kind to name.
 #[test]
-fn llm_help_exposes_the_promotion_recovery_contract() {
-    let promotion = Command::cargo_bin("grove-llm")
+fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
+    let help = Command::cargo_bin("grove-llm")
         .unwrap()
-        .args(["leaf-promote-chain", "--help"])
+        .args(["leaf-add", "--help"])
         .output()
         .unwrap();
-    let promotion = String::from_utf8_lossy(&promotion.stdout);
-    assert_contains(
-        "grove-llm leaf-promote-chain --help",
-        &promotion,
-        "PROMOTING-",
-    );
+    let help = String::from_utf8_lossy(&help.stdout);
+    for expected in [
+        "review chain",
+        "--kind review-<producer>",
+        "flat",
+        "if it found something worth acting on",
+    ] {
+        assert_contains("grove-llm leaf-add --help", &help, expected);
+    }
 }
 
 /// Receipts and the diversity warning were a real contract once: retirement
@@ -257,7 +356,7 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         (
             "CONTEXT.md",
             CONTEXT,
-            "`leaf-promote-chain` likewise trusts the named live producer after its structural gates and never recomputes pick",
+            "Bootstraps the resolved leaf, and does not pick again",
         ),
         ("review mechanics spec", SPEC, "**Reviews:**"),
         ("review mechanics spec", SPEC, "**Integrates:**"),
@@ -269,14 +368,10 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         (
             "content/SKILL.md",
             GROVE_SKILL,
-            "prune the enclosing review-chain node",
+            "prune each of its live steps",
         ),
         ("docs/ARCHITECTURE.md", ARCHITECTURE, "no second tree read"),
-        (
-            "docs/USAGE.md",
-            USAGE,
-            "prune the enclosing review-chain node",
-        ),
+        ("docs/USAGE.md", USAGE, "prune each of its live steps"),
     ] {
         assert_contains(surface, text, expected);
     }

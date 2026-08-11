@@ -465,18 +465,10 @@ fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
         &["leaf-insert", "target-k1", "reserved", "--kind", "finish"],
     ));
 
-    let chain_repository = init_repo();
-    current_grove(chain_repository.path());
-    assert_finish_refusal(grove_llm(
-        chain_repository.path(),
-        &["leaf-add-chain", ".", "reserved", "--kind", "finish"],
-    ));
-
     for verb in [
         vec!["leaf-decompose", ".grove/01-finish-finish-k1.md", "child"],
         vec!["leaf-retire", ".grove/01-finish-finish-k1.md"],
         vec!["leaf-prune", ".grove/01-finish-finish-k1.md"],
-        vec!["leaf-promote-chain", "1"],
     ] {
         let repository = init_repo();
         let grove = current_grove(repository.path());
@@ -505,9 +497,7 @@ fn every_tree_verb_refuses_a_pending_migration_before_format_validation() {
         vec!["leaf-decompose", ".grove/01-task-k1.md", "first"],
         vec!["leaf-retire", ".grove/01-task-k1.md"],
         vec!["leaf-prune", ".grove/01-task-k1.md"],
-        vec!["leaf-add-chain", ".", "stem", "--kind", "impl"],
         vec!["leaf-add-pair", ".", "stem"],
-        vec!["leaf-promote-chain", "task-k1"],
     ] {
         let repository = init_repo();
         // Deliberately *not* `current_grove`: an interrupted migration leaves a

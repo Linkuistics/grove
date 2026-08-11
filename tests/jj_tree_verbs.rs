@@ -365,20 +365,19 @@ fn leaf_retire_marks_done_in_place_in_a_jj_native_tree() {
 fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree() {
     let tmp = jj_native();
     let repo = tmp.path();
-    let chain = repo.join(".grove/01-build-chain-k4");
-    touch(&repo.join(".grove/FORMAT"), "session-kinds-v1\n");
-    touch(&chain.join("01-impl-build-k1.md"), "# build-k1\n");
+    let grove = repo.join(".grove");
+    touch(&grove.join("FORMAT"), "session-kinds-v1\n");
+    // Flat siblings, which is what a review chain is (flat-lazy-review): the
+    // review was cut by the producer's own session as an ordinary `leaf-add`.
+    touch(&grove.join("01-impl-build-k1.md"), "# build-k1\n");
     touch(
-        &chain.join("02-review-impl-build-review-k2.md"),
+        &grove.join("02-review-impl-build-review-k2.md"),
         "# build-review-k2\n\n**Reviews:** build-k1\n",
     );
     let output = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(repo)
-        .args([
-            "leaf-retire",
-            ".grove/01-build-chain-k4/01-impl-build-k1.md",
-        ])
+        .args(["leaf-retire", ".grove/01-impl-build-k1.md"])
         .output()
         .unwrap();
 
@@ -387,18 +386,12 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
         "leaf-retire failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(exists(
-        repo,
-        ".grove/01-build-chain-k4/01-DONE-impl-build-k1.md"
-    ));
+    assert!(exists(repo, ".grove/01-DONE-impl-build-k1.md"));
     // Byte-equality rather than a `!contains` on a retired marker: the claim is
     // that retiring a producer writes nothing into the review that names it, and
     // that holds for whatever a future sibling write might say.
     assert_eq!(
-        read(
-            repo,
-            ".grove/01-build-chain-k4/02-review-impl-build-review-k2.md"
-        ),
+        read(repo, ".grove/02-review-impl-build-review-k2.md"),
         "# build-review-k2\n\n**Reviews:** build-k1\n"
     );
     assert!(

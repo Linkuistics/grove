@@ -475,37 +475,30 @@ fn finish_commit_refuses_byte_identically_when_ordinary_work_appeared() {
 }
 
 #[test]
-fn finish_commit_refuses_pending_transactions_before_deleting_the_tree() {
-    for (witness_name, expected_diagnostic) in [
-        (
-            "MIGRATING-session-kinds",
-            "pending Grove session-kind migration",
-        ),
-        (
-            "PROMOTING-finish-chain-k3",
-            "pending Grove promotion transaction",
-        ),
-    ] {
-        let fixture = TempDir::new().unwrap();
-        let repository = fixture.path().join(witness_name);
-        init_git(&repository);
-        seed_committed_terminal_grove(&repository);
-        let grove = repository.join(".grove");
-        fs::create_dir(grove.join(witness_name)).unwrap();
-        let before = tree_snapshot(&grove);
-        let head_before = git(&repository, &["rev-parse", "HEAD"]);
+fn finish_commit_refuses_a_pending_migration_before_deleting_the_tree() {
+    // The one reserved non-finish witness left. Promotion's `PROMOTING-*` went
+    // with the verb that wrote it (flat-lazy-review), so this single case is now
+    // the whole class rather than one of two.
+    let witness_name = "MIGRATING-session-kinds";
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join(witness_name);
+    init_git(&repository);
+    seed_committed_terminal_grove(&repository);
+    let grove = repository.join(".grove");
+    fs::create_dir(grove.join(witness_name)).unwrap();
+    let before = tree_snapshot(&grove);
+    let head_before = git(&repository, &["rev-parse", "HEAD"]);
 
-        let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
+    let output = grove_llm(&repository, &["finish-commit", "finish-k2"]);
 
-        assert!(!output.status.success(), "{witness_name} was admitted");
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains(expected_diagnostic),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert_eq!(tree_snapshot(&grove), before);
-        assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
-    }
+    assert!(!output.status.success(), "{witness_name} was admitted");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("pending Grove session-kind migration"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(tree_snapshot(&grove), before);
+    assert_eq!(git(&repository, &["rev-parse", "HEAD"]), head_before);
 }
 
 #[test]

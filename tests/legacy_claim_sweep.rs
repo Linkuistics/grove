@@ -13,17 +13,22 @@
 //!
 //! So the candidates come from the tree and the **classification** is what is
 //! committed. Every occurrence of every token in [`LEGACY_TOKENS`] across the
-//! documentation trees must be covered by a [`REFUTATIONS`] entry — a committed
-//! judgement that *this file names this token in order to record its removal*.
-//! An occurrence nobody classified fails with its file and line, so a
-//! reintroduced affirmative claim is caught whether or not anyone remembered to
-//! add it here. The check runs in both directions: every [`REFUTATIONS`] entry
-//! must still occur, so an entry whose subject is gone fails too and the table
-//! cannot quietly become a fossil.
+//! documentation trees must fall inside a [`REFUTATIONS`] quotation — a
+//! committed judgement that *this sentence names the token in order to record
+//! its removal*. The unit is the **occurrence**, not the file: a surface that
+//! already denies a token stays answerable for a second, affirmative sentence
+//! about that same token, which a file-wide exemption waved through. An
+//! occurrence nobody quoted fails with its file and line, so a reintroduced
+//! affirmative claim is caught whether or not anyone remembered to add it here.
+//! The check runs in both directions: every quotation must still occur and must
+//! still name a legacy token, so an entry whose subject is gone fails too and
+//! the table cannot quietly become a fossil.
 //!
 //! Controls, because a sweep that cannot fail is worth nothing. The **positive
-//! control** drives the same classifier over a synthetic document carrying an
-//! affirmative legacy claim and shows it rejected. The **cross-tree control**
+//! control** drives the same classifier over synthetic documents and shows an
+//! affirmative legacy claim rejected — including the case a file-wide exemption
+//! used to hide, where the denial and the affirmation name the same token in
+//! the same file. The **cross-tree control**
 //! asserts the walk actually reached every documentation tree it claims to
 //! cover — repository root, `docs/`, `content/` and `plugins/` are four
 //! separately owned trees, and a sweep that silently walked one of them would
@@ -124,65 +129,144 @@ const LEGACY_TOKENS: &[(&str, &str)] = &[
     ("seventeen", "the superseded session-kind count"),
 ];
 
-/// Where a legacy token may still be named, and implicitly why: every entry is
-/// a surface that names the token in order to record its **removal** — as a
-/// denial ("emits no diversity warnings"), as a removal list, or as the
-/// motivating problem a design solved. Keyed by file and token rather than by
-/// line, so ordinary editing does not churn the table while a genuine
-/// reintroduction still fails.
+/// Where a legacy token may still be named, quoted in the surface's own words.
 ///
-/// What this cannot decide is **tense**. A file classified here may still slip
-/// into the present about a removed surface — `docs/specs/config-driven-sessions.md`
+/// Every entry is one sentence that names one or more legacy tokens in order to
+/// record their **removal** — as a denial ("emits no diversity warnings"), as a
+/// removal list, or as the motivating problem a design solved. One removal list
+/// legitimately answers for several tokens at once, which is why the table is
+/// shorter than the set of occurrences it classifies.
+///
+/// Quotations are matched against the same flattened text the sweep searches, so
+/// reflowing a paragraph or moving it within its file changes nothing. Rewording
+/// the denial itself is what breaks an entry — exactly when a reader should look
+/// again.
+///
+/// Quoting is also what makes the classification **occurrence-level**. Keyed by
+/// file and token, one blessed denial exempted every later occurrence of that
+/// token in that file: `docs/USAGE.md` denies diversity warnings once, and a
+/// second sentence asserting them was invisible while the stale-entry check
+/// still passed on the strength of the legitimate denial.
+///
+/// What this cannot decide is **tense**. A quoted sentence may itself slip into
+/// the present about a removed surface — `docs/specs/config-driven-sessions.md`
 /// did, opening its problem statement with "Grove currently reconstructs…" long
 /// after it stopped doing so. Distinguishing that from a legitimate naming needs
 /// a reader, not a matcher; the table's job is to force one to have looked.
 const REFUTATIONS: &[(&str, &str)] = &[
-    ("CONTEXT.md", "**Harness:**"),
-    ("CONTEXT.md", "**Kind:**"),
-    ("CONTEXT.md", "**Producer launch:**"),
-    ("CONTEXT.md", "--harness"),
-    ("CONTEXT.md", "GROVE_LLM_BIN"),
-    ("CONTEXT.md", "harness stamp"),
-    ("CONTEXT.md", "primary harness"),
-    ("CONTEXT.md", "retire.md"),
-    ("CONTEXT.md", "start.md"),
-    ("content/SKILL.md", "retire.md"),
-    ("content/SKILL.md", "start.md"),
-    ("docs/ARCHITECTURE.md", "**Harness:**"),
-    ("docs/ARCHITECTURE.md", "**Kind:**"),
-    ("docs/ARCHITECTURE.md", "**Producer launch:**"),
-    ("docs/USAGE.md", "diversity warnings"),
+    (
+        "CONTEXT.md",
+        "_Avoid_: naming `start.md` or `retire.md` — those launcher prompts \
+         disappeared with their lifecycle verbs",
+    ),
+    (
+        "CONTEXT.md",
+        "no longer lives in a `**Kind:**` task-file field",
+    ),
+    (
+        "CONTEXT.md",
+        "removes the obsolete `**Kind:**`, `**Harness:**`, and \
+         `**Producer launch:**` lines",
+    ),
+    (
+        "CONTEXT.md",
+        "_Avoid_: giving either research leaf a `**Harness:**` declaration",
+    ),
+    ("CONTEXT.md", "there is no `GROVE_LLM_BIN` override"),
+    (
+        "CONTEXT.md",
+        "\"primary harness\" — harness selection is a property of each session kind",
+    ),
+    (
+        "CONTEXT.md",
+        "describing environment variables, a harness stamp, `--harness`, or a \
+         leaf-level `**Harness:**` declaration as configuration fallbacks",
+    ),
+    (
+        "content/SKILL.md",
+        "There is no `start.md`, `retire.md` or `finish.md`",
+    ),
+    (
+        "docs/ARCHITECTURE.md",
+        "mapping each legacy body's `**Kind:**` to a filename kind",
+    ),
+    (
+        "docs/ARCHITECTURE.md",
+        "It strips every `**Kind:**`, `**Harness:**`, and \
+         `**Producer launch:**` line",
+    ),
+    (
+        "docs/USAGE.md",
+        "it records no launch receipts and emits no diversity warnings",
+    ),
     (
         "docs/adr/complete-session-configuration.md",
-        "primary harness",
+        "**Keep a primary harness and layer kind/family overrides over it.** \
+         Rejected",
     ),
-    ("docs/specs/config-driven-sessions.md", "**Harness:**"),
-    ("docs/specs/config-driven-sessions.md", "**Kind:**"),
     (
         "docs/specs/config-driven-sessions.md",
-        "**Producer launch:**",
+        "a repository marker and local stamp selected a primary harness",
     ),
-    ("docs/specs/config-driven-sessions.md", "--harness"),
-    ("docs/specs/config-driven-sessions.md", "--no-launch"),
-    ("docs/specs/config-driven-sessions.md", ".grove-stamps"),
-    ("docs/specs/config-driven-sessions.md", "GROVE_CLAUDE_PID"),
-    ("docs/specs/config-driven-sessions.md", "GROVE_HARNESS_PID"),
-    ("docs/specs/config-driven-sessions.md", "GROVE_KILL_GRACE"),
-    ("docs/specs/config-driven-sessions.md", "GROVE_LLM_BIN"),
     (
         "docs/specs/config-driven-sessions.md",
-        "GROVE_SESSION_TARGET",
+        "the retired `GROVE_HARNESS_PID` / `GROVE_CLAUDE_PID` handles",
     ),
-    ("docs/specs/config-driven-sessions.md", "diversity warnings"),
-    ("docs/specs/config-driven-sessions.md", "grove do"),
-    ("docs/specs/config-driven-sessions.md", "grove migrate"),
-    ("docs/specs/config-driven-sessions.md", "grove retire"),
-    ("docs/specs/config-driven-sessions.md", "harness stamp"),
-    ("docs/specs/config-driven-sessions.md", "primary harness"),
-    ("docs/specs/config-driven-sessions.md", "retire.md"),
-    ("docs/specs/config-driven-sessions.md", "start.md"),
-    ("docs/specs/doubt-grove-review-mechanics.md", "**Harness:**"),
-    ("docs/specs/doubt-grove-review-mechanics.md", "**Kind:**"),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "Task bodies no longer carry `**Kind:**`, `**Harness:**`, or \
+         `**Producer launch:**`",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "structured routing peeks, `GROVE_SESSION_TARGET`, producer target \
+         receipts, and diversity warnings have no role in this flow and are \
+         removed",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "lifecycle flags such as `--harness` and `--no-launch` are removed",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "one known `**Kind:**` value supplies the filename kind",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "Migration removes every `**Kind:**`, `**Harness:**`, and \
+         `**Producer launch:**` line",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "harness detection for launching, the harness stamp, `.grove-stamps/`, \
+         and per-invocation harness flags",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "leaf `**Harness:**` metadata and grow-verb harness flags",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "`grove do`, `grove migrate`, `grove retire`, and dry-run routing output",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "structured harness-routing peeks, target receipts, \
+         `GROVE_SESSION_TARGET`, and review diversity warnings",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "rather than supported `GROVE_LLM_BIN` or `GROVE_KILL_GRACE*` process \
+         configuration",
+    ),
+    (
+        "docs/specs/config-driven-sessions.md",
+        "`start.md` and `retire.md` disappear with their human lifecycle verbs",
+    ),
+    (
+        "docs/specs/doubt-grove-review-mechanics.md",
+        "They carry no `**Kind:**`, `**Harness:**`, or producer target metadata",
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -230,20 +314,29 @@ fn flattened(text: &str) -> (String, Vec<usize>) {
     (flat, line_of_byte)
 }
 
-/// Whole-token occurrences, as 1-based line numbers.
+/// One whole-needle occurrence in flattened space: where it starts, and the
+/// original line its first byte came from.
+struct Occurrence {
+    start: usize,
+    line: usize,
+}
+
+/// Whole-needle occurrences in an already-flattened haystack.
 ///
-/// The boundary rule applies only where the token's own edge is a word
+/// The boundary rule applies only where the needle's own edge is a word
 /// character, which is what separates `grove do` from "grove does" while still
 /// letting `**Kind:**` and `.grove-stamps` match at their punctuation edges. A
 /// hyphen is deliberately *not* a word byte, so `--harness-a` is an occurrence
 /// of `--harness`: a resurrected harness flag is exactly what this must catch.
-fn occurrence_lines(text: &str, token: &str) -> Vec<usize> {
-    let (flat, line_of_byte) = flattened(text);
-    let (haystack, needle) = (flat.as_bytes(), token.as_bytes());
+///
+/// Quotations run through the same matcher as tokens, so a [`REFUTATIONS`]
+/// entry is located by exactly the rule that finds what it classifies.
+fn occurrences_in(flat: &str, line_of_byte: &[usize], needle: &str) -> Vec<Occurrence> {
+    let (haystack, needle) = (flat.as_bytes(), needle.as_bytes());
     let leading_boundary = needle.first().is_some_and(|byte| is_word_byte(*byte));
     let trailing_boundary = needle.last().is_some_and(|byte| is_word_byte(*byte));
 
-    let mut lines = Vec::new();
+    let mut found = Vec::new();
     for start in 0..haystack
         .len()
         .saturating_sub(needle.len().saturating_sub(1))
@@ -258,22 +351,54 @@ fn occurrence_lines(text: &str, token: &str) -> Vec<usize> {
         if trailing_boundary && haystack.get(after).is_some_and(|byte| is_word_byte(*byte)) {
             continue;
         }
-        lines.push(line_of_byte[start]);
+        found.push(Occurrence {
+            start,
+            line: line_of_byte[start],
+        });
     }
-    lines
+    found
 }
 
-/// Every legacy occurrence in one document that no [`REFUTATIONS`] entry
-/// covers. Kept pure and path-parameterised so the positive control can drive
-/// the real classifier over a synthetic document.
+/// Whole-needle occurrences of `needle` in `text`, as 1-based line numbers.
+fn occurrence_lines(text: &str, needle: &str) -> Vec<usize> {
+    let (flat, line_of_byte) = flattened(text);
+    occurrences_in(&flat, &line_of_byte, needle)
+        .into_iter()
+        .map(|found| found.line)
+        .collect()
+}
+
+/// Every legacy occurrence in one document that falls outside every
+/// [`REFUTATIONS`] quotation committed for that document. Kept pure and
+/// path-parameterised so the controls can drive the real classifier over a
+/// synthetic document.
 fn unclassified_occurrences(path: &str, text: &str) -> Vec<String> {
+    let (flat, line_of_byte) = flattened(text);
+
+    // The spans this document's committed quotations occupy. An occurrence is
+    // classified by *containment*, so the sentence that records a removal
+    // answers for the tokens inside it and for nothing else in the file.
+    let refuted: Vec<(usize, usize)> = REFUTATIONS
+        .iter()
+        .filter(|(entry_path, _)| *entry_path == path)
+        .flat_map(|(_, quotation)| {
+            occurrences_in(&flat, &line_of_byte, quotation)
+                .into_iter()
+                .map(|found| (found.start, found.start + quotation.len()))
+        })
+        .collect();
+
     let mut findings = Vec::new();
     for (token, subject) in LEGACY_TOKENS {
-        if REFUTATIONS.contains(&(path, token)) {
-            continue;
-        }
-        for line in occurrence_lines(text, token) {
-            findings.push(format!("{path}:{line}: `{token}` — {subject}"));
+        for found in occurrences_in(&flat, &line_of_byte, token) {
+            let end = found.start + token.len();
+            if refuted
+                .iter()
+                .any(|(from, to)| *from <= found.start && end <= *to)
+            {
+                continue;
+            }
+            findings.push(format!("{path}:{}: `{token}` — {subject}", found.line));
         }
     }
     findings
@@ -342,8 +467,8 @@ fn no_documentation_surface_states_a_removed_launch_policy_as_current() {
 
     assert!(
         findings.is_empty(),
-        "unclassified legacy claims — either the surface is stale, or it refutes \
-         the token and belongs in REFUTATIONS:\n  {}",
+        "unclassified legacy claims — either the surface is stale, or the \
+         sentence that records the removal belongs in REFUTATIONS, quoted:\n  {}",
         findings.join("\n  ")
     );
 }
@@ -353,20 +478,31 @@ fn the_refutation_table_carries_no_stale_entry() {
     let root = repository_root();
     let mut stale = Vec::new();
 
-    for (path, token) in REFUTATIONS {
+    for (path, quotation) in REFUTATIONS {
+        // A quotation naming no legacy token classifies nothing, whether it was
+        // authored that way or survived the token it once answered for.
+        let named: Vec<&str> = LEGACY_TOKENS
+            .iter()
+            .map(|(token, _)| *token)
+            .filter(|token| !occurrence_lines(quotation, token).is_empty())
+            .collect();
+        if named.is_empty() {
+            stale.push(format!("{path} entry names no legacy token: {quotation:?}"));
+        }
+
         let Ok(text) = fs::read_to_string(root.join(path)) else {
-            stale.push(format!("{path} no longer exists (entry for `{token}`)"));
+            stale.push(format!("{path} no longer exists (entry {quotation:?})"));
             continue;
         };
-        if occurrence_lines(&text, token).is_empty() {
-            stale.push(format!("{path} no longer names `{token}`"));
+        if occurrence_lines(&text, quotation).is_empty() {
+            stale.push(format!("{path} no longer reads {quotation:?}"));
         }
     }
 
     assert!(
         stale.is_empty(),
-        "REFUTATIONS entries whose subject is gone — delete them rather than \
-         leaving the table decorative:\n  {}",
+        "REFUTATIONS entries whose subject is gone — requote the surface, or \
+         delete the entry rather than leaving the table decorative:\n  {}",
         stale.join("\n  ")
     );
 }
@@ -374,7 +510,15 @@ fn the_refutation_table_carries_no_stale_entry() {
 #[test]
 fn every_legacy_token_is_still_worth_sweeping_for() {
     let root = repository_root();
-    let classified: Vec<&str> = REFUTATIONS.iter().map(|(_, token)| *token).collect();
+    let classified: Vec<&str> = LEGACY_TOKENS
+        .iter()
+        .map(|(token, _)| *token)
+        .filter(|token| {
+            REFUTATIONS
+                .iter()
+                .any(|(_, quotation)| !occurrence_lines(quotation, token).is_empty())
+        })
+        .collect();
 
     // A token nothing refutes anywhere is not evidence of a problem — several
     // are here purely as tripwires for a name that could come back. But a token
@@ -422,15 +566,17 @@ fn the_sweep_rejects_a_reintroduced_legacy_claim() {
         reintroduced[0]
     );
 
-    // And the classification must actually exempt: the same token in the file
-    // whose entry covers it stays silent.
+    // And the classification must actually exempt: a surface's own committed
+    // removal record covers every legacy token inside it — three, here.
     assert!(
         unclassified_occurrences(
             "docs/specs/config-driven-sessions.md",
-            "`grove do` has no successor.\n",
+            "This design removes these launch-policy surfaces:\n\n\
+             - `grove do`, `grove migrate`, `grove retire`, and dry-run routing\n\
+             output.\n",
         )
         .is_empty(),
-        "a classified surface must not be reported"
+        "a quoted removal record must not be reported"
     );
 
     // The boundary rule is what keeps the control honest: prose about grove
@@ -438,6 +584,33 @@ fn the_sweep_rejects_a_reintroduced_legacy_claim() {
     assert!(
         unclassified_occurrences("docs/USAGE.md", "grove does not route models.\n").is_empty(),
         "`grove do` must not match inside \"grove does\""
+    );
+}
+
+#[test]
+fn a_denial_does_not_exempt_the_rest_of_its_own_file() {
+    // The blind spot a file-and-token classification had, as a control on the
+    // pairing that produced it: `docs/USAGE.md` is classified for `diversity
+    // warnings` *because it denies them*. A second, affirmative sentence about
+    // that same token in that same file must still be reported — and the
+    // stale-entry check could never catch it, because the legitimate denial it
+    // looks for is still right there.
+    let alongside = unclassified_occurrences(
+        "docs/USAGE.md",
+        "Grove executes opaque command strings, so it records no launch\n\
+         receipts and emits no diversity warnings.\n\n\
+         Grove emits diversity warnings when a review reuses its producer's model.\n",
+    );
+
+    assert_eq!(
+        alongside.len(),
+        1,
+        "an affirmative claim beside a legitimate denial must be reported: {alongside:?}"
+    );
+    assert!(
+        alongside[0].starts_with("docs/USAGE.md:4: `diversity warnings`"),
+        "the report must name the affirmative sentence, not the denial: {}",
+        alongside[0]
     );
 }
 

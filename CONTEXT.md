@@ -31,8 +31,13 @@ human confirmation and is the loop's only routine human gate; its mechanism is
 the [[Finish transaction]]. Branch integration and working-tree removal remain
 outside Grove.
 _Avoid_: describing the finish as merging or deleting anything git-topological — that was the pre-v11 cycle.
-_Avoid_: reading task-root absence as proof that a finish succeeded — a declined
-or interrupted finish leaves that same leaf live for an explicit later resume.
+_Avoid_: reading task-root absence as proof that a finish succeeded — at a
+driver lifecycle transition it is always a fresh-tree fact, so a deletion that
+committed before the driver observed `done` starts a *new* grove.
+_Avoid_: "an interrupted finish always leaves that leaf live" — only a decline,
+or an interruption the [[Finish transaction]] proved rolled back, leaves it
+selectable for an explicit later resume; what recovery cannot classify stays
+blocked and operator-recoverable instead.
 
 **Finish transaction** (`FINISHING-<finish-handle>/`, built as
 `PREPARING-FINISH-<finish-handle>-<attempt-identity>/`):

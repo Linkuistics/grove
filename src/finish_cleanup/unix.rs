@@ -272,7 +272,7 @@ pub(crate) fn rename_at_noreplace(
         // SAFETY: both directory descriptors and NUL-terminated names are
         // valid, and the platform flag makes replacement impossible.
         let status = unsafe {
-            libc::renameat2(
+            renameat2_raw(
                 source_parent.as_raw_fd(),
                 source.as_ptr(),
                 destination_parent.as_raw_fd(),
@@ -327,7 +327,7 @@ pub(super) fn rename_at_exchange(
         // SAFETY: both directory descriptors and NUL-terminated names are
         // valid, and RENAME_EXCHANGE atomically preserves both entries.
         let status = unsafe {
-            libc::renameat2(
+            renameat2_raw(
                 first_parent.as_raw_fd(),
                 first.as_ptr(),
                 second_parent.as_raw_fd(),
@@ -395,6 +395,46 @@ fn status_result(status: libc::c_int) -> io::Result<()> {
         Err(io::Error::last_os_error())
     } else {
         Ok(())
+    }
+}
+
+/// `renameat2(2)` issued as a raw syscall rather than through glibc's wrapper.
+///
+/// The syscall has existed since Linux 3.15, but glibc only grew a `renameat2`
+/// *symbol* in 2.28. Release archives are cross-built against a glibc 2.17 floor
+/// (`scripts/release-build.sh`), where calling the wrapper is not a runtime
+/// fallback question at all — it fails to **link**, with `ld.lld: error:
+/// undefined symbol: renameat2`, so the Linux artifacts simply cannot be
+/// produced. Going through `syscall(2)` needs no symbol from libc and keeps the
+/// floor where it is.
+///
+/// A kernel older than 3.15, or a filesystem that does not implement the flags,
+/// returns `ENOSYS`/`EINVAL` here exactly as the wrapper would — this changes
+/// how the call is *reached*, never what it means. Callers already treat a
+/// failed atomic rename as a hard error rather than degrading to a racy
+/// two-step, and that is unchanged.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+unsafe fn renameat2_raw(
+    old_dir_fd: libc::c_int,
+    old_name: *const libc::c_char,
+    new_dir_fd: libc::c_int,
+    new_name: *const libc::c_char,
+    flags: libc::c_uint,
+) -> libc::c_int {
+    // `syscall` returns c_long: 0 on success, -1 on failure with errno set.
+    // Only the sign is load-bearing, so the narrowing cast is total.
+    let status = libc::syscall(
+        libc::SYS_renameat2,
+        old_dir_fd,
+        old_name,
+        new_dir_fd,
+        new_name,
+        flags,
+    );
+    if status < 0 {
+        -1
+    } else {
+        0
     }
 }
 

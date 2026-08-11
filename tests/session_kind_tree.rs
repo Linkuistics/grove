@@ -63,6 +63,76 @@ fn filename_kind_is_unambiguous_and_body_routing_metadata_is_ignored() {
     assert_eq!(stdout(&output), "integrate-review-requirements\n");
 }
 
+/// The kind set maintains a non-prefix invariant — no label plus `-` prefixes
+/// another (`docs/specs/config-driven-sessions.md`, "the current leaf grammar").
+/// `src/leaf.rs` pins that over the *set*; what the set cannot pin is that the
+/// parser honours the `-` boundary. Without it `01-designer-notes-k1.md` reads
+/// as kind `design` plus slug `er-notes` and launches a session no human wrote —
+/// silently, because both halves are individually well-formed.
+///
+/// Stated in both directions, because one alone is satisfiable by a parser that
+/// is simply wrong: refusing everything passes the first loop, and matching any
+/// prefix passes the second.
+#[test]
+fn the_kind_label_boundary_is_exact_in_both_directions() {
+    // A token that merely *starts with* a kind label is not that kind.
+    for name in [
+        "01-designer-notes-k1.md",
+        "01-implementation-k1.md",
+        "01-prototypes-spike-k1.md",
+        // `review` and `integrate-review` are routing families, not members.
+        "01-review-notes-k1.md",
+        "01-integrate-review-notes-k1.md",
+        // Standalone legacy `research` becomes `research-a` at migration; on a
+        // current tree the bare spelling is not a kind.
+        "01-research-survey-k1.md",
+    ] {
+        let repository = init_repo();
+        let grove = current_grove(repository.path());
+        write_leaf(&grove, name, "# notes-k1\n");
+
+        let output = grove_llm(repository.path(), &["pick"]);
+
+        assert!(!output.status.success(), "{name} was accepted as a leaf");
+        assert!(stderr(&output).contains(name), "{}", stderr(&output));
+    }
+
+    // ...and a *slug* is free to begin with a kind label. All four coexist in
+    // one tree, so a strictness failure on any single name fails the read.
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    let cases = [
+        (
+            "01-impl-review-design-notes-k1.md",
+            "impl",
+            "review-design-notes-k1",
+        ),
+        ("02-review-impl-design-k2.md", "review-impl", "design-k2"),
+        (
+            "03-integrate-review-impl-impl-k3.md",
+            "integrate-review-impl",
+            "impl-k3",
+        ),
+        ("04-design-research-a-k4.md", "design", "research-a-k4"),
+    ];
+    for (name, _, _) in cases {
+        write_leaf(&grove, name, "# leaf\n");
+    }
+
+    for (name, kind, handle) in cases {
+        let path = grove.join(name);
+        let output = grove_llm(repository.path(), &["kind", path.to_str().unwrap()]);
+        assert!(output.status.success(), "{name}: {}", stderr(&output));
+        assert_eq!(stdout(&output), format!("{kind}\n"), "{name}");
+
+        // The handle is what survives the tree, so the split has to leave the
+        // *slug* right too — not merely name a kind that happens to parse.
+        let output = grove_llm(repository.path(), &["resolve", handle]);
+        assert!(output.status.success(), "{handle}: {}", stderr(&output));
+        assert!(stdout(&output).contains(name), "{}", stdout(&output));
+    }
+}
+
 #[test]
 fn current_tree_refuses_a_task_shaped_leaf_with_no_known_kind() {
     let repository = init_repo();
@@ -247,6 +317,40 @@ fn non_finish_work_can_be_inserted_before_a_reserved_finish_leaf() {
     assert!(grove.join("02-finish-finish-k1.md").exists());
 }
 
+/// Finish is *reserved*, not *blocking*, and the spec states both halves:
+/// `leaf-insert` sequences work ahead of it, and "ordinary `leaf-add` may also
+/// append later work because finish selection cannot starve it"
+/// (`docs/specs/config-driven-sessions.md`). The appended shape is the one that
+/// bites — the finish leaf keeps the *earlier* position, so nothing but the skip
+/// rule stops teardown being proposed while live work sits behind it.
+#[test]
+fn work_appended_behind_a_reserved_finish_leaf_is_still_selected() {
+    let repository = init_repo();
+    let grove = current_grove(repository.path());
+    write_leaf(&grove, "01-finish-finish-k1.md", "# finish-k1\n");
+
+    let output = grove_llm(repository.path(), &["leaf-add", ".", "late-work"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        grove.join("02-impl-late-work-k2.md").exists(),
+        "append must land behind the finish leaf"
+    );
+    assert!(
+        grove.join("01-finish-finish-k1.md").exists(),
+        "appending must not renumber the finish leaf"
+    );
+
+    let output = grove_llm(repository.path(), &["pick"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("02-impl-late-work-k2.md"),
+        "the later live leaf must outrank the earlier finish sentinel: {}",
+        stdout(&output)
+    );
+}
+
 #[test]
 fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
     let add_repository = init_repo();
@@ -283,6 +387,88 @@ fn every_agent_side_mutation_refuses_the_driver_reserved_finish_kind() {
         assert_finish_refusal(grove_llm(repository.path(), &verb));
         assert!(grove.join("01-finish-finish-k1.md").exists());
     }
+}
+
+/// A pending session-kind migration is a fail-closed malformed-tree condition
+/// for **every** agent-side verb, reader and mutator alike, and it is checked
+/// *before* the format witness. The ordering is the load-bearing half: the tree
+/// a migration interrupted is legacy by definition, so a `FORMAT` complaint —
+/// the failure waiting one step later — would send the operator to the wrong
+/// recovery. `src/tree_access.rs` unit-proves one reader; this is the seam a
+/// session actually calls, swept whole so a verb added later has to opt in.
+#[test]
+fn every_tree_verb_refuses_a_pending_migration_before_format_validation() {
+    for arguments in [
+        vec!["pick"],
+        vec!["kind"],
+        vec!["resolve", "task-k1"],
+        vec!["brief-chain", ".grove/01-task-k1.md"],
+        vec!["leaf-add", ".", "later"],
+        vec!["leaf-insert", "task-k1", "earlier"],
+        vec!["leaf-decompose", ".grove/01-task-k1.md", "first"],
+        vec!["leaf-retire", ".grove/01-task-k1.md"],
+        vec!["leaf-prune", ".grove/01-task-k1.md"],
+        vec!["leaf-add-chain", ".", "stem", "--kind", "impl"],
+        vec!["leaf-add-pair", ".", "stem"],
+        vec!["leaf-promote-chain", "task-k1"],
+    ] {
+        let repository = init_repo();
+        // Deliberately *not* `current_grove`: an interrupted migration leaves a
+        // legacy tree, with no format witness to validate.
+        let grove = repository.path().join(".grove");
+        fs::create_dir_all(grove.join("MIGRATING-session-kinds")).unwrap();
+        fs::write(grove.join("BRIEF.md"), "# demo — brief\n").unwrap();
+        write_leaf(&grove, "01-task-k1.md", "# task-k1\n\n**Kind:** impl\n");
+        let before = tree_snapshot(&grove);
+
+        let output = grove_llm(repository.path(), &arguments);
+
+        assert!(!output.status.success(), "{arguments:?} was admitted");
+        let error = stderr(&output);
+        assert!(
+            error.contains("pending Grove session-kind migration"),
+            "{arguments:?}: {error}"
+        );
+        assert!(
+            error.contains("rerun bare `grove`"),
+            "{arguments:?} named no recovery: {error}"
+        );
+        assert!(
+            !error.contains("FORMAT"),
+            "{arguments:?} reached format validation first: {error}"
+        );
+        assert_eq!(
+            tree_snapshot(&grove),
+            before,
+            "{arguments:?} mutated the interrupted tree"
+        );
+    }
+}
+
+/// Every path under `directory`, relative and sorted, with file bodies — enough
+/// to catch a refusing verb that still wrote something.
+fn tree_snapshot(directory: &Path) -> Vec<(String, Option<Vec<u8>>)> {
+    fn walk(root: &Path, directory: &Path, into: &mut Vec<(String, Option<Vec<u8>>)>) {
+        for entry in fs::read_dir(directory).unwrap() {
+            let path = entry.unwrap().path();
+            let relative = path
+                .strip_prefix(root)
+                .unwrap()
+                .to_string_lossy()
+                .into_owned();
+            if path.is_dir() {
+                into.push((relative, None));
+                walk(root, &path, into);
+            } else {
+                into.push((relative, Some(fs::read(&path).unwrap())));
+            }
+        }
+    }
+
+    let mut entries = Vec::new();
+    walk(directory, directory, &mut entries);
+    entries.sort();
+    entries
 }
 
 fn assert_finish_refusal(output: std::process::Output) {

@@ -150,6 +150,20 @@ change. There is no migration, and none is needed.
 
 ### Fixed
 
+- **`docs/CONFIGURATION.md`: the Codex sandbox cannot write a colocated `.git`,
+  and `--add-dir` does not fix it.** Grove's own launch policy leans on a Codex
+  template granting the store with `--add-dir ${repo}` — which does register as a
+  session workspace root — but the sandbox protects a `.git` path component more
+  specifically than whatever root encloses it, so a colocated store's
+  `.git/objects` stayed unwritable and jj could not snapshot, let alone commit.
+  Every unattended Codex review in a jj grove died at its retire-and-commit
+  boundary. *Adjacent settings Grove does not own* now records the profile rule
+  that lifts it, kept relative so it holds for every root, together with why
+  nothing narrower than the whole gitdir is reliable (`jj git export` writes
+  reflogs under `.git/logs/`) and why `.git/hooks` and `.git/config` are pulled
+  back to `read` rather than left inside the grant — both are code that later
+  runs *outside* the sandbox. Grove ships no configuration, so this is guidance,
+  not a code change. Verified on codex-cli 0.147.0.
 - **A grow verb now takes each destination atomically instead of checking it
   first.** `Path::exists()` was the wrong question twice: it follows symlinks,
   so a dangling one at a planned destination read as *absent* and the write

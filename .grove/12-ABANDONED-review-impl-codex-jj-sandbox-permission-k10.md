@@ -88,3 +88,64 @@ engine; if it fails, record the exact denied path per the Note above.
 A negative result also invalidates approach 2 in
 `general-jj-codex-permissions-k12`, which was raised for the non-Grove half of
 this problem and is sequenced to run after this review.
+
+## Review findings
+
+### Actionable — `--add-dir ${repo}` does not make the jj commit boundary writable
+
+The live Grove-launched Codex session reaches the expected scoped profile, but
+its first post-edit jj snapshot fails at the shared Git object store. After this
+review text changed, a fresh `jj st` returned:
+
+```text
+Internal error: Failed to snapshot the working copy
+Caused by:
+1: Could not write object of type file
+2: Could not create named temp file in '/Users/antony/Development/grove/.git/objects'
+3: Operation not permitted (os error 1) at path "/Users/antony/Development/grove/.git/objects/.tmpTL2oWS"
+```
+
+Two subsequent read-oriented `jj diff` invocations failed at the same step with
+fresh `.tmp*` names in that directory. The selected leaf remains live: it was
+not retired, described, or sealed.
+
+The failure disproves the configuration's load-bearing claim despite the
+otherwise-correct launch and profile shape:
+
+- `jj workspace list` identifies this worktree as the secondary
+  `lazily-create-review-and-integrate-steps` workspace and
+  `jj workspace root --name default` resolves the shared repository workspace
+  to `/Users/antony/Development/grove`.
+- The effective session permission envelope grants writes only to this
+  worktree, `/Users/antony/Development/grove`, `$TMPDIR`, and `/tmp`; filesystem
+  root remains read-only and shell network access remains disabled.
+- `permissions.grove-jj` declares no fixed workspace-root path. The active
+  `review-impl` template supplies `/Users/antony/Development/grove` only through
+  `--add-dir ${repo}`. The root is visible in the session permission envelope,
+  but that grant does not permit the required write below its protected
+  `.git/objects` path.
+
+The two configuration files retain the intended scope. The machine default is
+the built-in `:workspace`, not `grove-jj`; `grove-jj` grants broad read but only
+workspace/temp write and sets network `enabled = false`; and exactly the five
+`review-*` templates plus `research-b` select it. All six retain
+`--add-dir ${repo}` and none passes `--sandbox`.
+
+The loaded `/Users/antony/.codex/sol-xhigh.config.toml` was also inspected and
+contains no `sandbox_mode`, `sandbox_workspace_write`, or permission override,
+so the named Codex profile is not silently selecting the legacy sandbox.
+
+This agrees with the official permission-profile contract at
+<https://learn.chatgpt.com/docs/permissions>: `:workspace_roots` rules cover the
+current session's runtime roots plus profile-defined roots, filesystem `write`
+is more specific than the broad root `read`, network defaults disabled, and
+passing `--sandbox` would select the legacy sandbox settings instead. The page
+does not specify whether `--add-dir` is a runtime root or whether a root added
+that way inherits an exception for `.git`; the observed denial is authoritative
+for Codex 0.147.0 in this launch path.
+
+This negative result invalidates approach 2 in
+`general-jj-codex-permissions-k12` as currently stated: remembering or wrapping
+`--add-dir <store>` is insufficient when the store is a colocated Git
+repository and the required write lands under `.git/objects`. Per this leaf's
+Note, the permission profile was not broadened here.

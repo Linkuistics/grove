@@ -231,6 +231,30 @@ adds it.
   `codex` once in a new working tree and accept its trust prompt, or set
   `trust_level = "trusted"` for the path in `$CODEX_HOME/config.toml`. Grove no
   longer checks this, because it does not know a template runs Codex.
+- **Codex sandbox access to the VCS store.** A trusted sandbox is still scoped to
+  the session's workspace, and a grove is usually a *secondary* jj workspace or a
+  linked git worktree whose real store sits outside it. Granting that store — for
+  Codex, `--add-dir ${repo}` in the template — is necessary but not sufficient
+  when the store is a colocated git repository: the sandbox protects a `.git`
+  path component more specifically than whatever root encloses it, so the store's
+  `.git/objects` stays unwritable and jj cannot even snapshot. Grant `.git`
+  explicitly in the permission profile rather than by pointing another
+  `--add-dir` at the gitdir, and keep the grant relative so it holds for every
+  root:
+
+  ```toml
+  [permissions.<name>.filesystem.":workspace_roots"]
+  "." = "write"
+  ".git" = "write"        # jj's git backend writes objects/, refs/ and logs/
+  ".git/hooks" = "read"   # a hook is code that later runs outside the sandbox
+  ".git/config" = "read"  # core.fsmonitor and aliases are the same escape
+  ```
+
+  Nothing narrower than the whole gitdir is reliable — `jj git export` writes
+  reflogs under `.git/logs/` — which is why the two re-protecting rules are worth
+  writing out. Verified on codex-cli 0.147.0; re-derive if that has moved. The
+  same gap applies to Codex started any other way, where no template supplies the
+  store at all.
 - **Model and reasoning effort.** These are arguments in your template, or
   settings inside a profile your template selects.
 - **Branches, worktrees, and integration.** Yours entirely; see

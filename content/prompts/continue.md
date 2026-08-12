@@ -1,3 +1,4 @@
+<!-- unit: continue kinds=* class=triggering -->
 Continue this grove — use the grove skill (Bootstrap resolves the mandated
 handle below, then assembles the brief chain). If work surfaces mid-session,
 externalize it as a new leaf rather than absorbing it — a new concern →

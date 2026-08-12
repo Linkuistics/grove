@@ -1,3 +1,4 @@
+<!-- unit: context-format kinds=* class=triggering -->
 <!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c
      — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. Deliberately NOT
      re-synced to upstream's later trim (which removed the example-dialogue,

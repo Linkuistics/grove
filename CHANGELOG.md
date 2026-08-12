@@ -51,6 +51,39 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- **`grove-llm methodology` — the embedded methodology, addressable by unit.**
+  `content/` now carries an HTML-comment **unit marker** per marked span, and
+  the new verb serves those spans out of the binary's own embed: given ids it
+  writes their source bytes verbatim in the order given, and given no argument
+  it lists every unit as five tab-separated fields (`<id>`, `<class>`,
+  `<scope>`, `<defers>`, `<file>`, with `-` in either optional field). Every id
+  a row carries is a fetch argument unchanged. It mutates nothing and resolves
+  no working tree, so it answers from anywhere — including the environments a
+  tree verb is refused in. This is an **inspection tool**: under provisioning a
+  session still receives whole documents, and nothing consumes a unit yet
+  ([mandate delivers the
+  methodology](docs/adr/mandate-delivers-the-methodology.md)).
+- **A malformed embed fails `cargo build`.** Every embedded markdown file must
+  be fully classified — units partition its body, the marker grammar is fixed,
+  and a runaway fence or an unclosed leading `---` block is an error — reported
+  with the file and offset. The gate reads through the crate's own parser rather
+  than a second implementation. Grove's compile-time artifact is not the human's
+  task tree, and the build that produced it can see the whole of it.
+
+### Changed
+
+- **Both binaries now link `content/`**, `grove` to extract it and `grove-llm`
+  to serve units, so both compute their **methodology identity** from the linked
+  embed directly. The compile-time constant existed precisely so that naming the
+  identity did not link the embed; that reason ended here, and the build-script
+  hash traversal, `GROVE_CONTENT_HASH` and the equality test that kept two
+  traversals in step went with it. `grove-llm --content-hash`, the pre-launch
+  pairing report and provisioning's stamp are unchanged in behaviour and value.
+  The release path's binary scan inverts to match: it now requires the embed in
+  **both** shipped binaries.
+
 ## v18.1.0
 
 ### Added

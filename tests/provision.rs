@@ -8,8 +8,9 @@
 mod support;
 
 use clap::CommandFactory;
+use grove::methodology::identity;
 use grove::provision::provision_target;
-use grove::provision::{provision_into, METHODOLOGY_IDENTITY, STAMP_FILE};
+use grove::provision::{provision_into, STAMP_FILE};
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
@@ -21,24 +22,28 @@ use tempfile::TempDir;
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 /// A phrase that exists only in `content/`, used to ask a *binary* whether it
-/// carries the embed. Asserted present in `grove` as well as absent from
-/// `grove-llm`, so a phrase that quietly leaves the methodology fails here
-/// rather than manufacturing a clean answer for the interesting half.
+/// carries the embed.
 const CONTENT_MARKER: &str = "hierarchical, self-extending workstreams";
 
-/// **Only `grove` links the embed**, which is the whole reason the methodology
-/// identity is a compile-time constant rather than a runtime hash.
+/// **Both binaries link the embed** — `grove` to extract it, `grove-llm` to
+/// serve unit bytes to a session that followed a `defers=` id.
 ///
-/// `grove-llm` needs to name its own identity — the driver asks it for the pair
-/// check, and it compares its own against every installed skill directory's
-/// stamp — but it never *extracts* content. Calling `provision::content_hash`
-/// there would pull `include_dir!`'s static into the second binary and cost it
-/// the size of `content/` for a value known when it was built.
+/// This claim **inverted** with `grove-llm methodology`. It used to assert the
+/// embed's *absence* from `grove-llm`, which was the whole reason the
+/// methodology identity was a compile-time constant: naming the identity had to
+/// stay possible without linking `content/`. Once the agent-facing binary links
+/// it anyway, the constant loses its reason to exist, and both binaries hash the
+/// embed directly through one implementation — which is what removed the
+/// build-script traversal and the equality test that kept two traversals in step
+/// (`docs/adr/one-build-owns-a-session.md`).
 ///
 /// Asserted on the linked artifacts because that is where the claim lives: no
-/// amount of reading `provision.rs` shows what the linker kept.
+/// amount of reading the source shows what the linker kept. There is no longer
+/// an interesting half and a control half — both halves are the claim — so a
+/// phrase that quietly left `content/` fails here twice rather than
+/// manufacturing a clean absence.
 #[test]
-fn only_grove_carries_the_embedded_methodology() {
+fn both_binaries_carry_the_embedded_methodology() {
     let carries = |binary: &str| {
         let bytes = fs::read(binary).unwrap();
         bytes
@@ -49,14 +54,14 @@ fn only_grove_carries_the_embedded_methodology() {
     assert!(
         carries(env!("CARGO_BIN_EXE_grove")),
         "`grove` extracts the methodology, so it must carry it — if this fails, \
-         {CONTENT_MARKER:?} has left content/ and the marker needs updating \
-         before the claim below means anything"
+         {CONTENT_MARKER:?} has left content/ and the marker needs updating"
     );
     assert!(
-        !carries(env!("CARGO_BIN_EXE_grove-llm")),
-        "`grove-llm` now links the embedded content/. It only ever needs its \
-         own methodology *identity*, which `build.rs` supplies as a constant; \
-         something has reached for `provision`'s embed instead."
+        carries(env!("CARGO_BIN_EXE_grove-llm")),
+        "`grove-llm methodology` serves unit bytes out of this binary's own \
+         embed, so `grove-llm` must carry content/. If this fails the verb has \
+         stopped reading the embed — or something has put the compile-time \
+         identity constant back."
     );
 }
 
@@ -66,7 +71,9 @@ fn only_grove_carries_the_embedded_methodology() {
 /// release path scans each staged pair for the same phrase before archiving it
 /// (`scripts/release-build.sh`, via `assert_methodology_pairing`), which is what
 /// makes the invariant hold of the artifacts that actually ship rather than of
-/// their test-profile cousins.
+/// their test-profile cousins. That scan inverted alongside the test above, and
+/// it inverted *here* rather than at the next release cut because it is a
+/// release-path check: nothing in `cargo test` would have gone red.
 ///
 /// Two scans mean two places to edit, and this pins them together. Drift is not
 /// silent in either direction — a stale marker fails the *presence* half — but it
@@ -103,7 +110,7 @@ fn the_reported_identity_is_the_one_provisioning_stamps() {
     assert!(output.status.success());
     let reported = String::from_utf8(output.stdout).unwrap();
     assert_eq!(reported.trim(), stamped);
-    assert_eq!(reported.trim(), METHODOLOGY_IDENTITY);
+    assert_eq!(reported.trim(), identity());
 }
 
 /// `--content-hash` is a **flag**, and this is what that buys: it stays out of
@@ -167,7 +174,7 @@ fn a_foreign_stamp_warns_without_changing_what_a_verb_does() {
     assert!(
         stderr.contains(skill_dir.to_str().unwrap())
             && stderr.contains("another-build")
-            && stderr.contains(METHODOLOGY_IDENTITY),
+            && stderr.contains(identity()),
         "the warning must name the directory and both identities: {stderr}"
     );
 }

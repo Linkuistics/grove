@@ -23,6 +23,15 @@ pub mod leaf;
 pub mod leaf_id;
 pub mod llm_cli;
 pub(crate) mod loop_driver;
+// `methodology` owns the embed itself — the `include_dir!` static, the unit
+// reader `build.rs` shares by `#[path]`, and the build's methodology identity.
+// It is the module seam the design names, and it is `pub` on the same footing
+// as `provision`: the suite drives the *real* embed through it, and the only
+// alternative door is a spawned process per parser edge case, which the design
+// weighed and rejected (`docs/specs/mandate-delivered-methodology.md`, *Test
+// seams*). It also outlives `provision` — the embed survives the retirement of
+// the directory it is currently also swept into.
+pub mod methodology;
 pub mod provision;
 pub mod repo;
 pub mod session_config;

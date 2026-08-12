@@ -12,14 +12,9 @@
 //! (the dogfooding case) re-provisions.
 
 use crate::harness::{Harness, HARNESSES};
+use crate::methodology;
 use anyhow::{Context, Result};
-use include_dir::{include_dir, Dir, DirEntry};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-
-/// grove's full retained methodology, embedded at compile time. `build.rs` emits
-/// `rerun-if-changed` for the tree so an edit to any file re-embeds.
-static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 
 /// Hidden stamp file written inside the extracted skill dir, holding the content
 /// hash of the embed that produced it. Compared on launch; a mismatch — or a
@@ -28,31 +23,9 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
-/// This build's **methodology identity** — the content hash of its embedded
-/// `content/`, emitted by `build.rs` as a compile-time constant.
-///
-/// A `const` rather than a call to [`content_hash`] so that *naming* the
-/// identity does not link the embed: only `grove` extracts content, and a
-/// `grove-llm` that hashed its own tree at runtime would grow by the size of
-/// `content/` for a value known at compile time (`tests/provision.rs` holds that
-/// saving). `build.rs` computes it from the filesystem and [`content_hash`]
-/// computes it from `include_dir`'s embed, so the two traversals can only be
-/// kept in step by assertion — see
-/// [`the_compile_time_identity_names_the_linked_embed`](tests::the_compile_time_identity_names_the_linked_embed).
-///
-/// **It covers the embedded file payload and not the embedded directory
-/// structure.** `include_dir` embeds a `DirEntry::Dir` for every directory,
-/// including an empty one, and `docs/adr/one-build-owns-a-session.md`
-/// deliberately excludes those: a directory with no files carries no
-/// methodology, and hashing typed directory paths would make `build.rs`
-/// reproduce `include_dir`'s directory semantics as well as its file selection.
-/// Neither traversal should start hashing directory entries; the accepted
-/// consequence is that an empty directory is not part of a build's identity.
-pub const METHODOLOGY_IDENTITY: &str = env!("GROVE_CONTENT_HASH");
-
 /// The one launcher embedded into every config-driven session prompt.
 pub fn continue_prompt() -> Result<&'static str> {
-    let file = CONTENT
+    let file = methodology::embed()
         .get_file("prompts/continue.md")
         .context("embedded Grove content is missing prompts/continue.md")?;
     std::str::from_utf8(file.contents()).context("embedded prompts/continue.md is not UTF-8")
@@ -93,14 +66,15 @@ pub fn provision_installed() -> Result<()> {
 /// than freshness.
 pub fn reverify_installed() -> Result<()> {
     each_installed_skill_dir(|harness, destination| {
-        if stamp_of(destination).as_deref() == Some(METHODOLOGY_IDENTITY) {
+        if stamp_of(destination).as_deref() == Some(methodology::identity()) {
             return Ok(());
         }
         provision_target(destination)?;
         eprintln!(
-            "grove: restored the {} skill at {} — it did not carry this build's methodology ({METHODOLOGY_IDENTITY})",
+            "grove: restored the {} skill at {} — it did not carry this build's methodology ({})",
             harness.name,
-            destination.display()
+            destination.display(),
+            methodology::identity()
         );
         Ok(())
     })
@@ -126,13 +100,14 @@ pub fn warn_on_foreign_skill_dirs() {
         let Some(stamp) = stamp_of(destination) else {
             return Ok(()); // absence is not disagreement
         };
-        if stamp == METHODOLOGY_IDENTITY {
+        if stamp == methodology::identity() {
             return Ok(());
         }
         eprintln!(
-            "grove-llm: {} carries methodology {}, but this grove-llm was built with {METHODOLOGY_IDENTITY} — one build owns a session",
+            "grove-llm: {} carries methodology {}, but this grove-llm was built with {} — one build owns a session",
             destination.display(),
-            stamp.trim()
+            stamp.trim(),
+            methodology::identity()
         );
         Ok(())
     });
@@ -159,7 +134,7 @@ fn each_installed_skill_dir(mut visit: impl FnMut(&Harness, &Path) -> Result<()>
 /// The methodology identity stamped on `dir`, or `None` when it carries no
 /// stamp — absent, empty, or never provisioned by Grove.
 ///
-/// Compared verbatim against [`METHODOLOGY_IDENTITY`], exactly as
+/// Compared verbatim against [`methodology::identity`], exactly as
 /// [`sync_to_stamp`] compares before rewriting, so "this directory is mine"
 /// means the same thing to the reader and to the writer.
 fn stamp_of(dir: &Path) -> Option<String> {
@@ -184,9 +159,8 @@ fn home_dir() -> Result<PathBuf> {
 /// Idempotently extract the embedded methodology into `dest`. Returns whether it
 /// (re)wrote: `true` on a fresh or changed embed, `false` on a warm no-op.
 pub fn provision_into(dest: &Path) -> Result<bool> {
-    let want = content_hash(&CONTENT);
-    sync_to_stamp(dest, &want, |d| {
-        CONTENT
+    sync_to_stamp(dest, methodology::identity(), |d| {
+        methodology::embed()
             .extract(d)
             .with_context(|| format!("extracting embedded content to {}", d.display()))
     })
@@ -272,39 +246,6 @@ fn sync_to_stamp(
     Ok(true)
 }
 
-/// A deterministic hash over the embedded tree — every file's relative path and
-/// bytes, in sorted path order. Changes whenever any file is added, removed,
-/// moved, or edited, so it faithfully stamps "which embed produced this dir".
-fn content_hash(dir: &Dir) -> String {
-    let mut files: Vec<(&Path, &[u8])> = Vec::new();
-    collect_files(dir, &mut files);
-    files.sort_by(|a, b| a.0.cmp(b.0));
-    hash_files(&files)
-}
-
-fn collect_files<'a>(dir: &'a Dir, out: &mut Vec<(&'a Path, &'a [u8])>) {
-    for entry in dir.entries() {
-        match entry {
-            DirEntry::Dir(d) => collect_files(d, out),
-            DirEntry::File(f) => out.push((f.path(), f.contents())),
-        }
-    }
-}
-
-/// Hash a pre-sorted (path, bytes) list. Each field is length-prefixed so no
-/// reshuffling of bytes across the path/content boundary can collide.
-fn hash_files(files: &[(&Path, &[u8])]) -> String {
-    let mut hasher = Sha256::new();
-    for (path, bytes) in files {
-        let p = path.to_string_lossy();
-        hasher.update((p.len() as u64).to_le_bytes());
-        hasher.update(p.as_bytes());
-        hasher.update((bytes.len() as u64).to_le_bytes());
-        hasher.update(bytes);
-    }
-    format!("{:x}", hasher.finalize())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,57 +278,6 @@ mod tests {
             skill_dir_in(Path::new("/home/x"), row("pi")),
             Path::new("/home/x/.pi/agent/skills/grove")
         );
-    }
-
-    /// The one thing that keeps two independent traversals of `content/` in
-    /// step. `build.rs` walks the **filesystem** to emit
-    /// [`METHODOLOGY_IDENTITY`]; [`content_hash`] walks `include_dir`'s **embed**
-    /// to write the provisioning stamp. Nothing but this equality stops them
-    /// diverging — and a divergence is silent in the worst direction: every
-    /// build would report an identity no skill directory it wrote could ever
-    /// match, so the pair check would cry mismatch on a correctly paired
-    /// machine and the loop would reprovision on every iteration.
-    ///
-    /// It is also the guard on the payload/structure grain: teach either side
-    /// to hash directory entries and this fails until both are taught.
-    #[test]
-    fn the_compile_time_identity_names_the_linked_embed() {
-        assert_eq!(
-            content_hash(&CONTENT),
-            METHODOLOGY_IDENTITY,
-            "`build.rs`'s traversal of content/ and `content_hash`'s traversal \
-             of the embed disagree; they hash the same tree and must agree \
-             byte for byte"
-        );
-    }
-
-    #[test]
-    fn content_hash_of_the_embed_is_stable_and_nonempty() {
-        let h = content_hash(&CONTENT);
-        assert!(!h.is_empty());
-        assert_eq!(h, content_hash(&CONTENT), "hashing is deterministic");
-    }
-
-    #[test]
-    fn hash_changes_when_a_file_is_edited() {
-        let a: [(&Path, &[u8]); 1] = [(Path::new("a.md"), b"one")];
-        let b: [(&Path, &[u8]); 1] = [(Path::new("a.md"), b"two")];
-        assert_ne!(hash_files(&a), hash_files(&b));
-    }
-
-    #[test]
-    fn hash_changes_when_a_file_is_added() {
-        let a: [(&Path, &[u8]); 1] = [(Path::new("a.md"), b"x")];
-        let b: [(&Path, &[u8]); 2] = [(Path::new("a.md"), b"x"), (Path::new("b.md"), b"y")];
-        assert_ne!(hash_files(&a), hash_files(&b));
-    }
-
-    #[test]
-    fn hash_is_not_confused_by_the_path_content_boundary() {
-        // "ab" + "c" vs "a" + "bc": length-prefixing must keep these distinct.
-        let a: [(&Path, &[u8]); 1] = [(Path::new("ab"), b"c")];
-        let b: [(&Path, &[u8]); 1] = [(Path::new("a"), b"bc")];
-        assert_ne!(hash_files(&a), hash_files(&b));
     }
 
     #[test]

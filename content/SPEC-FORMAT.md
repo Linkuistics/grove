@@ -1,3 +1,4 @@
+<!-- unit: spec-format kinds=* class=triggering -->
 <!-- grove reference file — the spec shape -->
 
 # SPEC-FORMAT — the spec

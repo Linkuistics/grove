@@ -1,3 +1,4 @@
+<!-- unit: brief-format kinds=* class=triggering -->
 <!-- grove reference file — the BRIEF.md shape -->
 
 # BRIEF-FORMAT — the node briefing

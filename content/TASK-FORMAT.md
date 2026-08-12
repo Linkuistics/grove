@@ -1,3 +1,4 @@
+<!-- unit: task-format kinds=* class=triggering -->
 <!-- grove reference file — the task-file shape -->
 
 # TASK-FORMAT — the leaf task file

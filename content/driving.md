@@ -1,3 +1,4 @@
+<!-- unit: driving kinds=* class=triggering -->
 # Driving a grove session well
 
 The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This

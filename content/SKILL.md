@@ -2,6 +2,7 @@
 name: grove
 description: Use when driving a long, multi-session workstream that cannot be planned exhaustively upfront — work spanning many sessions and months where some steps are themselves planning steps — or when picking up or continuing a task tree under .grove/.
 ---
+<!-- unit: skill kinds=* class=triggering -->
 
 # grove — hierarchical, self-extending workstreams
 

@@ -482,7 +482,7 @@ enum Pairing {
 /// worktree root, never the driver's own cwd. See [`resolve_in`] for why the
 /// difference is load-bearing.
 fn report_build_pairing(session_cwd: &Path) {
-    let own = crate::provision::METHODOLOGY_IDENTITY;
+    let own = crate::methodology::identity();
     // One requirement, not one command. `cargo install --path .` makes the
     // checkout resolve first only where `~/.cargo/bin` outranks every other
     // prefix holding a `grove-llm`; where a package-manager prefix wins, that

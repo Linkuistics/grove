@@ -30,8 +30,8 @@ TARGETS=(
 # WHY THE RELEASE PATH ASKS AT ALL. tests/provision.rs makes the same assertion,
 # but only against the binaries `cargo test` built — one profile, one host
 # target. A release builds three targets in --release, two of them
-# cross-compiled, so a linker or codegen setting that keeps the embed out of the
-# test-profile grove-llm is not evidence about the artifact in the tarball. The
+# cross-compiled, so a linker or codegen setting that keeps the embed out of a
+# shipped binary is not something the test-profile pair can speak to. The
 # invariant is asserted where it ships.
 #
 # Pinned against the const in tests/provision.rs by a test there, so the two
@@ -39,26 +39,29 @@ TARGETS=(
 # shellcheck disable=SC2034  # consumed by the scripts that source this file
 readonly CONTENT_MARKER='hierarchical, self-extending workstreams'
 
-# Fail unless $1 carries the methodology and $2 does not.
+# Fail unless BOTH binaries carry the methodology.
 #
-# Presence in `grove` is asserted as well as absence from `grove-llm`: a marker
-# phrase that had left content/ would otherwise report a clean absence and prove
-# nothing about the half that matters. Writes only to stderr, so it is safe
-# inside the command substitution build_target runs in.
+# THIS CHECK INVERTED. It used to fail a release when grove-llm carried the
+# embed, because only grove extracted content and grove-llm needed nothing but a
+# compile-time identity constant. `grove-llm methodology` serves unit bytes out
+# of grove-llm's own embed, so the agent-facing binary links content/ now and
+# both binaries hash it directly (docs/adr/one-build-owns-a-session.md). A
+# grove-llm without the embed can no longer answer a session that followed a
+# deferral.
+#
+# Writes only to stderr, so it is safe inside the command substitution
+# build_target runs in.
 assert_methodology_pairing() {
-  local grove="$1" grove_llm="$2"
-  if ! grep -qF "$CONTENT_MARKER" "$grove"; then
-    echo "release-build: $grove does not carry the embedded methodology." >&2
-    echo "  Either this build is broken, or the marker in release-common.sh has left content/" >&2
-    echo "  and needs updating alongside CONTENT_MARKER in tests/provision.rs." >&2
-    return 1
-  fi
-  if grep -qF "$CONTENT_MARKER" "$grove_llm"; then
-    echo "release-build: $grove_llm links the embedded content/." >&2
-    echo "  Only grove extracts content; grove-llm needs its methodology *identity*," >&2
-    echo "  which build.rs supplies as a constant. Something reached for the embed." >&2
-    return 1
-  fi
+  local binary
+  for binary in "$@"; do
+    if ! grep -qF "$CONTENT_MARKER" "$binary"; then
+      echo "release-build: $binary does not carry the embedded methodology." >&2
+      echo "  grove extracts content/ and grove-llm serves units out of it, so both must link it." >&2
+      echo "  Either this build is broken, or the marker in release-common.sh has left content/" >&2
+      echo "  and needs updating alongside CONTENT_MARKER in tests/provision.rs." >&2
+      return 1
+    fi
+  done
 }
 
 # Put rustup's shim directory at the FRONT of PATH, so the release build gets a

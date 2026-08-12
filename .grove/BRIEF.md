@@ -182,7 +182,8 @@ that has not yet changed stays accurate until it does.* Enumerated, not swept:
   own terms.
 - **Docs and records** — `docs/ARCHITECTURE.md` (§Embedded methodology, §The
   shared directory, §Repository products, §Main module seams: drop the `harness`
-  row, add `methodology`, and remove the pointer stage 0 added),
+  row — `methodology` was added by `addressable-embed-k7`, which is where the
+  module landed — and remove the pointer stage 0 added),
   `docs/specs/config-driven-sessions.md` (12 sites, including line 60's
   load-bearing *"provisioning precedes ownership so a refused second driver still
   receives…"*), `docs/USAGE.md`, `docs/CONFIGURATION.md` (the harness-root table),

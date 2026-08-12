@@ -108,8 +108,19 @@ for how to launch it, so there is nothing left for an argument to select;
 `grove-llm` is for deterministic operations invoked by the embedded methodology:
 `root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
 `leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
-`leaf-prune`; `finish-commit`; and `complete`. This split keeps a discoverable human API without forcing the agent
+`leaf-prune`; `finish-commit`; `complete`; and `methodology`. This split keeps a discoverable human API without forcing the agent
 to reproduce filesystem mutations from prose.
+
+`methodology` is the odd one out and is shaped by that: it mutates nothing and
+reads only the binary's **own embed**, serving a unit's source bytes by id or —
+given no argument — listing every unit as five tab-separated fields (`<id>`,
+`<class>`, `<scope>`, `<defers>`, `<file>`, with `-` in either optional field).
+Because it touches no working tree it is dispatched **ahead of the session-epoch
+guard**, exactly as `--content-hash` is: the environments a session follows a
+`defers=` id from are the ones a tree-resolving verb is refused in, and a refused
+lookup there would be a split-brain inside one rule. An unknown id is an ordinary
+runtime error naming the id; an unknown id *inside* `content/` is a contributor's
+mistake and fails the build.
 
 `grove-llm` also answers `--content-hash` with its build's [methodology
 identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
@@ -633,28 +644,41 @@ directory, and the harness registry — retires with it.
 carries the design. The **build boundary** below is unchanged by that decision
 and survives it intact; what changes is only how the embed reaches a session.
 
-`build.rs` embeds `content/` into the binary. On every bare `grove`, `provision`
-sweeps that content into each installed harness's personal skill directory — a
-row of the registry is a place to write files, never a program to run, and an
-absent home root is skipped rather than created. A content hash makes this
-idempotent while still updating the skill when the binary changes.
+`build.rs` embeds `content/` into **both** binaries — `grove` to extract it, and
+`grove-llm` to serve units out of it. On every bare `grove`, `provision` sweeps
+that content into each installed harness's personal skill directory — a row of
+the registry is a place to write files, never a program to run, and an absent
+home root is skipped rather than created. A content hash makes this idempotent
+while still updating the skill when the binary changes.
 
 That hash is the build's **methodology identity**, and it is the identity
 because the crate version does not move between a released binary and an edited
 checkout at the same version. It covers the embedded **file payload** — every
 embedded file's path and bytes — and deliberately not the embedded directory
 structure, so an empty directory is not part of a build's identity; hashing
-typed directory entries would make the build script reproduce `include_dir`'s
-directory semantics as well as its file selection. `build.rs` also emits the
-hash as a compile-time constant so any binary in the crate can name its own
-identity without linking the embed: only `grove` extracts content, so only
-`grove` carries it. An in-crate test pins the constant against the runtime hash
-of the linked embed, which is what stops the build script's traversal and
-`provision`'s from drifting. "Only `grove` carries it" is a claim about a linked
-artifact rather than about source, so it is asserted by scanning binaries: an
-integration test scans the pair `cargo test` built, and the release path scans
-each staged pair before archiving it, which is where the cross-compiled
-`--release` targets a local test never sees are covered.
+typed directory entries would make a traversal reproduce `include_dir`'s
+directory semantics as well as its file selection. Both binaries compute it from
+the linked embed through one implementation (`methodology::identity`). It used
+to be a compile-time constant the build script emitted, precisely so that
+*naming* the identity did not link `content/`; once `grove-llm methodology`
+made the agent-facing binary link it anyway, that reason ended, and the
+build-script traversal, the constant and the equality test that kept two
+traversals in step went with it. "Both binaries carry it" is a claim about
+linked artifacts rather than about source, so it is asserted by scanning
+binaries: an integration test scans the pair `cargo test` built, and the release
+path scans each staged pair before archiving it, which is where the
+cross-compiled `--release` targets a local test never sees are covered.
+
+`build.rs` still walks `content/` — to emit the per-file change tracking
+`include_dir!` does not register with Cargo, and to **gate** the embed. Every
+embedded markdown file is fully classified by HTML-comment **unit markers**
+partitioning its body, and a malformed one fails `cargo build` with the file and
+offset. Constraint 5 — grove guides and does not gate — governs the human's task
+tree, not grove's own compile-time artifact, which the very build that produced
+it can fully observe. The gate reads through the crate's own parser
+(`src/methodology/parse.rs`, `#[path]`-included by the build script) rather than
+a second implementation, which is the duplication the removed hash traversal had
+already had to be defended against.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
@@ -768,6 +792,7 @@ prescribing one command.
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
+| `methodology` | The embed itself: the unit reader `build.rs` shares, the embed's unit set, and the build's methodology identity. |
 | `provision` | Embedded methodology installation. |
 
 The modules are intentionally file-sized rather than wrapped in another

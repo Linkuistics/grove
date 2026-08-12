@@ -959,7 +959,7 @@ fn an_unidentifiable_grove_llm_is_reported_and_the_launch_proceeds() {
         // build's identity, and why no answer came. There is deliberately no
         // fourth — a binary that could not name its methodology has none to
         // print (one-build-owns-a-session).
-        grove::provision::METHODOLOGY_IDENTITY,
+        grove::methodology::identity(),
     ]);
 
     // ...and one that answers, but with something that is not a digest. Free
@@ -989,7 +989,7 @@ fn a_missing_grove_llm_is_reported_and_the_launch_proceeds() {
         // identity to name — and it is still actionable, because it names this
         // build's identity, the search performed, and the requirement. The
         // durable record promises exactly these and no more.
-        grove::provision::METHODOLOGY_IDENTITY,
+        grove::methodology::identity(),
     ]);
 }
 

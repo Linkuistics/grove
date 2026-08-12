@@ -1,3 +1,4 @@
+<!-- unit: adr-format kinds=* class=triggering -->
 # ADR placement — a grove note
 
 For the ADR **philosophy, format, minimal template, and the when-to-write test**,

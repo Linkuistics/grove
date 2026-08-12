@@ -71,11 +71,16 @@ all = { level = "deny", priority = -1 }
 unfulfilled_lint_expectations = "deny"
 
 [build-dependencies]
-# `build.rs` computes the build's methodology identity over the same `content/`
-# tree `include_dir!` embeds, with the same construction `provision::content_hash`
-# uses — so the two traversals must reach for the same hash. The in-crate
-# equality test is what keeps them from drifting apart.
-sha2 = "0.10"
+# `build.rs` gates `content/` on the unit-marker grammar by `#[path]`-including
+# the crate's own parser and the `Kind` set it validates `kinds=` against, so the
+# build-time reader and the runtime reader are one implementation. `src/leaf.rs`
+# is what brings `anyhow` in; nothing in the build script itself uses it.
+#
+# The script no longer hashes `content/`: `grove-llm` links the embed now, so
+# both binaries compute the methodology identity from it directly and the
+# build-script traversal (and the equality test that kept two traversals in
+# step) are gone.
+anyhow = "1.0"
 
 [dependencies]
 anyhow = "1.0"

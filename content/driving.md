@@ -184,7 +184,7 @@ whether the two surveys reached it through *different* primary sources. If they
 cite the same blog post, or neither cites anything, that agreement is worth less
 than a disagreement.
 
-<!-- unit: driving-when-to-invoke-grilling kinds=* class=triggering defers="grilling-interrogate driving-ask-wdyt driving-ask-for-pushback driving-dont-merge-questions driving-record-decisions-inline" -->
+<!-- unit: driving-when-to-invoke-grilling kinds=requirements class=triggering defers="grilling-interrogate driving-ask-wdyt driving-ask-for-pushback driving-dont-merge-questions driving-record-decisions-inline" -->
 ## When to invoke a design discussion (grilling)
 
 The trigger is: a `requirements` leaf's brief lists three or more questions
@@ -322,10 +322,9 @@ Plan and Retire steps), where you promote brief material upward and reconcile th
 ADR set in the same pass.
 
 <!-- unit: driving-when-code-depends-on-a-framework-version kinds=* class=triggering defers=driving-cite-framework-decisions-to-the-source -->
-<!-- The two sections below are adapted (paraphrased into grove's voice, not
-     bundled verbatim) from addyosmani/agent-skills@13e43f23 —
-     skills/source-driven-development and skills/doubt-driven-development.
-     MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
+     — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
 
 ## Verifying framework decisions against the source
 
@@ -336,6 +335,10 @@ whose correctness depends on the version. Training data goes stale; an API you
 "remember" may have been deprecated two releases ago.
 
 <!-- unit: driving-cite-framework-decisions-to-the-source class=procedural defers=driving-doubting-inside-a-picked-leaf -->
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
+     — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
+
 For that kind of code — and only that kind, not version-invariant logic,
 renames, or plumbing:
 
@@ -363,11 +366,12 @@ below: cite the source *and* have a fresh context try to break it.
 <!-- unit: driving-when-asserting-a-repo-wide-claim kinds=* class=triggering defers=driving-turning-a-sweep-into-evidence -->
 ## Verifying a claim about the repo itself
 
-The counterpart to the section above. Sessions assert things about their own
-codebase constantly — *"every X is now Y"*, *"that pattern is gone"*, *"this
-appears in five places"* — and a repo-wide grep is the usual evidence. It is a
-**worse instrument than it looks**, because each of its failure modes produces a
-*clean-looking* result.
+Grounding a claim about your own codebase is the counterpart to grounding one
+about a framework — the same evidence discipline, turned inward. Sessions
+assert things about their own codebase constantly — *"every X is now Y"*,
+*"that pattern is gone"*, *"this appears in five places"* — and a repo-wide
+grep is the usual evidence. It is a **worse instrument than it looks**,
+because each of its failure modes produces a *clean-looking* result.
 
 <!-- unit: driving-turning-a-sweep-into-evidence class=procedural -->
 **Check the output resembles what you asked for, not merely that the command
@@ -429,6 +433,10 @@ sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
 
 <!-- unit: driving-doubting-inside-a-picked-leaf class=procedural -->
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     addyosmani/agent-skills@13e43f23 (skills/doubt-driven-development)
+     — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
+
 ## Doubting inside a picked Grove leaf
 
 The composition rule starts from a procedural fact: the Grove driver launched
@@ -642,9 +650,8 @@ constraint 4), so don't ration leaves to keep the tree looking tidy.
 <!-- unit: driving-find-working-increments class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
-     (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules and the
-     wide-refactor expand-contract exception) — MIT licensed; see
-     LICENSES/mattpocock-skills.LICENSE. -->
+     (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules)
+     — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
 
 ## Find working increments before child leaves
 
@@ -673,6 +680,12 @@ leaf's work be demoed or verified on its own, without waiting on a sibling? A
 leaf that fails this test needs its lines redrawn, even if it still fits one
 session. This is a second axis alongside "fits this session" (`SKILL.md`'s
 Decompose step), not a replacement for it.
+
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/to-tickets/SKILL.md, the wide-refactor
+     expand-contract exception) — MIT licensed; see
+     LICENSES/mattpocock-skills.LICENSE. -->
 
 **Wide refactors are the exception.** A mechanical change whose blast radius
 fans across the whole codebase — rename a shared column, retype a symbol

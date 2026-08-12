@@ -1,4 +1,4 @@
-# classification-k37
+# classification-k37 — brief
 
 **Integrates:** `classification-k35`
 
@@ -52,6 +52,66 @@ The review findings are copied verbatim below:
    no mandate-delivery job. Preserve genuinely useful rules by restating their
    conditions, not by retaining a document-navigation shell.
 
+## Decomposition
+
+**This was a single leaf until it was bootstrapped.** Its own *Notes* licensed
+the split, and scoping the four findings with the corpus open showed the cleanup
+is two sessions, not one. The measurement, not the impression:
+
+- Findings 1 and 3 are **one marker attribute each** — a `defers=` member and a
+  `kinds=` value.
+- Finding 4 is **two different jobs in one paragraph**. Its three *named*
+  repairs (`driving-when-asserting-a-repo-wide-claim`'s opening, `grilling.md`'s
+  `<supporting-info>` wrapper, licence attribution on separated adapted units)
+  are edits *inside* existing units. Its closing clause — *remove file-reader-only
+  residue and near-verbatim hub restatements* — is a **deletion sweep over nine
+  or more units across three files**, each deletion cascading into `defers=`
+  edges, the 143-id pinned set, and the byte-partition claim.
+- Finding 2 is the same species as that sweep and **collides with it on the same
+  lines**: `driving-field-guide` is simultaneously finding 2's artificial root
+  and finding 4's `## In this guide` residue.
+
+### The seam, and why it is checkable rather than aesthetic
+
+**Child 1 leaves the pinned unit set untouched; child 2 moves it.** Every repair
+in `addressing-k38` changes a marker attribute or prose *within* a unit — no id
+is minted, retired, or reclassified, so `EMBEDDED_UNITS` in
+`tests/methodology.rs` needs no edit and the partition arithmetic is unchanged by
+construction. Every repair in `narrative-k39` removes or re-roots units, so the
+pinned set moves and each removal must be reconciled edge by edge.
+
+That is a boundary a session can *check* it stayed inside, which is why the split
+falls there and not on the finding numbering.
+
+### Why finding 2 cannot be done cheaply, and why it leads child 2
+
+Verified with the corpus open, before the split was chosen:
+`driving-anti-patterns` and `driving-the-shortest-version` each have **exactly
+one inbound edge, and it is `driving-field-guide`** — the table of contents the
+review calls an artificial root. So removing that root without first giving the
+four anti-pattern prohibitions an honest triggering statement makes them
+unreachable and the build says so. Finding 2's *"do not leave the anti-pattern
+conditions reachable only through a generic table of contents"* is therefore
+structural work — new triggering prose — not a tidy-up, and it belongs with the
+sweep that deletes the same index.
+
+### The children
+
+1. `addressing-k38` (integrate-review-impl) — findings **1**, **3**, and finding
+   **4's three named repairs**. The pinned unit set is unchanged; that invariant
+   is the leaf's own boundary check.
+2. `narrative-k39` (integrate-review-impl) — finding **2** and finding **4's
+   residue-and-restatement sweep**, together because they are one species and one
+   set of lines. The review itself grouped them: *"They are one species:
+   narrative addressed to a reader of a **file**, in a corpus that no longer
+   delivers files."*
+
+Ordering is a real dependency in one direction only: child 1 settles what
+`skill-adrs-and-specs` actually addresses before child 2 re-roots units around
+it. Child 2 may decompose again if the sweep proves bigger than one session; the
+seam to look for there is *additive* (writing honest triggers) against
+*subtractive* (deleting prose with no mandate-delivery job).
+
 ## Done when
 
 - All four findings above are addressed without weakening the byte-partition,
@@ -68,5 +128,9 @@ The review findings are copied verbatim below:
 
 ## Notes
 
-If the prose cleanup proves larger than one focused session, decompose this leaf
-and execute only its first child; do not partially absorb a corpus-wide rewrite.
+- Retiring the **last** live child here closes this node **and** its parent
+  `classification-k9`, whose own last live leaf this was. Both cascades fire in
+  one session; check each brief's `Done when`, promote upward, and name every
+  closed handle in the commit message.
+- The original leaf's instruction — *do not partially absorb a corpus-wide
+  rewrite* — survives the decomposition and now applies per child.

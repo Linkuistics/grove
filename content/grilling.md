@@ -1,6 +1,7 @@
 <!-- unit: grilling-interrogate class=procedural defers="grilling-domain-awareness grilling-challenge-the-glossary grilling-sharpen-fuzzy-language grilling-discuss-concrete-scenarios grilling-cross-reference-with-code grilling-update-context-inline grilling-offer-adrs-sparingly grilling-agree-the-test-seams" -->
 <!-- bundled in grove from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3 (skills/productivity/grilling/SKILL.md + skills/engineering/domain-modeling/SKILL.md) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
 <!-- intentionally fused — upstream split them; grove has no skill-to-skill invocation, so the split would be cosmetic -->
+<!-- upstream's `<supporting-info>` wrapper is dropped: it spanned eight units, so every unit it wrapped shipped inside an unclosed tag. `<what-to-do>` is kept — it sits wholly inside `grilling-interrogate` and delivers intact -->
 
 # Grilling — the `requirements`-task interrogation procedure
 
@@ -17,8 +18,6 @@ Do not commit decisions or grow the tree until I confirm we have reached a share
 </what-to-do>
 
 <!-- unit: grilling-domain-awareness class=procedural defers=adr-where-adrs-live -->
-<supporting-info>
-
 ## Domain awareness
 
 During codebase exploration, also look for existing documentation:
@@ -107,5 +106,3 @@ the ideal number is one. Record the agreement in the spec's `## Test seams`, or,
 when the increment writes no spec, in the node's `BRIEF.md`
 ([SPEC-FORMAT.md](./SPEC-FORMAT.md)). For what a seam is and how to judge one, use
 the `linkuistics:codebase-design` skill.
-
-</supporting-info>

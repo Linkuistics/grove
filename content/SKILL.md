@@ -227,7 +227,7 @@ route: it launches the `review-*` kind's own configured command, and whether tha
 target differs from the producer's is the configuration owner's policy — grove
 records no producer target, compares none, and warns about none.
 
-<!-- unit: skill-adrs-and-specs kinds=* class=triggering defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state skill-specs driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-cite-framework-decisions-to-the-source" -->
+<!-- unit: skill-adrs-and-specs kinds=* class=triggering defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state skill-specs driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-how-to-write-a-research-leaf-brief" -->
 Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for placement;
 the `linkuistics:decision-records` skill for the philosophy, format, and
 when-to-write test), and write a spec only at a genuine agreement point

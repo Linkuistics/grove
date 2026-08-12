@@ -288,6 +288,19 @@ grove, which moves three things off the successor's plate and adds one handoff:
   judgement and the jj lane live in a separately installed plugin — not
   embedded, so not sliceable. Deliberately out of scope; extending the packaging
   goal to those is a different and larger shape.
+- **A claim written into a *new leaf's* Goal is the one assertion nothing
+  re-checks before a whole session is spent on it.** `duplicated-prose-k36` was
+  externalized citing two consecutive sentence duplications; neither exists — not
+  in the working tree, not at `finish-cycle-k32` (the revision the review read),
+  not in any of the 90 tracked `.md` files, and not in the provisioned copy. A
+  bad citation inside a review's *findings* is caught by the integrating session
+  reading the code; the same citation in a leaf Goal launches a session against a
+  phantom. `driving-turning-a-sweep-into-evidence` covers the class — control the
+  instrument before asserting a repo-wide count — but not that destination, and
+  `driving-externalizing-surfaced-work` says only that externalizing is cheap.
+  Whether one instance earns a sentence in either is a `content/` call, and
+  making it here would have meant a new marked unit over a freshly completed
+  classification. Recorded so the observation outlives `.grove/`.
 
 ## Notes
 

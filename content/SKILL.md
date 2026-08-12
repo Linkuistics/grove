@@ -2,7 +2,7 @@
 name: grove
 description: Use when driving a long, multi-session workstream that cannot be planned exhaustively upfront — work spanning many sessions and months where some steps are themselves planning steps — or when picking up or continuing a task tree under .grove/.
 ---
-<!-- unit: skill kinds=* class=triggering -->
+<!-- unit: skill-what-a-grove-is kinds=* class=triggering -->
 
 # grove — hierarchical, self-extending workstreams
 
@@ -11,6 +11,7 @@ one task per session. Planning tasks grow the tree as understanding deepens;
 completed leaves are marked done in place. The tree's shape — the directory tree
 under `.grove/` — is the only state; the VCS holds the history.
 
+<!-- unit: skill-loop-diagram kinds=* class=triggering -->
 ```mermaid
 flowchart TD
   subgraph tree["A grove — a directory tree under .grove/; a node is a directory"]
@@ -49,6 +50,7 @@ flowchart TD
   end
 ```
 
+<!-- unit: skill-spine-constraints kinds=* class=triggering -->
 ## The spine — seven constraints
 
 grove drives long work *without* becoming brittle, constraining machinery.
@@ -79,6 +81,7 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 7. **One page of rules.** If the loop below does not fit on a page, it is too
    complex — cut until it does.
 
+<!-- unit: skill-working-tree kinds=* class=triggering -->
 ## The loop
 
 One task is one session. A grove runs in **a working tree the user
@@ -88,10 +91,13 @@ disk; grove reads no branch and no bookmark anywhere (user-owned-worktrees).
 The grove's name is that working tree's directory basename, and its task tree
 lives at `.grove/` inside it.
 
+<!-- unit: skill-bare-grove-dispatch kinds=* class=triggering -->
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **bare `grove`** from inside the working tree — no subcommand, no flags. That is the whole human surface *and* the sole lifecycle entry: it inspects the state on disk and dispatches. No `.grove/` yet → it scaffolds the tree and launches its first `requirements` leaf; a live tree → the next leaf; no ordinary work left → it appends one `finish` leaf and launches that. If the tree is in an older format — the original `NNN-slug/` directories, the v1 flat dotted-decimal scheme, or the pre-session-kind filenames — the first bare `grove` **migrates it** before driving, as one recoverable transaction and one focused, reviewable commit; migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
+<!-- unit: skill-self-driving-loop kinds=* class=triggering -->
 Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove` from the same working tree. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction; a task that crashes before its retire-and-commit boundary leaves its leaf live and is simply re-selected and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
+<!-- unit: skill-one-configuration kinds=* class=triggering -->
 **One configuration, no other launch policy.** Every session is launched by
 `~/.config/grove/config.kdl`, which gives each session kind exactly one complete
 command template. That template chooses the executable or wrapper and every
@@ -108,8 +114,10 @@ or wrapper policy, and it re-validates the whole file before every tree mutation
 and again before every launch: an edit lands on the next session, and an invalid
 file launches nothing while leaving the selected leaf live and resumable.
 
+<!-- unit: skill-session-name kinds=* class=triggering -->
 The driver computes this grove's session name — `<repo-basename>: <name> grove` — and offers it to the configured command as `${session_name}`; it never renames a session itself. If your template does not pass it and the session name doesn't already match, suggest `/rename <repo-basename>: <name> grove` once per session and move on. The skill can derive both names: `<name>` from the working tree's own basename (`jj workspace root` in a jj-enabled tree; `git rev-parse --show-toplevel` otherwise), `<repo-basename>` from the **main repo**'s basename (`jj workspace root --name default`'s basename in a jj-enabled tree, or `git rev-parse --git-common-dir`'s parent — the repo a linked worktree or secondary workspace belongs to, not the working tree's own path).
 
+<!-- unit: skill-starting-a-new-grove kinds=* class=triggering -->
 **Starting a new grove.** Provide a working tree by whatever means you
 like — `git init`, `git clone`, `jj git init --colocate`, `jj git clone`, a
 plain checkout, a linked worktree or jj workspace (`jj workspace add`), or
@@ -132,6 +140,7 @@ yourself if the workstream is small and otherwise adding a `planning` leaf for a
 fresh session. The scaffold is a working-tree change only; your commit folds it
 in.
 
+<!-- unit: skill-pick kinds=* class=triggering -->
 **Pick.** The driver makes **one authoritative pick** per session, in-process,
 before the session exists: the first live leaf in a depth-first **pre-order**
 walk of `.grove/`, visiting each directory's children in per-level position
@@ -144,6 +153,7 @@ grouping, no set of leaves that must finish before another is considered. That
 selection's **stable handle** is what the driver hands you in `${prompt}` as
 your mandate.
 
+<!-- unit: skill-do-not-pick-again kinds=* class=triggering -->
 **Do not pick again.** `grove-llm pick` remains a diagnostic and tree-interface
 verb — it is how you or a human read the tree's next answer directly, the same
 one `find .grove` gives by eye — but it is not this session's dispatcher. A leaf
@@ -151,6 +161,7 @@ inserted while your configured command was starting can move your leaf's *path*
 and would make a second walk disagree with your mandate; the mandate wins, and
 the inserted leaf is simply the next iteration's work.
 
+<!-- unit: skill-bootstrap kinds=* class=triggering -->
 **Bootstrap.** Start from the mandate. Run `grove-llm resolve <handle>` to turn
 the stable `<slug>-k<key>` handle in your prompt into its current file path, and
 stop if it resolves to nothing or to a terminal (`DONE` / `ABANDONED`) leaf —
@@ -164,6 +175,7 @@ root→leaf (a level with no brief is skipped silently, so a node whose charter
 has not been written yet still bootstraps); and the task file itself. That assembled context is the session's
 entire mandate; read nothing else by reflex.
 
+<!-- unit: pending-skill-loop kinds=* class=triggering -->
 **Execute.** The **filename** states the leaf's session kind — nothing in its
 body does — drawn from a closed set of **nineteen**: five producers
 (`requirements`, `design`, `planning`, `prototype`, `impl`), each with its own

@@ -99,18 +99,35 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// what it charges for — a new unit fails here until someone names it, which is
 /// the moment the classification decision is meant to be confirmed by a human.
 ///
-/// This is today's trivial marking: one unit per embedded markdown file, every
-/// one triggering and universally scoped. The real classification pass splits
-/// these into many, in reviewed batches, and each batch updates this constant
-/// deliberately.
-const EMBEDDED_UNITS: [&str; 9] = [
+/// The classification pass is **in progress**, in reviewed batches, and each
+/// batch updates this constant deliberately. A `pending-` id is not a
+/// classification: it is a coverage placeholder over a region no batch has
+/// carved yet, always `class=triggering kinds=*` and never carrying a `defers=`.
+/// The pass is finished when no `pending-` id remains here or in `content/`.
+///
+/// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
+/// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
+/// uniqueness hold without coordination between batches.
+const EMBEDDED_UNITS: [&str; 21] = [
     "adr-format",
     "brief-format",
     "context-format",
     "continue",
     "driving",
     "grilling",
-    "skill",
+    "pending-skill-loop",
+    "skill-bare-grove-dispatch",
+    "skill-bootstrap",
+    "skill-do-not-pick-again",
+    "skill-loop-diagram",
+    "skill-one-configuration",
+    "skill-pick",
+    "skill-self-driving-loop",
+    "skill-session-name",
+    "skill-spine-constraints",
+    "skill-starting-a-new-grove",
+    "skill-what-a-grove-is",
+    "skill-working-tree",
     "spec-format",
     "task-format",
 ];

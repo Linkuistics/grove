@@ -97,9 +97,9 @@ fn exactly_one_launcher_is_embedded_and_provisioned() {
 /// Mentions come from the tree rather than from a list, so a verb invented in
 /// prose — or one deleted from the CLI while an instruction survives — fails
 /// here without anyone having remembered to add it. The reading rule lives on
-/// [`scan_instructed_verbs`]: `grove-llm`, whitespace, then a lowercase token.
-/// Prose naming the bare binary writes it in backticks, which the rule skips
-/// already, since the follower is then a backtick rather than whitespace.
+/// [`scan_instructed_verbs`] and the grain both sides are compared at lives on
+/// [`exposed_verbs`]; each is pinned by its own control below, because a claim
+/// this universal is only as good as the reader that gathers its corpus.
 #[test]
 fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
     let dest = TempDir::new().unwrap();
@@ -121,22 +121,30 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
         unknown.len()
     );
 
-    // Positive controls. A scan that quietly matches nothing satisfies the
-    // assertion above forever, so the floor is asserted rather than assumed —
-    // on distinct verbs, not raw mentions, so re-wording one paragraph cannot
-    // drift the corpus below it while genuinely instructing the same set.
-    let distinct: BTreeSet<&String> = instructed.iter().map(|(_, _, verb)| verb).collect();
-    assert!(
-        distinct.len() >= 8,
-        "the scan found only {} distinct instructed verb(s) ({distinct:?}) — the \
-         methodology instructs far more than that, so the scanner is broken \
-         rather than the corpus clean",
-        distinct.len()
-    );
-    assert!(
-        distinct.contains(&"leaf-add".to_string()),
-        "`leaf-add` is the verb the flat/lazy chain is built from; a scan that \
-         misses it is reading something other than the methodology"
+    // Positive control, pinned complete rather than floored. A scan that quietly
+    // matches nothing satisfies the assertion above forever, and a *floor* only
+    // bounds how much it may quietly lose: `>= 8` against a corpus of eleven let
+    // any three verbs disappear unremarked. That slack is enough to defeat the
+    // universal claim — move three invocations to a Markdown shape the reader
+    // misses, then drop one of those verbs from the CLI, and a shipped binary
+    // instructs a call it cannot serve with this test still green. So the
+    // complete set is the claim, and losing *any* instructed verb fails here.
+    //
+    // The cost is a list to maintain, and it buys the moment it charges for: a
+    // genuinely new instruction fails until someone names it here, which is
+    // exactly when to confirm the CLI really exposes it.
+    let distinct: BTreeSet<&str> = instructed
+        .iter()
+        .map(|(_, _, verb)| verb.as_str())
+        .collect();
+    assert_eq!(
+        distinct,
+        BTreeSet::from(INSTRUCTED_VERBS),
+        "the embedded methodology's instructed-verb set moved. Verbs found but \
+         not listed in `INSTRUCTED_VERBS` are new instructions — check each is a \
+         real verb, then add it. Verbs listed but no longer found are either \
+         deletions (drop them here) or, if the methodology still instructs them, \
+         a reader that has gone blind to a Markdown shape."
     );
 
     // ...and the classifier must be able to fail. Shown on the exact shape this
@@ -161,9 +169,13 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
          control above stops being one"
     );
 
-    // The reading rule, pinned on the four shapes that decide it. The wrapped
-    // case is here because the corpus really does wrap an invocation and the
-    // first version of this scan — line by line — dropped it without a word.
+    // The reading rule, pinned on every shape that decides it — the accepted
+    // ones as much as the rejected, because the pin above can only be as
+    // complete as the reader gathering its corpus. Two of these were live holes
+    // rather than hypotheticals: the corpus really does wrap an invocation, and
+    // the first version of this scan — line by line — dropped it without a word;
+    // and the adjacent-code-span form was invisible for the same fail-open
+    // reason until it was pinned here.
     let mut shapes = Vec::new();
     scan_instructed_verbs(
         "SHAPES.md",
@@ -171,6 +183,9 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
          The `grove-llm` binary is agent-facing.\n\
          Run `grove-llm --version` to check.\n\
          Then: grove-llm leaf-retire <leaf-path>\n\
+         Run `grove-llm` `leaf-prune <path>` once a human confirms.\n\
+         Or `grove-llm  pick`, spaced twice.\n\
+         | `grove-llm brief-chain` | walk the ancestors |\n\
          A block ending in grove-llm\n\n\
          paragraph text follows.\n",
         &mut shapes,
@@ -180,25 +195,79 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
             .iter()
             .map(|(_, line, verb)| (*line, verb.as_str()))
             .collect::<Vec<_>>(),
-        [(1, "resolve"), (5, "leaf-retire")],
-        "a wrapped invocation counts and reports the line it starts on; bare \
-         `grove-llm` in prose, a flag, and a blank-line gap all do not"
+        [
+            (1, "resolve"),
+            (5, "leaf-retire"),
+            (6, "leaf-prune"),
+            (7, "pick"),
+            (8, "brief-chain"),
+        ],
+        "a wrapped invocation counts and reports the line it starts on, as do a \
+         reopened code span, doubled spaces and a table cell; bare `grove-llm` \
+         in prose, a flag, and a blank-line gap all do not"
     );
 }
 
-/// Every subcommand `grove-llm` exposes, from clap's model rather than from
-/// `--help` — the question is a fact about the command tree, not about a
+/// Every `grove-llm` verb the embedded methodology instructs, named in full so
+/// the corpus is pinned rather than merely floored — see the completeness
+/// control in [`the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks`].
+const INSTRUCTED_VERBS: [&str; 11] = [
+    "brief-chain",
+    "complete",
+    "finish-commit",
+    "leaf-add",
+    "leaf-add-pair",
+    "leaf-decompose",
+    "leaf-insert",
+    "leaf-prune",
+    "leaf-retire",
+    "pick",
+    "resolve",
+];
+
+/// Every `grove-llm` verb the CLI exposes, read from clap's model rather than
+/// from `--help` — the question is a fact about the command tree, not about a
 /// rendering (the reasoning `tests/help_surfaces.rs` sets out at length).
+///
+/// **At the grain the instruction scanner reads**, which is the whole
+/// correctness of the comparison. [`scan_instructed_verbs`] collects the *first*
+/// word after `grove-llm`, so what has to be on this side is the set of first
+/// words that begin an invocable command. A recursive walk that flattened every
+/// nested subcommand name into one set would answer a different question: expose
+/// `grove-llm admin repair` and the flattened set contains `repair`, so the
+/// invalid instruction `grove-llm repair` passes as known. Hence top-level names
+/// only — and [`the_grove_llm_verb_surface_is_flat`], which fails the day
+/// nesting appears, since the scanner must learn full command paths before
+/// either side means what this test says it means.
 fn exposed_verbs() -> BTreeSet<String> {
-    fn walk(command: &clap::Command, out: &mut BTreeSet<String>) {
-        for sub in command.get_subcommands() {
-            out.insert(sub.get_name().to_string());
-            walk(sub, out);
-        }
-    }
-    let mut out = BTreeSet::new();
-    walk(&grove::llm_cli::Cli::command(), &mut out);
-    out
+    grove::llm_cli::Cli::command()
+        .get_subcommands()
+        .map(|sub| sub.get_name().to_string())
+        .collect()
+}
+
+/// The grain assumption [`exposed_verbs`] rests on, asserted rather than
+/// commented: `grove-llm` is a flat list of verbs, so one scanned word after the
+/// binary names a whole invocable command.
+///
+/// Nesting does not break the CLI — it breaks the *comparison*, silently and in
+/// the fail-open direction. This is the check that makes the failure loud, and
+/// it names the two ways out rather than just the fact.
+#[test]
+fn the_grove_llm_verb_surface_is_flat() {
+    let nested: Vec<String> = grove::llm_cli::Cli::command()
+        .get_subcommands()
+        .filter(|sub| sub.has_subcommands())
+        .map(|sub| sub.get_name().to_string())
+        .collect();
+
+    assert!(
+        nested.is_empty(),
+        "`grove-llm` now nests subcommands under {nested:?}, so a verb name is no \
+         longer a whole invocable command. Teach `scan_instructed_verbs` to read \
+         full command paths and compare those, or keep the CLI flat — comparing \
+         bare names across the two grains lets an invalid instruction pass."
+    );
 }
 
 /// Walk the provisioned tree — the real extracted embed, so what is scanned is
@@ -226,21 +295,19 @@ fn collect_instructed_verbs(
 
 type InstructedVerbs = Vec<(String, usize, String)>;
 
-/// `grove-llm`, whitespace, then a lowercase token — wherever it occurs: inline
-/// in backticks, in a fenced or indented code block, or in a mermaid node label,
-/// all four of which the corpus uses.
+/// `grove-llm`, a separator [`instruction_separator`] accepts, then a lowercase
+/// token — wherever it occurs: inline in backticks, in a fenced or indented code
+/// block, in a table cell, or in a mermaid node label, all of which the corpus
+/// uses.
 ///
 /// **Scanned over the whole file rather than line by line**, because prose wraps:
 /// `content/SKILL.md` splits at least one invocation across a line break, and a
 /// line-based scan drops it silently — the exact failure mode that makes a
-/// removal check worthless. The separator may therefore include one newline, but
-/// not a blank line, so a bare `grove-llm` ending a code block cannot swallow the
-/// first word of the paragraph after it.
+/// removal check worthless.
 ///
 /// A leading `-` is deliberately not accepted as the token's first character, so
 /// a future `grove-llm --version` mention reads as a flag rather than as a verb
-/// named `--version`. A non-whitespace follower is skipped outright, which is
-/// what excludes prose naming the bare binary in backticks.
+/// named `--version`.
 fn scan_instructed_verbs(file: &str, text: &str, out: &mut InstructedVerbs) {
     const MARKER: &str = "grove-llm";
     let mut offset = 0;
@@ -248,14 +315,10 @@ fn scan_instructed_verbs(file: &str, text: &str, out: &mut InstructedVerbs) {
         let start = offset + at;
         offset = start + MARKER.len();
         let after = &text[offset..];
-        let separator: &str = after
-            .split_terminator(|character: char| !character.is_whitespace())
-            .next()
-            .unwrap_or("");
-        if separator.is_empty() || separator.matches('\n').count() > 1 {
+        let Some(separator) = instruction_separator(after) else {
             continue;
-        }
-        let rest = &after[separator.len()..];
+        };
+        let rest = &after[separator..];
         if !rest.starts_with(|character: char| character.is_ascii_lowercase()) {
             continue;
         }
@@ -269,6 +332,46 @@ fn scan_instructed_verbs(file: &str, text: &str, out: &mut InstructedVerbs) {
             verb,
         ));
     }
+}
+
+/// The byte length of the run separating a `grove-llm` mention from the token
+/// after it, or `None` when the mention does not instruct a call at all.
+///
+/// Two separators are accepted, and the second is why this is a function rather
+/// than a `split`:
+///
+/// * **whitespace** — `grove-llm leaf-add`, in prose, a fenced or indented code
+///   block, a mermaid label or a table cell. One line break may fall inside it,
+///   because the corpus wraps invocations; a *blank* line may not, so a bare
+///   `grove-llm` ending a code block cannot swallow the first word of the
+///   paragraph after it.
+/// * **a reopened code span** — `` `grove-llm` `leaf-add` ``, the ordinary
+///   Markdown way to write a command whose verb carries its own emphasis. This
+///   shape was invisible while the rule demanded whitespace *immediately* after
+///   the marker: the closing backtick made the separator empty, and an empty
+///   separator is skipped — a valid instruction dropped in the fail-open
+///   direction, exactly what a removal check cannot afford.
+///
+/// The reopening is the discriminator, not decoration. After a closed span,
+/// plain prose naming the binary (``the `grove-llm` binary is agent-facing``)
+/// must not read as an invocation; admitting it would collect `binary` as a
+/// verb. So a span that closed has to open again for the verb, while an
+/// unquoted mention may be followed by either.
+fn instruction_separator(after: &str) -> Option<usize> {
+    let closing = usize::from(after.starts_with('`'));
+    let spaced = &after[closing..];
+    let spacing: &str = spaced
+        .split_terminator(|character: char| !character.is_whitespace())
+        .next()
+        .unwrap_or("");
+    if spacing.is_empty() || spacing.matches('\n').count() > 1 {
+        return None;
+    }
+    let opening = usize::from(spaced[spacing.len()..].starts_with('`'));
+    if closing > opening {
+        return None;
+    }
+    Some(closing + spacing.len() + opening)
 }
 
 #[test]

@@ -49,13 +49,6 @@ would cut a release that hands sessions a verb it lacks. `tests/provision.rs`
 now enforces exactly that. The work is deletion-heavy (~1150 lines of Rust out),
 which is what makes one session tractable.
 
-**Corrected by `provisioned-skill-refresh-k9`:** this paragraph originally
-argued the coupling from "the very next session would have that broken skill
-provisioned to it." That premise is false — `include_dir!` fixes the embed at
-build time, so *no* session in this loop reads this grove's committed
-`content/`; every one of them runs the installed v17.0.0 build. The conclusion
-survives, at the release boundary rather than the session boundary.
-
 `flat-lazy-review-k2` is the first user of the rule it implements: its own last
 act is to decide whether a `review-impl` leaf is required, and to write that
 leaf's instructions if so. If the work proves bigger than one session,

@@ -138,10 +138,14 @@ change. There is no migration, and none is needed.
   `content/` has moved ahead is correct. The docs previously said only that the
   binary "provisions the embedded methodology on every bare `grove`" — true, and
   read by a meta-grove as a promise that the next session in the loop consumes
-  just-committed content. It does not, and should not: verbs leave `grove-llm`
-  in the same commit that stops instructing them, so a skill *older* than its
-  binary names only verbs that exist while a *newer* one would name verbs that
-  do not. `content/SKILL.md`, `docs/USAGE.md`,
+  just-committed content. It does not, and should not: **any** skew between the
+  skill and the CLI it instructs is unsafe, in *both* directions — a newer skill
+  names verbs added since the binary, an older one names verbs removed since the
+  skill. The second is the case that surprises, and this release supplies it: the
+  `v17.0.0` skill instructs `leaf-add-chain`, removed here, so pairing that skill
+  with any binary built from now on hands a session a call that cannot succeed.
+  There is no safe direction to drift in, so the only safe skew is none, and one
+  embed per build is what delivers it. `content/SKILL.md`, `docs/USAGE.md`,
   `docs/ARCHITECTURE.md` §Embedded methodology and `CONTEXT.md` (a new
   **Embedded methodology** entry) now state the boundary and this reason. The
   half that *is* checkable is enforced: `tests/provision.rs` asserts the embedded

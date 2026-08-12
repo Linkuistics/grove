@@ -39,15 +39,11 @@ build or not".
 
 **Embedded methodology** / **the build boundary**:
 `content/` compiled into the binary by `include_dir!`, and therefore fixed at
-**build** time. A session reads the methodology its own `grove` was built with,
-and the [[Global skill provisioning]] stamp hashes that embed rather than any
-working tree — so a warm no-op is correct even against a checkout whose
-`content/` has moved ahead. The coupling is deliberate: **any** skew between the
-skill and the CLI it instructs is unsafe — a newer skill names verbs added since
-the binary, an older one names verbs removed since the skill — so the only safe
-skew is none, and one embed is what guarantees it. `tests/provision.rs` pins the
-half that is checkable — the embed instructs no verb the embedded CLI lacks. See
-`docs/ARCHITECTURE.md#self-extension-core-and-methodology`.
+**build** time — so a session reads the methodology its own `grove` was built
+with, never the one committed in some working tree. The boundary is deliberate:
+*any* skew between a skill and the CLI it instructs is unsafe, and one embed per
+build is what holds it to none. Why that is so, and what enforces the checkable
+half, are in `docs/ARCHITECTURE.md#self-extension-core-and-methodology`.
 _Avoid_: "the next session picks up the committed `content/`" — it picks up the
 built one; the two coincide only after a rebuild and install.
 _Avoid_: proposing per-iteration re-*extraction* as the fix — a driver never

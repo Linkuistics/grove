@@ -104,8 +104,7 @@ fault.
 unioned.
 
 - **research-a** and **research-b** (both AFK) — a citation-disciplined
-  literature/prior-art survey producing `docs/research/<slug>.md`.
-  Breadth-seeking: a citation per
+  literature/prior-art survey. Breadth-seeking: a citation per
   failure-mode claim, primary sources, and an explicit note where a search found
   silence (the absence is itself a finding). No grilling, no tree growth. The two
   kinds are identical in discipline and distinct in configuration; a single survey
@@ -114,6 +113,20 @@ unioned.
   disagreement. This kind, not either producer, carries the **adversarial** move:
   two vendors on overlapping corpora can agree on something false, so **agreement
   without independent primary sourcing is a red flag, not a confirmation**.
+
+All three write under `docs/research/`, and because a pair's three leaves share
+one slug, **the kind supplies the discriminator** — the same principle that keeps
+it out of the slug:
+
+| kind | writes |
+|---|---|
+| `research-a` | `docs/research/<slug>-a.md` |
+| `research-b` | `docs/research/<slug>-b.md` |
+| `combine-research` | `docs/research/<slug>.md` — the union |
+
+A solo `research-a` with no pair writes `-a.md` and that is the whole record; a
+`-b` survey added later renames nothing, and the union lands at the unadorned
+name where a reader looks first.
 
 **finish** (HITL, driver-reserved) — the whole-grove teardown session the driver
 appends once no ordinary work is live. It proposes the complete finish cycle and
@@ -210,13 +223,16 @@ grove-llm leaf-add [12] sync-design --kind design
 05-design-sync-design-k13.md          # cut by the planning session
 
   …the design session runs, and decides review is required:
-grove-llm leaf-add [12] sync-design-review --kind review-design
-06-review-design-sync-design-review-k14.md
+grove-llm leaf-add [12] sync-design --kind review-design
+06-review-design-sync-design-k14.md
 
   …the review session runs, and has findings worth acting on:
-grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
-07-integrate-review-design-sync-design-integrate-k15.md
+grove-llm leaf-add [12] sync-design --kind integrate-review-design
+07-integrate-review-design-sync-design-k15.md
 ```
+
+Three leaves, **one slug**, differing only by kind and key. That is the whole
+naming rule and *What the shapes are not* below carries why.
 
 Three things follow from cutting them late:
 
@@ -251,7 +267,7 @@ Three things follow from cutting them late:
 <review-handle>`, on their own line, naming the stable handle:
 
 ```markdown
-# sync-design-review-k14
+# sync-design-k14
 
 **Reviews:** sync-design-k13
 ```
@@ -265,9 +281,9 @@ them because the next session benefits, not because a verb requires it.
 
 ```
 grove-llm leaf-add-pair [12] sync-survey
-08-research-a-sync-survey-a-k16.md
-09-research-b-sync-survey-b-k17.md
-10-combine-research-sync-survey-combine-k18.md
+08-research-a-sync-survey-k16.md
+09-research-b-sync-survey-k17.md
+10-combine-research-sync-survey-k18.md
 ```
 
 Three consecutive flat siblings, three consecutive keys, three absolute paths on
@@ -277,10 +293,10 @@ byte-identical to the same three leaves cut by hand with `leaf-add`.
 **Laziness would be wrong here, which is why the pair kept its verb.** If
 `research-a` cut `research-b` at the end of its own session, `b` would inherit
 `a`'s framing and corpus — destroying the independence the pair is run for. The
-pair's three kinds are fixed by the shape, so it takes no `--kind` at all. Its
-peers are `-a` and `-b` rather than one bare stem and one suffixed, because they
-are peers: a bare stem beside a `-second` implies a producer/step relation the
-pair does not have.
+pair's three kinds are fixed by the shape, so it takes no `--kind` at all — and
+because they are fixed, the three slugs need carry nothing at all beyond the
+stem. The two producers are peers, and `research-a` / `research-b` already say
+so in the field that routes them.
 
 ### What the shapes are not
 
@@ -289,13 +305,53 @@ Those names are long, and that is the trade the scheme makes: the **kind** and t
 shape are readable without opening anything. Three things that shape looks like
 it could be and is not:
 
-- **The suffix goes on the end**, not the front. A suffix keeps a chain's handles
-  together under their stem; a prefix (`review-sync-design`) sorts every review
-  beside every *other* review and scatters the chains it was meant to reveal. And
-  every step keeps the **stem** rather than shortening to `review` /
-  `integrate`: `resolve` matches a bare slug exactly and reports more than one
-  match as ambiguous, and `.grove/` dies at the finish cycle leaving commit
-  messages as the only record — where `review-k14` names a role and no artifact.
+- **The slug is the bare stem, and it does not restate the kind.** The kind field
+  is the canonical statement of a leaf's role; the slug names the **artifact**.
+  So a chain's three steps carry one slug and differ by kind and key, and so do a
+  pair's — no `-review`, no `-integrate`, no `-a` / `-b` / `-combine`.
+
+  **Why the marker went.** Each of those five was a 1:1 restatement of the kind
+  sitting immediately beside it, and therefore a second, *unvalidated* source of
+  truth for a fact grove already parses and routes on. Nothing rejects `leaf-add
+  <parent> foo-review --kind impl`; when the two disagree the slug lies while the
+  filename tells the truth. Deleting the marker leaves exactly one statement of
+  the role, in the field that is checked.
+
+  **What that costs, exactly.** Only one thing: `grove-llm resolve <stem>` on a
+  chain now matches more than one leaf and reports `Resolution::Ambiguous`. That
+  is small, and it was never an invariant — grove enforces no slug uniqueness
+  anywhere, and `resolve` was built for collisions. The ambiguous listing prints
+  each match's **path**, which carries the kind, so `resolve <stem>` now shows the
+  whole chain with every step's role spelled out; only "give me the producer
+  specifically" costs a second lookup. **No machine path is affected**: the
+  driver's mandate, `**Reviews:**` / `**Integrates:**` lines, commit messages and
+  grow-verb targets all name a `<slug>-k<key>` handle or a bare key, and keys are
+  unique tree-wide. A script doing `path=$(grove-llm resolve <stem>)` on a chained
+  stem gets empty stdout and a non-zero exit — scripts should use keys, as the
+  guidance already says.
+
+  **What it does not cost: the surviving commit record.** The stem is *kept*, so a
+  handle still names its artifact after `.grove/` dies — the alternative that
+  argument was written against is shortening to bare `review` / `integrate`, where
+  `review-k14` names a role and no artifact, and that is not what happened here.
+  The **role** survives too, structurally: Retire-then-Commit puts the leaf's
+  `DONE` rename in the task's own commit, teardown removes `.grove/` from the tip
+  and not from history, so `git show --stat <commit>` names the kind-bearing
+  filename forever. Rename detection is not needed — without it you get a
+  delete/add pair, both kind-bearing. **Do not compensate with a commit-subject
+  convention** (`review:` / `impl:` prefixes): that would re-introduce the same
+  unvalidated restatement one layer along.
+
+  **Both spellings stay legal and no existing tree is invalidated.** A suffix was
+  convention, never grammar (see *The grammar is the five fields* below), so
+  nothing was migrated and no leaf was renamed. An older `…-review-k14` you meet
+  in a live tree is a well-formed leaf; leave it alone.
+
+  A *prefix* (`review-sync-design`) is no better and is not the alternative on the
+  table. The argument once made for the terminal position — that it keeps
+  stem-mates together in a directory listing — was in any case false: a leaf name
+  begins with `NN`, so a listing sorts by position and never by slug, and both
+  spellings glob identically under `*<stem>*`.
 - **Neither shape gets a node directory.** A charter means *this work proved
   bigger than one session*, which a composed shape is not, and the hierarchy the
   node bought was not worth the navigation cost. So there is **one node species**
@@ -333,11 +389,13 @@ infix, kind, slug and key are all parsed and all structural — the position ord
 the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
 configuration lookup, and slug-plus-key is the handle `resolve` finds and the
 counter the next `-k<key>` is allocated from. What is **convention, not grammar**
-is everything a name might *imply about another leaf*: the stem, the step suffix,
-the relative ordering, and the two declaration lines. Grove does not read a
-suffix, require a `review-X` after every `X`, reject a partial chain, or parse a
-`**Reviews:**` line. It never reconstructs a relationship from a filename, a
-position, or a body.
+is everything a name might *imply about another leaf*: the shared stem, the
+relative ordering, and the two declaration lines. Grove does not require a
+`review-X` after every `X`, reject a partial chain, or parse a `**Reviews:**`
+line. It never reconstructs a relationship from a filename, a position, or a
+body. That is also the test the deleted step suffix failed and the stem passes: a
+convention that *adds* what nothing parses is legible, while one that *duplicates*
+a parsed field can disagree with it.
 
 **Nothing in a body is metadata**, and no verb writes anything there. Retirement
 and pruning change a filename and stop; a node close writes nothing at all. So a

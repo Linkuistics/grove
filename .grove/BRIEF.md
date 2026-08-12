@@ -119,6 +119,15 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
   classification for the same corpus reason. Guidance prose, `leaf-add-pair`'s
   generated slugs, the glossary clause, and the tests pinned to either. No tree
   migration: both spellings stay legal and no existing leaf is renamed.
+- `drop-step-suffix-k19` (review-impl) — cut by `drop-step-suffix-k18` and
+  **inserted ahead of the classification**, on the reasoning that put
+  `embed-wide-gate-review-k16` and `addressable-embed-review-k14` where they are:
+  its integration would otherwise edit `content/SKILL.md` and
+  `content/TASK-FORMAT.md` after the classification had marked units over them.
+  The decision was settled and is not reopened; what is reviewed is a wide prose
+  sweep whose durable record is prose rather than an ADR, so the half no test
+  covers is whether the recorded *reason* is sound. **It is also the first leaf in
+  this tree cut under the new convention** — bare stem, role in the kind.
 - `classification-k9` (node) — the real classification pass, decomposed because
   139 kB of judgement across nine files is not one session. Its first child is the
   `planning` leaf that derives dependency-ordered batches; its charter requires an

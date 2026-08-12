@@ -371,8 +371,8 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
     // review was cut by the producer's own session as an ordinary `leaf-add`.
     touch(&grove.join("01-impl-build-k1.md"), "# build-k1\n");
     touch(
-        &grove.join("02-review-impl-build-review-k2.md"),
-        "# build-review-k2\n\n**Reviews:** build-k1\n",
+        &grove.join("02-review-impl-build-k2.md"),
+        "# build-k2\n\n**Reviews:** build-k1\n",
     );
     let output = Command::cargo_bin("grove-llm")
         .unwrap()
@@ -391,8 +391,8 @@ fn reviewed_producer_retirement_does_not_write_body_routing_in_a_jj_native_tree(
     // that retiring a producer writes nothing into the review that names it, and
     // that holds for whatever a future sibling write might say.
     assert_eq!(
-        read(repo, ".grove/02-review-impl-build-review-k2.md"),
-        "# build-review-k2\n\n**Reviews:** build-k1\n"
+        read(repo, ".grove/02-review-impl-build-k2.md"),
+        "# build-k2\n\n**Reviews:** build-k1\n"
     );
     assert!(
         !exists(repo, ".git"),

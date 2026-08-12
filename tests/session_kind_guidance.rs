@@ -438,8 +438,8 @@ fn the_filename_classifier_separates_the_current_grammar_from_its_predecessor() 
         "01-requirements-plan-k1.md",
         "01-DONE-design-spec-k2.md",
         "03-ABANDONED-impl-extract-k7.md",
-        "03-integrate-review-design-sync-design-integrate-k15.md",
-        "01-research-a-sync-survey-a-k17.md",
+        "03-integrate-review-design-sync-design-k15.md",
+        "01-research-a-sync-survey-k17.md",
     ] {
         assert!(
             !is_sketch(current),

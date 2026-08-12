@@ -6,9 +6,11 @@
 //     sessions — the producer cuts its review only if review is required, and
 //     the review cuts its integration only if it found something. There is no
 //     chain verb and no chain node; the steps are flat siblings and the only
-//     thing that groups them is a shared stem. So what the binary can be held to
-//     is exactly what `leaf-add` does: append at the parent's next free
-//     position, with a body the *creating session* is free to write.
+//     thing that groups them is a shared stem — which every step carries whole,
+//     because the kind field already states its role and the slug does not
+//     restate it. So what the binary can be held to is exactly what `leaf-add`
+//     does: append at the parent's next free position, with a body the
+//     *creating session* is free to write.
 //   * a **research pair** is still one call, because its two producers must not
 //     see each other's framing. The library owns the shape and its
 //     all-or-nothing contract (`src/tree_grow.rs` unit tests); what only the
@@ -80,15 +82,11 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
     let t = grove();
     for (slug, kind, expected) in [
         ("sync", "design", "01-design-sync-k1.md"),
+        ("sync", "review-design", "02-review-design-sync-k2.md"),
         (
-            "sync-review",
-            "review-design",
-            "02-review-design-sync-review-k2.md",
-        ),
-        (
-            "sync-integrate",
+            "sync",
             "integrate-review-design",
-            "03-integrate-review-design-sync-integrate-k3.md",
+            "03-integrate-review-design-sync-k3.md",
         ),
     ] {
         let (stdout, stderr, ok) = run(t.path(), &["leaf-add", ".", slug, "--kind", kind]);
@@ -102,8 +100,8 @@ fn a_review_chain_is_three_leaf_adds_landing_as_flat_siblings() {
         tree(t.path()),
         vec![
             "01-design-sync-k1.md",
-            "02-review-design-sync-review-k2.md",
-            "03-integrate-review-design-sync-integrate-k3.md",
+            "02-review-design-sync-k2.md",
+            "03-integrate-review-design-sync-k3.md",
             "BRIEF.md",
             "FORMAT",
         ],
@@ -120,14 +118,14 @@ fn a_freshly_added_leaf_carries_an_empty_body_for_its_creator_to_write() {
     let t = grove();
     let (_, stderr, ok) = run(
         t.path(),
-        &["leaf-add", ".", "sync-review", "--kind", "review-design"],
+        &["leaf-add", ".", "sync", "--kind", "review-design"],
     );
     assert!(ok, "{stderr}");
 
-    let contents = body(t.path(), "01-review-design-sync-review-k1.md");
+    let contents = body(t.path(), "01-review-design-sync-k1.md");
 
     assert!(
-        contents.starts_with("# sync-review-k1\n"),
+        contents.starts_with("# sync-k1\n"),
         "the position-free handle heads the body: {contents:?}"
     );
     for absent in [
@@ -243,10 +241,10 @@ fn decompose(worktree: &Path, leaf: &str, child: &str) {
 fn chain_with_a_live_sibling() -> TempDir {
     let t = grove();
     add(t.path(), ".", "sync", "design");
-    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "unrelated", "impl");
     retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-review-k2.md");
+    retire(t.path(), "02-review-design-sync-k2.md");
     t
 }
 
@@ -262,13 +260,13 @@ fn insert_before_a_later_live_leaf_makes_the_integration_run_next() {
     insert(
         t.path(),
         "03-impl-unrelated-k3.md",
-        "sync-integrate",
+        "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-integrate-review-design-sync-integrate-k4.md"),
+        Some("03-integrate-review-design-sync-k4.md"),
         "the integration takes the blocking sibling's slot and runs next"
     );
 
@@ -276,12 +274,7 @@ fn insert_before_a_later_live_leaf_makes_the_integration_run_next() {
     // *end*, so the unrelated leaf runs first and edits whatever it likes in the
     // files the findings cite before the integration ever opens them.
     let wrong = chain_with_a_live_sibling();
-    add(
-        wrong.path(),
-        ".",
-        "sync-integrate",
-        "integrate-review-design",
-    );
+    add(wrong.path(), ".", "sync", "integrate-review-design");
     assert_eq!(
         picked(wrong.path()).as_deref(),
         Some("03-impl-unrelated-k3.md"),
@@ -297,11 +290,11 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
     // live leaf would, and the node is the entry to insert before.
     let t = grove();
     add(t.path(), ".", "sync", "design");
-    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "follow-up", "impl");
     decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
     retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-review-k2.md");
+    retire(t.path(), "02-review-design-sync-k2.md");
 
     assert_eq!(
         picked(t.path()).as_deref(),
@@ -312,13 +305,13 @@ fn a_later_sibling_node_blocks_and_is_itself_the_insert_target() {
     insert(
         t.path(),
         "03-follow-up-k3",
-        "sync-integrate",
+        "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-integrate-review-design-sync-integrate-k5.md"),
+        Some("03-integrate-review-design-sync-k5.md"),
         "inserting before the node directory puts the integration ahead of its whole subtree"
     );
     assert!(
@@ -336,27 +329,27 @@ fn targeting_the_blocking_nodes_descendant_inserts_at_the_wrong_level() {
     // charters other work and whose close will now roll it up.
     let t = grove();
     add(t.path(), ".", "sync", "design");
-    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "follow-up", "impl");
     decompose(t.path(), "03-impl-follow-up-k3.md", "detail");
     retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-review-k2.md");
+    retire(t.path(), "02-review-design-sync-k2.md");
 
     insert(
         t.path(),
         "03-follow-up-k3/01-impl-detail-k4.md",
-        "sync-integrate",
+        "sync",
         "integrate-review-design",
     );
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("03-follow-up-k3/01-integrate-review-design-sync-integrate-k5.md"),
+        Some("03-follow-up-k3/01-integrate-review-design-sync-k5.md"),
         "it runs next either way — the defect is the level, not the order"
     );
     assert!(
         !t.path()
-            .join(".grove/03-integrate-review-design-sync-integrate-k5.md")
+            .join(".grove/03-integrate-review-design-sync-k5.md")
             .exists(),
         "the integration never reached the review's own directory"
     );
@@ -369,13 +362,13 @@ fn terminal_entries_between_the_steps_do_not_block_an_append() {
     // would force an insert that buys nothing and renumbers live siblings for it.
     let t = grove();
     add(t.path(), ".", "sync", "design");
-    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "sync", "review-design");
     add(t.path(), ".", "old", "impl");
     add(t.path(), ".", "stale", "impl");
     decompose(t.path(), "04-impl-stale-k4.md", "gone");
     for rel in [
         "01-design-sync-k1.md",
-        "02-review-design-sync-review-k2.md",
+        "02-review-design-sync-k2.md",
         "03-impl-old-k3.md",
         "04-stale-k4/01-impl-gone-k5.md",
     ] {
@@ -387,11 +380,11 @@ fn terminal_entries_between_the_steps_do_not_block_an_append() {
         "nothing after the review is live, so nothing blocks"
     );
 
-    add(t.path(), ".", "sync-integrate", "integrate-review-design");
+    add(t.path(), ".", "sync", "integrate-review-design");
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("05-integrate-review-design-sync-integrate-k6.md"),
+        Some("05-integrate-review-design-sync-k6.md"),
         "an append at the parent's end still runs next"
     );
 }
@@ -406,27 +399,22 @@ fn live_work_in_a_later_outer_node_cannot_get_in_front_of_an_append() {
     let t = grove();
     add(t.path(), ".", "inner", "design");
     decompose(t.path(), "01-design-inner-k1.md", "sync");
-    add(t.path(), "inner-k1", "sync-review", "review-design");
+    add(t.path(), "inner-k1", "sync", "review-design");
     add(t.path(), ".", "outer", "impl");
     decompose(t.path(), "02-impl-outer-k4.md", "later");
     retire(t.path(), "01-inner-k1/01-design-sync-k2.md");
-    retire(t.path(), "01-inner-k1/02-review-design-sync-review-k3.md");
+    retire(t.path(), "01-inner-k1/02-review-design-sync-k3.md");
     assert_eq!(
         picked(t.path()).as_deref(),
         Some("02-outer-k4/01-impl-later-k5.md"),
         "the only live work is in the outer sibling node"
     );
 
-    add(
-        t.path(),
-        "inner-k1",
-        "sync-integrate",
-        "integrate-review-design",
-    );
+    add(t.path(), "inner-k1", "sync", "integrate-review-design");
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("01-inner-k1/03-integrate-review-design-sync-integrate-k6.md"),
+        Some("01-inner-k1/03-integrate-review-design-sync-k6.md"),
         "the appended integration still precedes the whole later sibling node"
     );
 }
@@ -440,20 +428,20 @@ fn the_finish_sentinel_does_not_block_an_append() {
     // the driver appended it, and ordinary work was inserted ahead of it since.
     let t = grove();
     add(t.path(), ".", "sync", "design");
-    add(t.path(), ".", "sync-review", "review-design");
+    add(t.path(), ".", "sync", "review-design");
     fs::write(
         t.path().join(".grove/03-finish-finish-k3.md"),
         "# finish-k3\n",
     )
     .unwrap();
     retire(t.path(), "01-design-sync-k1.md");
-    retire(t.path(), "02-review-design-sync-review-k2.md");
+    retire(t.path(), "02-review-design-sync-k2.md");
 
-    add(t.path(), ".", "sync-integrate", "integrate-review-design");
+    add(t.path(), ".", "sync", "integrate-review-design");
 
     assert_eq!(
         picked(t.path()).as_deref(),
-        Some("04-integrate-review-design-sync-integrate-k4.md"),
+        Some("04-integrate-review-design-sync-k4.md"),
         "the integration appended behind the sentinel still runs before it"
     );
 }
@@ -478,8 +466,12 @@ fn an_unmigrated_chain_node_still_picks_resolves_and_walks_its_brief_chain() {
     let t = grove();
     let node = t.path().join(".grove/01-sync-chain-k1");
     fs::create_dir_all(&node).unwrap();
-    // No `BRIEF.md` — the property under test. The three steps carry the stem
-    // suffixes and derived kinds the deleted constructor emitted.
+    // No `BRIEF.md` — the property under test. The three steps carry the derived
+    // kinds *and* the `-review` / `-integrate` stem suffixes the deleted
+    // constructor emitted — a spelling the methodology no longer teaches and that
+    // remains a perfectly legal filename, since the suffix was always convention
+    // rather than grammar. Nothing was migrated for that change either, so this
+    // fixture now guards both compatibility claims at once.
     for (name, header) in [
         ("01-design-sync-k2.md", "sync-k2"),
         ("02-review-design-sync-review-k3.md", "sync-review-k3"),
@@ -567,9 +559,9 @@ fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
     let lines: Vec<&str> = stdout.lines().collect();
     assert_eq!(lines.len(), 3, "one path per step: {stdout:?}");
     for (line, expected) in lines.iter().zip([
-        "01-research-a-survey-a-k1.md",
-        "02-research-b-survey-b-k2.md",
-        "03-combine-research-survey-combine-k3.md",
+        "01-research-a-survey-k1.md",
+        "02-research-b-survey-k2.md",
+        "03-combine-research-survey-k3.md",
     ]) {
         assert!(
             line.ends_with(expected) && line.starts_with('/'),
@@ -592,7 +584,7 @@ fn a_failed_run_prints_no_path_at_all() {
     // allocation refuses it. The run therefore fails after validating and
     // before writing, which is the arm stdout silence has to survive.
     let t = grove();
-    fs::create_dir(t.path().join(".grove").join("01-research-a-survey-a-k1.md")).unwrap();
+    fs::create_dir(t.path().join(".grove").join("01-research-a-survey-k1.md")).unwrap();
 
     let (stdout, stderr, ok) = run(t.path(), &["leaf-add-pair", ".", "survey"]);
 
@@ -602,12 +594,12 @@ fn a_failed_run_prints_no_path_at_all() {
         "not one path on stdout for a shape that was not created"
     );
     assert!(
-        stderr.contains("01-research-a-survey-a-k1.md"),
+        stderr.contains("01-research-a-survey-k1.md"),
         "the diagnostic names the entry standing in the way: {stderr}"
     );
     assert_eq!(
         tree(t.path()),
-        vec!["01-research-a-survey-a-k1.md", "BRIEF.md", "FORMAT"],
+        vec!["01-research-a-survey-k1.md", "BRIEF.md", "FORMAT"],
         "no half-built pair left behind"
     );
 }

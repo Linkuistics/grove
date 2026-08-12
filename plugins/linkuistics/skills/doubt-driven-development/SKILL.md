@@ -80,7 +80,7 @@ one budget across the **whole picked leaf**:
   spawned reviewer counts. A cross-model reviewer may be that one only after the
   normal explicit authorisation; it is never an additional cycle.
 - A second review need runs
-  `grove-llm leaf-add <parent> <stem>-review --kind review-<producer>`, with the
+  `grove-llm leaf-add <parent> <stem> --kind review-<producer>`, with the
   specific doubt written into the new leaf's body — that body is the reason to
   cut the leaf now rather than have had a constructor cut it up front.
   This normally follows a substantive actionable finding whose non-mechanical

@@ -301,7 +301,7 @@ fn add_rejects_the_removed_harness_flag_without_writing() {
         &[
             "leaf-add",
             ".",
-            "survey-b",
+            "survey",
             "--kind",
             "research-a",
             "--harness",
@@ -314,7 +314,7 @@ fn add_rejects_the_removed_harness_flag_without_writing() {
         "got {stderr:?}"
     );
     assert!(stdout.is_empty());
-    assert!(!exists(tmp.path(), ".grove/01-research-a-survey-b-k1.md"));
+    assert!(!exists(tmp.path(), ".grove/01-research-a-survey-k1.md"));
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn insert_rejects_the_removed_harness_flag_without_writing() {
         &[
             "leaf-insert",
             "01-impl-a-k1.md",
-            "survey-b",
+            "survey",
             "--kind",
             "research-a",
             "--harness",

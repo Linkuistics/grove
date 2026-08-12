@@ -54,7 +54,7 @@ reviewer.
 The agent-facing interface is the grow verb a session already calls:
 
 ```text
-grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
+grove-llm leaf-add <parent> <stem> --kind review-<producer>
 ```
 
 `<producer>` is the kind in the mandated leaf's own filename, and the session
@@ -72,14 +72,23 @@ escalation produces:
 
 ```text
 05-design-sync-design-k12.md          unchanged
-06-review-design-sync-design-review-k21.md
+06-review-design-sync-design-k21.md
 ```
 
 and, if that review finds something worth acting on, its own last act produces:
 
 ```text
-07-integrate-review-design-sync-design-integrate-k22.md
+07-integrate-review-design-sync-design-k22.md
 ```
+
+**All three carry the same slug**, and that is the naming rule rather than an
+elision in the example: the kind field is the canonical statement of a step's
+role, so the slug names the artifact and does not restate it
+(`content/TASK-FORMAT.md`). The steps stay distinct by key, and their handles —
+`sync-design-k12`, `-k21`, `-k22` — stay unique because keys are unique
+tree-wide. What it costs is that `resolve sync-design` is ambiguous and lists all
+three with their kind-bearing paths; no machine path is affected, because every
+one of them names a handle or a key.
 
 Here nothing later in the directory still holds live work, so the next free
 position *is* the slot beside the review and `leaf-add` puts the integration
@@ -104,7 +113,7 @@ The body also carries the composition relationship, written by hand:
 and, for an integration:
 
 ```markdown
-**Integrates:** sync-design-review-k21
+**Integrates:** sync-design-k21
 ```
 
 **Nothing writes those lines and nothing parses them.** They are a documented
@@ -152,7 +161,7 @@ mechanical and **directory-local**: `leaf-insert` at **the first sibling entry
 after the review whose subtree still holds live work**.
 
 ```text
-grove-llm leaf-insert <first blocking sibling entry> <stem>-integrate --kind integrate-review-<producer>
+grove-llm leaf-insert <first blocking sibling entry> <stem> --kind integrate-review-<producer>
 ```
 
 Three properties of the walk (`collect_live_leaf_entries` in `src/tree_read.rs`)

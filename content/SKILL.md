@@ -20,7 +20,7 @@ flowchart TD
     nb1["BRIEF.md — node brief"]
     l1["01-DONE-design-spec-k2.md — retired leaf, in place"]
     l2["02-impl-store-k3.md — live leaf"]
-    l3["03-review-impl-store-review-k4.md — live leaf, cut by k3's session"]
+    l3["03-review-impl-store-k4.md — live leaf, cut by k3's session"]
     root --- n1
     n1 --- nb1
     n1 --- l1
@@ -254,8 +254,8 @@ ways, and the asymmetry is the design:
   steps are **ordinary flat siblings**, and **each session creates the next, only
   when it is required**:
 
-      grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
-      grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
+      grove-llm leaf-add <parent> <stem> --kind review-<producer>
+      grove-llm leaf-add <parent> <stem> --kind integrate-review-<producer>
 
   The **last act of a producer session** is to decide whether review is required
   and, if so, cut the `review-<producer>` leaf itself. The **last act of a review
@@ -309,12 +309,18 @@ neighbours, and **every node in the tree carries a brief** again — there is on
 one node species, and Retire's close has the same work to do at every one of
 them.
 
-**The stem gets a step suffix, not a prefix** — `<stem>` / `<stem>-review` /
-`<stem>-integrate`, and `<stem>-a` / `<stem>-b` / `<stem>-combine`. Every step
-keeps the stem so bare slugs stay unique and surviving commit handles still name
-their artifact once `.grove/` is gone. A terminal suffix also keeps stem-mates
-together in a directory listing; `review-<stem>` would sort every review beside
-every other review and scatter the chains the naming exists to reveal.
+**Every step of a shape carries the same bare stem** — no `-review`, no
+`-integrate`, no `-a` / `-b` / `-combine`. **The kind field is the canonical
+statement of a leaf's role; the slug names the artifact and does not restate the
+kind.** A step marker in the slug was a 1:1 restatement of the kind sitting right
+beside it — a second, *unvalidated* source of truth for a fact grove already
+parses and routes on. Nothing stops `leaf-add <parent> foo-review --kind impl`,
+and when the two disagree the slug lies while the filename tells the truth. So a
+chain reads `<stem>` / `<stem>` / `<stem>`, three leaves differing only by kind
+and key, and `grove-llm resolve <stem>` prints the whole chain with each step's
+role spelled out in its path. Both spellings remain legal filenames, the grammar
+is unchanged, and **no existing tree is invalidated** — an older suffixed slug
+you meet is fine and stays as it is (`TASK-FORMAT.md` carries the full reasoning).
 
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
@@ -329,10 +335,14 @@ infix, one member of the closed kind set, the slug, and `-k<key>` — and all fi
 are load-bearing: position orders the walk, the infix filters terminal leaves,
 the kind routes the launch, and slug-plus-key is the stable handle `resolve`
 finds and the counter `leaf-add` reads. What grove infers from *none* of them is
-a **relationship between leaves**: a `-review` suffix does not make a leaf review
+a **relationship between leaves**: a `review-*` kind does not make a leaf review
 its neighbour, an `X` requires no `review-X` after it, and a partial chain is
-never rejected. The suffix convention is a habit that makes a chain legible to
-you and to `find .grove`; it is not grammar.
+never rejected. The shared stem is a habit that makes a chain legible to you and
+to `find .grove`; it is not grammar. That is exactly why a *step marker* in the
+slug was worth deleting and the stem was not: the stem names the artifact, which
+nothing else in the name does, while a marker only restated the kind — and an
+unparsed convention that duplicates a parsed field is the one kind of convention
+that can be wrong.
 
 **A chain is not contiguous by construction, and only one of its two hops needs
 protecting.** Steps are appended at the parent's next free position, so a step
@@ -367,7 +377,7 @@ or node directory, whichever comes first. That entry is what blocks, and it is
 the insert target:
 
 ```text
-grove-llm leaf-insert <first blocking sibling entry> <stem>-integrate --kind integrate-review-<producer>
+grove-llm leaf-insert <first blocking sibling entry> <stem> --kind integrate-review-<producer>
 ```
 
 Three things that condition gets right where "the first live leaf after it" does

@@ -128,10 +128,12 @@ pub enum Command {
     ///
     /// This is also how a **review chain** is built — one step at a time, each
     /// created only when it is required. A producer's last act is
-    /// `leaf-add <parent> <stem>-review --kind review-<producer>` if review is
+    /// `leaf-add <parent> <stem> --kind review-<producer>` if review is
     /// warranted; the review's last act is
-    /// `leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>`
-    /// if it found something worth acting on. The steps are ordinary **flat
+    /// `leaf-add <parent> <stem> --kind integrate-review-<producer>`
+    /// if it found something worth acting on. Every step carries the **same
+    /// bare stem**: the kind states the step's role, so the slug names only the
+    /// artifact. The steps are ordinary **flat
     /// siblings** — there is no chain node — and the creating session writes the
     /// new leaf's body, which is the point of creating it late: it can put the
     /// exact uncovered case, finding, or datum into it, which is strictly more
@@ -154,15 +156,15 @@ pub enum Command {
     /// producer's commit and needs none of this care.
     LeafAdd(LeafAddArgs),
     /// Append a whole **research vendor pair** under `<parent>` in one call —
-    /// `<stem>-a`, `<stem>-b`, `<stem>-combine` as three **flat siblings** at
-    /// consecutive positions, with fixed filename kinds and no routing metadata
-    /// in task bodies.
+    /// three **flat siblings** at consecutive positions, all slugged `<stem>`,
+    /// with fixed filename kinds and no routing metadata in task bodies. The kind
+    /// is what tells the three apart, and the slug does not restate it.
     ///
     /// Three siblings, with three consecutive fresh keys:
     ///
-    ///   NN    `research-a-<stem>-a-k…`
-    ///   NN+1  `research-b-<stem>-b-k…`
-    ///   NN+2  `combine-research-<stem>-combine-k…`
+    ///   NN    `research-a-<stem>-k…`
+    ///   NN+1  `research-b-<stem>-k…`
+    ///   NN+2  `combine-research-<stem>-k…`
     ///
     /// **A pair is created eagerly where a review chain is created lazily, and
     /// the asymmetry is deliberate.** If `research-a` cut `research-b` at the
@@ -417,9 +419,8 @@ pub struct LeafAddPairArgs {
     /// (`[n]` / `n` / `<slug>-k<key>`) or its path.
     pub parent: String,
     /// Shared stem for all three leaves (lowercase ASCII letters, digits,
-    /// dashes). The steps are `<stem>-a`, `<stem>-b`, `<stem>-combine` — the two
-    /// producers are `a` and `b` because they are peers, not a leader and a
-    /// follow-up.
+    /// dashes). All three carry it verbatim as their slug — the `research-a`,
+    /// `research-b` and `combine-research` kinds already say which step is which.
     pub stem: String,
 }
 

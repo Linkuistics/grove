@@ -56,7 +56,7 @@ fn write(path: &Path, body: &str) {
 }
 
 const REVIEW_BODY: &str =
-    "# build-review-k2\n\n**Reviews:** build-k1\n\n## Goal\n\nReview the implementation.\n";
+    "# build-k2\n\n**Reviews:** build-k1\n\n## Goal\n\nReview the implementation.\n";
 
 /// A committed review chain — flat siblings off one stem (flat-lazy-review):
 /// producer, the review that names it, and the integration that names the
@@ -67,13 +67,10 @@ fn build_review_chain(repo: &Path) -> PathBuf {
     write(&grove.join("FORMAT"), "session-kinds-v1\n");
     write(&grove.join("BRIEF.md"), "# build — brief\n");
     write(&producer, "# build-k1\n\n## Goal\n\nBuild it.\n");
+    write(&grove.join("02-review-impl-build-k2.md"), REVIEW_BODY);
     write(
-        &grove.join("02-review-impl-build-review-k2.md"),
-        REVIEW_BODY,
-    );
-    write(
-        &grove.join("03-integrate-review-impl-build-integrate-k3.md"),
-        "# build-integrate-k3\n\n**Integrates:** build-review-k2\n",
+        &grove.join("03-integrate-review-impl-build-k3.md"),
+        "# build-k3\n\n**Integrates:** build-k2\n",
     );
     assert!(ProcessCommand::new("git")
         .args(["add", "-A"])
@@ -181,7 +178,7 @@ fn retiring_a_reviewed_producer_changes_only_its_own_filename() {
     // control that proves the comparison above can see anything at all.
     assert!(producer.with_file_name("01-DONE-impl-build-k1.md").exists());
     assert_eq!(
-        fs::read_to_string(producer.with_file_name("02-review-impl-build-review-k2.md")).unwrap(),
+        fs::read_to_string(producer.with_file_name("02-review-impl-build-k2.md")).unwrap(),
         REVIEW_BODY
     );
 }
@@ -209,7 +206,7 @@ fn pruning_a_reviewed_producer_changes_only_its_own_filename() {
         .with_file_name("01-ABANDONED-impl-build-k1.md")
         .exists());
     assert!(producer
-        .with_file_name("02-review-impl-build-review-k2.md")
+        .with_file_name("02-review-impl-build-k2.md")
         .exists());
 }
 
@@ -226,7 +223,7 @@ fn the_snapshot_comparison_rejects_a_sibling_write() {
     let (_, stderr, ok) = llm(repo, &["leaf-retire", producer.to_str().unwrap()]);
     assert!(ok, "retirement failed: {stderr}");
     // Stand in for the write the deleted receipt used to perform.
-    let review = producer.with_file_name("02-review-impl-build-review-k2.md");
+    let review = producer.with_file_name("02-review-impl-build-k2.md");
     fs::write(
         &review,
         format!("{REVIEW_BODY}**Producer launch:** {{\"producer\":\"build-k1\"}}\n"),

@@ -44,10 +44,11 @@ use std::path::{Path, PathBuf};
 /// header and empty task sections — which the creating session then fills in.
 ///
 /// **This verb is how a review chain is built now** (flat-lazy-review). A
-/// producer's last act is `leaf-add <parent> <stem>-review --kind
-/// review-<producer>` when review is required, and the review's last act is the
-/// matching `integrate-review-<producer>` leaf when it has findings worth acting
-/// on. The steps are flat siblings, so nothing here knows they compose one
+/// producer's last act is `leaf-add <parent> <stem> --kind review-<producer>`
+/// when review is required, and the review's last act is the matching
+/// `integrate-review-<producer>` leaf when it has findings worth acting on —
+/// every step slugged with the same bare stem, since the kind states its role.
+/// The steps are flat siblings, so nothing here knows they compose one
 /// artifact; the shared stem and the session-written `**Reviews:**` /
 /// `**Integrates:**` lines are convention, not grammar.
 pub(crate) fn leaf_add_unlocked(
@@ -94,8 +95,9 @@ struct Step {
 /// bought was not worth its navigation cost, and every reader already handles a
 /// run of flat siblings. So a shape's steps sit beside their neighbours, and the
 /// only thing that groups them is the shared stem in their slugs — a convention
-/// nothing parses, exactly as the review chain's `-review` / `-integrate` suffix
-/// is.
+/// nothing parses, exactly as the review chain's shared stem is. The stem is the
+/// *whole* slug: the kind field already states each step's role, so nothing in
+/// the slug restates it.
 ///
 /// **This is not `leaf_add_unlocked` in a loop, and the difference is the whole
 /// point of a composite verb.** `leaf_add_unlocked` validates, allocates and
@@ -228,16 +230,23 @@ fn roll_back(cause: anyhow::Error, created: &[PathBuf]) -> anyhow::Error {
     }
 }
 
-/// Append a whole **research pair** — `<stem>-a` / `<stem>-b` /
-/// `<stem>-combine` as three flat siblings — under `parent_dir`, in one mutation
-/// ([`add_run`]). Returns the three paths in position order.
-///
-/// The producers are `-a` / `-b` rather than a bare stem beside a `-second`,
-/// because they are peers rather than a producer and a step.
+/// Append a whole **research pair** — three flat siblings all slugged with the
+/// bare `stem` — under `parent_dir`, in one mutation ([`add_run`]). Returns the
+/// three paths in position order.
 ///
 /// The steps have fixed filename kinds `research-a`, `research-b`, and
-/// `combine-research`. Their commands and any desired independence are launch
+/// `combine-research`, and **the kind is the only thing that distinguishes
+/// them**. It is also the only thing that needs to: the kind field is the
+/// canonical statement of a leaf's role, so the slug names the artifact and does
+/// not restate it. The `-a` / `-b` / `-combine` suffixes this verb used to append
+/// were a 1:1 restatement of the kind beside them — a second, *unvalidated*
+/// source of truth that could disagree with the field grove actually parses and
+/// routes on. Their commands and any desired independence are launch
 /// configuration, never metadata in these task bodies.
+///
+/// Both spellings remain legal filenames and no existing tree is invalidated: the
+/// suffix was convention, never grammar, so a leaf cut under the old rule keeps
+/// its slug and reads exactly as before.
 ///
 /// **The pair stays eager while the review chain went lazy** (flat-lazy-review).
 /// Lazy creation is actively *wrong* here: a `research-b` cut by `research-a`'s
@@ -248,24 +257,27 @@ pub(crate) fn leaf_add_pair_unlocked(
     parent_dir: &Path,
     stem: &str,
 ) -> Result<Vec<PathBuf>> {
-    // The stem is validated in its own right, not merely through the slugs it
-    // builds: `foo-` is a bad slug, but `foo--a` would pass, so validating only
-    // the derived names would let a malformed stem through on all three.
+    // The stem *is* the slug, three times over, so `add_run`'s own per-step
+    // validation would refuse a malformed one anyway. Kept because it states this
+    // verb's precondition at its own boundary rather than borrowing a callee's: a
+    // stem is a slug, and this verb takes a stem. (It was once load-bearing — the
+    // derived `foo--a` passes where the stem `foo-` does not — and that hazard
+    // went with the suffixes.)
     validate_slug(stem)?;
     add_run(
         grove_root,
         parent_dir,
         &[
             Step {
-                slug: format!("{stem}-a"),
+                slug: stem.to_string(),
                 kind: Kind::ResearchA,
             },
             Step {
-                slug: format!("{stem}-b"),
+                slug: stem.to_string(),
                 kind: Kind::ResearchB,
             },
             Step {
-                slug: format!("{stem}-combine"),
+                slug: stem.to_string(),
                 kind: Kind::CombineResearch,
             },
         ],
@@ -1071,15 +1083,15 @@ mod tests {
         touch(&g, "BRIEF.md", "root — brief");
 
         let producer = leaf_add(&g, &g, "sync", Kind::Design).unwrap();
-        let review = leaf_add(&g, &g, "sync-review", Kind::ReviewDesign).unwrap();
-        let integrate = leaf_add(&g, &g, "sync-integrate", Kind::IntegrateReviewDesign).unwrap();
+        let review = leaf_add(&g, &g, "sync", Kind::ReviewDesign).unwrap();
+        let integrate = leaf_add(&g, &g, "sync", Kind::IntegrateReviewDesign).unwrap();
 
         assert_eq!(
             names_of(&[producer, review, integrate]),
             vec![
                 "01-design-sync-k1.md",
-                "02-review-design-sync-review-k2.md",
-                "03-integrate-review-design-sync-integrate-k3.md",
+                "02-review-design-sync-k2.md",
+                "03-integrate-review-design-sync-k3.md",
             ],
             "contiguous flat siblings off one stem"
         );
@@ -1087,8 +1099,8 @@ mod tests {
             list(&g),
             vec![
                 "01-design-sync-k1.md",
-                "02-review-design-sync-review-k2.md",
-                "03-integrate-review-design-sync-integrate-k3.md",
+                "02-review-design-sync-k2.md",
+                "03-integrate-review-design-sync-k3.md",
                 "BRIEF.md",
             ],
             "and nothing else — no node directory was created for them"
@@ -1113,9 +1125,9 @@ mod tests {
         leaf_add(&g, &g, "sync", Kind::Design).unwrap();
         leaf_add(&g, &g, "unrelated", Kind::Impl).unwrap();
 
-        let review = leaf_add(&g, &g, "sync-review", Kind::ReviewDesign).unwrap();
+        let review = leaf_add(&g, &g, "sync", Kind::ReviewDesign).unwrap();
 
-        assert_eq!(name_of(&review), "03-review-design-sync-review-k3.md");
+        assert_eq!(name_of(&review), "03-review-design-sync-k3.md");
     }
 
     #[test]
@@ -1137,28 +1149,23 @@ mod tests {
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         leaf_add(&g, &g, "sync", Kind::Design).unwrap();
-        leaf_add(&g, &g, "sync-review", Kind::ReviewDesign).unwrap();
+        leaf_add(&g, &g, "sync", Kind::ReviewDesign).unwrap();
         let unrelated = leaf_add(&g, &g, "unrelated", Kind::Impl).unwrap();
 
-        let (integrate, renumbered) = leaf_insert(
-            &g,
-            &unrelated,
-            "sync-integrate",
-            Kind::IntegrateReviewDesign,
-        )
-        .unwrap();
+        let (integrate, renumbered) =
+            leaf_insert(&g, &unrelated, "sync", Kind::IntegrateReviewDesign).unwrap();
 
         assert_eq!(
             name_of(&integrate),
-            "03-integrate-review-design-sync-integrate-k4.md",
+            "03-integrate-review-design-sync-k4.md",
             "the integration takes the slot after its review"
         );
         assert_eq!(
             list(&g),
             vec![
                 "01-design-sync-k1.md",
-                "02-review-design-sync-review-k2.md",
-                "03-integrate-review-design-sync-integrate-k4.md",
+                "02-review-design-sync-k2.md",
+                "03-integrate-review-design-sync-k4.md",
                 "04-impl-unrelated-k3.md",
                 "BRIEF.md",
             ],
@@ -1223,11 +1230,12 @@ mod tests {
         assert_eq!(
             names_of(&paths),
             vec![
-                "01-research-a-sync-survey-a-k1.md",
-                "02-research-b-sync-survey-b-k2.md",
-                "03-combine-research-sync-survey-combine-k3.md",
+                "01-research-a-sync-survey-k1.md",
+                "02-research-b-sync-survey-k2.md",
+                "03-combine-research-sync-survey-k3.md",
             ],
-            "three siblings at consecutive positions, three consecutive keys"
+            "three siblings at consecutive positions, three consecutive keys — \
+             one bare stem throughout, with only the kind field telling them apart"
         );
         for step in &paths {
             // Compared by name, not by path: the verb canonicalises the grove
@@ -1241,9 +1249,9 @@ mod tests {
         assert_eq!(
             list(&g),
             vec![
-                "01-research-a-sync-survey-a-k1.md",
-                "02-research-b-sync-survey-b-k2.md",
-                "03-combine-research-sync-survey-combine-k3.md",
+                "01-research-a-sync-survey-k1.md",
+                "02-research-b-sync-survey-k2.md",
+                "03-combine-research-sync-survey-k3.md",
                 "BRIEF.md",
             ],
             "the run created its three leaves and nothing else"
@@ -1261,9 +1269,9 @@ mod tests {
         assert_eq!(
             names_of(&paths),
             vec![
-                "02-research-a-api-a-k4.md",
-                "03-research-b-api-b-k5.md",
-                "04-combine-research-api-combine-k6.md",
+                "02-research-a-api-k4.md",
+                "03-research-b-api-k5.md",
+                "04-combine-research-api-k6.md",
             ],
             "the steps continue the parent's positions; the keys continue the whole tree"
         );
@@ -1272,8 +1280,11 @@ mod tests {
 
     #[test]
     fn pair_rejects_a_malformed_stem_in_its_own_right() {
-        // A trailing dash is a bad slug, but `foo--a` is not, so validating only
-        // the *derived* names would let a malformed stem through on all three.
+        // The stem is now the slug verbatim, so this refusal is over-determined —
+        // the verb's own precondition check and `add_run`'s per-step validation
+        // both catch it. What is pinned is the *outcome*: a malformed stem
+        // refuses before the run and leaves nothing behind, whichever check
+        // fires.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
         assert!(leaf_add_pair(&g, &g, "foo-").is_err());
@@ -1294,19 +1305,19 @@ mod tests {
         // against a writer that never took the tree lock.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        fs::create_dir(g.join("01-research-a-survey-a-k1.md")).unwrap();
+        fs::create_dir(g.join("01-research-a-survey-k1.md")).unwrap();
 
         let err = leaf_add_pair(&g, &g, "survey").unwrap_err().to_string();
 
         assert!(
-            err.contains("01-research-a-survey-a-k1.md"),
+            err.contains("01-research-a-survey-k1.md"),
             "the error names the entry standing in the way: {err}"
         );
         let mut files = list(&g);
         files.sort();
         assert_eq!(
             files,
-            vec!["01-research-a-survey-a-k1.md", "BRIEF.md"],
+            vec!["01-research-a-survey-k1.md", "BRIEF.md"],
             "only the squatter and the brief — no half-built pair left behind"
         );
     }
@@ -1326,11 +1337,14 @@ mod tests {
         // rollback arm is pinned deterministically by the armed seam above.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        // `NN-research-a-<stem>-a-k<key>.md` is stem+22 at a single-digit key;
-        // `NN-combine-research-<stem>-combine-k<key>.md` is stem+34. At 233 the
-        // run plans two 255-byte names and one 267-byte name: the first two fit,
-        // the third does not.
-        let stem = "a".repeat(233);
+        // `NN-research-a-<stem>-k<key>.md` is stem+20 at a single-digit key;
+        // `NN-combine-research-<stem>-k<key>.md` is stem+26. At 235 the run plans
+        // two 255-byte names and one 261-byte name: the first two fit, the third
+        // does not. (Dropping the step suffixes shrank the longest generated name
+        // by 8 and narrowed the spread from 12 to 6, so the window this hazard
+        // needs is smaller than it was — but it is still open, because the kind
+        // labels themselves are unequal in length.)
+        let stem = "a".repeat(235);
 
         let err = leaf_add_pair(&g, &g, &stem).unwrap_err().to_string();
 
@@ -1382,9 +1396,8 @@ mod tests {
         // deliberately cut partial pair.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        FAIL_AFTER_CLAIM.with(|slot| {
-            *slot.borrow_mut() = Some("03-combine-research-survey-combine-k3.md".to_string())
-        });
+        FAIL_AFTER_CLAIM
+            .with(|slot| *slot.borrow_mut() = Some("03-combine-research-survey-k3.md".to_string()));
 
         let err = leaf_add_pair(&g, &g, "survey").unwrap_err().to_string();
 
@@ -1500,7 +1513,7 @@ mod tests {
         // and keys. Pinned end to end — fail, clear the obstruction, retry.
         let (_t, g) = grove();
         touch(&g, "BRIEF.md", "root — brief");
-        let squatter = g.join("01-research-a-survey-a-k1.md");
+        let squatter = g.join("01-research-a-survey-k1.md");
         fs::create_dir(&squatter).unwrap();
         assert!(leaf_add_pair(&g, &g, "survey").is_err());
         fs::remove_dir(&squatter).unwrap();
@@ -1510,9 +1523,9 @@ mod tests {
         assert_eq!(
             names_of(&paths),
             vec![
-                "01-research-a-survey-a-k1.md",
-                "02-research-b-survey-b-k2.md",
-                "03-combine-research-survey-combine-k3.md",
+                "01-research-a-survey-k1.md",
+                "02-research-b-survey-k2.md",
+                "03-combine-research-survey-k3.md",
             ],
             "the retry got the positions and keys the failed run had planned"
         );
@@ -1550,9 +1563,9 @@ mod tests {
         }
 
         let by_hand = [
-            leaf_add(&g, &g, "survey-a", Kind::ResearchA).unwrap(),
-            leaf_add(&g, &g, "survey-b", Kind::ResearchB).unwrap(),
-            leaf_add(&g, &g, "survey-combine", Kind::CombineResearch).unwrap(),
+            leaf_add(&g, &g, "survey", Kind::ResearchA).unwrap(),
+            leaf_add(&g, &g, "survey", Kind::ResearchB).unwrap(),
+            leaf_add(&g, &g, "survey", Kind::CombineResearch).unwrap(),
         ];
 
         assert_eq!(names_of(&generated), names_of(&by_hand));

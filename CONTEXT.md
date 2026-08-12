@@ -376,10 +376,9 @@ reviewer's job is to find fault), and each step a *different kind*, so per-kind
 routing alone expresses it. The **vendor pair** is `research-a` → `research-b` →
 `combine-research`: **breadth-and-confirmation**, two separately configured
 survey sessions unioned by a binary combine step. Both are **flat siblings** in
-their parent, named off a shared stem with a terminal step suffix (`<stem>` /
-`<stem>-review` / `<stem>-integrate`, and `<stem>-a` / `<stem>-b` /
-`<stem>-combine`), which keeps every step's [[Work-item handle]] unique and
-still naming its artifact after `.grove/` dies.
+their parent, **named off a shared stem** — every step carries that stem as its
+whole slug, because the [[Session kind]] field is the canonical statement of a
+step's role and the slug names the artifact instead of restating it.
 **They are constructed in opposite ways, and the asymmetry is the design.** A
 chain is **lazy**: each step is cut with `leaf-add` as the *last act* of the
 session before it — a producer adds `review-<producer>` only if review is
@@ -407,8 +406,17 @@ _Avoid_: using many in-session doubt reviewers as a substitute for cutting a
 review leaf; once review itself is substantial work, externalise it to the tree.
 _Avoid_: letting the doubt skill launch a competing cross-model review after the
 work has been escalated to Grove; that bypasses the review kind's routing policy.
-_Avoid_: a *leading* step token (`review-<stem>`) — it sorts every review beside
-every other review and scatters the chains the naming exists to reveal.
+_Avoid_: a **step token in the slug** at all — trailing (`<stem>-review`,
+`<stem>-a`) or leading (`review-<stem>`). It restates the kind sitting beside it,
+so it is a second and *unvalidated* source of truth for a fact grove parses and
+routes on, and `leaf-add <parent> foo-review --kind impl` is a perfectly legal way
+to make the two disagree. Both spellings remain legal filenames and nothing was
+migrated; a suffixed slug in an existing tree stays as it is.
+_Avoid_: claiming the step suffix ever kept a [[Work-item handle]] unique. A
+handle is `<slug>-k<key>` and a [[Permanent key]] is unique tree-wide, so handles
+were always unique; only *bare slugs* could collide, and grove enforces no slug
+uniqueness anywhere. `resolve` was built for that — it lists every match with its
+path, and the path carries the kind.
 _Avoid_: "a chain gets a [[Node directory]] of its own" — reversed, and the three
 arguments that once decided it have all lapsed again. What killed it is that the
 hierarchy was not worth its navigation cost, and that a node species meaning
@@ -422,13 +430,17 @@ picked producer without changing its handle — which is why it needed a
 fail-closed transaction. Escalating review is now one `leaf-add`.
 _Avoid_: treating either shape as enforced — grove validates no ordering between
 leaves, because a grammar is a relation *between* leaves and grove expresses
-none (task-kind-taxonomy). The suffix convention is a habit nothing parses, and
+none (task-kind-taxonomy). The shared stem is a habit nothing parses, and
 so are the `**Reviews:**` / `**Integrates:**` lines: they are written by hand by
 the session authoring the body, and **no code reads them**.
 _Avoid_: expecting a chain's steps to stay contiguous. They are appended at the
 parent's next free position, so one cut after unrelated work lands after it, and
 a sibling `leaf-insert` can split a chain that was contiguous. Grove enforces
 none of it.
+_Avoid_: treating a shared stem as itself a relationship. It is a reading
+convention exactly as the suffix was; what makes it worth keeping where the
+suffix was not is that it *adds* the artifact's name, which nothing else in the
+filename carries, rather than duplicating a parsed field.
 _Avoid_: reading that as "adjacency never matters" — it is per hop, and the two
 differ. A `review-*` step re-derives: its body names the producer's stable
 handle, task commits name their work item by that handle, so it locates the

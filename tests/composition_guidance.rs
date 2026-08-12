@@ -119,7 +119,7 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
         (
             "content/SKILL.md",
             GROVE_SKILL,
-            "grove-llm leaf-add <parent> <stem>-review --kind review-<producer>",
+            "grove-llm leaf-add <parent> <stem> --kind review-<producer>",
         ),
         (
             "content/TASK-FORMAT.md",
@@ -513,7 +513,7 @@ fn project_guides_name_the_implemented_composition_seams() {
 
     for expected in [
         "one in-session",
-        "grove-llm leaf-add <parent> <stem>-review --kind review-<producer>",
+        "grove-llm leaf-add <parent> <stem> --kind review-<producer>",
         "reviewable boundary",
     ] {
         assert_contains("docs/USAGE.md", USAGE, expected);

@@ -136,10 +136,10 @@ task file carries any routing metadata:
 grove-llm leaf-add-pair . sync-protocols
 ```
 
-That is the whole pair — a `sync-protocols-pair/` node holding
-`sync-protocols-a` (`research-a`), `sync-protocols-b` (`research-b`) and
-`sync-protocols-combine` (`combine-research`), off one stem. The verb takes no
-kinds and no vendors: all three are fixed by the shape.
+That is the whole pair — three **flat siblings** at consecutive positions, all
+slugged `sync-protocols`, differing only by their `research-a`, `research-b` and
+`combine-research` kinds. There is no node directory (`TASK-FORMAT.md`). The verb
+takes no kinds and no vendors: all three are fixed by the shape.
 
 **Two kinds, not one kind run twice.** That split is what makes "two corpora" a
 fact in the tree rather than a forecast about routing policy — the alternative was
@@ -151,11 +151,14 @@ is the configuration owner's policy, and grove will neither recover it from an
 opaque command string nor warn about it. If you care, check the two entries before
 paying for the pair.
 
-**The stem gets suffixes** — `-a`, `-b`, `-combine` — so all three sort together
-and the pair is visible in `find .grove` without opening a file
-(`TASK-FORMAT.md`). The two producers are labelled `a` and `b` rather than one
-bare and one `-second`, because they are peers; a bare stem beside a `-second`
-implies a producer/step relation the pair does not have.
+**All three carry the bare stem**, and the kind is what tells them apart — a slug
+that restated it would be a second, unvalidated statement of a fact the filename
+already carries (`TASK-FORMAT.md`). One consequence belongs to the pair alone: the
+two surveys would otherwise write the same `docs/research/<slug>.md` and the
+second would clobber the first, destroying the two corpora you paid for. The
+discriminator comes from the kind, like everything else here — `research-a` writes
+`docs/research/<slug>-a.md`, `research-b` writes `-b.md`, and `combine-research`
+writes the unadorned `<slug>.md` union.
 
 **Give both researchers the same brief.** The pair buys breadth, and breadth
 comes from the corpora differing, not the questions. Two briefs means two
@@ -464,10 +467,10 @@ the *last act* of the session before it.
 
 ```
   …the design session finishes, and judges review required:
-grove-llm leaf-add [12] sync-design-review --kind review-design
+grove-llm leaf-add [12] sync-design --kind review-design
 
   …the review session finishes, and has findings worth acting on:
-grove-llm leaf-add [12] sync-design-integrate --kind integrate-review-design
+grove-llm leaf-add [12] sync-design --kind integrate-review-design
 ```
 
 The saved empty session is the obvious win, but it is not the main one. **The
@@ -507,7 +510,7 @@ These habits make the chain worth its extra sessions:
   slightly wrong, and you re-derive the reviewer's intent from a codebase the
   reviewer never saw.
 - **The condition is directory-local, and it is over *entries*, not leaves.** Cut
-  the integration with `grove-llm leaf-insert <target> <stem>-integrate --kind
+  the integration with `grove-llm leaf-insert <target> <stem> --kind
   integrate-review-<producer>`, where the target is **the first sibling entry
   after the review whose subtree still holds live work**. `pick` descends a node
   directory in place, so a later sibling *node* with one live leaf anywhere
@@ -523,11 +526,13 @@ These habits make the chain worth its extra sessions:
   eventual file set part of its contract, so "it probably won't touch those
   files" is a guess, not a proof. The cost of being wrong is not that the
   integration fails but that it quietly integrates the wrong thing.
-- **Name the leaves off the producer's stem** — `<stem>`, `<stem>-review`,
-  `<stem>-integrate`. That is what makes `find .grove` — and any file manager —
-  show the chain as a chain without opening a file. The suffix goes on the end
-  for a reason: a prefix (`review-sync-design`) groups every review together and
-  scatters the chains (`TASK-FORMAT.md`).
+- **Give every step the producer's bare stem** — `<stem>`, `<stem>`, `<stem>`,
+  differing only by kind and key. The shared stem is what makes `find .grove` —
+  and any file manager — show the chain as a chain without opening a file; the
+  kind beside it is what says which step you are looking at, so the slug does not
+  restate it (`TASK-FORMAT.md`). One thing to expect: `grove-llm resolve <stem>`
+  on a chain is ambiguous and lists all three with their paths, which is usually
+  what you wanted. Name a specific step by its `<slug>-k<key>` handle or its key.
 - **Write the relationship line yourself.** A review's body carries
   `**Reviews:** <producer-handle>`; an integration's carries `**Integrates:**
   <review-handle>`. Nothing writes them and nothing parses them — they are a
@@ -567,7 +572,7 @@ These habits make the chain worth its extra sessions:
   fresh context and little else.
 
 grove does not require a review after every producer, and it parses neither the
-step suffixes nor the two declaration lines as grammar; deciding against review
+shared stem nor the two declaration lines as grammar; deciding against review
 remains normal. A chain is not a scheduling unit and not contiguous by
 construction: steps land at the parent's next free position, so one cut after
 unrelated work lands after it, and a later `leaf-insert` can split a chain that

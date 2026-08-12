@@ -97,7 +97,7 @@ A small workstream might look like this:
 ├── FORMAT
 ├── 01-DONE-requirements-plan-k1.md
 ├── 02-DONE-design-auth-k2.md
-├── 03-review-design-auth-review-k3.md
+├── 03-review-design-auth-k3.md
 └── 04-impl-ship-k4.md
 ```
 
@@ -128,10 +128,11 @@ contiguity, at every level. The one exception is the driver-owned `finish` leaf,
 which is skipped while any other work is live. You can compute the next session
 by eye with `find .grove` — the first name with no outcome infix.
 
-Review chains and research pairs are flat siblings named off a shared stem —
-`auth`, `auth-review`, `auth-integrate` above — so a listing shows the shape
-without any nesting. Nothing groups them: the stem is a reading convention, not
-grammar. See
+Review chains and research pairs are flat siblings named off a shared stem — the
+`auth` producer and its `review-design` step above share one slug and differ only
+by kind and key — so a listing shows the shape without any nesting. The kind
+states each step's role, so the slug does not restate it. Nothing groups them: the
+stem is a reading convention, not grammar. See
 [Architecture: task kinds and composition](ARCHITECTURE.md#task-kind-taxonomy).
 
 ## What happens in a session
@@ -197,11 +198,11 @@ one.** There is no chain verb and no chain node — each step is an ordinary
 
 ```sh
 # the producer's last act, if its artifact needs an adversarial read
-grove-llm leaf-add <parent> <stem>-review --kind review-<producer>
+grove-llm leaf-add <parent> <stem> --kind review-<producer>
 
 # the review's last act, if it found something worth acting on — but
 # `leaf-insert <first blocking sibling entry>` instead, if there is one
-grove-llm leaf-add <parent> <stem>-integrate --kind integrate-review-<producer>
+grove-llm leaf-add <parent> <stem> --kind integrate-review-<producer>
 ```
 
 **The integration is placed next to its review on purpose.** An

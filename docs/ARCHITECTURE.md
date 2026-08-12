@@ -358,6 +358,17 @@ shared stem — neither gets a node directory:
 - Review chain: `X → review-X → integrate-review-X`
 - Research pair: `research-a → research-b → combine-research`
 
+Every step carries that stem as its **whole slug**, so a shape's leaves differ
+only by kind and key. The kind field is the canonical statement of a step's role
+and the slug names the artifact; a step marker in the slug would restate the kind
+beside it, giving a second and unvalidated statement of a fact Grove already
+parses and routes on. That is convention rather than grammar in both directions:
+nothing generates or checks it for a chain, and a leaf slugged under the older
+`<stem>-review` spelling remains a well-formed name that no migration rewrites.
+The one consequence is that `resolve <stem>` on a chain is ambiguous and lists
+each match's kind-bearing path; every machine reference is a `<slug>-k<key>`
+handle or a key, which stays unique tree-wide.
+
 They are constructed in opposite ways, and the asymmetry is the design. A review
 chain is **lazy**: each step is an ordinary `leaf-add` performed as the last act
 of the session before it, so a producer cuts `review-<producer>` only when review

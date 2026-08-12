@@ -104,6 +104,30 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ### Changed
 
+- **A composed shape's steps drop the step suffix from their slugs.** A review
+  chain is now cut as `<stem>` / `<stem>` / `<stem>` — three leaves differing
+  only by kind and key — and `grove-llm leaf-add-pair <parent> <stem>` emits
+  `research-a-<stem>`, `research-b-<stem>` and `combine-research-<stem>` rather
+  than appending `-a`, `-b` and `-combine`. **The kind field is the canonical
+  statement of a leaf's role, and the slug names the artifact rather than
+  restating it.** All five markers were a 1:1 restatement of the kind sitting
+  beside them, so each was a second and *unvalidated* source of truth for a fact
+  grove already parses and routes on: nothing rejects `leaf-add <parent>
+  foo-review --kind impl`, and when the two disagree the slug lies while the
+  filename tells the truth. **Nothing was migrated and no format changed** — the
+  suffix was always convention rather than grammar, so both spellings remain
+  legal filenames and every existing leaf keeps the slug it was created with. The
+  one cost is that `grove-llm resolve <stem>` on a chain now reports the
+  ambiguity and lists all three matches with their kind-bearing paths, which is
+  usually the answer wanted; no machine path is affected, because the driver's
+  mandate, the `**Reviews:**` / `**Integrates:**` lines, commit messages and
+  grow-verb targets all name a `<slug>-k<key>` handle or a bare key, and keys are
+  unique tree-wide. One consequence belonged to the pair alone and is settled
+  from the same principle: `research-a` and `research-b` would otherwise write
+  the same `docs/research/<slug>.md`, so the kind supplies the discriminator —
+  `-a.md`, `-b.md`, and the unadorned union for `combine-research`. No ADR: the
+  decision is cheap to reverse, so the reasoning is durable in
+  `content/TASK-FORMAT.md` instead.
 - **Both binaries now link `content/`**, `grove` to extract it and `grove-llm`
   to serve units, so both compute their **methodology identity** from the linked
   embed directly. The compile-time constant existed precisely so that naming the

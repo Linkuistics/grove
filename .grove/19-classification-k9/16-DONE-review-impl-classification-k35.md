@@ -469,3 +469,78 @@ unexamined.
   structured — each has a `## Batch record` section with the same shape (units,
   coverage proof, rows owned, doubts by id, design findings). **Read them; they
   are why this review is an audit rather than a re-derivation.**
+
+## Review outcome
+
+The mechanical classification is accepted, but the semantic classification is
+not accepted as-is. The integration leaf owns these findings verbatim:
+
+1. **[high] Row 23 sends “citation discipline” to the wrong body.**
+   `skill-adrs-and-specs` promises field-guide habits for grilling,
+   research-leaf commissioning, and the review chain. Its fourth field-guide
+   address is currently `driving-cite-framework-decisions-to-the-source`, whose
+   condition and procedure are specifically about code depending on a framework
+   version. The promised research-leaf habit is instead stated by
+   `driving-how-to-write-a-research-leaf-brief`: demand a citation for every
+   failure-mode claim, prefer primary sources, and record missing sources. Point
+   the edge at the body the source actually promises; existing reachability is
+   not evidence that the current edge is semantically valid.
+2. **[high] Narrative units have been made artificial triggering roots.**
+   `skill-loop-diagram` contains an overview diagram, not a condition a session
+   can recognize. `driving-field-guide` contains file-level framing and an
+   anchor index, not a condition either; its generic `kinds=*` root also hides
+   the concrete prohibitions in procedural `driving-anti-patterns`. Rework or
+   remove this file-reader prose and give each rule that must ship an honest
+   triggering statement. Do not preserve narrative reachability by calling the
+   narrative a trigger, and do not leave the anti-pattern conditions reachable
+   only through a generic table of contents.
+3. **[medium] `driving-when-to-invoke-grilling` has a scope/prose mismatch.**
+   Its marker says `kinds=*`, but its complete trigger says only “a
+   `requirements` leaf's brief lists three or more questions whose answers
+   interdepend.” Either narrow the marker to the condition actually written or
+   rewrite the condition to state the intended all-kind behaviour, including
+   what a non-requirements session does when it encounters those questions.
+   The batch rationale cannot silently broaden semantics that are absent from
+   the delivered bytes.
+4. **[medium] Several slices still fail the prose half of “reads correctly
+   standing alone.”** Rewrite `driving-when-asserting-a-repo-wide-claim` so it
+   names its subject instead of opening with “The counterpart to the section
+   above”; remove or localize `grilling.md`'s cross-unit
+   `<supporting-info>` wrapper; and attach the relevant licence attribution
+   comment to each separated adapted unit. In the same focused prose cleanup,
+   remove file-reader-only residue and near-verbatim hub restatements that have
+   no mandate-delivery job. Preserve genuinely useful rules by restating their
+   conditions, not by retaining a document-navigation shell.
+
+### Rulings and adjudications
+
+- The six settled families stand. Family A has no missing negative half in the
+  committed owner: `task-in-session-doubt-budget` explicitly says that outside
+  the Bootstrap-and-mandate predicate doubt keeps its standalone bounded cycle.
+  Merely finding `.grove/` remains usefully explicit in its deferred bodies, but
+  delivery of the owner itself already establishes the positive predicate.
+- Family M is correctly owned by triggering `skill-chain-gap-asymmetry`; the
+  earlier claim that the adjacency obligation ships nowhere is stale.
+  `skill-integration-placement` is its addressed procedure.
+- `skill-commit-boundary-in-git-and-jj` and `skill-finish-nothing-after` remain
+  procedural. Their respective triggering owners give the session a direct
+  address at the only point the mechanics are needed. `skill-no-exception-to-check`
+  remains a defensible triggering prohibition.
+- A dangling colon is valid only when the marker's `defers=` is the explicit
+  address for the grammatical procedure promised by that colon and there is no
+  cleaner honest boundary. The accepted decompose and finish cases meet that
+  rule; the evidence case correctly used its cleaner boundary.
+- The four inbound doubt edges, three inbound context-structure edges, and the
+  multiple ADR-placement paths correspond to distinct source conditions. The
+  listed declines are justified. Row 23's fourth target is the one semantic edge
+  defect found by the spot-check.
+- The current list-grain rule and the mid-paragraph marker precedent are
+  ratified. A corpus-wide reflow solely to create more boundaries is not
+  justified; targeted reflow is appropriate where it enables one of the repairs
+  above, especially de-fusing `skill-adrs-and-specs`.
+- Design findings 1, 3, 5, and 7 are accepted as focused prose cleanup covered
+  by the integration finding above. Finding 2's blanket reflow is rejected;
+  finding 4 was resolved by family M; finding 6 needs no bidirectional edge
+  mechanism because `defers=` represents control flow rather than every prose
+  citation; finding 8 is ratified. For finding 9, the anchor-and-inventory method
+  worked as intended, and no second row divergence was found.

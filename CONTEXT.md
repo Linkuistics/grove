@@ -39,10 +39,15 @@ payload, every file's path and bytes — which is the value
 a skill directory or a binary belongs to. It is a hash rather than the crate
 version because the version does not move between a released binary and an
 edited checkout at that same version, which is exactly the pairing that has to
-be detectable. Once [[Global skill provisioning]] retires it stamps nothing and
-names only binaries; both of them link the embed by then — `grove` to compose
-mandates, `grove-llm` to serve units — so both hash it directly, and the
-compile-time constant and its equality test go.
+be detectable. It stops being a **compile-time constant** the moment `grove-llm`
+starts linking the embed to serve units: the constant exists precisely so that
+naming the identity does not link `content/`, so once the agent-facing binary
+links it anyway, both binaries hash it directly and the build-script traversal,
+the constant and its equality test go. **Separately and later**, once
+[[Global skill provisioning]] retires, it stamps nothing and names only binaries.
+_Avoid_: coupling the constant's removal to that retirement — the two events are
+a grove apart, and pairing them preserves a duplicate traversal past its only
+justification.
 _Avoid_: treating it as a version — it orders nothing and answers only "same
 build or not".
 _Avoid_: reading it as the identity of the extracted *directory tree* — the

@@ -164,6 +164,119 @@ review sees the final marked corpus. Reconcile the root brief's false
   a surfaced concern becomes a leaf in the current tree. B6 is about its shape
   and dependency order, not about moving it to an untracked future grove.
 
+## Triage — verification and disposition
+
+Every finding was checked against the artefact it cites before anything moved.
+
+**B1 — applied, with a different repair than the one first proposed.** The
+contradiction is real: the root brief rejects stage 1 as an increment for having
+no usable behaviour (`.grove/BRIEF.md`), and `unit-grammar-k7` was that stage,
+its own Notes conceding it "inert by construction". The review's first suggestion
+was to merge the two leaves. Merging was rejected on size: the combined contract
+runs to eleven distinct deliverables across `build.rs`, `src/`, `tests/`,
+`scripts/` and `content/` — a parser and a per-file gate over ~13 malformation
+classes, the `build.rs` parser-sharing layout decision, the marking of nine files,
+a two-mode CLI verb, an identity migration with live consumers, two test
+relocations and a release-script inversion. That is not one focused session, and
+it would have traded a horizontal leaf for a runaway one. Merging would also have
+cost a leaf, and disposing of a leaf is [[Pruning]] — HITL, which this session
+cannot do alone.
+
+The boundary was **redrawn** instead, along the seam the review's own fallback
+names ("end-to-end grammar-to-CLI capabilities"): **per-file addressability with
+its reader** (`addressable-embed-k7`) against **whole-embed validation**
+(`embed-wide-gate-k8`). Both land observable behaviour — a listing out of an
+installed binary, and a named build failure on a bad cross-reference — and
+neither waits on a sibling to be worth having. The split is safe because the
+trivial marking is valid under the **full** gate, so `k7`'s window ships nothing
+the finished gate would reject.
+
+Both slugs were renamed to match what the leaves now deliver:
+
+| was | is |
+|---|---|
+| `unit-grammar-k7` | `addressable-embed-k7` |
+| `methodology-verb-k8` | `embed-wide-gate-k8` |
+
+The keys are untouched, so `resolve 7` and `resolve 8` are unaffected, and no
+commit yet *records* either leaf — `increments-k4`'s body mentions the old names
+as leaves it created, which was accurate when written. The findings above, and
+`increments-review-k11`, keep the old names deliberately: they are the record of
+what was reviewed.
+
+**B2 — applied as stated.** Confirmed against
+`docs/specs/mandate-delivered-methodology.md` (*`grove-llm` links the embed, and
+the methodology identity simplifies*): the coupling is to the link, not to
+provisioning's retirement. The cutover moved into `addressable-embed-k7`, the
+successor charter's stage-4 code bullet now says stage 4 performs no identity
+migration, and `CONTEXT.md`'s [[Methodology identity]] entry — which stated the
+same wrong coupling — was corrected in place with an `_Avoid_` naming the trap.
+
+**B3 — prescription applied; stated reason rejected, with contrary evidence.**
+The finding claims a new match arm "would refuse the promised audit from an
+ordinary shell outside a live Grove session". It would not.
+`driver_lease::admit_session` returns `Ok(None)` before resolving anything when
+`GROVE_SIGNAL_FILE` is absent or empty (`src/driver_lease.rs`), and
+`llm_cli::run` reaches admission only after that check — so outside a Grove loop
+every verb runs in any directory today, repository or not. The acceptance test
+the finding specifies, "a command-level test from a non-repository temporary
+directory", would therefore have passed against the very defect it was written to
+catch: green by construction, pinning nothing.
+
+What is true is narrower. Whenever `GROVE_SIGNAL_FILE` **is** set, admission
+resolves a working tree via `repo::workspace_control` and compares it to the epoch
+record, so a caller outside a repository — or holding a stale signal path — is
+refused before the verb runs. Those are the environments the successor grove's
+sessions will fetch deferred procedural bodies from.
+
+So the contract went into `addressable-embed-k7` on its own merits — the verb
+reads only the binary's embed and touches no tree, which is the same species as
+`--content-hash`, whose own comment already states that exemption — and the
+acceptance seam was rewritten to set `GROVE_SIGNAL_FILE` while running from a
+non-repository directory, which is the environment where a tree-resolving arm
+actually is refused. The leaf body carries this correction so the implementing
+session does not restore the weaker test.
+
+**B4 — applied as stated, on both sides.** The conflict is real:
+`ordering-key-placement-k6` weighs deferring the carrier entirely (its option 3)
+while the implementation leaf required a duplicate ordering key to fail the first
+build gate. Both implementation leaves now derive their carrier obligations from
+the spec as `k6` settles it, including the possibility of no carrier at all, and
+`k6` gained an explicit obligation to reconcile the two dependent contracts —
+stating what the gate requires *per file* and *across the embed* separately,
+since those are now different leaves.
+
+**B5 — applied as stated.** 139,136 bytes across nine files, with the three
+largest at 51,524, 41,954 and 24,894, against a single leaf that also had to
+update the pinned id set and author the aggregate review handoff.
+`classification-k9` is now a node whose first child is `batches-k13`, a `planning`
+leaf. The batching hazard the finding names was confirmed by inspection:
+`content/SKILL.md` defers heavily into `driving.md`, `grilling.md` and
+`TASK-FORMAT.md`, so a file-at-a-time split would routinely point a live
+`defers=` at a file still carrying one trivial *triggering* unit — rejected twice
+by the gate, as a dangling target and as a target of the wrong class. The node
+charter requires the aggregate `review-impl`, naming the baseline and every child
+handle.
+
+**B6 — applied as stated.** Both halves confirmed. The order claim is false
+because a review leaf is cut lazily by its producer and lands at the parent's
+next free position (`content/TASK-FORMAT.md`, *The review chain*), so
+`classification-k9`'s review was always going to land *after* the suffix leaf,
+never contiguous with its producer. And the suffix leaf's own surface is
+`content/SKILL.md` plus `content/TASK-FORMAT.md` — 76,418 of the corpus's 139,136
+bytes. The leaf moved to position 11, ahead of the classification node; it stays
+`design` but is now barred from editing `content/`, `src/`, `CONTEXT.md` or
+tests, and must hand every resulting edit to an `impl` leaf cut with
+`leaf-insert` at the classification node. The root brief's "contiguous" /
+"preempts nothing" rationale was replaced with the actual reason for the order.
+
+**Non-findings: all seven left standing**, and one strengthened by direct
+evidence. The review argued `INSTRUCTED_VERBS` must not gain `methodology` in
+this grove; enumerating every `grove-llm <verb>` occurrence in the embed returns
+exactly the eleven the constant pins, with no `grove-llm methodology` anywhere.
+That enumeration is recorded in both implementation leaves so neither session
+re-derives it.
+
 ## Done when
 
 - Every B finding is verified and either applied to the tree/briefs or rejected

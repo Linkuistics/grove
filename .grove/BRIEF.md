@@ -25,9 +25,10 @@ flips delivery — mandate composition, then the retirement of
 
 ## Done when
 
-- `content/` carries its own classification — unit markers plus the per-file
-  ordering carrier `ordering-key-placement-k6` settles on — and remains whole,
-  readable documents; nothing a reader or a session sees changes.
+- `content/` carries its own classification — unit markers plus whatever per-file
+  ordering carrier `ordering-key-placement-k6` settles on, **including none** if
+  that leaf defers the carrier to composition — and remains whole, readable
+  documents; nothing a reader or a session sees changes.
 - A malformed embed fails `cargo build`, on every syntax, semantic and reference
   class the spec enumerates, through **one** parser implementation shared with
   the crate.
@@ -66,23 +67,69 @@ released and human-auditable **before** a composer and its golden snapshots are
 written over it. That is the risk concentration in the whole workstream, and it
 gets its own release and its own pair of eyes first.
 
-This grove's leaves, in order:
+**The stages are the design's units, and the leaves deliberately cut across
+them.** The same rule that rejects stage 1 as a separate *grove* — no usable
+behaviour on its own — rejects it as a separate *leaf*, so the first
+implementation leaf reaches into stage 2 far enough to serve what it parsed.
+Reading the leaf list below as a stage list is the mistake `increments-k4` made.
+
+This grove's leaves, in order. **`increments-integrate-k12` reshaped this list**
+after `increments-review-k11` found six problems with it; the reshaping is
+recorded per-leaf in the bodies and summarised under *What the review changed*.
 
 - `increments-review-k11` (review-planning) — a fresh context asked to disprove
   this decomposition before four leaves are executed on it. Inserted ahead of
   them, because a plan review that runs after the plan is executed reviews
-  nothing.
+  nothing. **Retired; it found six.**
+- `increments-integrate-k12` (integrate-review-planning) — the repair.
 - `ordering-key-placement-k6` (design) — one bounded question the design left in
-  conflict with its own increment order. Blocks the next leaf.
-- `unit-grammar-k7` (impl) — the `methodology` seam, marker grammar, parser,
-  fence rules, build gate, and a trivially correct marking.
-- `methodology-verb-k8` (impl) — `grove-llm methodology`, the two relocations,
-  the release-scan inversion.
-- `classification-k9` (impl) — the real classification pass, and the `review-impl`
-  chain the grilling earmarked. Last, so that chain stays contiguous with it.
+  conflict with its own increment order. Blocks both implementation leaves, and
+  reconciles their contracts before it retires.
+- `addressable-embed-k7` (impl) — the `methodology` seam, marker grammar, parser,
+  fence rules, the **per-file** build gate, a trivially correct marking, and
+  `grove-llm methodology` over it. Also the identity cutover and the release-scan
+  inversion, both of which follow from `grove-llm` linking the embed. Ends at an
+  observable listing out of an installed binary.
+- `embed-wide-gate-k8` (impl) — the malformation classes that need the whole
+  embed: id uniqueness, `defers=` resolution and its class check, procedural
+  reachability, ordering-key uniqueness if a carrier exists. Plus the pinned
+  complete id set and the two relocations out of `tests/provision.rs`.
 - `step-suffix-redundancy-k10` (design) — an **unrelated** concern the human
-  raised mid-grove and grove externalized rather than absorbed. Parked last; it
-  preempts nothing and belongs to no stage.
+  raised mid-grove and grove externalized rather than absorbed. It belongs to no
+  stage, but it is **not** last: its surface is `content/SKILL.md` and
+  `content/TASK-FORMAT.md`, 76 kB of the corpus the classification classifies, so
+  it and the `impl` leaf it cuts must both complete first.
+- `classification-k9` (node) — the real classification pass, decomposed because
+  139 kB of judgement across nine files is not one session. Its first child is the
+  `planning` leaf that derives dependency-ordered batches; its charter requires an
+  aggregate `review-impl` over the whole classification, cut inside the node after
+  the final batch.
+
+### What the review changed
+
+- **The first implementation boundary was horizontal.** This brief rejects stage 1
+  as a separate increment because it delivers no usable behaviour, then cut that
+  exact stage as `unit-grammar-k7` — inert by construction, nothing reading a
+  unit. The boundary now runs *per-file addressability with its reader* against
+  *whole-embed validation*, so both implementation leaves land observable
+  behaviour.
+- **Identity cleanup was assigned to the wrong grove.** The settled spec couples
+  it to the moment `grove-llm` links the embed, which is `addressable-embed-k7`;
+  the plan left the compile-time constant here and scheduled its removal for the
+  successor's stage 4, preserving a duplicate traversal for two groves past its
+  justification. It moved back, and out of the successor charter below.
+- **`classification-k9` was larger than one session.** It is now a node.
+- **The ordering carrier was pre-decided.** Both implementation leaves asserted a
+  duplicate-ordering-key build error that `ordering-key-placement-k6` may not
+  produce; they now derive their carrier obligations from that leaf's spec edit.
+- **"Last, so the chain stays contiguous" was false, twice over.** A review leaf
+  is cut lazily by its producer, so while `classification-k9` was a flat leaf its
+  `review-impl` would have landed at the parent's next free position, after the
+  suffix leaf — contiguity was never available to plan for. Decomposing it settles
+  that half by construction: the aggregate review now lives *inside* the node.
+  Position order is the only ordering grove offers, so what actually needed
+  deciding was which live work runs *before*
+  the classification, and the suffix concern does.
 
 ## Successor grove
 
@@ -108,11 +155,12 @@ that has not yet changed stays accurate until it does.* Enumerated, not swept:
 - **Code** — `src/provision.rs`, `src/harness.rs`, `src/lib.rs` (two `pub mod`
   lines), `src/launch.rs` (the provision call and its doc comment),
   `src/loop_driver.rs` (`reverify_installed`, and `mandate_prompt`'s launcher
-  lookup). `build.rs` keeps its `rerun-if-changed` emission and its parse gate,
-  loses the hash — and with it `GROVE_CONTENT_HASH`, the compile-time
-  [[Methodology identity]] constant, and the equality test that existed only to
-  keep two traversals in step (both binaries link the embed by then and can hash
-  it directly).
+  lookup). **Not the methodology identity** — `addressable-embed-k7` performs that
+  cutover in *this* grove, at the moment `grove-llm` starts linking the embed,
+  which is where the spec couples it. By the time this stage runs, `build.rs`
+  already keeps only its `rerun-if-changed` emission and its parse gate, and
+  `GROVE_CONTENT_HASH`, the hash traversal and the equality test are long gone.
+  Stage 4 deletes provisioning; it performs no delayed identity migration.
 - **Tests** — `tests/provision.rs` (after this grove's relocations),
   `tests/harness.rs`. Check `tests/support/mod.rs`'s `HARNESS_NAMES` env scrub:
   that is *environment hygiene for removed variables* and may well survive on its

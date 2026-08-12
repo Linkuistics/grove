@@ -69,15 +69,41 @@ Weigh 2 against 1 and 3 explicitly. Whatever is chosen, say in the spec **what
 the gate requires of a file**, since that sentence is what the first
 implementation increment builds.
 
+### Reconcile the dependent contracts before retiring — they must not pre-decide you
+
+`increments-review-k11` B4 caught the two implementation leaves asserting a
+result this leaf has not reached: they required a duplicate ordering key to fail
+the build, unconditionally, while option 3 here removes the ordering carrier from
+this grove entirely. `increments-integrate-k12` rewrote both to *derive* their
+carrier obligations from this spec edit rather than assume one, which puts the
+reconciliation on you:
+
+- `addressable-embed-k7` marks `content/` with "whatever file-level ordering
+  carrier this leaf settles on — **including none**", and gates whatever
+  file-level carrier rule you state.
+- `embed-wide-gate-k8` gates ordering-key uniqueness "**if and only if** there is
+  a carrier".
+
+So the spec sentence you write is read directly as a task contract by two later
+sessions. Make it say what the gate requires **per file** and what it requires
+**across the embed**, separately — those are two different leaves — and if the
+answer is that neither requires anything in this grove, say that too, in those
+words. Then check both leaf bodies still read correctly against your answer and
+edit them if they do not; a leaf whose Done-when you have just falsified is your
+finding, not the next session's surprise.
+
 ## Done when
 
 - `docs/specs/mandate-delivered-methodology.md` states where the per-file
   ordering key lives and what the build gate requires of an embedded markdown
-  file, with the provisioning-still-live constraint named as the reason.
+  file — per file and across the embed, distinguished — with the
+  provisioning-still-live constraint named as the reason.
 - Any consequence for `docs/adr/mandate-delivers-the-methodology.md`, `CONTEXT.md`
   ([[Methodology unit]]) or `docs/ARCHITECTURE.md` is reconciled in place —
   reworked, not appended to.
-- `unit-grammar-k7` can be started without re-deciding anything.
+- `addressable-embed-k7` and `embed-wide-gate-k8` are checked against the answer
+  and, if either now contradicts it, edited — and both can be started without
+  re-deciding anything.
 
 ## Notes
 

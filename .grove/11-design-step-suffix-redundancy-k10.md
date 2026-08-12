@@ -15,10 +15,29 @@ Raised by the human during `increments-k4`, verbatim:
 > I see that tasks not only have the kind as an initial name component, but also
 > as a last component before the id. This is redundant — the prefix is canonical.
 
-**This is an unrelated concern parked in this grove.** It has nothing to do with
+**This is an unrelated concern carried in this grove.** It has nothing to do with
 mandate-delivered methodology; it is here because grove externalizes a surfaced
-concern into the tree rather than absorbing it into the session that found it. It
-is sequenced last so it preempts nothing.
+concern into the tree rather than absorbing it into the session that found it.
+
+**It is sequenced *before* `classification-k9`, deliberately, and that is a
+correction.** `increments-k4` parked it last "so it preempts nothing", claiming
+that kept the classification's review chain contiguous with it.
+`increments-review-k11` B6 disproved that on two counts.
+
+The contiguity argument was never available: a review leaf is cut lazily by its
+producer and lands at the parent's next free position, so when
+`classification-k9` was a flat leaf its `review-impl` would have landed *after*
+this one. (It is now a node, and its aggregate review lives inside it — which
+settles the contiguity question by construction, and leaves position order as the
+only thing left to decide.)
+
+What position order has to decide is the corpus. The surface below is
+`content/SKILL.md` and `content/TASK-FORMAT.md`: 76,418 of the 139,136 bytes
+`classification-k9` classifies. Editing that prose *after* the classification
+would leave real units marked over text that then moved, and would leave the
+classification reviewer reading a corpus that had since changed. So the whole
+concern — this decision **and** any implementation it produces — completes before
+the real classification begins.
 
 The redundancy is real and this tree shows it:
 
@@ -65,7 +84,46 @@ neighbour, and nothing validates it. So this is a change to guidance plus one
 generator, and **no tree migration is implied**: existing leaves keep the slugs
 they were created with, and both spellings remain legal filenames.
 
+### This leaf decides; a separate `impl` leaf executes
+
+`increments-review-k11` B6 also caught the kind: this was cut as `design` while
+its Done-when required production and test changes to `src/tree_grow.rs` and the
+guidance tests. A `design` session's deliverable is a decision — a spec, an ADR
+set, or both — and a `design` session that finds itself editing the artifact is
+doing an `impl` leaf's work (`content/TASK-FORMAT.md`, *design*, *impl*).
+
+So **write no `content/` prose, no `src/` change and no test edit here.** Decide,
+record the reasoning, and hand every resulting edit to an `impl` leaf you cut as
+your last act — with the decision and the exact edit list written into its body
+verbatim, which is the whole payoff of cutting a step late. That holds in **both**
+outcomes: if removal is rejected, the surviving argument still has to be
+disentangled from the suffix-vs-prefix one in `content/SKILL.md`, and that prose
+repair is execution too.
+
+If the decision genuinely produces no edit anywhere, cut nothing and say so.
+
+**Cut it with `leaf-insert`, not `leaf-add`** — the implementation must also land
+before the real classification, and `leaf-add` would append it *after* the
+classification node:
+
+```
+grove-llm leaf-insert 9 <stem>-<something> --kind impl
+```
+
+Key `9` is the `classification-k9` **node directory**, which is the first sibling
+entry after this leaf whose subtree still holds live work. Target the node, never
+a leaf inside it — that would insert one level down, inside a node whose brief
+does not charter this concern.
+
+Whether the decision clears the ADR when-to-write test is a judgement this leaf
+makes. If it does not, the decision plus its reasoning living in the `impl` leaf's
+body is the whole record, and that is a legitimate outcome — but then the *durable*
+form of it is the methodology prose that leaf writes, so make sure the prose says
+why and not just what.
+
 ### Surface, if removal is chosen
+
+Hand this list to the `impl` leaf; do not work it here.
 
 - `content/SKILL.md` — the *Cut the next step* section: the stem-suffix rule and
   its two arguments.
@@ -84,15 +142,23 @@ they were created with, and both spellings remain legal filenames.
 
 ## Done when
 
-- The decision is made and recorded where it binds: `content/SKILL.md` and
-  `content/TASK-FORMAT.md` for the convention, and an ADR **only if** the
-  trade-off clears the when-to-write test — a naming convention with a stated
-  reason may not, and a paragraph in the methodology may be the whole answer.
-- If removal is chosen, `leaf-add-pair`'s generated slugs and every guidance test
-  pinned to the old phrasing move with it, and the methodology says explicitly
-  that both spellings remain legal so no existing tree is invalidated.
-- If removal is rejected, the *surviving* argument is stated on its own terms and
-  the suffix-vs-prefix argument stops standing in for it.
+- The decision is made, with the bare-slug-uniqueness and surviving-commit-handle
+  claims each answered on its own terms, and the suffix-vs-prefix argument
+  explicitly barred from standing in for either.
+- An ADR exists **only if** the trade-off clears the when-to-write test — a naming
+  convention with a stated reason may not, and a paragraph in the methodology may
+  be the whole answer.
+- No `content/`, `src/`, `CONTEXT.md` or test file is edited by this session.
+- Unless the decision produces no edit at all, an `impl` leaf exists, cut with
+  `leaf-insert` at the `classification-k9` node so it runs before the real
+  classification, carrying verbatim: the decision, its reasoning, and the exact
+  edit list from *Surface* above. Its own contract must include —
+  - if removal is chosen, that `leaf-add-pair`'s generated slugs and every
+    guidance test pinned to the old phrasing move with it, and that the
+    methodology says explicitly that both spellings remain legal so no existing
+    tree is invalidated;
+  - if removal is rejected, that the surviving argument is restated on its own
+    terms in the prose.
 
 ## Notes
 

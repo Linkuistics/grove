@@ -149,7 +149,7 @@ condition the session has already read. The relationship has to be **declared**,
 and the marker is where it goes — adjacent to the prose, for the same reason the
 classification is.
 
-Three rules make the declaration mechanical rather than a comment:
+Four rules make the declaration mechanical rather than a comment:
 
 - **Every `defers=` member names a declared unit**, and that unit's class is
   `procedural`. Both are build errors, checked across the whole embed.
@@ -163,9 +163,19 @@ Three rules make the declaration mechanical rather than a comment:
   total partition, and it closes the mirror hole. Partition makes unclassified
   prose impossible; reachability makes an *undiscoverable procedure* impossible —
   a body no session can be told about is deleted from the methodology as surely as
-  prose no parser can see, and just as silently. It also disposes of cycles
-  without a rule about them: a ring of procedural units that defer only to each
-  other satisfies no reachability check.
+  prose no parser can see, and just as silently.
+- **No chain of deferrals returns to a unit it has already passed through.**
+  Reachability does **not** subsume this, and reading it as though it did was the
+  design's own error. A ring of procedural units that defer only to each other is
+  entered by no triggering unit and fails as unreachable — but a ring a triggering
+  unit *does* enter is reached like any other chain, and a session following
+  `defers=` out of its mandate is directed round it forever with no terminal body
+  and no visited-id rule to save it. Reachability asks whether a mandate can get
+  *to* a unit; termination asks whether a session that follows the deferrals ever
+  arrives *anywhere*. Both are build errors, and termination is checked behind
+  reachability, so a ring nothing enters is still reported as the orphan it also
+  is — that is the repair its author has to make first, and the ring is dead prose
+  until they make it.
 
 Together with partition, that yields the structural claim the design is actually
 for: **every byte of the methodology is either in a mandate or reachable from
@@ -291,16 +301,17 @@ Three classes of malformation fail there:
   not before.
 - **Reference** — a `kinds=` member that is not one of the nineteen, a `defers=`
   member that names no declared unit, a `defers=` member whose unit is not
-  `class=procedural`, or a procedural unit no mandate can reach.
+  `class=procedural`, a procedural unit no mandate can reach, or a chain of
+  `defers=` that returns to a unit it has already passed through.
 
 **What the gate requires per file, and what it requires across the embed**, are
 separable and are built separately. A single `(path, text)` decides every syntax
 error, plus the two semantic errors about one file — no unit declared, and body
 text before the first marker — and the `kinds=` membership check. Everything else
 needs the assembled set: id uniqueness, `defers=` resolution and its class check,
-and procedural reachability. **Neither half requires anything of a file-ordering
-key** for as long as no composer exists — nothing per file, and no uniqueness
-across the embed.
+procedural reachability, and chain termination behind it. **Neither half requires
+anything of a file-ordering key** for as long as no composer exists — nothing per
+file, and no uniqueness across the embed.
 
 The reference class is the one `defers=` changes, and it changes it in the
 direction that matters: **`content/` now references ids, so an unknown id inside
@@ -676,11 +687,12 @@ neither required nor rejected.
 - **THEN** it opens nothing and closes nothing, so a marker below it is an
   ordinary unit boundary and a fence it appears to close stays open
 
-### Requirement: Every procedural unit is reachable from a mandate
+### Requirement: Every procedural unit is reachable from a mandate, by a chain that ends
 
 The build SHALL reject any `defers=` target that is not a declared procedural
-unit, and any procedural unit not reachable by following `defers=` from a
-triggering unit.
+unit, any procedural unit not reachable by following `defers=` from a triggering
+unit, and any chain of `defers=` that returns to a unit it has already passed
+through.
 
 #### Scenario: unknown target
 - **WHEN** a `defers=` member names no declared unit
@@ -694,6 +706,18 @@ triggering unit.
 - **WHEN** a procedural unit is named by no unit's `defers=`, or only by units
   themselves unreachable from any triggering unit
 - **THEN** the build fails, naming the unreachable ids
+
+#### Scenario: unrooted ring
+- **WHEN** procedural units defer only to each other and no triggering unit
+  names any of them
+- **THEN** the build fails as unreachable, not as a cycle — nothing entering the
+  ring is the fault its author repairs first
+
+#### Scenario: rooted ring
+- **WHEN** a triggering unit's `defers=` reaches a chain of procedural units that
+  returns to one it has already passed through, whether after one hop or several
+- **THEN** the build fails, located at the deferral that closes the ring and
+  naming the ring's ids in the order a session would walk them
 
 ### Requirement: Triggering units reach every kind they are scoped to
 
@@ -784,6 +808,15 @@ The checks that seam carries:
   rejects the real embed.
 - **The malformed cases**, each asserted to fail: every syntax, semantic, and
   reference error listed above.
+- **Termination checked against an independent method**, not only against
+  hand-written shapes. The walk's verdict is agreed with a transitive closure
+  computed by saturation rather than by descent, over every digraph on three
+  procedural units, self-loops included. Every unit is rooted, so reachability is
+  held satisfied and the cycle question is the only one live — this isolates
+  termination rather than covering both rules. It earns the machinery because
+  termination is the one rule in the set that shipped as a claim plausible
+  fixtures did not cover, and a suite proves the shapes its author thought of,
+  which is exactly what was in question.
 - **The completeness invariant**, now three claims rather than two — every
   triggering unit appears in the composed mandate of every kind its scope admits,
   every procedural unit appears in none, and every unit is reachable: triggering

@@ -121,7 +121,8 @@ promotes an example to a boundary — so a unit can neither begin nor end inside
 fenced block. Malformed
 markers fail the **build**, as does a file whose fence state is unbalanced at end
 of file, one that does not end in a newline, one whose path holds a byte a listing
-row cannot carry, or a deferral naming no procedural unit: the embed is Grove's own
+row cannot carry, a deferral naming no procedural unit, or a chain of deferrals
+returning to a unit it already passed through: the embed is Grove's own
 compile-time artifact, not a human's task tree, so constraint 5 does not reach it.
 _Avoid_: reading a unit as a section. Headings do not delimit units, and the
 grain is deliberately finer than a heading's — one bullet out of nineteen.
@@ -186,6 +187,11 @@ _Avoid_: stating the invariant as "every triggering unit in *every* kind's
 mandate". `kinds=*` is the default, not the rule; a unit scoped to one kind must
 be absent from the other eighteen, and that absence is half of what the test
 asserts.
+_Avoid_: reading reachability as covering **cycles**. It covers a ring no
+triggering unit enters, because that ring is unreachable; a ring one *does* enter
+is reached like any other chain, and a session following the deferrals is sent
+round it forever. That every chain **terminates** is its own build check, run
+behind reachability so an unrooted ring is still named as the orphan it also is.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:

@@ -81,20 +81,26 @@ stood at the graft — a closed record, not part of the versioned sequence above
   The gate reads through the crate's own parser rather than a second
   implementation. Grove's compile-time artifact is not the human's task tree, and
   the build that produced it can see the whole of it.
-- **...and so does a malformed embed no single file could have caught.** Three
+- **...and so does a malformed embed no single file could have caught.** Four
   more classes fail `cargo build`, each needing the whole assembled unit set: a
   **duplicate id** anywhere in the embed, which would make one of the two units
   unaddressable by the verb that addresses only by id; a **`defers=` naming no
   declared unit**, or naming a `class=triggering` one, which would hand a session
-  a condition where a procedure was promised; and a **procedural unit no chain of
+  a condition where a procedure was promised; a **procedural unit no chain of
   deferrals reaches**, which is partition seen from the other end — an
   undiscoverable procedure is deleted from the methodology as surely as prose no
-  parser can see. Cycles need no rule of their own: a ring of procedures
-  deferring only to each other is entered by no triggering unit, so it fails as a
-  group. Each is reported with the file and offset, and with the second site
-  named where there is one. The unknown id a *caller* passes to `grove-llm
-  methodology` is unchanged and stays a runtime error — it is a caller's mistake,
-  visible only when the call is made.
+  parser can see; and a **chain of deferrals that returns to a unit it has
+  already passed through**, whether after one hop or several. Reachability does
+  not subsume that last one, and treating it as though it did was the hole: a
+  ring of procedures deferring only to each other is entered by no triggering
+  unit and fails as unreachable, but a ring a trigger *does* enter is reached
+  like any other chain, and a session walking `defers=` out of its mandate is
+  sent round it forever. The two run in that order, so an unrooted ring is still
+  reported as the orphan it also is. Each failure is reported with the file and
+  offset, and with the second site named where there is one — for a ring, the
+  deferral that closes it and the ids in the order a session would walk them. The
+  unknown id a *caller* passes to `grove-llm methodology` is unchanged and stays a
+  runtime error — it is a caller's mistake, visible only when the call is made.
 
 ### Changed
 

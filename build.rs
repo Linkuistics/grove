@@ -29,9 +29,10 @@
 //! The gate has two halves, built as two modules and run in that order. The
 //! **per-file** half is everything a single `(path, text)` decides. The
 //! **whole-embed** half — id uniqueness, `defers=` resolution and its class
-//! check, procedural reachability — needs the assembled set, so it runs once
-//! every file has parsed. Both are `#[path]`-included from `src/`, so neither
-//! is a second implementation of anything.
+//! check, procedural reachability, and deferral chains that terminate — needs
+//! the assembled set, so it runs once every file has parsed. Both are
+//! `#[path]`-included from `src/`, so neither is a second implementation of
+//! anything.
 
 // `Kind` alone is what the parser needs (a `kinds=` member is validated against
 // the closed nineteen), but a module is the unit of inclusion; the rest of
@@ -65,8 +66,9 @@ const MARKER_HELP: &[&str] = &[
 /// there would send a contributor to look for a typo that is not present.
 const EMBED_HELP: &[&str] = &[
     "Every unit id is unique across the whole embed, every `defers=` names a declared",
-    "`class=procedural` unit, and every procedural unit is reached by following",
-    "`defers=` from some triggering unit.",
+    "`class=procedural` unit, every procedural unit is reached by following `defers=`",
+    "from some triggering unit, and no chain of deferrals returns to a unit it has",
+    "already passed through.",
 ];
 
 fn main() {

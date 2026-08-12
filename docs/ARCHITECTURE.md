@@ -684,16 +684,20 @@ defended against.
 The gate has **two halves, split by what a check needs to see**, and the split
 is the seam rather than a quota. `parse.rs` decides everything a single
 `(path, text)` settles — the marker grammar, partition, fence state, the leading
-preamble, the file-level rules. `whole_embed.rs` decides the three that need the
+preamble, the file-level rules. `whole_embed.rs` decides the four that need the
 assembled set: **id uniqueness** across the embed, because an id is the only
 address `grove-llm methodology` has; **`defers=` resolving to a declared
-`class=procedural` unit**; and **every procedural unit reachable** by following
-`defers=` from some triggering unit. Reachability is partition seen from the
-other end — together they say every byte of the methodology is either in a
-mandate or reachable from one — and it disposes of deferral cycles without a rule
-about them, since a ring entered by no triggering unit is unreachable by
-construction. `methodology::units` re-runs the whole-embed half over the
-**linked** embed, which is a different traversal of what the gate saw on disk.
+`class=procedural` unit**; **every procedural unit reachable** by following
+`defers=` from some triggering unit; and **every chain of deferrals
+terminating**. Reachability is partition seen from the other end — together they
+say every byte of the methodology is either in a mandate or reachable from one.
+It does **not** also dispose of deferral cycles, which is the distinction the
+fourth check exists to hold: a ring entered by no triggering unit is unreachable
+by construction, but a ring a trigger *does* enter is reached like any other
+chain, and a session following `defers=` round it never arrives. The two run in
+that order, so an unrooted ring is still reported as the orphan it also is.
+`methodology::units` re-runs the whole-embed half over the **linked** embed,
+which is a different traversal of what the gate saw on disk.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is

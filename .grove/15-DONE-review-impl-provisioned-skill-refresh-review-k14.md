@@ -75,3 +75,60 @@ of scope, as it was for `k9`.
 --all-features -- -D warnings` clean, `cargo fmt --check` clean. The new test was
 mutation-checked twice: an inline removed verb and a *wrapped* removed verb each
 made it fail with file, line and verb, and it passed again on restore.
+
+## Findings
+
+### P2 — The changelog still says old-skill/new-binary skew is safe
+
+`CHANGELOG.md:141-144` says an older skill "names only verbs that exist." That
+is the producer's rejected first draft, and it contradicts both
+`docs/ARCHITECTURE.md:651-659` and the new test's own rationale at
+`tests/provision.rs:83-89`: the v17 skill names `leaf-add-chain`, which a newer
+binary has removed. This release note would preserve exactly the unsafe
+one-direction claim the rest of `provisioned-skill-refresh-k9` corrected. State
+that skew is unsafe in both directions.
+
+### P2 — The scanner can miss a valid instruction while its controls still pass
+
+`scan_instructed_verbs` requires whitespace immediately after `grove-llm`
+(`tests/provision.rs:250-256`), so the ordinary Markdown form
+``Run `grove-llm` `leaf-add-chain` …`` is invisible: the closing backtick makes
+the separator empty. The corpus currently yields 11 distinct instructed verbs,
+but `tests/provision.rs:124-140` requires only eight plus `leaf-add`; the scan can
+therefore lose any three other verbs and still satisfy both positive controls.
+Together those facts defeat the test's universal claim: changing up to three
+verbs to adjacent code spans, then removing one from the CLI, can ship an
+instruction the binary lacks without a failure. Pin complete expected coverage
+or add controls for every accepted Markdown shape, including adjacent spans.
+
+The other requested shapes do not expose the same silent hole: two spaces and a
+contiguous invocation in a table cell are accepted; a hyphenated verb across a
+line wrap is collected as a truncated unknown verb and fails closed; negative
+prose containing a contiguous invocation is conservatively a false positive.
+
+### P2 — `exposed_verbs` flattens nested command paths
+
+`tests/provision.rs:192-200` recursively inserts every Clap subcommand's bare
+name into one set. The CLI is flat today, but if it later gains
+`grove-llm admin repair`, the set contains `repair` and an invalid instruction
+`grove-llm repair` passes. The invariant is about invocable command paths, so
+either compare only top-level verbs while the methodology scanner reads only
+top-level invocations, or retain and compare full paths.
+
+### P3 — The glossary entry crosses its own definition-only boundary
+
+`CONTEXT.md:40-50` starts with the useful definition of **Embedded methodology**
+but then explains stamp behavior, both skew cases, and the exact test that pins
+one half of the contract. Those mechanisms already live in
+`docs/ARCHITECTURE.md`; after `shared-skill-dir-clobber-k13` they also have their
+own **Methodology identity** and **Build pairing** glossary entries. Keep the
+definition and re-litigation `_Avoid_` lines, and move or delete the mechanism
+paragraph rather than duplicating it here.
+
+### P3 — The root brief records a correction instead of only the corrected state
+
+`.grove/BRIEF.md:45-50` already states the true build-boundary reason. The
+`Corrected by …` paragraph at lines 52-57 then turns the brief into a session
+log and repeats the obsolete premise solely to retract it. Remove that paragraph;
+the focused `provisioned-skill-refresh-k9` commit already preserves the history,
+while future brief-chain readers need only the current charter.

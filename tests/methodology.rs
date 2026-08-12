@@ -108,7 +108,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
 /// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
 /// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 93] = [
+const EMBEDDED_UNITS: [&str; 96] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -121,12 +121,15 @@ const EMBEDDED_UNITS: [&str; 93] = [
     "driving-ask-wdyt",
     "driving-cite-framework-decisions-to-the-source",
     "driving-dont-merge-questions",
+    "driving-doubting-inside-a-picked-leaf",
     "driving-field-guide",
     "driving-how-to-write-a-research-leaf-brief",
     "driving-record-decisions-inline",
+    "driving-review-chain-habits",
     "driving-reworking-adrs-and-briefs",
     "driving-running-the-vendor-pair",
     "driving-the-combine-step",
+    "driving-the-review-chain",
     "driving-turning-a-sweep-into-evidence",
     "driving-when-asserting-a-repo-wide-claim",
     "driving-when-code-depends-on-a-framework-version",
@@ -143,7 +146,7 @@ const EMBEDDED_UNITS: [&str; 93] = [
     "grilling-offer-adrs-sparingly",
     "grilling-sharpen-fuzzy-language",
     "grilling-update-context-inline",
-    "pending-driving-doubt",
+    "pending-driving-decompose",
     "pending-skill-loop",
     "skill-bare-grove-dispatch",
     "skill-bootstrap",

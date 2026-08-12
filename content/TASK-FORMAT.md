@@ -103,7 +103,7 @@ fault.
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
   to, not to ship. The point is the reaction it provokes, not the code's
   survival.
-<!-- unit: task-producer-impl kinds=impl class=triggering defers=driving-cite-framework-decisions-to-the-source -->
+<!-- unit: task-producer-impl kinds=impl class=triggering defers="driving-cite-framework-decisions-to-the-source driving-doubting-inside-a-picked-leaf" -->
 - **impl** (AFK) — produces code, docs, or tests. The deliverable is an artifact
   that ships. (`driving.md` carries the habits: cite framework decisions to the
   source, doubt a hard-to-reverse decision before it stands, and externalize
@@ -176,7 +176,7 @@ decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
 
-<!-- unit: task-in-session-doubt-budget kinds=* class=triggering -->
+<!-- unit: task-in-session-doubt-budget kinds=* class=triggering defers=driving-doubting-inside-a-picked-leaf -->
 **In-session doubt is budgeted across the whole picked leaf**, once the current
 session has run Bootstrap and adopted the driver's selected-leaf mandate:
 
@@ -209,7 +209,7 @@ one-time legacy migration still reads it: `work`, `review-work` and
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness" -->
+<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness driving-the-review-chain driving-review-chain-habits" -->
 ## Composing the kinds — the two shapes
 
 The kinds compose into two habitual shapes. A session cutting leaves should

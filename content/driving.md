@@ -293,7 +293,7 @@ the ADRs its findings landed in, and each ADR has a rationale section
 citing the survey by primary source. A future reader of either
 artifact can trace the evidence chain without re-doing the research.
 
-<!-- unit: driving-reworking-adrs-and-briefs class=procedural -->
+<!-- unit: driving-reworking-adrs-and-briefs class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 ## Reworking ADRs and briefs as understanding shifts
 
 An ADR set is a **minimum coherent set describing the current design**, not a
@@ -335,7 +335,7 @@ note for what you *couldn't* verify — is not only for research. It applies to
 whose correctness depends on the version. Training data goes stale; an API you
 "remember" may have been deprecated two releases ago.
 
-<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural -->
+<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 For that kind of code — and only that kind, not version-invariant logic,
 renames, or plumbing:
 
@@ -428,7 +428,7 @@ count.
 sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
 
-<!-- unit: pending-driving-doubt kinds=* class=triggering -->
+<!-- unit: driving-doubting-inside-a-picked-leaf class=procedural -->
 ## Doubting inside a picked Grove leaf
 
 The composition rule starts from a procedural fact: the Grove driver launched
@@ -469,6 +469,7 @@ redesign is a new producer review chain beside the leaf being integrated.
 adversarial-combine disciplines instead. A load-bearing decision derived from
 research gets its own reviewed producer chain.
 
+<!-- unit: driving-the-review-chain class=procedural -->
 ## The review chain — when doubt earns its own leaves
 
 The review chain is `X` → `review-X` → `integrate-review-X`: a producer, a fresh
@@ -497,6 +498,7 @@ verbatim, the file to start from. That is strictly more than a constructor
 rendering a goal sentence from a handle could produce, and it is why the session
 that knows *why* the step is needed is the right author.
 
+<!-- unit: driving-review-chain-habits class=procedural -->
 These habits make the chain worth its extra sessions:
 
 - **Decide at the end of the session, not the start.** A producer knows whether
@@ -601,6 +603,7 @@ was contiguous. Nothing refuses either — which is exactly why the adjacency of
 the `review → integrate` hop is *your* obligation at the moment you cut the leaf,
 and why the verb you reach for there is `leaf-insert`.
 
+<!-- unit: pending-driving-decompose kinds=* class=triggering -->
 ## Externalizing surfaced work
 
 grove's value is many small, low-context sessions — each leaf picked up fresh,

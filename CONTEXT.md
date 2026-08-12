@@ -75,6 +75,41 @@ _Avoid_: reading either report as a gate. The driver's is a proxy measured in
 its own environment, and a mid-task `grove-llm` refusal would cost more than the
 mismatch; the human who can fix either reads the same stream.
 
+**Mandate slice**:
+A byte-exact projection of the [[Embedded methodology]] into one session's
+`${prompt}` — the unit out of which a 100%-specific mandate is composed. The
+driver selects units by the launched [[Session kind]] and inlines their source
+bytes; it never paraphrases, because driver-composed prose would make `content/`
+non-canonical, and a slice cannot contradict what it copies. Which units a kind
+receives is marked **in `content/` itself**, adjacent to the prose it classifies:
+an HTML-comment **unit marker** per unit, plus per-file KDL frontmatter. Three
+properties bind every slice — succinct, never contradicting or walking back the
+methodology, and a *selector* that takes the session straight to the right
+content rather than a substitute for it.
+_Avoid_: reading a slice as a **pointer**. Naming a location leaves the session
+reading the whole section and performing the selection itself, which is the
+reasoning cost the slice exists to remove — and grove's content is not addressable
+at that granularity anyway (a kind's discipline is one bullet inside a
+nineteen-bullet section).
+_Avoid_: treating a slice as a summary or a paraphrase. It is the source bytes,
+or it is a second source of truth.
+
+**Triggering unit** / **procedural unit**:
+The classification deciding what every [[Mandate slice]] must carry. Every rule
+in the methodology is a conditional. Its **condition** — *that a situation exists
+calling for something other than what this session is doing* — is **triggering**
+and ships in **every** kind's mandate. Its **body** — how to act once that is
+decided — is **procedural** and is deferred to `grove-llm methodology`. Keep the
+`if`, defer the `then`. The asymmetry is why: withholding a procedural body costs
+a lookup the session knows to make, while withholding a triggering condition
+yields an **unasked question** — silent, and grove's primary failure mode (a
+session quietly absorbing work that should have been its own leaf). The split is
+data rather than judgement re-made per session, so a **completeness invariant**
+is mechanically checkable: every triggering unit appears in every kind's composed
+mandate, and every procedural unit is reachable through `grove-llm methodology`.
+_Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
+the test; whether the session could know to *ask* for it is.
+
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:
 (1) promote durable artifacts from the briefs; (2) delete `.grove/` in a focused

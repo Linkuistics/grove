@@ -72,8 +72,8 @@ build the mandate right?" to "did we classify this one unit right?", and the
 residue gets an adversarial review pass.
 
 `content/` stays a set of whole, readable markdown documents. The markers are
-HTML comments and per-file frontmatter, so nothing about reading `content/` as
-prose changes.
+HTML comments, so nothing about reading `content/` as prose changes — and a file
+that already opens with a `---`-delimited block keeps it, untouched and unread.
 
 ## Decisions
 
@@ -81,7 +81,10 @@ prose changes.
 
 Every byte of an embedded markdown file's body belongs to **exactly one** unit.
 A unit begins at its marker and runs to the byte before the next marker, or to
-end of file. There are no gaps, no nesting, and no close markers.
+end of file. There are no gaps, no nesting, and no close markers. *Body* here
+means everything after the optional leading `---`-delimited preamble, which is
+the file's only region no unit covers and the parser's only unread bytes — see
+*A leading `---` block is opaque preamble* below.
 
 This is the design's load-bearing structural choice, and it is not tidiness.
 If units were islands, prose outside every unit would be unclassified and
@@ -246,13 +249,24 @@ stranger's stalled loop.
 Three classes of malformation fail there:
 
 - **Syntax** — an unparseable marker, an unknown attribute, attributes out of the
-  fixed order, a missing `class`, `kinds` on a procedural unit, or a file whose
-  fence state is not neutral at end of file.
-- **Semantics** — a duplicate unit id anywhere in the embed, body text before the
-  first marker, or a duplicate file-ordering key.
+  fixed order, a missing `class`, `kinds` on a procedural unit, a file whose fence
+  state is not neutral at end of file, or a leading `---` block that never closes.
+- **Semantics** — a duplicate unit id anywhere in the embed, a file declaring no
+  unit at all, or body text before the first marker. A duplicate file-ordering
+  key joins this class when the ordering directive arrives with the composer, and
+  not before.
 - **Reference** — a `kinds=` member that is not one of the nineteen, a `defers=`
   member that names no declared unit, a `defers=` member whose unit is not
   `class=procedural`, or a procedural unit no mandate can reach.
+
+**What the gate requires per file, and what it requires across the embed**, are
+separable and are built separately. A single `(path, text)` decides every syntax
+error, plus the two semantic errors about one file — no unit declared, and body
+text before the first marker — and the `kinds=` membership check. Everything else
+needs the assembled set: id uniqueness, `defers=` resolution and its class check,
+and procedural reachability. **Neither half requires anything of a file-ordering
+key** for as long as no composer exists — nothing per file, and no uniqueness
+across the embed.
 
 The reference class is the one `defers=` changes, and it changes it in the
 direction that matters: **`content/` now references ids, so an unknown id inside
@@ -263,25 +277,89 @@ listing. The two cases are distinct in who can fix them: a bad `defers=` target 
 a contributor's mistake, visible to the build that produced it, while a bad
 argument is a caller's, visible only when the call is made.
 
-### Per-file frontmatter carries the file's mandate order
+### A leading `---` block is opaque preamble
 
-Each embedded markdown file opens with `---`-delimited **KDL** frontmatter. KDL
-because it keeps the repository to one metadata language — the session
-configuration parser already owns one. `---` delimiters because it is the shape
-the files already use and the diff is minimal.
+The parser skips a `---`-delimited block occupying an embedded markdown file's
+first bytes, without interpreting it. The block is **optional**, and the build
+neither requires it, forbids it, nor reads a field out of it; everything after it
+is body, and body must begin with a unit marker.
 
-It carries one field: the file's position in mandate composition. Ordering has to
-live somewhere, and putting it in `content/` rather than in a file list in Rust
-keeps the driver from owning a fact about content's presentation. Duplicate
-positions are a build error, because the composition order must be total.
+Today exactly one embedded file has one. `content/SKILL.md`'s YAML frontmatter is
+what every harness reads to discover the provisioned skill — its `name:` and
+`description:` are the entry a session sees in its skill list — and it must keep
+working unmodified for as long as anything is provisioned, which is the whole of
+this design's delivery. Without this rule the per-file gate rejects
+`content/SKILL.md` on the day it lands: that block is text before the first
+marker.
 
-Frontmatter is **required on every embedded markdown file**. That is what makes
-"an unmarked file contributes no units" unreachable — the silent hole in file
-form.
+Making the rule about *a leading delimited block* rather than about *that file*
+is the point. A gate whose value is that it has no exceptions cannot afford a
+`content/SKILL.md` case, and an exemption keyed to a filename carries a removal
+obligation into a later increment, which is how exemptions outlive their reason.
+This rule applies uniformly; most files simply have no such block, and the one
+that does is not special-cased anywhere.
 
-`content/SKILL.md`'s current YAML frontmatter exists solely for harness skill
-discovery. Retiring provisioning frees that slot: once nothing provisions the
-file, no parser depends on it.
+The block is unread rather than merely unrequired, and that is what decouples it
+from provisioning's retirement: nothing in the embed depends on it, so it may be
+deleted the day nothing provisions the file, or left in place, and no parser
+changes either way.
+
+**An opened block that never closes is a build error**, named on the line it
+opened. That is the same hole the unterminated-fence rule closes and it earns the
+same answer: a file whose first line is `---` with no matching close would
+otherwise swallow the entire document as unread preamble, declaring no unit,
+violating no marker rule, and leaving nothing for the gate to catch. `---` is not
+a fence opener, so the two rules do not interact; this is simply the second place
+a delimiter can run away with a file.
+
+### The file's mandate order is a comment directive, and it arrives with the composer
+
+Ordering has to live somewhere, and putting it in `content/` rather than in a
+file list in Rust keeps the driver from owning a fact about content's
+presentation. Two questions follow — what carries it, and when it lands — and
+they are answered separately.
+
+**What carries it is an HTML-comment file directive**, the same device and the
+same recogniser as a unit marker: an unindented whole line at neutral fence
+state. `content/` therefore gains **no** metadata language for this. Frontmatter
+carrying KDL was the earlier answer, argued from the repository already owning
+one KDL parser; a comment directive wins on that argument's own terms, because it
+adds nothing to own and reuses a reader the parser must have anyway. Duplicate
+positions are a build error once the directive exists, because the composition
+order must be total.
+
+**When it lands is with the composer, and not before.** Composition is the
+ordering key's only consumer — the parser does not need it, and `grove-llm
+methodology` neither serves nor lists it. Marked and gated ahead of a composer it
+would be parsed, checked for uniqueness, and read by nobody, which is scaffolding
+a build gate should not be grown for; worse, the order's *values* would be chosen
+by a session that has not written the thing that consumes them. So until the
+composer exists, **the build requires no ordering key of any file and checks no
+ordering-key uniqueness across the embed.**
+
+Two alternatives were weighed and rejected, and one was tested and found false.
+
+*Keep KDL frontmatter and exempt `content/SKILL.md` until provisioning retires.*
+Rejected twice over. It puts a filename-keyed hole in the invariant that exists
+precisely to have no holes, and it breaks the **ordering** rule as well as the
+frontmatter one: an exempt file carries no position, so the composition order
+stops being total — the single property the ordering key exists to supply, given
+up by the file that most needs a position.
+
+*Defer the whole question to the composer without settling the carrier.* Rejected
+because deferring the *decision* does not resolve the collision, it re-poses it:
+the composer needs an order while provisioning is still live, so a later
+increment would meet the same conflict with less context. Deferring the
+directive's **arrival** while settling its **shape** is what actually resolves
+it, and is what this section does.
+
+*One `---` block that parses as KDL and as the two-field YAML subset a harness
+reads.* Tested against this repository's own `kdl` dependency and found false:
+`content/SKILL.md`'s frontmatter fails to parse — KDL v1 admits no unquoted
+*string* values, and both fields carry one. The only variant that does parse
+quotes every value and yields a KDL document whose every node name ends in `:` —
+YAML wearing a KDL parser, in a block two consumers must keep mutually valid by
+hand.
 
 ### `content/prompts/continue.md` becomes `content/MANDATE.md`
 
@@ -313,10 +391,13 @@ sentence a driver writes is methodology living in Rust and therefore a drift
 candidate, and this rule reduces the set of them to the facts that have no other
 home.
 
-Composition order is: the mandate preamble, then every triggering unit whose
-scope admits this kind — ordered by file position, then by position within the
-file — then the runtime facts. The session-specific instructions land last, where
-they are not buried under the generic bulk.
+Composition order is: `content/MANDATE.md`'s framing unit, then every triggering
+unit whose scope admits this kind — ordered by file position, then by position
+within the file — then the runtime facts. The framing unit needs no rule of its
+own; it leads because its file is ordered first. The session-specific
+instructions land last, where they are not buried under the generic bulk.
+(*Preamble* in this spec means only the unread leading `---` block; the framing
+unit is an ordinary marked unit and is never called one.)
 
 ### `grove-llm methodology` fetches bytes, or lists rows
 
@@ -454,18 +535,34 @@ otherwise careful not to erect.
 
 ### Requirement: Every embedded markdown file is fully classified
 
-The build SHALL reject any embedded markdown file that lacks frontmatter, that
-has body text before its first unit marker, that carries a malformed marker, or
-whose fence state is unbalanced at end of file. Marker-shaped lines that are
-indented or inside a balanced fence SHALL declare no unit.
+The build SHALL reject any embedded markdown file that declares no unit, that has
+body text before its first unit marker, that carries a malformed marker, whose
+fence state is unbalanced at end of file, or whose leading `---` block is never
+closed. Marker-shaped lines that are indented or inside a balanced fence SHALL
+declare no unit. A leading `---`-delimited block SHALL be skipped uninterpreted,
+and SHALL be neither required nor rejected.
 
 #### Scenario: unmarked file
 - **WHEN** an embedded markdown file carries no unit marker
 - **THEN** the build fails, naming the file
 
 #### Scenario: text before the first marker
-- **WHEN** body text appears between the frontmatter and the first marker
+- **WHEN** body text appears before the first marker
 - **THEN** the build fails, naming the file and the offset
+
+#### Scenario: leading delimited block
+- **WHEN** a file opens with a `---`-delimited block and its body then begins with
+  a unit marker
+- **THEN** the build accepts it, the block belongs to no unit, and no field is
+  read from it
+
+#### Scenario: file with no leading block
+- **WHEN** a file's first bytes are a unit marker, with no `---`-delimited block
+- **THEN** the build accepts it
+
+#### Scenario: unterminated leading block
+- **WHEN** a file opens with `---` and no matching close appears
+- **THEN** the build fails, naming the file and the line the block opened on
 
 #### Scenario: duplicate id across files
 - **WHEN** two units in different files declare the same id
@@ -571,10 +668,14 @@ would then need a spawned process to provoke.
 The checks that seam carries:
 
 - **Parse shapes, pinned on every form that decides the reading rule** — accepted
-  and rejected alike, including markers inside fenced blocks. The repository's
+  and rejected alike, including markers inside fenced blocks, and a file with a
+  leading `---` block beside one without. The repository's
   existing instructed-verb scanner is the precedent: its reading rule is pinned
   on the shapes it must see *and* the shapes it must ignore, because two of those
-  were live holes rather than hypotheticals.
+  were live holes rather than hypotheticals. The leading-block pair is the shape
+  that keeps `content/SKILL.md` parseable while it is still provisioned, so a
+  test that only ever sees files without one would go green on a parser that
+  rejects the real embed.
 - **The malformed cases**, each asserted to fail: every syntax, semantic, and
   reference error listed above.
 - **The completeness invariant**, now three claims rather than two — every

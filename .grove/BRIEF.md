@@ -25,10 +25,12 @@ flips delivery — mandate composition, then the retirement of
 
 ## Done when
 
-- `content/` carries its own classification — unit markers plus whatever per-file
-  ordering carrier `ordering-key-placement-k6` settles on, **including none** if
-  that leaf defers the carrier to composition — and remains whole, readable
-  documents; nothing a reader or a session sees changes.
+- `content/` carries its own classification — unit markers and **no ordering
+  carrier**, which `ordering-key-placement-k6` settled by deferring the directive
+  to the composer that consumes it — and remains whole, readable documents;
+  nothing a reader or a session sees changes. `content/SKILL.md` keeps its YAML
+  and keeps discovering as a skill, because the parser skips a leading `---`
+  block uninterpreted.
 - A malformed embed fails `cargo build`, on every syntax, semantic and reference
   class the spec enumerates, through **one** parser implementation shared with
   the crate.
@@ -83,8 +85,13 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
   nothing. **Retired; it found six.**
 - `increments-integrate-k12` (integrate-review-planning) — the repair.
 - `ordering-key-placement-k6` (design) — one bounded question the design left in
-  conflict with its own increment order. Blocks both implementation leaves, and
-  reconciles their contracts before it retires.
+  conflict with its own increment order. Blocked both implementation leaves, and
+  reconciled their contracts before retiring. **Settled:** frontmatter is not the
+  carrier and is not a gate requirement — a leading `---` block is opaque preamble
+  the parser skips — and the ordering key is an HTML-comment file directive that
+  arrives with the composer, in the successor grove. So this grove's gate requires
+  **no** ordering key per file and **no** ordering-key uniqueness across the
+  embed.
 - `addressable-embed-k7` (impl) — the `methodology` seam, marker grammar, parser,
   fence rules, the **per-file** build gate, a trivially correct marking, and
   `grove-llm methodology` over it. Also the identity cutover and the release-scan
@@ -92,8 +99,8 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
   observable listing out of an installed binary.
 - `embed-wide-gate-k8` (impl) — the malformation classes that need the whole
   embed: id uniqueness, `defers=` resolution and its class check, procedural
-  reachability, ordering-key uniqueness if a carrier exists. Plus the pinned
-  complete id set and the two relocations out of `tests/provision.rs`.
+  reachability. No ordering-key case (above). Plus the pinned complete id set and
+  the two relocations out of `tests/provision.rs`.
 - `step-suffix-redundancy-k10` (design) — an **unrelated** concern the human
   raised mid-grove and grove externalized rather than absorbed. It belongs to no
   stage, but it is **not** last: its surface is `content/SKILL.md` and
@@ -121,7 +128,9 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
 - **`classification-k9` was larger than one session.** It is now a node.
 - **The ordering carrier was pre-decided.** Both implementation leaves asserted a
   duplicate-ordering-key build error that `ordering-key-placement-k6` may not
-  produce; they now derive their carrier obligations from that leaf's spec edit.
+  produce; they were rewritten to derive their carrier obligations from that
+  leaf's spec edit, and that leaf has since settled it — no carrier here, so both
+  now state the answer outright rather than a condition.
 - **"Last, so the chain stays contiguous" was false, twice over.** A review leaf
   is cut lazily by its producer, so while `classification-k9` was a flat leaf its
   `review-impl` would have landed at the parent's next free position, after the
@@ -141,7 +150,9 @@ this brief must not lose.
 
 **Stage 3 — mandate composition.** `compose`, `content/MANDATE.md` (replacing
 `content/prompts/continue.md`, whose "use the grove skill" instruction becomes
-false only when provisioning retires), driver wiring, the completeness invariant,
+false only when provisioning retires), **the file-ordering comment directive and
+its uniqueness check** — deferred here by `ordering-key-placement-k6` because
+composition is its only consumer — driver wiring, the completeness invariant,
 golden per-kind snapshots, and the 64 KiB per-kind size alarm. Provisioning is
 still live at the end of this stage, so sessions briefly get both. That is the
 safe order — the mandate is proven working before the fallback is removed — and it
@@ -161,6 +172,10 @@ that has not yet changed stays accurate until it does.* Enumerated, not swept:
   already keeps only its `rerun-if-changed` emission and its parse gate, and
   `GROVE_CONTENT_HASH`, the hash traversal and the equality test are long gone.
   Stage 4 deletes provisioning; it performs no delayed identity migration.
+- **Content** — `content/SKILL.md`'s YAML preamble becomes free. Delete it or
+  leave it; the embed parser skips a leading `---` block either way, so this is a
+  tidy-up with no parser consequence and no coordination. That decoupling is the
+  point of `ordering-key-placement-k6`'s answer and must not be re-coupled here.
 - **Tests** — `tests/provision.rs` (after this grove's relocations),
   `tests/harness.rs`. Check `tests/support/mod.rs`'s `HARNESS_NAMES` env scrub:
   that is *environment hygiene for removed variables* and may well survive on its

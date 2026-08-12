@@ -9,10 +9,14 @@ one command and reads the classification back — not at green scaffolding.
 
 Design: `docs/specs/mandate-delivered-methodology.md` (*Units partition a file*,
 *The marker grammar*, *A unit names the procedure it defers to*, *Fence state*,
-*A malformed embed fails the build*, *`grove-llm methodology` fetches bytes, or
-lists rows*, *`grove-llm` links the embed, and the methodology identity
-simplifies*, *Test seams*). Do not re-decide it; the one question it left open is
-settled by `ordering-key-placement-k6`, which runs first.
+*A leading `---` block is opaque preamble*, *The file's mandate order is a
+comment directive, and it arrives with the composer*, *A malformed embed fails
+the build*, *`grove-llm methodology` fetches bytes, or lists rows*, *`grove-llm`
+links the embed, and the methodology identity simplifies*, *Test seams*). Do not
+re-decide it. The one question it left open has been **settled** by
+`ordering-key-placement-k6` and folded into those first two named sections: there
+is **no file-level ordering carrier in this grove**, and the parser instead skips
+a leading `---`-delimited block uninterpreted.
 
 **This leaf was redrawn by `increments-integrate-k12`.** It and
 `embed-wide-gate-k8` were previously cut as `unit-grammar-k7` (parser, gate,
@@ -38,13 +42,23 @@ no behaviour changed, which the planning contract forbids
 - Fence state tracked across the whole file body; a marker recognised only as an
   unindented whole line at neutral state; **unbalanced fence state at end of file
   is a build error**.
+- **The opaque-preamble rule**: a `---`-delimited block occupying a file's first
+  bytes is skipped uninterpreted, is neither required nor rejected, and belongs to
+  no unit; body — and therefore partition — begins after it. This is small but it
+  is **not optional and not deferrable**, because `content/SKILL.md` carries such
+  a block *today* and the per-file gate lands here: without the rule, the first
+  build after this leaf rejects the real embed for body text before the first
+  marker. It is also the whole reason provisioning keeps working through this
+  grove and the next — that block is the `name:`/`description:` every harness
+  reads to discover the skill.
 - **One parser implementation shared with the crate**, not a second traversal in
   `build.rs`. `build.rs` today is standalone and links nothing; the equality test
   between its hash traversal and `provision::content_hash` exists because that
   duplication was accepted once already. Do not accept it twice.
-- `content/` marked throughout with a **trivially correct** marking, and whatever
-  file-level ordering carrier `ordering-key-placement-k6` settles on — including
-  **none**, if that leaf takes its option 3.
+- `content/` marked throughout with a **trivially correct** marking, and **no
+  file-level ordering carrier** — `ordering-key-placement-k6` settled that the
+  ordering directive arrives with the composer, in the successor grove. Nothing
+  here writes, parses or gates one.
 - `grove-llm methodology`, both modes, and the structural change that lets it
   exist: `grove-llm` starts linking the embed.
 - The identity cutover and the release-scan inversion, both of which follow from
@@ -57,11 +71,12 @@ single `(path, text)` decides:
 
 - unparseable marker, unknown attribute, attributes out of order, missing
   `class`, `kinds` on a procedural unit, a `kinds=` member outside the closed
-  nineteen, body text before the first marker, unbalanced fence at end of file.
+  nineteen, a file declaring no unit, body text before the first marker,
+  unbalanced fence at end of file, an unterminated leading `---` block.
 
 `embed-wide-gate-k8` lands what needs every file at once: id uniqueness across
-the embed, `defers=` target resolution and its class check, procedural
-reachability, and ordering-key uniqueness if a carrier exists. **Splitting the
+the embed, `defers=` target resolution and its class check, and procedural
+reachability. **Splitting the
 gate is safe because the trivial marking is valid under the full one** — one
 `class=triggering kinds=*` unit per file has no `defers=`, no procedural unit and
 no duplicate id — so nothing invalid can ship in the window, and the whole gate
@@ -180,24 +195,32 @@ proves nothing.
 - Any real classification judgement. `classification-k9`.
 - `content/prompts/continue.md` **stays and stays true**. Provisioning is live for
   the whole of this grove, so the launcher's "use the grove skill" is still the
-  fact. It is an embedded markdown file like any other, so it carries a marker —
-  and the ordering carrier if `ordering-key-placement-k6` settled on one. It is
-  not renamed and its text does not change.
+  fact. It is an embedded markdown file like any other, so it carries a marker
+  and nothing else — there is no ordering carrier, and it has no leading `---`
+  block. It is not renamed and its text does not change.
 
 ## Done when
 
 - `cargo build` fails, by name and with the file and offset, on every **per-file**
   malformation the spec enumerates: unparseable marker, unknown attribute,
   attributes out of order, missing `class`, `kinds` on a procedural unit, a
-  `kinds=` member outside the closed nineteen, body text before the first marker,
-  and unbalanced fence at end of file. Plus whatever file-level carrier rule
-  `ordering-key-placement-k6` settled — **derived from that spec edit, not
-  assumed**: if it chose to defer the ordering carrier, there is no carrier case
-  here to gate.
+  `kinds=` member outside the closed nineteen, a file declaring no unit, body text
+  before the first marker, unbalanced fence at end of file, and an **unterminated
+  leading `---` block**. **There is no file-level ordering carrier and therefore
+  no carrier case to gate** — settled by `ordering-key-placement-k6`, do not
+  invent one.
+- A leading `---`-delimited block is accepted and skipped uninterpreted, belongs
+  to no unit, and is neither required nor rejected. `content/SKILL.md` builds with
+  its YAML intact and **still discovers as a skill** after a provisioning sweep.
+  An *unterminated* one fails, named on its opening line — the same hole the
+  unterminated-fence rule closes, in the second place a delimiter can run away
+  with a file.
 - Parse shapes are pinned on the forms that decide the reading rule — accepted
-  **and** ignored alike, including a balanced fenced example marker and an
-  indented marker-shaped line. The repository's instructed-verb scanner is the
-  precedent, and its two live holes are why.
+  **and** ignored alike, including a balanced fenced example marker, an indented
+  marker-shaped line, **a file with a leading `---` block and one without**. The
+  repository's instructed-verb scanner is the precedent, and its two live holes
+  are why. The leading-block pair matters most: a fixture set that never carries
+  one goes green on a parser that rejects the real embed.
 - The parser is shown able to fail, on a synthetic malformed marker and a
   synthetic well-formed one.
 - `grove-llm methodology <id>...` writes those units' source bytes, in the order
@@ -254,6 +277,15 @@ proves nothing.
   `docs/adr/one-build-owns-a-session.md` for "only `grove` should carry it" — that
   claim dies here, and the spec schedules the citation rather than repairing it
   because the successor grove deletes the code holding it.
+- **The opaque-preamble rule is the newest thing in the spec and no fresh context
+  has read it.** `ordering-key-placement-k6` introduced it — it was in none of the
+  four candidates that leaf was handed — and retired without a `review-design`
+  leaf, on the grounds that it is the unavoidable mechanical consequence of the
+  bounded question that leaf was cut to answer, not a second decision. You are the
+  first session to build against it, and a wrong rule here fails **loudly**, at
+  `cargo build`, on the real embed. If it does not hold up — if the block turns out
+  to need reading, or interacts with something the spec did not anticipate — that
+  is a finding to raise, not a spec to quietly reinterpret.
 - This is a large leaf even after the redraw. If it proves bigger than one focused
   session, **decompose it rather than absorbing** — and cut the first child
   end-to-end (parser plus the verb over it), never a parser-only child, which is

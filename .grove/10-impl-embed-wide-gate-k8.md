@@ -3,9 +3,9 @@
 ## Goal
 
 Close the build gate over the **whole embed**: the malformation classes no single
-file can decide — id uniqueness, `defers=` resolution and its class check,
-procedural reachability, and ordering-key uniqueness if a carrier exists — plus
-the positive control that pins the unit set complete.
+file can decide — id uniqueness, `defers=` resolution and its class check, and
+procedural reachability — plus the positive control that pins the unit set
+complete.
 
 This is the leaf that makes `classification-k9` safe to attempt. Until it lands,
 a wrong `defers=` target or an unreachable procedural unit is a silent authoring
@@ -38,12 +38,15 @@ nothing else.
   triggering unit. Reachability is partition seen from the other end: together
   they say every byte of the methodology is either in a mandate or reachable from
   one, so an undiscoverable procedure is as impossible as unclassified prose.
-- **Ordering-key uniqueness — if and only if there is a carrier.** Derive this
-  from `docs/specs/mandate-delivered-methodology.md` **as
-  `ordering-key-placement-k6` settled it**. If that leaf deferred the ordering
-  carrier out of this grove (its option 3), there is no key here to be duplicated
-  and this bullet is empty. Do not assume a duplicate-ordering-key error into
-  existence.
+- **No ordering-key uniqueness check — settled, not conditional.**
+  `ordering-key-placement-k6` put the ordering directive in the successor grove,
+  with the composer that is its only consumer
+  (`docs/specs/mandate-delivered-methodology.md`, *The file's mandate order is a
+  comment directive, and it arrives with the composer*). There is no key in this
+  grove to be duplicated, so this bullet lands **nothing**. Do not assume a
+  duplicate-ordering-key error into existence, and do not add the check "while
+  you are in here" — an assertion over a carrier no file has is green by
+  construction.
 - **A positive control pinned complete**: the full set of unit ids is a test
   constant, so losing a unit fails and gaining one fails until someone names it.
   Under the trivial marking that set is one id per embedded markdown file;
@@ -85,8 +88,8 @@ instructs, and do not weaken the scan to make it quiet.
 
 - `cargo build` fails, by name and with the file and offset, on: a duplicate id
   anywhere in the embed, a `defers=` naming no declared unit, a `defers=` naming a
-  non-procedural unit, and an unreachable procedural unit — plus a duplicate
-  ordering key **if** the settled spec puts a carrier in this grove.
+  non-procedural unit, and an unreachable procedural unit. That is the whole
+  whole-embed gate for this grove — no ordering-key case.
 - Each of those is shown able to fail against a synthetic malformed embed, and to
   pass against a synthetic well-formed one. A cross-file case is covered: the
   malformation must be one that no single file's parse could have caught, or the

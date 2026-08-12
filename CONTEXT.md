@@ -100,9 +100,13 @@ The grain of the [[Embedded methodology]]: a span of one `content/` file
 declared by an HTML-comment **unit marker** carrying a kebab-case id, a
 [[Triggering unit]]/procedural class, the [[Session kind]]s its scope admits when
 triggering, and optionally the **deferral**: the id of the procedural unit whose
-body completes it. Units **partition** their file: every
+body completes it. Units **partition** their file's **body**: every
 body byte belongs to exactly one, a unit runs from its marker to the byte before
 the next or to end of file, and there is no nesting, no gap and no close marker.
+Body is everything after the optional leading `---`-delimited **preamble**, the
+file's one unread region — skipped uninterpreted, neither required nor rejected,
+so `content/SKILL.md`'s YAML keeps working for as long as
+[[Global skill provisioning]] reads it.
 Partition is what makes unclassified prose unreachable, and what makes a parser
 blind to some marker shape produce a *visibly larger* preceding unit instead of a
 silent hole. The marker line is part of the unit's source, so a slice carries its
@@ -121,6 +125,10 @@ _Avoid_: reading a unit's **own** id as the address of its deferred body. One
 namespace covers both classes, so that id fetches the unit again; the deferral is
 a separate declared target, and its absence means the unit is complete as
 delivered.
+_Avoid_: reading the preamble as **frontmatter the build requires or parses**.
+KDL frontmatter was the earlier answer and lost the file's ordering key to a
+comment directive; what is left is a block Grove skips, so a per-file exemption
+for the one file that has one would be a hole where the rule is uniform.
 
 **Mandate slice**:
 A byte-exact projection of a [[Methodology unit]] into one session's
@@ -129,8 +137,10 @@ driver selects units by the launched [[Session kind]] and inlines their source
 bytes; it never paraphrases, because driver-composed prose would make `content/`
 non-canonical, and a slice cannot contradict what it copies. Which units a kind
 receives is marked **in `content/` itself**, adjacent to the prose it classifies:
-an HTML-comment unit marker per unit, plus per-file KDL frontmatter carrying the
-file's composition order. Three properties bind every slice — succinct, never
+an HTML-comment unit marker per unit. A file's composition order is a second
+comment directive of the same shape, and it arrives with the composer that
+consumes it rather than ahead of one. Three properties bind every slice —
+succinct, never
 contradicting or walking back the methodology, and a *selector* that takes the
 session straight to the right content rather than a substitute for it. The driver
 authors mandate prose **only** for facts it resolves at runtime — today the

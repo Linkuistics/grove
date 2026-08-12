@@ -1,10 +1,11 @@
-<!-- unit: adr-format kinds=* class=triggering -->
+<!-- unit: adr-placement-note class=procedural defers="adr-where-adrs-live adr-why-the-set-stays-minimal" -->
 # ADR placement — a grove note
 
 For the ADR **philosophy, format, minimal template, and the when-to-write test**,
 use the `linkuistics:decision-records` skill. This note keeps only grove's
 placement conventions.
 
+<!-- unit: adr-where-adrs-live class=procedural -->
 ## Where ADRs live
 
 ADRs live in `docs/adr/`, one file per record, **slug-named**: `docs/adr/<slug>.md`.
@@ -29,6 +30,7 @@ Choose on the evidence, not the letter. The point of a split is a partition a
 reader can trust; a split that leaves the root directory still mixed has bought a
 second search path for nothing.
 
+<!-- unit: adr-why-the-set-stays-minimal class=procedural -->
 ## Why the set stays minimal
 
 A grove session reads only the ADRs its brief chain cites — three ADRs, not fifty.

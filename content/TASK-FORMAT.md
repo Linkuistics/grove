@@ -77,7 +77,7 @@ fault.
 
 **Producers**
 
-<!-- unit: task-producer-requirements kinds=requirements class=triggering -->
+<!-- unit: task-producer-requirements kinds=requirements class=triggering defers=grilling-interrogate -->
 - **requirements** (HITL) — establish *what* should be built. This is where the
   grilling lives (`grilling.md`): interview one question at a time, propose a
   recommended answer for each, walk the design tree until shared understanding
@@ -507,11 +507,11 @@ warn about.
 The work today's `planning` label used to cover is split across three kinds, and
 each carries part of the old checklist:
 
-<!-- unit: task-deliverable-requirements kinds=requirements class=triggering -->
+<!-- unit: task-deliverable-requirements kinds=requirements class=triggering defers="grilling-interrogate context-structure" -->
 - **requirements** runs the grilling procedure (`grilling.md`) to interrogate
   *what* is wanted, and updates `CONTEXT.md` **inline** as terms are resolved —
   never batched.
-<!-- unit: task-deliverable-design kinds=design class=triggering -->
+<!-- unit: task-deliverable-design kinds=design class=triggering defers="adr-placement-note spec-set-is-current-state" -->
 - **design** raises ADRs **sparingly** — only decisions hard to reverse,
   surprising, or a real trade-off (`ADR-FORMAT.md`) — and MAY write a spec
   (`docs/specs/<slug>.md`) when the increment is a genuine agreement point

@@ -1,4 +1,4 @@
-<!-- unit: spec-format kinds=* class=triggering -->
+<!-- unit: spec-when-a-spec-is-written kinds=* class=triggering defers="spec-set-is-current-state spec-suggested-shape" -->
 <!-- grove reference file — the spec shape -->
 
 # SPEC-FORMAT — the spec
@@ -14,6 +14,7 @@ Most increments write no spec at all (constraint 4). The one that does is the on
 where the human signs off on the design's shape before decomposition turns it
 into `impl` leaves.
 
+<!-- unit: spec-set-is-current-state class=procedural -->
 ## The set is current-state
 
 `docs/specs/` is a **minimum coherent set describing the design's current
@@ -35,6 +36,7 @@ describes *how an area works*. A spec **cites** the ADRs in its area and never
 restates them — restate one and the two sets will disagree, after which neither
 binds.
 
+<!-- unit: spec-suggested-shape class=procedural defers="spec-synthesise-never-re-interview spec-behavioural-not-procedural spec-speak-the-projects-language spec-test-seams" -->
 ## Suggested shape
 
 A guide, not a schema (constraint 3). Include a section only when it earns its
@@ -86,6 +88,7 @@ One `### Requirement:` per behaviour, its SHALL statement specific enough to
 test; each `#### Scenario:` is one acceptance case. The pairing rule: scenarios
 say *what must pass*; `## Test seams` says *where it is tested*.
 
+<!-- unit: spec-synthesise-never-re-interview class=procedural -->
 ## Three rules
 
 **Synthesise; never re-interview.** The grilling *is* the interview and it has
@@ -93,6 +96,7 @@ already happened, in the `requirements` leaf upstream. A spec synthesises that
 leaf's running decision log and the codebase understanding it built. A session
 that writes a spec by re-asking the questions is running grilling twice.
 
+<!-- unit: spec-behavioural-not-procedural class=procedural -->
 **Behavioural, not procedural.** Describe interfaces, types, and behavioural
 contracts. No file paths, no line numbers, no code — they go stale faster than
 the decisions they illustrate. *One exception:* a prototype produced a snippet
@@ -101,9 +105,11 @@ reducer, a schema, a type shape. Inline it in the relevant decision, trimmed to
 the decision-rich part, and note that it came from a prototype. Not a working
 demo.
 
+<!-- unit: spec-speak-the-projects-language class=procedural -->
 **Speak the project's language.** Use `CONTEXT.md`'s vocabulary throughout, and
 respect the ADRs in the area you are touching.
 
+<!-- unit: spec-test-seams class=procedural -->
 ## Test seams
 
 Sketch the seams the feature will be tested through, and **check with the human

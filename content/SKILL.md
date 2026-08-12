@@ -240,7 +240,7 @@ field-guide habits that make grilling, research-leaf commissioning, and the
 review chain productive (WDYT, pushback, running decision log, citation
 discipline).
 
-<!-- unit: skill-decompose kinds=* class=triggering defers="driving-externalizing-surfaced-work brief-the-node-briefing driving-what-a-good-child-leaf-looks-like" -->
+<!-- unit: skill-decompose kinds=* class=triggering defers="driving-externalizing-surfaced-work brief-the-node-briefing driving-what-a-good-child-leaf-looks-like skill-directory-tree-and-grow-verbs" -->
 **Decompose.** When work surfaces mid-session, default to **externalizing it as
 a new leaf** rather than absorbing it into the current session — grove's value
 is many small, low-context sessions, and that value is lost the moment a session
@@ -428,7 +428,7 @@ its integration the intervening leaf has not run, and grove makes no leaf's
 eventual file set part of its contract, so a goal or pointer list is not proof of
 what it will touch. A session that departs anyway owns the drift.
 
-<!-- unit: pending-skill-lifecycle kinds=* class=triggering -->
+<!-- unit: skill-cutting-a-review-leaf class=procedural -->
 **When a picked producer needs fresh review**, the answer is the same
 `leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf
 with the specific doubt written into its body, retire the producer, and commit
@@ -438,6 +438,7 @@ and nothing else, and it leaves the review byte-identical, because the review
 needs no record of how its producer ran. The next loop iteration picks that
 review and resolves its command from the `review-*` entry in configuration.
 
+<!-- unit: skill-directory-tree-and-grow-verbs class=procedural defers=skill-kind-on-the-tree-verbs -->
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), headed by a
 `BRIEF.md` charter — a node is always a leaf that *decomposed*, so it always has
@@ -471,6 +472,7 @@ resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
 `<slug>-k<key>` handle back into the current file path. Every grow verb is a
 working-tree change only; the enclosing task's commit folds them in.
 
+<!-- unit: skill-kind-on-the-tree-verbs class=procedural -->
 **`--kind <kind>` appears on the grow verbs whose kind is a free choice**, and
 every one that accepts it gates on it: an unrecognised value errors and lists the
 nineteen, and driver-reserved `finish` is refused, because a human is present at
@@ -492,11 +494,13 @@ session it cannot launch. No grow verb
 selects a harness, a model, or anything else about the launch: the kind is the
 whole routing input, and configuration maps it to one command.
 
+<!-- unit: skill-retire kinds=* class=triggering defers=skill-leaf-retire-mechanics -->
 **Retire.** A leaf ends one of two ways — **done** (the work was completed) or
 **abandoned** (the path was decided against); grove's own metaphor: a done leaf
 is *harvested*, an abandoned one is *pruned*. Both mark the leaf **in place**,
 neither ever deletes it, and both are skipped by `pick`.
 
+<!-- unit: skill-leaf-retire-mechanics class=procedural -->
 The common case: with the task's work done — and *before* you commit it, so the
 rename and everything the cascade below writes land inside that one focused
 commit — retire the just-finished leaf by
@@ -509,16 +513,19 @@ its position and key in its directory. The infix is filename-only — the file's
 contents (including its `# <slug>-k<key>` header) are untouched. Mechanical
 bookkeeping, no need to ask.
 
+<!-- unit: skill-retirement-touches-one-filename kinds=* class=triggering -->
 Retirement touches **one filename and nothing else** — not the leaf's own body,
 not a sibling, not an ancestor. A leaf that a review is waiting on is no
 exception: the review reads the committed artifact, so there is nothing about the
 producer's session for retirement to hand it.
 
+<!-- unit: skill-pruning-is-hitl kinds=* class=triggering defers=skill-leaf-prune-mechanics -->
 The other case: a session finds the leaf's path decided against, not done. This
 is **pruning**, and it is **HITL — an agent never prunes on its own**: an AFK
 session (every kind but `requirements`, `prototype` and `finish`) that discovers
 this says so and stops; the
 loop stalling on an abandonment decision is the system working, not a fault.
+<!-- unit: skill-leaf-prune-mechanics class=procedural -->
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
 or a node — given a node it marks every live leaf in the subtree, leaving `DONE`
 ones alone, and refuses the grove root) to mark it `ABANDONED` in place.
@@ -535,6 +542,7 @@ goes to the **ADR set**, the positive fact the abandonment establishes, if it
 clears the when-to-write bar; otherwise the mark and the commit message suffice
 (pruning).
 
+<!-- unit: skill-node-close-cascade kinds=* class=triggering defers=skill-node-close-steps -->
 Then walk the parent chain: if a node now has no live leaf left in its subtree —
 however its leaves finished — it is **implicitly done** — a brief is context,
 not a task, so it is never marked done; its done-ness *is* the absence of a live
@@ -550,6 +558,7 @@ is the first of the two tests deciding where grove *does* ask;
 confirmation-boundary carries both, and the second is why pruning and the
 finish cycle still do.
 
+<!-- unit: skill-node-close-steps class=procedural defers="brief-every-node-carries-one brief-suggested-shape" -->
 Instead the session **verifies and reports**. Every node carries a `BRIEF.md`
 — it is a leaf that proved bigger, and the charter is what those extra sessions
 needed — so every close has the same four steps:
@@ -585,6 +594,7 @@ abandoned alike. The cascade walk and the brief-promotion-upward stay prose
 deliberately: both are judgement steps (does the `Done when` hold? what survives
 upward?) with no stable input/output shape that would justify a verb.
 
+<!-- unit: skill-commit kinds=* class=triggering defers=skill-commit-boundary-in-git-and-jj -->
 **Commit.** One task = one focused commit — and *one task* means the whole
 session's work: the artifact, whatever the grow verbs wrote, and the `DONE`
 rename that retires the leaf, together with anything the cascade above promoted
@@ -597,6 +607,7 @@ handle is permanent, so the historical record stays meaningful after
 restructures (task-tree-scheme §5). Name each node the cascade closed the same
 way, alongside the leaf's own.
 
+<!-- unit: skill-commit-boundary-in-git-and-jj class=procedural -->
 That commit is also the boundary the *next* session starts from, and git and jj
 reach it differently — the same asymmetry the tree verbs already carry (`git mv`
 there, a plain rename under jj). In **git** the working tree is not history, so
@@ -614,6 +625,7 @@ unsealed change is expensive to unpick afterwards:
 operation log as the only way back. The lane itself belongs to
 `linkuistics:using-jujutsu`; grove states only where its boundary falls.
 
+<!-- unit: skill-signal kinds=* class=triggering -->
 **Signal.** Once the task is retired and committed (and any parent-chain cascade
 is settled and included), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts
@@ -631,6 +643,7 @@ tells you to exit manually. Plain `complete` signals a
 the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
 Ctrl-C, which stops).
 
+<!-- unit: pending-skill-finish kinds=* class=triggering -->
 **Finish.** You do not discover that a grove is finished — the driver does, and
 it tells you by launching you. Once no ordinary live leaf is left, bare `grove`
 appends one driver-owned `finish` leaf at the grove root and mandates it under

@@ -715,7 +715,7 @@ there under a doubted premise — tempts a status word: `blocked`, `deferred`,
 and reaching for a fourth state is how a tree starts lying about what is still
 live. The doubt always resolves to one of three existing mechanisms:
 
-<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural -->
+<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural defers=skill-leaf-prune-mechanics -->
 - **Not now, but still ours** → a **reorder**. The work is good and belongs in
   this tree, just not next: leave the leaf live and `leaf-insert` something
   ahead of it (or reorder by hand). Nothing is decided against — `pick` will

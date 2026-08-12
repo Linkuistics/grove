@@ -60,7 +60,8 @@ human: grove
         └─ foreground loop
              │
              ├─ revalidate the lease
-             ├─ version-check the sibling grove-llm
+             ├─ re-verify each skill dir's stamp; restore a clobbered one
+             ├─ identity-check the grove-llm the session will resolve
              ├─ load and fully validate ~/.config/grove/config.kdl
              ├─ reap orphaned finish quarantine, then recover or perform the one
              │    lifecycle transition (root-init, migration, or nothing)
@@ -80,9 +81,14 @@ ownership, so even a refused second driver receives the current methodology.
 
 The driver stays in the foreground and owns its child process. Completion
 signals are temporary control messages, not durable workflow state. Each
-iteration re-checks the installed `grove-llm` version, because a mid-loop
-`brew upgrade` is exactly the skew a start-time check misses and a split signal
-protocol looks like every session hanging with nothing relaunching.
+iteration re-checks the `grove-llm` a session would resolve through `PATH`,
+because a mid-loop `brew upgrade` is exactly the skew a start-time check misses
+and a split signal protocol looks like every session hanging with nothing
+relaunching. The comparison is of [methodology
+identity](#the-boundary-is-a-build-not-a-commit), not crate version, and the
+subject is the `PATH` binary rather than the driver's own sibling — the driver
+never invokes `grove-llm`, so the sibling agrees with it by construction while
+the binary the session actually runs would go unchecked.
 
 <a id="cli-binary-split"></a>
 <a id="command-surfaces"></a>
@@ -98,6 +104,12 @@ for how to launch it, so there is nothing left for an argument to select;
 `leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
 `leaf-prune`; `finish-commit`; and `complete`. This split keeps a discoverable human API without forcing the agent
 to reproduce filesystem mutations from prose.
+
+`grove-llm` also answers `--content-hash` with its build's [methodology
+identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
+verb on purpose: the driver reads it to check the pair, no session ever calls
+it, and the embedded methodology instructs nothing about it — so it stays out of
+the agent grammar the provisioning test scans.
 
 `src/main.rs` and `src/bin/grove-llm.rs` are thin entry points. `src/cli.rs`
 owns the human grammar; `src/llm_cli.rs` owns the agent grammar.
@@ -595,6 +607,15 @@ row of the registry is a place to write files, never a program to run, and an
 absent home root is skipped rather than created. A content hash makes this
 idempotent while still updating the skill when the binary changes.
 
+That hash is the build's **methodology identity**, and it is the identity
+because the crate version does not move between a released binary and an edited
+checkout at the same version. `build.rs` also emits it as a compile-time
+constant so any binary in the crate can name its own identity without linking
+the embed: only `grove` extracts content, so only `grove` carries it. An
+in-crate test pins the constant against the runtime hash of the linked embed,
+which is what stops the build script's traversal and `provision`'s from
+drifting.
+
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
 refreshed, so whichever one the command lands in already carries the current
@@ -614,10 +635,13 @@ source; repository-local or hand-edited copies are not supported.
 is the methodology the running binary was *built* with. The content hash that
 makes provisioning idempotent hashes that **embed**, not any working tree — a
 warm no-op is therefore correct even when a checkout's `content/` has moved far
-ahead of the binary. Nothing in the loop changes this: `provision` runs once per
-bare `grove` (`launch::bare_grove`, before lease acquisition), and running it per
-iteration instead would extract identical bytes, because a driver never re-execs
-and so carries one embed for its whole life.
+ahead of the binary. Nothing in the loop changes this: the full sweep runs once
+per bare `grove` (`launch::bare_grove`, before lease acquisition), and
+re-*extracting* per iteration would write identical bytes, because a driver
+never re-execs and so carries one embed for its whole life. What the loop does
+do each iteration is *re-verify* the stamps and restore a directory another
+build has taken — the question there is ownership rather than freshness, and it
+is answered below.
 
 The consequence is sharpest in a [meta-grove](../CONTEXT.md): a session here can
 commit `content/SKILL.md` and the next session in the same loop still reads the
@@ -642,7 +666,7 @@ writing its own. Neither row above is reachable while both hold; a skill and its
 binary are the same artifact, seen twice. That is why there is no mechanism, and
 should be none, for a session to consume freshly committed methodology ahead of
 its binary — and why the exposure worth worrying about is not staleness but
-anything that breaks the second property (see the caveat below).
+anything that breaks the second property (see the shared directory, below).
 
 What is enforceable at this boundary is that the embed is **internally
 consistent**: every `grove-llm` verb the embedded methodology instructs is a verb
@@ -655,16 +679,29 @@ A stale *installed* binary is therefore an ordinary upgrade concern, diagnosed
 with `grove --version` against the repository's `Cargo.toml`, and resolved by
 rebuilding and installing — not by anything Grove does at runtime.
 
-**One caveat, currently undecided.** "A session reads the embed its own binary
-carries" holds for a single `grove`; the skill directories are *global and
-shared*, and provisioning runs once per invocation rather than once per
-iteration, so another build writing the same directory mid-loop is unobserved.
-The two ways in are a second grove in another working tree and — more likely
-here — `cargo run --bin grove` from a checkout, which provisions that checkout's
-`content/` over the installed copy and produces exactly the unsafe pairing this
-section forbids. What Grove should do about it is open work
-(`shared-skill-dir-clobber-k13`); until it is decided, do not reach for
-`cargo run` as a way to get a fresher skill.
+### The shared directory, and who owns it
+
+"A session reads the embed its own binary carries" is a claim about one
+`grove`, and the skill directories are *global and shared* — the driver lease is
+per working tree, so it serializes nothing here. Two builds can write one
+directory: a second grove in another working tree, and — more likely inside this
+repository — `cargo run --bin grove` from a checkout, which lays that checkout's
+`content/` over the installed copy while the session's `PATH` still reaches the
+installed `grove-llm`. [One build owns a
+session](adr/one-build-owns-a-session.md) settles what Grove does about it, in
+three places:
+
+| Where | What it does |
+|---|---|
+| Before each launch | Re-verify each installed skill directory's stamp; restore this driver's embed and say so when another build has taken one. |
+| Before each launch | Refuse when the `PATH` `grove-llm` a session would resolve carries a different methodology identity. |
+| Inside a session | `grove-llm` warns — never refuses — when the installed directories are not stamped with its own identity, which is the only check a mid-session clobber can reach. |
+
+Concurrent groves at different builds stay unsupported: one directory cannot
+serve two builds, and the pair above makes the alternation visible instead of
+silent. There is one supported way to run a build, including for dogfooding —
+install it (`cargo install --path .`), which makes the pairing coherent for
+every grove on the machine rather than for one launch.
 
 ## Main module seams
 

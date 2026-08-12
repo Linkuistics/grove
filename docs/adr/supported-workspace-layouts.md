@@ -11,7 +11,8 @@ validates it during driver-lease acquisition — the one moment where the contro
 directory has just been resolved and created and the working-tree root descriptor
 is already open — before configuration validation and before any `.grove/`
 observation, creation, migration, selection, or commit. An unsupported layout is
-a resumable no-mutation stop, in the same class as a `grove-llm` version skew.
+a resumable no-mutation stop, in the same class as a `grove-llm` pairing
+mismatch ([one build owns a session](one-build-owns-a-session.md)).
 
 The two required properties are established differently, and only one is
 measured. **Untracked** is structural: the resolver places controls exclusively

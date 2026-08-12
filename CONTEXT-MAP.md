@@ -31,7 +31,9 @@ lockstep, which is why they live together — see
   Nothing collides today — the overlap is `~/.codex/skills/`, where the names are
   disjoint — but the namespace is shared, so any future decision to have one
   context provision the other's content is a question about precedence and
-  double-provisioning, not a local change.
+  double-provisioning, not a local change. Contention *within* the `grove` entry
+  — two `grove` builds writing it — is a separate, grove-owned question, settled
+  by [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md).
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
@@ -43,6 +45,7 @@ lockstep, which is why they live together — see
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
+  [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),

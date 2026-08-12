@@ -160,9 +160,13 @@ The runtime methodology is [`content/SKILL.md`](../content/SKILL.md), which the
 binary provisions to each installed harness's personal skill directory on every
 bare `grove` invocation. It provisions the copy **embedded in the running
 binary** — a session always reads the methodology its own `grove` was built
-with, and the skill and the `grove-llm` verbs it instructs are therefore always
-the same build. Editing `content/` in a checkout changes nothing any session
-reads until that checkout is built and installed; see
+with. Those directories are global, so Grove also checks the pairing on every
+iteration: it restores a skill directory another `grove` build has written, and
+refuses to launch when the `grove-llm` a session would find on `PATH` comes from
+a different build. Editing `content/` in a checkout therefore changes nothing
+any session reads until that checkout is **installed** — `cargo install
+--path .`, not `cargo run`, which would provision the checkout's methodology
+beside the installed CLI and be refused. See
 [Embedded methodology](ARCHITECTURE.md#self-extension-core-and-methodology).
 
 `grove-llm` is the agent-facing tree interface the session drives during those

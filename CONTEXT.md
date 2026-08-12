@@ -16,12 +16,26 @@ be traced to a single harness. `content/` stays canonical and the binary is the
 only writer of these directories; the single embedded launcher
 `content/prompts/continue.md` relies on that provisioning rather than inlining a
 second copy of the methodology, which makes the provisioned skill a target
-prerequisite Grove cannot itself verify.
+prerequisite Grove cannot itself verify. The directories are global, so a
+directory is owned by whichever build wrote it last; the loop therefore
+re-verifies each stamp before every launch and restores its own embed when
+another build has taken one ([[Build pairing]]).
 _Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
 with their lifecycle verbs, and `continue.md` is the only survivor.
 _Avoid_: reading "current" as "as committed". What is swept is the
 [[Embedded methodology]] — the copy compiled into the *running* binary — so a
 sweep is current with respect to that build and to nothing else.
+
+**Methodology identity**:
+The content hash of a build's [[Embedded methodology]] — the value
+[[Global skill provisioning]] writes as its stamp, and the name of *which build*
+a skill directory or a binary belongs to. It is a hash rather than the crate
+version because the version does not move between a released binary and an
+edited checkout at that same version, which is exactly the pairing that has to
+be detectable. `build.rs` emits it as a compile-time constant so a binary can
+name it without linking the embed; `grove-llm --content-hash` prints it.
+_Avoid_: treating it as a version — it orders nothing and answers only "same
+build or not".
 
 **Embedded methodology** / **the build boundary**:
 `content/` compiled into the binary by `include_dir!`, and therefore fixed at
@@ -36,12 +50,27 @@ half that is checkable — the embed instructs no verb the embedded CLI lacks. S
 `docs/ARCHITECTURE.md#self-extension-core-and-methodology`.
 _Avoid_: "the next session picks up the committed `content/`" — it picks up the
 built one; the two coincide only after a rebuild and install.
-_Avoid_: proposing per-iteration provisioning as the fix — a driver never
-re-execs, so every iteration would extract identical bytes.
+_Avoid_: proposing per-iteration re-*extraction* as the fix — a driver never
+re-execs, so every iteration would write identical bytes. Per-iteration stamp
+*re-verification* is a different question and is what the loop does do.
 _Avoid_: `cargo run --bin grove` as a way to get a fresher skill — the skill
 dirs are global, so it provisions a checkout's `content/` beside an *installed*
-`grove-llm` and manufactures the skew. What Grove should do about a shared dir
-written by two builds is open (`shared-skill-dir-clobber-k13`).
+`grove-llm`. [[Build pairing]] refuses that launch; install the build instead.
+
+**Build pairing**:
+The rule that a session's skill and its `grove-llm` come from one build, and the
+three checks that hold it: the loop re-verifies each skill directory's stamp and
+restores a clobbered one; it refuses to launch when the `grove-llm` a session
+would resolve **through `PATH`** carries a different [[Methodology identity]];
+and `grove-llm` itself warns, never refuses, when the installed directories are
+not stamped with its own. `docs/adr/one-build-owns-a-session.md` has the
+trade-offs. Concurrent groves at different builds share one global directory and
+stay unsupported — now announced rather than silent.
+_Avoid_: checking the sibling of the running `grove` — the driver never invokes
+`grove-llm`, so the sibling agrees with it by construction while the binary the
+session runs goes unchecked.
+_Avoid_: reading the `grove-llm` warning as a gate; a mid-task refusal costs
+more than the mismatch, and the human who can fix it reads the same stream.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:

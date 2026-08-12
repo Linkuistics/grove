@@ -26,7 +26,8 @@ This follows the [complete session configuration](../adr/complete-session-config
 decision.
 
 One bare `grove` command owns the whole lifecycle. On every iteration it
-resolves and version-checks its sibling `grove-llm`, validates configuration
+re-verifies the provisioned skill directories' stamps, resolves and
+identity-checks the `grove-llm` a session would find on `PATH`, validates configuration
 before any task-tree mutation, brings the tree to a runnable current shape,
 performs one authoritative pick, reloads configuration, and launches the
 selected kind. The selected leaf's stable handle is embedded in `${prompt}` as
@@ -39,7 +40,8 @@ The resulting flow is:
 bare grove
   -> provision embedded methodology independently of launch policy
   -> acquire this working tree's driver lease
-  -> resolve the sibling grove-llm and reject version skew
+  -> re-verify each skill dir's stamp; restore one another build clobbered
+  -> resolve the PATH grove-llm and reject a methodology-identity mismatch
   -> load and fully validate ~/.config/grove/config.kdl
   -> recover or perform at most one required lifecycle transition
        absent tree  -> create root brief + requirements leaf
@@ -594,7 +596,7 @@ symlinked `.git` or `.jj` marker, or a control directory that is its own mount
 point, leaves the working tree without changing the marker's kind.
 
 A failure is a resumable no-mutation stop with the same standing as a
-`grove-llm` version skew: no `.grove/` is created, an existing tree stays
+`grove-llm` pairing mismatch: no `.grove/` is created, an existing tree stays
 byte-identical, no Grove-authored revision exists, and rerunning bare `grove`
 after repairing the layout continues normally. Its diagnostic is distinct from
 the unwritable-control-directory failure and names the working-tree root and its

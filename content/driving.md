@@ -1,4 +1,4 @@
-<!-- unit: driving kinds=* class=triggering -->
+<!-- unit: driving-field-guide kinds=* class=triggering -->
 # Driving a grove session well
 
 The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
@@ -34,6 +34,7 @@ the lesson belongs here only when it still helps a future session.
 - **Quick reference:** [anti-patterns](#anti-patterns) and
   [the shortest version](#the-shortest-version).
 
+<!-- unit: driving-when-not-to-start-a-grove kinds=requirements class=triggering -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Chart the map" step 2's no-fog
@@ -50,6 +51,7 @@ fog shows up — work whose shape you can't see past the next session or two.
 Bare `grove` will always scaffold a tree and mint a first leaf in a rootless
 working tree; that mechanical fact is not itself the signal to run it.
 
+<!-- unit: driving-when-to-commission-prior-art-research kinds=* class=triggering defers="driving-how-to-write-a-research-leaf-brief driving-running-the-vendor-pair" -->
 ## When to commission prior-art research
 
 A `requirements` leaf is the right unit for a grilling session when the
@@ -76,6 +78,7 @@ A useful research leaf sits *after* the design questions are visible but
 answer those leaves' questions directly, so later grilling can spend its time
 on the remaining decisions instead of rediscovering prior-art failure modes.
 
+<!-- unit: driving-how-to-write-a-research-leaf-brief class=procedural -->
 ## How to write a research leaf brief
 
 The single most leveraged move is to **name the downstream questions the
@@ -123,6 +126,7 @@ git-appraise, CRDT-merge surprises in Radicle COBs) — the absence is
 itself a confidence signal, and recording it stops future readers from
 re-doing the same fruitless search.
 
+<!-- unit: driving-running-the-vendor-pair class=procedural -->
 ## Running the vendor pair
 
 One survey is one vendor's corpus and one vendor's blind spots. When the
@@ -169,6 +173,7 @@ the first got wrong" discards the breadth you paid for and biases it toward the
 first survey's frame. Both run breadth-seeking; the adversarial move belongs to
 the combine step.
 
+<!-- unit: driving-the-combine-step class=procedural -->
 **The combine step's job is the one check neither survey can perform on
 itself.** Union the coverage, flag every disagreement — and treat **agreement
 without independent primary sourcing as a red flag, not a confirmation**. Two
@@ -179,6 +184,7 @@ whether the two surveys reached it through *different* primary sources. If they
 cite the same blog post, or neither cites anything, that agreement is worth less
 than a disagreement.
 
+<!-- unit: driving-when-to-invoke-grilling kinds=* class=triggering defers="grilling-interrogate driving-ask-wdyt driving-ask-for-pushback driving-dont-merge-questions driving-record-decisions-inline" -->
 ## When to invoke a design discussion (grilling)
 
 The trigger is: a `requirements` leaf's brief lists three or more questions
@@ -191,6 +197,7 @@ question at a time, propose a recommended answer for each, walk down
 the design tree until shared understanding is reached. The moves
 below make that interview productive rather than ceremonial.
 
+<!-- unit: driving-ask-wdyt class=procedural -->
 ### Ask the LLM "WDYT" before committing
 
 When a question feels close to settled, the easy default is to nod
@@ -217,6 +224,7 @@ idempotency — a materially better outcome than either party's initial
 proposal. That particular step exists in the conversation record
 because the user asked for the LLM's view before committing.
 
+<!-- unit: driving-ask-for-pushback class=procedural -->
 ### Ask for pushback when the LLM agrees too easily
 
 Models default to agreement under social pressure. When the LLM
@@ -229,6 +237,7 @@ specifically to make pushback structural rather than personal. When
 the recommendation cites primary evidence, the pushback is a debate
 about that evidence, not about whose preference wins.
 
+<!-- unit: driving-dont-merge-questions class=procedural -->
 ### Don't merge questions
 
 The grilling skill's "ask the questions one at a time" rule is
@@ -242,6 +251,7 @@ The sync-semantics grilling sequenced Q1 (shape) before Q5 (entry
 naming) specifically because the entry-naming decision is only
 meaningful once shape is settled.
 
+<!-- unit: driving-record-decisions-inline class=procedural -->
 ### Record decisions inline, while they're fresh
 
 The running-log pattern: each settled question gets a paragraph
@@ -261,6 +271,7 @@ The decisions log is *not* the ADR. ADRs come at the end of grilling
 deserve one). The log is for the conversation; the ADR is for the
 durable record.
 
+<!-- unit: pending-driving-evidence kinds=* class=triggering -->
 ## When to retire research into ADRs versus leave it in `docs/research/`
 
 Research outlives the grove that commissioned it (constraint 6).

@@ -119,7 +119,7 @@ unioned.
   silence (the absence is itself a finding). No grilling, no tree growth. The two
   kinds are identical in discipline and distinct in configuration; a single survey
   that needs no pair is `research-a`.
-<!-- unit: task-combine-research kinds=combine-research class=triggering defers=task-research-write-paths -->
+<!-- unit: task-combine-research kinds=combine-research class=triggering defers="task-research-write-paths driving-the-combine-step" -->
 - **combine-research** (AFK) — union two surveys' coverage and flag every
   disagreement. This kind, not either producer, carries the **adversarial** move:
   two vendors on overlapping corpora can agree on something false, so **agreement

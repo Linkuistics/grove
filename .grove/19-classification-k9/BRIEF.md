@@ -470,6 +470,28 @@ is a different act from silently not writing it.
 | 35 | `driving.md` §*Running the vendor pair* (L141, L156 citations) | `TASK-FORMAT.md` §*The vendor pair* / §*What the shapes are not* bodies | #5 |
 | 36 | `driving.md` §*The review chain…* (its `TASK-FORMAT.md` citations) | `TASK-FORMAT.md` chain-mechanics bodies | #7 |
 | 37 | `driving.md` §*Prune, reorder, or file an issue* (L702, its `SKILL.md` citation) | `SKILL.md` `**Retire.**` pruning body | #11 |
+| 38 | `TASK-FORMAT.md` `task-producer-impl` (L106–109, `kinds=impl`) | `driving.md` §*Verifying framework decisions against the source* | #6 |
+| 39 | `TASK-FORMAT.md` `task-producer-impl` (L106–109) | `driving.md` §*Doubting inside a picked Grove leaf* | #7 |
+| 40 | `TASK-FORMAT.md` `task-producer-impl` (L106–109) | `driving.md` §*Externalizing surfaced work* | #8 |
+
+**Rows 38–40 are an addition by `research-moves-k25`, and they are one sentence
+split three ways.** `task-producer-impl`'s parenthesis — *"(`driving.md` carries
+the habits: cite framework decisions to the source, doubt a hard-to-reverse
+decision before it stands, and externalize surfaced work into new leaves rather
+than absorbing it.)"* — names **three** bodies living in three different batches,
+so the later-endpoint rule gives each batch one member of one `defers=` list and
+no batch owns the whole edge. They are listed here rather than left to three
+independent sweeps because the failure is the silent one: each of the three
+sections is reachable by another planned route (rows 11, 12 and #6's own
+self-rooting), so **dropping any one member leaves `cargo build` green**. Each
+owning batch writes its member and reports the row; a target that turns out
+triggering is a decline with that reason, as anywhere else.
+
+`research-moves-k25` could not write any of the three: it owns none of the
+targets, and the indirection `guides-k24` used for file-level citations — defer to
+the file's **entry** unit and let the chain reach the sections — is unavailable
+here, because `driving.md`'s entry (`driving-field-guide`) is `class=triggering`
+and a `defers=` naming a triggering unit is a build error.
 
 Rows 24, 26, 27 and 35–37 are **conditional on an earlier batch's own split, or on
 the reference turning out to be a citation rather than an edge** — a parenthetical

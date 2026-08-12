@@ -162,11 +162,18 @@ bare `grove` invocation. It provisions the copy **embedded in the running
 binary** — a session always reads the methodology its own `grove` was built
 with. Those directories are global, so Grove also checks the pairing on every
 iteration: it restores a skill directory another `grove` build has written, and
-refuses to launch when the `grove-llm` a session would find on `PATH` comes from
-a different build. Editing `content/` in a checkout therefore changes nothing
-any session reads until that checkout is **installed** — `cargo install
---path .`, not `cargo run`, which would provision the checkout's methodology
-beside the installed CLI and be refused. See
+reports — without refusing — when the `grove-llm` a session would find on `PATH`
+comes from a different build. It reports rather than refuses because it resolves
+in its *own* environment, which is the session's only when your configured
+command inherits it; a wrapper, login shell, `ssh` hop, or container may reach a
+different binary in either direction. Editing `content/` in a checkout therefore
+changes nothing any session reads until that checkout is **installed** — not
+`cargo run`, which provisions the checkout's methodology beside the installed
+CLI and is announced on every iteration as exactly that mismatch. Installing
+means making the build you are driving the one a session's `PATH` resolves
+first: `cargo install --path .` does that only if `~/.cargo/bin` outranks every
+other prefix holding a `grove-llm`, and the diagnostic names the path it
+actually resolved so you can tell. See
 [Embedded methodology](ARCHITECTURE.md#self-extension-core-and-methodology).
 
 `grove-llm` is the agent-facing tree interface the session drives during those

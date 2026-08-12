@@ -26,9 +26,9 @@ This follows the [complete session configuration](../adr/complete-session-config
 decision.
 
 One bare `grove` command owns the whole lifecycle. On every iteration it
-re-verifies the provisioned skill directories' stamps, resolves and
-identity-checks the `grove-llm` a session would find on `PATH`, validates configuration
-before any task-tree mutation, brings the tree to a runnable current shape,
+re-verifies the provisioned skill directories' stamps, resolves the `grove-llm` a
+session would find on `PATH` and reports an identity mismatch without stopping,
+validates configuration before any task-tree mutation, brings the tree to a runnable current shape,
 performs one authoritative pick, reloads configuration, and launches the
 selected kind. The selected leaf's stable handle is embedded in `${prompt}` as
 the session mandate. A launched session resolves that handle and never picks
@@ -41,7 +41,7 @@ bare grove
   -> provision embedded methodology independently of launch policy
   -> acquire this working tree's driver lease
   -> re-verify each skill dir's stamp; restore one another build clobbered
-  -> resolve the PATH grove-llm and reject a methodology-identity mismatch
+  -> resolve the PATH grove-llm and report a methodology-identity mismatch
   -> load and fully validate ~/.config/grove/config.kdl
   -> recover or perform at most one required lifecycle transition
        absent tree  -> create root brief + requirements leaf
@@ -373,11 +373,16 @@ is an error. `grove-llm` remains the agent-facing deterministic tree interface.
 
 ### Toolchain and serialization
 
-On every iteration the driver resolves `grove-llm` beside its own current
-executable, falling back to `PATH` only when no sibling file exists. There is no
-user override. Before configuration validation or tree mutation it runs that
-exact binary's version check and stops on a missing, malformed, or different
-version. Version skew is a resumable no-mutation stop.
+On every iteration the driver resolves `grove-llm` through its own `PATH`, never
+preferring the sibling of its current executable, and with no user override.
+Before configuration validation or tree mutation it asks that exact binary for
+its methodology identity and compares it with the driver's own. A missing,
+unidentifiable, or differing binary produces one diagnostic naming the resolved
+path and both identities, and the iteration continues: the driver's environment
+is a proxy for an opaque configured command's, so a pairing mismatch is reported
+rather than made a stop ([one build owns a
+session](../adr/one-build-owns-a-session.md)). No crate-version comparison
+remains.
 
 ### Process ownership and session epochs
 
@@ -491,8 +496,9 @@ already-admitted operation returns.
 A cwd that resolves to another working tree receives a wrong-worktree
 diagnostic naming both roots. A missing, inactive, unlocked, malformed, or
 mismatched epoch receives a stale-session diagnostic. Both refuse before tree
-access or completion signaling. Pure `grove-llm --version` is explicitly
-exempt. A command invoked manually without `GROVE_SIGNAL_FILE` remains an
+access or completion signaling. Pure `grove-llm --version` and pure
+`grove-llm --content-hash` are explicitly exempt: both are metadata the driver
+may ask of a binary from outside any session, and neither touches a tree. A command invoked manually without `GROVE_SIGNAL_FILE` remains an
 ordinary human/diagnostic tree command.
 
 Every epoch lock acquisition first tries without blocking. On contention it
@@ -1285,8 +1291,9 @@ Through that seam, cover:
 - no mutation for a pre-mutation missing or invalid config in rootless, legacy,
   current, empty, and pending-migration trees; plus a post-mutation invalid edit
   that preserves the completed transition but launches nothing;
-- sibling/PATH `grove-llm` resolution and fatal missing/malformed/version-skew
-  checks before mutation;
+- `PATH`-only `grove-llm` resolution before mutation, and non-fatal reporting of
+  a missing, unidentifiable, or identity-mismatched binary — the iteration
+  proceeds and the diagnostic names the resolved path;
 - metadata-only `--help`/`--version`; provisioning before lease acquisition on
   the bare path; skill refresh on a refused second driver; and an unwritable
   workspace-administration control directory failing before configuration or
@@ -1429,8 +1436,8 @@ Through that seam, cover:
   begin after invalidation;
   an orphaned tree command outliving its SIGKILLed foreground parent causing a
   bounded stop rather than parking or relaunching the loop; and `grove-llm
-  --version` succeeding against inactive or foreign epochs while task-tree verbs
-  still refuse;
+  --version` and `--content-hash` succeeding against inactive or foreign epochs
+  while task-tree verbs still refuse;
 - the same orphaned-guard handoff after a successful finish deletion: the first
   replacement stops `blocked` without recreating `.grove/`, then an invocation
   after guard release invalidates the old epoch and launches the fresh tree;

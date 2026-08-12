@@ -88,7 +88,13 @@ relaunching. The comparison is of [methodology
 identity](#the-boundary-is-a-build-not-a-commit), not crate version, and the
 subject is the `PATH` binary rather than the driver's own sibling — the driver
 never invokes `grove-llm`, so the sibling agrees with it by construction while
-the binary the session actually runs would go unchecked.
+the binary the session actually runs would go unchecked. The check **reports and
+launches anyway**: it measures the driver's environment, which is the session's
+only when the configured command inherits it, so a refusal would stall the loop
+on a proxy the driver cannot confirm ([one build owns a
+session](adr/one-build-owns-a-session.md)). Nothing else in the iteration is
+advisory — configuration, lease, and workspace layout are facts the driver
+establishes directly and stops on.
 
 <a id="cli-binary-split"></a>
 <a id="command-surfaces"></a>
@@ -107,9 +113,10 @@ to reproduce filesystem mutations from prose.
 
 `grove-llm` also answers `--content-hash` with its build's [methodology
 identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
-verb on purpose: the driver reads it to check the pair, no session ever calls
-it, and the embedded methodology instructs nothing about it — so it stays out of
-the agent grammar the provisioning test scans.
+verb on purpose: the driver reads it to report on the pair, no session ever
+calls it, and the embedded methodology instructs nothing about it — so it stays
+out of the agent grammar the provisioning test scans. A binary old enough not to
+answer it is unidentifiable rather than mismatched, and is reported the same way.
 
 `src/main.rs` and `src/bin/grove-llm.rs` are thin entry points. `src/cli.rs`
 owns the human grammar; `src/llm_cli.rs` owns the agent grammar.
@@ -609,12 +616,16 @@ idempotent while still updating the skill when the binary changes.
 
 That hash is the build's **methodology identity**, and it is the identity
 because the crate version does not move between a released binary and an edited
-checkout at the same version. `build.rs` also emits it as a compile-time
-constant so any binary in the crate can name its own identity without linking
-the embed: only `grove` extracts content, so only `grove` carries it. An
-in-crate test pins the constant against the runtime hash of the linked embed,
-which is what stops the build script's traversal and `provision`'s from
-drifting.
+checkout at the same version. It covers the embedded **file payload** — every
+embedded file's path and bytes — and deliberately not the embedded directory
+structure, so an empty directory is not part of a build's identity; hashing
+typed directory entries would make the build script reproduce `include_dir`'s
+directory semantics as well as its file selection. `build.rs` also emits the
+hash as a compile-time constant so any binary in the crate can name its own
+identity without linking the embed: only `grove` extracts content, so only
+`grove` carries it. An in-crate test pins the constant against the runtime hash
+of the linked embed, which is what stops the build script's traversal and
+`provision`'s from drifting.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
@@ -694,14 +705,16 @@ three places:
 | Where | What it does |
 |---|---|
 | Before each launch | Re-verify each installed skill directory's stamp; restore this driver's embed and say so when another build has taken one. |
-| Before each launch | Refuse when the `PATH` `grove-llm` a session would resolve carries a different methodology identity. |
-| Inside a session | `grove-llm` warns — never refuses — when the installed directories are not stamped with its own identity, which is the only check a mid-session clobber can reach. |
+| Before each launch | Report — never refuse — when the `PATH` `grove-llm` a session would resolve is missing, unidentifiable, or carries a different methodology identity. The driver's environment is a proxy for the session's, exact only when the configured command inherits it. |
+| Inside a session | `grove-llm` warns — never refuses — when the installed directories are not stamped with its own identity. Its two operands are the ones that matter, and it is the only check a mid-session clobber can reach. |
 
 Concurrent groves at different builds stay unsupported: one directory cannot
-serve two builds, and the pair above makes the alternation visible instead of
-silent. There is one supported way to run a build, including for dogfooding —
-install it (`cargo install --path .`), which makes the pairing coherent for
-every grove on the machine rather than for one launch.
+serve two builds, and the reports above make the alternation visible instead of
+silent. The supported way to run a build, dogfooding included, is to make it the
+installed one a session's `PATH` resolves first — which `cargo install --path .`
+achieves only where `~/.cargo/bin` outranks every other prefix carrying a
+`grove-llm`, so the diagnostic names the path it actually resolved rather than
+prescribing one command.
 
 ## Main module seams
 

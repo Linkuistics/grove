@@ -473,6 +473,34 @@ is a different act from silently not writing it.
 | 38 | `TASK-FORMAT.md` `task-producer-impl` (L106–109, `kinds=impl`) | `driving.md` §*Verifying framework decisions against the source* | #6 |
 | 39 | `TASK-FORMAT.md` `task-producer-impl` (L106–109) | `driving.md` §*Doubting inside a picked Grove leaf* | #7 |
 | 40 | `TASK-FORMAT.md` `task-producer-impl` (L106–109) | `driving.md` §*Externalizing surfaced work* | #8 |
+| 41 | `driving-reworking-adrs-and-briefs` (procedural, #6) | `driving.md` §*Doubting inside a picked Grove leaf* — the doubt-pass body | #7 |
+| 42 | `driving-cite-framework-decisions-to-the-source` (procedural, #6) | `driving.md` §*Doubting inside a picked Grove leaf* — the doubt-pass body | #7 |
+
+**Rows 41–42 are an addition by `evidence-moves-k26`, and they are the mirror
+image of rows 38–40.** Two of #6's bodies end by naming the doubt pass as the
+paired procedure — *"when the rework is big enough that you might miss a caller,
+run the doubt pass (below) over the reconciled set"* and *"When the decision is
+also hard to reverse, this pairs with the doubt pass below"* — so the source is
+carved and the target is not, and the later-endpoint rule makes both #7's. They
+are **intra-file**, so #7's `grep -rn 'driving\.md' content/` sweep cannot see
+them at all: the filename grep is a *cross-file* instrument and these references
+name no file. That is the same silent shape as rows 38–40 — §*Doubting* is already
+reachable by rows 11 and 39, so dropping either member leaves `cargo build`
+green — which is why they are rows here rather than a note in a leaf body. #7
+picks the target id (it decides §*Doubting*'s own grain) and may decline either
+row as a citation with that reason.
+
+**A note #7 needs and no row carries.** `driving.md`'s addyosmani licence comment
+(*"The two sections below are adapted … source-driven-development and
+doubt-driven-development"*) attributes a **non-adjacent pair**: §*Verifying
+framework decisions against the source* and §*Doubting inside a picked Grove
+leaf*, with grove's own §*Verifying a claim about the repo itself* between them.
+The comment can only travel with the first, so it is now inside
+`driving-when-code-depends-on-a-framework-version` and #7's doubt units will carry
+no attribution. Nothing to fix while marking — the fix is a prose edit — but #7
+should record it rather than rediscover it, and it is worth the aggregate
+reviewer's attention as the first case where mandate delivery separates adapted
+prose from its attribution.
 
 **Rows 38–40 are an addition by `research-moves-k25`, and they are one sentence
 split three ways.** `task-producer-impl`'s parenthesis — *"(`driving.md` carries

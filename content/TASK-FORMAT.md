@@ -103,7 +103,7 @@ fault.
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
   to, not to ship. The point is the reaction it provokes, not the code's
   survival.
-<!-- unit: task-producer-impl kinds=impl class=triggering -->
+<!-- unit: task-producer-impl kinds=impl class=triggering defers=driving-cite-framework-decisions-to-the-source -->
 - **impl** (AFK) — produces code, docs, or tests. The deliverable is an artifact
   that ships. (`driving.md` carries the habits: cite framework decisions to the
   source, doubt a hard-to-reverse decision before it stands, and externalize

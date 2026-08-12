@@ -108,7 +108,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
 /// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
 /// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 87] = [
+const EMBEDDED_UNITS: [&str; 93] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -119,15 +119,21 @@ const EMBEDDED_UNITS: [&str; 87] = [
     "continue",
     "driving-ask-for-pushback",
     "driving-ask-wdyt",
+    "driving-cite-framework-decisions-to-the-source",
     "driving-dont-merge-questions",
     "driving-field-guide",
     "driving-how-to-write-a-research-leaf-brief",
     "driving-record-decisions-inline",
+    "driving-reworking-adrs-and-briefs",
     "driving-running-the-vendor-pair",
     "driving-the-combine-step",
+    "driving-turning-a-sweep-into-evidence",
+    "driving-when-asserting-a-repo-wide-claim",
+    "driving-when-code-depends-on-a-framework-version",
     "driving-when-not-to-start-a-grove",
     "driving-when-to-commission-prior-art-research",
     "driving-when-to-invoke-grilling",
+    "driving-when-to-retire-research-into-adrs",
     "grilling-agree-the-test-seams",
     "grilling-challenge-the-glossary",
     "grilling-cross-reference-with-code",
@@ -137,7 +143,7 @@ const EMBEDDED_UNITS: [&str; 87] = [
     "grilling-offer-adrs-sparingly",
     "grilling-sharpen-fuzzy-language",
     "grilling-update-context-inline",
-    "pending-driving-evidence",
+    "pending-driving-doubt",
     "pending-skill-loop",
     "skill-bare-grove-dispatch",
     "skill-bootstrap",

@@ -271,7 +271,7 @@ The decisions log is *not* the ADR. ADRs come at the end of grilling
 deserve one). The log is for the conversation; the ADR is for the
 durable record.
 
-<!-- unit: pending-driving-evidence kinds=* class=triggering -->
+<!-- unit: driving-when-to-retire-research-into-adrs kinds=* class=triggering defers=driving-reworking-adrs-and-briefs -->
 ## When to retire research into ADRs versus leave it in `docs/research/`
 
 Research outlives the grove that commissioned it (constraint 6).
@@ -293,6 +293,7 @@ the ADRs its findings landed in, and each ADR has a rationale section
 citing the survey by primary source. A future reader of either
 artifact can trace the evidence chain without re-doing the research.
 
+<!-- unit: driving-reworking-adrs-and-briefs class=procedural -->
 ## Reworking ADRs and briefs as understanding shifts
 
 An ADR set is a **minimum coherent set describing the current design**, not a
@@ -320,6 +321,7 @@ that changes a recorded decision, and **retiring** a leaf or node (`SKILL.md`'s
 Plan and Retire steps), where you promote brief material upward and reconcile the
 ADR set in the same pass.
 
+<!-- unit: driving-when-code-depends-on-a-framework-version kinds=* class=triggering defers=driving-cite-framework-decisions-to-the-source -->
 <!-- The two sections below are adapted (paraphrased into grove's voice, not
      bundled verbatim) from addyosmani/agent-skills@13e43f23 —
      skills/source-driven-development and skills/doubt-driven-development.
@@ -333,6 +335,7 @@ note for what you *couldn't* verify — is not only for research. It applies to
 whose correctness depends on the version. Training data goes stale; an API you
 "remember" may have been deprecated two releases ago.
 
+<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural -->
 For that kind of code — and only that kind, not version-invariant logic,
 renames, or plumbing:
 
@@ -357,6 +360,7 @@ renames, or plumbing:
 When the decision is also hard to reverse, this pairs with the doubt pass
 below: cite the source *and* have a fresh context try to break it.
 
+<!-- unit: driving-when-asserting-a-repo-wide-claim kinds=* class=triggering defers=driving-turning-a-sweep-into-evidence -->
 ## Verifying a claim about the repo itself
 
 The counterpart to the section above. Sessions assert things about their own
@@ -365,6 +369,7 @@ appears in five places"* — and a repo-wide grep is the usual evidence. It is a
 **worse instrument than it looks**, because each of its failure modes produces a
 *clean-looking* result.
 
+<!-- unit: driving-turning-a-sweep-into-evidence class=procedural -->
 **Check the output resembles what you asked for, not merely that the command
 exited 0.**
 
@@ -423,6 +428,7 @@ count.
 sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
 
+<!-- unit: pending-driving-doubt kinds=* class=triggering -->
 ## Doubting inside a picked Grove leaf
 
 The composition rule starts from a procedural fact: the Grove driver launched

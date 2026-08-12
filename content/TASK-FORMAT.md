@@ -209,7 +209,7 @@ one-time legacy migration still reads it: `work`, `review-work` and
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness driving-the-review-chain driving-review-chain-habits" -->
+<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness driving-the-review-chain driving-review-chain-habits skill-cut-the-next-step" -->
 ## Composing the kinds — the two shapes
 
 The kinds compose into two habitual shapes. A session cutting leaves should
@@ -283,7 +283,7 @@ Three things follow from cutting them late:
   after the review whose subtree still holds live work** whenever there is one.
   *What the shapes are not*, below, carries the reason and the exact condition.
 
-<!-- unit: task-declare-the-relationship kinds=* class=triggering -->
+<!-- unit: task-declare-the-relationship kinds=* class=triggering defers=skill-declare-the-relationship -->
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
 <review-handle>`, on their own line, naming the stable handle:
@@ -388,7 +388,7 @@ it could be and is not:
   stem-mates together in a directory listing — was in any case false: a leaf name
   begins with `NN`, so a listing sorts by position and never by slug, and both
   spellings glob identically under `*<stem>*`.
-<!-- unit: task-no-node-for-a-shape kinds=* class=triggering -->
+<!-- unit: task-no-node-for-a-shape kinds=* class=triggering defers=skill-no-node-for-a-shape -->
 - **Neither shape gets a node directory.** A charter means *this work proved
   bigger than one session*, which a composed shape is not, and the hierarchy the
   node bought was not worth the navigation cost. So there is **one node species**
@@ -422,7 +422,7 @@ it could be and is not:
   check — the intervening leaf has not run yet and grove makes no leaf's eventual
   file set part of its contract, so nothing could supply the proof.
 
-<!-- unit: task-grammar-is-five-fields kinds=* class=triggering -->
+<!-- unit: task-grammar-is-five-fields kinds=* class=triggering defers=skill-grammar-is-five-fields -->
 **The grammar is the five fields above and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders
 the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the

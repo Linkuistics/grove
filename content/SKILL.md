@@ -259,7 +259,7 @@ Continue inline **only** while the work still serves this leaf's stated goal
 not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
 just-in-time, at the genuine seam, never speculatively.
 
-<!-- unit: pending-skill-shapes kinds=* class=triggering -->
+<!-- unit: skill-cut-the-next-step class=procedural defers="task-review-chain-mechanics task-vendor-pair-mechanics" -->
 **Cut the next step, when it is needed.** When more than one leaf serves *one*
 artifact, two shapes are the habitual answer — reach for them by default, and
 argue yourself *out* of one rather than into it. They are built in **opposite**
@@ -317,6 +317,7 @@ ways, and the asymmetry is the design:
   vendors is the configuration owner's policy, not something grove can recover
   from an opaque command template.
 
+<!-- unit: skill-no-node-for-a-shape class=procedural -->
 **Neither shape gets a node directory.** A node means *this work proved bigger
 than one session*, and its `BRIEF.md` is the context those extra sessions need; a
 composed shape has no such context, and the hierarchy a node bought was not worth
@@ -325,6 +326,7 @@ neighbours, and **every node in the tree carries a brief** again — there is on
 one node species, and Retire's close has the same work to do at every one of
 them.
 
+<!-- unit: skill-bare-stem-rule kinds=* class=triggering defers=task-bare-stem-reasoning -->
 **Every step of a shape carries the same bare stem** — no `-review`, no
 `-integrate`, no `-a` / `-b` / `-combine`. **The kind field is the canonical
 statement of a leaf's role; the slug names the artifact and does not restate the
@@ -338,6 +340,7 @@ role spelled out in its path. Both spellings remain legal filenames, the grammar
 is unchanged, and **no existing tree is invalidated** — an older suffixed slug
 you meet is fine and stays as it is (`TASK-FORMAT.md` carries the full reasoning).
 
+<!-- unit: skill-declare-the-relationship class=procedural -->
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
 <review-handle>` (`TASK-FORMAT.md`). Nothing writes those lines for you and
@@ -345,6 +348,7 @@ nothing parses them: they are a **convention for the human and the next session*
 which is constraint 3 — task files are freeform markdown and nothing validates
 them.
 
+<!-- unit: skill-grammar-is-five-fields class=procedural -->
 **The grammar is five fields; no relationship is one of them.** Grove parses
 every task-shaped leaf name into exactly `NN`, an optional `DONE` / `ABANDONED`
 infix, one member of the closed kind set, the slug, and `-k<key>` — and all five
@@ -360,6 +364,7 @@ nothing else in the name does, while a marker only restated the kind — and an
 unparsed convention that duplicates a parsed field is the one kind of convention
 that can be wrong.
 
+<!-- unit: skill-chain-gap-asymmetry kinds=* class=triggering defers="skill-integration-placement task-chain-contiguity" -->
 **A chain is not contiguous by construction, and only one of its two hops needs
 protecting.** Steps are appended at the parent's next free position, so a step
 cut after some unrelated leaf already exists lands *after* that leaf, and a later
@@ -385,6 +390,7 @@ anything is **what the next step consumes**:
   session has to re-derive what the reviewer meant from a codebase the reviewer
   never saw.
 
+<!-- unit: skill-integration-placement class=procedural -->
 So an integration is cut **where `pick` reaches it next**, and the condition for
 that is mechanical and **directory-local**. Read the review's *own parent*
 directory at the entries after the review's position, and find **the first
@@ -414,6 +420,7 @@ not:
   sibling node is irrelevant, and when no sibling entry blocks, plain `leaf-add`
   is exactly right.
 
+<!-- unit: skill-no-exception-to-check kinds=* class=triggering -->
 **There is no exception to check.** Adjacency is unconditional guidance, not
 because departing is forbidden — grove enforces none of this — but because the
 check an exception would need cannot be performed: at the moment a review cuts
@@ -421,6 +428,7 @@ its integration the intervening leaf has not run, and grove makes no leaf's
 eventual file set part of its contract, so a goal or pointer list is not proof of
 what it will touch. A session that departs anyway owns the drift.
 
+<!-- unit: pending-skill-lifecycle kinds=* class=triggering -->
 **When a picked producer needs fresh review**, the answer is the same
 `leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf
 with the specific doubt written into its body, retire the producer, and commit

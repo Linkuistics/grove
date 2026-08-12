@@ -121,7 +121,7 @@ fn run_configured_loop_with_lease(
         };
 
         let config = SessionConfig::load(&home)?;
-        let prompt = mandate_prompt(&selection.handle)?;
+        let prompt = mandate_prompt(&selection.handle, worktree)?;
         let argv = config.expand(
             selection.kind.label(),
             &ExpansionContext {
@@ -192,10 +192,64 @@ fn run_configured_loop_with_lease(
     }
 }
 
-fn mandate_prompt(handle: &str) -> Result<String> {
+fn mandate_prompt(handle: &str, worktree: &Path) -> Result<String> {
     let launcher = crate::provision::continue_prompt()?;
+    let version_control = stated_vcs(worktree)?;
     Ok(format!(
-        "{launcher}\n\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n"
+        "{launcher}\n\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n\n{version_control}\n"
+    ))
+}
+
+/// The paragraph that **states** this working tree's VCS to the session, so no
+/// session ever detects it (`docs/ARCHITECTURE.md#symmetric-vcs-rule`).
+///
+/// The fact is the driver's: [`crate::repo::vcs_of`] is the named authority every
+/// tree-mutation verb already branches on, and it resolved before this session
+/// existed. Only the session re-derived it, and re-derived it badly — a harness
+/// banner computed from `.git` alone reads a jj workspace as no repository at
+/// all, and detection carried as skill instructions is skippable, so a session
+/// that never loaded them commits with Git in a jj tree and bypasses the
+/// operation log.
+///
+/// Three elements and no more: identity, the resolved root, and an explicit
+/// do-not-probe. Not the marker kind, and deliberately **not** the commit-boundary
+/// commands — those live in the methodology's Commit step, and a copy here would
+/// be a second source of truth that drifts across the build boundary
+/// (`docs/ARCHITECTURE.md#the-boundary-is-a-build-not-a-commit`).
+fn stated_vcs(worktree: &Path) -> Result<String> {
+    // Unreachable in a driver that got this far: the lease it holds lives *in*
+    // the VCS-administration directory, so a marker was already found. Spent as
+    // an error rather than a panic — the mandate has no third case to express,
+    // and a driver with nothing to say here must not launch a session that then
+    // has to guess.
+    let vcs = crate::repo::vcs_of(worktree).with_context(|| {
+        format!(
+            "no Git or jj marker at or above {}, so the session mandate cannot state \
+             the version control",
+            worktree.display()
+        )
+    })?;
+    let (identity, root) = match &vcs {
+        // Taken from the resolution rather than assumed. It *is* `worktree` —
+        // `vcs_of` starts its walk at the path itself and the lease root is the
+        // marker's own directory — but `Vcs::Jj` is the variant that carries a
+        // root, so reading it cannot drift if either end moves.
+        crate::repo::Vcs::Jj { workspace_root } => (
+            "this working tree is jj-enabled (jj workspace root:",
+            workspace_root.as_path(),
+        ),
+        // `Vcs::Git` carries none: the lease already canonicalized the working
+        // tree from the marker, and that is the tree the session runs in.
+        crate::repo::Vcs::Git => (
+            "this working tree is plain Git, not jj-enabled (worktree root:",
+            worktree,
+        ),
+    };
+    Ok(format!(
+        "Version control: {identity} `{}`). Grove resolved this authoritatively \
+         before the session started; do not probe for it, and disregard any harness \
+         banner that says otherwise.",
+        root.display()
     ))
 }
 

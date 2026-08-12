@@ -51,6 +51,22 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- **The mandate states the working tree's VCS**, so no session detects it. Every
+  session bare `grove` launches is now told, beside its handle, whether its tree
+  is jj-enabled or plain Git, which root the driver resolved, and not to probe
+  for it or trust a harness banner that disagrees. The driver already resolved
+  the fact before the session existed and every tree verb already branches on
+  it; only the session was re-deriving it, from a banner computed off `.git`
+  alone that reads a native jj workspace as no repository at all
+  ([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)),
+  or from skill instructions a session can skip. The line carries identity and
+  root only — each lane's commit commands stay in the embedded methodology's
+  Commit step, so there is one source of truth across the build boundary. Nothing
+  else about a launch changes: it is not a template word, not a verb, and no
+  existing configuration has to be edited to receive it.
+
 ## v18.0.0
 
 **Breaking.** Review composition is now **flat and lazy**. Existing task trees

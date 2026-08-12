@@ -306,6 +306,127 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
     );
 }
 
+// The mandate **states** the VCS the driver resolved, so no session detects it
+// (`docs/ARCHITECTURE.md#symmetric-vcs-rule`). One seam, driver-level: the real
+// driver against a real working tree of each kind, the prompt read back out of
+// the configured command's own `$1`. A unit test of the formatter would assert a
+// subset of the same claim while proving nothing about what a session receives.
+//
+// Two fixtures, because a single lane is satisfiable by a hardcoded string. Each
+// asserts its own identity clause *and* the resolved root, and that the other
+// lane's identity clause is absent — neither clause is a substring of the other,
+// so the pair cannot both pass on one constant.
+#[derive(Clone, Copy, Debug)]
+enum Lane {
+    Git,
+    Jj,
+}
+
+const JJ_CLAUSE: &str = "this working tree is jj-enabled (jj workspace root: ";
+const GIT_CLAUSE: &str = "this working tree is plain Git, not jj-enabled (worktree root: ";
+
+/// A jj-native working tree: `.jj/` and no `.git/` anywhere, so a git-shaped
+/// resolution fails outright instead of quietly working. `git.colocate=false` is
+/// forced because an ambient jj config may default colocation on, which would
+/// silently turn this into the colocated case and hide exactly that fallback.
+fn init_jj_worktree(dir: &Path, home: &Path) {
+    fs::create_dir_all(dir).unwrap();
+    assert!(
+        Command::new("jj")
+            .args([
+                "--config",
+                "user.name=Test",
+                "--config",
+                "user.email=t@example.com",
+                "--config",
+                "git.colocate=false",
+                "git",
+                "init",
+                "--quiet",
+                ".",
+            ])
+            .current_dir(dir)
+            .env("HOME", home)
+            .status()
+            .unwrap()
+            .success(),
+        "jj git init failed"
+    );
+    assert!(
+        !dir.join(".git").exists(),
+        "the jj fixture must have no .git/, or a git fallback would pass unnoticed"
+    );
+}
+
+fn assert_the_mandate_states_the_resolved_vcs(lane: Lane) {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(&home).unwrap();
+    let worktree = fixture.path().join("worktree");
+    match lane {
+        Lane::Git => init_worktree(&worktree),
+        Lane::Jj => init_jj_worktree(&worktree, &home),
+    }
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    let mandate_path = fixture.path().join("mandate");
+    let configured = fixture.path().join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\nprintf '%s' \"$1\" > {mandate}\nexit 0\n",
+            mandate = shell_quote(&mandate_path),
+        ),
+    );
+    write_complete_config(&home, &configured);
+
+    let output = run_driver(&worktree, &home);
+    assert!(
+        output.status.success(),
+        "the driver must launch in a {lane:?} tree: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let mandate = fs::read_to_string(&mandate_path).unwrap();
+    // The lease canonicalizes the working tree from its marker, so the stated
+    // root is the resolved form — on macOS `/private/var/...`, not the
+    // `/var/...` the fixture handed out.
+    let root = worktree.canonicalize().unwrap();
+    let (mine, other) = match lane {
+        Lane::Jj => (JJ_CLAUSE, GIT_CLAUSE),
+        Lane::Git => (GIT_CLAUSE, JJ_CLAUSE),
+    };
+    assert!(
+        mandate.contains(&format!("{mine}`{}`)", root.display())),
+        "a {lane:?} tree's mandate must state that lane and the root the driver \
+         resolved: {mandate:?}"
+    );
+    assert!(
+        !mandate.contains(other),
+        "a {lane:?} tree's mandate must not carry the other lane's phrasing: {mandate:?}"
+    );
+    assert!(
+        mandate.contains(
+            "Grove resolved this authoritatively before the session started; do not probe \
+             for it, and disregard any harness banner that says otherwise."
+        ),
+        "the stated VCS must tell the session not to re-derive it: {mandate:?}"
+    );
+}
+
+#[test]
+fn the_mandate_states_a_git_working_tree_and_its_root() {
+    assert_the_mandate_states_the_resolved_vcs(Lane::Git);
+}
+
+// The jj half is the one the session cannot get right on its own: a harness
+// banner computed from `.git` alone reads a native jj workspace as no repository
+// at all (claude-code#41435), which is exactly what this line overrides.
+#[test]
+fn the_mandate_states_a_jj_working_tree_and_its_workspace_root() {
+    assert_the_mandate_states_the_resolved_vcs(Lane::Jj);
+}
+
 // A `done` signal — the finish cycle's last teardown action — must end the loop
 // exactly once, cleanly, and must not be confused with either a relaunch or the
 // no-signal stop. The abandoned-channel housekeeping a replacement driver does

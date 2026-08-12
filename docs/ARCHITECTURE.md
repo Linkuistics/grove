@@ -308,8 +308,9 @@ serves readiness, the launch diagnostic line, template selection, and the
 mandate, with no second tree read. It is a fact, not a routing forecast, and it
 is not recomputed immediately before spawn.
 
-`${prompt}` carries the embedded launcher plus that stable handle as an explicit
-mandate. No hidden leaf environment variable accompanies it. At Bootstrap the
+`${prompt}` carries the embedded launcher, that stable handle as an explicit
+mandate, and the [version control](#symmetric-vcs-rule) Grove resolved for the
+working tree. No hidden leaf environment variable accompanies it. At Bootstrap the
 session resolves the handle with `grove-llm resolve`, rejects a missing,
 ambiguous, terminal, or non-leaf result, reads the glossary, cited decision
 records, brief chain, and task, and executes it without calling `grove-llm
@@ -592,6 +593,20 @@ committed with Jujutsu. Git working copies use `git mv` for tracked moves and
 Git for commits. This preserves Jujutsu's operation log and avoids mutating the
 Git index behind a colocated repository.
 
+Grove resolves that marker before a session exists and **states** the result in
+the mandate, which is why sessions do not probe: every launch is told whether its
+working tree is jj-enabled or plain Git, which root Grove resolved for it, and
+not to re-derive the answer. The driver already owns this fact and every
+tree-mutation verb already branches on it; only the session was working it out
+again, and working it out badly. A harness banner computed from `.git` alone
+reads a native Jujutsu workspace as no repository at all
+([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)),
+and detection carried as skill instructions is skippable, so a session that never
+loaded them commits with Git in a Jujutsu tree and bypasses the operation log.
+The line carries identity and root only. Which commands each lane uses stays in
+the embedded methodology's Commit step, so a rebuild moves one source of truth
+rather than two.
+
 Migration and finish commits are path- or fileset-scoped so unrelated user work
 survives: Git uses `--only` with an explicit `.grove` pathspec excluding the live
 witness, and Jujutsu commits a `.grove/` fileset with the same exclusion,
@@ -635,7 +650,8 @@ Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
 refreshed, so whichever one the command lands in already carries the current
 methodology. `content/prompts/continue.md` is the single surviving launcher,
-augmented with the selected stable-handle mandate; it deliberately stays small
+augmented with the selected stable-handle mandate and the resolved version
+control; it deliberately stays small
 and tells the target to use the provisioned skill, which makes that provisioned
 methodology a prerequisite of every configured target and one Grove cannot
 verify from the outside.

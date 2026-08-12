@@ -410,7 +410,7 @@ How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
 filename, obtains its complete session target from [[Grove configuration]], and
 embeds the selected stable handle in `${prompt}` as the launched session's
-mandate. The session first validates its [[Session epoch]], then resolves that
+mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
 handle to its current path, rejects an unavailable or non-live result,
 Bootstraps the resolved leaf, and does not pick again. A session started outside bare
 `grove` has no mandate and is not a Grove loop session; Grove executes the
@@ -418,6 +418,24 @@ configured command directly and is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
 leaf-level `**Harness:**` declaration as configuration fallbacks. Grove has one
 configuration source.
+
+**Stated VCS**:
+The version-control fact the driver resolves *before* a session exists and
+states in that session's mandate: whether the working tree is jj-enabled or
+plain Git, the root it resolved, and an explicit instruction not to probe for it
+and to disregard a harness banner that disagrees. It rides beside the handle in
+[[Kind routing]]'s `${prompt}` — not a template word, not a verb, and not
+anything a task file carries — and stops at identity and root: the marker kind
+and each lane's commit-boundary commands stay out, the latter because they
+already live in the [[Embedded methodology]]'s Commit step and a copy would be a
+second source of truth drifting across the build boundary.
+_Avoid_: re-deriving it in-session. A harness banner is computed from `.git`
+alone and reads a native jj workspace as no repository at all, and detection
+carried as skill instructions is skippable — a session that never loads them
+commits with git in a jj tree and bypasses the operation log.
+_Avoid_: a third "no VCS" case. Grove cannot run without a marker, because the
+driver lease lives in the VCS-administration directory, so the mandate has two
+lanes and no fallback.
 
 **Review target diversity**:
 Whether a scheduled review uses a different harness or model from its producer

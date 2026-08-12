@@ -152,6 +152,28 @@ stood at the graft — a closed record, not part of the versioned sequence above
   pairing report and provisioning's stamp are unchanged in behaviour and value.
   The release path's binary scan inverts to match: it now requires the embed in
   **both** shipped binaries.
+- **`content/` is really classified now — 138 units, not nine placeholders.** The
+  marking that landed with the build gate covered each embedded file with a
+  single whole-file unit, which was enough to exercise the parser and nothing
+  else. Every file is now subdivided into the actual triggering/procedural split,
+  with `kinds=` scopes and `defers=` targets, across the whole nine-file embed. So
+  `grove-llm methodology` lists 138 rows whose class, scope and deferral are
+  real, and fetching a triggering unit shows the id of the procedure that
+  completes it. **Nothing consumes a unit yet** — under provisioning a session
+  still receives whole documents — so what changed for a caller is the inventory
+  the verb serves, not what any session reads.
+- **`content/` loses the prose only a reader of a *file* could use.** The loop's
+  mermaid overview, `SKILL.md`'s `## Reference files` index, and `driving.md`'s
+  title and `## In this guide` anchor index are gone, along with several
+  near-verbatim restatements of rules their owning documents already state. Their
+  rows and anchors name **files**, and `grove-llm methodology` addresses
+  **units**, so each promised navigation the delivery path cannot honour; every
+  rule they carried is stated by the unit that owns its step, and what is lost is
+  a picture and a table of contents. One claim went rather than moved — the
+  CLI-design wizard anti-pattern, prior-art evidence cited to a survey this
+  repository does not contain, for a rule `leaf-add`'s flag-driven interface
+  already embodies. `tests/reference_navigation.rs` lost with it the ~140 lines
+  of heading-anchor machinery that existed only to keep the index honest.
 
 ## v18.1.0
 

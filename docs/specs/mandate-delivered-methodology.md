@@ -617,6 +617,91 @@ judgement about classification measured against an admittedly arbitrary number,
 and failing a contributor's build on that would be the gate this design is
 otherwise careful not to erect.
 
+### Provisioning retires after the mandate is proven, and the sweep is judgement rather than a file list
+
+Composition lands first and provisioning retires after it, so the mandate is
+proven working before the fallback is removed. Sessions therefore receive both a
+mandate and a provisioned skill for one increment. That state is a **transient
+and never a resting state**: two delivery paths that can disagree is the shape
+[the mandate delivers the methodology](../adr/mandate-delivers-the-methodology.md)
+rejects outright, and the only reason it is admitted at all is that the reverse
+order removes the fallback before anything has replaced it.
+
+The retirement itself is mostly subtraction, and `grep -rn provision` recovers
+the file set — which is why what is recorded here is the part it cannot: the
+sites where deleting the match is the wrong edit, and the sites that match
+nothing and still have to move.
+
+**A record is reworked when the new decision supersedes its own, not when it
+merely mentions a mechanism that is going.** A record describing mechanism that
+has not yet changed stays accurate until it does, and editing it early makes it
+describe a build nobody can run. That is what separates
+[one build owns a session](../adr/one-build-owns-a-session.md) — already reworked,
+because mandate delivery changed what pairing *means* — from the architecture,
+usage and configuration documents, which stay accurate until the sweep and are
+edited with it.
+
+**Three checks in `tests/provision.rs` are claims about the embed or the release
+rather than about provisioning**, so deleting the file drops them silently:
+`both_binaries_carry_the_embedded_methodology`, the `CONTENT_MARKER` constant,
+and `the_release_path_scans_for_the_same_marker`, which is what keeps that
+constant in step with `scripts/release-common.sh` — whose own diagnostic cites
+this filename and needs repointing with the move. They belong beside the other
+embed claims in `tests/methodology.rs`, which is where the instructed-verb scan
+and the flat-verb-surface pin already went. Two more in that file set are not
+straight deletions either:
+`exactly_one_launcher_is_embedded_and_provisioned` is about a launcher the
+composer renames, and `tests/methodology.rs`'s
+`the_skill_frontmatter_survives_marking_and_provisioning` calls `provision_into`,
+so it stops compiling the moment that module goes — it is the check that decides
+whether `content/SKILL.md`'s YAML is still load-bearing.
+`tests/support/mod.rs`'s `HARNESS_NAMES` environment scrub is neither: it is
+hygiene for removed variables and may well survive on its own terms.
+
+**Two prose sites lose a claim rather than a sentence.**
+[config-driven sessions](config-driven-sessions.md) states that *provisioning
+precedes ownership so a refused second driver still receives the independently
+delivered methodology* — a fact about what a refused driver is still left
+holding, which the retirement changes rather than deletes. `CONTEXT-MAP.md`'s
+*Shared target: the personal skill directory* stops being a relationship at all,
+because the two contexts no longer share the namespace; it goes rather than gets
+rewritten.
+
+**Two matches are outside the sweep.** Everything under `plugins/` belongs to the
+plugin installer's own skill directories, a different bounded context; and
+`src/tree_migrate.rs`'s v1 leaf-name fixtures are historical strings that happen
+to contain the word.
+
+### Deferred `content/` decisions
+
+Three prose calls this design surfaced and deliberately did not make, recorded
+because nothing else tracks them.
+
+**`skill-adrs-and-specs` fuses four rules into one unit** — raise ADRs sparingly,
+write a spec at a genuine agreement point, the ADR set is current-state, and the
+same rule governs `docs/specs/`. Markers are whole lines and two of those
+sentence boundaries fall mid-line, so the paragraph cannot be split without
+editing prose, and the classification pass edited none. The unit is triggering
+because two of the four ship nowhere else at `kinds=*`. De-fusing it is a prose
+edit, not a marking decision.
+
+**Eight of the nine embedded files still open with an H1 document title inside
+their first unit**, which ships into every mandate that unit's scope admits — a
+document heading delivered to a session that is not reading a document.
+`content/driving.md` lost its H1 when its file-reader narrative was stripped and
+carries a `<!-- grove reference file — … -->` note instead; whether the other
+eight follow is a decision, not an oversight.
+
+**A claim written into a new leaf's `Goal` is the one assertion nothing
+re-checks** before a whole session is spent on it. A bad citation inside a
+review's *findings* is caught by the session that integrates them, because it
+reads the code; the same citation in a leaf's `Goal` launches a session against a
+phantom, and `duplicated-prose-k36` was spent exactly that way. `driving.md`'s
+`driving-turning-a-sweep-into-evidence` covers the neighbouring class — control
+the instrument before asserting a repo-wide count — but not that destination, and
+`driving-externalizing-surfaced-work` says only that externalizing is cheap.
+Whether one instance earns a sentence in either is a `content/` call.
+
 ## Requirements
 
 ### Requirement: Every embedded markdown file is fully classified

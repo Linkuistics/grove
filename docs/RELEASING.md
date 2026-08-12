@@ -104,19 +104,20 @@ formula:
 scripts/release-build.sh
 ```
 
-Before archiving each target, the script asserts on the staged pair that `grove`
-carries the embedded methodology and `grove-llm` does not. It scans the
-binaries rather than running them, because two of the three targets are
-cross-compiled and cannot execute on the building machine. A failure aborts the
-release rather than shipping the archive; the phrase it scans for lives in
+Before archiving each target, the script asserts on the staged pair that **both**
+binaries carry the embedded methodology. It scans the binaries rather than
+running them, because two of the three targets are cross-compiled and cannot
+execute on the building machine. A failure aborts the release rather than
+shipping the archive; the phrase it scans for lives in
 `scripts/release-common.sh` and is pinned to `tests/provision.rs` by a test
 there.
 
-That direction is provisioning-era and **inverts** once `grove-llm` links the
-embed to serve `grove-llm methodology`: the assertion becomes that *both*
-binaries carry it. `docs/specs/mandate-delivered-methodology.md` schedules the
-change, so the first release cut after it lands is expected to need this scan
-updated rather than to have discovered a fault.
+That assertion **inverted** when `grove-llm` began linking the embed to serve
+`grove-llm methodology`. It used to fail a release when `grove-llm` carried the
+embed, because only `grove` extracted `content/` and `grove-llm` needed nothing
+but a compile-time identity constant. A `grove-llm` without the embed can no
+longer answer a session that followed a deferral, so its absence is now the
+fault rather than its presence.
 
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:

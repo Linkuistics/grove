@@ -175,7 +175,7 @@ root→leaf (a level with no brief is skipped silently, so a node whose charter
 has not been written yet still bootstraps); and the task file itself. That assembled context is the session's
 entire mandate; read nothing else by reflex.
 
-<!-- unit: pending-skill-loop kinds=* class=triggering -->
+<!-- unit: skill-execute kinds=* class=triggering defers=grilling-interrogate -->
 **Execute.** The **filename** states the leaf's session kind — nothing in its
 body does — drawn from a closed set of **nineteen**: five producers
 (`requirements`, `design`, `planning`, `prototype`, `impl`), each with its own
@@ -207,6 +207,7 @@ the sole branch here, and the only kind that grows the tree generatively:
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
   as any kind may.
 
+<!-- unit: skill-review-ownership class=procedural -->
 **Review ownership inside a picked leaf.** This applies only after the driver
 launched this session with a selected-leaf mandate in `${prompt}` and the
 session adopted that mandate by running Bootstrap — a `.grove/` directory in the
@@ -226,6 +227,7 @@ route: it launches the `review-*` kind's own configured command, and whether tha
 target differs from the producer's is the configuration owner's policy — grove
 records no producer target, compares none, and warns about none.
 
+<!-- unit: skill-adrs-and-specs kinds=* class=triggering defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-cite-framework-decisions-to-the-source" -->
 Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for placement;
 the `linkuistics:decision-records` skill for the philosophy, format, and
 when-to-write test), and write a spec only at a genuine agreement point
@@ -238,6 +240,7 @@ field-guide habits that make grilling, research-leaf commissioning, and the
 review chain productive (WDYT, pushback, running decision log, citation
 discipline).
 
+<!-- unit: skill-decompose kinds=* class=triggering defers="driving-externalizing-surfaced-work brief-the-node-briefing driving-what-a-good-child-leaf-looks-like" -->
 **Decompose.** When work surfaces mid-session, default to **externalizing it as
 a new leaf** rather than absorbing it into the current session — grove's value
 is many small, low-context sessions, and that value is lost the moment a session
@@ -256,6 +259,7 @@ Continue inline **only** while the work still serves this leaf's stated goal
 not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
 just-in-time, at the genuine seam, never speculatively.
 
+<!-- unit: pending-skill-shapes kinds=* class=triggering -->
 **Cut the next step, when it is needed.** When more than one leaf serves *one*
 artifact, two shapes are the habitual answer — reach for them by default, and
 argue yourself *out* of one rather than into it. They are built in **opposite**

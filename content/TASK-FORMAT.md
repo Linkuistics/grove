@@ -176,7 +176,7 @@ decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
 
-<!-- unit: task-in-session-doubt-budget kinds=* class=triggering defers=driving-doubting-inside-a-picked-leaf -->
+<!-- unit: task-in-session-doubt-budget kinds=* class=triggering defers="driving-doubting-inside-a-picked-leaf skill-review-ownership" -->
 **In-session doubt is budgeted across the whole picked leaf**, once the current
 session has run Bootstrap and adopted the driver's selected-leaf mandate:
 

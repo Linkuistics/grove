@@ -110,7 +110,15 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
   raised mid-grove and grove externalized rather than absorbed. It belongs to no
   stage, but it is **not** last: its surface is `content/SKILL.md` and
   `content/TASK-FORMAT.md`, 76 kB of the corpus the classification classifies, so
-  it and the `impl` leaf it cuts must both complete first.
+  it and the `impl` leaf it cuts must both complete first. **Settled:** the step
+  suffix goes, in both shapes — the kind field is the canonical statement of a
+  leaf's role and the slug does not restate it. No ADR (cheap to reverse, so it
+  fails the when-to-write test); the reasoning is durable in the methodology prose
+  `drop-step-suffix-k18` writes.
+- `drop-step-suffix-k18` (impl) — the execution, inserted ahead of the
+  classification for the same corpus reason. Guidance prose, `leaf-add-pair`'s
+  generated slugs, the glossary clause, and the tests pinned to either. No tree
+  migration: both spellings stay legal and no existing leaf is renamed.
 - `classification-k9` (node) — the real classification pass, decomposed because
   139 kB of judgement across nine files is not one session. Its first child is the
   `planning` leaf that derives dependency-ordered batches; its charter requires an

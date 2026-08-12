@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.0.0
+
 **Breaking.** Review composition is now **flat and lazy**. Existing task trees
 keep working untouched — a chain node was only ever an ordinary node directory
 whose slug ended in `-chain`, and nothing keyed on that token — but the two

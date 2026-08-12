@@ -728,15 +728,22 @@ per working tree, so it serializes nothing here. Two builds can write one
 directory: a second grove in another working tree, and — more likely inside this
 repository — `cargo run --bin grove` from a checkout, which lays that checkout's
 `content/` over the installed copy while the session's `PATH` still reaches the
-installed `grove-llm`. [One build owns a
-session](adr/one-build-owns-a-session.md) settles what Grove does about it, in
-three places:
+installed `grove-llm`. Grove acts on it in three places:
 
 | Where | What it does |
 |---|---|
 | Before each launch | Re-verify each installed skill directory's stamp; restore this driver's embed and say so when another build has taken one. |
 | Before each launch | Report — never refuse — when the `PATH` `grove-llm` a session would resolve is missing, unidentifiable, or carries a different methodology identity. The driver's environment is a proxy for the session's, exact only when the configured command inherits it. |
 | Inside a session | `grove-llm` warns — never refuses — when the installed directories are not stamped with its own identity. Its two operands are the ones that matter, and it is the only check a mid-session clobber can reach. |
+
+Only the middle row is still settled by [one build owns a
+session](adr/one-build-owns-a-session.md). That record now describes the pairing
+after the mandate becomes the delivery path, where there is no shared directory
+left to clobber, so it keeps the launch-time pairing report and no longer carries
+the stamp repair or the in-session directory warning. Those two are built
+behaviour whose reason *was* the shared directory, and they retire with it — the
+rationale is deliberately not restated in a record that would then have to be
+deleted at retirement.
 
 Concurrent groves at different builds stay unsupported: one directory cannot
 serve two builds, and the reports above make the alternation visible instead of

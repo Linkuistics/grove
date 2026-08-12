@@ -32,8 +32,14 @@ lockstep, which is why they live together — see
   disjoint — but the namespace is shared, so any future decision to have one
   context provision the other's content is a question about precedence and
   double-provisioning, not a local change. Contention *within* the `grove` entry
-  — two `grove` builds writing it — is a separate, grove-owned question, settled
-  by [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md).
+  — two `grove` builds writing it — is a separate, grove-owned question, and it
+  is being **removed rather than settled**:
+  [`mandate-delivers-the-methodology`](docs/adr/mandate-delivers-the-methodology.md)
+  makes `${prompt}` the sole delivery path, so the `grove` half of this shared
+  target goes and the `linkuistics` symlinks become its only occupants.
+  [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md) is what
+  survives that removal, and it is about which `grove-llm` a session resolves —
+  not about who wrote a directory.
 
 - **A durable record has one owner.** Every record under `docs/adr/` and
   `docs/specs/` has a repo-wide unique slug and a maintaining context recorded

@@ -17,11 +17,16 @@ split-brain *inside a single rule*, not two copies of one document. That is a
 worse failure than the one it replaced, and it is the reason this decision
 outlives the provisioning it was originally written for.
 
-It is also, in its most likely form, **loud**. A mandate that carries a unit id
-the session's `grove-llm` does not know produces an error naming the id, at the
-moment the session reaches for the procedure, which is strictly better than a
-silent divergence. The report below exists for the quieter half: a unit id that
-exists in both builds with different bytes behind it.
+It is also, in its most likely form, **loud** — and it is loud because the
+deferral is *declared*. A triggering unit's marker names the procedural unit it
+defers to, and the marker line is part of the unit's source, so the id travels
+into the mandate with the slice. A session reaching for the procedure therefore
+asks for a specific id, and a `grove-llm` from another build that does not have it
+answers with an error naming it, at the moment it matters, which is strictly
+better than a silent divergence. Had the design left the session to work out which
+id held the deferred half, there would be nothing here to raise. The report below
+exists for the quieter half: a unit id that exists in both builds with different
+bytes behind it.
 
 A build's **methodology identity** is the content hash of its embedded `content/`
 **file payload** — every embedded file's path and bytes. It is the identity rather

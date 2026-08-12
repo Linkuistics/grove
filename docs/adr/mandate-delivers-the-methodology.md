@@ -33,15 +33,26 @@ withheld procedure costs a lookup the session knows to make, while a withheld
 condition yields an **unasked question** — silent, and Grove's primary failure
 mode, a session quietly absorbing work that should have been its own leaf.
 
+The lookup is **addressed, not guessed**. Unit ids are one namespace across both
+classes, so a slice's own id addresses the slice; a marker therefore *declares*
+the procedural unit it defers to, and because the marker line is part of the
+unit's source that declaration arrives with the slice. Without it the asymmetry
+would be an assumption rather than a property — a session told there is a deferred
+half, and given no way to ask for it.
+
 That silent failure is admissible only because it is converted into a structural
 one. The classification is **data marked in `content/` beside the prose it
 classifies**, so the question narrows from "did we build the mandate right?" to
 "did we classify this one unit right?", and a completeness invariant answers the
 first mechanically: every triggering unit appears in the mandate of every kind its
-scope admits, every procedural unit in none, and every unit is reachable by id.
-Units **partition** a file rather than sitting in it as islands, which is what
-makes unclassified prose unreachable and makes a parser that goes blind to a
-marker shape produce visibly different bytes instead of a silent hole. The
+scope admits, every procedural unit in none, and **every procedural unit is
+reachable from some kind's mandate** by following the declared deferrals. Units
+**partition** a file rather than sitting in it as islands, which is what makes
+unclassified prose unreachable and makes a parser that goes blind to a marker
+shape produce visibly different bytes instead of a silent hole. Partition and
+reachability are the same claim seen from each end — together they say every byte
+of the methodology is either in a mandate or reachable from one, so a procedure no
+session can be told about is as impossible as prose no parser can see. The
 residue — whether a given unit was classified correctly — is judgement, and gets
 an adversarial review pass rather than a mechanism.
 
@@ -60,8 +71,9 @@ place a build's methodology could be clobbered from outside. What remains of
 triggering half of a rule now reaches the session from the driver's embed while
 the deferred procedural half comes from whichever `grove-llm` the session
 resolves, so a mismatched pair is a split-brain inside one rule rather than two
-copies of one document. It is also loud where the old skew was quiet — an
-unknown unit id is an error naming the id.
+copies of one document. It is also loud where the old skew was quiet, and the
+declared deferral is why: the mandate names the id it wants, so a `grove-llm`
+that does not have it errors on that name.
 
 `docs/specs/mandate-delivered-methodology.md` carries the marker grammar, the
 composition order, the verb's surface, and the agreed test seams.
@@ -100,6 +112,15 @@ composition order, the verb's surface, and the agreed test seams.
   prose; a separate manifest goes stale silently and in the fail-open direction.
   Reopen only if the markers are shown to damage `content/`'s readability as
   prose, which HTML comments are chosen to avoid.
+- **Name the deferred procedure in the triggering prose rather than in the
+  marker.** Rejected because it puts the one reference the build must check back
+  inside free text: proving every deferral resolves to a real procedural unit
+  would mean parsing prose for a citation grammar, which is a second grammar to
+  invent, to teach, and to keep the classification honest against — and a
+  reference the build cannot check is exactly the manifest failure one entry
+  above, relocated. The marker already carries the id at zero cost, because it is
+  part of the unit's source and therefore part of the slice. Reopen never; a
+  checkable reference is the point.
 - **Split `content/` into one file per unit.** Rejected because readability of
   `content/` from the code is the stated reason for keeping the embed, and the
   seven constraints cannot be checked against a spine scattered over dozens of

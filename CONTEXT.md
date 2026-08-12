@@ -75,9 +75,10 @@ shared directory Grove repairs; once the mandate is the delivery path that
 directory is gone, and what remains is **sharper**: a rule's [[Triggering unit]]
 reaches the session from the *driver's* embed while its procedural body comes
 from the session's own `grove-llm`, so a mismatched pair is a split-brain inside
-one rule rather than two copies of one document. Its likeliest form is loud — an
-unknown unit id errors by name — and the pre-launch report covers the quiet
-half, one id with different bytes behind it.
+one rule rather than two copies of one document. Its likeliest form is loud
+*because the deferral is declared* — the slice names the id it wants, so a
+`grove-llm` lacking that id errors by name — and the pre-launch report covers the
+quiet half, one id with different bytes behind it.
 _Avoid_: checking the sibling of the running `grove` — the driver never invokes
 `grove-llm`, so the sibling agrees with it by construction while the binary the
 session runs goes unchecked.
@@ -92,21 +93,29 @@ mismatch; the human who can fix either reads the same stream.
 **Methodology unit**:
 The grain of the [[Embedded methodology]]: a span of one `content/` file
 declared by an HTML-comment **unit marker** carrying a kebab-case id, a
-[[Triggering unit]]/procedural class, and — when triggering — the
-[[Session kind]]s its scope admits. Units **partition** their file: every body
-byte belongs to exactly one, a unit runs from its marker to the byte before the
-next or to end of file, and there is no nesting, no gap and no close marker.
+[[Triggering unit]]/procedural class, the [[Session kind]]s its scope admits when
+triggering, and optionally the **deferral**: the id of the procedural unit whose
+body completes it. Units **partition** their file: every
+body byte belongs to exactly one, a unit runs from its marker to the byte before
+the next or to end of file, and there is no nesting, no gap and no close marker.
 Partition is what makes unclassified prose unreachable, and what makes a parser
 blind to some marker shape produce a *visibly larger* preceding unit instead of a
 silent hole. The marker line is part of the unit's source, so a slice carries its
-own id and is self-addressing. Ids are unique across the whole embed, because
-`grove-llm methodology` addresses by id alone. Malformed markers fail the
-**build**: the embed is Grove's own compile-time artifact, not a human's task
-tree, so constraint 5 does not reach it.
+own id **and its deferral**, and is self-addressing in both directions. Ids are
+unique across the whole embed, because `grove-llm methodology` addresses by id
+alone. Markers are recognised only as unindented whole lines at **neutral fence
+state**, so a unit can neither begin nor end inside a fenced block. Malformed
+markers fail the **build**, as does a file whose fence state is unbalanced at end
+of file or a deferral naming no procedural unit: the embed is Grove's own
+compile-time artifact, not a human's task tree, so constraint 5 does not reach it.
 _Avoid_: reading a unit as a section. Headings do not delimit units, and the
 grain is deliberately finer than a heading's — one bullet out of nineteen.
 _Avoid_: "unmarked prose is procedural by default." There is no unmarked prose;
 a file that could contain some fails the build.
+_Avoid_: reading a unit's **own** id as the address of its deferred body. One
+namespace covers both classes, so that id fetches the unit again; the deferral is
+a separate declared target, and its absence means the unit is complete as
+delivered.
 
 **Mandate slice**:
 A byte-exact projection of a [[Methodology unit]] into one session's
@@ -143,7 +152,10 @@ session quietly absorbing work that should have been its own leaf). The split is
 data rather than judgement re-made per session, so a **completeness invariant**
 is mechanically checkable: every triggering unit appears in the composed mandate
 of every kind its scope admits, every procedural unit appears in **none**, and
-every unit — either class — is reachable through `grove-llm methodology`.
+every procedural unit is **reachable from some kind's mandate** by following the
+declared deferrals. Reachability is partition seen from the other end — together
+they say every byte of the methodology is either in a mandate or reachable from
+one, so an undiscoverable procedure is as impossible as unclassified prose.
 A triggering unit's scope is `*` or an explicit list of kind labels; there is no
 family shorthand and no negation, because a shorthand would silently absorb a
 kind added later.

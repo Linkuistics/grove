@@ -59,7 +59,10 @@ mandate the unit is scoped to. Its **body** — how to act once that is decided 
 is *procedural*, ships in no mandate, and is served on demand by a new
 `grove-llm methodology` verb reading the binary's own embed. The asymmetry is the
 whole argument: withholding a procedural body costs a lookup the session knows to
-make, while withholding a triggering condition yields an unasked question.
+make, while withholding a triggering condition yields an unasked question. That
+lookup is **addressed, not guessed** — a marker names the procedural unit it
+defers to, and the name arrives with the slice — which is what turns "the session
+knows to make it" from an assumption into a property.
 
 **The classification is data, marked in `content/` beside the prose it
 classifies.** Adjacency is what keeps it true when someone edits the prose, and
@@ -98,15 +101,18 @@ edit surface at every insertion point, and add an unclosed-unit failure mode tha
 total partition does not have.
 
 The marker line is **part of the unit's source**, so a slice arriving in a mandate
-carries its own id. Addressing is therefore self-documenting at zero
-driver-authored cost: a session reading a triggering slice can see the id to pass
-to `grove-llm methodology` for the deferred half.
+carries its own marker — its id, and the id of the procedural unit it defers to
+where it has one. Addressing is therefore self-documenting at zero
+driver-authored cost: a session reading a triggering slice reads the id to pass to
+`grove-llm methodology` straight off the text it is already holding.
 
 ### The marker grammar
 
 ```
 <!-- unit: <id> kinds=<scope> class=triggering -->
+<!-- unit: <id> kinds=<scope> class=triggering defers=<target> -->
 <!-- unit: <id> class=procedural -->
+<!-- unit: <id> class=procedural defers=<target> -->
 ```
 
 - **`<id>`** is kebab-case and **unique across the whole embed**, not merely
@@ -116,17 +122,86 @@ to `grove-llm methodology` for the deferred half.
   when it has more than one member. Every member is validated against the closed
   set of nineteen.
 - **`class`** is `triggering` or `procedural`.
+- **`<target>`** is one unit id, or a quoted space-separated list of them — the
+  same shape as `<scope>`, because a second list grammar would be a second thing
+  to learn for no gain.
 - **`kinds` is required on a triggering unit and forbidden on a procedural one.**
   A procedural unit ships to no mandate, so a scope there would be a lie; making
   it an error rather than an ignored field keeps every marker's meaning readable
   off the marker.
-- **Attribute order is fixed.** Free order costs nothing to parse but this is
-  content a human must audit line by line across the whole embed, and a uniform
-  column layout is what makes that audit fast.
+- **`defers` is optional on either class.** Its absence is meaningful: a unit with
+  no `defers=` is complete as delivered, which is how a session knows *not* to go
+  looking for more.
+- **Attribute order is fixed** — `id`, then `kinds`, then `class`, then `defers`.
+  Free order costs nothing to parse but this is content a human must audit line by
+  line across the whole embed, and a uniform layout is what makes that audit fast.
+
+### A unit names the procedure it defers to
+
+`defers=` is what makes "keep the `if`, defer the `then`" operable rather than
+merely stated. Without it a session holding a triggering slice has no way to reach
+its own deferred body: ids are unique across both classes, so the slice's own id
+addresses the slice, and asking `grove-llm methodology` for it returns the
+condition the session has already read. The relationship has to be **declared**,
+and the marker is where it goes — adjacent to the prose, for the same reason the
+classification is.
+
+Three rules make the declaration mechanical rather than a comment:
+
+- **Every `defers=` member names a declared unit**, and that unit's class is
+  `procedural`. Both are build errors, checked across the whole embed.
+- **Deferral may chain.** A procedural body that itself states a condition may
+  defer onward, and the fetched bytes carry that marker exactly as a mandate
+  carries a triggering one, so the session sees the next id the same way it saw
+  the first. Forbidding chains would buy nothing — the graph is checked at every
+  level — and would force procedures to merge for the grammar's convenience.
+- **Every procedural unit is reachable from some kind's mandate** by following
+  `defers=` from a triggering unit that mandate carries. This is the mirror of
+  total partition, and it closes the mirror hole. Partition makes unclassified
+  prose impossible; reachability makes an *undiscoverable procedure* impossible —
+  a body no session can be told about is deleted from the methodology as surely as
+  prose no parser can see, and just as silently. It also disposes of cycles
+  without a rule about them: a ring of procedural units that defer only to each
+  other satisfies no reachability check.
+
+Together with partition, that yields the structural claim the design is actually
+for: **every byte of the methodology is either in a mandate or reachable from
+one.** Reachability is per kind, not universal — a procedure reached only from a
+`kinds=impl` condition is reachable from the `impl` mandate and from no other,
+which is exactly right.
+
+### Fence state, and what it guarantees
 
 Markers inside fenced code blocks are **not** markers. The methodology documents
-itself, so example markers inside fences are certain to appear; the rule is
-pinned by test on the exact shapes that decide it.
+itself, so example markers inside fences are certain to appear.
+
+The parser therefore tracks fence state across the whole file body, and a marker
+is recognised only as a complete line, unindented, while that state is **neutral**.
+A line whose content is three or more backticks or tildes opens a fence; the
+matching close is a line of at least as many of the same character and nothing
+else. An indented or mid-fence marker-shaped line is prose — which is the intended
+reading for an example, and a *visible* misreading for a real marker, because the
+preceding unit absorbs it and the pinned id set moves.
+
+**A file whose fence state is not neutral at end of file is a build error.**
+Without that rule the gate has a hole precisely where it is least visible: a fence
+opened after the first real marker and never closed absorbs every later
+marker-shaped line into one giant final unit, violating no syntax rule, no
+semantic rule, and no reference rule. The file parses, the build passes, and most
+of a document silently stops being classified.
+
+Closing that hole also earns a guarantee rather than only removing a failure. A
+unit boundary is a recognised marker, and a marker is recognised only at neutral
+fence state, so **no unit can begin or end inside a fence** and every unit's
+fenced blocks are balanced within it. That is the fence half of "a unit must read
+correctly standing alone", and it is now mechanical. The rest of that
+property — that the prose reads sensibly out of its neighbours' company — stays an
+authoring rule for the classification review pass, because no further mechanical
+rule is specified for it and claiming one would be the design's one unverified
+claim.
+
+Both rules are pinned by test on the exact shapes that decide them: a balanced
+fenced example marker ignored, and an unterminated fence rejected.
 
 ### `kinds=` admits `*` and explicit lists, and nothing else
 
@@ -168,16 +243,25 @@ Failing the *driver* instead would be the worst of both — the fact is visible 
 compile time, so deferring it converts a contributor's build error into a
 stranger's stalled loop.
 
-Three classes of malformation fail there: syntax (unparseable marker, unknown
-attribute, missing `class`, `kinds` on a procedural unit), semantics (duplicate
-unit id anywhere in the embed, body text before the first marker, duplicate
-file-ordering key), and reference (a `kinds=` member that is not one of the
-nineteen).
+Three classes of malformation fail there:
 
-"Unknown unit id" is deliberately **not** in that list. Ids are declared by
-markers and referenced by nobody inside `content/`, so an unknown id can only
-arise as an argument to `grove-llm methodology` — an ordinary runtime user error,
-answered with a message naming the id and the available set.
+- **Syntax** — an unparseable marker, an unknown attribute, attributes out of the
+  fixed order, a missing `class`, `kinds` on a procedural unit, or a file whose
+  fence state is not neutral at end of file.
+- **Semantics** — a duplicate unit id anywhere in the embed, body text before the
+  first marker, or a duplicate file-ordering key.
+- **Reference** — a `kinds=` member that is not one of the nineteen, a `defers=`
+  member that names no declared unit, a `defers=` member whose unit is not
+  `class=procedural`, or a procedural unit no mandate can reach.
+
+The reference class is the one `defers=` changes, and it changes it in the
+direction that matters: **`content/` now references ids, so an unknown id inside
+the embed is a build error.** An unknown id supplied as a *CLI argument* to
+`grove-llm methodology` remains what it always was — an ordinary runtime user
+error, answered with a message naming the id and directing the caller to the
+listing. The two cases are distinct in who can fix them: a bad `defers=` target is
+a contributor's mistake, visible to the build that produced it, while a bad
+argument is a caller's, visible only when the call is made.
 
 ### Per-file frontmatter carries the file's mandate order
 
@@ -234,6 +318,40 @@ scope admits this kind — ordered by file position, then by position within the
 file — then the runtime facts. The session-specific instructions land last, where
 they are not buried under the generic bulk.
 
+### `grove-llm methodology` fetches bytes, or lists rows
+
+The verb has two modes and they answer to different contracts.
+
+**Given ids, it fetches**: the named units' source bytes, in the order given,
+verbatim and framed by nothing. That output is the methodology itself, so any
+decoration would be driver-authored prose arriving through a second door.
+
+**Given no argument, it lists** — and a listing is *data*, so it needs a grammar
+rather than a layout. The consumer is an agent, which is the reason it needs one
+and not a reason to skip one: a row that has to be recovered from prose is a row
+that is recovered wrongly. One unit per line, tab-separated, five fields in a
+fixed order:
+
+```
+<id>	<class>	<scope>	<defers>	<file>
+```
+
+`<scope>` is `*` or the space-separated kind list, and `-` for a procedural unit,
+which has none — the listing may not promise a field it cannot supply for every
+row. `<defers>` is the space-separated target list, and `-` where the unit defers
+to nothing. `<file>` is the unit's `content/`-relative path.
+
+Tabs need no escaping rule here because no field can contain one: ids are
+kebab-case, class and scope are drawn from closed sets, and the embedded paths are
+this repository's own filenames. That is a property of the data rather than a
+convention to remember, which is what makes the format stable without a schema
+declaration.
+
+This is the shape the rest of `grove-llm` already speaks — every existing verb
+writes plain lines of whitespace-free tokens, and none takes an output-format
+flag. A `--json` mode would be the first, on a surface deliberately pinned flat,
+to serialize five closed-set tokens that are already unambiguous.
+
 ### `grove-llm` links the embed, and the methodology identity simplifies
 
 `grove-llm methodology` serves unit bytes from **its own** embed, so the
@@ -253,6 +371,20 @@ existed only to keep two traversals in step. `build.rs` still walks `content/` �
 for the parse gate, and to emit change tracking for the embed macro — but it no
 longer hashes.
 
+Exactly two source citations go stale here, and they are named for the same
+reason the release scan is. `build.rs`'s header cites
+[one build owns a session](../adr/one-build-owns-a-session.md) for "only `grove`
+should carry it", which that record now contradicts outright — both binaries link
+the embed. `src/provision.rs`'s stamp re-verification cites it for the restore,
+which the record no longer carries at all. Both are comments on mechanism that is
+decided to go, in code the retirement increment deletes outright, so they are
+scheduled rather than repaired.
+
+The other source citations survive intact and should not be touched:
+`src/loop_driver.rs` and `src/llm_cli.rs` cite the pre-launch pairing report, and
+`src/provision.rs`'s identity documentation cites the empty-directory exclusion
+from the payload — all three claims the reworked record still makes.
+
 ### Build pairing survives, sharpened
 
 Under provisioning the skew was between two copies of a *whole* methodology: a
@@ -265,9 +397,12 @@ the session from the **driver's** embed; the deferred procedural half comes from
 whichever `grove-llm` the session's `PATH` resolves. A mismatched pair is a
 split-brain *inside one rule*, not two copies of one document.
 
-That failure is also **loud**, which is a genuine improvement: a mandate that
-supplies a unit id the session's `grove-llm` does not know produces an error
-naming the id, at the moment it matters, rather than a silent divergence. The
+That failure is also **loud**, and `defers=` is what makes it so: the mandate
+carries the deferred procedure's id in the slice's own marker, so a session
+reaching for that procedure names an id its `grove-llm` either knows or errors on,
+at the moment it matters, rather than diverging silently. Loudness is a
+consequence of the deferral being *declared*; a design in which the session had to
+guess which id held the deferred half would have no error to raise. The
 pre-launch report survives on its existing argument — an opaque configured
 command's environment is not the driver's to observe, so the probe reports and
 never refuses — and the in-session stamp warning disappears with the stamps it
@@ -285,12 +420,44 @@ A per-kind size bound is nonetheless asserted, framed honestly as what it is: a
 `SKILL.md` means someone has classified procedural bodies as triggering, and that
 is worth failing on long before argv is at risk.
 
+**The bound is 64 KiB — 65 536 bytes — per kind**, and the assertion is that the
+composer's output for each of the nineteen kinds is not greater than it.
+
+*What is counted* is exactly what the composer returns: the selected units' source
+bytes and the blank line joining each adjacent pair. The driver's runtime facts
+are excluded. They are appended after composition, they vary per session with the
+selected handle and the resolved version control, and they are a few hundred bytes
+against a threshold in the tens of thousands — including them would make a
+deterministic assertion depend on a session that does not exist yet, and would
+measure the two things in the mandate that cannot be misclassified.
+
+*Why 64 KiB*, given that any threshold here is a choice rather than a derivation.
+The embedded markdown corpus is about 139 kB, and its largest single document,
+`SKILL.md`, is about 50 KiB. The expected triggering share of one kind's mandate
+is low tens of kilobytes. So 64 KiB sits above the largest whole document and just
+under half of everything: a mandate can only reach it if roughly half the corpus
+was classified triggering and admitted to one kind, or if one large document's
+procedural bodies were misclassified wholesale. Neither is reachable by honest
+classification, and both are the drift the alarm exists to see. It remains far
+below the ceiling it is deliberately not derived from — about 6% of `ARG_MAX`, so
+it fires with more than an order of magnitude of argv headroom still in hand,
+which is what keeps it an alarm about classification rather than a safety limit
+about argv.
+
+*Where it lives* is the test suite, not the build and not the driver. A malformed
+embed is a syntactic fact the build can establish; an oversized mandate is a
+judgement about classification measured against an admittedly arbitrary number,
+and failing a contributor's build on that would be the gate this design is
+otherwise careful not to erect.
+
 ## Requirements
 
 ### Requirement: Every embedded markdown file is fully classified
 
 The build SHALL reject any embedded markdown file that lacks frontmatter, that
-has body text before its first unit marker, or that carries a malformed marker.
+has body text before its first unit marker, that carries a malformed marker, or
+whose fence state is unbalanced at end of file. Marker-shaped lines that are
+indented or inside a balanced fence SHALL declare no unit.
 
 #### Scenario: unmarked file
 - **WHEN** an embedded markdown file carries no unit marker
@@ -303,6 +470,36 @@ has body text before its first unit marker, or that carries a malformed marker.
 #### Scenario: duplicate id across files
 - **WHEN** two units in different files declare the same id
 - **THEN** the build fails, naming both files
+
+#### Scenario: example marker inside a balanced fence
+- **WHEN** a marker-shaped line appears inside a fenced block that opens and
+  closes within the file
+- **THEN** it declares no unit, and its bytes belong to the unit containing the
+  fence
+
+#### Scenario: unterminated fence
+- **WHEN** a file's fence state is not neutral at end of file
+- **THEN** the build fails, naming the file and the line the unclosed fence opened
+  on
+
+### Requirement: Every procedural unit is reachable from a mandate
+
+The build SHALL reject any `defers=` target that is not a declared procedural
+unit, and any procedural unit not reachable by following `defers=` from a
+triggering unit.
+
+#### Scenario: unknown target
+- **WHEN** a `defers=` member names no declared unit
+- **THEN** the build fails, naming the referring unit and the unknown id
+
+#### Scenario: target of the wrong class
+- **WHEN** a `defers=` member names a `class=triggering` unit
+- **THEN** the build fails, naming both units
+
+#### Scenario: unreachable procedure
+- **WHEN** a procedural unit is named by no unit's `defers=`, or only by units
+  themselves unreachable from any triggering unit
+- **THEN** the build fails, naming the unreachable ids
 
 ### Requirement: Triggering units reach every kind they are scoped to
 
@@ -321,10 +518,10 @@ those triggering units whose scope admits that kind, and no procedural unit.
 - **WHEN** a unit is `class=procedural`
 - **THEN** it appears in no kind's composed mandate
 
-### Requirement: Every unit is reachable by id
+### Requirement: `grove-llm methodology` serves any unit and lists them all
 
 `grove-llm methodology` SHALL serve any unit's source bytes by id and SHALL list
-the available units when given no argument.
+the available units, in a parseable grammar, when given no argument.
 
 #### Scenario: fetch by id
 - **WHEN** the verb is given one or more known unit ids
@@ -337,7 +534,13 @@ the available units when given no argument.
 
 #### Scenario: listing
 - **WHEN** the verb is given no argument
-- **THEN** it lists every unit's id, class, scope, and source file
+- **THEN** it writes one tab-separated line per unit — id, class, scope, defers,
+  source file — with `-` in the scope field of a procedural unit and in the defers
+  field of a unit that defers to nothing
+
+#### Scenario: listed ids round-trip
+- **WHEN** an id is taken from a listing row's first field
+- **THEN** the verb accepts it as a fetch argument unchanged
 
 ### Requirement: Slices are byte-exact
 
@@ -374,9 +577,12 @@ The checks that seam carries:
   were live holes rather than hypotheticals.
 - **The malformed cases**, each asserted to fail: every syntax, semantic, and
   reference error listed above.
-- **The completeness invariant** — every triggering unit appears in the composed
-  mandate of every kind its scope admits, every procedural unit appears in none,
-  and every unit is reachable by id.
+- **The completeness invariant**, now three claims rather than two — every
+  triggering unit appears in the composed mandate of every kind its scope admits,
+  every procedural unit appears in none, and every unit is reachable: triggering
+  units through a mandate, procedural units by following `defers=` from one. The
+  third claim is what makes the invariant cover the whole embed rather than only
+  its delivered half.
 - **A positive control, pinned complete rather than floored.** The full set of
   unit ids is a test constant. Losing any unit fails; gaining one fails until
   someone names it, which is exactly when to confirm the classification. A floor
@@ -388,7 +594,13 @@ The checks that seam carries:
   reads exactly like a clean repository.
 - **Golden per-kind mandate snapshots**, for drift. They say nothing about
   correctness; they say loudly that something moved.
-- **The per-kind size alarm**, as specified above.
+- **The per-kind size alarm** — each of the nineteen composed mandates at or under
+  64 KiB, counting the composer's returned bytes and not the driver's runtime
+  facts, for the reasons given above.
+- **The listing's grammar**, asserted as a grammar rather than a golden string:
+  five tab-separated fields per line, the `-` placeholder in both optional fields,
+  and every id in the listing accepted as a fetch argument. The round trip is the
+  point — an inventory an agent cannot feed back into the verb is prose.
 
 Two existing checks **relocate rather than die** when provisioning retires: the
 scan asserting the embedded methodology instructs no `grove-llm` verb the
@@ -404,11 +616,21 @@ itself rather than a provisioned extraction of it.
   expensive, non-deterministic, it measures a model rather than Grove's artifact,
   and it localizes nothing when red. The honest behavioural check is the next
   real Grove run after the change lands, with a human watching.
-- **A `--kind` filter or JSON output on `grove-llm methodology`.** The consumer
-  is an agent reading text, the golden snapshots exercise composition through the
-  module seam without a process, and every flag is surface to keep in step.
-  Reopen if a human needs to audit a composed mandate without reading a snapshot
-  file.
+- **A `--kind` filter on `grove-llm methodology`.** Filtering the inventory by
+  session kind is a query concern rather than marker semantics, the golden
+  snapshots exercise composition through the module seam without a process, and
+  every flag is surface to keep in step. Reopen if a human needs to audit a
+  composed mandate without reading a snapshot file.
+- **JSON output on `grove-llm methodology`.** Rejected on the merits rather than
+  on "the consumer is an agent", which is the argument *for* a stable format and
+  is answered by giving the listing a specified tab-separated grammar. What is
+  rejected is a *second* serialization: the listing's five fields are closed-set
+  tokens that cannot contain a tab, so JSON would add a flag, a code path and a
+  schema to keep in step in exchange for nothing the rows do not already say —
+  on a verb surface a test deliberately pins flat. Reopen if a listing field ever
+  has to carry free text, such as a title or a summary, since that is the point
+  where escaping stops being a property of the data and becomes a rule someone
+  must remember.
 - **A templating engine.** One was accepted in principle to keep `content/`
   readable from the code, but byte-exact slicing reaches that without one. No
   engine is adopted to satisfy a sentence.

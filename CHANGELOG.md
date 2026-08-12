@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.1.0
+
 ### Added
 
 - **The mandate states the working tree's VCS**, so no session detects it. Every

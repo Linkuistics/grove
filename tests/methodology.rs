@@ -108,7 +108,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
 /// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
 /// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 21] = [
+const EMBEDDED_UNITS: [&str; 47] = [
     "adr-format",
     "brief-format",
     "context-format",
@@ -116,6 +116,7 @@ const EMBEDDED_UNITS: [&str; 21] = [
     "driving",
     "grilling",
     "pending-skill-loop",
+    "pending-task-shapes",
     "skill-bare-grove-dispatch",
     "skill-bootstrap",
     "skill-do-not-pick-again",
@@ -129,7 +130,32 @@ const EMBEDDED_UNITS: [&str; 21] = [
     "skill-what-a-grove-is",
     "skill-working-tree",
     "spec-format",
-    "task-format",
+    "task-bootstrap-leaf-is-requirements",
+    "task-combine-research",
+    "task-decompose-inherits-kind",
+    "task-deliverable-design",
+    "task-deliverable-planning",
+    "task-deliverable-requirements",
+    "task-deliverable-split-not-a-gate",
+    "task-finish-session",
+    "task-hitl-afk",
+    "task-in-session-doubt-budget",
+    "task-integrate-review-kinds",
+    "task-kind-in-the-filename",
+    "task-leaf-filename",
+    "task-name-reading-is-strict",
+    "task-nineteen-kinds",
+    "task-producer-design",
+    "task-producer-impl",
+    "task-producer-planning",
+    "task-producer-prototype",
+    "task-producer-requirements",
+    "task-research-pair",
+    "task-research-write-paths",
+    "task-review-kinds",
+    "task-three-design-kinds",
+    "task-too-big-is-planning",
+    "task-work-is-not-a-kind",
 ];
 
 /// The positive control over the whole embed, failing in **both** directions: a

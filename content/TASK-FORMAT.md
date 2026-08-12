@@ -1,4 +1,4 @@
-<!-- unit: task-format kinds=* class=triggering -->
+<!-- unit: task-leaf-filename kinds=* class=triggering -->
 <!-- grove reference file — the task-file shape -->
 
 # TASK-FORMAT — the leaf task file
@@ -17,6 +17,7 @@ pruning) — pruning is
 task per session). The file is freeform markdown — a guide follows, not a
 schema.
 
+<!-- unit: task-kind-in-the-filename kinds=* class=triggering defers=task-name-reading-is-strict -->
 **The kind lives in the filename and nowhere else.** It is routing metadata, not
 identity: the stable [work-item handle](#suggested-shape) stays `<slug>-k<key>`,
 so `grove-llm resolve`, a commit message and an in-file header are all unaffected
@@ -25,6 +26,7 @@ your own eye read a session's discipline out of `find .grove` without opening a
 file. A **node directory** carries no kind at all (`NN-<slug>-k<key>/`), even when
 its slug happens to begin with a kind word.
 
+<!-- unit: task-name-reading-is-strict class=procedural -->
 Reading is strict in both directions. Every task-shaped leaf name — live, `DONE`
 or `ABANDONED` — must carry a known kind; a missing or unknown one is malformed
 and stops tree operations, naming the path and the valid set, rather than
@@ -32,6 +34,7 @@ degrading to `impl`. No kind label plus `-` prefixes another, so a name always
 separates unambiguously and round-trips without touching the slug. Foreign
 non-task files in the tree stay ignored.
 
+<!-- unit: task-nineteen-kinds kinds=* class=triggering defers=task-work-is-not-a-kind -->
 ## The nineteen kinds
 
 Every leaf's filename names its **kind**, drawn from a closed set
@@ -61,6 +64,7 @@ complete-finish-cycle sentinel: the grow verbs refuse to create one, retire,
 prune and decompose refuse it as an operand, and `leaf-insert` may
 target it only to put ordinary work *before* teardown.
 
+<!-- unit: task-hitl-afk kinds=* class=triggering -->
 Each kind is marked **HITL** (resolves through live exchange with a human who
 speaks for themselves) or **AFK** (driven by the agent alone). Three are HITL —
 `requirements`, `prototype` and `finish` — because each needs input the session
@@ -73,14 +77,17 @@ fault.
 
 **Producers**
 
+<!-- unit: task-producer-requirements kinds=requirements class=triggering -->
 - **requirements** (HITL) — establish *what* should be built. This is where the
   grilling lives (`grilling.md`): interview one question at a time, propose a
   recommended answer for each, walk the design tree until shared understanding
   is reached. Sharpen `CONTEXT.md` inline as terms resolve.
+<!-- unit: task-producer-design kinds=design class=triggering -->
 - **design** (AFK) — given requirements, establish *how*. The deliverable is a
   spec, an ADR set, or both. A `design` session that finds itself cutting
   *implementation* leaves has drifted into planning's job and should externalize
   a `planning` leaf instead.
+<!-- unit: task-producer-planning kinds=planning class=triggering -->
 - **planning** (AFK) — given the design, first find the **smallest independently
   useful working increments** and order them by dependency. Create a separate
   grove for every obvious stage that leaves the product working and delivers
@@ -92,14 +99,17 @@ fault.
   charter. A node is always a leaf that proved bigger, so it always carries one.
   The deliverable is *more tree*. The only kind with methodological force — the sole
   branch in the loop's Execute step.
+<!-- unit: task-producer-prototype kinds=prototype class=triggering -->
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
   to, not to ship. The point is the reaction it provokes, not the code's
   survival.
+<!-- unit: task-producer-impl kinds=impl class=triggering -->
 - **impl** (AFK) — produces code, docs, or tests. The deliverable is an artifact
   that ships. (`driving.md` carries the habits: cite framework decisions to the
   source, doubt a hard-to-reverse decision before it stands, and externalize
   surfaced work into new leaves rather than absorbing it.)
 
+<!-- unit: task-research-pair kinds="research-a research-b" class=triggering defers=task-research-write-paths -->
 **Research** — a **vendor pair**, not a review chain: two independent surveys,
 unioned.
 
@@ -109,11 +119,13 @@ unioned.
   silence (the absence is itself a finding). No grilling, no tree growth. The two
   kinds are identical in discipline and distinct in configuration; a single survey
   that needs no pair is `research-a`.
+<!-- unit: task-combine-research kinds=combine-research class=triggering defers=task-research-write-paths -->
 - **combine-research** (AFK) — union two surveys' coverage and flag every
   disagreement. This kind, not either producer, carries the **adversarial** move:
   two vendors on overlapping corpora can agree on something false, so **agreement
   without independent primary sourcing is a red flag, not a confirmation**.
 
+<!-- unit: task-research-write-paths class=procedural -->
 All three write under `docs/research/`, and because a pair's three leaves share
 one slug, **the kind supplies the discriminator** — the same principle that keeps
 it out of the slug:
@@ -128,11 +140,13 @@ A solo `research-a` with no pair writes `-a.md` and that is the whole record; a
 `-b` survey added later renames nothing, and the union lands at the unadorned
 name where a reader looks first.
 
+<!-- unit: task-finish-session kinds=finish class=triggering -->
 **finish** (HITL, driver-reserved) — the whole-grove teardown session the driver
 appends once no ordinary work is live. It proposes the complete finish cycle and
 waits for explicit human confirmation before any teardown; declining leaves the
 leaf live for a later resume. No session creates one, and none is ever retired.
 
+<!-- unit: task-review-kinds kinds="review-requirements review-design review-planning review-prototype review-impl" class=triggering -->
 **review-\*** (all AFK) — an inspection-only, fresh-context adversarial read of
 *one* artifact. Inspect the producer's committed changes, source, requirements
 or specifications, and recorded verification evidence. A review does not run
@@ -148,6 +162,7 @@ does each land green without waiting on a sibling? is anything missing?),
 review; polish is a defect in a prototype), `review-impl` (correctness,
 security, tests, project conventions).
 
+<!-- unit: task-integrate-review-kinds kinds="integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **integrate-review-\*** (all AFK) — triage one review's findings and apply the
 real ones. Shared discipline: verify each finding rather than performatively
 agreeing, then classify it as *a contract stated unclearly* (fix the contract),
@@ -161,6 +176,7 @@ decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
 
+<!-- unit: task-in-session-doubt-budget kinds=* class=triggering -->
 **In-session doubt is budgeted across the whole picked leaf**, once the current
 session has run Bootstrap and adopted the driver's selected-leaf mandate:
 
@@ -176,20 +192,24 @@ Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
 standalone bounded cycles. The allowance is leaf-wide, not per artifact or
 decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
 
+<!-- unit: task-too-big-is-planning kinds=* class=triggering defers=task-decompose-inherits-kind -->
 A task too big for one focused session *is* a planning task — its job is to
 decompose, not to do.
 
+<!-- unit: task-decompose-inherits-kind class=procedural -->
 `leaf-decompose` gives a node's **first child** the kind of the leaf it just
 decomposed, unless `--kind` overrides it — a `research-a` leaf that proves bigger
 keeps producing `research-a` work in its first child. The node directory the verb
 creates carries no kind, so nothing is inherited at that level.
 
+<!-- unit: task-work-is-not-a-kind class=procedural -->
 **`work` is not a kind.** It was the previous spelling of `impl`, and only the
 one-time legacy migration still reads it: `work`, `review-work` and
 `integrate-review-work` are rewritten to their `impl` spellings as the tree is
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
+<!-- unit: pending-task-shapes kinds=* class=triggering -->
 ## Composing the kinds — the two shapes
 
 The kinds compose into two habitual shapes. A session cutting leaves should
@@ -470,27 +490,33 @@ their two templates actually reach two different vendors is the configuration
 owner's policy, which grove can neither infer from an opaque command string nor
 warn about.
 
+<!-- unit: task-three-design-kinds kinds=* class=triggering -->
 ## The three design kinds — extra guidance
 
 The work today's `planning` label used to cover is split across three kinds, and
 each carries part of the old checklist:
 
+<!-- unit: task-deliverable-requirements kinds=requirements class=triggering -->
 - **requirements** runs the grilling procedure (`grilling.md`) to interrogate
   *what* is wanted, and updates `CONTEXT.md` **inline** as terms are resolved —
   never batched.
+<!-- unit: task-deliverable-design kinds=design class=triggering -->
 - **design** raises ADRs **sparingly** — only decisions hard to reverse,
   surprising, or a real trade-off (`ADR-FORMAT.md`) — and MAY write a spec
   (`docs/specs/<slug>.md`) when the increment is a genuine agreement point
   (`SPEC-FORMAT.md`).
+<!-- unit: task-deliverable-planning kinds=planning class=triggering -->
 - **planning** writes the child `BRIEF.md`(s) and ordered leaf files for any node
   it grows (`BRIEF-FORMAT.md`).
 
+<!-- unit: task-deliverable-split-not-a-gate kinds=* class=triggering -->
 The split is a division of *deliverable*, not a gate: a small workstream may
 resolve all three in one leaf, and any of the three may sharpen the glossary
 inline. What does not blur is tree growth — only `planning` may grow the tree
 generatively. *Reactive* decomposition (a leaf proving bigger than its brief) is
 kind-agnostic and available to every kind.
 
+<!-- unit: task-bootstrap-leaf-is-requirements kinds=requirements class=triggering -->
 **A fresh grove's bootstrap leaf is the standing example of that fusion**, and
 it is `requirements` (the driver mints it before any agent exists, with no
 `--kind` to change it). Its

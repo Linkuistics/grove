@@ -180,11 +180,39 @@ itself, so example markers inside fences are certain to appear.
 
 The parser therefore tracks fence state across the whole file body, and a marker
 is recognised only as a complete line, unindented, while that state is **neutral**.
-A line whose content is three or more backticks or tildes opens a fence; the
-matching close is a line of at least as many of the same character and nothing
-else. An indented or mid-fence marker-shaped line is prose — which is the intended
+An indented or mid-fence marker-shaped line is prose — which is the intended
 reading for an example, and a *visible* misreading for a real marker, because the
 preceding unit absorbs it and the pinned id set moves.
+
+**The fence rule is [CommonMark 0.31.2 §4.5](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)
+exactly, and the exactness is load-bearing in both directions.** An opener is at
+most three columns of indentation, then three or more backticks or tildes, then
+an info string — which may contain no backtick on a backtick fence. A close is at
+most three columns of indentation, then at least as many of the same character,
+then nothing but spaces and tabs. Loosening either end has a cost, and they are
+not the same cost. Accept an opener CommonMark rejects — an over-indented one, or
+a paragraph opening with an inline code span — and the parser swallows later real
+markers into the preceding unit: wrong, but *visible*, because the pinned id set
+moves. Accept a **close** CommonMark rejects and the parser returns to neutral
+inside a block a reader still sees as code, promoting an example marker to a unit
+boundary: wrong and **silent**, because the id set gains a unit nobody notices is
+imaginary. A rule stated as "three or more of the same character" and implemented
+by trimming the line accepts both.
+
+The rule is applied to the document's lines, without container-block context: a
+fence nested in a list item or a block quote is read at its own indentation. The
+residue is one-directional — such a fence keeps swallowing past the point the
+container would have closed it — so it lands in the visible direction above, and
+modelling containers would mean carrying a Markdown block parser to decide a
+question the corpus does not pose.
+
+The **asymmetry with markers is deliberate and is the safe direction**. A fence
+line may be indented up to three columns because CommonMark says so; a marker may
+not be indented at all, though CommonMark would still read an indented HTML
+comment as one. The strictness only ever *withholds* unit-hood, so a marker
+written one column in is absorbed by the preceding unit and moves the pinned id
+set; the converse rule would let an indented example inside a list become a
+boundary.
 
 **A file whose fence state is not neutral at end of file is a build error.**
 Without that rule the gate has a hole precisely where it is least visible: a fence
@@ -203,8 +231,10 @@ authoring rule for the classification review pass, because no further mechanical
 rule is specified for it and claiming one would be the design's one unverified
 claim.
 
-Both rules are pinned by test on the exact shapes that decide them: a balanced
-fenced example marker ignored, and an unterminated fence rejected.
+All of it is pinned by test on the exact shapes that decide it: a balanced fenced
+example marker ignored, an unterminated fence rejected, a fence three columns in
+still opening, a fence four columns in opening nothing, an over-indented run
+failing to close, and a backtick info string carrying a backtick opening nothing.
 
 ### `kinds=` admits `*` and explicit lists, and nothing else
 
@@ -250,7 +280,11 @@ Three classes of malformation fail there:
 
 - **Syntax** — an unparseable marker, an unknown attribute, attributes out of the
   fixed order, a missing `class`, `kinds` on a procedural unit, a file whose fence
-  state is not neutral at end of file, or a leading `---` block that never closes.
+  state is not neutral at end of file, a leading `---` block that never closes, or
+  a unit marker inside one that does. Two more are syntax about the *file* rather
+  than about a line in it — a file that does not end in a newline, and an embedded
+  path carrying a byte the listing's grammar cannot — and both are argued where
+  they are decided, under the fetch and listing contracts below.
 - **Semantics** — a duplicate unit id anywhere in the embed, a file declaring no
   unit at all, or body text before the first marker. A duplicate file-ordering
   key joins this class when the ordering directive arrives with the composer, and
@@ -311,6 +345,29 @@ otherwise swallow the entire document as unread preamble, declaring no unit,
 violating no marker rule, and leaving nothing for the gate to catch. `---` is not
 a fence opener, so the two rules do not interact; this is simply the second place
 a delimiter can run away with a file.
+
+**A first line of `---` is *reserved* for this block**, because nothing in the
+bytes distinguishes a frontmatter opener from an ordinary Markdown thematic
+break, and a rule that is generic, opaque and indistinguishable cannot tell which
+region the author meant. Reserving costs an author nothing, and the reason is
+already in this design rather than in a convention: a body must begin with a unit
+marker, so a **leading thematic break is a build error in every other spelling** —
+`***`, `___`, `----`, `- - -` — under *body text before the first marker*. The one
+spelling that would have been swallowed silently instead of rejected loudly is
+`---`, and it is the one now spoken for. What the reservation buys is therefore
+uniformity rather than a restriction: a leading thematic break is refused in
+*every* spelling, instead of refused in four and silently honoured in the fifth.
+
+**A unit marker inside the block is a build error**, named on the line it appears.
+That is what keeps the reservation from costing anything the design claims. The
+residue of reserving is an over-long unread region — an author who opens with
+`---` loses whatever the block then swallows — and the load-bearing half of that
+loss is *classified* bytes: a marker and its prose hidden behind an ordinary
+Markdown spelling, with the unit set quietly one shorter. Making a swallowed
+marker an error removes exactly that half. What remains is a swallowed region of
+**prose**, which is unreachable without writing, on line one, a construct that is
+already an error in every other spelling — and closing it too would mean
+interpreting the block, which is the one thing this rule exists not to do.
 
 ### The file's mandate order is a comment directive, and it arrives with the composer
 
@@ -407,6 +464,16 @@ The verb has two modes and they answer to different contracts.
 verbatim and framed by nothing. That output is the methodology itself, so any
 decoration would be driver-authored prose arriving through a second door.
 
+That contract and a *multi*-id fetch need one invariant to coexist, so the build
+supplies it: **an embedded markdown file ends in a newline**. A unit runs to the
+byte before the next marker or to end of file, so the last unit of a file without
+one ends mid-line, and concatenating anything after it lands that unit's marker on
+the tail of someone else's prose — the output stops being self-addressing in
+exactly the mode the marker line was carried for. The alternative is a separator
+the fetch inserts, which is framing, and framing is the thing the contract
+refuses. Making it a file invariant keeps the fetch a concatenation and puts the
+error where a contributor can act on it.
+
 **Given no argument, it lists** — and a listing is *data*, so it needs a grammar
 rather than a layout. The consumer is an agent, which is the reason it needs one
 and not a reason to skip one: a row that has to be recovered from prose is a row
@@ -422,11 +489,19 @@ which has none — the listing may not promise a field it cannot supply for ever
 row. `<defers>` is the space-separated target list, and `-` where the unit defers
 to nothing. `<file>` is the unit's `content/`-relative path.
 
-Tabs need no escaping rule here because no field can contain one: ids are
-kebab-case, class and scope are drawn from closed sets, and the embedded paths are
-this repository's own filenames. That is a property of the data rather than a
-convention to remember, which is what makes the format stable without a schema
-declaration.
+Tabs need no escaping rule here because no field can contain one, and neither can
+a newline end a row early. Four of the five fields prove it from their own
+grammar: ids are kebab-case, and class and scope are drawn from closed sets. The
+fifth does not. A filename is mutable data rather than a grammar — a markdown file
+whose name holds a tab is a legal file, passes every other rule, and writes a row
+with six fields — so the premise is made structural instead of assumed: **the
+build rejects an embedded path containing a control character**, which is the
+class the row's two delimiters belong to.
+
+Enforcing it is what lets the no-escaping design stand as a property of the data
+rather than a claim about today's tree. The check lives with the parser, which is
+the one implementation both the build gate and the runtime reader share, so it
+cannot hold on only one of the two traversals.
 
 This is the shape the rest of `grove-llm` already speaks — every existing verb
 writes plain lines of whitespace-free tokens, and none takes an output-format
@@ -537,10 +612,12 @@ otherwise careful not to erect.
 
 The build SHALL reject any embedded markdown file that declares no unit, that has
 body text before its first unit marker, that carries a malformed marker, whose
-fence state is unbalanced at end of file, or whose leading `---` block is never
-closed. Marker-shaped lines that are indented or inside a balanced fence SHALL
-declare no unit. A leading `---`-delimited block SHALL be skipped uninterpreted,
-and SHALL be neither required nor rejected.
+fence state is unbalanced at end of file, whose leading `---` block is never
+closed or carries a unit marker, that does not end in a newline, or whose path
+carries a control character. Marker-shaped lines that are indented or inside a
+balanced fence SHALL declare no unit. Fences SHALL be recognised by CommonMark's
+rule. A leading `---`-delimited block SHALL be skipped uninterpreted, and SHALL be
+neither required nor rejected.
 
 #### Scenario: unmarked file
 - **WHEN** an embedded markdown file carries no unit marker
@@ -564,6 +641,21 @@ and SHALL be neither required nor rejected.
 - **WHEN** a file opens with `---` and no matching close appears
 - **THEN** the build fails, naming the file and the line the block opened on
 
+#### Scenario: marker inside a leading block
+- **WHEN** a file opens with `---` and a unit marker appears before the block's
+  close
+- **THEN** the build fails, naming the marker's line, rather than skipping that
+  unit as preamble
+
+#### Scenario: file that does not end in a newline
+- **WHEN** an embedded markdown file's last byte is not a newline
+- **THEN** the build fails, naming the file
+
+#### Scenario: path a listing row could not carry
+- **WHEN** an embedded markdown file's path contains a tab, a newline, or any
+  other control character
+- **THEN** the build fails, naming the file
+
 #### Scenario: duplicate id across files
 - **WHEN** two units in different files declare the same id
 - **THEN** the build fails, naming both files
@@ -578,6 +670,11 @@ and SHALL be neither required nor rejected.
 - **WHEN** a file's fence state is not neutral at end of file
 - **THEN** the build fails, naming the file and the line the unclosed fence opened
   on
+
+#### Scenario: fence indented past CommonMark's bound
+- **WHEN** a fence-shaped line is indented four or more columns
+- **THEN** it opens nothing and closes nothing, so a marker below it is an
+  ordinary unit boundary and a fence it appears to close stays open
 
 ### Requirement: Every procedural unit is reachable from a mandate
 
@@ -624,6 +721,11 @@ the available units, in a parseable grammar, when given no argument.
 - **WHEN** the verb is given one or more known unit ids
 - **THEN** it writes those units' source bytes, in the order given
 
+#### Scenario: several ids at once
+- **WHEN** the verb is given several ids
+- **THEN** every fetched unit's marker still begins a line of the output, so each
+  slice remains self-addressing
+
 #### Scenario: unknown id
 - **WHEN** the verb is given an id no unit declares
 - **THEN** it exits non-zero with a message naming the unknown id and directing
@@ -668,8 +770,12 @@ would then need a spawned process to provoke.
 The checks that seam carries:
 
 - **Parse shapes, pinned on every form that decides the reading rule** — accepted
-  and rejected alike, including markers inside fenced blocks, and a file with a
-  leading `---` block beside one without. The repository's
+  and rejected alike, including markers inside fenced blocks, a file with a
+  leading `---` block beside one without, and the boundary shapes on both sides of
+  each bound: a fence at three columns and one at four, an over-indented run that
+  does not close, a backtick info string that opens nothing, and a marker inside a
+  leading block. Each of those is a shape a looser rule reads differently, so a
+  suite that does not carry it goes green on the looser rule. The repository's
   existing instructed-verb scanner is the precedent: its reading rule is pinned
   on the shapes it must see *and* the shapes it must ignore, because two of those
   were live holes rather than hypotheticals. The leading-block pair is the shape

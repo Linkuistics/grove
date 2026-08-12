@@ -42,6 +42,12 @@ const MARKER_PREFIX: &str = "<!-- unit:";
 const MARKER_SUFFIX: &str = "-->";
 /// The delimiter of the leading opaque preamble — `content/SKILL.md`'s YAML
 /// frontmatter today, and whatever else ever opens a file with one.
+///
+/// This exact spelling is **reserved** as a first line, because nothing else can
+/// distinguish it from a Markdown thematic break. The reservation costs an author
+/// nothing: a body must begin with a unit marker, so a leading thematic break is
+/// already an error in every other spelling (`***`, `___`, `----`, `- - -`), and
+/// the one spelling that would have been swallowed instead is this one.
 const PREAMBLE_DELIMITER: &str = "---";
 
 /// A unit's delivery class: does this unit ship in a mandate, or is it served on
@@ -147,6 +153,21 @@ pub enum Fault {
     /// The same hole in the second place a delimiter can run away with a file: a
     /// leading `---` with no close swallows the document as unread preamble.
     UnterminatedPreamble,
+    /// The one shape in which an over-long leading block could hide *classified*
+    /// bytes. The preamble is unread by design, so an author who spelled a
+    /// thematic break `---` on line 1 loses whatever the block then swallows;
+    /// making a swallowed marker an error is what keeps that loss out of the
+    /// partition claim.
+    MarkerInPreamble,
+    /// A unit's source is spliced straight into a `grove-llm methodology` fetch,
+    /// so the last unit of a file that does not end in a newline would run its
+    /// prose into the *next* fetched unit's marker and cost that marker its line.
+    MissingFinalNewline,
+    /// The listing writes one tab-separated line per unit and the last field is
+    /// the unit's file. That grammar needs no escaping rule only while no field
+    /// can carry a delimiter — a property of the *data*, so it is enforced here
+    /// rather than assumed of today's tree.
+    UnlistablePath(char),
 }
 
 impl fmt::Display for Fault {
@@ -194,7 +215,24 @@ impl fmt::Display for Fault {
             Fault::UnterminatedPreamble => write!(
                 f,
                 "this leading `---` block is never closed, so the whole file reads as unread \
-                 preamble"
+                 preamble; a first line of `---` always opens one, so write a leading thematic \
+                 break as `***`"
+            ),
+            Fault::MarkerInPreamble => write!(
+                f,
+                "this unit marker is inside the leading `---` block, which is unread — a first \
+                 line of `---` always opens one, so write a leading thematic break as `***`"
+            ),
+            Fault::MissingFinalNewline => write!(
+                f,
+                "the file does not end in a newline; a unit's bytes are served verbatim, so the \
+                 last unit here would run into the next unit fetched beside it"
+            ),
+            Fault::UnlistablePath(character) => write!(
+                f,
+                "this file's path holds U+{:04X}, which no listing row can carry; `grove-llm \
+                 methodology` writes one tab-separated line per unit",
+                *character as u32
             ),
         }
     }
@@ -225,8 +263,11 @@ impl std::error::Error for ParseError {}
 /// Read one embedded markdown file into its units.
 ///
 /// `file` is the `content/`-relative path, carried into every [`Unit`] and every
-/// [`ParseError`] — the parser never touches the filesystem, so the caller owns
-/// what the path is called.
+/// [`ParseError`] — the parser never *reads* the filesystem, so the caller owns
+/// what the path is called. What the parser does own is whether that name can
+/// survive the surfaces a unit is carried on, which is why an unlistable path is
+/// rejected here: this is the one function both traversals share, so a rule
+/// enforced anywhere else would hold on only one of them.
 pub fn parse_units(file: &str, text: &str) -> Result<Vec<Unit>, ParseError> {
     let fault_at = |line: usize, offset: usize, fault: Fault| ParseError {
         file: file.to_string(),
@@ -235,8 +276,22 @@ pub fn parse_units(file: &str, text: &str) -> Result<Vec<Unit>, ParseError> {
         fault,
     };
 
-    let (body_start, body_line) =
-        preamble_end(text).ok_or_else(|| fault_at(1, 0, Fault::UnterminatedPreamble))?;
+    if let Some(character) = file.chars().find(|character| character.is_control()) {
+        return Err(fault_at(1, 0, Fault::UnlistablePath(character)));
+    }
+    // An empty file has no missing newline to report; it declares no unit, which
+    // is the error the tail of this function reports.
+    if !text.is_empty() && !text.ends_with('\n') {
+        let last_line = text.split_inclusive('\n').count();
+        return Err(fault_at(last_line, text.len(), Fault::MissingFinalNewline));
+    }
+
+    let (body_start, body_line) = preamble_end(text).map_err(|fault| match fault {
+        PreambleFault::Unterminated => fault_at(1, 0, Fault::UnterminatedPreamble),
+        PreambleFault::MarkerInside { line, offset } => {
+            fault_at(line, offset, Fault::MarkerInPreamble)
+        }
+    })?;
 
     let mut units: Vec<Unit> = Vec::new();
     let mut open: Option<(Unit, usize)> = None;
@@ -290,8 +345,13 @@ impl Unit {
     }
 }
 
-/// Where the body begins: `(byte offset, 1-based line)`, or `None` when a
-/// leading `---` block opened and never closed.
+/// Why a leading `---` block could not be skipped.
+enum PreambleFault {
+    Unterminated,
+    MarkerInside { line: usize, offset: usize },
+}
+
+/// Where the body begins: `(byte offset, 1-based line)`.
 ///
 /// The block is **optional and unread**. Nothing in the embed depends on it, so
 /// `content/SKILL.md`'s YAML keeps discovering the provisioned skill for as long
@@ -299,29 +359,64 @@ impl Unit {
 /// parser change either way. Making the rule about *a leading delimited block*
 /// rather than about that one file is the point: a gate whose value is having no
 /// exceptions cannot afford a filename-keyed one.
-fn preamble_end(text: &str) -> Option<(usize, usize)> {
+///
+/// A first line of `---` is a valid Markdown thematic break as well as a
+/// frontmatter opener, and nothing in the bytes tells the two apart. The
+/// collision is resolved by **reserving** the spelling rather than by guessing:
+/// a leading `---` always opens a block. That takes nothing from an author,
+/// because a body must begin with a unit marker — so a leading thematic break is
+/// `BodyBeforeFirstMarker` in every *other* spelling — and it leaves exactly one
+/// residue, an author who writes `---` on line 1 and gets a longer unread region
+/// than they meant. [`Fault::MarkerInPreamble`] takes the load-bearing half of
+/// that residue out: whatever an over-long block swallows, it cannot be a
+/// classified unit.
+fn preamble_end(text: &str) -> Result<(usize, usize), PreambleFault> {
     let mut lines = text.split_inclusive('\n');
     // An empty file has no preamble to be unterminated; it declares no unit,
     // which is the error the caller reports.
     let Some(first) = lines.next() else {
-        return Some((0, 1));
+        return Ok((0, 1));
     };
     if first.trim_end() != PREAMBLE_DELIMITER {
-        return Some((0, 1));
+        return Ok((0, 1));
     }
     let mut offset = first.len();
     for (line_number, raw) in (2..).zip(lines) {
-        offset += raw.len();
-        if raw.trim_end() == PREAMBLE_DELIMITER {
-            return Some((offset, line_number + 1));
+        let line = raw.trim_end();
+        if line == PREAMBLE_DELIMITER {
+            return Ok((offset + raw.len(), line_number + 1));
         }
+        if line.starts_with(MARKER_PREFIX) {
+            return Err(PreambleFault::MarkerInside {
+                line: line_number,
+                offset,
+            });
+        }
+        offset += raw.len();
     }
-    None
+    Err(PreambleFault::Unterminated)
 }
 
 /// An open fenced block. Markers are recognised only at neutral fence state, so
 /// no unit can begin or end inside a fence and every unit's fenced blocks are
 /// balanced within it.
+///
+/// The recogniser is [CommonMark 0.31.2 §4.5][spec] applied to the document's
+/// lines, and the exactness is load-bearing in **both** directions. Accept a
+/// fence CommonMark would not (an over-indented opener) and the parser swallows
+/// later real markers into the preceding unit; accept a *close* CommonMark would
+/// not (an over-indented closer) and it returns to neutral early and promotes an
+/// example marker — text a reader sees as code — into a unit boundary. Only the
+/// second direction is silent, and it is the one a loose `trim()` enables.
+///
+/// What is deliberately *not* modelled is container context: a fence nested in a
+/// list item or a block quote is read at its own indentation, with no memory of
+/// the container's. The residue is one-directional and visible — a fence indented
+/// one to three columns inside a list keeps swallowing after CommonMark would
+/// have closed it with the list item, which moves the pinned id set rather than
+/// inventing a unit.
+///
+/// [spec]: https://spec.commonmark.org/0.31.2/#fenced-code-blocks
 struct Fence {
     character: char,
     length: usize,
@@ -330,11 +425,18 @@ struct Fence {
 }
 
 impl Fence {
+    /// Up to three columns of indentation, three or more of one fence character,
+    /// then an info string — which may hold no backtick on a backtick fence,
+    /// since otherwise every paragraph opening with an inline code span would
+    /// open a block.
     fn opened_by(line: &str, line_number: usize, offset: usize) -> Option<Fence> {
-        let trimmed = line.trim();
-        let character = trimmed.chars().next().filter(|c| *c == '`' || *c == '~')?;
-        let length = trimmed.chars().take_while(|c| *c == character).count();
-        (length >= 3).then_some(Fence {
+        let rest = fence_indent(line)?;
+        let character = rest.chars().next().filter(|c| *c == '`' || *c == '~')?;
+        let length = rest.chars().take_while(|c| *c == character).count();
+        if length < 3 || (character == '`' && rest[length..].contains('`')) {
+            return None;
+        }
+        Some(Fence {
             character,
             length,
             line: line_number,
@@ -342,11 +444,32 @@ impl Fence {
         })
     }
 
-    /// A line of at least as many of the same character and nothing else.
+    /// At least as many of the same character, indented no further than an
+    /// opener, with nothing after the run but spaces and tabs — a close carries
+    /// no info string.
     fn is_closed_by(&self, line: &str) -> bool {
-        let trimmed = line.trim();
-        trimmed.len() >= self.length && trimmed.chars().all(|c| c == self.character)
+        let Some(rest) = fence_indent(line) else {
+            return false;
+        };
+        let run = rest.chars().take_while(|c| *c == self.character).count();
+        run >= self.length
+            && rest[run..]
+                .chars()
+                .all(|character| character == ' ' || character == '\t')
     }
+}
+
+/// The line past its indentation, or `None` when it is indented too far to be a
+/// fence line at all.
+///
+/// CommonMark allows a fence up to three columns of indentation; a fourth makes
+/// an indented code block instead. A tab advances to the next four-column stop,
+/// so a tab anywhere in the indentation is already past the bound — which falls
+/// out of counting spaces alone and leaving the tab in `rest`, where it is not a
+/// fence character.
+fn fence_indent(line: &str) -> Option<&str> {
+    let indent = line.len() - line.trim_start_matches(' ').len();
+    (indent <= 3).then(|| &line[indent..])
 }
 
 fn parse_marker(
@@ -598,6 +721,57 @@ mod tests {
         );
     }
 
+    /// CommonMark allows a fence up to three columns of indentation, and the
+    /// bound binds in the accepting direction too — a fence one column in still
+    /// makes the marker it contains an example.
+    #[test]
+    fn a_fence_indented_within_three_columns_still_opens() {
+        let parsed = units(
+            "<!-- unit: alpha kinds=* class=triggering -->\n\
+             \x20  ```text\n\
+             <!-- unit: example kinds=* class=triggering -->\n\
+             \x20  ```\n",
+        );
+        assert_eq!(
+            parsed.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(),
+            ["alpha"]
+        );
+    }
+
+    /// The **swallowing** direction of a loose fence rule. Four columns is an
+    /// indented code block, not a fence, so the marker after it is real; reading
+    /// it as a fence would absorb `beta` into `alpha` and lose a unit.
+    #[test]
+    fn a_fence_indented_past_three_columns_is_not_a_fence() {
+        let parsed = units(
+            "<!-- unit: alpha kinds=* class=triggering -->\n\
+             \x20   ```\n\
+             <!-- unit: beta kinds=* class=triggering -->\n\
+             \x20   ```\n",
+        );
+        assert_eq!(
+            parsed.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(),
+            ["alpha", "beta"],
+            "a four-column ````` is an indented code block; the marker below it is a boundary"
+        );
+    }
+
+    /// A backtick fence's info string may hold no backtick, or every paragraph
+    /// opening with an inline code span would open a block and swallow the rest
+    /// of the file.
+    #[test]
+    fn a_backtick_info_string_containing_a_backtick_opens_nothing() {
+        let parsed = units(
+            "<!-- unit: alpha kinds=* class=triggering -->\n\
+             ```x``` is a code span, not a fence\n\
+             <!-- unit: beta kinds=* class=triggering -->\n",
+        );
+        assert_eq!(
+            parsed.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(),
+            ["alpha", "beta"]
+        );
+    }
+
     #[test]
     fn an_indented_marker_shaped_line_declares_no_unit() {
         let parsed = units("<!-- unit: alpha kinds=* class=triggering -->\n  <!-- unit: beta kinds=* class=triggering -->\n");
@@ -755,6 +929,89 @@ mod tests {
         .unwrap_err();
         assert_eq!(error.fault, Fault::UnterminatedFence);
         assert_eq!(error.line, 2);
+    }
+
+    /// The **silent** direction of a loose fence rule, and the reason the close
+    /// is as exact as the open. A four-column run is content, so the fence is
+    /// still open at end of file; reading it as a close would return to neutral
+    /// inside a block a reader sees as code and promote `example` to a unit.
+    #[test]
+    fn an_over_indented_run_does_not_close_a_fence() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "<!-- unit: alpha kinds=* class=triggering -->\n\
+             ```\n\
+             <!-- unit: example kinds=* class=triggering -->\n\
+             \x20   ```\n",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::UnterminatedFence);
+        assert_eq!(error.line, 2);
+    }
+
+    /// A close carries no info string, so a second opener-shaped line does not
+    /// end the block it looks like it belongs to.
+    #[test]
+    fn a_run_carrying_an_info_string_does_not_close_a_fence() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "<!-- unit: alpha kinds=* class=triggering -->\n```\n```text\n",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::UnterminatedFence);
+    }
+
+    /// The collision `---` cannot resolve on its own: read as a thematic break
+    /// this is body, read as a preamble opener it hides `hidden` and its prose.
+    /// The spelling is reserved for the preamble, and a marker caught inside one
+    /// is what keeps the reservation from costing a classified unit.
+    #[test]
+    fn a_marker_inside_the_leading_block_is_rejected() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "---\n\
+             <!-- unit: hidden kinds=* class=triggering -->\n\
+             prose\n\
+             ---\n\
+             <!-- unit: visible kinds=* class=triggering -->\n",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::MarkerInPreamble);
+        assert_eq!(error.line, 2, "named on the marker the block would swallow");
+    }
+
+    /// The last unit of a file is served through end of file, and a fetch
+    /// concatenates units with nothing between them — so without a final newline
+    /// the next unit's marker stops being a whole line.
+    #[test]
+    fn a_file_that_does_not_end_in_a_newline_is_rejected() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "<!-- unit: alpha kinds=* class=triggering -->\nbody",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::MissingFinalNewline);
+        assert_eq!((error.line, error.offset), (2, 50));
+    }
+
+    /// The listing's five fields need no escaping rule only while no field can
+    /// carry a delimiter. Four are closed sets; the fifth is a filename, which is
+    /// data rather than a grammar until the build makes it one.
+    #[test]
+    fn a_path_no_listing_row_could_carry_is_rejected() {
+        let marker = "<!-- unit: alpha kinds=* class=triggering -->\n";
+        assert_eq!(
+            parse_units("two\tfields.md", marker).unwrap_err().fault,
+            Fault::UnlistablePath('\t')
+        );
+        assert_eq!(
+            parse_units("two\nrows.md", marker).unwrap_err().fault,
+            Fault::UnlistablePath('\n')
+        );
+        assert!(
+            parse_units("prompts/continue.md", marker).is_ok(),
+            "an ordinary nested path is untouched"
+        );
     }
 
     // -- The classifier must be able to fail --------------------------------

@@ -522,6 +522,12 @@ pub fn run() -> Result<()> {
 /// cannot serve its third argument must not have already emitted the first two,
 /// because the output is bytes a caller splices into its own reading and a
 /// partial fetch is indistinguishable from a complete one.
+///
+/// The concatenation needs nothing between the units because the build supplies
+/// the invariant that makes it safe — an embedded file ends in a newline, so
+/// every unit's bytes do, and each marker keeps its own line however many units
+/// are asked for. A separator here would be framing, which the fetch contract
+/// refuses (`docs/specs/mandate-delivered-methodology.md`).
 fn cmd_methodology(args: &MethodologyArgs) -> Result<()> {
     let units = crate::methodology::units()?;
     let rendered = if args.ids.is_empty() {
@@ -544,9 +550,13 @@ fn cmd_methodology(args: &MethodologyArgs) -> Result<()> {
 }
 
 /// One listing row. Tabs need no escaping rule because no field can contain
-/// one — ids are kebab-case, class and scope are drawn from closed sets, and the
-/// paths are this repository's own filenames. That is a property of the data
-/// rather than a convention to remember.
+/// one — ids are kebab-case, class and scope are drawn from closed sets, and an
+/// embedded path holding a control character fails the build. The first three
+/// prove it from their own grammar; the fourth is a *filename*, which is mutable
+/// data rather than a grammar, so the parser makes the premise structural instead
+/// of assuming today's tree
+/// (`docs/specs/mandate-delivered-methodology.md`). That is a property of the
+/// data rather than a convention to remember.
 fn listing_row(unit: &crate::methodology::Unit) -> String {
     let scope = unit
         .scope

@@ -68,9 +68,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
 - **A malformed embed fails `cargo build`.** Every embedded markdown file must
   be fully classified — units partition its body, the marker grammar is fixed,
   and a runaway fence or an unclosed leading `---` block is an error — reported
-  with the file and offset. The gate reads through the crate's own parser rather
-  than a second implementation. Grove's compile-time artifact is not the human's
-  task tree, and the build that produced it can see the whole of it.
+  with the file and offset. Fences are recognised by CommonMark's own rule rather
+  than a trimmed approximation of it, because a close accepted too freely returns
+  the reader to neutral inside a code block and promotes an example marker to a
+  real unit. A leading `---` is **reserved** for the opaque preamble, since
+  nothing distinguishes it from a thematic break (write a leading rule as `***`),
+  and a unit marker inside the block is an error rather than bytes silently
+  skipped. Two file-level rules join them, each so a stated contract stops being
+  an assumption about today's tree: a file ends in a newline, so concatenated
+  fetch output keeps every marker on its own line, and an embedded path carries no
+  control character, so the listing's five tab-separated fields need no escaping.
+  The gate reads through the crate's own parser rather than a second
+  implementation. Grove's compile-time artifact is not the human's task tree, and
+  the build that produced it can see the whole of it.
 
 ### Changed
 

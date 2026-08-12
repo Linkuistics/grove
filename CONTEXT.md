@@ -107,16 +107,21 @@ the next or to end of file, and there is no nesting, no gap and no close marker.
 Body is everything after the optional leading `---`-delimited **preamble**, the
 file's one unread region — skipped uninterpreted, neither required nor rejected,
 so `content/SKILL.md`'s YAML keeps working for as long as
-[[Global skill provisioning]] reads it.
+[[Global skill provisioning]] reads it. That spelling is **reserved** on a first
+line, because nothing distinguishes it from a thematic break; a leading rule is
+written `***`, and a marker inside the block is a build error.
 Partition is what makes unclassified prose unreachable, and what makes a parser
 blind to some marker shape produce a *visibly larger* preceding unit instead of a
 silent hole. The marker line is part of the unit's source, so a slice carries its
 own id **and its deferral**, and is self-addressing in both directions. Ids are
 unique across the whole embed, because `grove-llm methodology` addresses by id
 alone. Markers are recognised only as unindented whole lines at **neutral fence
-state**, so a unit can neither begin nor end inside a fenced block. Malformed
+state** — fences by CommonMark's own rule, exactly, since a loose close silently
+promotes an example to a boundary — so a unit can neither begin nor end inside a
+fenced block. Malformed
 markers fail the **build**, as does a file whose fence state is unbalanced at end
-of file or a deferral naming no procedural unit: the embed is Grove's own
+of file, one that does not end in a newline, one whose path holds a byte a listing
+row cannot carry, or a deferral naming no procedural unit: the embed is Grove's own
 compile-time artifact, not a human's task tree, so constraint 5 does not reach it.
 _Avoid_: reading a unit as a section. Headings do not delimit units, and the
 grain is deliberately finer than a heading's — one bullet out of nineteen.

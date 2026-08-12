@@ -214,6 +214,44 @@ fn a_fetch_writes_source_bytes_in_the_order_given() {
     );
 }
 
+/// **The framing contract rests on an embed invariant rather than on luck.**
+///
+/// A fetch concatenates unit sources with nothing between them, so a unit whose
+/// bytes did not end in a newline would run its last prose line into the *next*
+/// unit's marker — costing that marker its line and the output the
+/// self-addressing shape the verb exists to deliver. "Verbatim and framed by
+/// nothing" and a useful multi-fetch cannot both hold for such a file, so the
+/// build rejects one; what is asserted here is what that buys, over the real
+/// embed and through the verb rather than through the parser that enforces it.
+#[test]
+fn a_multi_unit_fetch_keeps_every_marker_on_its_own_line() {
+    let units = methodology::units().unwrap();
+    for unit in &units {
+        assert!(
+            unit.source.ends_with('\n'),
+            "`{}` ends mid-line, so anything fetched after it loses its marker",
+            unit.id
+        );
+    }
+
+    let ids: Vec<&str> = units.iter().map(|unit| unit.id.as_str()).collect();
+    let output = methodology_verb(&ids);
+    let fetched = stdout_of(&output);
+
+    for unit in &units {
+        let marker = unit
+            .source
+            .lines()
+            .next()
+            .expect("a unit carries its marker");
+        assert!(
+            fetched.lines().any(|line| line == marker),
+            "`{}`'s marker is no longer a whole line of the fetch: {marker:?}",
+            unit.id
+        );
+    }
+}
+
 /// A caller's mistake, not a contributor's. A bad `defers=` *inside* the embed
 /// fails the build, because the build that produced it can see it; a bad
 /// argument is visible only when the call is made, so it is an ordinary runtime

@@ -121,6 +121,88 @@ assumption about today's tree.
   demonstrate the build gate refusing any newly forbidden embed shape where the
   repair adds a build-time invariant.
 
+## Triage
+
+**All four hold; all four are applied.** They are one finding wearing four
+hats: a rule stated in the spec as a *shorthand* and implemented as a **broader
+predicate** than the shorthand describes — "`---` is preamble" (but `---` is also
+a thematic break), "three or more of the same character" (but the code trims any
+indentation), "framed by nothing" (but concatenation needs a line boundary the
+corpus supplies by luck), "no field can contain a tab" (but a path is data, not a
+grammar). Each repair therefore does the same three things: narrow the predicate,
+make the narrowing **structural at the build boundary**, and rewrite the spec so
+the shorthand stops being load-bearing.
+
+**B1 — reserved, and the hiding half made an error.** The collision is real and
+unresolvable from the bytes, so the spelling is **reserved**: a first line of
+exactly `---` always opens the opaque preamble. Reserving costs an author
+nothing, and the argument is already in the design rather than newly invented — a
+body must begin with a unit marker, so a leading thematic break is
+`BodyBeforeFirstMarker` in every *other* spelling (`***`, `___`, `----`,
+`- - -`); `---` was the one spelling that got swallowed instead of rejected. On
+top of that, `Fault::MarkerInPreamble` makes a marker inside the block a build
+error, which removes the half the finding is actually about: whatever an
+over-long block swallows, it can no longer be a **classified unit**. The residue
+recorded in the spec, deliberately not closed: a swallowed region of pure
+**prose**, reachable only by writing on line one a construct already erroring in
+every other spelling — closing it would mean *interpreting* the block, which is
+the one thing the rule exists not to do.
+
+**B2 — CommonMark 0.31.2 §4.5, exactly, both ends.** Opener: at most three
+columns of indentation, three or more of one fence character, and an info string
+carrying no backtick on a backtick fence. Close: at most three columns, at least
+as many of the same character, then only spaces and tabs. The spec now argues why
+the exactness is not pedantry — a loose *opener* swallows real markers into the
+preceding unit (wrong but **visible**, the id set moves), while a loose *close*
+returns to neutral inside a block a reader sees as code and promotes an example
+marker to a boundary (wrong and **silent**). `trim()` bought both. The
+marker/fence indentation asymmetry the review asked about is kept and argued: it
+only ever *withholds* unit-hood, which is the safe direction. What is
+deliberately not modelled is container context, stated in the spec rather than
+left as a surprise; its residue is one-directional and falls in the visible
+direction.
+
+**B3 — the invariant, not the framing.** "Verbatim and framed by nothing" is the
+half worth keeping, so `Fault::MissingFinalNewline` supplies what makes it
+compatible with a multi-id fetch: an embedded markdown file ends in a newline,
+therefore every unit's bytes do, therefore every marker keeps its own line
+however many units are concatenated. A separator inserted by the fetch would have
+been framing — the thing the contract refuses.
+
+**B4 — the premise made structural.** `Fault::UnlistablePath` rejects any control
+character in an embedded path at the build boundary, so the listing's
+no-escaping design rests on a property the build enforces rather than on today's
+filenames. The check lives in `parse_units` deliberately: that is the **one
+implementation both traversals share**, so it cannot hold on the filesystem walk
+and not on the embed walk.
+
+### Evidence
+
+- `cargo build`, `cargo test` (**1003 passing**, up from 993), `cargo fmt
+  --check` and `cargo clippy --all-targets` all green.
+- **The new pins were falsified against the reviewed implementation**: with
+  `parse.rs`'s logic reverted to B1/B2/B3/B4's anchors and the new tests left in
+  place, exactly the six behaviour-changing tests fail and every pre-existing
+  test still passes.
+- **The gate was demonstrated refusing each newly forbidden shape**, on the real
+  `content/`, then reverted — `content/` is byte-identical:
+  - `content/SKILL.md:2:4: this unit marker is inside the leading `---` block…`
+  - `content/ADR-FORMAT.md:39:2065: the file does not end in a newline…`
+  - `content/two<TAB>fields.md:1:0: this file's path holds U+0009…`
+  - `content/SPEC-FORMAT.md:75:3110: this fenced block is never closed…` (a
+    closing fence indented four columns, which now correctly closes nothing)
+- Reconciled so no second interpretation survives: the spec's *Fence state*,
+  *A leading `---` block is opaque preamble*, *A malformed embed fails the build*
+  and *`grove-llm methodology` fetches bytes, or lists rows* sections, its
+  Requirements scenarios and Test seams; `CONTEXT.md`'s [[Methodology unit]]
+  entry; `src/llm_cli.rs`'s `listing_row` and `cmd_methodology` doc comments —
+  the latter two carried B4's and B3's exact superseded arguments verbatim.
+
+**No follow-up leaf is cut.** Nothing surfaced that does not serve B1–B4: each
+finding's own prescribed remedy was taken, `embed-wide-gate-k8` already owns the
+whole-embed classes, and the one question declined here (container-block
+modelling) is declined *in the spec*, not deferred as work.
+
 ## Notes
 
 - This leaf integrates findings only. New concerns that do not serve B1–B4 go

@@ -526,8 +526,12 @@ the reference turning out to be a citation rather than an edge** — a parenthet
 `(`TASK-FORMAT.md`)` supporting a claim is not a trigger→body relationship. The
 owning batch reads the earlier leaf's body, and where the target is triggering or
 the reference is a citation it **declines the row with that reason**, which is the
-expected outcome rather than a gap. Row 37 is the one edge whose source is carved
-*after* its target, so it is written by the source's batch.
+expected outcome rather than a gap. **Row 37 is the one edge whose *target* is carved
+after its source** — `driving.md` §*Prune…* is #8's and `SKILL.md` `**Retire.**` is
+#11's — so the later-endpoint rule makes it **#11's**, as the table says.
+(`decompose-moves-k28` corrected this sentence, which previously read "source … carved
+*after* its target … written by the source's batch" and contradicted the table it
+annotates; #8 reported the hit as *not mine* and parked nothing.)
 
 **The inventory is extensible, and it is not claimed exhaustive.** A batch that
 finds a genuine cross-file trigger→body edge inside its own region pointing at an

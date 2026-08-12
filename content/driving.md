@@ -1,4 +1,4 @@
-<!-- unit: driving-field-guide kinds=* class=triggering -->
+<!-- unit: driving-field-guide kinds=* class=triggering defers="driving-externalizing-surfaced-work driving-anti-patterns driving-the-shortest-version" -->
 # Driving a grove session well
 
 The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
@@ -603,7 +603,7 @@ was contiguous. Nothing refuses either — which is exactly why the adjacency of
 the `review → integrate` hop is *your* obligation at the moment you cut the leaf,
 and why the verb you reach for there is `leaf-insert`.
 
-<!-- unit: pending-driving-decompose kinds=* class=triggering -->
+<!-- unit: driving-externalizing-surfaced-work class=procedural -->
 ## Externalizing surfaced work
 
 grove's value is many small, low-context sessions — each leaf picked up fresh,
@@ -639,6 +639,7 @@ without disturbing it. A tree that keeps sprouting small, concrete leaves is the
 system working as intended — lazy means *just-in-time, not few* (`SKILL.md`
 constraint 4), so don't ration leaves to keep the tree looking tidy.
 
+<!-- unit: driving-find-working-increments class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules and the
@@ -661,6 +662,7 @@ methodology, and documentation often form dependency-ordered groves when every
 handoff remains green. A new schema and the only reader that makes it usable do
 not: neither half is a working increment on its own.
 
+<!-- unit: driving-what-a-good-child-leaf-looks-like class=procedural -->
 ## What a good child leaf looks like
 
 Externalizing tells you *when* to split; this is what the split should
@@ -682,6 +684,7 @@ by blast radius — per package, per directory), each keeping CI green because
 the old form still exists alongside the new; finally a leaf that deletes the
 old form once no caller remains.
 
+<!-- unit: driving-recording-fog kinds=* class=triggering defers="driving-the-fog-or-ticket-test brief-suggested-shape" -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
@@ -695,6 +698,7 @@ can't yet leaf-shape. A brief's **On the horizon** note (`BRIEF-FORMAT.md`)
 is that place: a line or two recording foreseen work without pre-slicing it
 into a leaf.
 
+<!-- unit: driving-the-fog-or-ticket-test class=procedural -->
 The line between a horizon note and a leaf is the **fog-or-ticket test**: can
 you state the question precisely right now — not whether you can answer it.
 A question you can already phrase precisely earns a leaf immediately with
@@ -702,6 +706,7 @@ A question you can already phrase precisely earns a leaf immediately with
 dim to phrase that precisely stays a horizon note until a later session
 sharpens it enough to graduate.
 
+<!-- unit: driving-when-a-leafs-place-is-in-doubt kinds=* class=triggering defers=driving-prune-reorder-or-file-an-issue -->
 ## Prune, reorder, or file an issue — the triage a status word would hide
 
 A leaf whose place in the tree is in doubt — surfacing new, or already sitting
@@ -710,6 +715,7 @@ there under a doubted premise — tempts a status word: `blocked`, `deferred`,
 and reaching for a fourth state is how a tree starts lying about what is still
 live. The doubt always resolves to one of three existing mechanisms:
 
+<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural -->
 - **Not now, but still ours** → a **reorder**. The work is good and belongs in
   this tree, just not next: leave the leaf live and `leaf-insert` something
   ahead of it (or reorder by hand). Nothing is decided against — `pick` will
@@ -738,6 +744,7 @@ the tree with work this grove will never do. When a leaf's status is in doubt,
 name which of the three sentences above is actually true before reaching for
 the CLI — the sentence picks the verb.
 
+<!-- unit: driving-anti-patterns class=procedural -->
 ## Anti-patterns
 
 - **The wizard.** A capture verb that opens an interactive prompt
@@ -759,6 +766,7 @@ the CLI — the sentence picks the verb.
   `impl` task. The grilling discipline exists for genuinely open
   decisions; using it for pre-decided ones is theatre.
 
+<!-- unit: driving-the-shortest-version class=procedural -->
 ## The shortest version
 
 If you remember one paragraph of this doc, remember this:

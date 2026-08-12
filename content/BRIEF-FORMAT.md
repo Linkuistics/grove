@@ -1,4 +1,4 @@
-<!-- unit: brief-format kinds=* class=triggering -->
+<!-- unit: brief-the-node-briefing class=procedural defers="brief-every-node-carries-one brief-durable-content brief-suggested-shape brief-briefs-inherit" -->
 <!-- grove reference file — the BRIEF.md shape -->
 
 # BRIEF-FORMAT — the node briefing
@@ -12,6 +12,7 @@ log (`docs/adr/`). It exists so that a session executing a leaf can read *three*
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
 
+<!-- unit: brief-every-node-carries-one class=procedural -->
 **There is one node species, and it always has one.** A node is a leaf that
 proved bigger than one session, so the charter is exactly the context those extra
 sessions need, and every node grove writes gets one: `leaf-decompose` moves the
@@ -38,6 +39,7 @@ is context, not a task, it is **never** marked done: a node is done
 place. On that completion, anything still live in the brief is promoted upward
 (see SKILL.md, "Retire").
 
+<!-- unit: brief-durable-content class=procedural -->
 **Durable content.** The same durability that governs a node's *identity*
 (the permanent `-k<key>`, unmoved by renumber or reorder) should govern a
 node's *content*: state behavioural contracts and named types — what a
@@ -50,6 +52,7 @@ both move.
      (skills/engineering/triage/AGENT-BRIEF.md, "Durability over precision")
      — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
 
+<!-- unit: brief-suggested-shape class=procedural -->
 ## Suggested shape
 
 A guide, not a schema (constraint 3). Nothing validates a brief; nothing breaks
@@ -86,6 +89,7 @@ Anything a session needs that is not yet an ADR or a glossary entry. On
 retirement, anything still live here is promoted upward (see SKILL.md, "Retire").
 ```
 
+<!-- unit: brief-briefs-inherit class=procedural -->
 ## Briefs inherit
 
 A session reads the **whole brief chain**, root→leaf. A child brief states only

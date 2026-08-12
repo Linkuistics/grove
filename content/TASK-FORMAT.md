@@ -87,7 +87,7 @@ fault.
   spec, an ADR set, or both. A `design` session that finds itself cutting
   *implementation* leaves has drifted into planning's job and should externalize
   a `planning` leaf instead.
-<!-- unit: task-producer-planning kinds=planning class=triggering -->
+<!-- unit: task-producer-planning kinds=planning class=triggering defers="driving-find-working-increments driving-what-a-good-child-leaf-looks-like" -->
 - **planning** (AFK) — given the design, first find the **smallest independently
   useful working increments** and order them by dependency. Create a separate
   grove for every obvious stage that leaves the product working and delivers
@@ -103,7 +103,7 @@ fault.
 - **prototype** (HITL) — a cheap, deliberately throwaway artifact built to react
   to, not to ship. The point is the reaction it provokes, not the code's
   survival.
-<!-- unit: task-producer-impl kinds=impl class=triggering defers="driving-cite-framework-decisions-to-the-source driving-doubting-inside-a-picked-leaf" -->
+<!-- unit: task-producer-impl kinds=impl class=triggering defers="driving-cite-framework-decisions-to-the-source driving-doubting-inside-a-picked-leaf driving-externalizing-surfaced-work" -->
 - **impl** (AFK) — produces code, docs, or tests. The deliverable is an artifact
   that ships. (`driving.md` carries the habits: cite framework decisions to the
   source, doubt a hard-to-reverse decision before it stands, and externalize
@@ -516,7 +516,7 @@ each carries part of the old checklist:
   surprising, or a real trade-off (`ADR-FORMAT.md`) — and MAY write a spec
   (`docs/specs/<slug>.md`) when the increment is a genuine agreement point
   (`SPEC-FORMAT.md`).
-<!-- unit: task-deliverable-planning kinds=planning class=triggering -->
+<!-- unit: task-deliverable-planning kinds=planning class=triggering defers=brief-the-node-briefing -->
 - **planning** writes the child `BRIEF.md`(s) and ordered leaf files for any node
   it grows (`BRIEF-FORMAT.md`).
 

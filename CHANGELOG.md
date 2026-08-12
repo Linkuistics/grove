@@ -117,17 +117,32 @@ stood at the graft — a closed record, not part of the versioned sequence above
   filename tells the truth. **Nothing was migrated and no format changed** — the
   suffix was always convention rather than grammar, so both spellings remain
   legal filenames and every existing leaf keeps the slug it was created with. The
-  one cost is that `grove-llm resolve <stem>` on a chain now reports the
-  ambiguity and lists all three matches with their kind-bearing paths, which is
-  usually the answer wanted; no machine path is affected, because the driver's
-  mandate, the `**Reviews:**` / `**Integrates:**` lines, commit messages and
-  grow-verb targets all name a `<slug>-k<key>` handle or a bare key, and keys are
-  unique tree-wide. One consequence belonged to the pair alone and is settled
-  from the same principle: `research-a` and `research-b` would otherwise write
-  the same `docs/research/<slug>.md`, so the kind supplies the discriminator —
-  `-a.md`, `-b.md`, and the unadorned union for `combine-research`. No ADR: the
-  decision is cheap to reverse, so the reasoning is durable in
-  `content/TASK-FORMAT.md` instead.
+  one cost is that a bare stem stops naming one leaf: `grove-llm resolve <stem>`
+  on a chain reports the ambiguity and lists all three matches with their
+  kind-bearing paths, which is usually the answer wanted. `resolve` keeps its
+  **pick-style contract unchanged** — empty stdout, the diagnostic on stderr and
+  exit zero — so a command substitution around a chained stem succeeds with an
+  empty value rather than failing. Every *recommended* reference is unaffected,
+  because the driver's mandate, the `**Reviews:**` / `**Integrates:**` lines,
+  commit messages and grow-verb targets all name a `<slug>-k<key>` handle, a bare
+  key or a path, and keys are unique tree-wide; the bare slug that `leaf-add` and
+  `leaf-insert` *also* accept as a target convenience is the one reference that
+  loses its step, and there ambiguity is a refusal naming the matching keys. One
+  consequence belonged to the pair alone and is settled from the same principle:
+  `research-a` and `research-b` would otherwise write the same
+  `docs/research/<slug>.md`, so the kind supplies the discriminator — `-a.md`,
+  `-b.md`, and the unadorned union for `combine-research`. No ADR: the decision is
+  cheap to reverse, so the reasoning is durable in `content/TASK-FORMAT.md`
+  instead.
+- **`linkuistics` / `doubt-driven-development`: the escalation example drops the
+  step suffix too.** The skill's *Composition with Grove* rule tells a picked
+  producer to escalate a second review need with `grove-llm leaf-add <parent>
+  <stem> --kind review-<producer>`, where it previously spelled the slug
+  `<stem>-review`. Same rule, same budget, same predicate — the example now emits
+  the slug the methodology teaches, so a session following the skill and a session
+  following `content/TASK-FORMAT.md` cut the same filename. Logged separately
+  because the plugin is installed on its own and is delivered by commit rather
+  than by a grove release.
 - **Both binaries now link `content/`**, `grove` to extract it and `grove-llm`
   to serve units, so both compute their **methodology identity** from the linked
   embed directly. The compile-time constant existed precisely so that naming the

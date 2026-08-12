@@ -317,18 +317,29 @@ it could be and is not:
   filename tells the truth. Deleting the marker leaves exactly one statement of
   the role, in the field that is checked.
 
-  **What that costs, exactly.** Only one thing: `grove-llm resolve <stem>` on a
-  chain now matches more than one leaf and reports `Resolution::Ambiguous`. That
-  is small, and it was never an invariant — grove enforces no slug uniqueness
-  anywhere, and `resolve` was built for collisions. The ambiguous listing prints
-  each match's **path**, which carries the kind, so `resolve <stem>` now shows the
-  whole chain with every step's role spelled out; only "give me the producer
-  specifically" costs a second lookup. **No machine path is affected**: the
-  driver's mandate, `**Reviews:**` / `**Integrates:**` lines, commit messages and
-  grow-verb targets all name a `<slug>-k<key>` handle or a bare key, and keys are
-  unique tree-wide. A script doing `path=$(grove-llm resolve <stem>)` on a chained
-  stem gets empty stdout and a non-zero exit — scripts should use keys, as the
-  guidance already says.
+  **What that costs, exactly.** A bare stem stops naming one leaf: `grove-llm
+  resolve <stem>` on a chain matches every step and reports
+  `Resolution::Ambiguous`. That was never an invariant — grove enforces no slug
+  uniqueness anywhere, and `resolve` was built for collisions — and the listing
+  prints each match's **path**, which carries the kind, so `resolve <stem>` now
+  shows the whole chain with every step's role spelled out; only "give me the
+  producer specifically" costs a second lookup.
+
+  Two exactness notes, because both are easy to get backwards. **`resolve` is
+  pick-style**: an ambiguous reference is empty stdout, the diagnostic on stderr
+  and **exit zero**, because a listing is information rather than a failure. A
+  script doing `path=$(grove-llm resolve <stem>)` on a chained stem therefore does
+  *not* stop — it succeeds with an empty `path`, and `set -e` will not catch it.
+  And **every recommended reference is unaffected, but not every accepted
+  one**: the driver's mandate, `**Reviews:**` / `**Integrates:**`
+  lines, commit messages and grow-verb targets all name a `<slug>-k<key>` handle,
+  a bare key or a path, and keys are unique tree-wide — while `leaf-add`'s
+  `<parent>` and `leaf-insert`'s `<target>` *also* accept a bare slug as a
+  convenience, and there the same ambiguity is a **refusal** that names the
+  matching keys and mutates nothing. So a bare stem that once selected one step of
+  a chain now selects none through that path. The read verb reports and the
+  mutation verb refuses; the answer to both is the key or handle the guidance
+  already recommends.
 
   **What it does not cost: the surviving commit record.** The stem is *kept*, so a
   handle still names its artifact after `.grove/` dies — the alternative that

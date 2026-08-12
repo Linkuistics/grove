@@ -342,6 +342,82 @@ fn guidance_states_that_each_step_is_created_only_when_required() {
     }
 }
 
+/// Dropping the step suffix left the bare stem ambiguous, and four surfaces state
+/// what that costs. The cost is a **CLI contract**, so the surfaces are pinned to
+/// it rather than to a phrasing — and the first version got it backwards on the one
+/// detail a reader would rely on.
+///
+/// `cmd_resolve` is pick-style: it renders `Resolution::Ambiguous` to stderr and
+/// returns `Ok(())` (`tests/resolve.rs` pins empty stdout, a stderr diagnostic and
+/// **exit zero**). The prose claimed a non-zero exit, which is a safety signal the
+/// verb deliberately does not give — so `path=$(grove-llm resolve <stem>)` on a
+/// chained stem continues successfully with an empty value, and a reader who
+/// believed the strong claim would not guard for it.
+///
+/// The second half is the one the same paragraph over-claimed as "no machine path
+/// is affected". Every reference the guidance *recommends* is a handle, key or
+/// path and is genuinely unaffected, but `resolve_ref_or_path_unlocked` also
+/// accepts a bare slug for a mutation target — `leaf-add`'s `<parent>` and
+/// `leaf-insert`'s `<target>` — and there ambiguity is a `bail!`. So the two verbs
+/// disagree on exit status for the same word, which is exactly why each surface has
+/// to name both directions: the read verb reports, the mutation verb refuses.
+///
+/// `CHANGELOG.md` is out of scope for the positive claims, for the reason recorded
+/// above the first test in this file.
+#[test]
+fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
+    for (surface, text) in [
+        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("content/driving.md", DRIVING),
+        ("docs/ARCHITECTURE.md", ARCHITECTURE),
+        ("review mechanics spec", SPEC),
+    ] {
+        // The contract by name, and the exit status spelled out — a surface that
+        // keeps the word `ambiguous` and drops these has stopped saying what a
+        // caller can rely on.
+        assert_contains(surface, text, "pick-style");
+        assert_contains(surface, text, "**exit zero**");
+        // The superseded claim, banned as the sentence it was. Its return would
+        // restore a promise the CLI does not keep.
+        assert_absent(surface, text, "gets empty stdout and a non-zero exit");
+        assert_absent(surface, text, "No machine path is affected");
+        assert_absent(surface, text, "no machine path is affected");
+    }
+
+    // And the mutation half, worded per surface: the four say it four ways, so
+    // pinning one sentence would forbid three legitimate rewordings. What each must
+    // carry is that the bare slug/stem *also* reaches a grow verb, and that the
+    // grow verb refuses rather than lists.
+    for (surface, text, refusal) in [
+        (
+            "content/TASK-FORMAT.md",
+            TASK_FORMAT,
+            "`leaf-add`'s `<parent>` and `leaf-insert`'s `<target>` *also* accept a bare slug as a \
+             convenience, and there the same ambiguity is a **refusal**",
+        ),
+        (
+            "content/driving.md",
+            DRIVING,
+            "do the same for a `leaf-insert` target: the bare stem is ambiguous there too, and that \
+             verb refuses rather than listing",
+        ),
+        (
+            "docs/ARCHITECTURE.md",
+            ARCHITECTURE,
+            "The bare slug the grow verbs *also* accept as a target convenience is the one reference \
+             that loses its step, and there ambiguity is a refusal",
+        ),
+        (
+            "review mechanics spec",
+            SPEC,
+            "the bare slug that `leaf-add` and `leaf-insert` also accept for a target is the \
+             exception, and there the ambiguity is a refusal",
+        ),
+    ] {
+        assert_contains(surface, text, refusal);
+    }
+}
+
 #[test]
 fn planning_guidance_prefers_dependency_ordered_working_increments() {
     for (surface, text) in [

@@ -87,8 +87,11 @@ role, so the slug names the artifact and does not restate it
 (`content/TASK-FORMAT.md`). The steps stay distinct by key, and their handles —
 `sync-design-k12`, `-k21`, `-k22` — stay unique because keys are unique
 tree-wide. What it costs is that `resolve sync-design` is ambiguous and lists all
-three with their kind-bearing paths; no machine path is affected, because every
-one of them names a handle or a key.
+three with their kind-bearing paths — pick-style, so empty stdout, the diagnostic
+on stderr and **exit zero**. Every reference this spec recommends names a handle,
+a key or a path and is unaffected; the bare slug that `leaf-add` and `leaf-insert`
+also accept for a target is the exception, and there the ambiguity is a refusal
+naming the matching keys.
 
 Here nothing later in the directory still holds live work, so the next free
 position *is* the slot beside the review and `leaf-add` puts the integration

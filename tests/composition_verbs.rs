@@ -573,6 +573,89 @@ fn pair_prints_three_flat_siblings_with_fixed_research_kinds() {
     }
 }
 
+/// The pair's half of the compatibility promise, which the legacy *chain* node
+/// fixture above cannot make.
+///
+/// `content/TASK-FORMAT.md` and `leaf_add_pair_unlocked` both promise that both
+/// slug spellings stay legal and no existing tree is invalidated, and the review
+/// chain's half is guarded above. The pair's is a genuinely different parse and
+/// was left uncovered: the moment the generator stopped emitting `-a` / `-b` /
+/// `-combine`, no source or test fixture contained an old pair name at all, so the
+/// whole current-shape suite would keep passing if a future change broke reading
+/// them.
+///
+/// What makes it a *different* case is where the kind ends and the slug begins.
+/// In `01-research-a-survey-a-k1.md` the kind label is `research-a` and the slug
+/// is `survey-a` — a slug that itself ends in the step marker, and a boundary only
+/// [`Kind::split_filename_prefix`]'s longest-label match puts in the right place.
+/// A shorter or first-match split would silently mis-read all three names, and the
+/// handle it derived (`survey-k1` rather than `survey-a-k1`) would resolve to
+/// nothing.
+///
+/// So the three names go in exactly as the deleted generator wrote them, and are
+/// read three ways without being touched. No migration and no generator fallback:
+/// the current expectations above stay the bare stem.
+#[test]
+fn unmigrated_research_pair_filenames_still_pick_resolve_and_report_their_kinds() {
+    let t = grove();
+    let legacy = [
+        ("01-research-a-survey-a-k1.md", "survey-a-k1", "research-a"),
+        ("02-research-b-survey-b-k2.md", "survey-b-k2", "research-b"),
+        (
+            "03-combine-research-survey-combine-k3.md",
+            "survey-combine-k3",
+            "combine-research",
+        ),
+    ];
+    for (name, handle, _) in legacy {
+        fs::write(
+            t.path().join(".grove").join(name),
+            format!("# {handle}\n\n## Goal\n"),
+        )
+        .unwrap();
+    }
+
+    // `pick` reads them as ordinary well-formed live leaves and returns the first
+    // in position order, rather than skipping names it cannot parse.
+    let (stdout, stderr, ok) = run(t.path(), &["pick"]);
+    assert!(ok, "pick failed on legacy pair names: {stderr}");
+    assert!(
+        stdout.trim().ends_with("01-research-a-survey-a-k1.md"),
+        "pick must reach the legacy `research-a` leaf, got {stdout:?}"
+    );
+
+    for (name, handle, kind) in legacy {
+        // The handle carries the old slug, and resolution finds it: the terminal
+        // `-k<key>` is the key and the `-a` / `-b` / `-combine` inside the slug is
+        // decorative, exactly as for any other slug.
+        let (stdout, stderr, ok) = run(t.path(), &["resolve", handle]);
+        assert!(ok, "resolve {handle} failed: {stderr}");
+        assert!(
+            stdout.trim().ends_with(name),
+            "resolve {handle} gave {stdout:?}"
+        );
+
+        // …and the kind/slug boundary lands where the longest label puts it, which
+        // is the assertion the chain fixture has no way to make.
+        let (stdout, stderr, ok) = run(t.path(), &["kind", name]);
+        assert!(ok, "kind {name} failed: {stderr}");
+        assert_eq!(stdout.trim(), kind, "kind {name} gave {stdout:?}");
+    }
+
+    // Nothing moved: reading a legacy name never rewrites it.
+    assert_eq!(
+        tree(t.path()),
+        vec![
+            "01-research-a-survey-a-k1.md",
+            "02-research-b-survey-b-k2.md",
+            "03-combine-research-survey-combine-k3.md",
+            "BRIEF.md",
+            "FORMAT",
+        ],
+        "the legacy pair names must be untouched"
+    );
+}
+
 #[test]
 fn a_failed_run_prints_no_path_at_all() {
     // Printing as each path lands would let stdout describe a mutation the

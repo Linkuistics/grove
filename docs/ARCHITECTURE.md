@@ -365,9 +365,15 @@ beside it, giving a second and unvalidated statement of a fact Grove already
 parses and routes on. That is convention rather than grammar in both directions:
 nothing generates or checks it for a chain, and a leaf slugged under the older
 `<stem>-review` spelling remains a well-formed name that no migration rewrites.
-The one consequence is that `resolve <stem>` on a chain is ambiguous and lists
-each match's kind-bearing path; every machine reference is a `<slug>-k<key>`
-handle or a key, which stays unique tree-wide.
+The one consequence is that a bare stem stops naming one leaf: `resolve <stem>`
+on a chain is ambiguous and lists each match's kind-bearing path — pick-style, so
+empty stdout, the diagnostic on stderr and **exit zero**, since a listing is
+information rather than a failure. Every *recommended* reference is unaffected,
+because the mandate, the relationship lines, commit messages and grow-verb targets
+all name a `<slug>-k<key>` handle, a key or a path, and keys stay unique
+tree-wide. The bare slug the grow verbs *also* accept as a target convenience is
+the one reference that loses its step, and there ambiguity is a refusal naming the
+matching keys rather than a listing.
 
 They are constructed in opposite ways, and the asymmetry is the design. A review
 chain is **lazy**: each step is an ordinary `leaf-add` performed as the last act

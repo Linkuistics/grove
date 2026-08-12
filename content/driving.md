@@ -532,7 +532,11 @@ These habits make the chain worth its extra sessions:
   kind beside it is what says which step you are looking at, so the slug does not
   restate it (`TASK-FORMAT.md`). One thing to expect: `grove-llm resolve <stem>`
   on a chain is ambiguous and lists all three with their paths, which is usually
-  what you wanted. Name a specific step by its `<slug>-k<key>` handle or its key.
+  what you wanted — pick-style, so empty stdout, the listing on stderr and **exit
+  zero**, which is why a command substitution around it needs a key rather than a
+  stem. Name a specific step by its `<slug>-k<key>` handle or its key, and do the
+  same for a `leaf-insert` target: the bare stem is ambiguous there too, and that
+  verb refuses rather than listing.
 - **Write the relationship line yourself.** A review's body carries
   `**Reviews:** <producer-handle>`; an integration's carries `**Integrates:**
   <review-handle>`. Nothing writes them and nothing parses them — they are a

@@ -20,8 +20,14 @@ prerequisite Grove cannot itself verify. The directories are global, so a
 directory is owned by whichever build wrote it last; the loop therefore
 re-verifies each stamp before every launch and restores its own embed when
 another build has taken one ([[Build pairing]]).
+**The term is live but retiring.** It still names code, and
+`docs/adr/mandate-delivers-the-methodology.md` has settled that it goes: once the
+mandate is the sole delivery path there is no sweep, no stamp, no shared
+directory, and no `continue.md`.
 _Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
-with their lifecycle verbs, and `continue.md` is the only survivor.
+with their lifecycle verbs, and `continue.md` is the only survivor. It becomes
+`content/MANDATE.md`, an ordinary [[Methodology unit]], and `content/prompts/`
+goes with it.
 _Avoid_: reading "current" as "as committed". What is swept is the
 [[Embedded methodology]] — the copy compiled into the *running* binary — so a
 sweep is current with respect to that build and to nothing else.
@@ -33,7 +39,10 @@ payload, every file's path and bytes — which is the value
 a skill directory or a binary belongs to. It is a hash rather than the crate
 version because the version does not move between a released binary and an
 edited checkout at that same version, which is exactly the pairing that has to
-be detectable.
+be detectable. Once [[Global skill provisioning]] retires it stamps nothing and
+names only binaries; both of them link the embed by then — `grove` to compose
+mandates, `grove-llm` to serve units — so both hash it directly, and the
+compile-time constant and its equality test go.
 _Avoid_: treating it as a version — it orders nothing and answers only "same
 build or not".
 _Avoid_: reading it as the identity of the extracted *directory tree* — the
@@ -58,12 +67,17 @@ at all; install the build the sessions resolve instead.
 
 **Build pairing**:
 The invariant that the methodology a session reads and the `grove-llm` it
-invokes come from one `grove` build. Only the skill directory is Grove's to
-repair; which CLI a session resolves is reported and never enforced, because an
-opaque configured command's environment is not the driver's to observe.
-`docs/adr/one-build-owns-a-session.md` has the checks and the trade-offs.
-Concurrent groves at different builds share one global directory and stay
-unsupported — now announced rather than silent.
+invokes come from one `grove` build. Which CLI a session resolves is reported and
+never enforced, because an opaque configured command's environment is not the
+driver's to observe. `docs/adr/one-build-owns-a-session.md` has the checks and
+the trade-offs. Under [[Global skill provisioning]] the second operand is a
+shared directory Grove repairs; once the mandate is the delivery path that
+directory is gone, and what remains is **sharper**: a rule's [[Triggering unit]]
+reaches the session from the *driver's* embed while its procedural body comes
+from the session's own `grove-llm`, so a mismatched pair is a split-brain inside
+one rule rather than two copies of one document. Its likeliest form is loud — an
+unknown unit id errors by name — and the pre-launch report covers the quiet
+half, one id with different bytes behind it.
 _Avoid_: checking the sibling of the running `grove` — the driver never invokes
 `grove-llm`, so the sibling agrees with it by construction while the binary the
 session runs goes unchecked.
@@ -75,17 +89,39 @@ _Avoid_: reading either report as a gate. The driver's is a proxy measured in
 its own environment, and a mid-task `grove-llm` refusal would cost more than the
 mismatch; the human who can fix either reads the same stream.
 
+**Methodology unit**:
+The grain of the [[Embedded methodology]]: a span of one `content/` file
+declared by an HTML-comment **unit marker** carrying a kebab-case id, a
+[[Triggering unit]]/procedural class, and — when triggering — the
+[[Session kind]]s its scope admits. Units **partition** their file: every body
+byte belongs to exactly one, a unit runs from its marker to the byte before the
+next or to end of file, and there is no nesting, no gap and no close marker.
+Partition is what makes unclassified prose unreachable, and what makes a parser
+blind to some marker shape produce a *visibly larger* preceding unit instead of a
+silent hole. The marker line is part of the unit's source, so a slice carries its
+own id and is self-addressing. Ids are unique across the whole embed, because
+`grove-llm methodology` addresses by id alone. Malformed markers fail the
+**build**: the embed is Grove's own compile-time artifact, not a human's task
+tree, so constraint 5 does not reach it.
+_Avoid_: reading a unit as a section. Headings do not delimit units, and the
+grain is deliberately finer than a heading's — one bullet out of nineteen.
+_Avoid_: "unmarked prose is procedural by default." There is no unmarked prose;
+a file that could contain some fails the build.
+
 **Mandate slice**:
-A byte-exact projection of the [[Embedded methodology]] into one session's
+A byte-exact projection of a [[Methodology unit]] into one session's
 `${prompt}` — the unit out of which a 100%-specific mandate is composed. The
 driver selects units by the launched [[Session kind]] and inlines their source
 bytes; it never paraphrases, because driver-composed prose would make `content/`
 non-canonical, and a slice cannot contradict what it copies. Which units a kind
 receives is marked **in `content/` itself**, adjacent to the prose it classifies:
-an HTML-comment **unit marker** per unit, plus per-file KDL frontmatter. Three
-properties bind every slice — succinct, never contradicting or walking back the
-methodology, and a *selector* that takes the session straight to the right
-content rather than a substitute for it.
+an HTML-comment unit marker per unit, plus per-file KDL frontmatter carrying the
+file's composition order. Three properties bind every slice — succinct, never
+contradicting or walking back the methodology, and a *selector* that takes the
+session straight to the right content rather than a substitute for it. The driver
+authors mandate prose **only** for facts it resolves at runtime — today the
+selected handle and the [[Stated VCS]] — and joins slices with nothing but a
+blank line.
 _Avoid_: reading a slice as a **pointer**. Naming a location leaves the session
 reading the whole section and performing the selection itself, which is the
 reasoning cost the slice exists to remove — and grove's content is not addressable
@@ -105,10 +141,18 @@ a lookup the session knows to make, while withholding a triggering condition
 yields an **unasked question** — silent, and grove's primary failure mode (a
 session quietly absorbing work that should have been its own leaf). The split is
 data rather than judgement re-made per session, so a **completeness invariant**
-is mechanically checkable: every triggering unit appears in every kind's composed
-mandate, and every procedural unit is reachable through `grove-llm methodology`.
+is mechanically checkable: every triggering unit appears in the composed mandate
+of every kind its scope admits, every procedural unit appears in **none**, and
+every unit — either class — is reachable through `grove-llm methodology`.
+A triggering unit's scope is `*` or an explicit list of kind labels; there is no
+family shorthand and no negation, because a shorthand would silently absorb a
+kind added later.
 _Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
+_Avoid_: stating the invariant as "every triggering unit in *every* kind's
+mandate". `kinds=*` is the default, not the rule; a unit scoped to one kind must
+be absent from the other eighteen, and that absence is half of what the test
+asserts.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:

@@ -46,10 +46,12 @@ redirect lifecycle mutations.
   research sessions while material target diversity remains configuration-owner
   policy. Reopen only if target identity becomes an explicit comparable part of
   configuration without reintroducing harness inference.
-- **Inline the complete Grove methodology into every `${prompt}`.** Rejected
-  because the methodology and its kind-specific references are already the
-  provisioned Grove skill; duplicating roughly the whole skill in every launch
-  would enlarge prompts and create a second delivery path that can drift. The
-  embedded launcher plus mandate deliberately requires the configured target to
-  expose that provisioned skill. Reopen if arbitrary targets without skill
-  installation become a supported requirement.
+- **Inline the complete Grove methodology into every `${prompt}`.** Rejected on
+  specificity rather than size: a session handed all of `content/` performs
+  exactly the selection a mandate exists to have already made for it. What
+  `${prompt}` does carry is the kind-selected slice set settled by [the mandate
+  delivers the methodology](mandate-delivers-the-methodology.md), which is a
+  decision about delivery and classification and not about launch policy —
+  nothing about it asks Grove to infer a harness, a model, or a default. Reopen
+  never; the complete inline is refused there, and the partial one is that
+  decision's to revise.

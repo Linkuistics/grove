@@ -45,12 +45,14 @@ lockstep, which is why they live together — see
   context, never both. The **grove** context owns
   [`complete-session-configuration`](docs/adr/complete-session-configuration.md),
   [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
+  [`mandate-delivers-the-methodology`](docs/adr/mandate-delivers-the-methodology.md),
   [`one-build-owns-a-session`](docs/adr/one-build-owns-a-session.md),
   [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
   [`supported-workspace-layouts`](docs/adr/supported-workspace-layouts.md),
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
   [`config-driven-sessions`](docs/specs/config-driven-sessions.md),
-  and [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md).
+  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
+  and [`mandate-delivered-methodology`](docs/specs/mandate-delivered-methodology.md).
   The doubt skill participates in the review-ownership and promotion contracts,
   but the mandate, task tree, review routing, and lifecycle are Grove's
   maintaining seam.

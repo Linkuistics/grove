@@ -623,6 +623,16 @@ template may request.
 <a id="self-extension-core-and-methodology"></a>
 ## Embedded methodology
 
+**This section describes the delivery path as built. It is decided to go.**
+[The mandate delivers the
+methodology](adr/mandate-delivers-the-methodology.md) settles that `${prompt}`
+becomes the sole delivery path, composed from kind-selected byte-exact slices of
+the driver's own embed, and that provisioning — the sweep, the stamps, the shared
+directory, and the harness registry — retires with it.
+[`docs/specs/mandate-delivered-methodology.md`](specs/mandate-delivered-methodology.md)
+carries the design. The **build boundary** below is unchanged by that decision
+and survives it intact; what changes is only how the embed reaches a session.
+
 `build.rs` embeds `content/` into the binary. On every bare `grove`, `provision`
 sweeps that content into each installed harness's personal skill directory — a
 row of the registry is a place to write files, never a program to run, and an

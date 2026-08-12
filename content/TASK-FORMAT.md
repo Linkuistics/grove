@@ -1,4 +1,4 @@
-<!-- unit: task-leaf-filename kinds=* class=triggering -->
+<!-- unit: task-leaf-filename kinds=* class=triggering defers=task-suggested-shape -->
 <!-- grove reference file — the task-file shape -->
 
 # TASK-FORMAT — the leaf task file
@@ -209,7 +209,7 @@ one-time legacy migration still reads it: `work`, `review-work` and
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-<!-- unit: pending-task-shapes kinds=* class=triggering -->
+<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness" -->
 ## Composing the kinds — the two shapes
 
 The kinds compose into two habitual shapes. A session cutting leaves should
@@ -231,6 +231,7 @@ it:
 steps are cut **lazily, one at a time, by the session that needs the next one**;
 a pair is cut **eagerly, whole, in one call**.
 
+<!-- unit: task-review-chain-mechanics class=procedural -->
 ### The review chain — each session cuts the next step
 
 Its steps are ordinary **flat siblings**. There is no chain node and no chain
@@ -282,6 +283,7 @@ Three things follow from cutting them late:
   after the review whose subtree still holds live work** whenever there is one.
   *What the shapes are not*, below, carries the reason and the exact condition.
 
+<!-- unit: task-declare-the-relationship kinds=* class=triggering -->
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
 <review-handle>`, on their own line, naming the stable handle:
@@ -297,6 +299,7 @@ the human reading `find .grove` and for the session that picks the step up —
 constraint 3, task files are freeform markdown and nothing validates them. Write
 them because the next session benefits, not because a verb requires it.
 
+<!-- unit: task-vendor-pair-mechanics class=procedural -->
 ### The vendor pair — one eager call
 
 ```
@@ -318,6 +321,7 @@ because they are fixed, the three slugs need carry nothing at all beyond the
 stem. The two producers are peers, and `research-a` / `research-b` already say
 so in the field that routes them.
 
+<!-- unit: task-what-shapes-are-not kinds=* class=triggering defers="task-bare-stem-reasoning task-chain-contiguity" -->
 ### What the shapes are not
 
 Those names are long, and that is the trade the scheme makes: the **kind** and the
@@ -325,6 +329,7 @@ Those names are long, and that is the trade the scheme makes: the **kind** and t
 shape are readable without opening anything. Three things that shape looks like
 it could be and is not:
 
+<!-- unit: task-bare-stem-reasoning class=procedural -->
 - **The slug is the bare stem, and it does not restate the kind.** The kind field
   is the canonical statement of a leaf's role; the slug names the **artifact**.
   So a chain's three steps carry one slug and differ by kind and key, and so do a
@@ -383,11 +388,13 @@ it could be and is not:
   stem-mates together in a directory listing — was in any case false: a leaf name
   begins with `NN`, so a listing sorts by position and never by slug, and both
   spellings glob identically under `*<stem>*`.
+<!-- unit: task-no-node-for-a-shape kinds=* class=triggering -->
 - **Neither shape gets a node directory.** A charter means *this work proved
   bigger than one session*, which a composed shape is not, and the hierarchy the
   node bought was not worth the navigation cost. So there is **one node species**
   again — a node is a leaf that decomposed, and it carries a `BRIEF.md` — and
   Retire's close has the same work to do at every node it meets.
+<!-- unit: task-chain-contiguity class=procedural -->
 - **A chain is not a unit, and is not contiguous by construction.** `pick`
   returns the first live leaf in the whole tree and nothing groups leaves for it
   (*task-tree-scheme*). Steps are appended at the parent's next free position, so
@@ -415,6 +422,7 @@ it could be and is not:
   check — the intervening leaf has not run yet and grove makes no leaf's eventual
   file set part of its contract, so nothing could supply the proof.
 
+<!-- unit: task-grammar-is-five-fields kinds=* class=triggering -->
 **The grammar is the five fields above and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders
 the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
@@ -428,6 +436,7 @@ body. That is also the test the deleted step suffix failed and the stem passes: 
 convention that *adds* what nothing parses is legible, while one that *duplicates*
 a parsed field can disagree with it.
 
+<!-- unit: task-nothing-in-a-body-is-metadata kinds=* class=triggering -->
 **Nothing in a body is metadata**, and no verb writes anything there. Retirement
 and pruning change a filename and stop; a node close writes nothing at all. So a
 `review-*` session has exactly one thing to read — its producer's committed
@@ -435,6 +444,7 @@ artifact — and never a note the producer left behind about how its own session
 ran. `leaf-add` still means one leaf, and deciding against review is a normal
 choice.
 
+<!-- unit: task-suggested-shape class=procedural -->
 ## Suggested shape
 
 ```markdown
@@ -471,6 +481,7 @@ the two composition relationships the *creating session* writes by hand
 than how a session is launched. Everything about the launch comes from the
 filename's kind and the one configuration entry it keys.
 
+<!-- unit: task-leaf-never-names-a-harness class=procedural -->
 ## A leaf never names a harness
 
 There is no way for a leaf to choose the harness, model or wrapper its session

@@ -1005,12 +1005,13 @@ fn a_second_driver_reprovisions_then_refuses_before_tree_access_or_launch() {
 // session, so a lease replaced under it between owning the tree and launching
 // refuses rather than launching into a working tree it no longer owns.
 //
-// The hook is the agent-CLI version probe — the one subprocess the configured
-// loop runs before the launch. Reaching it needs `grove` copied away from its
-// own `grove-llm` sibling: the driver prefers that sibling over `PATH`
-// precisely so a stray binary cannot re-point the agent's CLI, which is also
-// what makes the shadowing here a deliberate isolation step rather than an
-// override the product exposes.
+// The hook is the agent-CLI identity probe — the one subprocess the configured
+// loop runs before the launch. A `PATH`-front shadow reaches it directly, with
+// no isolation step: the driver resolves `grove-llm` through `PATH` rather than
+// preferring its own sibling, so this fixture is also the black-box witness that
+// the sibling no longer wins (one-build-owns-a-session). The shadow delegates
+// the answer to the real binary, so the pairing it reports is the paired one and
+// the only thing under test here is the lease.
 #[test]
 fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     let _lock = support::lock_env(&ENV_LOCK);
@@ -1038,24 +1039,18 @@ fn lease_replacement_before_the_foreground_launch_refuses_to_launch() {
     write_executable(
         &shadow_bin.join("grove-llm"),
         &format!(
-            "#!/bin/sh\nif [ \"$1\" = --version ]; then\n  mv {held} {held}.old\n  : > {held}\n  printf 'grove-llm {version}\\n'\n  exit 0\nfi\nexec {real} \"$@\"\n",
+            "#!/bin/sh\nif [ \"$1\" = --content-hash ]; then\n  mv {held} {held}.old\n  : > {held}\n  exec {real} --content-hash\nfi\nexec {real} \"$@\"\n",
             held = shell_quote(&held_path),
-            version = env!("CARGO_PKG_VERSION"),
             real = shell_quote(Path::new(env!("CARGO_BIN_EXE_grove-llm"))),
         ),
     );
 
-    let isolated_bin = tmp.path().join("isolated-bin");
-    fs::create_dir_all(&isolated_bin).unwrap();
-    let copied_grove = isolated_bin.join("grove");
-    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
-
     // `grove_driver` writes the complete config into `home`; the command it
-    // returns is discarded, because this run has to be the *copied* binary.
+    // returns is discarded, because this run needs its own environment.
     let home = tmp.path().join("home");
     let _ = grove_driver(&root, &configured, &home);
 
-    let mut driver = Command::new(&copied_grove);
+    let mut driver = Command::new(env!("CARGO_BIN_EXE_grove"));
     driver.current_dir(&root);
     for name in support::grove_env_names() {
         driver.env_remove(name);

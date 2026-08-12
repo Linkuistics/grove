@@ -31,10 +31,15 @@ use tempfile::TempDir;
 // them so cargo's parallel runner cannot cross wires.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-/// This build's own agent CLI. The driver resolves `grove-llm` as the sibling of
-/// its own executable, which `CARGO_BIN_EXE_grove` satisfies — so nothing here
-/// has to point it anywhere. Fixtures that need to *call* the CLI themselves
-/// bake this path into their script.
+/// This build's own agent CLI, for fixtures that need to *call* it: they bake
+/// this path into their script rather than relying on `PATH`.
+///
+/// The driver's own build-pairing probe resolves `grove-llm` through `PATH` and
+/// only **reports** what it finds (one-build-owns-a-session), so nothing here
+/// has to point it anywhere — a suite run on a machine whose installed CLI is a
+/// different build gets one extra diagnostic line per iteration and no change in
+/// behaviour. `tests/lifecycle_cutover.rs` owns the pairing claims, against an
+/// isolated `PATH`.
 const OWN_GROVE_LLM: &str = env!("CARGO_BIN_EXE_grove-llm");
 
 const SESSION_KINDS: &[&str] = &[

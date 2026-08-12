@@ -58,10 +58,22 @@ fn mknode(dir: &Path, name: &str) -> PathBuf {
     p
 }
 
+/// Run the verb with its **whole** stderr attributable to the tree.
+///
+/// `HOME` is pointed at the fixture repo, which holds no harness root, because
+/// `grove-llm` now compares its own methodology identity against every installed
+/// skill directory's stamp and warns on disagreement
+/// (one-build-owns-a-session). That check reads process-global state this verb
+/// otherwise ignores, so against a developer's real home the stderr assertions
+/// below would be assertions about *that machine's* installed skill — true on a
+/// freshly installed pair and false the moment anyone dogfoods a checkout. An
+/// absent root is skipped rather than created, so isolating the home silences it
+/// by the ordinary rule rather than by an exception.
 fn run(cwd: &Path, args: &[&str]) -> (String, String, bool) {
     let out = Command::cargo_bin("grove-llm")
         .unwrap()
         .current_dir(cwd)
+        .env("HOME", cwd)
         .args(args)
         .output()
         .unwrap();

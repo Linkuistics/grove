@@ -43,8 +43,9 @@ const READINESS_POLL: Duration = Duration::from_millis(10);
 /// answer: while the producer runs it may still be coming, and once the producer
 /// is gone it never will. The fixed deadlines this replaces guessed at that
 /// answer from outside. Driver start-up is not a fixed cost — it provisions the
-/// embedded skill into a cold `HOME`, spawns `grove-llm --version`, and runs the
-/// tree transition — and eight concurrent copies of a process-driving binary
+/// embedded skill into a cold `HOME`, re-verifies each skill stamp, spawns
+/// `grove-llm --content-hash` to report the build pairing, and runs the tree
+/// transition — and eight concurrent copies of a process-driving binary
 /// stretch a perfectly healthy start-up from 0.7s to 4.7s, so the guess expired
 /// on drivers that were working normally (driver-lease-readiness-flake-k145).
 ///

@@ -9,14 +9,194 @@ mod support;
 
 use clap::CommandFactory;
 use grove::provision::provision_target;
-use grove::provision::{provision_into, STAMP_FILE};
+use grove::provision::{provision_into, METHODOLOGY_IDENTITY, STAMP_FILE};
 use std::collections::BTreeSet;
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 use std::sync::Mutex;
 use support::EnvGuard;
 use tempfile::TempDir;
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+/// A phrase that exists only in `content/`, used to ask a *binary* whether it
+/// carries the embed. Asserted present in `grove` as well as absent from
+/// `grove-llm`, so a phrase that quietly leaves the methodology fails here
+/// rather than manufacturing a clean answer for the interesting half.
+const CONTENT_MARKER: &str = "hierarchical, self-extending workstreams";
+
+/// **Only `grove` links the embed**, which is the whole reason the methodology
+/// identity is a compile-time constant rather than a runtime hash.
+///
+/// `grove-llm` needs to name its own identity — the driver asks it for the pair
+/// check, and it compares its own against every installed skill directory's
+/// stamp — but it never *extracts* content. Calling `provision::content_hash`
+/// there would pull `include_dir!`'s static into the second binary and cost it
+/// the size of `content/` for a value known when it was built.
+///
+/// Asserted on the linked artifacts because that is where the claim lives: no
+/// amount of reading `provision.rs` shows what the linker kept.
+#[test]
+fn only_grove_carries_the_embedded_methodology() {
+    let carries = |binary: &str| {
+        let bytes = fs::read(binary).unwrap();
+        bytes
+            .windows(CONTENT_MARKER.len())
+            .any(|window| window == CONTENT_MARKER.as_bytes())
+    };
+
+    assert!(
+        carries(env!("CARGO_BIN_EXE_grove")),
+        "`grove` extracts the methodology, so it must carry it — if this fails, \
+         {CONTENT_MARKER:?} has left content/ and the marker needs updating \
+         before the claim below means anything"
+    );
+    assert!(
+        !carries(env!("CARGO_BIN_EXE_grove-llm")),
+        "`grove-llm` now links the embedded content/. It only ever needs its \
+         own methodology *identity*, which `build.rs` supplies as a constant; \
+         something has reached for `provision`'s embed instead."
+    );
+}
+
+/// The flag and the stamp are two views of one value, and the pair check is only
+/// as good as their agreement: the driver compares what a `grove-llm` *reports*
+/// against what its paired `grove` *wrote*, so a divergence would make every
+/// correctly paired machine look mismatched.
+#[test]
+fn the_reported_identity_is_the_one_provisioning_stamps() {
+    let dest = TempDir::new().unwrap();
+    provision_into(dest.path()).unwrap();
+    let stamped = fs::read_to_string(dest.path().join(STAMP_FILE)).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .arg("--content-hash")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let reported = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(reported.trim(), stamped);
+    assert_eq!(reported.trim(), METHODOLOGY_IDENTITY);
+}
+
+/// `--content-hash` is a **flag**, and this is what that buys: it stays out of
+/// the agent grammar. `exposed_verbs` reads subcommands, so a verb would have to
+/// be instructed somewhere or fail the completeness control in
+/// [`the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks`] — and
+/// instructing it would be a lie, because no session ever calls it.
+#[test]
+fn the_identity_flag_is_not_part_of_the_agent_verb_surface() {
+    assert!(
+        !exposed_verbs().contains("content-hash"),
+        "`--content-hash` must stay a flag: it is metadata the driver reads from \
+         outside any session, not something a session invokes"
+    );
+    let mut instructed = Vec::new();
+    scan_instructed_verbs(
+        "FLAG.md",
+        "The driver asks `grove-llm --content-hash` for the build's identity.",
+        &mut instructed,
+    );
+    assert!(
+        instructed.is_empty(),
+        "a flag mention must not read as an instructed verb: {instructed:?}"
+    );
+}
+
+/// The check inside the session — the only one a clobber landing *after* launch
+/// can reach, and the one whose two operands are the ones that matter: the CLI
+/// actually invoked, and the methodology actually on disk in front of it.
+///
+/// It warns and does nothing else. A refusal mid-task destroys more than the
+/// mismatch does, and the session least able to absorb a hard stop is one
+/// already holding uncommitted work — so the verb still answers, on stdout,
+/// exit zero.
+#[test]
+fn a_foreign_stamp_warns_without_changing_what_a_verb_does() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    let skill_dir = home.join(".claude/skills/grove");
+    fs::create_dir_all(&skill_dir).unwrap();
+    fs::write(skill_dir.join(STAMP_FILE), "another-build").unwrap();
+    let worktree = git_worktree_with_one_leaf(fixture.path());
+
+    let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+        .arg("pick")
+        .current_dir(&worktree)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "a mismatch must not refuse: {stderr}"
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stdout).contains("01-impl-first-k1.md"),
+        "the verb must still answer: {stderr}"
+    );
+    assert!(
+        stderr.contains(skill_dir.to_str().unwrap())
+            && stderr.contains("another-build")
+            && stderr.contains(METHODOLOGY_IDENTITY),
+        "the warning must name the directory and both identities: {stderr}"
+    );
+}
+
+/// **Absence is not disagreement.** The claim on offer is "this directory
+/// belongs to another build", and nothing can say that about a directory that
+/// does not exist — an unprovisioned root, or a harness that is not installed,
+/// is silent.
+#[test]
+fn an_unstamped_or_absent_skill_directory_is_silent() {
+    let fixture = TempDir::new().unwrap();
+    let worktree = git_worktree_with_one_leaf(fixture.path());
+
+    let unstamped = fixture.path().join("unstamped-home");
+    fs::create_dir_all(unstamped.join(".claude/skills/grove")).unwrap();
+    let uninstalled = fixture.path().join("uninstalled-home");
+    fs::create_dir_all(&uninstalled).unwrap();
+
+    for home in [&unstamped, &uninstalled] {
+        let output = Command::new(env!("CARGO_BIN_EXE_grove-llm"))
+            .arg("pick")
+            .current_dir(&worktree)
+            .env("HOME", home)
+            .env_remove("GROVE_SIGNAL_FILE")
+            .output()
+            .unwrap();
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(output.status.success(), "{stderr}");
+        assert!(
+            stderr.is_empty(),
+            "{} must produce no pairing warning, got: {stderr}",
+            home.display()
+        );
+    }
+}
+
+/// A minimal current-format grove, enough for `pick` to have an answer.
+fn git_worktree_with_one_leaf(fixture: &Path) -> std::path::PathBuf {
+    let worktree = fixture.join("worktree");
+    fs::create_dir_all(&worktree).unwrap();
+    assert!(Command::new("git")
+        .args(["init", "-q"])
+        .current_dir(&worktree)
+        .status()
+        .unwrap()
+        .success());
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# worktree — brief\n").unwrap();
+    fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
+    worktree
+}
 
 #[test]
 fn extract_fresh_writes_the_full_content_tree() {

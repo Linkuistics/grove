@@ -87,6 +87,41 @@ change. There is no migration, and none is needed.
 
 ### Changed
 
+- **One build owns a session: the pairing is repaired where Grove owns it and
+  reported everywhere else.** The methodology a session reads and the `grove-llm`
+  it invokes must come from one `grove` build, and the global skill directories
+  are where that can be broken from outside — they are shared by every build on
+  the machine while the driver lease is scoped to one working tree. The old guard
+  could not see it for two independent reasons, both gone: it compared crate
+  **versions**, which do not move between a released binary and an edited
+  checkout at that same version, and it resolved the **sibling** of its own
+  executable — a binary that agrees with the driver by construction, and the very
+  thing that hides the case `cargo run --bin grove` creates. In their place:
+  `build.rs` emits the content hash of the embedded `content/` file payload as a
+  compile-time constant, so a binary can name its **methodology identity**
+  without linking the embed (only `grove` extracts content, so only `grove`
+  carries it, and an in-crate test pins the build script's traversal against the
+  runtime hash of the embed); `grove-llm --content-hash` prints it — a flag, not
+  a verb, since no session calls it — exempt from the session-epoch guard exactly
+  as `--version` is; each loop iteration re-verifies every installed skill
+  directory's stamp and restores this driver's embed when another build has taken
+  one, naming the directory; and each iteration resolves `grove-llm` through
+  `PATH`, compares identities, and **reports** a missing, unidentifiable or
+  mismatched binary while launching anyway. Inside a session, `grove-llm` warns
+  on any verb when a skill directory's stamp is not its own, and never refuses.
+  **The one property deliberately given up**: a `grove-llm` the driver cannot run
+  used to be a hard stop before `.grove/` was created, and is now a printed line.
+  That is intended — the driver never invokes `grove-llm`, a wrapper or `ssh` hop
+  or container that re-derives `PATH` is supported policy, and behind one of those
+  the probe is a proxy rather than an observation; a missed mismatch misleads one
+  session, while a false refusal launches nothing at all on a machine that may be
+  configured correctly. Each diagnostic names the path it actually resolved and
+  both identities, and states the requirement — the build being driven must be the
+  one a session's `PATH` resolves first — rather than prescribing `cargo install
+  --path .`, which achieves that only where `~/.cargo/bin` outranks every other
+  prefix holding a `grove-llm`. Concurrent groves at different builds remain
+  unsupported, now announced rather than silent. See
+  `docs/adr/one-build-owns-a-session.md`.
 - **A producer's last act is to decide whether review is required** and, if so,
   `leaf-add` the `review-<producer>` leaf itself; a review's last act is to
   `leaf-add` the `integrate-review-<producer>` leaf **only if it has findings

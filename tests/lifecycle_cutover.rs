@@ -822,8 +822,169 @@ fn nonsignalled_nonzero_exit_reports_status_elapsed_and_launch_identity() {
     );
 }
 
+/// One bare-`grove` run whose session-resolved `grove-llm` the fixture controls.
+struct PairingRun {
+    _fixture: TempDir,
+    output: Output,
+    worktree: std::path::PathBuf,
+    launched: std::path::PathBuf,
+    resolved: std::path::PathBuf,
+}
+
+impl PairingRun {
+    fn stderr(&self) -> String {
+        String::from_utf8_lossy(&self.output.stderr).into_owned()
+    }
+
+    /// Both halves of "report, never gate", asserted together because either
+    /// alone is satisfiable by the behaviour this leaf removed: the old guard
+    /// printed a diagnostic *and* refused, and a check that quietly passed would
+    /// launch without one.
+    fn assert_reported_and_launched(&self, expected: &[&str]) {
+        let stderr = self.stderr();
+        for fragment in expected {
+            assert!(
+                stderr.contains(fragment),
+                "missing {fragment:?} in {stderr}"
+            );
+        }
+        assert!(
+            self.output.status.success(),
+            "the pairing report must not fail the run: {stderr}"
+        );
+        assert!(
+            self.launched.is_file(),
+            "the configured session must still launch: {stderr}"
+        );
+        assert!(
+            self.worktree.join(".grove").is_dir(),
+            "the lifecycle transition must still run: {stderr}"
+        );
+    }
+}
+
+/// Drive bare `grove` once against an **isolated** `PATH` holding only `git` and
+/// — when `grove_llm` is `Some` — a stand-in agent CLI at `fake-path/grove-llm`.
+///
+/// Isolated rather than merely front-loaded, because one of the cases below is
+/// *no* `grove-llm` anywhere and a developer's own `PATH` would quietly satisfy
+/// it. The configured command records that it ran and exits without signalling,
+/// so the loop reports one no-signal stop and ends after a single iteration —
+/// which is what lets every case here assert the launch as well as the report.
+fn drive_with_resolved_grove_llm(label: &str, grove_llm: Option<&str>) -> PairingRun {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join(format!("{label}-worktree"));
+    init_git_worktree(&worktree);
+
+    let launched = fixture.path().join("launched");
+    let configured = fixture.path().join("configured.sh");
+    write_executable(
+        &configured,
+        &format!("#!/bin/sh\nprintf launched > {}\n", shell_quote(&launched)),
+    );
+    write_complete_config(
+        &home,
+        &format!("{} '${{prompt}}'", shell_quote(&configured)),
+    );
+
+    // Only `git` — the lifecycle transition shells out to it — plus whatever
+    // agent CLI this case wants found.
+    let isolated_path = fixture.path().join("isolated-path");
+    fs::create_dir(&isolated_path).unwrap();
+    std::os::unix::fs::symlink(resolve_real_git(), isolated_path.join("git")).unwrap();
+    let resolved = isolated_path.join("grove-llm");
+    if let Some(body) = grove_llm {
+        write_executable(&resolved, body);
+    }
+
+    let output = Command::new(env!("CARGO_BIN_EXE_grove"))
+        .current_dir(&worktree)
+        .env("HOME", &home)
+        .env("PATH", &isolated_path)
+        .output()
+        .unwrap();
+
+    PairingRun {
+        _fixture: fixture,
+        output,
+        worktree,
+        launched,
+        resolved,
+    }
+}
+
+/// A digest that is well-formed and is not this build's, so the driver has to
+/// classify it as a *mismatch* rather than as unidentifiable.
+const FOREIGN_IDENTITY: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
 #[test]
-fn sibling_grove_llm_takes_precedence_over_path() {
+fn a_mismatched_grove_llm_is_reported_and_the_launch_proceeds() {
+    let run = drive_with_resolved_grove_llm(
+        "mismatch",
+        Some(&format!("#!/bin/sh\nprintf '{FOREIGN_IDENTITY}\\n'\n")),
+    );
+
+    run.assert_reported_and_launched(&[
+        "build pairing mismatch",
+        FOREIGN_IDENTITY,
+        run.resolved.to_str().unwrap(),
+        "PATH resolves first",
+    ]);
+    // The requirement, not a command: `cargo install --path .` is the remedy
+    // only where `~/.cargo/bin` outranks every other prefix holding a
+    // `grove-llm`, and where it does not, that install is already done and still
+    // is not what a session reaches.
+    assert!(
+        !run.stderr().contains("cargo install"),
+        "the diagnostic must state the requirement, not prescribe one command: {}",
+        run.stderr()
+    );
+}
+
+#[test]
+fn an_unidentifiable_grove_llm_is_reported_and_the_launch_proceeds() {
+    // A binary predating the flag: clap rejects the unknown argument and exits
+    // non-zero. Unidentifiable, never mismatched — refusing here would make the
+    // pair unupgradable from inside the loop.
+    let too_old = drive_with_resolved_grove_llm(
+        "too-old",
+        Some("#!/bin/sh\necho 'error: unexpected argument' >&2\nexit 2\n"),
+    );
+    too_old.assert_reported_and_launched(&[
+        "could not name its methodology",
+        too_old.resolved.to_str().unwrap(),
+    ]);
+
+    // ...and one that answers, but with something that is not a digest. Free
+    // text must never be *compared*, or a correctly paired machine gets told it
+    // is mismatched.
+    let garbled =
+        drive_with_resolved_grove_llm("garbled", Some("#!/bin/sh\nprintf 'not-a-hash\\n'\n"));
+    garbled.assert_reported_and_launched(&[
+        "could not name its methodology",
+        "not-a-hash",
+        garbled.resolved.to_str().unwrap(),
+    ]);
+}
+
+#[test]
+fn a_missing_grove_llm_is_reported_and_the_launch_proceeds() {
+    // The property deliberately given up here: this used to be a hard stop
+    // before `.grove/` existed. The driver never invokes `grove-llm`, and a
+    // container or `ssh` target that supplies its own is a supported shape in
+    // which the driver's `PATH` is simply not the one that matters.
+    let run = drive_with_resolved_grove_llm("missing", None);
+
+    run.assert_reported_and_launched(&[
+        "no `grove-llm` on this driver's PATH",
+        "PATH resolves first",
+    ]);
+}
+
+#[test]
+fn the_checked_grove_llm_is_the_one_on_path_not_the_drivers_own_sibling() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
@@ -844,84 +1005,32 @@ fn sibling_grove_llm_takes_precedence_over_path() {
         &home,
         &format!("{} '${{prompt}}'", shell_quote(&configured)),
     );
+
+    // `grove` beside a `grove-llm` that agrees with it — the shape `cargo run`
+    // produces, and the shape that made the motivating case invisible while the
+    // sibling was preferred.
+    let isolated_bin = fixture.path().join("isolated-bin");
+    fs::create_dir_all(&isolated_bin).unwrap();
+    let copied_grove = isolated_bin.join("grove");
+    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
+    let sibling_marker = fixture.path().join("sibling-ran");
+    write_executable(
+        &isolated_bin.join("grove-llm"),
+        &format!(
+            "#!/bin/sh\nprintf ran > {}\nexec {} \"$@\"\n",
+            shell_quote(&sibling_marker),
+            shell_quote(Path::new(env!("CARGO_BIN_EXE_grove-llm"))),
+        ),
+    );
     let fake_bin = fixture.path().join("fake-bin");
     fs::create_dir_all(&fake_bin).unwrap();
     let path_marker = fixture.path().join("path-helper-ran");
+    let path_grove_llm = fake_bin.join("grove-llm");
     write_executable(
-        &fake_bin.join("grove-llm"),
+        &path_grove_llm,
         &format!(
-            "#!/bin/sh\nprintf wrong > {}\nexit 99\n",
-            shell_quote(&path_marker)
-        ),
-    );
-
-    let output = Command::new(env!("CARGO_BIN_EXE_grove"))
-        .current_dir(&worktree)
-        .env("HOME", &home)
-        .env("PATH", path_with_front(&fake_bin))
-        .output()
-        .unwrap();
-
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    assert!(launched.is_file());
-    assert!(!path_marker.exists());
-}
-
-#[test]
-fn version_skew_from_path_fails_before_tree_creation() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    let worktree = fixture.path().join("skew-worktree");
-    init_git_worktree(&worktree);
-    let isolated_bin = fixture.path().join("isolated-bin");
-    fs::create_dir_all(&isolated_bin).unwrap();
-    let copied_grove = isolated_bin.join("grove");
-    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
-    let fake_bin = fixture.path().join("fake-path");
-    fs::create_dir_all(&fake_bin).unwrap();
-    write_executable(
-        &fake_bin.join("grove-llm"),
-        "#!/bin/sh\nprintf 'grove-llm 0.0.0\\n'\n",
-    );
-
-    let output = Command::new(copied_grove)
-        .current_dir(&worktree)
-        .env("HOME", &home)
-        .env("PATH", path_with_front(&fake_bin))
-        .output()
-        .unwrap();
-
-    assert!(!output.status.success());
-    assert!(!worktree.join(".grove").exists());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("version skew"), "{stderr}");
-    assert!(stderr.contains("0.0.0"), "{stderr}");
-}
-
-#[test]
-fn malformed_grove_llm_version_output_fails_before_tree_creation() {
-    let fixture = TempDir::new().unwrap();
-    let home = fixture.path().join("home");
-    fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "'/definitely/missing' '${prompt}'");
-    let worktree = fixture.path().join("malformed-helper-worktree");
-    init_git_worktree(&worktree);
-    let isolated_bin = fixture.path().join("isolated-bin");
-    fs::create_dir_all(&isolated_bin).unwrap();
-    let copied_grove = isolated_bin.join("grove");
-    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
-    let fake_bin = fixture.path().join("fake-path");
-    fs::create_dir_all(&fake_bin).unwrap();
-    write_executable(
-        &fake_bin.join("grove-llm"),
-        &format!(
-            "#!/bin/sh\nprintf 'not-grove-llm {}\\n'\n",
-            env!("CARGO_PKG_VERSION")
+            "#!/bin/sh\nprintf ran > {}\nprintf '{FOREIGN_IDENTITY}\\n'\n",
+            shell_quote(&path_marker),
         ),
     );
 
@@ -932,46 +1041,125 @@ fn malformed_grove_llm_version_output_fails_before_tree_creation() {
         .output()
         .unwrap();
 
-    assert!(!output.status.success());
-    assert!(!worktree.join(".grove").exists());
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("unrecognised"), "{stderr}");
-    assert!(stderr.contains("not-grove-llm"), "{stderr}");
+    assert!(output.status.success(), "{stderr}");
+    assert!(launched.is_file(), "{stderr}");
+    assert!(
+        path_marker.exists(),
+        "the `PATH` binary is the one a session resolves, so it is the one asked: {stderr}"
+    );
+    assert!(
+        !sibling_marker.exists(),
+        "the driver's own sibling agrees with it by construction and must not be \
+         what gets checked: {stderr}"
+    );
+    assert!(
+        stderr.contains(path_grove_llm.to_str().unwrap()),
+        "the diagnostic must name the path it actually resolved: {stderr}"
+    );
 }
 
+/// The control that makes the three reports above mean something: a `PATH`
+/// binary that *is* this build says nothing at all.
 #[test]
-fn missing_grove_llm_fails_before_tree_creation() {
+fn a_paired_grove_llm_is_reported_as_nothing() {
+    let run = drive_with_resolved_grove_llm(
+        "paired",
+        Some(&format!(
+            "#!/bin/sh\nexec {} \"$@\"\n",
+            shell_quote(Path::new(env!("CARGO_BIN_EXE_grove-llm")))
+        )),
+    );
+
+    let stderr = run.stderr();
+    assert!(run.output.status.success(), "{stderr}");
+    assert!(run.launched.is_file(), "{stderr}");
+    for absent in [
+        "build pairing mismatch",
+        "could not name its methodology",
+        "no `grove-llm` on this driver's PATH",
+    ] {
+        assert!(
+            !stderr.contains(absent),
+            "a matching pair must be silent, got {absent:?} in {stderr}"
+        );
+    }
+}
+
+/// A skill directory is global while the driver lease is per working tree, so
+/// another build can take one *while a loop runs*. The loop therefore re-verifies
+/// each stamp before every launch and restores its own embed — the one artifact
+/// Grove owns, and so the one place the pairing is repaired rather than reported
+/// (one-build-owns-a-session).
+///
+/// The clobber has to land **between** iterations to be the case under test: the
+/// start-of-run sweep already repairs anything that was wrong before `grove`
+/// started, so a pre-broken directory would prove nothing about the loop.
+#[test]
+fn a_skill_directory_clobbered_mid_loop_is_restored_before_the_next_launch() {
     let fixture = TempDir::new().unwrap();
     let home = fixture.path().join("home");
     fs::create_dir_all(home.join(".codex")).unwrap();
-    write_complete_config(&home, "'/definitely/missing' '${prompt}'");
-    let worktree = fixture.path().join("missing-helper-worktree");
+    let worktree = fixture.path().join("clobber-worktree");
     init_git_worktree(&worktree);
-    let isolated_bin = fixture.path().join("isolated-bin");
-    fs::create_dir_all(&isolated_bin).unwrap();
-    let copied_grove = isolated_bin.join("grove");
-    fs::copy(env!("CARGO_BIN_EXE_grove"), &copied_grove).unwrap();
-    let empty_path = fixture.path().join("empty-path");
-    fs::create_dir(&empty_path).unwrap();
-    let git = std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
-        .map(|directory| directory.join("git"))
-        .find(|candidate| candidate.is_file())
-        .expect("test runner PATH has no git executable");
-    std::os::unix::fs::symlink(git, empty_path.join("git")).unwrap();
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# clobber — brief\n").unwrap();
+    fs::write(grove.join("01-impl-first-k1.md"), "# first-k1\n").unwrap();
+    fs::write(grove.join("02-impl-second-k2.md"), "# second-k2\n").unwrap();
 
-    let output = Command::new(copied_grove)
-        .current_dir(&worktree)
-        .env("HOME", &home)
-        .env("PATH", &empty_path)
-        .output()
-        .unwrap();
+    let skill_dir = home.join(".codex/skills/grove");
+    let fake = fixture.path().join("clobber-command.sh");
+    write_executable(
+        &fake,
+        r#"#!/bin/sh
+skill_dir=$1
+if [ ! -f .grove/01-DONE-impl-first-k1.md ]; then
+  mv .grove/01-impl-first-k1.md .grove/01-DONE-impl-first-k1.md
+  # Stand in for another build writing this shared directory.
+  rm -f "$skill_dir/SKILL.md"
+  printf 'another-build\n' > "$skill_dir/.grove-content-hash"
+  printf 'relaunch\n' > "$GROVE_SIGNAL_FILE"
+fi
+exit 0
+"#,
+    );
+    write_complete_config(
+        &home,
+        &format!(
+            "{} {} '${{prompt}}'",
+            shell_quote(&fake),
+            shell_quote(&skill_dir)
+        ),
+    );
 
-    assert!(!output.status.success());
-    assert!(!worktree.join(".grove").exists());
+    let output = run_grove(&home, &worktree);
     let stderr = String::from_utf8_lossy(&output.stderr);
+
+    assert!(output.status.success(), "{stderr}");
     assert!(
-        stderr.contains("could not run `grove-llm --version`"),
-        "{stderr}"
+        stderr.contains(skill_dir.to_str().unwrap()),
+        "the restore must name the directory it took back: {stderr}"
+    );
+    // **Exactly once**, across two iterations. The count is the assertion that
+    // this is a re-*verification*: the first iteration ran against a directory
+    // the start-of-run sweep had just written, and a stamp comparison that
+    // disagreed with the writer's — a stray newline, a trimmed read — would
+    // re-extract identical bytes every iteration for the whole life of a driver.
+    assert_eq!(
+        stderr.matches("restored the codex skill at").count(),
+        1,
+        "a warm stamp must be a no-op; only the clobbered iteration restores: {stderr}"
+    );
+    assert!(
+        skill_dir.join("SKILL.md").is_file(),
+        "this driver's embed must be back on disk: {stderr}"
+    );
+    assert_ne!(
+        fs::read_to_string(skill_dir.join(".grove-content-hash")).unwrap(),
+        "another-build\n",
+        "the stamp must name this build again"
     );
 }
 

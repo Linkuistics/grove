@@ -28,6 +28,28 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
+/// This build's **methodology identity** — the content hash of its embedded
+/// `content/`, emitted by `build.rs` as a compile-time constant.
+///
+/// A `const` rather than a call to [`content_hash`] so that *naming* the
+/// identity does not link the embed: only `grove` extracts content, and a
+/// `grove-llm` that hashed its own tree at runtime would grow by the size of
+/// `content/` for a value known at compile time (`tests/provision.rs` holds that
+/// saving). `build.rs` computes it from the filesystem and [`content_hash`]
+/// computes it from `include_dir`'s embed, so the two traversals can only be
+/// kept in step by assertion — see
+/// [`the_compile_time_identity_names_the_linked_embed`](tests::the_compile_time_identity_names_the_linked_embed).
+///
+/// **It covers the embedded file payload and not the embedded directory
+/// structure.** `include_dir` embeds a `DirEntry::Dir` for every directory,
+/// including an empty one, and `docs/adr/one-build-owns-a-session.md`
+/// deliberately excludes those: a directory with no files carries no
+/// methodology, and hashing typed directory paths would make `build.rs`
+/// reproduce `include_dir`'s directory semantics as well as its file selection.
+/// Neither traversal should start hashing directory entries; the accepted
+/// consequence is that an empty directory is not part of a build's identity.
+pub const METHODOLOGY_IDENTITY: &str = env!("GROVE_CONTENT_HASH");
+
 /// The one launcher embedded into every config-driven session prompt.
 pub fn continue_prompt() -> Result<&'static str> {
     let file = CONTENT
@@ -46,21 +68,102 @@ pub fn continue_prompt() -> Result<&'static str> {
 /// answer to "where", which is what keeps provisioning independent of launch
 /// policy rather than a second, quieter way to configure one.
 pub fn provision_installed() -> Result<()> {
-    let home = home_dir()?;
-    for harness in HARNESSES {
-        if !home.join(harness.project_dir).is_dir() {
-            continue; // an absent root is skipped, never created
-        }
-        let destination = skill_dir_in(&home, harness);
-        if provision_target(&destination)? {
+    each_installed_skill_dir(|harness, destination| {
+        if provision_target(destination)? {
             eprintln!(
                 "grove: provisioned the {} skill at {}",
                 harness.name,
                 destination.display()
             );
         }
+        Ok(())
+    })
+}
+
+/// Re-verify, before every launch, that each installed skill directory still
+/// carries *this* build's methodology, and restore the embed where another build
+/// has taken one ([[Build pairing]] — `docs/adr/one-build-owns-a-session.md`).
+///
+/// The directories are global while the driver lease is per working tree, so
+/// nothing serializes two builds writing one directory. A matching stamp is the
+/// ordinary case and costs one small read per root; only a differing one
+/// extracts. Re-*extracting* every iteration would be pure cost — a driver never
+/// re-execs, so it carries one embed for its whole life and would write
+/// identical bytes — which is why the question asked here is ownership rather
+/// than freshness.
+pub fn reverify_installed() -> Result<()> {
+    each_installed_skill_dir(|harness, destination| {
+        if stamp_of(destination).as_deref() == Some(METHODOLOGY_IDENTITY) {
+            return Ok(());
+        }
+        provision_target(destination)?;
+        eprintln!(
+            "grove: restored the {} skill at {} — it did not carry this build's methodology ({METHODOLOGY_IDENTITY})",
+            harness.name,
+            destination.display()
+        );
+        Ok(())
+    })
+}
+
+/// Warn — never refuse — when an installed skill directory is stamped with a
+/// methodology other than this binary's.
+///
+/// This is the check whose two operands are the ones that matter: the CLI
+/// actually invoked, and the methodology actually on disk in front of it. It is
+/// also the only one a clobber landing *after* launch can reach, which is why it
+/// runs on every verb rather than at a launch boundary. It never changes a
+/// verb's exit status — Grove guides and does not gate on the agent surface, and
+/// the session least able to absorb a hard stop is one already mid-task with
+/// uncommitted work.
+///
+/// **Absence is not disagreement.** An unprovisioned or missing directory is
+/// silent, as is a home this process cannot locate: the claim on offer is "this
+/// directory belongs to another build", and nothing here can say that about a
+/// directory that does not exist.
+pub fn warn_on_foreign_skill_dirs() {
+    let _ = each_installed_skill_dir(|_, destination| {
+        let Some(stamp) = stamp_of(destination) else {
+            return Ok(()); // absence is not disagreement
+        };
+        if stamp == METHODOLOGY_IDENTITY {
+            return Ok(());
+        }
+        eprintln!(
+            "grove-llm: {} carries methodology {}, but this grove-llm was built with {METHODOLOGY_IDENTITY} — one build owns a session",
+            destination.display(),
+            stamp.trim()
+        );
+        Ok(())
+    });
+}
+
+/// Visit every *installed* harness's skill directory, in registry order.
+///
+/// Presence of the harness's home marker is the whole rule — an absent root is
+/// skipped, never created — and the destination is passed rather than derived by
+/// each caller, so the three things that ask about these directories (the sweep,
+/// the per-launch re-verification, and the agent-side warning) cannot disagree
+/// about which directories they mean.
+fn each_installed_skill_dir(mut visit: impl FnMut(&Harness, &Path) -> Result<()>) -> Result<()> {
+    let home = home_dir()?;
+    for harness in HARNESSES {
+        if !home.join(harness.project_dir).is_dir() {
+            continue; // an absent root is skipped, never created
+        }
+        visit(harness, &skill_dir_in(&home, harness))?;
     }
     Ok(())
+}
+
+/// The methodology identity stamped on `dir`, or `None` when it carries no
+/// stamp — absent, empty, or never provisioned by Grove.
+///
+/// Compared verbatim against [`METHODOLOGY_IDENTITY`], exactly as
+/// [`sync_to_stamp`] compares before rewriting, so "this directory is mine"
+/// means the same thing to the reader and to the writer.
+fn stamp_of(dir: &Path) -> Option<String> {
+    std::fs::read_to_string(dir.join(STAMP_FILE)).ok()
 }
 
 /// A harness's global skill dir under `home`: `<home>/<harness.skills_dir>/grove`.
@@ -233,6 +336,28 @@ mod tests {
         assert_eq!(
             skill_dir_in(Path::new("/home/x"), row("pi")),
             Path::new("/home/x/.pi/agent/skills/grove")
+        );
+    }
+
+    /// The one thing that keeps two independent traversals of `content/` in
+    /// step. `build.rs` walks the **filesystem** to emit
+    /// [`METHODOLOGY_IDENTITY`]; [`content_hash`] walks `include_dir`'s **embed**
+    /// to write the provisioning stamp. Nothing but this equality stops them
+    /// diverging — and a divergence is silent in the worst direction: every
+    /// build would report an identity no skill directory it wrote could ever
+    /// match, so the pair check would cry mismatch on a correctly paired
+    /// machine and the loop would reprovision on every iteration.
+    ///
+    /// It is also the guard on the payload/structure grain: teach either side
+    /// to hash directory entries and this fails until both are taught.
+    #[test]
+    fn the_compile_time_identity_names_the_linked_embed() {
+        assert_eq!(
+            content_hash(&CONTENT),
+            METHODOLOGY_IDENTITY,
+            "`build.rs`'s traversal of content/ and `content_hash`'s traversal \
+             of the embed disagree; they hash the same tree and must agree \
+             byte for byte"
         );
     }
 

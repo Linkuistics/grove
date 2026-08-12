@@ -23,8 +23,11 @@
 //
 //     # after owning the workspace lease, clean abandoned signal-<128-bit> paths
 //     while :; do
-//       v=$(grove-llm --version | awk '{print $NF}')     # version-skew guard
-//       [ "$v" = "<own compiled-in version>" ] || exit 1
+//       grove_reverify_skill_stamps                      # restore a clobbered dir
+//       # Build pairing is *reported*, never gated: the driver's PATH is only a
+//       # proxy for an opaque configured command's (one-build-owns-a-session).
+//       llm=$(command -v grove-llm)
+//       [ "$("$llm" --content-hash)" = "<own compiled-in identity>" ] || echo ...
 //       grove_recover_or_migrate_tree                    # driver-only transition
 //       # One in-process selection: the leaf's stable handle *and* its kind.
 //       read -r handle kind <<<"$(grove_select_or_materialize_finish)"
@@ -62,9 +65,11 @@ pub enum LoopOutcome {
     /// The grove finished cleanly: a session signalled `complete --done`.
     Finished,
     /// A non-signalled exit stopped the loop (human `/exit`/Ctrl-C, or a
-    /// crash), or a pre-launch guard declined to start the next session (a
-    /// version-skewed `grove-llm` — driver-version-skew-k11); resumable by
-    /// re-running `grove` from the same working tree.
+    /// crash); resumable by re-running `grove` from the same working tree.
+    ///
+    /// Build pairing is deliberately *not* among the reasons: the driver reports
+    /// a mismatched, unidentifiable or missing `grove-llm` and launches anyway
+    /// (`docs/adr/one-build-owns-a-session.md`).
     Stopped,
 }
 
@@ -100,7 +105,11 @@ fn run_configured_loop_with_lease(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
-        let _grove_llm = checked_grove_llm()?;
+        // The one artifact Grove owns is repaired; the pairing it can only
+        // predict is reported. Both run before configuration validation and any
+        // tree mutation, so their lines land ahead of any mutation output.
+        crate::provision::reverify_installed()?;
+        report_build_pairing();
         let _pre_transition_config = SessionConfig::load(&home)?;
 
         crate::tree_lifecycle::transition_driver_to_current(worktree)?;
@@ -373,71 +382,163 @@ fn wait_with_watcher_result(
     }
 }
 
-/// Resolve the exact agent-side binary used by a configured session and reject
-/// missing, malformed, or skewed versions before configuration or tree access.
+/// The agent-side CLI name a session resolves. Not a path: resolution through
+/// `PATH` is the whole point of the check below.
+const AGENT_CLI: &str = "grove-llm";
+
+/// What the driver could learn about the `grove-llm` a session would run.
+enum Pairing {
+    /// No `PATH` entry holds an executable `grove-llm`.
+    Missing,
+    /// One resolved, but it could not name its methodology — too old to answer
+    /// `--content-hash`, or answering unparseably.
+    Unidentifiable { path: PathBuf, why: String },
+    /// One resolved and named a methodology other than this build's.
+    Mismatched { path: PathBuf, identity: String },
+    /// One resolved and named this build's methodology.
+    Paired,
+}
+
+/// Report — never gate on — the build pairing a session would get: resolve
+/// `grove-llm` the way a session inheriting this environment resolves it, ask it
+/// for its methodology identity, and compare with the driver's own.
 ///
-/// The sibling of the running executable wins over `PATH` (`grove` and
-/// `grove-llm` install together), and there is no override: a variable that
-/// re-pointed the agent's own CLI would be launch policy by another name.
-fn checked_grove_llm() -> Result<OsString> {
-    let binary = if let Ok(executable) = std::env::current_exe() {
-        match executable.parent().map(|parent| parent.join("grove-llm")) {
-            Some(sibling) if sibling.is_file() => sibling.into_os_string(),
-            _ => OsString::from("grove-llm"),
+/// **It reports because it is a proxy.** The driver never invokes `grove-llm`,
+/// and a configured command may be a wrapper, a login shell, an `ssh` hop or a
+/// container that re-derives `PATH` — a supported, deliberately opaque shape in
+/// which the driver's environment is simply not the one that matters. So the
+/// probe can disagree while the session is correct, and the two errors do not
+/// cost the same: a missed mismatch misleads one session, while a false refusal
+/// launches nothing at all on a machine that may be configured correctly
+/// (`docs/adr/one-build-owns-a-session.md`).
+///
+/// It deliberately does **not** prefer the sibling of the running executable.
+/// That sibling agrees with the driver by construction — `cargo run` builds both
+/// side by side — which is exactly what made the motivating case invisible while
+/// the session went on resolving the *installed* CLI.
+///
+/// Per iteration rather than per driver start: a long-running driver keeps
+/// executing the text segment it started with while `brew upgrade` replaces the
+/// binaries on disk under it, and a mid-loop upgrade is the case a start-time
+/// check misses.
+fn report_build_pairing() {
+    let own = crate::provision::METHODOLOGY_IDENTITY;
+    // One requirement, not one command. `cargo install --path .` makes the
+    // checkout resolve first only where `~/.cargo/bin` outranks every other
+    // prefix holding a `grove-llm`; where a package-manager prefix wins, that
+    // install is already done and still is not what a session reaches.
+    const REQUIREMENT: &str =
+        "       the build being driven must be the one a session's PATH resolves first.";
+    match resolve_agent_cli_pairing(own) {
+        Pairing::Paired => {}
+        Pairing::Missing => {
+            eprintln!("grove: no `{AGENT_CLI}` on this driver's PATH, so a session inheriting this environment would find none (this build's methodology is {own});");
+            eprintln!("{REQUIREMENT}");
         }
-    } else {
-        OsString::from("grove-llm")
+        Pairing::Unidentifiable { path, why } => {
+            eprintln!("grove: {} could not name its methodology ({why}), so its pairing with this build ({own}) is unknown;", path.display());
+            eprintln!("{REQUIREMENT}");
+        }
+        Pairing::Mismatched { path, identity } => {
+            eprintln!(
+                "grove: build pairing mismatch — this driver's methodology is {own}, but {} carries {identity};",
+                path.display()
+            );
+            eprintln!("{REQUIREMENT}");
+        }
+    }
+}
+
+fn resolve_agent_cli_pairing(own: &str) -> Pairing {
+    let Some(path) = resolve_on_path(AGENT_CLI) else {
+        return Pairing::Missing;
     };
-    let display = binary.to_string_lossy();
-    let output = Command::new(&binary)
-        .arg("--version")
-        .output()
-        .with_context(|| format!("could not run `{display} --version`"))?;
+    let mut command = Command::new(&path);
+    command.arg("--content-hash");
+    // Every spawn that is not the configured session scrubs the loop's
+    // launch-scoped environment: this repository is a meta-grove, so the driver
+    // itself may be running inside a live session whose kill channel it must not
+    // hand down (guard-loop-signal-k37).
+    crate::launch::scrub_loop_control_env(&mut command);
+    let output = match command.output() {
+        Ok(output) => output,
+        Err(error) => {
+            return Pairing::Unidentifiable {
+                path,
+                why: format!("could not run it: {error}"),
+            }
+        }
+    };
     if !output.status.success() {
-        anyhow::bail!("`{display} --version` failed ({})", output.status);
+        return Pairing::Unidentifiable {
+            path,
+            why: format!(
+                "`--content-hash` failed ({}) — it may predate the flag",
+                output.status
+            ),
+        };
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let version = parse_checked_version(&stdout).with_context(|| {
-        format!(
-            "unrecognised `{display} --version` output {:?}",
-            stdout.trim()
-        )
-    })?;
-    if version != DRIVER_VERSION {
-        anyhow::bail!(
-            "grove/grove-llm version skew: driver is {DRIVER_VERSION}, `{display}` is {version}"
-        );
+    let Some(identity) = parse_methodology_identity(&stdout) else {
+        return Pairing::Unidentifiable {
+            path,
+            why: format!("unrecognised `--content-hash` output {:?}", stdout.trim()),
+        };
+    };
+    if identity == own {
+        Pairing::Paired
+    } else {
+        Pairing::Mismatched {
+            path,
+            identity: identity.to_string(),
+        }
     }
-    Ok(binary)
 }
 
-fn parse_checked_version(stdout: &str) -> Option<&str> {
-    let mut lines = stdout.lines();
-    let mut words = lines.next()?.split_whitespace();
-    if words.next()? != "grove-llm" {
-        return None;
-    }
-    let version = words.next()?;
-    if words.next().is_some()
-        || !version.starts_with(|character: char| character.is_ascii_digit())
-        || lines.any(|line| !line.trim().is_empty())
-    {
-        return None;
-    }
-    Some(version)
+/// The first executable named `name` on this process's `PATH` — the way a
+/// session inheriting this environment would find it.
+fn resolve_on_path(name: &str) -> Option<PathBuf> {
+    resolve_in(&std::env::var_os("PATH")?, name)
 }
 
-/// The driver's own compiled-in version — what this process's text segment
-/// was built as, however the `grove` on disk has moved since.
+/// The rule itself, over a `PATH`-shaped value given as an argument.
 ///
-/// The version-skew guard (driver-version-skew-k11) compares it against the
-/// `grove-llm` the agent would invoke, **per session** rather than per driver
-/// start: a long-running driver keeps executing the text segment it started
-/// with, while `brew upgrade` replaces the binaries on disk under it, and a
-/// mid-loop upgrade is exactly the case a start-time check misses. A skewed
-/// pair splits the signal protocol's two halves — observed as every session
-/// hanging at its completion signal with nothing ever relaunching.
-const DRIVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Split from the environment read above for the reason `driver_lease`'s own
+/// admission split states: a test that set the process `PATH` to exercise this
+/// would be writing a global that every parallel sibling test's `Command::new`
+/// reads at the same moment. That is not hypothetical here — it failed
+/// `an_unsignalled_session_runs_to_its_own_exit_untouched`, which spawns `sh`,
+/// the first time this was written as one function.
+///
+/// An empty entry means the current directory, as every POSIX shell reads it, so
+/// it is left to `join` rather than skipped.
+fn resolve_in(search: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
+    std::env::split_paths(search)
+        .map(|directory| directory.join(name))
+        .find(|candidate| is_executable_file(candidate))
+}
+
+fn is_executable_file(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path)
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+/// A lone lowercase-hex SHA-256 on its own line, and nothing else. Anything
+/// looser would let a shell's error text or another binary's chatter be
+/// "compared" as an identity.
+fn parse_methodology_identity(stdout: &str) -> Option<&str> {
+    let mut lines = stdout.lines();
+    let identity = lines.next()?.trim();
+    if lines.any(|line| !line.trim().is_empty()) {
+        return None;
+    }
+    let hex = identity.len() == 64
+        && identity
+            .chars()
+            .all(|character| character.is_ascii_digit() || ('a'..='f').contains(&character));
+    hex.then_some(identity)
+}
 
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -485,6 +586,7 @@ fn install_termination_handler() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::os::unix::fs::PermissionsExt;
     use std::os::unix::process::ExitStatusExt;
     use std::process::Stdio;
 
@@ -687,23 +789,65 @@ mod tests {
         );
     }
 
-    // The version-skew guard may only ever act on output that *is* a
-    // `grove-llm --version` line. Anything else — an empty read, a shell's own
-    // error text, another binary's version, a dev-build tag — must parse to
-    // `None`, so the driver refuses on an unrecognised answer rather than
-    // "comparing" free text.
+    /// The identity a binary reports is *compared*, so what counts as one has to
+    /// be exactly a lowercase-hex SHA-256 and nothing else. Everything rejected
+    /// here would otherwise be reported as a **mismatch** — a wrong claim about
+    /// a correctly paired machine — where the honest answer is
+    /// *unidentifiable*: an empty read, a shell's own error text, a version line
+    /// from a binary predating the flag, a truncated or uppercased digest.
     #[test]
-    fn version_parsing_accepts_the_agent_cli_and_rejects_everything_else() {
-        assert_eq!(parse_checked_version("grove-llm 13.0.0\n"), Some("13.0.0"));
+    fn identity_parsing_accepts_a_lone_digest_and_rejects_everything_else() {
+        let digest = "a".repeat(64);
+        assert_eq!(parse_methodology_identity(&digest), Some(digest.as_str()));
         assert_eq!(
-            parse_checked_version("grove-llm 13.0.0\n\n"),
-            Some("13.0.0")
+            parse_methodology_identity(&format!("{digest}\n\n")),
+            Some(digest.as_str())
         );
-        assert_eq!(parse_checked_version(""), None);
-        assert_eq!(parse_checked_version("zsh: command not found\n"), None);
-        assert_eq!(parse_checked_version("grove-llm dev-build\n"), None);
-        assert_eq!(parse_checked_version("not-grove-llm 13.0.0\n"), None);
-        assert_eq!(parse_checked_version("grove-llm 13.0.0 extra\n"), None);
-        assert_eq!(parse_checked_version("grove-llm 13.0.0\ntrailing\n"), None);
+        assert_eq!(parse_methodology_identity(""), None);
+        assert_eq!(parse_methodology_identity("zsh: command not found\n"), None);
+        assert_eq!(parse_methodology_identity("grove-llm 17.0.0\n"), None);
+        assert_eq!(parse_methodology_identity(&"a".repeat(63)), None);
+        assert_eq!(parse_methodology_identity(&"A".repeat(64)), None);
+        assert_eq!(parse_methodology_identity(&"g".repeat(64)), None);
+        assert_eq!(
+            parse_methodology_identity(&format!("{digest}\ntrailing\n")),
+            None
+        );
+    }
+
+    /// The resolution rule the whole check turns on. It is `PATH` order and only
+    /// `PATH` order — never the sibling of the running executable, which agrees
+    /// with the driver by construction and so hides the one case worth seeing.
+    #[test]
+    fn path_resolution_takes_the_first_executable_and_skips_the_rest() {
+        let fixture = tempfile::tempdir().unwrap();
+        let empty = fixture.path().join("empty");
+        let non_executable = fixture.path().join("non-executable");
+        let winner = fixture.path().join("winner");
+        let loser = fixture.path().join("loser");
+        for directory in [&empty, &non_executable, &winner, &loser] {
+            std::fs::create_dir_all(directory).unwrap();
+        }
+        // A same-named *non-executable* file must not win: `PATH` resolution is
+        // about what can be run, and a stray data file would otherwise mask the
+        // real binary behind it.
+        std::fs::write(non_executable.join(AGENT_CLI), "not a program").unwrap();
+        for directory in [&winner, &loser] {
+            let path = directory.join(AGENT_CLI);
+            std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+
+        let search = std::env::join_paths([&empty, &non_executable, &winner, &loser]).unwrap();
+
+        assert_eq!(resolve_in(&search, AGENT_CLI), Some(winner.join(AGENT_CLI)));
+    }
+
+    #[test]
+    fn path_resolution_reports_nothing_when_no_entry_holds_the_agent_cli() {
+        let fixture = tempfile::tempdir().unwrap();
+        let search = std::env::join_paths([fixture.path()]).unwrap();
+
+        assert_eq!(resolve_in(&search, AGENT_CLI), None);
     }
 }

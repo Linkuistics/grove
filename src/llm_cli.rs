@@ -31,14 +31,30 @@ use std::path::{Path, PathBuf};
 #[command(
     name = "grove-llm",
     version,
+    arg_required_else_help = true,
     about = "Grove: LLM-driven verbs for mid-session use",
     long_about = "Verbs the LLM driving a grove session invokes deterministically. \
 They are separated from the human-facing `grove` binary; none of these verbs \
 are meant for direct human use."
 )]
 pub struct Cli {
+    /// Print this build's methodology identity — the content hash of the
+    /// `content/` payload its paired `grove` embeds — and exit.
+    ///
+    /// **A flag rather than a verb, deliberately.** The loop driver asks it of
+    /// the `grove-llm` a session's `PATH` resolves, so it can report a
+    /// build-pairing mismatch (`docs/adr/one-build-owns-a-session.md`); no
+    /// session ever calls it and the embedded methodology instructs nothing
+    /// about it, so it stays out of the agent grammar `tests/provision.rs`
+    /// scans. Like `--version` it is metadata the driver may ask from outside
+    /// any session, and it touches no task tree, so it is exempt from the
+    /// session-epoch guard.
+    #[arg(long = "content-hash", exclusive = true)]
+    pub content_hash: bool,
+    /// The verb to run. Optional only so `--content-hash` can stand alone; a
+    /// bare `grove-llm` prints help.
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 #[derive(Subcommand)]
@@ -403,9 +419,34 @@ pub struct LeafPruneArgs {
 
 pub fn run() -> Result<()> {
     let cli = Cli::parse();
+    // Metadata first, and before anything that resolves a working tree: the
+    // driver asks this of a binary from outside any session, so it is exempt
+    // from the session-epoch guard exactly as clap's own `--version` is.
+    if cli.content_hash {
+        // clap's `exclusive` governs arguments and does not reach a subcommand,
+        // so the combination is rejected here rather than silently answering the
+        // flag and dropping the verb.
+        if let Some(command) = cli.command {
+            bail!(
+                "`--content-hash` is metadata and runs nothing; drop `{}` or drop the flag",
+                command.operation_label().trim_start_matches("grove-llm ")
+            );
+        }
+        println!("{}", crate::provision::METHODOLOGY_IDENTITY);
+        return Ok(());
+    }
+    let Some(command) = cli.command else {
+        // Unreachable through clap: a bare invocation prints help
+        // (`arg_required_else_help`), `--content-hash` returned above, and any
+        // other argument is either a verb or a parse error.
+        bail!("no verb given; run `grove-llm --help` for the verb set");
+    };
+    // On any verb, and before the guard that may refuse it: a clobbered skill
+    // directory is worth saying even when the verb itself cannot run.
+    crate::provision::warn_on_foreign_skill_dirs();
     let cwd = std::env::current_dir().context("getting cwd for session epoch admission")?;
-    let session_epoch = driver_lease::admit_ambient_session(&cwd, cli.command.operation_label())?;
-    match cli.command {
+    let session_epoch = driver_lease::admit_ambient_session(&cwd, command.operation_label())?;
+    match command {
         Command::RootInit(args) => cmd_root_init(&args),
         Command::Pick => cmd_pick(),
         Command::BriefChain { leaf_path } => cmd_brief_chain(leaf_path.as_deref()),

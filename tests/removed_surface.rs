@@ -73,6 +73,12 @@ enum Role {
     /// Launch policy the design removed. May be named where something scrubs or
     /// refutes it; may not be read.
     RemovedLaunchPolicy,
+    /// A value `build.rs` bakes in through `cargo:rustc-env` and the crate reads
+    /// back with `env!`. It is an environment name only *during compilation*: no
+    /// Grove process ever carries it, so setting it in a shell configures
+    /// nothing and it is outside launch policy by construction rather than by
+    /// containment.
+    BuildTimeConstant,
     /// A source identifier that merely starts with the same prefix — not an
     /// environment name at all. Enumerating lexically is what makes the sweep
     /// exhaustive, and the price of that is naming the collisions.
@@ -107,6 +113,11 @@ const ROLES: &[(&str, Role)] = &[
     ("GROVE_SKILL_DIR", Role::RemovedLaunchPolicy),
     ("GROVE_KILL_GRACE", Role::RemovedLaunchPolicy),
     ("GROVE_KILL_GRACE_KILL", Role::RemovedLaunchPolicy),
+    // The build's methodology identity, emitted by `build.rs` and read with
+    // `env!` — resolved at compile time, so it is not a way to configure a
+    // running Grove and never reaches a session's environment
+    // (one-build-owns-a-session).
+    ("GROVE_CONTENT_HASH", Role::BuildTimeConstant),
     ("GROVE_SKILL", Role::NotAnEnvironmentName),
 ];
 

@@ -70,6 +70,13 @@ all = { level = "deny", priority = -1 }
 # exists to prevent. Permanent suppressions (portability, say) stay `#[allow]`.
 unfulfilled_lint_expectations = "deny"
 
+[build-dependencies]
+# `build.rs` computes the build's methodology identity over the same `content/`
+# tree `include_dir!` embeds, with the same construction `provision::content_hash`
+# uses — so the two traversals must reach for the same hash. The in-crate
+# equality test is what keeps them from drifting apart.
+sha2 = "0.10"
+
 [dependencies]
 anyhow = "1.0"
 clap = { version = "4", features = ["derive"] }

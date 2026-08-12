@@ -196,6 +196,24 @@ change. There is no migration, and none is needed.
 
 ### Fixed
 
+- **The guidance assertions no longer read `CHANGELOG.md`, which a release cut
+  made unreadable.** `tests/composition_guidance.rs` had scoped its current-state
+  claims to the live `## Unreleased` section, on the reasoning that a released
+  `## v<N>.<m>.<p>` heading is frozen and must not be swept. That scope does not
+  survive its own release: `release.toml` renames the live heading to the version
+  and re-seeds an empty one, so every entry the cycle logged leaves the scope at
+  the moment it ships. The positive assertions then failed — and the bans failed
+  worse, passing vacuously over an empty slice while proving nothing. Cutting
+  this release is what surfaced it; the assertions arrived mid-cycle and had
+  never met a cut. Widening to the whole file was rejected for the reason the
+  original scope existed: a current-state positive would pass on superseded
+  prose, and a ban would forbid the history that records it. Both failures have
+  one cause — the changelog is a record of what changed and when, not a
+  description of the current design, so a current-state claim has no
+  well-defined scope in it. The claims stay pinned to the surfaces that do
+  describe the current design; the one surviving changelog assertion reads the
+  whole file on purpose, because a permanent upgrade note is what a frozen record
+  is for.
 - **`docs/CONFIGURATION.md`: the Codex sandbox cannot write a colocated `.git`,
   and `--add-dir` does not fix it.** Grove's own launch policy leans on a Codex
   template granting the store with `--add-dir ${repo}` — which does register as a

@@ -141,47 +141,33 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
     }
 }
 
-/// The live `## Unreleased` section alone. A released `## v<N>.<m>.<p>` heading
-/// is a frozen record of what was true at that tag, so a *current-state*
-/// assertion swept over the whole changelog is wrong in both directions: a
-/// positive one passes on prose describing a superseded design, and a ban on the
-/// superseded formulation would ban the history that legitimately records it.
-/// Scoping to `## Unreleased` keeps the section still being written honest
-/// without touching either.
-fn unreleased(changelog: &str) -> &str {
-    let from = changelog
-        .find("\n## Unreleased")
-        .expect("CHANGELOG.md has no `## Unreleased` section")
-        + 1;
-    let rest = &changelog[from..];
-    // `rest` opens on the heading itself, so the next `\n## ` is the release that
-    // closes the section — or the end of the file, before the first cut.
-    let end = rest.find("\n## ").unwrap_or(rest.len());
-    &rest[..end]
-}
-
-/// The scope helper is load-bearing for `assert_absent`, where a slice that came
-/// back empty — or that never advanced past the heading — would make every ban
-/// pass vacuously while proving nothing. So it is pinned at both ends.
-#[test]
-fn the_changelog_scope_is_the_live_section_and_nothing_else() {
-    let live = unreleased(CHANGELOG);
-    assert!(
-        live.starts_with("## Unreleased\n"),
-        "the slice must open on the live heading: {:?}",
-        &live[..live.len().min(40)]
-    );
-    assert!(
-        !live.contains("\n## "),
-        "the slice ran past the live section into a released one"
-    );
-    assert!(
-        live.len() > 1_000 && live.len() < CHANGELOG.len(),
-        "expected a non-empty proper subset, got {} of {} bytes",
-        live.len(),
-        CHANGELOG.len()
-    );
-}
+// `CHANGELOG.md` is deliberately **not** among the surfaces the current-state
+// assertions below sweep, and neither the whole file nor its live section is a
+// workable scope for one.
+//
+// Scoping to the live `## Unreleased` section was tried and does not survive a
+// release. The cut renames that heading to the version being shipped and
+// re-seeds an empty one (`release.toml`'s `pre-release-replacements`), so every
+// entry a workstream logged leaves the scope at the exact moment it ships. The
+// positive assertions then fail — and the `assert_absent` bans are worse, since
+// a ban over an empty slice passes vacuously and stays green while proving
+// nothing. Cutting `v18.0.0` is what surfaced this; the assertions had been
+// added mid-cycle and had never met a release.
+//
+// Widening to the whole file is not the repair either. A released
+// `## v<N>.<m>.<p>` heading is a frozen record of what was true at that tag, so
+// a current-state positive would pass on prose describing a superseded design,
+// and a ban would forbid the history that legitimately records it.
+//
+// Both failures have one cause: the changelog is a record of what changed and
+// when, not a description of the current design, so a current-state claim has no
+// well-defined scope in it. The claims below are pinned to the surfaces that do
+// describe the current design — the methodology, `CONTEXT.md`, the architecture,
+// the usage guide and the spec — and that is sufficient. The one changelog
+// assertion that remains, in
+// `stranded_promotion_recovery_guidance_distinguishes_the_phases`, reads the
+// whole file on purpose: it checks a *permanent* upgrade note, which is exactly
+// what a frozen record is for.
 
 /// Which hop *re-derives* and which one *consumes* is the whole basis of the
 /// placement rule, so it is pinned as a **binding** rather than as two
@@ -203,7 +189,6 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_contains(surface, text, "`review-*` step re-derives");
         assert_contains(surface, text, "`integrate-review-*` step consumes");
@@ -224,7 +209,6 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_contains(surface, text, "stable handle");
         assert_contains(surface, text, "producer's commit");
@@ -277,7 +261,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     for (surface, text) in [
         ("CONTEXT.md", CONTEXT),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_contains(surface, text, "leaf-insert");
         assert_contains(surface, text, CONDITION);
@@ -285,8 +268,8 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
 
     // Both superseded formulations, banned as the sentences they were: each has a
     // current replacement on every surface that *instructs a session*, and the
-    // return of either restores a rule that mis-selects. The changelog is in the
-    // loop only for its live section, for the reason `unreleased` gives.
+    // return of either restores a rule that mis-selects. The changelog is out of
+    // the loop entirely, for the reason recorded above the first test.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
         ("content/driving.md", DRIVING),
@@ -294,7 +277,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
         ("CONTEXT.md", CONTEXT),
         ("docs/USAGE.md", USAGE),
         ("review mechanics spec", SPEC),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_absent(surface, text, "when the order genuinely matters");
         assert_absent(surface, text, "when the order matters");
@@ -314,7 +296,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
         ("doubt-driven-development/SKILL.md", DOUBT_SKILL),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
     ] {
         assert_absent(surface, text, "touches no file the findings cite");
     }
@@ -326,7 +307,6 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
         ("content/SKILL.md", GROVE_SKILL),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("review mechanics spec", SPEC),
-        ("CHANGELOG.md ## Unreleased", unreleased(CHANGELOG)),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
     ] {
         assert_contains(surface, text, "cross-leaf grammar");

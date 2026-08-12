@@ -11,45 +11,6 @@ one task per session. Planning tasks grow the tree as understanding deepens;
 completed leaves are marked done in place. The tree's shape — the directory tree
 under `.grove/` — is the only state; the VCS holds the history.
 
-<!-- unit: skill-loop-diagram kinds=* class=triggering -->
-```mermaid
-flowchart TD
-  subgraph tree["A grove — a directory tree under .grove/; a node is a directory"]
-    direction TB
-    root["BRIEF.md — root brief (heads .grove/)"]
-    n1["01-sync-k1/ — decomposition node (a node carries no kind)"]
-    nb1["BRIEF.md — node brief"]
-    l1["01-DONE-design-spec-k2.md — retired leaf, in place"]
-    l2["02-impl-store-k3.md — live leaf"]
-    l3["03-review-impl-store-k4.md — live leaf, cut by k3's session"]
-    root --- n1
-    n1 --- nb1
-    n1 --- l1
-    n1 --- l2
-    n1 --- l3
-  end
-  subgraph loop["The loop — one task per session"]
-    direction TB
-    pick["Select — the driver picks the first live leaf and mandates its handle"]
-    boot["Bootstrap — resolve the mandate; read glossary, ancestor BRIEFs, cited ADRs, the task"]
-    exec{"kind — planning, or one of the other eighteen?"}
-    plan["Planning — cut vertical slices; grow the tree"]
-    work["Produce — requirements grills; design specs; impl codes; review-* finds; integrate-review-* applies"]
-    next["Cut the next step? — a producer adds review-* if required; a review adds integrate-review-* if it has findings"]
-    done["Retire — mark the just-finished leaf DONE in place"]
-    retire{"parent chain — node now has no live leaf?"}
-    ret["Close the node: verify Done when; promote brief up; report close"]
-    commit["Commit — one focused commit covering the task, its DONE rename and every close, sealed (name it by <slug>-k<key>)"]
-    signal["Signal — grove-llm complete; loop relaunches with fresh context"]
-    pick --> boot --> exec
-    exec -->|planning| plan --> done
-    exec -->|any other kind| work --> next --> done
-    done --> retire
-    retire -->|yes| ret --> retire
-    retire -->|no| commit --> signal --> pick
-  end
-```
-
 <!-- unit: skill-spine-constraints kinds=* class=triggering -->
 ## The spine — seven constraints
 
@@ -62,12 +23,12 @@ These seven rules are non-negotiable; everything below is subordinate to them.
 2. **Read, don't run.** A session bootstraps by *reading markdown* — no script
    must succeed before work begins. Its one command, `grove-llm resolve
    <handle>`, is a lookup you could do by eye: the handle is in the filename.
-   (Keeping this skill in step with the `grove-llm` it instructs is the `grove`
-   binary's own job — it *embeds* this methodology at build time and
-   re-provisions it on every lifecycle invocation, so the skill you are reading
-   and the verbs on your `PATH` are always the same build. The boundary is that
-   build, not a commit: in a grove *of grove*, editing `content/` changes
-   nothing any session reads until the binary is rebuilt and installed.)
+   (Keeping this guidance in step with the `grove-llm` it instructs is the
+   `grove` binary's own job — it *embeds* this methodology at build time, so the
+   guidance you are reading and the verbs on your `PATH` are always the same
+   build. The boundary is that build, not a commit: in a grove *of grove*,
+   editing `content/` changes nothing any session receives until the binary is
+   rebuilt and installed.)
 3. **Suggested shape, not enforced schema.** Task files and briefs are freeform
    markdown. The format files are guides; nothing validates them.
 4. **Lazy and optional.** Every artifact — brief, ADR, spec, glossary entry — is
@@ -317,15 +278,6 @@ ways, and the asymmetry is the design:
   vendors is the configuration owner's policy, not something grove can recover
   from an opaque command template.
 
-<!-- unit: skill-no-node-for-a-shape class=procedural -->
-**Neither shape gets a node directory.** A node means *this work proved bigger
-than one session*, and its `BRIEF.md` is the context those extra sessions need; a
-composed shape has no such context, and the hierarchy a node bought was not worth
-the navigation cost. So a shape's steps sit as flat siblings among their
-neighbours, and **every node in the tree carries a brief** again — there is only
-one node species, and Retire's close has the same work to do at every one of
-them.
-
 <!-- unit: skill-bare-stem-rule kinds=* class=triggering defers=task-bare-stem-reasoning -->
 **Every step of a shape carries the same bare stem** — no `-review`, no
 `-integrate`, no `-a` / `-b` / `-combine`. **The kind field is the canonical
@@ -339,30 +291,6 @@ and key, and `grove-llm resolve <stem>` prints the whole chain with each step's
 role spelled out in its path. Both spellings remain legal filenames, the grammar
 is unchanged, and **no existing tree is invalidated** — an older suffixed slug
 you meet is fine and stays as it is (`TASK-FORMAT.md` carries the full reasoning).
-
-<!-- unit: skill-declare-the-relationship class=procedural -->
-**Declare the relationship in the body, by hand.** A review's body carries
-`**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
-<review-handle>` (`TASK-FORMAT.md`). Nothing writes those lines for you and
-nothing parses them: they are a **convention for the human and the next session**,
-which is constraint 3 — task files are freeform markdown and nothing validates
-them.
-
-<!-- unit: skill-grammar-is-five-fields class=procedural -->
-**The grammar is five fields; no relationship is one of them.** Grove parses
-every task-shaped leaf name into exactly `NN`, an optional `DONE` / `ABANDONED`
-infix, one member of the closed kind set, the slug, and `-k<key>` — and all five
-are load-bearing: position orders the walk, the infix filters terminal leaves,
-the kind routes the launch, and slug-plus-key is the stable handle `resolve`
-finds and the counter `leaf-add` reads. What grove infers from *none* of them is
-a **relationship between leaves**: a `review-*` kind does not make a leaf review
-its neighbour, an `X` requires no `review-X` after it, and a partial chain is
-never rejected. The shared stem is a habit that makes a chain legible to you and
-to `find .grove`; it is not grammar. That is exactly why a *step marker* in the
-slug was worth deleting and the stem was not: the stem names the artifact, which
-nothing else in the name does, while a marker only restated the kind — and an
-unparsed convention that duplicates a parsed field is the one kind of convention
-that can be wrong.
 
 <!-- unit: skill-chain-gap-asymmetry kinds=* class=triggering defers="skill-integration-placement task-chain-contiguity" -->
 **A chain is not contiguous by construction, and only one of its two hops needs
@@ -721,17 +649,7 @@ fresh grove, not a resumed finish.
 driver reports the child's real status and elapsed time and stops the loop; it
 never reads a deleted `.grove/` as the `--done` you did not send. Nothing is
 lost — the teardown commit is already in history — and nothing is pending: there
-is no half-finished grove to resume, only a working tree without one. Likewise
-if the *driver* dies after the commit, the `done` it never got to read is
-coordination debris, not a receipt: the next invocation invalidates the dead
-launch's session epoch, clears that channel, and — finding no task root — starts
-a **new** grove at `plan-k1` (a handle a new tree may reuse; the epoch, not the
-key, is what keeps the old session's `grove-llm` calls off it). If an orphaned
-command from the dead session still holds a session-epoch guard, that invocation
-waits up to 30 seconds and then stops on a timed-out-epoch-handoff error rather
-than proceeding — creating no `.grove/`, so a stall there is the guard, not a
-hung grove. The invocation after it, once the guard releases, starts the new
-grove.
+is no half-finished grove to resume, only a working tree without one.
 
 <!-- unit: skill-artifacts kinds=* class=triggering -->
 ## Artifacts
@@ -776,18 +694,6 @@ future grove need to read this? If not, it is a `BRIEF.md` and it dies with
 `.grove/`. **Grain:** an ADR records one decision and its trade-off; a spec
 describes how an area works, and *cites* the ADRs in its area rather than
 restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
-
-<!-- unit: skill-reference-files class=procedural -->
-## Reference files
-
-- `BRIEF-FORMAT.md` — the `BRIEF.md` shape.
-- `TASK-FORMAT.md` — the leaf filename grammar, the closed nineteen-kind session taxonomy, and the task-file shape.
-- `CONTEXT-FORMAT.md` — the glossary format (bundled from `mattpocock/skills`).
-- `ADR-FORMAT.md` — grove's ADR **placement** note: where ADRs live, slug-named `docs/adr/<slug>.md`. Philosophy, format, and the when-to-write test live in the `linkuistics:decision-records` skill (see the prerequisite note below).
-- `SPEC-FORMAT.md` — the spec shape, the membership and grain rules, and where agreed test seams are recorded. Seam philosophy lives in the `linkuistics:codebase-design` skill.
-- `grilling.md` — the grilling procedure for `requirements` tasks (bundled).
-- `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
-- `prompts/continue.md` — the single launcher the `grove` binary embeds in every session's `${prompt}`, ahead of that session's mandate. There is no `start.md`, `retire.md` or `finish.md`: one bare command drives every kind of session, so one launcher covers them all.
 
 <!-- unit: skill-linkuistics-prerequisite kinds=* class=triggering -->
 **Prerequisite — the `linkuistics` plugin.** Three bodies of guidance grove

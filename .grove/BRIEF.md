@@ -237,6 +237,33 @@ that has not yet changed stays accurate until it does.* Enumerated, not swept:
   `src/tree_migrate.rs`'s v1 leaf-name fixtures, which are historical strings
   that happen to contain the word.
 
+**What the classification already landed, so stage 4 does not re-plan it.**
+`narrative-k39` executed the review's file-reader-residue sweep inside *this*
+grove, which moves three things off the successor's plate and adds one handoff:
+
+- **`SKILL.md`'s `## Reference files` index is gone**, and with it inventory row
+  31 — the edge from `prompts/continue.md`'s framing unit. Its rows named
+  *files*, which `grove-llm methodology` cannot address. So stage 3's
+  `content/MANDATE.md` has no index to re-root, and stage 4 has none to delete.
+- **Constraint 2's parenthesis no longer names provisioning.** It now states the
+  build boundary alone — true today and after the retirement — so stage 4 has one
+  fewer prose site to sweep, and the "stale on arrival" residue is already gone.
+- **The loop's mermaid overview and `driving.md`'s framing-plus-index are gone**,
+  together with the ~140 lines of bespoke anchor-resolution test machinery in
+  `tests/reference_navigation.rs` that existed only to keep that index honest.
+  Two flowchart-pinning tests were repointed at the prose that now solely carries
+  their claims (`tests/commit_guidance.rs`, `tests/retire_guidance.rs`).
+- **Still open, and it is a prose edit rather than a marking decision:**
+  `skill-adrs-and-specs` fuses four rules (raise ADRs sparingly, write a spec at
+  an agreement point, the ADR set is current-state, the same rule governs
+  `docs/specs/`) into one unit, because markers are whole lines and two of those
+  sentence boundaries fall mid-line. De-fusing it is the successor's call. In the
+  same family: eight of the nine `content/` files still open with an H1 document
+  title inside their first unit, which ships into every mandate that unit's scope
+  admits. `driving.md` lost its H1 as a consequence of this sweep and now carries
+  a `<!-- grove reference file — … -->` note instead; whether the other eight
+  follow is a decision, not an oversight.
+
 ## Pointers
 
 - Glossary terms in play: [[Mandate slice]], [[Triggering unit]] / procedural

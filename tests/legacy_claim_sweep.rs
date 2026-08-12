@@ -219,10 +219,6 @@ const REFUTATIONS: &[(&str, &str)] = &[
          leaf-level `**Harness:**` declaration as configuration fallbacks",
     ),
     (
-        "content/SKILL.md",
-        "There is no `start.md`, `retire.md` or `finish.md`",
-    ),
-    (
         "docs/ARCHITECTURE.md",
         "mapping each legacy body's `**Kind:**` to a filename kind",
     ),

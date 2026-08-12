@@ -19,7 +19,7 @@ schema.
 
 <!-- unit: task-kind-in-the-filename kinds=* class=triggering defers=task-name-reading-is-strict -->
 **The kind lives in the filename and nowhere else.** It is routing metadata, not
-identity: the stable [work-item handle](#suggested-shape) stays `<slug>-k<key>`,
+identity: the stable **work-item handle** stays `<slug>-k<key>`,
 so `grove-llm resolve`, a commit message and an in-file header are all unaffected
 by it. Putting it in the name is what lets `pick`, the driver's routing lookup and
 your own eye read a session's discipline out of `find .grove` without opening a
@@ -283,7 +283,7 @@ Three things follow from cutting them late:
   after the review whose subtree still holds live work** whenever there is one.
   *What the shapes are not*, below, carries the reason and the exact condition.
 
-<!-- unit: task-declare-the-relationship kinds=* class=triggering defers=skill-declare-the-relationship -->
+<!-- unit: task-declare-the-relationship kinds=* class=triggering -->
 **Declare the relationship in the body, by hand.** A review's body carries
 `**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
 <review-handle>`, on their own line, naming the stable handle:
@@ -388,12 +388,14 @@ it could be and is not:
   stem-mates together in a directory listing — was in any case false: a leaf name
   begins with `NN`, so a listing sorts by position and never by slug, and both
   spellings glob identically under `*<stem>*`.
-<!-- unit: task-no-node-for-a-shape kinds=* class=triggering defers=skill-no-node-for-a-shape -->
+<!-- unit: task-no-node-for-a-shape kinds=* class=triggering -->
 - **Neither shape gets a node directory.** A charter means *this work proved
-  bigger than one session*, which a composed shape is not, and the hierarchy the
-  node bought was not worth the navigation cost. So there is **one node species**
-  again — a node is a leaf that decomposed, and it carries a `BRIEF.md` — and
-  Retire's close has the same work to do at every node it meets.
+  bigger than one session*, and its `BRIEF.md` is the context those extra
+  sessions need. A composed shape is neither — no extra sessions, and no context
+  to charter — so the hierarchy the node bought was not worth the navigation
+  cost. A shape's steps sit as flat siblings among their neighbours, there is
+  **one node species** again — a node is a leaf that decomposed, and it carries a
+  `BRIEF.md` — and Retire's close has the same work to do at every node it meets.
 <!-- unit: task-chain-contiguity class=procedural -->
 - **A chain is not a unit, and is not contiguous by construction.** `pick`
   returns the first live leaf in the whole tree and nothing groups leaves for it
@@ -422,8 +424,8 @@ it could be and is not:
   check — the intervening leaf has not run yet and grove makes no leaf's eventual
   file set part of its contract, so nothing could supply the proof.
 
-<!-- unit: task-grammar-is-five-fields kinds=* class=triggering defers=skill-grammar-is-five-fields -->
-**The grammar is the five fields above and nothing more.** Position, outcome
+<!-- unit: task-grammar-is-five-fields kinds=* class=triggering -->
+**A leaf name is five fields and nothing more.** Position, outcome
 infix, kind, slug and key are all parsed and all structural — the position orders
 the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
 configuration lookup, and slug-plus-key is the handle `resolve` finds and the

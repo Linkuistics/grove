@@ -42,22 +42,25 @@ fn retire_precedes_commit_so_the_commit_can_contain_what_retire_writes() {
 }
 
 #[test]
-fn the_flowchart_commits_after_the_parent_chain_cascade() {
-    let skill = normalized(GROVE_SKILL);
+fn the_commit_step_closes_after_the_parent_chain_cascade() {
+    // The loop overview diagram carried this ordering a second time, as a
+    // picture; mandate delivery ships bytes, not renderings, so it went and the
+    // prose is now the only statement of it. Pin the prose, not a redrawing:
+    // what must survive is that the commit contains what the cascade wrote, and
+    // names the nodes the cascade closed.
+    let step = commit_step();
 
-    for edge in [
-        "done --> retire",
-        "retire -->|no| commit",
-        "commit --> signal",
-    ] {
-        assert!(
-            skill.contains(edge),
-            "the loop flowchart must route work → retire → commit → signal: {edge:?}"
-        );
-    }
     assert!(
-        !skill.contains("commit --> retire"),
-        "the loop flowchart must not restore the commit-before-retire edge"
+        step.contains(&normalized(
+            "together with anything the cascade above promoted or added"
+        )),
+        "the Commit step must scope the commit to what the parent-chain cascade wrote"
+    );
+    assert!(
+        step.contains(&normalized(
+            "the message cannot name a node you have not yet closed"
+        )),
+        "the Commit step must state why the cascade has to settle before the boundary closes"
     );
 }
 

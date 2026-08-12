@@ -1,40 +1,5 @@
-<!-- unit: driving-field-guide kinds=* class=triggering defers="driving-externalizing-surfaced-work driving-anti-patterns driving-the-shortest-version" -->
-# Driving a grove session well
-
-The grove `SKILL.md` and `grilling.md` files state *what* the loop is. This
-file is about *how* to drive it well — the moves a human collaborator makes
-that turn the loop into productive design work. It is a field guide, not a
-specification; treat it as a starting set of habits, not a checklist. Most of
-it concerns the *design* kinds — `research-a` / `research-b`, `requirements`,
-`design`, `planning` — but the later sections are habits for `impl` sessions too:
-grounding framework decisions in the source, doubting a decision before it
-stands, and externalizing surfaced work into new leaves rather than absorbing
-it.
-
-The examples are stated as reusable shapes rather than as the history of the
-workstream that first produced them. A finished grove deletes its task tree;
-the lesson belongs here only when it still helps a future session.
-
-## In this guide
-
-- **Starting and research:** [when not to start](#when-not-to-start-a-grove),
-  [commissioning prior art](#when-to-commission-prior-art-research),
-  [writing a research leaf](#how-to-write-a-research-leaf-brief), and
-  [running vendor pairs](#running-the-vendor-pair).
-- **Requirements and durable evidence:**
-  [grilling](#when-to-invoke-a-design-discussion-grilling),
-  [retiring research](#when-to-retire-research-into-adrs-versus-leave-it-in-docsresearch),
-  [verifying framework decisions](#verifying-framework-decisions-against-the-source),
-  and [verifying repo claims](#verifying-a-claim-about-the-repo-itself).
-- **Doubt and decomposition:**
-  [doubting in one leaf](#doubting-inside-a-picked-grove-leaf),
-  [escalating to a review chain](#the-review-chain--when-doubt-earns-its-own-leaves),
-  [externalizing work](#externalizing-surfaced-work),
-  and [triaging stalled work](#prune-reorder-or-file-an-issue--the-triage-a-status-word-would-hide).
-- **Quick reference:** [anti-patterns](#anti-patterns) and
-  [the shortest version](#the-shortest-version).
-
 <!-- unit: driving-when-not-to-start-a-grove kinds=requirements class=triggering -->
+<!-- grove reference file — the field guide: habits for driving a session well -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Chart the map" step 2's no-fog
@@ -757,39 +722,36 @@ the tree with work this grove will never do. When a leaf's status is in doubt,
 name which of the three sentences above is actually true before reaching for
 the CLI — the sentence picks the verb.
 
-<!-- unit: driving-anti-patterns class=procedural -->
-## Anti-patterns
+<!-- unit: driving-no-session-summary kinds=* class=triggering -->
+## Do not reconstruct the session's decisions at the end of it
 
-- **The wizard.** A capture verb that opens an interactive prompt
-  sequence ("title? description? type? component?") breaks
-  mid-flow concentration. The prior-art evidence on this is
-  emphatic — see ditz's failure mode in the postmortem survey.
-  Capture must be one non-interactive gesture (flags or stdin).
-- **The decision summary at session end.** Don't reconstruct
-  decisions in the commit message or a session-summary file. The
-  inline running log and the ADRs together are the durable record;
-  anything else duplicates and rots.
-- **The "ask if you have questions" non-prompt.** Vague invitations
-  produce vague responses. If you want input on a specific
-  trade-off, ask about that trade-off specifically. The grilling
-  format's recommended-answer-with-evidence structure makes the
-  trade-off visible by construction.
-- **The pre-baked answer.** If you already know the answer and just
-  want it executed, you don't need a grilling session — that's an
-  `impl` task. The grilling discipline exists for genuinely open
-  decisions; using it for pre-decided ones is theatre.
+A session ending pulls towards a summing-up: a session-summary file, or a commit
+message that re-tells every decision the session made. Refuse both. Decisions are
+recorded **inline, as they land** — in the task file's running log while the
+session is still holding the reasoning, and in the ADR set where one is durable
+enough to earn a record. Those two together are the whole durable record, and a
+third telling written afterwards duplicates them, rots against them, and is a
+status artifact of exactly the kind constraint 1 rejects. The commit message
+names the work item by its handle and says what changed; it is not where a
+decision is written down for the first time.
 
-<!-- unit: driving-the-shortest-version class=procedural -->
-## The shortest version
+<!-- unit: driving-ask-about-the-trade-off kinds=* class=triggering -->
+## Never close by inviting questions in general
 
-If you remember one paragraph of this doc, remember this:
+"Let me know if you have any questions" is not a prompt — a vague invitation
+produces a vague response, and the human has to invent your agenda before they
+can answer it. When you want a human's input, name the **specific** trade-off you
+want it on, propose a recommended answer, and give the evidence behind that
+recommendation. That structure makes the trade-off visible by construction, and
+it turns an escalation into a decision instead of an open-ended handback.
 
-> Commission research with a brief that names the downstream
-> questions; demand primary-source citations and per-system
-> walk-away checks. When the research is in, grill one question at
-> a time with recommended-answer-and-evidence; ask the LLM "WDYT"
-> before you commit and ask for pushback when it agrees too
-> easily; record each settled decision inline in the task file as
-> it lands. At the end, ADRs cite the research by primary source;
-> the research doc gets a "Findings adopted" pointer back. That's
-> the loop.
+<!-- unit: driving-no-pre-baked-grilling kinds=requirements class=triggering -->
+## A pre-decided question is not a grilling question
+
+The grilling discipline exists for genuinely open decisions. If you already know
+the answer to a question in this leaf's brief and only want it executed, do not
+stage a round of interrogation over it — record the decision and move on. If the
+brief's questions are *all* pre-decided, say so rather than performing the
+interview: the work standing behind them is an `impl` leaf, and running a
+grilling over settled ground is theatre that costs a human's attention and
+returns nothing.

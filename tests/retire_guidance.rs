@@ -1,23 +1,26 @@
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
 
 #[test]
-fn retire_flowchart_matches_the_confirmation_boundary() {
+fn node_close_matches_the_confirmation_boundary() {
     let skill = GROVE_SKILL.split_whitespace().collect::<Vec<_>>().join(" ");
 
+    // The loop overview diagram stated this a second time as a picture, and went
+    // with the rest of the file-reader narrative; the prose below is now the only
+    // statement of it.
     assert!(
-        skill.contains("ret[\"Close the node: verify Done when; promote brief up; report close\"]"),
-        "the Retire flowchart must describe verify-and-report node closure"
+        skill.contains("The close asks the human nothing"),
+        "a node close must stay unconfirmed — it infers done-ness rather than deciding it"
     );
-    // With chain nodes gone there is one node species, so the flowchart must not
+    assert!(
+        skill.contains("Instead the session **verifies and reports**"),
+        "a node close must describe verify-and-report closure"
+    );
+    // With chain nodes gone there is one node species, so the close must not
     // reintroduce a per-species branch: a close that skips its `Done when`
     // rollup because a node "is the other kind" silently drops a real check.
     assert!(
         !skill.contains("Brief-less node"),
-        "the Retire flowchart must not restore the two-species discriminator"
-    );
-    assert!(
-        !skill.contains("ret[\"Ask user;"),
-        "the Retire flowchart must not restore a routine node-close confirmation"
+        "the node close must not restore the two-species discriminator"
     );
     assert!(
         skill.contains("Only on explicit human confirmation, run"),

@@ -20,10 +20,20 @@ to jj, load the `git-to-jj-mapping` skill.
 > reframing), kawaz/claude-plugin-jj (MIT — guard-hook architecture,
 > re-implemented). Command facts verified against jj 0.43.0.
 
-## First action: probe the repo
+## First action: establish the repo's interface
 
-Before the first VCS command of a session, detect which interface the repo
-picks — in this order:
+Before the first VCS command of a session, settle which interface the repo
+picks. Three sources can tell you, and they rank: **an authoritative statement
+of the repo's VCS in your prompt** outranks **a probe**, which outranks **the
+harness environment banner** — that one never wins.
+
+A prompt that states the repo's VCS, and the root it was resolved for, did this
+work before the session started: take it and skip the probe. A banner may
+report a colocated repo as "a git repository" — that metadata is computed from
+`.git/` alone and cannot see jj
+([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)).
+
+Otherwise probe, in this order:
 
 1. `jj root` succeeds → **jj-enabled**. Everything below applies.
 2. Else `git rev-parse --show-toplevel` succeeds → **git**. Use git as
@@ -31,14 +41,9 @@ picks — in this order:
 3. Else → no VCS; version control is out of scope.
 
 Both probes walk up from the current directory, so subdirectories and
-colocated repos resolve correctly. The repo's state alone picks the
-interface — never convert a repo to jj and never suggest converting;
-repository setup belongs to the human.
-
-Trust the probe over harness metadata. A harness environment banner may
-report a colocated repo as "a git repository" — that metadata is computed
-from `.git/` alone and cannot see jj
-([claude-code#41435](https://github.com/anthropics/claude-code/issues/41435)).
+colocated repos resolve correctly. The repo's state alone picks the interface,
+and a statement or a probe only reports it — never convert a repo to jj and
+never suggest converting; repository setup belongs to the human.
 
 Edge case — `.jj/` exists but no `jj` binary is on PATH: in a colocated repo
 (`.git/` also present), fall back to git and tell the user you did; in a
@@ -261,5 +266,5 @@ this repo; see its script for the field-name provenance.
 ### Other harnesses
 
 No pre-tool guard mechanism verified for Pi or Codex as of 2026-07 — there,
-the probe-first contract above is the only layer. Add a recipe here only
+the detection contract above is the only layer. Add a recipe here only
 once its mechanism is verified to exist.

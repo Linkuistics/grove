@@ -101,6 +101,11 @@ recorded per-leaf in the bodies and summarised under *What the review changed*.
   embed: id uniqueness, `defers=` resolution and its class check, procedural
   reachability. No ordering-key case (above). Plus the pinned complete id set and
   the two relocations out of `tests/provision.rs`.
+- `embed-wide-gate-review-k16` (review-impl) — cut by `embed-wide-gate-k8` and
+  **inserted ahead of the two leaves below**, on the same reasoning as
+  `increments-review-k11` and `addressable-embed-review-k14`: both of them
+  rewrite the very corpus the gate validates, and one of them is the leaf whose
+  safety the gate exists to supply.
 - `step-suffix-redundancy-k10` (design) — an **unrelated** concern the human
   raised mid-grove and grove externalized rather than absorbed. It belongs to no
   stage, but it is **not** last: its surface is `content/SKILL.md` and
@@ -179,7 +184,20 @@ that has not yet changed stays accurate until it does.* Enumerated, not swept:
 - **Tests** — `tests/provision.rs` (after this grove's relocations),
   `tests/harness.rs`. Check `tests/support/mod.rs`'s `HARNESS_NAMES` env scrub:
   that is *environment hygiene for removed variables* and may well survive on its
-  own terms.
+  own terms. **`tests/provision.rs` is not pure subtraction**, and
+  `embed-wide-gate-k8` found the residue while relocating out of it: three things
+  left there are claims about the *embed* or the *release*, not about
+  provisioning, and deleting the file drops them silently —
+  `both_binaries_carry_the_embedded_methodology`, `CONTENT_MARKER`, and
+  `the_release_path_scans_for_the_same_marker`, which is what keeps that const in
+  step with `scripts/release-common.sh` (whose diagnostic cites this filename and
+  would need repointing). They belong beside the other embed claims in
+  `tests/methodology.rs`. Two smaller consequences in the same file set:
+  `exactly_one_launcher_is_embedded_and_provisioned` is about a launcher stage 3
+  renames, and `tests/methodology.rs`'s
+  `the_skill_frontmatter_survives_marking_and_provisioning` calls
+  `provision_into`, so it stops compiling the moment that module goes — it is the
+  test that decides whether `content/SKILL.md`'s YAML is still load-bearing.
 - **Docs and records** — `docs/ARCHITECTURE.md` (§Embedded methodology, §The
   shared directory, §Repository products, §Main module seams: drop the `harness`
   row — `methodology` was added by `addressable-embed-k7`, which is where the

@@ -105,7 +105,9 @@ impl Scope {
 /// One marked span of one embedded file.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Unit {
-    /// Kebab-case, unique across the whole embed (checked there, not here).
+    /// Kebab-case, and unique across the whole embed — which one file's text
+    /// cannot decide, so it is checked in [`super::whole_embed`] rather than
+    /// here.
     pub id: String,
     pub class: Class,
     /// `Some` exactly when the unit is triggering — a procedural unit ships to
@@ -119,6 +121,13 @@ pub struct Unit {
     pub file: String,
     /// 1-based line of the marker.
     pub line: usize,
+    /// Byte offset of the marker within the file — the machine half of the
+    /// coordinate pair, carried so a *whole-embed* failure can be reported at
+    /// the same `file:line:offset` a per-file one is
+    /// ([`super::whole_embed`]). Nothing can recover it from a [`Unit`]
+    /// afterwards: a unit's source is a copy, so searching for it would find
+    /// the first identical span rather than this one.
+    pub offset: usize,
     /// The unit's source bytes, **marker line included** — so a slice carries
     /// its own id and its own deferral, and addressing costs no driver-authored
     /// prose.
@@ -554,6 +563,7 @@ fn parse_marker(
         defers,
         file: file.to_string(),
         line: line_number,
+        offset,
         source: String::new(),
     })
 }
@@ -673,7 +683,11 @@ mod tests {
         let parsed =
             units("---\nname: grove\n---\n<!-- unit: alpha kinds=* class=triggering -->\nbody\n");
         assert_eq!(parsed.len(), 1);
-        assert_eq!(parsed[0].line, 4);
+        assert_eq!(
+            (parsed[0].line, parsed[0].offset),
+            (4, 20),
+            "a unit is located past the unread preamble, in both coordinates"
+        );
         assert!(
             !parsed[0].source.contains("name: grove"),
             "the preamble belongs to no unit: {:?}",

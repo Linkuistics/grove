@@ -14,12 +14,13 @@
 //! (`docs/adr/one-build-owns-a-session.md`).
 
 mod parse;
+mod whole_embed;
 
-// The reader's error type is deliberately **not** re-exported. It is what
-// `build.rs` prints and what the parser's own tests match on, and no function
-// out here returns it — `units` wraps it in `anyhow` — so exporting it would be
-// public surface nothing outside the crate could reach a value of (`src/lib.rs`
-// states the rule).
+// Neither reader's error type is re-exported. They are what `build.rs` prints
+// and what each module's own tests match on, and no function out here returns
+// one — `units` wraps both in `anyhow` — so exporting them would be public
+// surface nothing outside the crate could reach a value of (`src/lib.rs` states
+// the rule).
 pub use parse::{Class, Scope, Unit};
 
 use anyhow::{Context, Result};
@@ -41,20 +42,28 @@ pub fn embed() -> &'static Dir<'static> {
 /// Every unit in the embed, in a deterministic order: files by `content/`-relative
 /// path, units by position within their file.
 ///
-/// The build gate has already parsed the same corpus through the same reader, so
-/// a failure here is a bug rather than a contributor's mistake — it is still
-/// returned rather than panicked, because the callers are a CLI verb and a
-/// library function, neither of which should abort a session over it.
+/// That order is the one the whole-embed check reports failures in, and it is
+/// the order `build.rs` assembles too, so a malformation is named identically by
+/// the gate and by a verb.
+///
+/// The build gate has already parsed and checked the same corpus through the
+/// same two readers, so a failure here is a bug rather than a contributor's
+/// mistake — it is still returned rather than panicked, because the callers are
+/// a CLI verb and a library function, neither of which should abort a session
+/// over it. Re-running the whole-embed check costs a walk of a handful of units
+/// and makes the invariant true **where a consumer reads it**: the gate ran over
+/// `content/` on disk, and this is the linked embed, which is a different
+/// traversal of what ought to be the same tree.
 pub fn units() -> Result<Vec<Unit>> {
-    let mut files: Vec<(String, &'static str)> = Vec::new();
-    collect_markdown(&CONTENT, &mut files)?;
-    files.sort_by(|a, b| a.0.cmp(&b.0));
     let mut units = Vec::new();
-    for (path, text) in &files {
-        units.extend(parse::parse_units(path, text).with_context(|| {
+    for (path, text) in markdown_files()? {
+        units.extend(parse::parse_units(&path, text).with_context(|| {
             format!("the embedded methodology no longer parses; content/{path} is malformed")
         })?);
     }
+    whole_embed::check(&units)
+        .map_err(|error| anyhow::anyhow!("content/{error}"))
+        .context("the embedded methodology is internally inconsistent")?;
     Ok(units)
 }
 
@@ -75,10 +84,28 @@ pub fn identity() -> &'static str {
     IDENTITY.get_or_init(|| content_hash(&CONTENT))
 }
 
-/// Collect `(content/-relative path, text)` for every embedded markdown file.
+/// Every embedded markdown file as `(content/-relative path, text)`, sorted by
+/// path.
 ///
 /// Markdown is the whole corpus the unit grammar governs; the embed's other
 /// files are the licence notices under `LICENSES/`, which carry no methodology.
+/// The sort is what makes [`units`] deterministic, and it is the same order
+/// `build.rs`'s filesystem walk produces, so the two traversals name a
+/// whole-embed malformation at the same unit.
+///
+/// **Public as a seam**, on the exemption `src/lib.rs` names: the suite asserts
+/// claims about the embed's prose — that it instructs no `grove-llm` verb the
+/// CLI lacks — and production's own door onto that corpus is `include_dir`,
+/// which a test cannot open without making a runtime dependency a dev one as
+/// well. Handing the corpus out is cheaper than that, and strictly cheaper than
+/// a third copy of this walk living in `tests/`.
+pub fn markdown_files() -> Result<Vec<(String, &'static str)>> {
+    let mut files: Vec<(String, &'static str)> = Vec::new();
+    collect_markdown(&CONTENT, &mut files)?;
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(files)
+}
+
 fn collect_markdown(dir: &'static Dir, out: &mut Vec<(String, &'static str)>) -> Result<()> {
     for entry in dir.entries() {
         match entry {

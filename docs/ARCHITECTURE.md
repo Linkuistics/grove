@@ -675,10 +675,25 @@ embedded markdown file is fully classified by HTML-comment **unit markers**
 partitioning its body, and a malformed one fails `cargo build` with the file and
 offset. Constraint 5 — grove guides and does not gate — governs the human's task
 tree, not grove's own compile-time artifact, which the very build that produced
-it can fully observe. The gate reads through the crate's own parser
-(`src/methodology/parse.rs`, `#[path]`-included by the build script) rather than
-a second implementation, which is the duplication the removed hash traversal had
-already had to be defended against.
+it can fully observe. The gate reads through the crate's own parsers
+(`src/methodology/parse.rs` and `src/methodology/whole_embed.rs`,
+`#[path]`-included by the build script) rather than second implementations,
+which is the duplication the removed hash traversal had already had to be
+defended against.
+
+The gate has **two halves, split by what a check needs to see**, and the split
+is the seam rather than a quota. `parse.rs` decides everything a single
+`(path, text)` settles — the marker grammar, partition, fence state, the leading
+preamble, the file-level rules. `whole_embed.rs` decides the three that need the
+assembled set: **id uniqueness** across the embed, because an id is the only
+address `grove-llm methodology` has; **`defers=` resolving to a declared
+`class=procedural` unit**; and **every procedural unit reachable** by following
+`defers=` from some triggering unit. Reachability is partition seen from the
+other end — together they say every byte of the methodology is either in a
+mandate or reachable from one — and it disposes of deferral cycles without a rule
+about them, since a ring entered by no triggering unit is unreachable by
+construction. `methodology::units` re-runs the whole-embed half over the
+**linked** embed, which is a different traversal of what the gate saw on disk.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
@@ -735,7 +750,7 @@ anything that breaks the second property (see the shared directory, below).
 
 What is enforceable at this boundary is that the embed is **internally
 consistent**: every `grove-llm` verb the embedded methodology instructs is a verb
-the embedded CLI exposes (`tests/provision.rs`). No test can inspect a future
+the embedded CLI exposes (`tests/methodology.rs`, scanning the embed itself). No test can inspect a future
 build, so "the installed skill is current" is not a statable claim; "a binary
 that ships cannot hand a session a verb it lacks" is, and it is the claim that
 actually protects a session.
@@ -792,7 +807,7 @@ prescribing one command.
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
-| `methodology` | The embed itself: the unit reader `build.rs` shares, the embed's unit set, and the build's methodology identity. |
+| `methodology` | The embed itself: the two readers `build.rs` shares — per file, and across the whole embed — the markdown corpus and unit set they produce, and the build's methodology identity. |
 | `provision` | Embedded methodology installation. |
 
 The modules are intentionally file-sized rather than wrapped in another

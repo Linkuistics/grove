@@ -26,9 +26,12 @@
 //! The hash is gone with the compile-time identity constant — `grove-llm` links
 //! the embed now, so both binaries hash it directly.
 //!
-//! This gate is **per file**: everything a single `(path, text)` decides.
-//! Whole-embed checks — id uniqueness, `defers=` resolution, procedural
-//! reachability — need the assembled set and are built separately.
+//! The gate has two halves, built as two modules and run in that order. The
+//! **per-file** half is everything a single `(path, text)` decides. The
+//! **whole-embed** half — id uniqueness, `defers=` resolution and its class
+//! check, procedural reachability — needs the assembled set, so it runs once
+//! every file has parsed. Both are `#[path]`-included from `src/`, so neither
+//! is a second implementation of anything.
 
 // `Kind` alone is what the parser needs (a `kinds=` member is validated against
 // the closed nineteen), but a module is the unit of inclusion; the rest of
@@ -39,8 +42,32 @@ mod leaf;
 #[allow(dead_code)]
 #[path = "src/methodology/parse.rs"]
 mod parse;
+// Reaches the parser as `super::parse`, which resolves to this script's root
+// here and to `crate::methodology::parse` in the crate — one spelling, two
+// module trees.
+#[allow(dead_code)]
+#[path = "src/methodology/whole_embed.rs"]
+mod whole_embed;
 
 use std::path::{Path, PathBuf};
+
+/// What a contributor is told after a per-file failure: the grammar of the line
+/// the error points at.
+const MARKER_HELP: &[&str] = &[
+    "The marker grammar is: <!-- unit: <id> kinds=<scope> class=<class> defers=<target> -->",
+    "`kinds` is required on a triggering unit and forbidden on a procedural one,",
+    "attributes are written in that fixed order, and every body byte of every file",
+    "belongs to exactly one unit.",
+];
+
+/// ...and after a whole-embed failure, where the line the error points at is
+/// well-formed and it is the *set* that is not. Repeating the marker grammar
+/// there would send a contributor to look for a typo that is not present.
+const EMBED_HELP: &[&str] = &[
+    "Every unit id is unique across the whole embed, every `defers=` names a declared",
+    "`class=procedural` unit, and every procedural unit is reached by following",
+    "`defers=` from some triggering unit.",
+];
 
 fn main() {
     let content = Path::new("content");
@@ -51,18 +78,14 @@ fn main() {
     // gate running the version compiled into the last build script.
     println!("cargo:rerun-if-changed=src/leaf.rs");
     println!("cargo:rerun-if-changed=src/methodology/parse.rs");
+    println!("cargo:rerun-if-changed=src/methodology/whole_embed.rs");
 
-    if let Err(failure) = gate(content) {
+    if let Err((failure, help)) = gate(content) {
         eprintln!("grove: the embedded methodology is malformed and will not be embedded.");
         eprintln!("  {failure}");
-        eprintln!(
-            "  The marker grammar is: <!-- unit: <id> kinds=<scope> class=<class> defers=<target> -->"
-        );
-        eprintln!("  `kinds` is required on a triggering unit and forbidden on a procedural one,");
-        eprintln!(
-            "  attributes are written in that fixed order, and every body byte of every file"
-        );
-        eprintln!("  belongs to exactly one unit.");
+        for line in help {
+            eprintln!("  {line}");
+        }
         std::process::exit(1);
     }
 }
@@ -78,22 +101,32 @@ fn emit_rerun(path: &Path) {
     }
 }
 
-/// Parse every embedded markdown file, reporting the first malformation.
+/// Parse every embedded markdown file, then check the assembled set, reporting
+/// the first malformation with the guidance that fits its half of the gate.
 ///
 /// Sorted so the reported failure is the same one on every machine: a build
 /// error that moves with directory iteration order is a build error two
-/// contributors describe differently.
-fn gate(root: &Path) -> Result<(), String> {
+/// contributors describe differently. The same sort is what makes this walk's
+/// unit order match the embed walk's in `methodology::units`, so the two
+/// traversals report a whole-embed failure at the same unit.
+///
+/// Every file is parsed before any of them is checked as a set, because a
+/// whole-embed complaint about a file that does not parse would be a complaint
+/// about a unit set the contributor has not written yet.
+fn gate(root: &Path) -> Result<(), (String, &'static [&'static str])> {
     let mut files = Vec::new();
     collect_markdown(root, root, &mut files);
     files.sort();
+    let mut units = Vec::new();
     for (relative, path) in files {
         let text = std::fs::read_to_string(&path)
-            .map_err(|error| format!("reading {}: {error}", path.display()))?;
-        parse::parse_units(&relative, &text)
-            .map_err(|error| format!("{}/{error}", root.display()))?;
+            .map_err(|error| (format!("reading {}: {error}", path.display()), MARKER_HELP))?;
+        units.extend(
+            parse::parse_units(&relative, &text)
+                .map_err(|error| (format!("{}/{error}", root.display()), MARKER_HELP))?,
+        );
     }
-    Ok(())
+    whole_embed::check(&units).map_err(|error| (format!("{}/{error}", root.display()), EMBED_HELP))
 }
 
 /// Collect `(path relative to `root`, absolute path)` for every markdown file

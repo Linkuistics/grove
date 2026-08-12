@@ -809,13 +809,15 @@ The checks that seam carries:
   and every id in the listing accepted as a fetch argument. The round trip is the
   point — an inventory an agent cannot feed back into the verb is prose.
 
-Two existing checks **relocate rather than die** when provisioning retires: the
-scan asserting the embedded methodology instructs no `grove-llm` verb the
-embedded CLI lacks, and the flat-verb-surface pin that makes that comparison
-mean what it claims. Both are claims about the embed, not about provisioning,
-and the architecture already names the first as the enforceable half of the
-build boundary. Their corpus improves in the move: they will scan the embed
-itself rather than a provisioned extraction of it.
+Two existing checks **relocated rather than died** ahead of provisioning's
+retirement: the scan asserting the embedded methodology instructs no `grove-llm`
+verb the embedded CLI lacks, and the flat-verb-surface pin that makes that
+comparison mean what it claims. Both are claims about the embed, not about
+provisioning, and the architecture already names the first as the enforceable
+half of the build boundary. They live in `tests/methodology.rs` and their corpus
+improved in the move: they scan the embed itself, through the module seam, rather
+than a provisioned extraction of it — which is what dissolved the recursive
+filesystem walk that used to gather it.
 
 ## Out of scope
 

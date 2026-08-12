@@ -227,7 +227,7 @@ route: it launches the `review-*` kind's own configured command, and whether tha
 target differs from the producer's is the configuration owner's policy — grove
 records no producer target, compares none, and warns about none.
 
-<!-- unit: skill-adrs-and-specs kinds=* class=triggering defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-cite-framework-decisions-to-the-source" -->
+<!-- unit: skill-adrs-and-specs kinds=* class=triggering defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state skill-specs driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-cite-framework-decisions-to-the-source" -->
 Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for placement;
 the `linkuistics:decision-records` skill for the philosophy, format, and
 when-to-write test), and write a spec only at a genuine agreement point
@@ -643,7 +643,7 @@ tells you to exit manually. Plain `complete` signals a
 the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
 Ctrl-C, which stops).
 
-<!-- unit: pending-skill-finish kinds=* class=triggering -->
+<!-- unit: skill-finish kinds=* class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
 **Finish.** You do not discover that a grove is finished — the driver does, and
 it tells you by launching you. Once no ordinary live leaf is left, bare `grove`
 appends one driver-owned `finish` leaf at the grove root and mandates it under
@@ -662,6 +662,7 @@ headless run with no human present simply reports the plan and stops. This is th
 loop's **only routine human gate** (confirmation-boundary) — everything else
 a session asks is a discretionary escalation. On confirmation, run:
 
+<!-- unit: skill-finish-steps class=procedural -->
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op
    when decisions landed inline as they were made.
@@ -696,11 +697,13 @@ a session asks is a discretionary escalation. On confirmation, run:
    tree (which remains valid after `.grove/` is deleted).
    Outside a `grove` loop (no loop to stop) it is a safe no-op: just exit.
 
+<!-- unit: skill-finish-nothing-after class=procedural -->
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to plain git/gh or jj, or the user's
 own worktree tooling (user-owned-worktrees). Whoever integrates does so after step
 2, so the integrated history never carries `.grove/`.
 
+<!-- unit: skill-finish-resume class=procedural -->
 **Resume is state-checked, never a marker file** (constraint 1) — and the state
 that gets checked is the *repository's*, never task-root absence. If you lose
 step 2's result, rerun `grove-llm finish-commit <finish-handle>` with the same
@@ -713,6 +716,7 @@ is bound to this launch, so it is available only to the still-confirmed session
 that ran the command — a later bare `grove` into a rootless tree is an ordinary
 fresh grove, not a resumed finish.
 
+<!-- unit: skill-finish-no-signal-stop class=procedural -->
 **Ending after step 2 but before step 3 is an ordinary no-signal stop.** The
 driver reports the child's real status and elapsed time and stops the loop; it
 never reads a deleted `.grove/` as the `--done` you did not send. Nothing is
@@ -729,6 +733,7 @@ than proceeding — creating no `.grove/`, so a stall there is the guard, not a
 hung grove. The invocation after it, once the guard releases, starts the new
 grove.
 
+<!-- unit: skill-artifacts kinds=* class=triggering -->
 ## Artifacts
 
 Only the task tree is grove-specific and ephemeral. Everything else is a
@@ -741,6 +746,7 @@ standard artifact that outlives grove (constraint 6).
 | Specs | `docs/specs/<slug>.md` | how an area works — the human-facing agreement point, also a **minimum coherent set** (`SPEC-FORMAT.md`) |
 | Task tree | `.grove/` (inside the grove's working tree) | the process: the self-extending decomposition of work; deleted at the in-session Finish step |
 
+<!-- unit: skill-glossary-is-load-bearing kinds=* class=triggering defers=context-structure -->
 **The glossary is load-bearing.** The acute failure mode of multi-session work
 is terminology drift: a later session, with no memory of an earlier one,
 reinvents its term under a new name or reuses the words with a shifted meaning.
@@ -749,11 +755,13 @@ resolved, is the forcing function against that. Keep it a glossary and nothing
 else — terse definitions, aliases-to-avoid, no implementation detail
 (`CONTEXT-FORMAT.md`).
 
+<!-- unit: skill-briefs-vs-glossary kinds=* class=triggering -->
 **Briefs vs. the glossary.** A bounded context is a *domain* partition; a
 task-tree node is a *process* partition. They are orthogonal axes. The glossary
 is per-bounded-context; a node that carries anything carries a `BRIEF.md`, not a
 glossary.
 
+<!-- unit: skill-specs class=procedural defers="spec-suggested-shape spec-test-seams" -->
 ## Specs
 
 A **spec** is the human-facing, team-shareable design of an area of the system,
@@ -769,6 +777,7 @@ future grove need to read this? If not, it is a `BRIEF.md` and it dies with
 describes how an area works, and *cites* the ADRs in its area rather than
 restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 
+<!-- unit: skill-reference-files class=procedural -->
 ## Reference files
 
 - `BRIEF-FORMAT.md` — the `BRIEF.md` shape.
@@ -780,6 +789,7 @@ restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 - `driving.md` — field guide for driving grove sessions well: when to commission prior-art research, how to write a research-leaf brief, grilling moves (WDYT, pushback, running log), and when research findings retire into ADRs.
 - `prompts/continue.md` — the single launcher the `grove` binary embeds in every session's `${prompt}`, ahead of that session's mandate. There is no `start.md`, `retire.md` or `finish.md`: one bare command drives every kind of session, so one launcher covers them all.
 
+<!-- unit: skill-linkuistics-prerequisite kinds=* class=triggering -->
 **Prerequisite — the `linkuistics` plugin.** Three bodies of guidance grove
 leans on live in a **separately installed** plugin, and grove **requires** it:
 ADR philosophy in `linkuistics:decision-records`, what a test seam is and how to

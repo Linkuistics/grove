@@ -120,11 +120,11 @@ finishes and therefore lands after already-live siblings
 (`content/TASK-FORMAT.md:220-245`). The suffix leaf will run before the
 classification review, and its stated surface edits `content/SKILL.md` and
 `content/TASK-FORMAT.md` — the classification artifact itself
-(`.grove/12-design-step-suffix-redundancy-k10.md:68-83`).
+(`step-suffix-redundancy-k10`, lines 68–83 in its leaf).
 
 The leaf also uses the `design` kind while requiring production/test changes to
 `src/tree_grow.rs` and guidance tests if removal wins
-(`.grove/12-design-step-suffix-redundancy-k10.md:74-93`). A design leaf's
+(`step-suffix-redundancy-k10`, lines 74–93 in its leaf). A design leaf's
 deliverable is a spec/ADR decision; implementation belongs in an `impl` leaf
 (`content/TASK-FORMAT.md:79-82`, `:97-100`).
 

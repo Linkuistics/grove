@@ -60,6 +60,31 @@ fn only_grove_carries_the_embedded_methodology() {
     );
 }
 
+/// The test above sees only what `cargo test` built — one profile, one host
+/// target — while a release builds three targets in `--release`, two of them
+/// cross-compiled and therefore unrunnable on the building machine. So the
+/// release path scans each staged pair for the same phrase before archiving it
+/// (`scripts/release-build.sh`, via `assert_methodology_pairing`), which is what
+/// makes the invariant hold of the artifacts that actually ship rather than of
+/// their test-profile cousins.
+///
+/// Two scans mean two places to edit, and this pins them together. Drift is not
+/// silent in either direction — a stale marker fails the *presence* half — but it
+/// fails there for the wrong reason, mid-release, on a tagged tree.
+#[test]
+fn the_release_path_scans_for_the_same_marker() {
+    let common =
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("scripts/release-common.sh"))
+            .unwrap();
+
+    assert!(
+        common.contains(&format!("readonly CONTENT_MARKER='{CONTENT_MARKER}'")),
+        "scripts/release-common.sh must scan the shipped artifacts for the same \
+         phrase this test scans for ({CONTENT_MARKER:?}); update CONTENT_MARKER \
+         in both places together"
+    );
+}
+
 /// The flag and the stamp are two views of one value, and the pair check is only
 /// as good as their agreement: the driver compares what a `grove-llm` *reports*
 /// against what its paired `grove` *wrote*, so a divergence would make every

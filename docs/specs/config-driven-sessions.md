@@ -374,15 +374,20 @@ is an error. `grove-llm` remains the agent-facing deterministic tree interface.
 ### Toolchain and serialization
 
 On every iteration the driver resolves `grove-llm` through its own `PATH`, never
-preferring the sibling of its current executable, and with no user override.
-Before configuration validation or tree mutation it asks that exact binary for
-its methodology identity and compares it with the driver's own. A missing,
-unidentifiable, or differing binary produces one diagnostic naming the resolved
-path and both identities, and the iteration continues: the driver's environment
-is a proxy for an opaque configured command's, so a pairing mismatch is reported
-rather than made a stop ([one build owns a
-session](../adr/one-build-owns-a-session.md)). No crate-version comparison
-remains.
+preferring the sibling of its current executable, and with no user override. A
+relative or empty `PATH` entry resolves from the worktree root the configured
+session is spawned in, not from the directory bare `grove` was invoked in, and
+the probe runs there as well. Before configuration validation or tree mutation it
+asks that exact binary for its methodology identity and compares it with the
+driver's own. A missing, unidentifiable, or differing binary produces one
+diagnostic and the iteration continues: the driver's environment is a proxy for
+an opaque configured command's, so a pairing mismatch is reported rather than
+made a stop ([one build owns a
+session](../adr/one-build-owns-a-session.md)). Each diagnostic states only what
+its branch can know — a mismatch names the resolved path and both identities, an
+unidentifiable binary the resolved path with this build's identity and the reason
+it gave no answer, a missing one this build's identity and the search performed —
+and all three state the same requirement. No crate-version comparison remains.
 
 ### Process ownership and session epochs
 
@@ -1291,9 +1296,11 @@ Through that seam, cover:
 - no mutation for a pre-mutation missing or invalid config in rootless, legacy,
   current, empty, and pending-migration trees; plus a post-mutation invalid edit
   that preserves the completed transition but launches nothing;
-- `PATH`-only `grove-llm` resolution before mutation, and non-fatal reporting of
-  a missing, unidentifiable, or identity-mismatched binary — the iteration
-  proceeds and the diagnostic names the resolved path;
+- `PATH`-only `grove-llm` resolution before mutation, resolved from the session's
+  worktree cwd for a relative or empty entry when bare `grove` is invoked from a
+  nested directory, and non-fatal reporting of a missing, unidentifiable, or
+  identity-mismatched binary — the iteration proceeds and a diagnostic that
+  resolved something names the path it resolved;
 - metadata-only `--help`/`--version`; provisioning before lease acquisition on
   the bare path; skill refresh on a refused second driver; and an unwritable
   workspace-administration control directory failing before configuration or

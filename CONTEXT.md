@@ -67,6 +67,10 @@ unsupported — now announced rather than silent.
 _Avoid_: checking the sibling of the running `grove` — the driver never invokes
 `grove-llm`, so the sibling agrees with it by construction while the binary the
 session runs goes unchecked.
+_Avoid_: reading "the driver's `PATH`" as "the driver's working directory". The
+variable is the driver's, but a relative or empty entry in it resolves from the
+worktree root, because that is the cwd the *session* is given while bare `grove`
+is accepted from any directory inside the tree.
 _Avoid_: reading either report as a gate. The driver's is a proxy measured in
 its own environment, and a mid-task `grove-llm` refusal would cost more than the
 mismatch; the human who can fix either reads the same stream.

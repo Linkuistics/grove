@@ -955,6 +955,11 @@ fn an_unidentifiable_grove_llm_is_reported_and_the_launch_proceeds() {
     too_old.assert_reported_and_launched(&[
         "could not name its methodology",
         too_old.resolved.to_str().unwrap(),
+        // The three knowable fields of this branch: a resolved path, this
+        // build's identity, and why no answer came. There is deliberately no
+        // fourth — a binary that could not name its methodology has none to
+        // print (one-build-owns-a-session).
+        grove::provision::METHODOLOGY_IDENTITY,
     ]);
 
     // ...and one that answers, but with something that is not a digest. Free
@@ -980,6 +985,11 @@ fn a_missing_grove_llm_is_reported_and_the_launch_proceeds() {
     run.assert_reported_and_launched(&[
         "no `grove-llm` on this driver's PATH",
         "PATH resolves first",
+        // Nothing resolved, so this branch has neither a path nor a peer
+        // identity to name — and it is still actionable, because it names this
+        // build's identity, the search performed, and the requirement. The
+        // durable record promises exactly these and no more.
+        grove::provision::METHODOLOGY_IDENTITY,
     ]);
 }
 
@@ -1056,6 +1066,101 @@ fn the_checked_grove_llm_is_the_one_on_path_not_the_drivers_own_sibling() {
     assert!(
         stderr.contains(path_grove_llm.to_str().unwrap()),
         "the diagnostic must name the path it actually resolved: {stderr}"
+    );
+}
+
+/// Bare `grove` is deliberately accepted from any directory inside the working
+/// tree, but the configured session is spawned at the **root**. So a relative or
+/// empty `PATH` entry — `PATH=:/usr/bin`, as every POSIX shell reads it — names
+/// a different directory for the driver than for the session, and resolving it
+/// in the driver's own cwd would report on a `grove-llm` no session can reach
+/// while executing an unrelated repository-local helper to do it. The case is
+/// exactly the one the docs claim is reliable: an inherited environment.
+#[test]
+fn a_relative_path_entry_resolves_from_the_worktree_the_session_is_spawned_in() {
+    let fixture = TempDir::new().unwrap();
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let worktree = fixture.path().join("nested-path-worktree");
+    init_git_worktree(&worktree);
+    let grove = worktree.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# nested-path — brief\n").unwrap();
+    fs::write(
+        grove.join("01-impl-nested-path-k2.md"),
+        "# nested-path-k2\n",
+    )
+    .unwrap();
+
+    let launched = fixture.path().join("launched");
+    let configured = fixture.path().join("configured.sh");
+    write_executable(
+        &configured,
+        &format!("#!/bin/sh\nprintf launched > {}\n", shell_quote(&launched)),
+    );
+    write_complete_config(
+        &home,
+        &format!("{} '${{prompt}}'", shell_quote(&configured)),
+    );
+
+    // Two same-named helpers, one at each end of the disagreement: the session's
+    // cwd is the worktree root, the driver's is the directory `grove` was typed
+    // in. Each records that it ran, so the assertion is which one was executed
+    // and not merely which one was named.
+    let root_marker = fixture.path().join("root-helper-ran");
+    write_executable(
+        &worktree.join("grove-llm"),
+        &format!(
+            "#!/bin/sh\nprintf ran > {}\nprintf '{FOREIGN_IDENTITY}\\n'\n",
+            shell_quote(&root_marker),
+        ),
+    );
+    let invocation_dir = worktree.join("subdir");
+    fs::create_dir_all(&invocation_dir).unwrap();
+    let nested_marker = fixture.path().join("nested-helper-ran");
+    write_executable(
+        &invocation_dir.join("grove-llm"),
+        &format!(
+            "#!/bin/sh\nprintf ran > {}\nprintf '{FOREIGN_IDENTITY}\\n'\n",
+            shell_quote(&nested_marker),
+        ),
+    );
+
+    // Only `git`, behind an empty leading entry — "the current directory", whose
+    // whole point here is that the driver's and the session's differ.
+    let isolated_path = fixture.path().join("isolated-path");
+    fs::create_dir(&isolated_path).unwrap();
+    std::os::unix::fs::symlink(resolve_real_git(), isolated_path.join("git")).unwrap();
+    let search = OsString::from(format!(":{}", isolated_path.display()));
+
+    let output = Command::new(env!("CARGO_BIN_EXE_grove"))
+        .current_dir(&invocation_dir)
+        .env("HOME", &home)
+        .env("PATH", &search)
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "{stderr}");
+    assert!(
+        launched.is_file(),
+        "the session must still launch: {stderr}"
+    );
+    assert!(
+        root_marker.exists(),
+        "the worktree-root helper is the one a session resolves, so it is the \
+         one asked: {stderr}"
+    );
+    assert!(
+        !nested_marker.exists(),
+        "the helper under the driver's own cwd is unreachable by the session and \
+         must never be run: {stderr}"
+    );
+    let reported = worktree.canonicalize().unwrap().join("grove-llm");
+    assert!(
+        stderr.contains(reported.to_str().unwrap()),
+        "the diagnostic must name the path a session would resolve, got: {stderr}"
     );
 }
 

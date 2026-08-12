@@ -172,8 +172,8 @@ changes nothing any session reads until that checkout is **installed** — not
 CLI and is announced on every iteration as exactly that mismatch. Installing
 means making the build you are driving the one a session's `PATH` resolves
 first: `cargo install --path .` does that only if `~/.cargo/bin` outranks every
-other prefix holding a `grove-llm`, and the diagnostic names the path it
-actually resolved so you can tell. See
+other prefix holding a `grove-llm`, and the mismatch diagnostic names the path it
+actually resolved so you can tell which prefix won. See
 [Embedded methodology](ARCHITECTURE.md#self-extension-core-and-methodology).
 
 `grove-llm` is the agent-facing tree interface the session drives during those

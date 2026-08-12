@@ -35,13 +35,30 @@ not part of a build's identity.
 
 Each loop iteration resolves `grove-llm` through **`PATH`** — the way a session
 that inherits the driver's environment resolves it — and compares its
-methodology identity with the driver's own. A missing, unidentifiable, or
-disagreeing binary prints one diagnostic naming the resolved path and both
-identities, and the launch proceeds. Resolution deliberately does not prefer the
-sibling of the running executable: the driver never invokes `grove-llm` itself,
-so the sibling agrees with it by construction while the binary a session reaches
-goes unchecked — and the sibling is exactly what makes the dogfooding case
-invisible, since `cargo run` builds both binaries side by side. The check stays
+methodology identity with the driver's own. A relative or empty entry resolves
+from the **worktree root**, and the probe runs there too, because that is the cwd
+the session is spawned with while bare `grove` is accepted from any directory
+inside the tree; resolving from the driver's own cwd would inspect a binary no
+session can reach, and would execute an unrelated repository-local helper to do
+it. The probe still runs whatever such an entry names — that is exactly the
+binary the session would run, and a probe that declined to would report on a
+resolution it had not performed.
+
+A missing, unidentifiable, or disagreeing binary prints one diagnostic and the
+launch proceeds. **Each names only what that branch can know**, because two of
+the three have no peer to name: nothing resolved at all, so the missing
+diagnostic names this build's identity and the search it performed and there is
+no path or peer identity to give; an unidentifiable binary resolved but could not
+answer, so its diagnostic names the resolved path, this build's identity, and why
+the answer was not one; only a mismatch has both operands, and names the resolved
+path and both identities. All three end in the same requirement, which is what
+makes the missing case actionable without a peer.
+
+Resolution deliberately does not prefer the sibling of the running executable:
+the driver never invokes `grove-llm` itself, so the sibling agrees with it by
+construction while the binary a session reaches goes unchecked — and the sibling
+is exactly what makes the dogfooding case invisible, since `cargo run` builds
+both binaries side by side. The check stays
 per iteration rather than per driver start, because a mid-loop `brew upgrade`
 replaces the binaries on disk under a running text segment.
 
@@ -73,10 +90,12 @@ Installing the checkout (`cargo install --path .`) achieves that only where
 `~/.cargo/bin` outranks every other prefix holding a `grove-llm`; where a
 package-manager prefix precedes it, the Cargo-installed pair is present and
 still not the one a session reaches, and re-prescribing the install would
-prescribe something already done. So the diagnostic names the path it actually
-resolved alongside both identities, and the operator makes the intended pair the
-resolved one — by installing over the prefix that wins, by reordering `PATH`, or
-by any equivalent their setup supports.
+prescribe something already done. So a diagnostic that resolved something names
+the path it actually resolved — with both identities where both exist — and the
+operator makes the intended pair the resolved one, by installing over the prefix
+that wins, by reordering `PATH`, or by any equivalent their setup supports. Where
+nothing resolved there is no prefix to name, and the requirement alone is the
+whole remedy.
 
 Provisioning runs before every launch, but as a **stamp re-verification** rather
 than a re-extraction. A matching stamp is the ordinary case and costs one small

@@ -68,6 +68,11 @@ build_target() {
   cp "$REPO_ROOT/target/$target/release/grove-llm" "$stage/grove-llm"
   cp "$REPO_ROOT/LICENSE" "$REPO_ROOT/README.md" "$stage/"
 
+  # One build owns a session: only `grove` carries the methodology, and this is
+  # the last moment the *shipped* pair can be asked. Scanned rather than run —
+  # two of the three targets are cross-compiled and cannot execute here.
+  assert_methodology_pairing "$stage/grove" "$stage/grove-llm" || return 1
+
   local archive="$DIST_DIR/grove-v${version}-${target}.tar.xz"
   tar -C "$DIST_DIR/staging" -cJf "$archive" "grove-v${version}-${target}"
   echo "$archive"

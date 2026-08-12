@@ -104,6 +104,15 @@ formula:
 scripts/release-build.sh
 ```
 
+Before archiving each target, the script asserts the build-pairing invariant on
+the staged pair: `grove` carries the embedded methodology and `grove-llm` does
+not ([one build owns a session](adr/one-build-owns-a-session.md)). It scans the
+binaries rather than running them, because two of the three targets are
+cross-compiled and cannot execute on the building machine. A failure aborts the
+release rather than shipping the archive; the phrase it scans for lives in
+`scripts/release-common.sh` and is pinned to `tests/provision.rs` by a test
+there.
+
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:
 

@@ -26,8 +26,10 @@
 //       grove_reverify_skill_stamps                      # restore a clobbered dir
 //       # Build pairing is *reported*, never gated: the driver's PATH is only a
 //       # proxy for an opaque configured command's (one-build-owns-a-session).
-//       llm=$(command -v grove-llm)
-//       [ "$("$llm" --content-hash)" = "<own compiled-in identity>" ] || echo ...
+//       # Resolved from the session's cwd, so a relative PATH entry names what
+//       # the session would run rather than what the driver's cwd would.
+//       llm=$(cd "$worktree" && command -v grove-llm)
+//       [ "$(cd "$worktree" && "$llm" --content-hash)" = "<own identity>" ] || echo ...
 //       grove_recover_or_migrate_tree                    # driver-only transition
 //       # One in-process selection: the leaf's stable handle *and* its kind.
 //       read -r handle kind <<<"$(grove_select_or_materialize_finish)"
@@ -109,7 +111,7 @@ fn run_configured_loop_with_lease(
         // predict is reported. Both run before configuration validation and any
         // tree mutation, so their lines land ahead of any mutation output.
         crate::provision::reverify_installed()?;
-        report_build_pairing();
+        report_build_pairing(worktree);
         let _pre_transition_config = SessionConfig::load(&home)?;
 
         crate::tree_lifecycle::transition_driver_to_current(worktree)?;
@@ -421,7 +423,11 @@ enum Pairing {
 /// executing the text segment it started with while `brew upgrade` replaces the
 /// binaries on disk under it, and a mid-loop upgrade is the case a start-time
 /// check misses.
-fn report_build_pairing() {
+///
+/// `session_cwd` is the directory the configured session is spawned in — the
+/// worktree root, never the driver's own cwd. See [`resolve_in`] for why the
+/// difference is load-bearing.
+fn report_build_pairing(session_cwd: &Path) {
     let own = crate::provision::METHODOLOGY_IDENTITY;
     // One requirement, not one command. `cargo install --path .` makes the
     // checkout resolve first only where `~/.cargo/bin` outranks every other
@@ -429,7 +435,7 @@ fn report_build_pairing() {
     // install is already done and still is not what a session reaches.
     const REQUIREMENT: &str =
         "       the build being driven must be the one a session's PATH resolves first.";
-    match resolve_agent_cli_pairing(own) {
+    match resolve_agent_cli_pairing(own, session_cwd) {
         Pairing::Paired => {}
         Pairing::Missing => {
             eprintln!("grove: no `{AGENT_CLI}` on this driver's PATH, so a session inheriting this environment would find none (this build's methodology is {own});");
@@ -449,12 +455,15 @@ fn report_build_pairing() {
     }
 }
 
-fn resolve_agent_cli_pairing(own: &str) -> Pairing {
-    let Some(path) = resolve_on_path(AGENT_CLI) else {
+fn resolve_agent_cli_pairing(own: &str, session_cwd: &Path) -> Pairing {
+    let Some(path) = resolve_on_path(AGENT_CLI, session_cwd) else {
         return Pairing::Missing;
     };
     let mut command = Command::new(&path);
     command.arg("--content-hash");
+    // Probed from the cwd the session will have, so a relative `PATH` entry is
+    // run as the session would run it and not as the driver's own cwd would.
+    command.current_dir(session_cwd);
     // Every spawn that is not the configured session scrubs the loop's
     // launch-scoped environment: this repository is a meta-grove, so the driver
     // itself may be running inside a live session whose kill channel it must not
@@ -496,9 +505,10 @@ fn resolve_agent_cli_pairing(own: &str) -> Pairing {
 }
 
 /// The first executable named `name` on this process's `PATH` — the way a
-/// session inheriting this environment would find it.
-fn resolve_on_path(name: &str) -> Option<PathBuf> {
-    resolve_in(&std::env::var_os("PATH")?, name)
+/// session inheriting this environment would find it, from the cwd that session
+/// is given.
+fn resolve_on_path(name: &str, session_cwd: &Path) -> Option<PathBuf> {
+    resolve_in(&std::env::var_os("PATH")?, name, session_cwd)
 }
 
 /// The rule itself, over a `PATH`-shaped value given as an argument.
@@ -511,10 +521,20 @@ fn resolve_on_path(name: &str) -> Option<PathBuf> {
 /// the first time this was written as one function.
 ///
 /// An empty entry means the current directory, as every POSIX shell reads it, so
-/// it is left to `join` rather than skipped.
-fn resolve_in(search: &std::ffi::OsStr, name: &str) -> Option<PathBuf> {
+/// it is left to `join` rather than skipped — and **whose** current directory is
+/// the reason `session_cwd` is a parameter rather than the process's own cwd.
+/// Bare `grove` is deliberately accepted from any directory inside the working
+/// tree and keeps that cwd while it resolves the root (`launch::bare_grove`),
+/// but the configured session is spawned with the worktree root as its cwd
+/// (`launch_configured_session`). Resolving an empty or relative entry against
+/// the driver's cwd would therefore inspect one `grove-llm` while the session
+/// ran another: from `<worktree>/subdir`, `PATH=:/usr/bin` would probe
+/// `<worktree>/subdir/grove-llm` and report on a binary no session can reach.
+/// `Path::join` already gives the whole rule — an absolute entry replaces the
+/// base, an empty or relative one extends it.
+fn resolve_in(search: &std::ffi::OsStr, name: &str, session_cwd: &Path) -> Option<PathBuf> {
     std::env::split_paths(search)
-        .map(|directory| directory.join(name))
+        .map(|directory| session_cwd.join(directory).join(name))
         .find(|candidate| is_executable_file(candidate))
 }
 
@@ -840,7 +860,10 @@ mod tests {
 
         let search = std::env::join_paths([&empty, &non_executable, &winner, &loser]).unwrap();
 
-        assert_eq!(resolve_in(&search, AGENT_CLI), Some(winner.join(AGENT_CLI)));
+        assert_eq!(
+            resolve_in(&search, AGENT_CLI, fixture.path()),
+            Some(winner.join(AGENT_CLI))
+        );
     }
 
     #[test]
@@ -848,6 +871,47 @@ mod tests {
         let fixture = tempfile::tempdir().unwrap();
         let search = std::env::join_paths([fixture.path()]).unwrap();
 
-        assert_eq!(resolve_in(&search, AGENT_CLI), None);
+        assert_eq!(resolve_in(&search, AGENT_CLI, fixture.path()), None);
+    }
+
+    /// A relative or empty `PATH` entry is resolved against the cwd the
+    /// *session* is spawned with, not the driver's. The driver may be run from
+    /// any directory inside the working tree while the session always starts at
+    /// the root, so resolving here against the driver's cwd would probe a binary
+    /// no session can reach — and could execute an unrelated repository-local
+    /// helper while doing it.
+    #[test]
+    fn relative_and_empty_path_entries_resolve_against_the_sessions_cwd() {
+        let fixture = tempfile::tempdir().unwrap();
+        let session_cwd = fixture.path().join("worktree");
+        let nested = session_cwd.join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+        let executable = |path: &Path| {
+            std::fs::write(path, "#!/bin/sh\nexit 0\n").unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        };
+        executable(&session_cwd.join(AGENT_CLI));
+        executable(&nested.join(AGENT_CLI));
+
+        // An empty entry: the session's cwd itself, never the driver's.
+        let empty_first = std::ffi::OsString::from(format!(":{}", fixture.path().display()));
+        assert_eq!(
+            resolve_in(&empty_first, AGENT_CLI, &session_cwd),
+            Some(session_cwd.join(AGENT_CLI))
+        );
+
+        // A relative entry: extended from the session's cwd.
+        let relative = std::ffi::OsString::from("nested");
+        assert_eq!(
+            resolve_in(&relative, AGENT_CLI, &session_cwd),
+            Some(session_cwd.join("nested").join(AGENT_CLI))
+        );
+
+        // An absolute entry is unaffected — `join` replaces rather than extends.
+        let absolute = std::env::join_paths([&nested]).unwrap();
+        assert_eq!(
+            resolve_in(&absolute, AGENT_CLI, &session_cwd),
+            Some(nested.join(AGENT_CLI))
+        );
     }
 }

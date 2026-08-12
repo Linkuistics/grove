@@ -625,7 +625,11 @@ hash as a compile-time constant so any binary in the crate can name its own
 identity without linking the embed: only `grove` extracts content, so only
 `grove` carries it. An in-crate test pins the constant against the runtime hash
 of the linked embed, which is what stops the build script's traversal and
-`provision`'s from drifting.
+`provision`'s from drifting. "Only `grove` carries it" is a claim about a linked
+artifact rather than about source, so it is asserted by scanning binaries: an
+integration test scans the pair `cargo test` built, and the release path scans
+each staged pair before archiving it, which is where the cross-compiled
+`--release` targets a local test never sees are covered.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is

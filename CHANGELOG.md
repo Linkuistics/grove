@@ -106,21 +106,28 @@ change. There is no migration, and none is needed.
   as `--version` is; each loop iteration re-verifies every installed skill
   directory's stamp and restores this driver's embed when another build has taken
   one, naming the directory; and each iteration resolves `grove-llm` through
-  `PATH`, compares identities, and **reports** a missing, unidentifiable or
-  mismatched binary while launching anyway. Inside a session, `grove-llm` warns
-  on any verb when a skill directory's stamp is not its own, and never refuses.
+  `PATH` — resolving a relative or empty entry, and running the probe, from the
+  **worktree root** the session is spawned in rather than from wherever bare
+  `grove` was typed — compares identities, and **reports** a missing,
+  unidentifiable or mismatched binary while launching anyway. Inside a session,
+  `grove-llm` warns on any verb when a skill directory's stamp is not its own,
+  and never refuses.
   **The one property deliberately given up**: a `grove-llm` the driver cannot run
   used to be a hard stop before `.grove/` was created, and is now a printed line.
   That is intended — the driver never invokes `grove-llm`, a wrapper or `ssh` hop
   or container that re-derives `PATH` is supported policy, and behind one of those
   the probe is a proxy rather than an observation; a missed mismatch misleads one
   session, while a false refusal launches nothing at all on a machine that may be
-  configured correctly. Each diagnostic names the path it actually resolved and
-  both identities, and states the requirement — the build being driven must be the
-  one a session's `PATH` resolves first — rather than prescribing `cargo install
-  --path .`, which achieves that only where `~/.cargo/bin` outranks every other
-  prefix holding a `grove-llm`. Concurrent groves at different builds remain
-  unsupported, now announced rather than silent. See
+  configured correctly. Each diagnostic names what its branch can know — a
+  mismatch names the resolved path and both identities, an unidentifiable binary
+  names the resolved path, this build's identity and why it could not answer, and
+  a missing one names this build's identity and the search performed, there being
+  no path or peer to name — and all three state the requirement: the build being
+  driven must be the one a session's `PATH` resolves first, rather than
+  prescribing `cargo install --path .`, which achieves that only where
+  `~/.cargo/bin` outranks every other prefix holding a `grove-llm`. Concurrent
+  groves at different builds remain unsupported, now announced rather than
+  silent. See
   `docs/adr/one-build-owns-a-session.md`.
 - **A producer's last act is to decide whether review is required** and, if so,
   `leaf-add` the `review-<producer>` leaf itself; a review's last act is to

@@ -2,7 +2,8 @@
 
 ## Goal
 
-Classify **`content/SKILL.md` lines 408–608** (13,711 bytes): `**When a picked
+Classify **`content/SKILL.md` from `**When a picked producer needs fresh review**` to
+the line before `**Finish.**`** (baseline L408–609, 13,712 bytes): `**When a picked
 producer needs fresh review**`, the *tree is a real directory tree* paragraph
 (`leaf-decompose`, `leaf-add`, `leaf-insert`), `**`--kind <kind>` appears on the
 grow verbs…**`, `**Reading is strict too**`, `**Retire.**` with the pruning case
@@ -17,23 +18,43 @@ Read the node brief's *The batching contract* first.
 
 ### Region and residual
 
-- Carve `content/SKILL.md` **L408–L608**, consuming the front of
-  `pending-skill-lifecycle`.
-- Mint exactly one residual, **`pending-skill-finish`**, covering **L610–L760**.
-- Redistribute any `defers=` inherited from `pending-skill-lifecycle`.
+- **Anchors are authoritative; L408–609 is a baseline coordinate — three batches have
+  inserted markers above your region by now.** Carve from `**When a picked producer
+  needs fresh review**` to the line **before** `**Finish.**`, consuming the front of
+  `pending-skill-lifecycle`. Your region ends **including** the blank separator before
+  that anchor, per the marker-placement convention — the F7 correction, which is why
+  the baseline range is L408–609 and the size 13,712 rather than L408–608 / 13,711.
+- Mint exactly one residual, **`pending-skill-finish`**, covering `**Finish.**` to end
+  of file, as `class=triggering kinds=*` **with no `defers=`**.
+- **There is nothing to inherit from `pending-skill-lifecycle`.** A residual never
+  carries `defers=`.
 
-### Cross-file deferral
+### The pre-decided call: the ADR reconciliation clause is a *mention*
 
-Sparser here than in batches 9–10, but two edges matter:
+`batches-k13` told you to read `evidence-moves-k26`'s three-way overlap call and
+honour it. The node brief settles the family instead, and your side of it is the
+simplest of the three:
 
-| `SKILL.md` site | target | carved by |
-|---|---|---|
-| L533 — *Check the node's brief `Done when`* | `BRIEF-FORMAT.md` | `decompose-moves-k28` |
-| L550–554 — *reconcile the ADR set … never append a superseding ADR* | `ADR-FORMAT.md`, and `driving.md` §*Reworking ADRs and briefs as understanding shifts* | `guides-k24`, `evidence-moves-k26` |
+**`SKILL.md` L550–554 — *"Retirement is also the moment to reconcile the ADR set…
+never append a superseding ADR"* — is a family-C mention, not a site to decide.** It
+is a clause inside the node-close cascade's prose, and it is **unsplittable from it at
+line granularity** (baseline L554 carries the end of the ADR clause and the start of
+*"That may leave the next ancestor with no live leaf either"*). It takes the cascade
+unit's class, which is procedural, and it owes **no** family edge: family C's owner —
+`SKILL.md` L217–227, carved by `execute-k29` — already names retirement as a
+checkpoint, and so does the owner's body in `driving.md` §*Reworking ADRs and
+briefs…*, whose closing paragraph names *"retiring a leaf or node"* explicitly.
 
-**`evidence-moves-k26` recorded a three-way overlap call** on the ADR-reworking
-rule (`SKILL.md` here, `driving.md` L285ff, `ADR-FORMAT.md` §*Why the set stays
-minimal*). Read that call and honour it — this is the `SKILL.md` half it named.
+So the ADR-reworking rule reaches a retiring session through the mandate it already
+holds, not through a second condition here. Do **not** carve L550–554 out as a third
+statement of the rule.
+
+### Edge inventory rows owned: 28 and 37
+
+| row | source | target | note |
+|---|---|---|---|
+| 28 | `**Retire.**`'s node-close step 1 (L533, *Check the node's brief `Done when`*) | `BRIEF-FORMAT.md` bodies | `decompose-moves-k28` carved the target |
+| 37 | `driving.md` §*Prune, reorder, or file an issue* (L702, its `SKILL.md` citation) | your `**Retire.**` pruning body | **the one edge in the whole inventory whose source is carved before its target** — `decompose-moves-k28` could not write it, so it is yours, written *into* an earlier batch's marker. Conditional on your pruning prose ending up procedural; decline with that reason if it is triggering |
 
 ### The judgement this batch exists for
 
@@ -84,14 +105,15 @@ about `finish`, but every session needs to know the plain form is not the
 
 ## Done when
 
-- `content/SKILL.md` L408–608 is subdivided into real units;
-  `pending-skill-finish` covers L610–760 and nothing else.
-- Every edge in the table above is written or explicitly declined with a reason.
-- Any `defers=` inherited from `pending-skill-lifecycle` is redistributed and
-  accounted for.
+- The region between the two anchors is subdivided into real units;
+  `pending-skill-finish` covers the rest of the file and nothing else, and carries no
+  `defers=`.
+- **Rows 28 and 37 are each reported** — written, or declined with a reason.
 - `cargo build` and `cargo test` are green.
 - `EMBEDDED_UNITS` updated in the same commit, each new id named deliberately.
-- The ADR-reworking consistency call against `evidence-moves-k26` is recorded.
+- The pruning-HITL and node-close classifications are recorded with their reasoning —
+  they are the two most consequential calls left in this batch now that the ADR
+  overlap is settled.
 
 ## Notes
 

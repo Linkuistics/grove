@@ -2,12 +2,14 @@
 
 ## Goal
 
-Classify **`content/SKILL.md` lines 247–406** (10,067 bytes): `**Cut the next
-step, when it is needed.**` with the review chain and vendor pair bullets,
-`**Neither shape gets a node directory.**`, `**Every step of a shape carries the
-same bare stem**`, `**Declare the relationship in the body, by hand.**`,
-`**The grammar is five fields; no relationship is one of them.**`, `**A chain is
-not contiguous by construction…**`, and `**There is no exception to check.**`
+Classify **`content/SKILL.md` from `**Cut the next step, when it is needed.**` to the
+line before `**When a picked producer needs fresh review**`** (baseline L247–407,
+10,068 bytes): `**Cut the next step, when it is needed.**` with the review chain and
+vendor pair bullets, `**Neither shape gets a node directory.**`, `**Every step of a
+shape carries the same bare stem**`, `**Declare the relationship in the body, by
+hand.**`, `**The grammar is five fields; no relationship is one of them.**`, `**A
+chain is not contiguous by construction…**`, and `**There is no exception to
+check.**`
 
 This is batch 10 of 12.
 
@@ -17,24 +19,49 @@ Read the node brief's *The batching contract* first.
 
 ### Region and residual
 
-- Carve `content/SKILL.md` **L247–L406**, consuming the front of
-  `pending-skill-shapes`.
-- Mint exactly one residual, **`pending-skill-lifecycle`**, covering
-  **L408–L760**.
-- Redistribute any `defers=` inherited from `pending-skill-shapes`.
+- **Anchors are authoritative; L247–407 is a baseline coordinate — batches #1 and #9
+  have inserted markers above your region by the time you open the file.** Carve from
+  `**Cut the next step, when it is needed.**` to the line **before** `**When a picked
+  producer needs fresh review**`, consuming the front of `pending-skill-shapes`. Your
+  region ends **including** the blank separator before that anchor, per the
+  marker-placement convention — the F7 correction, which is why the baseline range is
+  L247–407 and the size 10,068 rather than the L247–406 / 10,067 `batches-k13`
+  recorded.
+- Mint exactly one residual, **`pending-skill-lifecycle`**, covering `**When a picked
+  producer needs fresh review**` to end of file, as `class=triggering kinds=*` **with
+  no `defers=`**.
+- **There is nothing to inherit from `pending-skill-shapes`.** A residual never
+  carries `defers=`.
 
-### Cross-file deferral
+### The pre-decided call: `**Cut the next step…**` is a *body*
 
-Both targets are already carved:
+`batches-k13` called this paragraph triggering and asked you to reconcile it with two
+sibling batches' recorded calls. The node brief settles it as **family F**:
 
-| `SKILL.md` site | target | carved by |
-|---|---|---|
-| L268 — *One narrow, unexpected doubt … may use its single in-session reviewer instead (`driving.md`)* | `driving.md` §*Doubting inside a picked Grove leaf* | `doubt-moves-k27` |
-| L323 — *`TASK-FORMAT.md` carries the full reasoning* (bare stem) | `TASK-FORMAT.md` §*What the shapes are not* | `shapes-k23` |
-| L327 — *`**Reviews:**` / `**Integrates:**` … (`TASK-FORMAT.md`)* | `TASK-FORMAT.md` | `shapes-k23` |
+- **The owner is `TASK-FORMAT.md` §*Composing the kinds — the two shapes*'s opening**
+  (#3), which states *"reach for them by default, and argue yourself out of one rather
+  than into it"* and *"they are built in opposite ways"*.
+- **`**Cut the next step, when it is needed.**` (L247–268) is the body** for its
+  restatement of that asymmetry — `class=procedural`, rooted from the owner, which is
+  **row 32, yours to write**. Read `shapes-k23`'s body for the owner's id.
+- What is *not* a restatement is still your judgement: *when* to decide for review
+  ("the artifact is load-bearing — a spec, a decomposition you will build on for
+  months, a subsystem") and the in-session-reviewer pointer at L266–268. If either
+  reads as a condition in its own right, carve it as one and say why.
 
-`shapes-k23`'s body names the unit holding the step-suffix reasoning; read it
-rather than re-deriving it.
+**The L266–268 in-session-reviewer pointer is a mention** of family A, not a site to
+decide: its owner is `TASK-FORMAT.md` §*In-session doubt is budgeted…* (#2). An edge
+from it into `driving.md` §*Doubting…* is legal and harmless — that unit is
+procedural and already rooted by row 11 — but it is **not an inventory obligation**,
+so write it only if the reference reads as a genuine trigger→body address.
+
+### Edge inventory rows owned: 26, 27 and 32
+
+| row | source (in your region) | target | note |
+|---|---|---|---|
+| 32 | `TASK-FORMAT.md` family-F owner | your `**Cut the next step…**` body | not optional; its only root |
+| 26 | your `**Cut the next step…**` body | `TASK-FORMAT.md` §*The review chain* / §*The vendor pair* mechanics bodies | conditional: only where those units are procedural |
+| 27 | `**Every step of a shape carries the same bare stem**` (L323), `**Declare the relationship…**` (L327) | `TASK-FORMAT.md` §*What the shapes are not* bodies | conditional the same way — `shapes-k23`'s body names the unit holding the step-suffix reasoning; **read it rather than re-deriving it** |
 
 ### The judgement this batch exists for
 
@@ -42,14 +69,6 @@ This region is unusually condition-rich, and the temptation is to classify the
 whole thing triggering because it is all rules. Resist that — several of these
 paragraphs are *justifications* of a rule stated elsewhere, and a justification is
 not a condition.
-
-- **`**Cut the next step, when it is needed.**`** is triggering, and the two
-  bullets state the shapes' opposite construction. But `TASK-FORMAT.md`
-  §*Composing the kinds* (`shapes-k23`) states the same asymmetry. Third
-  overlap in this grove after Review-ownership and Decompose; **read
-  `shapes-k23`'s and `doubt-moves-k27`'s recorded calls and stay consistent with
-  them.** The mechanics — the exact `leaf-add` lines, who cuts what and when — are
-  procedural.
 - **`**Every step of a shape carries the same bare stem**`** is a naming rule
   (triggering: a session that does not know it will suffix its slugs) *plus* a
   long justification of why the step suffix was deleted (not a condition). Split
@@ -80,15 +99,14 @@ session that opens the chain.
 
 ## Done when
 
-- `content/SKILL.md` L247–406 is subdivided into real units;
-  `pending-skill-lifecycle` covers L408–760 and nothing else.
-- Every edge in the table above is written or explicitly declined with a reason.
-- Any `defers=` inherited from `pending-skill-shapes` is redistributed and
-  accounted for.
+- The region between the two anchors is subdivided into real units;
+  `pending-skill-lifecycle` covers the rest of the file and nothing else, and carries
+  no `defers=`.
+- **Rows 26, 27 and 32 are each reported** — written, or declined with a reason.
 - `cargo build` and `cargo test` are green.
 - `EMBEDDED_UNITS` updated in the same commit, each new id named deliberately.
-- The consistency call against `shapes-k23` and `doubt-moves-k27` is recorded in
-  this leaf's body.
+- Whatever inside `**Cut the next step…**` you carved as a condition in its own
+  right — rather than as part of the family-F body — is named with its reasoning.
 
 ## Notes
 

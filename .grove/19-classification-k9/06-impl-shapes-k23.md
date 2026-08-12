@@ -2,12 +2,16 @@
 
 ## Goal
 
-Classify **`content/TASK-FORMAT.md` lines 193–472** (15,904 bytes):
-`## Composing the kinds — the two shapes`, `### The review chain — each session
-cuts the next step`, `### The vendor pair — one eager call`, `### What the shapes
-are not`, `## Suggested shape`, and `## A leaf never names a harness`.
+Classify **`content/TASK-FORMAT.md` from `## Composing the kinds — the two shapes`
+to the line before `## The three design kinds — extra guidance`** (baseline
+L193–472, 15,904 bytes): `## Composing the kinds — the two shapes`, `### The review
+chain — each session cuts the next step`, `### The vendor pair — one eager call`,
+`### What the shapes are not`, `## Suggested shape`, and `## A leaf never names a
+harness`.
 
-This is batch 3 of 12, and the largest single region in the plan.
+This is batch 3 of 12, and the largest single region in the plan. It **owns the
+corpus-wide condition for the two shapes** (family F) — see *The pre-decided call
+in this region*.
 
 ## Context
 
@@ -15,34 +19,50 @@ Read the node brief's *The batching contract* first.
 
 ### Region and residual
 
-- Carve **L193–L472**, consuming `pending-task-shapes` in full. `TASK-FORMAT.md`
-  is finished after this batch — mint **no** residual.
-- L473–501 was already carved by `kinds-k22`; leave it alone.
+- **Anchors are authoritative; L193–472 is a baseline coordinate.** Carve from `##
+  Composing the kinds — the two shapes` to the line **before** `## The three design
+  kinds — extra guidance`, consuming `pending-task-shapes` in full.
+  `TASK-FORMAT.md` is finished after this batch — mint **no** residual.
+- The tail beyond your end anchor was already carved by `kinds-k22`; leave it
+  alone.
 
-### Cross-file deferral
+### Edge inventory rows owned: none — and you are the source of three
 
-- L204 and L285-ish point at `driving.md`; L?? points at `SPEC-FORMAT.md` and
-  `BRIEF-FORMAT.md`. Run the inbound sweep for *this* file's own references and
-  write `defers=` **only** where the target already exists — at this point that is
-  nothing outside `TASK-FORMAT.md` itself, so expect to write **no** cross-file
-  edge here either.
-- Conversely, `shape-cutting-k30` will sweep back into your units when it carves
-  `SKILL.md`'s *bare stem* and *grammar is five fields* paragraphs, which cite
-  `TASK-FORMAT.md` for "the full reasoning". Name the unit that holds that
-  reasoning so the sweep finds it.
+Your region cites `driving.md` (L204 and elsewhere), and the guides. **Write no
+cross-file `defers=`**: no target outside `TASK-FORMAT.md` is carved yet, so under
+the ownership rule the later endpoint's batch owns every one of those edges.
 
-### The judgement this batch exists for
+You are the *source* of three rows, all written by later batches:
 
-The two shapes are **built in opposite ways**, and that asymmetry is the design.
-The condition a session must not miss is *"more than one leaf serves one
-artifact"* plus the two follow-ons — *"a producer's last act is to decide whether
-review is required"* and *"a pair is cut eagerly, whole"*. Those are triggering:
-a session that is never told them cuts neither shape and never knows it had a
-choice. That is the unasked question the whole design exists to prevent.
+| row | edge | written by |
+|---|---|---|
+| 32 | your family-F owner → `SKILL.md` `**Cut the next step…**` | #10 `shape-cutting-k30` |
+| 33 | your family-F owner → `driving.md` §*The review chain — when doubt earns its own leaves* | #7 `doubt-moves-k27` |
+| 26–27 | `SKILL.md` *Cut the next step* / *bare stem* / *grammar is five fields* → **your procedural bodies** | #10 |
 
-The **bodies** — the exact `leaf-add` invocations, the `leaf-insert` targeting
-rule for an integration, the discriminator filenames a pair writes — are
-procedural.
+Rows 26–27 are conditional on how you split: if the prose `SKILL.md` cites for "the
+full reasoning" ends up **triggering**, #10 declines the row with that reason rather
+than writing an illegal edge. Either way, **name the unit holding the step-suffix
+reasoning in your leaf body** so #10 reads it instead of re-deriving it.
+
+### The pre-decided call in this region
+
+**Family F owner — `## Composing the kinds — the two shapes`'s opening (baseline
+L193–212).** *"Reach for them by default, and argue yourself out of one rather than
+into it"* plus *"they are built in opposite ways, and the asymmetry is the design"*
+is the **owner**: `class=triggering kinds=*`, and the corpus-wide statement of the
+condition. It is the earliest of the rule's three sites, which is why it has to
+carry it — the two later statements (`driving.md` §*The review chain*, #7; and
+`SKILL.md` `**Cut the next step…**`, #10) become procedural bodies rooted from your
+unit, and a procedural unit must be reachable at the end of its own batch.
+
+Keep the opening's two shape bullets **with** the asymmetry sentence: the bullets
+name the shapes and the sentence states the choice, and a session given one without
+the other cannot act.
+
+The **bodies** are everything after that — the exact `leaf-add` invocations, the
+`leaf-insert` targeting rule for an integration, who cuts what and when — and they
+are rooted from your owner in this same batch.
 
 `### What the shapes are not` (7,946 bytes) is the section to think hardest
 about. It is mostly *rejected alternatives* and *why the grammar infers no
@@ -63,12 +83,14 @@ need. Split that section rather than classifying it whole.
 
 ## Done when
 
-- `content/TASK-FORMAT.md` L193–472 is subdivided into real units;
+- The region between the two anchors is subdivided into real units;
   `pending-task-shapes` is gone and no `pending-task-*` unit remains.
 - `cargo build` and `cargo test` are green.
 - `EMBEDDED_UNITS` updated in the same commit, each new id named deliberately.
-- The unit holding the step-suffix reasoning is named in this leaf's body, for
-  `shape-cutting-k30`'s inbound sweep.
+- The family-F owner is in place as `class=triggering kinds=*`, with its shape
+  bullets and its asymmetry sentence in one unit.
+- The unit holding the step-suffix reasoning, and the family-F owner's id, are both
+  named in this leaf's body — #7 and #10 read them rather than re-deriving them.
 
 ## Notes
 

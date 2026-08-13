@@ -160,6 +160,11 @@ at that granularity anyway (a kind's discipline is one bullet inside a
 nineteen-bullet section).
 _Avoid_: treating a slice as a summary or a paraphrase. It is the source bytes,
 or it is a second source of truth.
+_Avoid_: reading specificity as removing **every** branch from a mandate. It
+removes a branch on the [[Session kind]] — a fact the driver resolved before the
+session existed, so shipping the `if` makes the session re-derive it. It cannot
+remove a branch on what happened *during* the session, which no driver can
+resolve; withholding one of those yields an unasked question rather than a saving.
 
 **Triggering unit** / **procedural unit**:
 The classification deciding what every [[Mandate slice]] must carry. Every rule
@@ -180,7 +185,10 @@ they say every byte of the methodology is either in a mandate or reachable from
 one, so an undiscoverable procedure is as impossible as unclassified prose.
 A triggering unit's scope is `*` or an explicit list of kind labels; there is no
 family shorthand and no negation, because a shorthand would silently absorb a
-kind added later.
+kind added later. An explicit list carries the **mirror** hazard — a kind added
+later is silently *omitted* — so guidance every kind but one needs is spelled as
+the long list and guarded by a test over all nineteen composed mandates, not by
+loosening the grammar.
 _Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
 _Avoid_: stating the invariant as "every triggering unit in *every* kind's
@@ -211,6 +219,13 @@ _Avoid_: "an interrupted finish always leaves that leaf live" — only a decline
 or an interruption the [[Finish transaction]] proved rolled back, leaves it
 selectable for an explicit later resume; what recovery cannot classify stays
 blocked and operator-recoverable instead.
+_Avoid_: reading `--done` as the cycle's only ending. A `finish` session is told,
+like every session, to externalize surfaced work rather than absorb it, and one
+that does so cannot tear down — ordinary work is live, so [[Pick]] passes the
+sentinel over. Its ending is then a plain **relaunch**: the loop continues into
+the new leaf and the sentinel waits. Three endings, distinguished by what the
+session *did* — teardown (`--done`, stop), reopening (`complete`, relaunch), or
+declining (no signal, stop, leaf still live).
 
 **Finish transaction** (`FINISHING-<finish-handle>/`, built as
 `PREPARING-FINISH-<finish-handle>-<attempt-identity>/`):

@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.3.0
+
 ### Added
 
 - **`<!-- file: order=<n> -->` — an embedded file declares its own mandate

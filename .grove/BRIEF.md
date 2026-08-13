@@ -41,25 +41,40 @@ Two things ride on that, and they are different in nature:
 
 ## Decomposition
 
-- `02` **design** — record the four decisions below in
+- `specialised-ending-k2` **design** — record the four decisions below in
   `docs/specs/mandate-delivered-methodology.md`, and agree the test seams. The
   spec already carries the composer's design; what is new is the launcher's
   reduction, where the ending specialisation lands, how the complement scope is
   spelled, and the reopened-finish ending.
-- `03` **planning** — cut the composer increment into vertical slices, each
-  leaving the product working.
+- `composer-k3` **planning** — cut the composer increment into vertical slices,
+  each leaving the product working.
 
 Design precedes planning because three of the four decisions change a shipped
 spec, and slicing work against an unamended spec would slice against the wrong
 contract.
 
+`composer-k3` cut the increment into three slices, in this order:
+
+- `composition-k7` — the composition function on the `methodology` seam and the
+  file-ordering directive it consumes. Nothing consumes the composer yet; this
+  is the fault line the planning leaf named, so a slice that only adds a
+  function is separable from one that changes what sessions receive.
+- `mandate-delivery-k8` — the driver composes by the kind it already resolved,
+  and `content/prompts/continue.md` becomes `content/MANDATE.md`, framing only.
+  One change of what a session receives, not two: the launcher's instructions
+  are removable exactly when composition delivers the units that duplicate them.
+- `session-ending-k9` — the ending specialisation itself (D2, D4) and its
+  all-nineteen guard. It follows the slice that selects by kind, because
+  splitting an ending while nothing selects would ship both endings to every
+  session.
+
 `specialised-ending-k2` externalised one further leaf, `unit-scope-audit-k4`: a
 grilling on whether the `kinds=*` default should be narrowed anywhere beyond the
 session ending. It is a **separate increment and must run last** — nothing in it
-is measurable until mandates are composed per kind. It sits at the root only
-because `leaf-add` appends there, so a `planning` session cutting composer slices
-should `leaf-insert` them **ahead of** it rather than appending after it, or
-every slice will sequence behind an audit that cannot start.
+is measurable until mandates are composed per kind. The three slices above sit
+ahead of it; any further leaf for this increment must `leaf-insert` ahead of it
+too rather than appending after it, or it will sequence behind an audit that
+cannot start.
 
 ## Decisions taken during grilling
 

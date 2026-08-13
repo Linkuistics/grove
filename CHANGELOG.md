@@ -92,12 +92,32 @@ stood at the graft — a closed record, not part of the versioned sequence above
   lacks. The marker stays the single statement of scope; all that is written
   beside it is which family it claims to be. The check runs in **both
   directions** — a triggering unit scoped to exactly a multi-member family and
-  registered nowhere is reported too, because the registry would otherwise be the
-  same silent omission one level up — and carries both controls, on the rule that
-  a sweep which cannot fail is worth nothing. `skill-signal`'s eighteen labels are
-  a complement rather than a family and keep the ending guard that already covers
-  them; the sixteen single-kind scopes are self-correcting and get nothing, since
-  a kind added later arrives with its own units.
+  named by no registration is reported too, because the registry would otherwise
+  be the same silent omission one level up. That report takes an **authored
+  answer either way**, since equal reach is evidence of family intent and not
+  proof of it: registration says a kind joining the family joins the marker, an
+  exemption beside it says it does not and carries the reason, and an exemption
+  that stops excusing anything is reported like a registration that stops matching
+  anything. A third check holds the classifier *itself* to the label
+  taxonomy — the producer classifier's second half, which this one had claimed
+  rather than carried — because a match forces a decision and not a correct one,
+  and a kind filed in the wrong family passes both membership checks while leaving
+  its own family's marker narrow. Every classifier carries both controls, on the
+  rule that a sweep which cannot fail is worth nothing. `skill-signal`'s eighteen
+  labels are a complement rather than a family and keep the ending guard that
+  already covers them; the sixteen single-kind scopes are self-correcting and get
+  nothing, since a kind added later arrives with its own units.
+- **`Kind::ALL` is held to the enum it enumerates.** The array was hand-written
+  and nothing forced a new variant into it: `label`, the producer classifier and
+  the family classifier all make an author classify a twentieth kind, and every
+  one of them still compiled with `ALL` left at nineteen — while every sweep in
+  the crate and the suite reads the kind set *through* `ALL`, the count test
+  included, which counts what `ALL` holds rather than what the enum declares. So
+  an omitted kind was invisible to all of them at once. Each variant now claims
+  its position in `ALL` by an exhaustive `match`, which leaves a twentieth with
+  only a constant index past the end to claim — rejected at **compile time** under
+  rustc's deny-by-default `unconditional_panic` lint, naming the length `ALL`
+  actually has.
 
 ### Changed
 

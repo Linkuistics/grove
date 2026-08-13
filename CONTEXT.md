@@ -223,9 +223,10 @@ Mandate size is an argument about classification, never about scope.
 _Avoid_: writing a **family-shaped** scope — labels that are exactly one family
 of the kind set — and leaving it to stand on its own. The three that exist are
 held to their families by a classifier derived from the enum, so a fourth is
-*registered* beside them rather than given a guard of its own; an unregistered
-one is reported, because a registry nothing checks is the same silent omission
-one level up.
+answered beside them rather than given a guard of its own: *registered* if a kind
+joining that family must join the marker, recorded as coincidental if it must not.
+One that is neither is reported, because a registry nothing checks is the same
+silent omission one level up.
 _Avoid_: reading the invariant as a promise about **detection**. It settles which
 units a mandate *carries* — and, separately, that the classification is checkable
 — never that a session notices the situation a carried condition describes. That

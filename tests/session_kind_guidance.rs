@@ -45,6 +45,12 @@
 //! declared **`kinds=` scopes**, as data — because its claim is about a marker a
 //! human must widen and not about any mandate's contents. All three are generated
 //! from `Kind::ALL` for the same reason, and a twentieth kind fails in all three.
+//! That guard also reads the kind **labels**, but only to contradict its own
+//! classifier: a family is derived from an exhaustive match, and the labels are
+//! the independent second opinion which makes a wrong arm fail rather than pass
+//! quietly. `Kind::ALL` itself is held to the enum in `src/leaf.rs`, without
+//! which every claim on this page is a claim about whatever `ALL` happens to
+//! hold.
 
 use clap::CommandFactory;
 use grove::leaf::Kind;
@@ -1299,15 +1305,23 @@ fn the_ending_units_prose_is_pinned_for_drift() {
 /// member, which is why [`multi_member_families`] and not this function decides
 /// what counts as a *family-shaped scope*.
 ///
-/// **What it forces is a decision, not a correct one**, and the limit is stated
-/// rather than papered over. A twentieth kind cannot reach the guard unclassified,
-/// but one classified into the *wrong* family leaves its marker narrow and every
+/// **A match forces a decision, not a correct one**, so the decision is checked:
+/// a twentieth kind cannot reach the guard unclassified, and one classified into
+/// the *wrong* family would otherwise leave its marker narrow with every
 /// assertion here green — a `review-…` kind filed under [`Family::Producer`]
-/// widens nothing and fails nothing. What stands against that is the arm it would
-/// have to be written into, next to the five kinds it plainly is not; this is the
-/// same residue `Kind::is_producer` carries, accepted for the same reason. Closing
-/// it would mean cross-checking the classifier against the label prefixes, which
-/// is the derivation this guard is deliberately not built on.
+/// widening nothing and failing nothing. [`family_taxonomy_findings`] closes
+/// that, by holding each arm to what the **label taxonomy** independently says
+/// the kind is. This is the shape `Kind::is_producer` already has in
+/// `src/leaf.rs`, both halves of it: an exhaustive match for the compile-time
+/// force, and a cross-check against the labels that actually carry the two chain
+/// steps for the correctness the match cannot give.
+///
+/// The cross-check is admissible **because** it is not the derivation this
+/// guard's own `Done when` rules out. Prefixes never derive what a scope should
+/// reach — [`Family::members`] alone does that, from this match. They are a
+/// second, independent statement of the same fact, used only to disagree with
+/// it; a wrong arm is caught by two sources contradicting each other, which is
+/// exactly what one derivation feeding itself could not do.
 fn family(kind: Kind) -> Family {
     match kind {
         Kind::Requirements | Kind::Design | Kind::Planning | Kind::Prototype | Kind::Impl => {
@@ -1369,6 +1383,87 @@ impl Family {
     }
 }
 
+/// The family a kind's **label** implies, read independently of [`family`], or
+/// `None` where the labels carry no structure to imply one.
+///
+/// Three of the six families are legible in the taxonomy's own spelling: a chain
+/// step is its producer's label under one of the two prefixes, and the pair's two
+/// surveys share the `research-` prefix its combine step does not. A producer is
+/// legible from the other side — it is a kind whose two chain steps exist, which
+/// is precisely how `src/leaf.rs` cross-checks `Kind::is_producer`.
+///
+/// `combine-research` and `finish` are `None`: their labels are bare words that
+/// say nothing about company. That is not a gap, because
+/// [`family_taxonomy_findings`] reads `None` as a *claim* — a kind whose label
+/// carries no structure has nothing to hold a shared marker to, so it must stand
+/// in a family of its own — and both of them do.
+fn taxonomy_family(kind: Kind) -> Option<Family> {
+    let is_kind = |label: &str| Kind::ALL.iter().any(|kind| kind.label() == label);
+    let label = kind.label();
+    // Longest prefix first: `integrate-review-impl` is not a `review-` step, and
+    // reading it as one would file every integration under the reviews.
+    if label.starts_with("integrate-review-") {
+        return Some(Family::IntegrateReview);
+    }
+    if label.starts_with("review-") {
+        return Some(Family::Review);
+    }
+    if label.starts_with("research-") {
+        return Some(Family::ResearchPair);
+    }
+    if is_kind(&format!("review-{label}")) && is_kind(&format!("integrate-review-{label}")) {
+        return Some(Family::Producer);
+    }
+    None
+}
+
+/// Each kind's classification against what its label independently says it is.
+/// Empty is the passing verdict.
+///
+/// Taken over an arbitrary `classify` rather than [`family`] directly, so a
+/// **wrong** classification is a shape the controls can hand it — a sweep whose
+/// only input is the one correct answer cannot be shown to reject anything.
+///
+/// Two claims, one per branch of [`taxonomy_family`]. Where the label implies a
+/// family, the classifier must agree with it. Where it implies none, the kind
+/// must be alone in whatever family it was put in: a structureless kind added to
+/// a family of others is the case the first claim cannot see, and it is the one
+/// that leaves a marker silently narrow.
+fn family_taxonomy_findings(classify: fn(Kind) -> Family) -> Vec<String> {
+    let mut findings = Vec::new();
+    for kind in Kind::ALL {
+        let classified = classify(kind);
+        match taxonomy_family(kind) {
+            Some(implied) if classified != implied => findings.push(format!(
+                "`{}` is classified {} but its label makes it {} — a kind in the \
+                 wrong family leaves that family's marker narrow with every \
+                 assertion above green",
+                kind.label(),
+                classified.label(),
+                implied.label(),
+            )),
+            Some(_) => {}
+            None => {
+                let company: Vec<Kind> = Kind::ALL
+                    .into_iter()
+                    .filter(|other| classify(*other) == classified)
+                    .collect();
+                if company.len() > 1 {
+                    findings.push(format!(
+                        "`{}`'s label carries no family structure, so nothing \
+                         holds a shared marker to it — a kind like that must \
+                         stand in a family of its own, not in {} alongside [{}]",
+                        kind.label(),
+                        classified.label(),
+                        labels(&company),
+                    ));
+                }
+            }
+        }
+    }
+    findings
+}
+
 /// Every family the kind set actually has, in first-appearance order — recovered
 /// from the classifier rather than listed, so a family added later joins these
 /// sweeps by classifying one kind into it and needs no second registration.
@@ -1407,6 +1502,29 @@ const FAMILY_SCOPES: [(&str, Family); 3] = [
     ("task-review-kinds", Family::Review),
     ("task-integrate-review-kinds", Family::IntegrateReview),
 ];
+
+/// The units whose scope **happens** to equal a family's membership without being
+/// *about* that family — the second answer
+/// [`no_scope_is_shaped_like_a_family_without_being_guarded`] has to admit.
+///
+/// Equal reach is evidence of family intent, not proof of it. A unit may
+/// legitimately address today's five `review-*` kinds because of some other
+/// property they share, and intend to leave a sixth out; without somewhere to say
+/// so, its author's only ways past the sweep are to register a claim they do not
+/// believe — that the scope must widen with the family — or to weaken the guard
+/// for everyone. So the distinction is **authored**: registering above says *a
+/// kind joining this family joins this marker*; recording here says *it does
+/// not*, and the comment beside the entry says why.
+///
+/// Empty, and expected to stay that way — the embed has no such unit today. It is
+/// the exemption's existence, not its contents, that keeps the sweep from
+/// inferring intent it cannot see.
+///
+/// An exemption is held to the same standard as a registration: one naming a unit
+/// the embed no longer declares, or one whose scope is no longer family-shaped, is
+/// reported rather than left to rot, because an exemption matching nothing reads
+/// exactly like a clean embed.
+const COINCIDENTAL_FAMILY_SHAPES: [&str; 0] = [];
 
 /// The kinds a unit's scope reaches, through `Scope::admits` — the composer's own
 /// selection rule.
@@ -1474,26 +1592,54 @@ fn family_scope_findings(units: &[Unit]) -> Vec<String> {
     findings
 }
 
-/// Every triggering unit whose scope is exactly some family's membership and
-/// which [`FAMILY_SCOPES`] does not name. Empty is the passing verdict.
-fn unregistered_family_shapes(units: &[Unit]) -> Vec<String> {
+/// Is this unit's scope exactly some multi-member family's membership?
+fn family_shape(unit: &Unit) -> Option<Family> {
+    if unit.class != Class::Triggering {
+        return None;
+    }
+    let reached = admitted_kinds(unit);
+    multi_member_families()
+        .into_iter()
+        .find(|family| reached == family.members())
+}
+
+/// Every triggering unit whose scope is exactly some family's membership and which
+/// neither [`FAMILY_SCOPES`] nor `exempt` names, plus every exemption that no
+/// longer excuses anything. Empty is the passing verdict.
+///
+/// `exempt` is [`COINCIDENTAL_FAMILY_SHAPES`] in the real sweep and a control's own
+/// list otherwise — an exemption cannot be shown to work, or to go stale, against a
+/// registry that is empty by design.
+fn unregistered_family_shapes(units: &[Unit], exempt: &[&str]) -> Vec<String> {
     let mut findings = Vec::new();
+    for id in exempt {
+        if !units
+            .iter()
+            .any(|unit| unit.id == *id && family_shape(unit).is_some())
+        {
+            findings.push(format!(
+                "`{id}` is exempted as a coincidental family shape, but no \
+                 triggering unit of that id is scoped to a whole family any more — \
+                 the exemption outlived what it excused; drop it"
+            ));
+        }
+    }
     for unit in units {
-        if unit.class != Class::Triggering || FAMILY_SCOPES.iter().any(|(id, _)| *id == unit.id) {
+        if FAMILY_SCOPES.iter().any(|(id, _)| *id == unit.id) || exempt.contains(&unit.id.as_str())
+        {
             continue;
         }
-        let reached = admitted_kinds(unit);
-        for family in multi_member_families() {
-            if reached == family.members() {
-                findings.push(format!(
-                    "content/{}: `{}` is scoped to exactly the {} family — add it \
-                     to FAMILY_SCOPES, or a kind added to that family is silently \
-                     omitted from this marker",
-                    unit.file,
-                    unit.id,
-                    family.label(),
-                ));
-            }
+        if let Some(family) = family_shape(unit) {
+            findings.push(format!(
+                "content/{}: `{}` is scoped to exactly the {} family — register it \
+                 in FAMILY_SCOPES if a kind joining that family must join this \
+                 marker, or record it in COINCIDENTAL_FAMILY_SHAPES with the reason \
+                 it must not; leaving it here is the silent omission either answer \
+                 closes",
+                unit.file,
+                unit.id,
+                family.label(),
+            ));
         }
     }
     findings
@@ -1503,10 +1649,14 @@ fn unregistered_family_shapes(units: &[Unit]) -> Vec<String> {
 /// a kind added to one goes red here naming the marker to widen — rather than
 /// leaving a session in that family without guidance nobody noticed it was owed.
 ///
-/// A twentieth kind fails before this test runs: [`family`] is an exhaustive
-/// `match`, so the file does not compile until the new variant is classified.
-/// This is what fails next, once it has been classified into a family whose
-/// marker was left alone.
+/// A twentieth kind fails twice before this test runs, and the order is the
+/// claim. `src/leaf.rs`'s slot witness fails to compile until the variant is in
+/// `Kind::ALL` — without which the whole set below is whatever `ALL` happens to
+/// hold, and a new kind is invisible to every sweep at once. Then [`family`],
+/// being an exhaustive `match`, fails to compile until it is classified. This is
+/// what fails next, once it has been classified into a family whose marker was
+/// left alone — and [`every_kind_is_classified_into_the_family_its_label_says`]
+/// is what fails instead if it was classified into the wrong one.
 ///
 /// It cannot pass by checking nothing: a registered id the embed does not declare
 /// is itself a finding.
@@ -1523,28 +1673,53 @@ fn every_family_shaped_scope_names_its_whole_family() {
 }
 
 /// **The registry's own mirror hazard**, which the guard above cannot see: a
-/// *new* family-shaped scope, written later and never registered, carries the
-/// same silent-omission defect one level up.
+/// *new* family-shaped scope, written later and named by no registration, carries
+/// the same silent-omission defect one level up.
 ///
 /// Derived rather than listed on both sides — the families come from the
-/// classifier, the shapes from the embed — so registering is the only way to
-/// clear it, and clearing it is what puts the new marker under the guard above.
+/// classifier, the shapes from the embed — so an author cannot clear this by
+/// restating a scope. What they can do is **answer** it, either way:
+/// [`FAMILY_SCOPES`] if a kind joining the family must join the marker,
+/// [`COINCIDENTAL_FAMILY_SHAPES`] if it must not. Equal reach is evidence of
+/// intent and not proof of it, and a sweep with only one answer available would
+/// be reading the first as the second.
 #[test]
 fn no_scope_is_shaped_like_a_family_without_being_guarded() {
-    let findings = unregistered_family_shapes(&embedded_units());
+    let findings = unregistered_family_shapes(&embedded_units(), &COINCIDENTAL_FAMILY_SHAPES);
     assert!(
         findings.is_empty(),
-        "these scopes name a whole family and nothing holds them to it:\n  {}",
+        "these scopes name a whole family and nothing says what that means:\n  {}",
+        findings.join("\n  ")
+    );
+}
+
+/// **The classifier itself, held to the taxonomy.** The two guards above are only
+/// as good as [`family`]'s arms: a kind in the wrong family leaves that family's
+/// marker narrow and passes both.
+///
+/// This is the half `Kind::is_producer` has always had and this section claimed
+/// without having — `src/leaf.rs` derives which labels actually carry the two
+/// chain steps and holds the classifier to that, rather than trusting the arm a
+/// human wrote. [`taxonomy_family`] is the same move: a second, independent
+/// reading of the same fact, used only to contradict the first.
+#[test]
+fn every_kind_is_classified_into_the_family_its_label_says() {
+    let findings = family_taxonomy_findings(family);
+    assert!(
+        findings.is_empty(),
+        "a kind filed under the wrong family passes every assertion above while \
+         leaving its own family's marker narrow, which is the defect those \
+         assertions exist to catch:\n  {}",
         findings.join("\n  ")
     );
 }
 
 // -- Both controls ----------------------------------------------------------
 //
-// This file's standing rule: a sweep that cannot fail is worth nothing. Both
-// classifiers are shown reporting the shape they exist to catch and staying
-// quiet on the shapes they must allow; the passing half over the *real* embed is
-// the two tests above.
+// This file's standing rule: a sweep that cannot fail is worth nothing. Each of
+// the three classifiers is shown reporting the shape it exists to catch and
+// staying quiet on the shapes it must allow; the passing half is the real embed
+// for the first two and the real classifier for the third, in the tests above.
 
 /// A synthetic unit with an explicit scope, for shapes the real embed must not
 /// contain.
@@ -1613,14 +1788,39 @@ fn the_family_scope_guard_finds_a_narrowed_marker_and_a_renamed_one() {
 
 #[test]
 fn the_family_shape_sweep_separates_a_family_from_every_other_scope() {
-    let findings =
-        unregistered_family_shapes(&[family_unit("skill-somewhere-new", Family::Review.members())]);
+    let unregistered = family_unit("skill-somewhere-new", Family::Review.members());
+    let findings = unregistered_family_shapes(std::slice::from_ref(&unregistered), &[]);
     assert_eq!(findings.len(), 1, "{findings:?}");
     assert!(
         findings[0].contains("skill-somewhere-new") && findings[0].contains("review-*"),
         "the finding must name the unregistered unit and the family it is shaped \
          like: {}",
         findings[0]
+    );
+
+    // The second answer silences it — and only it, so an exemption cannot be a
+    // blanket the next family-shaped scope also hides under.
+    let pair = vec![
+        unregistered.clone(),
+        family_unit("skill-somewhere-else", Family::IntegrateReview.members()),
+    ];
+    let exempted = unregistered_family_shapes(&pair, &["skill-somewhere-new"]);
+    assert_eq!(exempted.len(), 1, "{exempted:?}");
+    assert!(
+        exempted[0].contains("skill-somewhere-else"),
+        "an authored coincidental shape is the exemption's whole purpose, and it \
+         excuses the unit named and no other: {}",
+        exempted[0]
+    );
+
+    // An exemption that excuses nothing is reported rather than left to rot —
+    // the same rule the registry above follows for an id the embed dropped.
+    let stale = unregistered_family_shapes(&[], &["skill-somewhere-new"]);
+    assert_eq!(stale.len(), 1, "{stale:?}");
+    assert!(
+        stale[0].contains("skill-somewhere-new") && stale[0].contains("drop it"),
+        "{}",
+        stale[0]
     );
 
     // The shapes that are *not* a family-shaped scope, each for its own reason:
@@ -1640,9 +1840,9 @@ fn the_family_shape_sweep_separates_a_family_from_every_other_scope() {
         family_unit("skill-eighteen", eighteen),
     ];
     assert!(
-        unregistered_family_shapes(&allowed).is_empty(),
+        unregistered_family_shapes(&allowed, &[]).is_empty(),
         "only a scope equal to a multi-member family is a family shape: {:?}",
-        unregistered_family_shapes(&allowed)
+        unregistered_family_shapes(&allowed, &[])
     );
 
     // A procedural unit carries no scope and is not a shape at all — including it
@@ -1650,5 +1850,44 @@ fn the_family_shape_sweep_separates_a_family_from_every_other_scope() {
     let mut procedural = family_unit("skill-procedural", Family::Review.members());
     procedural.class = Class::Procedural;
     procedural.scope = None;
-    assert!(unregistered_family_shapes(&[procedural]).is_empty());
+    assert!(unregistered_family_shapes(&[procedural], &[]).is_empty());
+}
+
+#[test]
+fn the_taxonomy_cross_check_finds_both_shapes_of_a_wrong_family_decision() {
+    assert!(
+        family_taxonomy_findings(family).is_empty(),
+        "the real classifier is the passing half"
+    );
+
+    // The shape the section's own doc comment used to concede: a chain step
+    // filed with the producers, which leaves `task-review-kinds` narrow and
+    // every membership assertion green.
+    let misfiled = family_taxonomy_findings(|kind| match kind {
+        Kind::ReviewImpl => Family::Producer,
+        other => family(other),
+    });
+    assert_eq!(misfiled.len(), 1, "{misfiled:?}");
+    assert!(
+        misfiled[0].contains("`review-impl`")
+            && misfiled[0].contains("producer")
+            && misfiled[0].contains("review-*"),
+        "the finding must name the kind, where it was filed, and where its label \
+         puts it: {}",
+        misfiled[0]
+    );
+
+    // The shape the first claim cannot see, because the label implies no family
+    // to disagree with: a structureless kind given company. Nothing then holds
+    // the enlarged family's marker to its new member.
+    let crowded = family_taxonomy_findings(|kind| match kind {
+        Kind::Finish => Family::Review,
+        other => family(other),
+    });
+    assert_eq!(crowded.len(), 1, "{crowded:?}");
+    assert!(
+        crowded[0].contains("`finish`") && crowded[0].contains("review-impl"),
+        "the finding must name the kind and the company it was put in: {}",
+        crowded[0]
+    );
 }

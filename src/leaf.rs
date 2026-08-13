@@ -238,11 +238,92 @@ mod inline_tests {
         assert!(split_prefix("010_foo").is_none()); // wrong separator
     }
 
+    /// Each kind's own slot in [`Kind::ALL`] — the witness that `ALL` holds
+    /// **every** variant, and the reason a twentieth kind cannot reach the rest
+    /// of the suite unseen.
+    ///
+    /// `ALL` is a hand-written array, and until this existed no exhaustive
+    /// `match` anywhere forced a new variant *into* it. [`Kind::label`],
+    /// [`is_producer`] and the family classifier in
+    /// `tests/session_kind_guidance.rs` each make the author classify the new
+    /// kind, and every one of them still compiles with `ALL` left at nineteen —
+    /// while every sweep in this crate and in `tests/` enumerates the kind set
+    /// *through* `ALL`, [`the_set_is_nineteen_distinct_kinds`] included, which
+    /// counts what `ALL` holds rather than what the enum declares. So the one
+    /// hazard `ALL` carries is silent in the direction that matters.
+    ///
+    /// This closes it with the same device those classifiers use, one level
+    /// down. A twentieth variant must claim a slot; every slot `0..=18` is
+    /// visibly taken by the arm above it; and the slot left to claim is
+    /// `Kind::ALL[19]`, a constant index past the end of a fixed-size array,
+    /// which rustc rejects at **compile time** under the deny-by-default
+    /// `unconditional_panic` lint — naming the length `ALL` actually has.
+    /// Adding the kind to `ALL` is what clears it.
+    ///
+    /// **Its one residue**, stated rather than papered over: an author who
+    /// answers that error by aliasing a slot already taken compiles, because the
+    /// test below iterates `ALL` and so never evaluates the arm of a kind `ALL`
+    /// does not hold. Nothing about the compile error suggests that answer —
+    /// what stands against it is the same thing that stands against filing a
+    /// `review-` kind under the producers.
+    ///
+    /// **And the one place this crate's standing rule cannot be met.** Every
+    /// other sweep here carries a control showing it fail, because a sweep that
+    /// cannot fail is worth nothing; a *compile* error is not a value a test in
+    /// the same crate can observe, so this one is demonstrated by hand instead —
+    /// add a variant, leave `ALL` alone, and the build stops naming the length.
+    /// That is a weaker record than a control and is why the mechanism is spelled
+    /// out above rather than asserted below.
+    fn slot(kind: Kind) -> Kind {
+        match kind {
+            Kind::Requirements => Kind::ALL[0],
+            Kind::Design => Kind::ALL[1],
+            Kind::Planning => Kind::ALL[2],
+            Kind::Prototype => Kind::ALL[3],
+            Kind::Impl => Kind::ALL[4],
+            Kind::ResearchA => Kind::ALL[5],
+            Kind::ResearchB => Kind::ALL[6],
+            Kind::CombineResearch => Kind::ALL[7],
+            Kind::Finish => Kind::ALL[8],
+            Kind::ReviewRequirements => Kind::ALL[9],
+            Kind::ReviewDesign => Kind::ALL[10],
+            Kind::ReviewPlanning => Kind::ALL[11],
+            Kind::ReviewPrototype => Kind::ALL[12],
+            Kind::ReviewImpl => Kind::ALL[13],
+            Kind::IntegrateReviewRequirements => Kind::ALL[14],
+            Kind::IntegrateReviewDesign => Kind::ALL[15],
+            Kind::IntegrateReviewPlanning => Kind::ALL[16],
+            Kind::IntegrateReviewPrototype => Kind::ALL[17],
+            Kind::IntegrateReviewImpl => Kind::ALL[18],
+        }
+    }
+
+    #[test]
+    fn all_holds_every_kind_in_the_slot_it_claims() {
+        // Two claims at once. Each kind occupying the slot it named is what
+        // makes the slots a bijection onto `ALL` — two arms claiming one slot
+        // leaves the other kind reading back as its neighbour — and the slots
+        // are *positions*, so this is also where reordering `ALL` reports that
+        // they need renumbering.
+        for kind in Kind::ALL {
+            assert_eq!(
+                slot(kind),
+                kind,
+                "{:?} claims the slot `ALL` fills with {:?}; the slots are \
+                 positions in `ALL`, so reordering it renumbers them",
+                kind,
+                slot(kind)
+            );
+        }
+    }
+
     #[test]
     fn the_set_is_nineteen_distinct_kinds() {
-        // The count and the distinctness are the two things `ALL` can get wrong
-        // that the compiler cannot catch (a duplicated entry, a forgotten one
-        // paired with a duplicate). Spelled out against the spec's own figure.
+        // What is left for this to catch once [`slot`] forces every variant
+        // *into* `ALL`: the other direction, where `ALL` holds something the
+        // enum did not gain — a duplicated entry, or one paired with a
+        // miscount. `slot` is quiet on both (a duplicate still reads back as
+        // itself), and the figure is the spec's own.
         assert_eq!(Kind::ALL.len(), 19);
         let mut labels: Vec<&str> = Kind::ALL.iter().map(|k| k.label()).collect();
         labels.sort_unstable();

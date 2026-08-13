@@ -370,12 +370,26 @@ Every kind's mandate states exactly one session ending*. `task-review-kinds`
 (two) carried the same hazard with nothing on it, and now carry a guard of their
 own. Each is exactly a **family partition** of the kind set, so each is derivable
 rather than judged — the shape the repository already answers with
-`Kind::is_producer`, an exhaustive `match` kept deliberately in place of a roster
-lookup so that a new variant fails to build until someone classifies it. That is
-the device the guard reuses: a classifier over the kind enum yields each family's
-membership, and the assertion is that the marker's scope reaches exactly it. **No
+`Kind::is_producer`, which is **two devices, not one**: an exhaustive `match` kept
+deliberately in place of a roster lookup so a new variant fails to build until
+someone classifies it, *and* a cross-check holding that classification to the
+labels which actually carry the two chain steps, because a match forces a decision
+and not a correct one. The guard reuses both. A classifier over the kind enum
+yields each family's membership and the assertion is that the marker's scope
+reaches exactly it; a second, independent reading of each kind's **label** — the
+two chain-step prefixes, the pair's shared one — is then allowed only to
+*contradict* that classifier, never to derive what a scope should reach. A kind
+whose label carries no such structure is held to a different claim: it must stand
+in a family of its own, since nothing could hold a shared marker to it. **No
 second source of truth is created** — the marker stays the single statement of
 scope, and what is written beside it is only *which family* it claims to be.
+
+All of it rests on `Kind::ALL` being the whole enum, which was itself unforced: a
+twentieth variant compiled with `ALL` left at nineteen, and every sweep here
+enumerates the kind set *through* `ALL`. A slot witness in `src/leaf.rs` closes
+that one level further down — each variant claims its position in `ALL` by an
+exhaustive match, so a new one has only a constant out-of-bounds index left to
+claim, which rustc rejects at compile time.
 
 What the guard adds is a red **pointing at the markers**. Adding a kind went red
 twice before it, at that match and at the ending guard, and neither red pointed
@@ -384,12 +398,23 @@ complain; the composition golden does not reach it either, because a new kind
 produces a *new* golden section rather than failing an existing one. Now the
 classifier fails to compile until the new kind is classified, and the assertion
 then names the marker to widen and the label it lacks. The guard's **own** mirror
-is closed with it: a family-shaped scope written later and never registered would
-carry the same defect one level up, so the check runs in both directions — every
-registered marker reaches its whole family, and no unregistered triggering unit
-is scoped to exactly a **multi-member** family. Single-member families are
-excluded rather than overlooked, because a scope naming one of them is a
-single-kind scope, which is the self-correcting shape that needs no guard at all.
+is closed with it: a family-shaped scope written later and named by no
+registration would carry the same defect one level up, so the check runs in both
+directions — every registered marker reaches its whole family, and no
+unregistered triggering unit is scoped to exactly a **multi-member** family.
+Single-member families are excluded rather than overlooked, because a scope naming
+one of them is a single-kind scope, which is the self-correcting shape that needs
+no guard at all.
+
+That second direction takes an **authored answer, either way**, because equal
+reach is evidence of family intent and not proof of it. A unit written later may
+address today's five `review-*` kinds for some other property they share and
+intend to leave a sixth out; a sweep with only one answer available would be
+reading the evidence as the proof, and would leave that author registering a claim
+they do not believe or weakening the guard for everyone. So registration says *a
+kind joining this family joins this marker*, an exemption beside it says *it does
+not* and carries the reason, and an exemption that stops excusing anything is
+reported like a registration that stops matching anything.
 
 **Why nothing else narrowed.** The two candidates recorded when the ending split
 deferred this question do not survive measurement. `skill-finish`'s cycle body was
@@ -1488,12 +1513,25 @@ The checks that seam carries:
 
   It runs in **both directions**, because the registry naming those three is
   otherwise the same silent omission one level up: a triggering unit scoped to
-  exactly a multi-member family and named by no registration is reported too.
-  Both controls, on the rule every sweep here follows — shown failing on a
-  synthetic marker missing a family member and on a registered id the embed no
-  longer declares, shown quiet on `*`, on a single-kind scope, on a single-kind
-  scope that is a whole one-member family, and on `skill-signal`'s eighteen, and
-  passing on the real embed.
+  exactly a multi-member family and named by no registration is reported too —
+  and cleared by either answer, registration or a recorded exemption, since equal
+  reach cannot establish what a unit is about. A third check holds the classifier
+  itself to the **label taxonomy**, which is what makes the two membership claims
+  worth anything: a kind filed in the wrong family passes both while leaving its
+  own family's marker narrow. The labels are read only to contradict the
+  classifier and never to derive an expected scope, which is the derivation this
+  guard is deliberately not built on.
+
+  Every classifier carries both controls, on the rule every sweep here follows.
+  The membership check is shown failing on a synthetic marker missing a family
+  member and on a registered id the embed no longer declares. The shape sweep is
+  shown failing on an unregistered family shape and on an exemption that excuses
+  nothing, quiet once that shape is exempted, and quiet on `*`, on a single-kind
+  scope, on a single-kind scope that is a whole one-member family, and on
+  `skill-signal`'s eighteen. The taxonomy cross-check is shown failing on a chain
+  step filed with the producers and on a structureless kind given company — its
+  two branches, since a label implying no family has no first claim to break. The
+  real embed and the real classifier are the passing half of each.
 - **The per-kind size alarm** — each of the nineteen composed mandates at or under
   64 KiB, counting the composer's returned bytes and not the driver's runtime
   facts, for the reasons given above.

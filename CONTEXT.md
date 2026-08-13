@@ -216,6 +216,10 @@ the long list and guarded by a test over all nineteen composed mandates, not by
 loosening the grammar.
 _Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
+_Avoid_: reading **scope** as a token-budget lever. A unit narrows when a kind
+added later would not need it — true by construction of a unit stating one kind's
+own discipline, and needing a check derived from the kind set for anything else.
+Mandate size is an argument about classification, never about scope.
 _Avoid_: reading the invariant as a promise about **detection**. It settles which
 units a mandate *carries* — and, separately, that the classification is checkable
 — never that a session notices the situation a carried condition describes. That

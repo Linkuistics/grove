@@ -325,6 +325,100 @@ large enough that explicit scopes stop being auditable, and then only for a
 replacement preserving fail-on-kind-addition. One eighteen-member list against
 nineteen kinds is still a list a human reads; negation preserves nothing.
 
+### A unit narrows when a kind added later would not need it
+
+The grammar above decides what a scope may *say*. This decides when to say
+anything but `*`. The audit that could have widened the answer ran as its own
+increment, measured the composed mandates, and narrowed nothing further.
+
+**What a mandate contains**, measured over the shipped corpus rather than
+estimated. 140 units, of which 69 are procedural and reach no mandate at all —
+93,102 bytes held out of every session. Of the 71 triggering units, **51 are
+`kinds=*` and total 45,032 bytes**, so that core is in all nineteen mandates; the
+20 narrowed units spread a further 13,869 bytes across the kinds that need them.
+Per-kind mandates run 45.7 KiB (`prototype`) to 49.2 KiB (`requirements`), and
+the spread between the widest and the narrowest is 3.5 KiB.
+
+**The rule the narrowed set already follows**, recovered from it rather than
+imposed on it — and the recovery had to be done twice, because the obvious split
+is by the unit's *subject* and the load-bearing one is by the **shape of its
+scope**:
+
+- **Sixteen scopes name a single kind** — `task-producer-*`,
+  `task-deliverable-*`, `task-finish-session`, `skill-finish-cycle`,
+  `skill-finish-endings`, `task-combine-research`,
+  `task-bootstrap-leaf-is-requirements`, and `driving.md`'s three
+  `requirements`-scoped units. These are self-correcting by construction: a kind
+  added later arrives with its own units, and **no single-kind scope ever needs
+  widening for it**. No guard is needed and none was built.
+- **Four scopes name a set**, and a set is where the mirror hazard lives. A kind
+  added later may belong to that set, so the list must be widened by hand — and
+  the omission is silent, because a new kind produces a *new* golden section
+  rather than failing an existing one, exactly as the ending guard's rationale
+  records.
+
+So the test is **does a kind added later need this unit?** A single-kind scope
+answers no by construction and narrows for free. A set-shaped scope may answer
+yes, so it narrows only behind a check derived from the closed kind set. The
+judgement of what a unit is *about* never enters it, which is what makes the test
+usable on a unit nobody has written yet.
+
+**Only one of the four set-shaped scopes is guarded**, and recording the other
+three is the audit's substantive finding. `skill-signal`'s eighteen labels are
+covered by *Requirement: Every kind's mandate states exactly one session ending*.
+**`task-review-kinds` (five labels), `task-integrate-review-kinds` (five) and
+`task-research-pair` (two) carry the same hazard with nothing on it.** Each is
+exactly a family partition of the kind set, so each is derivable rather than
+judged — the repository already answers this shape with `Kind::is_producer`, an
+exhaustive `match` kept deliberately in place of a roster lookup so that a new
+variant fails to build until someone classifies it. Adding a kind today goes red
+twice, at that match and at the ending guard, and **neither red points at these
+three markers**, so they stay silently narrow while the author fixes what did
+complain. Closing that is `impl` work rather than a scope decision, and it is cut
+as its own leaf.
+
+**Why nothing else narrowed.** The two candidates recorded when the ending split
+deferred this question do not survive measurement. `skill-finish`'s cycle body was
+already narrowed *by* that split — `skill-finish-cycle` and `skill-finish-endings`
+are `kinds=finish`, and what remains at `*` is the 579-byte negative trigger the
+split deliberately kept universal. The review-ownership and chain-cutting units
+are largely not in a mandate at all: `skill-review-ownership`,
+`skill-cut-the-next-step` and `skill-integration-placement` are procedural, and
+what stays triggering is read by producers deciding to cut a review, reviews
+cutting integrations, and integrations cutting fresh chains — nearly every kind.
+
+The audit found one unit that does sit in the second category and is left
+universal anyway. **`skill-starting-a-new-grove`** (1,622 bytes, `kinds=*`)
+addresses a bootstrap session, and the scaffolded first leaf's kind is a driver
+constant (`Kind::Requirements`, `src/tree_lifecycle.rs`), so no other kind can
+meet the situation it describes. Narrowing it would buy 3.4% of one mandate from
+eighteen of them and cost a new guard coupling a `content/` marker to a driver
+constant. It is recorded as the worked example a reopening would start from, not
+as pending work — and no combination of further candidates was found that reaches
+double digits.
+
+**What reopens this, and what does not.** One condition is live: **a unit shown to
+be wrong for the kinds it reaches**, misdirecting them or demonstrably irrelevant
+to them in bulk. That is a correctness argument rather than a token one — it holds
+whether or not the unit costs a byte — and narrowing is one of its two fixes. The
+other is a prose edit, and which applies is the finding's to decide.
+
+Two conditions were considered and are recorded as **not** reopening it, because a
+reader meeting a large mandate will otherwise re-run this audit:
+
+- **Measured mandate size.** The lever size calls for is *classification*, not
+  scope. Reclassification already holds 93,102 bytes of procedural bodies out of
+  every mandate, while narrowing can only redistribute the 58,901 that remain, at
+  a ceiling in the low single digits of one mandate — and that ceiling is
+  proportional, so a corpus twice the size has the same one. A mandate approaching
+  the 64 KiB alarm means bodies were classified triggering, which is what the
+  alarm already says.
+- **A kind set that grew.** Per-session cost is invariant to the kind count: every
+  session receives the universal core however many kinds exist, so growth moves no
+  number in this trade. It also makes explicit lists *less* auditable, which is
+  the ADR's own reopen condition for the grammar and points away from narrowing
+  rather than toward it.
+
 ### A malformed embed fails the build
 
 `build.rs` parses `content/` and fails `cargo build`. The parser is one
@@ -1406,16 +1500,6 @@ filesystem walk that used to gather it.
   has to carry free text, such as a title or a summary, since that is the point
   where escaping stops being a property of the data and becomes a rule someone
   must remember.
-- **A systematic audit of every unit's scope.** The ending specialisation
-  narrows the units that carry a session ending and no others, even though the
-  `kinds=*` default is certainly wider than some units need. An audit is a
-  different bet: each narrowing trades a slice of the completeness invariant's
-  protection — a unit scoped to a list is a unit some kind can be wrongly
-  omitted from — for token savings, and it makes that trade across the whole
-  embed at once, where the ending specialisation makes it on one instruction with
-  a test that covers exactly the hazard it introduces. Reopen it as its own
-  increment, where the general question of what guards a narrowed scope can be
-  answered before anything is narrowed.
 - **A templating engine.** One was accepted in principle to keep `content/`
   readable from the code, but byte-exact slicing reaches that without one. No
   engine is adopted to satisfy a sentence.

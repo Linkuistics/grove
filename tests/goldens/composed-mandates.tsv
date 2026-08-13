@@ -457,8 +457,9 @@ finish	skill-retirement-touches-one-filename
 finish	skill-pruning-is-hitl
 finish	skill-node-close-cascade
 finish	skill-commit
-finish	skill-signal
 finish	skill-finish
+finish	skill-finish-cycle
+finish	skill-finish-endings
 finish	skill-artifacts
 finish	skill-glossary-is-load-bearing
 finish	skill-briefs-vs-glossary

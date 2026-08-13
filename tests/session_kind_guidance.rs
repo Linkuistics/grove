@@ -36,9 +36,17 @@
 //! Every sweep carries both controls, because a sweep that cannot fail is worth
 //! nothing: each classifier is shown rejecting the shape it exists to reject and
 //! accepting the one it exists to allow.
+//!
+//! **Two surfaces, one question.** The sweeps above read `content/` as
+//! *documents*, which is what a provisioned skill is. The session-ending guard at
+//! the foot of the file reads the same corpus as **composed mandates**, because
+//! its claim is about what one kind's session is handed and not about what any
+//! file says. Both are generated from `Kind::ALL` for the same reason, and a
+//! twentieth kind fails in both.
 
 use clap::CommandFactory;
 use grove::leaf::Kind;
+use grove::methodology::{self, Class, Scope, Unit};
 use grove::tree_id::{self, Entry};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -867,4 +875,351 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
 
     // A flag discussed with no verb on the line stays out of scope, as stated.
     assert!(unreal_flags_in("pass `--kind` when the leaf is not an impl").is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Every kind's mandate states exactly one session ending
+
+/// The **declared ending set**: the units that state a session's ending.
+///
+/// A *set of ids* rather than a per-kind mapping, and that is the whole economy
+/// of this guard. A mapping would restate every ending unit's `kinds=` scope a
+/// second time, away from the prose it scopes — the *classify in a manifest
+/// beside `content/`* shape
+/// `docs/adr/mandate-delivers-the-methodology.md` rejects. A set needs nothing
+/// but the closed kind set: *for every kind, exactly one of these appears*, and
+/// a twentieth kind admitted by neither scope counts zero and fails by name
+/// (`docs/specs/mandate-delivered-methodology.md`, *Every kind's mandate states
+/// exactly one session ending*).
+///
+/// What the set therefore cannot see is the **mirror** hazard — a *new* ending
+/// unit nobody named here, which leaves the declared one present and still
+/// counting one. [`the_completion_verb_is_named_only_by_a_declared_ending`] is
+/// what converts that, and it converts it only as far as an operable
+/// restatement goes: one that names the verb fails, one phrased around it
+/// escapes to the classification review, where the requirement already puts it.
+const ENDING_UNITS: [&str; 2] = ["skill-signal", "skill-finish-endings"];
+
+/// The unit stating that a session never discovers a grove is finished — the
+/// negative trigger, and the one fragment of the finish story that stays
+/// `kinds=*`. Withhold it and a session that retires the last live leaf holds
+/// no statement about what it is looking at, with an unasked question attached
+/// to a destructive action.
+const NEGATIVE_TRIGGER: &str = "skill-finish";
+
+/// The completion verb as a mandate spells it. The bare word `complete` is
+/// ordinary English in this corpus — *complete finish cycle*, *complete as
+/// delivered* — so the token has to carry the binary's name to mean the verb.
+const COMPLETION_VERB: &str = "grove-llm complete";
+
+/// The stop flag. Only a `finish` session has an ending that takes it, and the
+/// eighteen are told nothing about it, because the exception is not about them.
+const STOP_FLAG: &str = "--done";
+
+/// The real embed, parsed and whole-embed checked.
+fn embedded_units() -> Vec<Unit> {
+    methodology::units().expect("the real embed must parse and pass its whole-embed checks")
+}
+
+/// The declared ending units a mandate actually carries.
+///
+/// Located by the unit's **own source bytes**, as every other claim over a
+/// composed mandate is: a marker-shaped line inside a slice's body is prose (the
+/// methodology documents its own grammar), so scanning the output for markers
+/// would report units that are not there.
+fn declared_endings_in(units: &[Unit], mandate: &str) -> Vec<String> {
+    units
+        .iter()
+        .filter(|unit| ENDING_UNITS.contains(&unit.id.as_str()))
+        .filter(|unit| mandate.contains(unit.source.as_str()))
+        .map(|unit| unit.id.clone())
+        .collect()
+}
+
+/// Every unit in `mandate` that names the completion verb without being a
+/// declared ending. Empty is the passing verdict.
+fn verb_named_outside_the_declared_set(units: &[Unit], mandate: &str) -> Vec<String> {
+    units
+        .iter()
+        .filter(|unit| mandate.contains(unit.source.as_str()))
+        .filter(|unit| unit.source.contains(COMPLETION_VERB))
+        .filter(|unit| !ENDING_UNITS.contains(&unit.id.as_str()))
+        .map(|unit| unit.id.clone())
+        .collect()
+}
+
+/// **The claim the whole specialisation rests on**: a session is told one
+/// ending, and it is told one.
+///
+/// The failure this exists for is not a wrong ending but *no* ending — a kind
+/// whose sessions are launched with nothing telling them to signal, so each one
+/// ends silently and stops the loop, one session at a time, with nothing
+/// non-zero anywhere. Generated from [`Kind::ALL`] so that is a red test rather
+/// than an operator's discovery.
+#[test]
+fn every_kind_is_told_exactly_one_session_ending() {
+    let units = embedded_units();
+    for kind in Kind::ALL {
+        let mandate = methodology::compose(&units, kind);
+        let carried = declared_endings_in(&units, &mandate);
+        assert_eq!(
+            carried.len(),
+            1,
+            "the `{}` mandate carries {} of the declared ending units ({:?}), not one. \
+             At zero, a session of this kind is never told to signal, so the loop \
+             stops on every one of them; above one, it is handed a branch the \
+             driver had already resolved.",
+            kind.label(),
+            carried.len(),
+            carried
+        );
+    }
+}
+
+/// The eighteen are told **nothing** about `--done`, and `finish` is told about
+/// it. Half a claim each way: absence is what makes the eighteen's mandate
+/// exception-free, presence is what stops the specialisation from having taken
+/// the ending away from the one kind that needs it.
+#[test]
+fn only_the_finish_mandate_carries_the_stop_flag() {
+    let units = embedded_units();
+    for kind in Kind::ALL {
+        let carries = methodology::compose(&units, kind).contains(STOP_FLAG);
+        assert_eq!(
+            carries,
+            kind == Kind::Finish,
+            "the `{}` mandate {} `{STOP_FLAG}`; only the `finish` mandate may, \
+             because an ending stated as an exception to another kind's rule is \
+             the branch this specialisation removes",
+            kind.label(),
+            if carries { "names" } else { "does not name" },
+        );
+    }
+}
+
+/// **The complement sweep**, and the reason it is a separate claim from the
+/// count above: a second unit that also states an ending leaves the declared one
+/// present and still counting one, so membership alone cannot see it. This is
+/// the duplicate-prose blind spot the design admits when it reduces the
+/// launcher — the completeness invariant checks that every unit reaches its
+/// kinds, never that no unit says what another already said.
+#[test]
+fn the_completion_verb_is_named_only_by_a_declared_ending() {
+    let units = embedded_units();
+    for kind in Kind::ALL {
+        let mandate = methodology::compose(&units, kind);
+        let strays = verb_named_outside_the_declared_set(&units, &mandate);
+        assert!(
+            strays.is_empty(),
+            "the `{}` mandate names `{COMPLETION_VERB}` in {strays:?}, which the \
+             declared ending set does not name. Either the unit is a second \
+             ending — in which case the session is being told its ending twice, \
+             with nothing holding the two in step — or it is the new ending and \
+             `ENDING_UNITS` has not been told.",
+            kind.label()
+        );
+    }
+}
+
+/// The negative trigger reaches all nineteen, `finish` included — it reads the
+/// same sentence as a true statement of how it came to be launched, which is why
+/// its scope is `*` rather than a second spelling of the eighteen.
+#[test]
+fn every_kind_is_told_that_finishing_is_not_its_call() {
+    let units = embedded_units();
+    let trigger = units
+        .iter()
+        .find(|unit| unit.id == NEGATIVE_TRIGGER)
+        .unwrap_or_else(|| panic!("`{NEGATIVE_TRIGGER}` must exist"));
+
+    for kind in Kind::ALL {
+        assert!(
+            methodology::compose(&units, kind).contains(trigger.source.as_str()),
+            "the `{}` mandate does not carry `{NEGATIVE_TRIGGER}`. A session that \
+             retires the last live leaf would then hold no statement about what it \
+             is looking at — an unasked question attached to a destructive action",
+            kind.label()
+        );
+    }
+}
+
+// -- Both controls ----------------------------------------------------------
+//
+// A sweep that cannot fail is worth nothing, which is this file's own rule. The
+// two guards above fail in different ways, so each is shown failing on the shape
+// it exists to catch.
+
+/// A [`Unit`] built by hand, for the shapes the real embed must not contain.
+/// Constructed rather than parsed because the point is to hold a mandate the
+/// grammar would never produce.
+fn synthetic_unit(id: &str, source: &str) -> Unit {
+    Unit {
+        id: id.to_string(),
+        class: Class::Triggering,
+        scope: Some(Scope::All),
+        defers: Vec::new(),
+        file: "synthetic.md".to_string(),
+        file_order: 1,
+        line: 1,
+        offset: 0,
+        source: source.to_string(),
+    }
+}
+
+/// The membership control: withdraw one kind from an ending unit's scope, which
+/// is what *adding* a twentieth kind does from the other side, and the count for
+/// that kind goes to zero while every other kind still holds one.
+#[test]
+fn the_ending_count_fails_for_a_kind_no_ending_unit_admits() {
+    let withdrawn = Kind::Impl;
+    let narrowed: Vec<Unit> = embedded_units()
+        .into_iter()
+        .map(|mut unit| {
+            if unit.id == "skill-signal" {
+                if let Some(Scope::Kinds(kinds)) = unit.scope.as_mut() {
+                    kinds.retain(|kind| *kind != withdrawn);
+                }
+            }
+            unit
+        })
+        .collect();
+
+    for kind in Kind::ALL {
+        let mandate = methodology::compose(&narrowed, kind);
+        let expected = usize::from(kind != withdrawn);
+        assert_eq!(
+            declared_endings_in(&narrowed, &mandate).len(),
+            expected,
+            "with `{}` withdrawn from the relaunch ending's scope, only that kind \
+             may lose its ending; `{}` disagreed",
+            withdrawn.label(),
+            kind.label()
+        );
+    }
+}
+
+/// The complement control: a mandate naming the verb outside the declared set is
+/// named, and one that does not is clean. Both halves, because a sweep that
+/// reports everything is as useless as one that reports nothing.
+#[test]
+fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
+    let declared = synthetic_unit(
+        ENDING_UNITS[0],
+        "run `grove-llm complete` as your last action\n",
+    );
+    let stray = synthetic_unit(
+        "skill-somewhere-else",
+        "and afterwards `grove-llm complete`\n",
+    );
+    let quiet = synthetic_unit("skill-quiet", "retire the leaf and commit\n");
+
+    let all = vec![declared.clone(), stray.clone(), quiet.clone()];
+    let with_stray = format!("{}\n{}\n{}", declared.source, stray.source, quiet.source);
+    assert_eq!(
+        verb_named_outside_the_declared_set(&all, &with_stray),
+        ["skill-somewhere-else"],
+        "a unit naming the completion verb without being a declared ending must \
+         be reported — this is the shape the membership count cannot see"
+    );
+
+    let clean = vec![declared.clone(), quiet.clone()];
+    let without_stray = format!("{}\n{}", declared.source, quiet.source);
+    assert!(
+        verb_named_outside_the_declared_set(&clean, &without_stray).is_empty(),
+        "a mandate whose only completion verb is its declared ending's is clean"
+    );
+}
+
+// -- The drift pin ----------------------------------------------------------
+
+/// **The two ending units' own source bytes, pinned.**
+///
+/// Two limbs of *Every kind's mandate states exactly one session ending* are
+/// prose rather than structure: that the `finish` unit states its endings **as
+/// outcomes of what the session did** rather than as a rule qualified by another
+/// kind's, and that no unit restates an ending in words naming neither the
+/// completion verb nor `--done`. The composer returns opaque bytes and carries no
+/// role metadata, so a mechanical claim about either would be a substring
+/// heuristic wearing a SHALL. They are carried by the classification review; what
+/// this pin adds is that the review is **re-entered when the prose moves**.
+///
+/// It is a pin for **drift, not for correctness** — it says nothing about
+/// whether the prose is right, only that it changed since a human last read it.
+///
+/// Two things it is deliberately not:
+///
+/// * **Not the composition golden.** That holds each kind's ordered unit ids, so
+///   it moves when a unit is gained, lost, re-scoped or re-ordered and does *not*
+///   move when the prose inside an ending unit is rewritten — which is exactly the
+///   drift these two limbs are exposed to.
+/// * **Not a regenerable golden file.** A `GROVE_TEST_UPDATE_GOLDENS=1` pin can
+///   be cleared without reading the new prose, and reading the new prose is the
+///   entire purpose. A constant that has to be retyped by hand is friction
+///   pointed the right way.
+const RELAUNCH_ENDING_SOURCE: &str = r#"<!-- unit: skill-signal kinds="requirements design planning prototype impl research-a research-b combine-research review-requirements review-design review-planning review-prototype review-impl integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
+**Signal.** Once the task is retired and committed (and any parent-chain cascade
+is settled and included), run **`grove-llm complete`** as your **last action — then do
+nothing else**. This is how the self-driving loop ends this session and starts
+the next task with fresh context: the verb only writes the relaunch flag to a
+signal file (`GROVE_SIGNAL_FILE`) and returns. Ending the session is the **loop
+driver's** job, not this verb's — the driver launched this session and is
+watching for the signal file while it runs, so it applies grace → SIGTERM →
+kill-grace → SIGKILL to its own child once the file appears (driver-side
+watcher: the driver can always signal its child, unlike an in-agent self-kill,
+which some harness sandboxes — e.g. codex's Seatbelt — silently deny). Run
+outside a `grove` loop (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just
+tells you to exit manually. Ending *without* signalling stops the loop instead —
+a crash or a Ctrl-C is exactly that — so the signal is what separates a task you
+finished from a session that died, and it is the whole of what you have to do to
+hand back.
+
+"#;
+
+/// The `finish` half of the pin. See [`RELAUNCH_ENDING_SOURCE`] for what it is
+/// and is not; the limb it carries is that this table reads as **outcomes** —
+/// three rows keyed by what the session did — and never as one kind's rule with
+/// another kind's beside it.
+const FINISH_ENDING_SOURCE: &str = r#"<!-- unit: skill-finish-endings kinds=finish class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
+**How this session ends is decided by what it did**, and all three outcomes are
+open to you. Whichever you reach, the signal is your **last action — then do
+nothing else**; the loop driver is watching for it and ends the session itself.
+
+| what the session did | ending |
+|---|---|
+| teardown completed | `grove-llm complete --done` — the loop stops |
+| externalised work instead | `grove-llm complete` — the loop relaunches and picks the new leaf; the sentinel waits |
+| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
+
+The middle outcome is the one worth holding on to. You are told, like every
+session, to externalize surfaced work rather than absorb it, and a session that
+does so **cannot** tear down: ordinary work is live, and `pick` passes the
+sentinel over until it is terminal. That is a plain relaunch rather than a
+failure, and it banks no confirmation — the sentinel is never retired, so the
+next `finish` session proposes the cycle and waits for a confirmation of its
+own. Declining, or finding no human to ask, leaves the leaf live and next, so
+the following bare `grove` proposes the cycle again. On confirmation, run:
+
+"#;
+
+#[test]
+fn the_ending_units_prose_is_pinned_for_drift() {
+    let units = embedded_units();
+    for (id, pinned) in [
+        ("skill-signal", RELAUNCH_ENDING_SOURCE),
+        ("skill-finish-endings", FINISH_ENDING_SOURCE),
+    ] {
+        let unit = units
+            .iter()
+            .find(|unit| unit.id == id)
+            .unwrap_or_else(|| panic!("`{id}` must exist — it is a declared ending"));
+        assert_eq!(
+            unit.source, pinned,
+            "`{id}`'s prose moved. This pin is not a specification and the diff is \
+             not a defect — it is the signal to re-read the two limbs no test can \
+             check: that the `finish` endings still read as outcomes of what the \
+             session did rather than as a rule qualified by another kind's, and \
+             that neither unit has grown a restatement of an ending phrased around \
+             the completion verb. Confirm both, then update the constant."
+        );
+    }
 }

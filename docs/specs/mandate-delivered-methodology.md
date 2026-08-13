@@ -593,16 +593,18 @@ unit is an ordinary marked unit and is never called one.)
 ### The ending is specialised where the conditional lives
 
 Reducing the launcher to framing removes one copy of the session-ending branch.
-It does not remove the branch. `skill-signal` is `kinds=*` and states both
+It does not remove the branch. `skill-signal` was `kinds=*` and stated both
 endings itself — plain `complete` relaunches, the finish cycle ends with
-`--done` — so a mandate composed from today's markers still hands every session
+`--done` — so a mandate composed from those markers still handed every session
 an `if` on its own kind, one slice later than the launcher did. Deleting the
-launcher's copy alone would relocate the derivation rather than retire it.
+launcher's copy alone would have relocated the derivation rather than retired it.
 
-The specialisation therefore lands on the units carrying the conditional.
-`skill-signal` and `skill-finish` are each **split**, because each spans a
-universal statement and a kind-specific ending and a unit has one scope. Three
-scopes result:
+The specialisation therefore lands on the units carrying the conditional, and it
+lands differently on each. `skill-signal` carried no universal statement worth
+preserving — every sentence of it is the relaunch ending or the mechanism that
+ending runs on — so it is **narrowed**, and the branch is deleted rather than
+relocated. `skill-finish` genuinely spanned both, and a unit has one scope, so it
+is **split**. Three scopes result:
 
 - **The relaunch ending is scoped to the eighteen non-`finish` labels.** Such a
   session is told to run `grove-llm complete` as its last action and is told
@@ -641,15 +643,20 @@ session that has decided not to tear down has no reason to ask for the teardown
 procedure.
 
 **Scope is bounded to the session-ending instruction, and the cut is whatever
-that instruction forces.** How many units each split yields, and where the
-boundaries fall, is prose the writing leaves decide against the three scopes
-above; neither split is assumed to be a single cut. `skill-finish` in particular
-holds more than one universal fragment — the negative trigger, and the clause
-telling *every* session that its own escalations are discretionary rather than
-routine — so a two-way cut may not reach it. **Prose that rides along because it
-sits on the `finish` side of a forced boundary is not a scope audit**; the
-cycle's teardown steps, sentinel mechanics and human gate are read by one kind
-anyway, and narrowing them is a consequence of the cut rather than a finding
+that instruction forces.** What forced `skill-finish`'s is that its two universal
+fragments — the negative trigger, and the clause telling *every* session that its
+own escalations are discretionary rather than routine — sit at **opposite ends**
+of the paragraph with `finish`-only prose between them, and a unit is one
+contiguous span with one scope. So the two are **merged into the leading unit**
+rather than left as a `kinds=*` span on each side of the middle: a trailing
+universal sentence would arrive in eighteen mandates having lost the gate its own
+words point at, which is exactly the standing-alone failure partition exists to
+make visible. The `finish` remainder then divides again at the ending itself, so
+that the declared ending set names one unit per kind rather than a unit that also
+carries the cycle's mechanics. Three units, not two. **Prose that rides along
+because it sits on the `finish` side of a forced boundary is not a scope audit**;
+the cycle's teardown steps, sentinel mechanics and human gate are read by one
+kind anyway, and narrowing them is a consequence of the cut rather than a finding
 about them.
 
 What is *not* in scope is re-deciding the scope of a unit that carries no ending.
@@ -1123,8 +1130,11 @@ role metadata, so a mechanical claim about either would be a substring heuristic
 wearing a SHALL. They are carried by the classification review, and pinned for
 drift — not for correctness — by a byte-level pin of the **ending units
 themselves**. The composition golden is not that pin: it holds each kind's
-ordered unit ids, for the reason given under *Test seams*, so the increment that
-splits the ending adds the narrow byte assertion its own claim needs.
+ordered unit ids, for the reason given under *Test seams*, so the ending split
+carries the narrow byte assertion its own claim needs, beside the guard. That pin
+is a hand-edited constant rather than a regenerable golden, and deliberately: a
+one-command regeneration can be cleared without reading the new prose, and
+reading the new prose is the whole of what the pin is for.
 
 #### Scenario: every kind is covered
 - **WHEN** a mandate is composed for each member of the closed kind set

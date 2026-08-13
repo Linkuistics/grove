@@ -158,7 +158,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
 /// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
 /// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 138] = [
+const EMBEDDED_UNITS: [&str; 140] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -225,6 +225,8 @@ const EMBEDDED_UNITS: [&str; 138] = [
     "skill-do-not-pick-again",
     "skill-execute",
     "skill-finish",
+    "skill-finish-cycle",
+    "skill-finish-endings",
     "skill-finish-no-signal-stop",
     "skill-finish-nothing-after",
     "skill-finish-resume",

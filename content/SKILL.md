@@ -555,7 +555,7 @@ unsealed change is expensive to unpick afterwards:
 operation log as the only way back. The lane itself belongs to
 `linkuistics:using-jujutsu`; grove states only where its boundary falls.
 
-<!-- unit: skill-signal kinds=* class=triggering -->
+<!-- unit: skill-signal kinds="requirements design planning prototype impl research-a research-b combine-research review-requirements review-design review-planning review-prototype review-impl integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **Signal.** Once the task is retired and committed (and any parent-chain cascade
 is settled and included), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts
@@ -567,30 +567,53 @@ kill-grace → SIGKILL to its own child once the file appears (driver-side
 watcher: the driver can always signal its child, unlike an in-agent self-kill,
 which some harness sandboxes — e.g. codex's Seatbelt — silently deny). Run
 outside a `grove` loop (no `GROVE_SIGNAL_FILE`) it is a safe no-op that just
-tells you to exit manually. Plain `complete` signals a
-**relaunch**; the **Finish** cycle below ends instead with **`grove-llm complete
---done`**, which signals a clean *stop*. The loop tells the three cases apart by
-the signal: a relaunch flag, a `--done` flag, or no flag at all (a crash /
-Ctrl-C, which stops).
+tells you to exit manually. Ending *without* signalling stops the loop instead —
+a crash or a Ctrl-C is exactly that — so the signal is what separates a task you
+finished from a session that died, and it is the whole of what you have to do to
+hand back.
 
-<!-- unit: skill-finish kinds=* class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
+<!-- unit: skill-finish kinds=* class=triggering -->
 **Finish.** You do not discover that a grove is finished — the driver does, and
-it tells you by launching you. Once no ordinary live leaf is left, bare `grove`
-appends one driver-owned `finish` leaf at the grove root and mandates it under
-the `finish` session kind; that mandate *is* the signal, so a finish session
-never asks `pick` anything. The leaf is a real, **resumable** task: it carries
-its own stable handle (`finish-k<key>`, which step 2 needs), and it is created
-once and reused, never duplicated. Declining teardown — or ending before step 2
-begins — exits without a completion signal and leaves the leaf live and next, so
-the following bare `grove` proposes the cycle again. Ordinary work inserted
-ahead of it (`leaf-insert`) makes the driver pass it over until that work is
-terminal, so the sentinel can neither starve nor preempt real work. The
-**complete finish cycle** itself is driven in-session by the LLM
-(no Rust automation): the session **proposes** it and **waits for explicit human
-confirmation before any teardown** — never run steps 2–3 unprompted, so a
-headless run with no human present simply reports the plan and stops. This is the
-loop's **only routine human gate** (confirmation-boundary) — everything else
-a session asks is a discretionary escalation. On confirmation, run:
+it tells you by launching a `finish` session for it. Retiring the last live leaf
+is therefore an ordinary retirement and not a cue to tear anything down. That
+`finish` session asks a human for explicit confirmation first, and that one
+confirmation is the loop's **only routine human gate** (confirmation-boundary):
+everything else a session asks a human is a discretionary escalation — always
+legitimate, never a step grove requires of you.
+
+<!-- unit: skill-finish-cycle kinds=finish class=triggering -->
+Once no ordinary live leaf is left, bare `grove` appends one driver-owned
+`finish` leaf at the grove root and mandates it under the `finish` session kind;
+that mandate *is* the signal, so a finish session never asks `pick` anything.
+The leaf is a real, **resumable** task: it carries its own stable handle
+(`finish-k<key>`, which step 2 needs), and it is created once and reused, never
+duplicated. Ordinary work inserted ahead of it (`leaf-insert`) makes the driver
+pass it over until that work is terminal, so the sentinel can neither starve nor
+preempt real work. The **complete finish cycle** itself is driven in-session by
+the LLM (no Rust automation): the session **proposes** it and **waits for
+explicit human confirmation before any teardown** — never run steps 2–3
+unprompted, so a headless run with no human present simply reports the plan and
+stops.
+
+<!-- unit: skill-finish-endings kinds=finish class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
+**How this session ends is decided by what it did**, and all three outcomes are
+open to you. Whichever you reach, the signal is your **last action — then do
+nothing else**; the loop driver is watching for it and ends the session itself.
+
+| what the session did | ending |
+|---|---|
+| teardown completed | `grove-llm complete --done` — the loop stops |
+| externalised work instead | `grove-llm complete` — the loop relaunches and picks the new leaf; the sentinel waits |
+| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
+
+The middle outcome is the one worth holding on to. You are told, like every
+session, to externalize surfaced work rather than absorb it, and a session that
+does so **cannot** tear down: ordinary work is live, and `pick` passes the
+sentinel over until it is terminal. That is a plain relaunch rather than a
+failure, and it banks no confirmation — the sentinel is never retired, so the
+next `finish` session proposes the cycle and waits for a confirmation of its
+own. Declining, or finding no human to ask, leaves the leaf live and next, so
+the following bare `grove` proposes the cycle again. On confirmation, run:
 
 <!-- unit: skill-finish-steps class=procedural -->
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,

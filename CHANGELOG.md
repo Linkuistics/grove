@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.2.0
+
 ### Added
 
 - **`grove-llm methodology` — the embedded methodology, addressable by unit.**

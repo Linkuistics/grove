@@ -140,16 +140,19 @@ composition order, the verb's surface, and the agreed test seams.
 - **Let `kinds=` express families or negations.** Rejected because a shorthand
   silently absorbs a session kind added later — the same failure the
   [complete session configuration](complete-session-configuration.md) repetition
-  rule exists to make visible. Complement cases do arise, and the first one — the
-  relaunch ending, for every kind but `finish` — is spelled as all eighteen
-  labels rather than as a negation. The list's own hazard is the mirror, a kind
-  added later silently *omitted*, and the asymmetry is why it is still the better
-  trade: an omission leaves a mandate missing something, which is a universal
-  claim over a closed kind set and therefore testable, while an absorption leaves
-  a mandate holding something no mechanical check can distinguish from guidance
-  that correctly generalised. Reopen if the kind set grows large enough that
-  explicit scopes stop being auditable, and only with a replacement that
-  preserves fail-on-kind-addition.
+  rule exists to make visible — and because it moves the answer to *which kinds
+  does this unit reach* away from the marker beside the prose. A negation states
+  the complement of a set declared elsewhere, so recovering the per-kind
+  classification means restating it in a test: the manifest failure one entry
+  above, relocated. Complement cases do arise, and the first one — the relaunch
+  ending, for every kind but `finish` — is spelled as all eighteen labels rather
+  than as a negation. The list's own hazard is the mirror, a kind added later
+  silently *omitted*, and what decides the trade is the cost of guarding each: an
+  omission is caught by a check derived from the closed kind set alone, while an
+  absorption satisfies every such check and is caught only by an exhaustive
+  expected-ending mapping that restates each kind's scope away from its marker.
+  Reopen if the kind set grows large enough that explicit scopes stop being
+  auditable, and only with a replacement that preserves fail-on-kind-addition.
 - **Verify the change behaviourally rather than structurally.** Rejected because
   an evaluation is expensive, non-deterministic, measures a model rather than
   Grove's artifact, and localizes nothing when it goes red. The completeness

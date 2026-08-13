@@ -268,19 +268,37 @@ itself the day the kind set changes, in the direction nobody inspects.
 argued that none would arise — guidance for every kind including `finish` is `*`,
 and guidance that is not is a short list — and the session-ending instruction
 falsifies that: the relaunch ending is for exactly the eighteen non-`finish`
-kinds, and the only spelling the grammar admits is all eighteen labels. The ugly
-marker is still the right one, because the two hazards are not equally
-repairable. A complement's hazard is that a twentieth kind is silently
-**absorbed** into guidance nobody chose to give it. The list's is the mirror — a
-twentieth kind is silently **omitted** from guidance it needs, and its sessions
-are then launched with no ending at all, never signal, and stop the loop one by
-one. Grammar closes neither. A **test** closes one and not the other, and that
-asymmetry decides it: an omission leaves a mandate missing something, which is a
-universal claim over a closed kind set and therefore checkable, while an
-absorption leaves a mandate holding something, and no mechanical claim
-distinguishes guidance that correctly generalised from guidance that merely
-inherited. So the long list stays, and the omission is guarded by test
-(*Requirement: Every kind's mandate states exactly one session ending*).
+kinds, and the only spelling the grammar admits is all eighteen labels.
+
+The ugly marker is still the right one, and the reason is **adjacency and single
+ownership of scope**. A marker answers *which kinds does this unit reach* beside
+the prose it scopes, and it is the only place that question is answered. A
+complement moves the answer: `kinds=!finish` states what the unit is not for, so
+the set it does reach is derived from a kind set declared elsewhere and re-reads
+itself whenever that set changes. Recovering a per-kind guarantee then means
+writing each kind's ending down a second time, in a test, away from the prose —
+which is the *classify in a manifest beside `content/`* shape
+[the mandate delivers the methodology](../adr/mandate-delivers-the-methodology.md)
+already rejects, for the same reason: two statements of one classification, with
+nothing holding them in step.
+
+The two hazards remain asymmetric, and the asymmetry is what each costs to guard
+rather than whether it can be guarded at all. A complement's hazard is that a
+twentieth kind is silently **absorbed** into guidance nobody chose to give it. The
+list's is the mirror — a twentieth kind is silently **omitted** from guidance it
+needs, and its sessions are then launched with no ending at all, never signal, and
+stop the loop one by one. Grammar closes neither. The **omission** is closed by a
+check that needs nothing beyond the closed kind set and the invariant already
+stated — for every kind, exactly one ending unit — so it costs no second source of
+truth (*Requirement: Every kind's mandate states exactly one session ending*). The
+**absorption** is invisible to exactly those checks: a mandate that gained an
+ending nobody chose still holds exactly one, and a scope that widened silently
+satisfies every claim derived from `Kind::ALL` alone. It is not, however,
+untestable — an exhaustive expected-ending mapping over the kind enum, with no
+wildcard arm, stops compiling until a kind added later is given an ending
+explicitly. What that costs is precisely the duplicated scope the explicit list
+makes unnecessary. So the long list stays: it keeps the classification adjacent to
+its prose *and* checkable against nothing but the kind set.
 
 This does not reach the ADR's reopen condition, which is the kind set growing
 large enough that explicit scopes stop being auditable, and then only for a
@@ -532,12 +550,23 @@ scopes result:
   what the session did, never as a rule with another kind's rule beside it.
 - **One sentence stays `kinds=*`**: a session never discovers that a grove is
   finished — the driver does, and tells it by launching a `finish` session. This
-  is a **negative trigger**, and it is the case "keep the `if`" exists for.
-  Withhold it and a session that retires the last live leaf holds no statement
-  about what it is looking at, with the unasked question attached to a
-  destructive action. Its readers are exactly the kinds the finish endings are
-  withheld from, and that is not a tension: what it tells them is *this is not
-  yours*, which is why they need it and `finish` does not.
+  is a **negative trigger**, and it is the case "keep the `if`" exists for. The
+  eighteen are its load-bearing readers: withhold it and a session that retires
+  the last live leaf holds no statement about what it is looking at, with the
+  unasked question attached to a destructive action, and what the sentence tells
+  it is *this is not yours*. `finish` reads the same sentence as a true statement
+  of how it came to be launched — it did not discover the grove was finished
+  either — so nothing has to be withheld from it, and the scope is `*` rather
+  than a second spelling of the eighteen. Narrowing it would buy one sentence of
+  tokens and pay for it with another explicit list to keep in step with the kind
+  set.
+
+Two claims those scopes carry are **authoring rules rather than mechanical
+ones** — that the finish endings read as outcomes, and that no unit restates an
+ending it was not scoped to state. The composer returns opaque bytes and carries
+no role metadata, so both are carried by the classification review and pinned for
+drift by the golden snapshots. The requirement below says which of its limbs the
+guard establishes, rather than implying a check the seam cannot support.
 
 **The finish endings are triggering, not procedural**, and the reopening ending
 is why. A `finish` session that externalises surfaced work never reaches the
@@ -609,16 +638,28 @@ own. A reopening banks no earlier answer — a session that externalised work ne
 reached teardown, so there was none — and it could not spend one later anyway,
 because the finish transaction's proof is bound to its own launch.
 
-**This is methodology, not an ADR.** Against the when-to-write test it fails two
-of three. Reversing it costs a prose edit rather than a migration. And the
-alternative — ending a reopening `finish` with no signal, so the loop stops and a
-human reruns `grove` — is not a genuine trade-off but a worse answer to a
-question the sentinel-passing rule already settled, that rule existing precisely
-so ordinary work preempts the sentinel without human intervention. Only the third
-test is cleared — it *is* surprising, which is why it has to be written
-down — and a fact that is merely surprising is prose. `CONTEXT.md`'s *Complete
-finish cycle* entry already carries the three-ending reading; this section is
-where the design says so, and `content/` is where the session is told.
+**This is methodology, not an ADR**, and it fails the when-to-write test on
+reversibility alone. Reversing it costs a prose edit and nothing else: no state
+is stored under either answer, no tree is restructured, and the next session
+composed the other way behaves the other way. Miss any one of the three limbs and
+there is no ADR to write, so that limb settles it.
+
+The other two are cleared, and the trade-off limb is cleared honestly rather than
+argued away. The alternative — ending a reopening `finish` with no signal, so the
+loop stops and a human reruns `grove` — is a real control choice. The driver makes
+relaunch **opt-in** and treats no signal as a resumable stop, so an operator may
+reasonably want the loop to pause exactly when a `finish` session has just widened
+the grove's scope, and to read the new leaf before further sessions run against
+it. What decides against it is that the sentinel-passing rule settled the same
+question one level down — ordinary work preempts the sentinel without human
+intervention — so stopping here would make a `finish` session's `leaf-add`
+uniquely require a human where no other session's does. That is a preference
+between two workable behaviours, which is what a trade-off is; it is simply the
+losing one. It is also **surprising**, which is the third limb and the reason it
+has to be written down at all — and a decision that is surprising and genuinely
+traded off, but free to reverse, is prose. `CONTEXT.md`'s *Complete finish cycle*
+entry already carries the three-ending reading; this section is where the design
+says so, and `content/` is where the session is told.
 
 ### `grove-llm methodology` fetches bytes, or lists rows
 
@@ -976,16 +1017,29 @@ those triggering units whose scope admits that kind, and no procedural unit.
 
 ### Requirement: Every kind's mandate states exactly one session ending
 
-A composed mandate SHALL carry exactly one unit stating that kind's session
-ending. The mandate of every kind other than `finish` SHALL state the relaunch
-ending and SHALL NOT carry `--done`. The `finish` mandate SHALL state its three
-endings as outcomes of what the session did, and SHALL state no other kind's
-rule. Every mandate, `finish` included, SHALL carry the statement that a session
-never discovers a grove is finished.
+A composed mandate SHALL carry exactly one unit from the **declared ending
+set** — the set naming, per kind, the unit that states that kind's session
+ending. The mandate of every kind other than `finish` SHALL carry the relaunch
+ending unit and SHALL NOT carry the `--done` token. The `finish` mandate SHALL
+carry the finish ending unit, which states three endings as outcomes of what the
+session did, and SHALL carry no other kind's ending unit. Every mandate, `finish`
+included, SHALL carry the unit stating that a session never discovers a grove is
+finished. Within any mandate, the completion verb SHALL be named only by that
+mandate's ending unit.
+
+**Two limbs of this requirement are prose rather than structure**, and the
+distinction is recorded rather than blurred: that the `finish` unit states its
+endings *as outcomes of what the session did* rather than as a rule qualified by
+another kind's, and that no unit restates an ending in words naming neither the
+completion verb nor `--done`. The composer returns opaque bytes and carries no
+role metadata, so a mechanical claim about either would be a substring heuristic
+wearing a SHALL. They are carried by the classification review, and pinned for
+drift — not for correctness — by the golden snapshots, which hold the ending
+unit's bytes verbatim.
 
 #### Scenario: every kind is covered
 - **WHEN** a mandate is composed for each member of the closed kind set
-- **THEN** each one carries exactly one session-ending unit
+- **THEN** each one carries exactly one unit from the declared ending set
 
 #### Scenario: a kind added later
 - **WHEN** a session kind is added to the closed set and no ending unit's scope
@@ -993,18 +1047,26 @@ never discovers a grove is finished.
 - **THEN** the assertion fails, naming that kind — rather than the loop stopping
   silently on the first session ever launched for it
 
+#### Scenario: an ending unit the declared set does not name
+- **WHEN** a composed mandate carries a unit naming the completion verb, and the
+  declared ending set does not name that unit
+- **THEN** the assertion fails, naming the unit — which the membership count
+  alone cannot see, because the declared unit is still present and still counts
+  one
+
 #### Scenario: no exception for another kind's rule
 - **WHEN** the mandate of any kind other than `finish` is composed
-- **THEN** it contains no `--done`, and no statement of the finish cycle's ending
+- **THEN** it contains no `--done` token, and names the completion verb only in
+  its own relaunch ending unit
 
 #### Scenario: the finish mandate is self-contained
 - **WHEN** the `finish` mandate is composed
-- **THEN** it names all three endings — teardown, reopening, and declining — and
-  states each as an outcome rather than as a rule qualified by another kind's
+- **THEN** it carries the finish ending unit and the `--done` token, and carries
+  no other kind's ending unit
 
 #### Scenario: the negative trigger is universal
 - **WHEN** any kind's mandate is composed, `finish` included
-- **THEN** it carries the statement that a session never discovers a grove is
+- **THEN** it carries the unit stating that a session never discovers a grove is
   finished; the driver does, and tells it by launching a `finish` session
 
 ### Requirement: `grove-llm methodology` serves any unit and lists them all
@@ -1105,21 +1167,44 @@ The checks that seam carries:
   reads exactly like a clean repository.
 - **Golden per-kind mandate snapshots**, for drift. They say nothing about
   correctness; they say loudly that something moved.
-- **The session-ending guard, generated from the closed kind set.** For every
-  kind, exactly one unit from a named ending set appears in that kind's composed
-  mandate; no mandate but `finish`'s carries the `--done` token; and the negative
-  trigger appears in all of them. This is a **new check, not a strengthening of
-  the golden snapshots** — and the distinction is the point of writing it down.
-  A golden asserts that a mandate has not moved, which is the wrong shape twice
-  over: it says nothing about what a mandate must contain, and a kind added to
-  the enum produces a *new* golden rather than failing an existing one, so the
-  exact hazard the guard exists for passes straight through the snapshots. Both
-  ways of breaking the guard fail loudly, because both leave some kind at zero:
-  a kind added without a scope widened to admit it, and an ending unit
-  introduced without being named in the set. `tests/session_kind_guidance.rs` is
-  the precedent and the place — it already generates its claims from the kind
-  enum so that a twentieth kind fails until the guidance names it, and this is
-  the same claim about a different surface.
+- **The session-ending guard, generated from the closed kind set.** Four claims,
+  every one of them about unit membership or a token, because membership and
+  bytes are what the seam returns: for every kind, exactly one unit from the
+  **declared ending set** appears in that kind's composed mandate; no mandate but
+  `finish`'s carries the `--done` token, and `finish`'s does; within every
+  composed mandate the completion verb is named only by units the declared set
+  names; and the negative trigger appears in all of them.
+
+  This is a **new check, not a strengthening of the golden snapshots** — and the
+  distinction is the point of writing it down. A golden asserts that a mandate has
+  not moved, which is the wrong shape twice over: it says nothing about what a
+  mandate must contain, and a kind added to the enum produces a *new* golden
+  rather than failing an existing one, so the exact hazard the guard exists for
+  passes straight through the snapshots.
+
+  **The two ways of breaking the guard do not fail alike, and only one of them
+  leaves a kind at zero.** A kind added without a scope widened to admit it does:
+  the count for that kind is zero and the first claim fails, naming it. An ending
+  unit introduced without being named in the declared set does **not** — the
+  declared unit is still there and still counts one, while the newcomer is
+  invisible to a membership check. That is the duplicate-prose blind spot this
+  design already admits when it reduces the launcher: the invariant checks that
+  every unit reaches its kinds, not that no unit says what another already said.
+  The third claim is what converts it, and it converts it only so far — a second
+  ending statement operable enough to matter names the completion verb, so it
+  fails the sweep; a restatement that names neither the verb nor `--done` escapes
+  to the classification review, which is where the requirement above already puts
+  it.
+
+  **Every classifier carries both controls**, on the precedent's own rule that a
+  sweep which cannot fail is worth nothing: the membership count shown failing on
+  a kind whose ending unit's scope is withdrawn and passing on the real set, and
+  the complement sweep shown failing on a synthetic mandate naming the verb
+  outside the declared set and passing on one that does not.
+  `tests/session_kind_guidance.rs` is the precedent and the place — it already
+  generates its claims from the kind enum so that a twentieth kind fails until the
+  guidance names it, states the limits of each sweep rather than papering over
+  them, and this is the same claim about a different surface.
 - **The per-kind size alarm** — each of the nineteen composed mandates at or under
   64 KiB, counting the composer's returned bytes and not the driver's runtime
   facts, for the reasons given above.

@@ -34,19 +34,27 @@ const SESSION_KINDS: &[&str] = &[
     "integrate-review-impl",
 ];
 
-/// The `sh` `case` pattern deciding whether a configured command was launched for
-/// the **`finish` sentinel**, matched on the driver's own mandate sentence.
+/// The literal first argument the **configuration** hands a fixture script for
+/// the `finish` kind, and only for it. Its counterpart is [`ORDINARY_ROUTE`];
+/// both are supplied by [`write_config_routing_finish_apart`].
 ///
-/// **Deliberately not `*finish-k*`.** `${prompt}` is composed methodology now,
-/// and the methodology names `finish-k<key>` in prose where it explains the
-/// sentinel — so that glob matches the mandate of *every* kind, and a fixture
-/// using it sends a `requirements` session down the teardown branch. The bytes
-/// that name the **selected** leaf are the driver's, and only the driver's,
-/// which is what this matches instead.
-///
-/// The backtick is inside single quotes so `sh` treats it as a literal in the
-/// pattern rather than opening a command substitution.
-const LAUNCHED_FOR_THE_FINISH_LEAF: &str = "*'resolve and execute `finish-k'*";
+/// **A fixture must not recover the session kind from `${prompt}`.** Kind is what
+/// Grove routes on and configuration is keyed by it, so a per-kind template is
+/// the direct discriminator — while every candidate in the prompt is indirect and
+/// unsound. `*finish-k*` matches the mandate of *every* kind, because composed
+/// methodology names `finish-k<key>` in the prose explaining the sentinel. Even
+/// the driver's own sentence naming the **selected** leaf only identifies a
+/// handle whose slug is `finish`: `validate_slug` reserves `BRIEF` and `DONE` and
+/// not `finish` (`src/leaf_id.rs`), so an ordinary `NN-impl-finish-k42.md` is a
+/// legal leaf whose mandate would send a non-`finish` configured session down the
+/// teardown branch.
+const FINISH_ROUTE: &str = "route=finish";
+
+/// The literal first argument the configuration hands a fixture script for the
+/// eighteen non-`finish` kinds. Distinct from [`FINISH_ROUTE`] rather than
+/// absent, so a script's fall-through case is reached by a positive value and a
+/// misrouted launch cannot look like an unrouted one.
+const ORDINARY_ROUTE: &str = "route=ordinary";
 
 fn run(program: &str, current_dir: &Path, arguments: &[&str]) -> Output {
     let output = Command::new(program)
@@ -344,6 +352,32 @@ fn write_complete_config(home: &Path, template: &str) {
     let document = SESSION_KINDS
         .iter()
         .map(|kind| format!("{kind} {template:?}\n"))
+        .collect::<String>();
+    fs::write(config_dir.join("config.kdl"), document).unwrap();
+}
+
+/// A complete config in which one `sh` script serves every kind, told which kind
+/// it was launched for by its **own first argument** — [`FINISH_ROUTE`] for
+/// `finish`, [`ORDINARY_ROUTE`] for the other eighteen — with `${prompt}` second.
+///
+/// This is the routing Grove actually performs, observed at the seam it performs
+/// it on: the driver reads the kind from the selected leaf's filename and looks up
+/// *that kind's* complete command template, so a fixture that needs to know which
+/// kind ran asks the configuration to tell it rather than parsing the payload.
+fn write_config_routing_finish_apart(home: &Path, script: &Path) {
+    let config_dir = home.join(".config/grove");
+    fs::create_dir_all(&config_dir).unwrap();
+    let document = SESSION_KINDS
+        .iter()
+        .map(|kind| {
+            let route = if *kind == "finish" {
+                FINISH_ROUTE
+            } else {
+                ORDINARY_ROUTE
+            };
+            let template = format!("sh {} {route} '${{prompt}}'", script.display());
+            format!("{kind} {template:?}\n")
+        })
         .collect::<String>();
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
@@ -1472,6 +1506,75 @@ fn configured_finish_target_commits_teardown_then_stops_the_loop_cleanly() {
     assert!(git(&repository, &["log", "-1", "--pretty=%s"]).contains("finish-k2"));
 }
 
+/// **The fixtures' own discriminator, under the leaf that defeats every prompt
+/// substring.** `finish` is not a reserved slug (`validate_slug` reserves `BRIEF`
+/// and `DONE`), so `01-impl-finish-k1.md` is an ordinary work item whose stable
+/// handle is `finish-k1` — and every candidate marker inside `${prompt}` matches
+/// it, the bare `*finish-k*` glob and the driver's own sentence naming the
+/// selected leaf alike.
+///
+/// This is a claim about the **test harness**, and it belongs in the suite that
+/// depends on it, because a misrouted fixture does not fail: it runs the teardown
+/// branch and then asserts happily about a session that never happened.
+///
+/// The discriminating assertion is therefore the **launch log** — under a prompt
+/// substring it stays empty, because the teardown branch consumed the launch. The
+/// surviving leaf is a weaker claim deliberately kept: `finish-commit` refuses a
+/// selection whose kind is not `finish` (`src/tree_lifecycle.rs`, *cannot finish
+/// while live work remains*), so a misroute here is a lying fixture rather than a
+/// destroyed grove, and this pins that second line of defence rather than the
+/// routing.
+#[test]
+fn the_finish_route_is_not_taken_by_an_ordinary_leaf_whose_slug_is_finish() {
+    let fixture = TempDir::new().unwrap();
+    let repository = fixture.path().join("ordinary-finish-slug");
+    init_git(&repository);
+    let grove = repository.join(".grove");
+    fs::create_dir_all(&grove).unwrap();
+    fs::write(grove.join("FORMAT"), "session-kinds-v1\n").unwrap();
+    fs::write(grove.join("BRIEF.md"), "# ordinary-finish-slug — brief\n").unwrap();
+    fs::write(grove.join("01-impl-finish-k1.md"), "# finish-k1\n").unwrap();
+    run("git", &repository, &["add", "-A"]);
+    run("git", &repository, &["commit", "-q", "-m", "fixture"]);
+    let home = fixture.path().join("home");
+    fs::create_dir_all(home.join(".codex")).unwrap();
+    let launch_log = fixture.path().join("launch-log");
+    let script = fixture.path().join("route.sh");
+    write_executable(
+        &script,
+        &format!(
+            "#!/bin/sh\ncase \"$1\" in {finish}) {llm} finish-commit finish-k1; exit $?;; esac\nprintf '%s\\n' \"$2\" > {log}\n",
+            finish = FINISH_ROUTE,
+            llm = env!("CARGO_BIN_EXE_grove-llm"),
+            log = launch_log.display(),
+        ),
+    );
+    write_config_routing_finish_apart(&home, &script);
+
+    let output = Command::cargo_bin("grove")
+        .unwrap()
+        .current_dir(&repository)
+        .env("HOME", &home)
+        .env_remove("GROVE_SIGNAL_FILE")
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let mandate = fs::read_to_string(&launch_log).unwrap_or_default();
+    assert!(
+        mandate.contains("finish-k1"),
+        "the ordinary route must have run and received the mandate: {mandate:?}"
+    );
+    assert!(
+        grove.join("01-impl-finish-k1.md").is_file(),
+        "an ordinary leaf was sent down the teardown branch"
+    );
+}
+
 /// Teardown succeeds, then the configured child dies without signalling. The
 /// deleted tree is the *one* piece of evidence that could tempt a driver into
 /// inferring `done` — root absence is what a finished grove looks like — so the
@@ -1493,13 +1596,13 @@ fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grov
     write_executable(
         &script,
         &format!(
-            "#!/bin/sh\ncase \"$1\" in {selected}) {llm} finish-commit finish-k2 || exit $?; exit 23;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
-            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
+            "#!/bin/sh\ncase \"$1\" in {finish}) {llm} finish-commit finish-k2 || exit $?; exit 23;; esac\nprintf '%s\\n' \"$2\" > {log}\n",
+            finish = FINISH_ROUTE,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             log = launch_log.display(),
         ),
     );
-    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+    write_config_routing_finish_apart(&home, &script);
 
     let stopped = Command::cargo_bin("grove")
         .unwrap()
@@ -1571,7 +1674,7 @@ fn a_done_signal_abandoned_by_a_killed_driver_reinitializes_instead_of_finishing
         &format!(
             r#"#!/bin/sh
 case "$1" in
-{selected})
+{finish})
   {llm} finish-commit finish-k2 || exit $?
   printf '%s\n' "$GROVE_SIGNAL_FILE" > {signal_log}
   driver=$PPID
@@ -1582,16 +1685,16 @@ case "$1" in
   exit 0
   ;;
 esac
-printf '%s\n' "$1" > {launch_log}
+printf '%s\n' "$2" > {launch_log}
 "#,
-            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
+            finish = FINISH_ROUTE,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             signal_log = signal_log.display(),
             signalled = signalled.display(),
             launch_log = launch_log.display(),
         ),
     );
-    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+    write_config_routing_finish_apart(&home, &script);
 
     // Spawn rather than `output()`. The child polls until its parent's pid stops
     // answering `kill -0`, and a SIGKILLed process keeps answering while it is
@@ -1693,13 +1796,13 @@ fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tr
     write_executable(
         &script,
         &format!(
-            "#!/bin/sh\ncase \"$1\" in {selected}) {llm} finish-commit finish-k2; exit $?;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
-            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
+            "#!/bin/sh\ncase \"$1\" in {finish}) {llm} finish-commit finish-k2; exit $?;; esac\nprintf '%s\\n' \"$2\" > {log}\n",
+            finish = FINISH_ROUTE,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             log = launch_log.display(),
         ),
     );
-    write_complete_config(&home, &format!("sh {} '${{prompt}}'", script.display()));
+    write_config_routing_finish_apart(&home, &script);
 
     let torn_down = Command::cargo_bin("grove")
         .unwrap()

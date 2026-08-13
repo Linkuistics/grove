@@ -216,6 +216,17 @@ the long list and guarded by a test over all nineteen composed mandates, not by
 loosening the grammar.
 _Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
+_Avoid_: reading the invariant as a promise about **detection**. It settles which
+units a mandate *carries* — and, separately, that the classification is checkable
+— never that a session notices the situation a carried condition describes. That
+noticing stays the session's, so a mandate is complete with respect to triggering
+conditions and still full of situations only the session can see; `content/`'s own
+framing unit overstated exactly this once and was rebodied around the structural
+claim.
+_Avoid_: reading "withheld" as *procedural*. Three absences, not two: a
+procedural body is withheld and **named** by the slice deferring to it, a
+triggering unit scoped to other kinds is withheld and does not apply, and nothing
+else is absent at all.
 _Avoid_: stating the invariant as "every triggering unit in *every* kind's
 mandate". `kinds=*` is the default, not the rule; a unit scoped to one kind must
 be absent from the other eighteen, and that absence is half of what the test
@@ -589,6 +600,13 @@ configured command directly and is not a model router or proxy.
 _Avoid_: describing environment variables, a harness stamp, `--harness`, or a
 leaf-level `**Harness:**` declaration as configuration fallbacks. Grove has one
 configuration source.
+_Avoid_: recovering the kind from `${prompt}`. The kind is the routing *key* and
+the mandate is the *payload*, so every substring test is indirect and unsound: the
+composed methodology names `finish-k<key>` in its own prose, and even the driver's
+sentence naming the selected leaf identifies only a handle whose slug is `finish`
+— which `validate_slug` permits, since it reserves `BRIEF` and `DONE` and no kind
+label. Anything needing to know which kind ran asks the per-kind configured
+template, which is where the routing decision was actually made.
 
 **Stated VCS**:
 The version-control fact the driver resolves *before* a session exists and

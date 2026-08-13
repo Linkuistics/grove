@@ -122,6 +122,17 @@ fn write_complete_config(home: &Path, template: &str) {
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
+/// The driver-authored sentence naming the leaf selected for one session.
+///
+/// It has **one home in this binary** for the same reason it has one home in the
+/// driver: it is the only mandate prose the driver writes about the selected
+/// leaf, and every other byte of `${prompt}` is a byte-exact slice of `content/`
+/// whose wording no fixture pins (`docs/specs/mandate-delivered-methodology.md`,
+/// *The driver authors mandate prose only for facts it resolves at runtime*).
+fn mandate_naming(handle: &str) -> String {
+    format!("Grove mandate: the leaf selected for this session is `{handle}`")
+}
+
 fn run_grove(home: &Path, worktree: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_grove"))
         .current_dir(worktree)
@@ -258,8 +269,7 @@ exit 0
         log.contains("<!-- unit: mandate-framing kinds=* class=triggering -->"),
         "{log:?}"
     );
-    assert!(log.contains("selected-work-k7"), "{log:?}");
-    assert!(log.contains("do not call `grove-llm pick`"), "{log:?}");
+    assert!(log.contains(&mandate_naming("selected-work-k7")), "{log:?}");
     assert!(log.contains("\narg=<--after>\n"), "{log:?}");
     let signal = log
         .lines()
@@ -362,7 +372,7 @@ printf 'mode=%s\nrepo=%s\nprompt=%s\nworktree=%s\nsession=%s\n' \
         argv.contains("session=main-repository: linked-worktree grove\n"),
         "{argv}"
     );
-    assert!(argv.contains("resolve and execute `scalars-k7`"), "{argv}");
+    assert!(argv.contains(&mandate_naming("scalars-k7")), "{argv}");
 }
 
 fn assert_bare_grove_migrates_and_launches_a_jj_legacy_tree(colocate: bool) {
@@ -571,7 +581,7 @@ exit 0
     );
     assert!(worktree.join(".grove/01-requirements-plan-k1.md").is_file());
     let prompt = fs::read_to_string(log).unwrap();
-    assert!(prompt.contains("resolve and execute `plan-k1`"), "{prompt}");
+    assert!(prompt.contains(&mandate_naming("plan-k1")), "{prompt}");
 }
 
 #[test]
@@ -615,7 +625,7 @@ exit 0
     );
     assert!(fs::read_to_string(prompt_log)
         .unwrap()
-        .contains("resolve and execute `custom-plan-k1`"));
+        .contains(&mandate_naming("custom-plan-k1")));
 }
 
 #[test]
@@ -683,9 +693,9 @@ exit 0
     );
     let rows = fs::read_to_string(log).unwrap();
     assert!(rows.contains("first-template|"), "{rows}");
-    assert!(rows.contains("resolve and execute `first-k1`"), "{rows}");
+    assert!(rows.contains(&mandate_naming("first-k1")), "{rows}");
     assert!(rows.contains("second-template|"), "{rows}");
-    assert!(rows.contains("resolve and execute `second-k2`"), "{rows}");
+    assert!(rows.contains(&mandate_naming("second-k2")), "{rows}");
 }
 
 #[test]
@@ -726,10 +736,7 @@ exit 0
         String::from_utf8_lossy(&output.stderr)
     );
     let prompt = fs::read_to_string(prompt_log).unwrap();
-    assert!(
-        prompt.contains("resolve and execute `selected-k7`"),
-        "{prompt}"
-    );
+    assert!(prompt.contains(&mandate_naming("selected-k7")), "{prompt}");
     assert!(!prompt.contains("inserted-k8"), "{prompt}");
     assert!(grove.join("01-design-inserted-k8.md").is_file());
 }
@@ -1323,7 +1330,7 @@ exit 0
     );
     assert!(fs::read_to_string(prompt_log)
         .unwrap()
-        .contains("resolve and execute `legacy-task-k1`"));
+        .contains(&mandate_naming("legacy-task-k1")));
     let subject = Command::new("git")
         .args(["log", "-1", "--format=%s"])
         .current_dir(&worktree)
@@ -1530,8 +1537,7 @@ impl AdoptedTree {
             self.stderr
         );
         assert!(
-            self.mandate
-                .contains(&format!("resolve and execute `{handle}`")),
+            self.mandate.contains(&mandate_naming(handle)),
             "the mandate must name the migrated handle {handle}: {:?}",
             self.mandate
         );
@@ -1789,7 +1795,7 @@ exit 0
     assert!(!finish_body.contains("**Kind:**"));
     assert!(fs::read_to_string(&launch_log)
         .unwrap()
-        .contains("Grove mandate: resolve and execute `finish-k2`"));
+        .contains(&mandate_naming("finish-k2")));
 
     fs::write(grove.join("03-design-resumed-k3.md"), "# resumed-k3\n").unwrap();
     let resumed_output = run_grove(&home, &worktree);
@@ -1801,7 +1807,7 @@ exit 0
     );
     assert!(fs::read_to_string(&launch_log)
         .unwrap()
-        .contains("Grove mandate: resolve and execute `resumed-k3`"));
+        .contains(&mandate_naming("resumed-k3")));
     assert_eq!(
         fs::read_dir(&grove)
             .unwrap()
@@ -1828,7 +1834,7 @@ exit 0
     );
     assert!(fs::read_to_string(&launch_log)
         .unwrap()
-        .contains("Grove mandate: resolve and execute `finish-k2`"));
+        .contains(&mandate_naming("finish-k2")));
     assert_eq!(
         fs::read_dir(&grove)
             .unwrap()

@@ -2,11 +2,14 @@
 
 ## Problem
 
-A Grove session is told almost nothing and expected to derive the rest. Today's
-mandate is roughly 1.1 kB — one embedded launcher, the selected stable handle,
-and the resolved version control — and everything else the session needs it must
-find for itself in a 51 kB `SKILL.md` sitting in a global skill directory some
-other build may have written.
+A Grove session was told almost nothing and expected to derive the rest. The
+mandate this design replaces was roughly 1.1 kB — one embedded launcher, the
+selected stable handle, and the resolved version control — and everything else
+the session needed it had to find for itself in a 51 kB `SKILL.md` sitting in a
+global skill directory some other build may have written. Composition has since
+landed and the launcher is gone; **global skill provisioning has not**, so that
+directory is still written and still read — the transient two-path state
+*Provisioning retires after the mandate is proven* admits and bounds.
 
 Three costs follow, in the order they matter.
 
@@ -31,11 +34,12 @@ exits non-zero, and no reviewer sees a diff. That is Grove's stated primary
 failure mode, and any design that delivers methodology selectively has to
 convert it into a structural failure or it is not safe to ship.
 
-The current delivery path also cannot be made specific. `content/` reaches a
-session as whole documents in a shared directory, so the only granularity
-available is "the file" — while the granularity the session needs is "this one
-bullet, out of nineteen". Pointing at a location leaves the session reading the
-whole section and performing the selection itself, which is precisely the
+Provisioning also could not be made specific, and still cannot — which is why it
+is a fallback being retired rather than a path being improved. It delivers
+`content/` as whole documents in a shared directory, so the only granularity
+available to it is "the file", while the granularity the session needs is "this
+one bullet, out of nineteen". Pointing at a location leaves the session reading
+the whole section and performing the selection itself, which is precisely the
 reasoning cost being removed.
 
 ## Solution

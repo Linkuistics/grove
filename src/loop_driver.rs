@@ -203,6 +203,15 @@ fn run_configured_loop_with_lease(
 /// it describes (`docs/specs/mandate-delivered-methodology.md`, *The driver
 /// authors mandate prose only for facts it resolves at runtime*).
 ///
+/// The handle paragraph is therefore a **statement and not an errand**. What to
+/// do with the handle is composed methodology: `skill-bootstrap` carries the
+/// resolve-and-read sequence, and `skill-do-not-pick-again` carries both that
+/// this selection is authoritative and why a second walk may disagree with it.
+/// Saying either here again would put one rule in two places — one byte-exact
+/// from `content/`, one Rust prose nothing keeps in step — which is the drift
+/// shape that rule exists to refuse, and the reader would owe the mandate a
+/// *do these agree?* on top of it.
+///
 /// The kind is passed in rather than re-read: it is the same value that indexed
 /// the configuration entry, taken from the one guarded selection, so the mandate
 /// and the command a session receives cannot disagree about what kind it is.
@@ -222,7 +231,7 @@ fn mandate_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
     let methodology = crate::methodology::compose(&units, kind);
     let version_control = stated_vcs(worktree)?;
     Ok(format!(
-        "{methodology}\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n\n{version_control}\n"
+        "{methodology}\nGrove mandate: the leaf selected for this session is `{handle}`.\n\n{version_control}\n"
     ))
 }
 

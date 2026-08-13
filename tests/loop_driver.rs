@@ -116,6 +116,16 @@ fn write_complete_config(home: &Path, command: &Path) {
     fs::write(config_dir.join("config.kdl"), document).unwrap();
 }
 
+/// The prefix of the driver-authored sentence naming the leaf selected for one
+/// session, up to the opening backtick of the handle.
+///
+/// The one mandate sentence a fixture may read the handle out of: everything
+/// before it is a byte-exact slice of `content/`, and the methodology names
+/// handle-shaped strings in its own prose, so any looser marker would find them
+/// too (`docs/specs/mandate-delivered-methodology.md`, *The driver authors
+/// mandate prose only for facts it resolves at runtime*).
+const MANDATED_LEAF: &str = "Grove mandate: the leaf selected for this session is `";
+
 /// Plant a minimal current-format tree with one live leaf.
 fn plant_tree(worktree: &Path, leaf: &str) {
     let grove = worktree.join(".grove");
@@ -293,7 +303,7 @@ fn a_session_mutates_the_tree_through_grove_llm_without_deadlocking_the_driver()
     // rather than counted by line.
     let mandates = fs::read_to_string(&mandates).unwrap();
     let handles: Vec<&str> = mandates
-        .match_indices("resolve and execute `")
+        .match_indices(MANDATED_LEAF)
         .map(|(at, marker)| {
             let rest = &mandates[at + marker.len()..];
             &rest[..rest.find('`').expect("unterminated mandate handle")]

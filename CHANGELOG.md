@@ -51,6 +51,147 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- **`<!-- file: order=<n> -->` — an embedded file declares its own mandate
+  position.** The first line of every `content/` markdown file's body, and the
+  key a composed mandate is ordered by: the file's position first, then each
+  unit's own offset within that file. It is the same device and the same
+  recogniser as a unit marker — an unindented whole line at neutral fence state —
+  so `content/` gains no metadata language for ordering. Its two rules land on
+  opposite sides of the build gate's existing split, because they need different
+  amounts of the corpus: that a file *carries* a position is decided by that
+  file's own text, and that positions *differ* only by the assembled set. Both
+  fail `cargo build`, naming the file and offset. The directive is the **second
+  and last** region no unit covers, and it is bounded by position rather than by
+  judgement — one line, first — so total partition survives as a claim by being
+  restated over **units**: every unit is in a mandate or reachable from one, and
+  units cover every body byte past the directive, with the unread preamble and
+  this one line named as the two exempt regions, neither of which can hide a
+  unit. A **gap is legal**, because the composer sorts by the key rather than
+  indexing on it — but it is not insertion slack: `content/`'s own run of 1–9 is
+  a readability convention about the shipped corpus, pinned by a test rather than
+  by the gate, so inserting a file between two others *does* renumber every later
+  one, in one-character edits the gate localises by name.
+
+### Changed
+
+- **A session's mandate is the methodology composed for the kind it was launched
+  as.** `${prompt}` used to be one embedded launcher file — the same eleven lines
+  for every session, with the methodology itself reaching the session only as a
+  provisioned skill it was pointed at. The driver now passes the kind it already
+  resolved into `methodology::compose`, which selects every triggering unit whose
+  scope admits that kind, orders them by `(file position, offset within the
+  file)`, and joins their **source bytes** with a single blank line. Nothing is
+  paraphrased: driver-composed prose would make `content/` non-canonical, and a
+  slice cannot contradict what it copies. Onto that the driver appends the only
+  two facts nothing in `content/` can express — the selected leaf's stable handle
+  and the stated VCS — which is also why the handle paragraph is now a statement
+  and not an errand: it reads *the leaf selected for this session is `<handle>`*,
+  where it used to tell the session to resolve and execute it and not to call
+  `grove-llm pick`. Both of those instructions are composed methodology
+  (`skill-bootstrap`, `skill-do-not-pick-again`), so saying them again in Rust put
+  one rule in two places with nothing keeping them in step. Composed mandates run
+  around 47–50 kB per kind, against a 64 KiB alarm that exists to catch a
+  procedural body marked triggering rather than to bound argv. Composition drift
+  is pinned by a golden of each kind's **ordered unit ids** rather than its bytes:
+  nineteen ~48 kB byte goldens would move on every prose edit under `content/`,
+  and a golden regenerated every session is a golden nobody reads, while ids carry
+  all four drift shapes — a unit gained or lost, a scope widened or narrowed, a
+  file reordered, a unit moved within its file — and none of the churn.
+- **`content/prompts/continue.md` is now `content/MANDATE.md`, and carries no
+  instructions.** One change to what a session receives rather than two: every
+  instruction the launcher held duplicated a `kinds=*` unit that composition now
+  delivers into the same prompt — Bootstrap, Decompose, Retire, Commit, Signal
+  and Finish — so the duplicate was removable exactly when composition began
+  delivering them, and the one clause that stated something composition does not
+  ("use the grove skill") is the clause that goes false when provisioning
+  retires. What is left is framing: what the mandate *is*, and what its
+  completeness guarantees, which is **structural** — every unit marked triggering
+  for this kind is present byte-exact, and what is withheld is marked either
+  procedural or for another kind, so no *condition* was held back for the session
+  to discover the existence of. Recognising that a delivered condition **is met**
+  is stated as still the session's own, because the invariant settles inclusion
+  and never detection. `grove-llm methodology <id>` is named there as the way to
+  fetch a body a marker defers, so the id to ask for is always in the text the
+  session is already holding. `provision::continue_prompt()` lost its only caller
+  and is gone; the framing unit keeps its class, scope and file position and moves
+  its file, id (`continue-launcher-framing` → `mandate-framing`) and body.
+- **v18.2.0's "nothing consumes a unit yet" no longer holds.** That release
+  shipped `grove-llm methodology` as an inspection tool over an embed nothing
+  read, and said so twice. The composer is now that reader, and the verb has a
+  second, non-inspection job: serving a session the procedural body its own
+  mandate deferred. The entry it corrects is left as it was written, because the
+  release it describes shipped that way.
+- **Both delivery paths are live, so this lands structurally now and
+  behaviourally next.** Global skill provisioning is **untouched**: every session
+  still also receives the whole unsliced `content/` as a harness skill, so nothing
+  is yet *withheld* from any kind: the specialisation changes what a prompt
+  **carries**, not yet what a session can reach, and this increment is therefore
+  verified by the composed mandates themselves rather than by watching a session
+  behave differently. Retiring provisioning is the next increment, and
+  [mandate delivers the methodology](docs/adr/mandate-delivers-the-methodology.md)
+  sequences it that way.
+- **Each kind's mandate states exactly one session ending, and eighteen of the
+  nineteen never see `--done`.** The methodology told every session both endings
+  and the condition between them — run `grove-llm complete`, unless this is a
+  `finish` leaf, in which case `--done` — which is a branch on a fact the driver
+  resolved before the session existed. `skill-signal` is therefore **narrowed**
+  from `kinds=*` to the explicit eighteen non-`finish` kinds and its branch
+  deleted rather than relocated: every sentence it held is the relaunch ending or
+  the mechanism that ending runs on, so there was no universal remainder to keep.
+  `skill-finish` genuinely spanned both and splits three ways — a `kinds=*`
+  remainder holding the negative trigger (*you do not discover that a grove is
+  finished; the driver tells you by launching a `finish` session*) together with
+  the clause telling every session that its own escalations are discretionary,
+  then `skill-finish-cycle` (sentinel mechanics and the human gate) and
+  `skill-finish-endings` (the outcomes, carrying the deferred teardown steps),
+  both `kinds=finish`. The negative trigger stays universal deliberately:
+  withholding it would attach an unasked question to a destructive action. Two
+  units that restated the ending lose it — `skill-self-driving-loop` keeps what it
+  genuinely owns (one fresh foreground session per task, zero engine state,
+  restart as continuation, no daemon) and `skill-finish-cycle` keeps its
+  instruction without its ending, with the driver's own contract documented in
+  `docs/ARCHITECTURE.md` rather than kept as a second copy in `content/` that
+  nothing holds in step. `grove-llm methodology` accordingly lists 140 units
+  rather than 138.
+- **A `finish` session that externalised work signals a plain relaunch** — newly
+  stated, not newly legal. `pick` already passes the sentinel over while ordinary
+  work is live and `grove-llm complete` was never gated by kind, so the path
+  worked and nothing said so, while the same methodology tells a `finish`
+  session — like every session — to externalise surfaced work rather than absorb
+  it, which leaves it unable to tear down. The three endings are now stated as
+  **outcomes of what the session did**: teardown completed → `grove-llm complete
+  --done` and the loop stops; work externalised instead → plain `grove-llm
+  complete`, the loop relaunches and picks the new leaf, and the sentinel waits
+  without banking the confirmation; declined or no human present → no signal, the
+  loop stops and the leaf stays live and resumable. This is a branch on what
+  happened *during* a session, which no driver can resolve — which is exactly why
+  it stays where a branch on kind does not.
+- **The ending is guarded across all nineteen composed mandates.** Generated from
+  `Kind::ALL`, so a twentieth kind fails loudly instead of launching sessions that
+  never signal the loop: exactly one declared ending unit per kind, `--done` in
+  the `finish` mandate and nowhere else, the completion verb named only by that
+  mandate's own declared ending — so an ending unit introduced without being
+  declared cannot hide behind the declared one's membership count — and the
+  negative trigger present in all nineteen. Both classifiers carry positive
+  controls, on this repository's own rule that a sweep which cannot fail is worth
+  nothing. The explicit eighteen is spelled out rather than negated because a
+  shorthand would silently absorb a kind added later and move the classification
+  into a test, away from the marker it belongs beside; its mirror hazard — a kind
+  silently *omitted* — is what these checks close. What no test can reach is
+  pinned instead by a **hand-edited** byte constant over the two ending units'
+  source, and hand-edited is the point: a `GROVE_TEST_UPDATE_GOLDENS=1` pin can be
+  cleared without reading the new prose, and reading the new prose is the whole of
+  what it is for. Its claim is bounded to what a two-unit constant can actually
+  see — that the `finish` endings read as outcomes. The wider limb, that no unit
+  anywhere restates an ending phrased around the verb, is carried in three parts
+  instead: a new unit moves the composition golden, one naming the verb fails the
+  complement sweep, and one phrased around the verb is caught by nothing
+  mechanical and belongs to the classification review — recorded as an asserted
+  non-detection in the sweep's own control, in the function a later reader would
+  edit, so that turning the sweep into a phrase heuristic has to be deliberate.
+
 ## v18.2.0
 
 ### Added

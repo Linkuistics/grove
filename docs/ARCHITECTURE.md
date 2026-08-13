@@ -698,12 +698,19 @@ it can fully observe. The gate reads through the crate's own parsers
 which is the duplication the removed hash traversal had already had to be
 defended against.
 
+Each file also opens its body with a **file directive**,
+`<!-- file: order=<n> -->` — the same device and recogniser as a unit marker, and
+the one body line no unit covers — carrying that file's position in a composed
+mandate.
+
 The gate has **two halves, split by what a check needs to see**, and the split
 is the seam rather than a quota. `parse.rs` decides everything a single
 `(path, text)` settles — the marker grammar, partition, fence state, the leading
-preamble, the file-level rules. `whole_embed.rs` decides the four that need the
+preamble, the directive's presence and placement, the file-level rules.
+`whole_embed.rs` decides the five that need the
 assembled set: **id uniqueness** across the embed, because an id is the only
-address `grove-llm methodology` has; **`defers=` resolving to a declared
+address `grove-llm methodology` has; **ordering-key uniqueness**, because the
+composition order must be total; **`defers=` resolving to a declared
 `class=procedural` unit**; **every procedural unit reachable** by following
 `defers=` from some triggering unit; and **every chain of deferrals
 terminating**. Reachability is partition seen from the other end — together they
@@ -828,7 +835,7 @@ prescribing one command.
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
-| `methodology` | The embed itself: the two readers `build.rs` shares — per file, and across the whole embed — the markdown corpus and unit set they produce, and the build's methodology identity. |
+| `methodology` | The embed itself: the two readers `build.rs` shares — per file, and across the whole embed — the markdown corpus and unit set they produce, the per-kind composition a mandate is projected from, and the build's methodology identity. |
 | `provision` | Embedded methodology installation. |
 
 The modules are intentionally file-sized rather than wrapped in another

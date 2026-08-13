@@ -101,7 +101,8 @@ The grain of the [[Embedded methodology]]: a span of one `content/` file
 declared by an HTML-comment **unit marker** carrying a kebab-case id, a
 [[Triggering unit]]/procedural class, the [[Session kind]]s its scope admits when
 triggering, and optionally the **deferral**: the id of the procedural unit whose
-body completes it. Units **partition** their file's **body**: every
+body completes it. Units **partition** their file's **body** past its
+[[File directive]]: every
 body byte belongs to exactly one, a unit runs from its marker to the byte before
 the next or to end of file, and there is no nesting, no gap and no close marker.
 Body is everything after the optional leading `---`-delimited **preamble**, the
@@ -133,9 +134,24 @@ namespace covers both classes, so that id fetches the unit again; the deferral i
 a separate declared target, and its absence means the unit is complete as
 delivered.
 _Avoid_: reading the preamble as **frontmatter the build requires or parses**.
-KDL frontmatter was the earlier answer and lost the file's ordering key to a
-comment directive; what is left is a block Grove skips, so a per-file exemption
+KDL frontmatter was the earlier answer and lost the file's ordering key to the
+[[File directive]]; what is left is a block Grove skips, so a per-file exemption
 for the one file that has one would be a hole where the rule is uniform.
+
+**File directive** (`<!-- file: order=<n> -->`):
+The one line of an embedded file's **body** that no [[Methodology unit]] covers:
+an HTML-comment directive declaring that file's position in a composed mandate.
+Same device and same recogniser as a unit marker — an unindented whole line at
+neutral fence state — so `content/` gains no metadata language for ordering. It
+is the body's **first line**, required of every embedded markdown file, and no
+two files may claim one position; together those make the composition order
+**total**, which is the single property it exists to supply. Its two rules fall
+on opposite sides of the build gate: that a file *carries* a position is decided
+by that file's own text, that positions *differ* only by the assembled set.
+_Avoid_: reading positions as an index. The composer **sorts** by the key, so
+gaps are legal and a file inserted between two others renumbers nothing.
+_Avoid_: reading it as preamble. The preamble is the unread `---` block *before*
+the body; this is read, and it is body.
 
 **Mandate slice**:
 A byte-exact projection of a [[Methodology unit]] into one session's
@@ -144,9 +160,10 @@ driver selects units by the launched [[Session kind]] and inlines their source
 bytes; it never paraphrases, because driver-composed prose would make `content/`
 non-canonical, and a slice cannot contradict what it copies. Which units a kind
 receives is marked **in `content/` itself**, adjacent to the prose it classifies:
-an HTML-comment unit marker per unit. A file's composition order is a second
-comment directive of the same shape, and it arrives with the composer that
-consumes it rather than ahead of one. Three properties bind every slice —
+an HTML-comment unit marker per unit. A file's composition order is the
+[[File directive]]. Composition order is that directive's
+position, then the unit's own position within its file; the framing unit needs no
+rule of its own, because its file is ordered first. Three properties bind every slice —
 succinct, never
 contradicting or walking back the methodology, and a *selector* that takes the
 session straight to the right content rather than a substitute for it. The driver

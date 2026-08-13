@@ -1,9 +1,13 @@
 //! The half of the build gate that no single file can decide — **one
 //! implementation, compiled twice**, exactly like the reader beside it.
 //!
-//! [`super::parse`] answers everything a single `(path, text)` settles. Four
-//! malformations are left over, and all four need the *assembled* unit set:
+//! [`super::parse`] answers everything a single `(path, text)` settles. Five
+//! malformations are left over, and all five need the *assembled* unit set:
 //!
+//! * **Two files claiming one mandate position.** The parser makes every file
+//!   *carry* a position; only the set can say the positions differ, and a
+//!   composition order that is not total is the one property the directive
+//!   exists to supply.
 //! * **A duplicate id anywhere in the embed.** An id is the verb's only address
 //!   (`grove-llm methodology <id>`), so a collision between two files makes both
 //!   units unaddressable rather than merely untidy — one answers and the other
@@ -22,8 +26,8 @@
 //!   enters is reached like any other chain, and a session walking it out of
 //!   its mandate never arrives anywhere.
 //!
-//! All four are a **contributor's** mistake, visible to the build that produced
-//! the embed, so all four fail `cargo build`
+//! All five are a **contributor's** mistake, visible to the build that produced
+//! the embed, so all five fail `cargo build`
 //! (`docs/specs/mandate-delivered-methodology.md`, *A malformed embed fails the
 //! build*). The unknown id a *caller* passes to `grove-llm methodology` is the
 //! other species and stays a runtime error: it is visible only when the call is
@@ -43,6 +47,13 @@ use std::fmt;
 /// without matching on a rendered string.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Fault {
+    /// Two files claiming one position, named as a pair for the same reason a
+    /// duplicate id is: the repair is to renumber one of them, and a contributor
+    /// cannot choose which without seeing both.
+    DuplicateFileOrder {
+        order: u32,
+        first_file: String,
+    },
     /// Both sites are named: the error is located at the second occurrence, and
     /// carries the first, because a contributor has to see the pair to know
     /// which one to rename.
@@ -81,6 +92,14 @@ pub enum Fault {
 impl fmt::Display for Fault {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Fault::DuplicateFileOrder { order, first_file } => write!(
+                f,
+                "mandate position {order} is already claimed by {first_file}; the composition \
+                 order must be total, so no two embedded files share one. Renumber the \
+                 `<!-- file: order=<n> -->` at the top of this file's body — the coordinate \
+                 above is its first unit, since a position belongs to a file rather than to \
+                 any unit in it."
+            ),
             Fault::DuplicateId {
                 id,
                 first_file,
@@ -163,17 +182,23 @@ impl std::error::Error for EmbedError {}
 
 /// Check the assembled unit set, reporting the first malformation.
 ///
-/// The checks run in dependency order, and the order is not cosmetic: `defers=`
-/// resolution is meaningless while two units share an id, reachability is
-/// meaningless while a deferral may not resolve, and a ring nothing enters is
+/// The last four run in **dependency order**, and the order is not cosmetic:
+/// `defers=` resolution is meaningless while two units share an id, reachability
+/// is meaningless while a deferral may not resolve, and a ring nothing enters is
 /// reported as the orphan it also is. Reporting the *first* failure therefore
 /// reports the one a contributor can act on.
+///
+/// [`check_file_order`] shares no dependency with that chain — it is a claim
+/// about *files* rather than about the unit graph — so its position is free, and
+/// it is first because it is the one a contributor can repair without reading
+/// anything else.
 ///
 /// **Determinism comes from the caller.** Both callers assemble `units` by
 /// sorted `content/`-relative path, units in file order — `build.rs` from the
 /// filesystem walk, [`super::units`] from the embed — so the reported failure is
 /// the same one on every machine.
 pub fn check(units: &[Unit]) -> Result<(), EmbedError> {
+    check_file_order(units)?;
     let declared = declared_ids(units)?;
     check_deferrals(units, &declared)?;
     check_reachability(units, &declared)?;
@@ -187,6 +212,38 @@ fn error_at(unit: &Unit, fault: Fault) -> EmbedError {
         offset: unit.offset,
         fault,
     }
+}
+
+/// No two files claim one mandate position.
+///
+/// The units of one file all carry that file's position, so the claim is read
+/// off the **first unit of each file** and a file is only ever compared with
+/// other files. That the position is *present* is the parser's business, decided
+/// per file; that positions *differ* needs the set, and is this one.
+///
+/// It settles totality rather than density: gaps are legal. A position is an
+/// ordering key, and requiring contiguity would make inserting a file renumber
+/// every later one for no gain — the composer sorts, it does not index.
+fn check_file_order(units: &[Unit]) -> Result<(), EmbedError> {
+    let mut claimed: BTreeMap<u32, &str> = BTreeMap::new();
+    for unit in units {
+        // Every unit of a file repeats its position, so only the first one of
+        // each file is a fresh claim; the rest would collide with themselves.
+        if claimed.get(&unit.file_order) == Some(&unit.file.as_str()) {
+            continue;
+        }
+        if let Some(first_file) = claimed.get(&unit.file_order) {
+            return Err(error_at(
+                unit,
+                Fault::DuplicateFileOrder {
+                    order: unit.file_order,
+                    first_file: (*first_file).to_string(),
+                },
+            ));
+        }
+        claimed.insert(unit.file_order, unit.file.as_str());
+    }
+    Ok(())
 }
 
 /// Index the units by id, rejecting the first collision.
@@ -379,12 +436,21 @@ mod tests {
     /// Going through `parse_units` rather than hand-building [`Unit`] values is
     /// deliberate — a fixture that skipped the reader could assert a shape the
     /// grammar cannot actually produce.
+    ///
+    /// Each file is given its position from its place in that sorted order, so
+    /// every fixture below is well-ordered by construction and each test
+    /// provokes only the fault it names. The one test that is *about* ordering
+    /// writes its own directives instead.
     fn embed(files: &[(&str, &str)]) -> Vec<Unit> {
         let mut sorted = files.to_vec();
         sorted.sort_by(|a, b| a.0.cmp(b.0));
         sorted
             .iter()
-            .flat_map(|(name, text)| parse_units(name, text).expect("fixture must parse"))
+            .enumerate()
+            .flat_map(|(index, (name, text))| {
+                let ordered = format!("<!-- file: order={} -->\n{text}", index + 1);
+                parse_units(name, &ordered).expect("fixture must parse")
+            })
             .collect()
     }
 
@@ -419,6 +485,46 @@ mod tests {
         );
     }
 
+    /// **The ordering key's cross-file half.** The parser makes every file carry
+    /// a position and can say nothing about the others; two files claiming one
+    /// is only visible here, and it costs the composition order the totality it
+    /// exists to supply.
+    ///
+    /// Written with explicit directives rather than through [`embed`], whose
+    /// whole job is to number fixtures apart.
+    #[test]
+    fn two_files_claiming_one_mandate_position_are_rejected() {
+        let ordered = |name: &'static str, order: u32, id: &str| {
+            parse_units(
+                name,
+                &format!(
+                    "<!-- file: order={order} -->\n\
+                     <!-- unit: {id} kinds=* class=triggering -->\nbody\n"
+                ),
+            )
+            .expect("fixture must parse")
+        };
+
+        let mut units = ordered("A.md", 2, "alpha");
+        units.extend(ordered("B.md", 2, "beta"));
+        assert_eq!(
+            check(&units).expect_err("the embed must be rejected").fault,
+            Fault::DuplicateFileOrder {
+                order: 2,
+                first_file: "A.md".to_string(),
+            },
+            "the second claimant is the error and the first is named with it"
+        );
+
+        let mut apart = ordered("A.md", 2, "alpha");
+        apart.extend(ordered("B.md", 7, "beta"));
+        assert_eq!(
+            check(&apart),
+            Ok(()),
+            "gaps are legal — the composer sorts by the key, it does not index by it"
+        );
+    }
+
     /// **The cross-file case.** Neither file's parse could have caught this: each
     /// declares one well-formed unit, and only the assembled set knows the id is
     /// taken.
@@ -438,7 +544,7 @@ mod tests {
             Fault::DuplicateId {
                 id: "alpha".to_string(),
                 first_file: "A.md".to_string(),
-                first_line: 1,
+                first_line: 2,
             },
             "the second occurrence is the error and the first is named with it"
         );
@@ -489,7 +595,7 @@ mod tests {
                 unit: "alpha".to_string(),
                 target: "beta".to_string(),
                 target_file: "B.md".to_string(),
-                target_line: 1,
+                target_line: 2,
             }
         );
     }
@@ -599,8 +705,8 @@ mod tests {
         .to_string();
 
         assert!(
-            rendered.starts_with("B.md:3:"),
-            "the closing deferral is `second`'s, on B.md line 3: {rendered}"
+            rendered.starts_with("B.md:4:"),
+            "the closing deferral is `second`'s, on B.md line 4 past the directive: {rendered}"
         );
         assert!(
             rendered.contains("`first` -> `second` -> `first`"),
@@ -750,7 +856,7 @@ mod tests {
         .to_string();
 
         assert!(
-            rendered.starts_with("SKILL.md:3:51: "),
+            rendered.starts_with("SKILL.md:4:74: "),
             "a build error must be openable at the referring unit: {rendered}"
         );
     }

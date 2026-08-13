@@ -1,3 +1,4 @@
+<!-- file: order=9 -->
 <!-- unit: driving-when-not-to-start-a-grove kinds=requirements class=triggering -->
 <!-- grove reference file — the field guide: habits for driving a session well -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from

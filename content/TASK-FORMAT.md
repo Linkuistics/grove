@@ -1,3 +1,4 @@
+<!-- file: order=3 -->
 <!-- unit: task-leaf-filename kinds=* class=triggering defers=task-suggested-shape -->
 <!-- grove reference file — the task-file shape -->
 

@@ -79,12 +79,21 @@ that already opens with a `---`-delimited block keeps it, untouched and unread.
 
 ### Units partition a file; they are not islands in it
 
-Every byte of an embedded markdown file's body belongs to **exactly one** unit.
-A unit begins at its marker and runs to the byte before the next marker, or to
-end of file. There are no gaps, no nesting, and no close markers. *Body* here
-means everything after the optional leading `---`-delimited preamble, which is
-the file's only region no unit covers and the parser's only unread bytes — see
-*A leading `---` block is opaque preamble* below.
+Every byte of an embedded markdown file's body belongs to **exactly one** unit,
+past that file's directive. A unit begins at its marker and runs to the byte
+before the next marker, or to end of file. There are no gaps, no nesting, and no
+close markers. *Body* here means everything after the optional leading
+`---`-delimited preamble.
+
+Exactly two regions are covered by no unit, and for opposite reasons. The
+**preamble** is unread, and is the parser's only unread bytes — see *A leading
+`---` block is opaque preamble* below. The **file directive** is read, and is one
+line at a fixed position that the parser consumes before the units begin — see
+*The file's mandate order is a comment directive*. Neither weakens the claim
+below, because neither is bounded by judgement: a delimited block and a single
+first line cannot grow to swallow prose a unit should have carried, which is what
+an exemption stated as "the parser skips what it does not recognise" would have
+done.
 
 This is the design's load-bearing structural choice, and it is not tidiness.
 If units were islands, prose outside every unit would be unclassified and
@@ -328,17 +337,18 @@ stranger's stalled loop.
 
 Three classes of malformation fail there:
 
-- **Syntax** — an unparseable marker, an unknown attribute, attributes out of the
+- **Syntax** — an unparseable marker, an unreadable file directive, an unknown
+  attribute, attributes out of the
   fixed order, a missing `class`, `kinds` on a procedural unit, a file whose fence
   state is not neutral at end of file, a leading `---` block that never closes, or
   a unit marker inside one that does. Two more are syntax about the *file* rather
   than about a line in it — a file that does not end in a newline, and an embedded
   path carrying a byte the listing's grammar cannot — and both are argued where
   they are decided, under the fetch and listing contracts below.
-- **Semantics** — a duplicate unit id anywhere in the embed, a file declaring no
-  unit at all, or body text before the first marker. A duplicate file-ordering
-  key joins this class when the ordering directive arrives with the composer, and
-  not before.
+- **Semantics** — a duplicate unit id anywhere in the embed, a duplicate
+  file-ordering key anywhere in it, a file declaring no
+  unit at all, a file declaring no ordering key, a file directive that is not the
+  body's first line, or body text before the first marker.
 - **Reference** — a `kinds=` member that is not one of the nineteen, a `defers=`
   member that names no declared unit, a `defers=` member whose unit is not
   `class=procedural`, a procedural unit no mandate can reach, or a chain of
@@ -346,12 +356,14 @@ Three classes of malformation fail there:
 
 **What the gate requires per file, and what it requires across the embed**, are
 separable and are built separately. A single `(path, text)` decides every syntax
-error, plus the two semantic errors about one file — no unit declared, and body
+error, plus the four semantic errors about one file — no unit declared, no
+ordering key declared, a directive that is not the body's first line, and body
 text before the first marker — and the `kinds=` membership check. Everything else
-needs the assembled set: id uniqueness, `defers=` resolution and its class check,
-procedural reachability, and chain termination behind it. **Neither half requires
-anything of a file-ordering key** for as long as no composer exists — nothing per
-file, and no uniqueness across the embed.
+needs the assembled set: id uniqueness, ordering-key uniqueness, `defers=`
+resolution and its class check, procedural reachability, and chain termination
+behind it. The ordering key is the one rule that falls on **both** sides, and
+that is what its two halves are: a file *carries* a position, which its own text
+settles, and positions *differ*, which only the set can see.
 
 The reference class is the one `defers=` changes, and it changes it in the
 direction that matters: **`content/` now references ids, so an unknown id inside
@@ -420,30 +432,41 @@ marker an error removes exactly that half. What remains is a swallowed region of
 already an error in every other spelling — and closing it too would mean
 interpreting the block, which is the one thing this rule exists not to do.
 
-### The file's mandate order is a comment directive, and it arrives with the composer
+### The file's mandate order is a comment directive
 
 Ordering has to live somewhere, and putting it in `content/` rather than in a
 file list in Rust keeps the driver from owning a fact about content's
-presentation. Two questions follow — what carries it, and when it lands — and
-they are answered separately.
+presentation. Two questions followed — what carries it, and when it lands — and
+they were answered separately. It has since landed, with the composer that
+consumes it, so only the first answer is still a live decision.
 
-**What carries it is an HTML-comment file directive**, the same device and the
-same recogniser as a unit marker: an unindented whole line at neutral fence
-state. `content/` therefore gains **no** metadata language for this. Frontmatter
-carrying KDL was the earlier answer, argued from the repository already owning
-one KDL parser; a comment directive wins on that argument's own terms, because it
-adds nothing to own and reuses a reader the parser must have anyway. Duplicate
-positions are a build error once the directive exists, because the composition
-order must be total.
+**What carries it is an HTML-comment file directive**, `<!-- file: order=<n> -->`
+— the same device and the same recogniser as a unit marker: an unindented whole
+line at neutral fence state. `content/` therefore gains **no** metadata language
+for this. Frontmatter carrying KDL was the earlier answer, argued from the
+repository already owning one KDL parser; a comment directive wins on that
+argument's own terms, because it adds nothing to own and reuses a reader the
+parser must have anyway.
 
-**When it lands is with the composer, and not before.** Composition is the
-ordering key's only consumer — the parser does not need it, and `grove-llm
+The directive is the **body's first line** and the one body line no unit covers,
+which is what keeps partition true of everything after it. Two rules bind it, and
+they fall on opposite sides of the gate's own split: **every file carries one**,
+decided per file, and **no two files claim one position**, which needs the
+assembled set. Together they make the order total, which is the single property
+the directive exists to supply. Nothing requires the positions to be
+*contiguous* — the composer sorts by the key rather than indexing on it, so
+requiring density would make inserting a file renumber every later one for no
+gain.
+
+**Its arrival was deferred to the composer, and that was the point.** Composition
+is the ordering key's only consumer — the parser does not need it, and `grove-llm
 methodology` neither serves nor lists it. Marked and gated ahead of a composer it
-would be parsed, checked for uniqueness, and read by nobody, which is scaffolding
-a build gate should not be grown for; worse, the order's *values* would be chosen
-by a session that has not written the thing that consumes them. So until the
-composer exists, **the build requires no ordering key of any file and checks no
-ordering-key uniqueness across the embed.**
+would have been parsed, checked for uniqueness, and read by nobody, which is
+scaffolding a build gate should not be grown for; worse, the order's *values*
+would have been chosen by a session that had not written the thing that consumes
+them. They were instead chosen with the rename in hand, which is why
+`content/prompts/continue.md` holds position 1 and moving it to
+`content/MANDATE.md` churns nothing.
 
 Two alternatives were weighed and rejected, and one was tested and found false.
 
@@ -565,8 +588,9 @@ Two claims those scopes carry are **authoring rules rather than mechanical
 ones** — that the finish endings read as outcomes, and that no unit restates an
 ending it was not scoped to state. The composer returns opaque bytes and carries
 no role metadata, so both are carried by the classification review and pinned for
-drift by the golden snapshots. The requirement below says which of its limbs the
-guard establishes, rather than implying a check the seam cannot support.
+drift by a byte-level assertion on the ending units themselves. The requirement
+below says which of its limbs the guard establishes, rather than implying a check
+the seam cannot support.
 
 **The finish endings are triggering, not procedural**, and the reopening ending
 is why. A `finish` session that externalises surfaced work never reaches the
@@ -909,6 +933,30 @@ balanced fence SHALL declare no unit. Fences SHALL be recognised by CommonMark's
 rule. A leading `---`-delimited block SHALL be skipped uninterpreted, and SHALL be
 neither required nor rejected.
 
+Every embedded markdown file SHALL declare its mandate position with a file
+directive as the first line of its body, and no two files SHALL declare one
+position. Directive-shaped lines that are indented or inside a balanced fence
+SHALL declare no position.
+
+#### Scenario: file declaring no position
+- **WHEN** an embedded markdown file's body does not open with a file directive
+- **THEN** the build fails, naming the file and the offset the body began at
+
+#### Scenario: two files claiming one position
+- **WHEN** two embedded markdown files declare the same position
+- **THEN** the build fails, naming both
+
+#### Scenario: positions with a gap between them
+- **WHEN** the declared positions are distinct but not contiguous
+- **THEN** the build accepts them, and the composer orders by the key rather
+  than indexing on it
+
+#### Scenario: a second file directive
+- **WHEN** a directive appears anywhere but the body's first line, whether or
+  not the file also has one there
+- **THEN** the build fails, naming that line — rather than letting it ship into
+  a mandate as prose inside the unit containing it
+
 #### Scenario: unmarked file
 - **WHEN** an embedded markdown file carries no unit marker
 - **THEN** the build fails, naming the file
@@ -1034,8 +1082,10 @@ another kind's, and that no unit restates an ending in words naming neither the
 completion verb nor `--done`. The composer returns opaque bytes and carries no
 role metadata, so a mechanical claim about either would be a substring heuristic
 wearing a SHALL. They are carried by the classification review, and pinned for
-drift — not for correctness — by the golden snapshots, which hold the ending
-unit's bytes verbatim.
+drift — not for correctness — by a byte-level pin of the **ending units
+themselves**. The composition golden is not that pin: it holds each kind's
+ordered unit ids, for the reason given under *Test seams*, so the increment that
+splits the ending adds the narrow byte assertion its own claim needs.
 
 #### Scenario: every kind is covered
 - **WHEN** a mandate is composed for each member of the closed kind set
@@ -1167,6 +1217,23 @@ The checks that seam carries:
   reads exactly like a clean repository.
 - **Golden per-kind mandate snapshots**, for drift. They say nothing about
   correctness; they say loudly that something moved.
+
+  **They hold each kind's ordered unit ids, not its bytes**, and the narrowing is
+  what makes them readable. A byte-level golden of nineteen ~48 kB mandates moves
+  on every prose edit under `content/` — which, in this repository, is most
+  commits — and a golden regenerated every session is a golden nobody reads,
+  burying the signal it exists to carry. Prose edits are already legible in the
+  `content/` diff itself. What is legible *nowhere else* is composition drift,
+  and the ids carry all four of its shapes: a unit gained or lost, a scope
+  widened or narrowed, a file reordered, and a unit moved within its file. Where
+  a specific unit's **bytes** need pinning — the ending units below — that is a
+  targeted assertion beside the claim that needs it, not a reason to hold every
+  byte of every mandate.
+
+  The ids are recovered from the composer's own output rather than re-derived, so
+  the golden cannot go green on a selection bug it shares with the composer; the
+  completeness invariant above is what says the bytes between those ids are the
+  units' own.
 - **The session-ending guard, generated from the closed kind set.** Four claims,
   every one of them about unit membership or a token, because membership and
   bytes are what the seam returns: for every kind, exactly one unit from the

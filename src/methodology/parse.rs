@@ -15,17 +15,29 @@
 //! The grammar, in full:
 //!
 //! ```text
+//! <!-- file: order=<position> -->
+//!
 //! <!-- unit: <id> kinds=<scope> class=triggering -->
 //! <!-- unit: <id> kinds=<scope> class=triggering defers=<target> -->
 //! <!-- unit: <id> class=procedural -->
 //! <!-- unit: <id> class=procedural defers=<target> -->
 //! ```
 //!
-//! Units **partition** a file's body: every body byte belongs to exactly one
+//! Units **partition** a file's body past its file directive: every such byte
+//! belongs to exactly one
 //! unit, a unit runs from its marker line to the byte before the next marker or
 //! to end of file, and there is no nesting, no gap and no close marker. *Body*
 //! is everything after the optional leading `---`-delimited preamble, which is
 //! the file's one unread region.
+//!
+//! The **file directive** is the body's first line and the one line no unit
+//! covers, which is what keeps partition true of everything after it. It is the
+//! same device and the same recogniser as a unit marker — an unindented whole
+//! line at neutral fence state — so `content/` gains no metadata language for
+//! ordering (`docs/specs/mandate-delivered-methodology.md`, *The file's mandate
+//! order is a comment directive*). It carries the file's position in the
+//! composed mandate, it is **required**, and it is the one thing here the build
+//! gate needs that a *unit* does not: composition order must be total.
 //!
 //! Partition is the load-bearing choice rather than tidiness: it makes
 //! unclassified prose impossible, and it converts this parser's own worst
@@ -39,7 +51,16 @@ use std::fmt;
 /// starts with it and then fails to parse is an error rather than prose: a typo
 /// in a marker must not quietly become part of the unit above it.
 const MARKER_PREFIX: &str = "<!-- unit:";
+/// The unindented prefix of the **file** directive, recognised exactly as a
+/// marker is and sharing its terminator. One namespace of comment directives,
+/// two keywords: a line can be a unit marker or a file directive, never both.
+const FILE_PREFIX: &str = "<!-- file:";
 const MARKER_SUFFIX: &str = "-->";
+/// The file directive's one attribute — the file's position in the composed
+/// mandate. Sole for now, and spelled `name=value` anyway so that the directive
+/// is the *shape* a marker is rather than a bare number needing a second reading
+/// rule the day anything else is ordered per file.
+const ORDER_ATTRIBUTE: &str = "order";
 /// The delimiter of the leading opaque preamble — `content/SKILL.md`'s YAML
 /// frontmatter today, and whatever else ever opens a file with one.
 ///
@@ -88,6 +109,20 @@ pub enum Scope {
 }
 
 impl Scope {
+    /// Does a mandate for `kind` carry a unit with this scope?
+    ///
+    /// The composer's whole selection rule, and it is a method here rather than
+    /// a `match` there because the two spellings of a scope are this type's
+    /// business: `*` and an explicit list are the only ones the grammar admits,
+    /// so a third would have to be added beside this function and could not be
+    /// forgotten in it.
+    pub fn admits(&self, kind: Kind) -> bool {
+        match self {
+            Scope::All => true,
+            Scope::Kinds(kinds) => kinds.contains(&kind),
+        }
+    }
+
     /// The scope as the listing writes it: `*`, or the kind labels in the order
     /// the marker gave them.
     pub fn render(&self) -> String {
@@ -119,6 +154,16 @@ pub struct Unit {
     pub defers: Vec<String>,
     /// The unit's source file, `content/`-relative.
     pub file: String,
+    /// The file's position in the composed mandate, from its file directive.
+    ///
+    /// Carried per unit rather than per file, exactly as [`Unit::file`] is, so
+    /// that composition is a pure function of a unit *slice*: the composer sorts
+    /// by `(file_order, offset)` and needs no second structure to consult.
+    /// Duplicated across a file's units by construction — one directive sets it
+    /// for all of them — and unique **across** the embed, which one file's text
+    /// cannot decide, so it is checked in [`super::whole_embed`] beside id
+    /// uniqueness.
+    pub file_order: u32,
     /// 1-based line of the marker.
     pub line: usize,
     /// Byte offset of the marker within the file — the machine half of the
@@ -155,6 +200,20 @@ pub enum Fault {
     UnknownKind(String),
     NoUnitDeclared,
     BodyBeforeFirstMarker,
+    /// A `<!-- file: … -->` line this grammar cannot read. Carries the specific
+    /// reason, exactly as [`Fault::UnparseableMarker`] does — and for the same
+    /// reason: a typo in a directive must not quietly become prose.
+    UnparseableFileDirective(String),
+    /// The file declares no composition position. Required rather than optional
+    /// because the mandate's order must be **total**: one file without a
+    /// position is one pair of files with no order between them, which is the
+    /// single property the directive exists to supply.
+    MissingFileOrder,
+    /// A directive line that is not the body's first one — including a second
+    /// directive, which is the same fault seen twice. A file carries exactly one
+    /// position, and a directive anywhere else would sit *inside* a unit and
+    /// ship into a mandate as prose.
+    MisplacedFileOrder,
     /// Reported at the line the fence opened on: a fence opened and never closed
     /// absorbs every later marker into one giant unit while violating no other
     /// rule, so the file would otherwise parse clean and stop being classified.
@@ -214,8 +273,22 @@ impl fmt::Display for Fault {
             ),
             Fault::BodyBeforeFirstMarker => write!(
                 f,
-                "body text precedes the first unit marker; units partition the whole body, so \
-                 it must begin with one"
+                "body text precedes the first unit marker; units partition everything after \
+                 the file directive, so the first marker follows it immediately"
+            ),
+            Fault::UnparseableFileDirective(why) => {
+                write!(f, "unreadable file directive: {why}")
+            }
+            Fault::MissingFileOrder => write!(
+                f,
+                "the file declares no mandate position; write `<!-- file: order=<n> -->` as the \
+                 body's first line, since the composition order must be total"
+            ),
+            Fault::MisplacedFileOrder => write!(
+                f,
+                "this file directive is not the body's first line; a file carries exactly one, \
+                 written immediately before its first unit marker — anywhere else it sits inside \
+                 a unit and ships into a mandate as prose"
             ),
             Fault::UnterminatedFence => write!(
                 f,
@@ -302,12 +375,28 @@ pub fn parse_units(file: &str, text: &str) -> Result<Vec<Unit>, ParseError> {
         }
     })?;
 
+    // The file directive is read off the body's first line and consumed, so
+    // everything the unit loop then sees is a region units partition exactly. A
+    // directive is impossible to be inside a fence here — no line precedes this
+    // one to have opened it — which is why it needs no fence state.
+    let first = text[body_start..]
+        .split_inclusive('\n')
+        .next()
+        .unwrap_or("");
+    let (order, units_start, units_line) = if first.trim_end().starts_with(FILE_PREFIX) {
+        let order = parse_file_directive(first.trim_end())
+            .map_err(|fault| fault_at(body_line, body_start, fault))?;
+        (Some(order), body_start + first.len(), body_line + 1)
+    } else {
+        (None, body_start, body_line)
+    };
+
     let mut units: Vec<Unit> = Vec::new();
     let mut open: Option<(Unit, usize)> = None;
     let mut fence: Option<Fence> = None;
-    let mut offset = body_start;
+    let mut offset = units_start;
 
-    for (line_number, raw) in (body_line..).zip(text[body_start..].split_inclusive('\n')) {
+    for (line_number, raw) in (units_line..).zip(text[units_start..].split_inclusive('\n')) {
         let line = raw.trim_end();
         if let Some(state) = &fence {
             if state.is_closed_by(line) {
@@ -315,13 +404,18 @@ pub fn parse_units(file: &str, text: &str) -> Result<Vec<Unit>, ParseError> {
             }
         } else if let Some(state) = Fence::opened_by(line, line_number, offset) {
             fence = Some(state);
+        } else if line.starts_with(FILE_PREFIX) {
+            // Reported before the directive is even read: where it sits is
+            // wrong whatever it says, and a second complaint about its
+            // attributes would send a contributor to fix the wrong half.
+            return Err(fault_at(line_number, offset, Fault::MisplacedFileOrder));
         } else if line.starts_with(MARKER_PREFIX) {
             match open.take() {
                 Some((unit, start)) => units.push(unit.with_source(&text[start..offset])),
-                None if offset > body_start => {
+                None if offset > units_start => {
                     return Err(fault_at(
-                        body_line,
-                        body_start,
+                        units_line,
+                        units_start,
                         Fault::BodyBeforeFirstMarker,
                     ))
                 }
@@ -341,10 +435,56 @@ pub fn parse_units(file: &str, text: &str) -> Result<Vec<Unit>, ParseError> {
     if let Some((unit, start)) = open {
         units.push(unit.with_source(&text[start..]));
     }
+    // Emptiness outranks a missing position for the same reason: a file with no
+    // units is not yet a file whose place in the mandate means anything, and an
+    // empty file would otherwise be reported as an ordering mistake.
     if units.is_empty() {
-        return Err(fault_at(body_line, body_start, Fault::NoUnitDeclared));
+        return Err(fault_at(units_line, units_start, Fault::NoUnitDeclared));
+    }
+    let Some(order) = order else {
+        return Err(fault_at(body_line, body_start, Fault::MissingFileOrder));
+    };
+    for unit in &mut units {
+        unit.file_order = order;
     }
     Ok(units)
+}
+
+/// Read `<!-- file: order=<n> -->`, or say why it could not be read.
+///
+/// Deliberately strict about arity: exactly one attribute, spelled `order`,
+/// whose value is a non-negative integer. An unknown attribute is refused rather
+/// than ignored, on the marker grammar's own rule — a field the reader skips is
+/// a field a contributor believes is doing something.
+fn parse_file_directive(line: &str) -> Result<u32, Fault> {
+    let unreadable = |why: String| Fault::UnparseableFileDirective(why);
+    let stripped = line
+        .strip_suffix(MARKER_SUFFIX)
+        .ok_or_else(|| unreadable("the directive line does not end with `-->`".to_string()))?;
+    let inner = stripped[FILE_PREFIX.len()..].trim();
+
+    let tokens = tokenize(inner).map_err(unreadable)?;
+    let [token] = tokens.as_slice() else {
+        return Err(unreadable(format!(
+            "expected exactly one attribute, `{ORDER_ATTRIBUTE}=<n>`, got {} in `{inner}`",
+            tokens.len()
+        )));
+    };
+    let Some((name, value)) = token.split_once('=') else {
+        return Err(unreadable(format!(
+            "expected `{ORDER_ATTRIBUTE}=<n>`, got `{token}`"
+        )));
+    };
+    if name != ORDER_ATTRIBUTE {
+        return Err(unreadable(format!(
+            "unknown file-directive attribute `{name}`; the directive takes `{ORDER_ATTRIBUTE}`"
+        )));
+    }
+    value.parse::<u32>().map_err(|_| {
+        unreadable(format!(
+            "`{ORDER_ATTRIBUTE}` must be a non-negative integer, got `{value}`"
+        ))
+    })
 }
 
 impl Unit {
@@ -562,6 +702,11 @@ fn parse_marker(
         scope,
         defers,
         file: file.to_string(),
+        // Filled in by `parse_units` once the whole file has parsed. A marker
+        // says nothing about its file's position, and a placeholder that
+        // escaped would be a silent zero rather than a visible error — which is
+        // why the caller sets it on every unit unconditionally.
+        file_order: 0,
         line: line_number,
         offset,
         source: String::new(),
@@ -645,6 +790,13 @@ fn is_kebab_case(value: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Every fixture below opens with a **file directive**, because every
+    /// embedded file does and this reader's contract is over one of those.
+    ///
+    /// It is written into each fixture rather than prepended by these helpers.
+    /// Several assertions here are about exact line and byte coordinates, and a
+    /// helper that silently shifted them would leave those assertions saying
+    /// something other than what they read.
     fn units(text: &str) -> Vec<Unit> {
         parse_units("FIXTURE.md", text).expect("fixture must parse")
     }
@@ -663,30 +815,46 @@ mod tests {
     // the interesting shape goes green on a parser that rejects the real embed.
 
     #[test]
-    fn a_file_with_no_leading_block_starts_its_body_at_the_first_marker() {
-        let parsed = units("<!-- unit: alpha kinds=* class=triggering -->\nbody\n");
+    fn a_file_with_no_leading_block_starts_its_body_at_the_directive() {
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             body\n",
+        );
         assert_eq!(parsed.len(), 1);
         assert_eq!(parsed[0].id, "alpha");
-        assert_eq!(parsed[0].line, 1);
+        assert_eq!(
+            (parsed[0].line, parsed[0].offset),
+            (2, 23),
+            "a unit is located past the file directive, in both coordinates"
+        );
+        assert_eq!(parsed[0].file_order, 1);
         assert_eq!(
             parsed[0].source, "<!-- unit: alpha kinds=* class=triggering -->\nbody\n",
-            "the marker line is part of the unit's source"
+            "the marker line is part of the unit's source, and the directive is not"
         );
     }
 
     /// The shape that keeps `content/SKILL.md` parseable while it is still
     /// provisioned: its YAML frontmatter is what every harness reads to discover
     /// the skill, and without this rule the per-file gate would reject the real
-    /// embed on the day it landed.
+    /// embed on the day it landed. The directive sits **after** the block, in
+    /// the body, because it is read and the block is not.
     #[test]
     fn a_leading_delimited_block_is_skipped_and_belongs_to_no_unit() {
-        let parsed =
-            units("---\nname: grove\n---\n<!-- unit: alpha kinds=* class=triggering -->\nbody\n");
+        let parsed = units(
+            "---\n\
+             name: grove\n\
+             ---\n\
+             <!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             body\n",
+        );
         assert_eq!(parsed.len(), 1);
         assert_eq!(
             (parsed[0].line, parsed[0].offset),
-            (4, 20),
-            "a unit is located past the unread preamble, in both coordinates"
+            (5, 43),
+            "a unit is located past the unread preamble and the directive"
         );
         assert!(
             !parsed[0].source.contains("name: grove"),
@@ -706,7 +874,8 @@ mod tests {
     #[test]
     fn a_marker_inside_a_balanced_fence_declares_no_unit() {
         let parsed = units(
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              ```text\n\
              <!-- unit: example kinds=* class=triggering -->\n\
              ```\n\
@@ -723,7 +892,8 @@ mod tests {
     #[test]
     fn a_longer_fence_is_not_closed_by_a_shorter_run() {
         let parsed = units(
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              ````\n\
              ```\n\
              ````\n\
@@ -741,7 +911,8 @@ mod tests {
     #[test]
     fn a_fence_indented_within_three_columns_still_opens() {
         let parsed = units(
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              \x20  ```text\n\
              <!-- unit: example kinds=* class=triggering -->\n\
              \x20  ```\n",
@@ -758,7 +929,8 @@ mod tests {
     #[test]
     fn a_fence_indented_past_three_columns_is_not_a_fence() {
         let parsed = units(
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              \x20   ```\n\
              <!-- unit: beta kinds=* class=triggering -->\n\
              \x20   ```\n",
@@ -776,7 +948,8 @@ mod tests {
     #[test]
     fn a_backtick_info_string_containing_a_backtick_opens_nothing() {
         let parsed = units(
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              ```x``` is a code span, not a fence\n\
              <!-- unit: beta kinds=* class=triggering -->\n",
         );
@@ -788,28 +961,42 @@ mod tests {
 
     #[test]
     fn an_indented_marker_shaped_line_declares_no_unit() {
-        let parsed = units("<!-- unit: alpha kinds=* class=triggering -->\n  <!-- unit: beta kinds=* class=triggering -->\n");
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             \x20 <!-- unit: beta kinds=* class=triggering -->\n",
+        );
         assert_eq!(
             parsed.iter().map(|u| u.id.as_str()).collect::<Vec<_>>(),
             ["alpha"]
         );
     }
 
+    /// Partition is stated over the region the directive leaves behind, which is
+    /// the whole of what the directive costs: **one** body line belongs to no
+    /// unit, it is the first, and it is the only one.
     #[test]
-    fn units_partition_the_body_with_no_gap_and_no_nesting() {
-        let text = "<!-- unit: alpha kinds=* class=triggering -->\none\n<!-- unit: beta class=procedural -->\ntwo\n";
-        let parsed = units(text);
+    fn units_partition_everything_after_the_directive() {
+        let partitioned = "<!-- unit: alpha kinds=* class=triggering -->\none\n\
+                           <!-- unit: beta class=procedural -->\ntwo\n";
+        let parsed = units(&format!("<!-- file: order=4 -->\n{partitioned}"));
         assert_eq!(
             parsed.iter().map(|u| u.source.as_str()).collect::<String>(),
-            text,
-            "concatenating every unit's source must reproduce the body exactly"
+            partitioned,
+            "concatenating every unit's source must reproduce the body past the directive exactly"
+        );
+        assert!(
+            parsed.iter().all(|unit| unit.file_order == 4),
+            "one directive sets the position of every unit in its file"
         );
     }
 
     #[test]
     fn a_multi_member_scope_and_deferral_are_quoted_and_ordered() {
         let parsed = units(
-            "<!-- unit: alpha kinds=\"impl design\" class=triggering defers=\"beta gamma\" -->\nbody\n",
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=\"impl design\" class=triggering defers=\"beta gamma\" -->\n\
+             body\n",
         );
         assert_eq!(
             parsed[0].scope,
@@ -821,45 +1008,188 @@ mod tests {
 
     #[test]
     fn a_procedural_unit_carries_no_scope_and_may_still_defer() {
-        let parsed = units("<!-- unit: alpha class=procedural defers=beta -->\nbody\n");
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha class=procedural defers=beta -->\n\
+             body\n",
+        );
         assert_eq!(parsed[0].class, Class::Procedural);
         assert_eq!(parsed[0].scope, None);
         assert_eq!(parsed[0].defers, ["beta"]);
+    }
+
+    /// A scope admits `*` universally and a list by membership, and nothing
+    /// else. Both directions are asserted, because a predicate that answered
+    /// `true` everywhere would satisfy the first half alone.
+    #[test]
+    fn a_scope_admits_every_kind_or_exactly_its_members() {
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: wide kinds=* class=triggering -->\nbody\n\
+             <!-- unit: narrow kinds=\"impl finish\" class=triggering -->\nbody\n",
+        );
+        let scope_of = |id: &str| {
+            parsed
+                .iter()
+                .find(|unit| unit.id == id)
+                .and_then(|unit| unit.scope.clone())
+                .expect("a triggering unit carries a scope")
+        };
+
+        assert!(Kind::ALL
+            .into_iter()
+            .all(|kind| scope_of("wide").admits(kind)));
+        let narrow = scope_of("narrow");
+        assert!(narrow.admits(Kind::Impl) && narrow.admits(Kind::Finish));
+        assert!(
+            Kind::ALL
+                .into_iter()
+                .filter(|kind| !matches!(kind, Kind::Impl | Kind::Finish))
+                .all(|kind| !narrow.admits(kind)),
+            "a narrowed scope must be absent from the other seventeen; that absence \
+             is half of what the completeness invariant asserts"
+        );
+    }
+
+    // -- The file directive's own shapes ------------------------------------
+
+    #[test]
+    fn a_file_declaring_no_mandate_position_is_rejected() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "<!-- unit: alpha kinds=* class=triggering -->\nbody\n",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::MissingFileOrder);
+        assert_eq!(
+            (error.line, error.offset),
+            (1, 0),
+            "reported where the directive should have been — the body's first line"
+        );
+    }
+
+    /// A file that carries a position but declares no unit fails as the empty
+    /// file it is. The order is deliberate: a position is a fact *about* a file
+    /// of units, so complaining about it first would name the wrong repair.
+    #[test]
+    fn an_ordered_file_declaring_no_unit_still_fails_as_empty() {
+        assert_eq!(fault("<!-- file: order=1 -->\n"), Fault::NoUnitDeclared);
+    }
+
+    /// A second directive is the same fault as a misplaced first one, and that
+    /// is not a shortcut: a file carries exactly one position, and every
+    /// directive but the body's first line sits *inside* a unit, where it would
+    /// ship into a mandate as prose.
+    #[test]
+    fn a_second_file_directive_is_rejected_wherever_it_sits() {
+        let error = parse_units(
+            "FIXTURE.md",
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             <!-- file: order=2 -->\n",
+        )
+        .unwrap_err();
+        assert_eq!(error.fault, Fault::MisplacedFileOrder);
+        assert_eq!(error.line, 3);
+
+        assert_eq!(
+            fault(
+                "<!-- unit: alpha kinds=* class=triggering -->\n\
+                 <!-- file: order=1 -->\n",
+            ),
+            Fault::MisplacedFileOrder,
+            "a directive below the first marker is misplaced even when it is the only one"
+        );
+    }
+
+    /// The **asymmetry with fences, deliberately the same as the markers'.**
+    /// Strictness only ever *withholds* directive-hood, so an indented directive
+    /// is not one — and the residue lands in the visible direction: as the body's
+    /// first line it costs the file its position, and anywhere else it is inert
+    /// prose inside a unit whose file already has one.
+    #[test]
+    fn an_indented_file_directive_declares_no_position() {
+        assert_eq!(
+            fault(
+                "\x20<!-- file: order=1 -->\n\
+                 <!-- unit: alpha kinds=* class=triggering -->\n",
+            ),
+            Fault::BodyBeforeFirstMarker,
+            "one column in, it is text before the first marker rather than a position"
+        );
+
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             \x20<!-- file: order=2 -->\n",
+        );
+        assert_eq!(parsed[0].file_order, 1, "and inert once the file has one");
+    }
+
+    /// The methodology documents itself, so an example directive inside a fence
+    /// is certain to appear — and it must be prose, exactly as an example
+    /// marker is.
+    #[test]
+    fn a_file_directive_inside_a_balanced_fence_declares_no_position() {
+        let parsed = units(
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             ```text\n\
+             <!-- file: order=9 -->\n\
+             ```\n",
+        );
+        assert_eq!(parsed[0].file_order, 1);
+        assert!(
+            parsed[0].source.contains("<!-- file: order=9 -->"),
+            "the example's bytes belong to the unit containing the fence"
+        );
+    }
+
+    #[test]
+    fn an_unreadable_file_directive_is_rejected_rather_than_read_as_prose() {
+        let unreadable = |text: &str| {
+            assert!(
+                matches!(fault(text), Fault::UnparseableFileDirective(_)),
+                "expected an unreadable directive from {text:?}, got {:?}",
+                fault(text)
+            );
+        };
+        unreadable("<!-- file: order=1\n");
+        unreadable("<!-- file: -->\n");
+        unreadable("<!-- file: position=1 -->\n");
+        unreadable("<!-- file: order=first -->\n");
+        unreadable("<!-- file: order=-1 -->\n");
+        unreadable("<!-- file: order=1 order=2 -->\n");
     }
 
     // -- The malformed cases, each asserted to fail -------------------------
 
     #[test]
     fn an_unparseable_marker_is_rejected_rather_than_read_as_prose() {
-        assert!(matches!(
-            fault("<!-- unit: alpha kinds=* class=triggering\n"),
-            Fault::UnparseableMarker(_)
-        ));
-        assert!(matches!(
-            fault("<!-- unit: -->\n"),
-            Fault::UnparseableMarker(_)
-        ));
-        assert!(matches!(
-            fault("<!-- unit: Alpha kinds=* class=triggering -->\n"),
-            Fault::UnparseableMarker(_)
-        ));
-        assert!(matches!(
-            fault("<!-- unit: alpha kinds=\"impl class=triggering -->\n"),
-            Fault::UnparseableMarker(_)
-        ));
-        assert!(
-            matches!(
-                fault("<!-- unit: alpha kinds=impl design class=triggering -->\n"),
-                Fault::UnparseableMarker(_)
-            ),
-            "an unquoted multi-member scope must fail rather than silently truncate"
-        );
+        let unreadable = |text: &str| {
+            assert!(
+                matches!(
+                    fault(&format!("<!-- file: order=1 -->\n{text}")),
+                    Fault::UnparseableMarker(_)
+                ),
+                "expected an unreadable marker from {text:?}"
+            );
+        };
+        unreadable("<!-- unit: alpha kinds=* class=triggering\n");
+        unreadable("<!-- unit: -->\n");
+        unreadable("<!-- unit: Alpha kinds=* class=triggering -->\n");
+        unreadable("<!-- unit: alpha kinds=\"impl class=triggering -->\n");
+        // An unquoted multi-member scope must fail rather than silently truncate.
+        unreadable("<!-- unit: alpha kinds=impl design class=triggering -->\n");
     }
 
     #[test]
     fn an_unknown_attribute_is_rejected() {
         assert_eq!(
-            fault("<!-- unit: alpha scope=* class=triggering -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha scope=* class=triggering -->\n",
+            ),
             Fault::UnknownAttribute("scope".to_string())
         );
     }
@@ -867,7 +1197,10 @@ mod tests {
     #[test]
     fn attributes_out_of_the_fixed_order_are_rejected() {
         assert_eq!(
-            fault("<!-- unit: alpha class=triggering kinds=* -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha class=triggering kinds=* -->\n",
+            ),
             Fault::AttributesOutOfOrder {
                 attribute: "kinds".to_string(),
                 after: "class".to_string(),
@@ -875,7 +1208,10 @@ mod tests {
         );
         assert!(
             matches!(
-                fault("<!-- unit: alpha kinds=* kinds=* class=triggering -->\n"),
+                fault(
+                    "<!-- file: order=1 -->\n\
+                     <!-- unit: alpha kinds=* kinds=* class=triggering -->\n",
+                ),
                 Fault::AttributesOutOfOrder { .. }
             ),
             "a repeated attribute is out of a strictly increasing order"
@@ -884,17 +1220,29 @@ mod tests {
 
     #[test]
     fn a_missing_class_is_rejected() {
-        assert_eq!(fault("<!-- unit: alpha kinds=* -->\n"), Fault::MissingClass);
+        assert_eq!(
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha kinds=* -->\n",
+            ),
+            Fault::MissingClass
+        );
     }
 
     #[test]
     fn the_scope_rule_binds_both_ways() {
         assert_eq!(
-            fault("<!-- unit: alpha kinds=* class=procedural -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha kinds=* class=procedural -->\n",
+            ),
             Fault::KindsOnProcedural
         );
         assert_eq!(
-            fault("<!-- unit: alpha class=triggering -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha class=triggering -->\n",
+            ),
             Fault::MissingKinds
         );
     }
@@ -902,12 +1250,18 @@ mod tests {
     #[test]
     fn a_scope_member_outside_the_closed_nineteen_is_rejected() {
         assert_eq!(
-            fault("<!-- unit: alpha kinds=producers class=triggering -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha kinds=producers class=triggering -->\n",
+            ),
             Fault::UnknownKind("producers".to_string()),
             "no family shorthand: it would silently absorb a kind added later"
         );
         assert_eq!(
-            fault("<!-- unit: alpha kinds=work class=triggering -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: alpha kinds=work class=triggering -->\n",
+            ),
             Fault::UnknownKind("work".to_string()),
             "the read-side `work` alias is a task-filename concession, not a scope"
         );
@@ -923,14 +1277,17 @@ mod tests {
     fn body_text_before_the_first_marker_is_rejected_with_the_bodys_offset() {
         let error = parse_units(
             "FIXTURE.md",
-            "---\nname: x\n---\nprose\n<!-- unit: a kinds=* class=triggering -->\n",
+            "---\nname: x\n---\n\
+             <!-- file: order=1 -->\n\
+             prose\n\
+             <!-- unit: a kinds=* class=triggering -->\n",
         )
         .unwrap_err();
         assert_eq!(error.fault, Fault::BodyBeforeFirstMarker);
         assert_eq!(
             (error.line, error.offset),
-            (4, 16),
-            "the offset names where the body began, past the unread preamble"
+            (5, 39),
+            "the offset names where the units begin, past the unread preamble and the directive"
         );
     }
 
@@ -938,11 +1295,15 @@ mod tests {
     fn an_unterminated_fence_is_rejected_on_the_line_it_opened() {
         let error = parse_units(
             "FIXTURE.md",
-            "<!-- unit: alpha kinds=* class=triggering -->\n```\nswallowed\n<!-- unit: beta kinds=* class=triggering -->\n",
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             ```\n\
+             swallowed\n\
+             <!-- unit: beta kinds=* class=triggering -->\n",
         )
         .unwrap_err();
         assert_eq!(error.fault, Fault::UnterminatedFence);
-        assert_eq!(error.line, 2);
+        assert_eq!(error.line, 3);
     }
 
     /// The **silent** direction of a loose fence rule, and the reason the close
@@ -953,14 +1314,15 @@ mod tests {
     fn an_over_indented_run_does_not_close_a_fence() {
         let error = parse_units(
             "FIXTURE.md",
-            "<!-- unit: alpha kinds=* class=triggering -->\n\
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
              ```\n\
              <!-- unit: example kinds=* class=triggering -->\n\
              \x20   ```\n",
         )
         .unwrap_err();
         assert_eq!(error.fault, Fault::UnterminatedFence);
-        assert_eq!(error.line, 2);
+        assert_eq!(error.line, 3);
     }
 
     /// A close carries no info string, so a second opener-shaped line does not
@@ -969,7 +1331,10 @@ mod tests {
     fn a_run_carrying_an_info_string_does_not_close_a_fence() {
         let error = parse_units(
             "FIXTURE.md",
-            "<!-- unit: alpha kinds=* class=triggering -->\n```\n```text\n",
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             ```\n\
+             ```text\n",
         )
         .unwrap_err();
         assert_eq!(error.fault, Fault::UnterminatedFence);
@@ -987,6 +1352,7 @@ mod tests {
              <!-- unit: hidden kinds=* class=triggering -->\n\
              prose\n\
              ---\n\
+             <!-- file: order=1 -->\n\
              <!-- unit: visible kinds=* class=triggering -->\n",
         )
         .unwrap_err();
@@ -1001,11 +1367,13 @@ mod tests {
     fn a_file_that_does_not_end_in_a_newline_is_rejected() {
         let error = parse_units(
             "FIXTURE.md",
-            "<!-- unit: alpha kinds=* class=triggering -->\nbody",
+            "<!-- file: order=1 -->\n\
+             <!-- unit: alpha kinds=* class=triggering -->\n\
+             body",
         )
         .unwrap_err();
         assert_eq!(error.fault, Fault::MissingFinalNewline);
-        assert_eq!((error.line, error.offset), (2, 50));
+        assert_eq!((error.line, error.offset), (3, 73));
     }
 
     /// The listing's five fields need no escaping rule only while no field can
@@ -1013,17 +1381,17 @@ mod tests {
     /// data rather than a grammar until the build makes it one.
     #[test]
     fn a_path_no_listing_row_could_carry_is_rejected() {
-        let marker = "<!-- unit: alpha kinds=* class=triggering -->\n";
+        let file = "<!-- file: order=1 -->\n<!-- unit: alpha kinds=* class=triggering -->\n";
         assert_eq!(
-            parse_units("two\tfields.md", marker).unwrap_err().fault,
+            parse_units("two\tfields.md", file).unwrap_err().fault,
             Fault::UnlistablePath('\t')
         );
         assert_eq!(
-            parse_units("two\nrows.md", marker).unwrap_err().fault,
+            parse_units("two\nrows.md", file).unwrap_err().fault,
             Fault::UnlistablePath('\n')
         );
         assert!(
-            parse_units("prompts/continue.md", marker).is_ok(),
+            parse_units("prompts/continue.md", file).is_ok(),
             "an ordinary nested path is untouched"
         );
     }
@@ -1037,22 +1405,32 @@ mod tests {
     #[test]
     fn the_reader_separates_a_well_formed_marker_from_a_malformed_one() {
         assert_eq!(
-            units("<!-- unit: well-formed kinds=* class=triggering -->\n")[0].id,
+            units(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: well-formed kinds=* class=triggering -->\n",
+            )[0]
+            .id,
             "well-formed"
         );
         assert!(matches!(
-            fault("<!-- unit: mal formed kinds=* class=triggering -->\n"),
+            fault(
+                "<!-- file: order=1 -->\n\
+                 <!-- unit: mal formed kinds=* class=triggering -->\n",
+            ),
             Fault::UnparseableMarker(_)
         ));
     }
 
     #[test]
     fn an_error_names_the_file_the_line_and_the_offset() {
-        let rendered = parse_units("SKILL.md", "<!-- unit: alpha kinds=* -->\n")
-            .unwrap_err()
-            .to_string();
+        let rendered = parse_units(
+            "SKILL.md",
+            "<!-- file: order=1 -->\n<!-- unit: alpha kinds=* -->\n",
+        )
+        .unwrap_err()
+        .to_string();
         assert!(
-            rendered.starts_with("SKILL.md:1:0: "),
+            rendered.starts_with("SKILL.md:2:23: "),
             "a build error must be openable: {rendered}"
         );
     }

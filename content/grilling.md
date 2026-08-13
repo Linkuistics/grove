@@ -1,3 +1,4 @@
+<!-- file: order=8 -->
 <!-- unit: grilling-interrogate class=procedural defers="grilling-domain-awareness grilling-challenge-the-glossary grilling-sharpen-fuzzy-language grilling-discuss-concrete-scenarios grilling-cross-reference-with-code grilling-update-context-inline grilling-offer-adrs-sparingly grilling-agree-the-test-seams" -->
 <!-- bundled in grove from mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3 (skills/productivity/grilling/SKILL.md + skills/engineering/domain-modeling/SKILL.md) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE -->
 <!-- intentionally fused — upstream split them; grove has no skill-to-skill invocation, so the split would be cosmetic -->

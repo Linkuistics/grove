@@ -1,3 +1,4 @@
+<!-- file: order=4 -->
 <!-- unit: brief-the-node-briefing class=procedural defers="brief-every-node-carries-one brief-durable-content brief-suggested-shape brief-briefs-inherit" -->
 <!-- grove reference file — the BRIEF.md shape -->
 

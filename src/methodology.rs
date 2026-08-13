@@ -1,9 +1,16 @@
 //! The embedded methodology, addressable by unit.
 //!
-//! `content/` is compiled into **both** binaries — `grove` to provision and
-//! (later) to compose mandates, `grove-llm` to serve unit bytes to a session
-//! that followed a `defers=` id. This module owns the embed, the reader over it
-//! ([`parse`], shared with `build.rs`), and the build's [`identity`].
+//! `content/` is compiled into **both** binaries — `grove` to provision and to
+//! compose mandates, `grove-llm` to serve unit bytes to a session that followed
+//! a `defers=` id. This module owns the embed, the two readers over it
+//! ([`parse`] and [`whole_embed`], both shared with `build.rs`), the
+//! [`compose`] projection a mandate is built from, and the build's [`identity`].
+//!
+//! [`compose`] lives **here rather than in a third submodule**, and the
+//! asymmetry is deliberate: the two readers are files because they are
+//! `#[path]`-included into the build script, so a third file beside them would
+//! imply a sharing that does not exist. The build gate needs no composer — it
+//! decides whether the embed is well-formed, not what any session receives.
 //!
 //! The identity is a hash of the embed rather than a compile-time constant, and
 //! that is a consequence of `grove-llm` linking `content/` at all. The constant
@@ -22,6 +29,8 @@ mod whole_embed;
 // surface nothing outside the crate could reach a value of (`src/lib.rs` states
 // the rule).
 pub use parse::{Class, Scope, Unit};
+
+use crate::leaf::Kind;
 
 use anyhow::{Context, Result};
 use include_dir::{include_dir, Dir, DirEntry};
@@ -65,6 +74,49 @@ pub fn units() -> Result<Vec<Unit>> {
         .map_err(|error| anyhow::anyhow!("content/{error}"))
         .context("the embedded methodology is internally inconsistent")?;
     Ok(units)
+}
+
+/// The methodology a session of `kind` is handed: every triggering unit whose
+/// scope admits that kind, byte-exact, in mandate order, joined by blank lines.
+///
+/// **This returns the composed slices and nothing else.** The two facts a driver
+/// resolves at runtime — the selected leaf's stable handle and the stated
+/// version control — are appended by the driver, because they are not
+/// expressible in `content/` and therefore have no unit to be a slice of. That
+/// is also what the 64 KiB classification alarm counts: the composer's bytes,
+/// which are deterministic, rather than a session's, which do not exist yet.
+///
+/// Three rules, each of which is a decision rather than an implementation
+/// detail (`docs/specs/mandate-delivered-methodology.md`, *The driver authors
+/// mandate prose only for facts it resolves at runtime*):
+///
+/// * **Selection is the scope and nothing else.** Triggering units whose scope
+///   admits `kind`; no procedural unit, whatever it defers from. A procedural
+///   body reaches a session through `grove-llm methodology` or not at all.
+/// * **Order is `(file position, offset within the file)`.** The framing unit
+///   needs no rule of its own — it leads because `content/MANDATE.md` is ordered
+///   first — which is what keeps the composer free of any knowledge about which
+///   unit is which. The sort is performed here rather than assumed of the
+///   caller: [`units`] is assembled in *path* order, which is what the two
+///   readers report failures in, and the two orders are unrelated on purpose.
+/// * **Slices are joined by a blank line and nothing else.** Every unit's source
+///   ends in a newline — the build rejects a file that does not, so that a
+///   multi-unit fetch keeps each marker on its own line — so one `\n` between
+///   adjacent sources is exactly one blank line. Any framing sentence here would
+///   be methodology living in Rust, which is the drift a byte-exact projection
+///   exists to make impossible.
+pub fn compose(units: &[Unit], kind: Kind) -> String {
+    let mut selected: Vec<&Unit> = units
+        .iter()
+        .filter(|unit| unit.class == Class::Triggering)
+        .filter(|unit| unit.scope.as_ref().is_some_and(|scope| scope.admits(kind)))
+        .collect();
+    selected.sort_by_key(|unit| (unit.file_order, unit.offset));
+    selected
+        .iter()
+        .map(|unit| unit.source.as_str())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// This build's **methodology identity** — the content hash of its embedded
@@ -160,6 +212,134 @@ fn hash_files(files: &[(&Path, &[u8])]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Composition's fixtures come from the parser's output, which is why the
+    /// design rejected a separate composer seam: a boundary here would have to
+    /// hand-build [`Unit`] values, and a fixture that skipped the reader could
+    /// assert a shape the grammar cannot produce.
+    fn embed(files: &[(&str, u32, &str)]) -> Vec<Unit> {
+        files
+            .iter()
+            .flat_map(|(name, order, text)| {
+                let ordered = format!("<!-- file: order={order} -->\n{text}");
+                parse::parse_units(name, &ordered).expect("fixture must parse")
+            })
+            .collect()
+    }
+
+    /// *Requirement: Triggering units reach every kind they are scoped to* — all
+    /// three scenarios, and the middle one is the half that is easy to lose: a
+    /// narrowed unit must be **absent** from the other eighteen, not merely
+    /// present in its own.
+    #[test]
+    fn selection_is_the_scope_and_nothing_else() {
+        let units = embed(&[(
+            "A.md",
+            1,
+            "<!-- unit: wide kinds=* class=triggering -->\nevery kind\n\
+             <!-- unit: narrow kinds=impl class=triggering -->\nimpl only\n\
+             <!-- unit: body class=procedural -->\nfetched, never composed\n",
+        )]);
+
+        for kind in Kind::ALL {
+            let mandate = compose(&units, kind);
+            assert!(
+                mandate.contains("every kind"),
+                "a `kinds=*` unit must reach {}",
+                kind.label()
+            );
+            assert_eq!(
+                mandate.contains("impl only"),
+                kind == Kind::Impl,
+                "`kinds=impl` must reach `impl` and no other kind; {} disagreed",
+                kind.label()
+            );
+            assert!(
+                !mandate.contains("fetched, never composed"),
+                "a procedural unit ships to no mandate, and {} received one",
+                kind.label()
+            );
+        }
+    }
+
+    /// *Requirement: Slices are byte-exact.* The whole mandate is asserted
+    /// against a hand-written expectation rather than by substring, because the
+    /// claim is about what is **not** there — no introduction, no separator, no
+    /// re-wrapping — which no `contains` can see.
+    #[test]
+    fn slices_are_verbatim_and_joined_by_one_blank_line() {
+        let units = embed(&[(
+            "A.md",
+            1,
+            "<!-- unit: one kinds=* class=triggering -->\nfirst body\n\
+             <!-- unit: two kinds=* class=triggering -->\nsecond body\n",
+        )]);
+
+        assert_eq!(
+            compose(&units, Kind::Design),
+            "<!-- unit: one kinds=* class=triggering -->\n\
+             first body\n\
+             \n\
+             <!-- unit: two kinds=* class=triggering -->\n\
+             second body\n",
+            "each unit's source bytes, marker line included, with exactly one \
+             blank line between adjacent slices and nothing else"
+        );
+    }
+
+    /// Mandate order is the **file directive** then position within the file —
+    /// deliberately not the path order [`units`] is assembled in, which is what
+    /// this fixture separates: `A.md` sorts first by path and last by position.
+    #[test]
+    fn order_is_the_file_directive_then_position_within_the_file() {
+        let units = embed(&[
+            (
+                "A.md",
+                2,
+                "<!-- unit: second-file-first kinds=* class=triggering -->\nc\n\
+                 <!-- unit: second-file-second kinds=* class=triggering -->\nd\n",
+            ),
+            (
+                "B.md",
+                1,
+                "<!-- unit: first-file-first kinds=* class=triggering -->\na\n\
+                 <!-- unit: first-file-second kinds=* class=triggering -->\nb\n",
+            ),
+        ]);
+
+        let mandate = compose(&units, Kind::Finish);
+        let ids: Vec<&str> = mandate
+            .lines()
+            .filter(|line| line.starts_with("<!-- unit:"))
+            .map(|line| line.split_whitespace().nth(2).unwrap())
+            .collect();
+        assert_eq!(
+            ids,
+            [
+                "first-file-first",
+                "first-file-second",
+                "second-file-first",
+                "second-file-second"
+            ],
+            "the file's declared position outranks its path, and units keep their \
+             order within a file"
+        );
+    }
+
+    /// A kind no unit is scoped to composes to nothing rather than to a
+    /// driver-authored placeholder. Empty is the honest projection of an empty
+    /// selection, and it is the shape the size alarm and the ending guard both
+    /// have to be able to see.
+    #[test]
+    fn a_selection_of_nothing_composes_to_nothing() {
+        let units = embed(&[(
+            "A.md",
+            1,
+            "<!-- unit: only kinds=finish class=triggering -->\nbody\n",
+        )]);
+        assert_eq!(compose(&units, Kind::Impl), "");
+        assert!(!compose(&units, Kind::Finish).is_empty());
+    }
 
     #[test]
     fn the_identity_is_stable_and_nonempty() {

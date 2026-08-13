@@ -57,18 +57,19 @@ use std::path::{Path, PathBuf};
 const MARKER_HELP: &[&str] = &[
     "The marker grammar is: <!-- unit: <id> kinds=<scope> class=<class> defers=<target> -->",
     "`kinds` is required on a triggering unit and forbidden on a procedural one,",
-    "attributes are written in that fixed order, and every body byte of every file",
-    "belongs to exactly one unit.",
+    "and attributes are written in that fixed order. Every file's body opens with",
+    "<!-- file: order=<n> -->, its position in a composed mandate, and every body",
+    "byte after that line belongs to exactly one unit.",
 ];
 
 /// ...and after a whole-embed failure, where the line the error points at is
 /// well-formed and it is the *set* that is not. Repeating the marker grammar
 /// there would send a contributor to look for a typo that is not present.
 const EMBED_HELP: &[&str] = &[
-    "Every unit id is unique across the whole embed, every `defers=` names a declared",
-    "`class=procedural` unit, every procedural unit is reached by following `defers=`",
-    "from some triggering unit, and no chain of deferrals returns to a unit it has",
-    "already passed through.",
+    "Every unit id and every `<!-- file: order= -->` position is unique across the whole",
+    "embed, every `defers=` names a declared `class=procedural` unit, every procedural",
+    "unit is reached by following `defers=` from some triggering unit, and no chain of",
+    "deferrals returns to a unit it has already passed through.",
 ];
 
 fn main() {

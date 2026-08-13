@@ -1,3 +1,4 @@
+<!-- file: order=7 -->
 <!-- unit: spec-when-a-spec-is-written kinds=* class=triggering defers="spec-set-is-current-state spec-suggested-shape" -->
 <!-- grove reference file — the spec shape -->
 

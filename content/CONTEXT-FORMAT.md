@@ -1,3 +1,4 @@
+<!-- file: order=5 -->
 <!-- unit: context-structure class=procedural defers="context-rules context-single-vs-multi-repos" -->
 <!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c
      — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. Deliberately NOT

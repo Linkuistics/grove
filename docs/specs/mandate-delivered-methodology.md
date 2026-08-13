@@ -1571,9 +1571,36 @@ filesystem walk that used to gather it.
   has to carry free text, such as a title or a summary, since that is the point
   where escaping stops being a property of the data and becomes a rule someone
   must remember.
-- **A templating engine.** One was accepted in principle to keep `content/`
-  readable from the code, but byte-exact slicing reaches that without one. No
-  engine is adopted to satisfy a sentence.
+- **A templating engine over `content/`.** One was accepted in principle to keep
+  `content/` readable from the code, but byte-exact slicing reaches that without
+  one. No engine is adopted to satisfy a sentence.
+
+  **A narrower question about the driver's own prose is open, and the reasoning
+  above does not reach it.** Everything argued there is about `content/`; nothing
+  in it addresses the ~260 bytes of prompt prose the driver holds as Rust string
+  literals — the handle sentence and the version-control paragraph, four literals
+  in `src/loop_driver.rs` carrying one two-way branch. A grilling
+  (`templated-mandate-k12`, closed unanswered rather than decided) settled two
+  things a reopening should not re-derive. Its **scope** is the composed
+  `${prompt}` alone: the marker grammar, the parser, the build gate, `compose`
+  and `grove-llm methodology` are not in play, and the readings that replace them
+  were priced and set aside. Its **constraint** is an existing Rust engine, never
+  a bespoke one — which the repository already satisfies today, since `compose`
+  concatenates source bytes and interpolates nothing, so nothing here is a
+  templating engine grown in-house.
+
+  What makes the question coherent rather than a reversal of *The driver authors
+  mandate prose only for facts it resolves at runtime* is that the rule assigns
+  ownership of the **fact**, while an engine would move only the **wording**:
+  `repo::vcs_of` would still resolve the version control, and a template would
+  supply the sentence wrapping it. Two things a reopening settles first. Where
+  the template lives — `content/` cannot hold it without making *Requirement:
+  Slices are byte-exact* conditional, so a separately embedded asset is the shape
+  that leaves the invariant whole. And whether the goal is bounded to the mandate
+  or is the wider "no prose in Rust", which is a different increment: production
+  string literals total ~281 kB across 1,062 sites, and grove has a **second**
+  agent-facing prose surface in every error a session sees through a `grove-llm`
+  verb.
 - **Making the `linkuistics` plugin sliceable.** ADR philosophy, seam judgement
   and the Jujutsu lane live in a separately installed plugin, are not embedded,
   and are therefore not sliceable. Extending the packaging goal to them is a

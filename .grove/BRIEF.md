@@ -167,3 +167,33 @@ composed mandates themselves.
 code already supports. If the design leaf finds D4 is a genuine trade-off rather
 than a gap being written down, that is the one candidate — the when-to-write test
 decides, not this brief.
+
+## Finishing this grove — read this before teardown
+
+`templated-mandate-k12` was **abandoned on 2026-08-13 at the human's direction,
+unanswered rather than decided against.** The grilling had settled its scope (the
+initial prompt only — the composer, marker grammar, build gate and `grove-llm
+methodology` are not in play) and its constraint (an existing Rust engine, never
+a bespoke one) when the human chose to close the grove instead. Everything it
+established is promoted to `docs/specs/mandate-delivered-methodology.md`'s *A
+templating engine over `content/`* out-of-scope entry, which is where a reopening
+starts. Nothing about it is pending here.
+
+**The human asked for a release alongside the finish cycle**, so the sequence
+continues past teardown:
+
+1. Teardown here — `grove-llm finish-commit <finish-handle>`, then
+   `grove-llm complete --done`.
+2. Then, **from `/Users/antony/Development/grove`** — the default *colocated*
+   workspace. `docs/RELEASING.md` requires both `.jj/` and `.git/`, and this
+   workspace has only `.jj/`, so `cargo-release` cannot run in it. Move `main`
+   to the teardown commit (it is a fast-forward: `main` sits at `v18.2.0`, a
+   direct ancestor of this grove's linear history), cut **`cargo release minor`**
+   — v18.2.0 → v18.3.0, per the human's "minor publish" — push the bookmark and
+   then the tag with plain `git push origin v18.3.0`, and run
+   `scripts/release-build.sh` followed by `scripts/release-publish.sh`.
+
+`## Unreleased` already carries ten entries, logged by the sessions that made
+them, so step 1 of `docs/RELEASING.md` is a review rather than an authoring task.
+Teardown must land **before** `main` moves, so the integrated tip carries no
+`.grove/` — which is the state `main` is in today.

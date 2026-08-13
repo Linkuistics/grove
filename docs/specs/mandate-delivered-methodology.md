@@ -1127,14 +1127,39 @@ endings *as outcomes of what the session did* rather than as a rule qualified by
 another kind's, and that no unit restates an ending in words naming neither the
 completion verb nor `--done`. The composer returns opaque bytes and carries no
 role metadata, so a mechanical claim about either would be a substring heuristic
-wearing a SHALL. They are carried by the classification review, and pinned for
-drift — not for correctness — by a byte-level pin of the **ending units
-themselves**. The composition golden is not that pin: it holds each kind's
-ordered unit ids, for the reason given under *Test seams*, so the ending split
-carries the narrow byte assertion its own claim needs, beside the guard. That pin
-is a hand-edited constant rather than a regenerable golden, and deliberately: a
-one-command regeneration can be cleared without reading the new prose, and
-reading the new prose is the whole of what the pin is for.
+wearing a SHALL. Both are carried by the classification review, and what is
+recorded here is **how far the automated boundary around that review reaches** —
+because the two limbs are not covered alike, and one statement spanning both
+overclaims for the wider of them.
+
+The first limb is a claim about **one unit**, so a byte-level pin of the ending
+units themselves bounds it exactly: `skill-finish-endings` cannot be reworded
+without the pin failing and a human re-reading the table. The composition golden
+is not that pin — it holds each kind's ordered unit ids, for the reason given
+under *Test seams* — so the ending split carries the narrow byte assertion its own
+claim needs, beside the guard. That pin is a hand-edited constant rather than a
+regenerable golden, and deliberately: a one-command regeneration can be cleared
+without reading the new prose, and reading the new prose is the whole of what the
+pin is for.
+
+The second limb ranges over **every unit a mandate carries**, which a pin of two
+units cannot bound. Its coverage is three-part, and the third part is a gap
+rather than a guard:
+
+- a **new** unit restating an ending moves the composition golden, which gains a
+  row per kind admitting it, so the id arrives in front of a reader;
+- an **existing** unit rewritten to restate one **and naming the completion verb**
+  fails the complement sweep, by name;
+- an existing unit rewritten to restate one **without** naming the verb is caught
+  by nothing mechanical. The pin does not reach it and neither does anything
+  else: that case is the classification review's alone, performed when the prose
+  is written.
+
+Widening the pin to every composed unit was rejected on the reasoning that
+already rejects a byte-level composition golden under *Test seams*: it would move
+on most prose edits in this repository, and a constant retyped on most commits is
+cleared without being read — spending the first limb's real boundary to buy the
+second a nominal one.
 
 #### Scenario: every kind is covered
 - **WHEN** a mandate is composed for each member of the closed kind set
@@ -1152,6 +1177,14 @@ reading the new prose is the whole of what the pin is for.
 - **THEN** the assertion fails, naming the unit — which the membership count
   alone cannot see, because the declared unit is still present and still counts
   one
+
+#### Scenario: a restatement the sweep cannot see
+- **WHEN** a unit other than a declared ending states an ending in words naming
+  neither the completion verb nor `--done`
+- **THEN** nothing fails, and that is the recorded boundary rather than an
+  oversight — the sweep's own control asserts that this shape escapes, so the
+  limitation is executable at the point where someone would otherwise widen the
+  sweep into a heuristic
 
 #### Scenario: no exception for another kind's rule
 - **WHEN** the mandate of any kind other than `finish` is composed
@@ -1324,7 +1357,12 @@ The checks that seam carries:
   sweep which cannot fail is worth nothing: the membership count shown failing on
   a kind whose ending unit's scope is withdrawn and passing on the real set, and
   the complement sweep shown failing on a synthetic mandate naming the verb
-  outside the declared set and passing on one that does not.
+  outside the declared set and passing on one that does not. The complement
+  sweep's control carries a **third** synthetic unit, one restating an ending
+  without naming the verb, asserted **unreported** — the boundary the requirement
+  above records, held in the one place a later reader would reach for to widen the
+  sweep, so widening it into a phrase heuristic is a deliberate act rather than an
+  unnoticed one.
   `tests/session_kind_guidance.rs` is the precedent and the place — it already
   generates its claims from the kind enum so that a twentieth kind fails until the
   guidance names it, states the limits of each sweep rather than papering over

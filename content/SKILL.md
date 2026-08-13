@@ -57,7 +57,7 @@ lives at `.grove/` inside it.
 Sessions are launched by the `grove` CLI (installed via `brew install Linkuistics/taps/grove`): run **bare `grove`** from inside the working tree — no subcommand, no flags. That is the whole human surface *and* the sole lifecycle entry: it inspects the state on disk and dispatches. No `.grove/` yet → it scaffolds the tree and launches its first `requirements` leaf; a live tree → the next leaf; no ordinary work left → it appends one `finish` leaf and launches that. If the tree is in an older format — the original `NNN-slug/` directories, the v1 flat dotted-decimal scheme, or the pre-session-kind filenames — the first bare `grove` **migrates it** before driving, as one recoverable transaction and one focused, reviewable commit; migration is idempotent once a tree is current-format, and there is **no** transitional dual-format reader (task-tree-scheme).
 
 <!-- unit: skill-self-driving-loop kinds=* class=triggering -->
-Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: launch one fresh foreground harness session (owning the real TTY, so grilling / resize / Ctrl-C are all native), and when that session ends, **relaunch with fresh context** — but only if the agent fired the completion signal. That makes each task a clean-context session without a manual `/clear`+relaunch crank. **Relaunch is opt-in:** any other exit — your `/exit`, the human's Ctrl-C, or a crash — **stops** the loop, resumable later by re-running `grove` from the same working tree. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction; a task that crashes before its retire-and-commit boundary leaves its leaf live and is simply re-selected and redone. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
+Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is a thin, stateless **self-driving loop**: one fresh foreground harness session per task (owning the real TTY, so grilling / resize / Ctrl-C are all native), each launched with fresh context, so every task is a clean-context session without a manual `/clear`+relaunch crank. Because the loop body holds zero engine state and re-derives its position from the tree every iteration, **restart ≡ continuation** by construction: a task that crashes before its retire-and-commit boundary leaves its leaf live and is simply re-selected and redone, and a loop that has stopped is continued by re-running `grove` from the same working tree. There is no PTY wrapper and no daemon — a plain shell `while` loop could stand in (constraint 6).
 
 <!-- unit: skill-one-configuration kinds=* class=triggering -->
 **One configuration, no other launch policy.** Every session is launched by
@@ -592,12 +592,11 @@ pass it over until that work is terminal, so the sentinel can neither starve nor
 preempt real work. The **complete finish cycle** itself is driven in-session by
 the LLM (no Rust automation): the session **proposes** it and **waits for
 explicit human confirmation before any teardown** — never run steps 2–3
-unprompted, so a headless run with no human present simply reports the plan and
-stops.
+unprompted; with no human to ask, report the plan instead.
 
 <!-- unit: skill-finish-endings kinds=finish class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
 **How this session ends is decided by what it did**, and all three outcomes are
-open to you. Whichever you reach, the signal is your **last action — then do
+open to you. In the two that signal, the signal is your **last action — then do
 nothing else**; the loop driver is watching for it and ends the session itself.
 
 | what the session did | ending |

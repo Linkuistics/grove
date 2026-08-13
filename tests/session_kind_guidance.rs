@@ -1101,6 +1101,14 @@ fn the_ending_count_fails_for_a_kind_no_ending_unit_admits() {
 /// The complement control: a mandate naming the verb outside the declared set is
 /// named, and one that does not is clean. Both halves, because a sweep that
 /// reports everything is as useless as one that reports nothing.
+///
+/// The third assertion is the **boundary**, and it asserts a non-detection: a
+/// unit restating an ending *without* naming the verb is not reported, and cannot
+/// be by anything that is not a phrase heuristic. That escape is where
+/// *Every kind's mandate states exactly one session ending* puts the second prose
+/// limb, and it is pinned here rather than left to a comment because this is the
+/// function a later reader edits when they decide the sweep should catch more —
+/// a red line here makes widening it into a heuristic a deliberate act.
 #[test]
 fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
     let declared = synthetic_unit(
@@ -1112,6 +1120,11 @@ fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
         "and afterwards `grove-llm complete`\n",
     );
     let quiet = synthetic_unit("skill-quiet", "retire the leaf and commit\n");
+    let phrased = synthetic_unit(
+        "skill-phrased-around-the-verb",
+        "sessions relaunch only after a completion signal; any other exit stops \
+         the loop\n",
+    );
 
     let all = vec![declared.clone(), stray.clone(), quiet.clone()];
     let with_stray = format!("{}\n{}\n{}", declared.source, stray.source, quiet.source);
@@ -1128,6 +1141,17 @@ fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
         verb_named_outside_the_declared_set(&clean, &without_stray).is_empty(),
         "a mandate whose only completion verb is its declared ending's is clean"
     );
+
+    let escaping = vec![declared.clone(), phrased.clone()];
+    let with_phrased = format!("{}\n{}", declared.source, phrased.source);
+    assert!(
+        verb_named_outside_the_declared_set(&escaping, &with_phrased).is_empty(),
+        "the recorded boundary: a unit restating an ending in words naming \
+         neither `{COMPLETION_VERB}` nor `{STOP_FLAG}` is *not* reported, and \
+         nothing mechanical reports it. That limb belongs to the classification \
+         review. If this assertion is what you came to change, you are widening \
+         the sweep into a phrase heuristic — say so in the spec first"
+    );
 }
 
 // -- The drift pin ----------------------------------------------------------
@@ -1140,18 +1164,33 @@ fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
 /// kind's, and that no unit restates an ending in words naming neither the
 /// completion verb nor `--done`. The composer returns opaque bytes and carries no
 /// role metadata, so a mechanical claim about either would be a substring
-/// heuristic wearing a SHALL. They are carried by the classification review; what
-/// this pin adds is that the review is **re-entered when the prose moves**.
+/// heuristic wearing a SHALL. Both are carried by the classification review; what
+/// this pin adds is that the review is **re-entered when these two units' prose
+/// moves**.
 ///
 /// It is a pin for **drift, not for correctness** — it says nothing about
 /// whether the prose is right, only that it changed since a human last read it.
+///
+/// **What it bounds, and what it does not.** The first limb is a claim about one
+/// unit, so the pin bounds it exactly: `skill-finish-endings` cannot be reworded
+/// without the review being re-entered. The second limb ranges over **every unit
+/// a mandate carries**, and a pin of two cannot bound that. There the pin reaches
+/// only these two — neither may grow a second restatement — and the rest is
+/// covered in three parts: a *new* unit restating an ending moves the composition
+/// golden; an existing one rewritten to restate an ending **and naming the verb**
+/// fails [`the_completion_verb_is_named_only_by_a_declared_ending`]; an existing
+/// one rewritten to restate an ending **without** naming the verb is caught by
+/// nothing mechanical and is the classification review's alone.
+/// [`the_verb_sweep_finds_a_second_unit_stating_an_ending`] holds that last shape
+/// as an asserted **non**-detection, so the gap is executable rather than
+/// remembered.
 ///
 /// Two things it is deliberately not:
 ///
 /// * **Not the composition golden.** That holds each kind's ordered unit ids, so
 ///   it moves when a unit is gained, lost, re-scoped or re-ordered and does *not*
 ///   move when the prose inside an ending unit is rewritten — which is exactly the
-///   drift these two limbs are exposed to.
+///   drift this pin exists for.
 /// * **Not a regenerable golden file.** A `GROVE_TEST_UPDATE_GOLDENS=1` pin can
 ///   be cleared without reading the new prose, and reading the new prose is the
 ///   entire purpose. A constant that has to be retyped by hand is friction
@@ -1181,7 +1220,7 @@ hand back.
 /// another kind's beside it.
 const FINISH_ENDING_SOURCE: &str = r#"<!-- unit: skill-finish-endings kinds=finish class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
 **How this session ends is decided by what it did**, and all three outcomes are
-open to you. Whichever you reach, the signal is your **last action — then do
+open to you. In the two that signal, the signal is your **last action — then do
 nothing else**; the loop driver is watching for it and ends the session itself.
 
 | what the session did | ending |

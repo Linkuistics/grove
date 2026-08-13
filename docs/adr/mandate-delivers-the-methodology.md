@@ -140,11 +140,16 @@ composition order, the verb's surface, and the agreed test seams.
 - **Let `kinds=` express families or negations.** Rejected because a shorthand
   silently absorbs a session kind added later — the same failure the
   [complete session configuration](complete-session-configuration.md) repetition
-  rule exists to make visible — and because no real complement case exists:
-  guidance that applies to every kind is `*`, and guidance that does not is a
-  short explicit list. Reopen if the kind set grows large enough that explicit
-  scopes stop being auditable, and only with a replacement that preserves
-  fail-on-kind-addition.
+  rule exists to make visible. Complement cases do arise, and the first one — the
+  relaunch ending, for every kind but `finish` — is spelled as all eighteen
+  labels rather than as a negation. The list's own hazard is the mirror, a kind
+  added later silently *omitted*, and the asymmetry is why it is still the better
+  trade: an omission leaves a mandate missing something, which is a universal
+  claim over a closed kind set and therefore testable, while an absorption leaves
+  a mandate holding something no mechanical check can distinguish from guidance
+  that correctly generalised. Reopen if the kind set grows large enough that
+  explicit scopes stop being auditable, and only with a replacement that
+  preserves fail-on-kind-addition.
 - **Verify the change behaviourally rather than structurally.** Rejected because
   an evaluation is expensive, non-deterministic, measures a model rather than
   Grove's artifact, and localizes nothing when it goes red. The completeness

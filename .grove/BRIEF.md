@@ -53,6 +53,14 @@ Design precedes planning because three of the four decisions change a shipped
 spec, and slicing work against an unamended spec would slice against the wrong
 contract.
 
+`specialised-ending-k2` externalised one further leaf, `unit-scope-audit-k4`: a
+grilling on whether the `kinds=*` default should be narrowed anywhere beyond the
+session ending. It is a **separate increment and must run last** — nothing in it
+is measurable until mandates are composed per kind. It sits at the root only
+because `leaf-add` appends there, so a `planning` session cutting composer slices
+should `leaf-insert` them **ahead of** it rather than appending after it, or
+every slice will sequence behind an audit that cannot start.
+
 ## Decisions taken during grilling
 
 **D1 — the launcher becomes framing only.** `content/prompts/continue.md`

@@ -58,7 +58,7 @@ Two are genuinely new:
   the spec already agrees.
 - The prose edits to `content/` are **specified, not made**. This is a `design`
   leaf; cutting the unit boundaries and writing the replacement sentences is
-  implementation, and belongs to the leaves `03-planning-composer-k3` cuts.
+  implementation, and belongs to the leaves `composer-k3` cuts.
 - Decide, and record, whether D4 clears the `linkuistics:decision-records`
   when-to-write test. The root brief's expectation is that it does not — it
   writes down a path the code already supports — but if the design finds a real

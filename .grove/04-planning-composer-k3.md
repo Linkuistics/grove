@@ -7,9 +7,9 @@ deliverable is more tree, not code.
 
 ## Context
 
-Read the root `BRIEF.md` and the spec as `02-design-specialised-ending-k2` leaves
-it — the design is settled by then, so this leaf plans against amended text and
-must not re-open D1–D4.
+Read the root `BRIEF.md` and the spec as `specialised-ending-k2` and its review
+chain leave it — the design is settled by then, so this leaf plans against amended
+text and must not re-open D1–D4.
 
 The increment's parts, as they stand at grilling time. Treat this as the input to
 slicing, not as the slicing:

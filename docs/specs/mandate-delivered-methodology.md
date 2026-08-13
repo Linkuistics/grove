@@ -261,9 +261,31 @@ A shorthand is a second grammar to learn, but the decisive objection is that it
 designed against when it made the configuration repeat all nineteen targets so
 that adding a kind fails visibly in every old config. A `kinds=producers` unit
 would change what it ships the day a twentieth producer is added, with no diff for
-anyone to review. A complement (`kinds=!finish`) has the same defect and no case
-that needs it: guidance that applies to every kind including `finish` is `*`, and
-guidance that does not is a short list.
+anyone to review. A complement (`kinds=!finish`) has the same defect: it re-reads
+itself the day the kind set changes, in the direction nobody inspects.
+
+**A complement case exists, and it is long rather than short.** The design first
+argued that none would arise — guidance for every kind including `finish` is `*`,
+and guidance that is not is a short list — and the session-ending instruction
+falsifies that: the relaunch ending is for exactly the eighteen non-`finish`
+kinds, and the only spelling the grammar admits is all eighteen labels. The ugly
+marker is still the right one, because the two hazards are not equally
+repairable. A complement's hazard is that a twentieth kind is silently
+**absorbed** into guidance nobody chose to give it. The list's is the mirror — a
+twentieth kind is silently **omitted** from guidance it needs, and its sessions
+are then launched with no ending at all, never signal, and stop the loop one by
+one. Grammar closes neither. A **test** closes one and not the other, and that
+asymmetry decides it: an omission leaves a mandate missing something, which is a
+universal claim over a closed kind set and therefore checkable, while an
+absorption leaves a mandate holding something, and no mechanical claim
+distinguishes guidance that correctly generalised from guidance that merely
+inherited. So the long list stays, and the omission is guarded by test
+(*Requirement: Every kind's mandate states exactly one session ending*).
+
+This does not reach the ADR's reopen condition, which is the kind set growing
+large enough that explicit scopes stop being auditable, and then only for a
+replacement preserving fail-on-kind-addition. One eighteen-member list against
+nineteen kinds is still a list a human reads; negation preserves nothing.
 
 ### A malformed embed fails the build
 
@@ -441,7 +463,28 @@ That framing is methodology, so it belongs in `content/` as an ordinary marked
 unit — `class=triggering kinds=*`, with the file ordered first — and not in a
 driver-side format string, where it would be the one piece of methodology the
 completeness invariant cannot see. It stops being a special case: the composer
-needs no rule to place it, because the file ordering already does.
+needs no rule to place it, because the file ordering already does. The unit
+survives the rename; only its file moves.
+
+**It carries framing and no instructions**, and that reduction is a subtraction
+with nothing to replace. Every instruction the launcher states today is already a
+`kinds=*` unit the composer delivers into the same mandate: bootstrapping from
+the handle and assembling the brief chain (`skill-bootstrap`), externalizing
+surfaced work with the grow verbs rather than absorbing it (`skill-decompose`),
+retiring the finished leaf (`skill-retire`), naming the work item by its stable
+handle at the commit (`skill-commit`), the relaunch signal (`skill-signal`), and
+the `finish` exception with its human gate (`skill-finish`). Exactly one clause
+states something composition does not — "use the grove skill" — and it is the one
+that goes false when provisioning retires.
+
+A duplicate *inside* `content/` is **not** build-boundary drift: both copies ship
+from one embed and cannot disagree across builds. What it costs is a reader's
+decision. Two statements of one rule, in one prompt, with nothing holding them in
+step, pose the question *do these agree?* — and a session answering it is
+performing the derivation the mandate exists to remove. It is also the one shape
+the completeness invariant is blind to, because a launcher sentence restating a
+unit is not a missing unit; the invariant checks that every unit reaches its
+kinds, not that no unit says what another already said.
 
 `content/prompts/` is removed. It held three launchers; two went with their
 lifecycle verbs, and this is the third.
@@ -466,6 +509,116 @@ own; it leads because its file is ordered first. The session-specific
 instructions land last, where they are not buried under the generic bulk.
 (*Preamble* in this spec means only the unread leading `---` block; the framing
 unit is an ordinary marked unit and is never called one.)
+
+### The ending is specialised where the conditional lives
+
+Reducing the launcher to framing removes one copy of the session-ending branch.
+It does not remove the branch. `skill-signal` is `kinds=*` and states both
+endings itself — plain `complete` relaunches, the finish cycle ends with
+`--done` — so a mandate composed from today's markers still hands every session
+an `if` on its own kind, one slice later than the launcher did. Deleting the
+launcher's copy alone would relocate the derivation rather than retire it.
+
+The specialisation therefore lands on the units carrying the conditional.
+`skill-signal` and `skill-finish` are each **split**, because each spans a
+universal statement and a kind-specific ending and a unit has one scope. Three
+scopes result:
+
+- **The relaunch ending is scoped to the eighteen non-`finish` labels.** Such a
+  session is told to run `grove-llm complete` as its last action and is told
+  nothing about `--done`. There is no exception in its mandate, because the
+  exception is not about it.
+- **The finish endings are scoped to `finish`.** They are stated as outcomes of
+  what the session did, never as a rule with another kind's rule beside it.
+- **One sentence stays `kinds=*`**: a session never discovers that a grove is
+  finished — the driver does, and tells it by launching a `finish` session. This
+  is a **negative trigger**, and it is the case "keep the `if`" exists for.
+  Withhold it and a session that retires the last live leaf holds no statement
+  about what it is looking at, with the unasked question attached to a
+  destructive action. Its readers are exactly the kinds the finish endings are
+  withheld from, and that is not a tension: what it tells them is *this is not
+  yours*, which is why they need it and `finish` does not.
+
+**The finish endings are triggering, not procedural**, and the reopening ending
+is why. A `finish` session that externalises surfaced work never reaches the
+teardown steps, so an ending deferred into the procedural cycle body is an ending
+it never fetches — it would end holding a mandate that named only the endings it
+did not take. That is the deferral asymmetry read at its own boundary: a
+procedural body is safe to withhold *because the session knows to ask*, and a
+session that has decided not to tear down has no reason to ask for the teardown
+procedure.
+
+**Scope is bounded to the session-ending instruction, and the cut is whatever
+that instruction forces.** How many units each split yields, and where the
+boundaries fall, is prose the writing leaves decide against the three scopes
+above; neither split is assumed to be a single cut. `skill-finish` in particular
+holds more than one universal fragment — the negative trigger, and the clause
+telling *every* session that its own escalations are discretionary rather than
+routine — so a two-way cut may not reach it. **Prose that rides along because it
+sits on the `finish` side of a forced boundary is not a scope audit**; the
+cycle's teardown steps, sentinel mechanics and human gate are read by one kind
+anyway, and narrowing them is a consequence of the cut rather than a finding
+about them.
+
+What is *not* in scope is re-deciding the scope of a unit that carries no ending.
+Several `kinds=*` units are plausibly narrower than their scope, and a systematic
+audit of them is its own concern with its own risk profile — one that trades the
+completeness invariant's protection for token savings across the board, which is
+a materially different bet from this increment's. It is externalised as its own
+leaf rather than absorbed here.
+
+### A `finish` session that reopens the grove signals a relaunch
+
+The methodology names a `finish` session two endings, `--done` and no signal, and
+separately tells it — as it tells every session — to externalise surfaced work
+rather than absorb it. A session that does so cannot tear down: ordinary work is
+live. It needs an ending it was never given, and both endings it was given are
+wrong for what it did.
+
+The third ending is one the mechanics already implement. `pick` selects the first
+live non-`finish` leaf wherever it sits and falls back to the sentinel only when
+nothing ordinary is live, so a leaf a `finish` session adds at the root is
+selected next even though it lands *after* the sentinel; and the completion verb
+is not gated by kind, so a `finish` session may signal a plain relaunch today.
+Nothing in Grove has to change for this ending to work. What is missing is prose
+saying it exists — a session-visible gap rather than a defect, and one the
+session meets holding a mandate whose endings do not cover what it did.
+
+A `finish` mandate therefore names three endings, as **outcomes of what the
+session did** rather than as rules:
+
+| what the session did | ending |
+|---|---|
+| teardown completed | `grove-llm complete --done` — the loop stops |
+| externalised work instead | `grove-llm complete` — the loop relaunches and picks the new leaf; the sentinel waits |
+| declined, or no human present | no signal — the loop stops, the leaf stays live and resumable |
+
+**This is not a relapse into the branch the specialisation removes**, and what
+separates them is what the driver can resolve. A branch on the **session kind**
+is resolved before the session exists, so shipping it makes the session re-derive
+a fact already in hand — that is the branch specialisation deletes. A branch on
+**what happened during the session** is resolvable by nobody but the session, so
+withholding it saves no derivation and yields an unasked question instead. The
+`finish` mandate carries exactly one branch, over the one variable no composer
+can bind.
+
+**No confirmation is carried across the reopening.** The sentinel is never
+retired, so once the reopened work is terminal the driver launches a fresh
+`finish` session, which proposes the cycle and waits for a confirmation of its
+own. A reopening banks no earlier answer — a session that externalised work never
+reached teardown, so there was none — and it could not spend one later anyway,
+because the finish transaction's proof is bound to its own launch.
+
+**This is methodology, not an ADR.** Against the when-to-write test it fails two
+of three. Reversing it costs a prose edit rather than a migration. And the
+alternative — ending a reopening `finish` with no signal, so the loop stops and a
+human reruns `grove` — is not a genuine trade-off but a worse answer to a
+question the sentinel-passing rule already settled, that rule existing precisely
+so ordinary work preempts the sentinel without human intervention. Only the third
+test is cleared — it *is* surprising, which is why it has to be written
+down — and a fact that is merely surprising is prose. `CONTEXT.md`'s *Complete
+finish cycle* entry already carries the three-ending reading; this section is
+where the design says so, and `content/` is where the session is told.
 
 ### `grove-llm methodology` fetches bytes, or lists rows
 
@@ -821,6 +974,39 @@ those triggering units whose scope admits that kind, and no procedural unit.
 - **WHEN** a unit is `class=procedural`
 - **THEN** it appears in no kind's composed mandate
 
+### Requirement: Every kind's mandate states exactly one session ending
+
+A composed mandate SHALL carry exactly one unit stating that kind's session
+ending. The mandate of every kind other than `finish` SHALL state the relaunch
+ending and SHALL NOT carry `--done`. The `finish` mandate SHALL state its three
+endings as outcomes of what the session did, and SHALL state no other kind's
+rule. Every mandate, `finish` included, SHALL carry the statement that a session
+never discovers a grove is finished.
+
+#### Scenario: every kind is covered
+- **WHEN** a mandate is composed for each member of the closed kind set
+- **THEN** each one carries exactly one session-ending unit
+
+#### Scenario: a kind added later
+- **WHEN** a session kind is added to the closed set and no ending unit's scope
+  is widened to admit it
+- **THEN** the assertion fails, naming that kind — rather than the loop stopping
+  silently on the first session ever launched for it
+
+#### Scenario: no exception for another kind's rule
+- **WHEN** the mandate of any kind other than `finish` is composed
+- **THEN** it contains no `--done`, and no statement of the finish cycle's ending
+
+#### Scenario: the finish mandate is self-contained
+- **WHEN** the `finish` mandate is composed
+- **THEN** it names all three endings — teardown, reopening, and declining — and
+  states each as an outcome rather than as a rule qualified by another kind's
+
+#### Scenario: the negative trigger is universal
+- **WHEN** any kind's mandate is composed, `finish` included
+- **THEN** it carries the statement that a session never discovers a grove is
+  finished; the driver does, and tells it by launching a `finish` session
+
 ### Requirement: `grove-llm methodology` serves any unit and lists them all
 
 `grove-llm methodology` SHALL serve any unit's source bytes by id and SHALL list
@@ -919,6 +1105,21 @@ The checks that seam carries:
   reads exactly like a clean repository.
 - **Golden per-kind mandate snapshots**, for drift. They say nothing about
   correctness; they say loudly that something moved.
+- **The session-ending guard, generated from the closed kind set.** For every
+  kind, exactly one unit from a named ending set appears in that kind's composed
+  mandate; no mandate but `finish`'s carries the `--done` token; and the negative
+  trigger appears in all of them. This is a **new check, not a strengthening of
+  the golden snapshots** — and the distinction is the point of writing it down.
+  A golden asserts that a mandate has not moved, which is the wrong shape twice
+  over: it says nothing about what a mandate must contain, and a kind added to
+  the enum produces a *new* golden rather than failing an existing one, so the
+  exact hazard the guard exists for passes straight through the snapshots. Both
+  ways of breaking the guard fail loudly, because both leave some kind at zero:
+  a kind added without a scope widened to admit it, and an ending unit
+  introduced without being named in the set. `tests/session_kind_guidance.rs` is
+  the precedent and the place — it already generates its claims from the kind
+  enum so that a twentieth kind fails until the guidance names it, and this is
+  the same claim about a different surface.
 - **The per-kind size alarm** — each of the nineteen composed mandates at or under
   64 KiB, counting the composer's returned bytes and not the driver's runtime
   facts, for the reasons given above.
@@ -958,6 +1159,16 @@ filesystem walk that used to gather it.
   has to carry free text, such as a title or a summary, since that is the point
   where escaping stops being a property of the data and becomes a rule someone
   must remember.
+- **A systematic audit of every unit's scope.** The ending specialisation
+  narrows the units that carry a session ending and no others, even though the
+  `kinds=*` default is certainly wider than some units need. An audit is a
+  different bet: each narrowing trades a slice of the completeness invariant's
+  protection — a unit scoped to a list is a unit some kind can be wrongly
+  omitted from — for token savings, and it makes that trade across the whole
+  embed at once, where the ending specialisation makes it on one instruction with
+  a test that covers exactly the hazard it introduces. Reopen it as its own
+  increment, where the general question of what guards a narrowed scope can be
+  answered before anything is narrowed.
 - **A templating engine.** One was accepted in principle to keep `content/`
   readable from the code, but byte-exact slicing reaches that without one. No
   engine is adopted to satisfy a sentence.

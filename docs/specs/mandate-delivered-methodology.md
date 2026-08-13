@@ -363,19 +363,33 @@ yes, so it narrows only behind a check derived from the closed kind set. The
 judgement of what a unit is *about* never enters it, which is what makes the test
 usable on a unit nobody has written yet.
 
-**Only one of the four set-shaped scopes is guarded**, and recording the other
-three is the audit's substantive finding. `skill-signal`'s eighteen labels are
-covered by *Requirement: Every kind's mandate states exactly one session ending*.
-**`task-review-kinds` (five labels), `task-integrate-review-kinds` (five) and
-`task-research-pair` (two) carry the same hazard with nothing on it.** Each is
-exactly a family partition of the kind set, so each is derivable rather than
-judged — the repository already answers this shape with `Kind::is_producer`, an
-exhaustive `match` kept deliberately in place of a roster lookup so that a new
-variant fails to build until someone classifies it. Adding a kind today goes red
-twice, at that match and at the ending guard, and **neither red points at these
-three markers**, so they stay silently narrow while the author fixes what did
-complain. Closing that is `impl` work rather than a scope decision, and it is cut
-as its own leaf.
+**All four set-shaped scopes are guarded**, and the three that were not is what
+the audit found. `skill-signal`'s eighteen labels are covered by *Requirement:
+Every kind's mandate states exactly one session ending*. `task-review-kinds`
+(five labels), `task-integrate-review-kinds` (five) and `task-research-pair`
+(two) carried the same hazard with nothing on it, and now carry a guard of their
+own. Each is exactly a **family partition** of the kind set, so each is derivable
+rather than judged — the shape the repository already answers with
+`Kind::is_producer`, an exhaustive `match` kept deliberately in place of a roster
+lookup so that a new variant fails to build until someone classifies it. That is
+the device the guard reuses: a classifier over the kind enum yields each family's
+membership, and the assertion is that the marker's scope reaches exactly it. **No
+second source of truth is created** — the marker stays the single statement of
+scope, and what is written beside it is only *which family* it claims to be.
+
+What the guard adds is a red **pointing at the markers**. Adding a kind went red
+twice before it, at that match and at the ending guard, and neither red pointed
+here, so the three stayed silently narrow while the author fixed what did
+complain; the composition golden does not reach it either, because a new kind
+produces a *new* golden section rather than failing an existing one. Now the
+classifier fails to compile until the new kind is classified, and the assertion
+then names the marker to widen and the label it lacks. The guard's **own** mirror
+is closed with it: a family-shaped scope written later and never registered would
+carry the same defect one level up, so the check runs in both directions — every
+registered marker reaches its whole family, and no unregistered triggering unit
+is scoped to exactly a **multi-member** family. Single-member families are
+excluded rather than overlooked, because a scope naming one of them is a
+single-kind scope, which is the self-correcting shape that needs no guard at all.
 
 **Why nothing else narrowed.** The two candidates recorded when the ending split
 deferred this question do not survive measurement. `skill-finish`'s cycle body was
@@ -1461,6 +1475,25 @@ The checks that seam carries:
   generates its claims from the kind enum so that a twentieth kind fails until the
   guidance names it, states the limits of each sweep rather than papering over
   them, and this is the same claim about a different surface.
+- **The family-shaped scopes, held to their families**, beside the ending guard
+  and in the same file, for the same reason: the claim is generated from the kind
+  set. Each of the three — `task-review-kinds`, `task-integrate-review-kinds`,
+  `task-research-pair` — is asserted to reach exactly the membership an exhaustive
+  `match` over the kind enum yields for its family, so a twentieth kind fails to
+  compile until it is classified and then fails the assertion, naming the marker
+  to widen and the label it lacks. Reach is read through the composer's own
+  `admits`, so the claim is about which kinds a scope carries rather than how its
+  labels are spelled or ordered; what the scope→mandate step is faithful to stays
+  the completeness invariant's, not this guard's, so nothing is asserted twice.
+
+  It runs in **both directions**, because the registry naming those three is
+  otherwise the same silent omission one level up: a triggering unit scoped to
+  exactly a multi-member family and named by no registration is reported too.
+  Both controls, on the rule every sweep here follows — shown failing on a
+  synthetic marker missing a family member and on a registered id the embed no
+  longer declares, shown quiet on `*`, on a single-kind scope, on a single-kind
+  scope that is a whole one-member family, and on `skill-signal`'s eighteen, and
+  passing on the real embed.
 - **The per-kind size alarm** — each of the nineteen composed mandates at or under
   64 KiB, counting the composer's returned bytes and not the driver's runtime
   facts, for the reasons given above.

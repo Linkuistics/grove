@@ -73,6 +73,31 @@ stood at the graft — a closed record, not part of the versioned sequence above
   a readability convention about the shipped corpus, pinned by a test rather than
   by the gate, so inserting a file between two others *does* renumber every later
   one, in one-character edits the gate localises by name.
+- **A `kinds=` scope that names a family is held to the whole family.** Three
+  markers spell a family of session kinds out label by label — the five
+  `review-*` kinds, the five `integrate-review-*` kinds, and the vendor pair's
+  two — because the grammar admits no family shorthand, and a kind added to one of
+  those families had to be hand-added to the marker with nothing complaining. Two
+  reds already existed for a twentieth kind, at `Kind::is_producer` and at the
+  session-ending guard, and **neither pointed here**; the composition golden does
+  not either, since a new kind produces a *new* golden section rather than failing
+  an existing one. Each of the three is exactly a **family partition** of the kind
+  set, so the guard derives what the scope should be instead of restating it: an
+  exhaustive `match` classifies every kind into a family — the same device, and
+  the same reason, as the producer classifier it sits beside — and the assertion
+  is that the marker's scope reaches exactly that family's members, read through
+  the composer's own `admits` so the claim is about reach rather than about
+  spelling or order. A twentieth kind now fails to *compile* until it is
+  classified, then fails the assertion naming the marker to widen and the label it
+  lacks. The marker stays the single statement of scope; all that is written
+  beside it is which family it claims to be. The check runs in **both
+  directions** — a triggering unit scoped to exactly a multi-member family and
+  registered nowhere is reported too, because the registry would otherwise be the
+  same silent omission one level up — and carries both controls, on the rule that
+  a sweep which cannot fail is worth nothing. `skill-signal`'s eighteen labels are
+  a complement rather than a family and keep the ending guard that already covers
+  them; the sixteen single-kind scopes are self-correcting and get nothing, since
+  a kind added later arrives with its own units.
 
 ### Changed
 

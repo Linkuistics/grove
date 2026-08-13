@@ -37,12 +37,14 @@
 //! nothing: each classifier is shown rejecting the shape it exists to reject and
 //! accepting the one it exists to allow.
 //!
-//! **Two surfaces, one question.** The sweeps above read `content/` as
-//! *documents*, which is what a provisioned skill is. The session-ending guard at
-//! the foot of the file reads the same corpus as **composed mandates**, because
-//! its claim is about what one kind's session is handed and not about what any
-//! file says. Both are generated from `Kind::ALL` for the same reason, and a
-//! twentieth kind fails in both.
+//! **Three surfaces, one question.** The sweeps above read `content/` as
+//! *documents*, which is what a provisioned skill is. The session-ending guard
+//! reads the same corpus as **composed mandates**, because its claim is about
+//! what one kind's session is handed and not about what any file says. The
+//! family-scope guard at the foot of the file reads a third thing — the units'
+//! declared **`kinds=` scopes**, as data — because its claim is about a marker a
+//! human must widen and not about any mandate's contents. All three are generated
+//! from `Kind::ALL` for the same reason, and a twentieth kind fails in all three.
 
 use clap::CommandFactory;
 use grove::leaf::Kind;
@@ -1261,4 +1263,392 @@ fn the_ending_units_prose_is_pinned_for_drift() {
              the completion verb. Confirm both, then update the constant."
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// A family-shaped scope names its whole family
+//
+// The **mirror hazard**, one level down from the session ending. `kinds=` admits
+// no family shorthand, so a unit that is genuinely about one family of kinds
+// spells that family out label by label — and a kind added to that family later
+// has to be hand-added to the marker, silently, with nothing complaining
+// (`docs/specs/mandate-delivered-methodology.md`, *A unit narrows when a kind
+// added later would not need it*).
+//
+// Sixteen of the twenty narrowed scopes name a **single** kind and are
+// self-correcting: a kind added later arrives with its own units, and no
+// single-kind scope ever widens for it. Four name a **set**. `skill-signal`'s
+// eighteen are covered above, by the ending guard; the three below are what this
+// section adds, and each is exactly a family partition of the closed kind set —
+// derivable rather than judged, which is what makes the check cost no second
+// source of truth. The marker stays the single statement of scope; what is
+// written here is only *which family* it claims to be.
+
+/// Which family of the closed kind set a kind belongs to.
+///
+/// **An exhaustive `match`, deliberately, and that is the whole force of this
+/// section** — the same device and the same reasoning as `Kind::is_producer` in
+/// `src/leaf.rs`'s test module, which is a `match` rather than a roster lookup
+/// precisely so a new variant fails to *build* until someone classifies it. A
+/// roster here — or `Kind::ALL` filtered by a name prefix — would reintroduce the
+/// hand-maintained second list the guard exists to remove, and would go green on
+/// a twentieth kind nobody had thought about.
+///
+/// Every kind lands in exactly one family, so the families partition the set by
+/// construction and nothing has to assert that they do. Two of them have a single
+/// member, which is why [`multi_member_families`] and not this function decides
+/// what counts as a *family-shaped scope*.
+///
+/// **What it forces is a decision, not a correct one**, and the limit is stated
+/// rather than papered over. A twentieth kind cannot reach the guard unclassified,
+/// but one classified into the *wrong* family leaves its marker narrow and every
+/// assertion here green — a `review-…` kind filed under [`Family::Producer`]
+/// widens nothing and fails nothing. What stands against that is the arm it would
+/// have to be written into, next to the five kinds it plainly is not; this is the
+/// same residue `Kind::is_producer` carries, accepted for the same reason. Closing
+/// it would mean cross-checking the classifier against the label prefixes, which
+/// is the derivation this guard is deliberately not built on.
+fn family(kind: Kind) -> Family {
+    match kind {
+        Kind::Requirements | Kind::Design | Kind::Planning | Kind::Prototype | Kind::Impl => {
+            Family::Producer
+        }
+        Kind::ResearchA | Kind::ResearchB => Family::ResearchPair,
+        Kind::CombineResearch => Family::CombineResearch,
+        Kind::Finish => Family::Finish,
+        Kind::ReviewRequirements
+        | Kind::ReviewDesign
+        | Kind::ReviewPlanning
+        | Kind::ReviewPrototype
+        | Kind::ReviewImpl => Family::Review,
+        Kind::IntegrateReviewRequirements
+        | Kind::IntegrateReviewDesign
+        | Kind::IntegrateReviewPlanning
+        | Kind::IntegrateReviewPrototype
+        | Kind::IntegrateReviewImpl => Family::IntegrateReview,
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Family {
+    /// The five kinds a review chain may be cut for.
+    Producer,
+    /// The five adversarial reads.
+    Review,
+    /// The five triage-and-apply steps.
+    IntegrateReview,
+    /// The two survey producers a vendor pair runs — *not* their combine step,
+    /// which shares neither their discipline nor their scope.
+    ResearchPair,
+    /// The pair's binary combine step.
+    CombineResearch,
+    /// The driver-reserved sentinel.
+    Finish,
+}
+
+impl Family {
+    fn label(self) -> &'static str {
+        match self {
+            Family::Producer => "producer",
+            Family::Review => "review-*",
+            Family::IntegrateReview => "integrate-review-*",
+            Family::ResearchPair => "research pair",
+            Family::CombineResearch => "combine-research",
+            Family::Finish => "finish",
+        }
+    }
+
+    /// The family's members, in `Kind::ALL` order. Derived from the classifier,
+    /// so this is the *only* place a family's membership is stated and a kind
+    /// joins one by being classified.
+    fn members(self) -> Vec<Kind> {
+        Kind::ALL
+            .into_iter()
+            .filter(|kind| family(*kind) == self)
+            .collect()
+    }
+}
+
+/// Every family the kind set actually has, in first-appearance order — recovered
+/// from the classifier rather than listed, so a family added later joins these
+/// sweeps by classifying one kind into it and needs no second registration.
+fn families() -> Vec<Family> {
+    let mut out: Vec<Family> = Vec::new();
+    for kind in Kind::ALL {
+        if !out.contains(&family(kind)) {
+            out.push(family(kind));
+        }
+    }
+    out
+}
+
+/// The families a scope can be *shaped like*: the ones with more than one member.
+///
+/// A single-member family is spelled as a single-kind scope (`kinds=finish`), and
+/// a single-kind scope is the self-correcting shape that needs no guard at all —
+/// so including one here would report `task-finish-session` and its neighbours as
+/// unguarded family shapes, which is noise about the one case the audit settled
+/// needs nothing.
+fn multi_member_families() -> Vec<Family> {
+    families()
+        .into_iter()
+        .filter(|family| family.members().len() > 1)
+        .collect()
+}
+
+/// The units whose `kinds=` scope **is** a family, and which family each claims.
+///
+/// Not a restatement of any scope: the labels stay in the marker, and what is
+/// recorded here is the claim a reader would otherwise have to make by counting.
+/// A unit named here that the embed does not declare is a finding, so renaming
+/// one of them cannot quietly retire its guard.
+const FAMILY_SCOPES: [(&str, Family); 3] = [
+    ("task-research-pair", Family::ResearchPair),
+    ("task-review-kinds", Family::Review),
+    ("task-integrate-review-kinds", Family::IntegrateReview),
+];
+
+/// The kinds a unit's scope reaches, through `Scope::admits` — the composer's own
+/// selection rule.
+///
+/// Asking the scope which kinds it *admits*, rather than reading its label list,
+/// is what makes the claim about reach rather than about spelling: a scope that
+/// lists its family in another order, or lists a member twice, still reaches
+/// exactly its family and is not a defect. A procedural unit reaches nothing,
+/// which is the right answer for a guarded unit someone reclassified.
+fn admitted_kinds(unit: &Unit) -> Vec<Kind> {
+    match unit.scope.as_ref() {
+        Some(scope) => Kind::ALL
+            .into_iter()
+            .filter(|kind| scope.admits(*kind))
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
+fn labels(kinds: &[Kind]) -> String {
+    kinds
+        .iter()
+        .map(|kind| kind.label())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Each registered unit's scope against its family. Empty is the passing verdict.
+fn family_scope_findings(units: &[Unit]) -> Vec<String> {
+    let mut findings = Vec::new();
+    for (id, family) in FAMILY_SCOPES {
+        let Some(unit) = units.iter().find(|unit| unit.id == id) else {
+            findings.push(format!(
+                "`{id}` declares no unit: the {} family's marker was renamed or \
+                 deleted, so nothing checks its scope any more",
+                family.label()
+            ));
+            continue;
+        };
+        let reached = admitted_kinds(unit);
+        let expected = family.members();
+        let missing: Vec<Kind> = expected
+            .iter()
+            .copied()
+            .filter(|kind| !reached.contains(kind))
+            .collect();
+        let unexpected: Vec<Kind> = reached
+            .iter()
+            .copied()
+            .filter(|kind| !expected.contains(kind))
+            .collect();
+        if missing.is_empty() && unexpected.is_empty() {
+            continue;
+        }
+        findings.push(format!(
+            "content/{}: `{id}` is scoped to the {} family and reaches [{}] — \
+             missing [{}], unexpected [{}]",
+            unit.file,
+            family.label(),
+            labels(&reached),
+            labels(&missing),
+            labels(&unexpected),
+        ));
+    }
+    findings
+}
+
+/// Every triggering unit whose scope is exactly some family's membership and
+/// which [`FAMILY_SCOPES`] does not name. Empty is the passing verdict.
+fn unregistered_family_shapes(units: &[Unit]) -> Vec<String> {
+    let mut findings = Vec::new();
+    for unit in units {
+        if unit.class != Class::Triggering || FAMILY_SCOPES.iter().any(|(id, _)| *id == unit.id) {
+            continue;
+        }
+        let reached = admitted_kinds(unit);
+        for family in multi_member_families() {
+            if reached == family.members() {
+                findings.push(format!(
+                    "content/{}: `{}` is scoped to exactly the {} family — add it \
+                     to FAMILY_SCOPES, or a kind added to that family is silently \
+                     omitted from this marker",
+                    unit.file,
+                    unit.id,
+                    family.label(),
+                ));
+            }
+        }
+    }
+    findings
+}
+
+/// **The claim.** A marker that spells a family out spells the *whole* family, so
+/// a kind added to one goes red here naming the marker to widen — rather than
+/// leaving a session in that family without guidance nobody noticed it was owed.
+///
+/// A twentieth kind fails before this test runs: [`family`] is an exhaustive
+/// `match`, so the file does not compile until the new variant is classified.
+/// This is what fails next, once it has been classified into a family whose
+/// marker was left alone.
+///
+/// It cannot pass by checking nothing: a registered id the embed does not declare
+/// is itself a finding.
+#[test]
+fn every_family_shaped_scope_names_its_whole_family() {
+    let findings = family_scope_findings(&embedded_units());
+    assert!(
+        findings.is_empty(),
+        "a `kinds=` scope that names a family must name all of it — the grammar \
+         has no family shorthand, so the labels are hand-maintained and a kind \
+         added later is otherwise omitted in silence:\n  {}",
+        findings.join("\n  ")
+    );
+}
+
+/// **The registry's own mirror hazard**, which the guard above cannot see: a
+/// *new* family-shaped scope, written later and never registered, carries the
+/// same silent-omission defect one level up.
+///
+/// Derived rather than listed on both sides — the families come from the
+/// classifier, the shapes from the embed — so registering is the only way to
+/// clear it, and clearing it is what puts the new marker under the guard above.
+#[test]
+fn no_scope_is_shaped_like_a_family_without_being_guarded() {
+    let findings = unregistered_family_shapes(&embedded_units());
+    assert!(
+        findings.is_empty(),
+        "these scopes name a whole family and nothing holds them to it:\n  {}",
+        findings.join("\n  ")
+    );
+}
+
+// -- Both controls ----------------------------------------------------------
+//
+// This file's standing rule: a sweep that cannot fail is worth nothing. Both
+// classifiers are shown reporting the shape they exist to catch and staying
+// quiet on the shapes they must allow; the passing half over the *real* embed is
+// the two tests above.
+
+/// A synthetic unit with an explicit scope, for shapes the real embed must not
+/// contain.
+fn family_unit(id: &str, kinds: Vec<Kind>) -> Unit {
+    Unit {
+        scope: Some(Scope::Kinds(kinds)),
+        ..synthetic_unit(id, "synthetic prose\n")
+    }
+}
+
+#[test]
+fn the_family_scope_guard_finds_a_narrowed_marker_and_a_renamed_one() {
+    let correct: Vec<Unit> = FAMILY_SCOPES
+        .iter()
+        .map(|(id, family)| family_unit(id, family.members()))
+        .collect();
+    assert!(
+        family_scope_findings(&correct).is_empty(),
+        "three markers each scoped to their whole family are the passing shape"
+    );
+
+    // Withdrawing a member is what *adding* a twentieth kind to that family looks
+    // like from the other side, and only the marker that lost it may be reported.
+    let narrowed: Vec<Unit> = correct
+        .iter()
+        .cloned()
+        .map(|unit| {
+            if unit.id == "task-review-kinds" {
+                let kept = Family::Review
+                    .members()
+                    .into_iter()
+                    .filter(|kind| *kind != Kind::ReviewImpl)
+                    .collect();
+                return family_unit(&unit.id, kept);
+            }
+            unit
+        })
+        .collect();
+    let findings = family_scope_findings(&narrowed);
+    assert_eq!(
+        findings.len(),
+        1,
+        "one marker lost one member, so exactly one finding: {findings:?}"
+    );
+    assert!(
+        findings[0].contains("task-review-kinds") && findings[0].contains("missing [review-impl]"),
+        "the finding must name the marker to widen and, separately from what the \
+         marker already reaches, the one kind it lacks: {}",
+        findings[0]
+    );
+
+    // A guarded unit that no longer exists is reported rather than skipped: a
+    // registry entry matching nothing reads exactly like a clean embed.
+    let renamed: Vec<Unit> = correct
+        .into_iter()
+        .filter(|unit| unit.id != "task-research-pair")
+        .collect();
+    let findings = family_scope_findings(&renamed);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(
+        findings[0].contains("task-research-pair"),
+        "{}",
+        findings[0]
+    );
+}
+
+#[test]
+fn the_family_shape_sweep_separates_a_family_from_every_other_scope() {
+    let findings =
+        unregistered_family_shapes(&[family_unit("skill-somewhere-new", Family::Review.members())]);
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(
+        findings[0].contains("skill-somewhere-new") && findings[0].contains("review-*"),
+        "the finding must name the unregistered unit and the family it is shaped \
+         like: {}",
+        findings[0]
+    );
+
+    // The shapes that are *not* a family-shaped scope, each for its own reason:
+    // the universal default; a single-kind scope, which is self-correcting; a
+    // single-kind scope that happens to be a whole one-member family, which is
+    // the same self-correcting shape and the reason single-member families are
+    // filtered out; and `skill-signal`'s eighteen, a complement rather than a
+    // family, already covered by the ending guard above.
+    let eighteen: Vec<Kind> = Kind::ALL
+        .into_iter()
+        .filter(|kind| *kind != Kind::Finish)
+        .collect();
+    let allowed = vec![
+        synthetic_unit("skill-universal", "synthetic prose\n"),
+        family_unit("skill-single-kind", vec![Kind::Impl]),
+        family_unit("skill-whole-one-member-family", vec![Kind::Finish]),
+        family_unit("skill-eighteen", eighteen),
+    ];
+    assert!(
+        unregistered_family_shapes(&allowed).is_empty(),
+        "only a scope equal to a multi-member family is a family shape: {:?}",
+        unregistered_family_shapes(&allowed)
+    );
+
+    // A procedural unit carries no scope and is not a shape at all — including it
+    // would report every procedural unit the moment a family had no members.
+    let mut procedural = family_unit("skill-procedural", Family::Review.members());
+    procedural.class = Class::Procedural;
+    procedural.scope = None;
+    assert!(unregistered_family_shapes(&[procedural]).is_empty());
 }

@@ -102,9 +102,9 @@ declared by an HTML-comment **unit marker** carrying a kebab-case id, a
 [[Triggering unit]]/procedural class, the [[Session kind]]s its scope admits when
 triggering, and optionally the **deferral**: the id of the procedural unit whose
 body completes it. Units **partition** their file's **body** past its
-[[File directive]]: every
-body byte belongs to exactly one, a unit runs from its marker to the byte before
-the next or to end of file, and there is no nesting, no gap and no close marker.
+[[File directive]]: every body byte *after that line* belongs to exactly one, a
+unit runs from its marker to the byte before the next or to end of file, and
+there is no nesting, no gap and no close marker.
 Body is everything after the optional leading `---`-delimited **preamble**, the
 file's one unread region — skipped uninterpreted, neither required nor rejected,
 so `content/SKILL.md`'s YAML keeps working for as long as
@@ -148,8 +148,12 @@ two files may claim one position; together those make the composition order
 **total**, which is the single property it exists to supply. Its two rules fall
 on opposite sides of the build gate: that a file *carries* a position is decided
 by that file's own text, that positions *differ* only by the assembled set.
-_Avoid_: reading positions as an index. The composer **sorts** by the key, so
-gaps are legal and a file inserted between two others renumbers nothing.
+_Avoid_: reading positions as an index. The composer **sorts** by the key, which
+is why the build gate settles totality and not density, and why a gap is legal.
+_Avoid_: reading a legal gap as **insertion slack**. `content/`'s positions are
+contiguous from 1 — a readability convention about the shipped corpus, pinned by
+a test rather than by the gate — so inserting a file between two others *does*
+renumber every later one, in one-character edits the gate localises by name.
 _Avoid_: reading it as preamble. The preamble is the unread `---` block *before*
 the body; this is read, and it is body.
 
@@ -198,8 +202,12 @@ is mechanically checkable: every triggering unit appears in the composed mandate
 of every kind its scope admits, every procedural unit appears in **none**, and
 every procedural unit is **reachable from some kind's mandate** by following the
 declared deferrals. Reachability is partition seen from the other end — together
-they say every byte of the methodology is either in a mandate or reachable from
-one, so an undiscoverable procedure is as impossible as unclassified prose.
+they say every unit is either in a mandate or reachable from one, and that units
+cover every body byte past the [[File directive]], so an undiscoverable procedure
+is as impossible as unclassified prose. The claim is over **units**, not over the
+embed's literal bytes: the two regions no unit covers — the unread preamble and
+the one-line directive — reach no mandate, and neither can hide a unit, since a
+marker inside the preamble is a build error.
 A triggering unit's scope is `*` or an explicit list of kind labels; there is no
 family shorthand and no negation, because a shorthand would silently absorb a
 kind added later. An explicit list carries the **mirror** hazard — a kind added

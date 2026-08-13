@@ -50,9 +50,12 @@ reachable from some kind's mandate** by following the declared deferrals. Units
 **partition** a file rather than sitting in it as islands, which is what makes
 unclassified prose unreachable and makes a parser that goes blind to a marker
 shape produce visibly different bytes instead of a silent hole. Partition and
-reachability are the same claim seen from each end — together they say every byte
-of the methodology is either in a mandate or reachable from one, so a procedure no
-session can be told about is as impossible as prose no parser can see. The
+reachability are the same claim seen from each end — together they say every unit
+is either in a mandate or reachable from one, and that units cover every body
+byte past the file directive, so a procedure no session can be told about is as
+impossible as prose no parser can see. What partition leaves uncovered is bounded
+and can hide no unit: an unread leading block, where a marker is itself a build
+error, and the one line declaring a file's position in a mandate. The
 residue — whether a given unit was classified correctly — is judgement, and gets
 an adversarial review pass rather than a mechanism.
 

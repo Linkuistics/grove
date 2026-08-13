@@ -187,8 +187,15 @@ Four rules make the declaration mechanical rather than a comment:
   until they make it.
 
 Together with partition, that yields the structural claim the design is actually
-for: **every byte of the methodology is either in a mandate or reachable from
-one.** Reachability is per kind, not universal — a procedure reached only from a
+for: **every unit is either in a mandate or reachable from one, and units cover
+every body byte past the file directive.** The two bounded non-unit regions named
+above are the whole residue, and neither can hide a unit — a marker inside the
+leading block is a build error, and the directive is one line the parser has
+already read. So the claim reaches every instruction in the embed, which is what
+it was ever about. Stating it over the embed's *literal* bytes instead would be a
+stronger claim than the design makes and a false one: the directive's bytes reach
+no mandate, and `grove-llm methodology` neither lists nor serves them; the
+preamble's are unread by anything. Reachability is per kind, not universal — a procedure reached only from a
 `kinds=impl` condition is reachable from the `impl` mandate and from no other,
 which is exactly right.
 
@@ -453,10 +460,33 @@ which is what keeps partition true of everything after it. Two rules bind it, an
 they fall on opposite sides of the gate's own split: **every file carries one**,
 decided per file, and **no two files claim one position**, which needs the
 assembled set. Together they make the order total, which is the single property
-the directive exists to supply. Nothing requires the positions to be
-*contiguous* — the composer sorts by the key rather than indexing on it, so
-requiring density would make inserting a file renumber every later one for no
-gain.
+the directive exists to supply.
+
+**Density is an authoring convention rather than a rule, and the two are guarded
+in different places.** The gate settles totality and stops there. The composer
+sorts by the key rather than indexing on it, so a gap costs no consumer anything,
+and a contiguity check would be a build error grown for a property no consumer
+reads — the same objection this design already makes to gating the directive
+ahead of the composer. It would also make *deleting* a file renumber every later
+one, which no behaviour requires.
+
+What density buys is a **reader's**, and it is bought at a price named here
+rather than denied. Across nine files a position that *is* the order is read at a
+glance, and one that has drifted into arbitrary integers is not. So `content/`'s
+own positions are held contiguous from 1 by a test over the shipped corpus —
+where this repository keeps its other claims about the real embed — while a gap
+stays legal in the grammar and a fixture is free to use one. The price is that
+dense values leave **no insertion slack**: a file inserted in the middle
+renumbers every later one. That is a handful of one-character edits in the commit
+that inserts the file, and both ways of getting it wrong fail the build by name,
+a duplicated position and a missing one.
+
+An earlier draft claimed the opposite — that gaps mean an insertion "renumbers
+nothing" — and that was false of the corpus it described, whose positions were
+contiguous integers the day they were assigned. With a `u32` key there is no
+value between adjacent ones, so the slack it promised had to be bought first, by
+spacing the values, at exactly the readability the dense ones supply. Legality
+here is the absence of a pointless gate, not a promise of slack.
 
 **Its arrival was deferred to the composer, and that was the point.** Composition
 is the ordering key's only consumer — the parser does not need it, and `grove-llm
@@ -1212,6 +1242,14 @@ The checks that seam carries:
   bounds only how much the scan may quietly lose, and that slack is enough to
   defeat the universal claim — the same argument the instructed-verb set already
   makes at length.
+- **The corpus's own mandate positions, pinned contiguous from 1.** The gate
+  settles totality and not density, for the reasons under *The file's mandate
+  order is a comment directive*, so density is a convention about the shipped
+  corpus and is asserted where the other corpus claims are rather than in the
+  build. It catches both ways the convention is lost — a new file numbered
+  arbitrarily, and an insertion whose successors were not renumbered — and it
+  deliberately leaves a fixture free to use a gap, which is what keeps the
+  grammar's own totality-only rule testable.
 - **The classifier must be able to fail**, demonstrated on a synthetic malformed
   marker and a synthetic well-formed one. A well-formed pattern matching nothing
   reads exactly like a clean repository.

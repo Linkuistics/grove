@@ -21,7 +21,7 @@
 use clap::CommandFactory;
 use grove::leaf::Kind;
 use grove::methodology::{self, Class, Unit};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -76,6 +76,54 @@ fn every_embedded_markdown_file_is_classified() {
     );
     assert!(
         !on_disk.is_empty(),
+        "an empty corpus would satisfy the equality above without asserting anything"
+    );
+}
+
+/// **`content/`'s mandate positions are contiguous from 1** — a convention about
+/// the shipped corpus, and deliberately not a rule of the grammar.
+///
+/// The build gate settles *totality* and stops there: the composer sorts by the
+/// position rather than indexing on it, so a gap breaks nothing, and a
+/// contiguity check in the gate would fail a contributor over a property no
+/// consumer reads — and would make *deleting* a file renumber every later one.
+/// What density buys is a reader's. Across nine files a position that *is* the
+/// order is read at a glance; one that has drifted into arbitrary integers is
+/// not (`docs/specs/mandate-delivered-methodology.md`, *The file's mandate order
+/// is a comment directive*).
+///
+/// So it is pinned here, where this file's other claims about the real corpus
+/// live, and the split is the point: a fixture in `whole_embed.rs` stays free to
+/// use a gap, while the corpus a human reads may not drift into one.
+#[test]
+fn the_corpus_mandate_positions_are_contiguous_from_one() {
+    let units = methodology::units().expect("the real embed must parse");
+
+    // Keyed by position: the whole-embed gate `units()` re-runs has already
+    // rejected two files sharing one, so this cannot silently collapse a pair.
+    let by_position: BTreeMap<u32, &str> = units
+        .iter()
+        .map(|unit| (unit.file_order, unit.file.as_str()))
+        .collect();
+
+    let actual: Vec<u32> = by_position.keys().copied().collect();
+    let expected: Vec<u32> = (1..=by_position.len() as u32).collect();
+    let files: Vec<&str> = by_position.values().copied().collect();
+
+    assert_eq!(
+        actual,
+        expected,
+        "content/'s mandate positions are {actual:?} across {} files, in the \
+         order {files:?}. The build gate only requires positions to differ, so \
+         this is not a malformation — it is the readability convention that a \
+         file's position is its place in the reading order. Renumber the \
+         `<!-- file: order=<n> -->` directives to 1..={}, or give the convention \
+         up in the spec and here together.",
+        by_position.len(),
+        by_position.len(),
+    );
+    assert!(
+        !actual.is_empty(),
         "an empty corpus would satisfy the equality above without asserting anything"
     );
 }
@@ -1023,9 +1071,12 @@ type InstructedVerbs = Vec<(String, usize, String)>;
 /// removal check worthless.
 ///
 /// It is also why the corpus is a **file** rather than a unit. Units partition a
-/// file's body, so scanning them one at a time would put a boundary through the
-/// middle of a wrapped invocation — and a marker line always follows such a
-/// boundary, so the loss would land in the fail-open direction.
+/// file's body *past its directive*, so scanning them one at a time would put a
+/// boundary through the middle of a wrapped invocation — and a marker line always
+/// follows such a boundary, so the loss would land in the fail-open direction. A
+/// file also carries the two regions no unit covers, which a scan of units would
+/// skip; neither can hold an instruction today, and a corpus that cannot lose one
+/// tomorrow is the cheaper claim.
 ///
 /// A leading `-` is deliberately not accepted as the token's first character, so
 /// a future `grove-llm --version` mention reads as a flag rather than as a verb

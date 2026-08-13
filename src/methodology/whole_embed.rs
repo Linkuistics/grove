@@ -18,8 +18,11 @@
 //! * **A procedural unit no chain of deferrals reaches.** This is partition seen
 //!   from the other end. Partition makes unclassified prose impossible;
 //!   reachability makes an undiscoverable procedure impossible, and the two
-//!   together say every byte of the methodology is either in a mandate or
-//!   reachable from one.
+//!   together say every *unit* is either in a mandate or reachable from one, and
+//!   that units cover every body byte past the file directive. The claim is over
+//!   units and not over the embed's literal bytes: the unread leading block and
+//!   the one-line directive are covered by no unit and reach no mandate, and
+//!   neither can hide one — a marker inside the block is itself a build error.
 //! * **A chain of deferrals that returns to a unit it already passed through.**
 //!   Reachability does *not* subsume this, which is the correction the check
 //!   below records: a ring nothing enters is unreachable, but a ring a trigger
@@ -222,8 +225,16 @@ fn error_at(unit: &Unit, fault: Fault) -> EmbedError {
 /// per file; that positions *differ* needs the set, and is this one.
 ///
 /// It settles totality rather than density: gaps are legal. A position is an
-/// ordering key, and requiring contiguity would make inserting a file renumber
-/// every later one for no gain — the composer sorts, it does not index.
+/// ordering key the composer **sorts** by rather than indexes on, so a gap costs
+/// no consumer anything, and a contiguity check here would be a build error
+/// grown for a property no consumer reads — one that would additionally make
+/// *deleting* a file renumber every later one.
+///
+/// `content/`'s own positions are nevertheless contiguous from 1, because across
+/// nine files a position that *is* the order reads better than an arbitrary
+/// integer. That is a convention about the shipped corpus rather than a property
+/// of the grammar, so it is pinned in `tests/methodology.rs` beside the other
+/// claims about the real embed — and a fixture below stays free to use a gap.
 fn check_file_order(units: &[Unit]) -> Result<(), EmbedError> {
     let mut claimed: BTreeMap<u32, &str> = BTreeMap::new();
     for unit in units {
@@ -521,7 +532,9 @@ mod tests {
         assert_eq!(
             check(&apart),
             Ok(()),
-            "gaps are legal — the composer sorts by the key, it does not index by it"
+            "gaps are legal in the grammar — the composer sorts by the key, it does not \
+             index by it. `content/`'s own density is a corpus convention, pinned in \
+             tests/methodology.rs rather than here"
         );
     }
 

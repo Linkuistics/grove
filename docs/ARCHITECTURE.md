@@ -689,8 +689,8 @@ cross-compiled `--release` targets a local test never sees are covered.
 `build.rs` still walks `content/` — to emit the per-file change tracking
 `include_dir!` does not register with Cargo, and to **gate** the embed. Every
 embedded markdown file is fully classified by HTML-comment **unit markers**
-partitioning its body, and a malformed one fails `cargo build` with the file and
-offset. Constraint 5 — grove guides and does not gate — governs the human's task
+partitioning its body past the file directive below, and a malformed one fails
+`cargo build` with the file and offset. Constraint 5 — grove guides and does not gate — governs the human's task
 tree, not grove's own compile-time artifact, which the very build that produced
 it can fully observe. The gate reads through the crate's own parsers
 (`src/methodology/parse.rs` and `src/methodology/whole_embed.rs`,
@@ -714,7 +714,11 @@ composition order must be total; **`defers=` resolving to a declared
 `class=procedural` unit**; **every procedural unit reachable** by following
 `defers=` from some triggering unit; and **every chain of deferrals
 terminating**. Reachability is partition seen from the other end — together they
-say every byte of the methodology is either in a mandate or reachable from one.
+say every unit is either in a mandate or reachable from one, and that units cover
+every body byte past the file directive. The claim is over units rather than over
+the embed's literal bytes: the unread preamble and the one-line directive are
+covered by no unit and reach no mandate, and neither can hide one — a marker
+inside the preamble is itself a build error.
 It does **not** also dispose of deferral cycles, which is the distinction the
 fourth check exists to hold: a ring entered by no triggering unit is unreachable
 by construction, but a ring a trigger *does* enter is reached like any other

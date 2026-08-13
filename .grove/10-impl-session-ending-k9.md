@@ -70,7 +70,14 @@ states its endings as outcomes, and that no unit restates an ending in words
 naming neither the completion verb nor `--done`. The composer returns opaque
 bytes with no role metadata, so a mechanical claim about either would be a
 substring heuristic wearing a SHALL. They are carried by the classification
-review and pinned for drift by the goldens.
+review and pinned for **drift** by a targeted byte-level assertion on the ending
+units' own source bytes, which this increment adds beside the claim that needs
+it. **The composition golden is not that pin.** It holds each kind's ordered
+unit ids, so it moves when a unit is gained, lost, re-scoped or re-ordered and
+does *not* move when the prose inside an ending unit is rewritten — which is
+exactly the drift these two limbs are exposed to
+(`docs/specs/mandate-delivered-methodology.md`, *Every kind's mandate states
+exactly one session ending*).
 
 ## Done when
 
@@ -82,7 +89,11 @@ review and pinned for drift by the goldens.
 - The guard exists in `tests/session_kind_guidance.rs` with both controls,
   generated from `Kind::ALL` so a twentieth kind fails loudly and by name rather
   than launching sessions that never signal the loop.
-- The golden snapshots and the pinned unit-id set are updated.
+- A targeted byte-level assertion pins the ending units' **own source bytes**.
+  That is the drift pin the two prose limbs rely on, and the ID-level golden
+  cannot supply it.
+- The composition golden and the pinned unit-id set are updated for the
+  composition drift they *do* carry — a unit gained, lost, re-scoped, or moved.
 - No unit **outside** the session-ending instruction is re-scoped —
   `unit-scope-audit-k4` owns that question and must stay a separate increment.
 - `CONTEXT.md`'s *Complete finish cycle* entry already carries the three-ending

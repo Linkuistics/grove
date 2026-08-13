@@ -319,9 +319,12 @@ serves readiness, the launch diagnostic line, template selection, and the
 mandate, with no second tree read. It is a fact, not a routing forecast, and it
 is not recomputed immediately before spawn.
 
-`${prompt}` carries the embedded launcher, that stable handle as an explicit
-mandate, and the [version control](#symmetric-vcs-rule) Grove resolved for the
-working tree. No hidden leaf environment variable accompanies it. At Bootstrap the
+`${prompt}` carries the methodology composed for that selected kind, then the two
+facts Grove resolved at runtime: the stable handle as an explicit mandate, and the
+[version control](#symmetric-vcs-rule) Grove resolved for the working tree.
+Everything before those two is a byte-exact slice of the binary's own `content/`,
+joined by a blank line and introduced by nothing, so the driver authors no
+sentence of methodology. No hidden leaf environment variable accompanies it. At Bootstrap the
 session resolves the handle with `grove-llm resolve`, rejects a missing,
 ambiguous, terminal, or non-leaf result, reads the glossary, cited decision
 records, brief chain, and task, and executes it without calling `grove-llm
@@ -730,12 +733,14 @@ which is a different traversal of what the gate saw on disk.
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
 refreshed, so whichever one the command lands in already carries the current
-methodology. `content/prompts/continue.md` is the single surviving launcher,
-augmented with the selected stable-handle mandate and the resolved version
-control; it deliberately stays small
-and tells the target to use the provisioned skill, which makes that provisioned
-methodology a prerequisite of every configured target and one Grove cannot
-verify from the outside.
+methodology. A session no longer depends on reaching it, because the mandate now
+carries the methodology itself: `content/MANDATE.md` holds one framing unit
+saying what the composed text is and how `grove-llm methodology` serves a
+deferred body, and it leads every mandate by declaring the first file position
+rather than by any rule in the composer. Both delivery paths are live for this
+increment — the sweep still runs, and a session receives a provisioned skill as
+well as a mandate — which the design admits as a transient so that composition is
+proven before its fallback is removed, never as a resting state.
 
 The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical

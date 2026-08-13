@@ -13,10 +13,10 @@ The `grove` binary's per-invocation sweep of its embedded `content/` into
 **every installed harness's** personal global skill directory, before it tries
 to own a working tree — every one, because an opaque configured command cannot
 be traced to a single harness. `content/` stays canonical and the binary is the
-only writer of these directories; the single embedded launcher
-`content/prompts/continue.md` relies on that provisioning rather than inlining a
-second copy of the methodology, which makes the provisioned skill a target
-prerequisite Grove cannot itself verify. The directories are global, so a
+only writer of these directories. **Nothing a session is told depends on the
+result**: the methodology reaches it as [[Mandate slice]]s in `${prompt}`, so the
+provisioned skill stopped being a target prerequisite Grove cannot itself verify
+and the sweep is now a second delivery path with no consumer. The directories are global, so a
 directory is owned by whichever build wrote it last; the loop therefore
 re-verifies each stamp before every launch and restores its own embed when
 another build has taken one ([[Build pairing]]).
@@ -25,9 +25,9 @@ another build has taken one ([[Build pairing]]).
 mandate is the sole delivery path there is no sweep, no stamp, no shared
 directory, and no `continue.md`.
 _Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
-with their lifecycle verbs, and `continue.md` is the only survivor. It becomes
-`content/MANDATE.md`, an ordinary [[Methodology unit]], and `content/prompts/`
-goes with it.
+with their lifecycle verbs, and `continue.md` was the last survivor. It is now
+`content/MANDATE.md`, an ordinary [[Methodology unit]] carrying framing and no
+instructions, and `content/prompts/` went with it. There is no launcher.
 _Avoid_: reading "current" as "as committed". What is swept is the
 [[Embedded methodology]] — the copy compiled into the *running* binary — so a
 sweep is current with respect to that build and to nothing else.
@@ -578,9 +578,10 @@ policy has one home.
 **Kind routing**:
 How the self-driving loop launches the [[Leaf]] selected by one authoritative
 driver-side [[Pick]]. The driver reads the session kind from that leaf's
-filename, obtains its complete session target from [[Grove configuration]], and
-embeds the selected stable handle in `${prompt}` as the launched session's
-mandate, alongside the [[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
+filename, obtains its complete session target from [[Grove configuration]],
+composes that kind's [[Mandate slice]]s into `${prompt}`, and embeds the selected
+stable handle there as the launched session's mandate, alongside the
+[[Stated VCS]]. The session first validates its [[Session epoch]], then resolves that
 handle to its current path, rejects an unavailable or non-live result,
 Bootstraps the resolved leaf, and does not pick again. A session started outside bare
 `grove` has no mandate and is not a Grove loop session; Grove executes the

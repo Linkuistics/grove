@@ -23,13 +23,10 @@ use std::path::{Path, PathBuf};
 /// and Claude Code ignores it.
 pub const STAMP_FILE: &str = ".grove-content-hash";
 
-/// The one launcher embedded into every config-driven session prompt.
-pub fn continue_prompt() -> Result<&'static str> {
-    let file = methodology::embed()
-        .get_file("prompts/continue.md")
-        .context("embedded Grove content is missing prompts/continue.md")?;
-    std::str::from_utf8(file.contents()).context("embedded prompts/continue.md is not UTF-8")
-}
+// The launcher reader that used to sit here is **gone rather than moved**. A
+// mandate is composed from units now, so the driver reaches `content/` through
+// `methodology::compose` and no caller wants a whole embedded file as a string —
+// which leaves provisioning with one job, the sweep below.
 
 /// Provision Grove into every installed harness root. Configured commands are
 /// opaque, so the driver cannot infer which harness a session eventually

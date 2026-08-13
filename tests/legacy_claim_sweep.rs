@@ -126,6 +126,15 @@ const LEGACY_TOKENS: &[(&str, &str)] = &[
     ("**Producer launch:**", "the removed review-target receipt"),
     ("start.md", "a launcher prompt that no longer exists"),
     ("retire.md", "a launcher prompt that no longer exists"),
+    // The third and last one. It outlived the other two because one bare command
+    // still needed *something* in `${prompt}`, and it went the moment the driver
+    // composed that prompt from marked units instead — so the class this pair
+    // opened is now closed, and leaving the survivor off the list would have made
+    // it "the launcher prompts we removed, except the one we removed last".
+    (
+        "continue.md",
+        "the last launcher prompt, replaced by a composed mandate",
+    ),
     (
         ".grove-stamps",
         "the removed repository-local stamp directory",
@@ -194,6 +203,15 @@ const REFUTATIONS: &[(&str, &str)] = &[
         "CONTEXT.md",
         "_Avoid_: naming `start.md` or `retire.md` — those launcher prompts \
          disappeared with their lifecycle verbs",
+    ),
+    // The same `_Avoid_` sentence, one token further on. Two entries rather than
+    // one widened quotation, because the occurrence is the unit: each token has
+    // to be denied by prose a reader committed to, and a quotation stretched to
+    // cover a neighbour would exempt it on the strength of the first denial.
+    ("CONTEXT.md", "`continue.md` was the last survivor"),
+    (
+        "CONTEXT.md",
+        "there is no sweep, no stamp, no shared directory, and no `continue.md`",
     ),
     (
         "CONTEXT.md",
@@ -294,6 +312,10 @@ const REFUTATIONS: &[(&str, &str)] = &[
     (
         "docs/specs/config-driven-sessions.md",
         "`start.md` and `retire.md` disappear with their human lifecycle verbs",
+    ),
+    (
+        "docs/specs/mandate-delivered-methodology.md",
+        "`content/prompts/continue.md` was the third",
     ),
     (
         "docs/specs/doubt-grove-review-mechanics.md",

@@ -100,7 +100,7 @@ can never change argument boundaries.
 
 | Substitution | Expands to | Required |
 |---|---|---|
-| `${prompt}` | The embedded launcher plus the selected leaf's stable handle as the session's mandate. | Exactly once, in any position after word zero. |
+| `${prompt}` | The methodology composed for the selected leaf's kind, then that leaf's stable handle as the session's mandate and the resolved version control. | Exactly once, in any position after word zero. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
 | `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
 | `${repo}` | Absolute root of the main repository — the default jj workspace root, or the parent of Git's common directory. | At most once. |
@@ -164,10 +164,11 @@ absent home root is skipped, never created. Writes are idempotent against a
 content stamp, and a foreign directory carrying no Grove stamp is refused rather
 than overwritten.
 
-The `${prompt}` launcher is deliberately small and tells the session to use that
-provisioned skill. Because Grove treats your command as opaque, it cannot verify
-that a given wrapper actually exposes the skill; that is a property of the target
-you configure.
+`${prompt}` no longer points a session at that provisioned skill: it carries the
+methodology for the launched kind directly, sliced from the same embed the sweep
+writes. The registry therefore stays a delivery list whose product nothing in a
+mandate depends on — which is what lets provisioning retire in a later increment
+without changing what a session is told.
 
 ## Validation and diagnostics
 

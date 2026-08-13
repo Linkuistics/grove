@@ -34,6 +34,20 @@ const SESSION_KINDS: &[&str] = &[
     "integrate-review-impl",
 ];
 
+/// The `sh` `case` pattern deciding whether a configured command was launched for
+/// the **`finish` sentinel**, matched on the driver's own mandate sentence.
+///
+/// **Deliberately not `*finish-k*`.** `${prompt}` is composed methodology now,
+/// and the methodology names `finish-k<key>` in prose where it explains the
+/// sentinel — so that glob matches the mandate of *every* kind, and a fixture
+/// using it sends a `requirements` session down the teardown branch. The bytes
+/// that name the **selected** leaf are the driver's, and only the driver's,
+/// which is what this matches instead.
+///
+/// The backtick is inside single quotes so `sh` treats it as a literal in the
+/// pattern rather than opening a command substitution.
+const LAUNCHED_FOR_THE_FINISH_LEAF: &str = "*'resolve and execute `finish-k'*";
+
 fn run(program: &str, current_dir: &Path, arguments: &[&str]) -> Output {
     let output = Command::new(program)
         .current_dir(current_dir)
@@ -1479,7 +1493,8 @@ fn a_no_signal_exit_after_successful_teardown_stops_and_then_starts_a_fresh_grov
     write_executable(
         &script,
         &format!(
-            "#!/bin/sh\ncase \"$1\" in *finish-k*) {llm} finish-commit finish-k2 || exit $?; exit 23;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            "#!/bin/sh\ncase \"$1\" in {selected}) {llm} finish-commit finish-k2 || exit $?; exit 23;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             log = launch_log.display(),
         ),
@@ -1556,7 +1571,7 @@ fn a_done_signal_abandoned_by_a_killed_driver_reinitializes_instead_of_finishing
         &format!(
             r#"#!/bin/sh
 case "$1" in
-*finish-k*)
+{selected})
   {llm} finish-commit finish-k2 || exit $?
   printf '%s\n' "$GROVE_SIGNAL_FILE" > {signal_log}
   driver=$PPID
@@ -1569,6 +1584,7 @@ case "$1" in
 esac
 printf '%s\n' "$1" > {launch_log}
 "#,
+            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             signal_log = signal_log.display(),
             signalled = signalled.display(),
@@ -1677,7 +1693,8 @@ fn a_shared_epoch_guard_blocks_the_post_finish_replacement_without_creating_a_tr
     write_executable(
         &script,
         &format!(
-            "#!/bin/sh\ncase \"$1\" in *finish-k*) {llm} finish-commit finish-k2; exit $?;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            "#!/bin/sh\ncase \"$1\" in {selected}) {llm} finish-commit finish-k2; exit $?;; esac\nprintf '%s\\n' \"$1\" > {log}\n",
+            selected = LAUNCHED_FOR_THE_FINISH_LEAF,
             llm = env!("CARGO_BIN_EXE_grove-llm"),
             log = launch_log.display(),
         ),

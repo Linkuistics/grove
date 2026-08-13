@@ -170,7 +170,6 @@ const EMBEDDED_UNITS: [&str; 138] = [
     "context-rules",
     "context-single-vs-multi-repos",
     "context-structure",
-    "continue-launcher-framing",
     "driving-ask-about-the-trade-off",
     "driving-ask-for-pushback",
     "driving-ask-wdyt",
@@ -209,6 +208,7 @@ const EMBEDDED_UNITS: [&str; 138] = [
     "grilling-offer-adrs-sparingly",
     "grilling-sharpen-fuzzy-language",
     "grilling-update-context-inline",
+    "mandate-framing",
     "skill-adrs-and-specs",
     "skill-artifacts",
     "skill-bare-grove-dispatch",
@@ -425,16 +425,18 @@ fn every_triggering_unit_reaches_exactly_the_kinds_its_scope_admits() {
 /// knowing which unit it is** — the file ordering places it, which is the
 /// property that keeps composition free of any per-unit special case.
 ///
-/// Pinned by **unit id rather than by filename**, because the file moves in the
-/// next slice (`content/prompts/continue.md` becomes `content/MANDATE.md`) and
-/// the unit does not. A rename that also moved the position would fail here,
+/// Pinned by **unit id rather than by filename**, and the rename that has since
+/// landed is what that bought: `content/prompts/continue.md` became
+/// `content/MANDATE.md` and this assertion did not move, because the unit's
+/// position is declared by its file's `<!-- file: order= -->` and not by where the
+/// file sits. A rename that had *also* moved the position would have failed here,
 /// which is exactly the accident worth catching.
 #[test]
 fn the_framing_unit_leads_every_composed_mandate() {
     let units = methodology::units().unwrap();
     let framing = units
         .iter()
-        .find(|unit| unit.id == "continue-launcher-framing")
+        .find(|unit| unit.id == "mandate-framing")
         .expect("the framing unit must exist");
 
     for kind in Kind::ALL {
@@ -967,11 +969,15 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
 /// the corpus is pinned rather than merely floored — see the completeness
 /// control in [`the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks`].
 ///
-/// **Eleven, and the relocation did not move the number.** The corpus widened
-/// from a provisioned extraction to the embed itself, which is the same files;
-/// `methodology` is absent because nothing in `content/` names it yet, and it
-/// joins the day `content/MANDATE.md` does.
-const INSTRUCTED_VERBS: [&str; 11] = [
+/// **Twelve**, and `methodology` is the one that just joined — on the day
+/// `content/MANDATE.md` landed, which is exactly where the eleven-verb note
+/// predicted it. The framing unit tells a session that a marker naming
+/// `defers=<id>` has a body `grove-llm methodology <id>` will serve, so the verb
+/// stopped being a surface nothing in `content/` reaches and became the one the
+/// deferral half of the design rests on: withholding a procedural body is only
+/// safe while the session can fetch it, and this is the check that the fetch it is
+/// pointed at exists in the CLI beside it.
+const INSTRUCTED_VERBS: [&str; 12] = [
     "brief-chain",
     "complete",
     "finish-commit",
@@ -981,6 +987,7 @@ const INSTRUCTED_VERBS: [&str; 11] = [
     "leaf-insert",
     "leaf-prune",
     "leaf-retire",
+    "methodology",
     "pick",
     "resolve",
 ];

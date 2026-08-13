@@ -211,52 +211,40 @@ fn extract_fresh_writes_the_full_content_tree() {
     let extracted = provision_into(dest.path()).unwrap();
 
     assert!(extracted, "a fresh dir must be extracted into");
-    // The skill entrypoint, a prompt under a subdir, and a top-level format
+    // The skill entrypoint, the mandate's framing file, and a top-level format
     // guide all travel — i.e. the *whole* tree, nested dirs included.
     assert!(dest.path().join("SKILL.md").is_file());
-    assert!(dest.path().join("prompts/continue.md").is_file());
+    assert!(dest.path().join("MANDATE.md").is_file());
     assert!(dest.path().join("driving.md").is_file());
-    // A deeply-nested file (LICENSES/) confirms recursion to the leaves.
-    assert!(dest.path().join("LICENSES").is_dir());
+    // Recursion to the leaves, asserted on a nested **file** rather than on the
+    // directory holding it: extraction creates directories on its way down, so a
+    // `LICENSES/` that exists proves only that the walk reached the name. It is
+    // now the embed's one nested file — `prompts/` went with the launcher — so
+    // the weaker claim would leave recursion unasserted altogether.
+    assert!(dest.path().join("LICENSES/openspec.LICENSE").is_file());
     // The stamp is written so the next launch can detect a warm dir.
     assert!(dest.path().join(STAMP_FILE).is_file());
 }
 
-/// The launcher surface, enumerated rather than listed. `start.md` and
-/// `retire.md` died with the lifecycle verbs that launched them: one bare
-/// command drives every kind of session now, so one launcher covers them all.
-/// The claim committed here is therefore not "those two files are gone" — a
-/// pair of `!exists()` assertions that would pass unchanged the day a third
-/// launcher appears — but **exactly one launcher**, which fails on the next one
-/// anybody adds.
-///
-/// Extracting the real embed settles both halves of the removal at once: what
-/// travels inside the binary is precisely what lands in a skill dir, so a file
-/// that is not embedded cannot be swept, and one that is swept was embedded.
-#[test]
-fn exactly_one_launcher_is_embedded_and_provisioned() {
-    let dest = TempDir::new().unwrap();
-    provision_into(dest.path()).unwrap();
-
-    let mut prompts: Vec<String> = fs::read_dir(dest.path().join("prompts"))
-        .unwrap()
-        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
-        .collect();
-    prompts.sort();
-    assert_eq!(
-        prompts,
-        ["continue.md"],
-        "the embedded methodology must carry one launcher and no lifecycle-verb prompts"
-    );
-
-    // ...and it is the same bytes the driver puts in front of every mandate, so
-    // the provisioned copy cannot drift from the launched one.
-    assert_eq!(
-        fs::read_to_string(dest.path().join("prompts/continue.md")).unwrap(),
-        grove::provision::continue_prompt().unwrap(),
-        "the launcher the driver embeds in a session prompt is the one it sweeps out"
-    );
-}
+// `exactly_one_launcher_is_embedded_and_provisioned` **died with the surface it
+// enumerated**, and both of its halves were re-housed rather than dropped.
+//
+// It read `prompts/` back out of a fresh extraction and asserted one entry, so
+// that a third launcher failed here rather than shipping unnoticed. There is no
+// launcher now: `content/prompts/continue.md` became `content/MANDATE.md`, which
+// carries framing and no instructions, and a session's mandate is composed from
+// units instead of prefixed with a file. The successor guard is stronger than the
+// directory listing was and lives in `tests/methodology.rs` — every embedded file
+// must declare at least one unit, and `EMBEDDED_UNITS` pins the whole id set, so a
+// launcher file added anywhere under `content/` fails there until a human names
+// its unit.
+//
+// Its second half compared the provisioned bytes with the ones the driver put in
+// front of every mandate. That comparison had an operand to lose the day
+// `provision::continue_prompt` went: nothing reads a whole embedded file into a
+// prompt any more, and the sweep and the composer now project the same embed —
+// `provision_into` extracting it verbatim, `methodology::compose` slicing it
+// byte-exact — so a drift between the two is no longer expressible.
 
 // The two claims that used to sit here — the embedded methodology instructing no
 // `grove-llm` verb the embedded CLI lacks, and the flat-verb-surface pin that

@@ -3,7 +3,7 @@
 # One row per (kind, unit), in mandate order: file position, then position
 # within the file. Regenerate after confirming a change with
 # `GROVE_TEST_UPDATE_GOLDENS=1 cargo test --test methodology`.
-requirements	continue-launcher-framing
+requirements	mandate-framing
 requirements	skill-what-a-grove-is
 requirements	skill-spine-constraints
 requirements	skill-working-tree
@@ -61,7 +61,7 @@ requirements	driving-when-a-leafs-place-is-in-doubt
 requirements	driving-no-session-summary
 requirements	driving-ask-about-the-trade-off
 requirements	driving-no-pre-baked-grilling
-design	continue-launcher-framing
+design	mandate-framing
 design	skill-what-a-grove-is
 design	skill-spine-constraints
 design	skill-working-tree
@@ -115,7 +115,7 @@ design	driving-recording-fog
 design	driving-when-a-leafs-place-is-in-doubt
 design	driving-no-session-summary
 design	driving-ask-about-the-trade-off
-planning	continue-launcher-framing
+planning	mandate-framing
 planning	skill-what-a-grove-is
 planning	skill-spine-constraints
 planning	skill-working-tree
@@ -169,7 +169,7 @@ planning	driving-recording-fog
 planning	driving-when-a-leafs-place-is-in-doubt
 planning	driving-no-session-summary
 planning	driving-ask-about-the-trade-off
-prototype	continue-launcher-framing
+prototype	mandate-framing
 prototype	skill-what-a-grove-is
 prototype	skill-spine-constraints
 prototype	skill-working-tree
@@ -222,7 +222,7 @@ prototype	driving-recording-fog
 prototype	driving-when-a-leafs-place-is-in-doubt
 prototype	driving-no-session-summary
 prototype	driving-ask-about-the-trade-off
-impl	continue-launcher-framing
+impl	mandate-framing
 impl	skill-what-a-grove-is
 impl	skill-spine-constraints
 impl	skill-working-tree
@@ -275,7 +275,7 @@ impl	driving-recording-fog
 impl	driving-when-a-leafs-place-is-in-doubt
 impl	driving-no-session-summary
 impl	driving-ask-about-the-trade-off
-research-a	continue-launcher-framing
+research-a	mandate-framing
 research-a	skill-what-a-grove-is
 research-a	skill-spine-constraints
 research-a	skill-working-tree
@@ -328,7 +328,7 @@ research-a	driving-recording-fog
 research-a	driving-when-a-leafs-place-is-in-doubt
 research-a	driving-no-session-summary
 research-a	driving-ask-about-the-trade-off
-research-b	continue-launcher-framing
+research-b	mandate-framing
 research-b	skill-what-a-grove-is
 research-b	skill-spine-constraints
 research-b	skill-working-tree
@@ -381,7 +381,7 @@ research-b	driving-recording-fog
 research-b	driving-when-a-leafs-place-is-in-doubt
 research-b	driving-no-session-summary
 research-b	driving-ask-about-the-trade-off
-combine-research	continue-launcher-framing
+combine-research	mandate-framing
 combine-research	skill-what-a-grove-is
 combine-research	skill-spine-constraints
 combine-research	skill-working-tree
@@ -434,7 +434,7 @@ combine-research	driving-recording-fog
 combine-research	driving-when-a-leafs-place-is-in-doubt
 combine-research	driving-no-session-summary
 combine-research	driving-ask-about-the-trade-off
-finish	continue-launcher-framing
+finish	mandate-framing
 finish	skill-what-a-grove-is
 finish	skill-spine-constraints
 finish	skill-working-tree
@@ -487,7 +487,7 @@ finish	driving-recording-fog
 finish	driving-when-a-leafs-place-is-in-doubt
 finish	driving-no-session-summary
 finish	driving-ask-about-the-trade-off
-review-requirements	continue-launcher-framing
+review-requirements	mandate-framing
 review-requirements	skill-what-a-grove-is
 review-requirements	skill-spine-constraints
 review-requirements	skill-working-tree
@@ -540,7 +540,7 @@ review-requirements	driving-recording-fog
 review-requirements	driving-when-a-leafs-place-is-in-doubt
 review-requirements	driving-no-session-summary
 review-requirements	driving-ask-about-the-trade-off
-review-design	continue-launcher-framing
+review-design	mandate-framing
 review-design	skill-what-a-grove-is
 review-design	skill-spine-constraints
 review-design	skill-working-tree
@@ -593,7 +593,7 @@ review-design	driving-recording-fog
 review-design	driving-when-a-leafs-place-is-in-doubt
 review-design	driving-no-session-summary
 review-design	driving-ask-about-the-trade-off
-review-planning	continue-launcher-framing
+review-planning	mandate-framing
 review-planning	skill-what-a-grove-is
 review-planning	skill-spine-constraints
 review-planning	skill-working-tree
@@ -646,7 +646,7 @@ review-planning	driving-recording-fog
 review-planning	driving-when-a-leafs-place-is-in-doubt
 review-planning	driving-no-session-summary
 review-planning	driving-ask-about-the-trade-off
-review-prototype	continue-launcher-framing
+review-prototype	mandate-framing
 review-prototype	skill-what-a-grove-is
 review-prototype	skill-spine-constraints
 review-prototype	skill-working-tree
@@ -699,7 +699,7 @@ review-prototype	driving-recording-fog
 review-prototype	driving-when-a-leafs-place-is-in-doubt
 review-prototype	driving-no-session-summary
 review-prototype	driving-ask-about-the-trade-off
-review-impl	continue-launcher-framing
+review-impl	mandate-framing
 review-impl	skill-what-a-grove-is
 review-impl	skill-spine-constraints
 review-impl	skill-working-tree
@@ -752,7 +752,7 @@ review-impl	driving-recording-fog
 review-impl	driving-when-a-leafs-place-is-in-doubt
 review-impl	driving-no-session-summary
 review-impl	driving-ask-about-the-trade-off
-integrate-review-requirements	continue-launcher-framing
+integrate-review-requirements	mandate-framing
 integrate-review-requirements	skill-what-a-grove-is
 integrate-review-requirements	skill-spine-constraints
 integrate-review-requirements	skill-working-tree
@@ -805,7 +805,7 @@ integrate-review-requirements	driving-recording-fog
 integrate-review-requirements	driving-when-a-leafs-place-is-in-doubt
 integrate-review-requirements	driving-no-session-summary
 integrate-review-requirements	driving-ask-about-the-trade-off
-integrate-review-design	continue-launcher-framing
+integrate-review-design	mandate-framing
 integrate-review-design	skill-what-a-grove-is
 integrate-review-design	skill-spine-constraints
 integrate-review-design	skill-working-tree
@@ -858,7 +858,7 @@ integrate-review-design	driving-recording-fog
 integrate-review-design	driving-when-a-leafs-place-is-in-doubt
 integrate-review-design	driving-no-session-summary
 integrate-review-design	driving-ask-about-the-trade-off
-integrate-review-planning	continue-launcher-framing
+integrate-review-planning	mandate-framing
 integrate-review-planning	skill-what-a-grove-is
 integrate-review-planning	skill-spine-constraints
 integrate-review-planning	skill-working-tree
@@ -911,7 +911,7 @@ integrate-review-planning	driving-recording-fog
 integrate-review-planning	driving-when-a-leafs-place-is-in-doubt
 integrate-review-planning	driving-no-session-summary
 integrate-review-planning	driving-ask-about-the-trade-off
-integrate-review-prototype	continue-launcher-framing
+integrate-review-prototype	mandate-framing
 integrate-review-prototype	skill-what-a-grove-is
 integrate-review-prototype	skill-spine-constraints
 integrate-review-prototype	skill-working-tree
@@ -964,7 +964,7 @@ integrate-review-prototype	driving-recording-fog
 integrate-review-prototype	driving-when-a-leafs-place-is-in-doubt
 integrate-review-prototype	driving-no-session-summary
 integrate-review-prototype	driving-ask-about-the-trade-off
-integrate-review-impl	continue-launcher-framing
+integrate-review-impl	mandate-framing
 integrate-review-impl	skill-what-a-grove-is
 integrate-review-impl	skill-spine-constraints
 integrate-review-impl	skill-working-tree

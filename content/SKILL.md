@@ -67,8 +67,9 @@ user-controlled argument — harness, model, reasoning effort, approval,
 permission and sandbox policy — and grove neither knows nor infers which harness
 it eventually reaches: it reads the selected leaf's kind from the filename,
 looks that one kind up, expands its own substitutions, and executes the result
-directly (no shell). `${prompt}` carries this launcher plus your mandate;
-`${session_name}`, `${worktree}` and `${repo}` are the only others. **Nothing
+directly (no shell). `${prompt}` carries your whole mandate — this methodology,
+sliced for that kind — and `${session_name}`, `${worktree}` and `${repo}` are the
+only others. **Nothing
 else routes a session** — no environment variable, no command-line flag, no
 repository stamp, no field in a task file, and no default, family or fallback.
 Grove never creates or edits that file, because it cannot choose personal model

@@ -494,9 +494,9 @@ methodology` neither serves nor lists it. Marked and gated ahead of a composer i
 would have been parsed, checked for uniqueness, and read by nobody, which is
 scaffolding a build gate should not be grown for; worse, the order's *values*
 would have been chosen by a session that had not written the thing that consumes
-them. They were instead chosen with the rename in hand, which is why
-`content/prompts/continue.md` holds position 1 and moving it to
-`content/MANDATE.md` churns nothing.
+them. They were instead chosen with the rename in hand, which is what the rename
+then demonstrated: `content/MANDATE.md` kept position 1 and the move churned
+nothing but the file's path and the golden's one id per kind.
 
 Two alternatives were weighed and rejected, and one was tested and found false.
 
@@ -522,30 +522,33 @@ quotes every value and yields a KDL document whose every node name ends in `:` �
 YAML wearing a KDL parser, in a block two consumers must keep mutually valid by
 hand.
 
-### `content/prompts/continue.md` becomes `content/MANDATE.md`
+### `content/MANDATE.md` carries framing and no instructions
 
-Its "use the grove skill" instruction is false the moment provisioning retires,
-so the file cannot survive unchanged. What survives is its **job**: framing. A
-mandate is a wall of sliced methodology, and the session needs to know what that
-text is, that it is complete with respect to triggering conditions, and that
-`grove-llm methodology` serves the rest.
+The launcher's "use the grove skill" instruction goes false the moment
+provisioning retires, so the file could not survive unchanged. What survived is
+its **job**: framing. A mandate is a wall of sliced methodology, and the session
+needs to know what that text is, that it is complete with respect to triggering
+conditions, and that `grove-llm methodology` serves the rest.
 
 That framing is methodology, so it belongs in `content/` as an ordinary marked
 unit — `class=triggering kinds=*`, with the file ordered first — and not in a
 driver-side format string, where it would be the one piece of methodology the
 completeness invariant cannot see. It stops being a special case: the composer
 needs no rule to place it, because the file ordering already does. The unit
-survives the rename; only its file moves.
+survives the rename — its class, its scope and its declared position are
+untouched — while its file, its id and its body move. That is what the rename
+proved rather than asserted: the composition golden moved by exactly one row per
+kind, the renamed id still leading, and nothing about the composer changed.
 
 **It carries framing and no instructions**, and that reduction is a subtraction
-with nothing to replace. Every instruction the launcher states today is already a
+with nothing to replace. Every instruction the launcher stated is already a
 `kinds=*` unit the composer delivers into the same mandate: bootstrapping from
 the handle and assembling the brief chain (`skill-bootstrap`), externalizing
 surfaced work with the grow verbs rather than absorbing it (`skill-decompose`),
 retiring the finished leaf (`skill-retire`), naming the work item by its stable
 handle at the commit (`skill-commit`), the relaunch signal (`skill-signal`), and
 the `finish` exception with its human gate (`skill-finish`). Exactly one clause
-states something composition does not — "use the grove skill" — and it is the one
+stated something composition does not — "use the grove skill" — and it is the one
 that goes false when provisioning retires.
 
 A duplicate *inside* `content/` is **not** build-boundary drift: both copies ship
@@ -557,8 +560,10 @@ the completeness invariant is blind to, because a launcher sentence restating a
 unit is not a missing unit; the invariant checks that every unit reaches its
 kinds, not that no unit says what another already said.
 
-`content/prompts/` is removed. It held three launchers; two went with their
-lifecycle verbs, and this is the third.
+`content/prompts/` is removed, and with it the last of the launchers:
+`content/prompts/continue.md` was the third, the other two having gone with the
+lifecycle verbs that launched them. Grove has no launcher prompt now — a mandate
+is composed, not prefixed.
 
 ### The driver authors mandate prose only for facts it resolves at runtime
 

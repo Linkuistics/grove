@@ -250,8 +250,12 @@ exit 0
         "{log:?}"
     );
     assert!(log.contains("argc=<3>\narg=<--before>\n"), "{log:?}");
+    // The mandate argument carries composed methodology, so it is asserted on a
+    // **unit marker** rather than on a sentence: a marker is what a slice is
+    // delivered with, and the id is pinned in `tests/methodology.rs`, where prose
+    // inside the slice deliberately is not.
     assert!(
-        log.contains("Continue this grove — use the grove skill"),
+        log.contains("<!-- unit: mandate-framing kinds=* class=triggering -->"),
         "{log:?}"
     );
     assert!(log.contains("selected-work-k7"), "{log:?}");

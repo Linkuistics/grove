@@ -51,6 +51,7 @@
 
 use crate::complete::{self, Disposition};
 use crate::driver_lease::DriverLease;
+use crate::leaf::Kind;
 use crate::session_config::{ExpansionContext, SessionConfig};
 use anyhow::{Context, Result};
 use std::ffi::OsString;
@@ -121,7 +122,7 @@ fn run_configured_loop_with_lease(
         };
 
         let config = SessionConfig::load(&home)?;
-        let prompt = mandate_prompt(&selection.handle, worktree)?;
+        let prompt = mandate_prompt(&selection.handle, selection.kind, worktree)?;
         let argv = config.expand(
             selection.kind.label(),
             &ExpansionContext {
@@ -192,11 +193,36 @@ fn run_configured_loop_with_lease(
     }
 }
 
-fn mandate_prompt(handle: &str, worktree: &Path) -> Result<String> {
-    let launcher = crate::provision::continue_prompt()?;
+/// The whole `${prompt}`: the methodology composed for the launched kind, then
+/// the two facts the driver resolved at runtime.
+///
+/// **The driver authors only those two facts** — the selected leaf's stable
+/// handle and the stated version control. Everything before them is a byte-exact
+/// slice of this build's own `content/`, joined by a blank line and introduced by
+/// nothing, so no sentence of methodology lives in Rust to drift from the embed
+/// it describes (`docs/specs/mandate-delivered-methodology.md`, *The driver
+/// authors mandate prose only for facts it resolves at runtime*).
+///
+/// The kind is passed in rather than re-read: it is the same value that indexed
+/// the configuration entry, taken from the one guarded selection, so the mandate
+/// and the command a session receives cannot disagree about what kind it is.
+///
+/// [`crate::methodology::compose`] appends no trailing separator and every unit's
+/// source ends in a newline, so the single `\n` before the handle paragraph is
+/// exactly the blank line that joins two slices. Nothing here places the framing
+/// unit; `content/MANDATE.md`'s file ordering does, which is what keeps the
+/// composer free of any knowledge of which unit is which.
+///
+/// A malformed embed fails the launch rather than degrading it. The build gate
+/// already rejected this corpus at compile time, so an error here is a bug — and
+/// the answer to it is still not to spawn a session holding a mandate that is
+/// missing triggering conditions it would never learn to ask for.
+fn mandate_prompt(handle: &str, kind: Kind, worktree: &Path) -> Result<String> {
+    let units = crate::methodology::units()?;
+    let methodology = crate::methodology::compose(&units, kind);
     let version_control = stated_vcs(worktree)?;
     Ok(format!(
-        "{launcher}\n\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n\n{version_control}\n"
+        "{methodology}\nGrove mandate: resolve and execute `{handle}`. This selected handle is authoritative; do not call `grove-llm pick` in this session.\n\n{version_control}\n"
     ))
 }
 

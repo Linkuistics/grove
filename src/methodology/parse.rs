@@ -1391,7 +1391,7 @@ mod tests {
             Fault::UnlistablePath('\n')
         );
         assert!(
-            parse_units("prompts/continue.md", file).is_ok(),
+            parse_units("nested/guide.md", file).is_ok(),
             "an ordinary nested path is untouched"
         );
     }

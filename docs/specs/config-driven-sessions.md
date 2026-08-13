@@ -138,7 +138,7 @@ splitting, Grove validates and expands these whole-word substitutions:
 
 | Substitution | Expansion |
 |---|---|
-| `${prompt}` | The embedded `continue.md` launcher plus the selected leaf's stable-handle mandate, as one argument. Required exactly once. |
+| `${prompt}` | The methodology composed for the selected leaf's kind, then that leaf's stable-handle mandate and the resolved version control, as one argument. Required exactly once. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`, as one argument. Optional. |
 | `${worktree}` | The absolute root of the working tree that owns `.grove/`, as one argument. Optional. |
 | `${repo}` | The absolute root of the main repository: the default jj workspace root, or the parent of Git's common directory. Optional. |
@@ -1210,14 +1210,17 @@ Global skill provisioning survives but no longer selects or implies a launch
 harness. The binary still sweeps embedded `content/` to each installed known
 personal skill directory. That delivery registry is independent of the opaque
 configured commands and never contributes arguments or target identity. The
-single surviving launcher is `content/prompts/continue.md`, augmented with the
-selected stable-handle mandate; `start.md` and `retire.md` disappear with their
-human lifecycle verbs. The launcher deliberately remains small and tells the
-target to use the provisioned Grove skill, so that provisioned methodology is a
-prerequisite of every configured target. Because target identity is opaque,
-Grove cannot prove that an arbitrary wrapper ultimately exposes the skill; a
-target without it fails as a configured session and receives the exit-status
-diagnostic rather than a guessed harness-specific provisioning action.
+launcher surface is gone entirely: `start.md` and `retire.md` disappear with
+their human lifecycle verbs, and the one that outlived them became
+`content/MANDATE.md`, a framing unit carrying no instructions. `${prompt}` is
+composed from the embed's marked units for the selected kind
+([mandate-delivered methodology](mandate-delivered-methodology.md)), so the
+provisioned skill is no longer a prerequisite of a configured target and a
+target that never exposes it still receives the whole methodology. Because target
+identity is opaque, Grove still proves nothing about what an arbitrary wrapper
+exposes; a target that fails is a configured session that receives the
+exit-status diagnostic rather than a guessed harness-specific provisioning
+action.
 
 `leaf-add-pair` remains the structural one-call constructor, with the signature
 `leaf-add-pair <parent> <stem>` and no harness flags. It emits `research-a`,

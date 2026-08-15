@@ -411,6 +411,25 @@ const DEFAULT_KILL_GRACE: Duration = Duration::from_secs(5);
 /// ordering is deliberate: the handler performs only an async-signal-safe
 /// atomic store, while the watcher signals and reaps the child on a normal
 /// stack.
+///
+/// Those are the loop's only three exits — the child exits on its own, the
+/// signal file appears, or the driver itself is signalled — and a session that
+/// finishes its work and simply forgets `grove-llm complete` reaches none of
+/// them: an interactive harness returns to its prompt instead of exiting, so
+/// the loop **stalls** rather than stopping (see [`crate::complete::read_signal`]
+/// for why that was hard to see). The fix shipped for it is at the instruction
+/// layer, deliberately: `leaf-retire`/`leaf-prune` name the remaining steps on
+/// stderr, and the Signal step composes last in every mandate.
+///
+/// **The escalation, weighed and set aside.** Give this watcher a *second*
+/// completion observable — something it can see without the agent's
+/// cooperation — so a forgotten verb costs nothing. It was not taken, because
+/// the contract that the agent signals is kept on purpose and no cheap second
+/// observable is free of the same ambiguity: nothing here distinguishes a
+/// forgotten verb from a session still working. Reopen it only on evidence that
+/// sessions still skip the verb *after* a build carrying both instruction-layer
+/// fixes — which is evidence no meta-grove can produce for itself, since
+/// `content/` and `grove-llm`'s output are fixed at build and install time.
 fn wait_with_watcher_result(
     mut child: Child,
     signal_file: &Path,

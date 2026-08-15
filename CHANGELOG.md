@@ -51,6 +51,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v18.3.1
+
 - **`leaf-retire` and `leaf-prune` name the session's two remaining steps.**
   Sessions were doing the work correctly — artifact, `DONE` rename, commit — and
   then never running `grove-llm complete`. Under the interactive harnesses the

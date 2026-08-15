@@ -608,7 +608,7 @@ ahead of the composer. It would also make *deleting* a file renumber every later
 one, which no behaviour requires.
 
 What density buys is a **reader's**, and it is bought at a price named here
-rather than denied. Across nine files a position that *is* the order is read at a
+rather than denied. Across ten files a position that *is* the order is read at a
 glance, and one that has drifted into arbitrary integers is not. So `content/`'s
 own positions are held contiguous from 1 by a test over the shipped corpus —
 where this repository keeps its other claims about the real embed — while a gap
@@ -722,6 +722,33 @@ own; it leads because its file is ordered first. The session-specific
 instructions land last, where they are not buried under the generic bulk.
 (*Preamble* in this spec means only the unread leading `---` block; the framing
 unit is an ordinary marked unit and is never called one.)
+
+### The relaunch ending is ordered last, and a file is what orders it
+
+The framing unit leads because its file is ordered first, and the mirror of that
+is the only lever a unit has on where it lands: **order is a property of the
+file, not of the unit.** So the relaunch ending — `skill-signal`, the instruction
+to run `grove-llm complete` as the session's last action — is held last by
+`content/SIGNAL.md`, a file carrying that one unit at the corpus's final
+position.
+
+Recency is the whole reason. The instruction is the one a session performs *after
+everything else it was told*, and delivered from inside `content/SKILL.md` it was
+followed by seven whole files — the majority of the mandate — between the
+sentence saying "your last action" and the moment it applied. Sessions were
+finishing their work correctly and then not signalling, which under an
+interactive harness **stalls** the loop rather than stopping it.
+
+Two consequences are stated rather than hidden. The runtime facts still compose
+after it, by the rule above; "last" here means last among units, and those facts
+are two short driver-authored lines rather than seven files. And
+`content/SKILL.md`'s loop narrative now reads Retire → Commit → Finish with
+nothing standing in the gap: a pointer left behind would either restate a rule
+that has one home already — a mandate slice is source bytes, never a paraphrase —
+or duplicate the eighteen-label scope in a second place to keep it out of a
+`finish` mandate. The unit self-locates ("once the task is retired and
+committed"), so it needs no narrative around it, and constraint 7 is served by
+the loop being one step shorter to read.
 
 ### The ending is specialised where the conditional lives
 
@@ -1082,11 +1109,12 @@ editing prose, and the classification pass edited none. The unit is triggering
 because two of the four ship nowhere else at `kinds=*`. De-fusing it is a prose
 edit, not a marking decision.
 
-**Eight of the nine embedded files still open with an H1 document title inside
+**Eight of the ten embedded files still open with an H1 document title inside
 their first unit**, which ships into every mandate that unit's scope admits — a
 document heading delivered to a session that is not reading a document.
 `content/driving.md` lost its H1 when its file-reader narrative was stripped and
-carries a `<!-- grove reference file — … -->` note instead; whether the other
+carries a `<!-- grove reference file — … -->` note instead; `content/SIGNAL.md`
+carries neither, being one unit whose own first words name it. Whether the other
 eight follow is a decision, not an oversight.
 
 **A claim written into a new leaf's `Goal` is the one assertion nothing

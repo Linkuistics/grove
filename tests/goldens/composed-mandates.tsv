@@ -26,7 +26,6 @@ requirements	skill-retirement-touches-one-filename
 requirements	skill-pruning-is-hitl
 requirements	skill-node-close-cascade
 requirements	skill-commit
-requirements	skill-signal
 requirements	skill-finish
 requirements	skill-artifacts
 requirements	skill-glossary-is-load-bearing
@@ -61,6 +60,7 @@ requirements	driving-when-a-leafs-place-is-in-doubt
 requirements	driving-no-session-summary
 requirements	driving-ask-about-the-trade-off
 requirements	driving-no-pre-baked-grilling
+requirements	skill-signal
 design	mandate-framing
 design	skill-what-a-grove-is
 design	skill-spine-constraints
@@ -84,7 +84,6 @@ design	skill-retirement-touches-one-filename
 design	skill-pruning-is-hitl
 design	skill-node-close-cascade
 design	skill-commit
-design	skill-signal
 design	skill-finish
 design	skill-artifacts
 design	skill-glossary-is-load-bearing
@@ -115,6 +114,7 @@ design	driving-recording-fog
 design	driving-when-a-leafs-place-is-in-doubt
 design	driving-no-session-summary
 design	driving-ask-about-the-trade-off
+design	skill-signal
 planning	mandate-framing
 planning	skill-what-a-grove-is
 planning	skill-spine-constraints
@@ -138,7 +138,6 @@ planning	skill-retirement-touches-one-filename
 planning	skill-pruning-is-hitl
 planning	skill-node-close-cascade
 planning	skill-commit
-planning	skill-signal
 planning	skill-finish
 planning	skill-artifacts
 planning	skill-glossary-is-load-bearing
@@ -169,6 +168,7 @@ planning	driving-recording-fog
 planning	driving-when-a-leafs-place-is-in-doubt
 planning	driving-no-session-summary
 planning	driving-ask-about-the-trade-off
+planning	skill-signal
 prototype	mandate-framing
 prototype	skill-what-a-grove-is
 prototype	skill-spine-constraints
@@ -192,7 +192,6 @@ prototype	skill-retirement-touches-one-filename
 prototype	skill-pruning-is-hitl
 prototype	skill-node-close-cascade
 prototype	skill-commit
-prototype	skill-signal
 prototype	skill-finish
 prototype	skill-artifacts
 prototype	skill-glossary-is-load-bearing
@@ -222,6 +221,7 @@ prototype	driving-recording-fog
 prototype	driving-when-a-leafs-place-is-in-doubt
 prototype	driving-no-session-summary
 prototype	driving-ask-about-the-trade-off
+prototype	skill-signal
 impl	mandate-framing
 impl	skill-what-a-grove-is
 impl	skill-spine-constraints
@@ -245,7 +245,6 @@ impl	skill-retirement-touches-one-filename
 impl	skill-pruning-is-hitl
 impl	skill-node-close-cascade
 impl	skill-commit
-impl	skill-signal
 impl	skill-finish
 impl	skill-artifacts
 impl	skill-glossary-is-load-bearing
@@ -275,6 +274,7 @@ impl	driving-recording-fog
 impl	driving-when-a-leafs-place-is-in-doubt
 impl	driving-no-session-summary
 impl	driving-ask-about-the-trade-off
+impl	skill-signal
 research-a	mandate-framing
 research-a	skill-what-a-grove-is
 research-a	skill-spine-constraints
@@ -298,7 +298,6 @@ research-a	skill-retirement-touches-one-filename
 research-a	skill-pruning-is-hitl
 research-a	skill-node-close-cascade
 research-a	skill-commit
-research-a	skill-signal
 research-a	skill-finish
 research-a	skill-artifacts
 research-a	skill-glossary-is-load-bearing
@@ -328,6 +327,7 @@ research-a	driving-recording-fog
 research-a	driving-when-a-leafs-place-is-in-doubt
 research-a	driving-no-session-summary
 research-a	driving-ask-about-the-trade-off
+research-a	skill-signal
 research-b	mandate-framing
 research-b	skill-what-a-grove-is
 research-b	skill-spine-constraints
@@ -351,7 +351,6 @@ research-b	skill-retirement-touches-one-filename
 research-b	skill-pruning-is-hitl
 research-b	skill-node-close-cascade
 research-b	skill-commit
-research-b	skill-signal
 research-b	skill-finish
 research-b	skill-artifacts
 research-b	skill-glossary-is-load-bearing
@@ -381,6 +380,7 @@ research-b	driving-recording-fog
 research-b	driving-when-a-leafs-place-is-in-doubt
 research-b	driving-no-session-summary
 research-b	driving-ask-about-the-trade-off
+research-b	skill-signal
 combine-research	mandate-framing
 combine-research	skill-what-a-grove-is
 combine-research	skill-spine-constraints
@@ -404,7 +404,6 @@ combine-research	skill-retirement-touches-one-filename
 combine-research	skill-pruning-is-hitl
 combine-research	skill-node-close-cascade
 combine-research	skill-commit
-combine-research	skill-signal
 combine-research	skill-finish
 combine-research	skill-artifacts
 combine-research	skill-glossary-is-load-bearing
@@ -434,6 +433,7 @@ combine-research	driving-recording-fog
 combine-research	driving-when-a-leafs-place-is-in-doubt
 combine-research	driving-no-session-summary
 combine-research	driving-ask-about-the-trade-off
+combine-research	skill-signal
 finish	mandate-framing
 finish	skill-what-a-grove-is
 finish	skill-spine-constraints
@@ -511,7 +511,6 @@ review-requirements	skill-retirement-touches-one-filename
 review-requirements	skill-pruning-is-hitl
 review-requirements	skill-node-close-cascade
 review-requirements	skill-commit
-review-requirements	skill-signal
 review-requirements	skill-finish
 review-requirements	skill-artifacts
 review-requirements	skill-glossary-is-load-bearing
@@ -541,6 +540,7 @@ review-requirements	driving-recording-fog
 review-requirements	driving-when-a-leafs-place-is-in-doubt
 review-requirements	driving-no-session-summary
 review-requirements	driving-ask-about-the-trade-off
+review-requirements	skill-signal
 review-design	mandate-framing
 review-design	skill-what-a-grove-is
 review-design	skill-spine-constraints
@@ -564,7 +564,6 @@ review-design	skill-retirement-touches-one-filename
 review-design	skill-pruning-is-hitl
 review-design	skill-node-close-cascade
 review-design	skill-commit
-review-design	skill-signal
 review-design	skill-finish
 review-design	skill-artifacts
 review-design	skill-glossary-is-load-bearing
@@ -594,6 +593,7 @@ review-design	driving-recording-fog
 review-design	driving-when-a-leafs-place-is-in-doubt
 review-design	driving-no-session-summary
 review-design	driving-ask-about-the-trade-off
+review-design	skill-signal
 review-planning	mandate-framing
 review-planning	skill-what-a-grove-is
 review-planning	skill-spine-constraints
@@ -617,7 +617,6 @@ review-planning	skill-retirement-touches-one-filename
 review-planning	skill-pruning-is-hitl
 review-planning	skill-node-close-cascade
 review-planning	skill-commit
-review-planning	skill-signal
 review-planning	skill-finish
 review-planning	skill-artifacts
 review-planning	skill-glossary-is-load-bearing
@@ -647,6 +646,7 @@ review-planning	driving-recording-fog
 review-planning	driving-when-a-leafs-place-is-in-doubt
 review-planning	driving-no-session-summary
 review-planning	driving-ask-about-the-trade-off
+review-planning	skill-signal
 review-prototype	mandate-framing
 review-prototype	skill-what-a-grove-is
 review-prototype	skill-spine-constraints
@@ -670,7 +670,6 @@ review-prototype	skill-retirement-touches-one-filename
 review-prototype	skill-pruning-is-hitl
 review-prototype	skill-node-close-cascade
 review-prototype	skill-commit
-review-prototype	skill-signal
 review-prototype	skill-finish
 review-prototype	skill-artifacts
 review-prototype	skill-glossary-is-load-bearing
@@ -700,6 +699,7 @@ review-prototype	driving-recording-fog
 review-prototype	driving-when-a-leafs-place-is-in-doubt
 review-prototype	driving-no-session-summary
 review-prototype	driving-ask-about-the-trade-off
+review-prototype	skill-signal
 review-impl	mandate-framing
 review-impl	skill-what-a-grove-is
 review-impl	skill-spine-constraints
@@ -723,7 +723,6 @@ review-impl	skill-retirement-touches-one-filename
 review-impl	skill-pruning-is-hitl
 review-impl	skill-node-close-cascade
 review-impl	skill-commit
-review-impl	skill-signal
 review-impl	skill-finish
 review-impl	skill-artifacts
 review-impl	skill-glossary-is-load-bearing
@@ -753,6 +752,7 @@ review-impl	driving-recording-fog
 review-impl	driving-when-a-leafs-place-is-in-doubt
 review-impl	driving-no-session-summary
 review-impl	driving-ask-about-the-trade-off
+review-impl	skill-signal
 integrate-review-requirements	mandate-framing
 integrate-review-requirements	skill-what-a-grove-is
 integrate-review-requirements	skill-spine-constraints
@@ -776,7 +776,6 @@ integrate-review-requirements	skill-retirement-touches-one-filename
 integrate-review-requirements	skill-pruning-is-hitl
 integrate-review-requirements	skill-node-close-cascade
 integrate-review-requirements	skill-commit
-integrate-review-requirements	skill-signal
 integrate-review-requirements	skill-finish
 integrate-review-requirements	skill-artifacts
 integrate-review-requirements	skill-glossary-is-load-bearing
@@ -806,6 +805,7 @@ integrate-review-requirements	driving-recording-fog
 integrate-review-requirements	driving-when-a-leafs-place-is-in-doubt
 integrate-review-requirements	driving-no-session-summary
 integrate-review-requirements	driving-ask-about-the-trade-off
+integrate-review-requirements	skill-signal
 integrate-review-design	mandate-framing
 integrate-review-design	skill-what-a-grove-is
 integrate-review-design	skill-spine-constraints
@@ -829,7 +829,6 @@ integrate-review-design	skill-retirement-touches-one-filename
 integrate-review-design	skill-pruning-is-hitl
 integrate-review-design	skill-node-close-cascade
 integrate-review-design	skill-commit
-integrate-review-design	skill-signal
 integrate-review-design	skill-finish
 integrate-review-design	skill-artifacts
 integrate-review-design	skill-glossary-is-load-bearing
@@ -859,6 +858,7 @@ integrate-review-design	driving-recording-fog
 integrate-review-design	driving-when-a-leafs-place-is-in-doubt
 integrate-review-design	driving-no-session-summary
 integrate-review-design	driving-ask-about-the-trade-off
+integrate-review-design	skill-signal
 integrate-review-planning	mandate-framing
 integrate-review-planning	skill-what-a-grove-is
 integrate-review-planning	skill-spine-constraints
@@ -882,7 +882,6 @@ integrate-review-planning	skill-retirement-touches-one-filename
 integrate-review-planning	skill-pruning-is-hitl
 integrate-review-planning	skill-node-close-cascade
 integrate-review-planning	skill-commit
-integrate-review-planning	skill-signal
 integrate-review-planning	skill-finish
 integrate-review-planning	skill-artifacts
 integrate-review-planning	skill-glossary-is-load-bearing
@@ -912,6 +911,7 @@ integrate-review-planning	driving-recording-fog
 integrate-review-planning	driving-when-a-leafs-place-is-in-doubt
 integrate-review-planning	driving-no-session-summary
 integrate-review-planning	driving-ask-about-the-trade-off
+integrate-review-planning	skill-signal
 integrate-review-prototype	mandate-framing
 integrate-review-prototype	skill-what-a-grove-is
 integrate-review-prototype	skill-spine-constraints
@@ -935,7 +935,6 @@ integrate-review-prototype	skill-retirement-touches-one-filename
 integrate-review-prototype	skill-pruning-is-hitl
 integrate-review-prototype	skill-node-close-cascade
 integrate-review-prototype	skill-commit
-integrate-review-prototype	skill-signal
 integrate-review-prototype	skill-finish
 integrate-review-prototype	skill-artifacts
 integrate-review-prototype	skill-glossary-is-load-bearing
@@ -965,6 +964,7 @@ integrate-review-prototype	driving-recording-fog
 integrate-review-prototype	driving-when-a-leafs-place-is-in-doubt
 integrate-review-prototype	driving-no-session-summary
 integrate-review-prototype	driving-ask-about-the-trade-off
+integrate-review-prototype	skill-signal
 integrate-review-impl	mandate-framing
 integrate-review-impl	skill-what-a-grove-is
 integrate-review-impl	skill-spine-constraints
@@ -988,7 +988,6 @@ integrate-review-impl	skill-retirement-touches-one-filename
 integrate-review-impl	skill-pruning-is-hitl
 integrate-review-impl	skill-node-close-cascade
 integrate-review-impl	skill-commit
-integrate-review-impl	skill-signal
 integrate-review-impl	skill-finish
 integrate-review-impl	skill-artifacts
 integrate-review-impl	skill-glossary-is-load-bearing
@@ -1018,3 +1017,4 @@ integrate-review-impl	driving-recording-fog
 integrate-review-impl	driving-when-a-leafs-place-is-in-doubt
 integrate-review-impl	driving-no-session-summary
 integrate-review-impl	driving-ask-about-the-trade-off
+integrate-review-impl	skill-signal

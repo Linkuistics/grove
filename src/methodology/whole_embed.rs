@@ -231,7 +231,7 @@ fn error_at(unit: &Unit, fault: Fault) -> EmbedError {
 /// *deleting* a file renumber every later one.
 ///
 /// `content/`'s own positions are nevertheless contiguous from 1, because across
-/// nine files a position that *is* the order reads better than an arbitrary
+/// ten files a position that *is* the order reads better than an arbitrary
 /// integer. That is a convention about the shipped corpus rather than a property
 /// of the grammar, so it is pinned in `tests/methodology.rs` beside the other
 /// claims about the real embed — and a fixture below stays free to use a gap.

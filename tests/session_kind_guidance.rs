@@ -1005,6 +1005,67 @@ fn only_the_finish_mandate_carries_the_stop_flag() {
     }
 }
 
+/// **The relaunch ending composes last**, and `content/SIGNAL.md` is the whole
+/// mechanism: composition order is a file's position then a unit's position
+/// within it, so a unit's only lever on where it lands is which file carries it,
+/// and the final position is what holds this one at the end.
+///
+/// What this pins is **recency**, which no other guard here does —
+/// [`every_kind_is_told_exactly_one_session_ending`] settles presence and stops
+/// there. Delivered from inside `content/SKILL.md` the instruction was followed
+/// by seven whole files, the majority of what a session reads at launch, between
+/// the sentence saying *your last action* and the moment it applied; sessions
+/// were finishing their work correctly and then not signalling, which under an
+/// interactive harness stalls the loop rather than stopping it. Both ways back
+/// into that — a file added past `content/SIGNAL.md`'s position, or the unit
+/// folded back in beside `skill-commit` — fail here by name.
+///
+/// Asked of whichever mandates **carry** the unit rather than of a spelled kind
+/// list, so it stays one claim about placement and borrows the scope from the
+/// marker rather than restating it. Located by source bytes, for the reason
+/// [`declared_endings_in`] gives.
+#[test]
+fn the_relaunch_ending_composes_last() {
+    let units = embedded_units();
+    let relaunch = ENDING_UNITS[0];
+    let mut carrying = 0;
+
+    for kind in Kind::ALL {
+        let mandate = methodology::compose(&units, kind);
+        let mut placed: Vec<(usize, &str)> = units
+            .iter()
+            .filter_map(|unit| {
+                mandate
+                    .find(unit.source.as_str())
+                    .map(|at| (at, unit.id.as_str()))
+            })
+            .collect();
+        placed.sort();
+
+        if !placed.iter().any(|(_, id)| *id == relaunch) {
+            continue;
+        }
+        carrying += 1;
+        let (_, last) = *placed.last().expect("a carried unit is a placed one");
+        assert_eq!(
+            last,
+            relaunch,
+            "the `{}` mandate ends on `{last}`, not on `{relaunch}`. The \
+             instruction a session performs after everything else it was told \
+             has to be the last thing it reads, and only `content/SIGNAL.md`'s \
+             final file position holds it there.",
+            kind.label(),
+        );
+    }
+
+    assert_eq!(
+        carrying,
+        Kind::ALL.len() - 1,
+        "every kind but `finish` must carry the relaunch ending, so a guard that \
+         skips the mandates without it must have skipped exactly one"
+    );
+}
+
 /// **The complement sweep**, and the reason it is a separate claim from the
 /// count above: a second unit that also states an ending leaves the declared one
 /// present and still counting one, so membership alone cannot see it. This is
@@ -1203,6 +1264,12 @@ fn the_verb_sweep_finds_a_second_unit_stating_an_ending() {
 ///   be cleared without reading the new prose, and reading the new prose is the
 ///   entire purpose. A constant that has to be retyped by hand is friction
 ///   pointed the right way.
+///
+/// It ends without a blank line, unlike [`FINISH_ENDING_SOURCE`], and that is
+/// structure rather than an omission: a unit runs from its marker to the next
+/// one *or to end of file*, and this one is the only unit of
+/// `content/SIGNAL.md`. Restoring the separator would be pinning a byte the file
+/// does not have.
 const RELAUNCH_ENDING_SOURCE: &str = r#"<!-- unit: skill-signal kinds="requirements design planning prototype impl research-a research-b combine-research review-requirements review-design review-planning review-prototype review-impl integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **Signal.** Once the task is retired and committed (and any parent-chain cascade
 is settled and included), run **`grove-llm complete`** as your **last action — then do
@@ -1219,7 +1286,6 @@ tells you to exit manually. Ending *without* signalling stops the loop instead �
 a crash or a Ctrl-C is exactly that — so the signal is what separates a task you
 finished from a session that died, and it is the whole of what you have to do to
 hand back.
-
 "#;
 
 /// The `finish` half of the pin. See [`RELAUNCH_ENDING_SOURCE`] for what it is

@@ -1,4 +1,10 @@
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+// Deliberately not prefixed the way `GROVE_SKILL` above is. The loop control
+// channel is an environment variable whose name begins the same way and ends in
+// `_FILE`, so a test constant one token short of it reads as that variable to
+// everyone but its author — and `tests/removed_surface.rs` would have to carry a
+// classification entry saying it is not one.
+const SIGNAL_PAGE: &str = include_str!("../content/SIGNAL.md");
 
 fn normalized(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -6,13 +12,19 @@ fn normalized(text: &str) -> String {
 
 /// The Commit step alone, so a rule proved here cannot be satisfied by prose
 /// somewhere else in the skill.
+///
+/// Bounded below by the Finish step, which is what follows it on the page now
+/// that the Signal step composes last from `content/SIGNAL.md`. Naming the
+/// neighbour is deliberate: a step moved out from under this slice fails every
+/// claim below by name rather than quietly widening the span they are proved
+/// over.
 fn commit_step() -> String {
     let (_, from_commit) = GROVE_SKILL
         .split_once("\n**Commit.**")
         .expect("content/SKILL.md must have a Commit step");
     let (step, _) = from_commit
-        .split_once("\n**Signal.**")
-        .expect("content/SKILL.md's Commit step must be followed by the Signal step");
+        .split_once("\n**Finish.**")
+        .expect("content/SKILL.md's Commit step must be followed by the Finish step");
     normalized(step)
 }
 
@@ -35,9 +47,30 @@ fn retire_precedes_commit_so_the_commit_can_contain_what_retire_writes() {
         step_offset("\n**Retire.**") < step_offset("\n**Commit.**"),
         "content/SKILL.md must place the Retire step before the Commit step"
     );
+}
+
+/// **The Signal step is not on this page**, and that is the one thing this file
+/// still has to say about it.
+///
+/// Commit-before-Signal used to be a byte ordering inside `content/SKILL.md`.
+/// It is now a *composition* ordering across two files — `content/SIGNAL.md`
+/// takes the corpus's final position so the instruction lands last in what a
+/// session reads — and
+/// `tests/session_kind_guidance.rs::the_relaunch_ending_composes_last` is where
+/// that is proved. What is left here is the local half: a Signal step written
+/// back into `SKILL.md` would restore the ordering these offsets used to check
+/// while defeating the placement, so a second copy has to fail somewhere, and
+/// this is the file that would stop noticing.
+#[test]
+fn the_signal_step_lives_in_its_own_file_rather_than_on_the_loop_page() {
     assert!(
-        step_offset("\n**Commit.**") < step_offset("\n**Signal.**"),
-        "content/SKILL.md must place the Commit step before the Signal step"
+        !GROVE_SKILL.contains("\n**Signal.**"),
+        "content/SKILL.md must not carry a Signal step — it composes last from \
+         content/SIGNAL.md, and a copy here would arrive a whole mandate early"
+    );
+    assert!(
+        SIGNAL_PAGE.contains("\n**Signal.**"),
+        "content/SIGNAL.md must carry the Signal step"
     );
 }
 

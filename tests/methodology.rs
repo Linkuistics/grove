@@ -87,7 +87,7 @@ fn every_embedded_markdown_file_is_classified() {
 /// position rather than indexing on it, so a gap breaks nothing, and a
 /// contiguity check in the gate would fail a contributor over a property no
 /// consumer reads — and would make *deleting* a file renumber every later one.
-/// What density buys is a reader's. Across nine files a position that *is* the
+/// What density buys is a reader's. Across ten files a position that *is* the
 /// order is read at a glance; one that has drifted into arbitrary integers is
 /// not (`docs/specs/mandate-delivered-methodology.md`, *The file's mandate order
 /// is a comment directive*).

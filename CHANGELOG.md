@@ -72,6 +72,24 @@ stood at the graft — a closed record, not part of the versioned sequence above
   agent that forgets the verb never reaches it at all. That misreading is what
   made this failure mode hard to see.
 
+- **The Signal step composes last, from `content/SIGNAL.md`.** The other half of
+  the same failure: `skill-signal` lived in `content/SKILL.md` at position 2, so
+  the sentence telling a session to run `grove-llm complete` as its **last
+  action** was followed by seven whole files — the majority of the mandate —
+  before the session had done anything at all. Composition order is a file's
+  position then a unit's offset within it, so which file carries a unit is its
+  only lever on where it lands; the unit therefore moves, byte for byte, into a
+  new tenth `content/` file at the corpus's final position. Appending is the one
+  insertion that renumbers nothing. `content/SKILL.md`'s loop narrative now reads
+  Retire → Commit → Finish with nothing left in the gap: the unit self-locates
+  ("once the task is retired and committed"), and a pointer left behind would
+  either paraphrase a rule that has one home or duplicate the eighteen-label
+  scope to keep itself out of a `finish` mandate. The runtime facts the driver
+  authors still follow it — two lines, where seven files used to be. Pinned by
+  `the_relaunch_ending_composes_last`, which asks the mandates that *carry* the
+  unit rather than a spelled kind list, and by the composition golden, whose
+  eighteen moved rows are the whole diff.
+
 ## v18.3.0
 
 ### Added

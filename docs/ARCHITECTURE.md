@@ -737,7 +737,10 @@ methodology. A session no longer depends on reaching it, because the mandate now
 carries the methodology itself: `content/MANDATE.md` holds one framing unit
 saying what the composed text is and how `grove-llm methodology` serves a
 deferred body, and it leads every mandate by declaring the first file position
-rather than by any rule in the composer. Both delivery paths are live for this
+rather than by any rule in the composer. `content/SIGNAL.md` is the mirror of
+that at the other end: one unit, the last file position, so the instruction to
+run `grove-llm complete` as the session's last action is the last methodology a
+session reads rather than something it read seven files ago. Both delivery paths are live for this
 increment — the sweep still runs, and a session receives a provisioned skill as
 well as a mandate — which the design admits as a transient so that composition is
 proven before its fallback is removed, never as a resting state.

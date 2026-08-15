@@ -324,6 +324,12 @@ names the active [[Session epoch]], so a descendant of a previous launch cannot
 act on the next one. It is therefore **ambient authority**: the foreground
 launch is the only site that sets it, and every other harness spawn must scrub
 it.
+_Avoid_: reading a **missing** signal as "the loop stops". That holds only for a
+harness that exits on its own. An interactive one returns to its prompt when its
+turn ends, so the child is never reaped, the driver's no-signal branch is never
+reached, and the loop **stalls** instead — indefinitely, the watcher having no
+timeout. Which of the two a forgotten `grove-llm complete` produces is a
+property of the configured command, not of grove.
 _Avoid_: calling the path a credential or security token — any descendant can read or deliberately discard its environment. The session epoch prevents ordinary stale-loop behavior; it does not defend against a hostile local process.
 _Avoid_: treating a redirected `cargo test` as evidence the guard works — a redirected run is safe by construction and passes with the guard removed. The acceptance test is a full run from a live pane with the real path in ambient env, verified absent afterwards.
 

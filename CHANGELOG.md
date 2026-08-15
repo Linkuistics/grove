@@ -51,6 +51,27 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- **`leaf-retire` and `leaf-prune` name the session's two remaining steps.**
+  Sessions were doing the work correctly — artifact, `DONE` rename, commit — and
+  then never running `grove-llm complete`. Under the interactive harnesses the
+  configured templates launch (no `-p`, no `exec`), a turn that ends without the
+  signal does not end the *session*: it returns to its prompt, the driver's
+  watcher waits on a signal file that never appears, and the loop **stalls**
+  rather than stopping. The instruction already existed — `skill-signal` — but it
+  arrived in the mandate at session start, a whole session's worth of context
+  before the moment it applies. So the terminal-marking pair now emits it at the
+  moment of decision instead: `leaf-retire` is the last grove verb a session runs
+  (Retire precedes Commit, and the commit is jj/git), so its output lands exactly
+  where the reminder is useful, under every harness and with no personal
+  configuration involved. It goes to **stderr** — stdout is data, and callers
+  parse the printed paths — and `leaf-prune` emits it only when it actually
+  marked something, once for a bulk node mark. The grow verbs stay quiet: they do
+  not end a session's work. `src/complete.rs`'s doc comment, which read the
+  no-signal case as "the loop stops", is corrected to say what it is — the
+  driver only ever *observes* that when the session process itself ended, and an
+  agent that forgets the verb never reaches it at all. That misreading is what
+  made this failure mode hard to see.
+
 ## v18.3.0
 
 ### Added

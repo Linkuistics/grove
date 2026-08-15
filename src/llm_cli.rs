@@ -797,11 +797,30 @@ fn cmd_leaf_decompose(args: &LeafDecomposeArgs) -> Result<()> {
     Ok(())
 }
 
+// The two steps that always follow a terminal mark: the commit that carries it,
+// then the completion signal. `leaf-retire` and `leaf-prune` are the
+// terminal-marking pair and the **last grove verbs a session runs** — Retire
+// precedes Commit, and the commit itself is jj/git — so their output lands in
+// the agent's context at the moment of decision, rather than only in the mandate
+// a whole session earlier. **stderr**: stdout is data (callers parse the printed
+// paths), and `leaf-prune`'s existing advisories already set that precedent.
+fn eprint_next_steps(verb: &str, marked: usize) {
+    let renames = if marked == 1 {
+        "this rename"
+    } else {
+        "these renames"
+    };
+    eprintln!("{verb}: two steps remain:");
+    eprintln!("  1. commit this session's work, including {renames}");
+    eprintln!("  2. run `grove-llm complete` as your last action");
+}
+
 fn cmd_leaf_retire(args: &LeafRetireArgs) -> Result<()> {
     let (_, grove_root) = grove_paths()?;
     let leaf_path = normalize_leaf_path(&args.leaf_path);
     let dst = tree_lifecycle::leaf_retire(&grove_root, &leaf_path)?;
     println!("{}", dst.display());
+    eprint_next_steps("leaf-retire", 1);
     Ok(())
 }
 
@@ -824,6 +843,12 @@ fn cmd_leaf_prune(args: &LeafPruneArgs) -> Result<()> {
         for p in &result.left_done {
             eprintln!("  {}", p.display());
         }
+    }
+    // Last, so the reminder is the final thing in the agent's context — and only
+    // when this call actually ended some work; a no-op prune leaves no session
+    // to close.
+    if !result.marked.is_empty() {
+        eprint_next_steps("leaf-prune", result.marked.len());
     }
     Ok(())
 }

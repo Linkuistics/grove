@@ -21,10 +21,12 @@ use std::path::{Path, PathBuf};
 
 /// What a finished session tells the self-driving loop to do next. The agent
 /// picks this when it signals; the loop driver reads it back from the signal
-/// file (self-driving-loop). The third case — *no* signal at all (human `/exit`/Ctrl-C
-/// or a crash) — is the *absence* of a [`Disposition`], represented by
-/// [`read_signal`] returning `None`, so the loop can tell a clean finish from
-/// an abnormal exit.
+/// file (self-driving-loop). The third case — *no* signal at all — is the
+/// *absence* of a [`Disposition`], represented by [`read_signal`] returning
+/// `None`, so the loop can tell a clean finish from an abnormal exit. That case
+/// is only ever **reached** when the session process itself ends (a crash, or a
+/// human `/exit`/Ctrl-C): an agent that simply forgets to signal does not get
+/// there at all — see [`read_signal`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Disposition {
     /// Relaunch with fresh context for the next task (the default — today's
@@ -50,8 +52,21 @@ impl Disposition {
 }
 
 /// Read the disposition a finished session left in its signal file. `None` =
-/// no signal file (the session exited without signalling: human `/exit`/Ctrl-C
-/// or a crash → the loop stops). `Some(Done)` = a clean whole-grove finish;
+/// no signal file, and the driver only ever observes that when the session
+/// *process* ended without signalling: a human `/exit`/Ctrl-C, or a crash → the
+/// loop stops.
+///
+/// An agent that finishes its work and forgets the verb is **not** that case,
+/// and reading it as one is what made this failure mode hard to see. The
+/// configured templates launch *interactive* harnesses (no `-p`, no `exec`), so
+/// finishing a turn returns the session to its prompt and it never exits: the
+/// driver's watcher sits on a signal file that will never appear and a child
+/// that will never exit, and the loop **stalls** rather than stopping. Nothing
+/// downstream of here can distinguish that from a session still working — which
+/// is why the reminder to signal is delivered at the moment of decision, on
+/// `leaf-retire`/`leaf-prune`'s stderr.
+///
+/// `Some(Done)` = a clean whole-grove finish;
 /// `Some(Relaunch)` = relaunch the next task (also the backward-compatible
 /// reading of any present-but-unrecognised content).
 pub fn read_signal(path: &Path) -> Option<Disposition> {

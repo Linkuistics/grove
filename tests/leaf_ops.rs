@@ -9,6 +9,9 @@
 //   - `leaf-retire <leaf-path>` adds a `DONE` infix in place
 //     (`NN-<kind>-<slug>-k<key>.md` → `NN-DONE-<kind>-<slug>-k<key>.md`), keeping the retired
 //     leaf in its directory (no `done/` directory); the file body is untouched.
+//   - both terminal-marking verbs name the session's remaining steps — commit,
+//     then `grove-llm complete` — on stderr, leaving stdout as the parsed path
+//     data it already was.
 //
 // Each test stands up a real git repo so the verb's `git mv` calls have tracked
 // files to operate on.
@@ -362,6 +365,109 @@ fn retire_refuses_an_already_done_leaf() {
     assert!(
         stderr.contains("already retired") || stderr.contains("DONE"),
         "expected already-retired diagnostic, got {stderr:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The next-steps reminder
+//
+// `leaf-retire` and `leaf-prune` are the terminal-marking pair and the last
+// grove verbs a session runs, so each names the two steps that follow — commit,
+// then `grove-llm complete` — on **stderr**, at the moment of decision. stdout
+// stays data: callers parse the printed paths.
+
+/// Both halves of the reminder, in order, and nothing on stdout but paths.
+fn assert_next_steps(verb: &str, stdout: &str, stderr: &str, renames: &str) {
+    let commit = stderr
+        .find("commit this session's work")
+        .unwrap_or_else(|| panic!("{verb}: no commit step on stderr: {stderr:?}"));
+    let signal = stderr
+        .find("`grove-llm complete`")
+        .unwrap_or_else(|| panic!("{verb}: no completion step on stderr: {stderr:?}"));
+    assert!(
+        commit < signal,
+        "{verb}: the two steps must be named in order: {stderr:?}"
+    );
+    assert!(
+        stderr.contains("last action"),
+        "{verb}: `complete` must be named as the last action: {stderr:?}"
+    );
+    assert!(
+        stderr.contains(renames),
+        "{verb}: expected {renames:?} in the reminder: {stderr:?}"
+    );
+    assert!(
+        !stdout.contains("complete"),
+        "{verb}: the reminder must not reach stdout (it is parsed): {stdout:?}"
+    );
+}
+
+#[test]
+fn retire_names_the_remaining_steps_on_stderr() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    stage_all(tmp.path());
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-retire", ".grove/01-impl-target-k1.md"]);
+    assert!(ok, "leaf-retire failed: {stderr}");
+    assert_next_steps("leaf-retire", &stdout, &stderr, "this rename");
+    // stdout is still exactly the one destination path callers parse.
+    assert_eq!(
+        stdout.lines().count(),
+        1,
+        "stdout must stay one path: {stdout:?}"
+    );
+}
+
+#[test]
+fn prune_of_one_leaf_names_the_remaining_steps_on_stderr() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    touch(&grove.join("01-impl-target-k1.md"), "# target-k1\n");
+    stage_all(tmp.path());
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-impl-target-k1.md"]);
+    assert!(ok, "leaf-prune failed: {stderr}");
+    assert_next_steps("leaf-prune", &stdout, &stderr, "this rename");
+}
+
+#[test]
+fn prune_of_a_node_reminds_once_for_the_whole_bulk_mark() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    let node = mknode(&grove, "01-node-k1", "node-k1");
+    touch(&node.join("01-impl-alpha-k2.md"), "# alpha-k2\n");
+    touch(&node.join("02-impl-beta-k3.md"), "# beta-k3\n");
+    stage_all(tmp.path());
+
+    let (stdout, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-node-k1"]);
+    assert!(ok, "leaf-prune failed: {stderr}");
+    assert_next_steps("leaf-prune", &stdout, &stderr, "these renames");
+    assert_eq!(
+        stderr.matches("two steps remain").count(),
+        1,
+        "one bulk mark ends one session, so it earns one reminder: {stderr:?}"
+    );
+}
+
+#[test]
+fn prune_that_marks_nothing_stays_quiet() {
+    let tmp = init_repo();
+    let grove = tmp.path().join(".grove");
+    let node = mknode(&grove, "01-node-k1", "node-k1");
+    touch(&node.join("01-DONE-impl-alpha-k2.md"), "# alpha-k2\n");
+    stage_all(tmp.path());
+
+    let (_, stderr, ok) = run(tmp.path(), &["leaf-prune", ".grove/01-node-k1"]);
+    assert!(ok, "leaf-prune failed: {stderr}");
+    assert!(
+        stderr.contains("nothing live to mark"),
+        "expected the no-op advisory: {stderr:?}"
+    );
+    assert!(
+        !stderr.contains("grove-llm complete"),
+        "a prune that ended no work must not tell the session to close: {stderr:?}"
     );
 }
 

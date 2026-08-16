@@ -259,8 +259,8 @@ honestly as what it is: an alarm on the too-late test, not a budget the design w
 fitted to.
 
 **Measured on the built composition**, against one provisioned location: an
-`impl` prompt is **2,307 bytes** and the largest of the nineteen is 2,318, so 4
-KiB leaves about 43% in hand. The design's own estimate was ~1,969, and the
+`impl` prompt is **2,307 bytes** and the largest of the nineteen is 2,356, so 4
+KiB leaves about 42% in hand. The design's own estimate was ~1,969, and the
 difference is bookkeeping rather than prose: `content/SIGNAL.md` is 1,499 bytes
 of which ~390 is the unit marker line listing eighteen kind labels, and that line
 dies with the mandate machinery. A real machine with three installed harnesses
@@ -430,6 +430,11 @@ it is the session-ending text, which the too-late test moves to `${prompt}` and
 which is inlined byte-exact from its own file. Remove it first, and the remaining
 ten distinct scopes are exactly the per-kind reference files:
 
+*(`finish`'s ending was split out the same way afterwards, into
+`content/SIGNAL-FINISH.md`. That is a second file with the **same** scope as
+`references/finish.md`, not an eleventh scope, so the table below is unaffected —
+the reason for the split is the requirement above, not the layout derivation.)*
+
 | reference file | the kinds it serves |
 |---|---|
 | `requirements` | `requirements` |
@@ -496,7 +501,7 @@ yet written would be over-specification.
 
 ### What the reworked records say
 
-**`skill-delivers-the-methodology` is reworked in place and renamed
+**`mandate-delivers-the-methodology` is reworked in place and renamed
 `skill-delivers-the-methodology`.** The slug is the identity, so a slug that says
 the mandate delivers the methodology cannot survive the mandate not delivering
 it; and `mandate-` → `skill-` keeps the citation reconciliation mechanical. It
@@ -689,35 +694,45 @@ two measured failures.
 The driver SHALL compose `${prompt}` from three parts in order — the load
 instruction with the provisioned locations and this kind's reference file, the
 runtime facts, and the session-ending text — and SHALL include no other
-methodology prose. The third part SHALL be present for every kind whose ending is
-one fixed instruction, and SHALL be absent for `finish`.
+methodology prose. The third part SHALL be present for **every** kind, and SHALL
+be the bytes of the embedded signal file that kind maps to.
 
 #### Scenario: the three parts, in order
-- **WHEN** a session of any kind but `finish` is launched
+- **WHEN** a session of any kind is launched
 - **THEN** `${prompt}` contains the load instruction, then the selected handle and
   the stated version control, then the session-ending text, and nothing else
 
-#### Scenario: a `finish` session takes no fixed ending
+#### Scenario: a `finish` session ends on the choice, not on one branch of it
 - **WHEN** a `finish` session is launched
-- **THEN** `${prompt}` ends at the runtime facts, and names no completion verb
-- **AND** the reference file it names states all three of that session's endings
+- **THEN** `${prompt}` ends on all three of that session's outcomes — `complete
+  --done` after teardown, bare `complete` if it externalised work instead, and no
+  signal at all if the human declined or was absent
 
-**This is the one exception to the three-part shape, and it is a correctness
-exception rather than a tidiness one.** Eighteen kinds end exactly one way and
-`content/SIGNAL.md` says so. A `finish` session has three endings chosen by what
-it did — `complete --done` after teardown, bare `complete` if it externalised work
-instead, and no signal at all if the human declined or was absent. Inlining
-`SIGNAL.md` for it would put *run `grove-llm complete`* last in the prompt of the
-one session that may have just deleted the task tree, relaunching the loop onto a
-torn-down grove which the driver then re-scaffolds. The too-late test admits *the
-session's last action*; it does not license stating the wrong one. A `finish`
-session's ending rides its reference file, which the load instruction names first
-and by path.
+**Two signal files serve the nineteen kinds, and the split is a correctness one
+rather than a tidiness one.** Eighteen kinds end exactly one way and
+`content/SIGNAL.md` says so. Inlining that file for `finish` would put *run
+`grove-llm complete`* last in the prompt of the one session that may have just
+deleted the task tree, relaunching the loop onto a torn-down grove which the
+driver then re-scaffolds. The too-late test admits *the session's last action*; it
+does not license stating the wrong one.
+
+**Omitting the part for `finish` reads that as licence to say nothing, and it is
+not.** A `finish` session's failure mode is the one the core exists for, and is
+the worst instance of it: teardown completes, the session forgets `--done`, and
+the loop it was supposed to stop waits on a session that will not end. Reading the
+branches in `references/finish.md` at bootstrap cannot repair a forgotten last
+action an hour later — which is precisely the shape the too-late test admits a
+sentence for. So the three-outcome *choice* gets an embedded source of its own,
+`content/SIGNAL-FINISH.md`, which `content/references/finish.md` routes to rather
+than restating; the core inlines those bytes as `finish`'s third part. One source,
+two deliveries, and every kind's prompt is three parts with exactly one of them
+embedded content.
 
 #### Scenario: no prompt states an ending outside its ending
 - **WHEN** `${prompt}` is composed for each member of the closed kind set
-- **THEN** no part before the session-ending text names the completion verb, and
-  no prompt of any kind names `--done`
+- **THEN** no part before the session-ending text names the completion verb or
+  `--done`
+- **AND** `--done` appears in `finish`'s ending and in no other kind's
 
 #### Scenario: the ending is embedded content, not a copy
 - **WHEN** the session-ending text is compared with the embedded corpus's signal

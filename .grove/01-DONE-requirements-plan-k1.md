@@ -3,10 +3,13 @@
 ## Goal
 
 Settle *what* should change about how a Grove session receives the **procedural
-half** of the methodology. The triggering half stays where
-[`skill-delivers-the-methodology`](../docs/adr/skill-delivers-the-methodology.md)
-put it — byte-exact slices composed into `${prompt}`, selected by session kind.
-What is in question is the *then*, not the *if*.
+half** of the methodology. The triggering half stays where the then-current
+`mandate-delivers-the-methodology` decision put it — byte-exact slices composed
+into `${prompt}`, selected by session kind. What is in question is the *then*,
+not the *if*. (That record was later reworked in place into
+[`skill-delivers-the-methodology`](../docs/adr/skill-delivers-the-methodology.md),
+which reverses the premise this leaf started from; the sentence above records
+what was true when this session ran.)
 
 ## Context
 

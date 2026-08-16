@@ -37,20 +37,24 @@
 //! nothing: each classifier is shown rejecting the shape it exists to reject and
 //! accepting the one it exists to allow.
 //!
-//! **Three surfaces, one question.** The sweeps above read `content/` as
-//! *documents*, which is what a provisioned skill is. The session-ending guard
-//! reads the same corpus as **composed mandates**, because its claim is about
-//! what one kind's session is handed and not about what any file says. The
-//! family-scope guard at the foot of the file reads a third thing — the units'
+//! **Two surfaces here, and a third that left.** The sweeps above read
+//! `content/` as *documents*, which is what a provisioned skill is. The
+//! family-scope guard at the foot of the file reads something else — the units'
 //! declared **`kinds=` scopes**, as data — because its claim is about a marker a
-//! human must widen and not about any mandate's contents. All three are generated
-//! from `Kind::ALL` for the same reason, and a twentieth kind fails in all three.
-//! That guard also reads the kind **labels**, but only to contradict its own
+//! human must widen and not about any document's contents. Both are generated
+//! from `Kind::ALL` for the same reason, and a twentieth kind fails in both. That
+//! guard also reads the kind **labels**, but only to contradict its own
 //! classifier: a family is derived from an exhaustive match, and the labels are
 //! the independent second opinion which makes a wrong arm fail rather than pass
 //! quietly. `Kind::ALL` itself is held to the enum in `src/leaf.rs`, without
 //! which every claim on this page is a claim about whatever `ALL` happens to
 //! hold.
+//!
+//! The third surface was the **session-ending guard**, which read the corpus as
+//! composed mandates. Composed mandates are what this workstream deleted, so the
+//! per-kind ending claims moved to `tests/prompt.rs`, which is the seam that
+//! still makes a per-kind selection. What is left of it here is the **drift pin**
+//! on the two ending units' own prose — not a claim about delivery at all.
 
 use clap::CommandFactory;
 use grove::leaf::Kind;
@@ -903,11 +907,11 @@ fn the_flag_sweep_indexes_by_the_verb_the_line_names() {
 //
 // The claims that survive moved to the seam that still makes a per-kind
 // selection, `tests/prompt.rs`: eighteen kinds' prompts end on
-// `content/SIGNAL.md`'s own bytes, `finish` states no ending because two of its
-// three outcomes would make a fixed one wrong, and no prompt restates a rule the
-// skill owns. What stays here is the **drift pin** below, which is not a claim
-// about delivery at all — and which matters more now, since one of the two units
-// it pins is inlined into every session's prompt byte-exact.
+// `content/SIGNAL.md`'s own bytes and `finish`'s on `content/SIGNAL-FINISH.md`'s,
+// `--done` appears in that one ending and nowhere else, and no prompt restates a
+// rule the skill owns. What stays here is the **drift pin** below, which is not a
+// claim about delivery at all — and which matters more now, since both units it
+// pins are inlined into a session's prompt byte-exact.
 
 /// The real embed, parsed and whole-embed checked.
 fn embedded_units() -> Vec<Unit> {
@@ -973,11 +977,10 @@ fn synthetic_unit(id: &str, source: &str) -> Unit {
 ///   entire purpose. A constant that has to be retyped by hand is friction
 ///   pointed the right way.
 ///
-/// It ends without a blank line, unlike [`FINISH_ENDING_SOURCE`], and that is
-/// structure rather than an omission: a unit runs from its marker to the next
-/// one *or to end of file*, and this one is the only unit of
-/// `content/SIGNAL.md`. Restoring the separator would be pinning a byte the file
-/// does not have.
+/// Both constants end without a blank line, and that is structure rather than an
+/// omission: a unit runs from its marker to the next one *or to end of file*, and
+/// each is the only unit of its own file. Restoring the separator would be
+/// pinning a byte the file does not have.
 const RELAUNCH_ENDING_SOURCE: &str = r#"<!-- unit: skill-signal kinds="requirements design planning prototype impl research-a research-b combine-research review-requirements review-design review-planning review-prototype review-impl integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **Signal.** Once the task is retired and committed (and any parent-chain cascade
 is settled and included), run **`grove-llm complete`** as your **last action — then do
@@ -1018,8 +1021,9 @@ sentinel over until it is terminal. That is a plain relaunch rather than a
 failure, and it banks no confirmation — the sentinel is never retired, so the
 next `finish` session proposes the cycle and waits for a confirmation of its
 own. Declining, or finding no human to ask, leaves the leaf live and next, so
-the following bare `grove` proposes the cycle again. On confirmation, run:
-
+the following bare `grove` proposes the cycle again. On confirmation, run the
+teardown steps in `references/finish.md`, then end on whichever row above
+matches what this session actually did.
 "#;
 
 #[test]

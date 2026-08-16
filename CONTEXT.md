@@ -183,9 +183,10 @@ kind's discipline is one bullet inside a nineteen-bullet section* — was that
 record's own stated reopen condition, and the corpus restructure satisfied it: a
 kind's discipline is now a whole [[Kind reference file]] the driver names by path,
 so the session performs no selection.
-_Avoid_: treating the surviving inline — `content/SIGNAL.md` in the
-[[Guaranteed core]] — as a summary or a paraphrase. It is the source bytes, or it
-is a second source of truth, and that reason never depended on selection.
+_Avoid_: treating the surviving inline — `content/SIGNAL.md` and
+`content/SIGNAL-FINISH.md` in the [[Guaranteed core]] — as a summary or a
+paraphrase. It is the source bytes, or it is a second source of truth, and that
+reason never depended on selection.
 _Avoid_: reading specificity as removing **every** branch from a mandate. It
 removes a branch on the [[Session kind]] — a fact the driver resolved before the
 session existed, so shipping the `if` makes the session re-derive it. It cannot
@@ -203,8 +204,8 @@ failure mode is one the skill cannot repair, because by the time the skill could
 speak the moment has passed. Three shapes pass — a fact only the driver holds,
 the instruction to open the skill, and the session's last action — and the test's
 first output is a list of **one** methodology condition. Two channels, one
-source: two of the three cannot be in the skill at all, and the third is the
-embedded signal file inlined verbatim, so the **prose** drift surface is zero
+source: two of the three cannot be in the skill at all, and the third is this
+kind's embedded signal file inlined verbatim, so the **prose** drift surface is zero
 bytes — what the channels share is four structural couplings (the skill's name,
 the reference path, the signal path, the provisioned locations), two closed by
 construction and two by assertion.
@@ -214,10 +215,13 @@ or short. Importance is unbounded and is what builds a wall; frequency is not
 timing; size is a consequence of the rule and never a criterion.
 _Avoid_: reading the core as an abridged methodology a session may work from. It
 is three facts and one instruction, and it teaches nothing.
-_Avoid_: reading "three parts" as unconditional. `finish` takes **no** ending
-part: its session has three endings chosen by what it did, so a fixed sentence
-would be wrong for two of them — and the one it would state relaunches the loop
-onto a torn-down grove. `content/references/finish.md` states all three together.
+_Avoid_: reading "one signal file" into the three parts. Two serve the nineteen
+kinds: `content/SIGNAL.md` for the eighteen that end one way, and
+`content/SIGNAL-FINISH.md` for `finish`, whose three endings are chosen by what
+the session did — so a fixed sentence would be wrong for two of them, and the one
+it would state relaunches the loop onto a torn-down grove. Omitting the part for
+`finish` is the other wrong answer: it drops the too-late-shaped instruction in
+the session where a forgotten signal costs most.
 _Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
 an alarm on the test, and nothing legitimate approaches it.
 
@@ -234,7 +238,10 @@ kind fails to compile until it is classified. The files are
 integrate-review,research,combine-research,finish}.md`, one level deep and flat.
 _Avoid_: counting eleven. `skill-signal` is an eleventh narrowed scope and is not
 a family — it is the session ending, which the [[Guaranteed core]] carries, and
-`content/SIGNAL.md` is deliberately **not** under `references/`.
+`content/SIGNAL.md` is deliberately **not** under `references/`. Nor is
+`content/SIGNAL-FINISH.md`, which carries `finish`'s ending the same way: it
+shares `references/finish.md`'s scope rather than adding one, so it is a second
+signal file and not an eleventh reference file.
 _Avoid_: reading the pointer as the reasoning cost a [[Mandate slice]] was built
 to remove. The driver resolved the kind before the session existed, so the
 session performs no selection — it is handed a filename.

@@ -323,8 +323,9 @@ is not recomputed immediately before spawn.
 load the provisioned skill and this kind's reference file by path, then the two
 facts Grove resolved at runtime — the stable handle as an explicit mandate, and
 the [version control](#symmetric-vcs-rule) Grove resolved for the working tree —
-then the session-ending text, which is the embed's own `SIGNAL.md` inlined
-byte-exact. The order is the session's own timeline, and the methodology itself
+then the session-ending text, which is the embed's own signal file for that kind —
+`SIGNAL.md`, or `SIGNAL-FINISH.md` for `finish`, whose ending is a choice between
+three outcomes — inlined byte-exact. The order is the session's own timeline, and the methodology itself
 arrives as the provisioned skill rather than in argv
 ([the skill delivers the methodology](adr/skill-delivers-the-methodology.md)). No
 hidden leaf environment variable accompanies it. At Bootstrap the
@@ -742,11 +743,11 @@ session eventually reaches and does not try: every known installed root is
 refreshed, so whichever one the command lands in already carries the current
 methodology. **A session depends on reaching it**, which is what the core's
 wording and the absent-destination report exist for: nothing else teaches a
-session the loop, the kinds, or which verbs exist. `content/SIGNAL.md` is the one
-file that travels both channels — provisioned like every other, and inlined into
-`${prompt}` byte-exact as its last part, so the instruction a session performs
-after everything else is the last thing it reads. One source, two deliveries, and
-no build boundary between them.
+session the loop, the kinds, or which verbs exist. `content/SIGNAL.md` and
+`content/SIGNAL-FINISH.md` are the files that travel both channels — provisioned
+like every other, and one of them inlined into `${prompt}` byte-exact as its last
+part, so the instruction a session performs after everything else is the last
+thing it reads. One source, two deliveries, and no build boundary between them.
 
 The binary refuses to overwrite an unstamped foreign directory and replaces an
 old symlink as a link rather than following it. `content/` is the canonical

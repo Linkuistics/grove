@@ -86,13 +86,20 @@ But the reason a slice was byte-exact rather than summarised never depended on
 selection, and it applies with full force to the one file that still travels both
 ways.
 
-**One kind takes no fixed ending.** A `finish` session has three endings, chosen
-by what it did, so the third part is present for the eighteen kinds a fixed
-sentence is true of and absent for `finish`, whose reference file states all three
-together. The too-late test admits *the session's last action*; it does not
-license stating the wrong one, and a fixed `grove-llm complete` last in the prompt
-of a session that may have just torn the tree down would relaunch the loop onto a
-deleted grove.
+**One kind's ending is a choice, so it gets a second file rather than no file.**
+A `finish` session has three endings, chosen by what it did, and a fixed
+`grove-llm complete` last in the prompt of a session that may have just torn the
+tree down would relaunch the loop onto a deleted grove. The too-late test admits
+*the session's last action*; it does not license stating the wrong one. But
+dropping the part reads that as licence to say nothing, and `finish` is the
+session where a forgotten signal costs most — teardown lands, `--done` is
+forgotten, and the loop waits on a session that will not end. Reading the branches
+in a reference file at bootstrap cannot repair a last action forgotten an hour
+later, which is exactly the shape the test admits a sentence for. So the choice
+itself is the ending: `content/SIGNAL-FINISH.md` states all three outcomes,
+`content/references/finish.md` routes to it rather than restating it, and the core
+inlines those bytes. Two signal files, one source each, and every kind's prompt is
+three parts with exactly one of them embedded content.
 
 ## What is retained, and what is overturned
 
@@ -183,6 +190,15 @@ carried forward where their reasoning survives its mechanism.
   is the destructive one: bare `grove-llm complete` after a completed teardown
   relaunches the loop onto a torn-down grove, which the driver then re-scaffolds.
   Reopen if the finish cycle ever collapses to a single ending.
+- **Give `finish` no ending part at all, and let `references/finish.md` carry its
+  outcomes.** Rejected because it answers the objection above by deleting the very
+  too-late-shaped instruction the core exists to carry, in the session where a
+  forgotten signal costs most: a completed teardown followed by a forgotten
+  `--done` leaves the loop waiting on a session that will not end, which is the
+  measured failure this record sits between. A reference file read at bootstrap
+  cannot repair a last action forgotten an hour later. Reopen only if the ending
+  stops being a last action — never on the grounds that `finish`'s outcomes are a
+  choice, which is what `content/SIGNAL-FINISH.md` exists to state.
 - **Split this into two records — the delivery reversal and the core rule.**
   Rejected because they are inseparable: answering either alone is a swap, so two
   records for one decision is one ADR pretending to be two. Reopen if a future

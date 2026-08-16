@@ -21,10 +21,13 @@
 //!
 //! **The prose drift surface is zero bytes**, and the property is structural
 //! rather than a claim about size: the prompt is a fixed template in which
-//! exactly one part is embedded content. The load instruction and the
-//! provisioned locations have no counterpart in `content/` — a skill cannot tell
-//! you to read it, and cannot know which directories a particular driver wrote —
-//! and the ending is the embed's own signal file, inlined byte-exact.
+//! exactly one part is embedded content, for **every** kind. The load
+//! instruction and the provisioned locations have no counterpart in `content/` —
+//! a skill cannot tell you to read it, and cannot know which directories a
+//! particular driver wrote — and the ending is the embed's own signal file,
+//! inlined byte-exact. Two signal files serve the nineteen kinds, because
+//! `finish`'s ending is a choice between three outcomes rather than one
+//! instruction; which file a kind takes varies, that it takes one does not.
 //!
 //! **Four couplings are shared with the other channel**, and two are closed by
 //! construction: the inlined signal file is embedded at compile time, and the
@@ -51,9 +54,14 @@ use std::path::Path;
 /// own `name:`, which is the coupling made to fail by name.
 pub const SKILL_NAME: &str = "grove";
 
-/// The embed-relative path of the session-ending text, inlined verbatim as the
-/// core's third part.
+/// The embed-relative path of the session-ending text for the eighteen kinds
+/// that end exactly one way, inlined verbatim as the core's third part.
 const SIGNAL_FILE: &str = "SIGNAL.md";
+
+/// The same, for the one kind whose ending is a **choice** rather than an
+/// instruction. See [`ending_file`] for why it is a second file and not an
+/// omission.
+const FINISH_SIGNAL_FILE: &str = "SIGNAL-FINISH.md";
 
 /// **Part 1 — the load instruction.** First, because it is the first action.
 ///
@@ -148,39 +156,43 @@ pub fn reference_file(kind: Kind) -> &'static str {
     }
 }
 
-/// The session-ending text for `kind` — the embed's own bytes — or `None` for
-/// the one kind that takes no fixed ending.
+/// The session-ending text for `kind` — the embed's own bytes.
 ///
 /// Public as the seam the ending's checks run through: a driver-side copy
 /// reappearing as a Rust literal fails against this.
-pub fn ending_of(kind: Kind) -> Result<Option<&'static str>> {
-    ending_file(kind)
-        .map(|path| embedded(path, "the session-ending text"))
-        .transpose()
+pub fn ending_of(kind: Kind) -> Result<&'static str> {
+    embedded(ending_file(kind), "the session-ending text")
 }
 
-/// The embed-relative path of the session-ending text for `kind`, or `None` for
-/// the one kind whose ending is not a single fixed instruction.
+/// The embed-relative path of the session-ending text for `kind`.
 ///
-/// **`finish` is that kind, and the exception is a correctness one rather than a
-/// tidiness one.** Eighteen kinds end exactly one way — retire, commit,
+/// **`finish` gets a different file, not no file, and the distinction is the
+/// whole point.** Eighteen kinds end exactly one way — retire, commit,
 /// `grove-llm complete` — and `SIGNAL.md` says so. A `finish` session has
-/// *three* endings, chosen by what it did (`references/finish.md`): `complete
-/// --done` after teardown, bare `complete` if it externalised work instead, and
-/// no signal at all if the human declined or was absent. Inlining `SIGNAL.md`
-/// for it would put *run `grove-llm complete`* last in the prompt of the one
-/// session that may have just deleted the task tree — relaunching the loop onto
-/// a torn-down grove, which then scaffolds a fresh one. The too-late test admits
-/// "the session's last action"; it does not license stating the wrong one.
+/// *three* endings, chosen by what it did: `complete --done` after teardown,
+/// bare `complete` if it externalised work instead, and no signal at all if the
+/// human declined or was absent. Inlining `SIGNAL.md` for it would put *run
+/// `grove-llm complete`* last in the prompt of the one session that may have
+/// just deleted the task tree — relaunching the loop onto a torn-down grove,
+/// which then scaffolds a fresh one. The too-late test admits "the session's
+/// last action"; it does not license stating the wrong one.
 ///
-/// The core therefore has two shapes, and the third part is present for the
-/// eighteen kinds a fixed sentence is true of. A `finish` session's ending rides
-/// its reference file, which the load instruction names first and by path.
+/// **Omitting the part instead was the wrong reading of that.** A `finish`
+/// session's failure mode is the one the core exists for and is the worst
+/// instance of it: teardown completes, the session forgets `--done`, and the
+/// loop it was supposed to stop is left waiting on a session that will not end.
+/// Reading the branches in the skill at bootstrap cannot repair a forgotten
+/// signal an hour later, which is exactly what the too-late test admits a
+/// sentence for. So the three-outcome *choice* gets an embedded source of its
+/// own — `SIGNAL-FINISH.md`, which `references/finish.md` routes to rather than
+/// restating — and the core inlines those bytes. One source, two deliveries, and
+/// every kind's prompt is three parts with exactly one of them embedded content.
+///
 /// Exhaustive for the same reason [`reference_file`] is: a twentieth kind must
 /// not inherit an ending by falling through a wildcard.
-fn ending_file(kind: Kind) -> Option<&'static str> {
+fn ending_file(kind: Kind) -> &'static str {
     match kind {
-        Kind::Finish => None,
+        Kind::Finish => FINISH_SIGNAL_FILE,
         Kind::Requirements
         | Kind::Design
         | Kind::Planning
@@ -198,7 +210,7 @@ fn ending_file(kind: Kind) -> Option<&'static str> {
         | Kind::IntegrateReviewDesign
         | Kind::IntegrateReviewPlanning
         | Kind::IntegrateReviewPrototype
-        | Kind::IntegrateReviewImpl => Some(SIGNAL_FILE),
+        | Kind::IntegrateReviewImpl => SIGNAL_FILE,
     }
 }
 
@@ -237,8 +249,8 @@ fn render_locations<P: AsRef<Path>>(locations: &[P]) -> String {
 /// Compose the whole of `${prompt}` for one launch.
 ///
 /// Three parts in the session's own timeline order — load instruction, runtime
-/// facts, ending — joined by a blank line, with the ending omitted for the one
-/// kind [`ending_file`] declines.
+/// facts, ending — joined by a blank line, for every kind. Which file the ending
+/// comes from varies ([`ending_file`]); that there is one does not.
 ///
 /// **Recency is the whole reason the ending is last**, and the reason is
 /// inherited rather than re-derived: it was moved to compose last after sessions
@@ -268,11 +280,8 @@ pub fn compose<P: AsRef<Path>>(
         .replace("{handle}", handle)
         .replace("{stated_vcs}", stated_vcs);
 
-    let mut parts = vec![load, facts];
-    if let Some(ending) = ending_of(kind)? {
-        parts.push(ending.to_string());
-    }
-    Ok(parts.join("\n"))
+    let ending = ending_of(kind)?;
+    Ok([load, facts, ending.to_string()].join("\n"))
 }
 
 #[cfg(test)]

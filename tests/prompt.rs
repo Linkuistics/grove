@@ -25,8 +25,8 @@ use std::path::Path;
 /// The alarm on the too-late test, per kind — **not a budget the design was
 /// fitted to**.
 ///
-/// Measured composition is well under half of it. A core that reaches 4 KiB has
-/// gained roughly a page of prose, which the too-late test admits only if the
+/// Measured composition leaves roughly 40% of it free. A core that reaches 4 KiB
+/// has gained roughly a page of prose, which the too-late test admits only if the
 /// driver has acquired a new runtime fact — a rare and visible event. Everything
 /// else that could push it there is importance-as-a-criterion, which is exactly
 /// what this exists to see.
@@ -52,7 +52,7 @@ fn compose(kind: Kind) -> String {
     })
 }
 
-fn ending_of(kind: Kind) -> Option<&'static str> {
+fn ending_of(kind: Kind) -> &'static str {
     prompt::ending_of(kind).expect("the real embed must carry the ending it maps to")
 }
 
@@ -111,22 +111,14 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
         let expected_facts =
             "Grove mandate: the leaf selected for this session is `guaranteed-core-k9`.\n\n\
              Version control: this working tree is jj-enabled (jj workspace root: `/w`).\n";
-        match ending_of(kind) {
-            Some(ending) => assert_eq!(
-                rest,
-                format!("{expected_facts}\n{ending}"),
-                "`{}`'s prompt after the load instruction must be exactly the two runtime \
-                 facts and then the ending — no introduction, no footer, and no rule \
-                 restated from the skill",
-                kind.label()
-            ),
-            None => assert_eq!(
-                rest,
-                expected_facts,
-                "`{}` takes no fixed ending, so its prompt must end at the runtime facts",
-                kind.label()
-            ),
-        }
+        assert_eq!(
+            rest,
+            format!("{expected_facts}\n{}", ending_of(kind)),
+            "`{}`'s prompt after the load instruction must be exactly the two runtime \
+             facts and then the ending — no introduction, no footer, and no rule \
+             restated from the skill",
+            kind.label()
+        );
     }
 }
 
@@ -137,8 +129,12 @@ fn the_prompt_is_three_parts_in_the_sessions_own_timeline_order() {
 /// went with the mandate; what survives is narrower and sharper, because the
 /// prompt is the one channel a session cannot skip. Two failures it catches: a
 /// driver-authored sentence about signalling growing beside the runtime facts —
-/// a second ending with nothing holding it in step with `content/SIGNAL.md` —
-/// and `--done` reaching the eighteen kinds it is not an ending for.
+/// a second ending with nothing holding it in step with the embed's own — and
+/// `--done` reaching the eighteen kinds it is not an ending for.
+///
+/// **`--done` is scoped by kind rather than banned outright.** It belongs in
+/// `finish`'s ending, where it is one row of a three-outcome table, and nowhere
+/// else in any prompt — including nowhere else in `finish`'s own.
 #[test]
 fn no_prompt_states_an_ending_outside_its_ending() {
     const COMPLETION_VERB: &str = "grove-llm complete";
@@ -146,10 +142,10 @@ fn no_prompt_states_an_ending_outside_its_ending() {
 
     for kind in Kind::ALL {
         let prompt = compose(kind);
-        let before_ending = match ending_of(kind) {
-            Some(ending) => prompt.strip_suffix(ending).unwrap_or(&prompt).to_string(),
-            None => prompt.clone(),
-        };
+        let ending = ending_of(kind);
+        let before_ending = prompt.strip_suffix(ending).unwrap_or_else(|| {
+            panic!("`{}`'s prompt must end on its ending", kind.label());
+        });
         assert!(
             !before_ending.contains(COMPLETION_VERB),
             "`{}`'s prompt names `{COMPLETION_VERB}` outside its ending. Either a second \
@@ -158,10 +154,17 @@ fn no_prompt_states_an_ending_outside_its_ending() {
             kind.label()
         );
         assert!(
-            !prompt.contains(STOP_FLAG),
-            "`{}`'s prompt names `{STOP_FLAG}`. It is an ending only a `finish` session \
-             takes, decided by what that session did, and `content/references/finish.md` \
-             is where the three outcomes are stated together.",
+            !before_ending.contains(STOP_FLAG),
+            "`{}`'s prompt names `{STOP_FLAG}` outside its ending, where nothing holds it \
+             in step with the embed.",
+            kind.label()
+        );
+        assert_eq!(
+            ending.contains(STOP_FLAG),
+            kind == Kind::Finish,
+            "`{STOP_FLAG}` is an ending only a `finish` session takes, decided by what \
+             that session did — so `content/SIGNAL-FINISH.md` states it and \
+             `content/SIGNAL.md` must not. `{}`'s ending disagrees.",
             kind.label()
         );
     }
@@ -205,27 +208,53 @@ fn the_runtime_facts_restate_no_rule_the_skill_owns() {
 /// *and* land in `content/SKILL.md`, where they depend on the skill being read
 /// like every other rule.
 ///
-/// Pinned on the two conditions the corpus declares, not on prose, so a rewrite
-/// of either condition's wording does not fail here while its deletion does.
+/// **Located by declared condition, asserted on what the condition says.** A
+/// unit marker is classification evidence and nothing more: a body can be
+/// emptied, weakened, or reversed with its marker untouched, and a check on the
+/// marker alone would still report the rule as stated. So the marker only finds
+/// the body, and the claim is made against the body's own words.
+///
+/// The located phrases are the load-bearing clause of each condition rather than
+/// its whole prose, so a rewrite that keeps the rule passes and one that drops it
+/// fails. When the marker machinery is deleted, this locator is replaced — the
+/// semantic predicate below is not.
 #[test]
 fn the_skill_carries_the_two_rules_the_core_sheds() {
     let skill = embedded("SKILL.md");
-    for (unit, what) in [
+    for (unit, what, must_say) in [
         (
             "skill-do-not-pick-again",
             "that the driver's pick is authoritative and must not be re-walked",
+            ["`grove-llm pick`", "the mandate wins"],
         ),
         (
             "skill-stated-vcs-is-definitive",
             "that the driver's stated version control is definitive and is not re-derived",
+            ["definitive", "do not re-derive it"],
         ),
     ] {
-        assert!(
-            skill.contains(&format!("<!-- unit: {unit} ")),
-            "content/SKILL.md no longer states {what}. The core sheds every normative \
-             consequence of a value on the understanding that the skill states it; \
-             shedding it from both leaves the rule stated nowhere."
-        );
+        let marker = format!("<!-- unit: {unit} ");
+        let start = skill.find(&marker).unwrap_or_else(|| {
+            panic!(
+                "content/SKILL.md declares no `{unit}` condition, so it no longer states \
+                 {what}. The core sheds every normative consequence of a value on the \
+                 understanding that the skill states it; shedding it from both leaves the \
+                 rule stated nowhere."
+            )
+        }) + marker.len();
+        let body = &skill[start..];
+        let body = match body.find("\n<!-- unit: ") {
+            Some(next) => &body[..next],
+            None => body,
+        };
+        for phrase in must_say {
+            assert!(
+                body.contains(phrase),
+                "content/SKILL.md's `{unit}` condition no longer says \"{phrase}\", so it no \
+                 longer states {what}. The marker is still there, which is why this asserts \
+                 the text and not the marker.\n---\n{body}\n---"
+            );
+        }
     }
 }
 
@@ -235,73 +264,94 @@ fn the_skill_carries_the_two_rules_the_core_sheds() {
 /// The one genuine duplicate between the two channels is not duplicated: the
 /// driver inlines the embed's own signal file, from the same embed that is
 /// provisioned. One source, two deliveries, and no build boundary between them.
+///
+/// Two signal files serve the nineteen kinds, and the split is asserted by count
+/// as well as by bytes: eighteen take `SIGNAL.md`'s single instruction and
+/// `finish` takes `SIGNAL-FINISH.md`'s three-outcome choice.
 #[test]
 fn the_ending_is_the_embedded_signal_files_bytes() {
     let signal = embedded("SIGNAL.md");
-    let mut ended = 0;
+    let finish_signal = embedded("SIGNAL-FINISH.md");
+    assert_ne!(
+        signal, finish_signal,
+        "the two signal files must differ; one of them has become a copy of the other"
+    );
+
+    let mut took_finish_signal = 0;
     for kind in Kind::ALL {
-        let Some(ending) = ending_of(kind) else {
-            continue;
+        let expected = if kind == Kind::Finish {
+            took_finish_signal += 1;
+            finish_signal
+        } else {
+            signal
         };
         assert_eq!(
-            ending,
-            signal,
-            "`{}`'s ending is not `content/SIGNAL.md`'s bytes — a copy has grown in Rust",
+            ending_of(kind),
+            expected,
+            "`{}`'s ending is not its embedded signal file's bytes — a copy has grown in \
+             Rust, or the mapping moved",
             kind.label()
         );
         assert!(
-            compose(kind).ends_with(signal),
+            compose(kind).ends_with(expected),
             "`{}`'s prompt must *end* with it; recency is the whole reason for the position",
             kind.label()
         );
-        ended += 1;
     }
     assert_eq!(
-        ended,
-        Kind::ALL.len() - 1,
-        "eighteen kinds take the fixed ending and `finish` takes none; a different \
-         count means the exception moved without this claim moving with it"
+        took_finish_signal, 1,
+        "exactly one kind takes the three-outcome ending; a different count means the \
+         `finish` case moved without this claim moving with it"
     );
 }
 
-/// **`finish` is the one kind with no fixed ending, and the exception is a
-/// correctness one.**
+/// **A `finish` prompt ends on the choice, not on one of its branches.**
 ///
 /// A `finish` session has three endings chosen by what it did — `complete
 /// --done` after teardown, bare `complete` if it externalised work instead, no
-/// signal if the human declined or was absent (`content/references/finish.md`).
-/// Inlining `SIGNAL.md` would put *run `grove-llm complete`* last in the prompt
-/// of the one session that may have just deleted the task tree, relaunching the
-/// loop onto a torn-down grove which the driver then re-scaffolds.
+/// signal if the human declined or was absent. Inlining `SIGNAL.md` would put
+/// *run `grove-llm complete`* last in the prompt of the one session that may have
+/// just deleted the task tree, relaunching the loop onto a torn-down grove which
+/// the driver then re-scaffolds.
 ///
-/// Its ending rides its reference file instead, which the load instruction names
-/// first and by path — so this asserts that file still carries the three-way
-/// choice, and not merely that the prompt omits one.
+/// **Omitting the part instead answers that at the cost of the thing the core is
+/// for.** A `finish` session that tears the tree down and then forgets to signal
+/// leaves the loop waiting on a session that will not end — the observed failure,
+/// in the session where it costs most — and no amount of reading
+/// `references/finish.md` at bootstrap repairs a forgotten last action. So the
+/// three-outcome table is the ending, delivered like every other one.
 #[test]
-fn a_finish_prompt_states_no_ending_and_its_reference_file_carries_all_three() {
+fn a_finish_prompt_ends_on_all_three_outcomes() {
     let prompt = compose(Kind::Finish);
-    assert!(
-        !prompt.contains("grove-llm complete"),
-        "a finish prompt must not state an ending; two of its three outcomes would \
-         make a fixed one wrong:\n{prompt}"
-    );
-    assert!(
-        prompt.contains("`references/finish.md`"),
-        "and it must name the file that does carry them"
-    );
-
-    let finish = embedded("references/finish.md");
     for outcome in [
         "`grove-llm complete --done`",
         "`grove-llm complete`",
         "no signal",
     ] {
         assert!(
-            finish.contains(outcome),
-            "content/references/finish.md must still carry the {outcome} outcome — it is \
-             the only place a finish session is told how to end"
+            prompt.contains(outcome),
+            "a finish prompt must carry the {outcome} outcome; stating fewer than three \
+             either states the wrong ending or leaves the last action to memory:\n{prompt}"
         );
     }
+    assert!(
+        prompt.contains("`references/finish.md`"),
+        "and it must still name the file carrying the teardown steps the outcomes turn on"
+    );
+
+    // The routing half of *one source, two deliveries*: the reference file sends
+    // a reader to the same bytes rather than restating them, so the skill and the
+    // prompt cannot disagree about what the outcomes are.
+    let reference = embedded("references/finish.md");
+    assert!(
+        reference.contains("`SIGNAL-FINISH.md`"),
+        "content/references/finish.md must route to the outcomes' one source"
+    );
+    assert!(
+        !reference.contains("| teardown completed |"),
+        "and must not restate the table it routes to — a second copy is exactly what \
+         routing exists to avoid"
+    );
 }
 
 // -- The two couplings not closed by construction ----------------------------

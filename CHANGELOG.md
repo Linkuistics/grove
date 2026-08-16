@@ -57,7 +57,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
   skill and this kind's reference file, named by path, with the provisioned
   directories given as absolute paths; the two facts the driver resolved (the
   selected handle and the working tree's version control); and the session-ending
-  text, which is `content/SIGNAL.md`'s own bytes inlined byte-exact. The order is
+  text, which is its kind's signal file's own bytes inlined byte-exact. The order is
   the session's own timeline. Both failures this sits between are **measured**,
   not argued: the wall degrades behaviour (sessions finish and fail to signal,
   stalling the loop), and the skill alone was demonstrably not read. What earns a
@@ -71,12 +71,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
   [The skill delivers the methodology](docs/adr/skill-delivers-the-methodology.md)
   is that decision, reworked in place from the record it reverses.
 
-- **`finish` takes no ending part, and that is the one exception to the shape.**
-  Eighteen kinds end exactly one way. A `finish` session has three, chosen by what
-  it did, so a fixed *run `grove-llm complete`* last in its prompt would relaunch
-  the loop onto a grove it had just torn down — which the driver then
-  re-scaffolds. Its ending rides `content/references/finish.md`, which the load
-  instruction names first and by path.
+- **Two signal files serve the nineteen kinds, and every prompt still has three
+  parts.** Eighteen kinds end exactly one way, and `content/SIGNAL.md` says so.
+  A `finish` session has three endings chosen by what it did, so inlining that
+  file for it would put a fixed *run `grove-llm complete`* last in the prompt of
+  the one session that may have just torn the grove down — which the driver then
+  re-scaffolds. Dropping the part instead would answer that by removing the very
+  too-late-shaped instruction the core exists to carry, in the session where a
+  forgotten signal costs most: teardown completes, `--done` is forgotten, and the
+  loop waits on a session that will not end. So the three-outcome table gets an
+  embedded source of its own, `content/SIGNAL-FINISH.md`, which
+  `content/references/finish.md` routes to rather than restating, and the core
+  inlines those bytes. One source, two deliveries. `--done` therefore appears in
+  exactly one kind's prompt, inside its ending, and nowhere else in any prompt.
 
 - **New `prompt` module seam; `methodology` narrows to the embed and the
   identity.** `methodology::compose` and the per-kind composition golden are
@@ -264,9 +271,12 @@ stood at the graft — a closed record, not part of the versioned sequence above
   is yet *withheld* from any kind: the specialisation changes what a prompt
   **carries**, not yet what a session can reach, and this increment is therefore
   verified by the composed mandates themselves rather than by watching a session
-  behave differently. Retiring provisioning is the next increment, and
-  [skill delivers the methodology](docs/adr/skill-delivers-the-methodology.md)
-  sequences it that way.
+  behave differently. Retiring provisioning is the next increment, and the
+  mandate-delivers-the-methodology decision sequenced it that way. (That record
+  has since been reworked in place into *the skill delivers the methodology*,
+  which reverses it — provisioning stays and the mandate goes — so this entry is
+  left describing what the release it names shipped against, and is not a
+  citation of current design.)
 - **Each kind's mandate states exactly one session ending, and eighteen of the
   nineteen never see `--done`.** The methodology told every session both endings
   and the condition between them — run `grove-llm complete`, unless this is a
@@ -340,9 +350,9 @@ stood at the graft — a closed record, not part of the versioned sequence above
   a row carries is a fetch argument unchanged. It mutates nothing and resolves
   no working tree, so it answers from anywhere — including the environments a
   tree verb is refused in. This is an **inspection tool**: under provisioning a
-  session still receives whole documents, and nothing consumes a unit yet
-  ([skill delivers the
-  methodology](docs/adr/skill-delivers-the-methodology.md)).
+  session still receives whole documents, and nothing consumes a unit yet (the
+  mandate-delivers-the-methodology decision, since reworked in place into *the
+  skill delivers the methodology*, which reverses its delivery half).
 - **A malformed embed fails `cargo build`.** Every embedded markdown file must
   be fully classified — units partition its body, the marker grammar is fixed,
   and a runaway fence or an unclosed leading `---` block is an error — reported

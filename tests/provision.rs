@@ -243,8 +243,8 @@ fn extract_fresh_writes_the_full_content_tree() {
 // there until a human names its unit.
 //
 // Its second half compared the provisioned bytes with the ones the driver put in
-// front of every mandate. One embedded file is read into a prompt again —
-// `content/SIGNAL.md`, inlined byte-exact as the core's last part — so that
+// front of every mandate. An embedded file is read into a prompt again — the
+// kind's signal file, inlined byte-exact as the core's last part — so that
 // comparison has operands once more and lives in `tests/prompt.rs`, where the
 // claim is that the ending *is* the embed's bytes rather than a Rust copy of
 // them. Both paths still project the same embed: `provision_into` extracts it

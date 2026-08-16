@@ -297,10 +297,14 @@ complement moves the answer: `kinds=!finish` states what the unit is not for, so
 the set it does reach is derived from a kind set declared elsewhere and re-reads
 itself whenever that set changes. Recovering a per-kind guarantee then means
 writing each kind's ending down a second time, in a test, away from the prose —
-which is the *classify in a manifest beside `content/`* shape
-[the mandate delivers the methodology](../adr/skill-delivers-the-methodology.md)
-already rejects, for the same reason: two statements of one classification, with
-nothing holding them in step.
+which is the *classify in a manifest beside `content/`* shape the
+mandate-delivers-the-methodology decision already rejected, for the same reason:
+two statements of one classification, with nothing holding them in step. (That
+record was later reworked in place into
+[the skill delivers the methodology](../adr/skill-delivers-the-methodology.md),
+which reverses its delivery half; the manifest argument quoted here is one of the
+parts that survived, but the record no longer states the decision this document
+was written under.)
 
 The two hazards remain asymmetric, and the asymmetry is what each costs to guard
 rather than whether it can be guarded at all. A complement's hazard is that a
@@ -1047,9 +1051,15 @@ Composition lands first and provisioning retires after it, so the mandate is
 proven working before the fallback is removed. Sessions therefore receive both a
 mandate and a provisioned skill for one increment. That state is a **transient
 and never a resting state**: two delivery paths that can disagree is the shape
-[the mandate delivers the methodology](../adr/skill-delivers-the-methodology.md)
-rejects outright, and the only reason it is admitted at all is that the reverse
-order removes the fallback before anything has replaced it.
+the mandate-delivers-the-methodology decision rejected outright, and the only
+reason it is admitted at all is that the reverse order removes the fallback
+before anything has replaced it. (That record has since been reworked in place
+into
+[the skill delivers the methodology](../adr/skill-delivers-the-methodology.md),
+whose decision is the inverse of the one this paragraph describes: provisioning
+stays, and two channels with one source is the settled design rather than a
+transient. Read this paragraph as the plan the live mandate machinery was built
+to, not as current design.)
 
 The retirement itself is mostly subtraction, and `grep -rn provision` recovers
 the file set — which is why what is recorded here is the part it cannot: the

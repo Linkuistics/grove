@@ -58,11 +58,10 @@ fn retire_precedes_commit_so_the_commit_can_contain_what_retire_writes() {
 /// still has to say about it.
 ///
 /// Commit-before-Signal used to be a byte ordering inside `content/SKILL.md`.
-/// It is now a *composition* ordering across two files — `content/SIGNAL.md`
-/// takes the corpus's final position so the instruction lands last in what a
-/// session reads — and
-/// `tests/session_kind_guidance.rs::the_relaunch_ending_composes_last` is where
-/// that is proved. What is left here is the local half: a Signal step written
+/// It is now a *composition* ordering in `${prompt}` — the kind's signal file is
+/// the last of the three parts, so the instruction lands last in what a session
+/// reads — and `tests/prompt.rs::the_ending_is_the_embedded_signal_files_bytes`
+/// is where that is proved. What is left here is the local half: a Signal step written
 /// back into `SKILL.md` would restore the ordering these offsets used to check
 /// while defeating the placement, so a second copy has to fail somewhere, and
 /// this is the file that would stop noticing.

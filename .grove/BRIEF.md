@@ -98,6 +98,21 @@ collide with nothing. What is left over from them:
 - **Trigger strength is the one claim no reading settles.** The design's answer to
   the *observed* prior failure is wording, and wording is judged by a real run.
   The grove's `Done when` is the instrument, and both limbs are required.
+
+  **`corpus-rewrite-k7` closed with the trade-off already visible in a number,
+  and promoted it here rather than resolving it.** That node derived a bound of
+  *~200 lines, roughly 8 KiB*; `content/SKILL.md` landed at 399 body lines and
+  ~25 KiB (277 lines / ~19.7 KiB once unit markers and blanks — both of which die
+  at `mandate-machinery-k10` — are excluded). The derivation assumed **one line
+  per condition**; the rewrite wrote each as a short paragraph carrying its
+  reason, which is the thing that makes a condition fire. The spec's *checkable*
+  ceiling is 500 body lines and is met with room, so nothing is in breach — the
+  brief's ~200 was arithmetic, not a requirement. But it means the corpus has
+  already spent 2.5× its estimate buying trigger strength, and
+  `delivery-acceptance-k11` is judging whether that bought anything. If the run's
+  *reading* limb passes, the estimate was simply wrong and the spec's number
+  governs; if it fails, condition wording is the first thing to change and the
+  size is evidence about which direction to change it in.
 - **`leaf-prune`'s HITL rule is guarded by prose alone.** The spec names it as a
   live gap and deliberately does not widen the core to cover it; a guard in the
   verb is the shape that would, and it is a confirmation-boundary question rather

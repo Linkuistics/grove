@@ -26,9 +26,17 @@ fn node_close_matches_the_confirmation_boundary() {
         skill.contains("The close asks the human nothing"),
         "a node close must stay unconfirmed — it infers done-ness rather than deciding it"
     );
+    // *That* it closes without a gate is the condition, so it stays above; *how*
+    // the closing session discharges it — check the `Done when`, then report the
+    // close in the commit message — is the procedure, and it is asserted against
+    // the file that owns it rather than against the skill page that routes there.
     assert!(
-        skill.contains("Instead the session **verifies and reports**"),
-        "a node close must describe verify-and-report closure"
+        retire.contains("**Check** the node's brief `Done when`"),
+        "a node close must verify the charter it is closing"
+    );
+    assert!(
+        retire.contains("**report** the close by naming the node's"),
+        "a node close must report itself — the human reviews it after the fact"
     );
     // With chain nodes gone there is one node species, so the close must not
     // reintroduce a per-species branch: a close that skips its `Done when`

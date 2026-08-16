@@ -141,46 +141,63 @@ fn the_corpus_mandate_positions_are_contiguous_from_one() {
 /// `integrate-review-*` and the two research producers. The **map** the driver
 /// will own is an exhaustive `match` over the kind enum and is checked where it
 /// is written; this checks the table a human reads.
+///
+/// **The pairing is what is asserted, not the path set.** Collecting the
+/// right-hand paths alone would discard the kind column and collapse duplicate
+/// rows, so a table with a kind missing, a kind twice, an extra row, or a path
+/// against the wrong kind would still pass while sending a session to the wrong
+/// discipline — which is the entire failure this test exists to catch. The rows
+/// are therefore compared as an ordered sequence of `(kind label, path)`.
 #[test]
 fn the_skills_routing_table_names_a_reference_file_that_exists() {
     let content = Path::new(env!("CARGO_MANIFEST_DIR")).join("content");
     let skill =
         fs::read_to_string(content.join("SKILL.md")).expect("content/SKILL.md must be readable");
 
-    let routed: BTreeSet<String> = skill
+    // A row is `| <kind label> | `references/<file>` |`; the header and its
+    // `|---|---|` rule carry no backticked path and drop out here.
+    let routed: Vec<(String, String)> = skill
         .lines()
         .skip_while(|line| !line.starts_with("## Read your kind's reference file first"))
         .take_while(|line| !line.starts_with("## The spine"))
-        .filter_map(|line| line.split("`references/").nth(1))
-        .filter_map(|rest| rest.split_once('`'))
-        .map(|(path, _)| path.to_owned())
+        .filter(|line| line.starts_with('|'))
+        .filter_map(|line| {
+            let mut cells = line.trim_matches('|').split('|').map(str::trim);
+            let kind = cells.next()?;
+            let path = cells
+                .next()?
+                .strip_prefix("`references/")?
+                .strip_suffix('`')?;
+            Some((kind.to_owned(), path.to_owned()))
+        })
         .collect();
 
-    let expected: BTreeSet<String> = [
-        "requirements.md",
-        "design.md",
-        "planning.md",
-        "prototype.md",
-        "impl.md",
-        "review.md",
-        "integrate-review.md",
-        "research.md",
-        "combine-research.md",
-        "finish.md",
+    let expected: Vec<(String, String)> = [
+        ("`requirements`", "requirements.md"),
+        ("`design`", "design.md"),
+        ("`planning`", "planning.md"),
+        ("`prototype`", "prototype.md"),
+        ("`impl`", "impl.md"),
+        ("the five `review-*` kinds", "review.md"),
+        ("the five `integrate-review-*` kinds", "integrate-review.md"),
+        ("`research-a`, `research-b`", "research.md"),
+        ("`combine-research`", "combine-research.md"),
+        ("`finish`", "finish.md"),
     ]
     .into_iter()
-    .map(str::to_owned)
+    .map(|(kind, path)| (kind.to_owned(), path.to_owned()))
     .collect();
 
     assert_eq!(
         routed, expected,
-        "content/SKILL.md's routing table must name exactly the ten per-kind \
-         reference files"
+        "content/SKILL.md's routing table must carry exactly these ten \
+         kind→reference-file rows, in this order — a session that arrived \
+         without a mandate reads the left column to find the right one"
     );
-    for path in &routed {
+    for (kind, path) in &routed {
         assert!(
             content.join("references").join(path).is_file(),
-            "content/SKILL.md routes to references/{path}, which does not exist"
+            "content/SKILL.md routes {kind} to references/{path}, which does not exist"
         );
     }
 }
@@ -320,7 +337,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// page and procedures into `content/references/`, and an id that travelled
 /// keeps its spelling so the composition golden's diff stays a relocation
 /// rather than a rename.
-const EMBEDDED_UNITS: [&str; 164] = [
+const EMBEDDED_UNITS: [&str; 165] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -341,6 +358,7 @@ const EMBEDDED_UNITS: [&str; 164] = [
     "driving-externalizing-surfaced-work",
     "driving-find-working-increments",
     "driving-how-to-write-a-research-leaf-brief",
+    "driving-name-the-trade-off",
     "driving-no-pre-baked-grilling",
     "driving-no-session-summary",
     "driving-prune-reorder-or-file-an-issue",

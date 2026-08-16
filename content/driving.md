@@ -177,6 +177,30 @@ specifically to make pushback structural rather than personal. When
 the recommendation cites primary evidence, the pushback is a debate
 about that evidence, not about whose preference wins.
 
+<!-- unit: driving-name-the-trade-off class=procedural -->
+### Name the trade-off you want input on
+
+The mirror image of asking for pushback: when *you* are the one handing back, do
+not close by inviting questions in general. "Let me know if you have any
+questions" is not a prompt — a vague invitation produces a vague response, and
+the human has to invent your agenda before they can answer it.
+
+Three parts, and the third is what makes the escalation answerable:
+
+1. **Name the specific trade-off** you want input on — the decision, and the two
+   or three ways it could go.
+2. **Propose a recommended answer.** Deference that withholds a recommendation
+   costs the human the one view they cannot get anywhere else.
+3. **Give the evidence behind that recommendation** — the same
+   recommended-answer-with-evidence shape the grilling format uses, for the same
+   reason: it makes disagreement a debate about the evidence rather than about
+   whose preference wins.
+
+That structure makes the trade-off visible by construction, and turns an
+escalation into a decision instead of an open-ended handback. It applies to any
+kind: the HITL/AFK mark predicts who is present, it does not license a vaguer
+question when one is.
+
 <!-- unit: driving-record-decisions-inline class=procedural -->
 ### Record decisions inline, while they're fresh
 

@@ -146,6 +146,58 @@ the rule itself is intact.
 - Post-fix tests, formatting, linting, and corpus-budget verification pass; this
   review ran none of them, by design.
 
+## Decisions (running log)
+
+**All three findings were verified against their sources, not taken on trust,
+and all three hold.** For the 18 `P` rows the evidence is the destination: each
+named file carries the procedure the skill page was restating
+(`references/decompose.md:2`, `bootstrap.md:2`, `retire.md:36`, `driver.md:53`,
+`execute.md:38`, `grove.md:33`, and the `driving.md` units). For the six `R`
+rows, the `defers=` marker is the only route and it disappears at
+`mandate-machinery-k10`. For the Medium, `tests/methodology.rs` collected a
+`BTreeSet<String>` of paths, so the kind column was never asserted at all.
+
+**`driving-ask-about-the-trade-off` really had no destination**, as the review
+said: `grep '^<!-- unit:' content/driving.md` showed nothing it could defer to.
+Added `driving-name-the-trade-off` (procedural) to `driving.md`, beside
+`driving-ask-wdyt` and `driving-ask-for-pushback` — the same asking-habits
+group, and the mirror of the pushback habit, since one is soliciting a view and
+the other is offering one. The condition now defers to it, which also gives the
+build gate a reachability edge where it previously had none.
+
+**Two rewrites depart slightly from the review's prescription, both narrowing
+rather than widening what stays.**
+
+- `task-two-shapes`: the review lists "cut one lazily versus one eagerly" as
+  retained procedure. Dropped the instruction half ("reach for them by default,
+  and argue yourself *out* of one") and the verbs, but kept the asymmetry as a
+  **fact about the shapes** with its one-clause reason — a session that does not
+  know a pair is eager will cut one lazily, and by then the independence the
+  pair exists for is already gone. The verbs and the when-to-choose live in
+  `references/decompose.md:79`.
+- `skill-node-close-cascade`: "walk the parent chain" and "verifies and reports"
+  both went. That the close **cascades** stays, as a property of the retirement
+  rather than a step, because it is what tells a session one retirement can
+  close several ancestors.
+
+**`tests/retire_guidance.rs` was repointed, not relaxed.** It asserted
+`"Instead the session **verifies and reports**"` in `SKILL.md` — the exact
+procedure this task moves. Per the node brief, a rewrite owes the claim a new
+home: the two limbs now assert `**Check** the node's brief `Done when`` and
+`**report** the close by naming the node's` against
+`content/references/retire.md`, which owns them. The condition limb — `The close
+asks the human nothing` — stayed on the skill page and constrained the wording
+of that rewrite.
+
+**`EMBEDDED_UNITS` grew by one (164 → 165).** The new procedural unit is a
+classification decision, which is what that pin exists to force a confirmation
+of.
+
+**No in-session reviewer was spent.** The `no procedure in SKILL.md` limb is a
+review obligation the spec deliberately keeps off the test suite, and it was
+just discharged by `skill-opening-k17`; re-reviewing this integration is a new
+producer review chain's job, not this session's.
+
 ## Notes
 
 The frontmatter description itself follows the house capability + explicit

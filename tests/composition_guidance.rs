@@ -714,9 +714,12 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
             DRIVING,
             "it compares nothing, records nothing about how the producer ran, and raises no notice either way",
         ),
+        // The claim is unchanged; only its home moved. *Nothing in a body is
+        // metadata* is a condition, so it states itself on the loop page now
+        // rather than in the task-file format document.
         (
-            "content/TASK-FORMAT.md",
-            TASK_FORMAT,
+            "content/SKILL.md",
+            GROVE_SKILL,
             "never a note the producer left behind about how its own session ran",
         ),
         (

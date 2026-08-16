@@ -210,10 +210,15 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// carved yet, always `class=triggering kinds=*` and never carrying a `defers=`.
 /// The pass is finished when no `pending-` id remains here or in `content/`.
 ///
-/// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
-/// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
-/// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 159] = [
+/// Ids are **prefixed by the file each was first carved from** — `skill-` for
+/// `content/SKILL.md`, `task-` for `content/TASK-FORMAT.md`, and so on — which
+/// is what makes embed-wide id uniqueness hold without coordination between
+/// batches. The prefix is **not** a claim about where a unit lives now: the
+/// rewrite into a progressive-disclosure skill moves conditions onto the loop
+/// page and procedures into `content/references/`, and an id that travelled
+/// keeps its spelling so the composition golden's diff stays a relocation
+/// rather than a rename.
+const EMBEDDED_UNITS: [&str; 161] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -367,11 +372,13 @@ const EMBEDDED_UNITS: [&str; 159] = [
     "task-review-chain-mechanics",
     "task-review-kinds",
     "task-suggested-shape",
+    "task-the-doubt-budget-table",
+    "task-the-kind-table",
     "task-three-design-kinds",
     "task-too-big-is-planning",
     "task-two-shapes",
     "task-vendor-pair-mechanics",
-    "task-what-shapes-are-not",
+    "task-what-each-field-does",
     "task-work-is-not-a-kind",
 ];
 

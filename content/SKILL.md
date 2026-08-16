@@ -166,6 +166,102 @@ confirmation is the loop's **only routine human gate** (confirmation-boundary);
 every other question a session asks is a discretionary escalation — always
 legitimate, never a step grove requires of you.
 
+<!-- unit: task-leaf-filename kinds=* class=triggering defers="task-what-each-field-does task-suggested-shape" -->
+## Leaves, kinds and shapes
+
+**A leaf is one `.md` file whose name is its whole grammar** —
+`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`: a per-level position, an
+outcome infix once it is terminal, the session kind, a human slug, and a
+permanent key assigned once and never reused. One task is one session, and the
+body is freeform markdown (`TASK-FORMAT.md`).
+
+<!-- unit: task-kind-in-the-filename kinds=* class=triggering defers=task-name-reading-is-strict -->
+**The kind lives in the filename and nowhere else.** It is routing metadata, not
+identity — the stable **work-item handle** stays `<slug>-k<key>`, so `resolve`, a
+commit message and an in-file header are all unaffected by it. A **node
+directory** carries no kind at all (`NN-<slug>-k<key>/`), even when its slug
+happens to begin with a kind word.
+
+<!-- unit: task-nineteen-kinds kinds=* class=triggering defers="task-the-kind-table task-work-is-not-a-kind" -->
+**The kinds are a closed set of nineteen**: five producers — `requirements`,
+`design`, `planning`, `prototype`, `impl` — each with its own `review-` and
+`integrate-review-` step, plus `research-a`, `research-b`, `combine-research`,
+and the driver-reserved `finish`. Each kind is the key one command template is
+configured under, so a twentieth is a deliberate change to grove's code, its
+configuration schema and its docs — never a free-text label a leaf may coin
+(`TASK-FORMAT.md`).
+
+<!-- unit: task-hitl-afk kinds=* class=triggering -->
+**Three kinds are HITL** — `requirements`, `prototype` and `finish` — because
+each needs input the session cannot supply for itself: the human's own words,
+their reaction, or their teardown decision. Every other kind is **AFK**. The mark
+**predicts, it does not permit**: *any* kind may stop and ask a human, and a HITL
+leaf reached by an unattended relaunch of the loop simply waits for one, which is
+correct behaviour rather than a fault.
+
+<!-- unit: task-in-session-doubt-budget kinds=* class=triggering defers="task-the-doubt-budget-table driving-doubting-inside-a-picked-leaf skill-review-ownership skill-cutting-a-review-leaf" -->
+**In-session doubt is budgeted across the whole picked leaf**, once you have run
+Bootstrap and adopted the driver's mandate: a plain producer may materialise **at
+most one** reviewer and an `integrate-review-*` session one narrow reviewer;
+every other kind spends **none**. The allowance is leaf-wide, not per artifact or
+decision, and beyond it the answer is a `review-*` leaf rather than another
+reviewer (`TASK-FORMAT.md` tabulates it by kind).
+
+<!-- unit: task-too-big-is-planning kinds=* class=triggering defers=task-decompose-inherits-kind -->
+A task too big for one focused session *is* a planning task — its job is to
+decompose, not to do.
+
+<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness driving-the-review-chain driving-review-chain-habits skill-cut-the-next-step" -->
+**Two habitual shapes compose the kinds** — the **review chain** `X` →
+`review-X` → `integrate-review-X`, and the **vendor pair** `research-a` →
+`research-b` → `combine-research`. Reach for them by default, and argue yourself
+*out* of one rather than into it. **They are built in opposite ways**, and the
+asymmetry is the design: a chain's steps are cut **lazily, one at a time, by the
+session that needs the next one**; a pair is cut **eagerly, whole, in one call**
+(`references/decompose.md`).
+
+<!-- unit: task-no-node-for-a-shape kinds=* class=triggering -->
+**Neither shape gets a node directory.** A charter means *this work proved bigger
+than one session*, and a composed shape is neither — no extra sessions, and no
+context to charter. Its steps sit as flat siblings among their neighbours, and
+there is **one node species**: a node is a leaf that decomposed, and it carries a
+`BRIEF.md`.
+
+<!-- unit: task-declare-the-relationship kinds=* class=triggering -->
+**Declare the relationship in the body, by hand.** A review's body carries
+`**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
+<review-handle>`, on their own line, naming the stable handle. Nothing writes
+those lines and **nothing parses them** — write them because the next session
+benefits, not because a verb requires it.
+
+<!-- unit: task-grammar-is-five-fields kinds=* class=triggering defers=task-what-each-field-does -->
+**A leaf name is five fields and nothing more**, and every one of them is parsed:
+position, outcome infix, kind, slug and key. What is **convention, not grammar**
+is everything a name might *imply about another leaf* — the shared stem, the
+relative ordering, and the two declaration lines. Grove does not require a
+`review-X` after every `X`, reject a partial chain, or parse a `**Reviews:**`
+line, and it never reconstructs a relationship from a filename, a position, or a
+body (`TASK-FORMAT.md`).
+
+<!-- unit: task-nothing-in-a-body-is-metadata kinds=* class=triggering -->
+**Nothing in a body is metadata**, and no verb writes anything there. Retirement
+and pruning change a filename and stop; a node close writes nothing at all. So a
+`review-*` session has exactly one thing to read — its producer's committed
+artifact — and never a note the producer left behind about how its own session
+ran.
+
+<!-- unit: task-three-design-kinds kinds=* class=triggering -->
+**The design work is three kinds, not one.** What a single `planning` label used
+to cover is split across `requirements`, `design` and `planning`, and each kind's
+own reference file carries the part of the old checklist it kept.
+
+<!-- unit: task-deliverable-split-not-a-gate kinds=* class=triggering -->
+The split is a division of *deliverable*, not a gate: a small workstream may
+resolve all three in one leaf, and any of the three may sharpen the glossary
+inline. What does not blur is tree growth — **only `planning` may grow the tree
+generatively**; *reactive* decomposition (a leaf proving bigger than its brief)
+is kind-agnostic and available to every kind.
+
 <!-- unit: skill-artifacts kinds=* class=triggering -->
 ## Artifacts
 

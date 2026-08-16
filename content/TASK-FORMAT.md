@@ -1,50 +1,52 @@
 <!-- file: order=3 -->
-<!-- unit: task-leaf-filename kinds=* class=triggering defers=task-suggested-shape -->
+<!-- unit: task-what-each-field-does class=procedural -->
 <!-- grove reference file — the task-file shape -->
 
 # TASK-FORMAT — the leaf task file
 
-A **leaf** in a grove is a single `.md` task file, named
-`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md`: a 2-digit per-level
-**position** `NN` (its place among its directory's children), one member of the
-closed **session-kind** set below, a human **slug**, and a permanent
-**key** `-k<key>` (stable identity, the terminal token, assigned once, never
-reused) — e.g. `01-requirements-plan-k1.md`, `03-impl-extract-k7.md`. A leaf ends
-one of two ways, marked in place right after the position: retired work carries a
-`DONE` infix (`03-DONE-impl-extract-k7.md`); a path decided against carries an
-`ABANDONED` infix (`03-ABANDONED-impl-extract-k7.md`, `leaf-prune`,
-pruning) — pruning is
-**HITL**, never an agent's own call. One task is one session (constraint: one
-task per session). The file is freeform markdown — a guide follows, not a
-schema.
+## The name, field by field
 
-<!-- unit: task-kind-in-the-filename kinds=* class=triggering defers=task-name-reading-is-strict -->
-**The kind lives in the filename and nowhere else.** It is routing metadata, not
-identity: the stable **work-item handle** stays `<slug>-k<key>`,
-so `grove-llm resolve`, a commit message and an in-file header are all unaffected
-by it. Putting it in the name is what lets `pick`, the driver's routing lookup and
-your own eye read a session's discipline out of `find .grove` without opening a
-file. A **node directory** carries no kind at all (`NN-<slug>-k<key>/`), even when
-its slug happens to begin with a kind word.
+A **leaf** in a grove is a single `.md` task file, named
+`NN-[DONE-|ABANDONED-]<session-kind>-<slug>-k<key>.md` — e.g.
+`01-requirements-plan-k1.md`, `03-impl-extract-k7.md`. Five fields, all parsed
+and all structural:
+
+| field | what it does |
+|---|---|
+| position `NN` | a 2-digit per-level number, its place among its directory's children; orders the `pick` walk |
+| outcome infix | absent while the leaf is live; `DONE` for retired work (`03-DONE-impl-extract-k7.md`) and `ABANDONED` for a path decided against (`03-ABANDONED-impl-extract-k7.md`, `leaf-prune`) — either keeps the leaf out of `pick`, marked in place |
+| session kind | one member of the closed set below; the key one command template is configured under |
+| slug | a human name for the **artifact**, not for the leaf's role |
+| key `-k<key>` | stable identity, the terminal token, assigned once and never reused |
+
+Slug-plus-key is the **work-item handle** `resolve` finds and the counter the next
+`-k<key>` is allocated from. One task is one session (constraint: one task per
+session), pruning is **HITL** and never an agent's own call, and the file itself
+is freeform markdown — a guide follows, not a schema.
+
+**What is convention rather than grammar** is everything a name might imply about
+*another* leaf: the shared stem, the relative ordering, and the two declaration
+lines. Nothing reconstructs a relationship from a filename, a position, or a
+body. That is also the test the deleted step suffix failed and the bare stem
+passes — a convention that *adds* what nothing parses is legible, while one that
+*duplicates* a parsed field can disagree with it.
 
 <!-- unit: task-name-reading-is-strict class=procedural -->
-Reading is strict in both directions. Every task-shaped leaf name — live, `DONE`
-or `ABANDONED` — must carry a known kind; a missing or unknown one is malformed
-and stops tree operations, naming the path and the valid set, rather than
-degrading to `impl`. No kind label plus `-` prefixes another, so a name always
-separates unambiguously and round-trips without touching the slug. Foreign
+Putting the kind in the name is what lets `pick`, the driver's routing lookup and
+your own eye read a session's discipline out of `find .grove` without opening a
+file. Reading is strict in both directions. Every task-shaped leaf name — live,
+`DONE` or `ABANDONED` — must carry a known kind; a missing or unknown one is
+malformed and stops tree operations, naming the path and the valid set, rather
+than degrading to `impl`. No kind label plus `-` prefixes another, so a name
+always separates unambiguously and round-trips without touching the slug. Foreign
 non-task files in the tree stay ignored.
 
-<!-- unit: task-nineteen-kinds kinds=* class=triggering defers=task-work-is-not-a-kind -->
+<!-- unit: task-the-kind-table class=procedural -->
 ## The nineteen kinds
 
-Every leaf's filename names its **kind**, drawn from a closed set
-(task-kind-taxonomy). Adding a twentieth is a deliberate change to grove's
-code, its configuration schema and its docs, not a free-text label a leaf may
-coin — each kind is the key one command template is configured under, so a kind
-grove cannot spell is a session it cannot launch. The set is
-**parameterised, not flat**: five producers, each with its own `review-` and
-`integrate-review-` step, plus a research pair and one driver-owned step.
+The set is **parameterised, not flat**: five producers, each with its own
+`review-` and `integrate-review-` step, plus a research pair and one
+driver-owned step.
 
 | kind | review | integrate |
 |---|---|---|
@@ -56,32 +58,22 @@ grove cannot spell is a session it cannot launch. The set is
 | `research-a` + `research-b` | — | `combine-research` |
 | `finish` — driver-reserved | — | — |
 
-Five producer rows of three, the research row's three, and one driver-owned step.
-The research row holds **two** kinds rather than one kind run
-twice: `research-a` and `research-b` share a discipline but are separate
-configuration keys, which is what makes "two independent corpora" a fact in the
-tree instead of a forecast about routing policy. `finish` is the driver's own
-complete-finish-cycle sentinel: the grow verbs refuse to create one, retire,
-prune and decompose refuse it as an operand, and `leaf-insert` may
-target it only to put ordinary work *before* teardown.
+Five producer rows of three, the research row's three, and one driver-owned step:
+**nineteen**. Each kind's own file under `references/` carries the discipline it
+runs under, and its HITL/AFK mark is on the skill page.
 
-<!-- unit: task-hitl-afk kinds=* class=triggering -->
-Each kind is marked **HITL** (resolves through live exchange with a human who
-speaks for themselves) or **AFK** (driven by the agent alone). Three are HITL —
-`requirements`, `prototype` and `finish` — because each needs input the session
-cannot supply for itself: the human's own words, their reaction, or their teardown
-decision. The mark
-**predicts, it does not permit**: *any* kind may stop and ask a human, and doing
-so is always legitimate. A HITL leaf reached by an unattended relaunch of the
-self-driving loop simply waits for a human, which is correct behaviour, not a
-fault.
-
-**Producers**
+The research row holds **two** kinds rather than one kind run twice: `research-a`
+and `research-b` share a discipline but are separate configuration keys, which is
+what makes "two independent corpora" a fact in the tree instead of a forecast
+about routing policy. `finish` is the driver's own complete-finish-cycle
+sentinel: the grow verbs refuse to create one, retire, prune and decompose refuse
+it as an operand, and `leaf-insert` may target it only to put ordinary work
+*before* teardown.
 
 <!-- unit: task-research-write-paths class=procedural -->
-All three write under `docs/research/`, and because a pair's three leaves share
-one slug, **the kind supplies the discriminator** — the same principle that keeps
-it out of the slug:
+All three research kinds write under `docs/research/`, and because a pair's three
+leaves share one slug, **the kind supplies the discriminator** — the same
+principle that keeps it out of the slug:
 
 | kind | writes |
 |---|---|
@@ -92,26 +84,6 @@ it out of the slug:
 A solo `research-a` with no pair writes `-a.md` and that is the whole record; a
 `-b` survey added later renames nothing, and the union lands at the unadorned
 name where a reader looks first.
-
-<!-- unit: task-in-session-doubt-budget kinds=* class=triggering defers="driving-doubting-inside-a-picked-leaf skill-review-ownership skill-cutting-a-review-leaf" -->
-**In-session doubt is budgeted across the whole picked leaf**, once the current
-session has run Bootstrap and adopted the driver's selected-leaf mandate:
-
-| picked session | in-session reviewer allowance | next substantial review |
-|---|---|---|
-| plain producer | at most one; every independently materialised reviewer counts | `leaf-add` a `review-<producer>` leaf, with the doubt written into its body |
-| producer whose review leaf already exists | none; `review-*` is already scheduled | finish to the scheduled review boundary |
-| `review-*` | none; this session is the adversarial read | record findings for integration |
-| `integrate-review-*` | at most one narrow reviewer | add a new producer review chain beside the leaf being integrated |
-| `research-a` / `research-b` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
-
-Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
-standalone bounded cycles. The allowance is leaf-wide, not per artifact or
-decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
-
-<!-- unit: task-too-big-is-planning kinds=* class=triggering defers=task-decompose-inherits-kind -->
-A task too big for one focused session *is* a planning task — its job is to
-decompose, not to do.
 
 <!-- unit: task-decompose-inherits-kind class=procedural -->
 `leaf-decompose` gives a node's **first child** the kind of the leaf it just
@@ -126,29 +98,27 @@ one-time legacy migration still reads it: `work`, `review-work` and
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-<!-- unit: task-two-shapes kinds=* class=triggering defers="task-review-chain-mechanics task-vendor-pair-mechanics task-leaf-never-names-a-harness driving-the-review-chain driving-review-chain-habits skill-cut-the-next-step" -->
-## Composing the kinds — the two shapes
+<!-- unit: task-the-doubt-budget-table class=procedural -->
+## In-session doubt, by kind
 
-The kinds compose into two habitual shapes. A session cutting leaves should
-reach for them **by default**, and argue itself *out* of one rather than into
-it:
+The allowance is budgeted across the **whole picked leaf**, once the current
+session has run Bootstrap and adopted the driver's selected-leaf mandate:
 
-- **The review chain** — `X` → `review-X` → `integrate-review-X`. Sequential and
-  adversarial; each step is a *different* kind, so each resolves its own
-  configured command and per-kind configuration alone expresses the shape. Decide
-  for it when the artifact is load-bearing (a spec, a decomposition you will
-  build on for months, a subsystem); a one-file change wants a mid-session
-  subagent instead (`driving.md`).
-- **The vendor pair** — `research-a` → `research-b` → `combine-research`. Two
-  independent surveys unioned. The producers are **two distinct kinds** sharing
-  one discipline, which is how the tree states "two configured targets" without
-  any per-leaf routing metadata.
+| picked session | in-session reviewer allowance | next substantial review |
+|---|---|---|
+| plain producer | at most one; every independently materialised reviewer counts | `leaf-add` a `review-<producer>` leaf, with the doubt written into its body |
+| producer whose review leaf already exists | none; `review-*` is already scheduled | finish to the scheduled review boundary |
+| `review-*` | none; this session is the adversarial read | record findings for integration |
+| `integrate-review-*` | at most one narrow reviewer | add a new producer review chain beside the leaf being integrated |
+| `research-a` / `research-b` / `combine-research` | none; the pair and combiner own breadth and doubt | put a derived decision in its own reviewed producer chain |
 
-**They are built in opposite ways**, and the asymmetry is the design. A chain's
-steps are cut **lazily, one at a time, by the session that needs the next one**;
-a pair is cut **eagerly, whole, in one call**.
+Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
+standalone bounded cycles. The allowance is leaf-wide, not per artifact or
+decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
 
 <!-- unit: task-review-chain-mechanics class=procedural -->
+## Composing the kinds — the two shapes
+
 ### The review chain — each session cuts the next step
 
 Its steps are ordinary **flat siblings**. There is no chain node and no chain
@@ -200,22 +170,6 @@ Three things follow from cutting them late:
   after the review whose subtree still holds live work** whenever there is one.
   *What the shapes are not*, below, carries the reason and the exact condition.
 
-<!-- unit: task-declare-the-relationship kinds=* class=triggering -->
-**Declare the relationship in the body, by hand.** A review's body carries
-`**Reviews:** <producer-handle>` and an integration's carries `**Integrates:**
-<review-handle>`, on their own line, naming the stable handle:
-
-```markdown
-# sync-design-k14
-
-**Reviews:** sync-design-k13
-```
-
-Nothing writes those lines and **nothing parses them**. They are a convention for
-the human reading `find .grove` and for the session that picks the step up —
-constraint 3, task files are freeform markdown and nothing validates them. Write
-them because the next session benefits, not because a verb requires it.
-
 <!-- unit: task-vendor-pair-mechanics class=procedural -->
 ### The vendor pair — one eager call
 
@@ -238,15 +192,15 @@ because they are fixed, the three slugs need carry nothing at all beyond the
 stem. The two producers are peers, and `research-a` / `research-b` already say
 so in the field that routes them.
 
-<!-- unit: task-what-shapes-are-not kinds=* class=triggering defers="task-bare-stem-reasoning task-chain-contiguity" -->
+<!-- unit: task-bare-stem-reasoning class=procedural -->
 ### What the shapes are not
 
 Those names are long, and that is the trade the scheme makes: the **kind** and the
 **process** both show up in `find .grove`, so a session's discipline and a chain's
 shape are readable without opening anything. Three things that shape looks like
-it could be and is not:
+it could be and is not — *neither shape gets a node directory* is stated on the
+skill page, and these are the other two:
 
-<!-- unit: task-bare-stem-reasoning class=procedural -->
 - **The slug is the bare stem, and it does not restate the kind.** The kind field
   is the canonical statement of a leaf's role; the slug names the **artifact**.
   So a chain's three steps carry one slug and differ by kind and key, and so do a
@@ -296,23 +250,15 @@ it could be and is not:
   unvalidated restatement one layer along.
 
   **Both spellings stay legal and no existing tree is invalidated.** A suffix was
-  convention, never grammar (see *The grammar is the five fields* below), so
-  nothing was migrated and no leaf was renamed. An older `…-review-k14` you meet
-  in a live tree is a well-formed leaf; leave it alone.
+  convention, never grammar (see *The name, field by field* above), so nothing was
+  migrated and no leaf was renamed. An older `…-review-k14` you meet in a live
+  tree is a well-formed leaf; leave it alone.
 
   A *prefix* (`review-sync-design`) is no better and is not the alternative on the
   table. The argument once made for the terminal position — that it keeps
   stem-mates together in a directory listing — was in any case false: a leaf name
   begins with `NN`, so a listing sorts by position and never by slug, and both
   spellings glob identically under `*<stem>*`.
-<!-- unit: task-no-node-for-a-shape kinds=* class=triggering -->
-- **Neither shape gets a node directory.** A charter means *this work proved
-  bigger than one session*, and its `BRIEF.md` is the context those extra
-  sessions need. A composed shape is neither — no extra sessions, and no context
-  to charter — so the hierarchy the node bought was not worth the navigation
-  cost. A shape's steps sit as flat siblings among their neighbours, there is
-  **one node species** again — a node is a leaf that decomposed, and it carries a
-  `BRIEF.md` — and Retire's close has the same work to do at every node it meets.
 <!-- unit: task-chain-contiguity class=procedural -->
 - **A chain is not a unit, and is not contiguous by construction.** `pick`
   returns the first live leaf in the whole tree and nothing groups leaves for it
@@ -340,28 +286,6 @@ it could be and is not:
   before it visits any later sibling of an ancestor. There is no exception to
   check — the intervening leaf has not run yet and grove makes no leaf's eventual
   file set part of its contract, so nothing could supply the proof.
-
-<!-- unit: task-grammar-is-five-fields kinds=* class=triggering -->
-**A leaf name is five fields and nothing more.** Position, outcome
-infix, kind, slug and key are all parsed and all structural — the position orders
-the walk, the infix keeps a terminal leaf out of `pick`, the kind keys the
-configuration lookup, and slug-plus-key is the handle `resolve` finds and the
-counter the next `-k<key>` is allocated from. What is **convention, not grammar**
-is everything a name might *imply about another leaf*: the shared stem, the
-relative ordering, and the two declaration lines. Grove does not require a
-`review-X` after every `X`, reject a partial chain, or parse a `**Reviews:**`
-line. It never reconstructs a relationship from a filename, a position, or a
-body. That is also the test the deleted step suffix failed and the stem passes: a
-convention that *adds* what nothing parses is legible, while one that *duplicates*
-a parsed field can disagree with it.
-
-<!-- unit: task-nothing-in-a-body-is-metadata kinds=* class=triggering -->
-**Nothing in a body is metadata**, and no verb writes anything there. Retirement
-and pruning change a filename and stop; a node close writes nothing at all. So a
-`review-*` session has exactly one thing to read — its producer's committed
-artifact — and never a note the producer left behind about how its own session
-ran. `leaf-add` still means one leaf, and deciding against review is a normal
-choice.
 
 <!-- unit: task-suggested-shape class=procedural -->
 ## Suggested shape
@@ -392,6 +316,15 @@ the same stable handle you cite in commit messages (task-tree-scheme §5). When 
 is decomposed into a node, the handle gains a ` — brief` suffix
 (`# <slug>-k<key> — brief`) and nothing else changes.
 
+A review or an integration adds the one line that declares what it composes with,
+written by hand and parsed by nothing:
+
+```markdown
+# sync-design-k14
+
+**Reviews:** sync-design-k13
+```
+
 **The body carries no launch metadata at all** — no kind, no harness, no model,
 and no record of how any past session ran. A generated leaf is the header plus
 those four empty sections, and the only `**…:**` lines any leaf ever carries are
@@ -419,17 +352,3 @@ the tree states *two independently configured sessions* as a fact, and whether
 their two templates actually reach two different vendors is the configuration
 owner's policy, which grove can neither infer from an opaque command string nor
 warn about.
-
-<!-- unit: task-three-design-kinds kinds=* class=triggering -->
-## The three design kinds — extra guidance
-
-The work today's `planning` label used to cover is split across three kinds, and
-each carries part of the old checklist:
-
-<!-- unit: task-deliverable-split-not-a-gate kinds=* class=triggering -->
-The split is a division of *deliverable*, not a gate: a small workstream may
-resolve all three in one leaf, and any of the three may sharpen the glossary
-inline. What does not blur is tree growth — only `planning` may grow the tree
-generatively. *Reactive* decomposition (a leaf proving bigger than its brief) is
-kind-agnostic and available to every kind.
-

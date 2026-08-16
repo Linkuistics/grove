@@ -122,8 +122,8 @@ not on the list:
 |---|---|---|
 | load the skill; read this kind's reference file | **yes** | the skill cannot deliver it |
 | where the skill was provisioned | **yes** | the skill cannot know where it landed |
-| the selected leaf's handle, and that it is authoritative | **yes** | resolved before the session existed |
-| the version control, and do not probe for it | **yes** | resolved before the session existed |
+| the selected leaf's handle | **yes** | a value resolved before the session existed |
+| the working tree's version control | **yes** | a value resolved before the session existed |
 | run the completion verb as the last action | **yes** | the skill spoke first; this falls due last |
 | externalize surfaced work rather than absorbing it | no | the situation arises mid-session, with the skill open |
 | retire before commit | no | same |
@@ -132,12 +132,36 @@ not on the list:
 | a session never discovers a grove is finished | no | see below — mechanism guards this one, not prose |
 | the seven constraints | no | read at the start, applied throughout |
 | the in-session doubt budget | no | arises mid-session |
-| do not pick again | **as a fact, not a rule** | the driver states *this selection is authoritative*; why a second walk may disagree stays in the skill |
+| do not pick again | no | a static rule; only the handle it applies to varies per launch |
+| the selected pick is authoritative | no | a static rule *about* a fact; the skill already states it |
+| do not probe for the version control | no | same shape — the skill states it, and must |
 
-The last row is the shape the rule most often produces at its boundary, and it
-is worth naming: where a rule and a fact overlap, the **fact** rides the core and
-the **rule** stays in the skill. A fact has no counterpart in `content/` to drift
-from.
+The last three rows are the shape the rule most often produces at its boundary,
+and getting them wrong is how the core grows. **The test is closed on the word
+"fact":**
+
+> A driver fact is a **launch-varying value** that `content/` cannot know at
+> build time. Its static meaning, and every normative consequence of it, stay in
+> the skill.
+
+Without that clause "fact" is unbounded, because almost any rule can be restated
+declaratively — *the pick is authoritative*, *the stated VCS is definitive* — and
+smuggled in as though it were a value. A value has no counterpart in `content/`
+to drift from; a restated rule has exactly the counterpart the drift claim
+denies. `content/` states today that the driver makes an authoritative pick and
+that a second walk must not override the mandate
+(`content/SKILL.md`, `skill-pick` and `skill-do-not-pick-again`), so a core
+saying *and it is authoritative* would have been a second source for prose that
+already exists.
+
+**One obligation falls out of the closure and belongs to the rewrite.** Today's
+runtime-facts prose carries *do not probe for it* on the version-control line.
+Under the closed test that clause leaves the core, so `content/` must state it —
+the driver's stated version control is definitive and is not re-derived, and a
+harness banner disagreeing with it does not win. The requirements below carry
+that as a scenario. This is the closure's one real
+cost: a rule the core used to carry moves to the skill and depends on the skill
+being read, like every other rule.
 
 ### Several conditions are guarded by mechanism, not by prose
 
@@ -174,9 +198,12 @@ disagree**. Disagreement needs two sources. This design has one.
   and have no counterpart in `content/` to drift from: a skill cannot tell you to
   read it, and cannot know which directories a particular driver wrote.
 - The **runtime facts** are driver prose for the reason they always were — the
-  handle and the [[Stated VCS]] are resolved before the session exists and are not
-  expressible in `content/`. This rule is carried forward unchanged from the
-  superseded design; it was never contingent on slicing.
+  handle and the [[Stated VCS]] are *values* resolved before the session exists
+  and are not expressible in `content/`. This rule is carried forward unchanged
+  from the superseded design; it was never contingent on slicing. What is new is
+  the closure above: the values ride the core and their normative consequences do
+  not, which is what makes "no counterpart in `content/`" true rather than
+  merely asserted.
 - The **session-ending instruction** is the one genuine duplicate, and it is not
   duplicated: the driver inlines the embedded corpus's own signal file
   **verbatim**, from the same embed that is provisioned. One source, two
@@ -309,6 +336,46 @@ time. It states conditions and no procedure, because a description or an opening
 that summarises the *workflow* becomes a shortcut the session takes instead of
 reading the body.
 
+**The wording is micro-tested before the rewrite ships.** Everything above is a
+*design* for wording, and wording is the one thing in this spec that no amount of
+reading settles. The house authoring rule is explicit that behaviour-shaping
+wording is micro-tested against a control with at least five fresh-context
+repetitions (`plugins/linkuistics/skills/authoring-conventions/SKILL.md`, *Test
+the wording, cheaply*), and this section is the design's only answer to the first
+measured failure. Leaving it to the human-watched run would make that run the
+first experiment capable of falsifying the central claim — after the whole
+corpus rewrite and the machinery deletion have landed, in a setting that
+confounds wording with everything else that changed.
+
+Two arms, five fresh-context repetitions each, run once as design validation:
+
+- **Control** — the pre-mandate launcher shape: ~1.1 kB whose single relevant
+  clause is *use the grove skill*. This is the arm the field failure was measured
+  on, so it is the control the house rule asks for rather than a synthetic one.
+- **Variant** — the designed core: the imperative naming both targets, the
+  ordering clause with its enumeration, the absolute provisioned paths, the
+  rationalization table, and *this prompt is not a summary*.
+
+Both arms run against a short stand-in `SKILL.md` and reference file — the real
+corpus is not needed to test whether a session opens one — and against the
+configured model and harness targets this workstream's own
+`~/.config/grove/config.kdl` launches, named in the result, because a wording
+result does not transfer across targets. The observable is the same one the
+design already relies on: did the session open the skill and name its reference
+file before acting.
+
+**Two outcomes are useful, and one of them cuts this section down.** If the
+variant does not beat the control, the wording is not the fix and the design's
+answer to the first failure is missing — that is a stop, not a tweak. If the
+*control* does not exhibit the failure on these targets, the house rule's own
+stop clause applies: there is nothing to shape, and the prohibition and
+rationalization apparatus is unwarranted apparatus that should be cut rather than
+defended. The experiment is cheap enough that either finding is worth more than
+the argument it replaces.
+
+This is design validation, not a gate: it runs once, its result is recorded with
+the record this design reworks, and nothing in the suite or the build re-runs it.
+
 **The observable, and its honest limit.** The core instructs the session to state,
 in its first message, that it has read the skill and to name the reference file it
 read. That line is the design's only observable, and it exists because **Grove
@@ -328,9 +395,15 @@ exposes which skills a session loaded.
 
 ### The skill's layout is recovered, not invented
 
-**The per-kind reference files are exactly the existing narrowed marker scopes,
-one file per distinct scope.** That is a derivation rather than a judgement, and
-it is what makes the split mechanical for the rewrite increments:
+**The per-kind reference files are recovered from the existing narrowed marker
+scopes, one file per distinct scope — after the ending unit is removed into the
+guaranteed core.** The order of those two steps is the derivation, and stating it
+loosely would misdirect a mechanical rewrite: the corpus carries **eleven**
+distinct narrowed scopes, not ten, because `skill-signal` is narrowed to the
+eighteen non-`finish` kinds (`content/SIGNAL.md:2`). That scope is not a family;
+it is the session-ending text, which the too-late test moves to `${prompt}` and
+which is inlined byte-exact from its own file. Remove it first, and the remaining
+ten distinct scopes are exactly the per-kind reference files:
 
 | reference file | the kinds it serves |
 |---|---|
@@ -347,7 +420,9 @@ it is what makes the split mechanical for the rewrite increments:
 
 Ten files for nineteen kinds, because `content/` already treats each family as
 one unit — the five `review-*` kinds share one marker today, as do the five
-`integrate-review-*` and the two research producers.
+`integrate-review-*` and the two research producers. The thin `design` file is
+kept rather than folded: the driver selects a kind's file directly, so a
+one-kind file costs a path and buys the mapping its exhaustiveness.
 
 **The kind→file map is an exhaustive `match` over the kind enum, in the driver.**
 This is routing, and routing by kind is what the driver already owns: it reads the
@@ -492,9 +567,10 @@ surface.
 ignores the pointer gets nothing, where a session that ignored a slice at least
 had the bytes in front of it. That is a worse failure per occurrence, and the
 whole of what pays for it is trigger strength — which is why that is a
-load-bearing section of this spec with its own review, and why the design accepts
-the same check the superseded record nominated: **the next real Grove run after
-the change lands, with a human watching**, with both limbs required. Sessions that
+load-bearing section of this spec with its own review, its own micro-test before
+anything ships, and why the design accepts the same check the superseded record
+nominated: **the next real Grove run after the change lands, with a human
+watching**, with both limbs required. Sessions that
 end and do not read the skill are a swap; sessions that read it and do not end are
 a swap. Neither alone clears this.
 
@@ -564,9 +640,17 @@ cannot detect the harness. The harness registry is what "supported" means, and
 this is the mirror of the reopen condition the superseded record carried in the
 other direction.
 
-### The cutover has one ordering constraint
+### The cutover has two ordering constraints
 
-Increment ordering is a planning concern with one exception that is a design fact:
+Increment ordering is a planning concern with two exceptions that are design
+facts.
+
+**The wording micro-test runs before the core's wording ships.** It is cheap, it
+needs no part of the rewrite, and its whole value is being able to change the
+design's answer to the first observed failure while changing the design is still
+free. Run after the rewrite lands, it is a post-mortem.
+
+The second is the one the increments must be ordered around:
 **`${prompt}` must not shrink before `SKILL.md` is short.** A core delivered
 against an unrewritten corpus hands the session a ~50 KiB `SKILL.md` in one gulp,
 which reproduces the wall at first invocation; and a rewritten corpus delivered
@@ -627,13 +711,42 @@ corpus, by a total mapping over the closed kind set.
 files, and SHALL state no procedure. Its body SHALL stay within the house
 progressive-disclosure ceiling.
 
+**Two of those limbs are mechanical and one is not, and the split is stated so
+the suite is not read as establishing more than it does.** Line budgets are
+mechanical. *Procedure* has no classifier once the unit markers are deleted —
+that classification was the markers' whole job — so the no-procedure limb is a
+**review obligation**, discharged by a human against named evidence, not by a
+test. A corpus-budget test that passes says nothing about it.
+
 #### Scenario: body budget
 - **WHEN** the embedded `SKILL.md` is measured
 - **THEN** its body is at or under 500 lines
 
-#### Scenario: the loop fits a page
-- **WHEN** the loop narrative is measured
-- **THEN** it fits on one page — constraint 7, checkable
+#### Scenario: the loop section fits a page
+- **WHEN** the loop section is measured — the lines from its heading to the next
+  heading of the same level, blank lines included
+- **THEN** it is at or under 100 lines
+
+This is constraint 7 made checkable, and the measure is deliberate rather than
+implied: "a page" is otherwise unmeasurable, and a number that no reader can
+recompute is a SHALL with no verification boundary. 100 lines is the alarm on a
+narrative the rewrite estimates at ~80, chosen the way the 4 KiB alarm was — as
+the point where growth has become visible, not as a budget the prose is fitted
+to.
+
+#### Scenario: no procedure in `SKILL.md`
+- **WHEN** the rewritten `SKILL.md` is reviewed
+- **THEN** a reviewer confirms, per section, that each states a condition and
+  routes to a reference file, and that no section states steps a session
+  performs — the evidence being the section itself against the reference file it
+  routes to, which is where the corresponding procedure must be found
+- **AND** this is recorded as a review finding, not a test result
+
+#### Scenario: the skill carries the rules the core sheds
+- **WHEN** the rewritten corpus is reviewed against the closed fact test
+- **THEN** it states that the driver's pick is authoritative and must not be
+  re-walked, and that the driver's stated version control is definitive and is
+  not re-derived from the working tree or from a harness banner
 
 #### Scenario: a session that arrives without a mandate
 - **WHEN** the skill is opened by a session Grove did not launch
@@ -657,15 +770,29 @@ and SHALL launch anyway.
 
 ## Test seams
 
-**One module seam, `prompt`**, exposing composition over `(kind, handle, stated
-VCS, provisioned locations)` and the kind→reference-file mapping. It **replaces**
-the `methodology` seam one for one rather than adding a row to the architecture's
-module-seam table: that seam's parse and compose functions go with the machinery,
-and what is left of `methodology` is the embed handle and the identity hash the
-provisioning stamp already uses.
+**`prompt` is a new seam and `methodology` narrows; it is not a one-for-one
+replacement.** The architecture's module-seam table gains a row and rewrites
+one — the shape is stated here because leaving it undecided would hand planning
+an ownership question dressed as bookkeeping.
 
-Every interesting check runs through that seam against the real embed. The
-driver's launch path is a thin wrapper covered by the existing loop-driver seam.
+- **`prompt`** (new) exposes composition over `(kind, handle, stated VCS,
+  provisioned locations)` and the kind→reference-file mapping.
+- **`methodology`** (narrowed) keeps the embed handle and the methodology
+  identity, and loses the two readers, the unit model and `compose`. Both
+  survivors are live: `provision` consumes the whole embed (`src/methodology.rs`,
+  `embed()`), and the identity feeds the per-launch pairing report and the
+  per-verb stamp check (`src/methodology.rs`, `identity()`; `src/provision.rs`,
+  `reverify_installed`). Its table row is rewritten to *the embed itself and the
+  build's methodology identity* — nothing about units, composition or readers.
+
+`prompt` **depends on** `methodology` rather than absorbing it: composition reads
+the embed to inline the ending file and to assert its mapped paths exist. Moving
+embed ownership into `prompt` would put provisioning's supplier behind a
+prompt-composition seam, which is the inversion the narrowing avoids.
+
+Every interesting check runs through the `prompt` seam against the real embed.
+The driver's launch path is a thin wrapper covered by the existing loop-driver
+seam.
 
 The checks it carries:
 
@@ -687,8 +814,11 @@ The checks it carries:
   the precedent is the existing kind-guidance suite, which already generates its
   claims this way.
 - **The size alarm**, per kind, at 4 KiB, counting the composed prompt.
-- **Corpus budgets**: `SKILL.md`'s body length, and a reference file over ~300
-  lines carrying a table of contents.
+- **Corpus budgets**: `SKILL.md`'s body length, the loop section's length under
+  the heading-to-heading measure above, and a reference file over ~300 lines
+  carrying a table of contents. These are line counts and establish nothing
+  semantic — the no-procedure limb is a review obligation with its own scenario,
+  and no budget test may be cited as evidence for it.
 - **The instructed-verb scan and the flat-verb-surface pin**, kept — they are
   claims about the embed, they survive the machinery they currently sit beside,
   and they matter more once the skill is the only thing naming verbs to a session.
@@ -714,9 +844,15 @@ says it by name.
   deliberately does not cover; settling it is its own decision about the
   confirmation boundary, not part of a delivery design.
 - **Behavioural evaluation as a gate.** Unchanged from the design this replaces:
-  expensive, non-deterministic, it measures a model rather than Grove's artifact,
-  and it localizes nothing when red. What is *not* out of scope, and is now
-  required rather than merely nominated, is the human-watched run with both limbs.
+  a standing eval in the suite or the build is expensive, non-deterministic, it
+  measures a model rather than Grove's artifact, and it localizes nothing when
+  red. Two things are *not* out of scope, and the distinction is between a gate
+  and an experiment. The **wording micro-test** is required before the rewrite
+  ships — two arms, five reps, run once, recorded, re-run by nothing. The
+  **human-watched run with both limbs** is required as the end-to-end acceptance
+  check. Neither becomes a gate; a gate is what a contributor's build or a `cargo
+  test` run has to satisfy, and these are experiments whose results are read by a
+  human once.
 - **Harness-specific loading mechanisms** — a hook, an MCP server, an injected
   system prompt. Grove executes the configured command directly and adds no
   hidden harness-specific argv, and a per-harness delivery path would be launch

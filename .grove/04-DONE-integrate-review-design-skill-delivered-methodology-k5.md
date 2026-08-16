@@ -112,3 +112,41 @@ Keep the thin `design` reference; direct kind selection justifies the small file
 - The resulting spec is ready for `skill-delivered-methodology-k4` to decompose.
 
 ## Notes
+
+All five findings verified against their cited sources before being applied —
+none were noise, and none were a contract stated unclearly. What each turned into:
+
+1. **Micro-test added as design validation, not a gate.** The house rule's arms
+   are named concretely (control = the ~1.1 kB pre-mandate launcher, which is the
+   arm the field failure was actually measured on; variant = the designed core),
+   with a stand-in corpus so the test does not depend on the rewrite. The
+   `Out of scope` bullet is reconciled rather than contradicted: a *gate* is what
+   a build or `cargo test` must satisfy; these are experiments a human reads once.
+   Recorded deliberately: **either outcome is useful** — a variant that does not
+   beat the control is a stop, and a control that does not fail means the
+   prohibition/rationalization apparatus is unwarranted and should be cut.
+2. **The fact test is closed on the word "fact"** — a driver fact is a
+   launch-varying *value*; static meaning and normative consequence stay in the
+   skill. Applied consistently, this took *authoritative* off the handle row **and**
+   *do not probe for it* off the version-control row, which the review named only
+   the first half of. The cost is stated rather than hidden: two rules move to the
+   skill and now depend on the skill being read, and a new requirement scenario
+   obliges `content/` to carry them.
+3. **`methodology` narrows; `prompt` is a new seam.** Chosen over moving embed
+   ownership behind `prompt`, because `provision` consumes the embed and
+   `identity()` feeds both pairing checks — putting provisioning's supplier behind
+   a prompt-composition seam is an inversion. The architecture table gains a row
+   and rewrites one; that is now planning input rather than an open question.
+4. **The one-page claim gets a deterministic measure** (loop section,
+   heading-to-heading, ≤100 lines — an alarm above the rewrite's ~80-line
+   estimate, chosen the way the 4 KiB alarm was), and **no-procedure becomes a
+   review obligation** with a scenario naming its evidence. The test-seam bullet
+   now says explicitly that budget tests establish nothing semantic.
+5. **The derivation is stated in order** — remove the ending unit into the core
+   first, *then* recover ten scopes. The corpus really carries eleven distinct
+   narrowed scopes (`skill-signal` is narrowed to the eighteen non-`finish`
+   kinds), so the unordered claim would have misdirected a mechanical rewrite.
+
+No new concern surfaced that needed externalizing; the spec's own open items
+(trigger strength as the unsettled claim, `leaf-prune`'s HITL gap, the
+undetectable launch target) are unchanged and remain the brief's horizon notes.

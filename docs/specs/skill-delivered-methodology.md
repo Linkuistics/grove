@@ -258,9 +258,12 @@ reader's *do these agree?* because the answer is mechanically yes.
 honestly as what it is: an alarm on the too-late test, not a budget the design was
 fitted to.
 
-Measured composition, against the corpus as it stands: the session-ending prose
-is 1,131 bytes, the two runtime facts are ~360 bytes, and the load instruction is
-designed at ~1.2 KiB. That is ~2.7 KiB, so 4 KiB leaves about a third in hand.
+Measured composition, from the wording the micro-test settled: the session-ending
+prose is ~1,113 bytes, the two runtime facts are ~165 bytes now that their
+normative tails have left the core, and the load instruction is 689 bytes. That
+is ~1,969 bytes for the arm actually run, so 4 KiB leaves better than half in
+hand. The figure the design was written against was ~2.7 KiB; the alarm is
+unchanged, because it was never a budget the prose was fitted to.
 
 The number is a choice rather than a derivation, and what makes it the right kind
 of choice is that **nothing legitimate approaches it**. A core that reaches 4 KiB
@@ -307,11 +310,17 @@ plus an explicit "Use when"**, whose first trigger is the situation every
 driver-launched session is actually in: *a Grove mandate names this skill*.
 
 **(2) The launcher's wording**, which is the largest part of the core and the
-part most likely to be trimmed by a later reader. Five elements, each doing work:
+part most likely to be trimmed by a later reader. **Three elements ship, and two
+that this section previously carried do not** — the split is the micro-test's
+result rather than a judgement, and
+[`wording-micro-test`](../research/wording-micro-test.md) is the evidence.
 
 - **One imperative naming both targets.** The skill by name, and this kind's
   reference file by path — the driver resolved the kind before the session
-  existed, so the session performs no selection.
+  existed, so the session performs no selection. **This is the element the test
+  measured as load-bearing**: the control's failure was not opening the skill —
+  it did that in 9 of 10 sessions — but reaching the kind's *procedure* only
+  after it had started work, in every session of both arms.
 - **An ordering clause that enumerates the tempting alternatives** — before
   reading a task file, before running a `grove-llm` verb, before looking at
   `.grove/`, before answering a question. The enumeration is what makes an
@@ -320,13 +329,20 @@ part most likely to be trimmed by a later reader. Five elements, each doing work
   instruction actionable by plain file read, which is the one capability every
   harness has. A session whose harness offers no skill-loading affordance is
   otherwise handed an instruction it cannot follow.
-- **A short rationalization table** — thought against reality — targeting
-  *Grove's* excuses rather than generic ones: *I have driven a grove before*,
-  *this task is small*, *the task file tells me what to do*, *I will read it when
-  I hit something*, *the prompt already told me enough*.
-- **An explicit statement that the prompt is not a summary.** The failure this
-  closes is a session treating the core as an abridged methodology and working
-  from it. The core is three facts and one instruction, and says so.
+
+**A rationalization table and an explicit *this prompt is not a summary* clause
+were designed here and are cut.** An ablation arm carrying only the three
+elements above scored identically to the full wording — 10/10 against the
+control's 0/10 — so nothing measured is attributable to them, and the house
+no-op test cuts prose that does not change behaviour. The classification
+argument above is *not* what this overturns: the failure is still a discipline
+failure and prohibition remains its prescribed form. What the result establishes
+is narrower and is the honest ground for the cut — the two elements are
+**unmeasured**, the ablation could only have detected a large negative effect
+against a ceiling, and unmeasured prose does not ride the one channel a session
+cannot skip. Reinstate either if the human-watched acceptance run shows sessions
+working from the core as though it were an abridged methodology, or reaching the
+procedure late under the real corpus.
 
 **(3) How `SKILL.md` opens.** The first screen routes rather than introduces: it
 names the reference file for each kind, so a session that arrived by description
@@ -363,6 +379,12 @@ configured model and harness targets this workstream's own
 result does not transfer across targets. The observable is the same one the
 design already relies on: did the session open the skill and name its reference
 file before acting.
+
+**It has run.** [`wording-micro-test`](../research/wording-micro-test.md) carries
+the arms, targets, repetitions, counts, limitations and the winning wording. The
+variant beat the control 10/10 against 0/10 on both targets, so this design's
+answer to the first observed failure stands; a third, ablation arm cut two of the
+five designed elements, as recorded above.
 
 **Two outcomes are useful, and one of them cuts this section down.** If the
 variant does not beat the control, the wording is not the fix and the design's
@@ -848,7 +870,7 @@ says it by name.
   measures a model rather than Grove's artifact, and it localizes nothing when
   red. Two things are *not* out of scope, and the distinction is between a gate
   and an experiment. The **wording micro-test** is required before the rewrite
-  ships — two arms, five reps, run once, recorded, re-run by nothing. The
+  ships — five reps an arm, run once, recorded, re-run by nothing. The
   **human-watched run with both limbs** is required as the end-to-end acceptance
   check. Neither becomes a gate; a gate is what a contributor's build or a `cargo
   test` run has to satisfy, and these are experiments whose results are read by a

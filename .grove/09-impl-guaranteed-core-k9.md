@@ -20,8 +20,12 @@ timeline:
 
 1. **The load instruction** — first, because it is the first action. Names the skill
    by name and this kind's reference file by path, with the provisioned directories
-   by absolute path. Wording comes from `wording-micro-test-k6` **verbatim** — five
-   elements the spec enumerates, and the largest part of the core.
+   by absolute path. Wording comes from `wording-micro-test-k6` **verbatim** —
+   `docs/research/wording-micro-test.md`, *The winning wording*. **Three elements,
+   not the five this leaf was cut against**: the micro-test's ablation arm scored
+   identically to the full wording, so the rationalization table and the *not a
+   summary* clause are cut, with a reopen condition recorded against
+   `delivery-acceptance-k11`.
 2. **The runtime facts** — the selected handle and the stated version control.
 3. **The session ending** — last, because it is the last action.
 
@@ -88,15 +92,15 @@ Through the `prompt` seam, against the **real embed**:
 - **The size alarm**, per kind, at **4 KiB** on the composed prompt. It lives in the
   test suite, not the build — it measures a judgement against an admittedly
   arbitrary number, and failing a contributor's build on that is a gate this design
-  is careful not to erect. Measured composition is ~2.7 KiB (1,131 bytes of ending,
-  ~360 of runtime facts, ~1.2 KiB of load instruction), so a third is in hand and
-  **nothing legitimate approaches it**.
+  is careful not to erect. Measured composition is ~1,969 bytes (~1,113 of ending,
+  ~165 of runtime facts, 689 of load instruction), so better than half is in hand
+  and **nothing legitimate approaches it**.
 - **A control on every generated claim**: the mapping check shown failing on a kind
   whose path is removed, the size alarm on a synthetic oversized prompt. A sweep
   that cannot fail is worth nothing.
 
 **Golden per-kind prompt snapshots are dropped.** The ids-not-bytes golden existed
-because nineteen ~48 kB mandates could not be held as bytes; nineteen ~2.7 KiB
+because nineteen ~48 kB mandates could not be held as bytes; nineteen ~2 KiB
 prompts differ only in one path and one handle, so the mapping check says
 everything a golden would and says it by name.
 

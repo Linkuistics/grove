@@ -20,10 +20,17 @@ and the sweep is now a second delivery path with no consumer. The directories ar
 directory is owned by whichever build wrote it last; the loop therefore
 re-verifies each stamp before every launch and restores its own embed when
 another build has taken one ([[Build pairing]]).
-**The term is live but retiring.** It still names code, and
-`docs/adr/mandate-delivers-the-methodology.md` has settled that it goes: once the
-mandate is the sole delivery path there is no sweep, no stamp, no shared
-directory, and no `continue.md`.
+**The term is live and its retirement is cancelled.** It still names code, and
+`docs/adr/mandate-delivers-the-methodology.md` had settled that it goes — but
+that record is now superseded and awaits rework in place. Mandate delivery was
+measured against a real Grove run with a human watching, which is the check that
+record itself nominated, and it came back negative: a ~49 KiB `${prompt}` degrades
+session behaviour, most visibly as sessions that finish their work and fail to
+signal. Provisioning therefore becomes the **sole** delivery path rather than a
+consumerless second one, and the sweep, the stamp and the shared directory all
+stay. What does not come back is `continue.md` under that name: the launcher
+returns, but as a short pointer to the provisioned skill plus the facts the
+driver resolves at runtime.
 _Avoid_: naming `start.md` or `retire.md` — those launcher prompts disappeared
 with their lifecycle verbs, and `continue.md` was the last survivor. It is now
 `content/MANDATE.md`, an ordinary [[Methodology unit]] carrying framing and no

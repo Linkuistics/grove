@@ -70,17 +70,13 @@ all = { level = "deny", priority = -1 }
 # exists to prevent. Permanent suppressions (portability, say) stay `#[allow]`.
 unfulfilled_lint_expectations = "deny"
 
-[build-dependencies]
-# `build.rs` gates `content/` on the unit-marker grammar by `#[path]`-including
-# the crate's own parser and the `Kind` set it validates `kinds=` against, so the
-# build-time reader and the runtime reader are one implementation. `src/leaf.rs`
-# is what brings `anyhow` in; nothing in the build script itself uses it.
-#
-# The script no longer hashes `content/`: `grove-llm` links the embed now, so
-# both binaries compute the methodology identity from it directly and the
-# build-script traversal (and the equality test that kept two traversals in
-# step) are gone.
-anyhow = "1.0"
+# No `[build-dependencies]`. `build.rs` is a `std`-only `rerun-if-changed` walk
+# over `content/`: it emits one hint per file so an edit reaches the embed, and
+# does nothing else. It used to `#[path]`-include the crate's own unit-marker
+# parser (and, through `src/leaf.rs`, `anyhow`) to gate the embed on that
+# grammar; the markers are gone, and what the gate bought is asserted over the
+# embed in `tests/methodology.rs`. It does not hash `content/` either — both
+# binaries link the embed and compute the methodology identity from it directly.
 
 [dependencies]
 anyhow = "1.0"

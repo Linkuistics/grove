@@ -61,6 +61,59 @@ Name the methodology test instead.
   member.
 - The affected test, build, lint, and format checks pass after integration.
 
+## Triage
+
+All three findings **verified and fixed**; none rejected. Each of the two high
+findings was the same species — a check whose predicate is weaker than its own
+docstring, and weaker in the direction it exists to catch — so each fix is the
+widened predicate plus a control that drives it past the line.
+
+1. **Confirmed, fixed.** `.map(|(path, _)| path)` really did discard the bytes.
+   The comparison now runs over `BTreeMap<path, contents>` on both sides, still
+   gathered by two independent traversals (`fs::read_dir` against
+   `include_dir`'s). Disagreements are reported per path by a `disagreements`
+   helper rather than by `assert_eq!` on the maps, because an equality failure
+   over a tens-of-KiB corpus would print all of it twice to say one file moved.
+   Three controls: a same-path content mismatch (the case a path set could not
+   state), and the two path-shaped cases the old equality did catch, kept.
+2. **Confirmed, fixed.** The exhaustive `match` forces a new variant into *some*
+   arm and nothing forces it into the right one; a hand-written membership list
+   never sees it. Membership is now derived by `routing_group`, reading each
+   kind's **own label** (`integrate-review-` before `review-`, since every
+   integration label contains a review one; `combine-research` deliberately its
+   own group). Two claims over the derived grouping — every group names one file,
+   and no two groups name the same — which together state a bijection between the
+   ten routing groups and the ten files. The control misfiles a synthetic
+   `review-security` to `references/impl.md`: it resolves, it keeps the distinct
+   count at ten, and the family check now names it.
+3. **Confirmed, fixed.** `docs/ARCHITECTURE.md` now names `tests/methodology.rs`.
+   `tests/provision.rs` still exists and its other three references are correct,
+   so only the agent-grammar sentence moved.
+
+**Records reworked in place, because the deletion left them stating what no
+longer holds** (they are current-state sets, so nothing is appended):
+
+- `docs/specs/skill-delivered-methodology.md` claimed the family hazard was
+  closed by "an exhaustive match plus a test that every path exists" — which is
+  exactly the pair finding 2 shows does not close it. The paragraph now says what
+  does, and the family scenario is restated non-enumeratively with the misfile
+  case beside it.
+- `docs/ARCHITECTURE.md` now says the embed comparison is on contents, since a
+  missed edit moves no filename.
+
+**One residue found while reading, outside the findings and fixed with them.**
+`Cargo.toml`'s `[build-dependencies]` still described `build.rs` as
+`#[path]`-including the unit-marker parser and the `Kind` set — machinery
+`mandate-machinery-k10` deleted. `build.rs` is now `std`-only, so the `anyhow`
+build-dependency was dead along with the comment justifying it; both are gone.
+`cargo check --locked --all-targets` passes, so `Cargo.lock` is untouched
+(`anyhow` remains an ordinary dependency).
+
+**Verification.** Full `cargo test` green — every one of the suite's 41 result
+lines `ok`, no failures —
+`cargo clippy --all-targets` clean at the manifest's deny-all baseline,
+`cargo fmt --all` applied, `cargo check --locked --all-targets` passes.
+
 ## Notes
 
 The instructed-verb scan still reads every embedded Markdown file, pins all

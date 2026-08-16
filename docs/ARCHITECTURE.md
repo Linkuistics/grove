@@ -127,7 +127,7 @@ file its condition names.
 identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
 verb on purpose: the driver reads it to report on the pair, no session ever
 calls it, and the embedded methodology instructs nothing about it — so it stays
-out of the agent grammar the provisioning test scans. A binary old enough not to
+out of the agent grammar `tests/methodology.rs` scans. A binary old enough not to
 answer it is unidentifiable rather than mismatched, and is reported the same way.
 
 `src/main.rs` and `src/bin/grove-llm.rs` are thin entry points. `src/cli.rs`
@@ -702,7 +702,10 @@ covered.
 tracking `include_dir!` does not register with Cargo. That walk is load-bearing
 on its own — without it, editing a content file leaves a stale embed baked into
 the binary and nothing complains — so `tests/methodology.rs` compares the linked
-embed against the directory to catch it going wrong.
+embed against the directory to catch it going wrong. That comparison is on
+**contents**, not on paths: the failure it exists to catch is a missed *edit*,
+which moves no filename, so comparing path sets would report success on precisely
+that case.
 
 **What the deleted gate bought, and what pays for it now.** The gate refused to
 embed a corpus whose unit markers did not fully partition every file, whose ids

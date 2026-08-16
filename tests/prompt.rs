@@ -14,12 +14,13 @@
 //! the same discipline the ending guard this replaces followed.
 //!
 //! **Every generated claim carries a control.** A sweep that cannot fail is
-//! worth nothing, so the mapping check is shown failing on a removed path and
-//! the size alarm on a synthetic oversized prompt.
+//! worth nothing, so the mapping check is shown failing on a removed path, the
+//! family check on a future family member filed under another family's
+//! discipline, and the size alarm on a synthetic oversized prompt.
 
 use grove::leaf::Kind;
 use grove::prompt;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 /// The alarm on the too-late test, per kind — **not a budget the design was
@@ -423,53 +424,126 @@ fn the_mapping_claim_fails_on_a_path_the_embed_does_not_carry() {
 /// **Ten files serve the nineteen kinds, and each family agrees with itself.**
 ///
 /// The five `review-*` kinds name one file, as do the five `integrate-review-*`
-/// and the two research producers. Asserted as the family's *set* being a
-/// singleton rather than by naming the expected path, so this cannot pass by
-/// agreeing with the map it is checking.
+/// and the two research producers.
+///
+/// **Membership is derived from the taxonomy, never enumerated**, and that is
+/// what makes this a check rather than a restatement. The exhaustive `match` at
+/// `src/prompt.rs` forces a twentieth kind into *some* arm, but nothing in the
+/// compiler forces it into the arm its label implies — a future
+/// `review-security` mapped to `references/impl.md` still yields ten distinct
+/// paths, and a hand-written membership list simply never sees it, so review
+/// sessions receive implementation discipline with the suite green. That was the
+/// live taxonomy claim the deleted mandate-era family-scope guard used to hold,
+/// and it is held here instead: [`routing_group`] reads each kind's own label,
+/// so a new variant joins its family the moment it is named.
+///
+/// Two claims, both over the derived grouping: every group names exactly one
+/// file, and no two groups name the same one. Together those say the map is a
+/// bijection between the ten routing groups and the ten reference files — which
+/// is the routing table `SKILL.md` prints, stated independently of it.
 #[test]
 fn a_familys_kinds_share_one_reference_file() {
-    let families: [(&str, &[Kind]); 3] = [
-        (
-            "review-*",
-            &[
-                Kind::ReviewRequirements,
-                Kind::ReviewDesign,
-                Kind::ReviewPlanning,
-                Kind::ReviewPrototype,
-                Kind::ReviewImpl,
-            ],
-        ),
-        (
-            "integrate-review-*",
-            &[
-                Kind::IntegrateReviewRequirements,
-                Kind::IntegrateReviewDesign,
-                Kind::IntegrateReviewPlanning,
-                Kind::IntegrateReviewPrototype,
-                Kind::IntegrateReviewImpl,
-            ],
-        ),
-        ("research", &[Kind::ResearchA, Kind::ResearchB]),
-    ];
-    for (family, kinds) in families {
-        let paths: BTreeSet<&str> = kinds.iter().map(|k| prompt::reference_file(*k)).collect();
-        assert_eq!(
-            paths.len(),
-            1,
-            "the {family} kinds must share one reference file; they name {paths:?}"
-        );
-    }
+    let grouped = group_by_routing_group(&live_mapping());
 
-    let distinct: BTreeSet<&str> = Kind::ALL
-        .iter()
-        .map(|k| prompt::reference_file(*k))
-        .collect();
     assert_eq!(
-        distinct.len(),
-        10,
-        "ten files serve the nineteen kinds, matching the routing table `SKILL.md` \
-         prints for a session that arrived without a mandate; the map names {distinct:?}"
+        split_groups(&grouped),
+        Vec::<String>::new(),
+        "a routing group's kinds must all name one reference file — a kind \
+         routed away from its family receives another family's discipline"
     );
+    assert_eq!(
+        grouped.len(),
+        10,
+        "ten routing groups serve the nineteen kinds, matching the table \
+         `SKILL.md` prints for a session that arrived without a mandate; the \
+         taxonomy yields {:?}",
+        grouped.keys().collect::<Vec<_>>()
+    );
+    let files: BTreeSet<&str> = grouped.values().flatten().copied().collect();
+    assert_eq!(
+        files.len(),
+        grouped.len(),
+        "two routing groups share a reference file, so one family is reading \
+         another's discipline: {grouped:?}"
+    );
+}
+
+/// **The control on the family claim.** The sweep above passes over a taxonomy
+/// whose every member is filed correctly; this drives the same predicate over
+/// one that is not, so a green sweep means the families hold rather than that
+/// the check is inert.
+///
+/// The misfiling is the exact shape the review named: a future review kind
+/// mapped to implementation discipline. It is applied to the *label* set, which
+/// is why the check had to be derived — no `Kind` variant needs inventing to
+/// show the guard working, and the guard would see the real variant the same way.
+#[test]
+fn the_family_check_rejects_a_misfiled_future_family_member() {
+    let mut misfiled = live_mapping();
+    misfiled.push(("review-security", "references/impl.md"));
+
+    let complaints = split_groups(&group_by_routing_group(&misfiled));
+    assert_eq!(
+        complaints.len(),
+        1,
+        "a future `review-*` kind routed to implementation discipline must be \
+         reported, once, against its own family: {complaints:?}"
+    );
+    assert!(
+        complaints[0].starts_with("review:"),
+        "the complaint must name the family the misfiled kind belongs to: {complaints:?}"
+    );
+}
+
+/// Every kind's label paired with the reference file the driver maps it to.
+fn live_mapping() -> Vec<(&'static str, &'static str)> {
+    Kind::ALL
+        .iter()
+        .map(|kind| (kind.label(), prompt::reference_file(*kind)))
+        .collect()
+}
+
+/// The routing group a kind's **own label** puts it in: its family for the three
+/// family-shaped kinds, otherwise itself.
+///
+/// Read off the closed taxonomy's naming rule (`content/references/*`, and
+/// `TASK-FORMAT`'s nineteen kinds) rather than off the map being checked, so the
+/// two cannot agree by construction. `integrate-review-` is tested before
+/// `review-`, since every integration label contains the review one; and
+/// `combine-research` is deliberately its own group — it takes the `research-`
+/// producers' output but not their discipline or their file.
+fn routing_group(label: &str) -> &str {
+    for prefix in ["integrate-review-", "review-", "research-"] {
+        if label.starts_with(prefix) {
+            return prefix.trim_end_matches('-');
+        }
+    }
+    label
+}
+
+/// The reference files each routing group names, gathered from a label→path
+/// mapping.
+fn group_by_routing_group<'a>(
+    mapping: &[(&'a str, &'a str)],
+) -> BTreeMap<&'a str, BTreeSet<&'a str>> {
+    let mut grouped: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for (label, path) in mapping {
+        grouped
+            .entry(routing_group(label))
+            .or_default()
+            .insert(path);
+    }
+    grouped
+}
+
+/// Groups whose kinds do not agree on one file, one line each — the failure the
+/// derivation exists to see.
+fn split_groups(grouped: &BTreeMap<&str, BTreeSet<&str>>) -> Vec<String> {
+    grouped
+        .iter()
+        .filter(|(_, paths)| paths.len() != 1)
+        .map(|(group, paths)| format!("{group}: {paths:?}"))
+        .collect()
 }
 
 // -- The size alarm ----------------------------------------------------------

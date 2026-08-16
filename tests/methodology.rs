@@ -18,12 +18,12 @@
 
 use clap::CommandFactory;
 use grove::methodology;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 
-/// **The linked embed and `content/` on disk are the same tree.**
+/// **The linked embed and `content/` on disk are the same tree, byte for byte.**
 ///
 /// `include_dir!` reads `content/` at compile time and, on stable Rust, does not
 /// register those reads with Cargo's change tracker — `build.rs`'s per-file
@@ -35,29 +35,113 @@ use tempfile::TempDir;
 /// walks the directory with `fs::read_dir`; `embedded` walks `include_dir`'s
 /// linked tree. A stale embed shows up as a difference between them, which a
 /// single traversal compared against itself could never produce.
+///
+/// **The comparison is on contents, not on paths**, and the distinction is the
+/// whole check rather than a refinement of it. The regression this test names
+/// itself the sole guard against — the per-file walk missing an *edit* — changes
+/// no filename at all, so a path-set equality reports success on exactly the
+/// case it exists to catch: `cargo test` can run a stale test binary, compare
+/// the same ten-odd paths against themselves, and pass while the binary still
+/// embeds old prose and the installed skill lags `content/`. Adds and removes
+/// are the easy half; they move the directory mtime, which even a bare
+/// `rerun-if-changed=content` would have caught.
+///
+/// Disagreements are reported per path by [`disagreements`] rather than by
+/// `assert_eq!` on the two maps, because the corpus is tens of kilobytes and an
+/// equality failure would print all of it twice to say one file moved.
 #[test]
 fn the_linked_embed_carries_every_markdown_file_on_disk() {
     let content = Path::new(env!("CARGO_MANIFEST_DIR")).join("content");
-    let mut on_disk = BTreeSet::new();
-    collect_markdown_paths(&content, &content, &mut on_disk);
+    let mut on_disk = BTreeMap::new();
+    collect_markdown_files(&content, &content, &mut on_disk);
 
-    let embedded: BTreeSet<String> = methodology::markdown_files()
+    let embedded: BTreeMap<String, String> = methodology::markdown_files()
         .expect("the real embed must be readable")
         .into_iter()
-        .map(|(path, _)| path)
+        .map(|(path, text)| (path, text.to_owned()))
         .collect();
 
     assert_eq!(
-        embedded, on_disk,
-        "the linked embed and content/ on disk disagree. A file on disk and not \
-         in the embed means `build.rs`'s change tracking missed it and the \
-         binary is carrying a stale corpus; a file in the embed and not on disk \
-         means a deletion has not been rebuilt."
+        disagreements(&embedded, &on_disk),
+        Vec::<String>::new(),
+        "the linked embed and content/ on disk disagree. Differing contents at \
+         the same path mean `build.rs`'s change tracking missed an edit and the \
+         binary is carrying a stale corpus, as does a file on disk and not in \
+         the embed; a file in the embed and not on disk means a deletion has \
+         not been rebuilt. Rebuild, and if that clears it, `build.rs`'s walk is \
+         what to look at."
     );
     assert!(
         !on_disk.is_empty(),
-        "an empty corpus would satisfy the equality above without asserting anything"
+        "an empty corpus would satisfy the comparison above without asserting anything"
     );
+
+    // The controls. A comparison that cannot fail is worth nothing, and the
+    // failure this one has to be able to state is precisely the one a path-set
+    // equality could not: same path, different bytes.
+    let (edited_path, edited_text) = embedded
+        .iter()
+        .next()
+        .map(|(path, text)| (path.clone(), format!("{text}\nan edit the walk missed\n")))
+        .expect("the real embed is not empty");
+    let stale: BTreeMap<String, String> = embedded
+        .iter()
+        .map(|(path, text)| (path.clone(), text.clone()))
+        .chain([(edited_path.clone(), edited_text)])
+        .collect();
+    let reported = disagreements(&stale, &on_disk);
+    assert_eq!(
+        reported.len(),
+        1,
+        "a single same-path content mismatch must be reported once, naming that \
+         file and nothing else: {reported:?}"
+    );
+    assert!(
+        reported[0].starts_with(&edited_path),
+        "the report must name the file whose contents moved: {reported:?}"
+    );
+
+    // ...and the two path-shaped failures the old equality did catch, kept.
+    let mut removed = embedded.clone();
+    removed.remove(&edited_path);
+    assert_eq!(disagreements(&removed, &on_disk).len(), 1);
+    assert_eq!(disagreements(&embedded, &removed).len(), 1);
+}
+
+/// Every path where the two sides disagree, one line each, saying which side it
+/// is on and what that means.
+///
+/// A path in both with differing contents is the stale-embed case; a path in
+/// only one is an add or a delete the build did not carry. Reported as text
+/// rather than as a diff: the question is *which file*, and the answer to a
+/// failure here is always to rebuild and then look at `build.rs`.
+fn disagreements(
+    embedded: &BTreeMap<String, String>,
+    on_disk: &BTreeMap<String, String>,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    for (path, text) in embedded {
+        match on_disk.get(path) {
+            Some(disk) if disk == text => {}
+            Some(disk) => out.push(format!(
+                "{path}: contents differ — the embed carries {} bytes, disk has {} \
+                 (a stale embed: the edit did not reach the binary)",
+                text.len(),
+                disk.len()
+            )),
+            None => out.push(format!(
+                "{path}: in the embed, not on disk (a deletion that has not been rebuilt)"
+            )),
+        }
+    }
+    for path in on_disk.keys() {
+        if !embedded.contains_key(path) {
+            out.push(format!(
+                "{path}: on disk, not in the embed (`build.rs`'s change tracking missed it)"
+            ));
+        }
+    }
+    out
 }
 
 /// **The routing table is the first screen, and every row it prints resolves.**
@@ -241,14 +325,19 @@ fn section_lines(text: &str, heading: &str) -> Option<usize> {
     )
 }
 
-fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
+/// Every Markdown file under `dir`, keyed by its path relative to `root` and
+/// carrying its bytes — the disk side of the embed comparison, gathered by
+/// `fs::read_dir` so that it shares no code with `include_dir`'s walk.
+fn collect_markdown_files(root: &Path, dir: &Path, out: &mut BTreeMap<String, String>) {
     for entry in fs::read_dir(dir).expect("content/ must be readable") {
         let path = entry.unwrap().path();
         if path.is_dir() {
-            collect_markdown_paths(root, &path, out);
+            collect_markdown_files(root, &path, out);
         } else if path.extension().is_some_and(|extension| extension == "md") {
             let relative = path.strip_prefix(root).unwrap();
-            out.insert(relative.to_string_lossy().into_owned());
+            let text = fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{} must be readable: {error}", path.display()));
+            out.insert(relative.to_string_lossy().into_owned(), text);
         }
     }
 }

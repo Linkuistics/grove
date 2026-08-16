@@ -459,9 +459,19 @@ one-kind file costs a path and buys the mapping its exhaustiveness.
 This is routing, and routing by kind is what the driver already owns: it reads the
 kind from the filename and resolves that kind's configured target. Naming that
 kind's reference file is the same act. The map's own hazard — a twentieth kind
-silently absorbed into a family's file — is closed the way this repository already
-closes it, by an exhaustive match that fails to compile until someone classifies
-the new variant, plus a test that every path the match yields exists in the embed.
+silently absorbed into a family's file — is closed by an exhaustive match that
+fails to compile until someone classifies the new variant, **and by a family
+check that derives membership from the kind taxonomy rather than enumerating it**.
+
+The second half is load-bearing and the first cannot stand without it. An
+exhaustive match forces a new variant into *some* arm; nothing in the compiler
+forces it into the arm its label implies, and a test that merely resolves every
+mapped path cannot tell the difference — a future `review-security` mapped to
+`references/impl.md` names a file that exists, keeps the distinct-path count at
+ten, and is invisible to a hand-written membership list. Membership is therefore
+read off each kind's own label, so a new variant joins its family the moment it
+is named, and the check states a bijection between the ten routing groups and
+the ten files.
 
 *One file per kind label, by naming convention, needing no map* was considered and
 rejected: it makes fifteen of nineteen files near-duplicates of four, and
@@ -766,8 +776,16 @@ corpus, by a total mapping over the closed kind set.
 - **THEN** the assertion fails, naming the kind and the path
 
 #### Scenario: a family's kinds share one file
-- **WHEN** `${prompt}` is composed for each of the five `review-*` kinds
-- **THEN** each names the same reference file
+- **WHEN** the mapping is grouped by the family each kind's own label puts it in
+- **THEN** every group names exactly one reference file, and no two groups name
+  the same one
+
+#### Scenario: a family member filed under another family's discipline
+- **WHEN** a kind whose label makes it a family member is mapped to a file that
+  family does not name — a later `review-*` kind pointed at `references/impl.md`,
+  say
+- **THEN** the family check fails, naming that family — even though the path
+  resolves and the distinct-path count is unchanged
 
 ### Requirement: the skill is progressively disclosed
 
@@ -885,7 +903,10 @@ The checks it carries:
   every resolved path exists in the embed, and family members agree. Generated
   rather than enumerated, so a twentieth kind fails until it is classified —
   the precedent is the existing kind-guidance suite, which already generates its
-  claims this way.
+  claims this way. **Family membership is generated too**, from each kind's own
+  label: enumerated, it would never see the new variant at all, and "the path
+  exists" cannot distinguish a family member from one filed under another
+  family's discipline.
 - **The size alarm**, per kind, at 4 KiB, counting the composed prompt.
 - **Corpus budgets**: `SKILL.md`'s body length, the loop section's length under
   the heading-to-heading measure above, and a reference file over ~300 lines

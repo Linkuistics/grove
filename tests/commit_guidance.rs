@@ -1,4 +1,9 @@
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+/// The Commit step's procedure, which the condition on the loop page defers to.
+/// The rule "one task, one focused commit" is a condition and stays in
+/// `SKILL.md`; *where the boundary falls in git and in jj* is a procedure, so it
+/// is proved against the file the condition routes to.
+const COMMIT_REFERENCE: &str = include_str!("../content/references/commit.md");
 // Deliberately not prefixed the way `GROVE_SKILL` above is. The loop control
 // channel is an environment variable whose name begins the same way and ends in
 // `_FILE`, so a test constant one token short of it reads as that variable to
@@ -110,7 +115,7 @@ fn commit_step_scopes_one_commit_to_the_whole_task() {
 
 #[test]
 fn commit_step_states_the_boundary_for_both_git_and_jj() {
-    let step = commit_step();
+    let step = normalized(COMMIT_REFERENCE);
 
     for (vcs, expected) in [
         ("git", "In **git** the working tree is not history"),
@@ -135,7 +140,7 @@ fn commit_step_states_the_boundary_for_both_git_and_jj() {
 
 #[test]
 fn commit_step_cites_the_jj_lane_rather_than_teaching_it() {
-    let step = commit_step();
+    let step = normalized(COMMIT_REFERENCE);
 
     assert!(
         step.contains("linkuistics:using-jujutsu"),

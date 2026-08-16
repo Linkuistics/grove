@@ -14,9 +14,9 @@ requirements	skill-session-name
 requirements	skill-starting-a-new-grove
 requirements	skill-pick
 requirements	skill-do-not-pick-again
+requirements	skill-stated-vcs-is-definitive
 requirements	skill-bootstrap
 requirements	skill-execute
-requirements	skill-adrs-and-specs
 requirements	skill-decompose
 requirements	skill-bare-stem-rule
 requirements	skill-chain-gap-asymmetry
@@ -28,6 +28,7 @@ requirements	skill-node-close-cascade
 requirements	skill-commit
 requirements	skill-finish
 requirements	skill-artifacts
+requirements	skill-adrs-and-specs
 requirements	skill-glossary-is-load-bearing
 requirements	skill-briefs-vs-glossary
 requirements	skill-linkuistics-prerequisite
@@ -72,9 +73,9 @@ design	skill-session-name
 design	skill-starting-a-new-grove
 design	skill-pick
 design	skill-do-not-pick-again
+design	skill-stated-vcs-is-definitive
 design	skill-bootstrap
 design	skill-execute
-design	skill-adrs-and-specs
 design	skill-decompose
 design	skill-bare-stem-rule
 design	skill-chain-gap-asymmetry
@@ -86,6 +87,7 @@ design	skill-node-close-cascade
 design	skill-commit
 design	skill-finish
 design	skill-artifacts
+design	skill-adrs-and-specs
 design	skill-glossary-is-load-bearing
 design	skill-briefs-vs-glossary
 design	skill-linkuistics-prerequisite
@@ -126,9 +128,9 @@ planning	skill-session-name
 planning	skill-starting-a-new-grove
 planning	skill-pick
 planning	skill-do-not-pick-again
+planning	skill-stated-vcs-is-definitive
 planning	skill-bootstrap
 planning	skill-execute
-planning	skill-adrs-and-specs
 planning	skill-decompose
 planning	skill-bare-stem-rule
 planning	skill-chain-gap-asymmetry
@@ -140,6 +142,7 @@ planning	skill-node-close-cascade
 planning	skill-commit
 planning	skill-finish
 planning	skill-artifacts
+planning	skill-adrs-and-specs
 planning	skill-glossary-is-load-bearing
 planning	skill-briefs-vs-glossary
 planning	skill-linkuistics-prerequisite
@@ -180,9 +183,9 @@ prototype	skill-session-name
 prototype	skill-starting-a-new-grove
 prototype	skill-pick
 prototype	skill-do-not-pick-again
+prototype	skill-stated-vcs-is-definitive
 prototype	skill-bootstrap
 prototype	skill-execute
-prototype	skill-adrs-and-specs
 prototype	skill-decompose
 prototype	skill-bare-stem-rule
 prototype	skill-chain-gap-asymmetry
@@ -194,6 +197,7 @@ prototype	skill-node-close-cascade
 prototype	skill-commit
 prototype	skill-finish
 prototype	skill-artifacts
+prototype	skill-adrs-and-specs
 prototype	skill-glossary-is-load-bearing
 prototype	skill-briefs-vs-glossary
 prototype	skill-linkuistics-prerequisite
@@ -233,9 +237,9 @@ impl	skill-session-name
 impl	skill-starting-a-new-grove
 impl	skill-pick
 impl	skill-do-not-pick-again
+impl	skill-stated-vcs-is-definitive
 impl	skill-bootstrap
 impl	skill-execute
-impl	skill-adrs-and-specs
 impl	skill-decompose
 impl	skill-bare-stem-rule
 impl	skill-chain-gap-asymmetry
@@ -247,6 +251,7 @@ impl	skill-node-close-cascade
 impl	skill-commit
 impl	skill-finish
 impl	skill-artifacts
+impl	skill-adrs-and-specs
 impl	skill-glossary-is-load-bearing
 impl	skill-briefs-vs-glossary
 impl	skill-linkuistics-prerequisite
@@ -286,9 +291,9 @@ research-a	skill-session-name
 research-a	skill-starting-a-new-grove
 research-a	skill-pick
 research-a	skill-do-not-pick-again
+research-a	skill-stated-vcs-is-definitive
 research-a	skill-bootstrap
 research-a	skill-execute
-research-a	skill-adrs-and-specs
 research-a	skill-decompose
 research-a	skill-bare-stem-rule
 research-a	skill-chain-gap-asymmetry
@@ -300,6 +305,7 @@ research-a	skill-node-close-cascade
 research-a	skill-commit
 research-a	skill-finish
 research-a	skill-artifacts
+research-a	skill-adrs-and-specs
 research-a	skill-glossary-is-load-bearing
 research-a	skill-briefs-vs-glossary
 research-a	skill-linkuistics-prerequisite
@@ -339,9 +345,9 @@ research-b	skill-session-name
 research-b	skill-starting-a-new-grove
 research-b	skill-pick
 research-b	skill-do-not-pick-again
+research-b	skill-stated-vcs-is-definitive
 research-b	skill-bootstrap
 research-b	skill-execute
-research-b	skill-adrs-and-specs
 research-b	skill-decompose
 research-b	skill-bare-stem-rule
 research-b	skill-chain-gap-asymmetry
@@ -353,6 +359,7 @@ research-b	skill-node-close-cascade
 research-b	skill-commit
 research-b	skill-finish
 research-b	skill-artifacts
+research-b	skill-adrs-and-specs
 research-b	skill-glossary-is-load-bearing
 research-b	skill-briefs-vs-glossary
 research-b	skill-linkuistics-prerequisite
@@ -392,9 +399,9 @@ combine-research	skill-session-name
 combine-research	skill-starting-a-new-grove
 combine-research	skill-pick
 combine-research	skill-do-not-pick-again
+combine-research	skill-stated-vcs-is-definitive
 combine-research	skill-bootstrap
 combine-research	skill-execute
-combine-research	skill-adrs-and-specs
 combine-research	skill-decompose
 combine-research	skill-bare-stem-rule
 combine-research	skill-chain-gap-asymmetry
@@ -406,6 +413,7 @@ combine-research	skill-node-close-cascade
 combine-research	skill-commit
 combine-research	skill-finish
 combine-research	skill-artifacts
+combine-research	skill-adrs-and-specs
 combine-research	skill-glossary-is-load-bearing
 combine-research	skill-briefs-vs-glossary
 combine-research	skill-linkuistics-prerequisite
@@ -445,9 +453,9 @@ finish	skill-session-name
 finish	skill-starting-a-new-grove
 finish	skill-pick
 finish	skill-do-not-pick-again
+finish	skill-stated-vcs-is-definitive
 finish	skill-bootstrap
 finish	skill-execute
-finish	skill-adrs-and-specs
 finish	skill-decompose
 finish	skill-bare-stem-rule
 finish	skill-chain-gap-asymmetry
@@ -459,6 +467,7 @@ finish	skill-node-close-cascade
 finish	skill-commit
 finish	skill-finish
 finish	skill-artifacts
+finish	skill-adrs-and-specs
 finish	skill-glossary-is-load-bearing
 finish	skill-briefs-vs-glossary
 finish	skill-linkuistics-prerequisite
@@ -499,9 +508,9 @@ review-requirements	skill-session-name
 review-requirements	skill-starting-a-new-grove
 review-requirements	skill-pick
 review-requirements	skill-do-not-pick-again
+review-requirements	skill-stated-vcs-is-definitive
 review-requirements	skill-bootstrap
 review-requirements	skill-execute
-review-requirements	skill-adrs-and-specs
 review-requirements	skill-decompose
 review-requirements	skill-bare-stem-rule
 review-requirements	skill-chain-gap-asymmetry
@@ -513,6 +522,7 @@ review-requirements	skill-node-close-cascade
 review-requirements	skill-commit
 review-requirements	skill-finish
 review-requirements	skill-artifacts
+review-requirements	skill-adrs-and-specs
 review-requirements	skill-glossary-is-load-bearing
 review-requirements	skill-briefs-vs-glossary
 review-requirements	skill-linkuistics-prerequisite
@@ -552,9 +562,9 @@ review-design	skill-session-name
 review-design	skill-starting-a-new-grove
 review-design	skill-pick
 review-design	skill-do-not-pick-again
+review-design	skill-stated-vcs-is-definitive
 review-design	skill-bootstrap
 review-design	skill-execute
-review-design	skill-adrs-and-specs
 review-design	skill-decompose
 review-design	skill-bare-stem-rule
 review-design	skill-chain-gap-asymmetry
@@ -566,6 +576,7 @@ review-design	skill-node-close-cascade
 review-design	skill-commit
 review-design	skill-finish
 review-design	skill-artifacts
+review-design	skill-adrs-and-specs
 review-design	skill-glossary-is-load-bearing
 review-design	skill-briefs-vs-glossary
 review-design	skill-linkuistics-prerequisite
@@ -605,9 +616,9 @@ review-planning	skill-session-name
 review-planning	skill-starting-a-new-grove
 review-planning	skill-pick
 review-planning	skill-do-not-pick-again
+review-planning	skill-stated-vcs-is-definitive
 review-planning	skill-bootstrap
 review-planning	skill-execute
-review-planning	skill-adrs-and-specs
 review-planning	skill-decompose
 review-planning	skill-bare-stem-rule
 review-planning	skill-chain-gap-asymmetry
@@ -619,6 +630,7 @@ review-planning	skill-node-close-cascade
 review-planning	skill-commit
 review-planning	skill-finish
 review-planning	skill-artifacts
+review-planning	skill-adrs-and-specs
 review-planning	skill-glossary-is-load-bearing
 review-planning	skill-briefs-vs-glossary
 review-planning	skill-linkuistics-prerequisite
@@ -658,9 +670,9 @@ review-prototype	skill-session-name
 review-prototype	skill-starting-a-new-grove
 review-prototype	skill-pick
 review-prototype	skill-do-not-pick-again
+review-prototype	skill-stated-vcs-is-definitive
 review-prototype	skill-bootstrap
 review-prototype	skill-execute
-review-prototype	skill-adrs-and-specs
 review-prototype	skill-decompose
 review-prototype	skill-bare-stem-rule
 review-prototype	skill-chain-gap-asymmetry
@@ -672,6 +684,7 @@ review-prototype	skill-node-close-cascade
 review-prototype	skill-commit
 review-prototype	skill-finish
 review-prototype	skill-artifacts
+review-prototype	skill-adrs-and-specs
 review-prototype	skill-glossary-is-load-bearing
 review-prototype	skill-briefs-vs-glossary
 review-prototype	skill-linkuistics-prerequisite
@@ -711,9 +724,9 @@ review-impl	skill-session-name
 review-impl	skill-starting-a-new-grove
 review-impl	skill-pick
 review-impl	skill-do-not-pick-again
+review-impl	skill-stated-vcs-is-definitive
 review-impl	skill-bootstrap
 review-impl	skill-execute
-review-impl	skill-adrs-and-specs
 review-impl	skill-decompose
 review-impl	skill-bare-stem-rule
 review-impl	skill-chain-gap-asymmetry
@@ -725,6 +738,7 @@ review-impl	skill-node-close-cascade
 review-impl	skill-commit
 review-impl	skill-finish
 review-impl	skill-artifacts
+review-impl	skill-adrs-and-specs
 review-impl	skill-glossary-is-load-bearing
 review-impl	skill-briefs-vs-glossary
 review-impl	skill-linkuistics-prerequisite
@@ -764,9 +778,9 @@ integrate-review-requirements	skill-session-name
 integrate-review-requirements	skill-starting-a-new-grove
 integrate-review-requirements	skill-pick
 integrate-review-requirements	skill-do-not-pick-again
+integrate-review-requirements	skill-stated-vcs-is-definitive
 integrate-review-requirements	skill-bootstrap
 integrate-review-requirements	skill-execute
-integrate-review-requirements	skill-adrs-and-specs
 integrate-review-requirements	skill-decompose
 integrate-review-requirements	skill-bare-stem-rule
 integrate-review-requirements	skill-chain-gap-asymmetry
@@ -778,6 +792,7 @@ integrate-review-requirements	skill-node-close-cascade
 integrate-review-requirements	skill-commit
 integrate-review-requirements	skill-finish
 integrate-review-requirements	skill-artifacts
+integrate-review-requirements	skill-adrs-and-specs
 integrate-review-requirements	skill-glossary-is-load-bearing
 integrate-review-requirements	skill-briefs-vs-glossary
 integrate-review-requirements	skill-linkuistics-prerequisite
@@ -817,9 +832,9 @@ integrate-review-design	skill-session-name
 integrate-review-design	skill-starting-a-new-grove
 integrate-review-design	skill-pick
 integrate-review-design	skill-do-not-pick-again
+integrate-review-design	skill-stated-vcs-is-definitive
 integrate-review-design	skill-bootstrap
 integrate-review-design	skill-execute
-integrate-review-design	skill-adrs-and-specs
 integrate-review-design	skill-decompose
 integrate-review-design	skill-bare-stem-rule
 integrate-review-design	skill-chain-gap-asymmetry
@@ -831,6 +846,7 @@ integrate-review-design	skill-node-close-cascade
 integrate-review-design	skill-commit
 integrate-review-design	skill-finish
 integrate-review-design	skill-artifacts
+integrate-review-design	skill-adrs-and-specs
 integrate-review-design	skill-glossary-is-load-bearing
 integrate-review-design	skill-briefs-vs-glossary
 integrate-review-design	skill-linkuistics-prerequisite
@@ -870,9 +886,9 @@ integrate-review-planning	skill-session-name
 integrate-review-planning	skill-starting-a-new-grove
 integrate-review-planning	skill-pick
 integrate-review-planning	skill-do-not-pick-again
+integrate-review-planning	skill-stated-vcs-is-definitive
 integrate-review-planning	skill-bootstrap
 integrate-review-planning	skill-execute
-integrate-review-planning	skill-adrs-and-specs
 integrate-review-planning	skill-decompose
 integrate-review-planning	skill-bare-stem-rule
 integrate-review-planning	skill-chain-gap-asymmetry
@@ -884,6 +900,7 @@ integrate-review-planning	skill-node-close-cascade
 integrate-review-planning	skill-commit
 integrate-review-planning	skill-finish
 integrate-review-planning	skill-artifacts
+integrate-review-planning	skill-adrs-and-specs
 integrate-review-planning	skill-glossary-is-load-bearing
 integrate-review-planning	skill-briefs-vs-glossary
 integrate-review-planning	skill-linkuistics-prerequisite
@@ -923,9 +940,9 @@ integrate-review-prototype	skill-session-name
 integrate-review-prototype	skill-starting-a-new-grove
 integrate-review-prototype	skill-pick
 integrate-review-prototype	skill-do-not-pick-again
+integrate-review-prototype	skill-stated-vcs-is-definitive
 integrate-review-prototype	skill-bootstrap
 integrate-review-prototype	skill-execute
-integrate-review-prototype	skill-adrs-and-specs
 integrate-review-prototype	skill-decompose
 integrate-review-prototype	skill-bare-stem-rule
 integrate-review-prototype	skill-chain-gap-asymmetry
@@ -937,6 +954,7 @@ integrate-review-prototype	skill-node-close-cascade
 integrate-review-prototype	skill-commit
 integrate-review-prototype	skill-finish
 integrate-review-prototype	skill-artifacts
+integrate-review-prototype	skill-adrs-and-specs
 integrate-review-prototype	skill-glossary-is-load-bearing
 integrate-review-prototype	skill-briefs-vs-glossary
 integrate-review-prototype	skill-linkuistics-prerequisite
@@ -976,9 +994,9 @@ integrate-review-impl	skill-session-name
 integrate-review-impl	skill-starting-a-new-grove
 integrate-review-impl	skill-pick
 integrate-review-impl	skill-do-not-pick-again
+integrate-review-impl	skill-stated-vcs-is-definitive
 integrate-review-impl	skill-bootstrap
 integrate-review-impl	skill-execute
-integrate-review-impl	skill-adrs-and-specs
 integrate-review-impl	skill-decompose
 integrate-review-impl	skill-bare-stem-rule
 integrate-review-impl	skill-chain-gap-asymmetry
@@ -990,6 +1008,7 @@ integrate-review-impl	skill-node-close-cascade
 integrate-review-impl	skill-commit
 integrate-review-impl	skill-finish
 integrate-review-impl	skill-artifacts
+integrate-review-impl	skill-adrs-and-specs
 integrate-review-impl	skill-glossary-is-load-bearing
 integrate-review-impl	skill-briefs-vs-glossary
 integrate-review-impl	skill-linkuistics-prerequisite

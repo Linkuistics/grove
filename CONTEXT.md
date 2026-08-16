@@ -240,6 +240,24 @@ _Avoid_: one file per kind label. Fifteen of nineteen would be near-duplicates o
 four, and duplicated prose is the drift risk one level down from the one being
 removed.
 
+**Loop-step reference file**:
+The other species in the same flat `references/` directory: a file carrying the
+**universal** procedures that one step of the loop needs, which no [[Session
+kind]] selects and which `content/SKILL.md`'s conditions reach by naming it.
+The seam is the loop itself — `bootstrap`, `execute`, `decompose`, `retire`,
+`commit` — with `grove` (what a grove is, the spine, the durable artifacts) and
+`driver` (how a session was launched and picked) either side of it, and `finish`
+doubling as the `finish` kind's own [[Kind reference file]]. Every file here is
+`class=procedural` until the machinery is deleted, so a mandate's contents are
+decided entirely by `SKILL.md`, `TASK-FORMAT.md` and `driving.md`.
+_Avoid_: reading it as a [[Kind reference file]]. The per-kind ten are chosen by
+the driver from the leaf's kind and are named in that kind's [[Guaranteed
+core]]; these are chosen by the *session*, when a condition it has just read
+sends it to one.
+_Avoid_: growing the set per rule. It is bounded at roughly eight beside the ten,
+because a directory a session cannot hold in mind stops being disclosure and
+starts being a second corpus to search.
+
 **Triggering unit** / **procedural unit**:
 The classification deciding what every [[Mandate slice]] must carry. Every rule
 in the methodology is a conditional. Its **condition** — *that a situation exists

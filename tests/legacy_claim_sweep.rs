@@ -103,6 +103,17 @@ const DOCUMENTATION_TREES: &[DocumentationTree] = &[
 /// exclusion is a decision a reader can see and argue with.
 const HISTORY: &str = "CHANGELOG.md";
 
+/// Path prefixes that make a legacy *basename* a live file instead.
+///
+/// The removed launcher prompts were `content/prompts/<name>.md`, and the
+/// corpus now carries one reference file per loop step — `retire.md` among
+/// them. Banning the bare basename would ban a path the methodology legitimately
+/// names, so an occurrence directly preceded by one of these prefixes is the
+/// live file. This is a **discriminator rather than an exemption**: a stale
+/// claim about the deleted prompt cannot spell it this way, so the bare token
+/// stays banned everywhere else.
+const LIVE_PATH_PREFIXES: &[&str] = &["references/"];
+
 // ---------------------------------------------------------------------------
 // Candidates
 
@@ -502,6 +513,12 @@ fn unclassified_occurrences(path: &str, text: &str) -> Vec<String> {
         for found in occurrences_in(&flat, &line_of_byte, token) {
             let end = found.start + token.len();
             if is_refuted(found.start, end) {
+                continue;
+            }
+            if LIVE_PATH_PREFIXES
+                .iter()
+                .any(|prefix| flat[..found.start].ends_with(prefix))
+            {
                 continue;
             }
             findings.push(format!("{path}:{}: `{token}` — {subject}", found.line));
@@ -917,5 +934,24 @@ fn the_sweep_reaches_every_documentation_tree() {
             .iter()
             .any(|path| path.contains("/skills/")),
         "the plugins walk must descend into the skill set"
+    );
+}
+
+/// **The control on [`LIVE_PATH_PREFIXES`].** A discriminator that swallowed the
+/// bare token would silence the claim it exists to catch, so the same token is
+/// shown reported in one spelling and passed over in the other.
+#[test]
+fn a_live_reference_path_is_not_a_removed_launcher_prompt() {
+    let bare = unclassified_occurrences("fixture.md", "the retire.md launcher prompt\n");
+    assert_eq!(
+        bare.len(),
+        1,
+        "a bare launcher-prompt basename must still be reported: {bare:?}"
+    );
+
+    let live = unclassified_occurrences("fixture.md", "see `references/retire.md`\n");
+    assert!(
+        live.is_empty(),
+        "a live reference path must not read as the removed prompt: {live:?}"
     );
 }

@@ -65,6 +65,11 @@ use std::path::{Path, PathBuf};
 
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
 const SKILL: &str = include_str!("../content/SKILL.md");
+/// The Execute step's procedure. `SKILL.md` states the *condition* — the kind is
+/// in the filename, from a closed set of nineteen — and the enumeration of the
+/// kinds a summarising surface must spell out rather than derive lives in the
+/// file that condition routes to.
+const EXECUTE_REFERENCE: &str = include_str!("../content/references/execute.md");
 const DRIVING: &str = include_str!("../content/driving.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
@@ -163,8 +168,8 @@ fn every_session_kind_is_named_by_the_provisioned_taxonomy() {
     // summary would demand a table it deliberately does not carry.
     for (surface, text, expected) in [
         (
-            "content/SKILL.md",
-            SKILL,
+            "content/references/execute.md",
+            EXECUTE_REFERENCE,
             ["research-a", "research-b", "combine-research", "finish"].as_slice(),
         ),
         (

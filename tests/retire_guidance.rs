@@ -1,4 +1,8 @@
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+/// The Retire step's procedures — harvesting, pruning, and the node close's four
+/// steps — which the conditions on the loop page defer to. That pruning is HITL
+/// is a condition and stays in `SKILL.md`; the verb it gates is a procedure.
+const RETIRE_REFERENCE: &str = include_str!("../content/references/retire.md");
 /// The `finish`-narrowed units, which now sit in that kind's reference file
 /// rather than at the tail of `SKILL.md`.
 const FINISH_REFERENCE: &str = include_str!("../content/references/finish.md");
@@ -6,6 +10,10 @@ const FINISH_REFERENCE: &str = include_str!("../content/references/finish.md");
 #[test]
 fn node_close_matches_the_confirmation_boundary() {
     let skill = GROVE_SKILL.split_whitespace().collect::<Vec<_>>().join(" ");
+    let retire = RETIRE_REFERENCE
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
     let finish = FINISH_REFERENCE
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -30,8 +38,12 @@ fn node_close_matches_the_confirmation_boundary() {
         "the node close must not restore the two-species discriminator"
     );
     assert!(
-        skill.contains("Only on explicit human confirmation, run"),
-        "pruning must remain human-confirmed"
+        skill.contains("an agent never prunes on its own"),
+        "pruning must stay HITL on the page every session reads"
+    );
+    assert!(
+        retire.contains("Only on explicit human confirmation, run"),
+        "the prune verb must remain gated on human confirmation"
     );
     assert!(
         finish.contains("waits for explicit human confirmation before any teardown"),

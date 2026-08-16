@@ -128,6 +128,61 @@ fn the_corpus_mandate_positions_are_contiguous_from_one() {
     );
 }
 
+/// **Constraint 7 made checkable**, and the measure is the whole claim.
+///
+/// "One page of rules" is unmeasurable as written, so the spec fixes a measure a
+/// reader can recompute: the lines from a section's heading to the next heading
+/// of the same level, blank lines included
+/// (`docs/specs/skill-delivered-methodology.md`, *Scenario: the loop section fits
+/// a page*). 100 is the **alarm** on a narrative the rewrite estimates at ~80,
+/// not a budget the prose was fitted to — a loop section that reaches it has
+/// grown a third of a page since the split, which is the point at which growth
+/// has become visible.
+///
+/// It establishes nothing semantic. That `SKILL.md` states conditions and no
+/// procedure has no classifier once the unit markers are deleted, and is a review
+/// obligation with its own scenario; a line count passing says nothing about it.
+#[test]
+fn the_loop_section_of_the_skill_fits_a_page() {
+    const LIMIT: usize = 100;
+    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
+        .expect("content/SKILL.md must be readable");
+
+    let measured =
+        section_lines(&skill, "## The loop").expect("content/SKILL.md must have a loop section");
+    assert!(
+        measured <= LIMIT,
+        "content/SKILL.md's loop section is {measured} lines against an alarm of \
+         {LIMIT}. Move a procedure into the reference file its condition names \
+         rather than trimming the alarm."
+    );
+
+    // The control. A measure that cannot fail is worth nothing, and this one
+    // would silently pass on any heading it failed to find if it returned zero.
+    let oversized = format!("## The loop\n{}## Artifacts\n", "x\n".repeat(LIMIT));
+    assert_eq!(section_lines(&oversized, "## The loop"), Some(LIMIT + 1));
+    assert_eq!(section_lines("# nothing here\n", "## The loop"), None);
+}
+
+/// Lines from `heading` to the line before the next heading of the same level,
+/// or to end of text. `None` when the heading is absent, so a renamed section
+/// fails rather than measuring zero.
+fn section_lines(text: &str, heading: &str) -> Option<usize> {
+    let level = heading
+        .chars()
+        .take_while(|character| *character == '#')
+        .count();
+    let opener = format!("{} ", "#".repeat(level));
+    let mut lines = text.lines().skip_while(|line| *line != heading).peekable();
+    lines.peek()?;
+    Some(
+        1 + lines
+            .skip(1)
+            .take_while(|line| !line.starts_with(&opener))
+            .count(),
+    )
+}
+
 fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
     for entry in fs::read_dir(dir).expect("content/ must be readable") {
         let path = entry.unwrap().path();
@@ -158,7 +213,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// Ids are **file-scoped by prefix** — `skill-` for `content/SKILL.md`, `task-`
 /// for `content/TASK-FORMAT.md`, and so on — which is what makes embed-wide id
 /// uniqueness hold without coordination between batches.
-const EMBEDDED_UNITS: [&str; 140] = [
+const EMBEDDED_UNITS: [&str; 159] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -221,7 +276,9 @@ const EMBEDDED_UNITS: [&str; 140] = [
     "skill-cut-the-next-step",
     "skill-cutting-a-review-leaf",
     "skill-decompose",
+    "skill-deriving-the-session-name",
     "skill-directory-tree-and-grow-verbs",
+    "skill-dispatch-and-migration",
     "skill-do-not-pick-again",
     "skill-execute",
     "skill-finish",
@@ -232,6 +289,7 @@ const EMBEDDED_UNITS: [&str; 140] = [
     "skill-finish-resume",
     "skill-finish-steps",
     "skill-glossary-is-load-bearing",
+    "skill-how-the-pick-walks",
     "skill-integration-placement",
     "skill-kind-on-the-tree-verbs",
     "skill-leaf-prune-mechanics",
@@ -252,7 +310,23 @@ const EMBEDDED_UNITS: [&str; 140] = [
     "skill-specs",
     "skill-spine-constraints",
     "skill-starting-a-new-grove",
+    "skill-stated-vcs-is-definitive",
+    "skill-the-loop-is-stateless",
+    "skill-the-record-sets",
+    "skill-the-spine-in-full",
+    "skill-two-triggers-two-verbs",
     "skill-what-a-grove-is",
+    "skill-what-bootstrap-reads",
+    "skill-what-each-kind-produces",
+    "skill-what-the-configuration-carries",
+    "skill-what-the-plugin-carries",
+    "skill-what-the-scaffold-creates",
+    "skill-which-hop-a-gap-costs",
+    "skill-why-a-second-walk-disagrees",
+    "skill-why-the-glossary-holds",
+    "skill-why-the-handle-outlives-the-path",
+    "skill-why-the-stem-is-bare",
+    "skill-why-there-is-no-exception",
     "skill-working-tree",
     "spec-behavioural-not-procedural",
     "spec-set-is-current-state",

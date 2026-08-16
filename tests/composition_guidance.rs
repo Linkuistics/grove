@@ -5,6 +5,13 @@ const CONTEXT: &str = include_str!("../CONTEXT.md");
 const DRIVING: &str = include_str!("../content/driving.md");
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
 const PLANNING_REFERENCE: &str = include_str!("../content/references/planning.md");
+// The universal reference files the loop page's conditions defer to. A claim
+// about a *procedure* is proved against the file that now states it — the same
+// path reconciliation `per-kind-references-k12` made, and for the same reason:
+// no claim below changes, only where it is kept.
+const EXECUTE_REFERENCE: &str = include_str!("../content/references/execute.md");
+const DECOMPOSE_REFERENCE: &str = include_str!("../content/references/decompose.md");
+const RETIRE_REFERENCE: &str = include_str!("../content/references/retire.md");
 const BRIEF_FORMAT: &str = include_str!("../content/BRIEF-FORMAT.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
@@ -34,7 +41,7 @@ fn assert_absent(surface: &str, text: &str, rejected: &str) {
 #[test]
 fn grove_guidance_replaces_the_old_in_session_review_loop() {
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/execute.md", EXECUTE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
     ] {
@@ -48,8 +55,8 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
 
     for (surface, text, integration_rule) in [
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/execute.md",
+            EXECUTE_REFERENCE,
             "substantial redesign as a new producer review chain beside the leaf it is integrating",
         ),
         (
@@ -104,6 +111,9 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
     // with the instruction.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/execute.md", EXECUTE_REFERENCE),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
+        ("content/references/retire.md", RETIRE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("content/BRIEF-FORMAT.md", BRIEF_FORMAT),
@@ -118,8 +128,8 @@ fn no_provisioned_surface_instructs_a_deleted_composition_verb() {
 
     for (surface, text, replacement) in [
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/decompose.md",
+            DECOMPOSE_REFERENCE,
             "grove-llm leaf-add <parent> <stem> --kind review-<producer>",
         ),
         (
@@ -204,7 +214,7 @@ fn guidance_binds_re_derivation_to_review_and_consumption_to_integration() {
     // route the surface has only "the review reads the producer's commit" and no
     // account of how it finds one.
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("CONTEXT.md", CONTEXT),
@@ -241,7 +251,7 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
 
     // The surfaces that instruct a session on the placement, in full.
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/driving.md", DRIVING),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/USAGE.md", USAGE),
@@ -305,7 +315,7 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     // nothing between leaves, so a surface that turned adjacency into a claim
     // about the tree rather than about the session cutting the leaf is wrong.
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("review mechanics spec", SPEC),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
@@ -320,7 +330,7 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
 #[test]
 fn guidance_states_that_each_step_is_created_only_when_required() {
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
     ] {
         assert_contains(surface, text, "only if it has findings worth acting on");
@@ -334,7 +344,7 @@ fn guidance_states_that_each_step_is_created_only_when_required() {
     // …and the counterpart: the pair is eager, and the reason is stated rather
     // than left as an inconsistency for a later session to "fix".
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/decompose.md", DECOMPOSE_REFERENCE),
         ("content/TASK-FORMAT.md", TASK_FORMAT),
         ("docs/ARCHITECTURE.md", ARCHITECTURE),
     ] {
@@ -426,7 +436,7 @@ fn planning_guidance_prefers_dependency_ordered_working_increments() {
     // `TASK-FORMAT.md` now sits together in the `planning` reference file, which
     // is one surface carrying what two carried.
     for (surface, text) in [
-        ("content/SKILL.md", GROVE_SKILL),
+        ("content/references/execute.md", EXECUTE_REFERENCE),
         ("content/references/planning.md", PLANNING_REFERENCE),
     ] {
         assert_contains(
@@ -488,10 +498,10 @@ fn passage(surface: &str, text: &str, start: &str, end: &str) -> String {
 fn every_handoff_passage_retires_before_it_commits() {
     for (surface, text, start, end) in [
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/decompose.md",
+            DECOMPOSE_REFERENCE,
             "When a picked producer needs fresh review",
-            "The tree is a real",
+            "## Why the stem is bare",
         ),
         (
             "docs/USAGE.md",
@@ -665,7 +675,7 @@ fn llm_help_teaches_the_lazy_review_chain_on_the_verb_that_builds_it() {
 /// These five have no current referent left to be reworded into, so banning the
 /// token bans the concept. The bare word `receipt` is deliberately *not* on the
 /// list: the finish cycle uses it in an unrelated sense (a durable completion
-/// marker) and `content/SKILL.md` says so legitimately.
+/// marker) and `content/references/finish.md` says so legitimately.
 ///
 /// Each surface also carries the positive rule that replaced its negative, so
 /// deleting a paragraph wholesale fails rather than passing vacuously.
@@ -690,13 +700,13 @@ fn canonical_guidance_drops_receipt_and_diversity_era_review_routing() {
 
     for (surface, text, replacement) in [
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/execute.md",
+            EXECUTE_REFERENCE,
             "grove records no producer target, compares none, and warns about none",
         ),
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/decompose.md",
+            DECOMPOSE_REFERENCE,
             "Retiring it is the filename `DONE` transition and nothing else",
         ),
         (
@@ -768,8 +778,8 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
             "`research-a`, `research-b`, or `combine-research` | None; the pair supplies independent corpora and the combiner supplies the adversarial move",
         ),
         (
-            "content/SKILL.md",
-            GROVE_SKILL,
+            "content/references/retire.md",
+            RETIRE_REFERENCE,
             "prune each of its live steps",
         ),
         ("docs/ARCHITECTURE.md", ARCHITECTURE, "no second tree read"),

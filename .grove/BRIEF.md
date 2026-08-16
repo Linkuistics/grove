@@ -26,8 +26,9 @@ the reversal does not walk back into the failure the mandate was built to fix.
 
 ## Decomposition
 
-Not yet cut. One `design` leaf is live; it owes a spec, and the decomposition
-into increments follows from it.
+The spec is written — [`skill-delivered-methodology`](../docs/specs/skill-delivered-methodology.md)
+— and its review and the decomposition that consumes it are cut. The increments
+themselves are the `planning` leaf's to cut.
 
 ## Pointers
 
@@ -74,14 +75,17 @@ for triggering conditions"*, and the rework owes that an argument.
 
 ## On the horizon
 
-- **Two paths can disagree.** A guaranteed core plus a skill is the two-path
-  state the superseded ADR rejected outright. At a couple of KiB the drift risk
-  is small but real, and the design owes a *rule* for what earns a place in the
-  core — not a list, which goes stale.
-- **Trigger strength is a first-class question**, not a detail: the frontmatter
-  `description:`, how forcefully the launcher words the instruction, and how
-  `SKILL.md` opens are what decide whether the skill is read this time.
-- **The shared namespace question reopens.** `CONTEXT-MAP.md` recorded the
-  `grove` entry in the personal skill directory as going away; it stays, so
-  precedence and double-provisioning against the `linkuistics` symlinks is an
-  open question again rather than a removed one.
+The three questions this brief foresaw are settled in the spec — the core's rule
+is the **too-late test**, drift is answered by one source rather than by size,
+trigger strength has its own section, and the shared namespace turns out to
+collide with nothing. What is left over from them:
+
+- **Trigger strength is the one claim no reading settles.** The design's answer to
+  the *observed* prior failure is wording, and wording is judged by a real run.
+  The grove's `Done when` is the instrument, and both limbs are required.
+- **`leaf-prune`'s HITL rule is guarded by prose alone.** The spec names it as a
+  live gap and deliberately does not widen the core to cover it; a guard in the
+  verb is the shape that would, and it is a confirmation-boundary question rather
+  than a delivery one.
+- **A launch target that cannot read a provisioned skill now gets nothing**, and
+  the driver cannot detect it. Named and accepted, not solved.

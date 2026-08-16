@@ -194,6 +194,47 @@ session existed, so shipping the `if` makes the session re-derive it. It cannot
 remove a branch on what happened *during* the session, which no driver can
 resolve; withholding one of those yields an unasked question rather than a saving.
 
+**Guaranteed core** / **the too-late test**:
+The whole of a session's `${prompt}` once [[Global skill provisioning]] is the
+delivery path again: a forceful instruction to load the provisioned skill and
+this kind's [[Kind reference file]], the runtime facts the driver resolved (the
+selected [[Work-item handle]] and the [[Stated VCS]]), and the session-ending
+instruction — in that order, which is the session's own timeline. What may join
+it is decided by the **too-late test**: a sentence earns `${prompt}` only when its
+failure mode is one the skill cannot repair, because by the time the skill could
+speak the moment has passed. Three shapes pass — a fact only the driver holds,
+the instruction to open the skill, and the session's last action — and the test's
+first output is a list of **one** methodology condition. Two channels, one
+source: two of the three cannot be in the skill at all, and the third is the
+embedded signal file inlined verbatim, so the **prose** drift surface is zero
+bytes — what the channels share is four structural couplings (the skill's name,
+the reference path, the signal path, the provisioned locations), two closed by
+construction and two by assertion.
+Design: `docs/specs/skill-delivered-methodology.md`.
+_Avoid_: admitting a sentence because it is **important**, needed every session,
+or short. Importance is unbounded and is what builds a wall; frequency is not
+timing; size is a consequence of the rule and never a criterion.
+_Avoid_: reading the core as an abridged methodology a session may work from. It
+is three facts and one instruction, and it teaches nothing.
+_Avoid_: reading its 4 KiB assertion as a budget the design was fitted to — it is
+an alarm on the test, and nothing legitimate approaches it.
+
+**Kind reference file**:
+The one file of the provisioned skill's flat `references/` directory carrying a
+[[Session kind]]'s own discipline, named by path in that kind's [[Guaranteed
+core]]. Ten files serve nineteen kinds, because the set is **recovered from the
+narrowed marker scopes** rather than invented — the five `review-*` kinds already
+share one classification, as do the five `integrate-review-*` and the two
+research producers. The kind→file map is an exhaustive match over the kind set in
+the driver, which is [[Kind routing]] doing what it already does; a twentieth
+kind fails to compile until it is classified.
+_Avoid_: reading the pointer as the reasoning cost a [[Mandate slice]] was built
+to remove. The driver resolved the kind before the session existed, so the
+session performs no selection — it is handed a filename.
+_Avoid_: one file per kind label. Fifteen of nineteen would be near-duplicates of
+four, and duplicated prose is the drift risk one level down from the one being
+removed.
+
 **Triggering unit** / **procedural unit**:
 The classification deciding what every [[Mandate slice]] must carry. Every rule
 in the methodology is a conditional. Its **condition** — *that a situation exists

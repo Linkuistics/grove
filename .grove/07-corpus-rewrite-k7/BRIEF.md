@@ -40,10 +40,21 @@ the other.
 ## The two verification instruments
 
 - **`tests/goldens/composed-mandates.tsv`** records the ordered unit ids each
-  kind's mandate carries. A child that only *moves* units leaves it byte-identical
-  — `<!-- file: order=N -->` controls composition order independently of file
-  layout, so relocation is provably free. A child that *rewrites* units changes it,
-  and the diff is exactly the shrink that child claims.
+  kind's mandate carries. A child that *rewrites* units changes it, and the diff is
+  exactly the shrink that child claims.
+
+  **A child that only *moves* units does not leave it byte-identical, and this
+  brief was wrong to say so** (`per-kind-references-k12`'s running log has the
+  derivation). Composition sorts by `(file_order, offset)`, so a file sits at one
+  point in the global order while a kind's narrowed units sit at several,
+  separated by universal units that must not move. Ten per-kind files and an
+  unchanged golden are mutually exclusive; no `order=` assignment recovers it.
+
+  What a moving child owes instead — and it is the stronger claim, since the
+  golden was only ever a proxy for it — is that **every unit's source bytes are
+  unchanged**, that each kind's unit *set* is unchanged, and that the universal
+  units keep their order in all nineteen mandates. The golden's diff is then the
+  relocation and nothing else.
 - **The build gate itself.** Marker grammar, `defers=` reachability, id and
   `order=` uniqueness, no deferral cycles. A child that breaks its own bookkeeping
   fails the contributor's build rather than a stranger's session.

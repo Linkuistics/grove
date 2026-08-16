@@ -227,7 +227,12 @@ narrowed marker scopes** rather than invented — the five `review-*` kinds alre
 share one classification, as do the five `integrate-review-*` and the two
 research producers. The kind→file map is an exhaustive match over the kind set in
 the driver, which is [[Kind routing]] doing what it already does; a twentieth
-kind fails to compile until it is classified.
+kind fails to compile until it is classified. The files are
+`content/references/{requirements,design,planning,prototype,impl,review,
+integrate-review,research,combine-research,finish}.md`, one level deep and flat.
+_Avoid_: counting eleven. `skill-signal` is an eleventh narrowed scope and is not
+a family — it is the session ending, which the [[Guaranteed core]] carries, and
+`content/SIGNAL.md` is deliberately **not** under `references/`.
 _Avoid_: reading the pointer as the reasoning cost a [[Mandate slice]] was built
 to remove. The driver resolved the kind before the session existed, so the
 session performs no selection — it is handed a filename.

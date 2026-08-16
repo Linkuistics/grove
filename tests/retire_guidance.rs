@@ -1,8 +1,15 @@
 const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
+/// The `finish`-narrowed units, which now sit in that kind's reference file
+/// rather than at the tail of `SKILL.md`.
+const FINISH_REFERENCE: &str = include_str!("../content/references/finish.md");
 
 #[test]
 fn node_close_matches_the_confirmation_boundary() {
     let skill = GROVE_SKILL.split_whitespace().collect::<Vec<_>>().join(" ");
+    let finish = FINISH_REFERENCE
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
 
     // The loop overview diagram stated this a second time as a picture, and went
     // with the rest of the file-reader narrative; the prose below is now the only
@@ -27,7 +34,7 @@ fn node_close_matches_the_confirmation_boundary() {
         "pruning must remain human-confirmed"
     );
     assert!(
-        skill.contains("waits for explicit human confirmation before any teardown"),
+        finish.contains("waits for explicit human confirmation before any teardown"),
         "the complete finish cycle must remain human-confirmed"
     );
 }

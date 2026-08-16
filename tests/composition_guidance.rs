@@ -4,6 +4,7 @@ const GROVE_SKILL: &str = include_str!("../content/SKILL.md");
 const CONTEXT: &str = include_str!("../CONTEXT.md");
 const DRIVING: &str = include_str!("../content/driving.md");
 const TASK_FORMAT: &str = include_str!("../content/TASK-FORMAT.md");
+const PLANNING_REFERENCE: &str = include_str!("../content/references/planning.md");
 const BRIEF_FORMAT: &str = include_str!("../content/BRIEF-FORMAT.md");
 const DOUBT_SKILL: &str =
     include_str!("../plugins/linkuistics/skills/doubt-driven-development/SKILL.md");
@@ -420,10 +421,13 @@ fn every_ambiguity_cost_statement_matches_resolves_pick_style_contract() {
 
 #[test]
 fn planning_guidance_prefers_dependency_ordered_working_increments() {
+    // Two surfaces rather than three, and no claim has moved with them: the
+    // `planning`-narrowed prose that used to sit in `driving.md` and
+    // `TASK-FORMAT.md` now sits together in the `planning` reference file, which
+    // is one surface carrying what two carried.
     for (surface, text) in [
         ("content/SKILL.md", GROVE_SKILL),
-        ("content/driving.md", DRIVING),
-        ("content/TASK-FORMAT.md", TASK_FORMAT),
+        ("content/references/planning.md", PLANNING_REFERENCE),
     ] {
         assert_contains(
             surface,

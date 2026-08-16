@@ -209,9 +209,13 @@ const REFUTATIONS: &[(&str, &str)] = &[
     // to be denied by prose a reader committed to, and a quotation stretched to
     // cover a neighbour would exempt it on the strength of the first denial.
     ("CONTEXT.md", "`continue.md` was the last survivor"),
+    // Requoted, not deleted: the glossary now records that the sweep, the stamp
+    // and the shared directory all *stay* — provisioning becomes the sole
+    // delivery path rather than a removed one — so `continue.md` is the only
+    // token this sentence still has to answer for.
     (
         "CONTEXT.md",
-        "there is no sweep, no stamp, no shared directory, and no `continue.md`",
+        "What does not come back is `continue.md` under that name",
     ),
     (
         "CONTEXT.md",
@@ -320,6 +324,14 @@ const REFUTATIONS: &[(&str, &str)] = &[
     (
         "docs/specs/doubt-grove-review-mechanics.md",
         "A leaf carries no `**Kind:**`, `**Harness:**`, or producer target metadata",
+    ),
+    // The micro-test's control arm *is* the removed launcher, recovered from VCS
+    // at the revision before it was deleted. Naming it there records what was
+    // measured, not a surface that still exists.
+    (
+        "docs/research/wording-micro-test.md",
+        "the pre-mandate launcher, recovered from VCS rather than reconstructed: \
+         `content/prompts/continue.md`",
     ),
 ];
 

@@ -1,22 +1,4 @@
 <!-- file: order=9 -->
-<!-- unit: driving-when-not-to-start-a-grove kinds=requirements class=triggering -->
-<!-- grove reference file — the field guide: habits for driving a session well -->
-<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
-     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
-     (skills/engineering/wayfinder/SKILL.md, "Chart the map" step 2's no-fog
-     early exit) — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
-
-## When not to start a grove
-
-Before starting a grove, check that the journey actually needs a map.
-If a first bootstrap session surfaces no real fog — the path to done is
-already clear and the whole thing fits in one sitting — do the work directly
-instead: a grove would only wrap it in a tree, a brief chain, and a relaunch
-cycle it doesn't need. Start one once genuine session-to-session
-fog shows up — work whose shape you can't see past the next session or two.
-Bare `grove` will always scaffold a tree and mint a first leaf in a rootless
-working tree; that mechanical fact is not itself the signal to run it.
-
 <!-- unit: driving-when-to-commission-prior-art-research kinds=* class=triggering defers="driving-how-to-write-a-research-leaf-brief driving-running-the-vendor-pair" -->
 ## When to commission prior-art research
 
@@ -139,30 +121,6 @@ the first got wrong" discards the breadth you paid for and biases it toward the
 first survey's frame. Both run breadth-seeking; the adversarial move belongs to
 the combine step.
 
-<!-- unit: driving-the-combine-step class=procedural -->
-**The combine step's job is the one check neither survey can perform on
-itself.** Union the coverage, flag every disagreement — and treat **agreement
-without independent primary sourcing as a red flag, not a confirmation**. Two
-vendors trained on overlapping corpora can agree on something false, and a
-purely confirmatory combine raises confidence exactly where it should lower it:
-a correlated error laundered as corroboration. So for each agreed claim, ask
-whether the two surveys reached it through *different* primary sources. If they
-cite the same blog post, or neither cites anything, that agreement is worth less
-than a disagreement.
-
-<!-- unit: driving-when-to-invoke-grilling kinds=requirements class=triggering defers="grilling-interrogate driving-ask-wdyt driving-ask-for-pushback driving-dont-merge-questions driving-record-decisions-inline" -->
-## When to invoke a design discussion (grilling)
-
-The trigger is: a `requirements` leaf's brief lists three or more questions
-whose answers interdepend. Grilling is the procedure that walks the
-dependency tree without the LLM making decisions on the human's
-behalf.
-
-The grilling skill (`grilling.md`) says it briefly: interview one
-question at a time, propose a recommended answer for each, walk down
-the design tree until shared understanding is reached. The moves
-below make that interview productive rather than ceremonial.
-
 <!-- unit: driving-ask-wdyt class=procedural -->
 ### Ask the LLM "WDYT" before committing
 
@@ -202,20 +160,6 @@ The grilling format is built around recommended-answers-with-evidence
 specifically to make pushback structural rather than personal. When
 the recommendation cites primary evidence, the pushback is a debate
 about that evidence, not about whose preference wins.
-
-<!-- unit: driving-dont-merge-questions class=procedural -->
-### Don't merge questions
-
-The grilling skill's "ask the questions one at a time" rule is
-load-bearing. Two questions in one prompt — even closely related ones
-— produce answers that conflate. Resist the urge to batch.
-
-Where two questions truly interdepend, sequence them: ask the
-*foundational* one first, propose the recommended answer, wait, then
-ask the *derived* one with the foundational answer already in hand.
-The sync-semantics grilling sequenced Q1 (shape) before Q5 (entry
-naming) specifically because the entry-naming decision is only
-meaningful once shape is settled.
 
 <!-- unit: driving-record-decisions-inline class=procedural -->
 ### Record decisions inline, while they're fresh
@@ -613,28 +557,6 @@ without disturbing it. A tree that keeps sprouting small, concrete leaves is the
 system working as intended — lazy means *just-in-time, not few* (`SKILL.md`
 constraint 4), so don't ration leaves to keep the tree looking tidy.
 
-<!-- unit: driving-find-working-increments class=procedural -->
-<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
-     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
-     (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules)
-     — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
-
-## Find working increments before child leaves
-
-Before slicing a design into leaves, search actively for the **smallest
-independently useful working increments** and order them by dependency. Create a
-separate grove for each obvious stage that leaves the product working and
-delivers useful, verifiable behavior on which its successor can build. Changes
-that cannot independently leave the product working stay in the same increment
-even when their code edits lie in different modules. Only then cut the current
-increment into child leaves.
-
-The boundary is product behavior, not code location or one design document's
-scope. Schema expansion, caller migration, lifecycle cutover, cleanup,
-methodology, and documentation often form dependency-ordered groves when every
-handoff remains green. A new schema and the only reader that makes it usable do
-not: neither half is a working increment on its own.
-
 <!-- unit: driving-what-a-good-child-leaf-looks-like class=procedural -->
 ## What a good child leaf looks like
 
@@ -746,13 +668,3 @@ want it on, propose a recommended answer, and give the evidence behind that
 recommendation. That structure makes the trade-off visible by construction, and
 it turns an escalation into a decision instead of an open-ended handback.
 
-<!-- unit: driving-no-pre-baked-grilling kinds=requirements class=triggering -->
-## A pre-decided question is not a grilling question
-
-The grilling discipline exists for genuinely open decisions. If you already know
-the answer to a question in this leaf's brief and only want it executed, do not
-stage a round of interrogation over it — record the decision and move on. If the
-brief's questions are *all* pre-decided, say so rather than performing the
-interview: the work standing behind them is an `impl` leaf, and running a
-grilling over settled ground is theatre that costs a human's attention and
-returns nothing.

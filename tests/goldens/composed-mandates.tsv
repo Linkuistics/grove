@@ -35,7 +35,6 @@ requirements	task-leaf-filename
 requirements	task-kind-in-the-filename
 requirements	task-nineteen-kinds
 requirements	task-hitl-afk
-requirements	task-producer-requirements
 requirements	task-in-session-doubt-budget
 requirements	task-too-big-is-planning
 requirements	task-two-shapes
@@ -45,13 +44,9 @@ requirements	task-no-node-for-a-shape
 requirements	task-grammar-is-five-fields
 requirements	task-nothing-in-a-body-is-metadata
 requirements	task-three-design-kinds
-requirements	task-deliverable-requirements
 requirements	task-deliverable-split-not-a-gate
-requirements	task-bootstrap-leaf-is-requirements
 requirements	spec-when-a-spec-is-written
-requirements	driving-when-not-to-start-a-grove
 requirements	driving-when-to-commission-prior-art-research
-requirements	driving-when-to-invoke-grilling
 requirements	driving-when-to-retire-research-into-adrs
 requirements	driving-when-code-depends-on-a-framework-version
 requirements	driving-when-asserting-a-repo-wide-claim
@@ -59,6 +54,11 @@ requirements	driving-recording-fog
 requirements	driving-when-a-leafs-place-is-in-doubt
 requirements	driving-no-session-summary
 requirements	driving-ask-about-the-trade-off
+requirements	task-producer-requirements
+requirements	task-deliverable-requirements
+requirements	task-bootstrap-leaf-is-requirements
+requirements	driving-when-not-to-start-a-grove
+requirements	driving-when-to-invoke-grilling
 requirements	driving-no-pre-baked-grilling
 requirements	skill-signal
 design	mandate-framing
@@ -93,7 +93,6 @@ design	task-leaf-filename
 design	task-kind-in-the-filename
 design	task-nineteen-kinds
 design	task-hitl-afk
-design	task-producer-design
 design	task-in-session-doubt-budget
 design	task-too-big-is-planning
 design	task-two-shapes
@@ -103,7 +102,6 @@ design	task-no-node-for-a-shape
 design	task-grammar-is-five-fields
 design	task-nothing-in-a-body-is-metadata
 design	task-three-design-kinds
-design	task-deliverable-design
 design	task-deliverable-split-not-a-gate
 design	spec-when-a-spec-is-written
 design	driving-when-to-commission-prior-art-research
@@ -114,6 +112,8 @@ design	driving-recording-fog
 design	driving-when-a-leafs-place-is-in-doubt
 design	driving-no-session-summary
 design	driving-ask-about-the-trade-off
+design	task-producer-design
+design	task-deliverable-design
 design	skill-signal
 planning	mandate-framing
 planning	skill-what-a-grove-is
@@ -147,7 +147,6 @@ planning	task-leaf-filename
 planning	task-kind-in-the-filename
 planning	task-nineteen-kinds
 planning	task-hitl-afk
-planning	task-producer-planning
 planning	task-in-session-doubt-budget
 planning	task-too-big-is-planning
 planning	task-two-shapes
@@ -157,7 +156,6 @@ planning	task-no-node-for-a-shape
 planning	task-grammar-is-five-fields
 planning	task-nothing-in-a-body-is-metadata
 planning	task-three-design-kinds
-planning	task-deliverable-planning
 planning	task-deliverable-split-not-a-gate
 planning	spec-when-a-spec-is-written
 planning	driving-when-to-commission-prior-art-research
@@ -168,6 +166,8 @@ planning	driving-recording-fog
 planning	driving-when-a-leafs-place-is-in-doubt
 planning	driving-no-session-summary
 planning	driving-ask-about-the-trade-off
+planning	task-producer-planning
+planning	task-deliverable-planning
 planning	skill-signal
 prototype	mandate-framing
 prototype	skill-what-a-grove-is
@@ -201,7 +201,6 @@ prototype	task-leaf-filename
 prototype	task-kind-in-the-filename
 prototype	task-nineteen-kinds
 prototype	task-hitl-afk
-prototype	task-producer-prototype
 prototype	task-in-session-doubt-budget
 prototype	task-too-big-is-planning
 prototype	task-two-shapes
@@ -221,6 +220,7 @@ prototype	driving-recording-fog
 prototype	driving-when-a-leafs-place-is-in-doubt
 prototype	driving-no-session-summary
 prototype	driving-ask-about-the-trade-off
+prototype	task-producer-prototype
 prototype	skill-signal
 impl	mandate-framing
 impl	skill-what-a-grove-is
@@ -254,7 +254,6 @@ impl	task-leaf-filename
 impl	task-kind-in-the-filename
 impl	task-nineteen-kinds
 impl	task-hitl-afk
-impl	task-producer-impl
 impl	task-in-session-doubt-budget
 impl	task-too-big-is-planning
 impl	task-two-shapes
@@ -274,6 +273,7 @@ impl	driving-recording-fog
 impl	driving-when-a-leafs-place-is-in-doubt
 impl	driving-no-session-summary
 impl	driving-ask-about-the-trade-off
+impl	task-producer-impl
 impl	skill-signal
 research-a	mandate-framing
 research-a	skill-what-a-grove-is
@@ -307,7 +307,6 @@ research-a	task-leaf-filename
 research-a	task-kind-in-the-filename
 research-a	task-nineteen-kinds
 research-a	task-hitl-afk
-research-a	task-research-pair
 research-a	task-in-session-doubt-budget
 research-a	task-too-big-is-planning
 research-a	task-two-shapes
@@ -327,6 +326,7 @@ research-a	driving-recording-fog
 research-a	driving-when-a-leafs-place-is-in-doubt
 research-a	driving-no-session-summary
 research-a	driving-ask-about-the-trade-off
+research-a	task-research-pair
 research-a	skill-signal
 research-b	mandate-framing
 research-b	skill-what-a-grove-is
@@ -360,7 +360,6 @@ research-b	task-leaf-filename
 research-b	task-kind-in-the-filename
 research-b	task-nineteen-kinds
 research-b	task-hitl-afk
-research-b	task-research-pair
 research-b	task-in-session-doubt-budget
 research-b	task-too-big-is-planning
 research-b	task-two-shapes
@@ -380,6 +379,7 @@ research-b	driving-recording-fog
 research-b	driving-when-a-leafs-place-is-in-doubt
 research-b	driving-no-session-summary
 research-b	driving-ask-about-the-trade-off
+research-b	task-research-pair
 research-b	skill-signal
 combine-research	mandate-framing
 combine-research	skill-what-a-grove-is
@@ -413,7 +413,6 @@ combine-research	task-leaf-filename
 combine-research	task-kind-in-the-filename
 combine-research	task-nineteen-kinds
 combine-research	task-hitl-afk
-combine-research	task-combine-research
 combine-research	task-in-session-doubt-budget
 combine-research	task-too-big-is-planning
 combine-research	task-two-shapes
@@ -433,6 +432,7 @@ combine-research	driving-recording-fog
 combine-research	driving-when-a-leafs-place-is-in-doubt
 combine-research	driving-no-session-summary
 combine-research	driving-ask-about-the-trade-off
+combine-research	task-combine-research
 combine-research	skill-signal
 finish	mandate-framing
 finish	skill-what-a-grove-is
@@ -458,8 +458,6 @@ finish	skill-pruning-is-hitl
 finish	skill-node-close-cascade
 finish	skill-commit
 finish	skill-finish
-finish	skill-finish-cycle
-finish	skill-finish-endings
 finish	skill-artifacts
 finish	skill-glossary-is-load-bearing
 finish	skill-briefs-vs-glossary
@@ -468,7 +466,6 @@ finish	task-leaf-filename
 finish	task-kind-in-the-filename
 finish	task-nineteen-kinds
 finish	task-hitl-afk
-finish	task-finish-session
 finish	task-in-session-doubt-budget
 finish	task-too-big-is-planning
 finish	task-two-shapes
@@ -488,6 +485,9 @@ finish	driving-recording-fog
 finish	driving-when-a-leafs-place-is-in-doubt
 finish	driving-no-session-summary
 finish	driving-ask-about-the-trade-off
+finish	skill-finish-cycle
+finish	skill-finish-endings
+finish	task-finish-session
 review-requirements	mandate-framing
 review-requirements	skill-what-a-grove-is
 review-requirements	skill-spine-constraints
@@ -520,7 +520,6 @@ review-requirements	task-leaf-filename
 review-requirements	task-kind-in-the-filename
 review-requirements	task-nineteen-kinds
 review-requirements	task-hitl-afk
-review-requirements	task-review-kinds
 review-requirements	task-in-session-doubt-budget
 review-requirements	task-too-big-is-planning
 review-requirements	task-two-shapes
@@ -540,6 +539,7 @@ review-requirements	driving-recording-fog
 review-requirements	driving-when-a-leafs-place-is-in-doubt
 review-requirements	driving-no-session-summary
 review-requirements	driving-ask-about-the-trade-off
+review-requirements	task-review-kinds
 review-requirements	skill-signal
 review-design	mandate-framing
 review-design	skill-what-a-grove-is
@@ -573,7 +573,6 @@ review-design	task-leaf-filename
 review-design	task-kind-in-the-filename
 review-design	task-nineteen-kinds
 review-design	task-hitl-afk
-review-design	task-review-kinds
 review-design	task-in-session-doubt-budget
 review-design	task-too-big-is-planning
 review-design	task-two-shapes
@@ -593,6 +592,7 @@ review-design	driving-recording-fog
 review-design	driving-when-a-leafs-place-is-in-doubt
 review-design	driving-no-session-summary
 review-design	driving-ask-about-the-trade-off
+review-design	task-review-kinds
 review-design	skill-signal
 review-planning	mandate-framing
 review-planning	skill-what-a-grove-is
@@ -626,7 +626,6 @@ review-planning	task-leaf-filename
 review-planning	task-kind-in-the-filename
 review-planning	task-nineteen-kinds
 review-planning	task-hitl-afk
-review-planning	task-review-kinds
 review-planning	task-in-session-doubt-budget
 review-planning	task-too-big-is-planning
 review-planning	task-two-shapes
@@ -646,6 +645,7 @@ review-planning	driving-recording-fog
 review-planning	driving-when-a-leafs-place-is-in-doubt
 review-planning	driving-no-session-summary
 review-planning	driving-ask-about-the-trade-off
+review-planning	task-review-kinds
 review-planning	skill-signal
 review-prototype	mandate-framing
 review-prototype	skill-what-a-grove-is
@@ -679,7 +679,6 @@ review-prototype	task-leaf-filename
 review-prototype	task-kind-in-the-filename
 review-prototype	task-nineteen-kinds
 review-prototype	task-hitl-afk
-review-prototype	task-review-kinds
 review-prototype	task-in-session-doubt-budget
 review-prototype	task-too-big-is-planning
 review-prototype	task-two-shapes
@@ -699,6 +698,7 @@ review-prototype	driving-recording-fog
 review-prototype	driving-when-a-leafs-place-is-in-doubt
 review-prototype	driving-no-session-summary
 review-prototype	driving-ask-about-the-trade-off
+review-prototype	task-review-kinds
 review-prototype	skill-signal
 review-impl	mandate-framing
 review-impl	skill-what-a-grove-is
@@ -732,7 +732,6 @@ review-impl	task-leaf-filename
 review-impl	task-kind-in-the-filename
 review-impl	task-nineteen-kinds
 review-impl	task-hitl-afk
-review-impl	task-review-kinds
 review-impl	task-in-session-doubt-budget
 review-impl	task-too-big-is-planning
 review-impl	task-two-shapes
@@ -752,6 +751,7 @@ review-impl	driving-recording-fog
 review-impl	driving-when-a-leafs-place-is-in-doubt
 review-impl	driving-no-session-summary
 review-impl	driving-ask-about-the-trade-off
+review-impl	task-review-kinds
 review-impl	skill-signal
 integrate-review-requirements	mandate-framing
 integrate-review-requirements	skill-what-a-grove-is
@@ -785,7 +785,6 @@ integrate-review-requirements	task-leaf-filename
 integrate-review-requirements	task-kind-in-the-filename
 integrate-review-requirements	task-nineteen-kinds
 integrate-review-requirements	task-hitl-afk
-integrate-review-requirements	task-integrate-review-kinds
 integrate-review-requirements	task-in-session-doubt-budget
 integrate-review-requirements	task-too-big-is-planning
 integrate-review-requirements	task-two-shapes
@@ -805,6 +804,7 @@ integrate-review-requirements	driving-recording-fog
 integrate-review-requirements	driving-when-a-leafs-place-is-in-doubt
 integrate-review-requirements	driving-no-session-summary
 integrate-review-requirements	driving-ask-about-the-trade-off
+integrate-review-requirements	task-integrate-review-kinds
 integrate-review-requirements	skill-signal
 integrate-review-design	mandate-framing
 integrate-review-design	skill-what-a-grove-is
@@ -838,7 +838,6 @@ integrate-review-design	task-leaf-filename
 integrate-review-design	task-kind-in-the-filename
 integrate-review-design	task-nineteen-kinds
 integrate-review-design	task-hitl-afk
-integrate-review-design	task-integrate-review-kinds
 integrate-review-design	task-in-session-doubt-budget
 integrate-review-design	task-too-big-is-planning
 integrate-review-design	task-two-shapes
@@ -858,6 +857,7 @@ integrate-review-design	driving-recording-fog
 integrate-review-design	driving-when-a-leafs-place-is-in-doubt
 integrate-review-design	driving-no-session-summary
 integrate-review-design	driving-ask-about-the-trade-off
+integrate-review-design	task-integrate-review-kinds
 integrate-review-design	skill-signal
 integrate-review-planning	mandate-framing
 integrate-review-planning	skill-what-a-grove-is
@@ -891,7 +891,6 @@ integrate-review-planning	task-leaf-filename
 integrate-review-planning	task-kind-in-the-filename
 integrate-review-planning	task-nineteen-kinds
 integrate-review-planning	task-hitl-afk
-integrate-review-planning	task-integrate-review-kinds
 integrate-review-planning	task-in-session-doubt-budget
 integrate-review-planning	task-too-big-is-planning
 integrate-review-planning	task-two-shapes
@@ -911,6 +910,7 @@ integrate-review-planning	driving-recording-fog
 integrate-review-planning	driving-when-a-leafs-place-is-in-doubt
 integrate-review-planning	driving-no-session-summary
 integrate-review-planning	driving-ask-about-the-trade-off
+integrate-review-planning	task-integrate-review-kinds
 integrate-review-planning	skill-signal
 integrate-review-prototype	mandate-framing
 integrate-review-prototype	skill-what-a-grove-is
@@ -944,7 +944,6 @@ integrate-review-prototype	task-leaf-filename
 integrate-review-prototype	task-kind-in-the-filename
 integrate-review-prototype	task-nineteen-kinds
 integrate-review-prototype	task-hitl-afk
-integrate-review-prototype	task-integrate-review-kinds
 integrate-review-prototype	task-in-session-doubt-budget
 integrate-review-prototype	task-too-big-is-planning
 integrate-review-prototype	task-two-shapes
@@ -964,6 +963,7 @@ integrate-review-prototype	driving-recording-fog
 integrate-review-prototype	driving-when-a-leafs-place-is-in-doubt
 integrate-review-prototype	driving-no-session-summary
 integrate-review-prototype	driving-ask-about-the-trade-off
+integrate-review-prototype	task-integrate-review-kinds
 integrate-review-prototype	skill-signal
 integrate-review-impl	mandate-framing
 integrate-review-impl	skill-what-a-grove-is
@@ -997,7 +997,6 @@ integrate-review-impl	task-leaf-filename
 integrate-review-impl	task-kind-in-the-filename
 integrate-review-impl	task-nineteen-kinds
 integrate-review-impl	task-hitl-afk
-integrate-review-impl	task-integrate-review-kinds
 integrate-review-impl	task-in-session-doubt-budget
 integrate-review-impl	task-too-big-is-planning
 integrate-review-impl	task-two-shapes
@@ -1017,4 +1016,5 @@ integrate-review-impl	driving-recording-fog
 integrate-review-impl	driving-when-a-leafs-place-is-in-doubt
 integrate-review-impl	driving-no-session-summary
 integrate-review-impl	driving-ask-about-the-trade-off
+integrate-review-impl	task-integrate-review-kinds
 integrate-review-impl	skill-signal

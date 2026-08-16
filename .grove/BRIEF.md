@@ -27,8 +27,23 @@ the reversal does not walk back into the failure the mandate was built to fix.
 ## Decomposition
 
 The spec is written — [`skill-delivered-methodology`](../docs/specs/skill-delivered-methodology.md)
-— and its review and the decomposition that consumes it are cut. The increments
-themselves are the `planning` leaf's to cut.
+— reviewed, and cut into increments. In order:
+
+1. `wording-micro-test-k6` — the two-arm micro-test, first because the spec makes
+   it an ordering constraint: run after the rewrite lands, it is a post-mortem.
+2. `corpus-rewrite-k7` — the rewrite of `content/`, as a node of five children.
+3. `absent-skill-destination-k8` — the driver's one new report.
+4. `guaranteed-core-k9` — the cutover: the `prompt` seam, and both record reworks.
+5. `mandate-machinery-k10` — the deletion, and the old spec with it.
+6. `delivery-acceptance-k11` — the human-watched run, both limbs.
+
+**The one ordering constraint the brief inherited is satisfied by construction,
+not by sequencing.** `${prompt}` must not shrink before `SKILL.md` is short — and
+under the live machinery those are the *same edit*, because the mandate is the
+union of triggering units and `SKILL.md` is destined to be the union of triggering
+conditions. So there is no increment that does one without the other, and the
+spec's open question — one increment or two with a flag — resolves to **neither,
+and no flag**. `07-corpus-rewrite-k7/BRIEF.md` carries the working.
 
 ## Pointers
 

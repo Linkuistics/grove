@@ -56,6 +56,50 @@ something verifiable for its successor. The spec's own material to work from:
   **reading the skill**. One without the other is a swap. Whether that is a leaf
   or a gate on the last increment is the planning call.
 
+## Decisions
+
+**The two halves of the ordering constraint are one edit, so no flag.** The spec
+left open whether *`${prompt}` must not shrink before `SKILL.md` is short* forces
+one increment or two with a flag. Neither. `build.rs`'s `collect_markdown` walks
+every markdown file under `content/` recursively and demands total marker
+partition, so the rewrite cannot outrun the machinery deletion — it must be
+marker-preserving. And the mandate is the union of triggering units
+(`src/methodology.rs`, `compose`) while the target `SKILL.md` is *also* the union
+of triggering conditions, so rewriting a unit into a condition line plus a
+`class=procedural` remainder shrinks both in the same edit. The working is in
+`07-corpus-rewrite-k7/BRIEF.md`, because every child of that node depends on it.
+
+**Relocation is provably free, so the layout lands as its own increment.**
+`<!-- file: order=N -->` controls composition order independently of file layout,
+so moving units into their target files leaves every kind's composed mandate
+byte-identical — and `tests/goldens/composed-mandates.tsv` proves it. That buys
+`per-kind-references-k12`: ~40 kB of prose changes files, the golden does not
+move, and the three rewrite children that follow write into a destination set that
+already exists.
+
+**One grove, not several.** The brief's `Done when` ends at a human-watched run
+with both limbs, and that instrument spans every increment — splitting the
+workstream into separate groves would fragment the only check that can tell a fix
+from a swap. The increments are ordered leaves in this tree instead.
+
+**The verification run is a leaf, not a gate on the last increment** — the second
+call the spec handed here. Both limbs need a human watching a live loop over
+several sessions, which is not something the deletion increment can discharge on
+its way past; and the three outcomes diverge (one ends the grove, two cut
+follow-up work), which is a leaf's shape and not a gate's.
+
+**Review chains are not pre-cut.** Chains are built lazily, one step at a time, by
+the session that needs the next one — so the producers are cut and the reviews are
+not. Two are named where they are owed rather than created: the no-procedure
+review obligation in `skill-opening-k16` (the spec makes it a review finding, not
+a test result, and says no budget test may be cited as evidence for it), and a
+survival review in `mandate-machinery-k10`.
+
+**`prototype` for both experiments.** `wording-micro-test-k6` and
+`delivery-acceptance-k11` both resolve on a human's reading of fresh sessions.
+`prototype` is the HITL producer kind, and an AFK session has nothing to conclude
+in either.
+
 ## Notes
 
 `grove-llm methodology <id>` still works while the machinery is live and is the

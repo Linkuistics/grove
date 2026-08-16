@@ -108,10 +108,13 @@ fn run_configured_loop_with_lease(
         driver_lease
             .revalidate()
             .context("revalidating driver lease before loop transition")?;
-        // The one artifact Grove owns is repaired; the pairing it can only
-        // predict is reported. Both run before configuration validation and any
-        // tree mutation, so their lines land ahead of any mutation output.
+        // The one artifact Grove owns is repaired; the two things it can only
+        // predict — where the methodology landed, and which CLI a session will
+        // resolve — are reported. All three run before configuration validation
+        // and any tree mutation, so their lines land ahead of any mutation
+        // output.
         crate::provision::reverify_installed()?;
+        crate::provision::report_absent_skill_destination();
         report_build_pairing(worktree);
         let _pre_transition_config = SessionConfig::load(&home)?;
 

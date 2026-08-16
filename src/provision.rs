@@ -110,6 +110,58 @@ pub fn warn_on_foreign_skill_dirs() {
     });
 }
 
+/// Report — before every launch — that this machine has **no known harness root
+/// at all**, so nothing was provisioned and a session's core points at a skill
+/// that is not there. A total failure that is otherwise entirely silent.
+///
+/// **It reports and never refuses**, on the line Grove's surface already draws:
+/// it stops on what governs its own operation and reports what it can only
+/// predict about a session's environment. Which harness an opaque configured
+/// command reaches is firmly the latter — Grove executes that command directly
+/// and cannot know what it is — so a refusal here would be a guess with a
+/// launch riding on it.
+///
+/// **One installed root silences it, and that is deliberate.** Absence of a
+/// destination is the only claim on offer: a machine with a known root has been
+/// provisioned, and the weaker claim that remains — *we do not know whether your
+/// harness reads it* — is one the driver has no standing to make. It would fire
+/// on every correctly configured machine, every iteration, forever.
+///
+/// A home this process cannot locate is silent for the same reason
+/// [`warn_on_foreign_skill_dirs`] is: nothing can be said about roots that
+/// cannot be named. `reverify_installed` runs first on the same iteration and
+/// fails loudly on that case anyway.
+pub fn report_absent_skill_destination() {
+    let Ok(home) = home_dir() else { return };
+    if let Some(report) = absent_destination_report(&home) {
+        eprintln!("{report}");
+    }
+}
+
+/// The diagnostic for `home`, or `None` when any known root exists.
+///
+/// Split out as a pure function of the home so the rule is pinnable without
+/// writing `$HOME`, which [`home_dir`] and `loop_driver`'s config lookup read in
+/// parallel — the same reason [`skill_dir_in`] takes one.
+fn absent_destination_report(home: &Path) -> Option<String> {
+    if HARNESSES
+        .iter()
+        .any(|harness| home.join(harness.project_dir).is_dir())
+    {
+        return None;
+    }
+    let looked_for = HARNESSES
+        .iter()
+        .map(|harness| home.join(harness.project_dir).display().to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(format!(
+        "grove: no known harness root exists, so nothing is provisioned and a session will \
+         find no grove skill where its mandate points;\n       \
+         looked for {looked_for} — the launch proceeds regardless."
+    ))
+}
+
 /// Visit every *installed* harness's skill directory, in registry order.
 ///
 /// Presence of the harness's home marker is the whole rule — an absent root is
@@ -274,6 +326,60 @@ mod tests {
         assert_eq!(
             skill_dir_in(Path::new("/home/x"), row("pi")),
             Path::new("/home/x/.pi/agent/skills/grove")
+        );
+    }
+
+    /// No known root → one diagnostic, naming every root it looked for by
+    /// **absolute** path. A relative name would be unactionable: the whole point
+    /// is telling the operator which directory to create.
+    #[test]
+    fn an_absent_destination_is_reported_and_names_every_root_by_absolute_path() {
+        let home = TempDir::new().unwrap();
+
+        let report = absent_destination_report(home.path())
+            .expect("a home with no harness root has nothing provisioned into it");
+
+        for harness in crate::harness::HARNESSES {
+            let root = home.path().join(harness.project_dir);
+            assert!(root.is_absolute());
+            assert!(
+                report.contains(root.to_str().unwrap()),
+                "the report must name {}: {report}",
+                root.display()
+            );
+        }
+    }
+
+    /// One installed root silences it — for *every* row, not just the first.
+    /// Absence of a destination is the only claim on offer, and it cannot be
+    /// made about a machine that has one.
+    #[test]
+    fn any_single_installed_root_silences_the_report() {
+        for harness in crate::harness::HARNESSES {
+            let home = TempDir::new().unwrap();
+            std::fs::create_dir_all(home.path().join(harness.project_dir)).unwrap();
+
+            assert_eq!(
+                absent_destination_report(home.path()),
+                None,
+                "an installed {} root must silence the report",
+                harness.name
+            );
+        }
+    }
+
+    /// A *file* at the marker path is not an installed harness, and the report
+    /// must agree with the sweep about that — [`each_installed_skill_dir`] asks
+    /// `is_dir`, so a stray file would otherwise be provisioned into nothing
+    /// while the driver claimed a destination existed.
+    #[test]
+    fn a_file_at_a_marker_path_is_not_an_installed_root() {
+        let home = TempDir::new().unwrap();
+        std::fs::write(home.path().join(row("claude").project_dir), "not a dir").unwrap();
+
+        assert!(
+            absent_destination_report(home.path()).is_some(),
+            "a file where a harness root would be is still no destination"
         );
     }
 

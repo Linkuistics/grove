@@ -104,8 +104,21 @@ fn shell_quote(path: &Path) -> String {
 
 /// A complete personal config: one command template for every session kind, so
 /// configuration validation passes whichever leaf the tree happens to select.
+///
+/// It also plants a `.codex` harness root, which is what the *rest* of this
+/// suite wants: a home with a provisioning destination, so the driver's
+/// absent-destination report stays silent and a fixture's stderr carries only
+/// what the fixture is about. The report's own two scenarios use
+/// [`write_config_only`] and choose their roots deliberately.
 fn write_complete_config(home: &Path, command: &Path) {
     fs::create_dir_all(home.join(".codex")).unwrap();
+    write_config_only(home, command);
+}
+
+/// The config document alone — **no harness root**. Separated so a fixture can
+/// state for itself which known roots exist, rather than inheriting one from a
+/// helper whose job is configuration.
+fn write_config_only(home: &Path, command: &Path) {
     let config_dir = home.join(".config/grove");
     fs::create_dir_all(&config_dir).unwrap();
     let template = format!("{} '${{prompt}}'", shell_quote(command));
@@ -151,6 +164,106 @@ fn grove_driver(worktree: &Path, home: &Path) -> Command {
 
 fn run_driver(worktree: &Path, home: &Path) -> Output {
     grove_driver(worktree, home).output().unwrap()
+}
+
+/// The clause the absent-destination report is recognised by. A phrase rather
+/// than the whole sentence: the roots it names are asserted separately, by
+/// path, and the prose around them is free to be re-worded.
+const NO_DESTINATION: &str = "no known harness root exists";
+
+/// The known harness home markers, home-relative — read from the registry
+/// rather than restated, so a row added to `src/harness.rs` is covered by both
+/// scenarios below without anyone remembering to widen a literal here. The
+/// registry is what "supported" means, and these tests are asserting about
+/// exactly that set.
+fn known_harness_roots() -> impl Iterator<Item = &'static str> {
+    grove::harness::HARNESSES
+        .iter()
+        .map(|harness| harness.project_dir)
+}
+
+/// One driver run against a home carrying `installed_roots` and nothing else,
+/// with a configured command that records having run. Returns the run's stderr
+/// and whether the session actually launched.
+fn run_driver_with_roots(fixture: &Path, installed_roots: &[&str]) -> (String, bool) {
+    let home = fixture.join("home");
+    let worktree = fixture.join("worktree");
+    init_worktree(&worktree);
+    plant_tree(&worktree, "01-impl-subject-k1.md");
+
+    let launched = fixture.join("launched");
+    let configured = fixture.join("configured-command.sh");
+    write_exec(
+        &configured,
+        &format!(
+            "#!/bin/sh\n: > {launched}\nexit 0\n",
+            launched = shell_quote(&launched),
+        ),
+    );
+    write_config_only(&home, &configured);
+    for root in installed_roots {
+        fs::create_dir_all(home.join(root)).unwrap();
+    }
+
+    let output = run_driver(&worktree, &home);
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assert!(
+        output.status.success(),
+        "the driver must not refuse on this ground: {stderr}"
+    );
+    (stderr, launched.exists())
+}
+
+// If no known harness root exists, nothing is provisioned and a session's core
+// points at a skill that is not there — a total failure that is otherwise
+// silent. The driver says so before the launch, and **launches anyway**: which
+// harness an opaque configured command reaches is something Grove can only
+// predict, and it reports what it predicts rather than refusing on it.
+//
+// Both halves are asserted together on purpose. A report that came at the cost
+// of a refused launch would be the failure it warns about, delivered by hand.
+#[test]
+fn no_harness_root_is_reported_by_absolute_path_and_the_launch_proceeds() {
+    let fixture = TempDir::new().unwrap();
+
+    let (stderr, launched) = run_driver_with_roots(fixture.path(), &[]);
+
+    assert!(
+        stderr.contains(NO_DESTINATION),
+        "an absent destination must be reported: {stderr}"
+    );
+    for root in known_harness_roots() {
+        let path = fixture.path().join("home").join(root);
+        assert!(
+            stderr.contains(path.to_str().unwrap()),
+            "the diagnostic must name {} by absolute path: {stderr}",
+            path.display()
+        );
+    }
+    assert!(launched, "the configured session must still be launched");
+}
+
+// The other scenario, and the one worth being careful about: **nothing is
+// printed** when any known root exists. Absence of a destination is the only
+// claim on offer. The weaker claim a report here would be making — *we do not
+// know whether your harness reads it* — is true of every correctly provisioned
+// machine, and the driver has no standing to make it.
+//
+// Run once per registry row, because "any" is the claim: a check that only ever
+// looked at the first row would pass while the other two went unreported.
+#[test]
+fn one_installed_harness_root_is_reported_on_at_all() {
+    for root in known_harness_roots() {
+        let fixture = TempDir::new().unwrap();
+
+        let (stderr, launched) = run_driver_with_roots(fixture.path(), &[root]);
+
+        assert!(
+            !stderr.contains(NO_DESTINATION),
+            "an installed {root} root must silence the report: {stderr}"
+        );
+        assert!(launched);
+    }
 }
 
 // The session epoch is what admits an agent's `grove-llm` calls, so its window

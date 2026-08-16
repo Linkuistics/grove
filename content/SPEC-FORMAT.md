@@ -1,21 +1,13 @@
 <!-- file: order=7 -->
-<!-- unit: spec-when-a-spec-is-written kinds=* class=triggering defers="spec-set-is-current-state spec-suggested-shape" -->
+<!-- unit: spec-set-is-current-state class=procedural -->
 <!-- grove reference file — the spec shape -->
 
 # SPEC-FORMAT — the spec
 
-A **spec** is the human-facing, team-shareable design of an area of the system,
-written by a `design` task *when the increment is a genuine agreement point*. The
-flow there is: grill (`requirements`) → spec, review & agree (`design`) →
-decompose (`planning`) → execute (`impl`). Specs live in `docs/specs/`, one file
-per area, **slug-named**: `docs/specs/<slug>.md`. The slug is the spec's identity;
-create the directory lazily, only when the first spec is needed.
+A **spec** is the human-facing, team-shareable design of an area of the system.
+The flow it sits in is: grill (`requirements`) → spec, review & agree (`design`)
+→ decompose (`planning`) → execute (`impl`).
 
-Most increments write no spec at all (constraint 4). The one that does is the one
-where the human signs off on the design's shape before decomposition turns it
-into `impl` leaves.
-
-<!-- unit: spec-set-is-current-state class=procedural -->
 ## The set is current-state
 
 `docs/specs/` is a **minimum coherent set describing the design's current

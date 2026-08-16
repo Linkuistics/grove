@@ -282,6 +282,13 @@ spec only at a genuine agreement point (`SPEC-FORMAT.md`), and treat both as a
 *changes* a recorded decision **reworks that set in place** and **never appends
 a superseding record** (`references/execute.md`).
 
+<!-- unit: spec-when-a-spec-is-written kinds=* class=triggering defers="spec-set-is-current-state spec-suggested-shape" -->
+**A spec is written by a `design` task at a genuine agreement point and nowhere
+else** — the point where a human signs off on the design's shape before
+decomposition turns it into `impl` leaves. Most increments write none
+(constraint 4). One file per area at `docs/specs/<slug>.md`, the slug is the
+identity, and the directory is created lazily (`SPEC-FORMAT.md`).
+
 <!-- unit: skill-glossary-is-load-bearing kinds=* class=triggering defers="skill-why-the-glossary-holds context-structure" -->
 **The glossary is load-bearing.** `CONTEXT.md` is read every session and
 appended *inline* whenever a term is resolved — that is the forcing function
@@ -302,3 +309,75 @@ not provision: ADR philosophy in `linkuistics:decision-records`, test seams in
 `linkuistics:using-jujutsu`, which the Commit step cites rather than restates.
 It installs separately, through the Claude Code marketplace or the repo's
 `plugins/install.sh` (`references/grove.md`).
+
+<!-- unit: driving-when-to-commission-prior-art-research kinds=* class=triggering defers="driving-signs-of-a-research-leaf driving-how-to-write-a-research-leaf-brief driving-running-the-vendor-pair" -->
+## Working habits
+
+**Commission prior-art research when a leaf's design depends on lessons prior
+tools learned the hard way** and those lessons are not obvious from the current
+codebase. Insert it *after* the design questions are visible but *before* the
+leaves that need the answers, so later grilling spends its time on the remaining
+decisions instead of rediscovering failure modes. One survey is a `research-a`
+leaf; the **vendor pair** is what buys two corpora (`driving.md`).
+
+<!-- unit: driving-when-to-retire-research-into-adrs kinds=* class=triggering defers="driving-the-findings-adopted-bridge driving-reworking-adrs-and-briefs" -->
+**Research outlives the grove that commissioned it (constraint 6), and ADRs are
+where its findings become binding.** A finding that *changed* a decision is cited in that
+ADR's rationale; one that *confirmed* a decision gets a "validated here against
+…" note, or stays in `docs/research/` with a forward pointer. Either way you edit
+the ADR **in place**, because the set is current-state (`driving.md`).
+
+<!-- unit: driving-when-code-depends-on-a-framework-version kinds=* class=triggering defers=driving-cite-framework-decisions-to-the-source -->
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
+     — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
+**Framework- or library-specific code whose correctness depends on the version is
+verified against the source, not against memory** — training data goes stale, and
+an API you "remember" may have been deprecated two releases ago. Read the
+manifest, fetch the official docs, cite at the decision site, and flag what you
+could not verify. Version-invariant logic, renames and plumbing are exempt
+(`driving.md`).
+
+<!-- unit: driving-when-asserting-a-repo-wide-claim kinds=* class=triggering defers=driving-turning-a-sweep-into-evidence -->
+**A repo-wide claim about your own codebase — *"every X is now Y"*, *"that
+pattern is gone"* — needs a control, not just a clean grep.** Every way a sweep
+fails produces a *clean-looking* result, and a broken instrument reads clean
+**everywhere**, so clean-here alone proves nothing. Pair the sweep with a
+positive and a cross-tree control, and **enumerate then classify** rather than
+sweeping a pattern list — a list is complete only as far as the list
+(`driving.md`).
+
+<!-- unit: driving-recording-fog kinds=* class=triggering defers="driving-the-fog-or-ticket-test brief-suggested-shape" -->
+<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
+     mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
+     (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
+     specified") — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. -->
+**Work you can see coming but cannot yet leaf-shape goes in a brief's *On the
+horizon* note**, not into a speculative leaf — laziness means a leaf either
+exists or it doesn't, and the note is the only place that dim view keeps. The
+line between the two is the **fog-or-ticket test**: can you state the question
+precisely *right now* — not whether you can answer it (`BRIEF-FORMAT.md`).
+
+<!-- unit: driving-when-a-leafs-place-is-in-doubt kinds=* class=triggering defers=driving-prune-reorder-or-file-an-issue -->
+**A leaf whose place is in doubt never gets a status word** — no `blocked`, no
+`deferred`, no `superseded`. A fourth state is how a tree starts lying about what
+is still live, and the doubt always resolves to one of three existing mechanisms:
+*not now, but still ours* → a **reorder**; *not ours at all* → a **GitHub
+issue**, not a leaf; *decided against* → a **prune** (HITL). Name which of the
+three sentences is true before reaching for the CLI — the sentence picks the verb
+(`driving.md`).
+
+<!-- unit: driving-no-session-summary kinds=* class=triggering defers=driving-record-decisions-inline -->
+**Do not reconstruct the session's decisions at the end of it** — no
+session-summary file, and no commit message that re-tells every decision.
+Decisions are recorded **inline, as they land**: in the task file's running log
+while the session still holds the reasoning, and in the ADR set where one is
+durable enough to earn a record. A third telling written afterwards duplicates
+them, rots against them, and is exactly the status artifact constraint 1 rejects.
+
+<!-- unit: driving-ask-about-the-trade-off kinds=* class=triggering -->
+**Never close by inviting questions in general.** "Let me know if you have any
+questions" is not a prompt — the human has to invent your agenda before they can
+answer it. Name the **specific** trade-off you want input on, propose a
+recommended answer, and give the evidence behind that recommendation; that turns
+an escalation into a decision instead of an open-ended handback.

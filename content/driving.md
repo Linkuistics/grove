@@ -1,14 +1,30 @@
 <!-- file: order=9 -->
-<!-- unit: driving-when-to-commission-prior-art-research kinds=* class=triggering defers="driving-how-to-write-a-research-leaf-brief driving-running-the-vendor-pair" -->
+<!-- unit: driving-signs-of-a-research-leaf class=procedural -->
+<!-- grove reference file — the field habits -->
+
+# driving — habits for driving a grove
+
+`SKILL.md`'s *Working habits* section states each condition below; this file is
+where the procedure lives. It is long, so:
+
+| section | what it covers |
+|---|---|
+| When to commission prior-art research | the signs, the brief, the vendor pair |
+| Ask the LLM "WDYT" / Ask for pushback / Record decisions inline | the three grilling habits |
+| Retiring research into ADRs | the "findings adopted" bridge, and reworking the set in place |
+| Verifying framework decisions against the source | manifest, official source, citation at the decision site |
+| Verifying a claim about the repo itself | how a sweep lies, the two controls, enumerate-then-classify |
+| Doubting inside a picked Grove leaf | the one-reviewer allowance and its exceptions |
+| The review chain | when doubt earns its own leaves, and the habits that pay for them |
+| Externalizing surfaced work | the two triggers, and what a good child leaf looks like |
+| Recording fog without pre-slicing it | the fog-or-ticket test |
+| Prune, reorder, or file an issue | the three sentences, and which verb each picks |
+
 ## When to commission prior-art research
 
-A `requirements` leaf is the right unit for a grilling session when the
-design tree fits in one session. When the leaf's design depends on lessons
-that prior tools have learned the hard way — and those lessons are not
-obvious from the current codebase — *insert a research leaf ahead of
-it*. One survey on its own is a `research-a` leaf; the paired second survey is
-what the vendor pair below adds. The research leaf's job is to surface the failure
-modes the grilling would otherwise have to learn from scratch.
+A `requirements` leaf is the right unit for a grilling session when the design
+tree fits in one session. A research leaf ahead of it is what surfaces the
+failure modes the grilling would otherwise have to learn from scratch.
 
 **Signs you want a research leaf:**
 
@@ -181,27 +197,19 @@ The decisions log is *not* the ADR. ADRs come at the end of grilling
 deserve one). The log is for the conversation; the ADR is for the
 durable record.
 
-<!-- unit: driving-when-to-retire-research-into-adrs kinds=* class=triggering defers=driving-reworking-adrs-and-briefs -->
-## When to retire research into ADRs versus leave it in `docs/research/`
+<!-- unit: driving-the-findings-adopted-bridge class=procedural -->
+## Retiring research into ADRs
 
-Research outlives the grove that commissioned it (constraint 6).
-ADRs are the place where research findings become *binding* on
-future work.
+A finding that overturns a recorded decision **rewrites** (or merges / deletes)
+that ADR rather than spawning a superseding one — the set is current-state, and
+*Reworking ADRs and briefs* below is how.
 
-The rule of thumb: a research finding that *changed a decision* gets
-cited in the relevant ADR's rationale section. A research finding
-that *confirmed an existing decision* gets a "validated here against
-…" note in the relevant ADR, or stays in the research doc with a
-forward pointer. Either way you are editing the ADR **in place** — the
-set is current-state, so a finding that overturns a recorded decision
-rewrites (or merges / deletes) that ADR rather than spawning a
-superseding one; see *Reworking ADRs and briefs* below.
-
-The sync-semantics grilling's "Findings adopted" pattern is the bridge
-in both directions: the research doc gets a section pointing forward at
-the ADRs its findings landed in, and each ADR has a rationale section
-citing the survey by primary source. A future reader of either
-artifact can trace the evidence chain without re-doing the research.
+What keeps the evidence chain traceable across that move is a bridge pointing
+**both ways** — the sync-semantics grilling's "Findings adopted" pattern. The
+research doc gets a section pointing forward at the ADRs its findings landed in,
+and each ADR gets a rationale section citing the survey by primary source. A
+future reader of either artifact can then trace the chain without re-doing the
+research.
 
 <!-- unit: driving-reworking-adrs-and-briefs class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 ## Reworking ADRs and briefs as understanding shifts
@@ -231,26 +239,16 @@ that changes a recorded decision, and **retiring** a leaf or node (`SKILL.md`'s
 Plan and Retire steps), where you promote brief material upward and reconcile the
 ADR set in the same pass.
 
-<!-- unit: driving-when-code-depends-on-a-framework-version kinds=* class=triggering defers=driving-cite-framework-decisions-to-the-source -->
+<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
      — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
 
 ## Verifying framework decisions against the source
 
-The research-leaf discipline — a citation per claim, primary sources, and a
-note for what you *couldn't* verify — is not only for research. It applies to
-**`impl` tasks** too, whenever you write framework- or library-specific code
-whose correctness depends on the version. Training data goes stale; an API you
-"remember" may have been deprecated two releases ago.
-
-<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural defers=driving-doubting-inside-a-picked-leaf -->
-<!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
-     addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
-     — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
-
-For that kind of code — and only that kind, not version-invariant logic,
-renames, or plumbing:
+This is the research-leaf discipline — a citation per claim, primary sources, and
+a note for what you *couldn't* verify — turned on **`impl` tasks**. For that kind
+of code, and only that kind — not version-invariant logic, renames, or plumbing:
 
 - **Read the manifest first.** `Cargo.toml`, `package.json`, `pyproject.toml`,
   `go.mod` — whatever pins the version. The version decides which pattern is
@@ -273,17 +271,13 @@ renames, or plumbing:
 When the decision is also hard to reverse, this pairs with the doubt pass
 below: cite the source *and* have a fresh context try to break it.
 
-<!-- unit: driving-when-asserting-a-repo-wide-claim kinds=* class=triggering defers=driving-turning-a-sweep-into-evidence -->
+<!-- unit: driving-turning-a-sweep-into-evidence class=procedural -->
 ## Verifying a claim about the repo itself
 
-Grounding a claim about your own codebase is the counterpart to grounding one
-about a framework — the same evidence discipline, turned inward. Sessions
-assert things about their own codebase constantly — *"every X is now Y"*,
-*"that pattern is gone"*, *"this appears in five places"* — and a repo-wide
-grep is the usual evidence. It is a **worse instrument than it looks**,
-because each of its failure modes produces a *clean-looking* result.
+The counterpart to grounding a claim about a framework — the same evidence
+discipline, turned inward, on the *"every X is now Y"* and *"that pattern is
+gone"* claims a session makes about its own codebase constantly.
 
-<!-- unit: driving-turning-a-sweep-into-evidence class=procedural -->
 **Check the output resembles what you asked for, not merely that the command
 exited 0.**
 
@@ -585,7 +579,7 @@ by blast radius — per package, per directory), each keeping CI green because
 the old form still exists alongside the new; finally a leaf that deletes the
 old form once no caller remains.
 
-<!-- unit: driving-recording-fog kinds=* class=triggering defers="driving-the-fog-or-ticket-test brief-suggested-shape" -->
+<!-- unit: driving-the-fog-or-ticket-test class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
@@ -593,30 +587,22 @@ old form once no caller remains.
 
 ## Recording fog without pre-slicing it
 
-grove's laziness (`SKILL.md` constraint 4) means a leaf either exists or it
-doesn't — there's nowhere to keep the dim view of work you can see coming but
-can't yet leaf-shape. A brief's **On the horizon** note (`BRIEF-FORMAT.md`)
-is that place: a line or two recording foreseen work without pre-slicing it
-into a leaf.
-
-<!-- unit: driving-the-fog-or-ticket-test class=procedural -->
-The line between a horizon note and a leaf is the **fog-or-ticket test**: can
-you state the question precisely right now — not whether you can answer it.
+A brief's **On the horizon** note (`BRIEF-FORMAT.md`) is a line or two recording
+foreseen work without pre-slicing it into a leaf. Which of the two a given
+thought earns is the **fog-or-ticket test**: can you state the question precisely
+right now — not whether you can answer it.
 A question you can already phrase precisely earns a leaf immediately with
 `leaf-add`, even if it's blocked and unanswerable today. A question still too
 dim to phrase that precisely stays a horizon note until a later session
 sharpens it enough to graduate.
 
-<!-- unit: driving-when-a-leafs-place-is-in-doubt kinds=* class=triggering defers=driving-prune-reorder-or-file-an-issue -->
+<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural defers=skill-leaf-prune-mechanics -->
 ## Prune, reorder, or file an issue — the triage a status word would hide
 
-A leaf whose place in the tree is in doubt — surfacing new, or already sitting
-there under a doubted premise — tempts a status word: `blocked`, `deferred`,
-`superseded`. Resist it; that is exactly the taxonomy pruning rejects,
-and reaching for a fourth state is how a tree starts lying about what is still
-live. The doubt always resolves to one of three existing mechanisms:
+The doubt a leaf's place raises — surfacing new, or already sitting there under a
+doubted premise — always resolves to one of three existing mechanisms, and never
+to a fourth state:
 
-<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural defers=skill-leaf-prune-mechanics -->
 - **Not now, but still ours** → a **reorder**. The work is good and belongs in
   this tree, just not next: leave the leaf live and `leaf-insert` something
   ahead of it (or reorder by hand). Nothing is decided against — `pick` will
@@ -644,27 +630,3 @@ not-yet-due leaf erases work nobody rejected; leafing a not-ours concern grows
 the tree with work this grove will never do. When a leaf's status is in doubt,
 name which of the three sentences above is actually true before reaching for
 the CLI — the sentence picks the verb.
-
-<!-- unit: driving-no-session-summary kinds=* class=triggering -->
-## Do not reconstruct the session's decisions at the end of it
-
-A session ending pulls towards a summing-up: a session-summary file, or a commit
-message that re-tells every decision the session made. Refuse both. Decisions are
-recorded **inline, as they land** — in the task file's running log while the
-session is still holding the reasoning, and in the ADR set where one is durable
-enough to earn a record. Those two together are the whole durable record, and a
-third telling written afterwards duplicates them, rots against them, and is a
-status artifact of exactly the kind constraint 1 rejects. The commit message
-names the work item by its handle and says what changed; it is not where a
-decision is written down for the first time.
-
-<!-- unit: driving-ask-about-the-trade-off kinds=* class=triggering -->
-## Never close by inviting questions in general
-
-"Let me know if you have any questions" is not a prompt — a vague invitation
-produces a vague response, and the human has to invent your agenda before they
-can answer it. When you want a human's input, name the **specific** trade-off you
-want it on, propose a recommended answer, and give the evidence behind that
-recommendation. That structure makes the trade-off visible by construction, and
-it turns an escalation into a decision instead of an open-ended handback.
-

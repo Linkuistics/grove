@@ -218,7 +218,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// page and procedures into `content/references/`, and an id that travelled
 /// keeps its spelling so the composition golden's diff stays a relocation
 /// rather than a rename.
-const EMBEDDED_UNITS: [&str; 161] = [
+const EMBEDDED_UNITS: [&str; 163] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -247,7 +247,9 @@ const EMBEDDED_UNITS: [&str; 161] = [
     "driving-review-chain-habits",
     "driving-reworking-adrs-and-briefs",
     "driving-running-the-vendor-pair",
+    "driving-signs-of-a-research-leaf",
     "driving-the-combine-step",
+    "driving-the-findings-adopted-bridge",
     "driving-the-fog-or-ticket-test",
     "driving-the-review-chain",
     "driving-turning-a-sweep-into-evidence",

@@ -1,5 +1,3 @@
-<!-- file: order=15 -->
-<!-- unit: task-integrate-review-kinds kinds="integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **integrate-review-\*** (all AFK) — triage one review's findings and apply the
 real ones. Shared discipline: verify each finding rather than performatively
 agreeing, then classify it as *a contract stated unclearly* (fix the contract),
@@ -12,4 +10,3 @@ session may change** — `integrate-review-impl` edits code freely;
 decides what the prototype *taught* and normally discards it;
 `integrate-review-requirements` edits what was asked for, which it cannot always
 do alone — the kind most likely to stop and ask.
-

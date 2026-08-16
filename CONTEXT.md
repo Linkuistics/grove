@@ -47,7 +47,10 @@ linked `content/` — the constant existed precisely so that naming the identity
 did not link the embed — and stopped being one the moment `grove-llm methodology`
 made the agent-facing binary link it anyway; the build-script traversal, the
 constant and the equality test that kept the two traversals in step went with
-that reason. **Separately and later**, once [[Global skill provisioning]]
+that reason. **That verb is since deleted and the constant stays gone**: the
+identity itself is a second, independent reason for `grove-llm` to link the
+embed — `--content-hash` and the per-verb foreign-skill-directory warning both
+need it — and it outlived the first. **Separately and later**, once [[Global skill provisioning]]
 retires, it stamps nothing and names only binaries.
 _Avoid_: coupling that removal to this one — they are a grove apart, and pairing
 them would have preserved a duplicate traversal past its only justification.
@@ -94,90 +97,13 @@ _Avoid_: reading either report as a gate. The driver's is a proxy measured in
 its own environment, and a mid-task `grove-llm` refusal would cost more than the
 mismatch; the human who can fix either reads the same stream.
 
-**Methodology unit**:
-The grain of the [[Embedded methodology]]: a span of one `content/` file
-declared by an HTML-comment **unit marker** carrying a kebab-case id, a
-[[Triggering unit]]/procedural class, the [[Session kind]]s its scope admits when
-triggering, and optionally the **deferral**: the id of the procedural unit whose
-body completes it. Units **partition** their file's **body** past its
-[[File directive]]: every body byte *after that line* belongs to exactly one, a
-unit runs from its marker to the byte before the next or to end of file, and
-there is no nesting, no gap and no close marker.
-Body is everything after the optional leading `---`-delimited **preamble**, the
-file's one unread region — skipped uninterpreted, neither required nor rejected,
-so `content/SKILL.md`'s YAML keeps working for as long as
-[[Global skill provisioning]] reads it. That spelling is **reserved** on a first
-line, because nothing distinguishes it from a thematic break; a leading rule is
-written `***`, and a marker inside the block is a build error.
-Partition is what makes unclassified prose unreachable, and what makes a parser
-blind to some marker shape produce a *visibly larger* preceding unit instead of a
-silent hole. The marker line is part of the unit's source, so a slice carries its
-own id **and its deferral**, and is self-addressing in both directions. Ids are
-unique across the whole embed, because `grove-llm methodology` addresses by id
-alone. Markers are recognised only as unindented whole lines at **neutral fence
-state** — fences by CommonMark's own rule, exactly, since a loose close silently
-promotes an example to a boundary — so a unit can neither begin nor end inside a
-fenced block. Malformed
-markers fail the **build**, as does a file whose fence state is unbalanced at end
-of file, one that does not end in a newline, one whose path holds a byte a listing
-row cannot carry, a deferral naming no procedural unit, or a chain of deferrals
-returning to a unit it already passed through: the embed is Grove's own
-compile-time artifact, not a human's task tree, so constraint 5 does not reach it.
-_Avoid_: reading a unit as a section. Headings do not delimit units, and the
-grain is deliberately finer than a heading's — one bullet out of nineteen.
-_Avoid_: "unmarked prose is procedural by default." There is no unmarked prose;
-a file that could contain some fails the build.
-_Avoid_: reading a unit's **own** id as the address of its deferred body. One
-namespace covers both classes, so that id fetches the unit again; the deferral is
-a separate declared target, and its absence means the unit is complete as
-delivered.
-_Avoid_: reading the preamble as **frontmatter the build requires or parses**.
-KDL frontmatter was the earlier answer and lost the file's ordering key to the
-[[File directive]]; what is left is a block Grove skips, so a per-file exemption
-for the one file that has one would be a hole where the rule is uniform.
-
-**File directive** (`<!-- file: order=<n> -->`):
-The one line of an embedded file's **body** that no [[Methodology unit]] covers:
-an HTML-comment directive declaring that file's position in a composed mandate.
-Same device and same recogniser as a unit marker — an unindented whole line at
-neutral fence state — so `content/` gains no metadata language for ordering. It
-is the body's **first line**, required of every embedded markdown file, and no
-two files may claim one position; together those make the composition order
-**total**, which is the single property it exists to supply. Its two rules fall
-on opposite sides of the build gate: that a file *carries* a position is decided
-by that file's own text, that positions *differ* only by the assembled set.
-_Avoid_: reading positions as an index. The composer **sorts** by the key, which
-is why the build gate settles totality and not density, and why a gap is legal.
-_Avoid_: reading a legal gap as **insertion slack**. `content/`'s positions are
-contiguous from 1 — a readability convention about the shipped corpus, pinned by
-a test rather than by the gate — so inserting a file between two others *does*
-renumber every later one, in one-character edits the gate localises by name.
-_Avoid_: reading it as preamble. The preamble is the unread `---` block *before*
-the body; this is read, and it is body.
-
 **Mandate slice** *(retired)*:
-A byte-exact projection of a [[Methodology unit]] into one session's `${prompt}`
-— the unit out of which a 100%-specific mandate was composed. **The composer is
-deleted and nothing projects one any more**: the methodology reaches a session as
-the provisioned skill, and `${prompt}` is the [[Guaranteed core]]
+A byte-exact projection of one span of `content/` into one session's `${prompt}`
+— the grain a 100%-specific mandate was composed out of. **Nothing projects one,
+and every piece of machinery that did is deleted**: the methodology reaches a
+session as the provisioned skill, and `${prompt}` is the [[Guaranteed core]]
 (`docs/adr/skill-delivers-the-methodology.md`). The term is kept as a definition
-rather than dropped because the argument that survives it is load-bearing — one
-file still travels both channels, and it is inlined byte-exact for exactly the
-reason below. What it named: the
-driver selects units by the launched [[Session kind]] and inlines their source
-bytes; it never paraphrases, because driver-composed prose would make `content/`
-non-canonical, and a slice cannot contradict what it copies. Which units a kind
-receives is marked **in `content/` itself**, adjacent to the prose it classifies:
-an HTML-comment unit marker per unit. A file's composition order is the
-[[File directive]]. Composition order is that directive's
-position, then the unit's own position within its file; the framing unit needs no
-rule of its own, because its file is ordered first. Three properties bind every slice —
-succinct, never
-contradicting or walking back the methodology, and a *selector* that takes the
-session straight to the right content rather than a substitute for it. The driver
-authors mandate prose **only** for facts it resolves at runtime — today the
-selected handle and the [[Stated VCS]] — and joins slices with nothing but a
-blank line.
+rather than dropped because three of its arguments outlived it.
 _Avoid_: reviving it. The granularity objection to pointing at a location — *a
 kind's discipline is one bullet inside a nineteen-bullet section* — was that
 record's own stated reopen condition, and the corpus restructure satisfied it: a
@@ -187,11 +113,13 @@ _Avoid_: treating the surviving inline — `content/SIGNAL.md` and
 `content/SIGNAL-FINISH.md` in the [[Guaranteed core]] — as a summary or a
 paraphrase. It is the source bytes, or it is a second source of truth, and that
 reason never depended on selection.
-_Avoid_: reading specificity as removing **every** branch from a mandate. It
-removes a branch on the [[Session kind]] — a fact the driver resolved before the
-session existed, so shipping the `if` makes the session re-derive it. It cannot
+_Avoid_: reading specificity as removing **every** branch. It removes a branch on
+the [[Session kind]] — a fact the driver resolved before the session existed, so
+shipping the `if` makes the session re-derive it — which is why the core names
+one [[Kind reference file]] rather than printing the routing table. It cannot
 remove a branch on what happened *during* the session, which no driver can
-resolve; withholding one of those yields an unasked question rather than a saving.
+resolve; withholding one of those yields an unasked question rather than a
+saving.
 
 **Guaranteed core** / **the too-late test**:
 The whole of a session's `${prompt}` once [[Global skill provisioning]] is the
@@ -228,10 +156,10 @@ an alarm on the test, and nothing legitimate approaches it.
 **Kind reference file**:
 The one file of the provisioned skill's flat `references/` directory carrying a
 [[Session kind]]'s own discipline, named by path in that kind's [[Guaranteed
-core]]. Ten files serve nineteen kinds, because the set is **recovered from the
-narrowed marker scopes** rather than invented — the five `review-*` kinds already
-share one classification, as do the five `integrate-review-*` and the two
-research producers. The kind→file map is an exhaustive match over the kind set in
+core]]. Ten files serve nineteen kinds, because the set was **recovered from the
+narrowed marker scopes** of the retired classification rather than invented — the
+five `review-*` kinds already shared one, as did the five `integrate-review-*`
+and the two research producers. The kind→file map is an exhaustive match over the kind set in
 the driver, which is [[Kind routing]] doing what it already does; a twentieth
 kind fails to compile until it is classified. The files are
 `content/references/{requirements,design,planning,prototype,impl,review,
@@ -256,9 +184,8 @@ kind]] selects and which `content/SKILL.md`'s conditions reach by naming it.
 The seam is the loop itself — `bootstrap`, `execute`, `decompose`, `retire`,
 `commit` — with `grove` (what a grove is, the spine, the durable artifacts) and
 `driver` (how a session was launched and picked) either side of it, and `finish`
-doubling as the `finish` kind's own [[Kind reference file]]. Every file here is
-`class=procedural` until the machinery is deleted, so a mandate's contents are
-decided entirely by `SKILL.md`, `TASK-FORMAT.md` and `driving.md`.
+doubling as the `finish` kind's own [[Kind reference file]]. Every file here carries procedure only, which is what
+keeps `SKILL.md` a page of conditions rather than an abridged methodology.
 _Avoid_: reading it as a [[Kind reference file]]. The per-kind ten are chosen by
 the driver from the leaf's kind and are named in that kind's [[Guaranteed
 core]]; these are chosen by the *session*, when a condition it has just read
@@ -267,70 +194,35 @@ _Avoid_: growing the set per rule. It is bounded at roughly eight beside the ten
 because a directory a session cannot hold in mind stops being disclosure and
 starts being a second corpus to search.
 
-**Triggering unit** / **procedural unit**:
-The classification the retired [[Mandate slice]] was selected by, and — until the
-markers are deleted with the rest of the mandate machinery — still the corpus's
-own record of which prose is an `if` and which a `then`. That record is what the
-progressive-disclosure rewrite was cut against: a condition in `SKILL.md`, its
-procedure in the [[Kind reference file]] or one of the shared reference files it
-routes to. Every rule in the methodology is a conditional. Its **condition** — *that a situation exists
-calling for something other than what this session is doing* — is **triggering**
-and ships in **every** kind's mandate. Its **body** — how to act once that is
-decided — is **procedural** and is deferred to `grove-llm methodology`. Keep the
-`if`, defer the `then`. The asymmetry is why: withholding a procedural body costs
-a lookup the session knows to make, while withholding a triggering condition
-yields an **unasked question** — silent, and grove's primary failure mode (a
-session quietly absorbing work that should have been its own leaf). The split is
-data rather than judgement re-made per session, so a **completeness invariant**
-is mechanically checkable: every triggering unit appears in the composed mandate
-of every kind its scope admits, every procedural unit appears in **none**, and
-every procedural unit is **reachable from some kind's mandate** by following the
-declared deferrals. Reachability is partition seen from the other end — together
-they say every unit is either in a mandate or reachable from one, and that units
-cover every body byte past the [[File directive]], so an undiscoverable procedure
-is as impossible as unclassified prose. The claim is over **units**, not over the
-embed's literal bytes: the two regions no unit covers — the unread preamble and
-the one-line directive — reach no mandate, and neither can hide a unit, since a
-marker inside the preamble is a build error.
-A triggering unit's scope is `*` or an explicit list of kind labels; there is no
-family shorthand and no negation, because a shorthand would silently absorb a
-kind added later. An explicit list carries the **mirror** hazard — a kind added
-later is silently *omitted* — so guidance every kind but one needs is spelled as
-the long list and guarded by a test over all nineteen composed mandates, not by
-loosening the grammar.
-_Avoid_: classifying by size, or by how often a unit is needed. Frequency is not
+**Condition** / **procedure** (the `if` / `then` split):
+The split the progressive-disclosure skill is cut along: `content/SKILL.md`
+states **conditions**, and each names the [[Kind reference file]] or
+[[Loop-step reference file]] its **procedure** lives in. Every rule in the
+methodology is a conditional. Its **condition** — *that a situation exists
+calling for something other than what this session is doing* — is what a session
+has to be **holding**, because it cannot look up a rule it does not know applies.
+Its **body** — how to act once that is decided — is a lookup, and a lookup costs
+only the reading. Keep the `if`, defer the `then`. The asymmetry is why:
+withholding a procedure costs a file read the session knows to make, while
+withholding a condition yields an **unasked question** — silent, and grove's
+primary failure mode (a session quietly absorbing work that should have been its
+own leaf). The same asymmetry chooses what rides the [[Guaranteed core]] one
+channel further in, under the sharper too-late test.
+_Avoid_: classifying by size, or by how often a rule is needed. Frequency is not
 the test; whether the session could know to *ask* for it is.
-_Avoid_: reading **scope** as a token-budget lever. A unit narrows when a kind
-added later would not need it — true by construction of a unit stating one kind's
-own discipline, and needing a check derived from the kind set for anything else.
-Mandate size is an argument about classification, never about scope.
-_Avoid_: writing a **family-shaped** scope — labels that are exactly one family
-of the kind set — and leaving it to stand on its own. The three that exist are
-held to their families by a classifier derived from the enum, so a fourth is
-answered beside them rather than given a guard of its own: *registered* if a kind
-joining that family must join the marker, recorded as coincidental if it must not.
-One that is neither is reported, because a registry nothing checks is the same
-silent omission one level up.
-_Avoid_: reading the invariant as a promise about **detection**. It settles which
-units a mandate *carries* — and, separately, that the classification is checkable
-— never that a session notices the situation a carried condition describes. That
-noticing stays the session's, so a mandate is complete with respect to triggering
-conditions and still full of situations only the session can see; `content/`'s own
-framing unit overstated exactly this once and was rebodied around the structural
-claim.
-_Avoid_: reading "withheld" as *procedural*. Three absences, not two: a
-procedural body is withheld and **named** by the slice deferring to it, a
-triggering unit scoped to other kinds is withheld and does not apply, and nothing
-else is absent at all.
-_Avoid_: stating the invariant as "every triggering unit in *every* kind's
-mandate". `kinds=*` is the default, not the rule; a unit scoped to one kind must
-be absent from the other eighteen, and that absence is half of what the test
-asserts.
-_Avoid_: reading reachability as covering **cycles**. It covers a ring no
-triggering unit enters, because that ring is unreachable; a ring one *does* enter
-is reached like any other chain, and a session following the deferrals is sent
-round it forever. That every chain **terminates** is its own build check, run
-behind reachability so an unrooted ring is still named as the orphan it also is.
+_Avoid_: reading it as a checkable partition. It **was** one: 140 HTML-comment
+unit markers recorded which prose was an `if` and which a `then`, a build gate
+held them total, and a completeness invariant settled which of them each kind's
+mandate carried. That record was scaffolding for the rewrite — exactly the split
+a progressive-disclosure skill needs — and was deleted once it had done its work.
+What is left is a discipline a reviewer holds, not a grammar a parser enforces;
+`SKILL.md`'s line-budget alarms notice the shape going wrong and establish
+nothing semantic.
+_Avoid_: reading the retired invariant as a promise about **detection**. It
+settled which rules a session was handed, and separately that the classification
+was checkable — never that a session notices the situation a condition describes.
+That noticing was always the session's, and it is the whole of what the delivery
+change is judged on.
 
 **Complete finish cycle**:
 The terminal, whole-grove sequence performed by a generated `finish` [[Leaf]]:

@@ -1,5 +1,3 @@
-<!-- file: order=14 -->
-<!-- unit: task-review-kinds kinds="review-requirements review-design review-planning review-prototype review-impl" class=triggering -->
 **review-\*** (all AFK) — an inspection-only, fresh-context adversarial read of
 *one* artifact. Inspect the producer's committed changes, source, requirements
 or specifications, and recorded verification evidence. A review does not run
@@ -14,4 +12,3 @@ does each land green without waiting on a sibling? is anything missing?),
 `review-prototype` (does it probe the question it was built for? — *not* a code
 review; polish is a defect in a prototype), `review-impl` (correctness,
 security, tests, project conventions).
-

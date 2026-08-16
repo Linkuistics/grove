@@ -53,7 +53,7 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 - **`${prompt}` carries a guaranteed core, and the provisioned skill delivers the
   methodology again.** A session no longer receives ~49 KiB of sliced
-  methodology; it receives about 2.3 KiB — an instruction to load the `grove`
+  methodology; it receives about 1.9 KiB — an instruction to load the `grove`
   skill and this kind's reference file, named by path, with the provisioned
   directories given as absolute paths; the two facts the driver resolved (the
   selected handle and the working tree's version control); and the session-ending
@@ -96,6 +96,45 @@ stood at the graft — a closed record, not part of the versioned sequence above
   embed. The 4 KiB size alarm lives in the suite rather than the build, for the
   reason the old classification alarm did, and every generated claim carries a
   control.
+
+- **The mandate machinery is deleted, and `content/` is plain markdown again.**
+  Gone: the unit-marker grammar and its total partition, the 164 `<!-- unit: -->`
+  markers and 27 `<!-- file: order= -->` directives throughout `content/`, the
+  fence-state parser, the whole-embed check (id uniqueness, `defers=` resolution,
+  procedural reachability, deferral termination), the `build.rs` gate and the
+  `#[path]` sharing that fed it, and `grove-llm methodology` with its listing.
+  Nothing read a marker after the cutover, so this is pure removal. `build.rs`
+  keeps its per-file `rerun-if-changed` walk, which was always the other half of
+  what it did and is what makes an edit to `content/` reach the binary at all —
+  `tests/methodology.rs` now compares the linked embed against the directory so
+  that walk failing is visible. What the gate genuinely bought moves to the suite
+  at the grain a corpus of prose can be checked at: every kind's reference file
+  exists and is reachable from `SKILL.md`'s routing table, and the body stays
+  inside its progressive-disclosure budget. `docs/specs/mandate-delivered-methodology.md`
+  goes with the last machinery it described — the timing its own rule set, so no
+  live code was ever left citing a record that had stopped describing it.
+
+- **The two checks that are claims about the *embed* rather than about the
+  machinery survive, re-based.** The **instructed-verb scan** — the embedded
+  methodology instructs no `grove-llm` verb the embedded CLI lacks — already read
+  the corpus as markdown file by file rather than unit by unit, because a unit
+  boundary could cut a wrapped invocation in half; it is *more* load-bearing now,
+  since the skill is once again the only thing teaching a session which verbs
+  exist. The **flat-verb-surface pin** that makes that comparison mean what it
+  claims is untouched. The **ending-prose drift pin** moved from two unit ids to
+  the two files' own bytes, which is the same subject named a coarser way. The
+  **family-scope guard** had no such re-basing and is simply gone: a `kinds=`
+  scope a human had to widen by hand is no longer a thing `content/` contains.
+
+- **The glossary is reworked as a current-state set.** *Methodology unit* and
+  *File directive* describe deleted mechanism and are removed. *Mandate slice*
+  stays a retired entry carrying only the three arguments that outlived it — the
+  reopen refusal, the byte-exact inline, and why the core names a reference file
+  instead of printing the routing table. *Triggering unit / procedural unit*
+  becomes **Condition / procedure**, the live `if`/`then` split the
+  progressive-disclosure skill is cut along, recording that the 140 markers were
+  scaffolding for that rewrite and were deleted once they had done their work.
+  *Build pairing* needed nothing: its skew was never marker-shaped.
 
 - **`one-build-owns-a-session` gets its original skew back.** The shared mutable
   directory returns with provisioning, so a mismatched pair is two copies of a

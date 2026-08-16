@@ -1,5 +1,3 @@
-<!-- file: order=23 -->
-<!-- unit: skill-two-triggers-two-verbs class=procedural defers="driving-externalizing-surfaced-work brief-the-node-briefing driving-what-a-good-child-leaf-looks-like skill-directory-tree-and-grow-verbs" -->
 ## Two triggers, two verbs
 
 When work surfaces mid-session, default to **externalizing it as a new leaf**
@@ -20,7 +18,6 @@ Continue inline **only** while the work still serves this leaf's stated goal
 not "I can finish it."* Decomposition stays lazy (constraint 4): grow the tree
 just-in-time, at the genuine seam, never speculatively.
 
-<!-- unit: skill-directory-tree-and-grow-verbs class=procedural defers=skill-kind-on-the-tree-verbs -->
 The tree is a real **directory tree** under `.grove/`: a node is a **directory**
 `NN-<slug>-k<key>/` holding its numbered children (`01-…`, `02-…`), headed by a
 `BRIEF.md` charter — a node is always a leaf that *decomposed*, so it always has
@@ -54,7 +51,6 @@ resolve <ref>` turns a key (`[n]` / `n`), a bare slug, or the full
 `<slug>-k<key>` handle back into the current file path. Every grow verb is a
 working-tree change only; the enclosing task's commit folds them in.
 
-<!-- unit: skill-kind-on-the-tree-verbs class=procedural -->
 **`--kind <kind>` appears on the grow verbs whose kind is a free choice**, and
 every one that accepts it gates on it: an unrecognised value errors and lists the
 nineteen, and driver-reserved `finish` is refused, because a human is present at
@@ -76,7 +72,6 @@ session it cannot launch. No grow verb
 selects a harness, a model, or anything else about the launch: the kind is the
 whole routing input, and configuration maps it to one command.
 
-<!-- unit: skill-cut-the-next-step class=procedural defers="task-review-chain-mechanics task-vendor-pair-mechanics" -->
 **Cut the next step, when it is needed.** When more than one leaf serves *one*
 artifact, two shapes are the habitual answer — reach for them by default, and
 argue yourself *out* of one rather than into it. They are built in **opposite**
@@ -134,7 +129,6 @@ ways, and the asymmetry is the design:
   vendors is the configuration owner's policy, not something grove can recover
   from an opaque command template.
 
-<!-- unit: skill-cutting-a-review-leaf class=procedural -->
 **When a picked producer needs fresh review**, the answer is the same
 `leaf-add`. Finish to a reviewable boundary, cut the `review-<producer>` leaf
 with the specific doubt written into its body, retire the producer, and commit
@@ -144,7 +138,6 @@ and nothing else, and it leaves the review byte-identical, because the review
 needs no record of how its producer ran. The next loop iteration picks that
 review and resolves its command from the `review-*` entry in configuration.
 
-<!-- unit: skill-why-the-stem-is-bare class=procedural defers=task-bare-stem-reasoning -->
 ## Why the stem is bare
 
 **The kind field is the canonical statement of a leaf's role; the slug names the
@@ -159,7 +152,6 @@ spellings remain legal filenames, the grammar is unchanged, and **no existing
 tree is invalidated** — an older suffixed slug you meet is fine and stays as it
 is (`TASK-FORMAT.md` carries the full reasoning).
 
-<!-- unit: skill-which-hop-a-gap-costs class=procedural defers="skill-integration-placement task-chain-contiguity" -->
 ## Which hop a gap costs
 
 Steps are appended at the parent's next free position, so a step cut after some
@@ -186,7 +178,6 @@ next step consumes**:
   session has to re-derive what the reviewer meant from a codebase the reviewer
   never saw.
 
-<!-- unit: skill-integration-placement class=procedural -->
 So an integration is cut **where `pick` reaches it next**, and the condition for
 that is mechanical and **directory-local**. Read the review's *own parent*
 directory at the entries after the review's position, and find **the first
@@ -216,7 +207,6 @@ not:
   sibling node is irrelevant, and when no sibling entry blocks, plain `leaf-add`
   is exactly right.
 
-<!-- unit: skill-why-there-is-no-exception class=procedural -->
 ## Why there is no exception to check
 
 Adjacency is unconditional guidance, not because departing is forbidden — grove

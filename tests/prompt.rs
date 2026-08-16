@@ -208,51 +208,58 @@ fn the_runtime_facts_restate_no_rule_the_skill_owns() {
 /// *and* land in `content/SKILL.md`, where they depend on the skill being read
 /// like every other rule.
 ///
-/// **Located by declared condition, asserted on what the condition says.** A
-/// unit marker is classification evidence and nothing more: a body can be
-/// emptied, weakened, or reversed with its marker untouched, and a check on the
-/// marker alone would still report the rule as stated. So the marker only finds
-/// the body, and the claim is made against the body's own words.
+/// **Located by the condition's opening sentence, asserted on what follows it.**
+/// The locator was a unit marker until the marker machinery was deleted; it is
+/// now the condition's own bold opener, and the paragraph it begins is the body.
+/// That is a weaker *locator* — an opener can be reworded — and deliberately not
+/// a weaker *claim*: a missing opener fails here by name with the rule it was
+/// carrying spelled out, which is the moment to re-point this test rather than
+/// to delete it.
+///
+/// What has not changed is that the claim is made against the body's **own
+/// words**. A locator is evidence that a condition is present and nothing more:
+/// a paragraph can be emptied, weakened, or reversed under an untouched heading,
+/// and a check on the heading alone would still report the rule as stated.
 ///
 /// The located phrases are the load-bearing clause of each condition rather than
 /// its whole prose, so a rewrite that keeps the rule passes and one that drops it
-/// fails. When the marker machinery is deleted, this locator is replaced — the
-/// semantic predicate below is not.
+/// fails.
 #[test]
 fn the_skill_carries_the_two_rules_the_core_sheds() {
     let skill = embedded("SKILL.md");
-    for (unit, what, must_say) in [
+    for (opener, what, must_say) in [
         (
-            "skill-do-not-pick-again",
+            "**Do not pick again.**",
             "that the driver's pick is authoritative and must not be re-walked",
             ["`grove-llm pick`", "the mandate wins"],
         ),
         (
-            "skill-stated-vcs-is-definitive",
+            "**The version control the driver states is definitive.**",
             "that the driver's stated version control is definitive and is not re-derived",
             ["definitive", "do not re-derive it"],
         ),
     ] {
-        let marker = format!("<!-- unit: {unit} ");
-        let start = skill.find(&marker).unwrap_or_else(|| {
+        let start = skill.find(opener).unwrap_or_else(|| {
             panic!(
-                "content/SKILL.md declares no `{unit}` condition, so it no longer states \
-                 {what}. The core sheds every normative consequence of a value on the \
+                "content/SKILL.md carries no condition opening \"{opener}\", so it no longer \
+                 states {what}. The core sheds every normative consequence of a value on the \
                  understanding that the skill states it; shedding it from both leaves the \
                  rule stated nowhere."
             )
-        }) + marker.len();
+        });
+        // One paragraph: from the opener to the next blank line, or to end of
+        // file for a condition that closes the page.
         let body = &skill[start..];
-        let body = match body.find("\n<!-- unit: ") {
-            Some(next) => &body[..next],
+        let body = match body.find("\n\n") {
+            Some(end) => &body[..end],
             None => body,
         };
         for phrase in must_say {
             assert!(
                 body.contains(phrase),
-                "content/SKILL.md's `{unit}` condition no longer says \"{phrase}\", so it no \
-                 longer states {what}. The marker is still there, which is why this asserts \
-                 the text and not the marker.\n---\n{body}\n---"
+                "content/SKILL.md's condition opening \"{opener}\" no longer says \
+                 \"{phrase}\", so it no longer states {what}. The opener is still there, \
+                 which is why this asserts the text and not the heading.\n---\n{body}\n---"
             );
         }
     }

@@ -1,5 +1,3 @@
-<!-- file: order=24 -->
-<!-- unit: skill-leaf-retire-mechanics class=procedural -->
 ## Harvesting a done leaf
 
 The common case: with the task's work done — and *before* you commit it, so the
@@ -14,7 +12,6 @@ its position and key in its directory. The infix is filename-only — the file's
 contents (including its `# <slug>-k<key>` header) are untouched. Mechanical
 bookkeeping, no need to ask.
 
-<!-- unit: skill-leaf-prune-mechanics class=procedural -->
 ## Pruning an abandoned one
 
 Only on explicit human confirmation, run `grove-llm leaf-prune <path>` (a leaf
@@ -33,7 +30,6 @@ goes to the **ADR set**, the positive fact the abandonment establishes, if it
 clears the when-to-write bar; otherwise the mark and the commit message suffice
 (pruning).
 
-<!-- unit: skill-node-close-steps class=procedural defers="brief-every-node-carries-one brief-suggested-shape" -->
 ## Closing a node: the four steps
 
 Every node carries a `BRIEF.md`

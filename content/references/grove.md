@@ -1,5 +1,3 @@
-<!-- file: order=19 -->
-<!-- unit: skill-the-spine-in-full class=procedural -->
 ## The seven constraints, argued
 
 grove drives long work *without* becoming brittle, constraining machinery.
@@ -30,7 +28,6 @@ These seven rules are non-negotiable; everything else is subordinate to them.
 7. **One page of rules.** If the loop does not fit on a page, it is too
    complex — cut until it does.
 
-<!-- unit: skill-why-the-glossary-holds class=procedural -->
 ## Why the glossary is the forcing function
 
 The acute failure mode of multi-session work is terminology drift: a later
@@ -42,7 +39,6 @@ is a term the next session will re-resolve differently. Keep it a glossary and
 nothing else — terse definitions, aliases-to-avoid, no implementation detail
 (`CONTEXT-FORMAT.md`).
 
-<!-- unit: skill-specs class=procedural defers="spec-suggested-shape spec-test-seams" -->
 ## Specs
 
 A **spec** is the human-facing, team-shareable design of an area of the system,
@@ -58,7 +54,6 @@ future grove need to read this? If not, it is a `BRIEF.md` and it dies with
 describes how an area works, and *cites* the ADRs in its area rather than
 restating them. Shape and the seam-sketching rule: `SPEC-FORMAT.md`.
 
-<!-- unit: skill-what-the-plugin-carries class=procedural -->
 ## What the `linkuistics` plugin carries, and why it is separate
 
 Three bodies of guidance grove leans on live in a **separately installed**

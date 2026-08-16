@@ -112,12 +112,14 @@ shipping the archive; the phrase it scans for lives in
 `scripts/release-common.sh` and is pinned to `tests/provision.rs` by a test
 there.
 
-That assertion **inverted** when `grove-llm` began linking the embed to serve
-`grove-llm methodology`. It used to fail a release when `grove-llm` carried the
-embed, because only `grove` extracted `content/` and `grove-llm` needed nothing
-but a compile-time identity constant. A `grove-llm` without the embed can no
-longer answer a session that followed a deferral, so its absence is now the
-fault rather than its presence.
+That assertion **inverted** when `grove-llm` began linking the embed. It used to
+fail a release when `grove-llm` carried it, because only `grove` extracted
+`content/` and `grove-llm` needed nothing but a compile-time identity constant.
+`grove-llm` now computes the methodology identity from the embed itself — for
+`--content-hash`, and for the per-verb warning about a clobbered skill
+directory — so its absence is the fault rather than its presence. The verb that
+first made it link the embed, `grove-llm methodology`, is gone; the identity
+reason it left behind is independent and survives it.
 
 Inspect `target/dist/`, which should contain three `.tar.xz` archives and
 `grove.rb`. Then publish both repositories:

@@ -259,12 +259,13 @@ honestly as what it is: an alarm on the too-late test, not a budget the design w
 fitted to.
 
 **Measured on the built composition**, against one provisioned location: an
-`impl` prompt is **2,307 bytes** and the largest of the nineteen is 2,356, so 4
-KiB leaves about 42% in hand. The design's own estimate was ~1,969, and the
-difference is bookkeeping rather than prose: `content/SIGNAL.md` is 1,499 bytes
-of which ~390 is the unit marker line listing eighteen kind labels, and that line
-dies with the mandate machinery. A real machine with three installed harnesses
-adds roughly 80 bytes of location list. The alarm is unchanged, because it was
+`impl` prompt is **1,903 bytes** and the largest of the nineteen is 2,091
+(`finish`, whose ending is a three-outcome table), so 4 KiB leaves about 49% in
+hand. The design's own estimate was ~1,969, and the measurement met it once the
+mandate machinery was deleted: it was 2,307 bytes while `content/SIGNAL.md`
+still opened with a unit marker line listing eighteen kind labels, and that line
+went with the markers. A real machine with three installed harnesses adds roughly
+80 bytes of location list. The alarm is unchanged, because it was
 never a budget the prose was fitted to — and the honest reading of these numbers
 is that headroom is *comfortable*, not that it is *large*.
 
@@ -537,16 +538,16 @@ independent reason that survives — its per-verb foreign-skill-directory warnin
 needs the identity. So both binaries still carry the payload, and the release
 path's assertion that both carry the content marker stays as it is.
 
-**`mandate-delivered-methodology` is replaced by this spec, and deleted by the
-increment that removes the last machinery it describes** — not before. Roughly ten
-live source sites cite its sections as the rationale for code that still runs
-(the parse gate, the fence rule, the file ordering, the composer's runtime-facts
-rule), and deleting it now would point live code at a record that no longer
-describes it, which is the dangling-citation defect the rework discipline
-forbids. That timing is the old spec's own rule — *a record describing mechanism
-that has not yet changed stays accurate until it does* — outliving the design that
-wrote it. The arguments of its that survive their mechanism are carried into this
-document rather than left in VCS history.
+**`mandate-delivered-methodology` was replaced by this spec and is deleted.**
+The timing was the old spec's own rule — *a record describing mechanism that has
+not yet changed stays accurate until it does* — outliving the design that wrote
+it: roughly ten live source sites cited its sections as the rationale for code
+that still ran (the parse gate, the fence rule, the file ordering, the composer's
+runtime-facts rule), so it stood until `mandate-machinery-k10` deleted that code,
+and went in the same commit. Deleting it earlier would have pointed live code at a
+record that no longer described it, which is the dangling-citation defect the
+rework discipline forbids. The arguments of its that survive their mechanism are
+carried into this document rather than left in VCS history.
 
 **`CONTEXT-MAP.md`'s shared-target relationship stays, minus one clause.** The
 `grove` entry in the personal skill directory was recorded as going away; it does
@@ -608,8 +609,8 @@ a swap. Neither alone clears this.
 
 The composer, the marker grammar, the fence-state parser, the build gate, the
 completeness invariant, the file-ordering directive and `grove-llm methodology`
-all go. Recorded here for the increments that delete them: what each bought, and
-what pays for it afterwards.
+are all deleted. Recorded here because the deletion was done knowing the cost:
+what each bought, and what pays for it now.
 
 - **The marker grammar and total partition** bought *unclassified prose cannot
   exist*, and made a parser going blind produce a visibly larger unit rather than

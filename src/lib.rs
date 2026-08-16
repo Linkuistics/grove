@@ -23,14 +23,15 @@ pub mod leaf;
 pub mod leaf_id;
 pub mod llm_cli;
 pub(crate) mod loop_driver;
-// `methodology` owns the embed itself — the `include_dir!` static, the unit
-// reader `build.rs` shares by `#[path]`, and the build's methodology identity.
-// It is the module seam the design names, and it is `pub` on the same footing
-// as `provision`: the suite drives the *real* embed through it, and the only
-// alternative door is a spawned process per parser edge case, which the design
-// weighed and rejected (`docs/specs/mandate-delivered-methodology.md`, *Test
-// seams*). It also outlives `provision` — the embed survives the retirement of
-// the directory it is currently also swept into.
+// `methodology` owns the embed itself — the `include_dir!` static and the
+// build's methodology identity. It is `pub` on the same footing as `provision`:
+// the suite asserts claims about the *real* corpus through it — that every
+// kind's reference file exists, that the methodology instructs no `grove-llm`
+// verb the CLI lacks — and production's own door onto that corpus is
+// `include_dir`, which a test cannot open without making a runtime dependency a
+// dev one as well (`docs/specs/skill-delivered-methodology.md`, *Test seams*).
+// It also outlives `provision` — the embed survives the retirement of the
+// directory it is currently also swept into.
 pub mod methodology;
 // `prompt` owns the guaranteed core — the whole of `${prompt}`, and the only
 // place driver-authored prose about a session's own conduct lives. `pub` for

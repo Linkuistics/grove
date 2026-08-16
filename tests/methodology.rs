@@ -1,127 +1,61 @@
-//! The **real embed**, and `grove-llm methodology` over it — the observable end
-//! of making `content/` addressable.
+//! Claims about the **real corpus** — what `content/` is, and what a session
+//! reading the provisioned skill will find there.
 //!
-//! Both readers' edge cases live beside them in `src/methodology/`, against
-//! fixture strings: `parse.rs` for what one file decides, `whole_embed.rs` for
-//! what only the assembled set does. What is asserted *here* is what the real
-//! corpus is, and what a human or a session can see from outside the binary.
+//! Every claim here needs the shipped corpus rather than a fixture, and that is
+//! the whole membership rule for this file. There is nothing else to assert
+//! *about* the embed: it is plain markdown, carried whole, with no grammar over
+//! it and no verb serving it by the piece. What used to live here — a unit
+//! listing's field grammar, a byte-exact fetch, an unknown-id exit code, the
+//! environment a lookup had to answer in — went with the machinery those were
+//! contracts of.
 //!
-//! Three species live here, and each needs this door rather than a module test:
-//!
-//! * **Claims about the embed itself** — every markdown file classified, the
-//!   complete unit set pinned, and the methodology instructing no `grove-llm`
-//!   verb the CLI lacks. Fixtures cannot make these; only the shipped corpus
-//!   can.
-//! * **The verb's output contracts** — a byte-exact fetch, a listing that is a
-//!   grammar rather than a layout, a non-zero exit on an unknown id — which need
-//!   a process.
-//! * **The environment it must answer in**, which is the one a tree-resolving
-//!   verb is refused in.
+//! Two of the survivors are the checks the **build gate** used to make, moved to
+//! where a claim about the corpus's content belongs: every kind's reference file
+//! exists and is reachable from the routing table, and `SKILL.md` stays inside
+//! its budget. The other two are the pair that make the build boundary safe —
+//! the methodology instructs no `grove-llm` verb the embedded CLI lacks, and the
+//! flat verb surface that makes that comparison mean what it says.
 
 use clap::CommandFactory;
-use grove::methodology::{self, Unit};
-use std::collections::{BTreeMap, BTreeSet};
+use grove::methodology;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
-use std::process::{Command, Output};
 use tempfile::TempDir;
 
-fn methodology_verb(arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_grove-llm"))
-        .arg("methodology")
-        .args(arguments)
-        .env_remove("GROVE_SIGNAL_FILE")
-        .output()
-        .unwrap()
-}
-
-fn stdout_of(output: &Output) -> &str {
-    assert!(
-        output.status.success(),
-        "the verb failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    std::str::from_utf8(&output.stdout).expect("unit bytes are UTF-8")
-}
-
-/// The claim the whole build gate rests on: every embedded markdown file is
-/// read, and every one of them declares at least one unit.
+/// **The linked embed and `content/` on disk are the same tree.**
 ///
-/// The gate and this reader share a parser but not a traversal — one walks
-/// `content/` on disk, the other walks `include_dir`'s embed — so a file the
-/// gate checked and this enumeration missed would be classified by nobody. The
-/// corpus is therefore taken from the **directory**, which is the side the
-/// runtime reader does not use; `build.rs` re-embeds on any edit under
-/// `content/`, so the two are the same tree at test time.
+/// `include_dir!` reads `content/` at compile time and, on stable Rust, does not
+/// register those reads with Cargo's change tracker — `build.rs`'s per-file
+/// `rerun-if-changed` walk is the only thing that makes an edit, an addition or
+/// a removal reach the binary. That walk is now the **whole** of the build
+/// script, so nothing else would notice it going wrong; this is what does.
 ///
-/// Stated as file *coverage* rather than as a pinned id set — that is the
-/// separate, stronger claim [`the_embedded_unit_set_is_pinned_complete`] makes,
-/// and the two fail differently: this one names a file nobody classified, that
-/// one names a unit nobody confirmed.
+/// The two sides are gathered by different traversals on purpose. `on_disk`
+/// walks the directory with `fs::read_dir`; `embedded` walks `include_dir`'s
+/// linked tree. A stale embed shows up as a difference between them, which a
+/// single traversal compared against itself could never produce.
 #[test]
-fn every_embedded_markdown_file_is_classified() {
-    let units = methodology::units().expect("the real embed must parse");
-
+fn the_linked_embed_carries_every_markdown_file_on_disk() {
     let content = Path::new(env!("CARGO_MANIFEST_DIR")).join("content");
     let mut on_disk = BTreeSet::new();
     collect_markdown_paths(&content, &content, &mut on_disk);
-    let classified: BTreeSet<String> = units.iter().map(|unit| unit.file.clone()).collect();
+
+    let embedded: BTreeSet<String> = methodology::markdown_files()
+        .expect("the real embed must be readable")
+        .into_iter()
+        .map(|(path, _)| path)
+        .collect();
 
     assert_eq!(
-        classified, on_disk,
-        "every markdown file under content/ must declare at least one unit, and \
-         the listing must not name a file the embed does not carry"
+        embedded, on_disk,
+        "the linked embed and content/ on disk disagree. A file on disk and not \
+         in the embed means `build.rs`'s change tracking missed it and the \
+         binary is carrying a stale corpus; a file in the embed and not on disk \
+         means a deletion has not been rebuilt."
     );
     assert!(
         !on_disk.is_empty(),
-        "an empty corpus would satisfy the equality above without asserting anything"
-    );
-}
-
-/// **`content/`'s mandate positions are contiguous from 1** — a convention about
-/// the shipped corpus, and deliberately not a rule of the grammar.
-///
-/// The build gate settles *totality* and stops there: the composer sorts by the
-/// position rather than indexing on it, so a gap breaks nothing, and a
-/// contiguity check in the gate would fail a contributor over a property no
-/// consumer reads — and would make *deleting* a file renumber every later one.
-/// What density buys is a reader's. Across ten files a position that *is* the
-/// order is read at a glance; one that has drifted into arbitrary integers is
-/// not (`docs/specs/mandate-delivered-methodology.md`, *The file's mandate order
-/// is a comment directive*).
-///
-/// So it is pinned here, where this file's other claims about the real corpus
-/// live, and the split is the point: a fixture in `whole_embed.rs` stays free to
-/// use a gap, while the corpus a human reads may not drift into one.
-#[test]
-fn the_corpus_mandate_positions_are_contiguous_from_one() {
-    let units = methodology::units().expect("the real embed must parse");
-
-    // Keyed by position: the whole-embed gate `units()` re-runs has already
-    // rejected two files sharing one, so this cannot silently collapse a pair.
-    let by_position: BTreeMap<u32, &str> = units
-        .iter()
-        .map(|unit| (unit.file_order, unit.file.as_str()))
-        .collect();
-
-    let actual: Vec<u32> = by_position.keys().copied().collect();
-    let expected: Vec<u32> = (1..=by_position.len() as u32).collect();
-    let files: Vec<&str> = by_position.values().copied().collect();
-
-    assert_eq!(
-        actual,
-        expected,
-        "content/'s mandate positions are {actual:?} across {} files, in the \
-         order {files:?}. The build gate only requires positions to differ, so \
-         this is not a malformation — it is the readability convention that a \
-         file's position is its place in the reading order. Renumber the \
-         `<!-- file: order=<n> -->` directives to 1..={}, or give the convention \
-         up in the spec and here together.",
-        by_position.len(),
-        by_position.len(),
-    );
-    assert!(
-        !actual.is_empty(),
         "an empty corpus would satisfy the equality above without asserting anything"
     );
 }
@@ -210,9 +144,15 @@ fn the_skills_routing_table_names_a_reference_file_that_exists() {
 /// 500 is a **ceiling**, not the rewrite's target: the corpus rewrite estimates
 /// ~200 lines, so a body approaching this number has re-grown procedure that the
 /// split moved out. Like the loop-section alarm below, it establishes nothing
-/// semantic — *no procedure in `SKILL.md`* has no classifier once the unit
+/// semantic — *no procedure in `SKILL.md`* has no classifier now that the unit
 /// markers are deleted, and is a review obligation with its own scenario. **This
 /// passing is not evidence for it.**
+///
+/// It is also, with the routing check above, what the deleted **build gate**
+/// bought: a corpus malformation caught by the suite instead of by `cargo
+/// build`. That is a weaker instrument by design — a contributor sees it at
+/// `cargo test` rather than at compile — and it is the right one for a claim
+/// about prose, which was never what a grammar gate could decide.
 #[test]
 fn the_skill_body_fits_the_progressive_disclosure_ceiling() {
     const LIMIT: usize = 500;
@@ -257,8 +197,9 @@ fn body_lines(text: &str) -> Option<usize> {
 /// has become visible.
 ///
 /// It establishes nothing semantic. That `SKILL.md` states conditions and no
-/// procedure has no classifier once the unit markers are deleted, and is a review
-/// obligation with its own scenario; a line count passing says nothing about it.
+/// procedure has no classifier now that the unit markers are deleted, and is a
+/// review obligation with its own scenario; a line count passing says nothing
+/// about it.
 #[test]
 fn the_loop_section_of_the_skill_fits_a_page() {
     const LIMIT: usize = 100;
@@ -312,255 +253,21 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
     }
 }
 
-/// Every unit the embed declares, named in full.
-///
-/// **Pinned complete rather than floored**, which is the same argument
-/// [`INSTRUCTED_VERBS`] makes below and for the same reason: a floor bounds only
-/// how much a classification may quietly *lose*, and that slack is enough to
-/// defeat a universal claim. The cost is a list to maintain, and it buys exactly
-/// what it charges for — a new unit fails here until someone names it, which is
-/// the moment the classification decision is meant to be confirmed by a human.
-///
-/// The classification pass is **in progress**, in reviewed batches, and each
-/// batch updates this constant deliberately. A `pending-` id is not a
-/// classification: it is a coverage placeholder over a region no batch has
-/// carved yet, always `class=triggering kinds=*` and never carrying a `defers=`.
-/// The pass is finished when no `pending-` id remains here or in `content/`.
-///
-/// Ids are **prefixed by the file each was first carved from** — `skill-` for
-/// `content/SKILL.md`, `task-` for `content/TASK-FORMAT.md`, and so on — which
-/// is what makes embed-wide id uniqueness hold without coordination between
-/// batches. The prefix is **not** a claim about where a unit lives now: the
-/// rewrite into a progressive-disclosure skill moves conditions onto the loop
-/// page and procedures into `content/references/`, and an id that travelled
-/// keeps its spelling so the composition golden's diff stays a relocation
-/// rather than a rename.
-const EMBEDDED_UNITS: [&str; 164] = [
-    "adr-placement-note",
-    "adr-where-adrs-live",
-    "adr-why-the-set-stays-minimal",
-    "brief-briefs-inherit",
-    "brief-durable-content",
-    "brief-every-node-carries-one",
-    "brief-suggested-shape",
-    "brief-the-node-briefing",
-    "context-rules",
-    "context-single-vs-multi-repos",
-    "context-structure",
-    "driving-ask-about-the-trade-off",
-    "driving-ask-for-pushback",
-    "driving-ask-wdyt",
-    "driving-cite-framework-decisions-to-the-source",
-    "driving-dont-merge-questions",
-    "driving-doubting-inside-a-picked-leaf",
-    "driving-externalizing-surfaced-work",
-    "driving-find-working-increments",
-    "driving-how-to-write-a-research-leaf-brief",
-    "driving-name-the-trade-off",
-    "driving-no-pre-baked-grilling",
-    "driving-no-session-summary",
-    "driving-prune-reorder-or-file-an-issue",
-    "driving-record-decisions-inline",
-    "driving-recording-fog",
-    "driving-review-chain-habits",
-    "driving-reworking-adrs-and-briefs",
-    "driving-running-the-vendor-pair",
-    "driving-signs-of-a-research-leaf",
-    "driving-the-combine-step",
-    "driving-the-findings-adopted-bridge",
-    "driving-the-fog-or-ticket-test",
-    "driving-the-review-chain",
-    "driving-turning-a-sweep-into-evidence",
-    "driving-what-a-good-child-leaf-looks-like",
-    "driving-when-a-leafs-place-is-in-doubt",
-    "driving-when-asserting-a-repo-wide-claim",
-    "driving-when-code-depends-on-a-framework-version",
-    "driving-when-not-to-start-a-grove",
-    "driving-when-to-commission-prior-art-research",
-    "driving-when-to-invoke-grilling",
-    "driving-when-to-retire-research-into-adrs",
-    "grilling-agree-the-test-seams",
-    "grilling-challenge-the-glossary",
-    "grilling-cross-reference-with-code",
-    "grilling-discuss-concrete-scenarios",
-    "grilling-domain-awareness",
-    "grilling-interrogate",
-    "grilling-offer-adrs-sparingly",
-    "grilling-sharpen-fuzzy-language",
-    "grilling-update-context-inline",
-    "skill-adrs-and-specs",
-    "skill-artifacts",
-    "skill-bare-grove-dispatch",
-    "skill-bare-stem-rule",
-    "skill-bootstrap",
-    "skill-briefs-vs-glossary",
-    "skill-chain-gap-asymmetry",
-    "skill-commit",
-    "skill-commit-boundary-in-git-and-jj",
-    "skill-cut-the-next-step",
-    "skill-cutting-a-review-leaf",
-    "skill-decompose",
-    "skill-deriving-the-session-name",
-    "skill-directory-tree-and-grow-verbs",
-    "skill-dispatch-and-migration",
-    "skill-do-not-pick-again",
-    "skill-execute",
-    "skill-finish",
-    "skill-finish-cycle",
-    "skill-finish-endings",
-    "skill-finish-no-signal-stop",
-    "skill-finish-nothing-after",
-    "skill-finish-resume",
-    "skill-finish-steps",
-    "skill-glossary-is-load-bearing",
-    "skill-how-the-pick-walks",
-    "skill-integration-placement",
-    "skill-kind-on-the-tree-verbs",
-    "skill-kind-routing",
-    "skill-leaf-prune-mechanics",
-    "skill-leaf-retire-mechanics",
-    "skill-linkuistics-prerequisite",
-    "skill-no-exception-to-check",
-    "skill-node-close-cascade",
-    "skill-node-close-steps",
-    "skill-one-configuration",
-    "skill-pick",
-    "skill-pruning-is-hitl",
-    "skill-retire",
-    "skill-retirement-touches-one-filename",
-    "skill-review-ownership",
-    "skill-self-driving-loop",
-    "skill-session-name",
-    "skill-signal",
-    "skill-specs",
-    "skill-spine-constraints",
-    "skill-starting-a-new-grove",
-    "skill-stated-vcs-is-definitive",
-    "skill-the-loop-is-stateless",
-    "skill-the-record-sets",
-    "skill-the-spine-in-full",
-    "skill-two-triggers-two-verbs",
-    "skill-what-a-grove-is",
-    "skill-what-bootstrap-reads",
-    "skill-what-each-kind-produces",
-    "skill-what-the-configuration-carries",
-    "skill-what-the-plugin-carries",
-    "skill-what-the-scaffold-creates",
-    "skill-which-hop-a-gap-costs",
-    "skill-why-a-second-walk-disagrees",
-    "skill-why-the-glossary-holds",
-    "skill-why-the-handle-outlives-the-path",
-    "skill-why-the-stem-is-bare",
-    "skill-why-there-is-no-exception",
-    "skill-working-tree",
-    "spec-behavioural-not-procedural",
-    "spec-set-is-current-state",
-    "spec-speak-the-projects-language",
-    "spec-suggested-shape",
-    "spec-synthesise-never-re-interview",
-    "spec-test-seams",
-    "spec-when-a-spec-is-written",
-    "task-bare-stem-reasoning",
-    "task-bootstrap-leaf-is-requirements",
-    "task-chain-contiguity",
-    "task-combine-research",
-    "task-declare-the-relationship",
-    "task-decompose-inherits-kind",
-    "task-deliverable-design",
-    "task-deliverable-planning",
-    "task-deliverable-requirements",
-    "task-deliverable-split-not-a-gate",
-    "task-finish-session",
-    "task-grammar-is-five-fields",
-    "task-hitl-afk",
-    "task-in-session-doubt-budget",
-    "task-integrate-review-kinds",
-    "task-kind-in-the-filename",
-    "task-leaf-filename",
-    "task-leaf-never-names-a-harness",
-    "task-name-reading-is-strict",
-    "task-nineteen-kinds",
-    "task-no-node-for-a-shape",
-    "task-nothing-in-a-body-is-metadata",
-    "task-producer-design",
-    "task-producer-impl",
-    "task-producer-planning",
-    "task-producer-prototype",
-    "task-producer-requirements",
-    "task-research-pair",
-    "task-research-write-paths",
-    "task-review-chain-mechanics",
-    "task-review-kinds",
-    "task-suggested-shape",
-    "task-the-doubt-budget-table",
-    "task-the-kind-table",
-    "task-three-design-kinds",
-    "task-too-big-is-planning",
-    "task-two-shapes",
-    "task-vendor-pair-mechanics",
-    "task-what-each-field-does",
-    "task-work-is-not-a-kind",
-];
-
-/// The positive control over the whole embed, failing in **both** directions: a
-/// unit lost since the last review, and a unit gained without one.
-///
-/// It is deliberately a set equality rather than two one-sided assertions.
-/// Losing a unit is the silent direction — the gate still passes, the verb still
-/// lists, and the only evidence is an id that stopped existing — while gaining
-/// one is the direction that must stop and ask.
-#[test]
-fn the_embedded_unit_set_is_pinned_complete() {
-    let declared: BTreeSet<String> = methodology::units()
-        .expect("the real embed must parse and check")
-        .into_iter()
-        .map(|unit| unit.id)
-        .collect();
-
-    let pinned: BTreeSet<String> = EMBEDDED_UNITS.iter().map(|id| id.to_string()).collect();
-    assert_eq!(
-        declared, pinned,
-        "the embed's unit set moved. Ids declared but not listed in \
-         `EMBEDDED_UNITS` are new classification decisions — confirm each, then \
-         add it. Ids listed but no longer declared are either deliberate \
-         removals (drop them here) or a unit that has quietly stopped being \
-         parsed."
-    );
-}
-
-/// **The whole-embed gate holds over the corpus that actually ships**, asserted
-/// through the door a consumer uses rather than through the build script that
-/// also runs it.
-///
-/// The gate walks `content/` **on disk**; this walks the **linked** embed, and
-/// nothing but `build.rs`'s per-file change tracking makes those the same tree.
-/// So a green build is not on its own evidence that the binary a session runs
-/// carries a consistent embed — this is.
-///
-/// The claim is made by *calling* the seam rather than by re-deriving it here.
-/// A test that recomputed id uniqueness and deferral resolution would be the
-/// second implementation the whole design is arranged to avoid, and it would go
-/// green on its own bugs.
-#[test]
-fn the_linked_embed_passes_the_whole_embed_gate() {
-    methodology::units().expect(
-        "the linked embed must satisfy the whole-embed checks: ids unique across \
-         the embed, every `defers=` naming a declared `class=procedural` unit, \
-         and every procedural unit reachable from a triggering one",
-    );
-}
-
-/// **Marking `content/SKILL.md` must not stop it being a skill.**
+/// **`content/SKILL.md` must reach a harness as a skill.**
 ///
 /// Its leading `---` block is what every harness reads to discover the
 /// provisioned skill — `name:` and `description:` are the entry a session sees
-/// in its skill list — and it has to keep working unmodified for as long as
-/// anything is provisioned. The parser skips the block uninterpreted, so the
-/// only way to break this is to edit the file; asserting it on the **extracted**
-/// copy is what makes the claim about what a harness actually reads rather than
-/// about what the parser did.
+/// in its skill list. Provisioning copies the embed verbatim, so the only way to
+/// break this is to edit the file; asserting it on the **extracted** copy is
+/// what makes the claim about what a harness actually reads rather than about
+/// what the embed happens to hold.
+///
+/// The old third limb — that the body then opened on a file directive and a unit
+/// marker — went with the markers. Nothing stands in for it, because there is
+/// nothing left for the frontmatter to be distinguished *from*: the body is
+/// prose from its first byte.
 #[test]
-fn the_skill_frontmatter_survives_marking_and_provisioning() {
+fn the_skill_frontmatter_survives_provisioning() {
     let dest = TempDir::new().unwrap();
     grove::provision::provision_into(dest.path()).unwrap();
 
@@ -576,243 +283,6 @@ fn the_skill_frontmatter_survives_marking_and_provisioning() {
         front.iter().any(|line| line.starts_with("name:"))
             && front.iter().any(|line| line.starts_with("description:")),
         "the two fields a harness discovers the skill by must survive: {front:?}"
-    );
-    assert_eq!(
-        (
-            lines.next(),
-            lines.next().map(|line| line.starts_with("<!-- unit:"))
-        ),
-        (Some("<!-- file: order=1 -->"), Some(true)),
-        "and the body must begin with the file directive and then a unit \
-         marker — the block belongs to no unit. `SKILL.md` leads the corpus now \
-         that `content/MANDATE.md` has gone with the mandate it framed"
-    );
-}
-
-/// **The listing is data, so it is asserted as a grammar rather than as a golden
-/// string.** A row recovered from prose is a row recovered wrongly, and a golden
-/// string would fail on every classification edit while saying nothing about
-/// whether the rows are still parseable.
-#[test]
-fn the_listing_is_five_tab_separated_fields_per_unit() {
-    let output = methodology_verb(&[]);
-    let listing = stdout_of(&output);
-    let units = methodology::units().unwrap();
-
-    let rows: Vec<&str> = listing.lines().collect();
-    assert_eq!(
-        rows.len(),
-        units.len(),
-        "one row per unit, and nothing else on stdout: {listing:?}"
-    );
-    assert!(!rows.is_empty(), "an empty listing asserts nothing below");
-
-    for (row, unit) in rows.iter().zip(&units) {
-        let fields: Vec<&str> = row.split('\t').collect();
-        assert_eq!(fields.len(), 5, "five fields per row, got {row:?}");
-        assert_eq!(fields[0], unit.id);
-        assert_eq!(fields[1], unit.class.label());
-        assert_eq!(
-            fields[2],
-            unit.scope
-                .as_ref()
-                .map(grove::methodology::Scope::render)
-                .unwrap_or_else(|| "-".to_string()),
-            "a procedural unit has no scope, and the listing may not promise a \
-             field it cannot supply for every row"
-        );
-        assert_eq!(
-            fields[3],
-            if unit.defers.is_empty() {
-                "-".to_string()
-            } else {
-                unit.defers.join(" ")
-            },
-            "`-` where a unit defers to nothing — its absence is meaningful"
-        );
-        assert_eq!(fields[4], unit.file);
-        assert!(
-            fields.iter().all(|field| !field.is_empty()),
-            "no field may be empty; the placeholder is `-`: {row:?}"
-        );
-    }
-}
-
-/// **The round trip is the point**: an inventory a caller cannot feed back into
-/// the verb is prose. Asserted for every id at once rather than for a sample,
-/// because the failure it guards against — a listing that renders an id
-/// differently from the way the fetch accepts it — would show up on exactly one
-/// awkward id.
-#[test]
-fn every_listed_id_round_trips_as_a_fetch_argument() {
-    let listing = methodology_verb(&[]);
-    let ids: Vec<String> = stdout_of(&listing)
-        .lines()
-        .map(|row| row.split('\t').next().unwrap().to_string())
-        .collect();
-    assert!(!ids.is_empty());
-
-    for id in &ids {
-        let fetched = methodology_verb(&[id]);
-        assert!(
-            fetched.status.success(),
-            "a listed id must be a fetch argument unchanged; `{id}` was refused: {}",
-            String::from_utf8_lossy(&fetched.stderr)
-        );
-        assert!(!fetched.stdout.is_empty(), "`{id}` fetched no bytes");
-    }
-}
-
-/// Bytes, in the order given, framed by nothing. The output *is* the
-/// methodology, so any decoration would be driver-authored prose arriving
-/// through a second door — and the marker line travels with it, which is what
-/// makes a slice self-addressing.
-#[test]
-fn a_fetch_writes_source_bytes_in_the_order_given() {
-    let units = methodology::units().unwrap();
-    assert!(
-        units.len() >= 2,
-        "the ordering half of this claim needs two units"
-    );
-    let first: &Unit = &units[0];
-    let last: &Unit = units.last().unwrap();
-
-    let output = methodology_verb(&[&last.id, &first.id]);
-    assert_eq!(
-        stdout_of(&output),
-        format!("{}{}", last.source, first.source),
-        "the fetch concatenates the named units' source bytes in argument order, \
-         with no separator, header or trailing framing"
-    );
-    assert!(
-        first.source.starts_with("<!-- unit:"),
-        "a unit's source carries its own marker line"
-    );
-}
-
-/// **The framing contract rests on an embed invariant rather than on luck.**
-///
-/// A fetch concatenates unit sources with nothing between them, so a unit whose
-/// bytes did not end in a newline would run its last prose line into the *next*
-/// unit's marker — costing that marker its line and the output the
-/// self-addressing shape the verb exists to deliver. "Verbatim and framed by
-/// nothing" and a useful multi-fetch cannot both hold for such a file, so the
-/// build rejects one; what is asserted here is what that buys, over the real
-/// embed and through the verb rather than through the parser that enforces it.
-#[test]
-fn a_multi_unit_fetch_keeps_every_marker_on_its_own_line() {
-    let units = methodology::units().unwrap();
-    for unit in &units {
-        assert!(
-            unit.source.ends_with('\n'),
-            "`{}` ends mid-line, so anything fetched after it loses its marker",
-            unit.id
-        );
-    }
-
-    let ids: Vec<&str> = units.iter().map(|unit| unit.id.as_str()).collect();
-    let output = methodology_verb(&ids);
-    let fetched = stdout_of(&output);
-
-    for unit in &units {
-        let marker = unit
-            .source
-            .lines()
-            .next()
-            .expect("a unit carries its marker");
-        assert!(
-            fetched.lines().any(|line| line == marker),
-            "`{}`'s marker is no longer a whole line of the fetch: {marker:?}",
-            unit.id
-        );
-    }
-}
-
-/// A caller's mistake, not a contributor's. A bad `defers=` *inside* the embed
-/// fails the build, because the build that produced it can see it; a bad
-/// argument is visible only when the call is made, so it is an ordinary runtime
-/// error that names the id and points at the listing.
-#[test]
-fn an_unknown_id_exits_non_zero_naming_it_and_pointing_at_the_listing() {
-    let output = methodology_verb(&["no-such-unit"]);
-
-    assert!(!output.status.success(), "an unknown id must exit non-zero");
-    assert!(
-        output.stdout.is_empty(),
-        "nothing may be written before the whole fetch is known to resolve"
-    );
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("no-such-unit") && stderr.contains("grove-llm methodology"),
-        "the message must name the id and direct the caller to the listing: {stderr}"
-    );
-}
-
-/// A partial fetch must not have already written the units it could serve. The
-/// bytes go straight into whatever the caller is reading, so a truncated fetch
-/// and a complete one are indistinguishable to it.
-#[test]
-fn a_fetch_that_cannot_resolve_every_id_writes_nothing() {
-    let units = methodology::units().unwrap();
-    let known = &units[0].id;
-
-    let output = methodology_verb(&[known, "no-such-unit"]);
-
-    assert!(!output.status.success());
-    assert!(
-        output.stdout.is_empty(),
-        "the resolvable id must not have been served ahead of the failure: {:?}",
-        String::from_utf8_lossy(&output.stdout)
-    );
-}
-
-/// **The environment the successor grove's sessions fetch from.**
-///
-/// `grove-llm methodology` reads only this binary's own embed and touches no
-/// tree, so it is dispatched ahead of the session-epoch guard — the same
-/// exemption `--content-hash` already carries. Withholding it would refuse a
-/// *lookup* in exactly the environments a session follows a `defers=` id from: a
-/// non-repository directory, or one holding a signal path from a dead launch.
-/// That is a split-brain inside a single rule.
-///
-/// **The control is what makes this able to fail.** `GROVE_SIGNAL_FILE` set to a
-/// path under a directory with no epoch record is what makes admission resolve a
-/// working tree and refuse; the same invocation with the variable unset proves
-/// nothing, because admission returns immediately with no ambient context. So
-/// `pick` is run in the identical environment and asserted refused: if it ever
-/// stops being, this test has stopped testing anything.
-#[test]
-fn the_verb_answers_from_a_non_repository_directory_under_a_stale_signal_path() {
-    let outside = TempDir::new().unwrap();
-    let control = outside.path().join("control");
-    fs::create_dir_all(&control).unwrap();
-    let signal_file = control.join("signal");
-
-    let run = |verb: &str| {
-        Command::new(env!("CARGO_BIN_EXE_grove-llm"))
-            .arg(verb)
-            .current_dir(outside.path())
-            .env("GROVE_SIGNAL_FILE", &signal_file)
-            .output()
-            .unwrap()
-    };
-
-    let refused = run("pick");
-    assert!(
-        !refused.status.success(),
-        "control: a tree-resolving verb must be refused here, or the environment \
-         below is not the hostile one this test claims to exercise"
-    );
-
-    let served = run("methodology");
-    assert!(
-        served.status.success(),
-        "`methodology` must answer where a tree-resolving verb cannot: {}",
-        String::from_utf8_lossy(&served.stderr)
-    );
-    assert!(
-        !served.stdout.is_empty(),
-        "the listing must be produced, not merely exit zero"
     );
 }
 
@@ -965,14 +435,17 @@ fn the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks() {
 /// the corpus is pinned rather than merely floored — see the completeness
 /// control in [`the_embedded_methodology_instructs_no_verb_the_embedded_cli_lacks`].
 ///
-/// **Eleven**, and `methodology` is the one that just left — with
-/// `content/MANDATE.md`, the framing unit that told a session a `defers=<id>`
-/// marker had a body `grove-llm methodology <id>` would serve. The verb is still
-/// on the CLI and dies with the rest of the mandate machinery; what changed is
-/// that nothing in `content/` reaches for it any more, because the corpus routes
-/// by **path** now — a condition names the reference file carrying its procedure,
-/// and a session opens it. This check gets *more* load-bearing as that lands: the
-/// skill is once again the only thing teaching a session which verbs exist.
+/// **Eleven**, and `methodology` is the one that left: it was the twelfth for as
+/// long as `content/MANDATE.md` told a session that a `defers=<id>` marker had a
+/// body `grove-llm methodology <id>` would serve. The corpus stopped reaching for
+/// it when it began routing by **path** — a condition names the reference file
+/// carrying its procedure, and a session opens it — and the verb itself is now
+/// off the CLI with the rest of the mandate machinery.
+///
+/// This check is **more** load-bearing for that, not less: the skill is once
+/// again the only thing teaching a session which verbs exist, so a verb it names
+/// wrongly is a call a session cannot make and has no second source to correct
+/// it from.
 const INSTRUCTED_VERBS: [&str; 11] = [
     "brief-chain",
     "complete",

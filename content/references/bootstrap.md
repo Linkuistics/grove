@@ -1,5 +1,3 @@
-<!-- file: order=21 -->
-<!-- unit: skill-what-bootstrap-reads class=procedural -->
 ## What Bootstrap reads, in order
 
 Start from the mandate. Run `grove-llm resolve <handle>` to turn the stable

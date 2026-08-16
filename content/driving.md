@@ -1,5 +1,3 @@
-<!-- file: order=8 -->
-<!-- unit: driving-signs-of-a-research-leaf class=procedural -->
 <!-- grove reference file — the field habits -->
 
 # driving — habits for driving a grove
@@ -42,7 +40,6 @@ A useful research leaf sits *after* the design questions are visible but
 answer those leaves' questions directly, so later grilling can spend its time
 on the remaining decisions instead of rediscovering prior-art failure modes.
 
-<!-- unit: driving-how-to-write-a-research-leaf-brief class=procedural -->
 ## How to write a research leaf brief
 
 The single most leveraged move is to **name the downstream questions the
@@ -90,7 +87,6 @@ git-appraise, CRDT-merge surprises in Radicle COBs) — the absence is
 itself a confidence signal, and recording it stops future readers from
 re-doing the same fruitless search.
 
-<!-- unit: driving-running-the-vendor-pair class=procedural -->
 ## Running the vendor pair
 
 One survey is one vendor's corpus and one vendor's blind spots. When the
@@ -137,7 +133,6 @@ the first got wrong" discards the breadth you paid for and biases it toward the
 first survey's frame. Both run breadth-seeking; the adversarial move belongs to
 the combine step.
 
-<!-- unit: driving-ask-wdyt class=procedural -->
 ### Ask the LLM "WDYT" before committing
 
 When a question feels close to settled, the easy default is to nod
@@ -164,7 +159,6 @@ idempotency — a materially better outcome than either party's initial
 proposal. That particular step exists in the conversation record
 because the user asked for the LLM's view before committing.
 
-<!-- unit: driving-ask-for-pushback class=procedural -->
 ### Ask for pushback when the LLM agrees too easily
 
 Models default to agreement under social pressure. When the LLM
@@ -177,7 +171,6 @@ specifically to make pushback structural rather than personal. When
 the recommendation cites primary evidence, the pushback is a debate
 about that evidence, not about whose preference wins.
 
-<!-- unit: driving-name-the-trade-off class=procedural -->
 ### Name the trade-off you want input on
 
 The mirror image of asking for pushback: when *you* are the one handing back, do
@@ -201,7 +194,6 @@ escalation into a decision instead of an open-ended handback. It applies to any
 kind: the HITL/AFK mark predicts who is present, it does not license a vaguer
 question when one is.
 
-<!-- unit: driving-record-decisions-inline class=procedural -->
 ### Record decisions inline, while they're fresh
 
 The running-log pattern: each settled question gets a paragraph
@@ -221,7 +213,6 @@ The decisions log is *not* the ADR. ADRs come at the end of grilling
 deserve one). The log is for the conversation; the ADR is for the
 durable record.
 
-<!-- unit: driving-the-findings-adopted-bridge class=procedural -->
 ## Retiring research into ADRs
 
 A finding that overturns a recorded decision **rewrites** (or merges / deletes)
@@ -235,7 +226,6 @@ and each ADR gets a rationale section citing the survey by primary source. A
 future reader of either artifact can then trace the chain without re-doing the
 research.
 
-<!-- unit: driving-reworking-adrs-and-briefs class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 ## Reworking ADRs and briefs as understanding shifts
 
 An ADR set is a **minimum coherent set describing the current design**, not a
@@ -263,7 +253,6 @@ that changes a recorded decision, and **retiring** a leaf or node (`SKILL.md`'s
 Plan and Retire steps), where you promote brief material upward and reconcile the
 ADR set in the same pass.
 
-<!-- unit: driving-cite-framework-decisions-to-the-source class=procedural defers=driving-doubting-inside-a-picked-leaf -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      addyosmani/agent-skills@13e43f23 (skills/source-driven-development)
      — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
@@ -295,7 +284,6 @@ of code, and only that kind — not version-invariant logic, renames, or plumbin
 When the decision is also hard to reverse, this pairs with the doubt pass
 below: cite the source *and* have a fresh context try to break it.
 
-<!-- unit: driving-turning-a-sweep-into-evidence class=procedural -->
 ## Verifying a claim about the repo itself
 
 The counterpart to grounding a claim about a framework — the same evidence
@@ -360,7 +348,6 @@ count.
 sentence you are about to delete. Before removing a false clause, check whether
 the true one beside it only reads as true in its company.
 
-<!-- unit: driving-doubting-inside-a-picked-leaf class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      addyosmani/agent-skills@13e43f23 (skills/doubt-driven-development)
      — MIT licensed; see LICENSES/addyosmani-agent-skills.LICENSE. -->
@@ -405,7 +392,6 @@ redesign is a new producer review chain beside the leaf being integrated.
 adversarial-combine disciplines instead. A load-bearing decision derived from
 research gets its own reviewed producer chain.
 
-<!-- unit: driving-the-review-chain class=procedural -->
 ## The review chain — when doubt earns its own leaves
 
 The review chain is `X` → `review-X` → `integrate-review-X`: a producer, a fresh
@@ -434,7 +420,6 @@ verbatim, the file to start from. That is strictly more than a constructor
 rendering a goal sentence from a handle could produce, and it is why the session
 that knows *why* the step is needed is the right author.
 
-<!-- unit: driving-review-chain-habits class=procedural -->
 These habits make the chain worth its extra sessions:
 
 - **Decide at the end of the session, not the start.** A producer knows whether
@@ -539,7 +524,6 @@ was contiguous. Nothing refuses either — which is exactly why the adjacency of
 the `review → integrate` hop is *your* obligation at the moment you cut the leaf,
 and why the verb you reach for there is `leaf-insert`.
 
-<!-- unit: driving-externalizing-surfaced-work class=procedural -->
 ## Externalizing surfaced work
 
 grove's value is many small, low-context sessions — each leaf picked up fresh,
@@ -575,7 +559,6 @@ without disturbing it. A tree that keeps sprouting small, concrete leaves is the
 system working as intended — lazy means *just-in-time, not few* (`SKILL.md`
 constraint 4), so don't ration leaves to keep the tree looking tidy.
 
-<!-- unit: driving-what-a-good-child-leaf-looks-like class=procedural -->
 ## What a good child leaf looks like
 
 Externalizing tells you *when* to split; this is what the split should
@@ -603,7 +586,6 @@ by blast radius — per package, per directory), each keeping CI green because
 the old form still exists alongside the new; finally a leaf that deletes the
 old form once no caller remains.
 
-<!-- unit: driving-the-fog-or-ticket-test class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/wayfinder/SKILL.md, "Fog of war" / "Not yet
@@ -620,7 +602,6 @@ A question you can already phrase precisely earns a leaf immediately with
 dim to phrase that precisely stays a horizon note until a later session
 sharpens it enough to graduate.
 
-<!-- unit: driving-prune-reorder-or-file-an-issue class=procedural defers=skill-leaf-prune-mechanics -->
 ## Prune, reorder, or file an issue — the triage a status word would hide
 
 The doubt a leaf's place raises — surfacing new, or already sitting there under a

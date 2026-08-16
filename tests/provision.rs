@@ -23,17 +23,21 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 /// carries the embed.
 const CONTENT_MARKER: &str = "hierarchical, self-extending workstreams";
 
-/// **Both binaries link the embed** — `grove` to extract it, `grove-llm` to
-/// serve unit bytes to a session that followed a `defers=` id.
+/// **Both binaries link the embed** — `grove` to extract it, `grove-llm` to hash
+/// it for the methodology identity `--content-hash` prints and the per-verb
+/// foreign-skill-directory warning needs.
 ///
-/// This claim **inverted** with `grove-llm methodology`. It used to assert the
-/// embed's *absence* from `grove-llm`, which was the whole reason the
-/// methodology identity was a compile-time constant: naming the identity had to
-/// stay possible without linking `content/`. Once the agent-facing binary links
-/// it anyway, the constant loses its reason to exist, and both binaries hash the
-/// embed directly through one implementation — which is what removed the
-/// build-script traversal and the equality test that kept two traversals in step
-/// (`docs/adr/one-build-owns-a-session.md`).
+/// This claim **inverted** when `grove-llm methodology` first made the
+/// agent-facing binary link `content/`. It used to assert the embed's *absence*
+/// from `grove-llm`, which was the whole reason the methodology identity was a
+/// compile-time constant: naming the identity had to stay possible without
+/// linking the embed. Once the binary linked it anyway, the constant lost its
+/// reason to exist, and both binaries began hashing the embed directly through
+/// one implementation — which is what removed the build-script traversal and the
+/// equality test that kept two traversals in step
+/// (`docs/adr/one-build-owns-a-session.md`). **That verb is now deleted and the
+/// inversion stands**, because the identity is a second, independent reason to
+/// link the embed and it outlived the first.
 ///
 /// Asserted on the linked artifacts because that is where the claim lives: no
 /// amount of reading the source shows what the linker kept. There is no longer
@@ -56,10 +60,9 @@ fn both_binaries_carry_the_embedded_methodology() {
     );
     assert!(
         carries(env!("CARGO_BIN_EXE_grove-llm")),
-        "`grove-llm methodology` serves unit bytes out of this binary's own \
-         embed, so `grove-llm` must carry content/. If this fails the verb has \
-         stopped reading the embed — or something has put the compile-time \
-         identity constant back."
+        "`grove-llm` computes its methodology identity from this binary's own \
+         embed, so it must carry content/. If this fails, something has put the \
+         compile-time identity constant back."
     );
 }
 

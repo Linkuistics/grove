@@ -1,5 +1,3 @@
-<!-- file: order=2 -->
-<!-- unit: task-what-each-field-does class=procedural -->
 <!-- grove reference file — the task-file shape -->
 
 # TASK-FORMAT — the leaf task file
@@ -31,7 +29,6 @@ body. That is also the test the deleted step suffix failed and the bare stem
 passes — a convention that *adds* what nothing parses is legible, while one that
 *duplicates* a parsed field can disagree with it.
 
-<!-- unit: task-name-reading-is-strict class=procedural -->
 Putting the kind in the name is what lets `pick`, the driver's routing lookup and
 your own eye read a session's discipline out of `find .grove` without opening a
 file. Reading is strict in both directions. Every task-shaped leaf name — live,
@@ -41,7 +38,6 @@ than degrading to `impl`. No kind label plus `-` prefixes another, so a name
 always separates unambiguously and round-trips without touching the slug. Foreign
 non-task files in the tree stay ignored.
 
-<!-- unit: task-the-kind-table class=procedural -->
 ## The nineteen kinds
 
 The set is **parameterised, not flat**: five producers, each with its own
@@ -70,7 +66,6 @@ sentinel: the grow verbs refuse to create one, retire, prune and decompose refus
 it as an operand, and `leaf-insert` may target it only to put ordinary work
 *before* teardown.
 
-<!-- unit: task-research-write-paths class=procedural -->
 All three research kinds write under `docs/research/`, and because a pair's three
 leaves share one slug, **the kind supplies the discriminator** — the same
 principle that keeps it out of the slug:
@@ -85,20 +80,17 @@ A solo `research-a` with no pair writes `-a.md` and that is the whole record; a
 `-b` survey added later renames nothing, and the union lands at the unadorned
 name where a reader looks first.
 
-<!-- unit: task-decompose-inherits-kind class=procedural -->
 `leaf-decompose` gives a node's **first child** the kind of the leaf it just
 decomposed, unless `--kind` overrides it — a `research-a` leaf that proves bigger
 keeps producing `research-a` work in its first child. The node directory the verb
 creates carries no kind, so nothing is inherited at that level.
 
-<!-- unit: task-work-is-not-a-kind class=procedural -->
 **`work` is not a kind.** It was the previous spelling of `impl`, and only the
 one-time legacy migration still reads it: `work`, `review-work` and
 `integrate-review-work` are rewritten to their `impl` spellings as the tree is
 converted. Afterwards no reader accepts it — `--kind work` errors and names the
 replacement, and a hand-written `work` in a current filename is malformed.
 
-<!-- unit: task-the-doubt-budget-table class=procedural -->
 ## In-session doubt, by kind
 
 The allowance is budgeted across the **whole picked leaf**, once the current
@@ -116,7 +108,6 @@ Outside that Bootstrap-and-mandate predicate, doubt-driven development keeps its
 standalone bounded cycles. The allowance is leaf-wide, not per artifact or
 decision, and a diverse-lens pass with N fresh contexts spends N reviewers.
 
-<!-- unit: task-review-chain-mechanics class=procedural -->
 ## Composing the kinds — the two shapes
 
 ### The review chain — each session cuts the next step
@@ -170,7 +161,6 @@ Three things follow from cutting them late:
   after the review whose subtree still holds live work** whenever there is one.
   *What the shapes are not*, below, carries the reason and the exact condition.
 
-<!-- unit: task-vendor-pair-mechanics class=procedural -->
 ### The vendor pair — one eager call
 
 ```
@@ -192,7 +182,6 @@ because they are fixed, the three slugs need carry nothing at all beyond the
 stem. The two producers are peers, and `research-a` / `research-b` already say
 so in the field that routes them.
 
-<!-- unit: task-bare-stem-reasoning class=procedural -->
 ### What the shapes are not
 
 Those names are long, and that is the trade the scheme makes: the **kind** and the
@@ -259,7 +248,6 @@ skill page, and these are the other two:
   stem-mates together in a directory listing — was in any case false: a leaf name
   begins with `NN`, so a listing sorts by position and never by slug, and both
   spellings glob identically under `*<stem>*`.
-<!-- unit: task-chain-contiguity class=procedural -->
 - **A chain is not a unit, and is not contiguous by construction.** `pick`
   returns the first live leaf in the whole tree and nothing groups leaves for it
   (*task-tree-scheme*). Steps are appended at the parent's next free position, so
@@ -287,7 +275,6 @@ skill page, and these are the other two:
   check — the intervening leaf has not run yet and grove makes no leaf's eventual
   file set part of its contract, so nothing could supply the proof.
 
-<!-- unit: task-suggested-shape class=procedural -->
 ## Suggested shape
 
 ```markdown
@@ -333,7 +320,6 @@ the two composition relationships the *creating session* writes by hand
 than how a session is launched. Everything about the launch comes from the
 filename's kind and the one configuration entry it keys.
 
-<!-- unit: task-leaf-never-names-a-harness class=procedural -->
 ## A leaf never names a harness
 
 There is no way for a leaf to choose the harness, model or wrapper its session

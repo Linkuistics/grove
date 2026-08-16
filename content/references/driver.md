@@ -1,5 +1,3 @@
-<!-- file: order=20 -->
-<!-- unit: skill-dispatch-and-migration class=procedural -->
 ## Bare `grove` is the whole surface
 
 Sessions are launched by the `grove` CLI (installed via `brew install
@@ -15,7 +13,6 @@ one focused, reviewable commit; migration is idempotent once a tree is
 current-format, and there is **no** transitional dual-format reader
 (task-tree-scheme).
 
-<!-- unit: skill-the-loop-is-stateless class=procedural -->
 ## The loop is stateless, which is why restart ≡ continuation
 
 Bare `grove` drives the **whole loop**, not one task (self-driving-loop). It is
@@ -30,7 +27,6 @@ redone, and a loop that has stopped is continued by re-running `grove` from the
 same working tree. There is no PTY wrapper and no daemon — a plain shell `while`
 loop could stand in (constraint 6).
 
-<!-- unit: skill-what-the-configuration-carries class=procedural -->
 ## What the one configuration carries
 
 Every session is launched by `~/.config/grove/config.kdl`, which gives each
@@ -50,7 +46,6 @@ or wrapper policy, and it re-validates the whole file before every tree mutation
 and again before every launch: an edit lands on the next session, and an invalid
 file launches nothing while leaving the selected leaf live and resumable.
 
-<!-- unit: skill-deriving-the-session-name class=procedural -->
 ## Deriving the session name yourself
 
 The driver computes this grove's session name — `<repo-basename>: <name> grove`
@@ -64,7 +59,6 @@ own basename (`jj workspace root` in a jj-enabled tree; `git rev-parse
 rev-parse --git-common-dir`'s parent — the repo a linked worktree or secondary
 workspace belongs to, not the working tree's own path).
 
-<!-- unit: skill-what-the-scaffold-creates class=procedural -->
 ## What the scaffold creates, and why it is not yours to create
 
 Provide a working tree by whatever means you like — `git init`, `git clone`, `jj
@@ -89,7 +83,6 @@ root brief, then grow the tree, cutting the leaves yourself if the workstream is
 small and otherwise adding a `planning` leaf for a fresh session. The scaffold
 is a working-tree change only; your commit folds it in.
 
-<!-- unit: skill-how-the-pick-walks class=procedural -->
 ## How the pick walks
 
 The driver makes **one authoritative pick** per session, in-process, before the
@@ -103,7 +96,6 @@ is the only live leaf. Nothing else modulates the walk — no priority, no
 grouping, no set of leaves that must finish before another is considered. That
 selection's **stable handle** is what the driver hands you as your mandate.
 
-<!-- unit: skill-why-a-second-walk-disagrees class=procedural -->
 ## Why a second walk can disagree
 
 `grove-llm pick` remains a diagnostic and tree-interface verb — it is how you or

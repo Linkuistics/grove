@@ -1,5 +1,3 @@
-<!-- file: order=4 -->
-<!-- unit: context-structure class=procedural defers="context-rules context-single-vs-multi-repos" -->
 <!-- bundled in grove from mattpocock/skills@b8be62ffacb0118fa3eaa29a0923c87c8c11985c
      — MIT licensed; see LICENSES/mattpocock-skills.LICENSE. Deliberately NOT
      re-synced to upstream's later trim (which removed the example-dialogue,
@@ -32,7 +30,6 @@ A person or organization that places orders.
 _Avoid_: Client, buyer, account
 ```
 
-<!-- unit: context-rules class=procedural -->
 ## Rules
 
 - **Be opinionated.** When multiple words exist for the same concept, pick the best one and list the others as aliases to avoid.
@@ -44,7 +41,6 @@ _Avoid_: Client, buyer, account
 - **Group terms under subheadings** when natural clusters emerge. If all terms belong to a single cohesive area, a flat list is fine.
 - **Write an example dialogue.** A conversation between a dev and a domain expert that demonstrates how the terms interact naturally and clarifies boundaries between related concepts.
 
-<!-- unit: context-single-vs-multi-repos class=procedural -->
 ## Single vs multi-context repos
 
 **Single context (most repos):** One `CONTEXT.md` at the repo root.

@@ -1,5 +1,3 @@
-<!-- file: order=26 -->
-<!-- unit: skill-signal kinds="requirements design planning prototype impl research-a research-b combine-research review-requirements review-design review-planning review-prototype review-impl integrate-review-requirements integrate-review-design integrate-review-planning integrate-review-prototype integrate-review-impl" class=triggering -->
 **Signal.** Once the task is retired and committed (and any parent-chain cascade
 is settled and included), run **`grove-llm complete`** as your **last action — then do
 nothing else**. This is how the self-driving loop ends this session and starts

@@ -1,5 +1,3 @@
-<!-- file: order=11 -->
-<!-- unit: task-producer-planning kinds=planning class=triggering defers="driving-find-working-increments driving-what-a-good-child-leaf-looks-like" -->
 - **planning** (AFK) — given the design, first find the **smallest independently
   useful working increments** and order them by dependency. Create a separate
   grove for every obvious stage that leaves the product working and delivers
@@ -11,11 +9,9 @@
   charter. A node is always a leaf that proved bigger, so it always carries one.
   The deliverable is *more tree*. The only kind with methodological force — the sole
   branch in the loop's Execute step.
-<!-- unit: task-deliverable-planning kinds=planning class=triggering defers=brief-the-node-briefing -->
 - **planning** writes the child `BRIEF.md`(s) and ordered leaf files for any node
   it grows (`BRIEF-FORMAT.md`).
 
-<!-- unit: driving-find-working-increments class=procedural -->
 <!-- adapted (paraphrased into grove's voice, not bundled verbatim) from
      mattpocock/skills@d574778f94cf620fcc8ce741584093bc650a61d3
      (skills/engineering/to-tickets/SKILL.md, vertical-slice-rules)
@@ -36,4 +32,3 @@ scope. Schema expansion, caller migration, lifecycle cutover, cleanup,
 methodology, and documentation often form dependency-ordered groves when every
 handoff remains green. A new schema and the only reader that makes it usable do
 not: neither half is a working increment on its own.
-

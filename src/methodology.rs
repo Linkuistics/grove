@@ -2,17 +2,16 @@
 //! identity.
 //!
 //! `content/` is compiled into **both** binaries — `grove` to provision it into
-//! every installed harness's skill directory, `grove-llm` to serve unit bytes to
-//! a session that followed a `defers=` id. This module owns the embed, the two
-//! readers over it ([`parse`] and [`whole_embed`], both shared with `build.rs`),
-//! and the build's [`identity`].
+//! every installed harness's skill directory, `grove-llm` to hash it for the
+//! build's [`identity`]. This module owns the embed and that identity, and
+//! nothing else: the corpus is **plain markdown**, so there is no reader over
+//! it and no grain finer than a file.
 //!
-//! **Nothing here composes a session's prompt any more.** The methodology
-//! reaches a session as a *provisioned skill*, and `${prompt}` is the short
-//! guaranteed core [`crate::prompt`] assembles — which depends on this module
-//! for the embed rather than the other way round, so provisioning's supplier
-//! never sits behind a prompt-composition seam
-//! (`docs/adr/skill-delivers-the-methodology.md`).
+//! **Nothing here composes a session's prompt.** The methodology reaches a
+//! session as a *provisioned skill*, and `${prompt}` is the short guaranteed
+//! core [`crate::prompt`] assembles — which depends on this module for the embed
+//! rather than the other way round, so provisioning's supplier never sits behind
+//! a prompt-composition seam (`docs/adr/skill-delivers-the-methodology.md`).
 //!
 //! The identity is a hash of the embed rather than a compile-time constant, and
 //! that is a consequence of `grove-llm` linking `content/` at all. The constant
@@ -21,16 +20,6 @@
 //! which removes a build-script traversal and the equality test that existed
 //! only to keep two traversals in step
 //! (`docs/adr/one-build-owns-a-session.md`).
-
-mod parse;
-mod whole_embed;
-
-// Neither reader's error type is re-exported. They are what `build.rs` prints
-// and what each module's own tests match on, and no function out here returns
-// one — `units` wraps both in `anyhow` — so exporting them would be public
-// surface nothing outside the crate could reach a value of (`src/lib.rs` states
-// the rule).
-pub use parse::{Class, Scope, Unit};
 
 use anyhow::{Context, Result};
 use include_dir::{include_dir, Dir, DirEntry};
@@ -46,34 +35,6 @@ static CONTENT: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/content");
 /// units: provisioning, which extracts the tree verbatim.
 pub fn embed() -> &'static Dir<'static> {
     &CONTENT
-}
-
-/// Every unit in the embed, in a deterministic order: files by `content/`-relative
-/// path, units by position within their file.
-///
-/// That order is the one the whole-embed check reports failures in, and it is
-/// the order `build.rs` assembles too, so a malformation is named identically by
-/// the gate and by a verb.
-///
-/// The build gate has already parsed and checked the same corpus through the
-/// same two readers, so a failure here is a bug rather than a contributor's
-/// mistake — it is still returned rather than panicked, because the callers are
-/// a CLI verb and a library function, neither of which should abort a session
-/// over it. Re-running the whole-embed check costs a walk of a handful of units
-/// and makes the invariant true **where a consumer reads it**: the gate ran over
-/// `content/` on disk, and this is the linked embed, which is a different
-/// traversal of what ought to be the same tree.
-pub fn units() -> Result<Vec<Unit>> {
-    let mut units = Vec::new();
-    for (path, text) in markdown_files()? {
-        units.extend(parse::parse_units(&path, text).with_context(|| {
-            format!("the embedded methodology no longer parses; content/{path} is malformed")
-        })?);
-    }
-    whole_embed::check(&units)
-        .map_err(|error| anyhow::anyhow!("content/{error}"))
-        .context("the embedded methodology is internally inconsistent")?;
-    Ok(units)
 }
 
 /// This build's **methodology identity** — the content hash of its embedded
@@ -96,11 +57,10 @@ pub fn identity() -> &'static str {
 /// Every embedded markdown file as `(content/-relative path, text)`, sorted by
 /// path.
 ///
-/// Markdown is the whole corpus the unit grammar governs; the embed's other
-/// files are the licence notices under `LICENSES/`, which carry no methodology.
-/// The sort is what makes [`units`] deterministic, and it is the same order
-/// `build.rs`'s filesystem walk produces, so the two traversals name a
-/// whole-embed malformation at the same unit.
+/// Markdown is the whole of the methodology a session reads; the embed's other
+/// files are the licence notices under `LICENSES/`, which carry none. The sort
+/// makes the walk deterministic, so a failure a caller reports names the same
+/// file on every machine.
 ///
 /// **Public as a seam**, on the exemption `src/lib.rs` names: the suite asserts
 /// claims about the embed's prose — that it instructs no `grove-llm` verb the

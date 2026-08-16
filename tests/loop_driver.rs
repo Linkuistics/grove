@@ -132,11 +132,12 @@ fn write_config_only(home: &Path, command: &Path) {
 /// The prefix of the driver-authored sentence naming the leaf selected for one
 /// session, up to the opening backtick of the handle.
 ///
-/// The one mandate sentence a fixture may read the handle out of: everything
-/// before it is a byte-exact slice of `content/`, and the methodology names
-/// handle-shaped strings in its own prose, so any looser marker would find them
-/// too (`docs/specs/mandate-delivered-methodology.md`, *The driver authors
-/// mandate prose only for facts it resolves at runtime*).
+/// The one prompt sentence a fixture may read the handle out of. The driver
+/// authors prose only for the facts it resolves at runtime — the selected handle
+/// and the stated version control — and everything else in `${prompt}` is either
+/// the fixed load instruction or a byte-exact slice of `content/`, whose prose
+/// names handle-shaped strings of its own that a looser marker would find
+/// (`docs/specs/skill-delivered-methodology.md`, *The core rule*).
 const MANDATED_LEAF: &str = "Grove mandate: the leaf selected for this session is `";
 
 /// Plant a minimal current-format tree with one live leaf.

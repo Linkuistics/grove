@@ -1,5 +1,3 @@
-<!-- file: order=18 -->
-<!-- unit: skill-finish-cycle kinds=finish class=triggering -->
 Once no ordinary live leaf is left, bare `grove` appends one driver-owned
 `finish` leaf at the grove root and mandates it under the `finish` session kind;
 that mandate *is* the signal, so a finish session never asks `pick` anything.
@@ -17,7 +15,6 @@ stated together in `SIGNAL-FINISH.md`** — the same bytes the driver inlines as
 the last part of a `finish` prompt, so the outcomes have one source and two
 deliveries of it, and neither can drift from the other. On confirmation, run:
 
-<!-- unit: skill-finish-steps class=procedural -->
 1. **Promote** anything from the briefs that should outlive the grove — ADRs,
    docs, glossary entries. Reviewable working-tree edits; often a near no-op
    when decisions landed inline as they were made.
@@ -52,13 +49,11 @@ deliveries of it, and neither can drift from the other. On confirmation, run:
    tree (which remains valid after `.grove/` is deleted).
    Outside a `grove` loop (no loop to stop) it is a safe no-op: just exit.
 
-<!-- unit: skill-finish-nothing-after class=procedural -->
 Nothing after: integrating the grove's branch and tearing down the working tree
 are **not** grove workflow — both belong to plain git/gh or jj, or the user's
 own worktree tooling (user-owned-worktrees). Whoever integrates does so after step
 2, so the integrated history never carries `.grove/`.
 
-<!-- unit: skill-finish-resume class=procedural -->
 **Resume is state-checked, never a marker file** (constraint 1) — and the state
 that gets checked is the *repository's*, never task-root absence. If you lose
 step 2's result, rerun `grove-llm finish-commit <finish-handle>` with the same
@@ -71,16 +66,13 @@ is bound to this launch, so it is available only to the still-confirmed session
 that ran the command — a later bare `grove` into a rootless tree is an ordinary
 fresh grove, not a resumed finish.
 
-<!-- unit: skill-finish-no-signal-stop class=procedural -->
 **Ending after step 2 but before step 3 is an ordinary no-signal stop.** The
 driver reports the child's real status and elapsed time and stops the loop; it
 never reads a deleted `.grove/` as the `--done` you did not send. Nothing is
 lost — the teardown commit is already in history — and nothing is pending: there
 is no half-finished grove to resume, only a working tree without one.
 
-<!-- unit: task-finish-session kinds=finish class=triggering -->
 **finish** (HITL, driver-reserved) — the whole-grove teardown session the driver
 appends once no ordinary work is live. It proposes the complete finish cycle and
 waits for explicit human confirmation before any teardown; declining leaves the
 leaf live for a later resume. No session creates one, and none is ever retired.
-

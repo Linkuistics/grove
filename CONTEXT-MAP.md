@@ -59,11 +59,9 @@ lockstep, which is why they live together — see
   [`task-tree-transactions-fail-closed`](docs/adr/task-tree-transactions-fail-closed.md),
   [`config-driven-sessions`](docs/specs/config-driven-sessions.md),
   [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
-  [`mandate-delivered-methodology`](docs/specs/mandate-delivered-methodology.md),
   and [`skill-delivered-methodology`](docs/specs/skill-delivered-methodology.md)
-  — the last two describing the outgoing and the settled delivery designs
-  respectively, the former deleted by the increment that removes the last
-  machinery it describes.
+  — the last describing how the methodology reaches a session. Its predecessor,
+  `mandate-delivered-methodology`, went with the machinery it described.
   The doubt skill participates in the review-ownership and promotion contracts,
   but the mandate, task tree, review routing, and lifecycle are Grove's
   maintaining seam.

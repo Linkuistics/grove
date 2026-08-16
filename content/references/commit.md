@@ -1,5 +1,3 @@
-<!-- file: order=25 -->
-<!-- unit: skill-commit-boundary-in-git-and-jj class=procedural -->
 ## Where the boundary falls, in git and in jj
 
 That commit is also the boundary the *next* session starts from, and git and jj
@@ -22,7 +20,6 @@ operation log as the only way back. The lane itself belongs to
 Which lane you are on is not yours to re-derive: the driver states this working
 tree's version control, and that statement is definitive.
 
-<!-- unit: skill-why-the-handle-outlives-the-path class=procedural -->
 ## Why the handle, and not the position
 
 Positions and paths move under renumber and reorder — a `leaf-insert` shifts

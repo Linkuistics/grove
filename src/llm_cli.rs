@@ -41,15 +41,15 @@ pub struct Cli {
     /// Print this build's methodology identity — the content hash of the
     /// `content/` payload this binary embeds — and exit.
     ///
-    /// It is a claim about the content this binary will actually **serve**
-    /// through `methodology`, not about a constant recorded beside it, which is
-    /// what makes the driver's comparison worth making.
+    /// It is a claim about the content this binary actually **carries**, read
+    /// from the linked embed rather than from a constant recorded beside it,
+    /// which is what makes the driver's comparison worth making.
     ///
     /// **A flag rather than a verb, deliberately.** The loop driver asks it of
     /// the `grove-llm` a session's `PATH` resolves, so it can report a
     /// build-pairing mismatch (`docs/adr/one-build-owns-a-session.md`); no
     /// session ever calls it and the embedded methodology instructs nothing
-    /// about it, so it stays out of the agent grammar `tests/provision.rs`
+    /// about it, so it stays out of the agent grammar `tests/methodology.rs`
     /// scans. Like `--version` it is metadata the driver may ask from outside
     /// any session, and it touches no task tree, so it is exempt from the
     /// session-epoch guard.
@@ -307,32 +307,6 @@ pub enum Command {
     /// that is absent (a session not under `grove do`) it is a safe
     /// near-no-op that just tells you to exit manually.
     Complete(CompleteArgs),
-    /// Serve the methodology **this binary embeds**, by unit.
-    ///
-    /// Given one or more unit ids it writes those units' source bytes, in the
-    /// order given, verbatim and framed by nothing — the output *is* the
-    /// methodology, so any decoration would be driver-authored prose arriving
-    /// through a second door. Given no argument it lists every unit, one per
-    /// line, tab-separated, five fields in a fixed order:
-    ///
-    ///   `<id>` `<class>` `<scope>` `<defers>` `<file>`
-    ///
-    /// `<scope>` is `*` or a space-separated kind list, and `-` for a procedural
-    /// unit, which has none; `<defers>` is the space-separated ids of the
-    /// procedural units that complete this one, and `-` where it defers to
-    /// nothing; `<file>` is the unit's `content/`-relative path. Every id a row
-    /// carries is accepted as a fetch argument unchanged — an inventory the
-    /// caller cannot feed back into the verb would be prose.
-    ///
-    /// An id no unit declares exits non-zero naming it. That is an ordinary
-    /// runtime user error, distinct from a bad `defers=` *inside* the embed,
-    /// which is a contributor's mistake and fails the build.
-    ///
-    /// Like `--content-hash` this reads only the binary's own embed and touches
-    /// no working tree, so it runs ahead of the session-epoch guard: the
-    /// environments a session fetches a deferred procedure from are exactly the
-    /// ones a tree-resolving verb is refused in.
-    Methodology(MethodologyArgs),
 }
 
 impl Command {
@@ -351,18 +325,8 @@ impl Command {
             Self::LeafPrune(_) => "grove-llm leaf-prune",
             Self::FinishCommit { .. } => "grove-llm finish-commit",
             Self::Complete(_) => "grove-llm complete",
-            // Never reached through admission — dispatched ahead of it — but the
-            // label is what a future reader would look for if it ever were.
-            Self::Methodology(_) => "grove-llm methodology",
         }
     }
-}
-
-#[derive(Parser)]
-pub struct MethodologyArgs {
-    /// Unit ids to fetch, in the order their bytes should be written. With none,
-    /// the verb writes the listing instead.
-    pub ids: Vec<String>,
 }
 
 #[derive(Parser)]
@@ -482,17 +446,6 @@ pub fn run() -> Result<()> {
         // other argument is either a verb or a parse error.
         bail!("no verb given; run `grove-llm --help` for the verb set");
     };
-    // Still metadata, and still before anything that resolves a working tree:
-    // `methodology` reads this binary's own embed and nothing else, which makes
-    // it the same species as `--content-hash` above. Dispatching it after
-    // admission would refuse a *lookup* in exactly the environments a session
-    // fetches a deferred procedural body from — a non-repository directory, or
-    // one holding a stale signal path — which is a split-brain inside one rule.
-    // It also sits ahead of the pairing warning, so an inspection tool that will
-    // be piped keeps a clean stderr.
-    if let Command::Methodology(args) = &command {
-        return cmd_methodology(args);
-    }
     // On any verb, and before the guard that may refuse it: a clobbered skill
     // directory is worth saying even when the verb itself cannot run.
     crate::provision::warn_on_foreign_skill_dirs();
@@ -512,71 +465,7 @@ pub fn run() -> Result<()> {
         Command::LeafPrune(args) => cmd_leaf_prune(&args),
         Command::FinishCommit { finish_handle } => cmd_finish_commit(&finish_handle),
         Command::Complete(args) => cmd_complete(&args, session_epoch.as_ref()),
-        // Returned above, ahead of admission.
-        Command::Methodology(args) => cmd_methodology(&args),
     }
-}
-
-/// Fetch unit bytes, or write the listing.
-///
-/// Every requested id is resolved **before** anything is written: a run that
-/// cannot serve its third argument must not have already emitted the first two,
-/// because the output is bytes a caller splices into its own reading and a
-/// partial fetch is indistinguishable from a complete one.
-///
-/// The concatenation needs nothing between the units because the build supplies
-/// the invariant that makes it safe — an embedded file ends in a newline, so
-/// every unit's bytes do, and each marker keeps its own line however many units
-/// are asked for. A separator here would be framing, which the fetch contract
-/// refuses (`docs/specs/mandate-delivered-methodology.md`).
-fn cmd_methodology(args: &MethodologyArgs) -> Result<()> {
-    let units = crate::methodology::units()?;
-    let rendered = if args.ids.is_empty() {
-        units.iter().map(listing_row).collect::<String>()
-    } else {
-        let mut selected = Vec::with_capacity(args.ids.len());
-        for id in &args.ids {
-            let unit = units.iter().find(|unit| &unit.id == id).with_context(|| {
-                format!(
-                    "no methodology unit `{id}` in this build's embed; run `grove-llm methodology` \
-                     with no argument for the listing"
-                )
-            })?;
-            selected.push(unit.source.as_str());
-        }
-        selected.concat()
-    };
-    print!("{rendered}");
-    Ok(())
-}
-
-/// One listing row. Tabs need no escaping rule because no field can contain
-/// one — ids are kebab-case, class and scope are drawn from closed sets, and an
-/// embedded path holding a control character fails the build. The first three
-/// prove it from their own grammar; the fourth is a *filename*, which is mutable
-/// data rather than a grammar, so the parser makes the premise structural instead
-/// of assuming today's tree
-/// (`docs/specs/mandate-delivered-methodology.md`). That is a property of the
-/// data rather than a convention to remember.
-fn listing_row(unit: &crate::methodology::Unit) -> String {
-    let scope = unit
-        .scope
-        .as_ref()
-        .map(crate::methodology::Scope::render)
-        .unwrap_or_else(|| "-".to_string());
-    let defers = if unit.defers.is_empty() {
-        "-".to_string()
-    } else {
-        unit.defers.join(" ")
-    };
-    format!(
-        "{}\t{}\t{}\t{}\t{}\n",
-        unit.id,
-        unit.class.label(),
-        scope,
-        defers,
-        unit.file
-    )
 }
 
 fn cmd_finish_commit(finish_handle: &str) -> Result<()> {

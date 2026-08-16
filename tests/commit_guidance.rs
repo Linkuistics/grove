@@ -72,9 +72,12 @@ fn the_signal_step_lives_in_its_own_file_rather_than_on_the_loop_page() {
         "content/SKILL.md must not carry a Signal step — it composes last from \
          content/SIGNAL.md, and a copy here would arrive a whole mandate early"
     );
+    // Anchored on the *first line* rather than on a preceding newline: with the
+    // unit markers deleted, `content/SIGNAL.md` opens on its own step and has no
+    // line before it to match against.
     assert!(
-        SIGNAL_PAGE.contains("\n**Signal.**"),
-        "content/SIGNAL.md must carry the Signal step"
+        SIGNAL_PAGE.starts_with("**Signal.**"),
+        "content/SIGNAL.md must carry the Signal step, and open on it"
     );
 }
 

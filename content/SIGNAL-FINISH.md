@@ -1,5 +1,3 @@
-<!-- file: order=27 -->
-<!-- unit: skill-finish-endings kinds=finish class=triggering defers="skill-finish-steps skill-finish-nothing-after skill-finish-resume skill-finish-no-signal-stop" -->
 **How this session ends is decided by what it did**, and all three outcomes are
 open to you. In the two that signal, the signal is your **last action — then do
 nothing else**; the loop driver is watching for it and ends the session itself.

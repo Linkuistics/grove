@@ -43,11 +43,11 @@ readonly CONTENT_MARKER='hierarchical, self-extending workstreams'
 #
 # THIS CHECK INVERTED. It used to fail a release when grove-llm carried the
 # embed, because only grove extracted content and grove-llm needed nothing but a
-# compile-time identity constant. `grove-llm methodology` serves unit bytes out
-# of grove-llm's own embed, so the agent-facing binary links content/ now and
-# both binaries hash it directly (docs/adr/one-build-owns-a-session.md). A
-# grove-llm without the embed can no longer answer a session that followed a
-# deferral.
+# compile-time identity constant. grove-llm computes the methodology identity
+# from its own embed now -- for --content-hash and for the per-verb warning about
+# a clobbered skill directory -- so both binaries hash content/ directly
+# (docs/adr/one-build-owns-a-session.md). A grove-llm without the embed cannot
+# name which build it is.
 #
 # Writes only to stderr, so it is safe inside the command substitution
 # build_target runs in.
@@ -56,7 +56,7 @@ assert_methodology_pairing() {
   for binary in "$@"; do
     if ! grep -qF "$CONTENT_MARKER" "$binary"; then
       echo "release-build: $binary does not carry the embedded methodology." >&2
-      echo "  grove extracts content/ and grove-llm serves units out of it, so both must link it." >&2
+      echo "  grove extracts content/ and grove-llm hashes it for its identity, so both must link it." >&2
       echo "  Either this build is broken, or the marker in release-common.sh has left content/" >&2
       echo "  and needs updating alongside CONTENT_MARKER in tests/provision.rs." >&2
       return 1

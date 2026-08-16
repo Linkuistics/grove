@@ -1,5 +1,3 @@
-<!-- file: order=22 -->
-<!-- unit: skill-what-each-kind-produces class=procedural defers=grilling-interrogate -->
 ## What each kind produces
 
 The closed set of **nineteen** is five producers (`requirements`, `design`,
@@ -35,7 +33,6 @@ here, and the only kind that grows the tree generatively:
   `requirements` — but it MAY still sharpen the glossary or raise an ADR inline,
   as any kind may.
 
-<!-- unit: skill-the-record-sets class=procedural defers="adr-placement-note adr-why-the-set-stays-minimal spec-set-is-current-state skill-specs driving-reworking-adrs-and-briefs driving-ask-wdyt driving-ask-for-pushback driving-record-decisions-inline driving-how-to-write-a-research-leaf-brief" -->
 ## Raising records, and keeping each set minimal
 
 Whichever kind is running: raise ADRs *sparingly* (`ADR-FORMAT.md` for
@@ -50,7 +47,6 @@ field-guide habits that make grilling, research-leaf commissioning, and the
 review chain productive (WDYT, pushback, running decision log, citation
 discipline).
 
-<!-- unit: skill-review-ownership class=procedural -->
 **Review ownership inside a picked leaf.** This applies only after the driver
 launched this session with a selected-leaf mandate in `${prompt}` and the
 session adopted that mandate by running Bootstrap — a `.grove/` directory in the

@@ -108,19 +108,20 @@ for how to launch it, so there is nothing left for an argument to select;
 `grove-llm` is for deterministic operations invoked by the embedded methodology:
 `root-init`; `pick`, `brief-chain`, `kind`, and `resolve`; `leaf-add`,
 `leaf-insert`, `leaf-decompose`, and `leaf-add-pair`; `leaf-retire` and
-`leaf-prune`; `finish-commit`; `complete`; and `methodology`. This split keeps a discoverable human API without forcing the agent
-to reproduce filesystem mutations from prose.
+`leaf-prune`; `finish-commit`; and `complete`. Every one of them mutates or
+resolves a task tree, so every one of them is admitted through the session-epoch
+guard. This split keeps a discoverable human API without forcing the agent to
+reproduce filesystem mutations from prose.
 
-`methodology` is the odd one out and is shaped by that: it mutates nothing and
-reads only the binary's **own embed**, serving a unit's source bytes by id or —
-given no argument — listing every unit as five tab-separated fields (`<id>`,
-`<class>`, `<scope>`, `<defers>`, `<file>`, with `-` in either optional field).
-Because it touches no working tree it is dispatched **ahead of the session-epoch
-guard**, exactly as `--content-hash` is: the environments a session follows a
-`defers=` id from are the ones a tree-resolving verb is refused in, and a refused
-lookup there would be a split-brain inside one rule. An unknown id is an ordinary
-runtime error naming the id; an unknown id *inside* `content/` is a contributor's
-mistake and fails the build.
+The surface is **flat**: a verb name is a whole invocable command, with no
+nesting. That is what lets `tests/methodology.rs` compare the verbs the corpus
+instructs against the verbs the CLI exposes by name, and it is pinned there
+rather than merely observed.
+
+There was a twelfth, `methodology`, which served the embed by unit id to a
+session following a `defers=` marker. It went with the mandate machinery: the
+corpus routes by **path** now, so a session that needs a procedure opens the
+file its condition names.
 
 `grove-llm` also answers `--content-hash` with its build's [methodology
 identity](#the-boundary-is-a-build-not-a-commit). That is a flag rather than a
@@ -665,19 +666,19 @@ methodology](adr/skill-delivers-the-methodology.md) settles that the sweep, the
 stamps, the shared directory and the harness registry all stay, and that
 `${prompt}` carries only a short guaranteed core pointing at what they wrote;
 [`docs/specs/skill-delivered-methodology.md`](specs/skill-delivered-methodology.md)
-carries the design. **The mandate machinery below is decided to go** — the
-composer is already deleted, and the marker grammar, the two readers, the build
-gate and `grove-llm methodology` follow in the next increment;
-[`docs/specs/mandate-delivered-methodology.md`](specs/mandate-delivered-methodology.md)
-describes it while it still runs. The **build boundary** at the end of this
-section is unchanged by either decision.
+carries the design. **The mandate machinery is gone** — the composer, the unit
+markers and the file directives, the two readers over them, the build gate, and
+`grove-llm methodology`. `content/` is plain markdown a harness reads as a skill,
+with no grammar over it and no grain finer than a file. The **build boundary** at
+the end of this section is unchanged by any of that.
 
 `build.rs` embeds `content/` into **both** binaries — `grove` to extract it, and
-`grove-llm` to serve units out of it. On every bare `grove`, `provision` sweeps
-that content into each installed harness's personal skill directory — a row of
-the registry is a place to write files, never a program to run, and an absent
-home root is skipped rather than created. A content hash makes this idempotent
-while still updating the skill when the binary changes.
+`grove-llm` to hash it for the identity its foreign-skill-directory warning
+needs. On every bare `grove`, `provision` sweeps that content into each installed
+harness's personal skill directory — a row of the registry is a place to write
+files, never a program to run, and an absent home root is skipped rather than
+created. A content hash makes this idempotent while still updating the skill when
+the binary changes.
 
 That hash is the build's **methodology identity**, and it is the identity
 because the crate version does not move between a released binary and an edited
@@ -688,55 +689,41 @@ typed directory entries would make a traversal reproduce `include_dir`'s
 directory semantics as well as its file selection. Both binaries compute it from
 the linked embed through one implementation (`methodology::identity`). It used
 to be a compile-time constant the build script emitted, precisely so that
-*naming* the identity did not link `content/`; once `grove-llm methodology`
-made the agent-facing binary link it anyway, that reason ended, and the
-build-script traversal, the constant and the equality test that kept two
-traversals in step went with it. "Both binaries carry it" is a claim about
-linked artifacts rather than about source, so it is asserted by scanning
-binaries: an integration test scans the pair `cargo test` built, and the release
-path scans each staged pair before archiving it, which is where the
-cross-compiled `--release` targets a local test never sees are covered.
+*naming* the identity did not link `content/`; once the agent-facing binary
+linked it anyway, that reason ended, and the build-script traversal, the constant
+and the equality test that kept two traversals in step went with it. "Both
+binaries carry it" is a claim about linked artifacts rather than about source, so
+it is asserted by scanning binaries: an integration test scans the pair `cargo
+test` built, and the release path scans each staged pair before archiving it,
+which is where the cross-compiled `--release` targets a local test never sees are
+covered.
 
-`build.rs` still walks `content/` — to emit the per-file change tracking
-`include_dir!` does not register with Cargo, and to **gate** the embed. Every
-embedded markdown file is fully classified by HTML-comment **unit markers**
-partitioning its body past the file directive below, and a malformed one fails
-`cargo build` with the file and offset. Constraint 5 — grove guides and does not gate — governs the human's task
-tree, not grove's own compile-time artifact, which the very build that produced
-it can fully observe. The gate reads through the crate's own parsers
-(`src/methodology/parse.rs` and `src/methodology/whole_embed.rs`,
-`#[path]`-included by the build script) rather than second implementations,
-which is the duplication the removed hash traversal had already had to be
-defended against.
+`build.rs` walks `content/` for **one** reason now: to emit the per-file change
+tracking `include_dir!` does not register with Cargo. That walk is load-bearing
+on its own — without it, editing a content file leaves a stale embed baked into
+the binary and nothing complains — so `tests/methodology.rs` compares the linked
+embed against the directory to catch it going wrong.
 
-Each file also opens its body with a **file directive**,
-`<!-- file: order=<n> -->` — the same device and recogniser as a unit marker, and
-the one body line no unit covers — carrying that file's position in a composed
-mandate.
+**What the deleted gate bought, and what pays for it now.** The gate refused to
+embed a corpus whose unit markers did not fully partition every file, whose ids
+were not unique, or whose `defers=` chains did not resolve and terminate. It
+bought a contributor a build error, with a file and an offset in hand, in place
+of a stranger's stalled loop. What replaces it is narrower and is the right
+grain for a corpus of prose: `tests/methodology.rs` asserts that `SKILL.md`'s
+routing table names a reference file for every kind and that each one exists,
+and that the body stays inside its progressive-disclosure budget. A contributor
+sees those at `cargo test` rather than at `cargo build`, which is the trade — a
+grammar can be gated at compile time, and whether a page of conditions is right
+never could be.
 
-The gate has **two halves, split by what a check needs to see**, and the split
-is the seam rather than a quota. `parse.rs` decides everything a single
-`(path, text)` settles — the marker grammar, partition, fence state, the leading
-preamble, the directive's presence and placement, the file-level rules.
-`whole_embed.rs` decides the five that need the
-assembled set: **id uniqueness** across the embed, because an id is the only
-address `grove-llm methodology` has; **ordering-key uniqueness**, because the
-composition order must be total; **`defers=` resolving to a declared
-`class=procedural` unit**; **every procedural unit reachable** by following
-`defers=` from some triggering unit; and **every chain of deferrals
-terminating**. Reachability is partition seen from the other end — together they
-say every unit is either in a mandate or reachable from one, and that units cover
-every body byte past the file directive. The claim is over units rather than over
-the embed's literal bytes: the unread preamble and the one-line directive are
-covered by no unit and reach no mandate, and neither can hide one — a marker
-inside the preamble is itself a build error.
-It does **not** also dispose of deferral cycles, which is the distinction the
-fourth check exists to hold: a ring entered by no triggering unit is unreachable
-by construction, but a ring a trigger *does* enter is reached like any other
-chain, and a session following `defers=` round it never arrives. The two run in
-that order, so an unrooted ring is still reported as the orphan it also is.
-`methodology::units` re-runs the whole-embed half over the **linked** embed,
-which is a different traversal of what the gate saw on disk.
+**The one enforceable half of the build boundary survives unchanged**, and it is
+the check that matters most now: the embedded methodology instructs no
+`grove-llm` verb the embedded CLI lacks. It reads the corpus as **markdown**, file
+by file, rather than unit by unit — a unit boundary would have cut a wrapped
+invocation in half, so the file was always the safer corpus — and it is
+load-bearing precisely because the skill is once again the only thing teaching a
+session which verbs exist. `tests/methodology.rs` also pins the flat verb
+surface that makes the comparison mean what it claims.
 
 Because a configured command is opaque, Grove cannot infer which harness a
 session eventually reaches and does not try: every known installed root is
@@ -851,7 +838,7 @@ prescribing one command.
 | `finish_transaction` | The whole fail-closed teardown transaction: preflight, witness, evacuation, rollback, quarantine handoff, and recovery. |
 | `finish_cleanup` | Post-commit quarantine and VCS-administration auxiliaries, plus the lease-owned reaping of orphaned ones. |
 | `leaf`, `llm_cli`, `complete` | Task formats and the deterministic agent command surface. |
-| `methodology` | The embed itself and the build's methodology identity — plus, until the mandate machinery is deleted, the two readers `build.rs` shares and the unit set they produce. Nothing about composition. |
+| `methodology` | The embed itself and the build's methodology identity. Nothing else — the corpus is plain markdown, so there is no reader over it. |
 | `prompt` | The guaranteed core: the whole of `${prompt}`, the kind→reference-file map, and the too-late test the core's contents are admitted by. Depends on `methodology` for the embed. |
 | `provision` | Embedded methodology installation, and the provisioned locations the core names. |
 

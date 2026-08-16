@@ -323,10 +323,6 @@ const REFUTATIONS: &[(&str, &str)] = &[
          lifecycle verbs",
     ),
     (
-        "docs/specs/mandate-delivered-methodology.md",
-        "`content/prompts/continue.md` was the third",
-    ),
-    (
         "docs/specs/doubt-grove-review-mechanics.md",
         "A leaf carries no `**Kind:**`, `**Harness:**`, or producer target metadata",
     ),

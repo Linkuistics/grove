@@ -100,7 +100,7 @@ can never change argument boundaries.
 
 | Substitution | Expands to | Required |
 |---|---|---|
-| `${prompt}` | The methodology composed for the selected leaf's kind, then that leaf's stable handle as the session's mandate and the resolved version control. | Exactly once, in any position after word zero. |
+| `${prompt}` | The guaranteed core: an instruction to load the provisioned `grove` skill and the selected kind's reference file, then that leaf's stable handle as the session's mandate and the resolved version control, then the session's ending. A couple of KiB, not the methodology itself. | Exactly once, in any position after word zero. |
 | `${session_name}` | `<repo-basename>: <grove-name> grove`. | At most once. |
 | `${worktree}` | Absolute root of the working tree holding `.grove/`. | At most once. |
 | `${repo}` | Absolute root of the main repository — the default jj workspace root, or the parent of Git's common directory. | At most once. |
@@ -164,11 +164,13 @@ absent home root is skipped, never created. Writes are idempotent against a
 content stamp, and a foreign directory carrying no Grove stamp is refused rather
 than overwritten.
 
-`${prompt}` no longer points a session at that provisioned skill: it carries the
-methodology for the launched kind directly, sliced from the same embed the sweep
-writes. The registry therefore stays a delivery list whose product nothing in a
-mandate depends on — which is what lets provisioning retire in a later increment
-without changing what a session is told.
+**`${prompt}` points a session at what the sweep wrote**, and carries no
+methodology of its own beyond the session's ending. So provisioning is a genuine
+prerequisite rather than a delivery list running in parallel: a session that
+cannot reach the provisioned skill is told the loop, the kinds and the verbs by
+nothing. Grove reports an absent destination loudly and launches anyway — it
+never refuses — but the launch is degraded, and the report is the warning that it
+is.
 
 ## Validation and diagnostics
 

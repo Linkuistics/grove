@@ -35,9 +35,9 @@ through one implementation, and there is no second traversal that could drift
 from it. An empty directory is not part of the payload, which is uninteresting
 rather than a trade-off: a directory with no files in it carries no methodology.
 
-`grove-llm`'s answer is a claim about the content it will actually **serve**,
-which is what makes the comparison worth making. It reports the identity of the
-embed backing `grove-llm methodology`, not a constant recorded beside it.
+`grove-llm`'s answer is a claim about the content it actually **carries**, which
+is what makes the comparison worth making. It reports the identity of the embed
+it links, not a constant recorded beside it.
 
 Each loop iteration resolves `grove-llm` through **`PATH`** — the way a session
 that inherits the driver's environment resolves it — and compares its methodology

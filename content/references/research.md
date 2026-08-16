@@ -1,5 +1,3 @@
-<!-- file: order=16 -->
-<!-- unit: task-research-pair kinds="research-a research-b" class=triggering defers=task-research-write-paths -->
 **Research** — a **vendor pair**, not a review chain: two independent surveys,
 unioned.
 

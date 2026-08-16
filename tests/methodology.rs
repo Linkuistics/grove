@@ -128,6 +128,108 @@ fn the_corpus_mandate_positions_are_contiguous_from_one() {
     );
 }
 
+/// **The routing table is the first screen, and every row it prints resolves.**
+///
+/// The opening routes rather than introduces: a session that arrived by
+/// description match rather than by a mandate still lands in its kind's
+/// reference file (`docs/specs/skill-delivered-methodology.md`, *How `SKILL.md`
+/// opens*). A row naming a file that is not there sends exactly that session
+/// nowhere, and prose cannot notice.
+///
+/// Ten rows for nineteen kinds, because the corpus already treats each family as
+/// one unit — the five `review-*` kinds share a file, as do the five
+/// `integrate-review-*` and the two research producers. The **map** the driver
+/// will own is an exhaustive `match` over the kind enum and is checked where it
+/// is written; this checks the table a human reads.
+#[test]
+fn the_skills_routing_table_names_a_reference_file_that_exists() {
+    let content = Path::new(env!("CARGO_MANIFEST_DIR")).join("content");
+    let skill =
+        fs::read_to_string(content.join("SKILL.md")).expect("content/SKILL.md must be readable");
+
+    let routed: BTreeSet<String> = skill
+        .lines()
+        .skip_while(|line| !line.starts_with("## Read your kind's reference file first"))
+        .take_while(|line| !line.starts_with("## The spine"))
+        .filter_map(|line| line.split("`references/").nth(1))
+        .filter_map(|rest| rest.split_once('`'))
+        .map(|(path, _)| path.to_owned())
+        .collect();
+
+    let expected: BTreeSet<String> = [
+        "requirements.md",
+        "design.md",
+        "planning.md",
+        "prototype.md",
+        "impl.md",
+        "review.md",
+        "integrate-review.md",
+        "research.md",
+        "combine-research.md",
+        "finish.md",
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+
+    assert_eq!(
+        routed, expected,
+        "content/SKILL.md's routing table must name exactly the ten per-kind \
+         reference files"
+    );
+    for path in &routed {
+        assert!(
+            content.join("references").join(path).is_file(),
+            "content/SKILL.md routes to references/{path}, which does not exist"
+        );
+    }
+}
+
+/// **The house progressive-disclosure ceiling, on the body rather than the file.**
+///
+/// The spec measures `SKILL.md`'s *body* — the frontmatter is a routing header a
+/// harness reads, not guidance a session reads, and counting it would let a
+/// description rewrite eat into the ceiling
+/// (`docs/specs/skill-delivered-methodology.md`, *Scenario: body budget*).
+///
+/// 500 is a **ceiling**, not the rewrite's target: the corpus rewrite estimates
+/// ~200 lines, so a body approaching this number has re-grown procedure that the
+/// split moved out. Like the loop-section alarm below, it establishes nothing
+/// semantic — *no procedure in `SKILL.md`* has no classifier once the unit
+/// markers are deleted, and is a review obligation with its own scenario. **This
+/// passing is not evidence for it.**
+#[test]
+fn the_skill_body_fits_the_progressive_disclosure_ceiling() {
+    const LIMIT: usize = 500;
+    let skill = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("content/SKILL.md"))
+        .expect("content/SKILL.md must be readable");
+
+    let measured = body_lines(&skill).expect("content/SKILL.md must have YAML frontmatter");
+    assert!(
+        measured <= LIMIT,
+        "content/SKILL.md's body is {measured} lines against a ceiling of {LIMIT}. \
+         Move a procedure into the reference file its condition names rather than \
+         raising the ceiling."
+    );
+
+    // The control. A measure that cannot fail is worth nothing, and one that
+    // silently returned zero on an unrecognised header would pass forever.
+    let oversized = format!("---\nname: x\n---\n{}", "x\n".repeat(LIMIT));
+    assert_eq!(body_lines(&oversized), Some(LIMIT));
+    assert_eq!(body_lines("no frontmatter here\n"), None);
+}
+
+/// Lines after the closing `---` of YAML frontmatter. `None` when the document
+/// does not open with frontmatter, so a stripped header fails rather than
+/// measuring the whole file.
+fn body_lines(text: &str) -> Option<usize> {
+    let mut lines = text.lines();
+    (lines.next()? == "---").then_some(())?;
+    let mut lines = lines.skip_while(|line| *line != "---");
+    lines.next()?;
+    Some(lines.count())
+}
+
 /// **Constraint 7 made checkable**, and the measure is the whole claim.
 ///
 /// "One page of rules" is unmeasurable as written, so the spec fixes a measure a
@@ -218,7 +320,7 @@ fn collect_markdown_paths(root: &Path, dir: &Path, out: &mut BTreeSet<String>) {
 /// page and procedures into `content/references/`, and an id that travelled
 /// keeps its spelling so the composition golden's diff stays a relocation
 /// rather than a rename.
-const EMBEDDED_UNITS: [&str; 163] = [
+const EMBEDDED_UNITS: [&str; 164] = [
     "adr-placement-note",
     "adr-where-adrs-live",
     "adr-why-the-set-stays-minimal",
@@ -299,6 +401,7 @@ const EMBEDDED_UNITS: [&str; 163] = [
     "skill-how-the-pick-walks",
     "skill-integration-placement",
     "skill-kind-on-the-tree-verbs",
+    "skill-kind-routing",
     "skill-leaf-prune-mechanics",
     "skill-leaf-retire-mechanics",
     "skill-linkuistics-prerequisite",

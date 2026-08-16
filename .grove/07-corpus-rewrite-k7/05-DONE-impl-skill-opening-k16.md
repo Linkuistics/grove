@@ -68,6 +68,68 @@ Three checks, and one of them is **not a test**:
   the corresponding procedure must be found. The review records this as a **finding,
   not a test result**.
 
+## Running log
+
+**The `description:`.** Rewritten to the house shape — a capability noun phrase
+("Grove's methodology for driving a long, multi-session workstream as a
+VCS-tracked tree of task files under .grove/"), a content list that elaborates it
+without sequencing anything, then an explicit *Use when* whose **first** trigger
+is *a Grove mandate names this skill*. Two further triggers follow, narrowing
+outward: any session inside a grove working tree, then the original
+start/pick-up/continue clause the old description carried alone. 401 chars,
+inside the house's ~470 and far inside the 1024-char frontmatter limit. The
+skill stays **model-invoked** — no `disable-model-invocation`.
+
+**The routing table.** New unit `skill-kind-routing`, `kinds=* class=triggering`,
+placed immediately after the one-paragraph definition and before the spine, so
+the first screen is nineteen lines of routing rather than an introduction. Ten
+rows, verified to resolve. It defers nothing: it *is* the pointer, so there is no
+remainder to move.
+
+**Budgets — both hold, and the interesting number is neither of them.**
+
+| measure | value | bound |
+|---|---|---|
+| body lines (after frontmatter) | 404 | ≤ 500 |
+| `## The loop` heading-to-heading | 94 | ≤ 100 |
+| file bytes | 25,811 | — |
+
+Both mechanical limbs pass. Written into the suite as
+`the_skill_body_fits_the_progressive_disclosure_ceiling` (with a `body_lines`
+helper that returns `None` on a stripped header, so a missing frontmatter fails
+rather than measuring the whole file) beside the loop-section alarm
+`loop-conditions-k13` already added, plus
+`the_skills_routing_table_names_a_reference_file_that_exists`, which guards this
+child's own deliverable — ten rows, exactly the ten expected paths, each one
+present in `content/references/`.
+
+**The overshoot, which is the finding.** The brief's target was ~200 lines and
+roughly 8 KiB. The body is 404 lines and 25.8 kB. Netting out the scaffolding
+that dies in `mandate-machinery-k10` — 54 comment lines, 5,326 bytes of unit
+markers and licence notices — the post-cutover file is still **~350 lines and
+~20.5 kB, 1.75× and 2.5× the target**. The arithmetic locating it: 51 triggering
+units over 287 lines of prose is **~5.6 lines and ~400 bytes per condition**,
+against a spec estimate of one condition *line* each. The budget tests say
+nothing about this, by design, and I have not cited them as if they did.
+
+**I did not trim.** The four sibling children each wrote their own condition
+lines and are `DONE`; rewriting them here would absorb into this leaf work that
+belongs to the review's integration step, and this leaf's own bar is the audit
+plus the review. The overshoot is written into `skill-opening-k17`'s body as
+named evidence, with the per-condition arithmetic, so the reviewer starts from a
+number rather than an impression.
+
+**Verification.** Full `cargo test` green (all suites, 0 failed), `cargo fmt
+--check` clean, `cargo clippy --all-targets` silent. `composed-mandates.tsv`
+regenerated: the diff is exactly one `skill-kind-routing` row per kind, 19 rows,
+each landing after `skill-what-a-grove-is` — a pure addition, no relocation.
+
+**Both rules the core sheds are still present** after four children of editing:
+`skill-do-not-pick-again` (the mandate wins over a second walk) and
+`skill-stated-vcs-is-definitive` (the driver's stated lane is not re-derived, and
+a harness banner does not win). Confirming they survive is the review's job, not
+a test's; recorded here as the producer's own reading.
+
 ## Notes
 
 The spec names a second review obligation this leaf's review is the natural home

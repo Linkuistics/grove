@@ -5,6 +5,7 @@
 # `GROVE_TEST_UPDATE_GOLDENS=1 cargo test --test methodology`.
 requirements	mandate-framing
 requirements	skill-what-a-grove-is
+requirements	skill-kind-routing
 requirements	skill-spine-constraints
 requirements	skill-working-tree
 requirements	skill-bare-grove-dispatch
@@ -63,6 +64,7 @@ requirements	driving-no-pre-baked-grilling
 requirements	skill-signal
 design	mandate-framing
 design	skill-what-a-grove-is
+design	skill-kind-routing
 design	skill-spine-constraints
 design	skill-working-tree
 design	skill-bare-grove-dispatch
@@ -117,6 +119,7 @@ design	task-deliverable-design
 design	skill-signal
 planning	mandate-framing
 planning	skill-what-a-grove-is
+planning	skill-kind-routing
 planning	skill-spine-constraints
 planning	skill-working-tree
 planning	skill-bare-grove-dispatch
@@ -171,6 +174,7 @@ planning	task-deliverable-planning
 planning	skill-signal
 prototype	mandate-framing
 prototype	skill-what-a-grove-is
+prototype	skill-kind-routing
 prototype	skill-spine-constraints
 prototype	skill-working-tree
 prototype	skill-bare-grove-dispatch
@@ -224,6 +228,7 @@ prototype	task-producer-prototype
 prototype	skill-signal
 impl	mandate-framing
 impl	skill-what-a-grove-is
+impl	skill-kind-routing
 impl	skill-spine-constraints
 impl	skill-working-tree
 impl	skill-bare-grove-dispatch
@@ -277,6 +282,7 @@ impl	task-producer-impl
 impl	skill-signal
 research-a	mandate-framing
 research-a	skill-what-a-grove-is
+research-a	skill-kind-routing
 research-a	skill-spine-constraints
 research-a	skill-working-tree
 research-a	skill-bare-grove-dispatch
@@ -330,6 +336,7 @@ research-a	task-research-pair
 research-a	skill-signal
 research-b	mandate-framing
 research-b	skill-what-a-grove-is
+research-b	skill-kind-routing
 research-b	skill-spine-constraints
 research-b	skill-working-tree
 research-b	skill-bare-grove-dispatch
@@ -383,6 +390,7 @@ research-b	task-research-pair
 research-b	skill-signal
 combine-research	mandate-framing
 combine-research	skill-what-a-grove-is
+combine-research	skill-kind-routing
 combine-research	skill-spine-constraints
 combine-research	skill-working-tree
 combine-research	skill-bare-grove-dispatch
@@ -436,6 +444,7 @@ combine-research	task-combine-research
 combine-research	skill-signal
 finish	mandate-framing
 finish	skill-what-a-grove-is
+finish	skill-kind-routing
 finish	skill-spine-constraints
 finish	skill-working-tree
 finish	skill-bare-grove-dispatch
@@ -490,6 +499,7 @@ finish	skill-finish-endings
 finish	task-finish-session
 review-requirements	mandate-framing
 review-requirements	skill-what-a-grove-is
+review-requirements	skill-kind-routing
 review-requirements	skill-spine-constraints
 review-requirements	skill-working-tree
 review-requirements	skill-bare-grove-dispatch
@@ -543,6 +553,7 @@ review-requirements	task-review-kinds
 review-requirements	skill-signal
 review-design	mandate-framing
 review-design	skill-what-a-grove-is
+review-design	skill-kind-routing
 review-design	skill-spine-constraints
 review-design	skill-working-tree
 review-design	skill-bare-grove-dispatch
@@ -596,6 +607,7 @@ review-design	task-review-kinds
 review-design	skill-signal
 review-planning	mandate-framing
 review-planning	skill-what-a-grove-is
+review-planning	skill-kind-routing
 review-planning	skill-spine-constraints
 review-planning	skill-working-tree
 review-planning	skill-bare-grove-dispatch
@@ -649,6 +661,7 @@ review-planning	task-review-kinds
 review-planning	skill-signal
 review-prototype	mandate-framing
 review-prototype	skill-what-a-grove-is
+review-prototype	skill-kind-routing
 review-prototype	skill-spine-constraints
 review-prototype	skill-working-tree
 review-prototype	skill-bare-grove-dispatch
@@ -702,6 +715,7 @@ review-prototype	task-review-kinds
 review-prototype	skill-signal
 review-impl	mandate-framing
 review-impl	skill-what-a-grove-is
+review-impl	skill-kind-routing
 review-impl	skill-spine-constraints
 review-impl	skill-working-tree
 review-impl	skill-bare-grove-dispatch
@@ -755,6 +769,7 @@ review-impl	task-review-kinds
 review-impl	skill-signal
 integrate-review-requirements	mandate-framing
 integrate-review-requirements	skill-what-a-grove-is
+integrate-review-requirements	skill-kind-routing
 integrate-review-requirements	skill-spine-constraints
 integrate-review-requirements	skill-working-tree
 integrate-review-requirements	skill-bare-grove-dispatch
@@ -808,6 +823,7 @@ integrate-review-requirements	task-integrate-review-kinds
 integrate-review-requirements	skill-signal
 integrate-review-design	mandate-framing
 integrate-review-design	skill-what-a-grove-is
+integrate-review-design	skill-kind-routing
 integrate-review-design	skill-spine-constraints
 integrate-review-design	skill-working-tree
 integrate-review-design	skill-bare-grove-dispatch
@@ -861,6 +877,7 @@ integrate-review-design	task-integrate-review-kinds
 integrate-review-design	skill-signal
 integrate-review-planning	mandate-framing
 integrate-review-planning	skill-what-a-grove-is
+integrate-review-planning	skill-kind-routing
 integrate-review-planning	skill-spine-constraints
 integrate-review-planning	skill-working-tree
 integrate-review-planning	skill-bare-grove-dispatch
@@ -914,6 +931,7 @@ integrate-review-planning	task-integrate-review-kinds
 integrate-review-planning	skill-signal
 integrate-review-prototype	mandate-framing
 integrate-review-prototype	skill-what-a-grove-is
+integrate-review-prototype	skill-kind-routing
 integrate-review-prototype	skill-spine-constraints
 integrate-review-prototype	skill-working-tree
 integrate-review-prototype	skill-bare-grove-dispatch
@@ -967,6 +985,7 @@ integrate-review-prototype	task-integrate-review-kinds
 integrate-review-prototype	skill-signal
 integrate-review-impl	mandate-framing
 integrate-review-impl	skill-what-a-grove-is
+integrate-review-impl	skill-kind-routing
 integrate-review-impl	skill-spine-constraints
 integrate-review-impl	skill-working-tree
 integrate-review-impl	skill-bare-grove-dispatch

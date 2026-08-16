@@ -1,6 +1,6 @@
 ---
 name: grove
-description: Use when driving a long, multi-session workstream that cannot be planned exhaustively upfront — work spanning many sessions and months where some steps are themselves planning steps — or when picking up or continuing a task tree under .grove/.
+description: Grove's methodology for driving a long, multi-session workstream as a VCS-tracked tree of task files under .grove/ — the loop, the nineteen session kinds, the conditions every session holds to, and the reference file each kind reads. Use when a Grove mandate names this skill; when running any session inside a grove working tree; or when starting, picking up, or continuing a task tree under .grove/.
 ---
 <!-- file: order=2 -->
 <!-- unit: skill-what-a-grove-is kinds=* class=triggering -->
@@ -11,6 +11,31 @@ A **grove** is one workstream driven as a VCS-tracked **tree of task files**,
 one task per session. Planning tasks grow the tree as understanding deepens;
 completed leaves are marked done in place. The tree's shape — the directory tree
 under `.grove/` — is the only state; the VCS holds the history.
+
+<!-- unit: skill-kind-routing kinds=* class=triggering -->
+## Read your kind's reference file first
+
+**The driver resolved your leaf and its kind before this session existed, so you
+select nothing here — open the one row your kind names, before you act.** Ten
+files serve the nineteen kinds; each path is relative to this skill's directory.
+
+| your session kind | read |
+|---|---|
+| `requirements` | `references/requirements.md` |
+| `design` | `references/design.md` |
+| `planning` | `references/planning.md` |
+| `prototype` | `references/prototype.md` |
+| `impl` | `references/impl.md` |
+| the five `review-*` kinds | `references/review.md` |
+| the five `integrate-review-*` kinds | `references/integrate-review.md` |
+| `research-a`, `research-b` | `references/research.md` |
+| `combine-research` | `references/combine-research.md` |
+| `finish` | `references/finish.md` |
+
+The rest of this file states **conditions** — what holds in every session, and
+which file carries the procedure for each. It is not an abridged methodology: a
+condition that applies to you is a pointer, and the steps live in the file it
+names.
 
 <!-- unit: skill-spine-constraints kinds=* class=triggering defers=skill-the-spine-in-full -->
 ## The spine — seven constraints
